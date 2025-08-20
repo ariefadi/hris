@@ -1,0 +1,449 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>HRis Trend Horizone</title>
+        <!-- Theme style -->
+        <link rel="stylesheet" href="{% static 'dist/css/adminlte.min.css' %}">
+        <link rel="stylesheet" href="{% static 'plugins/bootstrap-icons/bootstrap-icons.min.css' %}">
+        <!-- datables -->
+        <link rel="stylesheet" href="{% static 'plugins/datatables-bs4/css/dataTables.bootstrap4.min.css' %}">
+        <link rel="stylesheet" href="{% static 'plugins/datatables-responsive/css/responsive.bootstrap4.min.css' %}">
+        <link rel="stylesheet" href="{% static 'plugins/datatables-buttons/css/buttons.bootstrap4.min.css' %}">
+        <!-- FixedHeader CSS removed -->
+        <!-- DataTables FixedColumns -->
+        <link rel="stylesheet" href="{% static 'plugins/datatables-fixedcolumns/css/fixedColumns.bootstrap4.min.css' %}">
+        <!-- select2 -->
+        <link rel="stylesheet" href="{% static 'plugins/select2/css/select2.min.css' %}">
+        <link rel="stylesheet" href="{% static 'plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css' %}">
+        <!-- sweetalert -->
+        <link rel="stylesheet" href="{% static 'plugins/sweetalert2/sweetalert2.min.css' %}">
+        <!-- Datetime Picker -->
+        <!-- <link rel="stylesheet" href="{% static 'plugins/bootstrap-datepicker/css/datepicker.css' %}"> -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css" />
+        <!-- DataTables Responsive Custom CSS -->
+        <link rel="stylesheet" href="{% static 'css/datatable-responsive.css' %}">
+        <style>
+        /* FixedColumns CSS removed as requested */
+        </style>
+    </head>
+    <body class="hold-transition sidebar-mini">
+        <div class="wrapper">
+
+         <!-- Navbar -->
+        <nav class="main-header navbar navbar-expand navbar-white navbar-light">
+            <div class="container-fluid">
+            <!--begin::Start Navbar Links-->
+            <ul class="navbar-nav">
+                <li class="nav-item">
+                    <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="bi bi-list"></i></a>
+                </li>
+            </ul>
+            <!--end::Start Navbar Links-->
+            <!--begin::End Navbar Links-->
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item dropdown user-menu">
+                    <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
+                        <img src="{% static 'dist/assets/img/user2-160x160.jpg' %}" class="user-image rounded-circle shadow" alt="User Image"/>
+                        <span class="d-none d-md-inline">{{user.user_alias}}</span>
+                    </a>
+                </li>
+                <!--end::User Menu Dropdown-->
+            </ul>
+            <!--end::End Navbar Links-->
+            </div>
+        </nav>
+        <!-- /.navbar -->
+        <aside class="main-sidebar sidebar-dark-primary elevation-4">
+            <div class="sidebar-brand">
+                <!--begin::Brand Link-->
+                <a href="index2.html" class="brand-link">
+                    <!--begin::Brand Image-->
+                    <img src="{% static 'icon/png/trend_horizone.png' %}" alt="Trend Horizone Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
+                    <!--end::Brand Image-->
+                    <!--begin::Brand Text-->
+                    <span class="brand-text font-weight-light">HRis Trend Horizone</span>
+                    <!--end::Brand Text-->
+                </a>
+                <!--end::Brand Link-->
+            </div>
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Sidebar user panel (optional) -->
+                <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+                    <div class="image">
+
+                    </div>
+                    <div class="info ">
+
+                    </div>
+                </div>
+                <!-- Sidebar Menu -->
+                <nav class="mt-2">
+                    <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+                    <!-- Add icons to the links using the .nav-icon class with font-awesome or any other icon font library -->
+                    <li class="nav-item">
+                        <a href="{% url 'dashboard_admin' %}" 
+                            {% if '/dashboard' in request.path %}
+                                class="nav-link active"
+                            {% else %}
+                                class="nav-link"
+                            {% endif %}>
+                            <i class="bi bi-speedometer2"></i>
+                            <p>Dashboard</p>
+                        </a>
+                    </li>
+                    <li class="nav-item menu-open">
+                        <li class="nav-header">
+                            <b>USER MANAGEMENT</b>
+                        </li>
+                        <li class="nav-item">
+                            <a href="{% url 'data_user' %}"
+                                {% if '/data_user' in request.path %}
+                                    class="nav-link active"
+                                {% else %}
+                                    class="nav-link"
+                                {% endif %}>
+                                <i class="bi bi-people"></i>
+                                <p>User Data</p>
+                            </a>
+                        </li>
+                        <li {% if '/data_login_user' in request.path or '/schedule_activity' in request.path or '/master_plan' in request.path or '/mom_weekly_meeting' in request.path or '/weekly_report' in request.path %}
+                                class="nav-item menu-open"
+                            {% else %}
+                                class="nav-item"
+                            {% endif %}>
+                                <a href="#" 
+                                    {% if '/data_login_user' in request.path or '/schedule_activity' in request.path or '/master_plan' in request.path or '/mom_weekly_meeting' in request.path or '/weekly_report' in request.path %}
+                                        class="nav-link active"
+                                    {% else %}
+                                        class="nav-link"
+                                    {% endif %}>
+                                <i class="bi bi-activity"></i>
+                                <p>User Activity <i class="right bi bi-caret-left"></i></p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <li class="nav-item">
+                                        <a href="{% url 'data_login_user' %}"
+                                            {% if '/data_login_user' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
+                                            <i class="bi bi-circle"></i>
+                                            <p>Login Activity</p>
+                                        </a>
+                                    </li>  
+                                    <li class="nav-item">
+                                        <a href="#" 
+                                            {% if '/schedule_activity' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
+                                            <i class="bi bi-circle"></i>
+                                            <p>Schedule Activity</p>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a href="{% url 'master_plan' %}" 
+                                            {% if '/master_plan' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
+                                            <i class="bi bi-circle"></i>
+                                            <p>Master Plan</p>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a href="#" 
+                                            {% if '/mom_weekly_meeting' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
+                                            <i class="bi bi-circle"></i>
+                                            <p>MoM Weekly Meeting</p>
+                                        </a>
+                                    </li>  
+                                    <li class="nav-item">
+                                        <a href="#"  
+                                            {% if '/weekly_report' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
+                                            <i class="bi bi-circle"></i>
+                                            <p>Weekly Report</p>
+                                        </a>
+                                    </li>
+                                </li>
+                            </ul>
+                        </li>
+                    </li>
+                    <li class="nav-item menu-open">
+                        <li class="nav-header">
+                            <b>ANALYTICS DATA</b>
+                        </li>
+                        <li {% if '/adx_summary' in request.path or '/adx_account' in request.path or '/adx_traffic_account' in request.path or '/adx_traffic_campaign' in request.path or '/adx_traffic_country' in request.path %}
+                                class="nav-item menu-open"
+                            {% else %}
+                                class="nav-item"
+                            {% endif %}>
+                                <a href="#" 
+                                    {% if '/adx_summary' in request.path or '/adx_account' in request.path or '/adx_traffic_account' in request.path or '/adx_traffic_campaign' in request.path or '/adx_traffic_country' in request.path %}
+                                        class="nav-link active"
+                                    {% else %}
+                                        class="nav-link"
+                                    {% endif %}>
+                                <i class="bi bi-kanban"></i>
+                                <p>AdX Manager<i class="right bi bi-caret-left"></i></p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <li class="nav-item">
+                                        <a href="{% url 'adx_summary' %}" 
+                                            {% if '/adx_summary' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
+                                            <i class="bi bi-circle"></i>
+                                            <p>Summary AdX</p>
+                                        </a>
+                                    </li> 
+                                    <li class="nav-item">
+                                        <a href="{% url 'adx_account' %}" 
+                                            {% if '/adx_account' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
+                                            <i class="bi bi-circle"></i>
+                                            <p>Account Data</p>
+                                        </a>
+                                    </li> 
+                                    <li class="nav-item">
+                                        <a href="{% url 'adx_traffic_account' %}" 
+                                            {% if '/adx_traffic_account' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
+                                            <i class="bi bi-circle"></i>
+                                            <p>Traffic Per Account</p>
+                                        </a>
+                                    </li> 
+                                    <li class="nav-item">
+                                         <a href="{% url 'adx_traffic_campaign' %}" 
+                                            {% if '/adx_traffic_campaign' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
+                                            <i class="bi bi-circle"></i>
+                                            <p>Traffic Per Campaign</p>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a href="{% url 'adx_traffic_country' %}" 
+                                            {% if '/adx_traffic_country' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
+                                            <i class="bi bi-circle"></i>
+                                            <p>Traffic Per Country</p>
+                                        </a>
+                                    </li>
+                                </li>
+                            </ul>
+                        </li>
+                        <li class="nav-item">
+                                <li {% if '/summary_facebook' in request.path or '/account_facebook' in request.path or '/per_account_facebook' in request.path or '/per_campaign_facebook' in request.path or '/per_country_facebook' in request.path %}
+                                    class="nav-item menu-open"
+                                {% else %}
+                                    class="nav-item"
+                                {% endif %}>
+                                <a href="#" 
+                                    {% if '/summary_facebook' in request.path or '/account_facebook' in request.path or '/per_account_facebook' in request.path or '/per_campaign_facebook' in request.path or '/per_country_facebook' in request.path %}
+                                        class="nav-link active"
+                                    {% else %}
+                                        class="nav-link"
+                                    {% endif %}>
+                                <i class="bi bi-meta"></i>
+                                <p>Facebook Ads<i class="right bi bi-caret-left"></i></p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <li class="nav-item">
+                                        <a href="{% url 'summary_facebook' %}" 
+                                            {% if '/summary_facebook' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
+                                            <i class="bi bi-circle"></i>
+                                            <p>Summary Ads</p>
+                                        </a>
+                                    </li> 
+                                    <li class="nav-item">
+                                        <a href="{% url 'account_facebook' %}" 
+                                            {% if '/account_facebook' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
+                                            <i class="bi bi-circle"></i>
+                                            <p>Account Data</p>
+                                        </a>
+                                    </li>  
+                                    <li class="nav-item">
+                                        <a href="{% url 'per_account_facebook' %}" 
+                                            {% if '/per_account_facebook' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
+                                            <i class="bi bi-circle"></i>
+                                            <p>Triffic Per Account</p>
+                                        </a>
+                                    </li> 
+                                    <li class="nav-item">
+                                        <a href="{% url 'per_campaign_facebook' %}" 
+                                            {% if '/per_campaign_facebook' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
+                                            <i class="bi bi-circle"></i>
+                                            <p>Triffic Per Campaign</p>
+                                        </a>
+                                    </li> 
+                                    <li class="nav-item">
+                                       <a href="{% url 'per_country_facebook' %}" 
+                                            {% if '/per_country_facebook' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
+                                            <i class="bi bi-circle"></i>
+                                            <p>Triffic Per Country</p>
+                                        </a>
+                                    </li>
+                                </li>
+                            </ul>
+                        </li>
+                    </li>
+                    <li class="nav-item menu-open">
+                        <li class="nav-header">
+                            <b>REPORT DATA</b>
+                        </li>
+                        <li class="nav-item">
+                                <a href="#"class="nav-link">
+                                <i class="bi bi-cash-coin"></i>
+                                <p>Report ROI<i class="right bi bi-caret-left"></i></p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <li class="nav-item">
+                                        <a href="#" class="nav-link">
+                                            <i class="bi bi-circle"></i>
+                                            <p>All Recap</p>
+                                        </a>
+                                    </li>  
+                                    <li class="nav-item">
+                                         <a href="#" class="nav-link">
+                                            <i class="bi bi-circle"></i>
+                                            <p>Per Campaign</p>
+                                        </a>
+                                    </li>
+                                    <li class="nav-item">
+                                        <a href="#" class="nav-link">
+                                            <i class="bi bi-circle"></i>
+                                            <p>Per Country</p>
+                                        </a>
+                                    </li>
+                                </li>
+                            </ul>
+                        </li>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{% url 'admin_logout' %}"class="nav-link" >
+                            <i class="bi bi-box-arrow-left"></i>
+                            <p>LogOut</p>
+                        </a>
+                    </li>
+                </nav>
+                <!-- /.sidebar-menu -->
+            </div>
+            <!-- /.sidebar -->
+        </aside>
+        <!-- Content Wrapper. Contains page content -->
+        <div class="content-wrapper">
+            <!-- Content Header (Page header) -->
+            <div class="content-header">
+
+            </div>
+            <!-- /.content-header -->
+            <!-- Main content -->
+            <div class="content">
+            <div class="container-fluid">
+                {% block content %} {% endblock %}
+                <!-- /.row -->
+            </div><!-- /.container-fluid -->
+            </div>
+            <!-- /.content -->
+        </div>
+        <!-- /.content-wrapper -->
+
+        <!-- Control Sidebar -->
+        <aside class="control-sidebar control-sidebar-dark">
+            <!-- Control sidebar content goes here -->
+            <div class="p-3">
+            <h5>Title</h5>
+            <p>Sidebar content</p>
+            </div>
+        </aside>
+        <!-- /.control-sidebar -->
+
+        </div>
+        <!-- ./wrapper -->
+        <!-- REQUIRED SCRIPTS -->
+        <!-- jQuery -->
+        <script src="{% static 'plugins/jquery/jquery.min.js' %}"></script>
+        <script src="{% static 'plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
+        <!-- Select2 -->
+        <script src="{% static 'plugins/select2/js/select2.full.min.js' %}"></script>
+        <!-- DataTables  & Plugins -->
+        <script src="{% static 'plugins/datatables/jquery.dataTables.min.js' %}"></script>
+        <script src="{% static 'plugins/datatables-bs4/js/dataTables.bootstrap4.min.js' %}"></script>
+        <script src="{% static 'plugins/datatables-responsive/js/dataTables.responsive.min.js' %}"></script>
+        <script src="{% static 'plugins/datatables-responsive/js/responsive.bootstrap4.min.js' %}"></script>
+        <script src="{% static 'plugins/datatables-buttons/js/dataTables.buttons.min.js' %}"></script>
+        <script src="{% static 'plugins/datatables-buttons/js/buttons.bootstrap4.min.js' %}"></script>
+        <script src="{% static 'plugins/jszip/jszip.min.js' %}"></script>
+        <script src="{% static 'plugins/pdfmake/pdfmake.min.js' %}"></script>
+        <script src="{% static 'plugins/pdfmake/vfs_fonts.js' %}"></script>
+        <script src="{% static 'plugins/datatables-buttons/js/buttons.html5.min.js' %}"></script>
+        <script src="{% static 'plugins/datatables-buttons/js/buttons.print.min.js' %}"></script>
+        <script src="{% static 'plugins/datatables-buttons/js/buttons.colVis.min.js' %}"></script>
+        <!-- DataTables FixedHeader removed -->
+        <!-- DataTables FixedColumns -->
+        <script src="{% static 'plugins/datatables-fixedcolumns/js/dataTables.fixedColumns.min.js' %}"></script>
+        <!-- SweetAlert -->
+        <script src="{% static 'plugins/sweetalert2/sweetalert2.min.js' %}"></script>
+        <!-- Datetime Picker -->
+        <!-- <script src="{% static 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.js' %}"></script> -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
+        {% block more_scripts %} {% endblock %}
+        <!-- AdminLTE Bundle JS App -->
+        <script src="{% static 'dist/js/adminlte.min.js' %}"></script>
+        <!-- AdminLTE for demo purposes -->
+        <script src="{% static 'dist/js/demo.js' %}"></script>
+    </body>
+</html>

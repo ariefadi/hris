@@ -1,0 +1,212 @@
+/* DataTables Responsive CSS */
+/* Memastikan DataTables tidak melebar dari card-body dan responsive */
+
+/* Container untuk DataTables */
+.dataTables_wrapper {
+    width: 100% !important;
+    overflow-x: auto;
+    margin: 0;
+    padding: 0;
+}
+
+/* Tabel utama */
+.dataTables_wrapper .dataTable {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: auto;
+    border-collapse: collapse;
+    margin: 0 !important;
+}
+
+/* Scroll horizontal untuk tabel yang lebar */
+.dataTables_scrollX {
+    overflow-x: auto;
+    width: 100%;
+}
+
+.dataTables_scrollBody {
+    overflow-x: auto;
+    width: 100%;
+}
+
+/* Header dan footer controls */
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_filter,
+.dataTables_wrapper .dataTables_info,
+.dataTables_wrapper .dataTables_paginate {
+    margin: 10px 0;
+}
+
+/* Buttons container */
+.dataTables_wrapper .dt-buttons {
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.dataTables_wrapper .dt-buttons .btn {
+    margin: 2px;
+    font-size: 12px;
+    padding: 5px 10px;
+}
+
+/* Responsive untuk mobile */
+@media (max-width: 768px) {
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter {
+        text-align: center;
+        margin: 5px 0;
+    }
+    
+    .dataTables_wrapper .dataTables_filter input {
+        width: 100%;
+        max-width: 200px;
+    }
+    
+    .dataTables_wrapper .dt-buttons {
+        text-align: center;
+    }
+    
+    .dataTables_wrapper .dt-buttons .btn {
+        font-size: 11px;
+        padding: 4px 8px;
+        margin: 1px;
+    }
+    
+    .dataTables_wrapper .dataTables_paginate {
+        text-align: center;
+    }
+}
+
+/* Responsive untuk tablet */
+@media (max-width: 992px) {
+    .dataTables_wrapper .dataTable {
+        font-size: 13px;
+    }
+    
+    .dataTables_wrapper .dataTable th,
+    .dataTables_wrapper .dataTable td {
+        padding: 6px 4px;
+    }
+}
+
+/* Card body container */
+.card-body {
+    overflow-x: auto;
+    padding: 15px;
+}
+
+.card-body .dataTables_wrapper {
+    margin: 0;
+}
+
+/* Memastikan tabel tidak keluar dari container */
+.table-responsive-custom {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive-custom .dataTable {
+    min-width: 100%;
+    margin-bottom: 0;
+}
+
+/* Style untuk kolom yang kecil */
+.dataTables_wrapper .dataTable .text-center {
+    text-align: center !important;
+}
+
+.dataTables_wrapper .dataTable .btn-xs {
+    padding: 2px 6px;
+    font-size: 11px;
+    line-height: 1.2;
+}
+
+/* Responsive columns - hide pada layar kecil */
+@media (max-width: 576px) {
+    .dataTables_wrapper .dataTable .d-none-mobile {
+        display: none !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .dataTables_wrapper .dataTable .d-none-tablet {
+        display: none !important;
+    }
+}
+
+/* Loading state */
+.dataTables_wrapper .dataTables_processing {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 200px;
+    margin-left: -100px;
+    margin-top: -26px;
+    text-align: center;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+/* Pagination responsive */
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    padding: 6px 12px;
+    margin: 0 2px;
+    font-size: 12px;
+}
+
+@media (max-width: 576px) {
+    .dataTables_wrapper .dataTables_paginate .paginate_button {
+        padding: 4px 8px;
+        margin: 0 1px;
+        font-size: 11px;
+    }
+}
+
+/* Fix untuk overflow pada card */
+.card {
+    overflow: hidden;
+}
+
+.card .card-body {
+    overflow-x: auto;
+}
+
+/* Responsive table wrapper */
+.dt-responsive-table {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+}
+
+.dt-responsive-table .dataTable {
+    margin-bottom: 0;
+    border: 0;
+}
+
+/* Custom scrollbar untuk webkit browsers */
+.dataTables_scrollBody::-webkit-scrollbar,
+.dt-responsive-table::-webkit-scrollbar {
+    height: 8px;
+}
+
+.dataTables_scrollBody::-webkit-scrollbar-track,
+.dt-responsive-table::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.dataTables_scrollBody::-webkit-scrollbar-thumb,
+.dt-responsive-table::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+.dataTables_scrollBody::-webkit-scrollbar-thumb:hover,
+.dt-responsive-table::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}

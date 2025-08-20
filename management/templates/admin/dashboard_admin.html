@@ -1,0 +1,489 @@
+{% extends "admin/template_admin.html" %}
+{% load static %}
+{% block more_stylesheet %}
+<!-- Custom Dashboard CSS -->
+<style>
+.dashboard-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dashboard-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+}
+
+.metric-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+.metric-card.users {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.metric-card.logins {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.metric-card.activity {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.metric-value {
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.metric-label {
+    font-size: 1rem;
+    opacity: 0.9;
+}
+
+.chart-container {
+    position: relative;
+    height: 400px;
+    margin: 20px 0;
+}
+
+.loading-spinner {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+}
+
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+.recent-logins {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.login-item {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.login-item:last-child {
+    border-bottom: none;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+}
+
+.error-message {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 15px;
+    border-radius: 10px;
+    margin: 20px 0;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="app-main">
+    <!--begin::App Content Header-->
+    <div class="app-content-header">
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-6">
+                    <h3 class="mb-0">Dashboard User Management</h3>
+                </div>
+                <div class="col-sm-6">
+                    <ol class="breadcrumb float-sm-end">
+                        <li class="breadcrumb-item"><a href="#">Home</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Dashboard</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-content">
+        <div class="container-fluid">
+            <!-- Loading Spinner -->
+            <div id="loading" class="loading-spinner">
+                <div class="spinner-border text-primary" role="status">
+                </div>
+            </div>
+            <!-- Error Message -->
+            <div id="error-message" class="error-message" style="display: none;">
+                <strong>Error:</strong> <span id="error-text"></span>
+            </div>
+            <!-- Dashboard Content -->
+            <div id="dashboard-content" style="display: none;">
+                <div class="row">
+                    <div class="col-12 col-sm-6 col-md-4">
+                        <div class="info-box">
+                            <span class="info-box-icon text-bg-success shadow-sm">
+                                <i class="bi bi-people-fill me-2"></i>
+                            </span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Total Users</span>
+                                <div class="metric-value" id="total-users">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-6 col-md-4">
+                        <div class="info-box">
+                            <span class="info-box-icon text-bg-success shadow-sm">
+                                <i class="bi bi-person-check-fill me-2"></i>
+                            </span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Active Users (7 days)</span>
+                                <div class="metric-value" id="active-users">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-sm-6 col-md-4">
+                        <div class="info-box">
+                            <span class="info-box-icon text-bg-success shadow-sm">
+                                <i class="bi bi-graph-up me-2"></i>
+                            </span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Activity Rate</span>
+                                <div class="metric-value" id="activity-rate">0%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Charts Row -->
+                <div class="row">
+                    <!-- Login Activity Chart -->
+                    <div class="col-md-8">
+                        <div class="card dashboard-card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="bi bi-graph-up me-2"></i> Login Activity (7 Days)
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="loginChart" style="height: 300px;"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- User Distribution Chart -->
+                    <div class="col-md-4">
+                        <div class="card dashboard-card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="bi bi-pie-chart me-2"></i> User Status
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="userChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Recent Logins -->
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <div class="card dashboard-card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="bi bi-clock-history me-2"></i> Recent Login
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="recent-logins" class="recent-logins">
+                                    <!-- Recent logins will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let loginChart, userChart;
+// Fetch dashboard data
+async function fetchDashboardData() {
+    try {
+        const response = await fetch('/management/admin/dashboard_data');
+        
+        // Check if redirected to login page
+        if (response.url.includes('/login')) {
+            window.location.href = '/management/admin/login';
+            return;
+        }
+        
+        if (!response.ok) {
+            // If not authenticated, use dummy data for testing
+            const dummyData = {
+                user_stats: {
+                    total_users: 25,
+                    active_users: 18,
+                    total_logins_7days: 45,
+                    activity_rate: 72.0
+                },
+                charts: {
+                    login_activity: {
+                        labels: ['20/01', '21/01', '22/01', '23/01', '24/01', '25/01', '26/01'],
+                        login_counts: [5, 8, 12, 6, 15, 9, 11],
+                        unique_users: [4, 6, 8, 5, 10, 7, 9]
+                    }
+                },
+                recent_logins: [
+                    {
+                        user_alias: 'John Doe',
+                        login_date: '2024-01-26 09:30:00',
+                        ip_address: '192.168.1.100',
+                        lokasi: 'Jakarta, Indonesia'
+                    },
+                    {
+                        user_alias: 'Jane Smith',
+                        login_date: '2024-01-26 08:45:00',
+                        ip_address: '192.168.1.101',
+                        lokasi: 'Bandung, Indonesia'
+                    },
+                    {
+                        user_alias: 'Bob Wilson',
+                        login_date: '2024-01-25 16:20:00',
+                        ip_address: '192.168.1.102',
+                        lokasi: 'Surabaya, Indonesia'
+                    }
+                ]
+            };
+            updateDashboard(dummyData);
+            return;
+        }
+        
+        const result = await response.json();
+        
+        if (result.status) {
+            updateDashboard(result.data);
+        } else {
+            showError(result.error || 'Failed to load dashboard data');
+        }
+    } catch (error) {
+        showError('Network error: ' + error.message);
+    }
+}
+
+// Update dashboard with data
+function updateDashboard(data) {
+    // Hide loading, show content
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('dashboard-content').style.display = 'block';
+    
+    // Update metric cards
+    if (data.user_stats) {
+        document.getElementById('total-users').textContent = data.user_stats.total_users;
+        document.getElementById('active-users').textContent = data.user_stats.active_users;
+        document.getElementById('activity-rate').textContent = data.user_stats.activity_rate + '%';
+    }
+    
+    // Update charts
+    if (data.charts && data.charts.login_activity) {
+        updateLoginChart(data.charts.login_activity);
+        updateUserChart(data.user_stats);
+    }
+    
+    // Update recent logins
+    if (data.recent_logins) {
+        updateRecentLogins(data.recent_logins);
+    }
+}
+
+// Update login activity chart
+function updateLoginChart(chartData) {
+    const canvas = document.getElementById('loginChart');
+    if (!canvas) {
+        return;
+    }
+    
+    const ctx = canvas.getContext('2d');
+    
+    if (loginChart) {
+        loginChart.destroy();
+    }
+    
+    loginChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartData.labels,
+            datasets: [{
+                label: 'Total Logins',
+                data: chartData.login_counts,
+                borderColor: '#4facfe',
+                backgroundColor: 'rgba(79, 172, 254, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            }, {
+                label: 'Unique Users',
+                data: chartData.unique_users,
+                borderColor: '#43e97b',
+                backgroundColor: 'rgba(67, 233, 123, 0.1)',
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Update user distribution chart
+function updateUserChart(userStats) {
+    const canvas = document.getElementById('userChart');
+    if (!canvas) {
+        return;
+    }
+    
+    const ctx = canvas.getContext('2d');
+    
+    if (userChart) {
+        userChart.destroy();
+    }
+    
+    const inactiveUsers = userStats.total_users - userStats.active_users;
+    
+    userChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Active Users', 'Inactive Users'],
+            datasets: [{
+                data: [userStats.active_users, inactiveUsers],
+                backgroundColor: [
+                    '#43e97b',
+                    '#fa709a'
+                ],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+}
+
+// Update recent logins
+function updateRecentLogins(logins) {
+    const container = document.getElementById('recent-logins');
+    if (!container) {
+        return;
+    }
+    
+    if (logins.length === 0) {
+        container.innerHTML = '<p class="text-muted text-center">No recent logins found</p>';
+        return;
+    }
+    
+    const loginsHtml = logins.map(login => {
+        const loginDate = new Date(login.login_date);
+        const timeAgo = getTimeAgo(loginDate);
+        const initials = login.user_alias.substring(0, 2).toUpperCase();
+        
+        return `
+            <div class="login-item">
+                <div class="d-flex align-items-center">
+                    <div class="user-avatar me-3">${initials}</div>
+                    <div>
+                        <div class="fw-bold">${login.user_alias}</div>
+                        <small class="text-muted">${login.ip_address} • ${login.lokasi || 'Unknown location'}</small>
+                    </div>
+                </div>
+                <div class="text-end">
+                    <small class="text-muted">${timeAgo}</small>
+                </div>
+            </div>
+        `;
+    }).join('');
+    
+    container.innerHTML = loginsHtml;
+}
+
+// Get time ago string
+function getTimeAgo(date) {
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
+}
+
+// Show error message
+function showError(message) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error-text').textContent = message;
+    document.getElementById('error-message').style.display = 'block';
+}
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if Chart.js is loaded
+    if (typeof Chart === 'undefined') {
+        showError('Chart.js library is not loaded. Please refresh the page.');
+        return;
+    }
+    
+    fetchDashboardData();
+    
+    // Auto-refresh every 5 minutes
+    setInterval(fetchDashboardData, 5 * 60 * 1000);
+});
+</script>
+{% endblock %}

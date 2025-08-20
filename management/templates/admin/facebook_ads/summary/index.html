@@ -1,0 +1,139 @@
+{% extends "admin/template_admin.html" %}
+{% load static %}
+{% block more_stylesheet %}
+{% endblock %}
+{% block content %}  
+<style>
+  .dt-buttons {
+      margin-bottom: 20px;
+  }
+  #container {
+    min-width: 100%;
+    margin: 0 auto;
+    width: 1000px;
+    height: 600px;
+ }
+</style>
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Data Summary Facebook Ads</h3>
+    </div> <!-- /.card-header -->
+    <div class="card-body">
+        <div class="form-row">
+            <div class="col-md-3">
+                <label>Range Dari</label>
+                <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="{{ seven_days_ago }}" data-mask="9999-99-99" placeholder="Tanggal Dari"/>
+            </div>
+            <div class="col-md-3">
+                <label>Range Sampai</label>
+                 <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="{{ today }}" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
+            </div>
+            <div class="col-md-6">
+                <label>Filter Account</label>
+                <select class="form-control select2" id="select_account">
+                    <option value=""></option>
+                    {% for data_account in data_account %}
+                    <option value="{{data_account.account_ads_id}}">{{data_account.account_name|upper}} - ({{data_account.account_id}})</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div><!-- /.card-body -->
+</div>
+<div class="card">
+    <div class="card-header">
+        <div class="card-title d-flex justify-content-between align-items-center w-100">
+            <h3 class="card-title"><b><i class="bi bi-diagram-3""></i> Summary Facebook Ads (Ads)</b></h3>
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="overlay" 
+            style="
+                display: none;
+                position: fixed;
+                top: 0; left: 0;
+                width: 100%; height: 100%;
+                background: rgba(0,0,0,0.5);
+                z-index: 9999;
+                text-align: center;
+                color: white;
+                font-size: 2rem;
+                padding-top: 20%;">
+            <i class="fas fa fa-sync-alt fa-spin"></i> Menyiapkan Data ... 
+        </div>
+        <!-- Info boxes -->
+            <div class="row">
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon text-bg-primary shadow-sm">
+                            <i class="bi bi-calculator-fill""></i>
+                        </span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">Spend</span>
+                            <span class="info-box-number" id="spend">Rp. 0 </span>
+                        </div>
+                        <!-- /.info-box-content -->
+                    </div>
+                    <!-- /.info-box -->
+                </div>
+                <!-- /.col -->
+                <!-- fix for small devices only -->
+                <!-- <div class="clearfix hidden-md-up"></div> -->
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon text-bg-success shadow-sm">
+                            <i class="bi bi-badge-ad""></i>
+                        </span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">Click</span>
+                            <span class="info-box-number" id="clicks">0</span>
+                        </div>
+                        <!-- /.info-box-content -->
+                    </div>
+                    <!-- /.info-box -->
+                </div>
+                <!-- /.col -->
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon text-bg-danger shadow-sm">
+                            <i class="bi bi-box-arrow-in-up"></i>
+                        </span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">CPR</span>
+                            <span class="info-box-number" id="cpr">Rp. 0</span>
+                        </div>
+                        <!-- /.info-box-content -->
+                    </div>
+                    <!-- /.info-box -->
+                </div>
+                <!-- /.col -->
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon text-bg-warning shadow-sm">
+                            <i class="bi bi-box-arrow-in-down"></i>
+                        </span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">CPC</span>
+                            <span class="info-box-number" id="cpc">Rp. 0</span>
+                        </div>
+                        <!-- /.info-box-content -->
+                    </div>
+                    <!-- /.info-box -->
+                </div>
+                <!-- /.col -->
+            </div>
+        <div id="container-activity"></div>
+        <br>
+        <div id="container"></div>
+    </div>
+</div>
+{% endblock %}
+{% block more_scripts %}
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/modules/treemap.js"></script>
+<script src="https://code.highcharts.com/modules/treegraph.js"></script>
+<script src="https://code.highcharts.com/modules/exporting.js"></script>
+<script src="https://code.highcharts.com/modules/accessibility.js"></script>
+<script src="https://code.highcharts.com/themes/adaptive.js"></script>
+<script src="{% static 'ajax/admin/facebook_ads/summary.js'%}?v={%now 'u'%}"></script>
+{% endblock %}

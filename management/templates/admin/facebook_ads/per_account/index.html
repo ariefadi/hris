@@ -1,0 +1,230 @@
+{% extends "admin/template_admin.html" %}
+{% load static %}
+{% block more_stylesheet %}
+{% endblock %}
+{% block content %}  
+<style>
+  .dt-buttons {
+      margin-bottom: 20px;
+  }
+</style>
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Data Traffic Per Account</h3>
+    </div> <!-- /.card-header -->
+    <div class="card-body">
+        <div class="form-row">
+            <div class="col-md-4">
+                <label>Filter Account</label>
+                <select class="form-control select2" id="select_account">
+                    <option value=""></option>
+                    {% for data_account in data_account %}
+                    <option value="{{data_account.account_ads_id}}">{{data_account.account_name|upper}} - ({{data_account.account_id}})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label>Filter Tanggal</label>
+                <input class="form-control datepicker-input" type="text" id="tanggal" size="12" value="{{ today }}" data-mask="9999-99-99" placeholder="Tanggal"/>
+            </div>
+            <div class="col-md-5">
+                <label>Filter Sub Domain</label>
+                <select class="form-control select2" id="select_sub_domain">
+                    <option value=""></option>
+                    {% for data_campaign in data_campaign %}
+                    <option value="{{data_campaign.campaign_name}}">{{data_campaign.campaign_name|upper}}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div><!-- /.card-body -->
+</div>
+<div class="card">
+    <div class="card-header">
+        <div class="card-title d-flex justify-content-between align-items-center w-100">
+            <h3 class="card-title"><b><i class="bi bi-table"></i> Tabel Traffic Per Account (Ads)</b></h3>
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="overlay" 
+            style="
+                display: none;
+                position: fixed;
+                top: 0; left: 0;
+                width: 100%; height: 100%;
+                background: rgba(0,0,0,0.5);
+                z-index: 9999;
+                text-align: center;
+                color: white;
+                font-size: 2rem;
+                padding-top: 20%;">
+            <i class="fas fa fa-sync-alt fa-spin"></i> Menyiapkan Data ... 
+        </div>
+        <div class="dt-responsive-table">
+            <table id="table_data_per_account_facebook" class="table table-bordered" style="width: 100%;">
+            <thead>
+                <tr>
+                    <th class="text-center" style="font-size: 12px;" width="3%" >No</th>
+                    <th class="text-center" style="font-size: 12px;" width="12%">Nama Account</th>
+                    <th class="text-center" style="font-size: 12px;" width="13%">Nama Campaign</th>
+                    <th class="text-center" style="font-size: 12px;" width="8%">Status</th>
+                    <th class="text-center" style="font-size: 12px;" width="9%">Tanggal Mulai</th>
+                    <th class="text-center" style="font-size: 12px;" width="12%">Daily Budget <br> (Rp.)</th>
+                    <th class="text-center" style="font-size: 12px;" width="9%">Spend</th>
+                    <th class="text-center" style="font-size: 12px;" width="9%">Impressions</th>
+                    <th class="text-center" style="font-size: 12px;" width="9%">Reach</th>
+                    <th class="text-center" style="font-size: 12px;" width="9%">Clicks <br> <i>Hasil</i> </th>
+                    <th class="text-center" style="font-size: 12px;" width="9%">Frequency</th>
+                    <th class="text-center" style="font-size: 12px;" width="9%">CPR <br> ( Rp. )</th>
+                    <th class="text-center" style="font-size: 12px;" width="8%">
+                        Switch <br> Status
+                        <div class="mt-2">
+                            <div class="form-check form-switch d-flex justify-content-center">
+                                <input class="form-check-input" type="checkbox" id="headerSwitch" onchange="toggleAllCampaigns()">
+                            </div>
+                        </div>
+                     </th>
+                </tr>
+            </thead>
+            <tbody>
+
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="5" class="text-center" style="font-size: 14px;">Total</th>
+                    <th class="text-right" style="font-size: 12px;" id="total_budget"></th>
+                    <th class="text-right" style="font-size: 12px;" id="total_spend"></th>
+                    <th class="text-right" style="font-size: 12px;" id="total_impressions"></th>
+                    <th class="text-right" style="font-size: 12px;" id="total_reach"></th>
+                    <th class="text-right" style="font-size: 12px;" id="total_clicks"></th>
+                    <th class="text-right" style="font-size: 12px;" id="total_frequency"></th>
+                    <th class="text-right" style="font-size: 12px;" id="total_cpr"></th>
+                    <th colspan="1"></th>
+                </tr>
+            </tfoot>
+        </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block more_scripts %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" type="text/css" href="{% static 'css/datatable-responsive.css' %}">
+<style>
+        /* Custom CSS untuk freeze columns */
+        #table_data_per_account_facebook th,
+        #table_data_per_account_facebook td {
+            white-space: nowrap;
+            vertical-align: middle;
+            text-align: center;
+        }
+        
+        /* Freeze columns styling untuk FixedColumns 4.x */
+        .dt-scroll-head {
+            z-index: 1001 !important;
+        }
+        
+        .dt-scroll-head th {
+            background-color: #ffffff !important;
+            border-bottom: 2px solid #dee2e6 !important;
+        }
+        
+        .dtfc-fixed-left {
+            background-color: #f8f9fa !important;
+            border-right: 2px solid #dee2e6 !important;
+            z-index: 1000 !important;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1) !important;
+        }
+        
+        .dtfc-fixed-left th,
+        .dtfc-fixed-left td {
+            background-color: #f8f9fa !important;
+            border-right: 1px solid #dee2e6 !important;
+        }
+        
+        /* FixedColumns 4.x class names */
+        .dt-fixedcolumns-left {
+            background-color: #f8f9fa !important;
+            border-right: 2px solid #dee2e6 !important;
+            z-index: 1000 !important;
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1) !important;
+        }
+        
+        .dt-fixedcolumns-left th,
+        .dt-fixedcolumns-left td {
+            background-color: #f8f9fa !important;
+            border-right: 1px solid #dee2e6 !important;
+        }
+        
+        /* Memastikan container dan tabel menggunakan width 100% */
+        .card-body {
+            width: 100% !important;
+            overflow-x: auto;
+        }
+        
+        .dt-responsive-table {
+            width: 100% !important;
+        }
+        
+        #table_data_per_account_facebook {
+            width: 100% !important;
+            table-layout: auto;
+        }
+        
+        .dataTables_wrapper {
+            width: 100% !important;
+            overflow: visible !important;
+        }
+        
+        /* Perbaikan untuk header freeze */
+        .dataTables_scrollBody {
+            border-top: none !important;
+        }
+        
+        .dataTables_scrollHeadInner {
+            width: 100% !important;
+        }
+        
+        .dataTables_scrollHeadInner table {
+            width: 100% !important;
+        }
+        
+        /* Sinkronisasi lebar kolom */
+        .dtfc-fixed-left table {
+            border-collapse: separate !important;
+            border-spacing: 0 !important;
+        }
+        
+        /* Mengatasi masalah overlap */
+        .dtfc-fixed-left {
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1) !important;
+        }
+        
+        /* Konsistensi ukuran switch button */
+        .form-check-input {
+            width: 2em !important;
+            height: 1em !important;
+            transform: scale(0.8) !important;
+        }
+        
+        .form-switch .form-check-input {
+            width: 2em !important;
+            height: 1em !important;
+        }
+        
+        /* Ukuran khusus untuk switch di header */
+        #headerSwitch {
+            width: 2.8em !important;
+            height: 1.5em !important;
+            transform: scale(0.8) !important;
+        }
+        
+        /* Ukuran khusus untuk switch di row data */
+        td .form-switch .form-check-input {
+            width: 2em !important;
+            height: 1em !important;
+            transform: scale(0.8) !important;
+        }
+    </style>
+<script src="{% static 'ajax/admin/facebook_ads/per_account.js'%}?v={%now 'u'%}"></script>
+{% endblock %}

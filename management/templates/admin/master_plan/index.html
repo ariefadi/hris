@@ -1,0 +1,60 @@
+{% extends "admin/template_admin.html" %}
+{% load static %}
+{% block more_stylesheet %}
+{% endblock %}
+{% block content %}  
+<style>
+  .dt-buttons {
+      margin-bottom: 20px;
+  }
+</style>
+<div class="card">
+    <div class="card-header">
+        <div class="card-title d-flex justify-content-between align-items-center w-100">
+            <h3 class="card-title"><b><i class="bi bi-table"></i> Tabel Master Plan</b></h3>
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="overlay" 
+            style="
+                display: none;
+                position: fixed;
+                top: 0; left: 0;
+                width: 100%; height: 100%;
+                background: rgba(0,0,0,0.5);
+                z-index: 9999;
+                text-align: center;
+                color: white;
+                font-size: 2rem;
+                padding-top: 20%;">
+            <i class="fas fa fa-sync-alt fa-spin"></i> Menyiapkan Data ... 
+        </div>
+        <div class="dt-responsive-table">
+            <table id="table_data_master_plan" class="table table-bordered">
+            <thead>
+                <tr>
+                    <th class="text-center" width="3%">No</th>
+                    <th class="text-center" width="10%">Tanggal</th>
+                    <th class="text-center" width="5%">Code</th>
+                    <th class="text-center" width="5%">Kategori</th>
+                    <th class="text-center" width="25%">Tugas</th>
+                    <th class="text-center" width="10%">Submitted</th>
+                    <th class="text-center" width="10%">Assigment</th>
+                    <th class="text-center" width="5%">Urgency</th>
+                    <th class="text-center" width="10%">Status</th>
+                    <th class="text-center" width="22%">Catatan</th>
+                    <th class="text-center" width="5%">#</th>
+                </tr>
+            </thead>
+            <tbody>
+
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
+<script src="{% static 'ajax/admin/master_plan/master_plan.js'%}?v={%now 'u'%}"></script>
+{% endblock %}

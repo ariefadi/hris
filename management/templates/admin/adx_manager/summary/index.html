@@ -1,0 +1,192 @@
+{% extends "admin/template_admin.html" %}
+{% load static %}
+{% block more_stylesheet %}
+{% endblock %}
+{% block content %}  
+<style>
+  .dt-buttons {
+      margin-bottom: 20px;
+  }
+  #container {
+    min-width: 100%;
+    margin: 0 auto;
+    width: 1000px;
+    height: 600px;
+ }
+</style>
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">AdX Summary Dashboard</h3>
+    </div> <!-- /.card-header -->
+    <div class="card-body">
+        <div class="form-row">
+            <div class="col-md-4">
+                <label>Range Dari</label>
+                <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Dari"/>
+            </div>
+            <div class="col-md-4">
+                <label>Range Sampai</label>
+                 <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
+            </div>
+            <div class="col-md-4">
+                <label>&nbsp;</label>
+                <button type="button" class="btn btn-primary form-control" id="btn_load_data">
+                    <i class="fas fa-search"></i> Load Data
+                </button>
+            </div>
+        </div>
+    </div><!-- /.card-body -->
+</div>
+<div class="card">
+    <div class="card-header">
+        <div class="card-title d-flex justify-content-between align-items-center w-100">
+            <h3 class="card-title"><b><i class="bi bi-graph-up"></i> AdX Summary Data</b></h3>
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="overlay" 
+            style="
+                display: none;
+                position: fixed;
+                top: 0; left: 0;
+                width: 100%; height: 100%;
+                background: rgba(0,0,0,0.5);
+                z-index: 9999;
+                text-align: center;
+                color: white;
+                font-size: 2rem;
+                padding-top: 20%;">
+            <i class="fas fa fa-sync-alt fa-spin"></i> Menyiapkan Data ... 
+        </div>
+        <!-- Info boxes -->
+            <div class="row">
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon text-bg-primary shadow-sm">
+                            <i class="bi bi-eye-fill"></i>
+                        </span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">Impressions</span>
+                            <span class="info-box-number" id="impressions">0</span>
+                        </div>
+                        <!-- /.info-box-content -->
+                    </div>
+                    <!-- /.info-box -->
+                </div>
+                <!-- /.col -->
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon text-bg-success shadow-sm">
+                            <i class="bi bi-cursor-fill"></i>
+                        </span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">Clicks</span>
+                            <span class="info-box-number" id="clicks">0</span>
+                        </div>
+                        <!-- /.info-box-content -->
+                    </div>
+                    <!-- /.info-box -->
+                </div>
+                <!-- /.col -->
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon text-bg-warning shadow-sm">
+                            <i class="bi bi-currency-dollar"></i>
+                        </span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">Revenue</span>
+                            <span class="info-box-number" id="revenue">$0</span>
+                        </div>
+                        <!-- /.info-box-content -->
+                    </div>
+                    <!-- /.info-box -->
+                </div>
+                <!-- /.col -->
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon text-bg-danger shadow-sm">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">CTR</span>
+                            <span class="info-box-number" id="ctr">0%</span>
+                        </div>
+                        <!-- /.info-box-content -->
+                    </div>
+                    <!-- /.info-box -->
+                </div>
+                <!-- /.col -->
+            </div>
+            <div class="row">
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon text-bg-info shadow-sm">
+                            <i class="bi bi-server"></i>
+                        </span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">Requests</span>
+                            <span class="info-box-number" id="requests">0</span>
+                        </div>
+                        <!-- /.info-box-content -->
+                    </div>
+                    <!-- /.info-box -->
+                </div>
+                <!-- /.col -->
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon text-bg-secondary shadow-sm">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">Matched Requests</span>
+                            <span class="info-box-number" id="matched_requests">0</span>
+                        </div>
+                        <!-- /.info-box-content -->
+                    </div>
+                    <!-- /.info-box -->
+                </div>
+                <!-- /.col -->
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon text-bg-dark shadow-sm">
+                            <i class="bi bi-percent"></i>
+                        </span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">Match Rate</span>
+                            <span class="info-box-number" id="match_rate">0%</span>
+                        </div>
+                        <!-- /.info-box-content -->
+                    </div>
+                    <!-- /.info-box -->
+                </div>
+                <!-- /.col -->
+                <div class="col-12 col-sm-6 col-md-3">
+                    <div class="info-box">
+                        <span class="info-box-icon text-bg-light shadow-sm">
+                            <i class="bi bi-cash-coin"></i>
+                        </span>
+                        <div class="info-box-content">
+                            <span class="info-box-text">eCPM</span>
+                            <span class="info-box-number" id="ecpm">$0</span>
+                        </div>
+                        <!-- /.info-box-content -->
+                    </div>
+                    <!-- /.info-box -->
+                </div>
+                <!-- /.col -->
+            </div>
+        <div id="container-activity"></div>
+        <br>
+        <div id="container"></div>
+    </div>
+</div>
+{% endblock %}
+{% block more_scripts %}
+<script src="https://code.highcharts.com/highcharts.js"></script>
+<script src="https://code.highcharts.com/modules/treemap.js"></script>
+<script src="https://code.highcharts.com/modules/treegraph.js"></script>
+<script src="https://code.highcharts.com/modules/exporting.js"></script>
+<script src="https://code.highcharts.com/modules/accessibility.js"></script>
+<script src="https://code.highcharts.com/themes/adaptive.js"></script>
+<script src="{% static 'ajax/admin/adx_manager/summary.js'%}?v={%now 'u'%}"></script>
+{% endblock %}
