@@ -106,6 +106,91 @@ Sistem menggunakan Redis untuk caching Facebook API responses:
 - Revenue reporting
 - Traffic analytics
 
+## Google Ads & Ad Manager Configuration
+
+### 1. Google Ads API Setup
+
+1. **Create Google Cloud Project**:
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project or select existing one
+   - Enable Google Ads API
+
+2. **Create OAuth2 Credentials**:
+   - Go to APIs & Services > Credentials
+   - Create OAuth 2.0 Client ID (Desktop Application)
+   - Download the credentials JSON file
+
+3. **Get Refresh Token**:
+   ```bash
+   # Install Google Ads Python library
+   pip install google-ads
+   
+   # Generate refresh token using OAuth2 flow
+   python -c "from google.ads.googleads.oauth2 import get_refresh_token; get_refresh_token()"
+   ```
+
+4. **Set Environment Variables**:
+   ```bash
+   export GOOGLE_ADS_DEVELOPER_TOKEN="your-developer-token"
+   export GOOGLE_ADS_CLIENT_ID="your-client-id"
+   export GOOGLE_ADS_CLIENT_SECRET="your-client-secret"
+   export GOOGLE_ADS_REFRESH_TOKEN="your-refresh-token"
+   export GOOGLE_ADS_CUSTOMER_ID="your-customer-id"
+   ```
+
+### 2. Google Ad Manager Setup
+
+1. **Create Service Account**:
+   - Go to Google Cloud Console > IAM & Admin > Service Accounts
+   - Create new service account
+   - Download JSON key file
+
+2. **Grant Ad Manager Access**:
+   - Add service account email to your Ad Manager account
+   - Grant appropriate permissions (Admin or Report access)
+
+3. **Set Environment Variables**:
+   ```bash
+   export GOOGLE_AD_MANAGER_NETWORK_CODE="your-network-code"
+   export GOOGLE_AD_MANAGER_KEY_FILE="/path/to/service-account-key.json"
+   ```
+
+### 3. Configuration Files
+
+The `googleads.yaml` file uses environment variables for security:
+```yaml
+# OAuth2 credentials for installed application flow
+client_id: ${GOOGLE_ADS_CLIENT_ID}
+client_secret: ${GOOGLE_ADS_CLIENT_SECRET}
+refresh_token: ${GOOGLE_ADS_REFRESH_TOKEN}
+
+# Google Ads API configuration
+developer_token: ${GOOGLE_ADS_DEVELOPER_TOKEN}
+use_proto_plus: True
+
+# Ad Manager API configuration
+ad_manager:
+  application_name: 'AdX Manager Dashboard'
+  network_code: ${GOOGLE_AD_MANAGER_NETWORK_CODE}
+  path_to_private_key_file: ${GOOGLE_AD_MANAGER_KEY_FILE}
+```
+
+### 4. Troubleshooting
+
+**Error: "could not find some keys"**
+- Ensure all environment variables are set
+- Check `.env` file contains all required values
+- Verify `googleads.yaml` syntax is correct
+
+**Error: "Invalid refresh token"**
+- Regenerate refresh token using OAuth2 flow
+- Ensure client_id and client_secret match
+
+**Error: "Access denied"**
+- Check service account has proper Ad Manager permissions
+- Verify network_code is correct
+- Ensure service account key file path is accessible
+
 ## Development
 
 ### Project Structure

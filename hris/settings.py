@@ -56,9 +56,8 @@ AUTHENTICATION_BACKENDS = (
     'social_core.backends.google.GoogleOAuth2',
     'django.contrib.auth.backends.ModelBackend',
 )
-
-SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = os.getenv('GOOGLE_OAUTH2_CLIENT_ID', '')
-SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET', '')
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = os.getenv('GOOGLE_OAUTH2_KEY', 'your-google-oauth2-key-here')
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = os.getenv('GOOGLE_OAUTH2_SECRET', 'your-google-oauth2-secret-here')
 SOCIAL_AUTH_GOOGLE_OAUTH2_IGNORE_DEFAULT_SCOPE = True
 SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile', 'https://www.googleapis.com/auth/dfp', 'https://www.googleapis.com/auth/admanager', 'https://www.googleapis.com/auth/adsense.readonly']
 SOCIAL_AUTH_REDIRECT_IS_HTTPS = False
@@ -95,40 +94,8 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.load_extra_data',  # Load extra data termasuk refresh token
     'management.pipeline.validate_email_access',  # Validasi email di Ad Manager dan database
     'management.pipeline.set_hris_session',  # Set session setelah user dibuat
-    'social_core.pipeline.user.user_details',
-    'management.pipeline.save_profile',  # Optional profile save
-)
-_OAUTH2_AUTH_EXTRA_ARGUMENTS = {
-    'access_type': 'offline',
-    'approval_prompt': 'force'
-}
-
-GOOGLE_SCOPES = [
-    'https://www.googleapis.com/auth/dfp',
-    'https://www.googleapis.com/auth/admanager',
-    'https://www.googleapis.com/auth/adsense.readonly',
-]
-
-# Social Auth Error Handling
-SOCIAL_AUTH_RAISE_EXCEPTIONS = False
-SOCIAL_AUTH_LOGIN_ERROR_URL = '/management/admin/login'
-SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/management/admin/oauth_redirect'
-SOCIAL_AUTH_NEW_USER_REDIRECT_URL = '/management/admin/oauth_redirect'
-
-# OAuth Redirect URLs - harus sesuai dengan yang terdaftar di Google Console
-SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'http://127.0.0.1:8000/accounts/complete/google-oauth2/'
-
-SOCIAL_AUTH_PIPELINE = (
-    'social_core.pipeline.social_auth.social_details',
-    'social_core.pipeline.social_auth.social_uid',
-    'social_core.pipeline.social_auth.auth_allowed',
-    'social_core.pipeline.social_auth.social_user',
-    'social_core.pipeline.user.get_username',
-    'social_core.pipeline.user.create_user',
     'social_core.pipeline.social_auth.associate_user',
-    'social_core.pipeline.social_auth.load_extra_data',  # Load extra data termasuk refresh token
-    'management.pipeline.validate_email_access',  # Validasi email di Ad Manager dan database
-    'management.pipeline.set_hris_session',  # Set session setelah user dibuat
+    'social_core.pipeline.social_auth.load_extra_data',
     'social_core.pipeline.user.user_details',
     'management.pipeline.save_profile',  # Optional profile save
 )
