@@ -74,5 +74,4 @@ credentials.json
 db.sqlite3
 
 service-account-key.json
-test_raw_googleads.py
 hris/settings.py
