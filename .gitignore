@@ -69,3 +69,6 @@ yarn-error.log*
 config.json
 secrets.json
 credentials.json
+.env
+.env.example
+db.sqlite3
