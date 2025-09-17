@@ -10,7 +10,7 @@
 </style>
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title">Traffic AdX Per Negara</h3>
+        <h3 class="card-title">ROI Traffic Per Negara</h3>
     </div> <!-- /.card-header -->
     <div class="card-body">
         <div class="form-row">
@@ -59,7 +59,7 @@
         
         <!-- Summary Info boxes -->
         <div class="row" id="summary_boxes" style="display: none;">
-            <div class="col-12 col-sm-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-2">
                 <div class="info-box">
                     <span class="info-box-icon text-bg-primary shadow-sm">
                         <i class="bi bi-eye-fill"></i>
@@ -70,7 +70,18 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-2">
+                <div class="info-box">
+                    <span class="info-box-icon text-bg-info shadow-sm">
+                        <i class="bi bi-cash-stack"></i>
+                    </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Total Spend</span>
+                        <span class="info-box-number" id="total_spend">Rp 0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-2">
                 <div class="info-box">
                     <span class="info-box-icon text-bg-success shadow-sm">
                         <i class="bi bi-cursor-fill"></i>
@@ -81,18 +92,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-danger shadow-sm">
-                        <i class="bi bi-graph-up-arrow"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">CTR</span>
-                        <span class="info-box-number" id="total_ctr">0%</span>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-2">
                 <div class="info-box">
                     <span class="info-box-icon text-bg-warning shadow-sm">
                         <i class="bi bi-currency-dollar"></i>
@@ -103,30 +103,44 @@
                     </div>
                 </div>
             </div>
+            <div class="col-12 col-sm-6 col-md-2">
+                <div class="info-box">
+                    <span class="info-box-icon text-bg-danger shadow-sm">
+                        <i class="bi bi-graph-up-arrow"></i>
+                    </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">CTR</span>
+                        <span class="info-box-number" id="total_ctr">0%</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-2">
+                <div class="info-box">
+                    <span class="info-box-icon text-bg-secondary shadow-sm">
+                        <i class="bi bi-percent"></i>
+                    </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">ROI Rata-rata</span>
+                        <span class="info-box-number" id="average_roi">0%</span>
+                    </div>
+                </div>
+            </div>
         </div>
+        
         <!-- Charts Section -->
         <div class="row mt-3" id="charts_section" style="display: none;">
-            <div class="col-12 col-md-6">
+            <div class="col-12 col-md-12 mx-auto">
                 <div class="card">
                     <div class="card-header">
-                        <h4 class="card-title"><i class="bi bi-bar-chart"></i> Top 10 Negara berdasarkan Total Impresi</h4>
+                        <h4 class="card-title"><i class="bi bi-bar-chart"></i> Top 10 Negara berdasarkan ROI</h4>
                     </div>
                     <div class="card-body">
-                        <canvas id="impressionsChart" width="400" height="200"></canvas>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h4 class="card-title"><i class="bi bi-pie-chart"></i> Top 10 Total Pendapatan Negara Tertinggi</h4>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="revenueChart" width="400" height="200"></canvas>
+                        <canvas id="roiChart" width="400" height="100"></canvas>
                     </div>
                 </div>
             </div>
         </div>
+        
         <!-- Data Table -->
         <div class="dt-responsive-table mt-3">
             <table id="table_traffic_country" class="table table-bordered table-striped" style="width:100%">
@@ -135,10 +149,12 @@
                         <th>Negara</th>
                         <th>Kode Negara</th>
                         <th>Impresi</th>
+                        <th>Spend</th>
                         <th>Klik</th>
                         <th>CTR (%)</th>
                         <th>CPC</th>
                         <th>eCPM</th>
+                        <th>ROI (%)</th>
                         <th>Pendapatan</th>
                     </tr>
                 </thead>
@@ -152,5 +168,5 @@
 {% block more_scripts %}
 <!-- Chart.js Library -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{% static 'ajax/admin/adx_manager/traffic_country.js'%}?v={%now 'U'%}"></script>
+<script src="{% static 'ajax/admin/report_roi/per_country.js'%}?v={%now 'U'%}"></script>
 {% endblock %}

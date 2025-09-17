@@ -23,8 +23,8 @@
                  <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
             </div>
             <div class="col-md-4">
-                <label>Filter Campaign</label>
-                <input class="form-control" type="text" id="campaign_filter" placeholder="Filter by campaign or order name"/>
+                <label>Filter Situs</label>
+                <input class="form-control" type="text" id="site_filter" placeholder="Filter by site name"/>
             </div>
             <div class="col-md-2">
                 <label>&nbsp;</label>
@@ -61,17 +61,6 @@
         <div class="row" id="summary_boxes" style="display: none;">
             <div class="col-12 col-sm-6 col-md-2">
                 <div class="info-box">
-                    <span class="info-box-icon text-bg-primary shadow-sm">
-                        <i class="bi bi-eye-fill"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Total Impressions</span>
-                        <span class="info-box-number" id="total_impressions">0</span>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-2">
-                <div class="info-box">
                     <span class="info-box-icon text-bg-success shadow-sm">
                         <i class="bi bi-cursor-fill"></i>
                     </span>
@@ -95,22 +84,22 @@
             <div class="col-12 col-sm-6 col-md-2">
                 <div class="info-box">
                     <span class="info-box-icon text-bg-info shadow-sm">
-                        <i class="bi bi-server"></i>
+                        <i class="bi bi-calculator"></i>
                     </span>
                     <div class="info-box-content">
-                        <span class="info-box-text">Total Requests</span>
-                        <span class="info-box-number" id="total_requests">0</span>
+                        <span class="info-box-text">Avg CPC</span>
+                        <span class="info-box-number" id="avg_cpc">$0</span>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-md-2">
                 <div class="info-box">
-                    <span class="info-box-icon text-bg-secondary shadow-sm">
-                        <i class="bi bi-check-circle-fill"></i>
+                    <span class="info-box-icon text-bg-primary shadow-sm">
+                        <i class="bi bi-bar-chart-fill"></i>
                     </span>
                     <div class="info-box-content">
-                        <span class="info-box-text">Matched Requests</span>
-                        <span class="info-box-number" id="total_matched_requests">0</span>
+                        <span class="info-box-text">Avg eCPM</span>
+                        <span class="info-box-number" id="avg_ecpm">$0</span>
                     </div>
                 </div>
             </div>
@@ -120,8 +109,19 @@
                         <i class="bi bi-graph-up-arrow"></i>
                     </span>
                     <div class="info-box-content">
-                        <span class="info-box-text">CTR</span>
-                        <span class="info-box-number" id="total_ctr">0%</span>
+                        <span class="info-box-text">Avg CTR</span>
+                        <span class="info-box-number" id="avg_ctr">0%</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-2">
+                <div class="info-box">
+                    <span class="info-box-icon text-bg-secondary shadow-sm">
+                        <i class="bi bi-building"></i>
+                    </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Total Sites</span>
+                        <span class="info-box-number" id="total_sites">0</span>
                     </div>
                 </div>
             </div>
@@ -132,16 +132,13 @@
             <table id="table_traffic_campaign" class="table table-bordered table-striped" style="width:100%">
                 <thead>
                     <tr>
-                        <th>Order Name</th>
-                        <th>Line Item</th>
-                        <th>Impressions</th>
-                        <th>Clicks</th>
-                        <th>Revenue</th>
-                        <th>Requests</th>
-                        <th>Matched Requests</th>
-                        <th>CTR (%)</th>
-                        <th>Match Rate (%)</th>
+                        <th>Situs</th>
+                        <th>Tanggal</th>
+                        <th>Total Klik</th>
+                        <th>Total Pendapatan</th>
+                        <th>CPC Ad Exchange</th>
                         <th>eCPM</th>
+                        <th>CTR (%)</th>
                     </tr>
                 </thead>
                 <tbody>

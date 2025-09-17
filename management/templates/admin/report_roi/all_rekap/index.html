@@ -16,7 +16,7 @@
 </style>
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title">AdX Summary Dashboard</h3>
+        <h3 class="card-title">ROI Summary Dashboard</h3>
     </div> <!-- /.card-header -->
     <div class="card-body">
         <div class="form-row">
@@ -43,7 +43,7 @@
 <div class="card">
     <div class="card-header">
         <div class="card-title d-flex justify-content-between align-items-center w-100">
-            <h3 class="card-title"><b><i class="bi bi-graph-up"></i> AdX Summary Data</b></h3>
+            <h3 class="card-title"><b><i class="bi bi-graph-up"></i> ROI Summary Data</b></h3>
         </div>
     </div>
     <div class="card-body">
@@ -76,23 +76,23 @@
             </div>
             <div class="col-12 col-sm-6 col-md-3">
                 <div class="info-box">
-                    <span class="info-box-icon text-bg-info shadow-sm">
-                        <i class="bi bi-cash-coin"></i>
+                    <span class="info-box-icon text-bg-danger shadow-sm">
+                        <i class="bi bi-credit-card"></i>
                     </span>
                     <div class="info-box-content">
-                        <span class="info-box-text">Rata-rata CPC</span>
-                        <span class="info-box-number" id="avg_cpc">$0</span>
+                        <span class="info-box-text">Total Spend</span>
+                        <span class="info-box-number" id="total_spend">Rp 0</span>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-md-3">
                 <div class="info-box">
-                    <span class="info-box-icon text-bg-danger shadow-sm">
-                        <i class="bi bi-graph-up-arrow"></i>
+                    <span class="info-box-icon text-bg-primary shadow-sm">
+                        <i class="bi bi-percent"></i>
                     </span>
                     <div class="info-box-content">
-                        <span class="info-box-text">Rata-rata CTR</span>
-                        <span class="info-box-number" id="avg_ctr">0%</span>
+                        <span class="info-box-text">ROI Nett</span>
+                        <span class="info-box-number" id="roi_nett">0%</span>
                     </div>
                 </div>
             </div>
@@ -108,15 +108,15 @@
                 </div>
             </div>
         </div>
-        <!-- Line Chart untuk Pergerakan Pendapatan Harian -->
-        <div class="row mt-3">
+        <!-- Chart Traffic ROI Harian -->
+        <div class="row mt-3" id="charts_section" style="display: none;">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
-                        <h3 class="card-title"><i class="bi bi-graph-up"></i> Chart Pergerakan Pendapatan Harian</h3>
+                        <h3 class="card-title"><i class="bi bi-bar-chart"></i> Traffic ROI Harian</h3>
                     </div>
                     <div class="card-body">
-                        <div id="revenue_chart" style="height: 400px;"></div>
+                        <canvas id="chart_roi_daily" style="max-height: 400px;"></canvas>
                     </div>
                 </div>
             </div>
@@ -126,7 +126,7 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
-                        <h4 class="card-title"><i class="bi bi-calendar-day"></i> Data Traffic Hari Ini</h4>
+                        <h4 class="card-title"><i class="bi bi-calendar-day"></i> Data Traffic ROI Hari Ini</h4>
                     </div>
                     <div class="card-body">
                         <div class="row">
@@ -136,8 +136,8 @@
                                         <i class="bi bi-eye-fill"></i>
                                     </span>
                                     <div class="info-box-content">
-                                        <span class="info-box-text">Impresi Hari Ini</span>
-                                        <span class="info-box-number" id="today_impressions">0</span>
+                                        <span class="info-box-text">Spend Hari Ini</span>
+                                        <span class="info-box-number" id="today_spend">0</span>
                                     </div>
                                 </div>
                             </div>
@@ -155,11 +155,11 @@
                             <div class="col-12 col-sm-6 col-md-3">
                                 <div class="info-box">
                                     <span class="info-box-icon text-bg-info shadow-sm">
-                                        <i class="bi bi-percent"></i>
+                                        <i class="bi bi-graph-up-arrow"></i>
                                     </span>
                                     <div class="info-box-content">
-                                        <span class="info-box-text">CTR Hari Ini</span>
-                                        <span class="info-box-number" id="today_ctr">0%</span>
+                                        <span class="info-box-text">ROI Hari Ini</span>
+                                        <span class="info-box-number" id="today_roi">0%</span>
                                     </div>
                                 </div>
                             </div>
@@ -179,31 +179,6 @@
                 </div>
             </div>
         </div>
-        <!-- Charts Section -->
-        <div class="row mt-3" id="charts_section" style="display: none;">
-            <!-- Card: Total Impresi -->
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title"><i class="bi bi-bar-chart-line"></i> Top 10 Negara - Total Impresi</h3>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="impressionsChart" width="400" height="200"></canvas>
-                    </div>
-                </div>
-            </div>
-            <!-- Card: Total Pendapatan -->
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title"><i class="bi bi-pie-chart"></i> Top 10 Negara - Total Pendapatan</h3>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="revenueChart" width="400" height="200"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 </div>
 {% endblock %}
@@ -217,13 +192,15 @@
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
 <script>
-    // Ensure Highcharts is loaded before loading our custom script
+    // Ensure both Chart.js and Highcharts are loaded before loading our custom script
     function loadSummaryScript() {
-        if (typeof Highcharts !== 'undefined') {
+        if (typeof Chart !== 'undefined' && typeof Highcharts !== 'undefined') {
+            console.log('Chart.js and Highcharts loaded successfully');
             var script = document.createElement('script');
-            script.src = '{% static "ajax/admin/adx_manager/summary.js" %}?v={%now "u"%}';
+            script.src = '{% static "ajax/admin/report_roi/all_rekap.js" %}?v={%now "u"%}';
             document.head.appendChild(script);
         } else {
+            console.log('Waiting for Chart.js and Highcharts to load...');
             setTimeout(loadSummaryScript, 100);
         }
     }

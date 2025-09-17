@@ -14,9 +14,19 @@
     </div> <!-- /.card-header -->
     <div class="card-body">
         <div class="form-row">
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <button type="button" class="btn btn-primary" id="btn_load_data">
                     <i class="fas fa-sync"></i> Refresh Account Data
+                </button>
+            </div>
+            <div class="col-md-4">
+                <button type="button" class="btn btn-success" id="btn_generate_refresh_token">
+                    <i class="fas fa-key"></i> Generate Refresh Token
+                </button>
+            </div>
+            <div class="col-md-4">
+                <button type="button" class="btn btn-info" id="btn_oauth_setup" data-toggle="modal" data-target="#oauthModal">
+                    <i class="fas fa-cog"></i> OAuth Setup
                 </button>
             </div>
         </div>
@@ -103,7 +113,52 @@
                     </div>
                     <div class="card-body">
                         <div id="account_details">
-                            <p class="text-muted">Click "Refresh Account Data" to load account information.</p>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5><i class="bi bi-person"></i> User Information</h5>
+                                    <table class="table table-sm table-borderless">
+                                        <tr>
+                                            <td><strong>Email:</strong></td>
+                                            <td id="user_email">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>User ID:</strong></td>
+                                            <td id="user_id">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>User Name:</strong></td>
+                                            <td id="user_name">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Role:</strong></td>
+                                            <td id="user_role">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Active:</strong></td>
+                                            <td id="user_is_active">-</td>
+                                        </tr>
+                                    </table>
+                                </div>
+                                <div class="col-md-6">
+                                    <h5><i class="bi bi-bar-chart"></i> Account Statistics</h5>
+                                    <table class="table table-sm table-borderless">
+                                        <tr>
+                                            <td><strong>Active Ad Units:</strong></td>
+                                            <td id="active_ad_units_count">-</td>
+                                        </tr>
+                                        <tr>
+                                            <td><strong>Last Updated:</strong></td>
+                                            <td id="last_updated">-</td>
+                                        </tr>
+                                    </table>
+                                    <div id="additional_info" class="mt-3">
+                                        <!-- Additional information will be loaded here -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="alert alert-info mt-3" id="data_note" style="display: none;">
+                                <i class="bi bi-info-circle"></i> <span id="note_text"></span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -111,6 +166,57 @@
         </div>
     </div>
 </div>
+
+<!-- OAuth Setup Modal -->
+<div class="modal fade" id="oauthModal" tabindex="-1" role="dialog" aria-labelledby="oauthModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="oauthModalLabel">
+                    <i class="fas fa-cog"></i> OAuth Credentials Setup
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="oauthForm">
+                    <div class="form-group">
+                        <label for="client_id">Client ID:</label>
+                        <input type="text" class="form-control" id="client_id" name="client_id" 
+                               placeholder="Masukkan Google OAuth Client ID" required>
+                        <small class="form-text text-muted">
+                            Client ID dari Google Cloud Console
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="client_secret">Client Secret:</label>
+                        <input type="password" class="form-control" id="client_secret" name="client_secret" 
+                               placeholder="Masukkan Google OAuth Client Secret" required>
+                        <small class="form-text text-muted">
+                            Client Secret dari Google Cloud Console
+                        </small>
+                    </div>
+                    <div class="form-group">
+                        <label for="oauth_user_email">Email Account:</label>
+                        <input type="email" class="form-control" id="oauth_user_email" name="user_email" 
+                               placeholder="Email akun yang akan digunakan" required>
+                        <small class="form-text text-muted">
+                            Email akun Google yang memiliki akses ke AdX
+                        </small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="btn_save_oauth">
+                    <i class="fas fa-save"></i> Save OAuth Credentials
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 {% block more_scripts %}
 <script src="{% static 'ajax/admin/adx_manager/account.js'%}?v={%now 'u'%}"></script>

@@ -189,17 +189,17 @@
                         <li class="nav-header">
                             <b>ANALYTICS DATA</b>
                         </li>
-                        <li {% if '/adx_summary' in request.path or '/adx_account' in request.path or '/adx_traffic_account' in request.path or '/adx_traffic_campaign' in request.path or '/adx_traffic_country' in request.path %}
+                        <li {% if '/adx_summary' in request.path or '/adx_account' in request.path or '/adx_traffic_account' in request.path or '/adx_traffic_country' in request.path %}
                                 class="nav-item menu-open"
                             {% else %}
                                 class="nav-item"
                             {% endif %}>
-                                <a href="#" 
-                                    {% if '/adx_summary' in request.path or '/adx_account' in request.path or '/adx_traffic_account' in request.path or '/adx_traffic_campaign' in request.path or '/adx_traffic_country' in request.path %}
-                                        class="nav-link active"
-                                    {% else %}
-                                        class="nav-link"
-                                    {% endif %}>
+                            <a href="#" 
+                                {% if '/adx_summary' in request.path or '/adx_account' in request.path or '/adx_traffic_account' in request.path or '/adx_traffic_country' in request.path %}
+                                    class="nav-link active"
+                                {% else %}
+                                    class="nav-link"
+                                {% endif %}>
                                 <i class="bi bi-kanban"></i>
                                 <p>AdX Manager<i class="right bi bi-caret-left"></i></p>
                             </a>
@@ -239,19 +239,71 @@
                                         </a>
                                     </li> 
                                     <li class="nav-item">
-                                         <a href="{% url 'adx_traffic_campaign' %}" 
-                                            {% if '/adx_traffic_campaign' in request.path %}
+                                        <a href="{% url 'adx_traffic_country' %}" 
+                                            {% if '/adx_traffic_country' in request.path %}
                                                 class="nav-link active"
                                             {% else %}
                                                 class="nav-link"
                                             {% endif %}>
                                             <i class="bi bi-circle"></i>
-                                            <p>Traffic Per Campaign</p>
+                                            <p>Traffic Per Country</p>
                                         </a>
                                     </li>
+                                </li>
+                            </ul>
+                        </li>
+                        <li {% if '/adsense_summary' in request.path or '/adsense_account' in request.path or '/adsense_traffic_account' in request.path or '/adsense_traffic_country' in request.path %}
+                                class="nav-item menu-open"
+                            {% else %}
+                                class="nav-item"
+                            {% endif %}>
+                                <a href="#" 
+                                    {% if '/adsense_summary' in request.path or '/adsense_account' in request.path or '/adsense_traffic_account' in request.path or '/adsense_traffic_country' in request.path %}
+                                        class="nav-link active"
+                                    {% else %}
+                                        class="nav-link"
+                                    {% endif %}>
+                                <i class="bi bi-headset-vr"></i>
+                                <p>Adsense Manager <i class="right bi bi-caret-left"></i></p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
                                     <li class="nav-item">
-                                        <a href="{% url 'adx_traffic_country' %}" 
-                                            {% if '/adx_traffic_country' in request.path %}
+                                        <a href="#"
+                                            {% if '/adsense_summary' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
+                                            <i class="bi bi-circle"></i>
+                                            <p>Summary Adsense</p>
+                                        </a>
+                                    </li> 
+                                    <li class="nav-item">
+                                        <a href="#"  
+                                            {% if '/adsense_account' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
+                                            <i class="bi bi-circle"></i>
+                                            <p>Account Data</p>
+                                        </a>
+                                    </li> 
+                                    <li class="nav-item">
+                                        <a href="{% url 'adsense_traffic_account' %}" 
+                                            {% if '/adsense_traffic_account' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
+                                            <i class="bi bi-circle"></i>
+                                            <p>Traffic Per Account</p>
+                                        </a>
+                                    </li> 
+                                    <li class="nav-item">
+                                        <a href="#" 
+                                            {% if '/adsense_traffic_country' in request.path %}
                                                 class="nav-link active"
                                             {% else %}
                                                 class="nav-link"
@@ -343,27 +395,51 @@
                         <li class="nav-header">
                             <b>REPORT DATA</b>
                         </li>
-                        <li class="nav-item">
-                                <a href="#"class="nav-link">
+                        <li {% if '/roi_traffic_domain' in request.path or '/roi_traffic_country' in request.path or '/roi_summary' in request.path %}
+                                class="nav-item menu-open"
+                            {% else %}
+                                class="nav-item"
+                            {% endif %}>
+                            <a href="#" 
+                                {% if '/roi_traffic_domain' in request.path or '/roi_traffic_country' in request.path or '/roi_summary' in request.path %}
+                                    class="nav-link active"
+                                {% else %}
+                                    class="nav-link"
+                                {% endif %}>
                                 <i class="bi bi-cash-coin"></i>
                                 <p>Report ROI<i class="right bi bi-caret-left"></i></p>
                             </a>
                             <ul class="nav nav-treeview">
                                 <li class="nav-item">
                                     <li class="nav-item">
-                                        <a href="#" class="nav-link">
+                                        <a href="{% url 'roi_summary' %}" 
+                                            {% if '/roi_summary' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
                                             <i class="bi bi-circle"></i>
-                                            <p>All Recap</p>
+                                            <p>Summary ROI</p>
                                         </a>
                                     </li>  
                                     <li class="nav-item">
-                                         <a href="#" class="nav-link">
+                                         <a href="{% url 'roi_traffic_domain' %}" 
+                                            {% if '/roi_traffic_domain' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
                                             <i class="bi bi-circle"></i>
-                                            <p>Per Campaign</p>
+                                            <p>Per Domain</p>
                                         </a>
                                     </li>
                                     <li class="nav-item">
-                                        <a href="#" class="nav-link">
+                                        <a href="{% url 'roi_traffic_country' %}" 
+                                            {% if '/roi_traffic_country' in request.path %}
+                                                class="nav-link active"
+                                            {% else %}
+                                                class="nav-link"
+                                            {% endif %}>
                                             <i class="bi bi-circle"></i>
                                             <p>Per Country</p>
                                         </a>

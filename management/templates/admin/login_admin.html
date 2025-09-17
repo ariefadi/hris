@@ -62,6 +62,15 @@
             <div class="card">
                 <div class="card-body login-card-body">
                 <p class="login-box-msg"><b>Login Admin</b></p>
+                
+                <!-- OAuth Error Message -->
+                {% if request.session.oauth_error %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <strong>Login OAuth Gagal:</strong> {{ request.session.oauth_error }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endif %}
+                
                 <form>{% csrf_token %}
                     <div class="input-group mb-3">
                         <input class="form-control" type="text" placeholder="Username" name="username">
@@ -74,7 +83,7 @@
                     <!--begin::Row-->
                     <div class="row">
                     <div class="col-8">
-                        <a href="/accounts/login/google-oauth2/" class="btn btn-outline-danger">
+                        <a href="{% url 'social:begin' 'google-oauth2' %}" class="btn btn-outline-danger">
                             <i class="bi bi-google"></i> Login dengan Google
                         </a>
                     </div>
