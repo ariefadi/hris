@@ -258,7 +258,7 @@ function load_user_data(user_id) {
         url: '/management/admin/get_user_by_id/' + user_id,
         type: 'GET',
         success: function(response) {
-            if (response.status) {
+            if (response && response.status) {
                 var user = response.data;
                 $('#user_id_edit').val(user.user_id);
                 $('#user_alias_edit').val(user.user_alias);
@@ -328,7 +328,7 @@ function update_user_data() {
         contentType: false,
         dataType: "json",
         success: function(response) {
-            if (response.status) {
+            if (response && response.status) {
                 Swal.fire({
                     icon: 'success',
                     title: 'Berhasil!',
