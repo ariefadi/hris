@@ -27,6 +27,28 @@ $().ready(function () {
         load_adx_account_data();
     });
     
+    $('#btn_generate_refresh_token').click(function (e) {
+        e.preventDefault();
+        generateRefreshToken();
+    });
+    
+    $('#btn_oauth_setup').click(function (e) {
+        e.preventDefault();
+        
+        // Auto-fill user email from current user data
+        var currentUserEmail = $('#user_email').text();
+        if (currentUserEmail && currentUserEmail !== '-') {
+            $('#oauth_user_email').val(currentUserEmail);
+        }
+        
+        $('#oauthModal').modal('show');
+    });
+    
+    $('#btn_save_oauth').click(function (e) {
+        e.preventDefault();
+        saveOAuthCredentials();
+    });
+    
     // Auto load data on page load
     load_adx_account_data();
 });
@@ -35,7 +57,7 @@ function load_adx_account_data() {
     $("#overlay").show();
     
     $.ajax({
-        url: '/management/admin/page_adx_account',
+        url: '/management/admin/page_adx_user_account',
         type: 'GET',
         headers: {
             'X-CSRFToken': csrftoken
@@ -43,69 +65,104 @@ function load_adx_account_data() {
         success: function (response) {
             $("#overlay").hide();
             
-            if (response.status) {
+            if (response && response.status) {
                 // Update account information
                 if (response.data) {
+                    // Update Network Information
                     $("#network_id").text(response.data.network_id || '-');
                     $("#network_code").text(response.data.network_code || '-');
-                    $("#display_name").text(response.data.display_name || '-');
+                    $("#display_name").text(response.data.display_name || response.data.network_name || '-');
+                    
+                    // Update Settings
                     $("#timezone").text(response.data.timezone || '-');
                     $("#currency_code").text(response.data.currency_code || '-');
                     
-                    // Update account details section
-                    var detailsHtml = '<div class="row">';
+                    // Update Account Details - User Information
+                    $("#user_email").text(response.data.user_email || '-');
+                    $("#user_id").text(response.data.user_id || '-');
+                    $("#user_name").text(response.data.user_name || '-');
+                    $("#user_role").text(response.data.user_role || '-');
                     
-                    if (response.data.network_id) {
-                        detailsHtml += '<div class="col-md-6">';
-                        detailsHtml += '<h6><i class="bi bi-info-circle text-primary"></i> Network Details</h6>';
-                        detailsHtml += '<ul class="list-unstyled">';
-                        detailsHtml += '<li><strong>Network ID:</strong> ' + response.data.network_id + '</li>';
-                        detailsHtml += '<li><strong>Network Code:</strong> ' + response.data.network_code + '</li>';
-                        detailsHtml += '<li><strong>Display Name:</strong> ' + response.data.display_name + '</li>';
-                        detailsHtml += '</ul>';
-                        detailsHtml += '</div>';
+                    // Format user active status
+                    var userActiveText = response.data.user_is_active !== undefined ? 
+                        (response.data.user_is_active ? 'Yes' : 'No') : '-';
+                    $("#user_is_active").text(userActiveText);
+                    
+                    // Update Account Statistics
+                    $("#active_ad_units_count").text(response.data.active_ad_units_count || '0');
+                    
+                    // Format last updated time
+                    var lastUpdated = response.data.last_updated ? 
+                        new Date(response.data.last_updated).toLocaleString() : '-';
+                    $("#last_updated").text(lastUpdated);
+                    
+                    // Add additional network information if available
+                    var additionalInfo = '';
+                    if (response.data.effective_root_ad_unit_id) {
+                        additionalInfo += '<p><strong>Root Ad Unit ID:</strong> ' + response.data.effective_root_ad_unit_id + '</p>';
                     }
-                    
-                    if (response.data.timezone) {
-                        detailsHtml += '<div class="col-md-6">';
-                        detailsHtml += '<h6><i class="bi bi-clock text-success"></i> Configuration</h6>';
-                        detailsHtml += '<ul class="list-unstyled">';
-                        detailsHtml += '<li><strong>Timezone:</strong> ' + response.data.timezone + '</li>';
-                        detailsHtml += '<li><strong>Currency:</strong> ' + response.data.currency_code + '</li>';
-                        detailsHtml += '<li><strong>Last Updated:</strong> ' + new Date().toLocaleString() + '</li>';
-                        detailsHtml += '</ul>';
-                        detailsHtml += '</div>';
+                    if (response.data.is_test_network !== undefined) {
+                        var testNetworkText = response.data.is_test_network ? 'Yes' : 'No';
+                        additionalInfo += '<p><strong>Test Network:</strong> ' + testNetworkText + '</p>';
                     }
+                    $("#additional_info").html(additionalInfo);
                     
-                    detailsHtml += '</div>';
-                    
-                    // Add additional information if available
-                    if (response.additional_info) {
-                        detailsHtml += '<hr>';
-                        detailsHtml += '<h6><i class="bi bi-plus-circle text-info"></i> Additional Information</h6>';
-                        detailsHtml += '<div class="alert alert-info">';
-                        detailsHtml += '<small>' + JSON.stringify(response.additional_info, null, 2) + '</small>';
-                        detailsHtml += '</div>';
+                    // Show note if available
+                    if (response.note) {
+                        $("#note_text").text(response.note);
+                        $("#data_note").show();
+                    } else {
+                        $("#data_note").hide();
                     }
-                    
-                    $("#account_details").html(detailsHtml);
                     
                     // Show success message
                     showSuccessMessage('Account data loaded successfully!');
                 } else {
-                    $("#account_details").html('<p class="text-warning">No account data available.</p>');
+                    resetAccountDisplay();
+                    showErrorMessage('No account data available.');
                 }
             } else {
-                $("#account_details").html('<p class="text-danger">Error loading account data: ' + response.error + '</p>');
-                alert('Error: ' + response.error);
+                resetAccountDisplay();
+                var errorMsg = response && response.error ? response.error : 'Unknown error occurred';
+                showErrorMessage('Error loading account data: ' + errorMsg);
             }
         },
         error: function (jqXHR, textStatus, errorThrown) {
             $("#overlay").hide();
-            $("#account_details").html('<p class="text-danger">Failed to load account data. Please try again.</p>');
+            resetAccountDisplay();
+            showErrorMessage('Failed to load account data. Please try again.');
             report_eror(jqXHR, textStatus);
         }
     });
+}
+
+function resetAccountDisplay() {
+    // Reset all fields to default values
+    $("#network_id, #network_code, #display_name, #timezone, #currency_code").text('-');
+    $("#user_email, #user_id, #user_name, #user_role, #user_is_active").text('-');
+    $("#active_ad_units_count, #last_updated").text('-');
+    $("#additional_info").html('');
+    $("#data_note").hide();
+}
+
+function showErrorMessage(message) {
+    // Create and show a temporary error alert
+    var alertHtml = '<div class="alert alert-danger alert-dismissible fade show" role="alert">';
+    alertHtml += '<i class="bi bi-exclamation-triangle"></i> ' + message;
+    alertHtml += '<button type="button" class="close" data-dismiss="alert" aria-label="Close">';
+    alertHtml += '<span aria-hidden="true">&times;</span>';
+    alertHtml += '</button>';
+    alertHtml += '</div>';
+    
+    // Insert at the top of the card body
+    $('.card-body').first().prepend(alertHtml);
+    
+    // Auto-hide after 5 seconds
+    setTimeout(function() {
+        $('.alert-danger').fadeOut('slow', function() {
+            $(this).remove();
+        });
+    }, 5000);
 }
 
 function showSuccessMessage(message) {
@@ -126,6 +183,91 @@ function showSuccessMessage(message) {
             $(this).remove();
         });
     }, 3000);
+}
+
+function generateRefreshToken() {
+    $("#overlay").show();
+    
+    $.ajax({
+        url: '/management/admin/generate_refresh_token',
+        type: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken
+        },
+        success: function (response) {
+            $("#overlay").hide();
+            
+            if (response && response.status) {
+                showSuccessMessage('Refresh token generated successfully!');
+                // Reload account data to show updated information
+                load_adx_account_data();
+            } else {
+                var errorMsg = response && response.error ? response.error : 'Unknown error occurred';
+                showErrorMessage('Error generating refresh token: ' + errorMsg);
+            }
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            $("#overlay").hide();
+            showErrorMessage('Failed to generate refresh token. Please try again.');
+            report_eror(jqXHR, textStatus);
+        }
+    });
+}
+
+function saveOAuthCredentials() {
+    console.log('saveOAuthCredentials function called');
+    
+    var clientId = $('#client_id').val();
+    var clientSecret = $('#client_secret').val();
+    var userEmail = $('#oauth_user_email').val();
+    
+    console.log('Client ID value:', clientId);
+    console.log('Client Secret value:', clientSecret);
+    console.log('User Email value:', userEmail);
+    console.log('Client ID length:', clientId ? clientId.length : 'null/undefined');
+    console.log('Client Secret length:', clientSecret ? clientSecret.length : 'null/undefined');
+    console.log('User Email length:', userEmail ? userEmail.length : 'null/undefined');
+    
+    if (!clientId || !clientSecret || !userEmail) {
+        console.log('Validation failed - missing fields');
+        showErrorMessage('Please fill in all OAuth credentials fields.');
+        return;
+    }
+    
+    console.log('Validation passed - all fields filled');
+    
+    $("#overlay").show();
+    
+    $.ajax({
+        url: '/management/admin/save_oauth_credentials',
+        type: 'POST',
+        headers: {
+            'X-CSRFToken': csrftoken
+        },
+        data: {
+            'client_id': clientId,
+            'client_secret': clientSecret,
+            'user_email': userEmail
+        },
+        success: function (response) {
+            $("#overlay").hide();
+            
+            if (response && response.status) {
+                showSuccessMessage('OAuth credentials saved successfully!');
+                $('#oauthModal').modal('hide');
+                // Clear form
+                $('#client_id, #client_secret, #oauth_user_email').val('');
+            } else {
+                var errorMsg = response && response.error ? response.error : 'Unknown error occurred';
+                showErrorMessage('Error saving OAuth credentials: ' + errorMsg);
+            }
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+            $("#overlay").hide();
+            showErrorMessage('Failed to save OAuth credentials. Please try again.');
+            report_eror(jqXHR, textStatus);
+        }
+    });
 }
 
 function getCookie(name) {

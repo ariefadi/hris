@@ -22,47 +22,112 @@ $().ready(function () {
         }
         alert(msg);
     };
-    
+
+    // Ensure date inputs use YYYY-MM-DD format and disable any global datepicker
+    $('#tanggal_dari, #tanggal_sampai').datepicker('destroy');
+
+    // Configure datepicker with YYYY-MM-DD format
     $('#tanggal_dari').datepicker({
-      format: 'yyyy-mm-dd',
-      autoclose: true,
-      todayHighlight: true
+        format: 'yyyy-mm-dd',
+        autoclose: true,
+        todayHighlight: true,
+        orientation: 'bottom auto'
     });
-    
+
     $('#tanggal_sampai').datepicker({
-      format: 'yyyy-mm-dd',
-      autoclose: true,
-      todayHighlight: true
+        format: 'yyyy-mm-dd',
+        autoclose: true,
+        todayHighlight: true,
+        orientation: 'bottom auto'
     });
-    
+
     // Set default dates (last 7 days)
     var today = new Date();
     var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     $('#tanggal_dari').val(lastWeek.toISOString().split('T')[0]);
     $('#tanggal_sampai').val(today.toISOString().split('T')[0]);
-    
+
     $('#btn_load_data').click(function (e) {
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
-        
-        if(tanggal_dari != "" && tanggal_sampai != "") {
+
+        if (tanggal_dari != "" && tanggal_sampai != "") {
             load_adx_summary_data(tanggal_dari, tanggal_sampai);
+            load_adx_traffic_country_data();
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
         }
     });
-    
+
     // Auto load data on page load
     var tanggal_dari = $("#tanggal_dari").val();
     var tanggal_sampai = $("#tanggal_sampai").val();
-    if(tanggal_dari != "" && tanggal_sampai != "") {
+    if (tanggal_dari != "" && tanggal_sampai != "") {
         load_adx_summary_data(tanggal_dari, tanggal_sampai);
     }
+
+    load_adx_traffic_country_data();
+
+    // Fungsi untuk load data traffic per country
+    function load_adx_traffic_country_data() {
+        var startDate = $('#tanggal_dari').val();
+        var endDate = $('#tanggal_sampai').val();
+        var countryFilter = $('#country_filter').val();
+
+        // AJAX request
+        $.ajax({
+            url: '/management/admin/page_adx_traffic_country',
+            type: 'GET',
+            data: {
+                start_date: startDate,
+                end_date: endDate,
+                country_filter: countryFilter
+            },
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                console.log('[DEBUG] AJAX Success Response:', response);
+                $('#overlay').hide();
+                
+                if (response && response.status) {
+                    
+                    // Generate charts if data available
+                    if (response.data && response.data.length > 0) {
+                        generateTrafficCountryCharts(response.data);
+                        $('#charts_section').show();
+                    } else {
+                        $('#charts_section').hide();
+                    }
+                    // Show success message
+                    if (response.data && response.data.length > 0) {
+                        console.log('Data berhasil dimuat: ' + response.data.length + ' negara');
+                    } else {
+                        console.log('Tidak ada data untuk periode yang dipilih');
+                    }
+                } else {
+                    var errorMsg = response.error || 'Terjadi kesalahan yang tidak diketahui';
+                    console.error('[DEBUG] Response error:', errorMsg);
+                    alert('Error: ' + errorMsg);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('[DEBUG] AJAX Error:', {
+                    xhr: xhr,
+                    status: status,
+                    error: error
+                });
+                $('#overlay').hide();
+                report_eror('Terjadi kesalahan saat memuat data: ' + error);
+            }
+        });
+    }
+
 });
 
 function load_adx_summary_data(tanggal_dari, tanggal_sampai) {
     $("#overlay").show();
-    
+
     $.ajax({
         url: '/management/admin/page_adx_summary',
         type: 'GET',
@@ -75,33 +140,46 @@ function load_adx_summary_data(tanggal_dari, tanggal_sampai) {
         },
         success: function (response) {
             $("#overlay").hide();
-            
-            if (response.status) {
+
+            if (response && response.status) {
+                // Show summary boxes
+                $("#summary_boxes").show();
+
                 // Update summary boxes
-                $("#impressions").text(formatNumber(response.summary.impressions));
-                $("#clicks").text(formatNumber(response.summary.clicks));
-                $("#revenue").text('$' + formatNumber(response.summary.revenue, 2));
-                $("#requests").text(formatNumber(response.summary.requests));
-                $("#matched_requests").text(formatNumber(response.summary.matched_requests));
-                
-                // Calculate and display derived metrics
-                var ctr = response.summary.impressions > 0 ? 
-                    (response.summary.clicks / response.summary.impressions * 100) : 0;
-                var match_rate = response.summary.requests > 0 ? 
-                    (response.summary.matched_requests / response.summary.requests * 100) : 0;
-                var ecpm = response.summary.impressions > 0 ? 
-                    (response.summary.revenue / response.summary.impressions * 1000) : 0;
-                
-                $("#ctr").text(formatNumber(ctr, 2) + '%');
-                $("#match_rate").text(formatNumber(match_rate, 2) + '%');
-                $("#ecpm").text('$' + formatNumber(ecpm, 2));
-                
-                // Create charts if data exists
-                if (response.data && response.data.length > 0) {
-                    create_adx_summary_charts(response.data);
+                $("#total_clicks").text(formatNumber(response.summary.total_clicks));
+                $("#total_revenue").text('Rp ' + formatNumber(response.summary.total_revenue, 2));
+                $("#avg_cpc").text('Rp ' + formatNumber(response.summary.avg_cpc, 2));
+                $("#avg_ctr").text(formatNumber(response.summary.avg_ctr, 2) + '%');
+
+                // Show and update today traffic data
+                if (response.today_traffic) {
+                    $("#today_traffic").show();
+                    $("#today_impressions").text(formatNumber(response.today_traffic.impressions));
+                    $("#today_clicks").text(formatNumber(response.today_traffic.clicks));
+                    $("#today_revenue").text('Rp ' + formatNumber(response.today_traffic.revenue, 2));
+                    $("#today_ctr").text(formatNumber(response.today_traffic.ctr, 2) + '%');
                 }
+
+                // Create revenue line chart
+                if (response.data && response.data.length > 0) {
+                    // Check if Highcharts is loaded before creating chart
+                    if (typeof Highcharts !== 'undefined') {
+                        create_revenue_line_chart(response.data);
+                    } else {
+                        console.error('Highcharts is not loaded yet. Retrying in 1 second...');
+                        setTimeout(function () {
+                            if (typeof Highcharts !== 'undefined') {
+                                create_revenue_line_chart(response.data);
+                            } else {
+                                console.error('Highcharts failed to load after retry.');
+                            }
+                            
+                        }, 1000);
+                    }
+                }
+
             } else {
-                alert('Error: ' + response.error);
+                alert('Error: ' + (response && response.error ? response.error : 'Unknown error occurred'));
             }
         },
         error: function (jqXHR, textStatus, errorThrown) {
@@ -111,113 +189,196 @@ function load_adx_summary_data(tanggal_dari, tanggal_sampai) {
     });
 }
 
-function create_adx_summary_charts(data) {
-    // Prepare data for charts
-    var dates = [];
-    var impressions = [];
-    var clicks = [];
-    var revenue = [];
-    var requests = [];
-    var matched_requests = [];
-    
-    data.forEach(function(item) {
-        dates.push(item.date);
-        impressions.push(parseInt(item.impressions));
-        clicks.push(parseInt(item.clicks));
-        revenue.push(parseFloat(item.revenue));
-        requests.push(parseInt(item.requests));
-        matched_requests.push(parseInt(item.matched_requests));
+function create_revenue_line_chart(data) {
+    if (!data || data.length === 0) {
+        console.log('No data available for chart');
+        return;
+    }
+
+    // Check if Highcharts is available
+    if (typeof Highcharts === 'undefined') {
+        console.error('Highcharts is not defined. Cannot create chart.');
+        return;
+    }
+
+    // Group data by date and sum revenue
+    var dailyRevenue = {};
+
+    data.forEach(function (item) {
+        var date = item.date;
+        if (!dailyRevenue[date]) {
+            dailyRevenue[date] = 0;
+        }
+        dailyRevenue[date] += parseFloat(item.revenue || 0);
     });
-    
-    // Create main performance chart
-    Highcharts.chart('container', {
+
+    // Convert to arrays for Highcharts
+    var dates = Object.keys(dailyRevenue).sort();
+    var revenues = dates.map(function (date) {
+        return dailyRevenue[date];
+    });
+
+    // Format dates for display
+    var formattedDates = dates.map(function (date) {
+        var d = new Date(date + 'T00:00:00');
+        return d.toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'short'
+        });
+    });
+
+    // Create line chart for daily revenue
+    Highcharts.chart('revenue_chart', {
         chart: {
             type: 'line'
         },
         title: {
-            text: 'AdX Performance Over Time'
+            text: 'Pergerakan Pendapatan Harian'
         },
         xAxis: {
-            categories: dates,
+            categories: formattedDates,
             title: {
-                text: 'Date'
+                text: 'Tanggal'
             }
-        },
-        yAxis: [{
-            title: {
-                text: 'Impressions / Clicks / Requests',
-                style: {
-                    color: Highcharts.getOptions().colors[0]
-                }
-            }
-        }, {
-            title: {
-                text: 'Revenue ($)',
-                style: {
-                    color: Highcharts.getOptions().colors[1]
-                }
-            },
-            opposite: true
-        }],
-        series: [{
-            name: 'Impressions',
-            data: impressions,
-            yAxis: 0
-        }, {
-            name: 'Clicks',
-            data: clicks,
-            yAxis: 0
-        }, {
-            name: 'Requests',
-            data: requests,
-            yAxis: 0
-        }, {
-            name: 'Matched Requests',
-            data: matched_requests,
-            yAxis: 0
-        }, {
-            name: 'Revenue',
-            data: revenue,
-            yAxis: 1,
-            type: 'column'
-        }],
-        tooltip: {
-            shared: true
-        },
-        legend: {
-            layout: 'horizontal',
-            align: 'center',
-            verticalAlign: 'bottom'
-        }
-    });
-    
-    // Create activity chart (requests vs matched requests)
-    Highcharts.chart('container-activity', {
-        chart: {
-            type: 'column'
-        },
-        title: {
-            text: 'Request Activity'
-        },
-        xAxis: {
-            categories: dates
         },
         yAxis: {
             title: {
-                text: 'Count'
+                text: 'Pendapatan (Rp)'
+            },
+            labels: {
+                formatter: function () {
+                    return 'Rp ' + formatNumber(this.value, 0);
+                }
             }
         },
         series: [{
-            name: 'Total Requests',
-            data: requests
-        }, {
-            name: 'Matched Requests',
-            data: matched_requests
+            name: 'Pendapatan Harian',
+            data: revenues,
+            color: '#28a745',
+            lineWidth: 3,
+            marker: {
+                radius: 5
+            }
         }],
         tooltip: {
-            shared: true
+            formatter: function () {
+                var dateIndex = this.point.index;
+                var actualDate = dates[dateIndex];
+                var formattedDate = formatDate(actualDate);
+                return '<b>' + this.series.name + '</b><br/>' +
+                    'Tanggal: ' + formattedDate + '<br/>' +
+                    'Pendapatan: Rp ' + formatNumber(this.y, 2);
+            }
+        },
+        legend: {
+            enabled: false
+        },
+        plotOptions: {
+            line: {
+                dataLabels: {
+                    enabled: false
+                },
+                enableMouseTracking: true
+            }
         }
     });
+}
+
+// Fungsi untuk generate charts
+function generateTrafficCountryCharts(data) {
+    if (!data || data.length === 0) return;
+
+    // Sort data by impressions and take top 10
+    var sortedData = data.sort(function (a, b) {
+        return (b.impressions || 0) - (a.impressions || 0);
+    }).slice(0, 10);
+
+    // Prepare data for charts
+    var countries = sortedData.map(function (item) {
+        return item.country_name || 'Unknown';
+    });
+
+    var impressions = sortedData.map(function (item) {
+        return item.impressions || 0;
+    });
+
+    var clicks = sortedData.map(function (item) {
+        return item.clicks || 0;
+    });
+
+    var revenue = sortedData.map(function (item) {
+        return item.revenue || 0;
+    });
+
+    // Create charts if Chart.js is available
+    if (typeof Chart !== 'undefined') {
+        // Impressions Chart
+        var ctx1 = document.getElementById('impressionsChart');
+        if (ctx1) {
+            new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: countries,
+                    datasets: [{
+                        label: 'Total Impresi',
+                        data: impressions,
+                        backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        // Revenue Chart
+        var ctx2 = document.getElementById('revenueChart');
+        if (ctx2) {
+            new Chart(ctx2, {
+                type: 'doughnut',
+                data: {
+                    labels: countries,
+                    datasets: [{
+                        label: 'Total Pendapatan',
+                        data: revenue,
+                        backgroundColor: [
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+                            '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384',
+                            '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    aspectRatio: 2
+                }
+            });
+        }
+    }
+}
+
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+
+    var months = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+
+    var date = new Date(dateString + 'T00:00:00');
+    var day = date.getDate();
+    var month = months[date.getMonth()];
+    var year = date.getFullYear();
+
+    return day + ' ' + month + ' ' + year;
 }
 
 function formatNumber(num, decimals = 0) {

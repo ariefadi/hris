@@ -97,7 +97,7 @@ function load_adx_traffic_campaign_data() {
         success: function (response) {
             $("#overlay").hide();
             
-            if (response.status) {
+            if (response && response.status) {
                 // Update summary boxes
                 if (response.summary) {
                     $("#total_impressions").text(formatNumber(response.summary.total_impressions || 0));
@@ -144,7 +144,7 @@ function load_adx_traffic_campaign_data() {
                 
                 showSuccessMessage('Campaign traffic data loaded successfully!');
             } else {
-                alert('Error: ' + response.error);
+                alert('Error: ' + (response && response.error ? response.error : 'Unknown error occurred'));
             }
         },
         error: function (jqXHR, textStatus, errorThrown) {
