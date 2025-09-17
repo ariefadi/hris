@@ -266,7 +266,7 @@ class data_mysql:
     def get_user_by_id(self, user_id):
         sql = '''
             SELECT user_id, user_name, user_pass, user_alias, 
-            user_mail, user_telp, user_alamat, user_st 
+            user_mail, user_telp, user_alamat, user_st, client_id, client_secret
             FROM `app_users`
             WHERE user_id = %s
         '''
@@ -325,6 +325,357 @@ class data_mysql:
                 'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
         return {'hasil': hasil}
+    
+    def update_oauth_credentials(self, email, client_id, client_secret):
+        """
+        Update OAuth credentials (client_id dan client_secret) untuk user
+        """
+        sql = '''
+            UPDATE `app_users` 
+            SET client_id = %s, client_secret = %s
+            WHERE user_mail = %s
+        '''
+        try:
+            self.cur_hris.execute(sql, (client_id, client_secret, email))
+            self.comit_hris.commit()
+            
+            if self.cur_hris.rowcount > 0:
+                hasil = {
+                    "status": True,
+                    "message": f"OAuth credentials berhasil diupdate untuk {email}"
+                }
+            else:
+                hasil = {
+                    "status": False,
+                    "message": f"User dengan email {email} tidak ditemukan"
+                }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                "message": f"Error saat update OAuth credentials: {str(e)}"
+            }
+        return hasil
+
+    def update_refresh_token(self, email, refresh_token):
+        """
+        Update refresh token untuk user berdasarkan email
+        """
+        try:
+            sql_update = """
+                        UPDATE app_users SET
+                            refresh_token = %s
+                        WHERE user_mail = %s
+                """
+            self.cur_hris.execute(sql_update, (refresh_token, email))
+            self.comit_hris.commit()
+            
+            # Cek apakah ada row yang ter-update
+            if self.cur_hris.rowcount > 0:
+                hasil = {
+                    "status": True,
+                    "message": f"Refresh token berhasil disimpan untuk {email}"
+                }
+            else:
+                hasil = {
+                    "status": False,
+                    "message": f"User dengan email {email} tidak ditemukan"
+                }
+
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+    
+    def check_refresh_token(self, email):
+        """
+        Cek apakah user sudah memiliki refresh token di database
+        """
+        try:
+            sql_select = """
+                        SELECT refresh_token FROM app_users 
+                        WHERE user_mail = %s AND refresh_token IS NOT NULL
+                """
+            self.cur_hris.execute(sql_select, (email,))
+            result = self.cur_hris.fetchone()
+            
+            if result and result['refresh_token']:
+                hasil = {
+                    "status": True,
+                    "has_token": True,
+                    "refresh_token": result['refresh_token'],
+                    "message": f"Refresh token ditemukan untuk {email}"
+                }
+            else:
+                hasil = {
+                    "status": True,
+                    "has_token": False,
+                    "refresh_token": None,
+                    "message": f"Refresh token tidak ditemukan untuk {email}"
+                }
+
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                "has_token": False,
+                "refresh_token": None,
+                'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+
+    def get_user_by_email(self, email):
+        """
+        Get user data from app_users table by email
+        """
+        sql = '''
+            SELECT user_id, user_name, user_pass, user_alias, 
+            user_mail, user_telp, user_alamat, user_st,
+            client_id, client_secret, refresh_token
+            FROM `app_users`
+            WHERE user_mail = %s
+        '''
+        try:
+            self.cur_hris.execute(sql, (email,))
+            datanya = self.cur_hris.fetchone()
+            hasil = {
+                "status": True,
+                "data": datanya
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return hasil
+
+    def generate_and_save_refresh_token(self, email):
+        """
+        Generate refresh token baru menggunakan Google OAuth2 dan simpan ke database
+        """
+        try:
+            from google_auth_oauthlib.flow import InstalledAppFlow
+            import os
+            from django.conf import settings
+            
+            # Ambil credentials dari settings Django
+            client_id = getattr(settings, 'SOCIAL_AUTH_GOOGLE_OAUTH2_KEY', None)
+            client_secret = getattr(settings, 'SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET', None)
+            
+            if not client_id or not client_secret:
+                hasil = {
+                    "status": False,
+                    "refresh_token": None,
+                    "message": "Google OAuth2 credentials tidak ditemukan di settings"
+                }
+                return {'hasil': hasil}
+            
+            # Konfigurasi OAuth2 untuk Google Ads API
+            SCOPES = ['https://www.googleapis.com/auth/adwords']
+            
+            # Setup OAuth flow
+            flow = InstalledAppFlow.from_client_config(
+                {
+                    "installed": {
+                        "client_id": client_id,
+                        "client_secret": client_secret,
+                        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                        "token_uri": "https://oauth2.googleapis.com/token",
+                        "redirect_uris": ["urn:ietf:wg:oauth:2.0:oob", "http://localhost"]
+                    }
+                },
+                SCOPES
+            )
+            
+            # Jalankan OAuth flow
+            credentials = flow.run_local_server(port=8000, open_browser=True)
+            
+            if credentials.refresh_token:
+                # Simpan refresh token ke database
+                update_result = self.update_refresh_token(email, credentials.refresh_token)
+                
+                if update_result['hasil']['status']:
+                    hasil = {
+                        "status": True,
+                        "refresh_token": credentials.refresh_token,
+                        "message": f"Refresh token berhasil di-generate dan disimpan untuk {email}"
+                    }
+                else:
+                    hasil = {
+                        "status": False,
+                        "refresh_token": credentials.refresh_token,
+                        "message": f"Refresh token berhasil di-generate tapi gagal disimpan: {update_result['hasil']['message']}"
+                    }
+            else:
+                hasil = {
+                    "status": False,
+                    "refresh_token": None,
+                    "message": "Gagal mendapatkan refresh token dari Google OAuth2"
+                }
+                
+        except ImportError:
+            hasil = {
+                "status": False,
+                "refresh_token": None,
+                "message": "google-auth-oauthlib tidak terinstall. Jalankan: pip install google-auth-oauthlib"
+            }
+        except Exception as e:
+            hasil = {
+                "status": False,
+                "refresh_token": None,
+                "message": f"Error saat generate refresh token: {str(e)}"
+            }
+            
+        return {'hasil': hasil}
+    
+    def generate_refresh_token_from_db_credentials(self, email):
+        """
+        Generate refresh token menggunakan client_id dan client_secret dari database
+        """
+        try:
+            # Debug logging
+            print(f"DEBUG generate_refresh_token_from_db_credentials - Email parameter: {email}")
+            
+            # Ambil credentials dari database
+            user_data = self.get_user_by_email(email)
+            print(f"DEBUG generate_refresh_token_from_db_credentials - get_user_by_email result: {user_data}")
+            
+            if not user_data['status'] or not user_data['data']:
+                print(f"DEBUG generate_refresh_token_from_db_credentials - User not found or error")
+                return {
+                    "status": False,
+                    "message": "User tidak ditemukan dalam database"
+                }
+            
+            user_info = user_data['data']
+            client_id = user_info.get('client_id')
+            client_secret = user_info.get('client_secret')
+            
+            if not client_id or not client_secret:
+                return {
+                    "status": False,
+                    "message": "Client ID atau Client Secret tidak ditemukan di database untuk user ini"
+                }
+            
+            try:
+                from google_auth_oauthlib.flow import InstalledAppFlow
+                from datetime import datetime
+                
+                # Konfigurasi OAuth2 untuk Google Ads API dengan credentials dari database
+                SCOPES = [
+                    'https://www.googleapis.com/auth/adwords',
+                    'https://www.googleapis.com/auth/dfp'
+                ]
+                
+                # Setup OAuth flow dengan credentials dari database
+                client_config = {
+                    "installed": {
+                        "client_id": client_id,
+                        "client_secret": client_secret,
+                        "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                        "token_uri": "https://oauth2.googleapis.com/token",
+                        "redirect_uris": ["http://localhost", "http://127.0.0.1", "http://localhost:8080", "http://127.0.0.1:8080"]
+                    }
+                }
+                
+                flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
+                
+                # Jalankan OAuth flow dengan port dinamis untuk menghindari konflik
+                credentials = flow.run_local_server(port=0)
+                refresh_token = credentials.refresh_token
+                
+                if refresh_token:
+                    # Simpan refresh token ke database
+                    save_result = self.update_refresh_token(email, refresh_token)
+                    if save_result['status']:
+                        return {
+                            "status": True,
+                            "message": "Refresh token berhasil di-generate dan disimpan",
+                            "refresh_token": refresh_token,
+                            "timestamp": datetime.now().isoformat()
+                        }
+                    else:
+                        return {
+                            "status": False,
+                            "message": "Refresh token berhasil di-generate tapi gagal disimpan ke database",
+                            "details": save_result.get('message', 'Unknown error')
+                        }
+                else:
+                    return {
+                        "status": False,
+                        "message": "Gagal mendapatkan refresh token dari Google OAuth2"
+                    }
+                    
+            except ImportError:
+                return {
+                    "status": False,
+                    "message": "google-auth-oauthlib tidak terinstall. Jalankan: pip install google-auth-oauthlib"
+                }
+            except OSError as os_error:
+                if "Address already in use" in str(os_error):
+                    return {
+                        "status": False,
+                        "message": "Port sedang digunakan. Silakan coba lagi dalam beberapa saat atau restart aplikasi.",
+                        "details": f"Error: {str(os_error)}"
+                    }
+                else:
+                    return {
+                        "status": False,
+                        "message": f"Error sistem: {str(os_error)}",
+                        "details": "Terjadi error pada sistem operasi"
+                    }
+            except Exception as oauth_error:
+                return {
+                    "status": False,
+                    "message": f"Error saat OAuth flow: {str(oauth_error)}",
+                    "details": "Pastikan client_id dan client_secret valid dan aplikasi OAuth sudah dikonfigurasi dengan benar"
+                }
+                
+        except Exception as e:
+            return {
+                "status": False,
+                "message": f"Error saat generate refresh token: {str(e)}"
+            }
+
+    def get_or_generate_refresh_token(self, email):
+        """
+        Fungsi utama: Cek refresh token di database, jika belum ada maka generate baru
+        """
+        # Cek apakah refresh token sudah ada
+        check_result = self.check_refresh_token(email)
+        
+        if check_result['hasil']['status'] and check_result['hasil']['has_token']:
+            # Refresh token sudah ada
+            return {
+                'hasil': {
+                    "status": True,
+                    "action": "existing",
+                    "refresh_token": check_result['hasil']['refresh_token'],
+                    "message": f"Menggunakan refresh token yang sudah ada untuk {email}"
+                }
+            }
+        else:
+            # Refresh token belum ada, generate baru
+            generate_result = self.generate_and_save_refresh_token(email)
+            
+            if generate_result['hasil']['status']:
+                return {
+                    'hasil': {
+                        "status": True,
+                        "action": "generated",
+                        "refresh_token": generate_result['hasil']['refresh_token'],
+                        "message": generate_result['hasil']['message']
+                    }
+                }
+            else:
+                return {
+                    'hasil': {
+                        "status": False,
+                        "action": "failed",
+                        "refresh_token": None,
+                        "message": generate_result['hasil']['message']
+                    }
+                }
     
     def data_login_user(self):
         sql = '''

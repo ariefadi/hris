@@ -1,6 +1,7 @@
 from unicodedata import name
 from django.urls import path, include
 from . import views
+from . import views_adsense
 
 urlpatterns = [
     # LOGIN / LOGOUT
@@ -48,21 +49,72 @@ urlpatterns = [
     # Menu Per Country Facebook Ads
     path('admin/per_country_facebook', views.PerCountryFacebookAds.as_view(), name='per_country_facebook'),
     path('admin/page_per_country_facebook', views.page_per_country_facebook.as_view()),
+    # Cache Management
+    path('admin/cache_stats', views.CacheStatsView.as_view(), name='cache_stats'),
     
     # MENU ADX MANAGER
     # Menu AdX Summary
     path('admin/adx_summary', views.AdxSummaryView.as_view(), name='adx_summary'),
-    path('admin/page_adx_summary', views.AdxSummaryDataView.as_view()),
+    path('admin/page_adx_summary', views.AdxSummaryDataView.as_view(), name='adx_summary_data'),
+    path('admin/page_adx_ad_change_data', views.AdxSummaryAdChangeDataView.as_view(), name='adx_ad_change_data'),
+    path('admin/page_adx_active_sites', views.AdxActiveSitesView.as_view(), name='adx_active_sites'),
     # Menu AdX Account Data
     path('admin/adx_account', views.AdxAccountView.as_view(), name='adx_account'),
     path('admin/page_adx_account', views.AdxAccountDataView.as_view()),
-    # Menu AdX Traffic Per Account
+    path('admin/page_adx_user_account', views.AdxUserAccountDataView.as_view()),
+    path('admin/generate_refresh_token', views.GenerateRefreshTokenView.as_view(), name='generate_refresh_token'),
+    path('admin/save_oauth_credentials', views.SaveOAuthCredentialsView.as_view(), name='save_oauth_credentials'),
+    # AdX Traffic Account
     path('admin/adx_traffic_account', views.AdxTrafficPerAccountView.as_view(), name='adx_traffic_account'),
+    path('adx-traffic-account/', views.AdxTrafficPerAccountView.as_view(), name='adx_traffic_account_alias'),
     path('admin/page_adx_traffic_account', views.AdxTrafficPerAccountDataView.as_view()),
+    path('admin/adx_sites_list', views.AdxSitesListView.as_view(), name='adx_sites_list'),
     # Menu AdX Traffic Per Campaign
     path('admin/adx_traffic_campaign', views.AdxTrafficPerCampaignView.as_view(), name='adx_traffic_campaign'),
-    path('admin/page_adx_traffic_campaign', views.AdxTrafficPerCampaignDataView.as_view()),
+    path('admin/adx_traffic_campaign_data', views.AdxTrafficPerCampaignDataView.as_view(), name='adx_traffic_campaign_data'),
     # Menu AdX Traffic Per Country
     path('admin/adx_traffic_country', views.AdxTrafficPerCountryView.as_view(), name='adx_traffic_country'),
     path('admin/page_adx_traffic_country', views.AdxTrafficPerCountryDataView.as_view()),
+
+    # MENU ADSENSE MANAGER
+    # Menu Adsense Summary
+    # path('admin/adsense_summary', views.AdsenseSummaryView.as_view(), name='adsense_summary'),
+    # path('admin/adsense_summary_data/', views.AdsenseSummaryDataView.as_view()),
+    # # Menu Adsense Account Data
+    # path('admin/adsense_account', views.AdsenseAccountView.as_view(), name='adsense_account'), 
+    # path('admin/page_adsense_account', views.AdsenseAccountDataView.as_view()),
+    # Menu Adsense Traffic Account
+    path('admin/adsense_traffic_account', views_adsense.AdsenseTrafficAccountView.as_view(), name='adsense_traffic_account'),
+    path('admin/adsense_traffic_account_data', views_adsense.AdsenseTrafficAccountDataView.as_view(), name='adsense_traffic_account_data'),
+    path('admin/adsense_sites_list', views_adsense.AdsenseSitesListView.as_view(), name='adsense_sites_list'),
+    # # Menu Adsense Traffic Country
+    # path('admin/adsense_traffic_country', views.AdsenseTrafficPerCountryView.as_view(), name='adsense_traffic_country'),
+    # path('admin/page_adsense_traffic_country', views.AdsenseTrafficPerCountryDataView.as_view()),
+    # # Menu Adsense Traffic Campaign
+    # path('admin/adsense_traffic_campaign', views.AdsenseTrafficPerCampaignView.as_view(), name='adsense_traffic_campaign'),
+    # path('admin/page_adsense_traffic_campaign', views.AdsenseTrafficPerCampaignDataView.as_view()),
+
+    # REFRESH TOKEN MANAGEMENT
+    path('admin/refresh_token', views.RefreshTokenManagement.as_view(), name='refresh_token_management'),
+    path('admin/api/check_refresh_token', views.CheckRefreshTokenAPI.as_view(), name='check_refresh_token_api'),
+    path('admin/api/generate_refresh_token', views.GenerateRefreshTokenAPI.as_view(), name='generate_refresh_token_api'),
+    path('admin/api/get_all_users_refresh_token', views.GetAllUsersRefreshTokenAPI.as_view(), name='get_all_users_refresh_token_api'),
+
+    # MENU REPORT
+    # Menu Report ROI
+    path('admin/roi_summary', views.RoiSummaryView.as_view(), name='roi_summary'),
+    path('admin/page_roi_summary', views.RoiSummaryDataView.as_view()),
+    path('admin/page_roi_ad_change_data', views.RoiSummaryAdChangeDataView.as_view(), name='roi_ad_change_data'),
+    path('admin/page_roi_active_sites', views.RoiActiveSitesView.as_view(), name='roi_active_sites'),
+    # Menu ROI Per Domain
+    path('admin/roi_traffic_domain', views.RoiTrafficPerDomainView.as_view(), name='roi_traffic_domain'),
+    path('admin/page_roi_traffic_domain', views.RoiTrafficPerDomainDataView.as_view()),
+    path('admin/roi_sites_list', views.RoiSitesListView.as_view(), name='roi_sites_list'),
+    # Menu ROI Per Country
+    path('admin/roi_traffic_country', views.RoiTrafficPerCountryView.as_view(), name='roi_traffic_country'),
+    path('admin/page_roi_traffic_country', views.RoiTrafficPerCountryDataView.as_view()),
+
+    # test
+    path('admin/fetch_report', views.fetch_report, name='fetch_report'),
+
 ]
