@@ -21,7 +21,9 @@ djangorestframework==3.14.0
 argon2-cffi==21.3.0
 PyJWT==2.6.0
 social-auth-app-django==4.0.0
-googleads==47.0.0
+googleads==46.0.0
 google-ads==24.1.0
 redis==4.5.4
 django-redis==5.2.0
+python-dotenv==1.0.0
+zeep==4.1.0
