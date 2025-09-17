@@ -94,8 +94,6 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.load_extra_data',  # Load extra data termasuk refresh token
     'management.pipeline.validate_email_access',  # Validasi email di Ad Manager dan database
     'management.pipeline.set_hris_session',  # Set session setelah user dibuat
-    'social_core.pipeline.social_auth.associate_user',
-    'social_core.pipeline.social_auth.load_extra_data',
     'social_core.pipeline.user.user_details',
     'management.pipeline.save_profile',  # Optional profile save
 )
@@ -212,6 +210,6 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 CORS_ORIGIN_ALLOW_ALL = True
-CORS_ALLOW_CREDENTIALS: True
+CORS_ALLOW_CREDENTIALS = True
 MAINTENANCE_MODE = None
 MAINTENANCE_MODE_TEMPLATE = "503/dist/index.html"

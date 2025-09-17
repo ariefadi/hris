@@ -9,7 +9,7 @@ def run_sql(sql):
 class data_mysql:
     
     # hris_trendHorizone = ('127.0.0.1', 'root', '', 'hris_trendHorizone')
-	hris_trendHorizone = ('127.0.0.1', '3306' 'root', 'hris123456', 'hris_trendHorizone')
+    hris_trendHorizone = ('127.0.0.1', '3306', 'root', 'hris123456', 'hris_trendHorizone')
 
     def __init__(self):
         # db_hris = pymysql.connect(
@@ -20,14 +20,14 @@ class data_mysql:
         #     cursorclass=pymysql.cursors.DictCursor  # ⬅️ ini penting
         # )
 
-		db_hris = pymysql.connect(
-		    host='127.0.0.1',
-		    port=3306,  # port lokal yang dipakai di tunnel
-		    user='root',
-		    password='hris123456',
-		    database='hris_trendHorizone',
-		    cursorclass=pymysql.cursors.DictCursor
-		)
+        db_hris = pymysql.connect(
+            host='127.0.0.1',
+            port=3306,  # port lokal yang dipakai di tunnel
+            user='root',
+            password='hris123456',
+            database='hris_trendHorizone',
+            cursorclass=pymysql.cursors.DictCursor
+        )
         self.cur_hris = db_hris.cursor()  # sekarang otomatis DictCursor
         self.comit_hris = db_hris
 
@@ -690,7 +690,7 @@ class data_mysql:
     def data_login_user(self):
         sql = '''
             SELECT a.login_id, a.user_id, sub.login_day, sub.login_time, a.login_date, 
-			a.logout_date, DATE(logout_date) AS logout_day, TIME(logout_date) AS logout_time, 
+            a.logout_date, DATE(logout_date) AS logout_day, TIME(logout_date) AS logout_time, 
             a.ip_address, a.user_agent, a.lokasi, b.user_alias
             FROM app_user_login a
             INNER JOIN (

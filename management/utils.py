@@ -2012,7 +2012,16 @@ def fetch_adx_summary_data(user_email, start_date, end_date):
         client = client_result['client']
         # Try using supported API versions
         try:
-            report_service = client.GetService('ReportService', version='v202502')                report_service = client.GetService('ReportService', version='v202502')
+            report_service = client.GetService('ReportService', version='v202502')
+            print(f"[DEBUG] Using Ad Manager API version v202502")
+        except Exception as e:
+            print(f"[DEBUG] Failed to use v202502, falling back to v202502: {e}")
+            try:
+                report_service = client.GetService('ReportService', version='v202502')
+                print(f"[DEBUG] Using Ad Manager API version v202502")
+            except Exception as e2:
+                print(f"[DEBUG] Failed to use v202502, falling back to v202502: {e2}")
+                report_service = client.GetService('ReportService', version='v202502')
         
         # Convert string dates to datetime.date objects
         if isinstance(start_date, str):
@@ -2216,7 +2225,8 @@ def _to_date(date_val):
 
 
 def _run_adx_report(client, start_date, end_date, site_filter):
-            report_service = client.GetService('ReportService', version='v202502')
+    report_service = client.GetService('ReportService', version='v202502')
+
     # Try different column combinations to avoid NOT_NULL errors
     column_combinations = [
         # Primary: Full metrics (most comprehensive)
@@ -2332,7 +2342,8 @@ def _run_adx_report(client, start_date, end_date, site_filter):
     if elapsed >= 300:
         raise Exception("Report job timed out")
 
-            report_service = client.GetService('ReportService', version='v202502')    return downloader.DownloadReportToString(report_job_id, 'CSV_DUMP')
+    downloader = client.GetDataDownloader(version='v202502')
+    return downloader.DownloadReportToString(report_job_id, 'CSV_DUMP')
 
 
 def _process_csv_report(report_data):
@@ -2430,7 +2441,8 @@ def fetch_adx_ad_change_data(start_date, end_date):
         if not client:
             return {'status': False, 'error': 'Failed to initialize client'}
         
-            report_service = client.GetService('ReportService', version='v202502')        
+        report_service = client.GetService('ReportService', version='v202502')
+        
         # Convert string dates to datetime.date objects
         if isinstance(start_date, str):
             start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
@@ -2583,7 +2595,8 @@ def fetch_adx_account_data():
         if not client:
             return {'status': False, 'error': 'Failed to initialize client'}
         
-            report_service = client.GetService('ReportService', version='v202502')        
+        network_service = client.GetService('NetworkService', version='v202502')
+        
         # Get current network with multiple fallback approaches
         try:
             # First attempt: Direct call
@@ -2673,7 +2686,8 @@ def fetch_user_adx_account_data(user_email):
         client = client_result['client']
         
         # Get Network Service
-            report_service = client.GetService('ReportService', version='v202502')        
+        network_service = client.GetService('NetworkService', version='v202502')
+        
         # Get current network information
         try:
             current_network = network_service.getCurrentNetwork()
@@ -2688,7 +2702,8 @@ def fetch_user_adx_account_data(user_email):
             }
         
         # Get User Service for additional account details
-            report_service = client.GetService('ReportService', version='v202502')        
+        user_service = client.GetService('UserService', version='v202502')
+        
         # Get current user information
         current_user = None
         try:
@@ -2702,7 +2717,8 @@ def fetch_user_adx_account_data(user_email):
             print(f"Error getting user info: {e}")
         
         # Get Inventory Service for ad units count
-            report_service = client.GetService('ReportService', version='v202502')        
+        inventory_service = client.GetService('InventoryService', version='v202502')
+        
         # Count active ad units
         active_ad_units_count = 0
         try:
@@ -2794,7 +2810,8 @@ def check_email_in_ad_manager(email):
             }
         
         client = client_result['client']
-            report_service = client.GetService('ReportService', version='v202502')        
+        user_service = client.GetService('UserService', version='v202502')
+        
         # Search for user by email
         statement = ad_manager.StatementBuilder()
         statement.Where('email = :email')
@@ -2928,7 +2945,8 @@ def fetch_adx_traffic_per_account(start_date, end_date, account_filter=None):
         if not client:
             return {'status': False, 'error': 'Failed to initialize client'}
         
-            report_service = client.GetService('ReportService', version='v202502')        
+        report_service = client.GetService('ReportService', version='v202502')
+        
         # Convert string dates to datetime.date objects
         if isinstance(start_date, str):
             start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
@@ -3352,7 +3370,8 @@ def fetch_adx_traffic_campaign_by_user(user_email, start_date, end_date, site_fi
 
 def _run_adx_report_with_fallback(client, start_date, end_date, site_filter):
     """Try AdX report with fallback to regular metrics"""
-            report_service = client.GetService('ReportService', version='v202502')
+    report_service = client.GetService('ReportService', version='v202502')
+
     # Try AdX columns first - sesuai dengan data yang tersedia di Ad Manager interface
     adx_column_combinations = [
         # Coba kolom lengkap seperti di gambar Ad Manager
@@ -3425,7 +3444,8 @@ def _run_adx_report_with_fallback(client, start_date, end_date, site_filter):
 
 def _run_regular_report(client, start_date, end_date, site_filter):
     """Run regular Ad Manager report as fallback"""
-            report_service = client.GetService('ReportService', version='v202502')    
+    report_service = client.GetService('ReportService', version='v202502')
+    
     # Use regular Ad Manager columns - prioritize line item level columns that work
     regular_column_combinations = [
         # Best working combination from debug
@@ -3510,7 +3530,8 @@ def _run_regular_report(client, start_date, end_date, site_filter):
 def _wait_and_download_report(client, report_job_id):
     """Wait for report completion and download data"""
     
-            report_service = client.GetService('ReportService', version='v202502')    
+    report_service = client.GetService('ReportService', version='v202502')
+    
     # Wait for report completion
     max_attempts = 30
     for attempt in range(max_attempts):
@@ -3522,7 +3543,8 @@ def _wait_and_download_report(client, report_job_id):
                 print(f"[DEBUG] Report completed, downloading...")
                 
                 # Download report
-            report_service = client.GetService('ReportService', version='v202502')                report_data = downloader.DownloadReportToString(report_job_id, 'CSV_DUMP')
+                downloader = client.GetDataDownloader(version='v202502')
+                report_data = downloader.DownloadReportToString(report_job_id, 'CSV_DUMP')
                 
                 # Parse CSV data
                 lines = report_data.strip().split('\n')
@@ -3709,7 +3731,8 @@ def fetch_adx_traffic_per_country(start_date, end_date, country_filter=None):
         if not client:
             return {'status': False, 'error': 'Failed to initialize client'}
         
-            report_service = client.GetService('ReportService', version='v202502')        
+        report_service = client.GetService('ReportService', version='v202502')
+        
         # Convert string dates to datetime.date objects
         if isinstance(start_date, str):
             start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
@@ -3786,7 +3809,8 @@ def fetch_adx_traffic_per_country(start_date, end_date, country_filter=None):
 
 def _wait_and_download_country_report(client, report_job_id):
     """Wait for country report completion and download data"""
-            report_service = client.GetService('ReportService', version='v202502')    
+    report_service = client.GetService('ReportService', version='v202502')
+    
     # Wait for report completion
     max_attempts = 30
     attempt = 0
@@ -3822,7 +3846,8 @@ def _wait_and_download_country_report(client, report_job_id):
     
     # Download report
     try:
-            report_service = client.GetService('ReportService', version='v202502')        report_data = report_downloader.DownloadReportToString(
+        report_downloader = client.GetDataDownloader(version='v202502')
+        report_data = report_downloader.DownloadReportToString(
             report_job_id, 'CSV_DUMP'
         )
         # Process the CSV data
@@ -3837,7 +3862,8 @@ def _wait_and_download_country_report(client, report_job_id):
 
 def _run_regular_country_report(client, start_date, end_date, country_filter):
     """Run regular Ad Manager report for country data as fallback"""
-            report_service = client.GetService('ReportService', version='v202502')    
+    report_service = client.GetService('ReportService', version='v202502')
+    
     # Use regular Ad Manager columns
     regular_column_combinations = [
         ['TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CLICKS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE'],
@@ -4022,7 +4048,8 @@ def fetch_roi_per_country(start_date, end_date, country_filter=None):
         client = get_ad_manager_client()
         if not client:
             return {'status': False, 'error': 'Failed to initialize client'}
-            report_service = client.GetService('ReportService', version='v202502')        # Convert string dates to datetime.date objects
+        report_service = client.GetService('ReportService', version='v202502')
+        # Convert string dates to datetime.date objects
         if isinstance(start_date, str):
             start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
         if isinstance(end_date, str):
@@ -4086,7 +4113,8 @@ def fetch_roi_per_country(start_date, end_date, country_filter=None):
 
 def _wait_and_download_roi_country_report(client, report_job_id):
     """Wait for country report completion and download data"""
-            report_service = client.GetService('ReportService', version='v202502')    
+    report_service = client.GetService('ReportService', version='v202502')
+    
     # Wait for report completion
     max_attempts = 30
     attempt = 0
@@ -4122,7 +4150,8 @@ def _wait_and_download_roi_country_report(client, report_job_id):
     
     # Download report
     try:
-            report_service = client.GetService('ReportService', version='v202502')        report_data = report_downloader.DownloadReportToString(
+        report_downloader = client.GetDataDownloader(version='v202502')
+        report_data = report_downloader.DownloadReportToString(
             report_job_id, 'CSV_DUMP'
         )
         # Process the CSV data
@@ -4137,7 +4166,8 @@ def _wait_and_download_roi_country_report(client, report_job_id):
 
 def _run_regular_roi_country_report(client, start_date, end_date, country_filter):
     """Run regular Ad Manager report for country data as fallback"""
-            report_service = client.GetService('ReportService', version='v202502')    
+    report_service = client.GetService('ReportService', version='v202502')
+    
     # Use regular Ad Manager columns
     regular_column_combinations = [
         ['TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CLICKS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE'],
@@ -4654,7 +4684,8 @@ def fetch_roi_traffic_account_by_user(user_email, start_date, end_date, site_fil
 
 def _run_roi_report_with_fallback(client, start_date, end_date, site_filter):
     """Try ROI report with fallback to regular metrics"""
-            report_service = client.GetService('ReportService', version='v202502')    # Try ROI columns first - sesuai dengan data yang tersedia di Ad Manager interface
+    report_service = client.GetService('ReportService', version='v202502')
+    # Try ROI columns first - sesuai dengan data yang tersedia di Ad Manager interface
     roi_column_combinations = [
         # Coba kolom lengkap seperti di gambar Ad Manager
         ['AD_EXCHANGE_IMPRESSIONS', 'AD_EXCHANGE_CLICKS', 'AD_EXCHANGE_TOTAL_EARNINGS', 'AD_EXCHANGE_CPC', 'AD_EXCHANGE_CTR', 'AD_EXCHANGE_ECPM'],
@@ -4724,7 +4755,8 @@ def fetch_roi_ad_change_data(start_date, end_date):
         if not client:
             return {'status': False, 'error': 'Failed to initialize client'}
         
-            report_service = client.GetService('ReportService', version='v202502')        
+        report_service = client.GetService('ReportService', version='v202502')
+        
         # Convert string dates to datetime.date objects
         if isinstance(start_date, str):
             start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
