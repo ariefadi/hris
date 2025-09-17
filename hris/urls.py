@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.urls import path, include
 from django.shortcuts import redirect
+from django.conf import settings
+from django.conf.urls.static import static
 from management import views
 
 def root_redirect(request):
@@ -15,3 +17,7 @@ urlpatterns = [
     # Direct access to AdX Traffic Account
     path('adx-traffic-account/', views.AdxTrafficPerAccountView.as_view(), name='adx_traffic_account_direct'),
 ]
+
+# Serve static files during development
+if settings.DEBUG:
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

@@ -8,26 +8,26 @@ def run_sql(sql):
 
 class data_mysql:
     
-    # hris_trendHorizone = ('127.0.0.1', 'root', '', 'hris_trendHorizone')
-    hris_trendHorizone = ('127.0.0.1', '3306', 'root', 'hris123456', 'hris_trendHorizone')
+    hris_trendHorizone = ('127.0.0.1', 'root', '', 'hris_trendHorizone')
+    # hris_trendHorizone = ('127.0.0.1', '3306', 'root', 'hris123456', 'hris_trendHorizone')
 
     def __init__(self):
-        # db_hris = pymysql.connect(
-        #     host='127.0.0.1',
-        #     user='root',
-        #     password='',
-        #     database='hris_trendHorizone',
-        #     cursorclass=pymysql.cursors.DictCursor  # ⬅️ ini penting
-        # )
-
         db_hris = pymysql.connect(
             host='127.0.0.1',
-            port=3306,  # port lokal yang dipakai di tunnel
             user='root',
-            password='hris123456',
+            password='',
             database='hris_trendHorizone',
-            cursorclass=pymysql.cursors.DictCursor
+            cursorclass=pymysql.cursors.DictCursor  # ⬅️ ini penting
         )
+
+        # db_hris = pymysql.connect(
+        #     host='127.0.0.1',
+        #     port=3306,  # port lokal yang dipakai di tunnel
+        #     user='root',
+        #     password='hris123456',
+        #     database='hris_trendHorizone',
+        #     cursorclass=pymysql.cursors.DictCursor
+        # )
         self.cur_hris = db_hris.cursor()  # sekarang otomatis DictCursor
         self.comit_hris = db_hris
 
