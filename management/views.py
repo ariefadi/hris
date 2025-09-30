@@ -30,7 +30,7 @@ from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleads import ad_manager
-from .utils import fetch_data_all_insights_data_all, fetch_data_all_insights_total_all, fetch_data_insights_account_range_all, fetch_data_all_insights, fetch_data_all_insights_total, fetch_data_insights_account_range, fetch_data_insights_account, fetch_data_insights_account_filter_all, fetch_daily_budget_per_campaign, fetch_status_per_campaign, fetch_data_insights_campaign_filter_sub_domain, fetch_data_insights_campaign_filter_account, fetch_data_insights_by_country_filter_campaign, fetch_data_insights_by_country_filter_account, fetch_ad_manager_reports, fetch_ad_manager_inventory, fetch_adx_summary_data, fetch_adx_account_data, fetch_data_insights_all_accounts_by_subdomain, fetch_adx_traffic_per_country, fetch_roi_per_country, fetch_data_insights_by_country_filter_campaign_roi, fetch_data_insights_by_date_subdomain_roi
+from .utils import fetch_data_all_insights_data_all, fetch_data_all_insights_total_all, fetch_data_insights_account_range_all, fetch_data_all_insights, fetch_data_all_insights_total, fetch_data_insights_account_range, fetch_data_insights_account, fetch_data_insights_account_filter_all, fetch_daily_budget_per_campaign, fetch_status_per_campaign, fetch_data_insights_campaign_filter_sub_domain, fetch_data_insights_campaign_filter_account, fetch_data_country_facebook_ads, fetch_data_insights_by_country_filter_campaign, fetch_data_insights_by_country_filter_account, fetch_ad_manager_reports, fetch_ad_manager_inventory, fetch_adx_summary_data, fetch_adx_account_data, fetch_data_insights_all_accounts_by_subdomain, fetch_adx_traffic_per_country, fetch_roi_per_country, fetch_data_insights_by_country_filter_campaign_roi, fetch_data_insights_by_date_subdomain_roi
 
 # Helper function untuk refresh token management
 def ensure_refresh_token(email):
@@ -219,6 +219,90 @@ class LoginProcess(View):
                     'message': "Selamat Datang " + rs_data['data']['user_alias'] + " !",
                 }
         return JsonResponse(hasil)
+
+    
+@csrf_exempt
+def get_countries_facebook_ads(request):
+    """Endpoint untuk mendapatkan daftar negara yang tersedia"""
+    if 'hris_admin' not in request.session:
+        return redirect('admin_login')
+    try:
+        # Ambil data negara dari AdX untuk periode 30 hari terakhir
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=30)
+        # Ambil semua data negara tanpa filter
+        rs_account = data_mysql().master_account_ads()
+        result = fetch_data_country_facebook_ads(
+            rs_account['data'],
+            start_date.strftime('%Y-%m-%d'), 
+            end_date.strftime('%Y-%m-%d')
+        )
+        countries = []
+        for country_data in result: 
+            country_name = country_data.get('name')
+            country_code = country_data.get('code')
+            if country_name:
+                countries.append({
+                    'code': country_code,
+                    'name': country_name
+                })
+            
+        # Sort berdasarkan nama negara
+        countries.sort(key=lambda x: x['name'])
+        return JsonResponse({
+            'status': 'success',
+            'countries': countries
+        })
+        
+    except Exception as e:
+        print(f"[ERROR] Gagal mengambil data negara: {e}")
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Gagal mengambil data negara.',
+            'error': str(e)
+        }, status=500)  # <- Ini penting
+
+@csrf_exempt
+def get_countries_adx(request):
+    """Endpoint untuk mendapatkan daftar negara yang tersedia"""
+    if 'hris_admin' not in request.session:
+        return redirect('admin_login')
+    try:
+        # Ambil data negara dari AdX untuk periode 30 hari terakhir
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=30)
+        # Ambil semua data negara tanpa filter
+        result = fetch_adx_traffic_per_country(
+            start_date.strftime('%Y-%m-%d'), 
+            end_date.strftime('%Y-%m-%d')
+        )
+        print(f"Data Negara : {result}")
+        # Ekstrak daftar negara dari data yang tersedia
+        countries = []
+        for country_data in result['data']:
+            country_name = country_data.get('country_name')
+            country_code = country_data.get('country_code', '')
+            country_label = f"{country_name} ({country_code})"
+            if country_name:
+                countries.append({
+                    'code': country_code,
+                    'name': country_label
+                })
+            
+            # Sort berdasarkan nama negara
+        countries.sort(key=lambda x: x['name'])
+        return JsonResponse({
+            'status': 'success',
+            'countries': countries
+        })
+        
+    except Exception as e:
+        print(f"[ERROR] Gagal mengambil data negara: {e}")
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Gagal mengambil data negara.',
+            'error': str(e)
+        }, status=500)  # <- Ini penting
 
 class LogoutAdmin(View):
     def get(self, req):
@@ -639,6 +723,130 @@ class page_master_plan(View):
             'data_master_plan': data_master_plan
         }
         return JsonResponse(hasil)
+
+
+class page_detail_master_plan(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super(page_detail_master_plan, self).dispatch(request, *args, **kwargs)
+        
+    def get(self, request, master_plan_id):
+        try:
+            # Ambil data master plan berdasarkan ID
+            db = data_mysql()
+            result = db.get_master_plan_by_id(master_plan_id)
+            
+            if result['status']:
+                context = {
+                    'master_plan_data': result['data'],
+                    'master_plan_id': master_plan_id,
+                    'title': 'Detail Master Plan',
+                    'user': request.session['hris_admin']
+                }
+                return render(request, 'admin/master_plan/detail.html', context)
+            else:
+                messages.error(request, 'Data master plan tidak ditemukan')
+                return redirect('master_plan')
+                
+        except Exception as e:
+            messages.error(request, f'Terjadi error: {str(e)}')
+            return redirect('master_plan')
+
+    def post(self, request, master_plan_id):
+        try:
+            # Handle update master plan
+            data = {
+                'master_plan_id': master_plan_id,
+                'master_task_code': request.POST.get('master_task_code'),
+                'master_task_plan': request.POST.get('master_task_plan'),
+                'project_kategori': request.POST.get('project_kategori'),
+                'urgency': request.POST.get('urgency'),
+                'execute_status': request.POST.get('execute_status'),
+                'catatan': request.POST.get('catatan'),
+                'assignment_to': request.POST.get('assignment_to')
+            }
+            
+            db = data_mysql()
+            result = db.update_master_plan(data)
+            
+            if result['status']:
+                messages.success(request, 'Master plan berhasil diupdate')
+            else:
+                messages.error(request, 'Gagal mengupdate master plan')
+                
+            return redirect('master_plan')
+            
+        except Exception as e:
+            messages.error(request, f'Terjadi error: {str(e)}')
+            return redirect('master_plan')
+
+
+class add_master_plan(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super(add_master_plan, self).dispatch(request, *args, **kwargs)
+        
+    def get(self, request):
+        # Ambil data users untuk dropdown assignment
+        db = data_mysql()
+        users_result = db.data_user_by_params()
+        
+        context = {
+            'title': 'Tambah Master Plan',
+            'user': request.session['hris_admin'],
+            'users': users_result['data'] if users_result['status'] else []
+        }
+        return render(request, 'admin/master_plan/add.html', context)
+
+
+class post_tambah_master_plan(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super(post_tambah_master_plan, self).dispatch(request, *args, **kwargs)
+        
+    def post(self, request):
+        try:
+            # Generate UUID untuk master_plan_id
+            import uuid
+            master_plan_id = str(uuid.uuid4())
+            
+            # Ambil data dari form
+            data = {
+                'master_plan_id': master_plan_id,
+                'master_task_code': request.POST.get('master_task_code'),
+                'master_task_plan': request.POST.get('master_task_plan'),
+                'project_kategori': request.POST.get('project_kategori'),
+                'urgency': request.POST.get('urgency'),
+                'execute_status': request.POST.get('execute_status', 'Pending'),
+                'catatan': request.POST.get('catatan', ''),
+                'submitted_task': request.session['hris_admin']['user_id'],  # User yang login
+                'assignment_to': request.POST.get('assignment_to')
+            }
+            
+            # Validasi data required
+            required_fields = ['master_task_code', 'master_task_plan', 'project_kategori', 'urgency']
+            for field in required_fields:
+                if not data[field]:
+                    messages.error(request, f'Field {field} harus diisi')
+                    return redirect('add_master_plan')
+            
+            # Insert ke database
+            db = data_mysql()
+            result = db.insert_master_plan(data)
+            
+            if result['status']:
+                messages.success(request, 'Master plan berhasil ditambahkan')
+                return redirect('master_plan')
+            else:
+                messages.error(request, f'Gagal menambahkan master plan: {result["data"]}')
+                return redirect('add_master_plan')
+                
+        except Exception as e:
+            messages.error(request, f'Terjadi error: {str(e)}')
+            return redirect('add_master_plan')
     
 
 # FACEBOOK ADS
@@ -866,6 +1074,7 @@ class UpdateAccountFacebookAds(View):
             }
             return JsonResponse(hasil)
         
+        print(req.session['hris_admin'])
         # Update data
         data_update = {
             'account_ads_id': account_ads_id,
@@ -875,9 +1084,9 @@ class UpdateAccountFacebookAds(View):
             'app_id': app_id,
             'app_secret': app_secret,
             'access_token': access_token,
-            'mub': req.session['hris_admin']['id'],
-            'mub_name': req.session['hris_admin']['name'],
-            'mud': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            'mdb': req.session['hris_admin']['user_id'],
+            'mdb_name': req.session['hris_admin']['user_name'],
+            'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         }
         
         rs_update = data_mysql().update_account_ads(data_update)
@@ -1180,11 +1389,19 @@ class page_per_country_facebook(View):
         elif 'hris_admin' not in request.session:
             return redirect('user_login')
         return super(page_per_country_facebook, self).dispatch(request, *args, **kwargs)
+    
     def get(self, req):
         tanggal_dari = req.GET.get('tanggal_dari')
         tanggal_sampai = req.GET.get('tanggal_sampai')
         data_sub_domain = req.GET.get('data_sub_domain')
         data_account = req.GET.get('data_account')
+        
+        # Ambil parameter countries dari query string
+        countries_param = req.GET.get('countries', '')
+        selected_countries = []
+        if countries_param:
+            selected_countries = countries_param.split(',')
+
         rs_account = data_mysql().master_account_ads()
         if data_sub_domain != '%' and data_account != '%':
             rs_data_account = data_mysql().master_account_ads_by_id({
@@ -1193,6 +1410,149 @@ class page_per_country_facebook(View):
             data = fetch_data_insights_by_country_filter_account(str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(tanggal_dari), str(tanggal_sampai), str(data_sub_domain))
         else: 
             data = fetch_data_insights_by_country_filter_campaign(rs_account['data'], str(tanggal_dari), str(tanggal_sampai), str(data_sub_domain)) 
+        
+        # Filter data berdasarkan negara yang dipilih jika ada
+        if selected_countries:
+            filtered_data = []
+            total_spend = 0
+            total_impressions = 0
+            total_reach = 0
+            total_clicks = 0
+            total_frequency = 0
+            total_cpr = 0
+            
+            for item in data['data']:
+                # Cek apakah negara ada dalam filter yang dipilih
+                country_code = item.get('country_code', '')
+                country_name = item.get('country', '')
+                
+                # Cek berdasarkan kode negara atau nama negara
+                if country_code in selected_countries or country_name in selected_countries:
+                    filtered_data.append(item)
+                    total_spend += float(item.get('spend', 0))
+                    total_impressions += int(item.get('impressions', 0))
+                    total_reach += int(item.get('reach', 0))
+                    total_clicks += int(item.get('clicks', 0))
+                    total_frequency += float(item.get('frequency', 0))
+                    total_cpr += float(item.get('cpr', 0))
+            
+            # Update data dengan hasil filter
+            data['data'] = filtered_data
+            data['total'] = [{
+                'total_spend': total_spend,
+                'total_impressions': total_impressions,
+                'total_reach': total_reach,
+                'total_click': total_clicks,
+                'total_frequency': total_frequency / len(filtered_data) if filtered_data else 0,
+                'total_cpr': total_cpr / len(filtered_data) if filtered_data else 0
+            }]
+        
+        hasil = {
+            'hasil': "Data Traffic Per Country",
+            'data_country': data['data'],
+            'total_country': data['total'],
+        }
+        
+        # Debug: Print response structure
+        print("DEBUG - Response structure:")
+        print(f"total_country: {data['total']}")
+        
+        return JsonResponse(hasil)
+    
+    def post(self, req):
+        import json
+        tanggal_dari = req.POST.get('tanggal_dari')
+        tanggal_sampai = req.POST.get('tanggal_sampai')
+        data_sub_domain = req.POST.get('data_sub_domain')
+        data_account = req.POST.get('data_account')
+        selected_countries_json = req.POST.get('selected_countries', '[]')
+        
+        try:
+            selected_countries = json.loads(selected_countries_json)
+        except:
+            selected_countries = []
+        
+        rs_account = data_mysql().master_account_ads()
+        if data_sub_domain != '%' and data_account != '%':
+            rs_data_account = data_mysql().master_account_ads_by_id({
+                'data_account': data_account,
+            })['data']
+            data = fetch_data_insights_by_country_filter_account(str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(tanggal_dari), str(tanggal_sampai), str(data_sub_domain))
+        else: 
+            data = fetch_data_insights_by_country_filter_campaign(rs_account['data'], str(tanggal_dari), str(tanggal_sampai), str(data_sub_domain)) 
+        
+        # Normalize total structure - utils.py returns total as array, we need object
+        if 'total' in data and isinstance(data['total'], list) and len(data['total']) > 0:
+            original_total = data['total'][0]
+            data['total'] = {
+                'impressions': original_total.get('total_impressions', 0),
+                'spend': original_total.get('total_spend', 0),
+                'clicks': original_total.get('total_click', 0),  # Note: utils.py uses 'total_click'
+                'reach': original_total.get('total_reach', 0),
+                'frequency': original_total.get('total_frequency', 0),
+                'ctr': round((original_total.get('total_click', 0) / original_total.get('total_impressions', 1)) * 100, 2) if original_total.get('total_impressions', 0) > 0 else 0,
+                'cost_per_result': original_total.get('total_cpr', 0)
+            }
+        
+        print(f"DEBUG - Normalized total: {data.get('total', {})}")
+        
+        # Filter data berdasarkan negara yang dipilih
+        if selected_countries and len(selected_countries) > 0:
+            print(f"DEBUG - Filtering by countries: {selected_countries}")
+            filtered_data = []
+            for country_data in data['data']:
+                # Ekstrak country code dari format "Country Name (CODE)"
+                country_field = country_data.get('country', '')
+                if '(' in country_field and ')' in country_field:
+                    # Ekstrak kode negara dari dalam kurung
+                    country_code = country_field.split('(')[-1].replace(')', '').strip()
+                    if country_code in selected_countries:
+                        filtered_data.append(country_data)
+            data['data'] = filtered_data
+            
+            # Recalculate totals hanya jika ada data yang difilter
+            if filtered_data:
+                total_impressions = sum(int(item.get('impressions', 0)) for item in filtered_data)
+                total_spend = sum(float(item.get('spend', 0)) for item in filtered_data)
+                total_clicks = sum(int(item.get('clicks', 0)) for item in filtered_data)
+                total_reach = sum(int(item.get('reach', 0)) for item in filtered_data)
+                
+                # Hitung frequency dan CPR yang benar berdasarkan total agregat
+                frequency = round(total_impressions / total_reach, 2) if total_reach > 0 else 0
+                ctr = round((total_clicks / total_impressions) * 100, 2) if total_impressions > 0 else 0
+                cost_per_result = round(total_spend / total_clicks, 2) if total_clicks > 0 else 0
+                
+                data['total'] = {
+                    'impressions': total_impressions,
+                    'spend': total_spend,
+                    'clicks': total_clicks,
+                    'reach': total_reach,
+                    'frequency': frequency,
+                    'ctr': ctr,
+                    'cost_per_result': cost_per_result
+                }
+                print(f"DEBUG - Recalculated total after filtering:")
+                print(f"  - Total impressions: {total_impressions}")
+                print(f"  - Total reach: {total_reach}")
+                print(f"  - Total clicks: {total_clicks}")
+                print(f"  - Total spend: {total_spend}")
+                print(f"  - Calculated frequency: {frequency}")
+                print(f"  - Calculated CPR: {cost_per_result}")
+            else:
+                # Jika tidak ada data setelah filter, set total ke 0
+                data['total'] = {
+                    'impressions': 0,
+                    'spend': 0,
+                    'clicks': 0,
+                    'reach': 0,
+                    'frequency': 0,
+                    'ctr': 0,
+                    'cost_per_result': 0
+                }
+                print("DEBUG - No data after filtering, set total to 0")
+        else:
+            print("DEBUG - No country filter applied, using original total")
+        
         hasil = {
             'hasil': "Data Traffic Per Country",
             'data_country': data['data'],
@@ -1861,26 +2221,29 @@ class AdxTrafficPerCountryDataView(View):
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
-        country_filter = req.GET.get('country_filter', '')
+        selected_countries = req.GET.get('selected_countries', '')
         
         if not start_date or not end_date:
             return JsonResponse({
                 'status': False,
                 'error': 'Start date and end date are required'
             })
-        
+
         try:
-            print(f"[DEBUG] AdxTrafficPerCountryDataView - start_date: {start_date}, end_date: {end_date}, country_filter: {country_filter}")
-            
             # Format tanggal untuk AdManager API
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
             end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
             
-            # Filter country jika kosong atau '%'
-            filter_value = country_filter if country_filter and country_filter != '%' else None
+            # Parse selected countries dari string yang dipisah koma
+            countries_list = []
+            print(f"[DEBUG] Raw selected_countries: '{selected_countries}'")
+            if selected_countries and selected_countries.strip():
+                countries_list = [country.strip() for country in selected_countries.split(',') if country.strip()]
+                print(f"[DEBUG] Parsed countries_list: {countries_list}")
+            else:
+                print("[DEBUG] No countries selected, will fetch all countries")
             
-            print(f"[DEBUG] Calling fetch_adx_traffic_per_country with: {start_date_formatted}, {end_date_formatted}, {filter_value}")
-            result = fetch_adx_traffic_per_country(start_date_formatted, end_date_formatted, filter_value)
+            result = fetch_adx_traffic_per_country(start_date_formatted, end_date_formatted, countries_list)
             print(f"[DEBUG] fetch_adx_traffic_per_country result: {result}")
             
             return JsonResponse(result, safe=False)
@@ -1890,8 +2253,6 @@ class AdxTrafficPerCountryDataView(View):
                 'status': False,
                 'error': str(e)
             })
-
-
 
 def authorize(request):
     flow = Flow.from_client_secrets_file(
@@ -2019,23 +2380,139 @@ class RoiTrafficPerCountryDataView(View):
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
-        country_filter = req.GET.get('country_filter', '')
+        selected_countries = req.GET.get('selected_countries', '')
+
         if not start_date or not end_date:
             return JsonResponse({
                 'status': False,
                 'error': 'Start date and end date are required'
             })
+
         try:
             # Format tanggal untuk AdManager API
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
             end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
-            # Filter country jika kosong atau '%'
-            filter_value = country_filter if country_filter and country_filter != '%' else None
-            data_adx = fetch_roi_per_country(start_date_formatted, end_date_formatted, filter_value)
+            
+            # Parse selected countries dari string yang dipisah koma
+            countries_list = []
+            print(f"[DEBUG] Raw selected_countries: '{selected_countries}'")
+            if selected_countries and selected_countries.strip():
+                countries_list = [country.strip() for country in selected_countries.split(',') if country.strip()]
+                print(f"[DEBUG] Parsed countries_list: {countries_list}")
+            else:
+                print("[DEBUG] No countries selected, will fetch all countries")
+            data_adx = fetch_roi_per_country(start_date_formatted, end_date_formatted, countries_list)
+            print(f" Hasil Adx: {data_adx}")
             rs_account = data_mysql().master_account_ads()
             data_facebook = fetch_data_insights_by_country_filter_campaign_roi(rs_account['data'], str(start_date_formatted), str(end_date_formatted), str('blog.missagendalimon')) 
+            print(f" Hasil fb: {data_facebook}")
+            
+            if selected_countries:
+                filtered_data = []
+                total_spend = 0
+                total_impressions = 0
+                total_reach = 0
+                total_clicks = 0
+                total_frequency = 0
+                total_cpr = 0
+
+                # Parse selected countries dari format "Country Name (CODE)" menjadi list nama negara
+                parsed_countries = []
+                for country_item in selected_countries.split(','):
+                    country_item = country_item.strip()
+                    if '(' in country_item and ')' in country_item:
+                        # Extract country name dari format "Country Name (CODE)"
+                        country_name = country_item.split('(')[0].strip()
+                        parsed_countries.append(country_name.lower())
+                    else:
+                        parsed_countries.append(country_item.lower())
+                
+                print(f"[DEBUG FB Filter] Parsed countries for filtering: {parsed_countries}")
+
+                for item in data_facebook['data']:
+                    # Cek apakah negara ada dalam filter yang dipilih
+                    country_code = item.get('country_code', '').lower()
+                    country_name = item.get('country', '').lower()
+                    
+                    print(f"[DEBUG FB Filter] Checking FB item: country='{country_name}', code='{country_code}'")
+                    
+                    # Cek berdasarkan nama negara (case insensitive)
+                    country_matched = False
+                    for parsed_country in parsed_countries:
+                        if country_name == parsed_country or country_code == parsed_country:
+                            country_matched = True
+                            print(f"[DEBUG FB Filter] ✓ MATCH: '{country_name}' matches '{parsed_country}'")
+                            break
+                    
+                    if country_matched:
+                        filtered_data.append(item)
+                        total_spend += float(item.get('spend', 0))
+                        total_impressions += int(item.get('impressions', 0))
+                        total_reach += int(item.get('reach', 0))
+                        total_clicks += int(item.get('clicks', 0))
+                        total_frequency += float(item.get('frequency', 0))
+                        total_cpr += float(item.get('cpr', 0))
+                    else:
+                        print(f"[DEBUG FB Filter] ✗ NO MATCH: '{country_name}' not in {parsed_countries}")
+                
+                # Update data dengan hasil filter
+                data_facebook['data'] = filtered_data
+                data_facebook['total'] = [{
+                    'total_spend': total_spend,
+                    'total_impressions': total_impressions,
+                    'total_reach': total_reach,
+                    'total_click': total_clicks,
+                    'total_frequency': total_frequency / len(filtered_data) if filtered_data else 0,
+                    'total_cpr': total_cpr / len(filtered_data) if filtered_data else 0
+                }]
+            print(f" Data fb: {data_facebook}")
             # Proses penggabungan data AdX dan Facebook
             result = process_roi_traffic_country_data(data_adx, data_facebook)
+            print(f" Hasil Akhir: {result}")
+            
+            # Filter hasil berdasarkan negara yang dipilih jika ada
+            if countries_list and result.get('status') and result.get('data'):
+                print(f"[DEBUG ROI] Original data has {len(result['data'])} countries")
+                print(f"[DEBUG ROI] Countries to filter: {countries_list}")
+                
+                # Parse selected countries dari format "Country Name (CODE)" menjadi list nama negara
+                parsed_filter_countries = []
+                for country_item in countries_list:
+                    country_item = country_item.strip()
+                    if '(' in country_item and ')' in country_item:
+                        # Extract country name dari format "Country Name (CODE)"
+                        country_name = country_item.split('(')[0].strip()
+                        parsed_filter_countries.append(country_name.lower())
+                    else:
+                        parsed_filter_countries.append(country_item.lower())
+                
+                print(f"[DEBUG ROI] Parsed filter countries: {parsed_filter_countries}")
+                
+                filtered_data = []
+                for item in result['data']:
+                    country_code = item.get('country_code', '').lower()
+                    country_name = item.get('country', '').lower()
+                    print(f"[DEBUG ROI] Checking country: '{country_name}' (code: '{country_code}')")
+                    
+                    # Check if country matches any in the filter list (case insensitive)
+                    country_matched = False
+                    for filter_country in parsed_filter_countries:
+                        if country_name == filter_country or country_code == filter_country:
+                            print(f"[DEBUG ROI] ✓ MATCH FOUND: '{country_name}' matches '{filter_country}'")
+                            country_matched = True
+                            break
+                    
+                    # Only add to filtered_data if country_matched is True
+                    if country_matched:
+                        filtered_data.append(item)
+                        print(f"[DEBUG ROI] ✓ Added '{country_name}' to filtered results")
+                    else:
+                        print(f"[DEBUG ROI] ✗ No match found for '{country_name}' - EXCLUDED from results")
+                
+                result['data'] = filtered_data
+                result['total_records'] = len(filtered_data)
+                print(f"[DEBUG ROI] Manually filtered results to {len(filtered_data)} countries")
+            
             return JsonResponse(result, safe=False)
             
         except Exception as e:

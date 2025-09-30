@@ -44,6 +44,14 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     })
+    $('#select_country').select2({
+        placeholder: '-- Pilih Negara --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4',
+        multiple: true
+    })
     $('#tanggal_dari').datepicker({
       format: 'yyyy-mm-dd',
       autoclose: true,
@@ -101,20 +109,38 @@ $().ready(function () {
         }    
     });
     
-    // Auto-load data saat halaman pertama kali dimuat
-    var tanggal_dari = $('#tanggal_dari').val();
-    var tanggal_sampai = $('#tanggal_sampai').val();
-    var data_sub_domain = '%';
-    var data_account = '%';
-    if(tanggal_dari && tanggal_sampai) {
-        table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_sub_domain, data_account);
-    }
+    // Auto-load data akan dipanggil setelah country options dimuat
+    
+    // Load data negara untuk select2
+    load_country_options();
+    
+    // Event handler untuk filter negara
+    $('#select_country').change(function (e) {
+        var tanggal_dari = $("#tanggal_dari").val();
+        var tanggal_sampai = $("#tanggal_sampai").val();
+        var data_sub_domain = $("#select_sub_domain option:selected").val() || '%';
+        var data_account = $("#select_account option:selected").val() || '%';
+        if(tanggal_dari!="" && tanggal_sampai!="" && data_sub_domain!="" && data_account!="")
+        {
+            destroy_table_data_per_country_facebook()
+            table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_sub_domain, data_account)
+        }    
+    });
 });
 function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_sub_domain, data_account) {
-    console.log(data_sub_domain)
+    var selected_countries = $('#select_country').val() || [];
+    
     $.ajax({
-        url: '/management/admin/page_per_country_facebook?tanggal_dari='+tanggal_dari+'&tanggal_sampai='+tanggal_sampai+'&data_sub_domain='+data_sub_domain+'&data_account='+data_account,
-        method: 'GET',
+        url: '/management/admin/page_per_country_facebook',
+        type: 'POST',
+        data: {
+            'tanggal_dari': tanggal_dari,
+            'tanggal_sampai': tanggal_sampai,
+            'data_sub_domain': data_sub_domain,
+            'data_account': data_account,
+            'selected_countries': JSON.stringify(selected_countries),
+            'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+        },
         dataType: 'json',
         beforeSend: function () {
             $('#overlay').fadeIn(500);
@@ -140,33 +166,54 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_sub_
                 event_data += '</tr>';  
                 $("#table_data_per_country_facebook tbody").append(event_data);    
             })
-            $.each(data_country.total_country, function (index, value) {
-                // Spend
-                const spend = Number(value?.total_spend) || 0;
-                const totalSpend = spend.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-                // Impressions
-                const impressions = Number(value?.total_impressions) || 0;
-                const totalImpressions = impressions.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-                // Reach
-                const reach = Number(value?.total_reach) || 0;
-                const totalReach = reach.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-                // Clicks
-                const clicks = Number(value?.total_click) || 0;
-                const totalClicks = clicks.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-                // Frequency
-                const frequency = Number(value?.total_frequency) || 0;
-                const totalFrequency = frequency.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + ' %';
-                // CPR
-                let data_cpr = value.total_cpr;
-                let cpr_number = parseFloat(data_cpr)
-                let totalCpr = cpr_number.toFixed(0).replace(',', '.');
-                $('#total_spend').text(totalSpend);
-                $('#total_impressions').text(totalImpressions);
-                $('#total_reach').text(totalReach);
-                $('#total_clicks').text(totalClicks);
-                $('#total_frequency').text(totalFrequency);
-                $('#total_cpr').text(totalCpr);
-            })
+            // Debug: Log response structure
+            console.log("DEBUG - Full response:", data_country);
+            console.log("DEBUG - total_country:", data_country.total_country);
+            
+            // Menggunakan data total yang sudah difilter dari backend
+            const totalData = data_country.total_country;
+            
+            console.log("DEBUG - totalData:", totalData);
+            
+            // Spend
+            const spend = Number(totalData?.spend) || 0;
+            const totalSpend = spend.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            
+            // Impressions
+            const impressions = Number(totalData?.impressions) || 0;
+            const totalImpressions = impressions.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            
+            // Reach
+            const reach = Number(totalData?.reach) || 0;
+            const totalReach = reach.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            
+            // Clicks
+            const clicks = Number(totalData?.clicks) || 0;
+            const totalClicks = clicks.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            
+            // Frequency
+            const frequency = Number(totalData?.frequency) || 0;
+            const totalFrequency = frequency.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + ' %';
+            
+            // CPR (Cost Per Result)
+            const cpr = Number(totalData?.cost_per_result) || 0;
+            const totalCpr = cpr.toFixed(0).replace(',', '.');
+            
+            console.log("DEBUG - Calculated values:", {
+                spend, impressions, reach, clicks, frequency, cpr
+            });
+            
+            $('#total_spend').text(totalSpend);
+            $('#total_impressions').text(totalImpressions);
+            $('#total_reach').text(totalReach);
+            $('#total_clicks').text(totalClicks);
+            $('#total_frequency').text(totalFrequency);
+            $('#total_cpr').text(totalCpr);
+            // Periksa apakah DataTable sudah diinisialisasi sebelumnya
+            if ($.fn.dataTable.isDataTable('#table_data_per_country_facebook')) {
+                $('#table_data_per_country_facebook').DataTable().destroy();
+            }
+            
             $('#table_data_per_country_facebook').DataTable({  
                 "paging": true,
                 "pageLength": 50,
@@ -278,7 +325,43 @@ function getCookie(name) {
 const csrftoken = getCookie('csrftoken');
 
 function destroy_table_data_per_country_facebook(){
-    $('#table_data_per_country_facebook').dataTable().fnClearTable();
-    $('#table_data_per_country_facebook').dataTable().fnDraw();
-    $('#table_data_per_country_facebook').dataTable().fnDestroy();
+    // Periksa apakah tabel sudah diinisialisasi sebagai DataTable
+    if ($.fn.dataTable.isDataTable('#table_data_per_country_facebook')) {
+        $('#table_data_per_country_facebook').DataTable().clear().destroy();
+    }
+    // Bersihkan konten tbody secara manual
+    $('#table_data_per_country_facebook tbody').empty();
+}
+
+// Fungsi untuk memuat opsi negara ke select2
+function load_country_options() {
+    $.ajax({
+        url: '/management/admin/get_countries_facebook_ads',
+        type: 'GET',
+        dataType: 'json',
+        success: function(response) {
+            console.log('Data Negara didapat : ', response);
+            if(response.status) {
+                var select_country = $('#select_country');
+                select_country.empty();
+                
+                $.each(response.countries, function(index, country) {
+                    select_country.append(new Option(country.name, country.code, false, false));
+                });
+                
+                select_country.trigger('change');
+                
+                // Load data awal setelah country options dimuat
+                var today = new Date();
+                var todayString = today.getFullYear() + '-' + 
+                                 String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                                 String(today.getDate()).padStart(2, '0');
+                
+                table_data_per_country_facebook(todayString, todayString, '%', '%');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.log('Error loading countries:', error);
+        }
+    });
 }

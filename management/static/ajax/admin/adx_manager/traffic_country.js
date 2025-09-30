@@ -13,13 +13,34 @@ $(document).ready(function() {
     $('#tanggal_dari').val(formatDateForInput(lastWeek));
     $('#tanggal_sampai').val(formatDateForInput(today));
 
+    // Inisialisasi Select2 untuk country filter
+    $('#country_filter').select2({
+        placeholder: '-- Pilih Negara --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4',
+        multiple: true
+    });
+
     // Event handler untuk tombol Load
     $('#btn_load_data').click(function() {
         load_adx_traffic_country_data();
     });
 
-    // Load data saat halaman pertama kali dibuka
-    load_adx_traffic_country_data();
+    // Event handler untuk country filter change
+    $('#country_filter').change(function (e) {
+        var tanggal_dari = $("#tanggal_dari").val();
+        var tanggal_sampai = $("#tanggal_sampai").val();
+        if(tanggal_dari && tanggal_sampai) {
+            load_adx_traffic_country_data();
+        }    
+    });
+
+    // Load data negara untuk select2
+    load_country_options();
+
+    // Load data saat halaman pertama kali dibuka akan dipanggil setelah country options dimuat
 
     // Fungsi untuk format tanggal ke format input (YYYY-MM-DD)
     function formatDateForInput(date) {
@@ -43,28 +64,23 @@ $(document).ready(function() {
     function load_adx_traffic_country_data() {
         var startDate = $('#tanggal_dari').val();
         var endDate = $('#tanggal_sampai').val();
-        var countryFilter = $('#country_filter').val();
-
+        var selectedCountries = $('#country_filter').val(); // Array dari Select2 multiple
         if (!startDate || !endDate) {
             alert('Silakan pilih rentang tanggal');
             return;
         }
-
-        console.log('[DEBUG] Loading country data with params:', {
-            start_date: startDate,
-            end_date: endDate,
-            country_filter: countryFilter
-        });
-
+        // Convert array to comma-separated string for backend
+        var countryFilter = '';
+        if (selectedCountries && selectedCountries.length > 0) {
+            countryFilter = selectedCountries.join(',');
+        }
         // Tampilkan overlay loading
         $('#overlay').show();
         $('#summary_boxes').hide();
-
         // Destroy existing DataTable if exists
         if ($.fn.DataTable.isDataTable('#table_traffic_country')) {
             $('#table_traffic_country').DataTable().destroy();
         }
-
         // AJAX request
         $.ajax({
             url: '/management/admin/page_adx_traffic_country',
@@ -72,22 +88,18 @@ $(document).ready(function() {
             data: {
                 start_date: startDate,
                 end_date: endDate,
-                country_filter: countryFilter
+                selected_countries: countryFilter
             },
             headers: {
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
             },
             success: function(response) {
-                console.log('[DEBUG] AJAX Success Response:', response);
                 $('#overlay').hide();
-                
                 if (response && response.status) {
                     // Update summary boxes
                     updateSummaryBoxes(response.summary);
-
                     // Initialize DataTable
                     initializeDataTable(response.data);
-                    
                     // Generate charts if data available
                     if (response.data && response.data.length > 0) {
                         generateTrafficCountryCharts(response.data);
@@ -95,9 +107,7 @@ $(document).ready(function() {
                     } else {
                         $('#charts_section').hide();
                     }
-                    
                     $('#summary_boxes').show();
-                    
                     // Show success message
                     if (response.data && response.data.length > 0) {
                         console.log('Data berhasil dimuat: ' + response.data.length + ' negara');
@@ -134,7 +144,6 @@ $(document).ready(function() {
     // Fungsi untuk inisialisasi DataTable
     function initializeDataTable(data) {
         var tableData = [];
-        
         if (data && Array.isArray(data)) {
             data.forEach(function(row) {
                 // Get country flag
@@ -142,7 +151,6 @@ $(document).ready(function() {
                 if (row.country_code) {
                     countryFlag = '<img src="https://flagcdn.com/16x12/' + row.country_code.toLowerCase() + '.png" alt="' + row.country_code + '" style="margin-right: 5px;"> ';
                 }
-                
                 tableData.push([
                     countryFlag + (row.country_name || ''),
                     row.country_code || '',
@@ -155,7 +163,10 @@ $(document).ready(function() {
                 ]);
             });
         }
-
+        // Destroy existing DataTable if it exists
+        if ($.fn.DataTable.isDataTable('#table_traffic_country')) {
+            $('#table_traffic_country').DataTable().destroy();
+        }
         $('#table_traffic_country').DataTable({
             data: tableData,
             responsive: true,
@@ -281,5 +292,32 @@ $(document).ready(function() {
     function report_eror(message) {
         console.error('Error:', message);
         alert(message);
+    }
+
+    // Fungsi untuk memuat opsi negara ke select2
+    function load_country_options() {
+        $.ajax({
+            url: '/management/admin/get_countries_adx',
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                if(response.status) {
+                    var select_country = $('#country_filter');
+                    select_country.empty();
+                    
+                    $.each(response.countries, function(index, country) {
+                        select_country.append(new Option(country.name, country.code, false, false));
+                    });
+                    
+                    select_country.trigger('change');
+                    
+                    // Load data awal setelah country options dimuat
+                    var today = new Date();
+                    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                    
+                    load_adx_traffic_country_data();
+                }
+            }
+        });
     }
 });

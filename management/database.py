@@ -8,6 +8,7 @@ def run_sql(sql):
 
 class data_mysql:
     
+    # INI YANG DIUBAH
     hris_trendHorizone = ('127.0.0.1', 'root', '', 'hris_trendHorizone')
     # hris_trendHorizone = ('127.0.0.1', '3306', 'root', 'hris123456', 'hris_trendHorizone')
 
@@ -19,6 +20,8 @@ class data_mysql:
             database='hris_trendHorizone',
             cursorclass=pymysql.cursors.DictCursor  # ⬅️ ini penting
         )
+
+        # INI YANG DIUBAH
 
         # db_hris = pymysql.connect(
         #     host='127.0.0.1',
@@ -61,9 +64,9 @@ class data_mysql:
                             app_id = %s,
                             app_secret = %s,
                             access_token = %s,
-                            mub = %s,
-                            mub_name = %s,
-                            mud = %s
+                            mdb = %s,
+                            mdb_name = %s,
+                            mdd = %s
                         WHERE account_ads_id = %s
                 """
             self.cur_hris.execute(sql_update, (
@@ -73,12 +76,12 @@ class data_mysql:
                 data['app_id'],
                 data['app_secret'],
                 data['access_token'],
-                data['mub'],
-                data['mub_name'],
-                data['mud'],
+                data['mdb'],
+                data['mdb_name'],
+                data['mdd'],
                 data['account_ads_id']
             ))
-            self.con_hris.commit()
+            self.comit_hris.commit()
             hasil = {
                 "status": True,
                 "message": "Data Account Ads berhasil diupdate !"
@@ -745,6 +748,93 @@ class data_mysql:
             }
         return hasil
 
+
+
+    def get_master_plan_by_id(self, master_plan_id):
+        sql = '''
+            SELECT a.`master_plan_id`, DATE(a.master_plan_date) AS task_date, 
+            TIME(a.master_plan_date) AS task_time, a.`master_task_code`, a.`master_task_plan`,
+            b.user_alias AS 'submit_task', c.user_alias AS 'assign_task', a.`project_kategori`,
+            a.`urgency`, a.`execute_status`, a.`catatan`, a.`submitted_task`, a.`assignment_to`
+            FROM app_master_plan a
+            LEFT JOIN app_users b ON a.submitted_task = b.user_id
+            LEFT JOIN app_users c ON a.assignment_to = c.user_id
+            WHERE a.master_plan_id = %s
+        '''
+        try:
+            self.cur_hris.execute(sql, (master_plan_id,))
+            datanya = self.cur_hris.fetchone()
+            hasil = {
+                "status": True,
+                "data": datanya
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return hasil
+
+    def update_master_plan(self, data):
+        sql = '''
+            UPDATE app_master_plan 
+            SET master_task_code = %s, master_task_plan = %s, project_kategori = %s,
+                urgency = %s, execute_status = %s, catatan = %s, assignment_to = %s
+            WHERE master_plan_id = %s
+        '''
+        try:
+            self.cur_hris.execute(sql, (
+                data['master_task_code'],
+                data['master_task_plan'],
+                data['project_kategori'],
+                data['urgency'],
+                data['execute_status'],
+                data['catatan'],
+                data['assignment_to'],
+                data['master_plan_id']
+            ))
+            self.con_hris.commit()
+            hasil = {
+                "status": True,
+                "data": "Master plan berhasil diupdate"
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return hasil
+
+    def insert_master_plan(self, data):
+        sql = '''
+            INSERT INTO app_master_plan 
+            (master_plan_id, master_plan_date, master_task_code, master_task_plan, 
+             project_kategori, urgency, execute_status, catatan, submitted_task, assignment_to)
+            VALUES (%s, NOW(), %s, %s, %s, %s, %s, %s, %s, %s)
+        '''
+        try:
+            self.cur_hris.execute(sql, (
+                data['master_plan_id'],
+                data['master_task_code'],
+                data['master_task_plan'],
+                data['project_kategori'],
+                data['urgency'],
+                data['execute_status'],
+                data['catatan'],
+                data['submitted_task'],
+                data['assignment_to']
+            ))
+            self.con_hris.commit()
+            hasil = {
+                "status": True,
+                "data": "Master plan berhasil ditambahkan"
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return hasil
 
 
     def data_account_ads_by_params(self):

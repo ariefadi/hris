@@ -25,6 +25,9 @@ urlpatterns = [
     # Menu Master Plan
     path('admin/master_plan', views.MasterPlan.as_view(), name='master_plan'),
     path('admin/page_master_plan', views.page_master_plan.as_view()),
+    path('admin/page_detail_master_plan/<str:master_plan_id>', views.page_detail_master_plan.as_view(), name='page_detail_master_plan'),
+    path('admin/add_master_plan', views.add_master_plan.as_view(), name='add_master_plan'),
+    path('admin/post_tambah_master_plan', views.post_tambah_master_plan.as_view(), name='post_tambah_master_plan'),
     # path('admin/post_tambah_master_plan', views.post_tambah_master_plan.as_view()),
     # MENU FACEBOOK ADS 
     # Menu Summary Facebook Ads
@@ -49,6 +52,7 @@ urlpatterns = [
     # Menu Per Country Facebook Ads
     path('admin/per_country_facebook', views.PerCountryFacebookAds.as_view(), name='per_country_facebook'),
     path('admin/page_per_country_facebook', views.page_per_country_facebook.as_view()),
+    path('admin/get_countries_facebook_ads', views.get_countries_facebook_ads, name='get_countries_facebook_ads'),
     # Cache Management
     path('admin/cache_stats', views.CacheStatsView.as_view(), name='cache_stats'),
     
@@ -75,7 +79,7 @@ urlpatterns = [
     # Menu AdX Traffic Per Country
     path('admin/adx_traffic_country', views.AdxTrafficPerCountryView.as_view(), name='adx_traffic_country'),
     path('admin/page_adx_traffic_country', views.AdxTrafficPerCountryDataView.as_view()),
-
+    path('admin/get_countries_adx', views.get_countries_adx, name='get_countries_adx'),
     # MENU ADSENSE MANAGER
     # Menu Adsense Summary
     # path('admin/adsense_summary', views.AdsenseSummaryView.as_view(), name='adsense_summary'),
