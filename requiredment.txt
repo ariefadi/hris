@@ -27,3 +27,4 @@ redis==4.5.4
 django-redis==5.2.0
 python-dotenv==1.0.0
 zeep==4.1.0
+iso3166==2.1.1
