@@ -28,7 +28,11 @@ GOOGLE_ADS_CUSTOMER_ID = os.getenv('GOOGLE_ADS_CUSTOMER_ID', '')
 
 # Google Ad Manager Configuration
 GOOGLE_AD_MANAGER_NETWORK_CODE = os.getenv('GOOGLE_AD_MANAGER_NETWORK_CODE', '')
-GOOGLE_AD_MANAGER_KEY_FILE = os.getenv('GOOGLE_AD_MANAGER_KEY_FILE', '')
+# Fallback to GOOGLE_APPLICATION_CREDENTIALS if GOOGLE_AD_MANAGER_KEY_FILE is not set
+GOOGLE_AD_MANAGER_KEY_FILE = os.getenv('GOOGLE_AD_MANAGER_KEY_FILE', '') or os.getenv('GOOGLE_APPLICATION_CREDENTIALS', '')
+
+# Add GOOGLE_ADS_NETWORK_CODE for backward compatibility
+GOOGLE_ADS_NETWORK_CODE = os.getenv('GOOGLE_ADS_NETWORK_CODE', '') or GOOGLE_AD_MANAGER_NETWORK_CODE
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
@@ -36,8 +40,10 @@ GOOGLE_AD_MANAGER_KEY_FILE = os.getenv('GOOGLE_AD_MANAGER_KEY_FILE', '')
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'your-secret-key-here')
 # SECURITY WARNING: don't run with debug turned on in production!
+    
+# INI YANG DIUBAH
 DEBUG = True
-ALLOWED_HOSTS = ['0.0.0.0', 'localhost', '127.0.0.1', 'kiwipixel.com', 'www.kiwipixel.com']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '159.223.63.249', 'kiwipixel.com', 'www.kiwipixel.com']
 # Application definition
 
 INSTALLED_APPS = [
@@ -239,8 +245,13 @@ STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Additional locations of static files
+# STATICFILES_DIRS = [
+#     os.path.join(BASE_DIR, 'management', 'static'),
+# ]
+
+# INI YANG DIUBAH
 STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'management', 'static'),
+    os.path.join(BASE_DIR, 'static'),
 ]
 
 # Default primary key field type
