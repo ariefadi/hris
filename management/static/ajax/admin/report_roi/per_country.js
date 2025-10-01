@@ -185,7 +185,9 @@ $(document).ready(function() {
                     row.ctr ? row.ctr.toFixed(2) + '%' : '0%',
                     formatCurrencyIDR(row.cpc || 0),
                     formatCurrencyIDR(row.ecpm || 0),
+                    formatCurrencyIDR(row.other_costs || 0),
                     row.roi ? row.roi.toFixed(2) + '%' : '0%',
+                    row.roi_net ? row.roi_net.toFixed(2) + '%' : '0%',
                     formatCurrencyIDR(row.revenue || 0)
                 ]);
             });

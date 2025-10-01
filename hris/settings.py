@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 import os
 from pathlib import Path
+from pickle import FALSE
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -42,7 +43,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'your-secret-key-here')
 # SECURITY WARNING: don't run with debug turned on in production!
     
 # INI YANG DIUBAH
-DEBUG = True
+DEBUG = FALSE
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '159.223.63.249', 'kiwipixel.com', 'www.kiwipixel.com']
 # Application definition
 
@@ -158,7 +159,7 @@ ROOT_URLCONF = 'hris.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],  # Boleh kosong karena template ada dalam app
+        'DIRS': [BASE_DIR / 'templates'],  # Menambahkan direktori templates di root
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [

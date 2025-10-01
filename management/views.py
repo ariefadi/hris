@@ -419,6 +419,10 @@ class DashboardData(View):
                 'error': str(e)
             })
 
+# Fungsi handler untuk halaman 404
+def handler404(request, exception):
+    return render(request, '404.html', status=404)
+
 # USER MANAGEMENT   
 class DataUser(View):
     def dispatch(self, request, *args, **kwargs):
@@ -2571,7 +2575,8 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                 cpc = (revenue / clicks) if clicks > 0 else 0
                 ecpm = (revenue / impressions * 1000) if impressions > 0 else 0
                 # ROI nett: ((revenue - total_costs) / total_costs * 100)
-                roi = ((revenue - total_costs) / total_costs * 100) if total_costs > 0 else 0
+                roi = ((revenue - spend) / spend * 100) if spend > 0 else 0
+                roi_net = ((revenue - total_costs) / total_costs * 100) if total_costs > 0 else 0
                 # Tambahkan ke hasil
                 combined_data.append({
                     'country': country_name,
@@ -2585,7 +2590,8 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                     'ctr': round(ctr, 2),
                     'cpc': round(cpc, 4),
                     'ecpm': round(ecpm, 2),
-                    'roi': round(roi, 2)
+                    'roi': round(roi, 2),
+                    'roi_net': round(roi_net, 2)
                 })
         
         # Urutkan berdasarkan ROI tertinggi
@@ -2730,15 +2736,9 @@ class RoiTrafficPerDomainDataView(View):
                     other_costs = float(fb_data.get('other_costs', 0))
                     revenue = float(adx_item.get('revenue', 0))
                     clicks = int(adx_item.get('clicks', 0))
-                    
                     # Data berhasil dicocokkan dan dihitung
-                    
-                    # Hitung ROI nett: (Revenue - Spend - Other Costs) / (Spend + Other Costs) * 100
-                    total_costs = spend + other_costs
-                    roi_nett = 0
-                    if total_costs > 0:
-                        roi_nett = ((revenue - total_costs) / total_costs) * 100
-                    
+                    # Hitung ROI nett: (Revenue - Spend) / Spend * 100
+                    roi = ((revenue - spend) / (spend)) * 100 if spend > 0 else 0
                     combined_item = {
                         'date': date_key,
                         'site_name': subdomain,  # Gunakan site_name untuk konsistensi dengan JavaScript
@@ -2747,8 +2747,9 @@ class RoiTrafficPerDomainDataView(View):
                         'ctr': float(adx_item.get('ctr', 0)),
                         'cpc': float(adx_item.get('cpc', 0)),
                         'ecpm': float(adx_item.get('ecpm', 0)),
+                        'other_costs': other_costs,
                         'revenue': revenue,
-                        'roi': roi_nett
+                        'roi': roi
                     }
                     
                     # Data berhasil digabungkan

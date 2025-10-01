@@ -5,6 +5,9 @@ from django.conf import settings
 from django.conf.urls.static import static
 from management import views
 
+# Mendaftarkan handler404 untuk halaman error kustom
+handler404 = 'management.views.handler404'
+
 def root_redirect(request):
     # Redirect root ke halaman login untuk menghindari loop
     return redirect('/management/admin/login')
