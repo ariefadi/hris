@@ -14,17 +14,23 @@
     </div> <!-- /.card-header -->
     <div class="card-body">
         <div class="form-row">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label>Tanggal Dari</label>
                 <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Dari"/>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label>Tanggal Sampai</label>
                  <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
+                <label>Filter Situs</label>
+                <select class="form-control select2-multiple" id="site_filter" multiple>
+                    <!-- Options akan diisi secara dinamis oleh JavaScript -->
+                </select>
+            </div>
+            <div class="col-md-3">
                 <label>Filter Negara</label>
-                <select class="form-control select2-multiple" id="country_filter" multiple="multiple">
+                <select class="form-control select2-multiple" id="country_filter" multiple>
                     <!-- Options akan diisi dinamis dari JavaScript -->
                 </select>
             </div>

@@ -39,13 +39,14 @@ $().ready(function () {
         todayHighlight: true
     }).datepicker('setDate', today);
     
-    // Initialize Select2 for site filter
+    // Initialize Select2 for site filter with multiple selection
     $('#site_filter').select2({
         placeholder: 'Pilih Situs (Opsional)',
         allowClear: true,
         width: '100%',
         height: '100%',
-        theme: 'bootstrap4'
+        theme: 'bootstrap4',
+        multiple: true
     });
 
     // Auto load data on page load
@@ -65,8 +66,8 @@ $().ready(function () {
             dataType: 'json',
             success: function(response) {
                 if (response.status) {
-                    // Clear existing options except the first one
-                    $('#site_filter').empty().append('<option value="">Semua Situs</option>');
+                    // Clear existing options
+                    $('#site_filter').empty();
                     
                     // Add sites to dropdown
                     response.data.forEach(function(site) {
@@ -109,6 +110,15 @@ function load_adx_traffic_account_data() {
     var start_date = $('#tanggal_dari').val();
     var end_date = $('#tanggal_sampai').val();
     var site_filter = $('#site_filter').val();
+    
+    // Convert array to comma-separated string if multiple sites selected
+    if (Array.isArray(site_filter)) {
+        site_filter = site_filter.join(',');
+    }
+    
+    // Debug: Log the site_filter value
+    console.log('Site filter value:', site_filter);
+    console.log('Site filter type:', typeof site_filter);
     
     if (!start_date || !end_date) {
         alert('Please select both start and end dates.');

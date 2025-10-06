@@ -1,7 +1,46 @@
 $(document).ready(function() {
+    console.log('=== TRAFFIC COUNTRY PAGE LOADED ===');
+    console.log('jQuery version:', $.fn.jquery);
+    console.log('Select2 available:', typeof $.fn.select2 !== 'undefined');
+    
+    // Check if Select2 library is properly loaded
+    if (typeof $.fn.select2 === 'undefined') {
+        console.error('❌ SELECT2 LIBRARY NOT LOADED!');
+        alert('Error: Select2 library tidak dimuat. Silakan refresh halaman.');
+        return;
+    } else {
+        console.log('✅ Select2 library loaded successfully');
+    }
+    
+    // Test basic Select2 functionality first
+    console.log('=== TESTING BASIC SELECT2 ===');
+    try {
+        // Create a simple test select element
+        var testSelect = $('<select id="test_select2"><option value="test">Test Option</option></select>');
+        $('body').append(testSelect);
+        
+        // Try to initialize Select2 on test element
+        $('#test_select2').select2({
+            placeholder: "Test Select2",
+            width: '200px'
+        });
+        
+        console.log('✅ Basic Select2 test PASSED');
+        $('#test_select2').remove(); // Clean up test element
+        
+    } catch (testError) {
+        console.error('❌ Basic Select2 test FAILED:', testError);
+        alert('Error: Select2 tidak berfungsi pada halaman ini. Error: ' + testError.message);
+        return;
+    }
     // Global chart variables untuk mengelola instance chart
     var impressionsChartInstance = null;
     var revenueChartInstance = null;
+    
+    console.log('=== DEBUGGING SELECT2 ISSUE ===');
+    console.log('Document ready - Starting initialization');
+    console.log('jQuery version:', $.fn.jquery);
+    console.log('Select2 available:', typeof $.fn.select2 !== 'undefined');
     
     // Inisialisasi datepicker
     $('.datepicker-input').datepicker({
@@ -10,6 +49,14 @@ $(document).ready(function() {
         todayHighlight: true
     });
 
+    // Debugging elemen DOM
+    console.log('=== DOM ELEMENTS CHECK ===');
+    console.log('Country filter element:', $('#country_filter'));
+    console.log('Country filter length:', $('#country_filter').length);
+    console.log('Site filter element:', $('#site_filter'));
+    console.log('Site filter length:', $('#site_filter').length);
+    console.log('Site filter HTML:', $('#site_filter')[0] ? $('#site_filter')[0].outerHTML : 'NOT FOUND');
+    
     // Inisialisasi Select2 untuk country filter
     $('#country_filter').select2({
         placeholder: '-- Pilih Negara --',
@@ -18,6 +65,42 @@ $(document).ready(function() {
         theme: 'bootstrap4',
         multiple: true
     });
+    console.log('✅ Country filter Select2 initialized');
+
+    // SIMPLE APPROACH: Initialize existing site filter
+    console.log('=== INITIALIZING SITE FILTER ===');
+    
+    // Check if site filter element exists
+    var siteFilterElement = $('#site_filter');
+    console.log('Site filter element found:', siteFilterElement.length > 0);
+    console.log('Site filter HTML:', siteFilterElement.length > 0 ? siteFilterElement[0].outerHTML : 'ELEMENT NOT FOUND');
+    
+    if (siteFilterElement.length === 0) {
+        console.error('❌ #site_filter element not found in DOM!');
+        alert('Error: Element #site_filter tidak ditemukan. Periksa template HTML.');
+        return;
+    }
+    
+    // Initialize Select2 on existing element
+    try {
+        console.log('🔧 Initializing Select2 on #site_filter...');
+        siteFilterElement.select2({
+            placeholder: "Pilih Situs",
+            allowClear: true,
+            width: '100%',
+            theme: 'bootstrap4',
+            multiple: true
+        });
+        console.log('✅ Select2 initialized successfully');
+        
+        // Load sites list after successful Select2 initialization
+        console.log('🚀 Calling loadSitesList()...');
+        loadSitesList();
+        
+    } catch (error) {
+        console.error('❌ Error initializing site filter Select2:', error);
+        alert('Error initializing Select2: ' + error.message);
+    }
 
     // Load daftar negara untuk Select2
     loadCountriesForSelect2();
@@ -487,5 +570,82 @@ $(document).ready(function() {
             alert('⚠️ Data AdX Tidak Tersedia\n\n' + message);
         }
     }
-
 });
+
+// Fungsi untuk load daftar situs
+function loadSitesList() {
+    console.log('🚀 === STARTING loadSitesList() ===');
+    console.log('📍 Making AJAX request to: /management/admin/adx_sites_list');
+    
+    $.ajax({
+        url: '/management/admin/adx_sites_list',
+        type: 'GET',
+        dataType: 'json',
+        beforeSend: function(xhr) {
+            console.log('📤 AJAX request about to be sent');
+            console.log('📤 Request headers:', xhr.getAllResponseHeaders());
+        },
+        success: function(response, textStatus, xhr) {
+            console.log('✅ AJAX SUCCESS!');
+            console.log('📥 Response status:', textStatus);
+            console.log('📥 HTTP status:', xhr.status);
+            console.log('📥 Full response:', response);
+            console.log('📥 Response type:', typeof response);
+            
+            if (response && response.status) {
+                console.log('✅ Response has valid status');
+                console.log('📊 Sites data:', response.data);
+                console.log('📊 Number of sites:', response.data ? response.data.length : 0);
+                
+                // Clear existing options
+                $('#site_filter').empty();
+                console.log('🧹 Cleared existing options');
+                
+                // Add sites to dropdown
+                if (response.data && response.data.length > 0) {
+                    response.data.forEach(function(site, index) {
+                        console.log(`➕ Adding site ${index + 1}: ${site}`);
+                        $('#site_filter').append('<option value="' + site + '">' + site + '</option>');
+                    });
+                    console.log('✅ All sites added to dropdown');
+                } else {
+                    console.log('⚠️ No sites data to add');
+                }
+                
+                // Refresh Select2
+                console.log('🔄 Triggering Select2 refresh');
+                $('#site_filter').trigger('change');
+                console.log('✅ Select2 refresh completed');
+                
+            } else {
+                console.error('❌ Response status is false or missing');
+                console.error('❌ Response error:', response ? response.error : 'No error message');
+                alert('Error: ' + (response && response.error ? response.error : 'Unknown error loading sites'));
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('❌ === AJAX ERROR ===');
+            console.error('❌ Status:', status);
+            console.error('❌ Error:', error);
+            console.error('❌ HTTP Status:', xhr.status);
+            console.error('❌ Response Text:', xhr.responseText);
+            console.error('❌ Ready State:', xhr.readyState);
+            
+            if (xhr.status === 302) {
+                console.error('🔐 REDIRECT DETECTED - User not logged in!');
+                alert('Error: Anda belum login atau session expired. Silakan login terlebih dahulu.');
+                window.location.href = '/management/admin/login';
+            } else if (xhr.status === 403) {
+                console.error('🚫 FORBIDDEN - Access denied');
+                alert('Error: Akses ditolak. Pastikan Anda memiliki kredensial Google Ad Manager.');
+            } else {
+                alert('Error loading sites: ' + error + ' (Status: ' + xhr.status + ')');
+            }
+        },
+        complete: function(xhr, status) {
+            console.log('🏁 AJAX request completed');
+            console.log('🏁 Final status:', status);
+            console.log('🏁 Final HTTP status:', xhr.status);
+        }
+    });
+}

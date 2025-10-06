@@ -23,6 +23,16 @@ $(document).ready(function() {
         multiple: true
     });
 
+    // Inisialisasi Select2 untuk site filter
+    $('#site_filter').select2({
+        placeholder: '-- Pilih Site --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4',
+        multiple: true
+    });
+
     // Event handler untuk tombol Load
     $('#btn_load_data').click(function() {
         load_adx_traffic_country_data();

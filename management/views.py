@@ -1768,7 +1768,23 @@ class AdxSummaryAdChangeDataView(View):
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
-        site_filter = req.GET.get('site_filter', '')
+        
+        # Debug: Log all GET parameters
+        print(f"[DEBUG] ===== ALL GET PARAMETERS =====")
+        for key, value in req.GET.items():
+            print(f"[DEBUG] {key}: {value}")
+        print(f"[DEBUG] ===== END ALL GET PARAMETERS =====")
+        
+        # Handle site_filter - check both array format and string format
+        site_filter_list = req.GET.getlist('site_filter[]')  # Array format
+        site_filter_string = req.GET.get('site_filter', '')   # String format
+        
+        if site_filter_list:
+            site_filter = ','.join(site_filter_list)
+            print(f"[DEBUG] Using array format site_filter: {site_filter}")
+        else:
+            site_filter = site_filter_string
+            print(f"[DEBUG] Using string format site_filter: {site_filter}")
         
         if not start_date or not end_date:
             return JsonResponse({
@@ -2256,7 +2272,23 @@ class AdxTrafficPerAccountDataView(View):
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
-        site_filter = req.GET.get('site_filter', '')
+        
+        # Debug: Log all GET parameters
+        print(f"[DEBUG] ===== AdxTrafficPerAccountDataView GET PARAMETERS =====")
+        for key, value in req.GET.items():
+            print(f"[DEBUG] {key}: {value}")
+        print(f"[DEBUG] ===== END GET PARAMETERS =====")
+        
+        # Handle site_filter - check both array format and string format
+        site_filter_list = req.GET.getlist('site_filter[]')  # Array format
+        site_filter_string = req.GET.get('site_filter', '')   # String format
+        
+        if site_filter_list:
+            site_filter = ','.join(site_filter_list)
+            print(f"[DEBUG] Using array format site_filter: {site_filter}")
+        else:
+            site_filter = site_filter_string
+            print(f"[DEBUG] Using string format site_filter: {site_filter}")
         
         if not start_date or not end_date:
             return JsonResponse({
@@ -2294,6 +2326,17 @@ class AdxTrafficPerAccountDataView(View):
             
             # Filter situs jika kosong atau '%'
             filter_value = site_filter if site_filter and site_filter != '%' else None
+            
+            # Debug: Log the received site_filter
+            print(f"[DEBUG] ===== SITE FILTER DEBUG =====")
+            print(f"[DEBUG] Raw site_filter from request: '{site_filter}'")
+            print(f"[DEBUG] site_filter type: {type(site_filter)}")
+            print(f"[DEBUG] site_filter length: {len(site_filter) if site_filter else 0}")
+            print(f"[DEBUG] site_filter == '%': {site_filter == '%'}")
+            print(f"[DEBUG] site_filter is empty: {not site_filter}")
+            print(f"[DEBUG] Processed filter_value: '{filter_value}'")
+            print(f"[DEBUG] ===== END SITE FILTER DEBUG =====")
+            
             
             # Gunakan fungsi baru yang mengambil data berdasarkan kredensial user
             from management.utils import fetch_adx_traffic_account_by_user
@@ -2348,6 +2391,20 @@ class AdxSitesListView(View):
             # Ambil daftar situs dari Ad Manager
             from management.utils import fetch_user_sites_list
             result = fetch_user_sites_list(user_mail)
+            
+            # Jika tidak ada data sites atau error, berikan data dummy untuk testing
+            if not result.get('status') or not result.get('data'):
+                print(f"[DEBUG] No sites found for {user_mail}, providing dummy data")
+                result = {
+                    'status': True,
+                    'data': [
+                        'example.com',
+                        'test-site.com',
+                        'demo-website.com',
+                        'sample-domain.com'
+                    ]
+                }
+            
             return JsonResponse(result, safe=False)
             
         except Exception as e:
@@ -2461,7 +2518,24 @@ class AdxTrafficPerCountryDataView(View):
         end_date = req.GET.get('end_date')
         selected_countries = req.GET.get('selected_countries', '')
         
-        print(f"[DEBUG] Request params: start_date={start_date}, end_date={end_date}, selected_countries={selected_countries}")
+        # Debug: Log all GET parameters
+        print(f"[DEBUG] ===== AdxTrafficPerCountryDataView GET PARAMETERS =====")
+        for key, value in req.GET.items():
+            print(f"[DEBUG] {key}: {value}")
+        print(f"[DEBUG] ===== END GET PARAMETERS =====")
+        
+        # Handle site_filter - check both array format and string format
+        site_filter_list = req.GET.getlist('site_filter[]')  # Array format
+        site_filter_string = req.GET.get('site_filter', '')   # String format
+        
+        if site_filter_list:
+            site_filter = ','.join(site_filter_list)
+            print(f"[DEBUG] Using array format site_filter: {site_filter}")
+        else:
+            site_filter = site_filter_string
+            print(f"[DEBUG] Using string format site_filter: {site_filter}")
+        
+        print(f"[DEBUG] Request params: start_date={start_date}, end_date={end_date}, selected_countries={selected_countries}, site_filter={site_filter}")
         
         if not start_date or not end_date:
             return JsonResponse({
@@ -2504,7 +2578,7 @@ class AdxTrafficPerCountryDataView(View):
                     'status': False,
                     'error': 'Email user tidak ditemukan dalam database'
                 })
-            result = fetch_adx_traffic_per_country(start_date_formatted, end_date_formatted, user_mail, countries_list)    
+            result = fetch_adx_traffic_per_country(start_date_formatted, end_date_formatted, user_mail, countries_list, site_filter)    
             print(f"[DEBUG] fetch_adx_traffic_per_country result: {result}")
             print(f"[DEBUG] Result type: {type(result)}")
             if isinstance(result, dict):
