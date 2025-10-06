@@ -2,6 +2,7 @@ $(document).ready(function() {
     // Global chart variables untuk mengelola instance chart
     var impressionsChartInstance = null;
     var revenueChartInstance = null;
+    var roiChartInstance = null;
     
     // Inisialisasi datepicker
     $('.datepicker-input').datepicker({
@@ -111,8 +112,8 @@ $(document).ready(function() {
                 $('#overlay').hide();
                 
                 if (response && response.status) {
-                    // Update summary boxes
-                    updateSummaryBoxes(response.summary);
+                    // Update summary boxes using data array instead of response.summary
+                    updateSummaryBoxes(response.data);
 
                     // Initialize DataTable
                     initializeDataTable(response.data);
@@ -142,15 +143,47 @@ $(document).ready(function() {
     }
 
     // Fungsi untuk update summary boxes
-    function updateSummaryBoxes(summary) {
-        if (summary) {
-            $('#total_impressions').text(summary.total_impressions ? summary.total_impressions.toLocaleString() : '0');
-            $('#total_clicks').text(summary.total_clicks ? summary.total_clicks.toLocaleString() : '0');
-            $('#total_revenue').text(summary.total_revenue ? formatRupiah(summary.total_revenue) : 'Rp 0');
-            $('#avg_ctr').text(summary.avg_ctr ? summary.avg_ctr.toFixed(2) + '%' : '0.00%');
-            $('#avg_cpc').text(summary.avg_cpc ? formatRupiah(summary.avg_cpc) : 'Rp 0');
-            $('#avg_ecpm').text(summary.avg_ecpm ? formatRupiah(summary.avg_ecpm) : 'Rp 0');
+    function updateSummaryBoxes(data) {
+        if (!data || !Array.isArray(data)) {
+            // Reset to zero if no data
+            $('#total_impressions').text('0');
+            $('#total_spend').text('Rp 0');
+            $('#total_clicks').text('0');
+            $('#total_ctr').text('0.00%');
+            $('#average_roi').text('0.00%');
+            $('#total_revenue').text('Rp 0');
+            return;
         }
+        
+        // Hitung summary dari data
+        var totalImpressions = 0;
+        var totalSpend = 0;
+        var totalClicks = 0;
+        var totalRevenue = 0;
+        var totalROI = 0;
+        var validROICount = 0;
+        
+        data.forEach(function(item) {
+            totalImpressions += item.impressions || 0;
+            totalSpend += item.spend || 0;
+            totalClicks += item.clicks || 0;
+            totalRevenue += item.revenue || 0;
+            
+            if (item.roi !== undefined && item.roi !== null) {
+                totalROI += item.roi;
+                validROICount++;
+            }
+        });
+        
+        var averageCTR = totalImpressions > 0 ? (totalClicks / totalImpressions * 100) : 0;
+        var averageROI = validROICount > 0 ? (totalROI / validROICount) : 0;
+        
+        $('#total_impressions').text(totalImpressions.toLocaleString('id-ID'));
+        $('#total_spend').text(formatRupiah(totalSpend));
+        $('#total_clicks').text(totalClicks.toLocaleString('id-ID'));
+        $('#total_ctr').text(averageCTR.toFixed(2) + '%');
+        $('#average_roi').text(averageROI.toFixed(2) + '%');
+        $('#total_revenue').text(formatRupiah(totalRevenue));
     }
 
     // Fungsi untuk inisialisasi DataTable
@@ -234,6 +267,9 @@ $(document).ready(function() {
         }
         if (revenueChartInstance) {
             revenueChartInstance.destroy();
+        }
+        if (roiChartInstance) {
+            roiChartInstance.destroy();
         }
 
         // Sort data by impressions for better visualization

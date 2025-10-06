@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth Callback - Processing...</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            text-align: center;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            max-width: 500px;
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto 1rem;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .success {
+            color: #27ae60;
+        }
+        .error {
+            color: #e74c3c;
+        }
+        .code-display {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 1rem;
+            margin: 1rem 0;
+            font-family: monospace;
+            word-break: break-all;
+        }
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 0.5rem;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="loading" style="display: block;">
+            <div class="spinner"></div>
+            <h2>Processing OAuth Callback...</h2>
+            <p>Please wait while we process your authorization.</p>
+        </div>
+        
+        <div id="success" style="display: none;">
+            <h2 class="success">✅ Authorization Successful!</h2>
+            <p>Your authorization code has been captured:</p>
+            <div class="code-display" id="auth-code"></div>
+            <p>You can now close this window and return to the application.</p>
+            <button class="btn" onclick="window.close()">Close Window</button>
+        </div>
+        
+        <div id="error" style="display: none;">
+            <h2 class="error">❌ Authorization Failed</h2>
+            <p id="error-message">An error occurred during authorization.</p>
+            <button class="btn" onclick="window.close()">Close Window</button>
+        </div>
+    </div>
+
+    <script>
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const error = urlParams.get('error');
+        const errorDescription = urlParams.get('error_description');
+
+        // Hide loading
+        document.getElementById('loading').style.display = 'none';
+
+        if (error) {
+            // Show error
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error-message').textContent = 
+                errorDescription || `Error: ${error}`;
+        } else if (code) {
+            // Show success with code
+            document.getElementById('success').style.display = 'block';
+            document.getElementById('auth-code').textContent = code;
+            
+            // Try to send code to parent window if opened as popup
+            if (window.opener) {
+                try {
+                    window.opener.postMessage({
+                        type: 'oauth_callback',
+                        code: code
+                    }, '*');
+                } catch (e) {
+                    console.log('Could not send message to parent window:', e);
+                }
+            }
+            
+            // Auto-close after 5 seconds if opened as popup
+            if (window.opener) {
+                setTimeout(() => {
+                    window.close();
+                }, 5000);
+            }
+        } else {
+            // Show error - no code received
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error-message').textContent = 
+                'No authorization code received from Google.';
+        }
+    </script>
+</body>
+</html>

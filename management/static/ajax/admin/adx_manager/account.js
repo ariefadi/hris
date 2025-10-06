@@ -35,10 +35,10 @@ $().ready(function () {
     $('#btn_oauth_setup').click(function (e) {
         e.preventDefault();
         
-        // Auto-fill user email from current user data
-        var currentUserEmail = $('#user_email').text();
-        if (currentUserEmail && currentUserEmail !== '-') {
-            $('#oauth_user_email').val(currentUserEmail);
+        // Auto-fill user mail from current user data
+        var currentUserMail = $('#user_mail').text();
+        if (currentUserMail && currentUserMail !== '-') {
+            $('#oauth_user_mail').val(currentUserMail);
         }
         
         $('#oauthModal').modal('show');
@@ -64,7 +64,7 @@ function load_adx_account_data() {
         },
         success: function (response) {
             $("#overlay").hide();
-            
+            console.log(response)
             if (response && response.status) {
                 // Update account information
                 if (response.data) {
@@ -78,7 +78,7 @@ function load_adx_account_data() {
                     $("#currency_code").text(response.data.currency_code || '-');
                     
                     // Update Account Details - User Information
-                    $("#user_email").text(response.data.user_email || '-');
+                    $("#user_mail").text(response.data.user_mail || '-');
                     $("#user_id").text(response.data.user_id || '-');
                     $("#user_name").text(response.data.user_name || '-');
                     $("#user_role").text(response.data.user_role || '-');
@@ -139,7 +139,7 @@ function load_adx_account_data() {
 function resetAccountDisplay() {
     // Reset all fields to default values
     $("#network_id, #network_code, #display_name, #timezone, #currency_code").text('-');
-    $("#user_email, #user_id, #user_name, #user_role, #user_is_active").text('-');
+    $("#user_mail, #user_id, #user_name, #user_role, #user_is_active").text('-');
     $("#active_ad_units_count, #last_updated").text('-');
     $("#additional_info").html('');
     $("#data_note").hide();
@@ -219,25 +219,24 @@ function saveOAuthCredentials() {
     
     var clientId = $('#client_id').val();
     var clientSecret = $('#client_secret').val();
-    var userEmail = $('#oauth_user_email').val();
+    var networkCode = $('#network_code').val();
+    var userMail = $('#oauth_user_mail').val();
     
     console.log('Client ID value:', clientId);
     console.log('Client Secret value:', clientSecret);
-    console.log('User Email value:', userEmail);
+    console.log('Network Code value:', networkCode);
+    console.log('User Mail value:', userMail);
     console.log('Client ID length:', clientId ? clientId.length : 'null/undefined');
     console.log('Client Secret length:', clientSecret ? clientSecret.length : 'null/undefined');
-    console.log('User Email length:', userEmail ? userEmail.length : 'null/undefined');
+    console.log('Network Code length:', networkCode ? networkCode.length : 'null/undefined');
+    console.log('User Mail length:', userMail ? userMail.length : 'null/undefined');
     
-    if (!clientId || !clientSecret || !userEmail) {
+    if (!clientId || !clientSecret || !networkCode || !userMail) {
         console.log('Validation failed - missing fields');
         showErrorMessage('Please fill in all OAuth credentials fields.');
         return;
     }
-    
-    console.log('Validation passed - all fields filled');
-    
     $("#overlay").show();
-    
     $.ajax({
         url: '/management/admin/save_oauth_credentials',
         type: 'POST',
@@ -245,9 +244,11 @@ function saveOAuthCredentials() {
             'X-CSRFToken': csrftoken
         },
         data: {
+            'network_code': $('#network_code').val(),
             'client_id': clientId,
             'client_secret': clientSecret,
-            'user_email': userEmail
+            'network_code': networkCode,
+            'user_mail': userMail
         },
         success: function (response) {
             $("#overlay").hide();
@@ -256,7 +257,7 @@ function saveOAuthCredentials() {
                 showSuccessMessage('OAuth credentials saved successfully!');
                 $('#oauthModal').modal('hide');
                 // Clear form
-                $('#client_id, #client_secret, #oauth_user_email').val('');
+                $('#client_id, #client_secret, #network_code, #oauth_user_mail').val('');
             } else {
                 var errorMsg = response && response.error ? response.error : 'Unknown error occurred';
                 showErrorMessage('Error saving OAuth credentials: ' + errorMsg);

@@ -163,12 +163,12 @@ function updateStats(data) {
     $('#usersWithToken').text(usersWithToken);
 }
 
-function checkToken(email) {
+function checkToken(user_mail) {
     $.ajax({
         url: '/management/admin/api/check_refresh_token',
         type: 'POST',
         data: {
-            'email': email
+            'user_mail': user_mail
         },
         headers: {
             'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
@@ -176,9 +176,9 @@ function checkToken(email) {
         success: function(response) {
             if (response.status) {
                 if (response.has_token) {
-                    showAlert('success', `Refresh token available for ${email}`);
+                    showAlert('success', `Refresh token available for ${user_mail}`);
                 } else {
-                    showAlert('warning', `No refresh token found for ${email}`);
+                    showAlert('warning', `No refresh token found for ${user_mail}`);
                 }
             } else {
                 showAlert('error', 'Error: ' + response.message);
@@ -190,9 +190,9 @@ function checkToken(email) {
     });
 }
 
-function generateToken(email) {
-    currentGenerateEmail = email;
-    $('#generateUserEmail').text(email);
+function generateToken(user_mail) {
+    currentGenerateEmail = user_mail;
+    $('#generateUserEmail').text(user_mail);
     $('#generateTokenModal').modal('show');
 }
 
@@ -203,7 +203,7 @@ function confirmGenerateToken() {
         url: '/management/admin/api/generate_refresh_token',
         type: 'POST',
         data: {
-            'email': currentGenerateEmail,
+            'user_mail': currentGenerateEmail,
             'force': force
         },
         headers: {

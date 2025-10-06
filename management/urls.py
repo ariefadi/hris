@@ -1,14 +1,20 @@
 from unicodedata import name
-from django.urls import path, include
+from django.urls import path
 from . import views
 from . import views_adsense
+from .oauth_views_package.oauth_views import (
+    oauth_management_dashboard,
+    oauth_status_api,
+    generate_oauth_url_api,
+    oauth_callback_api
+)
 
 urlpatterns = [
     # LOGIN / LOGOUT
     path('admin/login', views.LoginAdmin.as_view(), name='admin_login'),
     path('admin/login_process', views.LoginProcess.as_view(), name='admin_login_process'),
     path('admin/logout', views.LogoutAdmin.as_view(), name='admin_logout'),
-    path('admin/oauth_redirect', views.redirect_login_user, name='oauth_redirect'),
+    path('admin/oauth_redirect', views.OAuthRedirectView.as_view(), name='oauth_redirect'),
     # DASHBOARD
     path('admin/dashboard', views.DashboardAdmin.as_view(), name='dashboard_admin'),
     path('admin/dashboard_data', views.DashboardData.as_view(), name='dashboard_data'),
@@ -103,6 +109,19 @@ urlpatterns = [
     path('admin/api/check_refresh_token', views.CheckRefreshTokenAPI.as_view(), name='check_refresh_token_api'),
     path('admin/api/generate_refresh_token', views.GenerateRefreshTokenAPI.as_view(), name='generate_refresh_token_api'),
     path('admin/api/get_all_users_refresh_token', views.GetAllUsersRefreshTokenAPI.as_view(), name='get_all_users_refresh_token_api'),
+
+    # Dynamic OAuth Management URLs
+    path('admin/oauth/management/', oauth_management_dashboard, name='oauth_management_dashboard'),
+    path('admin/oauth/status/', oauth_status_api, name='oauth_status_api'),
+    path('admin/oauth/generate-url/', generate_oauth_url_api, name='generate_oauth_url_api'),
+    path('admin/oauth/callback/', oauth_callback_api, name='oauth_callback_api'),
+    
+    # OAuth callback endpoint untuk handle redirect dari Google
+    path('oauth/callback/', views.OAuthCallbackView.as_view(), name='oauth_callback'),
+    
+    # Integrated OAuth endpoints untuk ADX account page
+    path('admin/generate_oauth_url', views.GenerateOAuthURLView.as_view(), name='generate_oauth_url'),
+    path('admin/process_oauth_code', views.ProcessOAuthCodeView.as_view(), name='process_oauth_code'),
 
     # MENU REPORT
     # Menu Report ROI

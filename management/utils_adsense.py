@@ -2,7 +2,7 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from .database import data_mysql
 
-def get_user_adsense_credentials(user_email):
+def get_user_adsense_credentials(user_mail):
     """Get user AdSense credentials from database"""
     try:
         db = data_mysql()
@@ -12,13 +12,13 @@ def get_user_adsense_credentials(user_email):
             WHERE user_mail = %s
         """
         
-        db.cur_hris.execute(sql, (user_email,))
+        db.cur_hris.execute(sql, (user_mail,))
         user_data = db.cur_hris.fetchone()
         
         if not user_data:
             return {
                 'status': False,
-                'error': f'No user found for email: {user_email}'
+                'error': f'No user found for email: {user_mail}'
             }
         
         # Check if all required credentials are present
@@ -28,7 +28,7 @@ def get_user_adsense_credentials(user_email):
         if missing_fields:
             return {
                 'status': False,
-                'error': f'Missing AdSense credentials for email {user_email}: {", ".join(missing_fields)}'
+                'error': f'Missing AdSense credentials for email {user_mail}: {", ".join(missing_fields)}'
             }
         
         return {
@@ -37,7 +37,7 @@ def get_user_adsense_credentials(user_email):
                 'client_id': user_data['client_id'],
                 'client_secret': user_data['client_secret'],
                 'refresh_token': user_data['refresh_token'],
-                'email': user_data['user_mail']
+                'user_mail': user_data['user_mail']
             }
         }
     except Exception as e:
@@ -46,11 +46,11 @@ def get_user_adsense_credentials(user_email):
             'error': f'Error retrieving credentials from MySQL: {str(e)}'
         }
 
-def get_user_adsense_client(user_email):
+def get_user_adsense_client(user_mail):
     """Get AdSense Management API client using user's credentials"""
     try:
         # Get user credentials
-        creds_result = get_user_adsense_credentials(user_email)
+        creds_result = get_user_adsense_credentials(user_mail)
         if not creds_result['status']:
             return creds_result
         
@@ -93,15 +93,15 @@ def get_user_adsense_client(user_email):
             'error': f'Error initializing AdSense client: {str(e)}'
         }
 
-def fetch_adsense_traffic_account_data(user_email, start_date, end_date, site_filter='%'):
+def fetch_adsense_traffic_account_data(user_mail, start_date, end_date, site_filter='%'):
     """
     Fetch AdSense traffic account data including sites, campaigns, clicks, impressions, CPC, CPR, revenue
     """
     try:
-        print(f"[INFO] Fetching AdSense traffic account data for {user_email} from {start_date} to {end_date}")
+        print(f"[INFO] Fetching AdSense traffic account data for {user_mail} from {start_date} to {end_date}")
         
         # Get AdSense client
-        client_result = get_user_adsense_client(user_email)
+        client_result = get_user_adsense_client(user_mail)
         if not client_result['status']:
             return {
                 'status': False,

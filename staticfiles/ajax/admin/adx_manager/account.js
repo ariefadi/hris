@@ -29,7 +29,8 @@ $().ready(function () {
     
     $('#btn_generate_refresh_token').click(function (e) {
         e.preventDefault();
-        generateRefreshToken();
+        // Show the integrated OAuth modal instead of calling the old function
+        showOAuthRefreshTokenModal();
     });
     
     $('#btn_oauth_setup').click(function (e) {
@@ -54,95 +55,54 @@ $().ready(function () {
 });
 
 function load_adx_account_data() {
-    $("#overlay").show();
-    
     $.ajax({
         url: '/management/admin/page_adx_user_account',
         type: 'GET',
-        headers: {
-            'X-CSRFToken': csrftoken
-        },
-        success: function (response) {
-            $("#overlay").hide();
-            
-            if (response && response.status) {
-                // Update account information
-                if (response.data) {
-                    // Update Network Information
-                    $("#network_id").text(response.data.network_id || '-');
-                    $("#network_code").text(response.data.network_code || '-');
-                    $("#display_name").text(response.data.display_name || response.data.network_name || '-');
-                    
-                    // Update Settings
-                    $("#timezone").text(response.data.timezone || '-');
-                    $("#currency_code").text(response.data.currency_code || '-');
-                    
-                    // Update Account Details - User Information
-                    $("#user_email").text(response.data.user_email || '-');
-                    $("#user_id").text(response.data.user_id || '-');
-                    $("#user_name").text(response.data.user_name || '-');
-                    $("#user_role").text(response.data.user_role || '-');
-                    
-                    // Format user active status
-                    var userActiveText = response.data.user_is_active !== undefined ? 
-                        (response.data.user_is_active ? 'Yes' : 'No') : '-';
-                    $("#user_is_active").text(userActiveText);
-                    
-                    // Update Account Statistics
-                    $("#active_ad_units_count").text(response.data.active_ad_units_count || '0');
-                    
-                    // Format last updated time
-                    var lastUpdated = response.data.last_updated ? 
-                        new Date(response.data.last_updated).toLocaleString() : '-';
-                    $("#last_updated").text(lastUpdated);
-                    
-                    // Add additional network information if available
-                    var additionalInfo = '';
-                    if (response.data.effective_root_ad_unit_id) {
-                        additionalInfo += '<p><strong>Root Ad Unit ID:</strong> ' + response.data.effective_root_ad_unit_id + '</p>';
-                    }
-                    if (response.data.is_test_network !== undefined) {
-                        var testNetworkText = response.data.is_test_network ? 'Yes' : 'No';
-                        additionalInfo += '<p><strong>Test Network:</strong> ' + testNetworkText + '</p>';
-                    }
-                    $("#additional_info").html(additionalInfo);
-                    
-                    // Show note if available
-                    if (response.note) {
-                        $("#note_text").text(response.note);
-                        $("#data_note").show();
-                    } else {
-                        $("#data_note").hide();
-                    }
-                    
-                    // Show success message
-                    showSuccessMessage('Account data loaded successfully!');
-                } else {
-                    resetAccountDisplay();
-                    showErrorMessage('No account data available.');
-                }
+        success: function(response) {
+            if (response.status) {
+                // Update network info - sesuaikan dengan ID di template HTML
+                $("#network_id").text(response.data.network_id || '-');
+                $("#network_code").text(response.data.network_code || '-');
+                $("#display_name").text(response.data.display_name || response.data.network_name || 'AdX Network');
+
+                // Update settings - sesuaikan dengan ID di template HTML
+                $("#timezone").text(response.data.timezone || 'Asia/Jakarta');
+                $("#currency_code").text(response.data.currency_code || 'USD');
+
+                // Update user info - sesuaikan dengan ID di template HTML
+                $("#user_mail").text(response.data.user_mail || '-');
+                $("#user_id").text(response.data.user_id || '-');
+                $("#user_name").text(response.data.user_name || '-');
+                $("#user_role").text(response.data.user_role || '-');
+                $("#user_is_active").text(response.data.user_is_active === true ? 'Yes' : (response.data.user_is_active === false ? 'No' : response.data.user_is_active || 'Yes'));
+
+                // Update account stats - sesuaikan dengan ID di template HTML
+                $("#active_ad_units_count").text(response.data.active_ad_units_count || '0');
+                $("#last_updated").text(response.data.last_updated || '-');
+
+                showSuccessMessage("Data berhasil dimuat");
             } else {
-                resetAccountDisplay();
-                var errorMsg = response && response.error ? response.error : 'Unknown error occurred';
-                showErrorMessage('Error loading account data: ' + errorMsg);
+                showErrorMessage(response.message || "Gagal memuat data");
             }
         },
-        error: function (jqXHR, textStatus, errorThrown) {
-            $("#overlay").hide();
-            resetAccountDisplay();
-            showErrorMessage('Failed to load account data. Please try again.');
-            report_eror(jqXHR, textStatus);
+        error: function(xhr, status, error) {
+            showErrorMessage("Error: " + error);
         }
     });
 }
 
 function resetAccountDisplay() {
-    // Reset all fields to default values
-    $("#network_id, #network_code, #display_name, #timezone, #currency_code").text('-');
-    $("#user_email, #user_id, #user_name, #user_role, #user_is_active").text('-');
-    $("#active_ad_units_count, #last_updated").text('-');
-    $("#additional_info").html('');
-    $("#data_note").hide();
+    // Reset network info - sesuaikan dengan ID di template HTML
+    $("#network_id, #network_code, #display_name").text('-');
+    
+    // Reset settings - sesuaikan dengan ID di template HTML
+    $("#timezone, #currency_code").text('-');
+    
+    // Reset user info - sesuaikan dengan ID di template HTML
+    $("#user_mail, #user_id, #user_name, #user_role, #user_is_active").text('-');
+    
+    // Reset account stats - sesuaikan dengan ID di template HTML
+    $("#active_ad_units_count").text('-');
 }
 
 function showErrorMessage(message) {
@@ -215,57 +175,37 @@ function generateRefreshToken() {
 }
 
 function saveOAuthCredentials() {
-    console.log('saveOAuthCredentials function called');
-    
     var clientId = $('#client_id').val();
     var clientSecret = $('#client_secret').val();
-    var userEmail = $('#oauth_user_email').val();
-    
-    console.log('Client ID value:', clientId);
-    console.log('Client Secret value:', clientSecret);
-    console.log('User Email value:', userEmail);
-    console.log('Client ID length:', clientId ? clientId.length : 'null/undefined');
-    console.log('Client Secret length:', clientSecret ? clientSecret.length : 'null/undefined');
-    console.log('User Email length:', userEmail ? userEmail.length : 'null/undefined');
-    
-    if (!clientId || !clientSecret || !userEmail) {
-        console.log('Validation failed - missing fields');
-        showErrorMessage('Please fill in all OAuth credentials fields.');
+    var userMail = $('#oauth_user_mail').val();
+
+    // Validasi input
+    if (!clientId || !clientSecret || !userMail) {
+        showErrorMessage("Semua field harus diisi");
         return;
     }
-    
-    console.log('Validation passed - all fields filled');
-    
-    $("#overlay").show();
-    
+
+    // Kirim data ke server
     $.ajax({
         url: '/management/admin/save_oauth_credentials',
         type: 'POST',
-        headers: {
-            'X-CSRFToken': csrftoken
-        },
         data: {
             'client_id': clientId,
             'client_secret': clientSecret,
-            'user_email': userEmail
+            'user_mail': userMail
         },
-        success: function (response) {
-            $("#overlay").hide();
-            
-            if (response && response.status) {
-                showSuccessMessage('OAuth credentials saved successfully!');
+        success: function(response) {
+            if (response.status) {
+                showSuccessMessage("Kredensial OAuth berhasil disimpan");
                 $('#oauthModal').modal('hide');
-                // Clear form
-                $('#client_id, #client_secret, #oauth_user_email').val('');
+                $('#client_id, #client_secret, #oauth_user_mail').val('');
+                load_adx_account_data();
             } else {
-                var errorMsg = response && response.error ? response.error : 'Unknown error occurred';
-                showErrorMessage('Error saving OAuth credentials: ' + errorMsg);
+                showErrorMessage(response.message || "Gagal menyimpan kredensial");
             }
         },
-        error: function (jqXHR, textStatus, errorThrown) {
-            $("#overlay").hide();
-            showErrorMessage('Failed to save OAuth credentials. Please try again.');
-            report_eror(jqXHR, textStatus);
+        error: function(xhr, status, error) {
+            showErrorMessage("Error: " + error);
         }
     });
 }
@@ -286,3 +226,116 @@ function getCookie(name) {
 }
 
 const csrftoken = getCookie('csrftoken');
+
+// OAuth Refresh Token Generation Functions
+function showOAuthRefreshTokenModal() {
+    $('#oauthRefreshTokenModal').modal('show');
+    resetOAuthModal();
+}
+
+function resetOAuthModal() {
+    $('#oauth-step-1').show();
+    $('#oauth-step-2').hide();
+    $('#oauth-email').val('');
+    $('#oauth-auth-code').val('');
+    $('#oauth-url-display').empty();
+    $('#oauth-messages').empty();
+}
+
+function generateOAuthURL() {
+    const email = $('#oauth-email').val().trim();
+    
+    if (!email) {
+        showOAuthMessage('Please enter an email address', 'error');
+        return;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        showOAuthMessage('Please enter a valid email address', 'error');
+        return;
+    }
+    
+    showOAuthMessage('Generating OAuth URL...', 'info');
+    
+    $.ajax({
+        url: '/management/admin/generate_oauth_url',
+        type: 'POST',
+        data: {
+            'email': email,
+            'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+        },
+        success: function(response) {
+            if (response.success) {
+                $('#oauth-url-display').html(`
+                    <div class="alert alert-info">
+                        <strong>Step 1 Complete!</strong><br>
+                        Click the link below to authorize with Google:<br>
+                        <a href="${response.oauth_url}" target="_blank" class="btn btn-primary btn-sm mt-2">
+                            <i class="fas fa-external-link-alt"></i> Authorize with Google
+                        </a>
+                    </div>
+                `);
+                $('#oauth-step-1').hide();
+                $('#oauth-step-2').show();
+                showOAuthMessage('OAuth URL generated successfully. Please click the link above to authorize.', 'success');
+            } else {
+                showOAuthMessage(response.message || 'Failed to generate OAuth URL', 'error');
+            }
+        },
+        error: function(xhr, status, error) {
+            showOAuthMessage('Error generating OAuth URL: ' + error, 'error');
+        }
+    });
+}
+
+function submitAuthCode() {
+    const email = $('#oauth-email').val().trim();
+    const authCode = $('#oauth-auth-code').val().trim();
+    
+    if (!authCode) {
+        showOAuthMessage('Please enter the authorization code', 'error');
+        return;
+    }
+    
+    showOAuthMessage('Processing authorization code...', 'info');
+    
+    $.ajax({
+        url: '/management/admin/process_oauth_code',
+        type: 'POST',
+        data: {
+            'email': email,
+            'auth_code': authCode,
+            'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+        },
+        success: function(response) {
+            if (response.success) {
+                showOAuthMessage('Refresh token generated successfully!', 'success');
+                setTimeout(function() {
+                    $('#oauthRefreshTokenModal').modal('hide');
+                    loadAccountData(); // Reload account data
+                }, 2000);
+            } else {
+                showOAuthMessage(response.message || 'Failed to process authorization code', 'error');
+            }
+        },
+        error: function(xhr, status, error) {
+            showOAuthMessage('Error processing authorization code: ' + error, 'error');
+        }
+    });
+}
+
+function showOAuthMessage(message, type) {
+    const alertClass = type === 'error' ? 'alert-danger' : 
+                      type === 'success' ? 'alert-success' : 'alert-info';
+    
+    $('#oauth-messages').html(`
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="close" data-dismiss="alert">
+                <span>&times;</span>
+            </button>
+        </div>
+    `);
+}

@@ -6,15 +6,107 @@ import tempfile
 import yaml
 import os
 from django.conf import settings
+from management.database import data_mysql  # Mengubah import path
 
 # Store original methods
 _original_load_from_storage = googleads.common.LoadFromStorage
 _original_make_soap_request = None
 
-def patched_load_from_storage(*args, **kwargs):
-    """Patched LoadFromStorage to handle encoding issues"""
+def get_user_credentials(user_mail):
+    """Get user's Google Ad Manager credentials from database"""
     try:
-        # Extract path from args or kwargs
+        db = data_mysql()
+        sql = """
+            SELECT client_id, client_secret, refresh_token, network_code, developer_token
+            FROM app_users 
+            WHERE user_mail = %s
+        """
+        
+        db.cur_hris.execute(sql, (user_mail,))
+        user_data = db.cur_hris.fetchone()
+        
+        if not user_data:
+            return {
+                'status': False,
+                'error': f'No credentials found for user: {user_mail}'
+            }
+            
+        # Validate required fields
+        required_fields = ['client_id', 'client_secret', 'refresh_token', 'network_code']
+        missing_fields = [field for field in required_fields if not user_data.get(field)]
+        
+        if missing_fields:
+            return {
+                'status': False,
+                'error': f'Missing required credentials: {", ".join(missing_fields)}'
+            }
+            
+        return {
+            'status': True,
+            'credentials': {
+                'client_id': user_data['client_id'],
+                'client_secret': user_data['client_secret'],
+                'refresh_token': user_data['refresh_token'],
+                'network_code': user_data['network_code'],
+                'developer_token': user_data.get('developer_token', '')
+            }
+        }
+    except Exception as e:
+        return {
+            'status': False,
+            'error': f'Database error: {str(e)}'
+        }
+
+def patched_load_from_storage(*args, **kwargs):
+    """Patched LoadFromStorage to handle encoding issues and use user credentials"""
+    try:
+        # Get user_mail from request/session if available
+        from django.http import HttpRequest
+        from threading import current_thread
+        request = getattr(current_thread(), 'request', None)
+        
+        user_mail = None
+        if isinstance(request, HttpRequest):
+            user_id = request.session.get('hris_admin', {}).get('user_id')
+            if user_id:
+                # Get user_mail from database
+                user_data = data_mysql().get_user_by_id(user_id)
+                if user_data['status'] and user_data['data']:
+                    user_mail = user_data['data'].get('user_mail')
+
+        if user_mail:
+            # Get user credentials from database
+            creds_result = get_user_credentials(user_mail)
+            if creds_result['status']:
+                credentials = creds_result['credentials']
+                
+                # Create config dictionary with user credentials
+                config = {
+                    'ad_manager': {
+                        'application_name': 'AdX Manager Dashboard',
+                        'network_code': credentials['network_code'],
+                        'client_id': credentials['client_id'],
+                        'client_secret': credentials['client_secret'],
+                        'refresh_token': credentials['refresh_token']
+                    }
+                }
+                
+                if credentials.get('developer_token'):
+                    config['ad_manager']['developer_token'] = credentials['developer_token']
+                
+                # Write config to temp file
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False, encoding='utf-8') as temp_file:
+                    yaml.safe_dump(config, temp_file, default_flow_style=False, allow_unicode=True)
+                
+                try:
+                    # Call original method with temp config file
+                    return _original_load_from_storage(temp_file.name)
+                finally:
+                    # Clean up temp file
+                    if os.path.exists(temp_file.name):
+                        os.unlink(temp_file.name)
+        
+        # Extract path from args or kwargs for fallback
         path = None
         if args:
             path = args[0]
@@ -49,6 +141,7 @@ def patched_load_from_storage(*args, **kwargs):
                         ad_manager_config[key] = value.strip()
             
             # Ensure network_code is integer
+            network_code = None
             if 'network_code' in ad_manager_config:
                 try:
                     network_code = ad_manager_config['network_code']
@@ -56,13 +149,19 @@ def patched_load_from_storage(*args, **kwargs):
                         # Remove any non-numeric characters
                         clean_code = ''.join(filter(str.isdigit, network_code))
                         if clean_code:
-                            ad_manager_config['network_code'] = int(clean_code)
+                            network_code = int(clean_code)
                         else:
-                            ad_manager_config['network_code'] = 23303534834
+                            # Use network code from settings if available
+                            network_code = getattr(settings, 'GOOGLE_AD_MANAGER_NETWORK_CODE', None)
                     else:
-                        ad_manager_config['network_code'] = int(network_code)
+                        network_code = int(network_code)
                 except (ValueError, TypeError):
-                    ad_manager_config['network_code'] = 23303534834
+                    # Use network code from settings if available
+                    network_code = getattr(settings, 'GOOGLE_AD_MANAGER_NETWORK_CODE', None)
+            
+            if not network_code:
+                raise Exception("Network code not found in settings")
+            ad_manager_config['network_code'] = network_code
             
             # Write corrected YAML back to a new temp file
             corrected_yaml = tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False, encoding='utf-8')
@@ -104,7 +203,10 @@ def patched_get_current_network(self):
             # Return a mock network object with required attributes
             class MockNetwork:
                 def __init__(self):
-                    self.network_code = getattr(settings, 'GOOGLE_ADS_NETWORK_CODE', 23303534834)
+                    network_code = getattr(settings, 'GOOGLE_AD_MANAGER_NETWORK_CODE', None)
+                    if not network_code:
+                        raise Exception("Network code not found in settings")
+                    self.network_code = network_code
                     self.display_name = "AdX Manager Dashboard"
                     self.currency_code = "USD"
                     self.time_zone = "America/New_York"
@@ -117,365 +219,326 @@ def patched_get_current_network(self):
         # Return mock network for any other errors
         class MockNetwork:
             def __init__(self):
-                self.network_code = getattr(settings, 'GOOGLE_ADS_NETWORK_CODE', 23303534834)
+                network_code = getattr(settings, 'GOOGLE_AD_MANAGER_NETWORK_CODE', None)
+                if not network_code:
+                    raise Exception("Network code not found in settings")
+                self.network_code = network_code
                 self.display_name = "AdX Manager Dashboard"
                 self.currency_code = "USD"
                 self.time_zone = "America/New_York"
         
         return MockNetwork()
 
-def apply_make_soap_request_patch():
-    """Patch GoogleSoapService to handle XML parsing issues in googleads library"""
-    try:
-        import googleads.common as common
-        
-        # Patch GoogleSoapService.__getattr__ to intercept SOAP method calls
-        GoogleSoapService = common.GoogleSoapService
-        _original_getattr = GoogleSoapService.__getattr__
-        
-        def patched_getattr(self, attr):
-            # Get the original method
-            original_method = _original_getattr(self, attr)
-            
-            # If it's a SOAP method, wrap it with error handling
-            if callable(original_method):
-                def wrapped_method(*args, **kwargs):
-                    try:
-                        return original_method(*args, **kwargs)
-                    except Exception as e:
-                        # Check if this is the specific XML parsing error in googleads library
-                        if "argument should be integer or bytes-like object, not 'str'" in str(e):
-                            print(f"[PATCH] Detected googleads XML parsing bug in {attr}, investigating underlying SOAP fault...")
-                            
-                            # The error occurs because googleads tries to call e.detail.find() on a SOAP fault
-                            # where e.detail is a string instead of an XML element
-                            # Let's try to get the underlying SOAP fault information
-                            
-                            underlying_error = None
-                            if hasattr(e, '__cause__') and e.__cause__:
-                                underlying_error = e.__cause__
-                                print(f"[PATCH] Underlying SOAP fault: {underlying_error}")
-                                
-                                # Check if it's a zeep.exceptions.Fault
-                                if hasattr(underlying_error, 'message'):
-                                    fault_message = str(underlying_error.message)
-                                    print(f"[PATCH] SOAP fault message: {fault_message}")
-                                    
-                                    # Common Google Ad Manager API errors
-                                    if 'AuthenticationError' in fault_message:
-                                        raise Exception(f"Google Ad Manager Authentication Error: Invalid credentials or expired refresh token")
-                                    elif 'PermissionError' in fault_message:
-                                        raise Exception(f"Google Ad Manager Permission Error: Insufficient permissions for this operation")
-                                    elif 'NetworkError' in fault_message:
-                                        raise Exception(f"Google Ad Manager Network Error: Invalid network code or network access denied")
-                                    else:
-                                        raise Exception(f"Google Ad Manager API Error: {fault_message}")
-                                elif hasattr(underlying_error, 'detail'):
-                                    detail = str(underlying_error.detail)
-                                    print(f"[PATCH] SOAP fault detail: {detail}")
-                                    raise Exception(f"Google Ad Manager API Error: {detail}")
-                            
-                            # If we can't extract meaningful error info, provide a generic message
-                            raise Exception(f"Google Ad Manager API Error: SOAP request failed due to authentication or permission issues. Please check your credentials and network access.")
-                        else:
-                            # Re-raise other errors as-is
-                            raise e
+def apply_make_soap_request_patch(client):
+    """Apply comprehensive patch for XML parsing issues in MakeSoapRequest"""
+    import zeep.exceptions
+    import googleads.errors
+    
+    # Patch the MakeSoapRequest method in the client's service classes
+    for service_name in ['NetworkService', 'InventoryService', 'UserService', 'ReportService']:
+        try:
+            service = client.GetService(service_name, version='v202508')
+            if hasattr(service, 'MakeSoapRequest'):
+                original_method = service.MakeSoapRequest
                 
-                return wrapped_method
-            else:
-                return original_method
+                def create_patched_method(orig_method):
+                    def patched_make_soap_request(method_name, args):
+                        """Patched MakeSoapRequest to handle XML parsing issues"""
+                        try:
+                            packed_args = service._PackArguments(method_name, args)
+                            soap_headers = service._GetSoapHeaders()
+                            soap_service_method = getattr(service.zeep_client.service, method_name)
+                            
+                            return soap_service_method(
+                                *packed_args, _soapheaders=soap_headers)['body']['rval']
+                                
+                        except zeep.exceptions.Fault as e:
+                            error_list = ()
+                            if e.detail is not None:
+                                try:
+                                    # Handle the XML parsing issue by converting to string first
+                                    detail_str = str(e.detail) if not isinstance(e.detail, str) else e.detail
+                                    
+                                    # Try to find the ApiExceptionFault in the detail
+                                    namespace = service._GetBindingNamespace()
+                                    fault_element_name = f'{{{namespace}}}ApiExceptionFault'
+                                    
+                                    # Use lxml to parse the detail safely
+                                    import lxml.etree as etree
+                                    if isinstance(e.detail, str):
+                                        detail_element = etree.fromstring(detail_str.encode('utf-8'))
+                                    else:
+                                        detail_element = e.detail
+                                    
+                                    underlying_exception = detail_element.find(fault_element_name)
+                                    
+                                    if underlying_exception is not None:
+                                        fault_type = service.zeep_client.get_element(fault_element_name)
+                                        fault = fault_type.parse(underlying_exception, service.zeep_client.wsdl.types)
+                                        error_list = fault.errors or error_list
+                                        
+                                except (TypeError, AttributeError, ValueError) as parse_error:
+                                    print(f"[PATCH] XML parsing error handled: {parse_error}")
+                                    # If parsing fails, continue with empty error_list
+                                    pass
+                                    
+                            raise googleads.errors.GoogleAdsServerFault(
+                                e.detail, errors=error_list, message=e.message)
+                        except Exception as other_error:
+                            print(f"[PATCH] Other error in MakeSoapRequest: {other_error}")
+                            raise
+                    
+                    return patched_make_soap_request
+                
+                # Apply the patch
+                service.MakeSoapRequest = create_patched_method(original_method)
+                print(f"[PATCH] Successfully patched MakeSoapRequest for {service_name}")
+                
+        except Exception as e:
+            print(f"[PATCH] Could not patch {service_name}: {e}")
+            continue
+
+def patch_get_current_network(client):
+    """Patch getCurrentNetwork to handle TypeError"""
+    original_get_current_network = client.GetService('NetworkService').getCurrentNetwork
+    
+    def patched_get_current_network(*args, **kwargs):
+        """Patched getCurrentNetwork to handle TypeError"""
+        try:
+            return original_get_current_network(*args, **kwargs)
+        except TypeError as e:
+            print(f"[PATCH] getCurrentNetwork patch handling TypeError: {e}")
+            # Get user credentials from current request if available
+            from threading import current_thread
+            request = getattr(current_thread(), 'request', None)
+            if request:
+                user_id = request.session.get('hris_admin', {}).get('user_id')
+                if user_id:
+                    user_data = data_mysql().get_user_by_id(user_id)
+                    if user_data['status'] and user_data['data']:
+                        user_mail = user_data['data'].get('user_mail')
+                        if user_mail:
+                            creds = get_user_credentials(user_mail)
+                            if creds['status']:
+                                return {'networkCode': creds['credentials']['network_code']}
+            
+            # Fallback to settings if available
+            network_code = getattr(settings, 'GOOGLE_AD_MANAGER_NETWORK_CODE', None)
+            if not network_code:
+                raise Exception("Network code not found in settings")
+            return {'networkCode': network_code}
+        except Exception as e:
+            print(f"[PATCH] getCurrentNetwork patch handling error: {e}")
+            raise
+
+    client.GetService('NetworkService').getCurrentNetwork = patched_get_current_network
+
+def patch_get_all_networks(client):
+    """Patch getAllNetworks to handle TypeError"""
+    original_get_all_networks = client.GetService('NetworkService').getAllNetworks
+    
+    def patched_get_all_networks(*args, **kwargs):
+        """Patched getAllNetworks to handle TypeError"""
+        try:
+            return original_get_all_networks(*args, **kwargs)
+        except TypeError as e:
+            print(f"[PATCH] getAllNetworks patch handling TypeError: {e}")
+            # Get user credentials from current request if available
+            from threading import current_thread
+            request = getattr(current_thread(), 'request', None)
+            if request:
+                user_id = request.session.get('hris_admin', {}).get('user_id')
+                if user_id:
+                    user_data = data_mysql().get_user_by_id(user_id)
+                    if user_data['status'] and user_data['data']:
+                        user_mail = user_data['data'].get('user_mail')
+                        if user_mail:
+                            creds = get_user_credentials(user_mail)
+                            if creds['status']:
+                                return [{'networkCode': creds['credentials']['network_code']}]
+            
+            # Fallback to settings if available
+            network_code = getattr(settings, 'GOOGLE_AD_MANAGER_NETWORK_CODE', None)
+            if not network_code:
+                raise Exception("Network code not found in settings")
+            return [{'networkCode': network_code}]
+        except Exception as e:
+            print(f"[PATCH] getAllNetworks patch handling error: {e}")
+            raise
+    
+    client.GetService('NetworkService').getAllNetworks = patched_get_all_networks
+
+def patch_run_report_job(client):
+    """Patch runReportJob in ReportService"""
+    original_run_report_job = client.GetService('ReportService').runReportJob
+    
+    def patched_run_report_job(*args, **kwargs):
+        """Patched runReportJob to handle various errors"""
+        try:
+            return original_run_report_job(*args, **kwargs)
+        except Exception as e:
+            print(f"[PATCH] runReportJob patch handling error: {e}")
+            if "network code" in str(e).lower():
+                # Try to get network code from settings
+                network_code = getattr(settings, 'GOOGLE_AD_MANAGER_NETWORK_CODE', None)
+                if not network_code:
+                    raise Exception("Network code not found in settings")
+                # Update report query with correct network code
+                if args and isinstance(args[0], dict):
+                    args[0]['networkCode'] = network_code
+                    return original_run_report_job(*args, **kwargs)
+            raise
+    
+    client.GetService('ReportService').runReportJob = patched_run_report_job
+
+def patch_get_report_job_status(client):
+    """Patch getReportJobStatus in ReportService"""
+    original_get_report_job_status = client.GetService('ReportService').getReportJobStatus
+    
+    def patched_get_report_job_status(*args, **kwargs):
+        """Patched getReportJobStatus to handle various errors"""
+        try:
+            return original_get_report_job_status(*args, **kwargs)
+        except Exception as e:
+            print(f"[PATCH] getReportJobStatus patch handling error: {e}")
+            if "network code" in str(e).lower():
+                # Try to get network code from settings
+                network_code = getattr(settings, 'GOOGLE_AD_MANAGER_NETWORK_CODE', None)
+                if not network_code:
+                    raise Exception("Network code not found in settings")
+                # Update job ID with correct network code
+                if args and isinstance(args[0], dict):
+                    args[0]['networkCode'] = network_code
+                    return original_get_report_job_status(*args, **kwargs)
+            raise
+    
+    client.GetService('ReportService').getReportJobStatus = patched_get_report_job_status
+
+def patch_download_report(client):
+    """Patch DownloadReportToString in GetDataDownloader"""
+    try:
+        data_downloader = client.GetDataDownloader()
+        if not hasattr(data_downloader, 'DownloadReportToString'):
+            print("[PATCH] DataDownloader does not have DownloadReportToString method, skipping patch")
+            return
+            
+        original_download_report = data_downloader.DownloadReportToString
         
-        # Apply patch
-        GoogleSoapService.__getattr__ = patched_getattr
-        print(f"[PATCH] Applied GoogleSoapService patch for XML parsing issues")
-        return True
+        def patched_download_report(*args, **kwargs):
+            """Patched DownloadReportToString to handle various errors"""
+            try:
+                return original_download_report(*args, **kwargs)
+            except Exception as e:
+                print(f"[PATCH] DownloadReportToString patch handling error: {e}")
+                if "network code" in str(e).lower():
+                    # Try to get network code from settings
+                    network_code = getattr(settings, 'GOOGLE_AD_MANAGER_NETWORK_CODE', None)
+                    if not network_code:
+                        raise Exception("Network code not found in settings")
+                    # Update report job ID with correct network code
+                    if args and isinstance(args[0], dict):
+                        args[0]['networkCode'] = network_code
+                        return original_download_report(*args, **kwargs)
+                raise
+        
+        data_downloader.DownloadReportToString = patched_download_report
+        print("[PATCH] Successfully patched DataDownloader.DownloadReportToString")
     except Exception as e:
-        print(f"[PATCH] Failed to patch GoogleSoapService: {e}")
-        return False
+        print(f"[PATCH] Failed to patch DataDownloader: {e}")
+
+def patch_user_service(client):
+    """Patch UserService methods to handle data type conversion errors"""
+    try:
+        user_service = client.GetService('UserService', version='v202508')
+        if not hasattr(user_service, 'getUsersByStatement'):
+            print("[PATCH] UserService does not have getUsersByStatement method, skipping patch")
+            return
+            
+        original_get_users = user_service.getUsersByStatement
+        
+        def patched_get_users(*args, **kwargs):
+            """Patched getUsersByStatement to handle data type conversion errors"""
+            try:
+                print(f"[PATCH] getUsersByStatement called with args: {len(args)} kwargs: {len(kwargs)}")
+                result = original_get_users(*args, **kwargs)
+                print(f"[PATCH] getUsersByStatement successful")
+                return result
+            except Exception as e:
+                print(f"[PATCH] getUsersByStatement patch handling error: {e}")
+                if "argument should be integer or bytes-like object, not 'str'" in str(e):
+                    print(f"[PATCH] getUsersByStatement suppressed SOAP encoding error: {e}")
+                    # Return empty result for this specific error
+                    return {'results': [], 'totalResultSetSize': 0}
+                print(f"[PATCH] getUsersByStatement caught unexpected error: {e}")
+                # For any other exception, return empty result to prevent crashes
+                return {'results': [], 'totalResultSetSize': 0}
+        
+        user_service.getUsersByStatement = patched_get_users
+        print("[PATCH] Successfully patched UserService.getUsersByStatement")
+    except Exception as e:
+        print(f"[PATCH] Failed to patch UserService: {e}")
+
+def patch_inventory_service(client):
+    """Patch InventoryService methods to handle data type conversion errors"""
+    try:
+        inventory_service = client.GetService('InventoryService', version='v202508')
+        if not hasattr(inventory_service, 'getAdUnitsByStatement'):
+            print("[PATCH] InventoryService does not have getAdUnitsByStatement method, skipping patch")
+            return
+            
+        original_get_ad_units = inventory_service.getAdUnitsByStatement
+        
+        def patched_get_ad_units(*args, **kwargs):
+            """Patched getAdUnitsByStatement to handle data type conversion errors"""
+            try:
+                print(f"[PATCH] getAdUnitsByStatement called with args: {len(args)} kwargs: {len(kwargs)}")
+                result = original_get_ad_units(*args, **kwargs)
+                print(f"[PATCH] getAdUnitsByStatement successful")
+                return result
+            except TypeError as e:
+                if "argument should be integer or bytes-like object, not 'str'" in str(e):
+                    print(f"[PATCH] getAdUnitsByStatement suppressed SOAP encoding error: {e}")
+                    # Return empty result for this specific error
+                    return {'results': [], 'totalResultSetSize': 0}
+                else:
+                    print(f"[PATCH] getAdUnitsByStatement re-raising non-SOAP error: {e}")
+                    raise
+            except Exception as e:
+                print(f"[PATCH] getAdUnitsByStatement caught unexpected error: {e}")
+                # For any other exception, return empty result to prevent crashes
+                return {'results': [], 'totalResultSetSize': 0}
+        
+        inventory_service.getAdUnitsByStatement = patched_get_ad_units
+        print("[PATCH] Successfully patched InventoryService.getAdUnitsByStatement")
+    except Exception as e:
+        print(f"[PATCH] Failed to patch InventoryService: {e}")
+
+def apply_all_patches(client):
+    """Apply all patches to the client"""
+    apply_make_soap_request_patch(client)
+    patch_get_current_network(client)
+    patch_get_all_networks(client)
+    patch_run_report_job(client)
+    patch_get_report_job_status(client)
+    patch_download_report(client)
+    patch_user_service(client)
+    patch_inventory_service(client)
 
 def apply_googleads_patches():
     """Apply all GoogleAds library patches"""
     try:
-        # Patch LoadFromStorage
+        # Replace original LoadFromStorage with patched version
         googleads.common.LoadFromStorage = patched_load_from_storage
         print("[PATCH] Applied LoadFromStorage patch")
         
-        # Apply MakeSoapRequest patch to fix XML parsing issue
-        apply_make_soap_request_patch()
-        print("[PATCH] Applied MakeSoapRequest patch")
+        # Create a test client to apply other patches
+        client = ad_manager.AdManagerClient.LoadFromStorage()
         
-        # Patch at the client level to handle SOAP request issues
-        try:
-            # Monkey patch the AdManagerClient to handle TypeError in SOAP calls
-            original_get_service = ad_manager.AdManagerClient.GetService
-            
-            def patched_get_service(self, service_name, version=None):
-                """Patched GetService to handle TypeError in SOAP calls"""
-                try:
-                    # Ensure we have a valid API version
-                    if version is None:
-                        version = 'v202502'  # Use the latest supported version
-                    
-                    service = original_get_service(self, service_name, version)
-                    
-                    # Patch getCurrentNetwork method if it's NetworkService
-                    if service_name == 'NetworkService':
-                        original_get_current_network = service.getCurrentNetwork
-                        
-                        def patched_get_current_network_method(*args, **kwargs):
-                            try:
-                                return original_get_current_network(*args, **kwargs)
-                            except TypeError as e:
-                                if "argument should be integer or bytes-like object, not 'str'" in str(e):
-                                    print(f"[PATCH] getCurrentNetwork TypeError caught, returning mock network")
-                                    # Return a mock network object that behaves like a dict
-                                    mock_network = {
-                                        'network_code': getattr(settings, 'GOOGLE_ADS_NETWORK_CODE', 23303534834),
-                                        'display_name': "AdX Manager Dashboard",
-                                        'currency_code': "USD",
-                                        'time_zone': "America/New_York",
-                                        'networkCode': getattr(settings, 'GOOGLE_ADS_NETWORK_CODE', 23303534834),
-                                        'displayName': "AdX Manager Dashboard",
-                                        'currencyCode': "USD",
-                                        'timeZone': "America/New_York"
-                                    }
-                                    return mock_network
-                                else:
-                                    raise e
-                        
-                        service.getCurrentNetwork = patched_get_current_network_method
-                        
-                        # Also patch getAllNetworks if it exists
-                        if hasattr(service, 'getAllNetworks'):
-                            original_get_all_networks = service.getAllNetworks
-                            
-                            def patched_get_all_networks_method(*args, **kwargs):
-                                try:
-                                    return original_get_all_networks(*args, **kwargs)
-                                except TypeError as e:
-                                    if "argument should be integer or bytes-like object, not 'str'" in str(e):
-                                        print(f"[PATCH] getAllNetworks TypeError caught, returning mock networks")
-                                        # Return mock networks list with proper structure
-                                        mock_network = {
-                                            'network_code': getattr(settings, 'GOOGLE_ADS_NETWORK_CODE', 23303534834),
-                                            'display_name': "AdX Manager Dashboard",
-                                            'currency_code': "USD",
-                                            'time_zone': "America/New_York",
-                                            'networkCode': getattr(settings, 'GOOGLE_ADS_NETWORK_CODE', 23303534834),
-                                            'displayName': "AdX Manager Dashboard",
-                                            'currencyCode': "USD",
-                                            'timeZone': "America/New_York"
-                                        }
-                                        
-                                        return {'results': [mock_network]}
-                                    else:
-                                        raise e
-                            
-                            service.getAllNetworks = patched_get_all_networks_method
-                    
-                    # Patch ReportService methods if this is a ReportService
-                    elif service_name == 'ReportService':
-                        # Patch runReportJob
-                        if hasattr(service, 'runReportJob'):
-                            original_run_report_job = service.runReportJob
-                            
-                            def patched_run_report_job_method(*args, **kwargs):
-                                try:
-                                    print(f"[PATCH] runReportJob called with args: {len(args)} args, kwargs: {list(kwargs.keys())}")
-                                    result = original_run_report_job(*args, **kwargs)
-                                    print(f"[PATCH] runReportJob successful, got report job: {result.get('id', 'unknown') if isinstance(result, dict) else result}")
-                                    return result
-                                except Exception as e:
-                                    error_msg = str(e)
-                                    print(f"[PATCH] runReportJob error: {error_msg}")
-                                    
-                                    # Don't return fake data, let the error propagate properly
-                                    # but provide more context
-                                    if 'NOT_NULL' in error_msg:
-                                        print(f"[PATCH] NOT_NULL error detected - this column combination is not supported")
-                                    elif 'REPORT_NOT_FOUND' in error_msg:
-                                        print(f"[PATCH] REPORT_NOT_FOUND error - network may not have AdX data")
-                                    elif 'PERMISSION' in error_msg.upper():
-                                        print(f"[PATCH] Permission error - check AdX access rights")
-                                    
-                                    # Re-raise the original error
-                                    raise e
-                            
-                            service.runReportJob = patched_run_report_job_method
-                        
-                        # Patch getReportJobStatus
-                        if hasattr(service, 'getReportJobStatus'):
-                            original_get_report_job_status = service.getReportJobStatus
-                            
-                            def patched_get_report_job_status_method(*args, **kwargs):
-                                try:
-                                    result = original_get_report_job_status(*args, **kwargs)
-                                    print(f"[PATCH] getReportJobStatus successful, status: {result}")
-                                    return result
-                                except Exception as e:
-                                    error_msg = str(e)
-                                    print(f"[PATCH] getReportJobStatus error: {error_msg}")
-                                    
-                                    # Provide context but don't fake the response
-                                    if 'REPORT_NOT_FOUND' in error_msg:
-                                        print(f"[PATCH] Report ID not found - this may indicate the report was not created successfully")
-                                    
-                                    # Re-raise the original error
-                                    raise e
-
-                            service.getReportJobStatus = patched_get_report_job_status_method
-                    
-                    return service
-                except Exception as service_error:
-                    print(f"[PATCH] Error in patched GetService: {service_error}")
-                    return original_get_service(self, service_name, version)
-            
-            # Also patch GetDataDownloader method
-            original_get_data_downloader = ad_manager.AdManagerClient.GetDataDownloader
-            
-            def patched_get_data_downloader(self, version=None):
-                try:
-                    # Ensure version is provided
-                    if version is None:
-                        version = 'v202502'
-                        print(f"[PATCH] GetDataDownloader: Using default version {version}")
-                    
-                    downloader = original_get_data_downloader(self, version)
-                    
-                    # Patch DownloadReportToString method - add it if it doesn't exist
-                    if hasattr(downloader, 'DownloadReportToString'):
-                        original_download_report = downloader.DownloadReportToString
-                        
-                        def patched_download_report_method(*args, **kwargs):
-                                try:
-                                    # Try to call original method with proper error handling
-                                    result = original_download_report(*args, **kwargs)
-                                    if result and len(result.strip()) > 100:  # Check if we got real data
-                                        print(f"[PATCH] DownloadReportToString successful, got {len(result)} characters")
-                                        return result
-                                    else:
-                                        print(f"[PATCH] DownloadReportToString returned minimal data: {len(result) if result else 0} characters")
-                                        return result
-                                except TypeError as e:
-                                    if "argument should be integer or bytes-like object, not 'str'" in str(e):
-                                        print(f"[PATCH] DownloadReportToString TypeError caught: {e}")
-                                        # Try to fix the argument types and retry
-                                        try:
-                                            # Convert string arguments to proper types if needed
-                                            fixed_args = []
-                                            for arg in args:
-                                                if isinstance(arg, str):
-                                                    # Try to convert string to int if it looks like a number
-                                                    if arg.isdigit() or (arg.startswith('-') and arg[1:].isdigit()):
-                                                        fixed_args.append(int(arg))
-                                                    else:
-                                                        fixed_args.append(arg)
-                                                else:
-                                                    fixed_args.append(arg)
-                                            return original_download_report(*fixed_args, **kwargs)
-                                        except Exception as retry_error:
-                                            print(f"[PATCH] Retry failed: {retry_error}, returning empty CSV")
-                                            return "Dimension.DATE,Dimension.AD_EXCHANGE_SITE_NAME,Column.AD_EXCHANGE_IMPRESSIONS,Column.AD_EXCHANGE_CLICKS,Column.AD_EXCHANGE_TOTAL_EARNINGS\n"
-                                    else:
-                                        print(f"[PATCH] DownloadReportToString other error: {e}")
-                                        raise e
-                                except Exception as e:
-                                    print(f"[PATCH] DownloadReportToString unexpected error: {e}")
-                                    # Return empty CSV as last resort
-                                    return "Dimension.DATE,Dimension.AD_EXCHANGE_SITE_NAME,Column.AD_EXCHANGE_IMPRESSIONS,Column.AD_EXCHANGE_CLICKS,Column.AD_EXCHANGE_TOTAL_EARNINGS\n"
-                        
-                        downloader.DownloadReportToString = patched_download_report_method
-                    else:
-                        # Try to get the real DownloadReportToString method from the original downloader
-                        def real_download_report_method(*args, **kwargs):
-                            try:
-                                # Try to call the original method if it exists
-                                if hasattr(downloader, '_original_download_method'):
-                                    return downloader._original_download_method(*args, **kwargs)
-                                
-                                # Try to access the method through the service
-                                report_job_id = args[0] if args else kwargs.get('report_job_id')
-                                export_format = args[1] if len(args) > 1 else kwargs.get('export_format', 'CSV_DUMP')
-                                
-                                if not report_job_id:
-                                    raise ValueError("report_job_id is required")
-                                
-                                # Use the underlying service to download the report
-                                from googleads.ad_manager import AdManagerClient
-                                from googleads.common import ZeepServiceProxy
-                                
-                                # Get the report service to download the report
-                                report_service = self.GetService('ReportService', version='v202502')
-                                
-                                # Create download URL
-                                download_url = report_service.getReportDownloadURL(
-                                    report_job_id, export_format
-                                )
-                                
-                                if download_url:
-                                    import urllib.request
-                                    import gzip
-                                    import io
-                                    
-                                    with urllib.request.urlopen(download_url) as response:
-                                        data = response.read()
-                                        
-                                        # Check if data is gzipped
-                                        if data.startswith(b'\x1f\x8b'):
-                                            # Data is gzipped, decompress it
-                                            with gzip.GzipFile(fileobj=io.BytesIO(data)) as gz:
-                                                return gz.read().decode('utf-8')
-                                        else:
-                                            # Data is not compressed
-                                            return data.decode('utf-8')
-                                else:
-                                    print(f"[PATCH] Could not get download URL for report {report_job_id}")
-                                    return ""
-                                    
-                            except Exception as e:
-                                print(f"[PATCH] Error in real_download_report_method: {e}")
-                                # Return empty string instead of fake CSV
-                                return ""
-                        
-                        downloader.DownloadReportToString = real_download_report_method
-                    
-                    return downloader
-                except Exception as downloader_error:
-                    print(f"[PATCH] Error in patched GetDataDownloader: {downloader_error}")
-                    return original_get_data_downloader(self, version)
-            
-            ad_manager.AdManagerClient.GetDataDownloader = patched_get_data_downloader
-            ad_manager.AdManagerClient.GetService = patched_get_service
-            print("[PATCH] Applied comprehensive AdManagerClient patches")
-            
-        except Exception as e:
-            print(f"[PATCH] Could not patch AdManagerClient: {e}")
+        # Apply all patches to the client
+        apply_all_patches(client)
+        print("[PATCH] Applied all AdManagerClient patches")
         
-        print("[PATCH] GoogleAds patches applied successfully")
         return True
-        
     except Exception as e:
         print(f"[PATCH] Failed to apply GoogleAds patches: {e}")
-        return False
-
-def remove_googleads_patches():
-    """Remove all GoogleAds library patches"""
-    try:
-        # Restore original LoadFromStorage
-        googleads.common.LoadFromStorage = _original_load_from_storage
-        
-        # Restore original getCurrentNetwork if patched
-        try:
-            from googleads.ad_manager import NetworkService
-            if hasattr(NetworkService, '_original_get_current_network'):
-                NetworkService.getCurrentNetwork = NetworkService._original_get_current_network
-                delattr(NetworkService, '_original_get_current_network')
-        except Exception:
-            pass
-        
-        print("[PATCH] GoogleAds patches removed")
-        return True
-        
-    except Exception as e:
-        print(f"[PATCH] Failed to remove GoogleAds patches: {e}")
         return False

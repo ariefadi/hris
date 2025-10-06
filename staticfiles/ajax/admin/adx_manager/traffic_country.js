@@ -22,11 +22,11 @@ $(document).ready(function() {
     // Load daftar negara untuk Select2
     loadCountriesForSelect2();
 
-    // Set tanggal default (7 hari terakhir)
+    // Set tanggal default (30 hari terakhir dari hari ini)
     var today = new Date();
-    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    var lastMonth = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
     
-    $('#tanggal_dari').val(formatDateForInput(lastWeek));
+    $('#tanggal_dari').val(formatDateForInput(lastMonth));
     $('#tanggal_sampai').val(formatDateForInput(today));
 
     // Event handler untuk tombol Load
@@ -98,7 +98,8 @@ $(document).ready(function() {
             data: {
                 start_date: startDate,
                 end_date: endDate,
-                selected_countries: selectedCountries ? selectedCountries.join(',') : ''
+                selected_countries: selectedCountries ? selectedCountries.join(',') : '',
+                force_real_data: true
             },
             headers: {
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
@@ -124,16 +125,41 @@ $(document).ready(function() {
                     
                     $('#summary_boxes').show();
                     
-                    // Show success message
+                    // Show appropriate message based on data status
                     if (response.data && response.data.length > 0) {
                         console.log('Data berhasil dimuat: ' + response.data.length + ' negara');
+                        showSuccessNotification('Data berhasil dimuat: ' + response.data.length + ' negara');
                     } else {
-                        console.log('Tidak ada data untuk periode yang dipilih');
+                        // Check if this is a no-data response from test account
+                        if (response.data_status === 'no_data' && response.note) {
+                            console.log('No data available: ' + response.note);
+                            showWarningNotification('Tidak ada data tersedia: ' + response.note + '\n\nIni adalah akun test Ad Manager yang tidak memiliki data traffic aktual.');
+                        } else {
+                            console.log('Tidak ada data untuk periode yang dipilih');
+                            showInfoNotification('Tidak ada data untuk periode yang dipilih. Silakan coba dengan rentang tanggal yang berbeda atau pastikan ada aktivitas iklan pada periode tersebut.');
+                        }
                     }
                 } else {
-                    var errorMsg = response.error || 'Terjadi kesalahan yang tidak diketahui';
-                    console.error('[DEBUG] Response error:', errorMsg);
-                    alert('Error: ' + errorMsg);
+                    // Handle specific error cases with enhanced error response structure
+                    var errorMsg = response.error || response.error_message || 'Terjadi kesalahan yang tidak diketahui';
+                    var errorType = response.error_type || 'general_error';
+                    console.error('[DEBUG] Response error:', errorMsg, 'Type:', errorType);
+                    
+                    // Check for specific AdX data unavailability error
+                    if (errorType === 'adx_unavailable' || 
+                        errorMsg.includes('Tidak ada data real yang tersedia dari Ad Manager API') || 
+                        errorMsg.includes('AdX data is not available') ||
+                        errorMsg.includes('NOT_NULL')) {
+                        
+                        // Use enhanced error message and suggestions from backend
+                        var userMessage = response.error_message || 'Data AdX tidak tersedia untuk periode yang dipilih.';
+                        var suggestions = response.suggestions || [];
+                        var technicalDetails = response.technical_details || errorMsg;
+                        
+                        showAdxUnavailableError(userMessage, suggestions, technicalDetails);
+                    } else {
+                        showErrorNotification('Error: ' + errorMsg);
+                    }
                 }
             },
             error: function(xhr, status, error) {
@@ -387,4 +413,79 @@ $(document).ready(function() {
         $('#country_filter').html(options);
         console.log('[INFO] Fallback countries loaded successfully');
     }
+
+    // Notification functions for better user experience
+    function showSuccessNotification(message) {
+        console.log('[SUCCESS] ' + message);
+        // Use toast notification if available, otherwise fallback to alert
+        if (typeof toastr !== 'undefined') {
+            toastr.success(message);
+        } else {
+            alert('✓ ' + message);
+        }
+    }
+
+    function showInfoNotification(message) {
+        console.log('[INFO] ' + message);
+        if (typeof toastr !== 'undefined') {
+            toastr.info(message);
+        } else {
+            alert('ℹ ' + message);
+        }
+    }
+
+    function showWarningNotification(message) {
+        console.log('[WARNING] ' + message);
+        if (typeof toastr !== 'undefined') {
+            toastr.warning(message);
+        } else {
+            alert('⚠ ' + message);
+        }
+    }
+
+    function showErrorNotification(message) {
+        console.log('[ERROR] ' + message);
+        if (typeof toastr !== 'undefined') {
+            toastr.error(message);
+        } else {
+            alert('✗ ' + message);
+        }
+    }
+
+    function showAdxUnavailableError(userMessage, suggestions, technicalDetails) {
+        // Use provided parameters or fallback to defaults
+        userMessage = userMessage || 'Data AdX tidak tersedia untuk periode yang dipilih.';
+        suggestions = suggestions || [
+            'Coba dengan rentang tanggal yang berbeda',
+            'Pastikan akun AdX sudah aktif dan dikonfigurasi',
+            'Periksa apakah ada traffic iklan pada periode tersebut',
+            'Hubungi administrator jika masalah berlanjut'
+        ];
+        technicalDetails = technicalDetails || 'AdX data unavailable';
+        
+        // Build the complete message
+        var message = userMessage + '\n\n';
+        
+        if (suggestions && suggestions.length > 0) {
+            message += 'Saran:\n';
+            suggestions.forEach(function(suggestion) {
+                message += '• ' + suggestion + '\n';
+            });
+        }
+        
+        console.log('[ERROR] AdX Data Unavailable - Technical Details:', technicalDetails);
+        console.log('[ERROR] User Message:', userMessage);
+        
+        if (typeof toastr !== 'undefined') {
+            toastr.error(message, 'Data AdX Tidak Tersedia', {
+                timeOut: 12000,
+                extendedTimeOut: 5000,
+                closeButton: true,
+                progressBar: true
+            });
+        } else {
+            alert('⚠️ Data AdX Tidak Tersedia\n\n' + message);
+        }
+    }
+
 });

@@ -97,7 +97,7 @@ class AdsenseTrafficAccountDataView(View):
                     'error': 'User email not found in database'
                 }, status=400)
             
-            user_email = user_data['user_mail']
+            user_mail = user_data['user_mail']
             
             # Get form data
             start_date = request.POST.get('start_date')
@@ -110,10 +110,10 @@ class AdsenseTrafficAccountDataView(View):
                     'error': 'Start date and end date are required'
                 }, status=400)
             
-            print(f"[DEBUG] Calling fetch_adsense_traffic_account_data with: {user_email}, {start_date}, {end_date}, {site_filter}")
+            print(f"[DEBUG] Calling fetch_adsense_traffic_account_data with: {user_mail}, {start_date}, {end_date}, {site_filter}")
             
             # Fetch AdSense traffic account data
-            response = fetch_adsense_traffic_account_data(user_email, start_date, end_date, site_filter)
+            response = fetch_adsense_traffic_account_data(user_mail, start_date, end_date, site_filter)
             
             print(f"[DEBUG] Response status: {response.get('status')}, Error: {response.get('error')}")
             
@@ -185,8 +185,8 @@ class AdsenseSitesListView(View):
                     'error': 'Data user tidak ditemukan dalam database'
                 })
             
-            user_email = user_data['data']['user_mail']
-            if not user_email:
+            user_mail = user_data['data']['user_mail']
+            if not user_mail:
                 return JsonResponse({
                     'status': False,
                     'error': 'Email user tidak ditemukan dalam database'
