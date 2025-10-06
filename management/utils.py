@@ -3765,71 +3765,80 @@ def _run_regular_report(client, start_date, end_date, site_filter):
         ['TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS']
     ]
     
-    for columns in regular_column_combinations:
-        try:
-            print(f"[DEBUG] Trying regular columns: {columns}")
-            
-            report_query = {
-                'reportQuery': {
-                    'dimensions': ['DATE', 'AD_UNIT_NAME'],
-                    'columns': columns,
-                    'dateRangeType': 'CUSTOM_DATE',
-                    'startDate': {
-                        'year': start_date.year,
-                        'month': start_date.month,
-                        'day': start_date.day
-                    },
-                    'endDate': {
-                        'year': end_date.year,
-                        'month': end_date.month,
-                        'day': end_date.day
+    # Try different dimension combinations to get site name directly from API
+    dimension_combinations = [
+        # Try to get site name directly from Ad Manager
+        ['DATE', 'SITE_NAME', 'AD_UNIT_NAME'],
+        ['DATE', 'AD_EXCHANGE_SITE_NAME', 'AD_UNIT_NAME'],
+        ['DATE', 'AD_UNIT_NAME']  # Fallback to original
+    ]
+    
+    for dimensions in dimension_combinations:
+        for columns in regular_column_combinations:
+            try:
+                print(f"[DEBUG] Trying dimensions: {dimensions}, columns: {columns}")
+                
+                report_query = {
+                    'reportQuery': {
+                        'dimensions': dimensions,
+                        'columns': columns,
+                        'dateRangeType': 'CUSTOM_DATE',
+                        'startDate': {
+                            'year': start_date.year,
+                            'month': start_date.month,
+                            'day': start_date.day
+                        },
+                        'endDate': {
+                            'year': end_date.year,
+                            'month': end_date.month,
+                            'day': end_date.day
+                        }
                     }
                 }
-            }
-            
-            # Add site filter if specified (using AD_UNIT_NAME instead)
-            if site_filter:
-                report_query['reportQuery']['dimensionFilters'] = [{
-                    'dimension': 'AD_UNIT_NAME',
-                    'operator': 'CONTAINS',
-                    'values': [site_filter]
-                }]
-            
-            # Try to run the report job
-            report_job = report_service.runReportJob(report_query)
-            print(f"[DEBUG] Regular report created successfully with columns: {columns}")
-            
-            # Wait for completion and download
-            raw_result = _wait_and_download_report(client, report_job['id'])
-            
-            # Process the raw CSV data to match expected frontend format
-            if raw_result.get('status') and raw_result.get('data'):
-                processed_data = _process_regular_csv_data(raw_result['data'])
-                summary = _calculate_summary_from_processed_data(processed_data, start_date, end_date)
                 
-                return {
-                    'status': True,
-                    'data': processed_data,
-                    'summary': summary,
-                    'api_method': 'regular_fallback',
-                    'note': f'Using regular Ad Manager metrics (columns: {columns})'
-                }
-            else:
-                return raw_result
-            
-        except Exception as e:
-            error_msg = str(e)
-            print(f"[DEBUG] Regular combination {columns} failed: {error_msg}")
-            
-            # If NOT_NULL error, try next combination
-            if 'NOT_NULL' in error_msg:
-                continue
-            # If permission error, raise it
-            elif 'PERMISSION' in error_msg.upper():
-                raise e
-            # For other errors, try next combination
-            else:
-                continue
+                # Add site filter if specified (using AD_UNIT_NAME instead)
+                if site_filter:
+                    report_query['reportQuery']['dimensionFilters'] = [{
+                        'dimension': 'AD_UNIT_NAME',
+                        'operator': 'CONTAINS',
+                        'values': [site_filter]
+                    }]
+                
+                # Try to run the report job
+                report_job = report_service.runReportJob(report_query)
+                print(f"[DEBUG] Regular report created successfully with dimensions: {dimensions}, columns: {columns}")
+                
+                # Wait for completion and download
+                raw_result = _wait_and_download_report(client, report_job['id'])
+                
+                # Process the raw CSV data to match expected frontend format
+                if raw_result.get('status') and raw_result.get('data'):
+                    processed_data = _process_regular_csv_data(raw_result['data'])
+                    summary = _calculate_summary_from_processed_data(processed_data, start_date, end_date)
+                    
+                    return {
+                        'status': True,
+                        'data': processed_data,
+                        'summary': summary,
+                        'api_method': 'regular_fallback',
+                        'note': f'Using regular Ad Manager metrics (dimensions: {dimensions}, columns: {columns})'
+                    }
+                else:
+                    return raw_result
+                
+            except Exception as e:
+                error_msg = str(e)
+                print(f"[DEBUG] Combination dimensions: {dimensions}, columns: {columns} failed: {error_msg}")
+                
+                # If NOT_NULL error, try next combination
+                if 'NOT_NULL' in error_msg:
+                    continue
+                # If permission error, raise it
+                elif 'PERMISSION' in error_msg.upper():
+                    raise e
+                # For other errors, try next combination
+                else:
+                    continue
     
     # If all regular combinations failed, raise error
     raise Exception("All regular column combinations failed")
@@ -3923,24 +3932,30 @@ def _get_site_name_mapping():
 def _process_regular_csv_data(raw_data):
     """Process raw CSV data from regular Ad Manager report to match frontend format"""
     processed = []
-    site_mapping = _get_site_name_mapping()
     
     for row in raw_data:
         try:
             # Extract values from CSV row with proper fallbacks
             date = row.get('Dimension.DATE', '')
             
-            # Handle different site name dimensions with mapping
+            # Handle different site name dimensions - prioritize direct API data
             site_name = 'Unknown'
-            if 'Dimension.AD_EXCHANGE_SITE_NAME' in row:
-                raw_site_name = row.get('Dimension.AD_EXCHANGE_SITE_NAME', 'Ad Exchange Display')
-                site_name = site_mapping.get(raw_site_name, raw_site_name)
+            
+            # First try to get site name directly from API dimensions
+            if 'Dimension.SITE_NAME' in row:
+                site_name = row.get('Dimension.SITE_NAME', 'Unknown')
+                print(f"[DEBUG] Using SITE_NAME from API: {site_name}")
+            elif 'Dimension.AD_EXCHANGE_SITE_NAME' in row:
+                site_name = row.get('Dimension.AD_EXCHANGE_SITE_NAME', 'Ad Exchange Display')
+                print(f"[DEBUG] Using AD_EXCHANGE_SITE_NAME from API: {site_name}")
             elif 'Dimension.AD_UNIT_NAME' in row:
-                raw_site_name = row.get('Dimension.AD_UNIT_NAME', 'Unknown')
-                site_name = site_mapping.get(raw_site_name, raw_site_name)
+                # Use AD_UNIT_NAME directly without mapping
+                site_name = row.get('Dimension.AD_UNIT_NAME', 'Unknown')
+                print(f"[DEBUG] Using AD_UNIT_NAME from API: {site_name}")
             elif 'Dimension.AD_UNIT_ID' in row:
-                ad_unit_id = row.get('Dimension.AD_UNIT_ID', '')
-                site_name = site_mapping.get(ad_unit_id, 'Unknown')
+                # Use AD_UNIT_ID directly without mapping
+                site_name = row.get('Dimension.AD_UNIT_ID', 'Unknown')
+                print(f"[DEBUG] Using AD_UNIT_ID from API: {site_name}")
             
             # Handle different possible column names for impressions
             impressions = 0
