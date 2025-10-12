@@ -5,7 +5,18 @@
 # See https://www.python.org/psf/license for licensing details.
 """Defused xml.etree.cElementTree
 """
+from __future__ import absolute_import
+
 import warnings
+
+from .common import _generate_etree_functions
+
+from xml.etree.cElementTree import TreeBuilder as _TreeBuilder
+from xml.etree.cElementTree import parse as _parse
+from xml.etree.cElementTree import tostring
+
+# iterparse from ElementTree!
+from xml.etree.ElementTree import iterparse as _iterparse
 
 # This module is an alias for ElementTree just like xml.etree.cElementTree
 from .ElementTree import (
@@ -14,7 +25,6 @@ from .ElementTree import (
     XMLParser,
     XMLTreeBuilder,
     fromstring,
-    fromstringlist,
     iterparse,
     parse,
     tostring,
@@ -31,6 +41,14 @@ warnings.warn(
     stacklevel=2,
 )
 
+# XMLParse is a typo, keep it for backwards compatibility
+XMLTreeBuilder = XMLParse = XMLParser = DefusedXMLParser
+
+parse, iterparse, fromstring = _generate_etree_functions(
+    DefusedXMLParser, _TreeBuilder, _parse, _iterparse
+)
+XML = fromstring
+
 __all__ = [
     "ParseError",
     "XML",
@@ -38,10 +56,7 @@ __all__ = [
     "XMLParser",
     "XMLTreeBuilder",
     "fromstring",
-    "fromstringlist",
     "iterparse",
     "parse",
     "tostring",
-    # backwards compatibility
-    "DefusedXMLParser",
 ]

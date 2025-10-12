@@ -1,6 +1,6 @@
 # defusedxml
 #
-# Copyright (c) 2013-2020 by Christian Heimes <christian@python.org>
+# Copyright (c) 2013 by Christian Heimes <christian@python.org>
 # Licensed to PSF under a Contributor Agreement.
 # See https://www.python.org/psf/license for licensing details.
 """Defused xml.etree.ElementTree facade
@@ -14,10 +14,21 @@ from xml.etree.ElementTree import TreeBuilder as _TreeBuilder
 from xml.etree.ElementTree import parse as _parse
 from xml.etree.ElementTree import tostring
 
-import importlib
+from .common import PY3
+
+if PY3:
+    import importlib
+else:
+    from xml.etree.ElementTree import XMLParser as _XMLParser
+    from xml.etree.ElementTree import iterparse as _iterparse
 
 
-from .common import DTDForbidden, EntitiesForbidden, ExternalReferenceForbidden
+from .common import (
+    DTDForbidden,
+    EntitiesForbidden,
+    ExternalReferenceForbidden,
+    _generate_etree_functions,
+)
 
 __origin__ = "xml.etree.ElementTree"
 
@@ -58,7 +69,9 @@ def _get_py3_cls():
     return _XMLParser, _iterparse
 
 
-_XMLParser, _iterparse = _get_py3_cls()
+if PY3:
+    _XMLParser, _iterparse = _get_py3_cls()
+
 
 _sentinel = object()
 
@@ -73,7 +86,8 @@ class DefusedXMLParser(_XMLParser):
         forbid_entities=True,
         forbid_external=True,
     ):
-        super().__init__(target=target, encoding=encoding)
+        # Python 2.x old style class
+        _XMLParser.__init__(self, target=target, encoding=encoding)
         if html is not _sentinel:
             # the 'html' argument has been deprecated and ignored in all
             # supported versions of Python. Python 3.8 finally removed it.
@@ -89,7 +103,10 @@ class DefusedXMLParser(_XMLParser):
         self.forbid_dtd = forbid_dtd
         self.forbid_entities = forbid_entities
         self.forbid_external = forbid_external
-        parser = self.parser
+        if PY3:
+            parser = self.parser
+        else:
+            parser = self._parser
         if self.forbid_dtd:
             parser.StartDoctypeDeclHandler = self.defused_start_doctype_decl
         if self.forbid_entities:
@@ -118,60 +135,10 @@ class DefusedXMLParser(_XMLParser):
 # XMLParse is a typo, keep it for backwards compatibility
 XMLTreeBuilder = XMLParse = XMLParser = DefusedXMLParser
 
-
-def parse(source, parser=None, forbid_dtd=False, forbid_entities=True, forbid_external=True):
-    if parser is None:
-        parser = DefusedXMLParser(
-            target=_TreeBuilder(),
-            forbid_dtd=forbid_dtd,
-            forbid_entities=forbid_entities,
-            forbid_external=forbid_external,
-        )
-    return _parse(source, parser)
-
-
-def iterparse(
-    source,
-    events=None,
-    parser=None,
-    forbid_dtd=False,
-    forbid_entities=True,
-    forbid_external=True,
-):
-    if parser is None:
-        parser = DefusedXMLParser(
-            target=_TreeBuilder(),
-            forbid_dtd=forbid_dtd,
-            forbid_entities=forbid_entities,
-            forbid_external=forbid_external,
-        )
-    return _iterparse(source, events, parser)
-
-
-def fromstring(text, forbid_dtd=False, forbid_entities=True, forbid_external=True):
-    parser = DefusedXMLParser(
-        target=_TreeBuilder(),
-        forbid_dtd=forbid_dtd,
-        forbid_entities=forbid_entities,
-        forbid_external=forbid_external,
-    )
-    parser.feed(text)
-    return parser.close()
-
-
+parse, iterparse, fromstring = _generate_etree_functions(
+    DefusedXMLParser, _TreeBuilder, _parse, _iterparse
+)
 XML = fromstring
-
-
-def fromstringlist(sequence, forbid_dtd=False, forbid_entities=True, forbid_external=True):
-    parser = DefusedXMLParser(
-        target=_TreeBuilder(),
-        forbid_dtd=forbid_dtd,
-        forbid_entities=forbid_entities,
-        forbid_external=forbid_external,
-    )
-    for text in sequence:
-        parser.feed(text)
-    return parser.close()
 
 
 __all__ = [
@@ -181,7 +148,6 @@ __all__ = [
     "XMLParser",
     "XMLTreeBuilder",
     "fromstring",
-    "fromstringlist",
     "iterparse",
     "parse",
     "tostring",

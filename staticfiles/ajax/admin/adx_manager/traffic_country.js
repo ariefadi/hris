@@ -1,47 +1,4 @@
 $(document).ready(function() {
-    console.log('=== TRAFFIC COUNTRY PAGE LOADED ===');
-    console.log('jQuery version:', $.fn.jquery);
-    console.log('Select2 available:', typeof $.fn.select2 !== 'undefined');
-    
-    // Check if Select2 library is properly loaded
-    if (typeof $.fn.select2 === 'undefined') {
-        console.error('❌ SELECT2 LIBRARY NOT LOADED!');
-        alert('Error: Select2 library tidak dimuat. Silakan refresh halaman.');
-        return;
-    } else {
-        console.log('✅ Select2 library loaded successfully');
-    }
-    
-    // Test basic Select2 functionality first
-    console.log('=== TESTING BASIC SELECT2 ===');
-    try {
-        // Create a simple test select element
-        var testSelect = $('<select id="test_select2"><option value="test">Test Option</option></select>');
-        $('body').append(testSelect);
-        
-        // Try to initialize Select2 on test element
-        $('#test_select2').select2({
-            placeholder: "Test Select2",
-            width: '200px'
-        });
-        
-        console.log('✅ Basic Select2 test PASSED');
-        $('#test_select2').remove(); // Clean up test element
-        
-    } catch (testError) {
-        console.error('❌ Basic Select2 test FAILED:', testError);
-        alert('Error: Select2 tidak berfungsi pada halaman ini. Error: ' + testError.message);
-        return;
-    }
-    // Global chart variables untuk mengelola instance chart
-    var impressionsChartInstance = null;
-    var revenueChartInstance = null;
-    
-    console.log('=== DEBUGGING SELECT2 ISSUE ===');
-    console.log('Document ready - Starting initialization');
-    console.log('jQuery version:', $.fn.jquery);
-    console.log('Select2 available:', typeof $.fn.select2 !== 'undefined');
-    
     // Inisialisasi datepicker
     $('.datepicker-input').datepicker({
         format: 'yyyy-mm-dd',
@@ -49,86 +6,131 @@ $(document).ready(function() {
         todayHighlight: true
     });
 
-    // Debugging elemen DOM
-    console.log('=== DOM ELEMENTS CHECK ===');
-    console.log('Country filter element:', $('#country_filter'));
-    console.log('Country filter length:', $('#country_filter').length);
-    console.log('Site filter element:', $('#site_filter'));
-    console.log('Site filter length:', $('#site_filter').length);
-    console.log('Site filter HTML:', $('#site_filter')[0] ? $('#site_filter')[0].outerHTML : 'NOT FOUND');
+    // Set tanggal default (7 hari terakhir)
+    var today = new Date();
+    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     
+    $('#tanggal_dari').val(formatDateForInput(lastWeek));
+    $('#tanggal_sampai').val(formatDateForInput(today));
+
+    // Inisialisasi Select2 untuk site filter
+    $('#site_filter').select2({
+        placeholder: '-- Pilih Site --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4',
+        multiple: true
+    });
+
     // Inisialisasi Select2 untuk country filter
     $('#country_filter').select2({
         placeholder: '-- Pilih Negara --',
         allowClear: true,
         width: '100%',
+        height: '100%',
         theme: 'bootstrap4',
         multiple: true
     });
-    console.log('✅ Country filter Select2 initialized');
-
-    // SIMPLE APPROACH: Initialize existing site filter
-    console.log('=== INITIALIZING SITE FILTER ===');
-    
-    // Check if site filter element exists
-    var siteFilterElement = $('#site_filter');
-    console.log('Site filter element found:', siteFilterElement.length > 0);
-    console.log('Site filter HTML:', siteFilterElement.length > 0 ? siteFilterElement[0].outerHTML : 'ELEMENT NOT FOUND');
-    
-    if (siteFilterElement.length === 0) {
-        console.error('❌ #site_filter element not found in DOM!');
-        alert('Error: Element #site_filter tidak ditemukan. Periksa template HTML.');
-        return;
-    }
-    
-    // Initialize Select2 on existing element
-    try {
-        console.log('🔧 Initializing Select2 on #site_filter...');
-        siteFilterElement.select2({
-            placeholder: "Pilih Situs",
-            allowClear: true,
-            width: '100%',
-            theme: 'bootstrap4',
-            multiple: true
-        });
-        console.log('✅ Select2 initialized successfully');
-        
-        // Load sites list after successful Select2 initialization
-        console.log('🚀 Calling loadSitesList()...');
-        loadSitesList();
-        
-    } catch (error) {
-        console.error('❌ Error initializing site filter Select2:', error);
-        alert('Error initializing Select2: ' + error.message);
-    }
-
-    // Load daftar negara untuk Select2
-    loadCountriesForSelect2();
-
-    // Set tanggal default (30 hari terakhir dari hari ini)
-    var today = new Date();
-    var lastMonth = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-    
-    $('#tanggal_dari').val(formatDateForInput(lastMonth));
-    $('#tanggal_sampai').val(formatDateForInput(today));
 
     // Event handler untuk tombol Load
     $('#btn_load_data').click(function() {
         load_adx_traffic_country_data();
     });
 
-    // Event handler untuk perubahan country filter
-    $('#country_filter').on('change', function() {
-        // Auto-reload data ketika filter negara berubah
-        var startDate = $('#tanggal_dari').val();
-        var endDate = $('#tanggal_sampai').val();
-        if (startDate && endDate) {
+    // Event handler untuk site filter change
+    $('#site_filter').change(function (e) {
+        var tanggal_dari = $("#tanggal_dari").val();
+        var tanggal_sampai = $("#tanggal_sampai").val();
+        var country_filter = $("#country_filter").val();
+        if(tanggal_dari && tanggal_sampai && country_filter) {
             load_adx_traffic_country_data();
-        }
+        }    
     });
 
-    // Load data saat halaman pertama kali dibuka
-    load_adx_traffic_country_data();
+    // Load data situs untuk select2
+    loadSitesList();
+    function loadSitesList() {
+        $.ajax({
+            url: '/management/admin/adx_sites_list',
+            type: 'GET',
+            dataType: 'json',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.status) {
+                    var select_site = $("#site_filter").val();
+                    select_site.empty();
+
+                    $.each(response.data, function(index, site) {
+                        select_site.append(new Option(site, site, false, false));
+                    });
+                    select_site.trigger('change');
+                    
+                    // Load data awal setelah site options dimuat
+                    var today = new Date();
+                    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                    
+                    load_adx_traffic_country_data();
+                } 
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading sites:', error);
+                console.error('Status:', status);
+                console.error('Response:', xhr.responseText);
+            }
+        });
+    }
+
+    // Event handler untuk country filter change
+    $('#country_filter').change(function (e) {
+        var tanggal_dari = $("#tanggal_dari").val();
+        var tanggal_sampai = $("#tanggal_sampai").val();
+        var site_filter = $("#site_filter").val();
+        if(tanggal_dari && tanggal_sampai && site_filter) {
+            load_adx_traffic_country_data();
+        }    
+    });
+
+    // Load data negara untuk select2
+    load_country_options();
+    // Fungsi untuk memuat opsi negara ke select2
+    function load_country_options() {
+        $.ajax({
+            url: '/management/admin/get_countries_adx',
+            type: 'GET',
+            dataType: 'json',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if(response.status) {
+                    var select_country = $('#country_filter');
+                    select_country.empty();
+                    
+                    $.each(response.countries, function(index, country) {
+                        select_country.append(new Option(country.name, country.code, false, false));
+                    });
+                    
+                    select_country.trigger('change');
+                    
+                    // Load data awal setelah country options dimuat
+                    var today = new Date();
+                    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+                    
+                    load_adx_traffic_country_data();
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading countries:', error);
+                console.error('Status:', status);
+                console.error('Response:', xhr.responseText);
+            }
+        });
+    }
 
     // Fungsi untuk format tanggal ke format input (YYYY-MM-DD)
     function formatDateForInput(date) {
@@ -152,28 +154,28 @@ $(document).ready(function() {
     function load_adx_traffic_country_data() {
         var startDate = $('#tanggal_dari').val();
         var endDate = $('#tanggal_sampai').val();
-        var selectedCountries = $('#country_filter').val(); // Array of selected countries
-
+        var selectedSites = $('#site_filter').val();
+        var selectedCountries = $('#country_filter').val();
         if (!startDate || !endDate) {
             alert('Silakan pilih rentang tanggal');
             return;
         }
-
-        console.log('[DEBUG] Loading country data with params:', {
-            start_date: startDate,
-            end_date: endDate,
-            selected_countries: selectedCountries
-        });
-
+        // Convert array to comma-separated string for backend
+        var siteFilter = '';
+        if (selectedSites && selectedSites.length > 0) {
+            siteFilter = selectedSites.join(',');
+        }
+        // Convert array to comma-separated string for backend
+        var countryFilter = '';
+        if (selectedCountries && selectedCountries.length > 0) {
+            countryFilter = selectedCountries.join(',');
+        }
         // Tampilkan overlay loading
         $('#overlay').show();
-        $('#summary_boxes').hide();
-
-        // Destroy existing DataTable if exists
+        // Destroy existing DataTable if exist
         if ($.fn.DataTable.isDataTable('#table_traffic_country')) {
             $('#table_traffic_country').DataTable().destroy();
         }
-
         // AJAX request
         $.ajax({
             url: '/management/admin/page_adx_traffic_country',
@@ -181,68 +183,27 @@ $(document).ready(function() {
             data: {
                 start_date: startDate,
                 end_date: endDate,
-                selected_countries: selectedCountries ? selectedCountries.join(',') : '',
-                force_real_data: true
+                selected_sites: siteFilter,
+                selected_countries: countryFilter
             },
             headers: {
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
             },
             success: function(response) {
-                console.log('[DEBUG] AJAX Success Response:', response);
                 $('#overlay').hide();
-                
                 if (response && response.status) {
                     // Update summary boxes
                     updateSummaryBoxes(response.summary);
-
+                    $('#summary_boxes').show();
                     // Initialize DataTable
                     initializeDataTable(response.data);
-                    
                     // Generate charts if data available
-                    if (response.data && response.data.length > 0) {
-                        generateTrafficCountryCharts(response.data);
-                        $('#charts_section').show();
-                    } else {
-                        $('#charts_section').hide();
-                    }
-                    
-                    $('#summary_boxes').show();
-                    
-                    // Show appropriate message based on data status
-                    if (response.data && response.data.length > 0) {
-                        console.log('Data berhasil dimuat: ' + response.data.length + ' negara');
-                        showSuccessNotification('Data berhasil dimuat: ' + response.data.length + ' negara');
-                    } else {
-                        // Check if this is a no-data response from test account
-                        if (response.data_status === 'no_data' && response.note) {
-                            console.log('No data available: ' + response.note);
-                            showWarningNotification('Tidak ada data tersedia: ' + response.note + '\n\nIni adalah akun test Ad Manager yang tidak memiliki data traffic aktual.');
-                        } else {
-                            console.log('Tidak ada data untuk periode yang dipilih');
-                            showInfoNotification('Tidak ada data untuk periode yang dipilih. Silakan coba dengan rentang tanggal yang berbeda atau pastikan ada aktivitas iklan pada periode tersebut.');
-                        }
-                    }
+                    generateTrafficCountryCharts(response.data);
+                    $('#charts_section').show();
                 } else {
-                    // Handle specific error cases with enhanced error response structure
-                    var errorMsg = response.error || response.error_message || 'Terjadi kesalahan yang tidak diketahui';
-                    var errorType = response.error_type || 'general_error';
-                    console.error('[DEBUG] Response error:', errorMsg, 'Type:', errorType);
-                    
-                    // Check for specific AdX data unavailability error
-                    if (errorType === 'adx_unavailable' || 
-                        errorMsg.includes('Tidak ada data real yang tersedia dari Ad Manager API') || 
-                        errorMsg.includes('AdX data is not available') ||
-                        errorMsg.includes('NOT_NULL')) {
-                        
-                        // Use enhanced error message and suggestions from backend
-                        var userMessage = response.error_message || 'Data AdX tidak tersedia untuk periode yang dipilih.';
-                        var suggestions = response.suggestions || [];
-                        var technicalDetails = response.technical_details || errorMsg;
-                        
-                        showAdxUnavailableError(userMessage, suggestions, technicalDetails);
-                    } else {
-                        showErrorNotification('Error: ' + errorMsg);
-                    }
+                    var errorMsg = response.error || 'Terjadi kesalahan yang tidak diketahui';
+                    console.error('[DEBUG] Response error:', errorMsg);
+                    alert('Error: ' + errorMsg);
                 }
             },
             error: function(xhr, status, error) {
@@ -269,7 +230,6 @@ $(document).ready(function() {
     // Fungsi untuk inisialisasi DataTable
     function initializeDataTable(data) {
         var tableData = [];
-        
         if (data && Array.isArray(data)) {
             data.forEach(function(row) {
                 // Get country flag
@@ -277,7 +237,6 @@ $(document).ready(function() {
                 if (row.country_code) {
                     countryFlag = '<img src="https://flagcdn.com/16x12/' + row.country_code.toLowerCase() + '.png" alt="' + row.country_code + '" style="margin-right: 5px;"> ';
                 }
-                
                 tableData.push([
                     countryFlag + (row.country_name || ''),
                     row.country_code || '',
@@ -290,7 +249,10 @@ $(document).ready(function() {
                 ]);
             });
         }
-
+        // Destroy existing DataTable if it exists
+        if ($.fn.DataTable.isDataTable('#table_traffic_country')) {
+            $('#table_traffic_country').DataTable().destroy();
+        }
         $('#table_traffic_country').DataTable({
             data: tableData,
             responsive: true,
@@ -359,20 +321,10 @@ $(document).ready(function() {
         
         // Create charts if Chart.js is available
         if (typeof Chart !== 'undefined') {
-            // Destroy existing charts before creating new ones
-            if (impressionsChartInstance) {
-                impressionsChartInstance.destroy();
-                impressionsChartInstance = null;
-            }
-            if (revenueChartInstance) {
-                revenueChartInstance.destroy();
-                revenueChartInstance = null;
-            }
-            
             // Impressions Chart
             var ctx1 = document.getElementById('impressionsChart');
             if (ctx1) {
-                impressionsChartInstance = new Chart(ctx1, {
+                new Chart(ctx1, {
                     type: 'bar',
                     data: {
                         labels: countries,
@@ -398,7 +350,7 @@ $(document).ready(function() {
             // Revenue Chart
             var ctx2 = document.getElementById('revenueChart');
             if (ctx2) {
-                revenueChartInstance = new Chart(ctx2, {
+                new Chart(ctx2, {
                     type: 'doughnut',
                     data: {
                         labels: countries,
@@ -427,225 +379,4 @@ $(document).ready(function() {
         console.error('Error:', message);
         alert(message);
     }
-
-    // Fungsi untuk load daftar negara ke Select2
-    function loadCountriesForSelect2() {
-        // Tampilkan loading state
-        $('#country_filter').html('<option value="">Loading countries...</option>');
-        
-        $.ajax({
-            url: '/management/admin/get_countries_adx',
-            type: 'GET',
-            dataType: 'json',
-            success: function(response) {
-                console.log('[DEBUG] Countries loaded:', response);
-                if (response && response.status && response.countries) {
-                    var options = '<option value="">Select Country (All if none selected)</option>';
-                    response.countries.forEach(function(country) {
-                        options += '<option value="' + country.name + '">' + country.name + ' (' + country.code + ')</option>';
-                    });
-                    $('#country_filter').html(options);
-                    
-                    // Tampilkan pesan sukses
-                    console.log('[INFO] Successfully loaded ' + response.countries.length + ' countries from AdX data');
-                } else {
-                    console.warn('[WARNING] Invalid response format, using fallback countries');
-                    loadFallbackCountries();
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('[ERROR] Failed to load countries from server:', error);
-                console.error('[ERROR] Status:', status, 'XHR:', xhr);
-                loadFallbackCountries();
-            }
-        });
-    }
-    
-    function loadFallbackCountries() {
-        console.log('[INFO] Loading fallback countries list');
-        // Fallback dengan daftar negara umum
-        var commonCountries = [
-            {name: 'Indonesia', code: 'ID'},
-            {name: 'United States', code: 'US'},
-            {name: 'Malaysia', code: 'MY'},
-            {name: 'Singapore', code: 'SG'},
-            {name: 'Thailand', code: 'TH'},
-            {name: 'Philippines', code: 'PH'},
-            {name: 'Vietnam', code: 'VN'},
-            {name: 'India', code: 'IN'},
-            {name: 'Australia', code: 'AU'},
-            {name: 'Japan', code: 'JP'},
-            {name: 'South Korea', code: 'KR'},
-            {name: 'China', code: 'CN'},
-            {name: 'Hong Kong', code: 'HK'},
-            {name: 'Taiwan', code: 'TW'},
-            {name: 'United Kingdom', code: 'GB'},
-            {name: 'Germany', code: 'DE'},
-            {name: 'France', code: 'FR'},
-            {name: 'Italy', code: 'IT'},
-            {name: 'Spain', code: 'ES'},
-            {name: 'Netherlands', code: 'NL'},
-            {name: 'Canada', code: 'CA'},
-            {name: 'Brazil', code: 'BR'}
-        ];
-        
-        var options = '<option value="">Select Country (All if none selected)</option>';
-        commonCountries.forEach(function(country) {
-            options += '<option value="' + country.name + '">' + country.name + ' (' + country.code + ')</option>';
-        });
-        $('#country_filter').html(options);
-        console.log('[INFO] Fallback countries loaded successfully');
-    }
-
-    // Notification functions for better user experience
-    function showSuccessNotification(message) {
-        console.log('[SUCCESS] ' + message);
-        // Use toast notification if available, otherwise fallback to alert
-        if (typeof toastr !== 'undefined') {
-            toastr.success(message);
-        } else {
-            alert('✓ ' + message);
-        }
-    }
-
-    function showInfoNotification(message) {
-        console.log('[INFO] ' + message);
-        if (typeof toastr !== 'undefined') {
-            toastr.info(message);
-        } else {
-            alert('ℹ ' + message);
-        }
-    }
-
-    function showWarningNotification(message) {
-        console.log('[WARNING] ' + message);
-        if (typeof toastr !== 'undefined') {
-            toastr.warning(message);
-        } else {
-            alert('⚠ ' + message);
-        }
-    }
-
-    function showErrorNotification(message) {
-        console.log('[ERROR] ' + message);
-        if (typeof toastr !== 'undefined') {
-            toastr.error(message);
-        } else {
-            alert('✗ ' + message);
-        }
-    }
-
-    function showAdxUnavailableError(userMessage, suggestions, technicalDetails) {
-        // Use provided parameters or fallback to defaults
-        userMessage = userMessage || 'Data AdX tidak tersedia untuk periode yang dipilih.';
-        suggestions = suggestions || [
-            'Coba dengan rentang tanggal yang berbeda',
-            'Pastikan akun AdX sudah aktif dan dikonfigurasi',
-            'Periksa apakah ada traffic iklan pada periode tersebut',
-            'Hubungi administrator jika masalah berlanjut'
-        ];
-        technicalDetails = technicalDetails || 'AdX data unavailable';
-        
-        // Build the complete message
-        var message = userMessage + '\n\n';
-        
-        if (suggestions && suggestions.length > 0) {
-            message += 'Saran:\n';
-            suggestions.forEach(function(suggestion) {
-                message += '• ' + suggestion + '\n';
-            });
-        }
-        
-        console.log('[ERROR] AdX Data Unavailable - Technical Details:', technicalDetails);
-        console.log('[ERROR] User Message:', userMessage);
-        
-        if (typeof toastr !== 'undefined') {
-            toastr.error(message, 'Data AdX Tidak Tersedia', {
-                timeOut: 12000,
-                extendedTimeOut: 5000,
-                closeButton: true,
-                progressBar: true
-            });
-        } else {
-            alert('⚠️ Data AdX Tidak Tersedia\n\n' + message);
-        }
-    }
 });
-
-// Fungsi untuk load daftar situs
-function loadSitesList() {
-    console.log('🚀 === STARTING loadSitesList() ===');
-    console.log('📍 Making AJAX request to: /management/admin/adx_sites_list');
-    
-    $.ajax({
-        url: '/management/admin/adx_sites_list',
-        type: 'GET',
-        dataType: 'json',
-        beforeSend: function(xhr) {
-            console.log('📤 AJAX request about to be sent');
-            console.log('📤 Request headers:', xhr.getAllResponseHeaders());
-        },
-        success: function(response, textStatus, xhr) {
-            console.log('✅ AJAX SUCCESS!');
-            console.log('📥 Response status:', textStatus);
-            console.log('📥 HTTP status:', xhr.status);
-            console.log('📥 Full response:', response);
-            console.log('📥 Response type:', typeof response);
-            
-            if (response && response.status) {
-                console.log('✅ Response has valid status');
-                console.log('📊 Sites data:', response.data);
-                console.log('📊 Number of sites:', response.data ? response.data.length : 0);
-                
-                // Clear existing options
-                $('#site_filter').empty();
-                console.log('🧹 Cleared existing options');
-                
-                // Add sites to dropdown
-                if (response.data && response.data.length > 0) {
-                    response.data.forEach(function(site, index) {
-                        console.log(`➕ Adding site ${index + 1}: ${site}`);
-                        $('#site_filter').append('<option value="' + site + '">' + site + '</option>');
-                    });
-                    console.log('✅ All sites added to dropdown');
-                } else {
-                    console.log('⚠️ No sites data to add');
-                }
-                
-                // Refresh Select2
-                console.log('🔄 Triggering Select2 refresh');
-                $('#site_filter').trigger('change');
-                console.log('✅ Select2 refresh completed');
-                
-            } else {
-                console.error('❌ Response status is false or missing');
-                console.error('❌ Response error:', response ? response.error : 'No error message');
-                alert('Error: ' + (response && response.error ? response.error : 'Unknown error loading sites'));
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('❌ === AJAX ERROR ===');
-            console.error('❌ Status:', status);
-            console.error('❌ Error:', error);
-            console.error('❌ HTTP Status:', xhr.status);
-            console.error('❌ Response Text:', xhr.responseText);
-            console.error('❌ Ready State:', xhr.readyState);
-            
-            if (xhr.status === 302) {
-                console.error('🔐 REDIRECT DETECTED - User not logged in!');
-                alert('Error: Anda belum login atau session expired. Silakan login terlebih dahulu.');
-                window.location.href = '/management/admin/login';
-            } else if (xhr.status === 403) {
-                console.error('🚫 FORBIDDEN - Access denied');
-                alert('Error: Akses ditolak. Pastikan Anda memiliki kredensial Google Ad Manager.');
-            } else {
-                alert('Error loading sites: ' + error + ' (Status: ' + xhr.status + ')');
-            }
-        },
-        complete: function(xhr, status) {
-            console.log('🏁 AJAX request completed');
-            console.log('🏁 Final status:', status);
-            console.log('🏁 Final HTTP status:', xhr.status);
-        }
-    });
-}

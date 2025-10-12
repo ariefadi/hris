@@ -66,6 +66,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'social_django',
+    'django_extensions',
 ]
 
 AUTHENTICATION_BACKENDS = (
@@ -115,10 +116,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'hris_trendHorizone',
-        'USER': 'hris',
-        'PASSWORD': 'hris123456',
+        'USER': 'root',
+        'PASSWORD': '',
         'HOST': '127.0.0.1',
-        'PORT': '3306',
+        'PORT': '3307',
         'OPTIONS': {
             'sql_mode': 'STRICT_TRANS_TABLES',
         }
@@ -137,13 +138,13 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Session Configuration for OAuth State Fix
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 3600  # 1 hour (shorter for OAuth)
-SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_COOKIE_SECURE = False  # Set to False for HTTP development
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_SAVE_EVERY_REQUEST = True  # Important for OAuth state
 
 # CSRF Configuration
-CSRF_COOKIE_SECURE = False  # Set to True in production with HTTPS
+CSRF_COOKIE_SECURE = False  # Set to False for HTTP development
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_USE_SESSIONS = True  # Use sessions for CSRF tokens
 
@@ -176,7 +177,11 @@ GOOGLE_SCOPES = [
 ]
 
 # OAuth Redirect URLs - harus sesuai dengan yang terdaftar di Google Console
-SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'https://kiwipixel.com/accounts/complete/google-oauth2/'
+# Untuk development gunakan localhost, untuk production gunakan domain
+if DEBUG:
+    SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'http://127.0.0.1:8000/accounts/complete/google-oauth2/'
+else:
+    SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'https://kiwipixel.com/accounts/complete/google-oauth2/'
 
 # Social Auth Error Handling
 SOCIAL_AUTH_RAISE_EXCEPTIONS = False
@@ -221,7 +226,11 @@ GOOGLE_AD_MANAGER_KEY_FILE = os.getenv('GOOGLE_AD_MANAGER_KEY_FILE', '')
 # Social Auth Configuration
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = GOOGLE_OAUTH2_CLIENT_ID
 SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = GOOGLE_OAUTH2_CLIENT_SECRET
-SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
+# Set HTTPS redirect based on environment
+if DEBUG:
+    SOCIAL_AUTH_REDIRECT_IS_HTTPS = False   # Development now uses HTTP
+else:
+    SOCIAL_AUTH_REDIRECT_IS_HTTPS = True   # Production uses HTTPS
 
 # Function to get user-specific credentials
 def get_user_credentials():

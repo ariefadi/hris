@@ -2516,111 +2516,31 @@ class AdxTrafficPerCountryDataView(View):
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
+        selected_sites = req.GET.get('selected_sites', '') 
         selected_countries = req.GET.get('selected_countries', '')
-        
-        # Debug: Log all GET parameters
-        print(f"[DEBUG] ===== AdxTrafficPerCountryDataView GET PARAMETERS =====")
-        for key, value in req.GET.items():
-            print(f"[DEBUG] {key}: {value}")
-        print(f"[DEBUG] ===== END GET PARAMETERS =====")
-        
-        # Handle site_filter - check both array format and string format
-        site_filter_list = req.GET.getlist('site_filter[]')  # Array format
-        site_filter_string = req.GET.get('site_filter', '')   # String format
-        
-        if site_filter_list:
-            site_filter = ','.join(site_filter_list)
-            print(f"[DEBUG] Using array format site_filter: {site_filter}")
-        else:
-            site_filter = site_filter_string
-            print(f"[DEBUG] Using string format site_filter: {site_filter}")
-        
-        print(f"[DEBUG] Request params: start_date={start_date}, end_date={end_date}, selected_countries={selected_countries}, site_filter={site_filter}")
-        
-        if not start_date or not end_date:
-            return JsonResponse({
-                'status': False,
-                'error': 'Start date and end date are required'
-            })
-
         try:
             # Format tanggal untuk AdManager API
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
             end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
-            
             # Parse selected countries dari string yang dipisah koma
             countries_list = []
-            print(f"[DEBUG] Raw selected_countries: '{selected_countries}'")
             if selected_countries and selected_countries.strip():
                 countries_list = [country.strip() for country in selected_countries.split(',') if country.strip()]
-                print(f"[DEBUG] Parsed countries_list: {countries_list}")
             else:
                 print("[DEBUG] No countries selected, will fetch all countries")
-            
             # Ambil user_id dari session
             user_id = req.session.get('hris_admin', {}).get('user_id')
-            if not user_id:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'User ID tidak ditemukan dalam session'
-                })
-            
             # Ambil email user dari database berdasarkan user_id
             user_data = data_mysql().get_user_by_id(user_id)
-            if not user_data['status'] or not user_data['data']:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'Data user tidak ditemukan dalam database'
-                })
             user_mail = user_data['data']['user_mail']
-            if not user_mail:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'Email user tidak ditemukan dalam database'
-                })
-            result = fetch_adx_traffic_per_country(start_date_formatted, end_date_formatted, user_mail, countries_list, site_filter)    
+            result = fetch_adx_traffic_per_country(start_date_formatted, end_date_formatted, user_mail, selected_sites, countries_list)    
             print(f"[DEBUG] fetch_adx_traffic_per_country result: {result}")
-            print(f"[DEBUG] Result type: {type(result)}")
             if isinstance(result, dict):
-                print(f"[DEBUG] Result keys: {result.keys()}")
                 if 'data' in result:
-                    print(f"[DEBUG] Data length: {len(result['data']) if result['data'] else 0}")
                     if result['data']:
                         print(f"[DEBUG] First data item: {result['data'][0]}")
                 if 'summary' in result:
                     print(f"[DEBUG] Summary: {result['summary']}")
-            
-            # Enhanced error handling for AdX data unavailability
-            if not result.get('status', False):
-                error_msg = result.get('error', 'Unknown error occurred')
-                error_message = result.get('error_message', error_msg)
-                
-                # Check for specific AdX unavailability errors
-                if ('Tidak ada data real yang tersedia dari Ad Manager API' in error_msg or
-                    'NOT_NULL' in error_msg or
-                    'AdX data is not available' in error_msg):
-                    
-                    return JsonResponse({
-                        'status': False,
-                        'error': 'AdX data is not available',
-                        'error_message': 'Data AdX tidak tersedia untuk periode yang dipilih. Kemungkinan akun Ad Manager belum dikonfigurasi untuk AdX atau tidak ada traffic pada periode tersebut.',
-                        'error_type': 'adx_unavailable',
-                        'suggestions': [
-                            'Coba dengan rentang tanggal yang berbeda',
-                            'Pastikan akun AdX sudah aktif dan dikonfigurasi',
-                            'Periksa apakah ada traffic iklan pada periode tersebut',
-                            'Hubungi administrator jika masalah berlanjut'
-                        ],
-                        'technical_details': error_msg
-                    })
-                else:
-                    return JsonResponse({
-                        'status': False,
-                        'error': error_msg,
-                        'error_message': error_message,
-                        'error_type': 'general_error'
-                    })
-            
             return JsonResponse(result, safe=False)
             
         except Exception as e:

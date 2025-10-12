@@ -34,7 +34,8 @@ class AuthMiddleware:
             reverse('admin_login_process'),
             '/accounts/login/google-oauth2/',
             '/accounts/complete/google-oauth2/',
-            reverse('oauth_redirect')
+            reverse('oauth_redirect'),
+            '/management/admin/adx_sites_list'  # Allow AJAX requests for site filter
         ]
         
         # Cek apakah user sudah login

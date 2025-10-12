@@ -1,12 +1,13 @@
 import json
 import urllib.request
 from functools import lru_cache
-from typing import Any, List, Optional
+from ssl import SSLContext
+from typing import Any, Dict, List, Optional
 from urllib.error import URLError
 
 from .api_jwk import PyJWK, PyJWKSet
 from .api_jwt import decode_complete as decode_token
-from .exceptions import PyJWKClientError
+from .exceptions import PyJWKClientConnectionError, PyJWKClientError
 from .jwk_set_cache import JWKSetCache
 
 
@@ -18,9 +19,17 @@ class PyJWKClient:
         max_cached_keys: int = 16,
         cache_jwk_set: bool = True,
         lifespan: int = 300,
+        headers: Optional[Dict[str, Any]] = None,
+        timeout: int = 30,
+        ssl_context: Optional[SSLContext] = None,
     ):
+        if headers is None:
+            headers = {}
         self.uri = uri
         self.jwk_set_cache: Optional[JWKSetCache] = None
+        self.headers = headers
+        self.timeout = timeout
+        self.ssl_context = ssl_context
 
         if cache_jwk_set:
             # Init jwt set cache with default or given lifespan.
@@ -36,15 +45,22 @@ class PyJWKClient:
         if cache_keys:
             # Cache signing keys
             # Ignore mypy (https://github.com/python/mypy/issues/2427)
-            self.get_signing_key = lru_cache(maxsize=max_cached_keys)(self.get_signing_key)  # type: ignore
+            self.get_signing_key = lru_cache(maxsize=max_cached_keys)(
+                self.get_signing_key
+            )  # type: ignore
 
     def fetch_data(self) -> Any:
         jwk_set: Any = None
         try:
-            with urllib.request.urlopen(self.uri) as response:
+            r = urllib.request.Request(url=self.uri, headers=self.headers)
+            with urllib.request.urlopen(
+                r, timeout=self.timeout, context=self.ssl_context
+            ) as response:
                 jwk_set = json.load(response)
-        except URLError as e:
-            raise PyJWKClientError(f'Fail to fetch data from the url, err: "{e}"')
+        except (URLError, TimeoutError) as e:
+            raise PyJWKClientConnectionError(
+                f'Fail to fetch data from the url, err: "{e}"'
+            ) from e
         else:
             return jwk_set
         finally:
@@ -58,6 +74,9 @@ class PyJWKClient:
 
         if data is None:
             data = self.fetch_data()
+
+        if not isinstance(data, dict):
+            raise PyJWKClientError("The JWKS endpoint did not return a JSON object")
 
         return PyJWKSet.from_dict(data)
 

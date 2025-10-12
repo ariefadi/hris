@@ -2234,18 +2234,6 @@ def fetch_adx_summary_data(user_mail, start_date, end_date):
             'total_sites': len(site_totals),
             'date_range': f"{start_date} to {end_date}"
         }
-        
-        # Fetch country data for charts
-        try:
-            country_result = fetch_adx_traffic_per_country(start_date, end_date, user_mail)
-            print(f"[DEBUG] Raw country result: {country_result}")
-            countries_data = []
-            if country_result.get('status') and country_result.get('data'):
-                countries_data = country_result['data']
-        except Exception as e:
-            print(f"[DEBUG] Failed to fetch country data: {e}")
-            countries_data = []
-        
         return {
             'status': True,
             'data': data,
@@ -2363,11 +2351,34 @@ def _run_adx_report(client, start_date, end_date, site_filter):
             }
             
             if site_filter:
-                report_query['reportQuery']['dimensionFilters'] = [{
-                    'dimension': 'AD_EXCHANGE_SITE_NAME',
-                    'operator': 'CONTAINS',
-                    'values': [site_filter]
-                }]
+                print(f"[DEBUG] Processing site_filter in AdX report: '{site_filter}'")
+                dimension_combinations = [
+                    # Try to get site name directly from Ad Manager
+                    ['SITE_NAME', 'AD_UNIT_NAME'],
+                    ['AD_EXCHANGE_SITE_NAME', 'AD_UNIT_NAME'],
+                    ['AD_UNIT_NAME']  # Fallback to original
+                ]
+                # Handle multiple sites (comma-separated string)
+                for dimension in dimension_combinations:
+                    if ',' in site_filter:
+                        sites = [site.strip() for site in site_filter.split(',')]
+                        print(f"[DEBUG] Multiple sites detected in AdX report: {sites}")
+                        # For multiple sites, use multiple dimension filters
+                        report_query['reportQuery']['dimensionFilters'] = []
+                        for site in sites:
+                            report_query['reportQuery']['dimensionFilters'].append({
+                                'dimension': dimension,
+                                'operator': 'IN',
+                                'values': [site]
+                            })
+                    else:
+                        # Single site
+                        print(f"[DEBUG] Single site detected in AdX report: '{site_filter}'")
+                        report_query['reportQuery']['dimensionFilters'] = [{
+                            'dimension': dimension,
+                            'operator': 'CONTAINS',
+                            'values': [site_filter]
+                        }]
             
             # Try to run the report job
             report_job = report_service.runReportJob(report_query)
@@ -2404,14 +2415,7 @@ def _run_adx_report(client, start_date, end_date, site_filter):
         else:
             raise Exception("Semua kombinasi kolom gagal tanpa error spesifik")
 
-    if site_filter:
-        report_query['reportQuery']['dimensionFilters'] = [{
-            'dimension': 'AD_EXCHANGE_SITE_NAME',
-            'operator': 'CONTAINS',
-            'values': [site_filter]
-        }]
-
-    report_job = report_service.runReportJob(report_query)
+    # report_job was already created in the loop above, no need to recreate it
     report_job_id = report_job['id']
     
     # Ensure report_job_id is an integer for API calls
@@ -3732,26 +3736,30 @@ def _run_adx_report_with_fallback(client, start_date, end_date, site_filter):
             
             # Add site filter if specified
             if site_filter:
-                print(f"[DEBUG] Processing site_filter: '{site_filter}'")
-                
-                # Check if site_filter contains multiple sites (comma-separated)
+                dimension_combinations = [
+                    # Try to get site name directly from Ad Manager
+                    ['SITE_NAME', 'AD_UNIT_NAME'],
+                    ['AD_EXCHANGE_SITE_NAME', 'AD_UNIT_NAME'],
+                    ['AD_UNIT_NAME']  # Fallback to original
+                ]
                 if ',' in site_filter:
-                    # Multiple sites - use IN operator
-                    sites = [site.strip() for site in site_filter.split(',')]
-                    print(f"[DEBUG] Multiple sites detected: {sites}")
-                    report_query['reportQuery']['dimensionFilters'] = [{
-                        'dimension': 'AD_EXCHANGE_SITE_NAME',
-                        'operator': 'IN',
-                        'values': sites
-                    }]
-                else:
-                    # Single site - use CONTAINS operator
-                    print(f"[DEBUG] Single site detected: '{site_filter}'")
-                    report_query['reportQuery']['dimensionFilters'] = [{
-                        'dimension': 'AD_EXCHANGE_SITE_NAME',
-                        'operator': 'CONTAINS',
-                        'values': [site_filter]
-                    }]
+                    for dimensions in dimension_combinations:
+                        # Multiple sites - use IN operator
+                        sites = [site.strip() for site in site_filter.split(',')]
+                        print(f"[DEBUG] Multiple sites detected: {sites}")
+                        report_query['reportQuery']['dimensionFilters'] = [{
+                            'dimension': dimensions,
+                            'operator': 'IN',
+                            'values': sites
+                        }]
+                    else:
+                        # Single site - use CONTAINS operator
+                        print(f"[DEBUG] Single site detected: '{site_filter}'")
+                        report_query['reportQuery']['dimensionFilters'] = [{
+                            'dimension': dimensions,
+                            'operator': 'CONTAINS',
+                            'values': [site_filter]
+                        }]
             
             # Try to run the report job
             report_job = report_service.runReportJob(report_query)
@@ -3827,7 +3835,6 @@ def _run_regular_report(client, start_date, end_date, site_filter):
                 # Add site filter if specified (using SITE_NAME for multiple sites)
                 if site_filter:
                     print(f"[DEBUG] Processing site_filter in regular report: '{site_filter}'")
-                    
                     # Handle multiple sites (comma-separated string)
                     if ',' in site_filter:
                         sites = [site.strip() for site in site_filter.split(',')]
@@ -4095,12 +4102,11 @@ def _calculate_summary_from_processed_data(data, start_date, end_date):
         'date_range': f"{start_date} to {end_date}"
     }
 
-def fetch_adx_traffic_per_country(start_date, end_date, user_mail, countries_list=None, site_filter=None):
+def fetch_adx_traffic_per_country(start_date, end_date, user_mail, selected_sites=None, countries_list=None):
     """Fetch AdX traffic data per country using user credentials """
     try:
         # Use user-specific Ad Manager client
         client_result = get_user_ad_manager_client(user_mail)
-        
         if not client_result.get('status', False):
             print(f"[ERROR] Gagal mendapatkan client Ad Manager: {client_result.get('error', 'Unknown error')}")
             return {
@@ -4108,16 +4114,12 @@ def fetch_adx_traffic_per_country(start_date, end_date, user_mail, countries_lis
                 'error': f"Gagal mendapatkan client Ad Manager: {client_result.get('error', 'Unknown error')}",
                 'is_fallback': False
             }
-            
         client = client_result['client']
-        report_service = client.GetService('ReportService', version='v202502')
-        
         # Convert string dates to datetime.date objects
         if isinstance(start_date, str):
             start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
         if isinstance(end_date, str):
             end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-        
         # Try Ad Server columns with country dimension - valid for API v202502
         adx_column_combinations = [
             ['AD_EXCHANGE_IMPRESSIONS', 'AD_EXCHANGE_CLICKS', 'AD_EXCHANGE_TOTAL_EARNINGS'],
@@ -4125,14 +4127,13 @@ def fetch_adx_traffic_per_country(start_date, end_date, user_mail, countries_lis
             ['AD_EXCHANGE_IMPRESSIONS'],
             ['AD_EXCHANGE_TOTAL_EARNINGS']
         ]
-        
         for columns in adx_column_combinations:
             try:
-                print(f"[DEBUG] Trying AdX country columns: {columns}")
-                
+                # Determine dimensions based on site_filter
+                dimensions = ['COUNTRY_NAME']
                 report_query = {
                     'reportQuery': {
-                        'dimensions': ['COUNTRY_NAME'],
+                        'dimensions': dimensions,
                         'columns': columns,
                         'dateRangeType': 'CUSTOM_DATE',
                         'startDate': {
@@ -4147,13 +4148,9 @@ def fetch_adx_traffic_per_country(start_date, end_date, user_mail, countries_lis
                         }
                     }
                 }
-                
-                # Add country filter if specified (multiple countries support)
                 dimension_filters = []
-                
+                # Add country filter to dimensionFilters if specified
                 if countries_list and len(countries_list) > 0:
-                    print(f"[DEBUG] Filtering by countries (names from frontend): {countries_list}")
-                    # Frontend sends country names like "Indonesia (ID)", extract just the country name
                     country_names = []
                     for country_item in countries_list:
                         # Extract country name from format "Country Name (CODE)"
@@ -4162,34 +4159,34 @@ def fetch_adx_traffic_per_country(start_date, end_date, user_mail, countries_lis
                         else:
                             country_name = country_item.strip()
                         country_names.append(country_name)
-                    
-                    print(f"[DEBUG] Using extracted country names: {country_names}")
-                    # For multiple countries, use IN operator with multiple values
                     dimension_filters.append({
                         'dimension': 'COUNTRY_NAME',
                         'operator': 'IN',
                         'values': country_names
                     })
-                
-                # Add site filter if specified
-                if site_filter:
-                    print(f"[DEBUG] Filtering by site: {site_filter}")
-                    dimension_filters.append({
-                        'dimension': 'AD_EXCHANGE_SITE_NAME',
-                        'operator': 'CONTAINS',
-                        'values': [site_filter]
-                    })
-                
-                # Apply filters if any exist
-                if dimension_filters:
-                    report_query['reportQuery']['dimensionFilters'] = dimension_filters
-                # Try to run the report job
-                report_job = report_service.runReportJob(report_query)
-                print(f"[DEBUG] AdX country report created successfully with columns: {columns}")
-                
-                # Wait for completion and download
-                result = _wait_and_download_country_report(client, report_job['id'])
-                return result
+                if selected_sites and len(selected_sites) > 0:
+                    sites_name = []
+                    for selected_site in selected_sites:
+                        # Extract site name from format "Site Name (CODE)"
+                        if '(' in selected_site and ')' in selected_site:
+                            site_name = selected_site.split('(')[0].strip()
+                        else:
+                            site_name = selected_site.strip()
+                        sites_name.append(site_name)
+                    dimension_combinations = [
+                        # Try to get site name directly from Ad Manager
+                        ['SITE_NAME', 'AD_UNIT_NAME'],
+                        ['AD_EXCHANGE_SITE_NAME', 'AD_UNIT_NAME'],
+                        ['AD_UNIT_NAME']  # Fallback to original
+                    ]
+                    for dimensions in dimension_combinations:
+                        # Use dimensionFilters approach like traffic account
+                        dimension_filters.append({
+                            'dimension': dimensions,
+                            'operator': 'IN',
+                            'values': sites_name
+                        })
+                            
                 
             except Exception as e:
                 error_msg = str(e)
@@ -4204,10 +4201,8 @@ def fetch_adx_traffic_per_country(start_date, end_date, user_mail, countries_lis
         
         # If all AdX combinations failed, try regular metrics
         print(f"[DEBUG] All AdX combinations failed, trying regular metrics for country")
-        return _run_regular_country_report(client, start_date, end_date, countries_list, site_filter)
-        
+        return _run_regular_country_report(client, start_date, end_date, countries_list)
     except Exception as e:
-        print(f"[ERROR] fetch_adx_traffic_per_country: {str(e)}")
         return {
             'status': False,
             'error': f'Error mengambil data traffic per country: {str(e)}'
@@ -4216,16 +4211,12 @@ def fetch_adx_traffic_per_country(start_date, end_date, user_mail, countries_lis
 def _wait_and_download_country_report(client, report_job_id):
     """Wait for country report completion and download data"""
     report_service = client.GetService('ReportService', version='v202502')
-    
     # Wait for report completion
     max_attempts = 30
     attempt = 0
-    
     while attempt < max_attempts:
         try:
             report_job_status = report_service.getReportJobStatus(report_job_id)
-            print(f"[DEBUG] Country report status: {report_job_status}")
-            
             if report_job_status == 'COMPLETED':
                 break
             elif report_job_status == 'FAILED':
@@ -4233,29 +4224,22 @@ def _wait_and_download_country_report(client, report_job_id):
                     'status': False,
                     'error': 'Country report generation failed'
                 }
-            
             time.sleep(10)  # Wait 10 seconds before checking again
             attempt += 1
-            
         except Exception as e:
-            print(f"[ERROR] Error checking country report status: {e}")
             return {
                 'status': False,
                 'error': f'Error checking country report status: {str(e)}'
             }
-    
     if attempt >= max_attempts:
         return {
             'status': False,
             'error': 'Country report generation timeout'
         }
-    
     # Download report using DownloadReportToFile
     try:
         report_downloader = client.GetDataDownloader(version='v202502')
-        
         # Create temporary file for report data
-        import tempfile
         with tempfile.NamedTemporaryFile(mode='w+b', delete=True, suffix='.csv.gz') as temp_file:
             try:
                 # Download report to file
@@ -4263,14 +4247,10 @@ def _wait_and_download_country_report(client, report_job_id):
                 
                 # Read the gzip compressed file content
                 temp_file.seek(0)
-                import gzip
                 with gzip.open(temp_file, 'rt') as gz_file:
                     report_data = gz_file.read()
-                
             except Exception as download_error:
-                print(f"[ERROR] DownloadReportToFile failed: {download_error}")
                 raise download_error
-        
         # Process the CSV data
         return _process_country_csv_data(report_data)
         
@@ -4281,10 +4261,12 @@ def _wait_and_download_country_report(client, report_job_id):
             'error': f'Error downloading country report: {str(e)}'
         }
 
-def _run_regular_country_report(client, start_date, end_date, countries_list, site_filter=None):
+def _run_regular_country_report(client, start_date, end_date, countries_list):
     """Run regular Ad Manager report for country data as fallback"""
     report_service = client.GetService('ReportService', version='v202502')
     
+    # Determine dimensions based on site_filter
+    dimensions = ['COUNTRY_NAME']
     # Use regular Ad Manager columns with more fallback options
     regular_column_combinations = [
         ['TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CLICKS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE'],
@@ -4307,7 +4289,7 @@ def _run_regular_country_report(client, start_date, end_date, countries_list, si
             
             report_query = {
                 'reportQuery': {
-                    'dimensions': ['COUNTRY_NAME'],
+                    'dimensions': dimensions,
                     'columns': columns,
                     'dateRangeType': 'CUSTOM_DATE',
                     'startDate': {
@@ -4327,9 +4309,6 @@ def _run_regular_country_report(client, start_date, end_date, countries_list, si
             # Always run without filters and do manual filtering afterwards
             if countries_list and len(countries_list) > 0:
                 print(f"[DEBUG] Will filter manually for countries: {countries_list}")
-            if site_filter:
-                print(f"[DEBUG] Will filter manually for site: {site_filter}")
-            
             # Try to run the report job WITHOUT dimensionFilters
             report_job = report_service.runReportJob(report_query)
             print(f"[DEBUG] Regular country report created successfully with columns: {columns}")
@@ -4339,8 +4318,6 @@ def _run_regular_country_report(client, start_date, end_date, countries_list, si
             
             # If we got data and need to filter by countries, do manual filtering
             if countries_list and len(countries_list) > 0 and result.get('status') and result.get('data'):
-                print(f"[DEBUG] Original data has {len(result['data'])} countries")
-                print(f"[DEBUG] Countries to filter: {countries_list}")
                 
                 filtered_data = []
                 for item in result['data']:
@@ -4387,7 +4364,6 @@ def _run_regular_country_report(client, start_date, end_date, countries_list, si
                         print(f"[DEBUG] ✗ No match found for '{country_name}'")
                 
                 result['data'] = filtered_data
-                print(f"[DEBUG] Manually filtered results to {len(filtered_data)} countries")
                 
                 # Recalculate summary for filtered data
                 if filtered_data:
@@ -4416,7 +4392,7 @@ def _run_regular_country_report(client, start_date, end_date, countries_list, si
                         'total_ctr': 0.0
                     }
                     print("[DEBUG] No matching countries found, returning empty summary")
-            
+
             return result
             
         except Exception as e:
@@ -4441,21 +4417,41 @@ def _run_regular_country_report(client, start_date, end_date, countries_list, si
     }
 
 def _process_country_csv_data(raw_data):
-    """Process CSV data for country t   raffic"""
+    """Process CSV data for country traffic"""
+    print(f"[DEBUG] ===== _process_country_csv_data START =====")
+    print(f"[DEBUG] Raw data length: {len(raw_data) if raw_data else 0}")
+    
     try:
         # Parse CSV data
         csv_reader = csv.DictReader(io.StringIO(raw_data))
         data = []
         
+        row_count = 0
+        processed_count = 0
+        filtered_count = 0
+        
         for row in csv_reader:
+            row_count += 1
             # Skip header rows and empty rows
             if not row:
                 continue
+            
+            # Log first few rows for debugging
+            if row_count <= 3:
+                print(f"[DEBUG] Row {row_count}: {dict(row)}")
             
             # Get country name from the correct column
             country_name = row.get('Dimension.COUNTRY_NAME', '').strip()
             if not country_name or country_name in ['Country', 'Total', 'N/A']:
                 continue
+            
+            # Get site name if available (when AD_EXCHANGE_SITE_NAME dimension is included)
+            site_name = row.get('Dimension.AD_EXCHANGE_SITE_NAME', '').strip()
+            
+            if row_count <= 3:
+                print(f"[DEBUG] Row {row_count} - Country: {country_name}, Site: {site_name}")
+            
+            processed_count += 1
             
             # Extract metrics with fallback - use the correct column names
             impressions = int(row.get('Column.TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS', 0) or 0)
@@ -4469,8 +4465,8 @@ def _process_country_csv_data(raw_data):
             
             # Get country code from country name
             country_code = _get_country_code_from_name(country_name)
-            
-            data.append({
+    
+            row_data = {
                 'country_name': country_name,
                 'country_code': country_code,
                 'impressions': impressions,
@@ -4481,7 +4477,19 @@ def _process_country_csv_data(raw_data):
                 'cpc': cpc,
                 'requests': impressions,  # Use impressions as requests for now
                 'matched_requests': impressions  # Use impressions as matched requests for now
-            })
+            }
+            
+            # Add site name if available
+            if site_name:
+                row_data['site_name'] = site_name
+            
+            data.append(row_data)
+        
+        print(f"[DEBUG] Processing summary:")
+        print(f"[DEBUG] - Total rows in CSV: {row_count}")
+        print(f"[DEBUG] - Rows processed: {processed_count}")
+        print(f"[DEBUG] - Rows filtered out: {filtered_count}")
+        print(f"[DEBUG] - Final data rows: {len(data)}")
         
         # Calculate summary
         total_impressions = sum(row['impressions'] for row in data)
@@ -4498,6 +4506,9 @@ def _process_country_csv_data(raw_data):
             'total_ctr': total_ctr
         }
         
+        print(f"[DEBUG] Final summary: {summary}")
+        print(f"[DEBUG] ===== _process_country_csv_data END =====")
+        
         return {
             'status': True,
             'data': data,
@@ -4506,6 +4517,8 @@ def _process_country_csv_data(raw_data):
         
     except Exception as e:
         print(f"[ERROR] Error processing country CSV data: {e}")
+        import traceback
+        print(f"[ERROR] Traceback: {traceback.format_exc()}")
         return {
             'status': False,
             'error': f'Error processing country data: {str(e)}'
@@ -4641,7 +4654,7 @@ def fetch_roi_per_country(start_date, end_date, user_mail, countries_list=None):
                 print(f"[DEBUG] AdX country report created successfully with columns: {columns}")
                 
                 # Wait for completion and download
-                result = _wait_and_download_country_report(client, report_job['id'])
+                result = _wait_and_download_country_report(client, report_job['id'], site_filter=None)
                 return result
                 
             except Exception as e:
@@ -5325,11 +5338,19 @@ def _run_roi_report_with_fallback(client, start_date, end_date, site_filter):
             }
             # Add site filter if specified
             if site_filter:
-                report_query['reportQuery']['dimensionFilters'] = [{
-                    'dimension': 'AD_EXCHANGE_SITE_NAME',
-                    'operator': 'CONTAINS',
-                    'values': [site_filter]
-                }]
+                dimension_combinations = [
+                    # Try to get site name directly from Ad Manager
+                    ['SITE_NAME', 'AD_UNIT_NAME'],
+                    ['AD_EXCHANGE_SITE_NAME', 'AD_UNIT_NAME'],
+                    ['AD_UNIT_NAME']  # Fallback to original
+                ]
+                # Try each dimension combination
+                for dimensions in dimension_combinations:
+                    report_query['reportQuery']['dimensionFilters'] = [{
+                        'dimension': dimensions,
+                        'operator': 'IN',
+                        'values': [site_filter]
+                    }]
             # Try to run the report job
             report_job = report_service.runReportJob(report_query)
             print(f"[DEBUG] AdX report created successfully with columns: {columns}")

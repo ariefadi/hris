@@ -22,12 +22,11 @@ from .common import (
 def defuse_stdlib():
     """Monkey patch and defuse all stdlib packages
 
-    :warning: The monkey patch is an EXPERIMENTAL feature.
+    :warning: The monkey patch is an EXPERIMETNAL feature.
     """
     defused = {}
 
     with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=DeprecationWarning, module="defusedxml")
         from . import cElementTree
     from . import ElementTree
     from . import minidom
@@ -57,7 +56,7 @@ def defuse_stdlib():
     return defused
 
 
-__version__ = "0.8.0rc2"
+__version__ = "0.7.1"
 
 __all__ = [
     "DefusedXmlException",
