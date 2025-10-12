@@ -143,6 +143,7 @@ def oauth_status_api(request):
     view = OAuthStatusView()
     return view.get(request)
 
+@csrf_exempt
 @require_http_methods(["POST"])
 def generate_oauth_url_api(request):
     """

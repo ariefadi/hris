@@ -18,9 +18,9 @@ class data_mysql:
         try:
             self.db_hris = pymysql.connect(
                 host='127.0.0.1',
-                port=3307,
-                user='root',
-                password='',
+                port=3306,
+                user='hris',
+                password='hris123456',
                 database='hris_trendHorizone',
                 cursorclass=pymysql.cursors.DictCursor
             )

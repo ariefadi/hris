@@ -50,7 +50,7 @@ def generate_oauth_url_for_user(user_mail, scopes=None):
         return None, "OAuth credentials tidak ditemukan"
     
     # Gunakan localhost redirect URI yang lebih mudah dikonfigurasi
-    redirect_uri = 'http://127.0.0.1:8000/accounts/complete/google-oauth2/'
+    redirect_uri = 'https://kiwipixel.com/accounts/complete/google-oauth2/'
     
     params = {
         'client_id': client_id,
@@ -77,7 +77,7 @@ def exchange_code_for_refresh_token(auth_code):
     
     token_url = 'https://oauth2.googleapis.com/token'
     # Gunakan redirect URI yang sama dengan yang digunakan saat generate URL
-    redirect_uri = 'http://127.0.0.1:8000/accounts/complete/google-oauth2/'
+    redirect_uri = 'https://kiwipixel.com/accounts/complete/google-oauth2/'
     
     data = {
         'client_id': client_id,

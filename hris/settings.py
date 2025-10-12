@@ -54,7 +54,7 @@ def get_credentials_from_db(request=None):
 # Quick-start development settings - unsuitable for production
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'your-secret-key-here')
 DEBUG = True
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'testserver']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'kiwipixel.com']
 
 # Application definition
 INSTALLED_APPS = [
@@ -115,10 +115,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'hris_trendHorizone',
-        'USER': 'root',
-        'PASSWORD': '',
+        'USER': 'hris',
+        'PASSWORD': 'hris123456',
         'HOST': '127.0.0.1',
-        'PORT': '3307',
+        'PORT': '3306',
         'OPTIONS': {
             'sql_mode': 'STRICT_TRANS_TABLES',
         }
@@ -176,7 +176,7 @@ GOOGLE_SCOPES = [
 ]
 
 # OAuth Redirect URLs - harus sesuai dengan yang terdaftar di Google Console
-SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'http://127.0.0.1:8000/accounts/complete/google-oauth2/'
+SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'https://kiwipixel.com/accounts/complete/google-oauth2/'
 
 # Social Auth Error Handling
 SOCIAL_AUTH_RAISE_EXCEPTIONS = False
@@ -221,9 +221,7 @@ GOOGLE_AD_MANAGER_KEY_FILE = os.getenv('GOOGLE_AD_MANAGER_KEY_FILE', '')
 # Social Auth Configuration
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = GOOGLE_OAUTH2_CLIENT_ID
 SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = GOOGLE_OAUTH2_CLIENT_SECRET
-SOCIAL_AUTH_GOOGLE_OAUTH2_IGNORE_DEFAULT_SCOPE = True
-SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = ['email', 'profile', 'https://www.googleapis.com/auth/dfp', 'https://www.googleapis.com/auth/admanager', 'https://www.googleapis.com/auth/adsense.readonly']
-SOCIAL_AUTH_REDIRECT_IS_HTTPS = False
+SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
 
 # Function to get user-specific credentials
 def get_user_credentials():
