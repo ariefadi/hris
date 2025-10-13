@@ -6,6 +6,38 @@ $(document).ready(function() {
         todayHighlight: true
     });
 
+<<<<<<< HEAD
+=======
+    // Inisialisasi Select2 untuk country filter
+    $('#country_filter').select2({
+        placeholder: '-- Pilih Negara --',
+        allowClear: true,
+        width: '100%',
+        theme: 'bootstrap4',
+        multiple: true
+    });
+
+    // Initialize Select2 for site filter
+    $('#site_filter').select2({
+        placeholder: 'Pilih Situs (Opsional)',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4'
+    });
+
+    $('#select_account').select2({
+        placeholder: '-- Pilih Account --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4'
+    })
+
+    // Load daftar negara untuk Select2
+    loadCountriesForSelect2();
+
+>>>>>>> 9b31b2f5 (commit penambahan filter account dan sites di ROI)
     // Set tanggal default (7 hari terakhir)
     var today = new Date();
     var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);

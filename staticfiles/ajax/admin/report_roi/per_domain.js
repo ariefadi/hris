@@ -48,6 +48,14 @@ $().ready(function () {
         theme: 'bootstrap4'
     });
 
+    $('#select_account').select2({
+        placeholder: '-- Pilih Account --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4'
+    })
+
     // Auto load data on page load
     var tanggal_dari = $("#tanggal_dari").val();
     var tanggal_sampai = $("#tanggal_sampai").val();

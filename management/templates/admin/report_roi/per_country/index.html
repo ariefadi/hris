@@ -14,21 +14,37 @@
     </div> <!-- /.card-header -->
     <div class="card-body">
         <div class="form-row">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label>Tanggal Dari</label>
                 <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Dari"/>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label>Tanggal Sampai</label>
                  <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label>Filter Negara</label>
                 <select class="form-control select2-multiple" id="country_filter" multiple="multiple">
                     <!-- Options akan dimuat secara dinamis -->
                 </select>
             </div>
             <div class="col-md-2">
+                <label>Filter Situs</label>
+                <select class="form-control" id="site_filter">
+                    <option value="">Semua Situs</option>
+                    <!-- Options akan diisi secara dinamis oleh JavaScript -->
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label>Filter Account</label>
+                <select class="form-control select2" id="select_account">
+                    <option value=""></option>
+                    {% for data_account in data_account %}
+                    <option value="{{data_account.account_ads_id}}">{{data_account.account_name|upper}} - ({{data_account.account_id}})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-1">
                 <label>&nbsp;</label>
                 <button type="button" class="btn btn-primary form-control" id="btn_load_data">
                     <i class="fas fa-search"></i> Muat Data

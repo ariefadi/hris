@@ -2667,11 +2667,12 @@ class RoiTrafficPerCountryView(View):
         return super().dispatch(request, *args, **kwargs)
     
     def get(self, req):
+        data_account = data_mysql().master_account_ads()['data']
         data = {
             'title': 'ROI Per Country',
             'user': req.session['hris_admin'],
         }
-        return render(req, 'admin/report_roi/per_country/index.html')
+        return render(req, 'admin/report_roi/per_country/index.html', {'data_account': data_account, 'data': data})
 
 class RoiTrafficPerCountryDataView(View):
     def dispatch(self, request, *args, **kwargs):
@@ -2938,11 +2939,12 @@ class RoiTrafficPerDomainView(View):
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
+        data_account = data_mysql().master_account_ads()['data']
         data = {
             'title': 'ROI Per Domain',
             'user': req.session['hris_admin'],
         }
-        return render(req, 'admin/report_roi/per_domain/index.html', data)
+        return render(req, 'admin/report_roi/per_domain/index.html', {'data_account': data_account, 'data': data})
 class RoiTrafficPerDomainDataView(View):
     """AJAX endpoint untuk data ROI Traffic Per Domain"""
     def dispatch(self, request, *args, **kwargs):
