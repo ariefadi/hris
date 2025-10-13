@@ -126,13 +126,11 @@ urlpatterns = [
     # MENU REPORT
     # Menu Report ROI
     path('admin/roi_summary', views.RoiSummaryView.as_view(), name='roi_summary'),
-    path('admin/page_roi_summary', views.RoiSummaryDataView.as_view()),
     path('admin/page_roi_ad_change_data', views.RoiSummaryAdChangeDataView.as_view(), name='roi_ad_change_data'),
     path('admin/page_roi_active_sites', views.RoiActiveSitesView.as_view(), name='roi_active_sites'),
     # Menu ROI Per Domain
     path('admin/roi_traffic_domain', views.RoiTrafficPerDomainView.as_view(), name='roi_traffic_domain'),
     path('admin/page_roi_traffic_domain', views.RoiTrafficPerDomainDataView.as_view()),
-    path('admin/roi_sites_list', views.RoiSitesListView.as_view(), name='roi_sites_list'),
     # Menu ROI Per Country
     path('admin/roi_traffic_country', views.RoiTrafficPerCountryView.as_view(), name='roi_traffic_country'),
     path('admin/page_roi_traffic_country', views.RoiTrafficPerCountryDataView.as_view()),

@@ -2,7 +2,8 @@
 {% load static %}
 {% block more_stylesheet %}
 {% endblock %}
-{% block content %}  
+{% block content %}
+{% csrf_token %}  
 <style>
   .dt-buttons {
       margin-bottom: 20px;
@@ -15,17 +16,16 @@
     <div class="card-body">
         <div class="form-row">
             <div class="col-md-2">
-                <label>Range Dari</label>
+                <label>Tanggal Dari</label>
                 <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Dari"/>
             </div>
             <div class="col-md-2">
-                <label>Range Sampai</label>
+                <label>Tanggal Sampai</label>
                  <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
             </div>
             <div class="col-md-3">
-                <label>Filter Situs</label>
-                <select class="form-control" id="site_filter">
-                    <option value="">Semua Situs</option>
+                <label>Filter Domain</label>
+                <select class="form-control select2-multiple" id="site_filter" multiple>
                     <!-- Options akan diisi secara dinamis oleh JavaScript -->
                 </select>
             </div>
@@ -158,52 +158,4 @@
 {% block more_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="{% static 'ajax/admin/report_roi/per_domain.js'%}?v={%now 'u'%}"></script>
-<script>
-$(document).ready(function() {
-    // Format semua elemen mata uang yang mungkin sudah ada di halaman
-    setTimeout(function() {
-        // Format summary boxes yang mungkin sudah memiliki data
-         $('.card-body h4').each(function() {
-             var text = $(this).text();
-             if (text && text.includes('$')) {
-                 // Convert to number, round to remove decimals, then format with Rp
-                 var numValue = parseFloat(text.replace(/[$,]/g, ''));
-                 if (!isNaN(numValue)) {
-                     $(this).text('Rp' + Math.round(numValue).toLocaleString('id-ID'));
-                 }
-             }
-         });
-        
-        // Format tabel yang mungkin sudah memiliki data
-        $('#table_traffic_account tbody tr').each(function() {
-            // Format kolom tanggal (kolom ke-2)
-            var dateCell = $(this).find('td:nth-child(2)');
-            var dateText = dateCell.text();
-            if (dateText && dateText.match(/\d{4}-\d{2}-\d{2}/)) {
-                var months = [
-                    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-                    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-                ];
-                var date = new Date(dateText + 'T00:00:00');
-                var day = date.getDate();
-                var month = months[date.getMonth()];
-                var year = date.getFullYear();
-                dateCell.text(day + ' ' + month + ' ' + year);
-            }
-            
-            // Format kolom mata uang (kolom 3, 6, 7, 9)
-             $(this).find('td:nth-child(3), td:nth-child(6), td:nth-child(7), td:nth-child(9)').each(function() {
-                 var text = $(this).text();
-                 if (text && text.includes('$')) {
-                     // Convert to number, round to remove decimals, then format with Rp
-                     var numValue = parseFloat(text.replace(/[$,]/g, ''));
-                     if (!isNaN(numValue)) {
-                         $(this).text('Rp. ' + Math.round(numValue).toLocaleString('id-ID'));
-                     }
-                 }
-             });
-        });
-    }, 500);
-});
-</script>
 {% endblock %}

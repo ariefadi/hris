@@ -58,29 +58,35 @@ $().ready(function () {
     // Load sites list on page load
     loadSitesList();
     
+    // Reload data ketika filter domain berubah
+    $('#site_filter').on('change', function () {
+        load_adx_traffic_account_data();
+    });
     function loadSitesList() {
         $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
             dataType: 'json',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
             success: function(response) {
                 if (response.status) {
-                    // Clear existing options except the first one
-                    $('#site_filter').empty().append('<option value="">Semua Situs</option>');
-                    
-                    // Add sites to dropdown
-                    response.data.forEach(function(site) {
-                        $('#site_filter').append('<option value="' + site + '">' + site + '</option>');
+                    var select_site = $("#site_filter");
+                    select_site.empty();
+                    $.each(response.data, function(index, site) {
+                        select_site.append(new Option(site, site, false, false));
                     });
-                    
-                    // Refresh Select2
-                    $('#site_filter').trigger('change');
-                } else {
-                    console.error('Failed to load sites:', response.error);
-                }
+                    // Jangan trigger change di sini untuk menghindari loop
+                    // select_site.trigger('change');
+                    load_adx_traffic_account_data();
+                } 
             },
             error: function(xhr, status, error) {
                 console.error('Error loading sites:', error);
+                console.error('Status:', status);
+                console.error('Response:', xhr.responseText);
             }
         });
     }
@@ -108,22 +114,24 @@ $().ready(function () {
 function load_adx_traffic_account_data() {
     var start_date = $('#tanggal_dari').val();
     var end_date = $('#tanggal_sampai').val();
-    var site_filter = $('#site_filter').val();
-    
+    var selectedSites = $('#site_filter').val();
     if (!start_date || !end_date) {
         alert('Please select both start and end dates.');
         return;
     }
-    
+    // Convert array to comma-separated string for backend
+    var siteFilter = '';
+    if (selectedSites && selectedSites.length > 0) {
+        siteFilter = selectedSites.join(',');
+    }
     $("#overlay").show();
-    
     $.ajax({
         url: '/management/admin/page_adx_traffic_account',
         type: 'GET',
         data: {
             'start_date': start_date,
             'end_date': end_date,
-            'site_filter': site_filter
+            'selected_sites': siteFilter
         },
         headers: {
             'X-CSRFToken': csrftoken

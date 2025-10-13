@@ -33,19 +33,12 @@ $(document).ready(function() {
         multiple: true
     });
 
+    // Tampilkan overlay loading
+    $('#overlay').show();
+
     // Event handler untuk tombol Load
     $('#btn_load_data').click(function() {
         load_adx_traffic_country_data();
-    });
-
-    // Event handler untuk site filter change
-    $('#site_filter').change(function (e) {
-        var tanggal_dari = $("#tanggal_dari").val();
-        var tanggal_sampai = $("#tanggal_sampai").val();
-        var country_filter = $("#country_filter").val();
-        if(tanggal_dari && tanggal_sampai && country_filter) {
-            load_adx_traffic_country_data();
-        }    
     });
 
     // Load data situs untuk select2
@@ -63,16 +56,10 @@ $(document).ready(function() {
                 if (response.status) {
                     var select_site = $("#site_filter").val();
                     select_site.empty();
-
                     $.each(response.data, function(index, site) {
                         select_site.append(new Option(site, site, false, false));
                     });
                     select_site.trigger('change');
-                    
-                    // Load data awal setelah site options dimuat
-                    var today = new Date();
-                    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-                    
                     load_adx_traffic_country_data();
                 } 
             },
@@ -83,16 +70,6 @@ $(document).ready(function() {
             }
         });
     }
-
-    // Event handler untuk country filter change
-    $('#country_filter').change(function (e) {
-        var tanggal_dari = $("#tanggal_dari").val();
-        var tanggal_sampai = $("#tanggal_sampai").val();
-        var site_filter = $("#site_filter").val();
-        if(tanggal_dari && tanggal_sampai && site_filter) {
-            load_adx_traffic_country_data();
-        }    
-    });
 
     // Load data negara untuk select2
     load_country_options();
@@ -219,12 +196,11 @@ $(document).ready(function() {
     }
 
     // Fungsi untuk update summary boxes
-    function updateSummaryBoxes(summary) {
-        if (!summary) return;
-        $('#total_impressions').text(summary.total_impressions ? summary.total_impressions.toLocaleString('id-ID') : '0');
-        $('#total_clicks').text(summary.total_clicks ? summary.total_clicks.toLocaleString('id-ID') : '0');
-        $('#total_ctr').text(summary.total_ctr ? summary.total_ctr.toFixed(2) + '%' : '0%');
-        $('#total_revenue').text(formatCurrencyIDR(summary.total_revenue || 0));
+    function updateSummaryBoxes(data) {
+        $('#total_impressions').text(data.total_impressions.toLocaleString('id-ID'));
+        $('#total_clicks').text(data.total_clicks.toLocaleString('id-ID'));
+        $('#total_ctr').text(data.total_ctr > 0 ? (data.total_ctr * 100).toFixed(2) + '%' : '0%');
+        $('#total_revenue').text(formatCurrencyIDR(data.total_revenue));
     }
 
     // Fungsi untuk inisialisasi DataTable
@@ -295,36 +271,48 @@ $(document).ready(function() {
 
     // Fungsi untuk generate charts
     function generateTrafficCountryCharts(data) {
-        if (!data || data.length === 0) return;
-        
+        console.log('[DEBUG] Raw country data:', data);
+        // Jika tidak ada data, pastikan charts dibersihkan dan section disembunyikan
+        if (!data || data.length === 0) {
+            if (window.impressionsChartInstance) {
+                try { window.impressionsChartInstance.destroy(); } catch (e) { console.warn('Failed to destroy impressions chart:', e); }
+                window.impressionsChartInstance = null;
+            }
+            if (window.revenueChartInstance) {
+                try { window.revenueChartInstance.destroy(); } catch (e) { console.warn('Failed to destroy revenue chart:', e); }
+                window.revenueChartInstance = null;
+            }
+            $('#charts_section').hide();
+            return;
+        }
         // Sort data by impressions and take top 10
         var sortedData = data.sort(function(a, b) {
             return (b.impressions || 0) - (a.impressions || 0);
         }).slice(0, 10);
-        
         // Prepare data for charts
         var countries = sortedData.map(function(item) {
             return item.country_name || 'Unknown';
         });
-        
         var impressions = sortedData.map(function(item) {
             return item.impressions || 0;
         });
-        
         var clicks = sortedData.map(function(item) {
             return item.clicks || 0;
         });
-        
         var revenue = sortedData.map(function(item) {
             return item.revenue || 0;
         });
-        
         // Create charts if Chart.js is available
         if (typeof Chart !== 'undefined') {
             // Impressions Chart
             var ctx1 = document.getElementById('impressionsChart');
             if (ctx1) {
-                new Chart(ctx1, {
+                // Hancurkan chart sebelumnya jika ada untuk mencegah error canvas in use
+                if (window.impressionsChartInstance) {
+                    try { window.impressionsChartInstance.destroy(); } catch (e) { console.warn('Failed to destroy impressions chart:', e); }
+                    window.impressionsChartInstance = null;
+                }
+                window.impressionsChartInstance = new Chart(ctx1, {
                     type: 'bar',
                     data: {
                         labels: countries,
@@ -350,7 +338,12 @@ $(document).ready(function() {
             // Revenue Chart
             var ctx2 = document.getElementById('revenueChart');
             if (ctx2) {
-                new Chart(ctx2, {
+                // Hancurkan chart sebelumnya jika ada untuk mencegah error canvas in use
+                if (window.revenueChartInstance) {
+                    try { window.revenueChartInstance.destroy(); } catch (e) { console.warn('Failed to destroy revenue chart:', e); }
+                    window.revenueChartInstance = null;
+                }
+                window.revenueChartInstance = new Chart(ctx2, {
                     type: 'doughnut',
                     data: {
                         labels: countries,

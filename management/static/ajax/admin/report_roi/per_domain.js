@@ -41,7 +41,7 @@ $().ready(function () {
     
     // Initialize Select2 for site filter
     $('#site_filter').select2({
-        placeholder: 'Pilih Situs (Opsional)',
+        placeholder: '-- Pilih Domain --',
         allowClear: true,
         width: '100%',
         height: '100%',
@@ -64,29 +64,35 @@ $().ready(function () {
     }
     // Load sites list on page load
     loadSitesList();
+    // Reload data ketika filter domain berubah
+    $('#site_filter').on('change', function () {
+        load_adx_traffic_account_data();
+    });
     function loadSitesList() {
         $.ajax({
-            url: '/management/admin/roi_sites_list',
+            url: '/management/admin/adx_sites_list',
             type: 'GET',
             dataType: 'json',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
             success: function(response) {
                 if (response.status) {
-                    // Clear existing options except the first one
-                    $('#site_filter').empty().append('<option value="">Semua Situs</option>');
-                    
-                    // Add sites to dropdown
-                    response.data.forEach(function(site) {
-                        $('#site_filter').append('<option value="' + site + '">' + site + '</option>');
+                    var select_site = $("#site_filter");
+                    select_site.empty();
+                    $.each(response.data, function(index, site) {
+                        select_site.append(new Option(site, site, false, false));
                     });
-                    
-                    // Refresh Select2
-                    $('#site_filter').trigger('change');
-                } else {
-                    console.error('Failed to load sites:', response.error);
-                }
+                    // Jangan trigger change di sini untuk menghindari loop
+                    // select_site.trigger('change');
+                    load_adx_traffic_account_data();
+                } 
             },
             error: function(xhr, status, error) {
                 console.error('Error loading sites:', error);
+                console.error('Status:', status);
+                console.error('Response:', xhr.responseText);
             }
         });
     }
@@ -114,13 +120,17 @@ $().ready(function () {
 function load_adx_traffic_account_data() {
     var tanggal_dari = $('#tanggal_dari').val();
     var tanggal_sampai = $('#tanggal_sampai').val();
-    var site_filter = $('#site_filter').val();
+    var selectedSites = $('#site_filter').val();
     
     if (!tanggal_dari || !tanggal_sampai) {
         alert('Please select both start and end dates.');
         return;
     }
-    
+    // Convert array to comma-separated string for backend
+    var siteFilter = '';
+    if (selectedSites && selectedSites.length > 0) {
+        siteFilter = selectedSites.join(',');
+    }
     $("#overlay").show();
     
     $.ajax({
@@ -129,7 +139,7 @@ function load_adx_traffic_account_data() {
         data: {
             start_date: tanggal_dari,
             end_date: tanggal_sampai,
-            site_filter: site_filter
+            selected_sites: siteFilter
         },
         headers: {
             'X-CSRFToken': csrftoken
@@ -150,8 +160,20 @@ function load_adx_traffic_account_data() {
                 
                 // Create ROI Daily Chart
                 if (response.data && response.data.length > 0) {
-                    createROIDailyChart(response.data);
+                    // Pastikan section chart terlihat sebelum inisialisasi chart
                     $('#charts_section').show();
+                    createROIDailyChart(response.data);
+                    // Resize chart setelah dibuat untuk memastikan tampil dengan benar
+                    if (roiChart && typeof roiChart.resize === 'function') {
+                        roiChart.resize();
+                    }
+                } else {
+                    // Jika tidak ada data, hancurkan chart sebelumnya dan sembunyikan bagian chart
+                    if (roiChart) {
+                        roiChart.destroy();
+                        roiChart = null;
+                    }
+                    $('#charts_section').hide();
                 }
                 
                 // Update DataTable
@@ -309,7 +331,8 @@ function createROIDailyChart(data) {
         });
         
         labels.push(formattedDate);
-        avgROIData.push(avgROI.toFixed(2));
+        // Pastikan nilai ROI berupa number, bukan string
+        avgROIData.push(parseFloat(avgROI.toFixed(2)));
         revenueData.push(dailyRevenue[date]);
         spendData.push(dailySpend[date]);
     });
@@ -326,6 +349,13 @@ function createROIDailyChart(data) {
         console.error('Element with id "chart_roi_daily" is not a canvas element! It is:', canvasElement.tagName);
         return;
     }
+    
+    // Pastikan ukuran canvas memadai
+    canvasElement.style.height = '300px';
+    canvasElement.style.width = '100%';
+    // Hapus atribut width/height bawaan agar tidak bentrok dengan style
+    canvasElement.removeAttribute('width');
+    canvasElement.removeAttribute('height');
     
     const ctx = canvasElement.getContext('2d');
     if (!ctx) {
@@ -379,7 +409,7 @@ function createROIDailyChart(data) {
                             const spend = spendData[dataIndex];
                             
                             return [
-                                `ROI: ${roi}%`,
+                                `ROI: ${Number(roi).toFixed(2)}%`,
                                 `Revenue: ${formatCurrencyIDR(revenue)}`,
                                 `Spend: ${formatCurrencyIDR(spend)}`
                             ];

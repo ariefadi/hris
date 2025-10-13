@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 from googleads import ad_manager
-from .utils import fetch_data_all_insights_data_all, fetch_data_all_insights_total_all, fetch_data_insights_account_range_all, fetch_data_all_insights, fetch_data_all_insights_total, fetch_data_insights_account_range, fetch_data_insights_account, fetch_data_insights_account_filter_all, fetch_daily_budget_per_campaign, fetch_status_per_campaign, fetch_data_insights_campaign_filter_sub_domain, fetch_data_insights_campaign_filter_account, fetch_data_country_facebook_ads, fetch_data_insights_by_country_filter_campaign, fetch_data_insights_by_country_filter_account, fetch_ad_manager_reports, fetch_ad_manager_inventory, fetch_adx_summary_data, fetch_user_adx_account_data, fetch_adx_account_data, fetch_data_insights_all_accounts_by_subdomain, fetch_adx_traffic_per_country, fetch_roi_per_country, fetch_data_insights_by_country_filter_campaign_roi, fetch_data_insights_by_date_subdomain_roi
+from .utils import fetch_data_all_insights_data_all, fetch_data_all_insights_total_all, fetch_data_insights_account_range_all, fetch_data_all_insights, fetch_data_all_insights_total, fetch_data_insights_account_range, fetch_data_insights_account, fetch_data_insights_account_filter_all, fetch_daily_budget_per_campaign, fetch_status_per_campaign, fetch_data_insights_campaign_filter_sub_domain, fetch_data_insights_campaign_filter_account, fetch_data_country_facebook_ads, fetch_data_insights_by_country_filter_campaign, fetch_data_insights_by_country_filter_account, fetch_ad_manager_reports, fetch_ad_manager_inventory, fetch_adx_summary_data, fetch_adx_traffic_account_by_user, fetch_user_adx_account_data, fetch_adx_account_data, fetch_data_insights_all_accounts_by_subdomain, fetch_adx_traffic_per_country, fetch_roi_per_country, fetch_data_insights_by_country_filter_campaign_roi, fetch_data_insights_by_date_subdomain_roi
 
 # OAuth views will be imported directly in urls.py to avoid circular imports
 
@@ -1723,11 +1723,7 @@ class AdxSummaryDataView(View):
                     'status': False,
                     'error': 'Email user tidak ditemukan dalam database'
                 })
-            
-            # Gunakan fetch_adx_traffic_account_by_user untuk konsistensi dengan traffic_account
-            from .utils import fetch_adx_traffic_account_by_user
             result = fetch_adx_traffic_account_by_user(user_mail, start_date, end_date)
-            
             # Tambahkan data traffic hari ini
             today = datetime.now().strftime('%Y-%m-%d')
             today_result = fetch_adx_traffic_account_by_user(user_mail, today, today)
@@ -1747,8 +1743,6 @@ class AdxSummaryDataView(View):
                     'revenue': 0,
                     'ctr': 0
                 }
-            
-            print(f"fetch_adx_traffic_account_by_user returned: {result}")
             return JsonResponse(result)
             
         except Exception as e:
@@ -2272,83 +2266,19 @@ class AdxTrafficPerAccountDataView(View):
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
-        
-        # Debug: Log all GET parameters
-        print(f"[DEBUG] ===== AdxTrafficPerAccountDataView GET PARAMETERS =====")
-        for key, value in req.GET.items():
-            print(f"[DEBUG] {key}: {value}")
-        print(f"[DEBUG] ===== END GET PARAMETERS =====")
-        
-        # Handle site_filter - check both array format and string format
-        site_filter_list = req.GET.getlist('site_filter[]')  # Array format
-        site_filter_string = req.GET.get('site_filter', '')   # String format
-        
-        if site_filter_list:
-            site_filter = ','.join(site_filter_list)
-            print(f"[DEBUG] Using array format site_filter: {site_filter}")
-        else:
-            site_filter = site_filter_string
-            print(f"[DEBUG] Using string format site_filter: {site_filter}")
-        
-        if not start_date or not end_date:
-            return JsonResponse({
-                'status': False,
-                'error': 'Start date and end date are required'
-            })
-        
+        selected_sites = req.GET.get('selected_sites')
         try:
             # Ambil user_id dari session
             user_id = req.session.get('hris_admin', {}).get('user_id')
-            if not user_id:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'User ID tidak ditemukan dalam session'
-                })
-            
             # Ambil email user dari database berdasarkan user_id
             user_data = data_mysql().get_user_by_id(user_id)
-            if not user_data['status'] or not user_data['data']:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'Data user tidak ditemukan dalam database'
-                })
-            
             user_mail = user_data['data']['user_mail']
-            if not user_mail:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'Email user tidak ditemukan dalam database'
-                })
-            
             # Format tanggal untuk AdManager API
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
-            end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
-            
-            # Filter situs jika kosong atau '%'
-            filter_value = site_filter if site_filter and site_filter != '%' else None
-            
-            # Debug: Log the received site_filter
-            print(f"[DEBUG] ===== SITE FILTER DEBUG =====")
-            print(f"[DEBUG] Raw site_filter from request: '{site_filter}'")
-            print(f"[DEBUG] site_filter type: {type(site_filter)}")
-            print(f"[DEBUG] site_filter length: {len(site_filter) if site_filter else 0}")
-            print(f"[DEBUG] site_filter == '%': {site_filter == '%'}")
-            print(f"[DEBUG] site_filter is empty: {not site_filter}")
-            print(f"[DEBUG] Processed filter_value: '{filter_value}'")
-            print(f"[DEBUG] ===== END SITE FILTER DEBUG =====")
-            
-            
+            end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')  
             # Gunakan fungsi baru yang mengambil data berdasarkan kredensial user
-            from management.utils import fetch_adx_traffic_account_by_user
-            result = fetch_adx_traffic_account_by_user( 
-                user_mail=user_mail,  # Pastikan email dipassing sebagai user_mail
-                start_date=start_date_formatted, 
-                end_date=end_date_formatted, 
-                site_filter=filter_value
-            )
-            print(f"[DEBUG] AdxTrafficPerAccountDataView result: {result}")
+            result = fetch_adx_traffic_account_by_user(user_mail, start_date_formatted, end_date_formatted, selected_sites)
             return JsonResponse(result, safe=False)
-            
         except Exception as e:
             return JsonResponse({
                 'status': False,
@@ -2366,47 +2296,14 @@ class AdxSitesListView(View):
         try:
             # Ambil user_id dari session
             user_id = req.session.get('hris_admin', {}).get('user_id')
-            if not user_id:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'User ID tidak ditemukan dalam session'
-                })
-            
             # Ambil email user dari database berdasarkan user_id
             from management.database import data_mysql
             user_data = data_mysql().get_user_by_id(user_id)
-            if not user_data['status'] or not user_data['data']:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'Data user tidak ditemukan dalam database'
-                })
-            
             user_mail = user_data['data']['user_mail']
-            if not user_mail:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'Email user tidak ditemukan dalam database'
-                })
-            
             # Ambil daftar situs dari Ad Manager
             from management.utils import fetch_user_sites_list
             result = fetch_user_sites_list(user_mail)
-            
-            # Jika tidak ada data sites atau error, berikan data dummy untuk testing
-            if not result.get('status') or not result.get('data'):
-                print(f"[DEBUG] No sites found for {user_mail}, providing dummy data")
-                result = {
-                    'status': True,
-                    'data': [
-                        'example.com',
-                        'test-site.com',
-                        'demo-website.com',
-                        'sample-domain.com'
-                    ]
-                }
-            
             return JsonResponse(result, safe=False)
-            
         except Exception as e:
             return JsonResponse({
                 'status': False,
@@ -2683,117 +2580,26 @@ class RoiTrafficPerCountryDataView(View):
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
+        selected_sites = req.GET.get('selected_sites', '')
         selected_countries = req.GET.get('selected_countries', '')
-
-        if not start_date or not end_date:
-            return JsonResponse({
-                'status': False,
-                'error': 'Start date and end date are required'
-            })
-
         try:
             # Format tanggal untuk AdManager API
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
             end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
-            
             # Parse selected countries dari string yang dipisah koma
             countries_list = []
-            print(f"[DEBUG] Raw selected_countries: '{selected_countries}'")
             if selected_countries and selected_countries.strip():
                 countries_list = [country.strip() for country in selected_countries.split(',') if country.strip()]
-                print(f"[DEBUG] Parsed countries_list: {countries_list}")
             else:
                 print("[DEBUG] No countries selected, will fetch all countries")
-            
             # Ambil user_id dari session
             user_id = req.session.get('hris_admin', {}).get('user_id')
-            if not user_id:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'User ID tidak ditemukan dalam session'
-                })
             # Ambil email user dari database berdasarkan user_id
             user_data = data_mysql().get_user_by_id(user_id)
-            if not user_data['status'] or not user_data['data']:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'Data user tidak ditemukan dalam database'
-                })
             user_mail = user_data['data']['user_mail']
-            if not user_mail:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'Email user tidak ditemukan dalam database'
-                })
-            data_adx = fetch_roi_per_country(start_date_formatted, end_date_formatted, user_mail, countries_list)
-            print(f" Hasil Adx: {data_adx}")
+            data_adx = fetch_roi_per_country(start_date_formatted, end_date_formatted, user_mail, selected_sites, countries_list)
             rs_account = data_mysql().master_account_ads()
-            data_facebook = fetch_data_insights_by_country_filter_campaign_roi(rs_account['data'], str(start_date_formatted), str(end_date_formatted), str('blog.missagendalimon')) 
-            
-            if selected_countries:
-                filtered_data = []
-                total_spend = 0
-                total_impressions = 0
-                total_reach = 0
-                total_clicks = 0
-                total_frequency = 0
-                total_cpr = 0
-
-                # Parse selected countries dari format "Country Name (CODE)" menjadi list nama negara
-                parsed_countries = []
-                for country_item in selected_countries.split(','):
-                    country_item = country_item.strip()
-                    if '(' in country_item and ')' in country_item:
-                        # Extract country name dari format "Country Name (CODE)"
-                        country_code = country_item.split('(')[0].strip()
-                        country_name = pycountry.countries.search_fuzzy(country_code)[0].name.lower()
-                        country_label = f"{country_name} ({country_code})"
-                        parsed_countries.append(country_label)
-                    else:
-                        country_code = country_item.lower()
-                        country_name = pycountry.countries.search_fuzzy(country_code)[0].name.lower()
-                        country_label = f"{country_name} ({country_code})"
-                        parsed_countries.append(country_label)
-                
-                print(f"[DEBUG FB Filter] Parsed countries for filtering: {parsed_countries}")
-
-                for item in data_facebook['data']:
-                    # Cek apakah negara ada dalam filter yang dipilih
-                    country_code = item.get('country_code', '').lower()
-                    country_name = item.get('country', '').lower()
-                    
-                    print(f"[DEBUG FB Filter] Checking FB item: country='{country_name}', code='{country_code}'")
-                    
-                    # Cek berdasarkan nama negara (case insensitive)
-                    country_matched = False
-                    for parsed_country in parsed_countries:
-                        if country_name == parsed_country or country_code == parsed_country:
-                            country_matched = True
-                            print(f"[DEBUG FB Filter] ✓ MATCH: '{country_name}' matches '{parsed_country}'")
-                            break
-                    
-                    if country_matched:
-                        filtered_data.append(item)
-                        total_spend += float(item.get('spend', 0))
-                        total_impressions += int(item.get('impressions', 0))
-                        total_reach += int(item.get('reach', 0))
-                        total_clicks += int(item.get('clicks', 0))
-                        total_frequency += float(item.get('frequency', 0))
-                        total_cpr += float(item.get('cpr', 0))
-                    else:
-                        print(f"[DEBUG FB Filter] ✗ NO MATCH: '{country_name}' not in {parsed_countries}")
-                
-                # Update data dengan hasil filter
-                data_facebook['data'] = filtered_data
-                data_facebook['total'] = [{
-                    'total_spend': total_spend,
-                    'total_impressions': total_impressions,
-                    'total_reach': total_reach,
-                    'total_click': total_clicks,
-                    'total_frequency': total_frequency / len(filtered_data) if filtered_data else 0,
-                    'total_cpr': total_cpr / len(filtered_data) if filtered_data else 0
-                }]
-            print(f" Data fb: {data_facebook}")
+            data_facebook = fetch_data_insights_by_country_filter_campaign_roi(rs_account['data'], str(start_date_formatted), str(end_date_formatted), selected_sites) 
             # Proses penggabungan data AdX dan Facebook
             result = process_roi_traffic_country_data(data_adx, data_facebook)
             print(f" Hasil Akhir: {result}")
@@ -2854,13 +2660,11 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
     try:
         # Inisialisasi hasil
         combined_data = []
-        
         # Buat mapping data Facebook berdasarkan country_cd
         facebook_spend_map = {}
         facebook_other_costs_map = {}
         unknown_spend = 0
         unknown_other_costs = 0
-        
         if data_facebook and data_facebook.get('data'):
             for fb_item in data_facebook['data']:
                 country_cd = fb_item.get('country_cd', 'unknown')
@@ -2868,12 +2672,10 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                 other_costs = float(fb_item.get('other_costs', 0))
                 facebook_spend_map[country_cd] = spend
                 facebook_other_costs_map[country_cd] = other_costs
-                
                 # Simpan spend dan other_costs untuk country_cd "unknown"
                 if country_cd == 'unknown':
                     unknown_spend = spend
                     unknown_other_costs = other_costs
-        
         # Proses data AdX dan gabungkan dengan data Facebook
         if data_adx and data_adx.get('status') and data_adx.get('data'):
             for adx_item in data_adx['data']:
@@ -2918,7 +2720,7 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
         
         # Urutkan berdasarkan ROI tertinggi
         combined_data.sort(key=lambda x: x['roi'], reverse=True)
-        
+    
         return {
             'status': True,
             'data': combined_data,
@@ -2945,6 +2747,7 @@ class RoiTrafficPerDomainView(View):
             'user': req.session['hris_admin'],
         }
         return render(req, 'admin/report_roi/per_domain/index.html', {'data_account': data_account, 'data': data})
+
 class RoiTrafficPerDomainDataView(View):
     """AJAX endpoint untuk data ROI Traffic Per Domain"""
     def dispatch(self, request, *args, **kwargs):
@@ -2955,108 +2758,59 @@ class RoiTrafficPerDomainDataView(View):
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
-        site_filter = req.GET.get('site_filter', '')
-        
-        if not start_date or not end_date:
-            return JsonResponse({
-                'status': False,
-                'error': 'Start date and end date are required'
-            })
-        
+        selected_sites = req.GET.get('selected_sites', '')
         try:
             # Ambil user_id dari session
             user_id = req.session.get('hris_admin', {}).get('user_id')
-            if not user_id:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'User ID tidak ditemukan dalam session'
-                })
-            
             # Ambil email user dari database berdasarkan user_id
             user_data = data_mysql().get_user_by_id(user_id)
-            if not user_data['status'] or not user_data['data']:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'Data user tidak ditemukan dalam database'
-                })
-            
             user_mail = user_data['data']['user_mail']
-            if not user_mail:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'Email user tidak ditemukan dalam database'
-                })
-            
             # Format tanggal untuk AdManager API
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
             end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
-            
-            # Filter situs jika kosong atau '%'
-            filter_value = site_filter if site_filter and site_filter != '%' else None
-            
             # Ambil data AdX (klik, ctr, cpc, eCPM, pendapatan)
-            from management.utils import fetch_adx_traffic_account_by_user
-            adx_result = fetch_adx_traffic_account_by_user(user_mail, start_date_formatted, end_date_formatted, filter_value)
+            adx_result = fetch_adx_traffic_account_by_user(user_mail, start_date_formatted, end_date_formatted, selected_sites)
             # Ambil data Facebook (spend)
             rs_account = data_mysql().master_account_ads()['data']
-            # Filter site untuk subdomain (gunakan site_filter sebagai data_sub_domain)
-            subdomain_filter = site_filter if site_filter and site_filter != '%' else '%'
             facebook_data = fetch_data_insights_by_date_subdomain_roi(
-                rs_account, start_date_formatted, end_date_formatted, subdomain_filter
+                rs_account, start_date_formatted, end_date_formatted, selected_sites
             )
+            print(f"facebook_data: {facebook_data}")    
             # Gabungkan data Facebook dan AdX
             combined_data = []
             total_spend = 0
             total_revenue = 0
             total_clicks = 0
             total_other_costs = 0
-            
             # Buat mapping data Facebook berdasarkan tanggal dan subdomain
             facebook_map = {}
             if facebook_data and facebook_data.get('data'):
                 for fb_item in facebook_data['data']:
                     date_key = fb_item.get('date', '')
                     subdomain = fb_item.get('subdomain', '')
-                    
-                    # Ekstrak subdomain dasar (contoh: blog.missagendalimon dari blog.missagendalimon.GAP11-ADX_SctppKTk_4N_#1)
-                    base_subdomain = subdomain
-                    if '.GAP11-ADX' in subdomain:
-                        base_subdomain = subdomain.split('.GAP11-ADX')[0]
-                    elif '.ADX' in subdomain:
-                        base_subdomain = subdomain.split('.ADX')[0]
-                    
-                    # Buat key dengan subdomain asli, base subdomain, dan dengan .com untuk pencocokan
-                    key = f"{date_key}_{subdomain}"
-                    key_base = f"{date_key}_{base_subdomain}"
-                    key_with_com = f"{date_key}_{base_subdomain}.com"
-                    
+                    print(f"subdomain: {subdomain}")
+                    base_subdomain = extract_base_subdomain(subdomain)
+                    key = f"{date_key}_{base_subdomain}"
                     facebook_map[key] = fb_item
-                    facebook_map[key_base] = fb_item
-                    facebook_map[key_with_com] = fb_item
-            
             # Proses data AdX dan gabungkan dengan data Facebook
             if adx_result and adx_result.get('status') and adx_result.get('data'):
                 for adx_item in adx_result['data']:
                     date_key = adx_item.get('date', '')
                     subdomain = adx_item.get('site_name', '')
-                    key = f"{date_key}_{subdomain}"
-                    
+                    base_subdomain = extract_base_subdomain(subdomain)
+                    key = f"{date_key}_{base_subdomain}"
                     # Cari data Facebook yang sesuai
-                    fb_data = facebook_map.get(key, {})
+                    fb_data = facebook_map.get(key)
                     # Jika tidak ditemukan dengan key langsung, coba cari berdasarkan subdomain parsial
                     if not fb_data:
-                        # Ekstrak subdomain dasar (tanpa .com)
-                        base_subdomain = subdomain.replace('.com', '') if subdomain.endswith('.com') else subdomain
-                        
-                        # Cari di Facebook data yang mengandung subdomain dasar
+                        base_subdomain_alt = subdomain.replace('.com', '') if subdomain.endswith('.com') else subdomain
                         for fb_key, fb_item in facebook_map.items():
-                            if base_subdomain in fb_key and date_key in fb_key:
+                            if date_key in fb_key and base_subdomain_alt in fb_key:
                                 fb_data = fb_item
                                 break
-                    
                     # Hitung spend dan biaya lainnya
-                    spend = float(fb_data.get('spend', 0))
-                    other_costs = float(fb_data.get('other_costs', 0))
+                    spend = float((fb_data or {}).get('spend', 0))
+                    other_costs = float((fb_data or {}).get('other_costs', 0))
                     revenue = float(adx_item.get('revenue', 0))
                     clicks = int(adx_item.get('clicks', 0))
                     # Data berhasil dicocokkan dan dihitung
@@ -3074,23 +2828,18 @@ class RoiTrafficPerDomainDataView(View):
                         'revenue': revenue,
                         'roi': roi
                     }
-                    
                     # Data berhasil digabungkan
-                    
                     combined_data.append(combined_item)
-                    
                     # Update totals
                     total_spend += spend
                     total_revenue += revenue
                     total_clicks += clicks
                     total_other_costs += other_costs
-            
             # Hitung summary ROI nett
             total_costs_summary = total_spend + total_other_costs
             roi_nett_summary = 0
             if total_costs_summary > 0:
                 roi_nett_summary = ((total_revenue - total_costs_summary) / total_costs_summary) * 100
-            
             result = {
                 'status': True,
                 'data': combined_data,
@@ -3101,58 +2850,19 @@ class RoiTrafficPerDomainDataView(View):
                     'total_revenue': total_revenue
                 }
             }
-            
             return JsonResponse(result, safe=False)
-            
+
         except Exception as e:
             return JsonResponse({
                 'status': False,
                 'error': str(e)
             })
 
-class RoiSitesListView(View):
-    """AJAX endpoint untuk mengambil daftar situs dari Ad Manager"""
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('admin_login')
-        return super().dispatch(request, *args, **kwargs)
-    
-    def get(self, req):
-        try:
-            # Ambil user_id dari session
-            user_id = req.session.get('hris_admin', {}).get('user_id')
-            if not user_id:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'User ID tidak ditemukan dalam session'
-                })
-            
-            # Ambil email user dari database berdasarkan user_id
-            from management.database import data_mysql
-            user_data = data_mysql().get_user_by_id(user_id)
-            if not user_data['status'] or not user_data['data']:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'Data user tidak ditemukan dalam database'
-                })
-            
-            user_mail = user_data['data']['user_mail']
-            if not user_mail:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'Email user tidak ditemukan dalam database'
-                })
-            
-            # Ambil daftar situs dari Ad Manager
-            from management.utils import fetch_user_sites_list
-            result = fetch_user_sites_list(user_mail)
-            return JsonResponse(result, safe=False)
-            
-        except Exception as e:
-            return JsonResponse({
-                'status': False,
-                'error': str(e)
-            })
+def extract_base_subdomain(full_string):
+    parts = full_string.split('.')
+    if len(parts) >= 2:
+        return '.'.join(parts[:2])
+    return full_string  # fallback kalau tidak sesuai format
 
 class RoiSummaryView(View):
     """View untuk ROI Summary - menampilkan ringkasan data ROI"""
@@ -3162,211 +2872,12 @@ class RoiSummaryView(View):
         return super().dispatch(request, *args, **kwargs)
     
     def get(self, req):
+        data_account = data_mysql().master_account_ads()['data']
         data = {
             'title': 'ROI Summary Dashboard',
             'user': req.session['hris_admin'],
         }
-        return render(req, 'admin/report_roi/all_rekap/index.html', data)
-
-class RoiSummaryDataView(View):
-    """AJAX endpoint untuk data ROI Summary"""
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('admin_login')
-        return super().dispatch(request, *args, **kwargs)
-    
-    def get(self, req):
-        start_date = req.GET.get('start_date')
-        end_date = req.GET.get('end_date')
-        if not start_date or not end_date:      
-            return JsonResponse({
-                'status': False,
-                'error': 'Start date and end date are required'
-            })
-        try:
-            # Ambil user_id dari session
-            user_id = req.session.get('hris_admin', {}).get('user_id')
-            if not user_id:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'User ID tidak ditemukan dalam session'
-                })
-            # Ambil email user dari database berdasarkan user_id
-            from management.database import data_mysql
-            user_data = data_mysql().get_user_by_id(user_id)
-            if not user_data['status'] or not user_data['data']:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'Data user tidak ditemukan dalam database'
-                })
-            user_mail = user_data['data']['user_mail']
-            if not user_mail:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'Email user tidak ditemukan dalam database'
-                })
-            # Gunakan fetch_adx_traffic_account_by_user untuk konsistensi dengan traffic_account
-            from .utils import fetch_roi_traffic_account_by_user
-            adx_result = fetch_roi_traffic_account_by_user(user_mail, start_date, end_date)
-            
-            # Ambil data Facebook untuk perhitungan ROI Nett
-            from management.database import data_mysql
-            rs_account = data_mysql().master_account_ads()
-            
-            combined_data = []
-            result = {'status': False, 'data': [], 'summary': {}}
-            
-            if rs_account['status'] and adx_result.get('status'):
-                from .utils import fetch_data_insights_by_date_subdomain_roi
-                # Format tanggal untuk Facebook API
-                start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
-                end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
-                
-                facebook_data = fetch_data_insights_by_date_subdomain_roi(
-                    rs_account['data'], 
-                    start_date_formatted, 
-                    end_date_formatted, 
-                    'blog.missagendalimon'
-                )
-                
-                # Gabungkan data Facebook dan AdX per tanggal
-                total_spend = 0
-                total_revenue = 0
-                total_clicks = 0
-                total_other_costs = 0
-                
-                # Buat mapping data Facebook berdasarkan tanggal
-                facebook_map = {}
-                if facebook_data and facebook_data.get('data'):
-                    for fb_item in facebook_data['data']:
-                        date_key = fb_item.get('date', '')
-                        facebook_map[date_key] = fb_item
-                
-                # Proses data AdX dan gabungkan dengan data Facebook
-                if adx_result.get('data'):
-                    for adx_item in adx_result['data']:
-                        date_key = adx_item.get('date', '')
-                        
-                        # Cari data Facebook yang sesuai berdasarkan tanggal
-                        fb_data = facebook_map.get(date_key, {})
-                        
-                        # Hitung spend dan biaya lainnya
-                        spend = float(fb_data.get('spend', 0))
-                        other_costs = float(fb_data.get('other_costs', 0))
-                        revenue = float(adx_item.get('revenue', 0))
-                        clicks = int(adx_item.get('clicks', 0))
-                        
-                        # Hitung ROI nett: (Revenue - Spend - Other Costs) / (Spend + Other Costs) * 100
-                        total_costs = spend + other_costs
-                        roi_nett = 0
-                        if total_costs > 0:
-                            roi_nett = ((revenue - total_costs) / total_costs) * 100
-                        
-                        combined_item = {
-                            'date': date_key,
-                            'spend': spend,
-                            'other_costs': other_costs,
-                            'clicks': clicks,
-                            'ctr': float(adx_item.get('ctr', 0)),
-                            'cpc': float(adx_item.get('cpc', 0)),
-                            'ecpm': float(adx_item.get('ecpm', 0)),
-                            'revenue': revenue,
-                            'roi': roi_nett
-                        }
-                        
-                        combined_data.append(combined_item)
-                        
-                        # Update totals
-                        total_spend += spend
-                        total_revenue += revenue
-                        total_clicks += clicks
-                        total_other_costs += other_costs
-                
-                # Hitung summary ROI nett
-                total_costs_summary = total_spend + total_other_costs
-                roi_nett_summary = 0
-                if total_costs_summary > 0:
-                    roi_nett_summary = ((total_revenue - total_costs_summary) / total_costs_summary) * 100
-                
-                result = {
-                    'status': True,
-                    'data': combined_data,
-                    'summary': {
-                        'total_clicks': total_clicks,
-                        'total_spend': total_spend,
-                        'roi_nett': round(roi_nett_summary, 2),
-                        'total_revenue': total_revenue,
-                        'total_other_costs': total_other_costs,
-                        'total_costs': round(total_costs_summary, 2)
-                    }
-                }
-            else:
-                # Fallback ke data AdX saja jika Facebook data tidak tersedia
-                result = adx_result
-            
-            # Tambahkan data traffic hari ini
-            today = datetime.now().strftime('%Y-%m-%d')
-            today_result = fetch_roi_traffic_account_by_user(user_mail, today, today)
-            
-            # Ambil data Facebook untuk hari ini juga
-            today_facebook_data = {}
-            if rs_account['status']:
-                from .utils import fetch_data_insights_by_date_subdomain_roi
-                today_fb_data = fetch_data_insights_by_date_subdomain_roi(
-                    rs_account['data'], 
-                    today, 
-                    today, 
-                    '%'
-                )
-                if today_fb_data.get('status') and today_fb_data.get('data'):
-                    for item in today_fb_data['data']:
-                        today_facebook_data[item['date']] = {
-                            'spend': float(item.get('spend', 0))
-                        }
-            
-            # Tambahkan today_traffic ke result
-            if today_result.get('status') and today_result.get('summary'):
-                today_revenue = today_result['summary'].get('total_revenue', 0)
-                today_spend = today_facebook_data.get(today, {}).get('spend', 0)
-                today_total_costs = today_spend  # Kembali ke perhitungan awal
-                
-                # Debug logging
-                print(f"[DEBUG ROI] Today: {today}")
-                print(f"[DEBUG ROI] Revenue: {today_revenue}")
-                print(f"[DEBUG ROI] Spend: {today_spend}")
-                print(f"[DEBUG ROI] Facebook data: {today_facebook_data}")
-                
-                # Hitung ROI hari ini
-                today_roi = 0
-                if today_total_costs > 0:
-                    today_roi = ((today_revenue - today_total_costs) / today_total_costs) * 100
-                    print(f"[DEBUG ROI] Calculated ROI: {today_roi}%")
-                else:
-                    print(f"[DEBUG ROI] No costs, ROI = 0")
-                
-                result['today_traffic'] = {
-                    'impressions': today_result['summary'].get('total_impressions', 0),
-                    'clicks': today_result['summary'].get('total_clicks', 0),
-                    'revenue': today_revenue,
-                    'ctr': today_result['summary'].get('avg_ctr', 0),
-                    'spend': today_spend,
-                    'roi': round(today_roi, 2)
-                }
-            else:
-                result['today_traffic'] = {
-                    'impressions': 0,
-                    'clicks': 0,
-                    'revenue': 0,
-                    'ctr': 0,
-                    'spend': 0,
-                    'roi': 0
-                }
-            return JsonResponse(result)
-        except Exception as e:
-            return JsonResponse({
-                'status': False,
-                'error': str(e)
-            })
+        return render(req, 'admin/report_roi/all_rekap/index.html', {'data_account': data_account, 'data': data})
 
 class RoiSummaryAdChangeDataView(View):
     """AJAX endpoint untuk data Ad Change di AdX Summary"""
@@ -3457,4 +2968,4 @@ class RoiActiveSitesView(View):
             return JsonResponse({
                 'status': False,
                 'error': str(e)
-            })
+            })  

@@ -13,6 +13,15 @@ $(document).ready(function() {
     $('#tanggal_dari').val(formatDateForInput(lastWeek));
     $('#tanggal_sampai').val(formatDateForInput(today));
 
+    // Initialize Select2 for site filter
+    $('#site_filter').select2({
+        placeholder: '-- Pilih Domain --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4'
+    });
+
     // Inisialisasi Select2 untuk country filter
     $('#country_filter').select2({
         placeholder: '-- Pilih Negara --',
@@ -23,39 +32,73 @@ $(document).ready(function() {
         multiple: true
     });
 
-    // Initialize Select2 for site filter
-    $('#site_filter').select2({
-        placeholder: 'Pilih Situs (Opsional)',
-        allowClear: true,
-        width: '100%',
-        height: '100%',
-        theme: 'bootstrap4'
-    });
-
     $('#select_account').select2({
         placeholder: '-- Pilih Account --',
         allowClear: true,
         width: '100%',
         height: '100%',
         theme: 'bootstrap4'
-    })
+    });
+
+    // Tampilkan overlay loading
+    $('#overlay').show();
 
     // Event handler untuk tombol Load
     $('#btn_load_data').click(function() {
         load_adx_traffic_country_data();
     });
 
-    // Event handler untuk country filter change
-    $('#country_filter').change(function (e) {
-        var tanggal_dari = $("#tanggal_dari").val();
-        var tanggal_sampai = $("#tanggal_sampai").val();
-        if(tanggal_dari && tanggal_sampai) {
-            load_adx_traffic_country_data();
-        }    
-    });
+    // Load data situs untuk select2
+    loadSitesList();
+    function loadSitesList() {
+        $.ajax({
+            url: '/management/admin/adx_sites_list',
+            type: 'GET',
+            dataType: 'json',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.status) {
+                    var select_site = $("#site_filter");
+                    select_site.empty();
+                    $.each(response.data, function(index, site) {
+                        select_site.append(new Option(site, site, false, false));
+                    });
+                    select_site.trigger('change');
+                    load_adx_traffic_country_data();
+                } 
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading sites:', error);
+                console.error('Status:', status);
+                console.error('Response:', xhr.responseText);
+            }
+        });
+    }
 
     // Load data saat halaman pertama kali dibuka
     load_country_options();
+    // Fungsi untuk memuat opsi negara ke select2
+    function load_country_options() {
+        $.ajax({
+            url: '/management/admin/get_countries_adx',
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                if(response.status) {
+                    var select_country = $('#country_filter');
+                    select_country.empty();
+                    $.each(response.countries, function(index, country) {
+                        select_country.append(new Option(country.name, country.code, false, false));
+                    });
+                    select_country.trigger('change');
+                    load_adx_traffic_country_data();
+                }
+            }
+        });
+    }
 
     // Fungsi untuk format tanggal ke format input (YYYY-MM-DD)
     function formatDateForInput(date) {
@@ -79,10 +122,16 @@ $(document).ready(function() {
     function load_adx_traffic_country_data() {
         var startDate = $('#tanggal_dari').val();
         var endDate = $('#tanggal_sampai').val();
+        var selectedSites = $('#site_filter').val();
         var selectedCountries = $('#country_filter').val();
         if (!startDate || !endDate) {
             alert('Silakan pilih rentang tanggal');
             return;
+        }
+        // Convert array to comma-separated string for backend
+        var siteFilter = '';
+        if (selectedSites && selectedSites.length > 0) {
+            siteFilter = selectedSites.join(',');
         }
         // Convert array to comma-separated string for backend
         var countryFilter = '';
@@ -91,7 +140,6 @@ $(document).ready(function() {
         }
         // Tampilkan overlay loading
         $('#overlay').show();
-        $('#summary_boxes').hide();
         // Destroy existing DataTable if exists
         if ($.fn.DataTable.isDataTable('#table_traffic_country')) {
             $('#table_traffic_country').DataTable().destroy();
@@ -103,6 +151,7 @@ $(document).ready(function() {
             data: {
                 start_date: startDate,
                 end_date: endDate,
+                selected_sites: siteFilter,
                 selected_countries: countryFilter
             },
             headers: {
@@ -113,22 +162,12 @@ $(document).ready(function() {
                 if (response && response.status) {
                     // Update summary boxes
                     updateSummaryBoxes(response.data);
+                    $('#summary_boxes').show();
                     // Initialize DataTable
                     initializeDataTable(response.data);
                     // Generate charts if data available
-                    if (response.data && response.data.length > 0) {
-                        generateTrafficCountryCharts(response.data);
-                        $('#charts_section').show();
-                    } else {
-                        $('#charts_section').hide();
-                    }
-                    $('#summary_boxes').show();
-                    // Show success message
-                    if (response.data && response.data.length > 0) {
-                        console.log('Data berhasil dimuat: ' + response.data.length + ' negara');
-                    } else {
-                        console.log('Tidak ada data untuk periode yang dipilih');
-                    }
+                    generateTrafficCountryCharts(response.data);
+                    $('#charts_section').show();
                 } else {
                     var errorMsg = response.error || 'Terjadi kesalahan yang tidak diketahui';
                     console.error('[DEBUG] Response error:', errorMsg);
@@ -149,6 +188,7 @@ $(document).ready(function() {
 
     // Fungsi untuk update summary boxes
     function updateSummaryBoxes(data) {
+        console.log('[DEBUG] updateSummaryBoxes data:', data);
         if (!data || !Array.isArray(data)) return;
         
         // Hitung summary dari data
@@ -253,7 +293,15 @@ $(document).ready(function() {
 
     // Fungsi untuk generate charts
     function generateTrafficCountryCharts(data) {
-        if (!data || data.length === 0) return;
+        // Bersihkan chart jika data kosong dan sembunyikan section chart
+        if (!data || data.length === 0) {
+            if (window.roiChartInstance) {
+                try { window.roiChartInstance.destroy(); } catch (e) { console.warn('Failed to destroy ROI chart:', e); }
+                window.roiChartInstance = null;
+            }
+            $('#charts_section').hide();
+            return;
+        }
         
         // Sort data by ROI and take top 10
         var sortedData = data.sort(function(a, b) {
@@ -274,7 +322,12 @@ $(document).ready(function() {
             // ROI Chart
             var ctx = document.getElementById('roiChart');
             if (ctx) {
-                new Chart(ctx, {
+                // Hancurkan chart sebelumnya jika ada untuk mencegah error canvas in use
+                if (window.roiChartInstance) {
+                    try { window.roiChartInstance.destroy(); } catch (e) { console.warn('Failed to destroy ROI chart:', e); }
+                    window.roiChartInstance = null;
+                }
+                window.roiChartInstance = new Chart(ctx, {
                     type: 'bar',
                     data: {
                         labels: countries,
@@ -342,30 +395,4 @@ $(document).ready(function() {
         alert(message);
     }
 
-    // Fungsi untuk memuat opsi negara ke select2
-    function load_country_options() {
-        $.ajax({
-            url: '/management/admin/get_countries_adx',
-            type: 'GET',
-            dataType: 'json',
-            success: function(response) {
-                if(response.status) {
-                    var select_country = $('#country_filter');
-                    select_country.empty();
-                    
-                    $.each(response.countries, function(index, country) {
-                        select_country.append(new Option(country.name, country.code, false, false));
-                    });
-                    
-                    select_country.trigger('change');
-                    
-                    // Load data awal setelah country options dimuat
-                    var today = new Date();
-                    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-                    
-                    load_adx_traffic_country_data();
-                }
-            }
-        });
-    }
 });
