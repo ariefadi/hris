@@ -54,7 +54,7 @@ def get_credentials_from_db(request=None):
 # Quick-start development settings - unsuitable for production
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'your-secret-key-here')
 DEBUG = True
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'kiwipixel.com']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'kiwipixel.com', 'www.kiwipixel.com']
 
 # Application definition
 INSTALLED_APPS = [
@@ -117,9 +117,9 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'hris_trendHorizone',
         'USER': 'root',
-        'PASSWORD': '',
+        'PASSWORD': 'hris123456',
         'HOST': '127.0.0.1',
-        'PORT': '3307',
+        'PORT': '3306',
         'OPTIONS': {
             'sql_mode': 'STRICT_TRANS_TABLES',
         }
@@ -147,6 +147,12 @@ SESSION_SAVE_EVERY_REQUEST = True  # Important for OAuth state
 CSRF_COOKIE_SECURE = False  # Set to False for HTTP development
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_USE_SESSIONS = True  # Use sessions for CSRF tokens
+CSRF_TRUSTED_ORIGINS = [
+    'https://kiwipixel.com',
+    'https://www.kiwipixel.com',
+    'http://kiwipixel.com',
+    'http://www.kiwipixel.com',
+]
 
 # Social Auth Storage and State Configuration
 SOCIAL_AUTH_STORAGE = 'social_django.models.DjangoStorage'
