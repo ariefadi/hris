@@ -2490,14 +2490,25 @@ def oauth2callback(request):
     # Simpan refresh token ke database jika user sudah login
     if 'hris_admin' in request.session and credentials.refresh_token:
         try:
-            user_mail = request.session['hris_admin'].get('user_name')  # Assuming user_name contains email
+            # Gunakan email yang benar dari session
+            user_mail = request.session['hris_admin'].get('user_mail')
             if user_mail:
                 db = data_mysql()
                 result = db.update_refresh_token(user_mail, credentials.refresh_token)
-                if result['hasil']['status']:
+                # Sesuaikan dengan bentuk nilai kembalian terbaru (top-level 'status')
+                if (isinstance(result, dict) and (
+                    result.get('status') is True or
+                    (result.get('hasil') and result['hasil'].get('status') is True)
+                )):
                     print(f"[DEBUG] Google Ads refresh token saved to database for {user_mail}")
                 else:
-                    print(f"[DEBUG] Failed to save Google Ads refresh token: {result['hasil']['message']}")
+                    # Tangani dua kemungkinan bentuk respons
+                    message = (
+                        result.get('message') or
+                        (result.get('hasil') or {}).get('message') or
+                        'Unknown error'
+                    ) if isinstance(result, dict) else 'Invalid result type'
+                    print(f"[DEBUG] Failed to save Google Ads refresh token: {message}")
         except Exception as e:
             print(f"[DEBUG] Error saving Google Ads refresh token: {e}")
     

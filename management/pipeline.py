@@ -87,6 +87,23 @@ def set_hris_session(backend, user, response, request, *args, **kwargs):
         # Force save session
         request.session.save()
         print(f"[DEBUG] Session hris_admin set successfully for user: {user_data['user_alias']}")
+
+        # Coba simpan refresh_token jika tersedia dari response
+        try:
+            refresh_token = None
+            # Google biasanya mengirim 'refresh_token' saat 'prompt=consent' + 'access_type=offline'
+            if isinstance(response, dict):
+                refresh_token = response.get('refresh_token') or response.get('refreshToken')
+
+            if refresh_token:
+                print(f"[DEBUG] Refresh token ditemukan. Menyimpan untuk {user_data['user_mail']}")
+                from management.oauth_utils import save_refresh_token_for_current_user
+                save_result = save_refresh_token_for_current_user(request, refresh_token)
+                print(f"[DEBUG] Save refresh token result: {save_result}")
+            else:
+                print("[DEBUG] Refresh token tidak ada di response OAuth. Pastikan 'prompt=consent' dan 'access_type=offline'.")
+        except Exception as e:
+            print(f"[DEBUG] Error saat menyimpan refresh token via pipeline: {e}")
     else:
         print(f"[DEBUG] User {user.email} not found in database")
         request.session['oauth_error'] = 'Email tidak terdaftar di sistem'

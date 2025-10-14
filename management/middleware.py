@@ -100,5 +100,23 @@ class OAuthCredentialsMiddleware:
         settings.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = settings.GOOGLE_OAUTH2_CLIENT_ID
         settings.SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = settings.GOOGLE_OAUTH2_CLIENT_SECRET
 
+        # Pastikan Google OAuth meminta refresh token
+        # Menambahkan parameter agar Google selalu mengembalikan refresh_token
+        try:
+            settings.SOCIAL_AUTH_GOOGLE_OAUTH2_AUTH_EXTRA_ARGUMENTS = {
+                'access_type': 'offline',
+                'prompt': 'consent',
+                'include_granted_scopes': 'true'
+            }
+            # Scope tambahan jika diperlukan (mis. Google Ads)
+            if not getattr(settings, 'SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE', None):
+                settings.SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
+                    'openid', 'email', 'profile',
+                    'https://www.googleapis.com/auth/adwords'
+                ]
+        except Exception:
+            # Jangan blok request jika settings tidak bisa di-set
+            pass
+
         response = self.get_response(request)
         return response

@@ -443,41 +443,6 @@ class data_mysql:
                 'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
         return {'hasil': hasil}
-
-    def update_refresh_token(self, email, refresh_token):
-        """
-        Update refresh token untuk user berdasarkan email
-        """
-        try:
-            sql_update = """
-                        UPDATE app_users SET
-                            refresh_token = %s
-                        WHERE user_mail = %s
-                """
-            if not self.execute_query(sql_update, (refresh_token, email)):
-                raise pymysql.Error("Failed to update refresh token")
-            
-            if not self.commit():
-                raise pymysql.Error("Failed to commit refresh token update")
-            
-            # Cek apakah ada row yang ter-update
-            if self.cur_hris.rowcount > 0:
-                hasil = {
-                    "status": True,
-                    "message": f"Refresh token berhasil disimpan untuk {email}"
-                }
-            else:
-                hasil = {
-                    "status": False,
-                    "message": f"User dengan email {email} tidak ditemukan"
-                }
-
-        except pymysql.Error as e:
-            hasil = {
-                "status": False,
-                'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
-            }
-        return {'hasil': hasil}
     
     def check_refresh_token(self, user_mail):
         """
@@ -1078,41 +1043,6 @@ class data_mysql:
                 'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
         return hasil
-
-    def update_refresh_token(self, email, refresh_token):
-        """
-        Update refresh token untuk user berdasarkan email
-        """
-        try:
-            sql_update = """
-                        UPDATE app_users SET
-                            refresh_token = %s
-                        WHERE user_mail = %s
-                """
-            if not self.execute_query(sql_update, (refresh_token, email)):
-                raise pymysql.Error("Failed to update refresh token")
-            
-            if not self.commit():
-                raise pymysql.Error("Failed to commit refresh token update")
-            
-            # Cek apakah ada row yang ter-update
-            if self.cur_hris.rowcount > 0:
-                hasil = {
-                    "status": True,
-                    "message": f"Refresh token berhasil disimpan untuk {email}"
-                }
-            else:
-                hasil = {
-                    "status": False,
-                    "message": f"User dengan email {email} tidak ditemukan"
-                }
-
-        except pymysql.Error as e:
-            hasil = {
-                "status": False,
-                'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
-            }
-        return {'hasil': hasil}
     
     def check_refresh_token(self, user_mail):
         """
