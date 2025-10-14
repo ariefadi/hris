@@ -504,7 +504,12 @@ class DashboardData(View):
 
 # Fungsi handler untuk halaman 404
 def handler404(request, exception):
-    return render(request, '404.html', status=404)
+    # Gunakan template admin khusus untuk halaman 404
+    return render(request, 'admin/404.html', status=404)
+
+# Catch-all view untuk development (DEBUG=True) agar tetap merender 404 kustom
+def dev_404(request):
+    return render(request, 'admin/404.html', status=404)
 
 # USER MANAGEMENT   
 class DataUser(View):
@@ -2991,4 +2996,4 @@ class RoiActiveSitesView(View):
             return JsonResponse({
                 'status': False,
                 'error': str(e)
-            })  
+            })
