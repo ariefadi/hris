@@ -3,6 +3,34 @@
  */
 
 $().ready(function () {
+    // Ensure CSRF header is attached for all AJAX POST requests
+    (function ensureCsrfAjaxHeader() {
+        // Fallback getCookie if not present
+        if (typeof getCookie === 'undefined') {
+            window.getCookie = function(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        // Does this cookie string begin with the name we want?
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            };
+        }
+        const csrftoken = getCookie('csrftoken');
+        // Attach header only when cookie readable; fallback to form token per-request
+        if (csrftoken) {
+            $.ajaxSetup({
+                headers: { 'X-CSRFToken': csrftoken }
+            });
+        }
+    })();
     report_eror = function (jqXHR, exception) {
         var msg = '';
         if (jqXHR.status === 0) {
@@ -35,13 +63,13 @@ $().ready(function () {
     
     $('#btn_oauth_setup').click(function (e) {
         e.preventDefault();
-        
-        // Auto-fill user email from current user data
-        var currentUserEmail = $('#user_email').text();
+        // Auto-fill user email from current user data (use table cell id `user_mail`)
+        var currentUserEmail = $('#user_mail').text();
         if (currentUserEmail && currentUserEmail !== '-') {
-            $('#oauth_user_email').val(currentUserEmail);
+            // Target the input inside the OAuth Setup modal specifically
+            $('#oauthModal #user_mail').val(currentUserEmail);
         }
-        
+
         $('#oauthModal').modal('show');
     });
     
@@ -177,10 +205,11 @@ function generateRefreshToken() {
 function saveOAuthCredentials() {
     var clientId = $('#client_id').val();
     var clientSecret = $('#client_secret').val();
-    var userMail = $('#oauth_user_mail').val();
+    var userMail = $('#oauthModal #user_mail').val();
+    var networkCode = $('#network_code').val();
 
     // Validasi input
-    if (!clientId || !clientSecret || !userMail) {
+    if (!clientId || !clientSecret || !userMail || !networkCode) {
         showErrorMessage("Semua field harus diisi");
         return;
     }
@@ -192,13 +221,20 @@ function saveOAuthCredentials() {
         data: {
             'client_id': clientId,
             'client_secret': clientSecret,
-            'user_mail': userMail
+            'network_code': networkCode,
+            'user_mail': userMail,
+            // Always include CSRF token from DOM to handle HttpOnly cookies
+            'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
         },
+        headers: (function(){
+            var token = getCookie('csrftoken');
+            return token ? { 'X-CSRFToken': token } : {};
+        })(),
         success: function(response) {
             if (response.status) {
                 showSuccessMessage("Kredensial OAuth berhasil disimpan");
                 $('#oauthModal').modal('hide');
-                $('#client_id, #client_secret, #oauth_user_mail').val('');
+                $('#client_id, #client_secret, #network_code, #oauthModal #user_mail').val('');
                 load_adx_account_data();
             } else {
                 showErrorMessage(response.message || "Gagal menyimpan kredensial");
@@ -231,19 +267,27 @@ const csrftoken = getCookie('csrftoken');
 function showOAuthRefreshTokenModal() {
     $('#oauthRefreshTokenModal').modal('show');
     resetOAuthModal();
+    // Prefill email from account info
+    var currentUserEmail = $('#user_mail').text();
+    if (currentUserEmail && currentUserEmail !== '-') {
+        $('#oauthRefreshTokenModal #oauth_user_email').val(currentUserEmail);
+    }
+    // Bind buttons inside modal
+    $('#btn_generate_oauth_url').off('click').on('click', generateOAuthURL);
+    $('#btn_submit_auth_code').off('click').on('click', submitAuthCode);
 }
 
 function resetOAuthModal() {
     $('#oauth-step-1').show();
     $('#oauth-step-2').hide();
-    $('#oauth-email').val('');
-    $('#oauth-auth-code').val('');
-    $('#oauth-url-display').empty();
-    $('#oauth-messages').empty();
+    $('#oauthRefreshTokenModal #oauth_user_email').val('');
+    $('#oauthRefreshTokenModal #authorization_code').val('');
+    $('#oauth_url_result').hide().empty();
+    $('#oauth_generation_result').hide().empty();
 }
 
 function generateOAuthURL() {
-    const email = $('#oauth-email').val().trim();
+    const email = $('#oauthRefreshTokenModal #oauth_user_email').val().trim();
     
     if (!email) {
         showOAuthMessage('Please enter an email address', 'error');
@@ -266,9 +310,13 @@ function generateOAuthURL() {
             'email': email,
             'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
         },
+        headers: (function(){
+            var token = getCookie('csrftoken');
+            return token ? { 'X-CSRFToken': token } : {};
+        })(),
         success: function(response) {
             if (response.success) {
-                $('#oauth-url-display').html(`
+                $('#oauth_url_result').html(`
                     <div class="alert alert-info">
                         <strong>Step 1 Complete!</strong><br>
                         Click the link below to authorize with Google:<br>
@@ -277,6 +325,7 @@ function generateOAuthURL() {
                         </a>
                     </div>
                 `);
+                $('#oauth_url_result').show();
                 $('#oauth-step-1').hide();
                 $('#oauth-step-2').show();
                 showOAuthMessage('OAuth URL generated successfully. Please click the link above to authorize.', 'success');
@@ -291,8 +340,8 @@ function generateOAuthURL() {
 }
 
 function submitAuthCode() {
-    const email = $('#oauth-email').val().trim();
-    const authCode = $('#oauth-auth-code').val().trim();
+    const email = $('#oauthRefreshTokenModal #oauth_user_email').val().trim();
+    const authCode = $('#oauthRefreshTokenModal #authorization_code').val().trim();
     
     if (!authCode) {
         showOAuthMessage('Please enter the authorization code', 'error');
@@ -309,12 +358,16 @@ function submitAuthCode() {
             'auth_code': authCode,
             'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
         },
+        headers: (function(){
+            var token = getCookie('csrftoken');
+            return token ? { 'X-CSRFToken': token } : {};
+        })(),
         success: function(response) {
             if (response.success) {
                 showOAuthMessage('Refresh token generated successfully!', 'success');
                 setTimeout(function() {
                     $('#oauthRefreshTokenModal').modal('hide');
-                    loadAccountData(); // Reload account data
+                    load_adx_account_data(); // Reload account data
                 }, 2000);
             } else {
                 showOAuthMessage(response.message || 'Failed to process authorization code', 'error');
@@ -330,7 +383,7 @@ function showOAuthMessage(message, type) {
     const alertClass = type === 'error' ? 'alert-danger' : 
                       type === 'success' ? 'alert-success' : 'alert-info';
     
-    $('#oauth-messages').html(`
+    $('#oauth_generation_result').show().html(`
         <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
             ${message}
             <button type="button" class="close" data-dismiss="alert">
