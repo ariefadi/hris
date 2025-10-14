@@ -2581,6 +2581,7 @@ class RoiTrafficPerCountryDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_sites = req.GET.get('selected_sites', '')
+        selected_account = req.GET.get('selected_account', '')
         selected_countries = req.GET.get('selected_countries', '')
         try:
             # Format tanggal untuk AdManager API
@@ -2598,8 +2599,13 @@ class RoiTrafficPerCountryDataView(View):
             user_data = data_mysql().get_user_by_id(user_id)
             user_mail = user_data['data']['user_mail']
             data_adx = fetch_roi_per_country(start_date_formatted, end_date_formatted, user_mail, selected_sites, countries_list)
-            rs_account = data_mysql().master_account_ads()
-            data_facebook = fetch_data_insights_by_country_filter_campaign_roi(rs_account['data'], str(start_date_formatted), str(end_date_formatted), selected_sites) 
+            if selected_account:
+                rs_account = data_mysql().master_account_ads_by_params({
+                    'data_account': selected_account,
+                })['data']
+            else:
+                 rs_account = data_mysql().master_account_ads()['data']
+            data_facebook = fetch_data_insights_by_country_filter_campaign_roi(rs_account, str(start_date_formatted), str(end_date_formatted), selected_sites) 
             # Proses penggabungan data AdX dan Facebook
             result = process_roi_traffic_country_data(data_adx, data_facebook)
             print(f" Hasil Akhir: {result}")
@@ -2663,6 +2669,7 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
         # Buat mapping data Facebook berdasarkan country_cd
         facebook_spend_map = {}
         facebook_other_costs_map = {}
+        facebook_click_map = {}
         unknown_spend = 0
         unknown_other_costs = 0
         if data_facebook and data_facebook.get('data'):
@@ -2672,6 +2679,7 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                 other_costs = float(fb_item.get('other_costs', 0))
                 facebook_spend_map[country_cd] = spend
                 facebook_other_costs_map[country_cd] = other_costs
+                facebook_click_map[country_cd] = int(fb_item.get('clicks', 0))
                 # Simpan spend dan other_costs untuk country_cd "unknown"
                 if country_cd == 'unknown':
                     unknown_spend = spend
@@ -2682,11 +2690,16 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                 country_name = adx_item.get('country_name', '')
                 country_code = adx_item.get('country_code', '')
                 impressions = int(adx_item.get('impressions', 0))
-                clicks = int(adx_item.get('clicks', 0))
+                clicks_adx = int(adx_item.get('clicks', 0))
                 revenue = float(adx_item.get('revenue', 0))
                 # Ambil spend dan biaya lainnya dari Facebook berdasarkan country_code
                 spend = facebook_spend_map.get(country_code, 0)
                 other_costs = facebook_other_costs_map.get(country_code, 0)
+                click_fb = facebook_click_map.get(country_code, 0)
+                if click_fb > 0:
+                    clicks = click_fb
+                else:
+                    clicks = clicks_adx
                 # Jika spend tidak tersedia untuk country_code, gunakan spend dari "unknown"
                 if spend == 0 and unknown_spend > 0:
                     spend = 0
@@ -2759,6 +2772,7 @@ class RoiTrafficPerDomainDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_sites = req.GET.get('selected_sites', '')
+        selected_account = req.GET.get('selected_account', '')
         try:
             # Ambil user_id dari session
             user_id = req.session.get('hris_admin', {}).get('user_id')
@@ -2771,7 +2785,13 @@ class RoiTrafficPerDomainDataView(View):
             # Ambil data AdX (klik, ctr, cpc, eCPM, pendapatan)
             adx_result = fetch_adx_traffic_account_by_user(user_mail, start_date_formatted, end_date_formatted, selected_sites)
             # Ambil data Facebook (spend)
-            rs_account = data_mysql().master_account_ads()['data']
+            if selected_account:
+                rs_account = data_mysql().master_account_ads_by_params({
+                    'data_account': selected_account,
+                })['data']
+            else:
+                 rs_account = data_mysql().master_account_ads()['data']
+
             facebook_data = fetch_data_insights_by_date_subdomain_roi(
                 rs_account, start_date_formatted, end_date_formatted, selected_sites
             )
@@ -2788,7 +2808,6 @@ class RoiTrafficPerDomainDataView(View):
                 for fb_item in facebook_data['data']:
                     date_key = fb_item.get('date', '')
                     subdomain = fb_item.get('subdomain', '')
-                    print(f"subdomain: {subdomain}")
                     base_subdomain = extract_base_subdomain(subdomain)
                     key = f"{date_key}_{base_subdomain}"
                     facebook_map[key] = fb_item
@@ -2811,8 +2830,12 @@ class RoiTrafficPerDomainDataView(View):
                     # Hitung spend dan biaya lainnya
                     spend = float((fb_data or {}).get('spend', 0))
                     other_costs = float((fb_data or {}).get('other_costs', 0))
+                    clicks_fb = int((fb_data or {}).get('clicks', 0))
                     revenue = float(adx_item.get('revenue', 0))
-                    clicks = int(adx_item.get('clicks', 0))
+                    if clicks_fb > 0:
+                        clicks = clicks_fb
+                    else:
+                        clicks = int(adx_item.get('clicks', 0))
                     # Data berhasil dicocokkan dan dihitung
                     # Hitung ROI nett: (Revenue - Spend) / Spend * 100
                     roi = ((revenue - spend) / (spend)) * 100 if spend > 0 else 0

@@ -123,6 +123,7 @@ $(document).ready(function() {
         var startDate = $('#tanggal_dari').val();
         var endDate = $('#tanggal_sampai').val();
         var selectedSites = $('#site_filter').val();
+        var selectedAccount = $('#select_account').val();
         var selectedCountries = $('#country_filter').val();
         if (!startDate || !endDate) {
             alert('Silakan pilih rentang tanggal');
@@ -152,6 +153,7 @@ $(document).ready(function() {
                 start_date: startDate,
                 end_date: endDate,
                 selected_sites: siteFilter,
+                selected_account: selectedAccount,
                 selected_countries: countryFilter
             },
             headers: {

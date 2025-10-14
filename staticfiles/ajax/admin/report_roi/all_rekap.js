@@ -146,6 +146,7 @@ $().ready(function () {
         var startDate = $('#tanggal_dari').val();
         var endDate = $('#tanggal_sampai').val();
         var selectedSites = $('#site_filter').val();
+        var selectedAccount = $('#select_account').val();
         var selectedCountries = $('#country_filter').val();
         var selectedCountriesStr = Array.isArray(selectedCountries) ? selectedCountries.join(',') : (selectedCountries || '');
         var selectedSitesStr = Array.isArray(selectedSites) ? selectedSites.join(',') : (selectedSites || '');
@@ -158,6 +159,7 @@ $().ready(function () {
                 start_date: startDate,
                 end_date: endDate,
                 selected_sites: selectedSitesStr,
+                selected_account: selectedAccount,
                 selected_countries: selectedCountriesStr
             },
             headers: {
@@ -641,7 +643,8 @@ function load_ROI_summary_data(startDate, endDate) {
         data: {
             start_date: startDate,
             end_date: endDate,
-            selected_sites: siteFilter
+            selected_sites: siteFilter,
+            selected_account: selectedAccount
         },
         headers: {
             'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
