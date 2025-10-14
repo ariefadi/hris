@@ -1,5 +1,5 @@
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.shortcuts import redirect
 from django.conf import settings
 from django.conf.urls.static import static
@@ -24,3 +24,7 @@ urlpatterns = [
 # Serve static files during development
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    # Catch-all route to render custom 404 page during development (DEBUG=True)
+    urlpatterns += [
+        re_path(r'^.*$', views.dev_404, name='dev_404'),
+    ]
