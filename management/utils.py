@@ -4700,7 +4700,6 @@ def fetch_data_insights_by_country_filter_campaign_roi(rs_account, start_date_fo
     }
     return rs_data
 
-
 @cache_facebook_insights
 def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, end_date_formatted, selected_sites = None):
     all_data = []

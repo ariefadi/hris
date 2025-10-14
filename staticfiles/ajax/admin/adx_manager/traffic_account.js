@@ -41,7 +41,7 @@ $().ready(function () {
     
     // Initialize Select2 for site filter
     $('#site_filter').select2({
-        placeholder: 'Pilih Situs (Opsional)',
+        placeholder: '-- Pilih Domain --',
         allowClear: true,
         width: '100%',
         height: '100%',
@@ -57,11 +57,6 @@ $().ready(function () {
     
     // Load sites list on page load
     loadSitesList();
-    
-    // Reload data ketika filter domain berubah
-    $('#site_filter').on('change', function () {
-        load_adx_traffic_account_data();
-    });
     function loadSitesList() {
         $.ajax({
             url: '/management/admin/adx_sites_list',

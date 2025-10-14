@@ -15,7 +15,7 @@ $(document).ready(function() {
 
     // Inisialisasi Select2 untuk site filter
     $('#site_filter').select2({
-        placeholder: '-- Pilih Site --',
+        placeholder: '-- Pilih Domain --',
         allowClear: true,
         width: '100%',
         height: '100%',

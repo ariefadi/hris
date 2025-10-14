@@ -64,10 +64,6 @@ $().ready(function () {
     }
     // Load sites list on page load
     loadSitesList();
-    // Reload data ketika filter domain berubah
-    $('#site_filter').on('change', function () {
-        load_adx_traffic_account_data();
-    });
     function loadSitesList() {
         $.ajax({
             url: '/management/admin/adx_sites_list',
@@ -121,6 +117,7 @@ function load_adx_traffic_account_data() {
     var tanggal_dari = $('#tanggal_dari').val();
     var tanggal_sampai = $('#tanggal_sampai').val();
     var selectedSites = $('#site_filter').val();
+    var selectedAccount = $('#select_account').val();
     
     if (!tanggal_dari || !tanggal_sampai) {
         alert('Please select both start and end dates.');
@@ -139,7 +136,8 @@ function load_adx_traffic_account_data() {
         data: {
             start_date: tanggal_dari,
             end_date: tanggal_sampai,
-            selected_sites: siteFilter
+            selected_sites: siteFilter,
+            selected_account: selectedAccount,
         },
         headers: {
             'X-CSRFToken': csrftoken

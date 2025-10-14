@@ -147,7 +147,7 @@ function load_adx_summary_data(tanggal_dari, tanggal_sampai) {
 
                 // Update summary boxes
                 $("#total_clicks").text(formatNumber(response.summary.total_clicks));
-                $("#total_revenue").text('Rp ' + formatNumber(response.summary.total_revenue, 2));
+                $("#total_revenue").text('Rp ' + formatNumber(response.summary.total_revenue, 0));
                 $("#avg_cpc").text('Rp ' + formatNumber(response.summary.avg_cpc, 2));
                 $("#avg_ctr").text(formatNumber(response.summary.avg_ctr, 2) + '%');
 
@@ -156,7 +156,7 @@ function load_adx_summary_data(tanggal_dari, tanggal_sampai) {
                     $("#today_traffic").show();
                     $("#today_impressions").text(formatNumber(response.today_traffic.impressions));
                     $("#today_clicks").text(formatNumber(response.today_traffic.clicks));
-                    $("#today_revenue").text('Rp ' + formatNumber(response.today_traffic.revenue, 2));
+                    $("#today_revenue").text('Rp ' + formatNumber(response.today_traffic.revenue, 0));
                     $("#today_ctr").text(formatNumber(response.today_traffic.ctr, 2) + '%');
                 }
 

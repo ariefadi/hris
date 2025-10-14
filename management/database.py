@@ -1685,6 +1685,29 @@ class data_mysql:
             }
         return hasil
 
+    def master_account_ads_by_params(self, data):
+        sql = '''
+            SELECT a.account_ads_id, a.account_name, a.account_email, a.account_id, 
+            a.app_id, a.app_secret, a.access_token
+            FROM `master_account_ads` a
+            WHERE a.account_ads_id = %s
+        '''
+        try:
+            self.cur_hris.execute(sql,(
+                data['data_account']
+            ))
+            datanya = self.cur_hris.fetchall()
+            hasil = {
+                "status": True,
+                "data": datanya
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return hasil
+
     def get_user_oauth_credentials(self, user_mail=None):
         """
         Mengambil kredensial OAuth dari database berdasarkan user_id atau user_mail
