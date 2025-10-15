@@ -1016,6 +1016,12 @@ class page_account_facebook(View):
         return JsonResponse(hasil)
     
 class post_account_ads(View):
+    @method_decorator(csrf_exempt, name='dispatch')
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super(post_account_ads, self).dispatch(request, *args, **kwargs)
+        
     def post(self, req):
         account_name = req.POST.get('account_name')
         account_email = req.POST.get('account_email')
