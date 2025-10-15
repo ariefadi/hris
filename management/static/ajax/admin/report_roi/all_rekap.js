@@ -631,13 +631,12 @@ const csrftoken = getCookie('csrftoken');
 // Memuat data ROI Summary (ringkasan & grafik ROI harian)
 function load_ROI_summary_data(startDate, endDate) {
     var selectedSites = $('#site_filter').val();
+    var selectedAccount = $('#select_account').val();
     var siteFilter = '';
     if (selectedSites && selectedSites.length > 0) {
         siteFilter = selectedSites.join(',');
     }
-    var selectedAccount = $('#select_account').val();
     $('#overlay').show();
-
     $.ajax({
         url: '/management/admin/page_roi_traffic_domain',
         type: 'GET',
