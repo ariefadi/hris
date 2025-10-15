@@ -554,6 +554,7 @@ class get_user_by_id(View):
         }
         return JsonResponse(hasil)
 
+@method_decorator(csrf_exempt, name='dispatch')
 class post_edit_user(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
@@ -596,7 +597,16 @@ class post_edit_user(View):
             }
         return JsonResponse(hasil)
 
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+
+@method_decorator(csrf_exempt, name='dispatch')
 class post_tambah_user(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super(post_tambah_user, self).dispatch(request, *args, **kwargs)
+        
     def post(self, req):
         user_alias = req.POST.get('user_alias')
         user_name = req.POST.get('user_name')
