@@ -93,7 +93,7 @@ class data_mysql:
         except pymysql.Error as e:
             hasil = {
                 "status": False,
-                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+                'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
         return hasil
     
@@ -290,7 +290,7 @@ class data_mysql:
         except pymysql.Error as e:
             hasil = {
                 "status": False,
-                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+                'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
         return {'hasil': hasil}
     
@@ -981,7 +981,13 @@ class data_mysql:
                 data['account_name'],
                 data['account_email'],
                 data['account_id'],
-                data['app_id']
+                data['app_id'],
+                data['app_secret'],
+                data['access_token'],
+                data['account_owner'],
+                data['mdb'],
+                data['mdb_name'],
+                data['mdd']
             )):
                 raise pymysql.Error("Failed to insert account ads")
             
@@ -990,7 +996,7 @@ class data_mysql:
             
             hasil = {
                 "status": True,
-                "data": "Account ads berhasil ditambahkan"
+                "message": "Account ads berhasil ditambahkan"
             }
         except pymysql.Error as e:
             hasil = {
@@ -1552,7 +1558,13 @@ class data_mysql:
                 data['account_name'],
                 data['account_email'],
                 data['account_id'],
-                data['app_id']
+                data['app_id'],
+                data['app_secret'],
+                data['access_token'],
+                data['account_owner'],
+                data['mdb'],
+                data['mdb_name'],
+                data['mdd']
             )):
                 raise pymysql.Error("Failed to insert account ads")
             
@@ -1561,7 +1573,7 @@ class data_mysql:
             
             hasil = {
                 "status": True,
-                "data": "Account ads berhasil ditambahkan"
+                "message": "Account ads berhasil ditambahkan"
             }
         except pymysql.Error as e:
             hasil = {
