@@ -22,10 +22,9 @@ $().ready(function () {
         }
         alert(msg);
     };
-
+    $("#overlay").show();
     // Ensure date inputs use YYYY-MM-DD format and disable any global datepicker
     $('#tanggal_dari, #tanggal_sampai').datepicker('destroy');
-
     // Configure datepicker with YYYY-MM-DD format
     $('#tanggal_dari').datepicker({
         format: 'yyyy-mm-dd',
@@ -41,6 +40,15 @@ $().ready(function () {
         orientation: 'bottom auto'
     });
 
+    // Initialize Select2 for site filter
+    $('#site_filter').select2({
+        placeholder: '-- Pilih Domain --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4'
+    });
+
     // Set default dates (last 7 days)
     var today = new Date();
     var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -50,8 +58,8 @@ $().ready(function () {
     $('#btn_load_data').click(function (e) {
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
-
         if (tanggal_dari != "" && tanggal_sampai != "") {
+            $("#overlay").show();
             load_adx_summary_data(tanggal_dari, tanggal_sampai);
             load_adx_traffic_country_data();
         } else {
@@ -64,34 +72,57 @@ $().ready(function () {
     var tanggal_sampai = $("#tanggal_sampai").val();
     if (tanggal_dari != "" && tanggal_sampai != "") {
         load_adx_summary_data(tanggal_dari, tanggal_sampai);
+        load_adx_traffic_country_data(tanggal_dari, tanggal_sampai);
     }
 
-    load_adx_traffic_country_data();
+    // Load sites list on page load
+    loadSitesList();
+    function loadSitesList() {
+        $.ajax({
+            url: '/management/admin/adx_sites_list',
+            type: 'GET',
+            dataType: 'json',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function(response) {
+                if (response.status) {
+                    var select_site = $("#site_filter");
+                    select_site.empty();
+                    $.each(response.data, function(index, site) {
+                        select_site.append(new Option(site, site, false, false));
+                    });
+                    // Jangan trigger change di sini untuk menghindari loop
+                    select_site.trigger('change');
+                    load_adx_traffic_account_data();
+                } 
+            },
+            error: function(xhr, status, error) {
+                console.error('Error loading sites:', error);
+                console.error('Status:', status);
+                console.error('Response:', xhr.responseText);
+            }
+        });
+    }
 
     // Fungsi untuk load data traffic per country
     function load_adx_traffic_country_data() {
         var startDate = $('#tanggal_dari').val();
         var endDate = $('#tanggal_sampai').val();
-        var countryFilter = $('#country_filter').val();
-
         // AJAX request
         $.ajax({
             url: '/management/admin/page_adx_traffic_country',
             type: 'GET',
             data: {
                 start_date: startDate,
-                end_date: endDate,
-                country_filter: countryFilter
+                end_date: endDate
             },
             headers: {
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
             },
             success: function(response) {
-                console.log('[DEBUG] AJAX Success Response:', response);
-                $('#overlay').hide();
-                
                 if (response && response.status) {
-                    
                     // Generate charts if data available
                     if (response.data && response.data.length > 0) {
                         generateTrafficCountryCharts(response.data);
@@ -105,19 +136,23 @@ $().ready(function () {
                     } else {
                         console.log('Tidak ada data untuk periode yang dipilih');
                     }
+                    
+                    // Hide overlay after country data is loaded
+                    $("#overlay").hide();
                 } else {
                     var errorMsg = response.error || 'Terjadi kesalahan yang tidak diketahui';
                     console.error('[DEBUG] Response error:', errorMsg);
+                    $("#overlay").hide();
                     alert('Error: ' + errorMsg);
                 }
             },
             error: function(xhr, status, error) {
+                $("#overlay").hide();
                 console.error('[DEBUG] AJAX Error:', {
                     xhr: xhr,
                     status: status,
                     error: error
                 });
-                $('#overlay').hide();
                 report_eror('Terjadi kesalahan saat memuat data: ' + error);
             }
         });
@@ -126,8 +161,6 @@ $().ready(function () {
 });
 
 function load_adx_summary_data(tanggal_dari, tanggal_sampai) {
-    $("#overlay").show();
-
     $.ajax({
         url: '/management/admin/page_adx_summary',
         type: 'GET',
@@ -139,8 +172,6 @@ function load_adx_summary_data(tanggal_dari, tanggal_sampai) {
             'X-CSRFToken': csrftoken
         },
         success: function (response) {
-            $("#overlay").hide();
-
             if (response && response.status) {
                 // Show summary boxes
                 $("#summary_boxes").show();
@@ -178,7 +209,11 @@ function load_adx_summary_data(tanggal_dari, tanggal_sampai) {
                     }
                 }
 
+                // Hide overlay after all data is loaded
+                $("#overlay").hide();
+
             } else {
+                $("#overlay").hide();
                 alert('Error: ' + (response && response.error ? response.error : 'Unknown error occurred'));
             }
         },

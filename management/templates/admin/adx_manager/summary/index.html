@@ -3,6 +3,7 @@
 {% block more_stylesheet %}
 {% endblock %}
 {% block content %}  
+{% csrf_token %}
 <style>
   .dt-buttons {
       margin-bottom: 20px;
@@ -20,22 +21,25 @@
     </div> <!-- /.card-header -->
     <div class="card-body">
         <div class="form-row">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label for="tanggal_dari">Tanggal Dari:</label>
                 <input type="date" id="tanggal_dari" class="form-control" required>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label for="tanggal_sampai">Tanggal Sampai:</label>
                 <input type="date" id="tanggal_sampai" class="form-control" required>
             </div>
-            <div class="col-md-3">
-                <label for="site_filter">Filter Situs:</label>
-                <select id="site_filter" class="form-control">
-                    <option value="%">Semua Situs</option>
+           <div class="col-md-4">
+                <label>Filter Domain</label>
+                <select class="form-control select2-multiple" id="site_filter" multiple>
+                    <!-- Options akan diisi secara dinamis oleh JavaScript -->
                 </select>
             </div>
-            <div class="col-md-3">
-                <button type="button" id="btn_load_data" class="btn btn-primary" style="margin-top: 25px;">Load Data</button>
+            <div class="col-md-2">
+                <label>&nbsp;</label>
+                <button type="button" class="btn btn-primary form-control" id="btn_load_data">
+                    <i class="fas fa-search"></i> Muat Data
+                </button>
             </div>
         </div>
     </div><!-- /.card-body -->
@@ -121,6 +125,31 @@
                 </div>
             </div>
         </div>
+        <!-- Charts Section -->
+        <div class="row mt-3" id="charts_section" style="display: none;">
+            <!-- Card: Total Impresi -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="bi bi-bar-chart-line"></i> Top 10 Negara - Total Impresi</h3>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="impressionsChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            <!-- Card: Total Pendapatan -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="bi bi-pie-chart"></i> Top 10 Negara - Total Pendapatan</h3>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="revenueChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
         <!-- Data Traffic Hari Ini -->
         <div class="row mt-3" id="today_traffic" style="display: none;">
             <div class="col-12">
@@ -175,31 +204,6 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- Charts Section -->
-        <div class="row mt-3" id="charts_section" style="display: none;">
-            <!-- Card: Total Impresi -->
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title"><i class="bi bi-bar-chart-line"></i> Top 10 Negara - Total Impresi</h3>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="impressionsChart" width="400" height="200"></canvas>
-                    </div>
-                </div>
-            </div>
-            <!-- Card: Total Pendapatan -->
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title"><i class="bi bi-pie-chart"></i> Top 10 Negara - Total Pendapatan</h3>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="revenueChart" width="400" height="200"></canvas>
                     </div>
                 </div>
             </div>
