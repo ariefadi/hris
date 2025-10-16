@@ -1992,31 +1992,23 @@ class GenerateRefreshTokenView(View):
         try:
             # Ambil user_mail dari session
             user_mail = req.session.get('hris_admin', {}).get('user_mail')
+            print(f"DEBUG Generate Refresh Token - Email data from DB: {user_mail}")
             if not user_mail:
                 return JsonResponse({
                     'status': False,
                     'error': 'User Mail tidak ditemukan dalam session'
                 })
-            
-            # Debug logging
-            print(f"DEBUG Generate Refresh Token - User Mail from session: {user_mail}")
-            
             # Ambil data user dari database
             db = data_mysql()
             user_data = db.get_user_by_mail(user_mail)
+            print(f"DEBUG Generate Refresh Token - User data from DB: {user_data}")
             if not user_data['status'] or not user_data['data']:
                 return JsonResponse({
                     'status': False,
                     'error': 'Data user tidak ditemukan dalam database'
                 })
-            
             user_info = user_data['data']
             user_mail = user_info['user_mail']
-            
-            print(f"DEBUG Generate Refresh Token - User email: {user_mail}")
-            print(f"DEBUG Generate Refresh Token - Client ID: {user_info.get('google_ads_client_id')}")
-            print(f"DEBUG Generate Refresh Token - Client Secret: {user_info.get('google_ads_client_secret')}")
-            
             # Cek apakah user sudah memiliki client_id dan client_secret di database
             if not user_info.get('google_ads_client_id') or not user_info.get('google_ads_client_secret'):
                 return JsonResponse({
@@ -2024,7 +2016,6 @@ class GenerateRefreshTokenView(View):
                     'error': 'Client ID dan Client Secret belum dikonfigurasi untuk user ini. Silakan hubungi administrator.',
                     'action_required': 'configure_oauth_credentials'
                 })
-            
             # Generate refresh token menggunakan credentials dari database
             result = db.generate_refresh_token_from_db_credentials(user_mail)
             if result['status']:
@@ -2043,7 +2034,6 @@ class GenerateRefreshTokenView(View):
                     'error': result.get('message', 'Gagal generate refresh token'),
                     'details': result.get('details', 'No additional details')
                 })
-                
         except Exception as e:
             return JsonResponse({
                 'status': False,

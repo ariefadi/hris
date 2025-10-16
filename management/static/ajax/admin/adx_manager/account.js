@@ -60,7 +60,8 @@ function load_adx_account_data() {
         url: '/management/admin/page_adx_user_account',
         type: 'GET',
         headers: {
-            'X-CSRFToken': csrftoken
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
         },
         success: function (response) {
             $("#overlay").hide();
@@ -192,7 +193,8 @@ function generateRefreshToken() {
         url: '/management/admin/generate_refresh_token',
         type: 'POST',
         headers: {
-            'X-CSRFToken': csrftoken
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
         },
         success: function (response) {
             $("#overlay").hide();
@@ -241,7 +243,8 @@ function saveOAuthCredentials() {
         url: '/management/admin/save_oauth_credentials',
         type: 'POST',
         headers: {
-            'X-CSRFToken': csrftoken
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
         },
         data: {
             'network_code': $('#network_code').val(),
@@ -285,5 +288,3 @@ function getCookie(name) {
     }
     return cookieValue;
 }
-
-const csrftoken = getCookie('csrftoken');
