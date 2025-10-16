@@ -637,7 +637,7 @@ class post_tambah_user(View):
                 'user_foto': '',
                 'mdb': req.session['hris_admin']['user_id'],
                 'mdb_name': req.session['hris_admin']['user_alias'],
-                'mdd' : datetime.now().strftime('%y-%m-%d %H:%M:%S')
+                'mdd' : datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             }
             data = data_mysql().insert_user(data_insert)
             hasil = {
@@ -1026,7 +1026,6 @@ class page_account_facebook(View):
         return JsonResponse(hasil)
     
 class post_account_ads(View):
-    @method_decorator(csrf_exempt, name='dispatch')
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
