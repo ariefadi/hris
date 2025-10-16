@@ -20,8 +20,6 @@
         <link rel="stylesheet" href="{% static 'plugins/select2-bootstrap4-theme/select2-bootstrap4.min.css' %}">
         <!-- sweetalert -->
         <link rel="stylesheet" href="{% static 'plugins/sweetalert2/sweetalert2.min.css' %}">
-        <!-- Toastr for notifications -->
-        <link rel="stylesheet" href="{% static 'plugins/toastr/toastr.min.css' %}">
         <!-- Datetime Picker -->
         <!-- <link rel="stylesheet" href="{% static 'plugins/bootstrap-datepicker/css/datepicker.css' %}"> -->
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css" />
@@ -101,17 +99,20 @@
                         <li class="nav-header">
                             <b>USER MANAGEMENT</b>
                         </li>
-                        <li class="nav-item">
-                            <a href="{% url 'data_user' %}"
+                        {% if user.user_id == '03eefc68-6acf-498b-b2ac-f3b057137c3e' or user.user_id == '0d880d06-5d76-11f0-8c15-8c85900f8db2' or user.user_id == '86a7d202-7b67-11f0-a66b-8c85900f8db2' %}
+                            <li class="nav-item">
+                                <a href="{% url 'data_user' %}"
                                 {% if '/data_user' in request.path %}
                                     class="nav-link active"
                                 {% else %}
                                     class="nav-link"
                                 {% endif %}>
-                                <i class="bi bi-people"></i>
-                                <p>User Data</p>
-                            </a>
-                        </li>
+                                    <i class="bi bi-people"></i>
+                                    <p>User Data</p>
+                                </a>
+                            </li>
+                        {% endif %}
+
                         <li {% if '/data_login_user' in request.path or '/schedule_activity' in request.path or '/master_plan' in request.path or '/mom_weekly_meeting' in request.path or '/weekly_report' in request.path %}
                                 class="nav-item menu-open"
                             {% else %}
@@ -139,17 +140,19 @@
                                             <p>Login Activity</p>
                                         </a>
                                     </li>  
-                                    <li class="nav-item">
-                                        <a href="#" 
-                                            {% if '/schedule_activity' in request.path %}
-                                                class="nav-link active"
-                                            {% else %}
-                                                class="nav-link"
-                                            {% endif %}>
-                                            <i class="bi bi-circle"></i>
-                                            <p>Schedule Activity</p>
-                                        </a>
-                                    </li>
+                                    {% if user.user_id == '86a7d202-7b67-11f0-a66b-8c85900f8db2' %}
+                                        <li class="nav-item">
+                                            <a href="#" 
+                                                {% if '/schedule_activity' in request.path %}
+                                                    class="nav-link active"
+                                                {% else %}
+                                                    class="nav-link"
+                                                {% endif %}>
+                                                <i class="bi bi-circle"></i>
+                                                <p>Schedule Activity</p>
+                                            </a>
+                                        </li>
+                                    {% endif %}
                                     <li class="nav-item">
                                         <a href="{% url 'master_plan' %}" 
                                             {% if '/master_plan' in request.path %}
@@ -161,28 +164,30 @@
                                             <p>Master Plan</p>
                                         </a>
                                     </li>
-                                    <li class="nav-item">
-                                        <a href="#" 
-                                            {% if '/mom_weekly_meeting' in request.path %}
-                                                class="nav-link active"
-                                            {% else %}
-                                                class="nav-link"
-                                            {% endif %}>
-                                            <i class="bi bi-circle"></i>
-                                            <p>MoM Weekly Meeting</p>
-                                        </a>
-                                    </li>  
-                                    <li class="nav-item">
-                                        <a href="#"  
-                                            {% if '/weekly_report' in request.path %}
-                                                class="nav-link active"
-                                            {% else %}
-                                                class="nav-link"
-                                            {% endif %}>
-                                            <i class="bi bi-circle"></i>
-                                            <p>Weekly Report</p>
-                                        </a>
-                                    </li>
+                                    {% if user.user_id == '86a7d202-7b67-11f0-a66b-8c85900f8db2' %}
+                                        <li class="nav-item">
+                                            <a href="#" 
+                                                {% if '/mom_weekly_meeting' in request.path %}
+                                                    class="nav-link active"
+                                                {% else %}
+                                                    class="nav-link"
+                                                {% endif %}>
+                                                <i class="bi bi-circle"></i>
+                                                <p>MoM Weekly Meeting</p>
+                                            </a>
+                                        </li>  
+                                        <li class="nav-item">
+                                            <a href="#"  
+                                                {% if '/weekly_report' in request.path %}
+                                                    class="nav-link active"
+                                                {% else %}
+                                                    class="nav-link"
+                                                {% endif %}>
+                                                <i class="bi bi-circle"></i>
+                                                <p>Weekly Report</p>
+                                            </a>
+                                        </li>
+                                    {% endif %}
                                 </li>
                             </ul>
                         </li>
@@ -515,8 +520,6 @@
         <script src="{% static 'plugins/datatables-fixedcolumns/js/dataTables.fixedColumns.min.js' %}"></script>
         <!-- SweetAlert -->
         <script src="{% static 'plugins/sweetalert2/sweetalert2.min.js' %}"></script>
-        <!-- Toastr for notifications -->
-        <script src="{% static 'plugins/toastr/toastr.min.js' %}"></script>
         <!-- Datetime Picker -->
         <!-- <script src="{% static 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.js' %}"></script> -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
