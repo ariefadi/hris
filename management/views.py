@@ -1093,28 +1093,25 @@ class page_per_account_facebook(View):
             return redirect('user_login')
         return super(page_per_account_facebook, self).dispatch(request, *args, **kwargs)
     def get(self, req):
-        data_account = req.GET.get('data_account')
         tanggal = req.GET.get('tanggal')
+        data_account = req.GET.get('data_account')
         data_sub_domain = req.GET.get('data_sub_domain')
-        
         # Jika tanggal kosong atau '%', gunakan tanggal hari ini
         if not tanggal or tanggal == '%':
             tanggal = datetime.now().strftime('%Y-%m-%d')
-        
         # Normalisasi data_sub_domain
         if not data_sub_domain or data_sub_domain == '':
             data_sub_domain = '%'
-        
         # Jika data_account kosong atau '%', gunakan semua account untuk filter sub domain
         if not data_account or data_account == '%':
             rs_account = data_mysql().master_account_ads()['data']
-            data = fetch_data_insights_all_accounts_by_subdomain(rs_account, str(tanggal), str(data_sub_domain))
+            data = fetch_data_insights_all_accounts_by_subdomain(str(tanggal), rs_account, str(data_sub_domain))
         else:
             # Gunakan account spesifik seperti sebelumnya
             rs_data_account = data_mysql().master_account_ads_by_id({
                 'data_account': data_account,
             })['data']
-            data = fetch_data_insights_account(str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(tanggal), str(data_sub_domain), str(rs_data_account['account_name']))
+            data = fetch_data_insights_account(str(tanggal), str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(data_sub_domain), str(rs_data_account['account_name']))
         
         hasil = {
             'hasil': "Data Traffic Per Account",
@@ -1457,16 +1454,16 @@ class page_per_campaign_facebook(View):
     def get(self, req):
         tanggal_dari = req.GET.get('tanggal_dari')
         tanggal_sampai = req.GET.get('tanggal_sampai')
-        data_sub_domain = req.GET.get('data_sub_domain')
         data_account = req.GET.get('data_account')
+        data_sub_domain = req.GET.get('data_sub_domain')
         rs_account = data_mysql().master_account_ads()
         if (data_sub_domain != '%' or data_sub_domain == '%') and data_account != '%':
             rs_data_account = data_mysql().master_account_ads_by_id({
                 'data_account': data_account,
             })['data']
-            data = fetch_data_insights_campaign_filter_account(str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(rs_data_account['account_name']), str(tanggal_dari), str(tanggal_sampai), str(data_sub_domain))
+            data = fetch_data_insights_campaign_filter_account(str(tanggal_dari), str(tanggal_sampai), str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(rs_data_account['account_name']), str(data_sub_domain))
         else:  
-            data = fetch_data_insights_campaign_filter_sub_domain(rs_account['data'], str(tanggal_dari), str(tanggal_sampai), str(data_sub_domain))
+            data = fetch_data_insights_campaign_filter_sub_domain(str(tanggal_dari), str(tanggal_sampai), rs_account['data'], str(data_sub_domain))
         hasil = {
             'hasil': "Data Traffic Per Campaign",
             'data_campaign': data['data'],
@@ -1500,9 +1497,8 @@ class page_per_country_facebook(View):
     def get(self, req):
         tanggal_dari = req.GET.get('tanggal_dari')
         tanggal_sampai = req.GET.get('tanggal_sampai')
-        data_sub_domain = req.GET.get('data_sub_domain')
         data_account = req.GET.get('data_account')
-        
+        data_sub_domain = req.GET.get('data_sub_domain')
         # Ambil parameter countries dari query string
         countries_param = req.GET.get('countries', '')
         selected_countries = []
@@ -1514,9 +1510,9 @@ class page_per_country_facebook(View):
             rs_data_account = data_mysql().master_account_ads_by_id({
                 'data_account': data_account,
             })['data']
-            data = fetch_data_insights_by_country_filter_account(str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(tanggal_dari), str(tanggal_sampai), str(data_sub_domain))
+            data = fetch_data_insights_by_country_filter_account(str(tanggal_dari), str(tanggal_sampai), str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(data_sub_domain))
         else: 
-            data = fetch_data_insights_by_country_filter_campaign(rs_account['data'], str(tanggal_dari), str(tanggal_sampai), str(data_sub_domain)) 
+            data = fetch_data_insights_by_country_filter_campaign(str(tanggal_dari), str(tanggal_sampai), rs_account['data'], str(data_sub_domain)) 
         
         # Filter data berdasarkan negara yang dipilih jika ada
         if selected_countries:
@@ -1584,9 +1580,9 @@ class page_per_country_facebook(View):
             rs_data_account = data_mysql().master_account_ads_by_id({
                 'data_account': data_account,
             })['data']
-            data = fetch_data_insights_by_country_filter_account(str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(tanggal_dari), str(tanggal_sampai), str(data_sub_domain))
+            data = fetch_data_insights_by_country_filter_account(str(tanggal_dari), str(tanggal_sampai), str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(data_sub_domain))
         else: 
-            data = fetch_data_insights_by_country_filter_campaign(rs_account['data'], str(tanggal_dari), str(tanggal_sampai), str(data_sub_domain)) 
+            data = fetch_data_insights_by_country_filter_campaign(str(tanggal_dari), str(tanggal_sampai), rs_account['data'], str(data_sub_domain)) 
         
         # Normalize total structure - utils.py returns total as array, we need object
         if 'total' in data and isinstance(data['total'], list) and len(data['total']) > 0:

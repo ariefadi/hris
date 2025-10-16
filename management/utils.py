@@ -10,6 +10,7 @@ from collections import defaultdict
 from googleads import ad_manager
 from google.ads.googleads.client import GoogleAdsClient
 from google.ads.googleads.errors import GoogleAdsException
+from pandas.core.frame import console
 from management.database import data_mysql
 from management.googleads_patch_v2 import apply_googleads_patches
 from functools import wraps
@@ -908,7 +909,7 @@ def fetch_data_insights_account_range_all(rs_account, start_date, end_date):
 
     return result
 
-def fetch_data_insights_account(access_token, account_id, tanggal, data_sub_domain, account_name=None):
+def fetch_data_insights_account(tanggal, access_token, account_id, data_sub_domain, account_name=None):
     FacebookAdsApi.init(access_token=access_token)
     account = AdAccount(account_id)
     if tanggal == '%':
@@ -982,6 +983,7 @@ def fetch_data_insights_account(access_token, account_id, tanggal, data_sub_doma
         ],
         params=params
     )
+    print(insights)
     for row in insights:
         campaign_id = row.get('campaign_id')
         if not campaign_id:
@@ -1221,7 +1223,7 @@ def fetch_status_per_campaign(access_token, campaign_id, status):
         return {'error': error_msg}
 
 @cache_facebook_insights
-def fetch_data_insights_campaign_filter_sub_domain(rs_account, start_date, end_date, data_sub_domain):
+def fetch_data_insights_campaign_filter_sub_domain(start_date, end_date, rs_account, data_sub_domain):
     all_data = []
     total = []
     total_budget = total_spend = total_clicks = total_impressions = total_reach = total_cpr = 0
@@ -1342,6 +1344,13 @@ def fetch_data_insights_campaign_filter_sub_domain(rs_account, start_date, end_d
             else:
                 total_frequency = 0.0
             total_cpr += agg['cpr']
+    print(total_budget)
+    print(total_spend)
+    print(total_impressions)
+    print(total_reach)
+    print(total_clicks)
+    print(total_frequency)
+    print(total_cpr)        
     total.append({
         'total_budget': total_budget,
         'total_spend': total_spend,
@@ -1357,7 +1366,7 @@ def fetch_data_insights_campaign_filter_sub_domain(rs_account, start_date, end_d
     }
     return rs_data
 
-def fetch_data_insights_campaign_filter_account(access_token, account_id, account_name, start_date, end_date, data_campaign):
+def fetch_data_insights_campaign_filter_account(start_date, end_date, access_token, account_id, account_name, data_campaign):
     rs_data = []
     data = []
     total = []
@@ -1468,7 +1477,7 @@ def fetch_data_insights_campaign_filter_account(access_token, account_id, accoun
     }
     return rs_data
 
-def fetch_data_insights_by_country_filter_campaign(rs_account, start_date, end_date, data_sub_domain):
+def fetch_data_insights_by_country_filter_campaign(start_date, end_date, rs_account, data_sub_domain):
     country_totals = defaultdict(lambda: {
         'spend': 0.0,
         'impressions': 0,
@@ -1655,7 +1664,7 @@ def fetch_data_country_facebook_ads(rs_account, start_date, end_date):
         })
     return result
 
-def fetch_data_insights_by_country_filter_account(access_token, account_id, start_date, end_date, data_sub_domain):
+def fetch_data_insights_by_country_filter_account(start_date, end_date, access_token, account_id, data_sub_domain):
     FacebookAdsApi.init(access_token=access_token)
     account = AdAccount(account_id)
     fields = [
@@ -1905,7 +1914,7 @@ def fetch_ad_manager_inventory():
             'error': str(e)
         }
 
-def fetch_data_insights_all_accounts_by_subdomain(rs_account, tanggal, data_sub_domain):
+def fetch_data_insights_all_accounts_by_subdomain(tanggal, rs_account, data_sub_domain):
     """
     Fungsi baru untuk mengambil data dari semua akun dengan filter subdomain
     """

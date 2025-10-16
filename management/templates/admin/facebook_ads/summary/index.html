@@ -28,14 +28,20 @@
                 <label>Range Sampai</label>
                  <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="{{ today }}" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <label>Filter Account</label>
                 <select class="form-control select2" id="select_account">
                     <option value=""></option>
                     {% for data_account in data_account %}
-                    <option value="{{data_account.account_ads_id}}">{{data_account.account_name|upper}} - ({{data_account.account_id}})</option>
+                    <option value="{{data_account.account_ads_id}}">{{data_account.account_name|upper}}</option>
                     {% endfor %}
                 </select>
+            </div>
+            <div class="col-md-2">
+                <label>&nbsp;</label>
+                <button type="button" class="btn btn-primary form-control" id="btn_load_data">
+                    <i class="fas fa-search"></i> Muat Data
+                </button>
             </div>
         </div>
     </div><!-- /.card-body -->

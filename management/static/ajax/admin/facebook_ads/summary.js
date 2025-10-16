@@ -39,31 +39,11 @@ $().ready(function () {
       autoclose: true,
       todayHighlight: true
     });
-    $('#tanggal_dari, #tanggal_sampai').change(function (e) {
+    $('#btn_load_data').click(function (e) {
+        e.preventDefault();
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
-        var data_account = $("#select_account").val() || '%';
-        if(tanggal_dari!="" && tanggal_sampai!="" && data_account!="")
-        {
-            destroy_chart_summary_facebook()
-            table_chart_summary_facebook(tanggal_dari, tanggal_sampai, data_account)
-        }    
-    });
-    
-    // Auto-load data saat halaman dimuat
-    $(document).ready(function() {
-        var tanggal_dari = $("#tanggal_dari").val();
-        var tanggal_sampai = $("#tanggal_sampai").val();
-        var data_account = '%'; // Default semua account
-        
-        if(tanggal_dari !== "" && tanggal_sampai !== "") {
-            table_chart_summary_facebook(tanggal_dari, tanggal_sampai, data_account);
-        }
-    });
-    $('#select_account').change(function (e) {
-        var tanggal_dari = $("#tanggal_dari").val();
-        var tanggal_sampai = $("#tanggal_sampai").val();
-        var selected = $(this).val();
+        var selected = $("#select_account").val() || '%';
         var data_account = selected ? selected : '%';
         if(tanggal_dari!="" && tanggal_sampai!="" && data_account!="")
         {

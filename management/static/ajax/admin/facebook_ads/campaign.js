@@ -30,20 +30,6 @@ $().ready(function () {
                      String(today.getDate()).padStart(2, '0');
     $('#tanggal_dari').val(todayString);
     $('#tanggal_sampai').val(todayString);
-    $('#select_sub_domain').select2({
-        placeholder: '-- Pilih Sub Domain --',
-        allowClear: true,
-        width: '100%',
-        height: '100%',
-        theme: 'bootstrap4'
-    })
-    $('#select_account').select2({
-        placeholder: '-- Pilih Account --',
-        allowClear: true,
-        width: '100%',
-        height: '100%',
-        theme: 'bootstrap4'
-    })
     $('#tanggal_dari').datepicker({
       format: 'yyyy-mm-dd',
       autoclose: true,
@@ -54,67 +40,39 @@ $().ready(function () {
       autoclose: true,
       todayHighlight: true
     });
-    $('#tanggal_dari').change(function (e) {
+    $('#select_account').select2({
+        placeholder: '-- Pilih Account --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4'
+    });
+    $('#select_sub_domain').select2({
+        placeholder: '-- Pilih Domain --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4'
+    });
+    $('#btn_load_data').click(function (e) {
+        e.preventDefault();
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
-        var data_sub_domain = '%';
-        var data_account = '%';
-        if(tanggal_dari!="" && tanggal_sampai!="" && data_sub_domain!="" && data_account!="")
+        var selected_account = $("#select_account").val() || '%';
+        var data_account = selected_account ? selected_account : '%';
+        var selected_sub_domain = $('#select_sub_domain').val() || '%';
+        var data_sub_domain = selected_sub_domain ? selected_sub_domain : '%';
+        if(tanggal_dari !== '' && tanggal_sampai !== '' && data_account!="" && data_sub_domain!="")
         {
             destroy_table_data_campaign_facebook()
-            table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_sub_domain, data_account)
+            table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account, data_sub_domain)
         }    
     });
-    $('#tanggal_sampai').change(function (e) {
-        var tanggal_dari = $("#tanggal_dari").val();
-        var tanggal_sampai = $("#tanggal_sampai").val();
-        var data_sub_domain = '%';
-        var data_account = '%';
-        if(tanggal_dari!="" && tanggal_sampai!="" && data_sub_domain!="" && data_account!="")
-        {
-            destroy_table_data_campaign_facebook()
-            table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_sub_domain, data_account)
-        }    
-    });
-    $('#select_sub_domain').change(function (e) {
-        var tanggal_dari = $("#tanggal_dari").val();
-        var tanggal_sampai = $("#tanggal_sampai").val();
-        var selected = $(this).val();
-        var data_sub_domain = selected ? selected : '%'; 
-        var data_account = '%';
-        if(tanggal_dari!="" && tanggal_sampai!="" && data_sub_domain!="" && data_account!="")
-        {
-            destroy_table_data_campaign_facebook()
-            table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_sub_domain, data_account)
-        }    
-    });
-    $('#select_account').change(function (e) {
-        var tanggal_dari = $("#tanggal_dari").val();
-        var tanggal_sampai = $("#tanggal_sampai").val();
-        var data_sub_domain = $("#select_sub_domain option:selected").val() || '%';
-        var selected = $(this).val();
-        var data_account = selected ? selected : '%';
-        if(tanggal_dari!="" && tanggal_sampai!="" && data_sub_domain!="" && data_account!="")
-        {
-            destroy_table_data_campaign_facebook()
-            table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_sub_domain, data_account)
-        }    
-    });
-    
-    // Auto-load data saat halaman dimuat
-    var tanggal_dari = $('#tanggal_dari').val();
-    var tanggal_sampai = $('#tanggal_sampai').val();
-    var data_sub_domain = '%';
-    var data_account = '%';
-    
-    if(tanggal_dari !== '' && tanggal_sampai !== '') {
-        table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_sub_domain, data_account);
-    }
 });
 
-function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_sub_domain, data_account) {
+function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account, data_sub_domain) {
     $.ajax({
-        url: '/management/admin/page_per_campaign_facebook?tanggal_dari='+tanggal_dari+'&tanggal_sampai='+tanggal_sampai+'&data_sub_domain='+data_sub_domain+'&data_account='+data_account,
+        url: '/management/admin/page_per_campaign_facebook?tanggal_dari='+tanggal_dari+'&tanggal_sampai='+tanggal_sampai+'&data_account='+data_account+'&data_sub_domain='+data_sub_domain,
         method: 'GET',
         dataType: 'json',
         beforeSend: function () {

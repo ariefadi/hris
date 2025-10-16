@@ -23,6 +23,11 @@ $().ready(function () {
         alert(msg);
     };
     $('.select2').select2()
+    $('#tanggal').datepicker({
+      format: 'yyyy-mm-dd',
+      autoclose: true,
+      todayHighlight: true
+    });
     $('#select_account').select2({
         placeholder: '-- Pilih Account --',
         allowClear: true,
@@ -30,65 +35,30 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     })
-    $('#tanggal').datepicker({
-      format: 'yyyy-mm-dd',
-      autoclose: true,
-      todayHighlight: true
-    });
-    
-    // Auto-load data saat halaman dimuat
-    $(document).ready(function() {
-        var data_account = '%'; // Default semua account
-        var tanggal = $('#tanggal').val();
-        var data_sub_domain = $('#select_sub_domain').val() || '%';
-        
-        if(tanggal && tanggal !== '' && data_sub_domain) {
-            table_data_per_account_facebook(data_account, tanggal, data_sub_domain);
-        }
-    });
     $('#select_sub_domain').select2({
-        placeholder: '-- Pilih Sub Domain --',
+        placeholder: '-- Pilih Domain --',
         allowClear: true,
         width: '100%',
         height: '100%',
         theme: 'bootstrap4'
     })
-    $('#select_account').change(function (e) {
-        var selected = $(this).val();
-        var data_account = selected ? selected : '%';
-        var tanggal = $('#tanggal').val();
-        var data_sub_domain = $('#select_sub_domain').val() || '%';
-        if(tanggal && tanggal !== '' && data_sub_domain)
+    $('#btn_load_data').click(function (e) {
+        e.preventDefault();
+        var tanggal = $("#tanggal").val();
+        var selected_account = $("#select_account").val() || '%';
+        var data_account = selected_account ? selected_account : '%';
+        var selected_sub_domain = $('#select_sub_domain').val() || '%';
+        var data_sub_domain = selected_sub_domain ? selected_sub_domain : '%';
+        if(tanggal && tanggal !== '' && data_account!="" && data_sub_domain!="")
         {
             destroy_table_data_per_account_facebook()
-            table_data_per_account_facebook(data_account, tanggal, data_sub_domain)
+            table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
         }    
     });
-    $(document).on('change', '#tanggal', function (e) {
-        var data_account = $("#select_account option:selected").val() || '%';
-        var tanggal = $("#tanggal").val();
-        var data_sub_domain = $('#select_sub_domain').val() || '%';
-        if(tanggal && tanggal !== '' && data_sub_domain)
-        {
-            destroy_table_data_per_account_facebook()
-            table_data_per_account_facebook(data_account, tanggal, data_sub_domain)
-        }   
-    });
-    $('#select_sub_domain').change(function (e) {
-        var data_account = $("#select_account option:selected").val() || '%';
-        var tanggal = $("#tanggal").val();
-        var selected = $(this).val();
-        var data_sub_domain = selected ? selected : '%'; 
-        if(tanggal && tanggal !== '' && data_sub_domain)
-        {
-            destroy_table_data_per_account_facebook()
-            table_data_per_account_facebook(data_account, tanggal, data_sub_domain)
-        }  
-    });
 });
-function table_data_per_account_facebook(data_account, tanggal, data_sub_domain) {
+function table_data_per_account_facebook(tanggal, data_account, data_sub_domain) {
     $.ajax({
-        url: '/management/admin/page_per_account_facebook?data_account='+data_account+'&tanggal='+tanggal+'&data_sub_domain='+data_sub_domain,
+        url: '/management/admin/page_per_account_facebook?tanggal='+tanggal+'&data_account='+data_account+'&data_sub_domain='+data_sub_domain,
         method: 'GET',
         dataType: 'json',
         beforeSend: function () {

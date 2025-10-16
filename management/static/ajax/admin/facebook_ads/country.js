@@ -30,28 +30,6 @@ $().ready(function () {
                      String(today.getDate()).padStart(2, '0');
     $('#tanggal_dari').val(todayString);
     $('#tanggal_sampai').val(todayString);
-    $('#select_sub_domain').select2({
-        placeholder: '-- Pilih Sub Domain --',
-        allowClear: true,
-        width: '100%',
-        height: '100%',
-        theme: 'bootstrap4'
-    })
-    $('#select_account').select2({
-        placeholder: '-- Pilih Account --',
-        allowClear: true,
-        width: '100%',
-        height: '100%',
-        theme: 'bootstrap4'
-    })
-    $('#select_country').select2({
-        placeholder: '-- Pilih Negara --',
-        allowClear: true,
-        width: '100%',
-        height: '100%',
-        theme: 'bootstrap4',
-        multiple: true
-    })
     $('#tanggal_dari').datepicker({
       format: 'yyyy-mm-dd',
       autoclose: true,
@@ -62,82 +40,90 @@ $().ready(function () {
       autoclose: true,
       todayHighlight: true
     });
-    $('#tanggal_dari').change(function (e) {
-        var tanggal_dari = $("#tanggal_dari").val();
-        var tanggal_sampai = $("#tanggal_sampai").val();
-        var data_sub_domain = '%';
-        var data_account = '%';
-        if(tanggal_dari!="" && tanggal_sampai!="" && data_sub_domain!="" && data_account!="")
-        {
-            destroy_table_data_per_country_facebook()
-            table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_sub_domain, data_account)
-        }    
+    $('#select_account').select2({
+        placeholder: '-- Pilih Account --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4'
     });
-    $('#tanggal_sampai').change(function (e) {
-        var tanggal_dari = $("#tanggal_dari").val();
-        var tanggal_sampai = $("#tanggal_sampai").val();
-        var data_sub_domain = '%';
-        var data_account = '%';
-        if(tanggal_dari!="" && tanggal_sampai!="" && data_sub_domain!="" && data_account!="")
-        {
-            destroy_table_data_per_country_facebook()
-            table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_sub_domain, data_account)
-        }    
+    $('#select_domain').select2({
+        placeholder: '-- Pilih Domain --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4'
     });
-    $('#select_sub_domain').change(function (e) {
-        var tanggal_dari = $("#tanggal_dari").val();
-        var tanggal_sampai = $("#tanggal_sampai").val();
-        var selected = $(this).val();
-        var data_sub_domain = selected ? selected : '%'; 
-        var data_account = '%';
-        if(tanggal_dari!="" && tanggal_sampai!="" && data_sub_domain!="" && data_account!="")
-        {
-            destroy_table_data_per_country_facebook()
-            table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_sub_domain, data_account)
-        }    
+    $('#select_country').select2({
+        placeholder: '-- Pilih Negara --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4',
+        multiple: true
     });
-    $('#select_account').change(function (e) {
-        var tanggal_dari = $("#tanggal_dari").val();
-        var tanggal_sampai = $("#tanggal_sampai").val();
-        var data_sub_domain = $("#select_sub_domain option:selected").val() || '%';
-        var selected = $(this).val();
-        var data_account = selected ? selected : '%';
-        if(tanggal_dari!="" && tanggal_sampai!="" && data_sub_domain!="" && data_account!="")
-        {
-            destroy_table_data_per_country_facebook()
-            table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_sub_domain, data_account)
-        }    
-    });
-    
-    // Auto-load data akan dipanggil setelah country options dimuat
-    
     // Load data negara untuk select2
     load_country_options();
-    
-    // Event handler untuk filter negara
-    $('#select_country').change(function (e) {
+    $('#btn_load_data').click(function (e) {
+        e.preventDefault();
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
-        var data_sub_domain = $("#select_sub_domain option:selected").val() || '%';
-        var data_account = $("#select_account option:selected").val() || '%';
-        if(tanggal_dari!="" && tanggal_sampai!="" && data_sub_domain!="" && data_account!="")
+        var selected_account = $("#select_account").val() || '%';
+        var data_account = selected_account ? selected_account : '%';
+        var selected_sub_domain = $('#select_sub_domain').val() || '%';
+        var data_sub_domain = selected_sub_domain ? selected_sub_domain : '%';
+        if(tanggal_dari !== '' && tanggal_sampai !== '' && data_account!="" && data_sub_domain!="")
         {
             destroy_table_data_per_country_facebook()
-            table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_sub_domain, data_account)
+            table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_account, data_sub_domain)
         }    
     });
 });
-function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_sub_domain, data_account) {
+// Fungsi untuk memuat opsi negara ke select2
+function load_country_options() {
+    $.ajax({
+        url: '/management/admin/get_countries_facebook_ads',
+        type: 'GET',
+        dataType: 'json',
+        beforeSend: function () {
+            $('#overlay').fadeIn(500);
+        },
+        success: function(response) {
+            $('#overlay').fadeOut(500);
+            if(response.status) {
+                var select_country = $('#select_country');
+                select_country.empty();
+                
+                $.each(response.countries, function(index, country) {
+                    select_country.append(new Option(country.name, country.code, false, false));
+                });
+                
+                select_country.trigger('change');
+                
+                // Load data awal setelah country options dimuat
+                var today = new Date();
+                var todayString = today.getFullYear() + '-' + 
+                                 String(today.getMonth() + 1).padStart(2, '0') + '-' + 
+                                 String(today.getDate()).padStart(2, '0');
+                
+                table_data_per_country_facebook(todayString, todayString, '%', '%');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.log('Error loading countries:', error);
+        }
+    });
+}
+function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_account, data_sub_domain) {
     var selected_countries = $('#select_country').val() || [];
-    
     $.ajax({
         url: '/management/admin/page_per_country_facebook',
         type: 'POST',
         data: {
             'tanggal_dari': tanggal_dari,
             'tanggal_sampai': tanggal_sampai,
-            'data_sub_domain': data_sub_domain,
             'data_account': data_account,
+            'data_sub_domain': data_sub_domain,
             'selected_countries': JSON.stringify(selected_countries),
             'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
         },
@@ -331,37 +317,4 @@ function destroy_table_data_per_country_facebook(){
     }
     // Bersihkan konten tbody secara manual
     $('#table_data_per_country_facebook tbody').empty();
-}
-
-// Fungsi untuk memuat opsi negara ke select2
-function load_country_options() {
-    $.ajax({
-        url: '/management/admin/get_countries_facebook_ads',
-        type: 'GET',
-        dataType: 'json',
-        success: function(response) {
-            console.log('Data Negara didapat : ', response);
-            if(response.status) {
-                var select_country = $('#select_country');
-                select_country.empty();
-                
-                $.each(response.countries, function(index, country) {
-                    select_country.append(new Option(country.name, country.code, false, false));
-                });
-                
-                select_country.trigger('change');
-                
-                // Load data awal setelah country options dimuat
-                var today = new Date();
-                var todayString = today.getFullYear() + '-' + 
-                                 String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-                                 String(today.getDate()).padStart(2, '0');
-                
-                table_data_per_country_facebook(todayString, todayString, '%', '%');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.log('Error loading countries:', error);
-        }
-    });
 }
