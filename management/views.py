@@ -265,15 +265,15 @@ def get_countries_facebook_ads(request):
         rs_data_account = data_mysql().master_account_ads_by_id({
             'data_account': data_account,
         })['data']
-        print(f"[DEBUG] rs_data_account: {rs_data_account}")
         # Ambil semua data negara tanpa filter
         result = fetch_data_country_facebook_ads(
             tanggal_dari, 
             tanggal_sampai,
             str(rs_data_account['access_token']), 
             str(rs_data_account['account_id']),
-            str(data_sub_domain)
+            data_sub_domain
         )
+        print(f"Data Negara : {result}")
         countries = []
         for country_data in result: 
             country_name = country_data.get('name')
@@ -1510,16 +1510,10 @@ class page_per_country_facebook(View):
         selected_countries = []
         if countries_param:
             selected_countries = countries_param.split(',')
-
-        rs_account = data_mysql().master_account_ads()
-        if data_sub_domain != '%' and data_account != '%':
-            rs_data_account = data_mysql().master_account_ads_by_id({
-                'data_account': data_account,
-            })['data']
-            data = fetch_data_insights_by_country_filter_account(str(tanggal_dari), str(tanggal_sampai), str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(data_sub_domain))
-        else: 
-            data = fetch_data_insights_by_country_filter_campaign(str(tanggal_dari), str(tanggal_sampai), rs_account['data'], str(data_sub_domain)) 
-        
+        rs_data_account = data_mysql().master_account_ads_by_id({
+            'data_account': data_account,
+        })['data']
+        data = fetch_data_insights_by_country_filter_account(str(tanggal_dari), str(tanggal_sampai), str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(data_sub_domain))
         # Filter data berdasarkan negara yang dipilih jika ada
         if selected_countries:
             filtered_data = []

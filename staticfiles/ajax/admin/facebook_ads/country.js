@@ -22,23 +22,23 @@ $().ready(function () {
         }
         alert(msg);
     };
-    
+
     // Set default tanggal hari ini
     var today = new Date();
-    var todayString = today.getFullYear() + '-' + 
-                     String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-                     String(today.getDate()).padStart(2, '0');
+    var todayString = today.getFullYear() + '-' +
+        String(today.getMonth() + 1).padStart(2, '0') + '-' +
+        String(today.getDate()).padStart(2, '0');
     $('#tanggal_dari').val(todayString);
     $('#tanggal_sampai').val(todayString);
     $('#tanggal_dari').datepicker({
-      format: 'yyyy-mm-dd',
-      autoclose: true,
-      todayHighlight: true
+        format: 'yyyy-mm-dd',
+        autoclose: true,
+        todayHighlight: true
     });
     $('#tanggal_sampai').datepicker({
-      format: 'yyyy-mm-dd',
-      autoclose: true,
-      todayHighlight: true
+        format: 'yyyy-mm-dd',
+        autoclose: true,
+        todayHighlight: true
     });
     $('#select_account').select2({
         placeholder: '-- Pilih Account --',
@@ -71,12 +71,11 @@ $().ready(function () {
         var data_account = selected_account ? selected_account : '%';
         var selected_sub_domain = $('#select_domain').val() || '%';
         var data_sub_domain = selected_sub_domain ? selected_sub_domain : '%';
-        if(tanggal_dari !== '' && tanggal_sampai !== '' && data_account!="" && data_sub_domain!="")
-        {
+        if (tanggal_dari !== '' && tanggal_sampai !== '' && data_account != "" && data_sub_domain != "") {
             load_country_options(tanggal_dari, tanggal_sampai, data_account, data_sub_domain);
             destroy_table_data_per_country_facebook();
             table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_account, data_sub_domain);
-        }    
+        }
     });
 });
 // Fungsi untuk memuat opsi negara ke select2
@@ -92,20 +91,20 @@ function load_country_options(tanggal_dari, tanggal_sampai, data_account, data_s
         },
         dataType: 'json',
         beforeSend: function () {
-            $('#overlay').fadeIn(500);
+            $('#overlay').show();
         },
-        success: function(response) {
-            $('#overlay').fadeOut(500);
-            if(response.status) {
+        success: function (response) {
+            $('#overlay').hide();
+            if (response.status) {
                 var select_country = $('#select_country');
                 select_country.empty();
-                $.each(response.countries, function(index, country) {
+                $.each(response.countries, function (index, country) {
                     select_country.append(new Option(country.name, country.code, false, false));
                 });
                 select_country.trigger('change');
             }
         },
-        error: function(xhr, status, error) {
+        error: function (xhr, status, error) {
             console.log('Error loading countries:', error);
         }
     });
@@ -125,10 +124,10 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
         },
         dataType: 'json',
         beforeSend: function () {
-            $('#overlay').fadeIn(500);
+            $('#overlay').show();
         },
         success: function (data_country) {
-            $('#overlay').fadeOut(500);
+            $('#overlay').hide();
             const tanggal = new Date();
             judul = "Rekapitulasi Traffic Per Country Facebook";
             $.each(data_country.data_country, function (index, value) {
@@ -139,52 +138,52 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                 const formattedFrequency = frequency.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
                 var event_data = '<tr>';
                 event_data += '<td class="text-left" style="font-size: 12px;"><b>' + value.country + '</b></td>';
-                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.spend).replace(/\B(?=(\d{3})+(?!\d))/g, ".") +  '</td>';
-                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.impressions).replace(/\B(?=(\d{3})+(?!\d))/g, ".") +  '</td>';
-                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.reach).replace(/\B(?=(\d{3})+(?!\d))/g, ".") +  '</td>';
-                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.clicks).replace(/\B(?=(\d{3})+(?!\d))/g, ".") +  '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.spend).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.impressions).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.reach).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.clicks).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + formattedFrequency + ' %</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + cpr + '</td>';
-                event_data += '</tr>';  
-                $("#table_data_per_country_facebook tbody").append(event_data);    
+                event_data += '</tr>';
+                $("#table_data_per_country_facebook tbody").append(event_data);
             })
             // Debug: Log response structure
             console.log("DEBUG - Full response:", data_country);
             console.log("DEBUG - total_country:", data_country.total_country);
-            
+
             // Menggunakan data total yang sudah difilter dari backend
             const totalData = data_country.total_country;
-            
+
             console.log("DEBUG - totalData:", totalData);
-            
+
             // Spend
             const spend = Number(totalData?.spend) || 0;
             const totalSpend = spend.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-            
+
             // Impressions
             const impressions = Number(totalData?.impressions) || 0;
             const totalImpressions = impressions.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-            
+
             // Reach
             const reach = Number(totalData?.reach) || 0;
             const totalReach = reach.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-            
+
             // Clicks
             const clicks = Number(totalData?.clicks) || 0;
             const totalClicks = clicks.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-            
+
             // Frequency
             const frequency = Number(totalData?.frequency) || 0;
             const totalFrequency = frequency.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + ' %';
-            
+
             // CPR (Cost Per Result)
             const cpr = Number(totalData?.cost_per_result) || 0;
             const totalCpr = cpr.toFixed(0).replace(',', '.');
-            
+
             console.log("DEBUG - Calculated values:", {
                 spend, impressions, reach, clicks, frequency, cpr
             });
-            
+
             $('#total_spend').text(totalSpend);
             $('#total_impressions').text(totalImpressions);
             $('#total_reach').text(totalReach);
@@ -195,8 +194,8 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
             if ($.fn.dataTable.isDataTable('#table_data_per_country_facebook')) {
                 $('#table_data_per_country_facebook').DataTable().destroy();
             }
-            
-            $('#table_data_per_country_facebook').DataTable({  
+
+            $('#table_data_per_country_facebook').DataTable({
                 "paging": true,
                 "pageLength": 50,
                 "lengthChange": true,
@@ -212,13 +211,13 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                         text: 'Download Excel',
                         title: judul,
                         messageTop: "laporan traffic per country facebook didownload pada "
-                                    +tanggal.getHours()+":"
-                                    +tanggal.getMinutes()+" "
-                                    +tanggal.getDate()+"-"
-                                    +(tanggal.getMonth()+1)+"-"
-                                    +tanggal.getFullYear(),
+                            + tanggal.getHours() + ":"
+                            + tanggal.getMinutes() + " "
+                            + tanggal.getDate() + "-"
+                            + (tanggal.getMonth() + 1) + "-"
+                            + tanggal.getFullYear(),
                         exportOptions: {
-                            columns: ':visible', 
+                            columns: ':visible',
                             columns: [0, 1, 2, 3, 4, 5, 6],      // hanya kolom yang terlihat
                             modifier: {
                                 search: 'applied',      // sesuai filter pencarian
@@ -238,23 +237,23 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                                     `<col min="${i + 1}" max="${i + 1}" width="${colWidths[i]}" customWidth="1"/>`
                                 );
                             }
-                            
+
                         }
                     },
                     {
                         extend: 'pdf',
                         orientation: 'landscape',
-                        pageSize: 'A4', 
+                        pageSize: 'A4',
                         filename: judul,
                         text: 'Download Pdf',
                         className: 'btn btn-warning',
                         title: judul,
                         messageBottom: "laporan traffic per country facebook didownload pada "
-                                    +tanggal.getHours()+":"
-                                    +tanggal.getMinutes()
-                                    +" "+tanggal.getDate()
-                                    +"-"+(tanggal.getMonth()+1)
-                                    +"-"+tanggal.getFullYear(),
+                            + tanggal.getHours() + ":"
+                            + tanggal.getMinutes()
+                            + " " + tanggal.getDate()
+                            + "-" + (tanggal.getMonth() + 1)
+                            + "-" + tanggal.getFullYear(),
                         customize: function (doc) {
                             // Header style (bold + center)
                             doc.styles.tableHeader = {
@@ -306,7 +305,7 @@ function getCookie(name) {
 }
 const csrftoken = getCookie('csrftoken');
 
-function destroy_table_data_per_country_facebook(){
+function destroy_table_data_per_country_facebook() {
     // Periksa apakah tabel sudah diinisialisasi sebagai DataTable
     if ($.fn.dataTable.isDataTable('#table_data_per_country_facebook')) {
         $('#table_data_per_country_facebook').DataTable().clear().destroy();

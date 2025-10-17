@@ -1020,7 +1020,7 @@ def fetch_data_insights_account(tanggal, access_token, account_id, data_sub_doma
             agg['start_time'] = config.get('start_time')
             agg['stop_time'] = config.get('stop_time')
     data = []
-    total_budget = total_spend = total_clicks = total_impressions = total_reach = total_cpr = total_cpc = 0
+    total_budget = total_spend = total_clicks = total_impressions = total_reach = total_cpr = total_frequency = 0
     for campaign_id, agg in campaign_aggregates.items():
         data.append({
             'campaign_id': campaign_id,
@@ -1614,11 +1614,13 @@ def fetch_data_insights_by_country_filter_campaign(start_date, end_date, rs_acco
     return rs_data
 
 def fetch_data_country_facebook_ads(tanggal_dari, tanggal_sampai, access_token, account_id, data_sub_domain):
+    # Dictionary untuk menyimpan total klik per negara
     country_totals = defaultdict(lambda: {'clicks': 0})
-
+    # Inisialisasi API Facebook dengan token akses
     FacebookAdsApi.init(access_token=access_token)
+    # Dapatkan objek akun iklan
     account = AdAccount(account_id)
-
+    # Daftar field yang ingin diambil
     fields = [
         AdsInsights.Field.ad_id,
         AdsInsights.Field.ad_name,
@@ -1627,61 +1629,53 @@ def fetch_data_country_facebook_ads(tanggal_dari, tanggal_sampai, access_token, 
         AdsInsights.Field.campaign_name,
         AdsInsights.Field.actions
     ]
-
+    # Menentukan parameter untuk mengambil data
     params = {
         'level': 'campaign',
         'time_range': {
             'since': tanggal_dari,
             'until': tanggal_sampai
         },
-        'filtering': [{
-            'field': 'campaign.name',
-            'operator': 'CONTAINS',  # ✅ diperbaiki
-            'value': data_sub_domain
-        }],
+        'subdomain': data_sub_domain,
         'breakdowns': ['country'],
         'limit': 1000
     }
-
-    try:
-        insights = account.get_insights(fields=fields, params=params)
-    except Exception as e:
-        print(f"[ERROR] Gagal fetch insights: {e}")
-        return []
-
+    # Mengambil data insights berdasarkan parameter yang ditentukan
+    insights = account.get_insights(fields=fields, params=params)
+    print(f"Account access : {insights}")
+    # Memproses hasil insights
     for item in insights:
         country_code = item.get('country')
         if not country_code:
             continue
-
+        # Mendapatkan nama negara berdasarkan kode negara
         country_name = get_country_name_from_code(country_code)
         if not country_name:
             continue
-
+        # Label negara dalam format 'Nama Negara (Kode Negara)'
         country_label = f"{country_name} ({country_code})"
         result_action_type = 'link_click'
         result_count = 0
-
+        # Mencari jumlah klik berdasarkan action yang relevan
         for action in item.get('actions', []):
             if action.get('action_type') == result_action_type:
                 result_count = float(action.get('value', 0))
                 break
-
+        # Menghitung klik
         clicks = float(result_count)
-
-        # Akumulasi
+        # Akumulasi total klik per negara
         country_totals[country_label]['country_code'] = country_code
         country_totals[country_label]['country_name'] = country_label
         country_totals[country_label]['clicks'] += clicks
-
+    # Menyusun hasil akhir
     result = []
     for country, data in country_totals.items():
         result.append({
             'code': data['country_code'],
             'name': country,
-            'clicks': data['clicks']  # ✅ dimasukkan ke hasil
+            'clicks': data['clicks']  # Hasil klik per negara
         })
-
+    # Debug output
     print(f"[DEBUG] result: {result}")
     return result
 
