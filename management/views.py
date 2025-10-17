@@ -258,15 +258,21 @@ def get_countries_facebook_ads(request):
     if 'hris_admin' not in request.session:
         return redirect('admin_login')
     try:
-        # Ambil data negara dari AdX untuk periode 30 hari terakhir
-        end_date = datetime.now().date()
-        start_date = end_date - timedelta(days=30)
+        tanggal_dari = request.POST.get('tanggal_dari')
+        tanggal_sampai = request.POST.get('tanggal_sampai')
+        data_account = request.POST.get('data_account')
+        data_sub_domain = request.POST.get('data_sub_domain')
+        rs_data_account = data_mysql().master_account_ads_by_id({
+            'data_account': data_account,
+        })['data']
+        print(f"[DEBUG] rs_data_account: {rs_data_account}")
         # Ambil semua data negara tanpa filter
-        rs_account = data_mysql().master_account_ads()
         result = fetch_data_country_facebook_ads(
-            rs_account['data'],
-            start_date.strftime('%Y-%m-%d'), 
-            end_date.strftime('%Y-%m-%d')
+            tanggal_dari, 
+            tanggal_sampai,
+            str(rs_data_account['access_token']), 
+            str(rs_data_account['account_id']),
+            str(data_sub_domain)
         )
         countries = []
         for country_data in result: 
@@ -1947,34 +1953,50 @@ class AdxUserAccountDataView(View):
         try:
             # Ambil user_id dari session
             user_id = req.session.get('hris_admin', {}).get('user_id')
-            if not user_id:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'User ID tidak ditemukan dalam session'
-                })
             
             # Ambil email user dari database berdasarkan user_id
             user_data = data_mysql().get_user_by_id(user_id)
             if not user_data['status'] or not user_data['data']:
                 return JsonResponse({
                     'status': False,
-                    'error': 'Data user tidak ditemukan dalam database'
+                    'error': 'User data tidak ditemukan'
                 })
+                
             user_mail = user_data['data']['user_mail']
-            if not user_mail:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'Email user tidak ditemukan dalam database'
-                })
             
             # Fetch comprehensive account data using user's credentials
             result = fetch_user_adx_account_data(user_mail)
+            
+            # Enhance error message for better user feedback
+            if not result.get('status', False):
+                error_msg = result.get('error', 'Unknown error')
+                
+                # Provide more user-friendly error messages
+                if 'Service MakeSoapRequest not found' in error_msg:
+                    result['error'] = 'Terjadi masalah dengan koneksi Google Ad Manager. Silakan coba lagi dalam beberapa saat.'
+                elif 'SOAP encoding' in error_msg:
+                    result['error'] = 'Terjadi masalah encoding data. Data dasar akan ditampilkan.'
+                elif 'credentials' in error_msg.lower():
+                    result['error'] = 'Kredensial Google Ad Manager tidak valid atau belum dikonfigurasi.'
+                elif 'network' in error_msg.lower():
+                    result['error'] = 'Tidak dapat mengakses network Google Ad Manager. Periksa konfigurasi network code.'
+                
             return JsonResponse(result)
             
         except Exception as e:
+            error_msg = str(e)
+            
+            # Provide user-friendly error messages
+            if 'Service MakeSoapRequest not found' in error_msg:
+                error_msg = 'Terjadi masalah dengan koneksi Google Ad Manager. Silakan coba lagi dalam beberapa saat.'
+            elif 'SOAP encoding' in error_msg:
+                error_msg = 'Terjadi masalah encoding data. Silakan refresh halaman.'
+            elif 'credentials' in error_msg.lower():
+                error_msg = 'Kredensial Google Ad Manager tidak valid atau belum dikonfigurasi.'
+            
             return JsonResponse({
                 'status': False,
-                'error': str(e)
+                'error': error_msg
             })
 
 class GenerateRefreshTokenView(View):

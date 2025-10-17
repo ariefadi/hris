@@ -14,6 +14,7 @@ from pandas.core.frame import console
 from management.database import data_mysql
 from management.googleads_patch_v2 import apply_googleads_patches
 from functools import wraps
+from management.googleads_patch_v2 import apply_all_patches
 
 # Apply GoogleAds patches for DownloadReportToString fix
 apply_googleads_patches()
@@ -1612,56 +1613,76 @@ def fetch_data_insights_by_country_filter_campaign(start_date, end_date, rs_acco
     }
     return rs_data
 
-def fetch_data_country_facebook_ads(rs_account, start_date, end_date):
-    country_totals = defaultdict(lambda: {
-        'clicks': 0,
-    })
-    for data in rs_account:
-        FacebookAdsApi.init(access_token=data['access_token'])
-        account = AdAccount(data['account_id'])
-        fields = [
-            AdsInsights.Field.ad_id,
-            AdsInsights.Field.ad_name,
-            AdsInsights.Field.adset_id,
-            AdsInsights.Field.campaign_id,
-            AdsInsights.Field.campaign_name,
-            AdsInsights.Field.actions
-        ]
-        params = {
-            'level': 'campaign',
-            'time_range': {
-                'since': start_date,
-                'until': end_date
-            },
-            'breakdowns': ['country'],
-            'limit': 1000
-        }
+def fetch_data_country_facebook_ads(tanggal_dari, tanggal_sampai, access_token, account_id, data_sub_domain):
+    country_totals = defaultdict(lambda: {'clicks': 0})
+
+    FacebookAdsApi.init(access_token=access_token)
+    account = AdAccount(account_id)
+
+    fields = [
+        AdsInsights.Field.ad_id,
+        AdsInsights.Field.ad_name,
+        AdsInsights.Field.adset_id,
+        AdsInsights.Field.campaign_id,
+        AdsInsights.Field.campaign_name,
+        AdsInsights.Field.actions
+    ]
+
+    params = {
+        'level': 'campaign',
+        'time_range': {
+            'since': tanggal_dari,
+            'until': tanggal_sampai
+        },
+        'filtering': [{
+            'field': 'campaign.name',
+            'operator': 'CONTAINS',  # ✅ diperbaiki
+            'value': data_sub_domain
+        }],
+        'breakdowns': ['country'],
+        'limit': 1000
+    }
+
+    try:
         insights = account.get_insights(fields=fields, params=params)
-        for item in insights:
-            country_code = item.get('country')
-            country_name = get_country_name_from_code(country_code)
-            if not country_name:
-                continue
-            country_label = f"{country_name} ({country_code})"
-            result_action_type = 'link_click'
-            result_count = 0
-            for action in item.get('actions', []):
-                if action.get('action_type') == result_action_type:
-                    result_count = float(action.get('value', 0))
-                    break
-            clicks = float(result_count)
-            # Akumulasi
-            country_totals[country_label]['country_code'] = country_code
-            country_totals[country_label]['country_name'] = country_label
-            country_totals[country_label]['clicks'] += clicks
+    except Exception as e:
+        print(f"[ERROR] Gagal fetch insights: {e}")
+        return []
+
+    for item in insights:
+        country_code = item.get('country')
+        if not country_code:
+            continue
+
+        country_name = get_country_name_from_code(country_code)
+        if not country_name:
+            continue
+
+        country_label = f"{country_name} ({country_code})"
+        result_action_type = 'link_click'
+        result_count = 0
+
+        for action in item.get('actions', []):
+            if action.get('action_type') == result_action_type:
+                result_count = float(action.get('value', 0))
+                break
+
+        clicks = float(result_count)
+
+        # Akumulasi
+        country_totals[country_label]['country_code'] = country_code
+        country_totals[country_label]['country_name'] = country_label
+        country_totals[country_label]['clicks'] += clicks
+
     result = []
     for country, data in country_totals.items():
-        country_code = data['country_code']
-        clicks = data['clicks']
         result.append({
-            'code':country_code,
-            'name': country
+            'code': data['country_code'],
+            'name': country,
+            'clicks': data['clicks']  # ✅ dimasukkan ke hasil
         })
+
+    print(f"[DEBUG] result: {result}")
     return result
 
 def fetch_data_insights_by_country_filter_account(start_date, end_date, access_token, account_id, data_sub_domain):
@@ -2818,8 +2839,8 @@ def _get_network_display_name_from_api(user_mail, network_code):
     Mengambil nama network langsung dari Ad Manager API menggunakan kredensial user
     """
     try:
-        # Gunakan client Ad Manager yang sudah ada
-        client_result = get_user_ad_manager_client(user_mail)
+        # Gunakan client Ad Manager yang sudah ada TANPA network verification untuk menghindari recursion
+        client_result = get_user_ad_manager_client(user_mail, skip_network_verification=True)
         if not client_result.get('status'):
             print(f"[WARNING] Tidak dapat membuat Ad Manager client untuk {user_mail}: {client_result.get('error')}")
             return 'AdX Network'  # fallback
@@ -2861,7 +2882,8 @@ def _get_network_display_name_from_api(user_mail, network_code):
         except TypeError as te:
             # Handle SOAP encoding error specifically
             if "argument should be integer or bytes-like object, not 'str'" in str(te):
-                print(f"[INFO] SOAP encoding issue for {user_mail}, using network code as fallback")
+                # Reduce log spam by using a more concise message
+                print(f"[DEBUG] SOAP encoding compatibility issue for {user_mail[:20]}...")
                 return f"Network {network_code}" if network_code else 'AdX Network'
             else:
                 print(f"[WARNING] TypeError getting network info for {user_mail}: {te}")
@@ -2887,33 +2909,27 @@ def _get_network_display_name_mapping():
 def _get_network_display_name(network_code, user_mail=None):
     """
     Mengambil nama network dengan prioritas:
-    1. Dari Ad Manager API (jika user_mail tersedia)
-    2. Dari mapping hardcode (fallback)
-    3. Default 'AdX Network'
-    """
-    if user_mail:
-        # Coba ambil dari API terlebih dahulu
-        api_name = _get_network_display_name_from_api(user_mail, network_code)
-        if api_name != 'AdX Network':  # Jika berhasil mendapat nama dari API
-            return api_name
+    1. Dari mapping hardcode (untuk menghindari recursion)
+    2. Default 'AdX Network'
     
-    # Fallback ke mapping hardcode jika API gagal
+    Note: API call dihindari untuk mencegah recursion loop
+    """
+    # Langsung gunakan mapping hardcode untuk menghindari recursion
     mapping = _get_network_display_name_mapping()
     return mapping.get(str(network_code), 'AdX Network')
 
 def fetch_user_adx_account_data(user_mail):
     """Fetch comprehensive AdX account data using user's credentials"""
     try:
-        # Get user's Ad Manager client
-        client_result = get_user_ad_manager_client(user_mail)
-        print(f"DEBUG AdxUserAccountDataView -client_result: {client_result}")
+        # Get user's Ad Manager client (skip network verification to avoid recursion)
+        client_result = get_user_ad_manager_client(user_mail, skip_network_verification=True)
+        print(f"DEBUG AdxUserAccountDataView -client: {client_result}")
         client = client_result['client']
         # Get Network Service
         network_service = client.GetService('NetworkService', version='v202502')
         # Get current network information
         try:
             current_network = network_service.getCurrentNetwork()
-            print(f"DEBUG AdxUserAccountDataView -current_network: {current_network}")
         except Exception as e:
             # Fallback to basic network info with proper network name mapping
             network_code = getattr(settings, 'GOOGLE_AD_MANAGER_NETWORK_CODE', None)
@@ -2936,7 +2952,7 @@ def fetch_user_adx_account_data(user_mail):
                 current_user = users['results'][0]
         except TypeError as e:
             if "argument should be integer or bytes-like object, not 'str'" in str(e):
-                # SOAP encoding error - handled by patch, no need to print
+                # SOAP encoding error - handled by patch, reduce log spam
                 pass
             else:
                 print(f"Error getting user info: {e}")
@@ -2956,7 +2972,7 @@ def fetch_user_adx_account_data(user_mail):
                 active_ad_units_count = len(ad_units['results'])
         except TypeError as e:
             if "argument should be integer or bytes-like object, not 'str'" in str(e):
-                # SOAP encoding error - handled by patch, no need to print
+                # SOAP encoding error - handled by patch, reduce log spam
                 pass
             else:
                 print(f"Error counting ad units: {e}")
@@ -3043,8 +3059,8 @@ def fetch_user_adx_account_data(user_mail):
 def check_email_in_ad_manager(user_mail):
     """Check if email exists in Ad Manager using user's own credentials"""
     try:
-        # Use user's own credentials to check Ad Manager
-        client_result = get_user_ad_manager_client(user_mail)
+        # Use user's own credentials to check Ad Manager (skip network verification to avoid recursion)
+        client_result = get_user_ad_manager_client(user_mail, skip_network_verification=True)
         if not client_result['status']:
             return {
                 'status': False,
@@ -3394,23 +3410,16 @@ def get_user_adx_credentials(user_mail):
             'error': f'Error mengambil kredensial: {str(e)}'
         }
 
-def get_user_ad_manager_client(user_mail):
+def get_user_ad_manager_client(user_mail, skip_network_verification=False):
     """Get Ad Manager client using user's credentials"""
     try:
-        print(f"[DEBUG] Raw user_mail adalah: {user_mail}")
         # Ambil kredensial user dengan fungsi yang aman
-        creds_result = get_user_adx_credentials(user_mail)
-
-        if not creds_result['status']:
-            return creds_result
-        
+        creds_result = get_user_adx_credentials(user_mail=user_mail)
         credentials = creds_result['data']
-        
         # Pastikan semua kredensial dalam format string yang benar
         client_id = str(credentials.get('google_oauth2_client_id', '')).strip()
         client_secret = str(credentials.get('google_oauth2_client_secret', '')).strip()
         refresh_token = str(credentials.get('google_ads_refresh_token', '')).strip()
-        
         # Ambil network_code dari kredensial
         network_code = None
         try:
@@ -3423,14 +3432,12 @@ def get_user_ad_manager_client(user_mail):
                 'status': False,
                 'error': f'Format network code tidak valid atau tidak ada: {str(e)}'
             }
-        
         # Validate required credentials for Ad Manager (no developer_token needed)
         if not all([client_id, client_secret, refresh_token]):
             return {
                 'status': False,
                 'error': 'Missing required credentials for Ad Manager client (client_id, client_secret, refresh_token)'
             }
-
         # Create YAML content as string to avoid encoding issues
         # Ad Manager YAML config does NOT include developer_token
         yaml_content = f"""ad_manager:
@@ -3441,19 +3448,25 @@ def get_user_ad_manager_client(user_mail):
   network_code: {network_code}
 use_proto_plus: true
 """
-
         # Write to temporary file with explicit encoding
         yaml_file = tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False, encoding='utf-8')
         yaml_file.write(yaml_content)
         yaml_file.close()
-
         try:
             # Load client with error handling
             client = ad_manager.AdManagerClient.LoadFromStorage(yaml_file.name)
-            
             # Apply patches to this specific client instance to handle data type conversion issues
-            from management.googleads_patch_v2 import apply_all_patches
             apply_all_patches(client)
+            
+            # Skip network verification if requested to avoid recursion
+            if skip_network_verification:
+                # Cleanup
+                os.unlink(yaml_file.name)
+                return {
+                    'status': True,
+                    'client': client,
+                    'credentials': credentials
+                }
             
             # Attempt to verify accessible networks and auto-correct network_code if needed
             try:
@@ -3525,15 +3538,21 @@ use_proto_plus: true
                         'error': f'Network code {network_code} is not accessible by user {user_mail}. Available networks: {accessible_codes}'
                     }
             except Exception as net_err:
-                msg = str(net_err)
-                if 'NO_NETWORKS_TO_ACCESS' in msg or 'No networks to access' in msg:
+                error_msg = str(net_err).lower()
+                if 'unauthorized' in error_msg or 'forbidden' in error_msg:
+                    print(f"[WARNING] OAuth error during network verification for {user_mail}: {net_err}")
+                    # Continue with client creation despite OAuth error
+                    # The patches will handle individual service calls
+                elif 'NO_NETWORKS_TO_ACCESS' in str(net_err) or 'No networks to access' in str(net_err):
                     if os.path.exists(yaml_file.name):
                         os.unlink(yaml_file.name)
                     return {
                         'status': False,
                         'error': 'AuthenticationError.NO_NETWORKS_TO_ACCESS: The OAuth user has no Ad Manager networks. Invite the Google account to your Ad Manager network and ensure the correct network_code is stored.'
                     }
-                # Otherwise, continue; some networks endpoints may be unavailable depending on version
+                else:
+                    print(f"[WARNING] Network verification failed for {user_mail}: {net_err}")
+                    # Continue; some networks endpoints may be unavailable depending on version
             
             # Cleanup
             os.unlink(yaml_file.name)
