@@ -34,13 +34,11 @@ $().ready(function () {
     
     $('#btn_oauth_setup').click(function (e) {
         e.preventDefault();
-        
         // Auto-fill user mail from current user data
         var currentUserMail = $('#user_mail').text();
         if (currentUserMail && currentUserMail !== '-') {
-            $('#oauth_user_mail').val(currentUserMail);
+            $('#user_mail').val(currentUserMail);
         }
-        
         $('#oauthModal').modal('show');
     });
     
@@ -217,22 +215,10 @@ function generateRefreshToken() {
 }
 
 function saveOAuthCredentials() {
-    console.log('saveOAuthCredentials function called');
-    
     var clientId = $('#client_id').val();
     var clientSecret = $('#client_secret').val();
-    var networkCode = $('#network_code').val();
-    var userMail = $('#oauth_user_mail').val();
-    
-    console.log('Client ID value:', clientId);
-    console.log('Client Secret value:', clientSecret);
-    console.log('Network Code value:', networkCode);
-    console.log('User Mail value:', userMail);
-    console.log('Client ID length:', clientId ? clientId.length : 'null/undefined');
-    console.log('Client Secret length:', clientSecret ? clientSecret.length : 'null/undefined');
-    console.log('Network Code length:', networkCode ? networkCode.length : 'null/undefined');
-    console.log('User Mail length:', userMail ? userMail.length : 'null/undefined');
-    
+    var networkCode = $('#network_code_input').val();
+    var userMail = $('#user_mail_input').val();
     if (!clientId || !clientSecret || !networkCode || !userMail) {
         console.log('Validation failed - missing fields');
         showErrorMessage('Please fill in all OAuth credentials fields.');
@@ -260,7 +246,7 @@ function saveOAuthCredentials() {
                 showSuccessMessage('OAuth credentials saved successfully!');
                 $('#oauthModal').modal('hide');
                 // Clear form
-                $('#client_id, #client_secret, #network_code, #oauth_user_mail').val('');
+                $('#client_id, #client_secret, #network_code, #user_mail').val('');
             } else {
                 var errorMsg = response && response.error ? response.error : 'Unknown error occurred';
                 showErrorMessage('Error saving OAuth credentials: ' + errorMsg);

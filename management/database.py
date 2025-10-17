@@ -1122,6 +1122,90 @@ class data_mysql:
                 'error': f'Failed to update OAuth credentials: {str(e)}'
             }
 
+    def update_oauth_credentials_exist(self, user_id, user_mail, client_id, client_secret, ads_client_id, ads_client_secret, network_code):
+        """
+        Update kredensial OAuth (client_id dan client_secret) untuk user tertentu
+        """
+        sql = '''
+            UPDATE app_oauth_credentials 
+            SET google_oauth2_client_id = %s,
+                google_oauth2_client_secret = %s,
+                google_ads_client_id = %s,
+                google_ads_client_secret = %s,
+                google_ad_manager_network_code = %s,
+                updated_at = NOW()
+            WHERE user_id = %s
+            AND user_mail = %s
+        '''
+        try:
+            if not self.execute_query(sql, (client_id, client_secret, ads_client_id, ads_client_secret, network_code, user_id, user_mail)):
+                raise pymysql.Error("Failed to update OAuth credentials")
+            
+            if not self.commit():
+                raise pymysql.Error("Failed to commit OAuth credentials update")
+            
+            return {
+                'status': True,
+                'message': f'Successfully updated OAuth credentials for {user_mail}'
+            }
+        except pymysql.Error as e:
+            return {
+                'status': False,
+                'error': f'Failed to update OAuth credentials: {str(e)}'
+            }
+
+    def insert_oauth_credentials(self, user_id, user_mail, client_id, client_secret, ads_client_id, ads_client_secret, network_code):
+        """
+        Insert kredensial OAuth (client_id dan client_secret) untuk user tertentu
+        """
+        sql = '''
+            INSERT INTO app_oauth_credentials (
+                user_id, user_mail, google_oauth2_client_id, google_oauth2_client_secret,
+                google_ads_client_id, google_ads_client_secret, google_ad_manager_network_code, developer_token,
+                is_active, created_at, updated_at
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, '-', '1', NOW(), NOW()
+            )
+        '''
+        try:
+            if not self.execute_query(sql, (user_id, user_mail, client_id, client_secret, ads_client_id, ads_client_secret, network_code)):
+                raise pymysql.Error("Failed to insert OAuth credentials")
+            
+            if not self.commit():
+                raise pymysql.Error("Failed to commit OAuth credentials insert")
+            
+            return {
+                'status': True,
+                'message': f'Successfully inserted OAuth credentials for {user_mail}'
+            }
+        except pymysql.Error as e:
+            return {
+                'status': False,
+                'error': f'Failed to insert OAuth credentials: {str(e)}'
+            }
+
+    def check_oauth_credentials_exist(self, user_id, user_mail):
+        """
+        Memeriksa apakah kredensial OAuth sudah ada untuk user tertentu
+        """
+        sql = '''
+            SELECT COUNT(*) AS total 
+            FROM app_oauth_credentials 
+            WHERE user_id = %s 
+            AND user_mail = %s
+        '''
+        try:
+            if not self.execute_query(sql, (user_id, user_mail)):
+                raise pymysql.Error("Failed to check OAuth credentials existence")
+            
+            result = self.cur_hris.fetchone()
+            return result['total'] 
+        except pymysql.Error as e:
+            return {
+                'status': False,
+                'error': f'Failed to check OAuth credentials existence: {str(e)}'
+            }
+
     def update_refresh_token(self, user_mail, refresh_token):
         """
         Update refresh token untuk user tertentu

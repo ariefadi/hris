@@ -2065,9 +2065,9 @@ class SaveOAuthCredentialsView(View):
             client_secret = req.POST.get('client_secret')
             ads_client_id = req.POST.get('client_id')
             ads_client_secret = req.POST.get('client_secret')
-            network_code = req.POST.get('network_code')
-            user_mail = req.POST.get('user_mail')  # Ubah dari user_mail ke user_mail
-            
+            network_code = req.POST.get('network_code')  # Ubah dari network_code ke network_code_input
+            user_mail = req.POST.get('user_mail')  # Ubah dari user_mail ke user_mail_input
+            user_id = req.session.get('hris_admin', {}).get('user_id')  # Ubah dari user_id ke user_id_input
             # Debug logging
             print(f"DEBUG OAuth Save - Received data:")
             print(f"  client_id: {client_id}")
@@ -2085,7 +2085,12 @@ class SaveOAuthCredentialsView(View):
             # Update OAuth credentials di database
             db = data_mysql()
             print(f"DEBUG OAuth Save - Calling update_oauth_credentials with email: {user_mail}")  # Update log message
-            result = db.update_oauth_credentials(user_mail, client_id, client_secret, ads_client_id, ads_client_secret, network_code)  # Update parameter
+            is_exist = db.check_oauth_credentials_exist(user_id, user_mail)  # Update parameter
+            print(f"DEBUG OAuth Save - check_oauth_credentials_exist result: {is_exist}")
+            if is_exist == 1:
+                result = db.update_oauth_credentials_exist(user_id, user_mail, client_id, client_secret, ads_client_id, ads_client_secret, network_code)  # Update parameter
+            else:
+                result = db.insert_oauth_credentials(user_id, user_mail, client_id, client_secret, ads_client_id, ads_client_secret, network_code)  # Update parameter
             print(f"DEBUG OAuth Save - Database result: {result}")
             
             if result['status']:
