@@ -108,11 +108,11 @@ class OAuthCredentialsMiddleware:
                 'prompt': 'consent',
                 'include_granted_scopes': 'true'
             }
-            # Scope tambahan jika diperlukan (mis. Google Ads)
+            # Scope tambahan jika diperlukan (mis. Google Ad Manager)
             if not getattr(settings, 'SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE', None):
                 settings.SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
                     'openid', 'email', 'profile',
-                    'https://www.googleapis.com/auth/adwords'
+                    'https://www.googleapis.com/auth/dfp'
                 ]
         except Exception:
             # Jangan blok request jika settings tidak bisa di-set

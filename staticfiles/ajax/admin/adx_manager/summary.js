@@ -22,9 +22,6 @@ $().ready(function () {
         }
         alert(msg);
     };
-    $("#overlay").show();
-    // Ensure date inputs use YYYY-MM-DD format and disable any global datepicker
-    $('#tanggal_dari, #tanggal_sampai').datepicker('destroy');
     // Configure datepicker with YYYY-MM-DD format
     $('#tanggal_dari').datepicker({
         format: 'yyyy-mm-dd',
@@ -39,7 +36,6 @@ $().ready(function () {
         todayHighlight: true,
         orientation: 'bottom auto'
     });
-
     // Initialize Select2 for site filter
     $('#site_filter').select2({
         placeholder: '-- Pilih Domain --',
@@ -48,36 +44,25 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     });
-
     // Set default dates (last 7 days)
     var today = new Date();
     var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     $('#tanggal_dari').val(lastWeek.toISOString().split('T')[0]);
     $('#tanggal_sampai').val(today.toISOString().split('T')[0]);
-
     $('#btn_load_data').click(function (e) {
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
         if (tanggal_dari != "" && tanggal_sampai != "") {
-            $("#overlay").show();
             load_adx_summary_data(tanggal_dari, tanggal_sampai);
             load_adx_traffic_country_data();
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
         }
     });
-
-    // Auto load data on page load
-    var tanggal_dari = $("#tanggal_dari").val();
-    var tanggal_sampai = $("#tanggal_sampai").val();
-    if (tanggal_dari != "" && tanggal_sampai != "") {
-        load_adx_summary_data(tanggal_dari, tanggal_sampai);
-        load_adx_traffic_country_data(tanggal_dari, tanggal_sampai);
-    }
-
     // Load sites list on page load
     loadSitesList();
     function loadSitesList() {
+        $("#overlay").show();
         $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
@@ -87,6 +72,7 @@ $().ready(function () {
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
             },
             success: function(response) {
+                $("#overlay").hide();
                 if (response.status) {
                     var select_site = $("#site_filter");
                     select_site.empty();
@@ -95,13 +81,13 @@ $().ready(function () {
                     });
                     // Jangan trigger change di sini untuk menghindari loop
                     select_site.trigger('change');
-                    load_adx_traffic_account_data();
                 } 
             },
             error: function(xhr, status, error) {
                 console.error('Error loading sites:', error);
                 console.error('Status:', status);
                 console.error('Response:', xhr.responseText);
+                $("#overlay").hide();
             }
         });
     }
@@ -110,6 +96,7 @@ $().ready(function () {
     function load_adx_traffic_country_data() {
         var startDate = $('#tanggal_dari').val();
         var endDate = $('#tanggal_sampai').val();
+        $("#overlay").show();
         // AJAX request
         $.ajax({
             url: '/management/admin/page_adx_traffic_country',
@@ -122,6 +109,7 @@ $().ready(function () {
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
             },
             success: function(response) {
+                $("#overlay").hide();
                 if (response && response.status) {
                     // Generate charts if data available
                     if (response.data && response.data.length > 0) {
@@ -142,25 +130,25 @@ $().ready(function () {
                 } else {
                     var errorMsg = response.error || 'Terjadi kesalahan yang tidak diketahui';
                     console.error('[DEBUG] Response error:', errorMsg);
-                    $("#overlay").hide();
                     alert('Error: ' + errorMsg);
+                    $("#overlay").hide();
                 }
             },
             error: function(xhr, status, error) {
-                $("#overlay").hide();
                 console.error('[DEBUG] AJAX Error:', {
                     xhr: xhr,
                     status: status,
                     error: error
                 });
                 report_eror('Terjadi kesalahan saat memuat data: ' + error);
+                $("#overlay").hide();
             }
         });
     }
-
 });
 
 function load_adx_summary_data(tanggal_dari, tanggal_sampai) {
+    $("#overlay").show();
     $.ajax({
         url: '/management/admin/page_adx_summary',
         type: 'GET',
@@ -172,16 +160,15 @@ function load_adx_summary_data(tanggal_dari, tanggal_sampai) {
             'X-CSRFToken': csrftoken
         },
         success: function (response) {
+            $("#overlay").hide();
             if (response && response.status) {
                 // Show summary boxes
                 $("#summary_boxes").show();
-
                 // Update summary boxes
                 $("#total_clicks").text(formatNumber(response.summary.total_clicks));
                 $("#total_revenue").text('Rp ' + formatNumber(response.summary.total_revenue, 0));
                 $("#avg_cpc").text('Rp ' + formatNumber(response.summary.avg_cpc, 2));
                 $("#avg_ctr").text(formatNumber(response.summary.avg_ctr, 2) + '%');
-
                 // Show and update today traffic data
                 if (response.today_traffic) {
                     $("#today_traffic").show();
@@ -190,7 +177,6 @@ function load_adx_summary_data(tanggal_dari, tanggal_sampai) {
                     $("#today_revenue").text('Rp ' + formatNumber(response.today_traffic.revenue, 0));
                     $("#today_ctr").text(formatNumber(response.today_traffic.ctr, 2) + '%');
                 }
-
                 // Create revenue line chart
                 if (response.data && response.data.length > 0) {
                     // Check if Highcharts is loaded before creating chart
@@ -208,18 +194,16 @@ function load_adx_summary_data(tanggal_dari, tanggal_sampai) {
                         }, 1000);
                     }
                 }
-
                 // Hide overlay after all data is loaded
                 $("#overlay").hide();
-
             } else {
-                $("#overlay").hide();
                 alert('Error: ' + (response && response.error ? response.error : 'Unknown error occurred'));
+                $("#overlay").hide();
             }
         },
         error: function (jqXHR, textStatus, errorThrown) {
-            $("#overlay").hide();
             report_eror(jqXHR, textStatus);
+            $("#overlay").hide();
         }
     });
 }
@@ -229,16 +213,13 @@ function create_revenue_line_chart(data) {
         console.log('No data available for chart');
         return;
     }
-
     // Check if Highcharts is available
     if (typeof Highcharts === 'undefined') {
         console.error('Highcharts is not defined. Cannot create chart.');
         return;
     }
-
     // Group data by date and sum revenue
     var dailyRevenue = {};
-
     data.forEach(function (item) {
         var date = item.date;
         if (!dailyRevenue[date]) {
@@ -246,13 +227,11 @@ function create_revenue_line_chart(data) {
         }
         dailyRevenue[date] += parseFloat(item.revenue || 0);
     });
-
     // Convert to arrays for Highcharts
     var dates = Object.keys(dailyRevenue).sort();
     var revenues = dates.map(function (date) {
         return dailyRevenue[date];
     });
-
     // Format dates for display
     var formattedDates = dates.map(function (date) {
         var d = new Date(date + 'T00:00:00');
@@ -261,7 +240,6 @@ function create_revenue_line_chart(data) {
             month: 'short'
         });
     });
-
     // Create line chart for daily revenue
     Highcharts.chart('revenue_chart', {
         chart: {
@@ -318,33 +296,26 @@ function create_revenue_line_chart(data) {
         }
     });
 }
-
 // Fungsi untuk generate charts
 function generateTrafficCountryCharts(data) {
     if (!data || data.length === 0) return;
-
     // Sort data by impressions and take top 10
     var sortedData = data.sort(function (a, b) {
         return (b.impressions || 0) - (a.impressions || 0);
     }).slice(0, 10);
-
     // Prepare data for charts
     var countries = sortedData.map(function (item) {
         return item.country_name || 'Unknown';
     });
-
     var impressions = sortedData.map(function (item) {
         return item.impressions || 0;
     });
-
     var clicks = sortedData.map(function (item) {
         return item.clicks || 0;
     });
-
     var revenue = sortedData.map(function (item) {
         return item.revenue || 0;
     });
-
     // Create charts if Chart.js is available
     if (typeof Chart !== 'undefined') {
         // Impressions Chart
@@ -372,7 +343,6 @@ function generateTrafficCountryCharts(data) {
                 }
             });
         }
-
         // Revenue Chart
         var ctx2 = document.getElementById('revenueChart');
         if (ctx2) {
@@ -399,7 +369,6 @@ function generateTrafficCountryCharts(data) {
         }
     }
 }
-
 function formatDate(dateString) {
     if (!dateString) return 'N/A';
 
@@ -407,15 +376,12 @@ function formatDate(dateString) {
         'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
         'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
     ];
-
     var date = new Date(dateString + 'T00:00:00');
     var day = date.getDate();
     var month = months[date.getMonth()];
     var year = date.getFullYear();
-
     return day + ' ' + month + ' ' + year;
 }
-
 function formatNumber(num, decimals = 0) {
     if (num === null || num === undefined || isNaN(num)) {
         return '0';
@@ -425,7 +391,6 @@ function formatNumber(num, decimals = 0) {
         maximumFractionDigits: decimals
     });
 }
-
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -440,5 +405,4 @@ function getCookie(name) {
     }
     return cookieValue;
 }
-
 const csrftoken = getCookie('csrftoken');

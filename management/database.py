@@ -534,8 +534,8 @@ class data_mysql:
                 }
                 return {'hasil': hasil}
             
-            # Konfigurasi OAuth2 untuk Google Ads API
-            SCOPES = ['https://www.googleapis.com/auth/adwords']
+            # Konfigurasi OAuth2 untuk Google Ad Manager API
+            SCOPES = ['https://www.googleapis.com/auth/dfp']
             
             # Setup OAuth flow
             flow = InstalledAppFlow.from_client_config(
@@ -613,9 +613,8 @@ class data_mysql:
                     "message": "Client ID atau Client Secret tidak ditemukan di database untuk user ini"
                 }
             try:
-                # Konfigurasi OAuth2 untuk Google Ads API dengan credentials dari database
+                # Konfigurasi OAuth2 untuk Google Ad Manager API dengan credentials dari database
                 SCOPES = [
-                    'https://www.googleapis.com/auth/adwords',
                     'https://www.googleapis.com/auth/dfp'
                 ]
                 # Setup OAuth flow dengan credentials dari database

@@ -22,23 +22,19 @@ $().ready(function () {
         }
         alert(msg);
     };
-    
     // Initialize date pickers
     var today = new Date();
     var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    
     $('#tanggal_dari').datepicker({
         format: 'yyyy-mm-dd',
         autoclose: true,
         todayHighlight: true
     }).datepicker('setDate', lastWeek);
-    
     $('#tanggal_sampai').datepicker({
         format: 'yyyy-mm-dd',
         autoclose: true,
         todayHighlight: true
     }).datepicker('setDate', today);
-    
     // Initialize Select2 for site filter
     $('#site_filter').select2({
         placeholder: '-- Pilih Domain --',
@@ -47,17 +43,10 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     });
-
-    // Auto load data on page load
-    var tanggal_dari = $("#tanggal_dari").val();
-    var tanggal_sampai = $("#tanggal_sampai").val();
-    if (tanggal_dari != "" && tanggal_sampai != "") {
-        load_adx_traffic_account_data(tanggal_dari, tanggal_sampai);
-    }
-    
     // Load sites list on page load
     loadSitesList();
     function loadSitesList() {
+        $("#overlay").show();
         $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
@@ -67,6 +56,7 @@ $().ready(function () {
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
             },
             success: function(response) {
+                $("#overlay").hide();
                 if (response.status) {
                     var select_site = $("#site_filter");
                     select_site.empty();
@@ -74,8 +64,7 @@ $().ready(function () {
                         select_site.append(new Option(site, site, false, false));
                     });
                     // Jangan trigger change di sini untuk menghindari loop
-                    // select_site.trigger('change');
-                    load_adx_traffic_account_data();
+                    select_site.trigger('change');
                 } 
             },
             error: function(xhr, status, error) {
@@ -85,11 +74,9 @@ $().ready(function () {
             }
         });
     }
-    
     $('#btn_load_data').click(function (e) {
         load_adx_traffic_account_data();
     });
-    
     // Initialize DataTable
     $('#table_traffic_account').DataTable({
         "paging": true,
@@ -105,7 +92,6 @@ $().ready(function () {
         ]
     });
 });
-
 function load_adx_traffic_account_data() {
     var start_date = $('#tanggal_dari').val();
     var end_date = $('#tanggal_sampai').val();
@@ -132,8 +118,6 @@ function load_adx_traffic_account_data() {
             'X-CSRFToken': csrftoken
         },
         success: function (response) {
-            $("#overlay").hide();
-            
             if (response && response.status) {
                 // Update summary boxes
                 if (response.summary) {
@@ -142,15 +126,12 @@ function load_adx_traffic_account_data() {
                     $("#avg_ecpm").text(formatCurrencyIDR(response.summary.avg_ecpm || 0));
                     $("#avg_ctr").text(formatNumber(response.summary.avg_ctr || 0, 2) + '%');
                     $("#total_revenue").text(formatCurrencyIDR(response.summary.total_revenue || 0));
-                    
                     // Show summary boxes
                     $('#summary_boxes').show();
                 }
-                
                 // Update DataTable
                 var table = $('#table_traffic_account').DataTable();
                 table.clear();
-                
                 if (response.data && response.data.length > 0) {
                     response.data.forEach(function(item) {
                         // Format tanggal ke format Indonesia
@@ -178,21 +159,19 @@ function load_adx_traffic_account_data() {
                         ]);
                     });
                 }
-                
                 table.draw();
-                
                 showSuccessMessage('Traffic data loaded successfully!');
+                $("#overlay").hide();
             } else {
                 alert('Error: ' + (response && response.error ? response.error : 'Unknown error occurred'));
             }
         },
         error: function (jqXHR, textStatus, errorThrown) {
-            $("#overlay").hide();
             report_eror(jqXHR, textStatus);
+            $("#overlay").hide();
         }
     });
 }
-
 function formatNumber(num, decimals = 0) {
     if (num === null || num === undefined) return '0';
     return parseFloat(num).toLocaleString('en-US', {
@@ -200,7 +179,6 @@ function formatNumber(num, decimals = 0) {
         maximumFractionDigits: decimals
     });
 }
-
 // Fungsi untuk format mata uang IDR
 function formatCurrencyIDR(value) {
     // Convert to number, round to remove decimals, then format with Rp
@@ -210,7 +188,6 @@ function formatCurrencyIDR(value) {
     // Round to remove decimals and format with Indonesian number format
     return 'Rp. ' + Math.round(numValue).toLocaleString('id-ID');
 }
-
 function showSuccessMessage(message) {
     var alertHtml = '<div class="alert alert-success alert-dismissible fade show" role="alert">';
     alertHtml += '<i class="bi bi-check-circle"></i> ' + message;
@@ -227,7 +204,6 @@ function showSuccessMessage(message) {
         });
     }, 3000);
 }
-
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -242,5 +218,4 @@ function getCookie(name) {
     }
     return cookieValue;
 }
-
 const csrftoken = getCookie('csrftoken');

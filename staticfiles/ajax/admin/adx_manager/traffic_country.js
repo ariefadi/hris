@@ -32,18 +32,16 @@ $(document).ready(function() {
         theme: 'bootstrap4',
         multiple: true
     });
-
-    // Tampilkan overlay loading
-    $('#overlay').show();
-
     // Event handler untuk tombol Load
     $('#btn_load_data').click(function() {
         load_adx_traffic_country_data();
     });
 
-    // Load data situs untuk select2
+    // Load sites list on page load
     loadSitesList();
     function loadSitesList() {
+        // Tampilkan overlay loading
+        $('#overlay').show();
         $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
@@ -53,14 +51,15 @@ $(document).ready(function() {
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
             },
             success: function(response) {
+                // Sembunyikan overlay loading setelah data dimuat
+                $('#overlay').hide();
                 if (response.status) {
-                    var select_site = $("#site_filter").val();
+                    var select_site = $("#site_filter");
                     select_site.empty();
                     $.each(response.data, function(index, site) {
                         select_site.append(new Option(site, site, false, false));
                     });
                     select_site.trigger('change');
-                    load_adx_traffic_country_data();
                 } 
             },
             error: function(xhr, status, error) {
@@ -75,6 +74,8 @@ $(document).ready(function() {
     load_country_options();
     // Fungsi untuk memuat opsi negara ke select2
     function load_country_options() {
+        // Tampilkan overlay loading
+        $('#overlay').show();
         $.ajax({
             url: '/management/admin/get_countries_adx',
             type: 'GET',
@@ -84,21 +85,15 @@ $(document).ready(function() {
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
             },
             success: function(response) {
+                // Sembunyikan overlay loading setelah data dimuat
+                $('#overlay').hide();
                 if(response.status) {
                     var select_country = $('#country_filter');
                     select_country.empty();
-                    
                     $.each(response.countries, function(index, country) {
                         select_country.append(new Option(country.name, country.code, false, false));
                     });
-                    
                     select_country.trigger('change');
-                    
-                    // Load data awal setelah country options dimuat
-                    var today = new Date();
-                    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-                    
-                    load_adx_traffic_country_data();
                 }
             },
             error: function(xhr, status, error) {
@@ -122,7 +117,6 @@ $(document).ready(function() {
         // Convert to number, round to remove decimals, then format with Rp
         let numValue = parseFloat(value.toString().replace(/[$,]/g, ''));
         if (isNaN(numValue)) return value;
-        
         // Round to remove decimals and format with Indonesian number format
         return 'Rp ' + Math.round(numValue).toLocaleString('id-ID');
     }
@@ -149,10 +143,12 @@ $(document).ready(function() {
         }
         // Tampilkan overlay loading
         $('#overlay').show();
-        // Destroy existing DataTable if exist
+        // Destroy existing DataTable if exists
         if ($.fn.DataTable.isDataTable('#table_traffic_country')) {
             $('#table_traffic_country').DataTable().destroy();
         }
+        // Tampilkan overlay loading
+        $('#overlay').show();
         // AJAX request
         $.ajax({
             url: '/management/admin/page_adx_traffic_country',
@@ -167,7 +163,6 @@ $(document).ready(function() {
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
             },
             success: function(response) {
-                $('#overlay').hide();
                 if (response && response.status) {
                     // Update summary boxes
                     updateSummaryBoxes(response.summary);
@@ -177,6 +172,7 @@ $(document).ready(function() {
                     // Generate charts if data available
                     generateTrafficCountryCharts(response.data);
                     $('#charts_section').show();
+                    $('#overlay').hide();
                 } else {
                     var errorMsg = response.error || 'Terjadi kesalahan yang tidak diketahui';
                     console.error('[DEBUG] Response error:', errorMsg);
@@ -372,4 +368,5 @@ $(document).ready(function() {
         console.error('Error:', message);
         alert(message);
     }
+
 });
