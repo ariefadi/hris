@@ -2641,7 +2641,6 @@ class RoiTrafficPerCountryDataView(View):
             data_facebook = fetch_data_insights_by_country_filter_campaign_roi(rs_account, str(start_date_formatted), str(end_date_formatted), selected_sites) 
             # Proses penggabungan data AdX dan Facebook
             result = process_roi_traffic_country_data(data_adx, data_facebook)
-            print(f" Hasil Akhir: {result}")
             
             # Filter hasil berdasarkan negara yang dipilih jika ada
             if countries_list and result.get('status') and result.get('data'):
@@ -2748,25 +2747,25 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                 ecpm = (revenue / impressions * 1000) if impressions > 0 else 0
                 # ROI nett: ((revenue - total_costs) / total_costs * 100)
                 roi = ((revenue - total_costs) / total_costs * 100) if total_costs > 0 else 0
+                
                 # Tambahkan ke hasil
-                combined_data.append({
-                    'country': country_name,
-                    'country_code': country_code,
-                    'impressions': impressions,
-                    'spend': round(spend, 2),
-                    'other_costs': round(other_costs, 2),
-                    'total_costs': round(total_costs, 2),
-                    'clicks': clicks,
-                    'revenue': round(revenue, 2),
-                    'ctr': round(ctr, 2),
-                    'cpc': round(cpc, 4),
-                    'ecpm': round(ecpm, 2),
-                    'roi': round(roi, 2)
-                })
-        
+                if spend > 0 or roi > 0:
+                    combined_data.append({
+                        'country': country_name,
+                        'country_code': country_code,
+                        'impressions': impressions,
+                        'spend': round(spend, 2),
+                        'other_costs': round(other_costs, 2),
+                        'total_costs': round(total_costs, 2),
+                        'clicks': clicks,
+                        'revenue': round(revenue, 2),
+                        'ctr': round(ctr, 2),
+                        'cpc': round(cpc, 4),
+                        'ecpm': round(ecpm, 2),
+                        'roi': round(roi, 2)
+                    })
         # Urutkan berdasarkan ROI tertinggi
         combined_data.sort(key=lambda x: x['roi'], reverse=True)
-    
         return {
             'status': True,
             'data': combined_data,
