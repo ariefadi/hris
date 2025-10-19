@@ -2743,11 +2743,10 @@ def fetch_adx_account_data():
     """Fetch AdX account data (legacy function for backward compatibility)"""
     try:
         client = get_ad_manager_client()
+        print(f"[DEBUG] Ad Manager client initialized: {client}")
         if not client:
             return {'status': False, 'error': 'Failed to initialize client'}
-        
         network_service = client.GetService('NetworkService', version='v202502')
-        
         # Get current network with multiple fallback approaches
         try:
             # First attempt: Direct call
@@ -3022,8 +3021,6 @@ def fetch_user_adx_account_data(user_mail):
         }
         
     except Exception as e:
-        print(f"[ERROR] fetch_user_adx_account_data: {str(e)}")
-        
         # Handle specific GoogleAds library bug
         if "argument should be integer or bytes-like object, not 'str'" in str(e):
             print(f"[WARNING] GoogleAds library bug detected for {user_mail}. Returning basic data as workaround.")

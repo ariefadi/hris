@@ -1823,7 +1823,6 @@ class AdxUserAccountDataView(View):
         try:
             # Ambil user_id dari session
             user_id = req.session.get('hris_admin', {}).get('user_id')
-            
             # Ambil email user dari database berdasarkan user_id
             user_data = data_mysql().get_user_by_id(user_id)
             if not user_data['status'] or not user_data['data']:
@@ -1831,12 +1830,10 @@ class AdxUserAccountDataView(View):
                     'status': False,
                     'error': 'User data tidak ditemukan'
                 })
-                
             user_mail = user_data['data']['user_mail']
-            
             # Fetch comprehensive account data using user's credentials
             result = fetch_user_adx_account_data(user_mail)
-            
+            print(f"fetch_user_adx_account_data returned: {result}")
             # Enhance error message for better user feedback
             if not result.get('status', False):
                 error_msg = result.get('error', 'Unknown error')
