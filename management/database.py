@@ -1,4 +1,5 @@
 
+from google.auth import credentials
 import pymysql.cursors
 import json
 import os
@@ -522,61 +523,72 @@ class data_mysql:
         Generate refresh token baru menggunakan Google OAuth2 dan simpan ke database
         """
         try:
-            # Ambil credentials dari settings Django
-            client_id = getattr(settings, 'SOCIAL_AUTH_GOOGLE_OAUTH2_KEY', None)
-            client_secret = getattr(settings, 'SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET', None)
-            
-            if not client_id or not client_secret:
-                hasil = {
+            # Ambil credentials dari database
+            user_data = self.get_user_by_email(user_mail)
+            if not user_data['status'] or not user_data['data']:
+                return {
                     "status": False,
-                    "refresh_token": None,
-                    "message": "Google OAuth2 credentials tidak ditemukan di settings"
+                    "message": "User tidak ditemukan dalam database"
                 }
-                return {'hasil': hasil}
-            
-            # Konfigurasi OAuth2 untuk Google Ad Manager API
-            SCOPES = ['https://www.googleapis.com/auth/dfp']
-            
-            # Setup OAuth flow
-            flow = InstalledAppFlow.from_client_config(
-                {
+            user_info = user_data['data']
+            client_id = user_info.get('client_id')
+            client_secret = user_info.get('client_secret')
+            if not client_id or not client_secret:
+                return {
+                    "status": False,
+                    "message": "Client ID atau Client Secret tidak ditemukan di database untuk user ini"
+                }
+            try:
+                # Konfigurasi OAuth2 untuk Google Ad Manager API
+                SCOPES = [
+                    'https://www.googleapis.com/auth/dfp'
+                ]
+                # Setup OAuth flow dengan credentials dari database
+                client_config = {
                     "installed": {
                         "client_id": client_id,
                         "client_secret": client_secret,
                         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                         "token_uri": "https://oauth2.googleapis.com/token",
-                        "redirect_uris": ["urn:ietf:wg:oauth:2.0:oob", "http://localhost"]
+                        "redirect_uris": [
+                            "https://kiwipixel.com/accounts/complete/google-oauth2/",
+                            "http://127.0.0.1:8000/accounts/complete/google-oauth2/",
+                            "http://127.0.0.1:8001/accounts/complete/google-oauth2/",
+                            "http://localhost:8000/accounts/complete/google-oauth2/",
+                            "http://localhost:8001/accounts/complete/google-oauth2/",
+                        ]
                     }
-                },
-                SCOPES
-            )
-            
-            # Jalankan OAuth flow
-            credentials = flow.run_local_server(port=8000, open_browser=True)
-            
-            if credentials.refresh_token:
-                # Simpan refresh token ke database
-                update_result = self.update_refresh_token(user_mail, credentials.refresh_token)
-                
-                if update_result['hasil']['status']:
-                    hasil = {
-                        "status": True,
-                        "refresh_token": credentials.refresh_token,
-                        "message": f"Refresh token berhasil di-generate dan disimpan untuk {user_mail}"
-                    }
+                }
+                flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
+                # Jalankan OAuth flow
+                credentials = flow.run_local_server(port=8000)
+                if credentials.refresh_token:
+                    # Simpan refresh token ke database
+                    update_result = self.update_refresh_token(user_mail, credentials.refresh_token)
+                    
+                    if update_result['hasil']['status']:
+                        hasil = {
+                            "status": True,
+                            "refresh_token": credentials.refresh_token,
+                            "message": f"Refresh token berhasil di-generate dan disimpan untuk {user_mail}"
+                        }
+                    else:
+                        hasil = {
+                            "status": False,
+                            "refresh_token": credentials.refresh_token,
+                            "message": f"Refresh token berhasil di-generate tapi gagal disimpan: {update_result['hasil']['message']}"
+                        }
                 else:
                     hasil = {
                         "status": False,
-                        "refresh_token": credentials.refresh_token,
-                        "message": f"Refresh token berhasil di-generate tapi gagal disimpan: {update_result['hasil']['message']}"
+                        "refresh_token": None,
+                        "message": "Gagal mendapatkan refresh token dari Google OAuth2"
                     }
-            else:
-                hasil = {
+            except ImportError:
+                return {
                     "status": False,
-                    "refresh_token": None,
-                    "message": "Gagal mendapatkan refresh token dari Google OAuth2"
+                    "message": "google-auth-oauthlib tidak terinstall. Jalankan: pip install google-auth-oauthlib"
                 }
-                
         except ImportError:
             hasil = {
                 "status": False,
@@ -624,12 +636,18 @@ class data_mysql:
                         "client_secret": client_secret,
                         "auth_uri": "https://accounts.google.com/o/oauth2/auth",
                         "token_uri": "https://oauth2.googleapis.com/token",
-                        "redirect_uris": ["http://localhost", "http://127.0.0.1", "http://localhost:8080", "http://127.0.0.1:8080"]
+                        "redirect_uris": [
+                            "https://kiwipixel.com/accounts/complete/google-oauth2/",
+                            "http://127.0.0.1:8000/accounts/complete/google-oauth2/",
+                            "http://127.0.0.1:8001/accounts/complete/google-oauth2/",
+                            "http://localhost:8000/accounts/complete/google-oauth2/",
+                            "http://localhost:8001/accounts/complete/google-oauth2/",
+                        ]
                     }
                 }
                 flow = InstalledAppFlow.from_client_config(client_config, SCOPES)
                 # Jalankan OAuth flow dengan port dinamis untuk menghindari konflik
-                credentials = flow.run_local_server(port=0)
+                credentials = flow.run_local_server(port=8000)
                 refresh_token = credentials.refresh_token
                 if refresh_token:
                     # Simpan refresh token ke database

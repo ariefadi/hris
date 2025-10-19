@@ -104,12 +104,6 @@ urlpatterns = [
     # path('admin/adsense_traffic_campaign', views.AdsenseTrafficPerCampaignView.as_view(), name='adsense_traffic_campaign'),
     # path('admin/page_adsense_traffic_campaign', views.AdsenseTrafficPerCampaignDataView.as_view()),
 
-    # REFRESH TOKEN MANAGEMENT
-    path('admin/refresh_token', views.RefreshTokenManagement.as_view(), name='refresh_token_management'),
-    path('admin/api/check_refresh_token', views.CheckRefreshTokenAPI.as_view(), name='check_refresh_token_api'),
-    path('admin/api/generate_refresh_token', views.GenerateRefreshTokenAPI.as_view(), name='generate_refresh_token_api'),
-    path('admin/api/get_all_users_refresh_token', views.GetAllUsersRefreshTokenAPI.as_view(), name='get_all_users_refresh_token_api'),
-
     # Dynamic OAuth Management URLs
     path('admin/oauth/management/', oauth_management_dashboard, name='oauth_management_dashboard'),
     path('admin/oauth/status/', oauth_status_api, name='oauth_status_api'),

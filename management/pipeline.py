@@ -44,50 +44,6 @@ def set_hris_session(backend, user, response, request, *args, **kwargs):
 
     if db_check['status'] and db_check['exists']:
         user_data = db_check['data']
-        
-        # Get location data
-        try:
-            response_ip = requests.get("https://ipinfo.io/json")
-            data_ip = response_ip.json()
-            lat_long = data_ip["loc"].split(",")
-            ip_address = data_ip.get("ip")
-            geocode = Nominatim(user_agent="hris_trendHorizone")
-            location = geocode.reverse((lat_long), language='id')
-        except Exception as e:
-            print(f"[DEBUG] Error getting location: {e}")
-            lat_long = [None, None]
-            ip_address = request.META.get('REMOTE_ADDR')
-            location = None
-
-        # Insert login record
-        login_id = str(uuid.uuid4())
-        data_insert = {
-            'login_id': login_id,
-            'user_id': user_data['user_id'],
-            'login_date': datetime.now().strftime('%y-%m-%d %H:%M:%S'),
-            'logout_date': None,
-            'ip_address': ip_address,
-            'user_agent': request.META.get('HTTP_USER_AGENT', ''),
-            'latitude': lat_long[0] if len(lat_long) > 0 else None,
-            'longitude': lat_long[1] if len(lat_long) > 1 else None,
-            'lokasi': location.address if location and location.address else None,
-            'mdb': user_data['user_id']
-        }
-        data_mysql().insert_login(data_insert)
-        
-        # Set session hris_admin sama seperti login biasa
-        request.session['hris_admin'] = {
-            'login_id': login_id,
-            'user_id': user_data['user_id'],
-            'user_name': user_data['user_name'],
-            'user_pass': '',  # Kosong untuk OAuth login
-            'user_alias': user_data['user_alias'],
-            'user_mail': user_data['user_mail']  # Tambahkan user_mail ke session
-        }
-        # Force save session
-        request.session.save()
-        print(f"[DEBUG] Session hris_admin set successfully for user: {user_data['user_alias']}")
-
         # Coba simpan refresh_token jika tersedia dari response
         try:
             refresh_token = None
