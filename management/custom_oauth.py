@@ -2,11 +2,21 @@
 from social_core.backends.google import GoogleOAuth2
 from social_core.exceptions import AuthMissingParameter
 import logging
+from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
 class CustomGoogleOAuth2(GoogleOAuth2):
     """Custom Google OAuth2 backend dengan state handling yang diperbaiki"""
+    
+    def get_scope(self):
+        """Override get_scope to ensure we use the complete scopes from settings"""
+        # Always use scopes from settings which includes Ad Manager scope
+        scope = getattr(settings, 'SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE', [
+            'openid', 'email', 'profile', 'https://www.googleapis.com/auth/dfp'
+        ])
+        logger.debug(f"Using OAuth scopes: {scope}")
+        return scope
     
     def validate_state(self):
         """Override validate_state untuk handling yang lebih baik"""

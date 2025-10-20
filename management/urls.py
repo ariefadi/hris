@@ -104,18 +104,13 @@ urlpatterns = [
     # path('admin/adsense_traffic_campaign', views.AdsenseTrafficPerCampaignView.as_view(), name='adsense_traffic_campaign'),
     # path('admin/page_adsense_traffic_campaign', views.AdsenseTrafficPerCampaignDataView.as_view()),
 
-    # Dynamic OAuth Management URLs
+    # OAuth Management - menggunakan oauth_views_package untuk konsistensi
     path('admin/oauth/management/', oauth_management_dashboard, name='oauth_management_dashboard'),
     path('admin/oauth/status/', oauth_status_api, name='oauth_status_api'),
     path('admin/oauth/generate-url/', generate_oauth_url_api, name='generate_oauth_url_api'),
     path('admin/oauth/callback/', oauth_callback_api, name='oauth_callback_api'),
     
-    # OAuth callback endpoint untuk handle redirect dari Google
-    path('oauth/callback/', views.OAuthCallbackView.as_view(), name='oauth_callback'),
-    
-    # Integrated OAuth endpoints untuk ADX account page
-    path('admin/generate_oauth_url', views.GenerateOAuthURLView.as_view(), name='generate_oauth_url'),
-    path('admin/process_oauth_code', views.ProcessOAuthCodeView.as_view(), name='process_oauth_code'),
+    # OAuth endpoints lama telah dihapus - gunakan oauth_views_package di atas
 
     # MENU REPORT
     # Menu Report ROI

@@ -11,39 +11,7 @@ from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from .utils_adsense import fetch_adsense_traffic_account_data
 
-def authorize(request):
-    flow = Flow.from_client_secrets_file(
-        settings.CLIENT_SECRETS_FILE,
-        scopes=settings.SCOPES,
-        redirect_uri=settings.REDIRECT_URI,
-    )
-    authorization_url, state = flow.authorization_url(
-        access_type='offline',
-        include_granted_scopes='true'
-    )
-    request.session['state'] = state
-    return redirect(authorization_url)
-
-def oauth2callback(request):
-    state = request.session.get('state')
-    flow = Flow.from_client_secrets_file(
-        settings.CLIENT_SECRETS_FILE,
-        scopes=settings.SCOPES,
-        state=state,
-        redirect_uri=settings.REDIRECT_URI,
-    )
-    flow.fetch_token(authorization_response=request.build_absolute_uri())
-    credentials = flow.credentials
-    # Simpan refresh token di session, untuk production simpan di database
-    request.session['credentials'] = {
-        'token': credentials.token,
-        'refresh_token': credentials.refresh_token,
-        'token_uri': credentials.token_uri,
-        'client_id': credentials.client_id,
-        'client_secret': credentials.client_secret,
-        'scopes': credentials.scopes,
-    }
-    return redirect('get_adsense_data')
+# OAuth functions removed - using standardized OAuth flow from oauth_views_package
 
 def get_adsense_data(request):
     if 'credentials' not in request.session:

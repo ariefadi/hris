@@ -2740,13 +2740,45 @@ def fetch_user_sites_list(user_mail):
         }
 
 def fetch_adx_account_data():
-    """Fetch AdX account data (legacy function for backward compatibility)"""
+    """Fetch AdX account data using user-specific credentials from database"""
     try:
-        client = get_ad_manager_client()
-        print(f"[DEBUG] Ad Manager client initialized: {client}")
-        if not client:
-            return {'status': False, 'error': 'Failed to initialize client'}
+        # Get current user from session or use default
+        from django.contrib.auth import get_user
+        from django.http import HttpRequest
+        
+        # Try to get user email from session or use default
+        user_mail = getattr(settings, 'DEFAULT_USER_EMAIL', 'aksarabrita470@gmail.com')
+        
+        # Get user-specific network data from database
+        db = data_mysql()
+        user_data = db.get_user_by_email(user_mail)
+        
+        if not user_data.get('status') or not user_data.get('data'):
+            return {
+                'status': False,
+                'error': f'User credentials not found for {user_mail}. Please ensure user data exists in database.'
+            }
+        
+        user_info = user_data['data']
+        network_code = user_info.get('network_code') or user_info.get('google_ad_manager_network_code')
+        
+        if not network_code:
+            return {
+                'status': False,
+                'error': f'Network code not found for user {user_mail}. Please configure Ad Manager network code in database.'
+            }
+        
+        # Use user-specific Ad Manager client
+        client_result = get_user_ad_manager_client(user_mail)
+        if not client_result.get('status'):
+            return {
+                'status': False,
+                'error': f'Failed to initialize Ad Manager client: {client_result.get("error")}'
+            }
+        
+        client = client_result['client']
         network_service = client.GetService('NetworkService', version='v202502')
+        
         # Get current network with multiple fallback approaches
         try:
             # First attempt: Direct call
@@ -2757,7 +2789,8 @@ def fetch_adx_account_data():
                 'data': {
                     'network_code': current_network['networkCode'],
                     'network_name': current_network['displayName'],
-                    'currency_code': current_network['currencyCode']
+                    'currency_code': current_network['currencyCode'],
+                    'user_mail': user_mail
                 }
             }
         except TypeError as e:
@@ -2771,18 +2804,15 @@ def fetch_adx_account_data():
                     'data': {
                         'network_code': current_network['networkCode'],
                         'network_name': current_network['displayName'],
-                        'currency_code': current_network['currencyCode']
+                        'currency_code': current_network['currencyCode'],
+                        'user_mail': user_mail
                     }
                 }
             except (TypeError, Exception) as e2:
                 print(f"Workaround 1 failed: {e2}")
                 
-                # Workaround 2: Use network code from settings
+                # Workaround 2: Use network code from database
                 try:
-                    network_code = getattr(settings, 'GOOGLE_AD_MANAGER_NETWORK_CODE', None)
-                    if not network_code:
-                        raise Exception("Network code not found in settings")
-                    
                     # Try to get network by code using getAllNetworks
                     try:
                         all_networks = network_service.getAllNetworks()
@@ -2793,35 +2823,39 @@ def fetch_adx_account_data():
                                     'data': {
                                         'network_code': network['networkCode'],
                                         'network_name': network['displayName'],
-                                        'currency_code': network.get('currencyCode', 'USD')
+                                        'currency_code': network.get('currencyCode', 'USD'),
+                                        'user_mail': user_mail
                                     }
                                 }
                     except Exception as e3:
                         print(f"getAllNetworks failed: {e3}")
                     
-                    # Fallback: Return network code from settings
+                    # Fallback: Return network code from database
                     return {
                         'status': True,
                         'data': {
                             'network_code': network_code,
-                            'network_name': 'AdX Network (from settings)',
-                            'currency_code': 'USD'
+                            'network_name': f'AdX Network ({network_code})',
+                            'currency_code': 'USD',
+                            'user_mail': user_mail
                         },
-                        'warning': 'Using fallback data due to library compatibility issue'
+                        'warning': 'Using fallback data from database due to API compatibility issue'
                     }
                     
                 except Exception as e4:
                     print(f"All workarounds failed: {e4}")
                     return {
                         'status': False,
-                        'error': 'OAuth2 connection failed due to library compatibility issue',
+                        'error': 'Failed to retrieve network data from Ad Manager API',
                         'data': {
-                            'network_code': '',
-                            'network_name': '',
-                            'currency_code': ''
+                            'network_code': network_code,
+                            'network_name': f'AdX Network ({network_code})',
+                            'currency_code': 'USD',
+                            'user_mail': user_mail
                         }
                     }
     except Exception as e:
+        print(f"[ERROR] fetch_adx_account_data failed: {e}")
         return {
             'status': False,
             'error': str(e)

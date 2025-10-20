@@ -23,6 +23,10 @@ $().ready(function () {
         alert(msg);
     };
     
+    $('#btn_load_data').click(function (e) {
+        load_adx_account_data();
+    });
+
     $('#btn_generate_refresh_token').click(function (e) {
         e.preventDefault();
         generateRefreshToken();

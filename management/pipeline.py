@@ -30,13 +30,15 @@ def validate_email_access(backend, user, response, request, *args, **kwargs):
 
 def set_hris_session(backend, user, response, request, *args, **kwargs):
     """
-    Set session 'hris_admin' setelah login Google OAuth berhasil.
+    Set HRIS session setelah user berhasil login melalui OAuth
     """
     from management.database import data_mysql
     from management.utils import check_email_in_database
     
     print(f"[DEBUG] Pipeline set_hris_session called for user: {user.email}")
-
+    print(f"[DEBUG] Response keys: {list(response.keys()) if isinstance(response, dict) else 'Not a dict'}")
+    print(f"[DEBUG] Response content: {response}")
+    
     # Ambil data user dari database berdasarkan email
     db_check = check_email_in_database(user.email)
     
@@ -51,20 +53,44 @@ def set_hris_session(backend, user, response, request, *args, **kwargs):
             if isinstance(response, dict):
                 refresh_token = response.get('refresh_token') or response.get('refreshToken')
 
+            print(f"[DEBUG] Extracted refresh token: {refresh_token[:50] + '...' if refresh_token and len(refresh_token) > 50 else refresh_token}")
+
             if refresh_token:
                 print(f"[DEBUG] Refresh token ditemukan. Menyimpan untuk {user_data['user_mail']}")
                 from management.oauth_utils import save_refresh_token_for_current_user
+                
+                # Set session data untuk save_refresh_token_for_current_user
+                if not hasattr(request, 'session'):
+                    request.session = {}
+                request.session['hris_admin'] = {
+                    'user_id': user_data['user_id'],
+                    'user_mail': user_data['user_mail'],
+                    'user_name': user_data['user_name'],
+                    'user_alias': user_data['user_alias']
+                }
+                
                 save_result = save_refresh_token_for_current_user(request, refresh_token)
                 print(f"[DEBUG] Save refresh token result: {save_result}")
             else:
                 print("[DEBUG] Refresh token tidak ada di response OAuth. Pastikan 'prompt=consent' dan 'access_type=offline'.")
+                print(f"[DEBUG] Available response keys: {list(response.keys()) if isinstance(response, dict) else 'N/A'}")
         except Exception as e:
-            print(f"[DEBUG] Error saat menyimpan refresh token via pipeline: {e}")
+            print(f"[ERROR] Error saving refresh token: {str(e)}")
+            import traceback
+            traceback.print_exc()
+
+        # Set session HRIS
+        request.session['hris_admin'] = {
+            'user_id': user_data['user_id'],
+            'user_mail': user_data['user_mail'],
+            'user_name': user_data['user_name'],
+            'user_alias': user_data['user_alias']
+        }
+        
+        print(f"[DEBUG] HRIS session set for: {user_data['user_alias']} ({user_data['user_mail']})")
     else:
-        print(f"[DEBUG] User {user.email} not found in database")
-        request.session['oauth_error'] = 'Email tidak terdaftar di sistem'
-        raise AuthForbidden(backend, 'Email tidak terdaftar di sistem')
-    
+        print(f"[DEBUG] User {user.email} tidak ditemukan di database HRIS")
+
     return {'user': user}
 
 def save_profile(backend, user, response, *args, **kwargs):

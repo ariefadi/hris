@@ -163,11 +163,19 @@ SOCIAL_AUTH_SESSION_EXPIRATION = True
 SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = ['state']
 SOCIAL_AUTH_PROTECTED_USER_FIELDS = ['email']
 
-# Social Auth Configuration - Simplified
+# Social Auth Google OAuth2 Settings - Basic scopes only to avoid verification warning
 SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
     'openid',
     'email',
-    'profile'
+    'profile',
+    'https://www.googleapis.com/auth/dfp'  # Ad Manager SOAP API scope
+]
+
+# Sensitive scopes moved to separate configuration for manual authorization when needed
+SENSITIVE_SCOPES = [
+    'adwords',
+    'dfp', 
+    'admanager'
 ]
 
 SOCIAL_AUTH_GOOGLE_OAUTH2_AUTH_EXTRA_ARGUMENTS = {
@@ -176,7 +184,23 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_AUTH_EXTRA_ARGUMENTS = {
     'include_granted_scopes': 'true'
 }
 
+# Explicitly include refresh_token in extra data
+SOCIAL_AUTH_GOOGLE_OAUTH2_EXTRA_DATA = [
+    ('refresh_token', 'refresh_token', True),
+    ('expires_in', 'expires'),
+    ('token_type', 'token_type', True),
+    ('access_token', 'access_token'),
+]
+
+# Google Scopes - Basic scopes only to avoid verification warning
 GOOGLE_SCOPES = [
+    'openid',
+    'email', 
+    'profile'
+]
+
+# Sensitive Google Scopes for Ad Manager/AdSense - to be requested separately
+SENSITIVE_GOOGLE_SCOPES = [
     'https://www.googleapis.com/auth/dfp',
     'https://www.googleapis.com/auth/admanager',
     'https://www.googleapis.com/auth/adsense.readonly',
@@ -216,11 +240,12 @@ LOGIN_URL = '/management/admin/login'
 LOGIN_REDIRECT_URL = '/management/admin/oauth_redirect'
 LOGOUT_REDIRECT_URL = '/management/admin/login'
 
-# Google OAuth2 Configuration
+# Google OAuth2 Configuration - Load from Database
+# Fallback to environment variables if database is not available
 GOOGLE_OAUTH2_CLIENT_ID = os.getenv('GOOGLE_OAUTH2_CLIENT_ID', '')
 GOOGLE_OAUTH2_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET', '')
 
-# Google Ads API Configuration
+# Google Ads API Configuration - Load from Database
 GOOGLE_ADS_CLIENT_ID = os.getenv('GOOGLE_ADS_CLIENT_ID', '')
 GOOGLE_ADS_CLIENT_SECRET = os.getenv('GOOGLE_ADS_CLIENT_SECRET', '')
 GOOGLE_ADS_REFRESH_TOKEN = os.getenv('GOOGLE_ADS_REFRESH_TOKEN', '')
@@ -228,6 +253,22 @@ GOOGLE_ADS_REFRESH_TOKEN = os.getenv('GOOGLE_ADS_REFRESH_TOKEN', '')
 # Google Ad Manager Configuration
 GOOGLE_AD_MANAGER_NETWORK_CODE = os.getenv('GOOGLE_AD_MANAGER_NETWORK_CODE', '')
 GOOGLE_AD_MANAGER_KEY_FILE = os.getenv('GOOGLE_AD_MANAGER_KEY_FILE', '')
+
+# Load credentials from database
+try:
+    from management.credential_loader import get_credentials_from_db
+    db_credentials = get_credentials_from_db()
+    if db_credentials and db_credentials.get('google_oauth2_client_id'):
+        GOOGLE_OAUTH2_CLIENT_ID = db_credentials['google_oauth2_client_id']
+        GOOGLE_OAUTH2_CLIENT_SECRET = db_credentials['google_oauth2_client_secret']
+        GOOGLE_ADS_CLIENT_ID = db_credentials['google_ads_client_id']
+        GOOGLE_ADS_CLIENT_SECRET = db_credentials['google_ads_client_secret']
+        GOOGLE_ADS_REFRESH_TOKEN = db_credentials['google_ads_refresh_token']
+        GOOGLE_AD_MANAGER_NETWORK_CODE = db_credentials['google_ad_manager_network_code']
+        print(f"[SETTINGS] Loaded credentials from database for user: {db_credentials.get('user_mail', 'default')}")
+except Exception as e:
+    print(f"[SETTINGS] Could not load credentials from database: {str(e)}")
+    print("[SETTINGS] Using environment variables as fallback")
 
 # Social Auth Configuration
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = GOOGLE_OAUTH2_CLIENT_ID
