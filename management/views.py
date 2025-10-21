@@ -1833,7 +1833,6 @@ class AdxUserAccountDataView(View):
             user_mail = user_data['data']['user_mail']
             # Fetch comprehensive account data using user's credentials
             result = fetch_user_adx_account_data(user_mail)
-            print(f"fetch_user_adx_account_data returned: {result}")
             # Enhance error message for better user feedback
             if not result.get('status', False):
                 error_msg = result.get('error', 'Unknown error')

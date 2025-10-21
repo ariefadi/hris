@@ -2861,90 +2861,6 @@ def fetch_adx_account_data():
             'error': str(e)
         }
 
-def _get_network_display_name_from_api(user_mail, network_code):
-    """
-    Mengambil nama network langsung dari Ad Manager API menggunakan kredensial user
-    """
-    try:
-        # Gunakan client Ad Manager yang sudah ada TANPA network verification untuk menghindari recursion
-        client_result = get_user_ad_manager_client(user_mail, skip_network_verification=True)
-        if not client_result.get('status'):
-            print(f"[WARNING] Tidak dapat membuat Ad Manager client untuk {user_mail}: {client_result.get('error')}")
-            return 'AdX Network'  # fallback
-        
-        client = client_result['client']
-        network_service = client.GetService('NetworkService', version='v202502')
-        
-        # Ambil informasi network saat ini dengan error handling yang lebih baik
-        try:
-            current_network = network_service.getCurrentNetwork()
-            
-            # Coba berbagai cara untuk mengambil displayName
-            display_name = None
-            
-            if current_network:
-                # Method 1: Direct attribute access
-                if hasattr(current_network, 'displayName'):
-                    display_name = current_network.displayName
-                # Method 2: Dictionary access
-                elif isinstance(current_network, dict) and 'displayName' in current_network:
-                    display_name = current_network['displayName']
-                # Method 3: Try to access as string representation
-                elif hasattr(current_network, '__dict__'):
-                    network_dict = current_network.__dict__
-                    display_name = network_dict.get('displayName') or network_dict.get('display_name')
-                
-                # Jika berhasil mendapat display name, return
-                if display_name and display_name.strip():
-                    return display_name.strip()
-                    
-                # Fallback: gunakan network code sebagai nama jika ada
-                if hasattr(current_network, 'networkCode'):
-                    return f"Network {current_network.networkCode}"
-                elif isinstance(current_network, dict) and 'networkCode' in current_network:
-                    return f"Network {current_network['networkCode']}"
-                elif network_code:
-                    return f"Network {network_code}"
-            
-        except TypeError as te:
-            # Handle SOAP encoding error specifically
-            if "argument should be integer or bytes-like object, not 'str'" in str(te):
-                # Reduce log spam by using a more concise message
-                print(f"[DEBUG] SOAP encoding compatibility issue for {user_mail[:20]}...")
-                return f"Network {network_code}" if network_code else 'AdX Network'
-            else:
-                print(f"[WARNING] TypeError getting network info for {user_mail}: {te}")
-        except Exception as ne:
-            print(f"[WARNING] Error calling getCurrentNetwork for {user_mail}: {ne}")
-        
-        # Final fallback
-        return f"Network {network_code}" if network_code else 'AdX Network'
-            
-    except Exception as e:
-        print(f"[ERROR] Error mengambil nama network dari API untuk {user_mail}: {str(e)}")
-        return f"Network {network_code}" if network_code else 'AdX Network'
-
-def _get_network_display_name_mapping():
-    """
-    DEPRECATED: Fungsi ini masih digunakan sebagai fallback jika API gagal
-    """
-    return {
-        '23303534834': 'Adzone 3',
-        # Add more network mappings as needed
-    }
-
-def _get_network_display_name(network_code, user_mail=None):
-    """
-    Mengambil nama network dengan prioritas:
-    1. Dari mapping hardcode (untuk menghindari recursion)
-    2. Default 'AdX Network'
-    
-    Note: API call dihindari untuk mencegah recursion loop
-    """
-    # Langsung gunakan mapping hardcode untuk menghindari recursion
-    mapping = _get_network_display_name_mapping()
-    return mapping.get(str(network_code), 'AdX Network')
-
 def fetch_user_adx_account_data(user_mail):
     """Fetch comprehensive AdX account data using user's credentials"""
     try:
@@ -2955,17 +2871,7 @@ def fetch_user_adx_account_data(user_mail):
         # Get Network Service
         network_service = client.GetService('NetworkService', version='v202502')
         # Get current network information
-        try:
-            current_network = network_service.getCurrentNetwork()
-        except Exception as e:
-            # Fallback to basic network info with proper network name mapping
-            network_code = getattr(settings, 'GOOGLE_AD_MANAGER_NETWORK_CODE', None)
-            current_network = {
-                'networkCode': network_code,
-                'displayName': _get_network_display_name(network_code, user_mail),
-                'currencyCode': 'USD',
-                'timeZone': 'Asia/Jakarta'
-            }
+        current_network = network_service.getCurrentNetwork()
         # Get User Service for additional account details
         user_service = client.GetService('UserService', version='v202502')
         # Get current user information
@@ -2985,7 +2891,6 @@ def fetch_user_adx_account_data(user_mail):
                 print(f"Error getting user info: {e}")
         except Exception as e:
             print(f"Error getting user info: {e}")
-        
         # Get Inventory Service for ad units count
         inventory_service = client.GetService('InventoryService', version='v202502')
         # Count active ad units
@@ -3056,26 +2961,6 @@ def fetch_user_adx_account_data(user_mail):
         
     except Exception as e:
         # Handle specific GoogleAds library bug
-        if "argument should be integer or bytes-like object, not 'str'" in str(e):
-            print(f"[WARNING] GoogleAds library bug detected for {user_mail}. Returning basic data as workaround.")
-            network_code = getattr(settings, 'GOOGLE_AD_MANAGER_NETWORK_CODE', None)
-            network_display_name = _get_network_display_name(network_code)
-            return {
-                'status': True,
-                'data': {
-                    'network_code': network_code,
-                    'display_name': network_display_name,
-                    'network_name': network_display_name,
-                    'currency_code': 'USD',
-                    'timezone': 'Asia/Jakarta',
-                    'user_mail': user_mail,
-                    'active_ad_units_count': 0,
-                    'last_updated': datetime.now().isoformat(),
-                },
-                'user_mail': user_mail,
-                'note': 'Data terbatas karena bug library GoogleAds'
-            }
-        
         return {
             'status': False,
             'error': f'Error mengambil data account: {str(e)}'

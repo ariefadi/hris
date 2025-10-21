@@ -131,3 +131,57 @@ def get_current_user_credentials():
     except Exception as e:
         logger.error(f"Error getting current user credentials: {str(e)}")
         return get_credentials_from_db()  # Fallback ke default
+
+def get_credentials_for_oauth_login(email):
+    """
+    Mengambil kredensial OAuth khusus untuk proses login
+    Digunakan saat user akan melakukan OAuth login dengan email tertentu
+    
+    Args:
+        email (str): Email user yang akan login
+        
+    Returns:
+        dict: Kredensial OAuth untuk email tersebut
+    """
+    try:
+        logger.info(f"Loading OAuth credentials for login attempt: {email}")
+        credentials = get_credentials_from_db(email)
+        
+        if credentials and credentials.get('google_oauth2_client_id'):
+            logger.info(f"Found OAuth credentials for {email}")
+            return credentials
+        else:
+            logger.warning(f"No OAuth credentials found for {email}, using default")
+            return get_credentials_from_db()  # Fallback ke default
+            
+    except Exception as e:
+        logger.error(f"Error loading OAuth credentials for {email}: {str(e)}")
+        return get_credentials_from_db()  # Fallback ke default
+
+def update_settings_for_user(user_mail):
+    """
+    Update Django settings dengan kredensial untuk user tertentu
+    Digunakan untuk memastikan OAuth menggunakan kredensial yang benar
+    
+    Args:
+        user_mail (str): Email user
+    """
+    try:
+        credentials = get_credentials_from_db(user_mail)
+        
+        if credentials and credentials.get('google_oauth2_client_id'):
+            # Update settings secara real-time
+            settings.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = credentials['google_oauth2_client_id']
+            settings.SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = credentials['google_oauth2_client_secret']
+            settings.GOOGLE_OAUTH2_CLIENT_ID = credentials['google_oauth2_client_id']
+            settings.GOOGLE_OAUTH2_CLIENT_SECRET = credentials['google_oauth2_client_secret']
+            
+            logger.info(f"Updated settings for OAuth login: {user_mail}")
+            return True
+        else:
+            logger.warning(f"Could not update settings for {user_mail}, credentials not found")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error updating settings for {user_mail}: {str(e)}")
+        return False

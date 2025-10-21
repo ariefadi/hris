@@ -150,8 +150,6 @@ CSRF_USE_SESSIONS = True  # Use sessions for CSRF tokens
 CSRF_TRUSTED_ORIGINS = [
     'https://kiwipixel.com',
     'https://www.kiwipixel.com',
-    'http://kiwipixel.com',
-    'http://www.kiwipixel.com',
 ]
 
 # Social Auth Storage and State Configuration
@@ -219,9 +217,10 @@ SOCIAL_AUTH_LOGIN_ERROR_URL = '/management/admin/login'
 SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/management/admin/oauth_redirect'
 SOCIAL_AUTH_NEW_USER_REDIRECT_URL = '/management/admin/oauth_redirect'
 
-# Social Auth Pipeline - Simplified
+# Social Auth Pipeline - Simplified with Dynamic Credential Loading
 SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_details',
+    'management.pipeline.load_user_credentials',  # Load kredensial dinamis berdasarkan user email
     'social_core.pipeline.social_auth.social_uid',
     'social_core.pipeline.social_auth.auth_allowed',
     'social_core.pipeline.social_auth.social_user',
@@ -229,6 +228,7 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.user.create_user',
     'social_core.pipeline.social_auth.associate_user',
     'social_core.pipeline.social_auth.load_extra_data',  # Load extra data termasuk refresh token
+    'management.pipeline_refresh_token.save_refresh_token',  # Simpan refresh token ke database
     'management.pipeline.validate_email_access',  # Validasi email di Ad Manager dan database
     'management.pipeline.set_hris_session',  # Set session setelah user dibuat
     'social_core.pipeline.user.user_details',
@@ -240,19 +240,7 @@ LOGIN_URL = '/management/admin/login'
 LOGIN_REDIRECT_URL = '/management/admin/oauth_redirect'
 LOGOUT_REDIRECT_URL = '/management/admin/login'
 
-# Google OAuth2 Configuration - Load from Database
-# Fallback to environment variables if database is not available
-GOOGLE_OAUTH2_CLIENT_ID = os.getenv('GOOGLE_OAUTH2_CLIENT_ID', '')
-GOOGLE_OAUTH2_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET', '')
 
-# Google Ads API Configuration - Load from Database
-GOOGLE_ADS_CLIENT_ID = os.getenv('GOOGLE_ADS_CLIENT_ID', '')
-GOOGLE_ADS_CLIENT_SECRET = os.getenv('GOOGLE_ADS_CLIENT_SECRET', '')
-GOOGLE_ADS_REFRESH_TOKEN = os.getenv('GOOGLE_ADS_REFRESH_TOKEN', '')
-
-# Google Ad Manager Configuration
-GOOGLE_AD_MANAGER_NETWORK_CODE = os.getenv('GOOGLE_AD_MANAGER_NETWORK_CODE', '')
-GOOGLE_AD_MANAGER_KEY_FILE = os.getenv('GOOGLE_AD_MANAGER_KEY_FILE', '')
 
 # Load credentials from database
 try:

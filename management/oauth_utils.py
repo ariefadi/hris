@@ -9,6 +9,7 @@ from django.contrib import messages
 from management.database import data_mysql
 from management.googleads_patch_v2 import apply_googleads_patches
 from management.jsonfield_patch import patch_social_django_jsonfield
+from management.credential_loader import get_credentials_for_oauth_login, update_settings_for_user
 import requests
 import urllib.parse
 import logging
@@ -29,10 +30,20 @@ def get_current_user_from_request(request):
         }
     return None
 
-def get_oauth_credentials():
+def get_oauth_credentials(user_mail=None):
     """
-    Mendapatkan OAuth credentials dari settings Django
+    Mendapatkan OAuth credentials dari settings Django atau database untuk user tertentu
+    
+    Args:
+        user_mail (str, optional): Email user untuk mengambil kredensial spesifik
     """
+    if user_mail:
+        # Ambil kredensial spesifik untuk user
+        credentials = get_credentials_for_oauth_login(user_mail)
+        if credentials and credentials.get('google_oauth2_client_id'):
+            return credentials['google_oauth2_client_id'], credentials['google_oauth2_client_secret']
+    
+    # Fallback ke settings default
     client_id = getattr(settings, 'SOCIAL_AUTH_GOOGLE_OAUTH2_KEY', None)
     client_secret = getattr(settings, 'SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET', None)
     
@@ -40,20 +51,22 @@ def get_oauth_credentials():
 
 def generate_oauth_url_for_user(user_mail, scopes=None):
     """
-    Generate OAuth authorization URL untuk user tertentu
+    Generate OAuth authorization URL untuk user tertentu dengan kredensial yang sesuai
     """
     if not scopes:
         scopes = ['https://www.googleapis.com/auth/admanager']
     
-    client_id, client_secret = get_oauth_credentials()
+    # Ambil kredensial untuk user spesifik
+    client_id, client_secret = get_oauth_credentials(user_mail)
     if not client_id:
-        return None, "OAuth credentials tidak ditemukan"
+        return None, f"OAuth credentials tidak ditemukan untuk user: {user_mail}"
     
-    # Gunakan redirect URI yang sesuai dengan environment
-    if hasattr(settings, 'DEBUG') and settings.DEBUG:
-        redirect_uri = 'http://127.0.0.1:8000/accounts/complete/google-oauth2/'
-    else:
-        redirect_uri = 'https://kiwipixel.com/accounts/complete/google-oauth2/'
+    # Update settings untuk memastikan OAuth menggunakan kredensial yang benar
+    update_settings_for_user(user_mail)
+    
+    # Generate OAuth URL
+    base_url = "https://accounts.google.com/o/oauth2/v2/auth"
+    redirect_uri = getattr(settings, 'OAUTH_REDIRECT_URI', 'urn:ietf:wg:oauth:2.0:oob')
     
     params = {
         'client_id': client_id,
@@ -62,52 +75,57 @@ def generate_oauth_url_for_user(user_mail, scopes=None):
         'response_type': 'code',
         'access_type': 'offline',
         'prompt': 'consent',
-        'login_hint': user_mail  # Hint untuk login dengan email tertentu
+        'state': f'user:{user_mail}'  # Tambahkan state untuk tracking user
     }
     
-    base_url = 'https://accounts.google.com/o/oauth2/auth'
     oauth_url = f"{base_url}?{urllib.parse.urlencode(params)}"
+    logger.info(f"Generated OAuth URL for user {user_mail} with client_id: {client_id[:10]}...")
     
     return oauth_url, None
 
-def exchange_code_for_refresh_token(auth_code):
+def exchange_code_for_refresh_token(auth_code, user_mail=None):
     """
-    Exchange authorization code untuk refresh token
+    Exchange authorization code untuk refresh token dengan kredensial yang sesuai
+    
+    Args:
+        auth_code (str): Authorization code dari OAuth callback
+        user_mail (str, optional): Email user untuk menggunakan kredensial yang sesuai
     """
-    client_id, client_secret = get_oauth_credentials()
-    if not client_id or not client_secret:
-        return None, None, "OAuth credentials tidak ditemukan"
-    
-    token_url = 'https://oauth2.googleapis.com/token'
-    # Gunakan redirect URI yang sama dengan yang digunakan saat generate URL
-    if hasattr(settings, 'DEBUG') and settings.DEBUG:
-        redirect_uri = 'http://127.0.0.1:8000/accounts/complete/google-oauth2/'
-    else:
-        redirect_uri = 'https://kiwipixel.com/accounts/complete/google-oauth2/'
-    
-    data = {
-        'client_id': client_id,
-        'client_secret': client_secret,
-        'code': auth_code,
-        'grant_type': 'authorization_code',
-        'redirect_uri': redirect_uri
-    }
-    
     try:
+        # Ambil kredensial untuk user spesifik
+        client_id, client_secret = get_oauth_credentials(user_mail)
+        if not client_id or not client_secret:
+            return None, f"OAuth credentials tidak lengkap untuk user: {user_mail}"
+        
+        token_url = "https://oauth2.googleapis.com/token"
+        redirect_uri = getattr(settings, 'OAUTH_REDIRECT_URI', 'urn:ietf:wg:oauth:2.0:oob')
+        
+        data = {
+            'client_id': client_id,
+            'client_secret': client_secret,
+            'code': auth_code,
+            'grant_type': 'authorization_code',
+            'redirect_uri': redirect_uri
+        }
+        
         response = requests.post(token_url, data=data)
-        response.raise_for_status()
         
-        token_data = response.json()
-        refresh_token = token_data.get('refresh_token')
-        
-        if not refresh_token:
-            return None, token_data, "Refresh token tidak ditemukan dalam response"
-        
-        return refresh_token, token_data, None
-        
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error exchanging code for token: {str(e)}")
-        return None, None, f"Error: {str(e)}"
+        if response.status_code == 200:
+            token_data = response.json()
+            refresh_token = token_data.get('refresh_token')
+            
+            if refresh_token:
+                logger.info(f"Successfully obtained refresh token for user: {user_mail}")
+                return refresh_token, None
+            else:
+                return None, "Refresh token tidak ditemukan dalam response"
+        else:
+            logger.error(f"Token exchange failed for user {user_mail}: {response.text}")
+            return None, f"Gagal menukar code: {response.text}"
+            
+    except Exception as e:
+        logger.error(f"Error exchanging code for user {user_mail}: {str(e)}")
+        return None, f"Error: {str(e)}"
 
 def save_refresh_token_for_current_user(request, refresh_token):
     """
@@ -240,52 +258,56 @@ def get_user_oauth_status(user_mail):
 
 def handle_oauth_callback(request, auth_code):
     """
-    Handle OAuth callback dan simpan refresh token untuk current user
+    Handle OAuth callback dengan dynamic credential loading
     """
     try:
-        # Exchange code for refresh token
-        refresh_token, token_data, error = exchange_code_for_refresh_token(auth_code)
+        current_user = get_current_user_from_request(request)
+        if not current_user or not current_user.get('user_mail'):
+            return {
+                'status': False,
+                'message': 'User tidak ditemukan dalam session'
+            }
+        
+        user_mail = current_user['user_mail']
+        logger.info(f"Processing OAuth callback for user: {user_mail}")
+        
+        # Exchange code untuk refresh token dengan kredensial user yang sesuai
+        refresh_token, error = exchange_code_for_refresh_token(auth_code, user_mail)
         
         if error:
-            return JsonResponse({
+            logger.error(f"OAuth callback failed for {user_mail}: {error}")
+            return {
                 'status': False,
                 'message': error
-            })
+            }
         
-        if not refresh_token:
-            return JsonResponse({
-                'status': False,
-                'message': 'Refresh token tidak ditemukan',
-                'token_data': token_data
-            })
-        
-        # Save refresh token for current user
+        # Simpan refresh token
         save_result = save_refresh_token_for_current_user(request, refresh_token)
         
         if save_result['status']:
-            messages.success(request, f"✅ Refresh token berhasil disimpan untuk {save_result['user_name']}")
-            return JsonResponse({
+            logger.info(f"OAuth callback completed successfully for {user_mail}")
+            return {
                 'status': True,
-                'message': save_result['message'],
-                'user_mail': save_result['user_mail'],
-                'user_name': save_result['user_name'],
-                'token_length': len(refresh_token)
-            })
+                'message': f'OAuth berhasil untuk {user_mail}',
+                'user_mail': user_mail,
+                'refresh_token_saved': True
+            }
         else:
-            messages.error(request, f"❌ {save_result['message']}")
-            return JsonResponse(save_result)
+            return {
+                'status': False,
+                'message': save_result['message']
+            }
             
     except Exception as e:
-        logger.error(f"Error handling OAuth callback: {str(e)}")
-        messages.error(request, f"❌ Error: {str(e)}")
-        return JsonResponse({
+        logger.error(f"Error in OAuth callback: {str(e)}")
+        return {
             'status': False,
-            'message': f'Error: {str(e)}'
-        })
+            'message': f'Error processing callback: {str(e)}'
+        }
 
 def generate_oauth_flow_for_current_user(request):
     """
-    Generate OAuth flow untuk user yang sedang login
+    Generate OAuth flow untuk user yang sedang login dengan kredensial dinamis
     """
     current_user = get_current_user_from_request(request)
     if not current_user or not current_user.get('user_mail'):
@@ -295,9 +317,13 @@ def generate_oauth_flow_for_current_user(request):
         }
     
     user_mail = current_user['user_mail']
+    logger.info(f"Generating OAuth flow for user: {user_mail}")
+    
+    # Generate OAuth URL dengan kredensial user yang sesuai
     oauth_url, error = generate_oauth_url_for_user(user_mail)
     
     if error:
+        logger.error(f"Failed to generate OAuth URL for {user_mail}: {error}")
         return {
             'status': False,
             'message': error
