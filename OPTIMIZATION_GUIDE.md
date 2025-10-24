@@ -77,7 +77,7 @@ SESSION_CACHE_ALIAS = 'default'
 
 ### 3. Static Files Optimization
 
-**Add to settings.py:**
+**Recommended production setup (if using collectstatic):**
 ```python
 # Static files optimization
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.ManifestStaticFilesStorage'
@@ -86,6 +86,27 @@ STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.AppDirectoriesFinder',
 ]
 
+# If using collectstatic
+# STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+```
+
+**Current deployment setup (no collectstatic):**
+```python
+# Serve static directly from app directory
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'management', 'static'),
+]
+```
+
+**Nginx config example:**
+```
+location /static/ {
+    alias /var/www/html/hris/management/static/;
+}
+```
+
+**Add to settings.py:**
+```python
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -195,7 +216,8 @@ python manage.py optimize  # If you created the management command
 
 ### Step 4: Collect Static Files
 ```bash
-python manage.py collectstatic --noinput --clear
+# If you use collectstatic
+# python manage.py collectstatic --noinput --clear
 ```
 
 ### Step 5: Test Performance
@@ -250,7 +272,9 @@ python manage.py collectstatic --noinput --clear
 ### Common Issues:
 
 1. **Database Errors**: Check if indexes already exist
-2. **Static Files**: Ensure STATIC_ROOT directory is writable
+2. **Static Files**:
+- If using collectstatic: ensure `STATIC_ROOT` directory is writable
+- If not using collectstatic: ensure Nginx alias points to `management/static`
 3. **Cache Issues**: Clear cache if experiencing problems
 4. **Performance**: Monitor logs for slow queries
 
@@ -292,4 +316,4 @@ cache.get('test_key')
 3. **Medium-term**: Add caching and monitoring
 4. **Long-term**: Consider Redis for advanced caching
 
-For questions or issues, check the logs and monitor performance metrics regularly. 
+For questions or issues, check the logs and monitor performance metrics regularly.

@@ -9,7 +9,12 @@ import functools
 from django.core.exceptions import ValidationError
 from django.conf import settings
 from django.db import models
-from django.utils.encoding import smart_text
+try:
+    # Django <4
+    from django.utils.encoding import smart_text as smart_str_compat
+except ImportError:
+    # Django >=4 uses smart_str/force_str
+    from django.utils.encoding import smart_str as smart_str_compat
 from social_core.utils import setting_name
 
 # Determine field metaclass based on Django version
@@ -84,7 +89,7 @@ class JSONField(JSONFieldBase):
 
     def value_to_string(self, obj):
         """Return value from object converted to string properly"""
-        return smart_text(self.value_from_object(obj))
+        return smart_str_compat(self.value_from_object(obj))
 
     def value_from_object(self, obj):
         """Return value dumped to string."""

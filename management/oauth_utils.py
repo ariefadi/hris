@@ -49,7 +49,7 @@ def get_oauth_credentials(user_mail=None):
     
     return client_id, client_secret
 
-def generate_oauth_url_for_user(user_mail, scopes=None):
+def generate_oauth_url_for_user(user_mail, scopes=None, redirect_uri=None):
     """
     Generate OAuth authorization URL untuk user tertentu dengan kredensial yang sesuai
     """
@@ -64,9 +64,12 @@ def generate_oauth_url_for_user(user_mail, scopes=None):
     # Update settings untuk memastikan OAuth menggunakan kredensial yang benar
     update_settings_for_user(user_mail)
     
+    # Gunakan redirect_uri dari parameter jika tersedia, fallback ke settings
+    if not redirect_uri:
+        redirect_uri = getattr(settings, 'OAUTH_REDIRECT_URI', 'urn:ietf:wg:oauth:2.0:oob')
+    
     # Generate OAuth URL
     base_url = "https://accounts.google.com/o/oauth2/v2/auth"
-    redirect_uri = getattr(settings, 'OAUTH_REDIRECT_URI', 'urn:ietf:wg:oauth:2.0:oob')
     
     params = {
         'client_id': client_id,
@@ -79,7 +82,7 @@ def generate_oauth_url_for_user(user_mail, scopes=None):
     }
     
     oauth_url = f"{base_url}?{urllib.parse.urlencode(params)}"
-    logger.info(f"Generated OAuth URL for user {user_mail} with client_id: {client_id[:10]}...")
+    logger.info(f"Generated OAuth URL for user {user_mail} with client_id: {client_id[:10]}... and redirect {redirect_uri}")
     
     return oauth_url, None
 
@@ -319,8 +322,11 @@ def generate_oauth_flow_for_current_user(request):
     user_mail = current_user['user_mail']
     logger.info(f"Generating OAuth flow for user: {user_mail}")
     
-    # Generate OAuth URL dengan kredensial user yang sesuai
-    oauth_url, error = generate_oauth_url_for_user(user_mail)
+    # Generate absolute redirect URL ke endpoint callback (GET)
+    callback_url = request.build_absolute_uri('/management/admin/oauth/callback/')
+    
+    # Generate OAuth URL dengan kredensial user yang sesuai dan redirect web
+    oauth_url, error = generate_oauth_url_for_user(user_mail, redirect_uri=callback_url)
     
     if error:
         logger.error(f"Failed to generate OAuth URL for {user_mail}: {error}")
@@ -335,10 +341,10 @@ def generate_oauth_flow_for_current_user(request):
         'user_mail': user_mail,
         'user_name': current_user.get('user_alias', 'Unknown'),
         'instructions': [
-            f"1. Buka URL OAuth di browser",
+            f"1. Klik OAuth URL untuk membuka consent screen",
             f"2. Login dengan akun: {user_mail}",
             f"3. Berikan izin akses untuk Google Ad Manager",
-            f"4. Copy 'code' parameter dari URL redirect",
-            f"5. Submit code melalui form atau API"
+            f"4. Setelah sukses, kamu akan dialihkan kembali ke dashboard",
+            f"5. Token akan otomatis disimpan; jika gagal, gunakan form manual"
         ]
     }

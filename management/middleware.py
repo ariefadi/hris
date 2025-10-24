@@ -105,14 +105,13 @@ class OAuthCredentialsMiddleware:
         try:
             settings.SOCIAL_AUTH_GOOGLE_OAUTH2_AUTH_EXTRA_ARGUMENTS = {
                 'access_type': 'offline',
-                'prompt': 'consent',
+                'prompt': 'select_account consent',
                 'include_granted_scopes': 'true'
             }
             # Scope tambahan jika diperlukan (mis. Google Ad Manager)
             if not getattr(settings, 'SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE', None):
                 settings.SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
-                    'openid', 'email', 'profile',
-                    'https://www.googleapis.com/auth/dfp'
+                    'openid', 'email', 'profile'
                 ]
         except Exception:
             # Jangan blok request jika settings tidak bisa di-set

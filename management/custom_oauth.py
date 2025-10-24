@@ -13,7 +13,7 @@ class CustomGoogleOAuth2(GoogleOAuth2):
         """Override get_scope to ensure we use the complete scopes from settings"""
         # Always use scopes from settings which includes Ad Manager scope
         scope = getattr(settings, 'SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE', [
-            'openid', 'email', 'profile', 'https://www.googleapis.com/auth/dfp'
+            'openid', 'email', 'profile'
         ])
         logger.debug(f"Using OAuth scopes: {scope}")
         return scope

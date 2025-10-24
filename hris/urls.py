@@ -23,7 +23,9 @@ urlpatterns = [
 
 # Serve static files during development
 if settings.DEBUG:
-    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    doc_root = settings.STATICFILES_DIRS[0] if getattr(settings, 'STATICFILES_DIRS', None) else None
+    if doc_root:
+        urlpatterns += static(settings.STATIC_URL, document_root=doc_root)
     # Catch-all route to render custom 404 page during development (DEBUG=True)
     urlpatterns += [
         re_path(r'^.*$', views.dev_404, name='dev_404'),

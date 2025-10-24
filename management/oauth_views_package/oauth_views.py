@@ -153,13 +153,48 @@ def generate_oauth_url_api(request):
     return view.post(request)
 
 @csrf_exempt
-@require_http_methods(["POST"])
+@require_http_methods(["POST", "GET"])
 def oauth_callback_api(request):
     """
     API endpoint untuk handle OAuth callback
+    - GET: membaca code dari query (web redirect)
+    - POST: menerima code dari body (manual paste)
     """
     view = OAuthCallbackView()
-    return view.post(request)
+    return view.dispatch(request)
+
+class OAuthCallbackView(View):
+    """
+    View untuk handle OAuth callback
+    """
+    
+    @csrf_exempt
+    def dispatch(self, request, *args, **kwargs):
+        if request.method == 'GET':
+            # Baca code dari querystring
+            auth_code = request.GET.get('code')
+            if not auth_code:
+                return JsonResponse({'status': False, 'message': 'Authorization code tidak ditemukan di query'}, status=400)
+            result = handle_oauth_callback(request, auth_code)
+            # Jika HTML page, tampilkan pesan dan redirect ke dashboard oauth
+            if request.headers.get('Accept', '').find('text/html') != -1:
+                if result.get('status'):
+                    messages.success(request, 'Refresh token berhasil disimpan!')
+                else:
+                    messages.error(request, result.get('message', 'Gagal menyimpan refresh token'))
+                return redirect('/management/admin/oauth/management/')
+            return JsonResponse(result)
+        elif request.method == 'POST':
+            try:
+                body = json.loads(request.body or '{}')
+                auth_code = body.get('code')
+            except Exception:
+                auth_code = None
+            if not auth_code:
+                return JsonResponse({'status': False, 'message': 'Authorization code tidak boleh kosong'}, status=400)
+            result = handle_oauth_callback(request, auth_code)
+            return JsonResponse(result)
+        return super().dispatch(request, *args, **kwargs)
 
 def oauth_management_dashboard(request):
     """

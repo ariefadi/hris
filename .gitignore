@@ -75,3 +75,11 @@ db.sqlite3
 
 service-account-key.json
 hris/settings.py
+
+# Virtualenv and collected static (ignored)
+hris_env/
+# Static files
+staticfiles/
+staticfiles_backup_*.tgz
+# If switching to collectstatic, uncomment STATIC_ROOT and keep this ignore
+# Current deployment serves from management/static via Nginx
