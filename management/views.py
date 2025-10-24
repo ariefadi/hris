@@ -401,7 +401,7 @@ class LogoutAdmin(View):
             print(f"[ERROR] Gagal update data logout: {e}")
         finally:
             req.session.flush()
-            return redirect('admin_login')
+        return redirect('admin_login')
 
 # DASHBOARD
 class DashboardAdmin(View):
