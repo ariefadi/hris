@@ -1749,9 +1749,8 @@ def fetch_data_insights_by_country_filter_account(start_date, end_date, access_t
         total_impressions += impressions
         total_reach += reach
         total_clicks += clicks
-        total_frequency = frequency
-        if cost_per_result is not None:
-            total_cpr += float(cost_per_result)
+        total_frequency += frequency
+        total_cpr += float(cost_per_result)
         data.append({
             'country': country_label,
             'ad_id': item.get('ad_id'),

@@ -1422,8 +1422,8 @@ class page_per_country_facebook(View):
                 'total_impressions': total_impressions,
                 'total_reach': total_reach,
                 'total_click': total_clicks,
-                'total_frequency': total_frequency / len(filtered_data) if filtered_data else 0,
-                'total_cpr': total_cpr / len(filtered_data) if filtered_data else 0
+                'total_frequency': total_frequency,
+                'total_cpr': total_cpr
             }]
         
         hasil = {
