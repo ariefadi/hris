@@ -2364,22 +2364,13 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
         combined_data = []
         # Buat mapping data Facebook berdasarkan country_cd
         facebook_spend_map = {}
-        facebook_other_costs_map = {}
         facebook_click_map = {}
-        unknown_spend = 0
-        unknown_other_costs = 0
         if data_facebook and data_facebook.get('data'):
             for fb_item in data_facebook['data']:
                 country_cd = fb_item.get('country_cd', 'unknown')
                 spend = float(fb_item.get('spend', 0))
-                other_costs = float(fb_item.get('other_costs', 0))
                 facebook_spend_map[country_cd] = spend
-                facebook_other_costs_map[country_cd] = other_costs
                 facebook_click_map[country_cd] = int(fb_item.get('clicks', 0))
-                # Simpan spend dan other_costs untuk country_cd "unknown"
-                if country_cd == 'unknown':
-                    unknown_spend = spend
-                    unknown_other_costs = other_costs
         # Proses data AdX dan gabungkan dengan data Facebook
         if data_adx and data_adx.get('status') and data_adx.get('data'):
             for adx_item in data_adx['data']:
@@ -2390,27 +2381,16 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                 revenue = float(adx_item.get('revenue', 0))
                 # Ambil spend dan biaya lainnya dari Facebook berdasarkan country_code
                 spend = facebook_spend_map.get(country_code, 0)
-                other_costs = facebook_other_costs_map.get(country_code, 0)
                 click_fb = facebook_click_map.get(country_code, 0)
                 if click_fb > 0:
                     clicks = click_fb
                 else:
                     clicks = clicks_adx
-                # Jika spend tidak tersedia untuk country_code, gunakan spend dari "unknown"
-                if spend == 0 and unknown_spend > 0:
-                    spend = 0
-                if other_costs == 0 and unknown_other_costs > 0:
-                    other_costs = 0
-                
-                # Hitung total biaya untuk ROI nett
-                total_costs = spend + other_costs
-                
                 # Hitung metrik
-                ctr = (clicks / impressions * 100) if impressions > 0 else 0
+                ctr = ((clicks / impressions) * 100) if impressions > 0 else 0
                 cpc = (revenue / clicks) if clicks > 0 else 0
-                ecpm = (revenue / impressions * 1000) if impressions > 0 else 0
-                # ROI nett: ((revenue - total_costs) / total_costs * 100)
-                roi = ((revenue - total_costs) / total_costs * 100) if total_costs > 0 else 0
+                ecpm = ((revenue / impressions) * 1000) if impressions > 0 else 0
+                roi = (((revenue - spend)/spend)*100) if spend > 0 else 0
                 
                 # Tambahkan ke hasil
                 if spend > 0 or roi > 0:
@@ -2419,8 +2399,6 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                         'country_code': country_code,
                         'impressions': impressions,
                         'spend': round(spend, 2),
-                        'other_costs': round(other_costs, 2),
-                        'total_costs': round(total_costs, 2),
                         'clicks': clicks,
                         'revenue': round(revenue, 2),
                         'ctr': round(ctr, 2),
