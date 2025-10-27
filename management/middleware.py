@@ -76,29 +76,59 @@ class OAuthCredentialsMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        # Skip credential loading untuk OAuth login paths
+        oauth_paths = [
+            '/accounts/login/google-oauth2/',
+            '/accounts/complete/google-oauth2/',
+            '/management/admin/oauth_redirect'
+        ]
+        
+        # Jika sedang dalam proses OAuth login, skip loading credentials
+        if any(request.path.startswith(path) for path in oauth_paths):
+            # Set default OAuth settings untuk proses login
+            try:
+                settings.SOCIAL_AUTH_GOOGLE_OAUTH2_AUTH_EXTRA_ARGUMENTS = {
+                    'access_type': 'offline',
+                    'prompt': 'select_account consent',
+                    'include_granted_scopes': 'true'
+                }
+                # Scope tambahan jika diperlukan (mis. Google Ad Manager)
+                if not getattr(settings, 'SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE', None):
+                    settings.SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
+                        'openid', 'email', 'profile'
+                    ]
+            except Exception:
+                # Jangan blok request jika settings tidak bisa di-set
+                pass
+            
+            response = self.get_response(request)
+            return response
+        
         # Ambil user_id dan user_mail dari session
         user_id = request.session.get('hris_admin', {}).get('user_id')
         user_mail = request.session.get('hris_admin', {}).get('user_mail')
         
-        # Update kredensial sebelum request diproses dengan parameter user_id dan user_mail
-        request.oauth_user = {
-            'user_id': user_id,
-            'user_mail': user_mail
-        }
-        credentials = get_credentials_from_db(request)
-        
-        if credentials:
-            # Update settings dengan kredensial dari database
-            settings.GOOGLE_OAUTH2_CLIENT_ID = credentials['google_oauth2_client_id']
-            settings.GOOGLE_OAUTH2_CLIENT_SECRET = credentials['google_oauth2_client_secret']
-            settings.GOOGLE_ADS_CLIENT_ID = credentials['google_ads_client_id']
-            settings.GOOGLE_ADS_CLIENT_SECRET = credentials['google_ads_client_secret']
-            settings.GOOGLE_ADS_REFRESH_TOKEN = credentials['google_ads_refresh_token']
-            settings.GOOGLE_AD_MANAGER_NETWORK_CODE = credentials['google_ad_manager_network_code']
-        
-        # Update social auth settings
-        settings.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = settings.GOOGLE_OAUTH2_CLIENT_ID
-        settings.SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = settings.GOOGLE_OAUTH2_CLIENT_SECRET
+        # Hanya load credentials jika user sudah login
+        if user_id and user_mail:
+            # Update kredensial sebelum request diproses dengan parameter user_id dan user_mail
+            request.oauth_user = {
+                'user_id': user_id,
+                'user_mail': user_mail
+            }
+            credentials = get_credentials_from_db(request)
+            
+            if credentials:
+                # Update settings dengan kredensial dari database
+                settings.GOOGLE_OAUTH2_CLIENT_ID = credentials['google_oauth2_client_id']
+                settings.GOOGLE_OAUTH2_CLIENT_SECRET = credentials['google_oauth2_client_secret']
+                settings.GOOGLE_ADS_CLIENT_ID = credentials['google_ads_client_id']
+                settings.GOOGLE_ADS_CLIENT_SECRET = credentials['google_ads_client_secret']
+                settings.GOOGLE_ADS_REFRESH_TOKEN = credentials['google_ads_refresh_token']
+                settings.GOOGLE_AD_MANAGER_NETWORK_CODE = credentials['google_ad_manager_network_code']
+            
+            # Update social auth settings
+            settings.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = settings.GOOGLE_OAUTH2_CLIENT_ID
+            settings.SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = settings.GOOGLE_OAUTH2_CLIENT_SECRET
 
         # Pastikan Google OAuth meminta refresh token
         # Menambahkan parameter agar Google selalu mengembalikan refresh_token

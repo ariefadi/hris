@@ -23,9 +23,9 @@ class data_mysql:
         try:
             self.db_hris = pymysql.connect(
                 host='127.0.0.1',
-                port=3306,
+                port=3307,
                 user='root',
-                password='hris123456',
+                password='',
                 database='hris_trendHorizone',
                 cursorclass=pymysql.cursors.DictCursor
             )
@@ -627,9 +627,7 @@ class data_mysql:
             try:
                 # Konfigurasi OAuth2 untuk Google Ad Manager API dengan credentials dari database
                 SCOPES = [
-                    'openid',
-                    'email', 
-                    'profile'
+                    'https://www.googleapis.com/auth/dfp'
                 ]
                 # Setup OAuth flow dengan credentials dari database
                 client_config = {

@@ -139,7 +139,6 @@ class OAuthRedirectView(View):
     def get(self, request):
         if not request.user.is_authenticated:
             return redirect('admin_login')
-            
         # Get user data from database based on email
         user_data = data_mysql().data_user_by_params(params={'user_mail': request.user.email})
         if not user_data['status'] or not user_data['data']:
@@ -1833,6 +1832,7 @@ class AdxUserAccountDataView(View):
             user_mail = user_data['data']['user_mail']
             # Fetch comprehensive account data using user's credentials
             result = fetch_user_adx_account_data(user_mail)
+            print(f"resultnya adalah : {result}")
             # Enhance error message for better user feedback
             if not result.get('status', False):
                 error_msg = result.get('error', 'Unknown error')

@@ -161,12 +161,19 @@ SOCIAL_AUTH_SESSION_EXPIRATION = True
 SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = ['state']
 SOCIAL_AUTH_PROTECTED_USER_FIELDS = ['email']
 
-# Social Auth Google OAuth2 Settings - Basic scopes only to avoid verification warning
+# Social Auth Google OAuth2 Settings - Complete scopes for Ad Manager API
 SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
     'openid',
     'email',
     'profile',
-    'https://www.googleapis.com/auth/dfp'  # Ad Manager SOAP API scope
+    'https://www.googleapis.com/auth/dfp',        # Ad Manager SOAP API scope
+    'https://www.googleapis.com/auth/admanager'   # Ad Manager REST API scope (Beta)
+]
+
+# Google API Scopes for Ad Manager
+GOOGLE_SCOPES = [
+    'https://www.googleapis.com/auth/dfp',
+    'https://www.googleapis.com/auth/admanager',
 ]
 
 # Sensitive scopes moved to separate configuration for manual authorization when needed

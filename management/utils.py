@@ -2865,14 +2865,16 @@ def fetch_user_adx_account_data(user_mail):
     try:
         # Get user's Ad Manager client (skip network verification to avoid recursion)
         client_result = get_user_ad_manager_client(user_mail, skip_network_verification=True)
-        print(f"DEBUG AdxUserAccountDataView -client: {client_result}")
         client = client_result['client']
         # Get Network Service
         network_service = client.GetService('NetworkService', version='v202502')
+        print(f"DEBUG network_service: {network_service}")
         # Get current network information
         current_network = network_service.getCurrentNetwork()
+        print(f"DEBUG current_network: {current_network}")
         # Get User Service for additional account details
         user_service = client.GetService('UserService', version='v202502')
+        print(f"DEBUG user_service: {user_service}")
         # Get current user information
         current_user = None
         try:
