@@ -8,7 +8,7 @@ import sys
 import django
 
 # Setup Django environment
-sys.path.append('/var/www/html/hris')
+sys.path.append('/Users/ariefdwicahyoadi/hris')
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hris.settings')
 django.setup()
 

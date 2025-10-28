@@ -101,7 +101,7 @@ STATICFILES_DIRS = [
 **Nginx config example:**
 ```
 location /static/ {
-    alias /var/www/html/hris/management/static/;
+    alias /Users/ariefdwicahyoadi/hris/management/static/;
 }
 ```
 
