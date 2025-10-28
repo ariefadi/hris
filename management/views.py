@@ -19,14 +19,30 @@ from operator import itemgetter
 import tempfile
 from django.core.files.storage import FileSystemStorage
 from django.template.loader import render_to_string
-import pandas as pd
+# Pandas can fail to import if numpy binary is incompatible; avoid crashing at module load
+try:
+    import pandas as pd
+except Exception as _pandas_err:
+    pd = None
+    try:
+        import logging as _logging
+        _logging.getLogger(__name__).warning("Pandas import failed; disabling pandas-dependent features: %s", _pandas_err)
+    except Exception:
+        pass
 import io
 from .crypto import sandi
 import requests
 import json
-from geopy.geocoders import Nominatim
 import uuid
-import pycountry
+# Optional dependencies: guard imports to prevent module-level crashes
+try:
+    from geopy.geocoders import Nominatim
+except Exception:
+    Nominatim = None
+try:
+    import pycountry
+except Exception:
+    pycountry = None
 from google_auth_oauthlib.flow import Flow
 from management.oauth_utils import (
     generate_oauth_url_for_user, 
@@ -82,7 +98,8 @@ def get_user_refresh_token(email):
         }
 
 
-geocode = Nominatim(user_agent="hris_trendHorizone")
+# Initialize geocoder if available; else use None and handle in callers
+geocode = Nominatim(user_agent="hris_trendHorizone") if Nominatim else None
 
 data_bulan = {
     1: 'Januari',
@@ -410,9 +427,35 @@ class DashboardAdmin(View):
         return super(DashboardAdmin, self).dispatch(request, *args, **kwargs)
 
     def get(self, req):
+        # Cek status OAuth user untuk menampilkan banner otorisasi jika token belum ada
+        try:
+            user_mail = req.session.get('hris_admin', {}).get('user_mail')
+        except Exception:
+            user_mail = None
+
+        oauth_banner = {
+            'show': False,
+            'message': None
+        }
+
+        if user_mail:
+            try:
+                from management.oauth_utils import get_user_oauth_status
+                status = get_user_oauth_status(user_mail)
+                if status.get('status') and not status.get('data', {}).get('has_token', False):
+                    oauth_banner['show'] = True
+                    oauth_banner['message'] = (
+                        'Akses Ad Manager belum diotorisasi untuk akun ini. '
+                        'Silakan selesaikan otorisasi agar fitur AdX berfungsi.'
+                    )
+            except Exception:
+                # Jika gagal cek status, jangan blokir dashboard; sembunyikan banner
+                pass
+
         data = {
             'title': 'Dashboard Admin',
-            'user': req.session['hris_admin']
+            'user': req.session['hris_admin'],
+            'oauth_banner': oauth_banner
         }
         return render(req, 'admin/dashboard_admin.html', data)
 

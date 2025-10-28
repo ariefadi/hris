@@ -1,5 +1,9 @@
 from google.oauth2.credentials import Credentials
-from googleapiclient.discovery import build
+# Guard googleapiclient import to avoid module-level crash when not installed
+try:
+    from googleapiclient.discovery import build
+except Exception:
+    build = None
 from .database import data_mysql
 
 def get_user_adsense_credentials(user_mail):
@@ -79,6 +83,11 @@ def get_user_adsense_client(user_mail):
         )
         
         # Build AdSense Management API service
+        if build is None:
+            return {
+                'status': False,
+                'error': 'googleapiclient is not installed; AdSense client unavailable'
+            }
         service = build('adsense', 'v2', credentials=creds)
         
         return {

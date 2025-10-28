@@ -1,13 +1,21 @@
 import os
 import json
-import pandas as pd
+# Guard pandas import to avoid crash when numpy binaries are incompatible
+try:
+    import pandas as pd
+except Exception:
+    pd = None
 from django.shortcuts import redirect, render
 from django.http import JsonResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from google_auth_oauthlib.flow import Flow
-from googleapiclient.discovery import build
+# Guard googleapiclient import to prevent module-level crash when not installed
+try:
+    from googleapiclient.discovery import build
+except Exception:
+    build = None
 from google.oauth2.credentials import Credentials
 from .utils_adsense import fetch_adsense_traffic_account_data
 

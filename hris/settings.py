@@ -5,8 +5,6 @@ import os
 from pathlib import Path
 from pickle import FALSE
 from dotenv import load_dotenv
-import pymysql
-pymysql.install_as_MySQLdb()
 
 # Apply JSONField compatibility patch for social_django
 try:
@@ -20,6 +18,26 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # Load environment variables from .env file
 load_dotenv(BASE_DIR / '.env')
+
+# Provide compatibility alias for deprecated force_text used by older packages
+try:
+    from django.utils.encoding import force_str
+    import django.utils.encoding as _enc
+    if not hasattr(_enc, 'force_text'):
+        _enc.force_text = force_str
+except Exception:
+    pass
+
+# Provide compatibility aliases for deprecated urlquote/urlquote_plus
+try:
+    from urllib.parse import quote as _quote, quote_plus as _quote_plus
+    import django.utils.http as _http
+    if not hasattr(_http, 'urlquote'):
+        _http.urlquote = _quote
+    if not hasattr(_http, 'urlquote_plus'):
+        _http.urlquote_plus = _quote_plus
+except Exception:
+    pass
 
 # Function to get credentials from database
 def get_credentials_from_db(request=None):
@@ -117,9 +135,9 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'hris_trendHorizone',
         'USER': 'root',
-        'PASSWORD': '',
+        'PASSWORD': 'hris123456',
         'HOST': '127.0.0.1',
-        'PORT': '3307',
+        'PORT': '3306',
         'OPTIONS': {
             'sql_mode': 'STRICT_TRANS_TABLES',
         }
@@ -134,7 +152,6 @@ STATICFILES_DIRS = [
 ]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 # Session Configuration for OAuth State Fix
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 3600  # 1 hour (shorter for OAuth)
@@ -161,13 +178,11 @@ SOCIAL_AUTH_SESSION_EXPIRATION = True
 SOCIAL_AUTH_FIELDS_STORED_IN_SESSION = ['state']
 SOCIAL_AUTH_PROTECTED_USER_FIELDS = ['email']
 
-# Social Auth Google OAuth2 Settings - Complete scopes for Ad Manager API
+# Social Auth Google OAuth2 Settings - SSO only (basic scopes)
 SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
     'openid',
     'email',
-    'profile',
-    'https://www.googleapis.com/auth/dfp',        # Ad Manager SOAP API scope
-    'https://www.googleapis.com/auth/admanager'   # Ad Manager REST API scope (Beta)
+    'profile'
 ]
 
 # Google API Scopes for Ad Manager
@@ -212,11 +227,17 @@ SENSITIVE_GOOGLE_SCOPES = [
 ]
 
 # OAuth Redirect URLs - harus sesuai dengan yang terdaftar di Google Console
-# Untuk development gunakan localhost, untuk production gunakan domain
-if DEBUG:
-    SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'http://127.0.0.1:8000/accounts/complete/google-oauth2/'
-else:
-    SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = 'https://kiwipixel.com/accounts/complete/google-oauth2/'
+# Dapat di-override lewat environment agar tidak terikat DEBUG
+SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI = os.getenv(
+    'SOCIAL_AUTH_GOOGLE_OAUTH2_REDIRECT_URI',
+    'http://127.0.0.1:8000/accounts/complete/google-oauth2/' if DEBUG else 'https://kiwipixel.com/accounts/complete/google-oauth2/'
+)
+
+# Redirect URI untuk flow OAuth kustom (oauth_utils) agar penukaran code cocok
+OAUTH_REDIRECT_URI = os.getenv(
+    'OAUTH_REDIRECT_URI',
+    'http://127.0.0.1:8000/management/admin/oauth/callback/' if DEBUG else 'https://kiwipixel.com/management/admin/oauth/callback/'
+)
 
 # Social Auth Error Handling
 SOCIAL_AUTH_RAISE_EXCEPTIONS = False
@@ -227,19 +248,16 @@ SOCIAL_AUTH_NEW_USER_REDIRECT_URL = '/management/admin/oauth_redirect'
 # Social Auth Pipeline - Simplified with Dynamic Credential Loading
 SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_details',
-    'management.pipeline.load_user_credentials',  # Load kredensial dinamis berdasarkan user email
     'social_core.pipeline.social_auth.social_uid',
     'social_core.pipeline.social_auth.auth_allowed',
     'social_core.pipeline.social_auth.social_user',
     'social_core.pipeline.user.get_username',
     'social_core.pipeline.user.create_user',
     'social_core.pipeline.social_auth.associate_user',
-    'social_core.pipeline.social_auth.load_extra_data',  # Load extra data termasuk refresh token
-    'management.pipeline_refresh_token.save_refresh_token',  # Simpan refresh token ke database
-    'management.pipeline.validate_email_access',  # Validasi email di Ad Manager dan database
-    'management.pipeline.set_hris_session',  # Set session setelah user dibuat
+    'social_core.pipeline.social_auth.load_extra_data',
+    'management.pipeline.set_hris_session',
     'social_core.pipeline.user.user_details',
-    'management.pipeline.save_profile',  # Optional profile save
+    'management.pipeline.save_profile',
 )
 
 # Login URLs

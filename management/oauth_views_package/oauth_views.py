@@ -16,6 +16,7 @@ import logging
 from management.oauth_utils import (
     get_current_user_from_request,
     generate_oauth_flow_for_current_user,
+    generate_oauth_flow_for_selected_user,
     handle_oauth_callback,
     get_user_oauth_status,
     save_refresh_token_for_current_user
@@ -54,25 +55,42 @@ class OAuthStatusView(View):
 
 class GenerateOAuthURLView(View):
     """
-    View untuk generate OAuth URL untuk current user
+    View untuk generate OAuth URL.
+    Jika body JSON berisi `user_mail`, generate untuk email tersebut.
+    Jika tidak, gunakan current user dari session.
     """
     
     def post(self, request):
-        oauth_flow = generate_oauth_flow_for_current_user(request)
-        
-        if oauth_flow['status']:
-            return JsonResponse({
-                'status': True,
-                'oauth_url': oauth_flow['oauth_url'],
-                'user_mail': oauth_flow['user_mail'],
-                'user_name': oauth_flow['user_name'],
-                'instructions': oauth_flow['instructions']
-            })
-        else:
-            return JsonResponse({
-                'status': False,
-                'message': oauth_flow['message']
-            })
+        try:
+            target_mail = None
+            if request.content_type == 'application/json' and request.body:
+                try:
+                    body = json.loads(request.body)
+                    target_mail = body.get('user_mail')
+                except Exception:
+                    target_mail = None
+
+            if target_mail:
+                oauth_flow = generate_oauth_flow_for_selected_user(request, target_mail)
+            else:
+                oauth_flow = generate_oauth_flow_for_current_user(request)
+
+            if oauth_flow['status']:
+                return JsonResponse({
+                    'status': True,
+                    'oauth_url': oauth_flow['oauth_url'],
+                    'user_mail': oauth_flow['user_mail'],
+                    'user_name': oauth_flow['user_name'],
+                    'instructions': oauth_flow['instructions']
+                })
+            else:
+                return JsonResponse({
+                    'status': False,
+                    'message': oauth_flow['message']
+                })
+        except Exception as e:
+            logger.error(f"Error generating OAuth URL: {str(e)}")
+            return JsonResponse({'status': False, 'message': f'Error: {str(e)}'})
 
 class OAuthCallbackView(View):
     """
@@ -173,9 +191,15 @@ class OAuthCallbackView(View):
         if request.method == 'GET':
             # Baca code dari querystring
             auth_code = request.GET.get('code')
+            # Baca target email dari parameter opsional (baik sebagai query `user_mail` maupun `state`)
+            target_mail = request.GET.get('user_mail')
+            # Jika state berformat "user:<email>", ekstrak email untuk ketepatan target
+            state = request.GET.get('state')
+            if not target_mail and state and state.startswith('user:'):
+                target_mail = state.split('user:', 1)[1]
             if not auth_code:
                 return JsonResponse({'status': False, 'message': 'Authorization code tidak ditemukan di query'}, status=400)
-            result = handle_oauth_callback(request, auth_code)
+            result = handle_oauth_callback(request, auth_code, target_user_mail=target_mail)
             # Jika HTML page, tampilkan pesan dan redirect ke dashboard oauth
             if request.headers.get('Accept', '').find('text/html') != -1:
                 if result.get('status'):
@@ -188,11 +212,13 @@ class OAuthCallbackView(View):
             try:
                 body = json.loads(request.body or '{}')
                 auth_code = body.get('code')
+                target_mail = body.get('user_mail')
             except Exception:
                 auth_code = None
+                target_mail = None
             if not auth_code:
                 return JsonResponse({'status': False, 'message': 'Authorization code tidak boleh kosong'}, status=400)
-            result = handle_oauth_callback(request, auth_code)
+            result = handle_oauth_callback(request, auth_code, target_user_mail=target_mail)
             return JsonResponse(result)
         return super().dispatch(request, *args, **kwargs)
 

@@ -1,4 +1,12 @@
 import numpy as np
+import pytest
+
+from pandas.compat import is_numpy_dev
+
+from pandas.core.dtypes.common import (
+    is_complex_dtype,
+    is_extension_array_dtype,
+)
 
 from pandas import (
     Period,
@@ -147,5 +155,36 @@ class TestSeriesDescribe:
                 Timestamp("2012-01-03"),
             ],
             index=["count", "mean", "min", "25%", "50%", "75%", "max"],
+        )
+        tm.assert_series_equal(result, expected)
+
+    def test_numeric_result_dtype(self, any_numeric_dtype):
+        # GH#48340 - describe should always return float on non-complex numeric input
+        if is_extension_array_dtype(any_numeric_dtype):
+            dtype = "Float64"
+        else:
+            dtype = "complex128" if is_complex_dtype(any_numeric_dtype) else None
+
+        ser = Series([0, 1], dtype=any_numeric_dtype)
+        if dtype == "complex128" and is_numpy_dev:
+            with pytest.raises(
+                TypeError, match=r"^a must be an array of real numbers$"
+            ):
+                ser.describe()
+            return
+        result = ser.describe()
+        expected = Series(
+            [
+                2.0,
+                0.5,
+                ser.std(),
+                0,
+                0.25,
+                0.5,
+                0.75,
+                1.0,
+            ],
+            index=["count", "mean", "std", "min", "25%", "50%", "75%", "max"],
+            dtype=dtype,
         )
         tm.assert_series_equal(result, expected)

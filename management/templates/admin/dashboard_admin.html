@@ -124,6 +124,17 @@
 
     <div class="app-content">
         <div class="container-fluid">
+            {% if oauth_banner.show %}
+            <div class="alert alert-warning d-flex align-items-center" role="alert" style="border-radius: 10px;">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <div class="flex-grow-1">
+                    {{ oauth_banner.message }}
+                </div>
+                <a href="{% url 'oauth_management_dashboard' %}" class="btn btn-sm btn-primary ms-3">
+                    Authorize Ad Manager
+                </a>
+            </div>
+            {% endif %}
             <!-- Loading Spinner -->
             <div id="loading" class="loading-spinner">
                 <div class="spinner-border text-primary" role="status">

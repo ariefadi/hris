@@ -21,12 +21,27 @@ class data_mysql:
     def connect(self):
         """Membuat koneksi baru ke database"""
         try:
+            # Baca kredensial dari environment variables agar tidak hardcoded
+            host = os.getenv('HRIS_DB_HOST', '127.0.0.1')
+            # Parsing port secara defensif untuk menghindari ValueError saat import
+            raw_port = os.getenv('HRIS_DB_PORT', '').strip()
+            if not raw_port:
+                raw_port = '3306'
+            try:
+                port = int(raw_port)
+            except (ValueError, TypeError):
+                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
+                port = 3306
+            user = os.getenv('HRIS_DB_USER', 'root')
+            password = os.getenv('HRIS_DB_PASSWORD', 'hris123456')
+            database = os.getenv('HRIS_DB_NAME', 'hris_trendHorizone')
+
             self.db_hris = pymysql.connect(
-                host='127.0.0.1',
-                port=3307,
-                user='root',
-                password='',
-                database='hris_trendHorizone',
+                host=host,
+                port=port,
+                user=user,
+                password=password,
+                database=database,
                 cursorclass=pymysql.cursors.DictCursor
             )
             self.cur_hris = self.db_hris.cursor()

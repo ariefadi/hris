@@ -129,6 +129,12 @@
                         <h5 class="mb-0"><i class="fas fa-cogs"></i> Aksi OAuth</h5>
                     </div>
                     <div class="card-body">
+                        <!-- Target Email (opsional) -->
+                        <div class="mb-3">
+                            <label class="form-label"><strong>Email Target (opsional):</strong></label>
+                            <input type="email" id="targetEmail" class="form-control" placeholder="contoh: user@domain.com">
+                            <small class="form-text text-muted">Isi jika ingin mengelola token untuk akun lain.</small>
+                        </div>
                         <!-- Generate OAuth URL Button -->
                         <button id="generateOAuthBtn" class="btn btn-primary btn-oauth me-2 mb-2">
                             <i class="fas fa-link"></i> Generate OAuth URL
@@ -237,12 +243,17 @@
         document.getElementById('generateOAuthBtn').addEventListener('click', function() {
             showLoading();
             
+            const targetEmail = document.getElementById('targetEmail').value.trim();
+
+            const payload = targetEmail ? { user_mail: targetEmail } : {};
+
             fetch('/management/admin/oauth/generate-url/', {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': csrftoken,
                     'Content-Type': 'application/json'
-                }
+                },
+                body: JSON.stringify(payload)
             })
             .then(response => response.json())
             .then(data => {
@@ -286,15 +297,16 @@
             
             showLoading();
             
+            const targetEmailPost = document.getElementById('targetEmail').value.trim();
+            const bodyPayload = targetEmailPost ? { code: authCode, user_mail: targetEmailPost } : { code: authCode };
+
             fetch('/management/admin/oauth/callback/', {
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': csrftoken,
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    code: authCode
-                })
+                body: JSON.stringify(bodyPayload)
             })
             .then(response => response.json())
             .then(data => {

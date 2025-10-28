@@ -10,7 +10,16 @@ from collections import defaultdict
 from googleads import ad_manager
 from google.ads.googleads.client import GoogleAdsClient
 from google.ads.googleads.errors import GoogleAdsException
-from pandas.core.frame import console
+# Pandas may fail to import if numpy binary is incompatible; avoid crashing at module import
+try:
+    import pandas as pd
+except Exception as _pandas_err:
+    pd = None
+    try:
+        import logging as _logging
+        _logging.getLogger(__name__).warning("Pandas import failed in utils; disabling pandas-dependent features: %s", _pandas_err)
+    except Exception:
+        pass
 from management.database import data_mysql
 from management.googleads_patch_v2 import apply_googleads_patches
 from functools import wraps
