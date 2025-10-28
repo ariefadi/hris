@@ -988,7 +988,7 @@ def fetch_data_insights_account(tanggal, access_token, account_id, data_sub_doma
             AdsInsights.Field.spend,
             AdsInsights.Field.reach,
             AdsInsights.Field.impressions,
-            AdsInsights.Field.cost_per_result,
+            'cost_per_result',
             AdsInsights.Field.actions
         ],
         params=params
@@ -1013,8 +1013,7 @@ def fetch_data_insights_account(tanggal, access_token, account_id, data_sub_doma
                 if values:
                     cost_per_result = values[0].get('value')
                 break
-        if cost_per_result and str(cost_per_result).replace('.', '', 1).isdigit():
-            agg['cpr'] = float(cost_per_result)
+        agg['cpr'] = float(cost_per_result)
         result_action_type = 'link_click'
         result_count = 0
         for action in row.get('actions', []):
@@ -1269,7 +1268,7 @@ def fetch_data_insights_campaign_filter_sub_domain(start_date, end_date, rs_acco
             AdsInsights.Field.spend,
             AdsInsights.Field.reach,
             AdsInsights.Field.impressions,
-            AdsInsights.Field.cost_per_result,
+            'cost_per_result',
             AdsInsights.Field.actions
         ]
         if data_sub_domain != '%':
@@ -1318,8 +1317,7 @@ def fetch_data_insights_campaign_filter_sub_domain(start_date, end_date, rs_acco
                     if values:
                         cost_per_result = values[0].get('value')
                     break
-            if cost_per_result and str(cost_per_result).replace('.', '', 1).isdigit():
-                agg['cpr'] += float(cost_per_result)
+            agg['cpr'] += float(cost_per_result)
             result_action_type = 'link_click'
             result_count = 0
             for action in item.get('actions', []):
@@ -1408,7 +1406,7 @@ def fetch_data_insights_campaign_filter_account(start_date, end_date, access_tok
         AdsInsights.Field.impressions,
         AdsInsights.Field.reach,
         AdsInsights.Field.spend,
-        AdsInsights.Field.cost_per_result,
+        'cost_per_result',
         AdsInsights.Field.actions
     ]
     params = {
@@ -1508,7 +1506,7 @@ def fetch_data_insights_by_country_filter_campaign(start_date, end_date, rs_acco
             AdsInsights.Field.spend,
             AdsInsights.Field.reach,
             AdsInsights.Field.impressions,
-            AdsInsights.Field.cost_per_result,
+            'cost_per_result',
             AdsInsights.Field.actions
         ]
         if data_sub_domain != '%':
@@ -1700,7 +1698,7 @@ def fetch_data_insights_by_country_filter_account(start_date, end_date, access_t
         AdsInsights.Field.spend,
         AdsInsights.Field.reach,
         AdsInsights.Field.impressions,
-        AdsInsights.Field.cost_per_result,
+        'cost_per_result',
         AdsInsights.Field.actions
     ]
     params = {
@@ -2023,7 +2021,7 @@ def fetch_data_insights_all_accounts_by_subdomain(tanggal, rs_account, data_sub_
                     AdsInsights.Field.spend,
                     AdsInsights.Field.reach,
                     AdsInsights.Field.impressions,
-                    AdsInsights.Field.cost_per_result,
+                    'cost_per_result',
                     AdsInsights.Field.actions
                 ],
                 params=params
@@ -2058,9 +2056,7 @@ def fetch_data_insights_all_accounts_by_subdomain(tanggal, rs_account, data_sub_
                             cost_per_result = values[0].get('value')
                         break
                         
-                if cost_per_result and str(cost_per_result).replace('.', '', 1).isdigit():
-                    agg['cpr'] = float(cost_per_result)
-                
+                agg['cpr'] = float(cost_per_result)
                 # Ambil clicks
                 result_action_type = 'link_click'
                 result_count = 0
@@ -4519,7 +4515,7 @@ def fetch_data_insights_by_country_filter_campaign_roi(rs_account, start_date_fo
             AdsInsights.Field.spend,
             AdsInsights.Field.reach,
             AdsInsights.Field.impressions,
-            AdsInsights.Field.cost_per_result,
+            'cost_per_result',
             AdsInsights.Field.actions
         ]
         if site_filter != '%':
@@ -4576,9 +4572,7 @@ def fetch_data_insights_by_country_filter_campaign_roi(rs_account, start_date_fo
             for cpr_item in item.get('cost_per_result', []):
                 if cpr_item.get('indicator') == 'actions:link_click':
                     values = cpr_item.get('values', [])
-                    if values and str(values[0].get('value', '')).replace('.', '', 1).isdigit():
-                        cost_per_result = float(values[0].get('value'))
-                    break
+                    cost_per_result = float(values[0].get('value'))
             
             # Hitung biaya lainnya dari budget campaign
             campaign_id = item.get('campaign_id')
@@ -4696,7 +4690,7 @@ def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, 
                 AdsInsights.Field.spend,
                 AdsInsights.Field.reach,
                 AdsInsights.Field.impressions,
-                AdsInsights.Field.cost_per_result,
+                'cost_per_result',
                 AdsInsights.Field.actions,
                 AdsInsights.Field.date_start,
             ]
@@ -4741,8 +4735,7 @@ def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, 
                     agg['frequency'] = float(agg['impressions'] / agg['reach'])
                 # CPR
                 cost_per_result = item.get('cost_per_result')
-                if cost_per_result and str(cost_per_result).replace('.', '', 1).isdigit():
-                    agg['cpr'] += float(cost_per_result)
+                agg['cpr'] += float(cost_per_result)
                 # Clicks
                 for action in item.get('actions', []):
                     if action.get('action_type') == 'link_click':
