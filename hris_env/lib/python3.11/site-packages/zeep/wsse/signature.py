@@ -8,7 +8,6 @@ admittedly painful, will likely assist in understanding the code in this
 module.
 
 """
-
 from lxml import etree
 from lxml.etree import QName
 

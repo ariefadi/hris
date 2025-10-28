@@ -96,7 +96,7 @@ class TestDataFrameLogicalOperators:
         res_ser = df1a_int["A"] | df1a_bool["A"]
         tm.assert_series_equal(res_ser, df1a_bool["A"])
 
-    def test_logical_ops_invalid(self, using_infer_string):
+    def test_logical_ops_invalid(self):
         # GH#5808
 
         df1 = DataFrame(1.0, index=[1], columns=["A"])
@@ -107,10 +107,7 @@ class TestDataFrameLogicalOperators:
 
         df1 = DataFrame("foo", index=[1], columns=["A"])
         df2 = DataFrame(True, index=[1], columns=["A"])
-        if using_infer_string and df1["A"].dtype.storage == "pyarrow":
-            msg = "operation 'or_' not supported for dtype 'str'"
-        else:
-            msg = re.escape("unsupported operand type(s) for |: 'str' and 'bool'")
+        msg = re.escape("unsupported operand type(s) for |: 'str' and 'bool'")
         with pytest.raises(TypeError, match=msg):
             df1 | df2
 
@@ -154,7 +151,6 @@ class TestDataFrameLogicalOperators:
 
         _check_unary_op(operator.inv)  # TODO: belongs elsewhere
 
-    @pytest.mark.filterwarnings("ignore:Downcasting object dtype arrays:FutureWarning")
     def test_logical_with_nas(self):
         d = DataFrame({"a": [np.nan, False], "b": [True, True]})
 
@@ -169,9 +165,7 @@ class TestDataFrameLogicalOperators:
         expected = Series([True, True])
         tm.assert_series_equal(result, expected)
 
-        msg = "The 'downcast' keyword in fillna is deprecated"
-        with tm.assert_produces_warning(FutureWarning, match=msg):
-            result = d["a"].fillna(False, downcast=False) | d["b"]
+        result = d["a"].fillna(False, downcast=False) | d["b"]
         expected = Series([True, True])
         tm.assert_series_equal(result, expected)
 
@@ -195,21 +189,3 @@ class TestDataFrameLogicalOperators:
             ),
         )
         tm.assert_frame_equal(result, expected)
-
-    def test_int_dtype_different_index_not_bool(self):
-        # GH 52500
-        df1 = DataFrame([1, 2, 3], index=[10, 11, 23], columns=["a"])
-        df2 = DataFrame([10, 20, 30], index=[11, 10, 23], columns=["a"])
-        result = np.bitwise_xor(df1, df2)
-        expected = DataFrame([21, 8, 29], index=[10, 11, 23], columns=["a"])
-        tm.assert_frame_equal(result, expected)
-
-        result = df1 ^ df2
-        tm.assert_frame_equal(result, expected)
-
-    def test_different_dtypes_different_index_raises(self):
-        # GH 52538
-        df1 = DataFrame([1, 2], index=["a", "b"])
-        df2 = DataFrame([3, 4], index=["b", "c"])
-        with pytest.raises(TypeError, match="unsupported operand type"):
-            df1 & df2

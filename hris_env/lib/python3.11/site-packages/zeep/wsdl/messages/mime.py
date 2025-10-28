@@ -1,9 +1,8 @@
 """
-zeep.wsdl.messages.mime
-~~~~~~~~~~~~~~~~~~~~~~~
+    zeep.wsdl.messages.mime
+    ~~~~~~~~~~~~~~~~~~~~~~~
 
 """
-
 from urllib.parse import urlencode
 
 from lxml import etree

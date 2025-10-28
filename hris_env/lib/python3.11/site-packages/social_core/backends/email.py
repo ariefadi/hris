@@ -2,7 +2,6 @@
 Legacy Email backend, docs at:
     https://python-social-auth.readthedocs.io/en/latest/backends/email.html
 """
-
 from .legacy import LegacyAuth
 
 

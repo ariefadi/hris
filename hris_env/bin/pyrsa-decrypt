@@ -1,4 +1,4 @@
-#!/Users/ariefdwicahyoadi/hris/hris_env/bin/python3.11
+#!/var/www/html/hris/hris_env/bin/python3
 import sys
 from rsa.cli import decrypt
 if __name__ == '__main__':

@@ -2,7 +2,6 @@
 Yammer OAuth2 production and staging backends, docs at:
     https://python-social-auth.readthedocs.io/en/latest/backends/yammer.html
 """
-
 from .oauth import BaseOAuth2
 
 

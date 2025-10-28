@@ -1,4 +1,4 @@
-#!/Users/ariefdwicahyoadi/hris/hris_env/bin/python3.11
+#!/var/www/html/hris/hris_env/bin/python3
 import sys
 from charset_normalizer.cli import cli_detect
 if __name__ == '__main__':

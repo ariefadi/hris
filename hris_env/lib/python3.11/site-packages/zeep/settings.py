@@ -76,7 +76,6 @@ class Settings:
                     setattr(self._tls, key, value)
 
     def __getattribute__(self, key):
-        _tls = object.__getattribute__(self, "_tls")
-        if key != "_tls" and hasattr(_tls, key):
-            return getattr(_tls, key)
-        return object.__getattribute__(self, key)
+        if key != "_tls" and hasattr(self._tls, key):
+            return getattr(self._tls, key)
+        return super().__getattribute__(key)

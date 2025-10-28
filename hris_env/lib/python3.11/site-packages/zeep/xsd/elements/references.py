@@ -6,7 +6,6 @@ Ref* objecs are only used temporarily between parsing the schema and resolving
 all the elements.
 
 """
-
 __all__ = ["RefElement", "RefAttribute", "RefAttributeGroup", "RefGroup"]
 
 

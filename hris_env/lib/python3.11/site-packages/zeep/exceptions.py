@@ -95,7 +95,7 @@ class IncompleteOperation(Error):
 
 class DTDForbidden(Error):
     def __init__(self, name, sysid, pubid):
-        super().__init__()
+        super(DTDForbidden, self).__init__()
         self.name = name
         self.sysid = sysid
         self.pubid = pubid
@@ -107,7 +107,7 @@ class DTDForbidden(Error):
 
 class EntitiesForbidden(Error):
     def __init__(self, name, content):
-        super().__init__()
+        super(EntitiesForbidden, self).__init__()
         self.name = name
         self.content = content
 
