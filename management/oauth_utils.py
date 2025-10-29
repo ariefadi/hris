@@ -6,7 +6,7 @@ Utility functions yang dapat diintegrasikan ke dalam Django views
 from django.conf import settings
 from django.http import JsonResponse
 from django.contrib import messages
-from management.database import data_mysql
+from .database import data_mysql
 from management.googleads_patch_v2 import apply_googleads_patches
 from management.jsonfield_patch import patch_social_django_jsonfield
 from management.credential_loader import get_credentials_for_oauth_login, update_settings_for_user

@@ -6,7 +6,7 @@ import tempfile
 import yaml
 import os
 from django.conf import settings
-from management.database import data_mysql  # Mengubah import path
+from .database import data_mysql  # Mengubah import path
 
 # Store original methods
 _original_load_from_storage = googleads.common.LoadFromStorage

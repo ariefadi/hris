@@ -12,7 +12,7 @@ from django import template
 from calendar import month, monthrange
 from datetime import datetime, date, timedelta
 from django.http import HttpResponse, JsonResponse, QueryDict
-from management.database import data_mysql
+from .database import data_mysql
 from itertools import groupby, product
 from django.core import serializers
 from operator import itemgetter
@@ -44,7 +44,7 @@ try:
 except Exception:
     pycountry = None
 from google_auth_oauthlib.flow import Flow
-from management.oauth_utils import (
+from .oauth_utils import (
     generate_oauth_url_for_user, 
     exchange_code_for_refresh_token,
     handle_oauth_callback
@@ -1615,8 +1615,7 @@ class AdxSummaryView(View):
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
-        db = data_mysql()
-        data_account_adx = db.get_all_adx_account_data()
+        data_account_adx = data_mysql().get_all_adx_account_data()
         print(f"DEBUG AdxTrafficPerAccountView - data_account_adx: {data_account_adx}")
         if not data_account_adx['status']:
             return JsonResponse({
@@ -1660,7 +1659,6 @@ class AdxSummaryDataView(View):
                     'error': 'User ID tidak ditemukan dalam session'
                 })
             # Ambil email user dari database berdasarkan user_id
-            from management.database import data_mysql
             user_data = data_mysql().get_user_by_id(user_id)
             if not user_data['status'] or not user_data['data']:
                 return JsonResponse({
@@ -1847,8 +1845,7 @@ class AdxAccountView(View):
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
-        db = data_mysql()
-        data_account_adx = db.get_all_adx_account_data()
+        data_account_adx = data_mysql().get_all_adx_account_data()
         if not data_account_adx['status']:
             return JsonResponse({
                 'status': False,
@@ -2068,8 +2065,7 @@ class AdxTrafficPerAccountView(View):
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
-        db = data_mysql()
-        data_account_adx = db.get_all_adx_account_data()
+        data_account_adx = data_mysql().get_all_adx_account_data()
         print(f"DEBUG AdxTrafficPerAccountView - data_account_adx: {data_account_adx}")
         if not data_account_adx['status']:
             return JsonResponse({
@@ -2133,7 +2129,6 @@ class AdxSitesListView(View):
             # Ambil user_id dari session
             user_id = user_id
             # Ambil email user dari database berdasarkan user_id
-            from management.database import data_mysql
             user_data = data_mysql().get_user_by_id(user_id)
             user_mail = user_data['data']['user_mail']
             # Ambil daftar situs dari Ad Manager
@@ -2232,8 +2227,7 @@ class AdxTrafficPerCountryView(View):
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
-        db = data_mysql()
-        data_account_adx = db.get_all_adx_account_data()
+        data_account_adx = data_mysql().get_all_adx_account_data()
         if not data_account_adx['status']:
             return JsonResponse({
                 'status': False,
@@ -2361,8 +2355,7 @@ class RoiTrafficPerCountryView(View):
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
-        db = data_mysql()
-        data_account_adx = db.get_all_adx_account_data()
+        data_account_adx = data_mysql().get_all_adx_account_data()
         if not data_account_adx['status']:
             return JsonResponse({
                 'status': False,
@@ -2542,8 +2535,7 @@ class RoiTrafficPerDomainView(View):
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
-        db = data_mysql()
-        data_account_adx = db.get_all_adx_account_data()
+        data_account_adx = data_mysql().get_all_adx_account_data()
         if not data_account_adx['status']:
             return JsonResponse({
                 'status': False,
@@ -2695,8 +2687,7 @@ class RoiSummaryView(View):
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
-        db = data_mysql()
-        data_account_adx = db.get_all_adx_account_data()
+        data_account_adx = data_mysql().get_all_adx_account_data()
         if not data_account_adx['status']:
             return JsonResponse({
                 'status': False,

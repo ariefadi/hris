@@ -1,4 +1,4 @@
-from management.database import data_mysql
+from .database import data_mysql
 import logging
 
 logger = logging.getLogger(__name__)

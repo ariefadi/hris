@@ -62,8 +62,8 @@ def set_hris_session(backend, user, response, request, *args, **kwargs):
     """
     Set HRIS session setelah user berhasil login melalui OAuth
     """
-    from management.database import data_mysql
-    from management.utils import check_email_in_database
+    from .database import data_mysql
+    from .utils import check_email_in_database
     
     print(f"[DEBUG] Pipeline set_hris_session called for user: {user.email}")
     print(f"[DEBUG] Response keys: {list(response.keys()) if isinstance(response, dict) else 'Not a dict'}")

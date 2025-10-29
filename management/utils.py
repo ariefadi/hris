@@ -20,7 +20,7 @@ except Exception as _pandas_err:
         _logging.getLogger(__name__).warning("Pandas import failed in utils; disabling pandas-dependent features: %s", _pandas_err)
     except Exception:
         pass
-from management.database import data_mysql
+from .database import data_mysql
 from management.googleads_patch_v2 import apply_googleads_patches
 from functools import wraps
 from management.googleads_patch_v2 import apply_all_patches

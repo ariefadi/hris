@@ -10,7 +10,7 @@ from collections import defaultdict
 from googleads import ad_manager
 from google.ads.googleads.client import GoogleAdsClient
 from google.ads.googleads.errors import GoogleAdsException
-from management.database import data_mysql
+from .database import data_mysql
 from management.googleads_patch_v2 import apply_googleads_patches
 from functools import wraps
 
