@@ -5,6 +5,10 @@ import os
 from pathlib import Path
 from pickle import FALSE
 from dotenv import load_dotenv
+import pymysql
+
+# Install PyMySQL as MySQLdb
+pymysql.install_as_MySQLdb()
 
 # Apply JSONField compatibility patch for social_django
 try:
@@ -129,20 +133,49 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'hris.wsgi.application'
 
-# Database Configuration
+# Database Configuration - MySQL
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'hris_trendHorizone',
         'USER': 'root',
-        'PASSWORD': 'hris123456',
+        'PASSWORD': '',
         'HOST': '127.0.0.1',
-        'PORT': '3306',
+        'PORT': '3307',
         'OPTIONS': {
             'sql_mode': 'STRICT_TRANS_TABLES',
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
         }
     }
 }
+
+# Override database version check for MariaDB compatibility
+import django.db.backends.mysql.base
+import django.db.backends.mysql.features
+
+# Override mysql_server_info property
+def get_mysql_server_info(self):
+    return '10.5.0-MariaDB'
+
+# Override mysql_is_mariadb property  
+def get_mysql_is_mariadb(self):
+    return True
+
+# Override minimum_database_version property
+def get_minimum_database_version(self):
+    return (10, 4)
+
+django.db.backends.mysql.base.DatabaseWrapper.mysql_server_info = property(get_mysql_server_info)
+django.db.backends.mysql.base.DatabaseWrapper.mysql_is_mariadb = property(get_mysql_is_mariadb)
+django.db.backends.mysql.features.DatabaseFeatures.minimum_database_version = property(get_minimum_database_version)
+
+# SQLite Configuration (backup/fallback)
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
 
 # Static files Configuration
 STATIC_URL = '/static/'
@@ -266,6 +299,14 @@ LOGIN_REDIRECT_URL = '/management/admin/oauth_redirect'
 LOGOUT_REDIRECT_URL = '/management/admin/login'
 
 
+
+# Default OAuth credentials from environment variables
+GOOGLE_OAUTH2_CLIENT_ID = os.getenv('GOOGLE_OAUTH2_CLIENT_ID', '')
+GOOGLE_OAUTH2_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET', '')
+GOOGLE_ADS_CLIENT_ID = os.getenv('GOOGLE_ADS_CLIENT_ID', '')
+GOOGLE_ADS_CLIENT_SECRET = os.getenv('GOOGLE_ADS_CLIENT_SECRET', '')
+GOOGLE_ADS_REFRESH_TOKEN = os.getenv('GOOGLE_ADS_REFRESH_TOKEN', '')
+GOOGLE_AD_MANAGER_NETWORK_CODE = os.getenv('GOOGLE_AD_MANAGER_NETWORK_CODE', '')
 
 # Load credentials from database
 try:

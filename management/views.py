@@ -321,18 +321,23 @@ def get_countries_adx(request):
     if 'hris_admin' not in request.session:
         return redirect('admin_login')
     try:
+        selected_accounts = request.GET.get('selected_accounts')
+        if selected_accounts:
+            user_id = selected_accounts.split(',')
+        else:
+            user_id = request.session.get('hris_admin', {}).get('user_id')
+        user_data = data_mysql().get_user_by_id(user_id)
+        print(f"Selected user_data : {user_data}")
         # Ambil data negara dari AdX untuk periode 30 hari terakhir
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=30)
         # Ambil semua data negara tanpa filter
-        user_mail = request.session['hris_admin']['user_mail']
+        user_mail = user_data['data']['user_mail']
         result = fetch_adx_traffic_per_country(
             start_date.strftime('%Y-%m-%d'), 
             end_date.strftime('%Y-%m-%d'),
             user_mail
         )
-        print(f"Data Negara : {result}")
-        
         # Validasi struktur result
         if not result:
             print("[WARNING] Result is None or empty")
@@ -1609,11 +1614,19 @@ class AdxSummaryView(View):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
-    
     def get(self, req):
+        db = data_mysql()
+        data_account_adx = db.get_all_adx_account_data()
+        print(f"DEBUG AdxTrafficPerAccountView - data_account_adx: {data_account_adx}")
+        if not data_account_adx['status']:
+            return JsonResponse({
+                'status': False,
+                'error': data_account_adx['data']
+            })
         data = {
             'title': 'AdX Summary Dashboard',
             'user': req.session['hris_admin'],
+            'adx_account_data': data_account_adx['data'],
         }
         return render(req, 'admin/adx_manager/summary/index.html', data)
 
@@ -1623,10 +1636,15 @@ class AdxSummaryDataView(View):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
-    
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
+        selected_accounts = req.GET.get('selected_accounts')
+        selected_sites = req.GET.get('selected_sites')
+        if selected_accounts:
+            user_id = selected_accounts.split(',')
+        else:
+            user_id = req.session.get('hris_admin', {}).get('user_id')
         if not start_date or not end_date:      
             return JsonResponse({
                 'status': False,
@@ -1634,14 +1652,13 @@ class AdxSummaryDataView(View):
             })
         try:
             # Ambil user_id dari session
-            user_id = req.session.get('hris_admin', {}).get('user_id')
+            user_id = user_id
             print(f"DEBUG - Session user_id: {user_id}")
             if not user_id:
                 return JsonResponse({
                     'status': False,
                     'error': 'User ID tidak ditemukan dalam session'
                 })
-            
             # Ambil email user dari database berdasarkan user_id
             from management.database import data_mysql
             user_data = data_mysql().get_user_by_id(user_id)
@@ -1650,17 +1667,16 @@ class AdxSummaryDataView(View):
                     'status': False,
                     'error': 'Data user tidak ditemukan dalam database'
                 })
-            
             user_mail = user_data['data']['user_mail']
             if not user_mail:
                 return JsonResponse({
                     'status': False,
                     'error': 'Email user tidak ditemukan dalam database'
                 })
-            result = fetch_adx_traffic_account_by_user(user_mail, start_date, end_date)
+            result = fetch_adx_traffic_account_by_user(user_mail, start_date, end_date, selected_sites)
             # Tambahkan data traffic hari ini
             today = datetime.now().strftime('%Y-%m-%d')
-            today_result = fetch_adx_traffic_account_by_user(user_mail, today, today)
+            today_result = fetch_adx_traffic_account_by_user(user_mail, today, today, selected_sites)
             
             # Tambahkan today_traffic ke result
             if today_result.get('status') and today_result.get('summary'):
@@ -1830,11 +1846,18 @@ class AdxAccountView(View):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
-    
     def get(self, req):
+        db = data_mysql()
+        data_account_adx = db.get_all_adx_account_data()
+        if not data_account_adx['status']:
+            return JsonResponse({
+                'status': False,
+                'error': data_account_adx['data']
+            })
         data = {
             'title': 'AdX Account Data',
             'user': req.session['hris_admin'],
+            'adx_account_data': data_account_adx['data'],
         }
         return render(req, 'admin/adx_manager/account/index.html', data)
 
@@ -1862,9 +1885,14 @@ class AdxUserAccountDataView(View):
         return super().dispatch(request, *args, **kwargs)
     
     def get(self, req):
+        selected_accounts = req.GET.get('selected_accounts')
+        if selected_accounts:
+            user_id = selected_accounts.split(',')
+        else:
+            user_id = req.session.get('hris_admin', {}).get('user_id')
         try:
             # Ambil user_id dari session
-            user_id = req.session.get('hris_admin', {}).get('user_id')
+            user_id = user_id
             # Ambil email user dari database berdasarkan user_id
             user_data = data_mysql().get_user_by_id(user_id)
             if not user_data['status'] or not user_data['data']:
@@ -2040,9 +2068,18 @@ class AdxTrafficPerAccountView(View):
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
+        db = data_mysql()
+        data_account_adx = db.get_all_adx_account_data()
+        print(f"DEBUG AdxTrafficPerAccountView - data_account_adx: {data_account_adx}")
+        if not data_account_adx['status']:
+            return JsonResponse({
+                'status': False,
+                'error': data_account_adx['data']
+            })
         data = {
             'title': 'AdX Traffic Per Account',
             'user': req.session['hris_admin'],
+            'adx_account_data': data_account_adx['data'],
         }
         return render(req, 'admin/adx_manager/traffic_account/index.html', data)
 
@@ -2056,10 +2093,15 @@ class AdxTrafficPerAccountDataView(View):
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
+        selected_accounts = req.GET.get('selected_accounts')
+        if selected_accounts:
+            user_id = selected_accounts.split(',')
+        else:
+            user_id = req.session.get('hris_admin', {}).get('user_id')
         selected_sites = req.GET.get('selected_sites')
         try:
             # Ambil user_id dari session
-            user_id = req.session.get('hris_admin', {}).get('user_id')
+            user_id = user_id
             # Ambil email user dari database berdasarkan user_id
             user_data = data_mysql().get_user_by_id(user_id)
             user_mail = user_data['data']['user_mail']
@@ -2081,11 +2123,15 @@ class AdxSitesListView(View):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
-    
     def get(self, req):
+        selected_accounts = req.GET.get('selected_accounts')
+        if selected_accounts:
+            user_id = selected_accounts.split(',')
+        else:
+            user_id = req.session.get('hris_admin', {}).get('user_id')
         try:
             # Ambil user_id dari session
-            user_id = req.session.get('hris_admin', {}).get('user_id')
+            user_id = user_id
             # Ambil email user dari database berdasarkan user_id
             from management.database import data_mysql
             user_data = data_mysql().get_user_by_id(user_id)
@@ -2185,11 +2231,18 @@ class AdxTrafficPerCountryView(View):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
-    
     def get(self, req):
+        db = data_mysql()
+        data_account_adx = db.get_all_adx_account_data()
+        if not data_account_adx['status']:
+            return JsonResponse({
+                'status': False,
+                'error': data_account_adx['data']
+            })
         data = {
             'title': 'AdX Traffic Per Country',
             'user': req.session['hris_admin'],
+            'adx_account_data': data_account_adx['data'],
         }
         return render(req, 'admin/adx_manager/traffic_country/index.html', data)
 
@@ -2203,6 +2256,11 @@ class AdxTrafficPerCountryDataView(View):
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
+        selected_accounts = req.GET.get('selected_accounts')
+        if selected_accounts:
+            user_id = selected_accounts.split(',')
+        else:
+            user_id = req.session.get('hris_admin', {}).get('user_id')
         selected_sites = req.GET.get('selected_sites', '') 
         selected_countries = req.GET.get('selected_countries', '')
         try:
@@ -2216,7 +2274,7 @@ class AdxTrafficPerCountryDataView(View):
             else:
                 print("[DEBUG] No countries selected, will fetch all countries")
             # Ambil user_id dari session
-            user_id = req.session.get('hris_admin', {}).get('user_id')
+            user_id = user_id
             # Ambil email user dari database berdasarkan user_id
             user_data = data_mysql().get_user_by_id(user_id)
             user_mail = user_data['data']['user_mail']
@@ -2302,14 +2360,22 @@ class RoiTrafficPerCountryView(View):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
-    
     def get(self, req):
+        db = data_mysql()
+        data_account_adx = db.get_all_adx_account_data()
+        if not data_account_adx['status']:
+            return JsonResponse({
+                'status': False,
+                'error': data_account_adx['data']
+            })
         data_account = data_mysql().master_account_ads()['data']
         data = {
             'title': 'ROI Per Country',
             'user': req.session['hris_admin'],
+            'data_account': data_account,
+            'data_account_adx': data_account_adx['data'],
         }
-        return render(req, 'admin/report_roi/per_country/index.html', {'data_account': data_account, 'data': data})
+        return render(req, 'admin/report_roi/per_country/index.html', data)
 
 class RoiTrafficPerCountryDataView(View):
     def dispatch(self, request, *args, **kwargs):
@@ -2320,9 +2386,14 @@ class RoiTrafficPerCountryDataView(View):
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
+        selected_account_adx = req.GET.get('selected_account_adx', '')
         selected_sites = req.GET.get('selected_sites', '')
         selected_account = req.GET.get('selected_account', '')
         selected_countries = req.GET.get('selected_countries', '')
+        if selected_account_adx:
+            user_id = selected_account_adx.split(',')
+        else:
+            user_id = req.session.get('hris_admin', {}).get('user_id')
         try:
             # Format tanggal untuk AdManager API
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
@@ -2334,7 +2405,7 @@ class RoiTrafficPerCountryDataView(View):
             else:
                 print("[DEBUG] No countries selected, will fetch all countries")
             # Ambil user_id dari session
-            user_id = req.session.get('hris_admin', {}).get('user_id')
+            user_id = user_id
             # Ambil email user dari database berdasarkan user_id
             user_data = data_mysql().get_user_by_id(user_id)
             user_mail = user_data['data']['user_mail']
@@ -2471,12 +2542,21 @@ class RoiTrafficPerDomainView(View):
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
+        db = data_mysql()
+        data_account_adx = db.get_all_adx_account_data()
+        if not data_account_adx['status']:
+            return JsonResponse({
+                'status': False,
+                'error': data_account_adx['data']
+            })
         data_account = data_mysql().master_account_ads()['data']
         data = {
             'title': 'ROI Per Domain',
             'user': req.session['hris_admin'],
+            'data_account': data_account,
+            'data_account_adx': data_account_adx['data'],
         }
-        return render(req, 'admin/report_roi/per_domain/index.html', {'data_account': data_account, 'data': data})
+        return render(req, 'admin/report_roi/per_domain/index.html', data)
 
 class RoiTrafficPerDomainDataView(View):
     """AJAX endpoint untuk data ROI Traffic Per Domain"""
@@ -2484,15 +2564,19 @@ class RoiTrafficPerDomainDataView(View):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
-    
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
+        selected_accounts = req.GET.get('selected_account_adx')
         selected_sites = req.GET.get('selected_sites', '')
         selected_account = req.GET.get('selected_account', '')
+        if selected_accounts:
+            user_id = selected_accounts.split(',')
+        else:
+            user_id = req.session.get('hris_admin', {}).get('user_id')
         try:
             # Ambil user_id dari session
-            user_id = req.session.get('hris_admin', {}).get('user_id')
+            user_id = user_id
             # Ambil email user dari database berdasarkan user_id
             user_data = data_mysql().get_user_by_id(user_id)
             user_mail = user_data['data']['user_mail']
@@ -2610,14 +2694,22 @@ class RoiSummaryView(View):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
-    
     def get(self, req):
+        db = data_mysql()
+        data_account_adx = db.get_all_adx_account_data()
+        if not data_account_adx['status']:
+            return JsonResponse({
+                'status': False,
+                'error': data_account_adx['data']
+            })
         data_account = data_mysql().master_account_ads()['data']
         data = {
             'title': 'ROI Summary Dashboard',
             'user': req.session['hris_admin'],
+            'data_account': data_account,
+            'data_account_adx': data_account_adx['data'],
         }
-        return render(req, 'admin/report_roi/all_rekap/index.html', {'data_account': data_account, 'data': data})
+        return render(req, 'admin/report_roi/all_rekap/index.html', data)
 
 class RoiSummaryAdChangeDataView(View):
     """AJAX endpoint untuk data Ad Change di AdX Summary"""

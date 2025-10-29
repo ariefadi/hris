@@ -1,7 +1,6 @@
 /**
  * Reference Ajax AdX Account Data
  */
-
 $().ready(function () {
     report_eror = function (jqXHR, exception) {
         var msg = '';
@@ -22,16 +21,10 @@ $().ready(function () {
         }
         alert(msg);
     };
-    
-    $('#btn_load_data').click(function (e) {
-        load_adx_account_data();
-    });
-
     $('#btn_generate_refresh_token').click(function (e) {
         e.preventDefault();
         generateRefreshToken();
     });
-    
     $('#btn_oauth_setup').click(function (e) {
         e.preventDefault();
         // Auto-fill user mail from current user data
@@ -41,22 +34,31 @@ $().ready(function () {
         }
         $('#oauthModal').modal('show');
     });
-    
     $('#btn_save_oauth').click(function (e) {
         e.preventDefault();
         saveOAuthCredentials();
     });
-    
-    // Auto load data on page load
-    load_adx_account_data();
-});
 
+    $('#account_filter').select2({
+        placeholder: '-- Pilih Akun Terdaftar --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4'
+    });
+    $('#btn_load_data').click(function (e) {
+        load_adx_account_data();
+    });
+});
 function load_adx_account_data() {
     $("#overlay").show();
-    
+    var selectedAccounts = $('#account_filter').val();
     $.ajax({
         url: '/management/admin/page_adx_user_account',
         type: 'GET',
+        data: {
+            'selected_accounts': selectedAccounts
+        },
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
             'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
@@ -71,30 +73,24 @@ function load_adx_account_data() {
                     $("#network_id").text(response.data.network_id || '-');
                     $("#network_code").text(response.data.network_code || '-');
                     $("#display_name").text(response.data.display_name || response.data.network_name || '-');
-                    
                     // Update Settings
                     $("#timezone").text(response.data.timezone || '-');
                     $("#currency_code").text(response.data.currency_code || '-');
-                    
                     // Update Account Details - User Information
                     $("#user_mail").text(response.data.user_mail || '-');
                     $("#user_id").text(response.data.user_id || '-');
                     $("#user_name").text(response.data.user_name || '-');
                     $("#user_role").text(response.data.user_role || '-');
-                    
                     // Format user active status
                     var userActiveText = response.data.user_is_active !== undefined ? 
                         (response.data.user_is_active ? 'Yes' : 'No') : '-';
                     $("#user_is_active").text(userActiveText);
-                    
                     // Update Account Statistics
                     $("#active_ad_units_count").text(response.data.active_ad_units_count || '0');
-                    
                     // Format last updated time
                     var lastUpdated = response.data.last_updated ? 
                         new Date(response.data.last_updated).toLocaleString() : '-';
                     $("#last_updated").text(lastUpdated);
-                    
                     // Add additional network information if available
                     var additionalInfo = '';
                     if (response.data.effective_root_ad_unit_id) {
@@ -105,7 +101,6 @@ function load_adx_account_data() {
                         additionalInfo += '<p><strong>Test Network:</strong> ' + testNetworkText + '</p>';
                     }
                     $("#additional_info").html(additionalInfo);
-                    
                     // Show note if available
                     if (response.note) {
                         $("#note_text").text(response.note);
@@ -113,7 +108,6 @@ function load_adx_account_data() {
                     } else {
                         $("#data_note").hide();
                     }
-                    
                     // Show success message
                     showSuccessMessage('Account data loaded successfully!');
                 } else {
@@ -134,7 +128,6 @@ function load_adx_account_data() {
         }
     });
 }
-
 function resetAccountDisplay() {
     // Reset all fields to default values
     $("#network_id, #network_code, #display_name, #timezone, #currency_code").text('-');
@@ -143,7 +136,6 @@ function resetAccountDisplay() {
     $("#additional_info").html('');
     $("#data_note").hide();
 }
-
 function showErrorMessage(message) {
     // Create and show a temporary error alert
     var alertHtml = '<div class="alert alert-danger alert-dismissible fade show" role="alert">';
@@ -152,10 +144,8 @@ function showErrorMessage(message) {
     alertHtml += '<span aria-hidden="true">&times;</span>';
     alertHtml += '</button>';
     alertHtml += '</div>';
-    
     // Insert at the top of the card body
     $('.card-body').first().prepend(alertHtml);
-    
     // Auto-hide after 5 seconds
     setTimeout(function() {
         $('.alert-danger').fadeOut('slow', function() {
@@ -163,7 +153,6 @@ function showErrorMessage(message) {
         });
     }, 5000);
 }
-
 function showSuccessMessage(message) {
     // Create and show a temporary success alert
     var alertHtml = '<div class="alert alert-success alert-dismissible fade show" role="alert">';
@@ -172,10 +161,8 @@ function showSuccessMessage(message) {
     alertHtml += '<span aria-hidden="true">&times;</span>';
     alertHtml += '</button>';
     alertHtml += '</div>';
-    
     // Insert at the top of the card body
     $('.card-body').first().prepend(alertHtml);
-    
     // Auto-hide after 3 seconds
     setTimeout(function() {
         $('.alert-success').fadeOut('slow', function() {
@@ -183,37 +170,6 @@ function showSuccessMessage(message) {
         });
     }, 3000);
 }
-
-function generateRefreshToken() {
-    $("#overlay").show();
-    
-    $.ajax({
-        url: '/management/admin/generate_refresh_token',
-        type: 'POST',
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
-        },
-        success: function (response) {
-            $("#overlay").hide();
-            
-            if (response && response.status) {
-                showSuccessMessage('Refresh token generated successfully!');
-                // Reload account data to show updated information
-                load_adx_account_data();
-            } else {
-                var errorMsg = response && response.error ? response.error : 'Unknown error occurred';
-                showErrorMessage('Error generating refresh token: ' + errorMsg);
-            }
-        },
-        error: function (jqXHR, textStatus, errorThrown) {
-            $("#overlay").hide();
-            showErrorMessage('Failed to generate refresh token. Please try again.');
-            report_eror(jqXHR, textStatus);
-        }
-    });
-}
-
 function saveOAuthCredentials() {
     var clientId = $('#client_id').val();
     var clientSecret = $('#client_secret').val();
@@ -241,7 +197,6 @@ function saveOAuthCredentials() {
         },
         success: function (response) {
             $("#overlay").hide();
-            
             if (response && response.status) {
                 showSuccessMessage('OAuth credentials saved successfully!');
                 $('#oauthModal').modal('hide');
@@ -259,7 +214,6 @@ function saveOAuthCredentials() {
         }
     });
 }
-
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {

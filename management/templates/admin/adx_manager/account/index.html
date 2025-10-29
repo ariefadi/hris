@@ -13,25 +13,50 @@
     <div class="card-header">
         <h3 class="card-title">AdX Account Data</h3>
     </div> <!-- /.card-header -->
+    {% if user.user_name == 'superadmin' %}
     <div class="card-body">
         <div class="form-row">
-            <div class="col-md-6">
-                <button type="button" class="btn btn-primary" id="btn_load_data">
-                    <i class="fas fa-sync"></i> Refresh Account Data
+            <div class="col-md-4">
+                <label>Filter Account</label>
+                <select class="form-control select2" id="account_filter">
+                    <option value="">-- Pilih Akun Terdaftar --</option>
+                    {% for account in adx_account_data %}
+                    <option value="{{ account.user_id }}">{{ account.user_mail }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label>&nbsp;</label>
+                <button type="button" class="btn btn-primary form-control" id="btn_load_data">
+                    <i class="fas fa-search"></i> Muat Data
                 </button>
             </div>
-            <!-- <div class="col-md-4">
-                <button type="button" class="btn btn-success" id="btn_generate_refresh_token">
-                    <i class="fas fa-key"></i> Generate Refresh Token
-                </button>
-            </div> -->
-            <div class="col-md-6">
-                <button type="button" class="btn btn-info" id="btn_oauth_setup" data-toggle="modal" data-target="#oauthModal">
+            <div class="col-md-2">
+                <label>&nbsp;</label>
+                <button type="button" class="btn btn-info form-control" id="btn_oauth_setup" data-toggle="modal" data-target="#oauthModal">
                     <i class="fas fa-cog"></i> OAuth Setup Credensial
                 </button>
             </div>
         </div>
     </div><!-- /.card-body -->
+    {% else %}
+    <div class="card-body">
+        <div class="form-row">
+            <div class="col-md-2">
+                <label>&nbsp;</label>
+                <button type="button" class="btn btn-primary form-control" id="btn_load_data">
+                    <i class="fas fa-search"></i> Muat Data
+                </button>
+            </div>
+            <div class="col-md-2">
+                <label>&nbsp;</label>
+                <button type="button" class="btn btn-info form-control" id="btn_oauth_setup" data-toggle="modal" data-target="#oauthModal">
+                    <i class="fas fa-search"></i> OAuth Setup Credensial
+                </button>
+            </div>
+        </div>
+    </div><!-- /.card-body -->
+    {% endif %}
 </div>
 <div class="card">
     <div class="card-header">
@@ -54,7 +79,6 @@
                 padding-top: 20%;">
             <i class="fas fa fa-sync-alt fa-spin"></i> Loading Account Data ... 
         </div>
-        
         <!-- Account Info Cards -->
         <div class="row">
             <div class="col-12 col-md-6">

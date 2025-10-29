@@ -26,14 +26,14 @@ class data_mysql:
             # Parsing port secara defensif untuk menghindari ValueError saat import
             raw_port = os.getenv('HRIS_DB_PORT', '').strip()
             if not raw_port:
-                raw_port = '3306'
+                raw_port = '3307'
             try:
                 port = int(raw_port)
             except (ValueError, TypeError):
-                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
-                port = 3306
+                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3307")
+                port = 3307
             user = os.getenv('HRIS_DB_USER', 'root')
-            password = os.getenv('HRIS_DB_PASSWORD', 'hris123456')
+            password = os.getenv('HRIS_DB_PASSWORD', '')
             database = os.getenv('HRIS_DB_NAME', 'hris_trendHorizone')
 
             self.db_hris = pymysql.connect(
@@ -378,6 +378,25 @@ class data_mysql:
             }
         return {'hasil': hasil}
     
+    def get_all_adx_account_data(self):
+        """Get user data by user_mail"""
+        sql = """
+            SELECT * FROM app_oauth_credentials 
+        """
+        try:
+            if not self.execute_query(sql,):
+                raise pymysql.Error("Failed to fetch user data")
+            result = self.cur_hris.fetchall()
+            return {
+                "status": True,
+                "data": result
+            }
+        except pymysql.Error as e:
+            return {
+                "status": False,
+                'data': f'Terjadi error {e!r}, error nya {e.args[0]}'
+            }
+
     def get_user_by_mail(self, user_mail):
         """Get user data by user_mail"""
         sql = """

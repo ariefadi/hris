@@ -29,12 +29,19 @@ $().ready(function () {
         todayHighlight: true,
         orientation: 'bottom auto'
     });
-
     $('#tanggal_sampai').datepicker({
         format: 'yyyy-mm-dd',
         autoclose: true,
         todayHighlight: true,
         orientation: 'bottom auto'
+    });
+    // Initialize Select2 for account
+    $('#account_filter').select2({
+        placeholder: '-- Pilih Akun Terdaftar --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4'
     });
     // Initialize Select2 for site filter
     $('#site_filter').select2({
@@ -52,21 +59,27 @@ $().ready(function () {
     $('#btn_load_data').click(function (e) {
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
+        var selected_accounts = $("#account_filter").val();
+        var selected_sites = $("#site_filter").val();
         if (tanggal_dari != "" && tanggal_sampai != "") {
-            load_adx_summary_data(tanggal_dari, tanggal_sampai);
+            e.preventDefault();
+            loadSitesList(selected_accounts);
+            load_adx_summary_data(tanggal_dari, tanggal_sampai, selected_accounts, selected_sites);
             load_adx_traffic_country_data();
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
         }
     });
-    // Load sites list on page load
-    loadSitesList();
-    function loadSitesList() {
+    function loadSitesList(selected_accounts) {
         $("#overlay").show();
+        var selectedAccounts = selected_accounts;
         $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
             dataType: 'json',
+            data: {
+                'selected_accounts': selectedAccounts
+            },
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
@@ -96,6 +109,13 @@ $().ready(function () {
     function load_adx_traffic_country_data() {
         var startDate = $('#tanggal_dari').val();
         var endDate = $('#tanggal_sampai').val();
+        var selectedAccounts = $("#account_filter").val();
+        var selectedSites = $("#site_filter").val();
+        // Convert array to comma-separated string for backend
+        var siteFilter = '';
+        if (selectedSites && selectedSites.length > 0) {
+            siteFilter = selectedSites.join(',');
+        }
         $("#overlay").show();
         // AJAX request
         $.ajax({
@@ -103,7 +123,9 @@ $().ready(function () {
             type: 'GET',
             data: {
                 start_date: startDate,
-                end_date: endDate
+                end_date: endDate,
+                selected_accounts: selectedAccounts,
+                selected_sites: siteFilter
             },
             headers: {
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
@@ -146,14 +168,16 @@ $().ready(function () {
     }
 });
 
-function load_adx_summary_data(tanggal_dari, tanggal_sampai) {
+function load_adx_summary_data(tanggal_dari, tanggal_sampai, selectedAccounts, selectedSites) {
     $("#overlay").show();
     $.ajax({
         url: '/management/admin/page_adx_summary',
         type: 'GET',
         data: {
             'start_date': tanggal_dari,
-            'end_date': tanggal_sampai
+            'end_date': tanggal_sampai,
+            'selected_accounts': selectedAccounts,
+            'selected_sites': selectedSites
         },
         headers: {
             'X-CSRFToken': csrftoken

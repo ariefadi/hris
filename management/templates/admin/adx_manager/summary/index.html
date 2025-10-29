@@ -29,7 +29,18 @@
                 <label for="tanggal_sampai">Tanggal Sampai:</label>
                 <input type="date" id="tanggal_sampai" class="form-control" required>
             </div>
-           <div class="col-md-4">
+            {% if user.user_name == 'superadmin' %}
+            <div class="col-md-3">
+                <label>Filter Account</label>
+                <select class="form-control select2" id="account_filter">
+                    <option value="">-- Pilih Akun Terdaftar --</option>
+                    {% for account in adx_account_data %}
+                    <option value="{{ account.user_id }}">{{ account.user_mail }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="col-md-3">
                 <label>Filter Domain</label>
                 <select class="form-control select2-multiple" id="site_filter" multiple>
                     <!-- Options akan diisi secara dinamis oleh JavaScript -->

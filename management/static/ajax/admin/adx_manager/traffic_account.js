@@ -35,6 +35,14 @@ $().ready(function () {
         autoclose: true,
         todayHighlight: true
     }).datepicker('setDate', today);
+    // Initialize Select2 for account
+    $('#account_filter').select2({
+        placeholder: '-- Pilih Akun Terdaftar --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4'
+    });
     // Initialize Select2 for site filter
     $('#site_filter').select2({
         placeholder: '-- Pilih Domain --',
@@ -44,13 +52,21 @@ $().ready(function () {
         theme: 'bootstrap4'
     });
     // Load sites list on page load
-    loadSitesList();
+    $('#btn_load_data').click(function (e) {
+        e.preventDefault();
+        loadSitesList();
+        load_adx_traffic_account_data();
+    });
     function loadSitesList() {
         $("#overlay").show();
+        var selectedAccounts = $('#account_filter').val();
         $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
             dataType: 'json',
+            data: {
+                'selected_accounts': selectedAccounts
+            },
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
@@ -74,9 +90,6 @@ $().ready(function () {
             }
         });
     }
-    $('#btn_load_data').click(function (e) {
-        load_adx_traffic_account_data();
-    });
     // Initialize DataTable
     $('#table_traffic_account').DataTable({
         "paging": true,
@@ -95,6 +108,7 @@ $().ready(function () {
 function load_adx_traffic_account_data() {
     var start_date = $('#tanggal_dari').val();
     var end_date = $('#tanggal_sampai').val();
+    var selectedAccounts = $('#account_filter').val();
     var selectedSites = $('#site_filter').val();
     if (!start_date || !end_date) {
         alert('Please select both start and end dates.');
@@ -112,6 +126,7 @@ function load_adx_traffic_account_data() {
         data: {
             'start_date': start_date,
             'end_date': end_date,
+            'selected_accounts': selectedAccounts,
             'selected_sites': siteFilter
         },
         headers: {

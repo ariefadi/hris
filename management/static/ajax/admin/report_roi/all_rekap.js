@@ -34,6 +34,13 @@ $().ready(function () {
         autoclose: true,
         todayHighlight: true
     }).datepicker('setDate', today);
+    $('#account_filter').select2({
+        placeholder: '-- Pilih Akun Terdaftar --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4'
+    });
     // Initialize Select2 for site filter
     $('#site_filter').select2({
         placeholder: '-- Pilih Domain --',
@@ -49,7 +56,6 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     })
-
     // Inisialisasi Select2 untuk country filter
     $('#country_filter').select2({
         placeholder: '-- Pilih Negara --',
@@ -59,14 +65,37 @@ $().ready(function () {
         theme: 'bootstrap4',
         multiple: true
     });
+    // Set default dates (last 7 days)
+    var today = new Date();
+    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    $('#tanggal_dari').val(lastWeek.toISOString().split('T')[0]);
+    $('#tanggal_sampai').val(today.toISOString().split('T')[0]);
+    $('#btn_load_data').click(function (e) {
+        var tanggal_dari = $("#tanggal_dari").val();
+        var tanggal_sampai = $("#tanggal_sampai").val();
+        var selected_account_adx = $("#account_filter").val();
+        if (tanggal_dari != "" && tanggal_sampai != "") {
+            // Reset status fetch sebelum mulai menarik data
+            window.fetchStatus = { summary: false, country: false };
+            $('#overlay').show();
+            loadSitesList(selected_account_adx);
+            load_country_options(selected_account_adx);
+            load_ROI_traffic_country_data();
+            load_ROI_summary_data(tanggal_dari, tanggal_sampai, selected_account_adx);
+        } else {
+            alert('Silakan pilih tanggal dari dan sampai');
+        }
+    });
     // Load data situs untuk select2
-    loadSitesList();
-    function loadSitesList() {
-        $('#overlay').show();
+    function loadSitesList(selected_account_adx) {
+        var selectedAccounts = selected_account_adx;
         $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
             dataType: 'json',
+            data: {
+                'selected_accounts': selectedAccounts
+            },
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
@@ -82,22 +111,20 @@ $().ready(function () {
                 }
             },
             error: function (xhr, status, error) {
-                console.error('Error loading sites:', error);
-                console.error('Status:', status);
-                console.error('Response:', xhr.responseText);
                 report_eror(xhr, status);
-                $('#overlay').hide();
             }
         });
     }
     // Load data saat halaman pertama kali dibuka
-    load_country_options();
-    function load_country_options() {
-        $('#overlay').show();
+    function load_country_options(selected_account_adx) {
+        var selectedAccounts = selected_account_adx;
         $.ajax({
             url: '/management/admin/get_countries_adx',
             type: 'GET',
             dataType: 'json',
+            data: {
+                'selected_accounts': selectedAccounts
+            },
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
@@ -111,44 +138,22 @@ $().ready(function () {
                     });
                     select_country.trigger('change');
                 }
-                $('#overlay').hide();
             },
             error: function (xhr, status, error) {
-                console.error('Error loading countries:', error);
-                console.error('Status:', status);
-                console.error('Response:', xhr.responseText);
                 report_eror(xhr, status);
-                $('#overlay').hide();
             }
         });
     }
-    // Set default dates (last 7 days)
-    var today = new Date();
-    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    $('#tanggal_dari').val(lastWeek.toISOString().split('T')[0]);
-    $('#tanggal_sampai').val(today.toISOString().split('T')[0]);
-    $('#btn_load_data').click(function (e) {
-        var tanggal_dari = $("#tanggal_dari").val();
-        var tanggal_sampai = $("#tanggal_sampai").val();
-        if (tanggal_dari != "" && tanggal_sampai != "") {
-            // Reset status fetch sebelum mulai menarik data
-            window.fetchStatus = { summary: false, country: false };
-            load_ROI_summary_data(tanggal_dari, tanggal_sampai);
-            load_ROI_traffic_country_data();
-        } else {
-            alert('Silakan pilih tanggal dari dan sampai');
-        }
-    });
     // Fungsi untuk load data traffic per country
     function load_ROI_traffic_country_data() {
         var startDate = $('#tanggal_dari').val();
         var endDate = $('#tanggal_sampai').val();
+        var selectedAccountAdx = $('#account_filter').val();
         var selectedSites = $('#site_filter').val();
-        var selectedAccount = $('#select_account').val();
+        var selectedAccountAds = $('#select_account').val();
         var selectedCountries = $('#country_filter').val();
         var selectedCountriesStr = Array.isArray(selectedCountries) ? selectedCountries.join(',') : (selectedCountries || '');
         var selectedSitesStr = Array.isArray(selectedSites) ? selectedSites.join(',') : (selectedSites || '');
-        $('#overlay').show();
         // AJAX request
         $.ajax({
             url: '/management/admin/page_roi_traffic_country',
@@ -156,8 +161,9 @@ $().ready(function () {
             data: {
                 start_date: startDate,
                 end_date: endDate,
+                selected_account_adx: selectedAccountAdx,
                 selected_sites: selectedSitesStr,
-                selected_account: selectedAccount,
+                selected_account: selectedAccountAds,
                 selected_countries: selectedCountriesStr
             },
             headers: {
@@ -175,22 +181,14 @@ $().ready(function () {
                     $('#charts_section').show();
                 } else {
                     var errorMsg = (response && response.error) || 'Terjadi kesalahan yang tidak diketahui';
-                    console.error('[DEBUG] Response error:', errorMsg);
                     alert('Error: ' + errorMsg);
                 }
-                $('#overlay').hide();
             },
             error: function (xhr, status, error) {
-                console.error('[DEBUG] AJAX Error:', {
-                    xhr: xhr,
-                    status: status,
-                    error: error
-                });
                 // Tandai selesai tarik data country meskipun error
                 window.fetchStatus = window.fetchStatus || { summary: false, country: false };
                 window.fetchStatus.country = true;
                 report_eror('Terjadi kesalahan saat memuat data: ' + error);
-                $('#overlay').hide();
             }
         });
     }
@@ -198,9 +196,7 @@ $().ready(function () {
 
 // Fungsi untuk update summary boxes
 function updateSummaryBoxes(data) {
-    console.log('[DEBUG] updateSummaryBoxes data:', data);
     if (!data || !Array.isArray(data)) return;
-
     // Hitung summary dari data
     var totalImpressions = 0;
     var totalSpend = 0;
@@ -208,7 +204,6 @@ function updateSummaryBoxes(data) {
     var totalRevenue = 0;
     var totalROI = 0;
     var validROICount = 0;
-
     data.forEach(function (item) {
         totalImpressions += item.impressions || 0;
         totalSpend += item.spend || 0;
@@ -220,10 +215,8 @@ function updateSummaryBoxes(data) {
             validROICount++;
         }
     });
-
     var averageCTR = totalImpressions > 0 ? (totalClicks / totalImpressions * 100) : 0;
     var averageROI = validROICount > 0 ? (totalROI / validROICount) : 0;
-
     $('#total_impressions').text(totalImpressions.toLocaleString('id-ID'));
     $('#total_spend').text(formatCurrencyIDR(totalSpend));
     // Jika belum memilih domain, set Total Klik & Total Pendapatan ke 0
@@ -249,29 +242,22 @@ function formatCurrencyIDR(value) {
     // Convert to number, round to remove decimals, then format with Rp
     let numValue = parseFloat(value.toString().replace(/[$,]/g, ''));
     if (isNaN(numValue)) return value;
-
     // Round to remove decimals and format with Indonesian number format
     return 'Rp. ' + Math.round(numValue).toLocaleString('id-ID');
 }
 
 function create_roi_daily_chart(data) {
-    console.log('create_roi_daily_chart called with data:', data.length, 'items');
-
     // Check if Chart.js is available
     if (typeof Chart === 'undefined') {
         console.error('Chart.js is not loaded!');
         return;
     }
-
     // Check if canvas element exists
     var canvas = document.getElementById('chart_roi_daily');
     if (!canvas) {
         console.error('Canvas element chart_roi_daily not found!');
         return;
     }
-
-    console.log('Canvas element found:', canvas);
-
     // Destroy existing chart if it exists
     if (window.dailyRoiChart && typeof window.dailyRoiChart.destroy === 'function') {
         window.dailyRoiChart.destroy();
@@ -279,9 +265,6 @@ function create_roi_daily_chart(data) {
 
     // Group data by date and calculate ROI
     var dailyData = {};
-
-    console.log('Sample data item:', data[0]);
-
     data.forEach(function (item) {
         var date = item.date;
         var revenue = parseFloat(item.revenue || 0);
@@ -333,12 +316,6 @@ function create_roi_daily_chart(data) {
         revenueData.push(dayData.revenue);
         spendData.push(dayData.spend + dayData.other_costs);
     });
-
-    console.log('Processed dates:', dates);
-    console.log('ROI data:', roiData);
-    console.log('Revenue data:', revenueData);
-    console.log('Spend data:', spendData);
-
     // Format dates for display
     var formattedDates = dates.map(function (date) {
         var d = new Date(date + 'T00:00:00');
@@ -347,7 +324,6 @@ function create_roi_daily_chart(data) {
             month: 'short'
         });
     });
-
     // Destroy existing chart if it exists
     var existingChart = Chart.getChart('chart_roi_daily');
     if (existingChart) {
@@ -450,7 +426,6 @@ function create_roi_daily_chart(data) {
             }
         }
     });
-    console.log('Chart created successfully');
 }
 
 function formatNumber(num, decimals = 0) {
@@ -495,7 +470,6 @@ function normalizeDateStr(val) {
             return String(val);
         }
     } catch (e) {
-        console.warn('normalizeDateStr failed for value:', val, e);
         return typeof val === 'string' ? val : String(val);
     }
 }
@@ -624,20 +598,20 @@ function getCookie(name) {
 const csrftoken = getCookie('csrftoken');
 
 // Memuat data ROI Summary (ringkasan & grafik ROI harian)
-function load_ROI_summary_data(startDate, endDate) {
+function load_ROI_summary_data(startDate, endDate, selectedAccountAdx) {
     var selectedSites = $('#site_filter').val();
     var selectedAccount = $('#select_account').val();
     var siteFilter = '';
     if (selectedSites && selectedSites.length > 0) {
         siteFilter = selectedSites.join(',');
     }
-    $('#overlay').show();
     $.ajax({
         url: '/management/admin/page_roi_traffic_domain',
         type: 'GET',
         data: {
             start_date: startDate,
             end_date: endDate,
+            selected_account_adx: selectedAccountAdx,
             selected_sites: siteFilter,
             selected_account: selectedAccount
         },
@@ -648,7 +622,6 @@ function load_ROI_summary_data(startDate, endDate) {
             // Tandai selesai tarik data summary
             window.fetchStatus = window.fetchStatus || { summary: false, country: false };
             window.fetchStatus.summary = true;
-            $('#overlay').hide();
             if (response && response.status) {
                 // Perbarui summary jika tersedia
                 if (response.summary) {
@@ -684,7 +657,6 @@ function load_ROI_summary_data(startDate, endDate) {
                     // Jika tidak ada data untuk targetDayStr, gunakan tanggal maksimum yang tersedia pada data
                     if (todayItems.length === 0) {
                         var maxDate = normalizedData.reduce(function (max, curr) { return (!max || curr.date > max) ? curr.date : max; }, null);
-                        console.log('[DEBUG] targetDayStr not found, fallback to maxDate:', maxDate);
                         todayItems = normalizedData.filter(function (item) { return item.date === maxDate; });
                     }
                     // Hitung dan tampilkan data traffic untuk tanggal terpilih
@@ -698,7 +670,6 @@ function load_ROI_summary_data(startDate, endDate) {
                         });
                         var todayTotalCosts = todaySpend + todayOtherCosts;
                         var todayRoi = todayTotalCosts > 0 ? ((todayRevenue - todayTotalCosts) / todayTotalCosts) * 100 : 0;
-                        console.log('[DEBUG] Today traffic computed:', { date: todayItems[0].date, spend: todaySpend, clicks: todayClicks, revenue: todayRevenue, roi: todayRoi });
                         // Jika filter domain belum dipilih, nol-kan Klik Hari Ini & Pendapatan Hari Ini
                         var siteSelected = !!siteFilter;
                         var displayClicks = siteSelected ? todayClicks : 0;
@@ -708,7 +679,7 @@ function load_ROI_summary_data(startDate, endDate) {
                         $('#today_roi').text(todayRoi.toFixed(2) + '%');
                         $('#today_revenue').text(formatCurrencyIDR(displayRevenue));
                         $('#today_traffic').show();
-
+                        $('#overlay').hide();
                     } else {
                         // Sembunyikan chart & tampilkan panel today dengan nilai 0 jika tidak ada data
                         try {
@@ -716,13 +687,12 @@ function load_ROI_summary_data(startDate, endDate) {
                             if (existingChart) existingChart.destroy();
                         } catch (e) { console.warn('Failed to destroy chart_roi_daily:', e); }
                         $('#charts_section').hide();
-                        console.log('[DEBUG] No daily ROI data available, showing today_traffic with zeros');
                         $('#today_spend').text(formatCurrencyIDR(0));
                         $('#today_clicks').text(formatNumber(0));
                         $('#today_roi').text('0.00%');
                         $('#today_revenue').text(formatCurrencyIDR(0));
                         $('#today_traffic').show();
-
+                        $('#overlay').hide();
                     }
                 }
             } else {
@@ -731,7 +701,6 @@ function load_ROI_summary_data(startDate, endDate) {
         },
         error: function (jqXHR, textStatus, errorThrown) {
             report_eror(jqXHR, textStatus);
-            $('#overlay').hide();
         }
     });
 }
