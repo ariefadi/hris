@@ -669,7 +669,11 @@ def fetch_data_all_insights_total(access_token, account_id, start_date, end_date
         'time_range': {'since': start_date, 'until': end_date},
         'limit': 1000
     }
-    insights = account.get_insights(fields=fields, params=params)
+    try:
+        insights = account.get_insights(fields=fields, params=params)
+    except (FacebookRequestError, requests.exceptions.RequestException, urllib3.exceptions.HTTPError, Exception) as e:
+        print(f"[ERROR] Gagal mengambil insights Facebook: {e}")
+        insights = []
     
     # Aggregate semua data campaign dalam account ini
     total_summary = {
@@ -1001,11 +1005,16 @@ def fetch_data_insights_account(tanggal, access_token, account_id, data_sub_doma
         config = campaign_map.get(campaign_id, {})
         agg = campaign_aggregates[campaign_id]
         agg['campaign_name'] = row.get('campaign_name')
-        agg['spend'] += float(row.get('spend', 0))
-        agg['reach'] += int(row.get('reach', 0))
-        agg['impressions'] += int(row.get('impressions', 0))
-        frequency = float(agg['impressions']/agg['reach'])
-        agg['frequency'] = frequency
+        spend_val = row.get('spend')
+        agg['spend'] += float(spend_val or 0)
+        reach_val = row.get('reach')
+        agg['reach'] += int(reach_val or 0)
+        impressions_val = row.get('impressions')
+        agg['impressions'] += int(impressions_val or 0)
+        if agg['reach'] > 0:
+            agg['frequency'] = float(agg['impressions'] / agg['reach'])
+        else:
+            agg['frequency'] = 0.0
         cost_per_result = None
         for cpr_item in row.get('cost_per_result', []):
             if cpr_item.get('indicator') == 'actions:link_click':
@@ -1013,18 +1022,19 @@ def fetch_data_insights_account(tanggal, access_token, account_id, data_sub_doma
                 if values:
                     cost_per_result = values[0].get('value')
                 break
-        agg['cpr'] = float(cost_per_result)
+        agg['cpr'] = float(cost_per_result or 0)
         result_action_type = 'link_click'
         result_count = 0
         for action in row.get('actions', []):
             if action.get('action_type') == result_action_type:
-                result_count = float(action.get('value', 0))
+                value = action.get('value')
+                result_count = float(value or 0)
                 break
         if result_count not in [None, ""]:
             agg['clicks'] = result_count
         if not agg['status']:
             agg['status'] = config.get('status')
-            agg['daily_budget'] = float(config.get('daily_budget', 0))
+            agg['daily_budget'] = float(config.get('daily_budget') or 0)
             agg['start_time'] = config.get('start_time')
             agg['stop_time'] = config.get('stop_time')
     data = []
@@ -1050,7 +1060,7 @@ def fetch_data_insights_account(tanggal, access_token, account_id, data_sub_doma
         total_impressions += agg['impressions']
         total_reach += agg['reach']
         total_clicks += agg['clicks']
-        total_frequency = float(total_impressions / total_reach)
+        total_frequency = float(total_impressions / total_reach) if total_reach > 0 else 0.0
         total_cpr += agg['cpr']
     sorted_data = sorted(
         data,
@@ -1624,9 +1634,13 @@ def fetch_data_country_facebook_ads(tanggal_dari, tanggal_sampai, access_token, 
     # Dictionary untuk menyimpan total klik per negara
     country_totals = defaultdict(lambda: {'clicks': 0})
     # Inisialisasi API Facebook dengan token akses
-    FacebookAdsApi.init(access_token=access_token)
-    # Dapatkan objek akun iklan
-    account = AdAccount(account_id)
+    try:
+        FacebookAdsApi.init(access_token=access_token)
+        # Dapatkan objek akun iklan
+        account = AdAccount(account_id)
+    except Exception as e:
+        print(f"[ERROR] Inisialisasi FacebookAdsApi gagal: {e}")
+        return []
     # Daftar field yang ingin diambil
     fields = [
         AdsInsights.Field.ad_id,
@@ -1648,7 +1662,11 @@ def fetch_data_country_facebook_ads(tanggal_dari, tanggal_sampai, access_token, 
         'limit': 1000
     }
     # Mengambil data insights berdasarkan parameter yang ditentukan
-    insights = account.get_insights(fields=fields, params=params)
+    try:
+        insights = account.get_insights(fields=fields, params=params)
+    except (FacebookRequestError, requests.exceptions.RequestException, urllib3.exceptions.HTTPError, Exception) as e:
+        print(f"[ERROR] Gagal mengambil insights Facebook: {e}")
+        return []
     print(f"Account access : {insights}")
     # Memproses hasil insights
     for item in insights:
@@ -1687,8 +1705,22 @@ def fetch_data_country_facebook_ads(tanggal_dari, tanggal_sampai, access_token, 
     return result
 
 def fetch_data_insights_by_country_filter_account(start_date, end_date, access_token, account_id, data_sub_domain):
-    FacebookAdsApi.init(access_token=access_token)
-    account = AdAccount(account_id)
+    try:
+        FacebookAdsApi.init(access_token=access_token)
+        account = AdAccount(account_id)
+    except Exception as e:
+        print(f"[ERROR] Inisialisasi FacebookAdsApi gagal: {e}")
+        return {
+            'data': [],
+            'total': [{
+                'total_spend': 0.0,
+                'total_impressions': 0,
+                'total_reach': 0,
+                'total_click': 0.0,
+                'total_cpr': 0.0,
+                'total_frequency': 0.0
+            }]
+        }
     fields = [
         AdsInsights.Field.ad_id,
         AdsInsights.Field.ad_name,
@@ -1715,7 +1747,11 @@ def fetch_data_insights_by_country_filter_account(start_date, end_date, access_t
         'breakdowns': ['country'],
         'limit': 1000,
     }
-    insights = account.get_insights(fields=fields, params=params)
+    try:
+        insights = account.get_insights(fields=fields, params=params)
+    except (FacebookRequestError, requests.exceptions.RequestException, urllib3.exceptions.HTTPError, Exception) as e:
+        print(f"[ERROR] Gagal mengambil insights Facebook: {e}")
+        insights = []
     rs_data = []
     data = []
     total = []
@@ -2037,9 +2073,9 @@ def fetch_data_insights_all_accounts_by_subdomain(tanggal, rs_account, data_sub_
                 agg = campaign_aggregates[campaign_id]
                 
                 agg['campaign_name'] = row.get('campaign_name')
-                agg['spend'] += float(row.get('spend', 0))
-                agg['reach'] += int(row.get('reach', 0))
-                agg['impressions'] += int(row.get('impressions', 0))
+                agg['spend'] += float(row.get('spend') or 0)
+                agg['reach'] += int(row.get('reach') or 0)
+                agg['impressions'] += int(row.get('impressions') or 0)
                 
                 # Hitung frequency dengan pengecekan pembagian nol
                 if agg['reach'] > 0:
@@ -2056,13 +2092,14 @@ def fetch_data_insights_all_accounts_by_subdomain(tanggal, rs_account, data_sub_
                             cost_per_result = values[0].get('value')
                         break
                         
-                agg['cpr'] = float(cost_per_result)
+                agg['cpr'] = float(cost_per_result or 0)
                 # Ambil clicks
                 result_action_type = 'link_click'
                 result_count = 0
                 for action in row.get('actions', []):
                     if action.get('action_type') == result_action_type:
-                        result_count = float(action.get('value', 0))
+                        value = action.get('value')
+                        result_count = float(value or 0)
                         break
                         
                 if result_count not in [None, ""]:
@@ -2071,7 +2108,7 @@ def fetch_data_insights_all_accounts_by_subdomain(tanggal, rs_account, data_sub_
                 # Set config data
                 if not agg['status']:
                     agg['status'] = config.get('status')
-                    agg['daily_budget'] = float(config.get('daily_budget', 0))
+                    agg['daily_budget'] = float(config.get('daily_budget') or 0)
                     agg['start_time'] = config.get('start_time')
                     agg['stop_time'] = config.get('stop_time')
             

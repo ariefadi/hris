@@ -73,7 +73,7 @@ $().ready(function () {
     $('#btn_load_data').click(function (e) {
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
-        var selected_account_adx = $("#account_filter").val();
+        var selected_account_adx = $("#account_filter").val() || "";
         if (tanggal_dari != "" && tanggal_sampai != "") {
             // Reset status fetch sebelum mulai menarik data
             window.fetchStatus = { summary: false, country: false };
