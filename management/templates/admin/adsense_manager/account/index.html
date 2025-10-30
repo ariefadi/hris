@@ -1,0 +1,38 @@
+{% extends "admin/template_admin.html" %}
+{% load static %}
+{% block content %}  
+{% csrf_token %}
+<style>
+  .dt-buttons { margin-bottom: 20px; }
+  table td, table th { vertical-align: middle; }
+</style>
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">AdSense Account Data</h3>
+    </div>
+    <div class="card-body">
+        <div class="mb-3">
+            <button id="btn_reload" class="btn btn-primary">
+                <i class="bi bi-arrow-repeat"></i> Load Data
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-bordered" id="table_adsense_account">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center" width="5%">No</th>
+                        <th>Account ID</th>
+                        <th>Email</th>
+                        <th class="text-center">Sites</th>
+                        <th class="text-center">Authorized</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody_adsense_account"></tbody>
+            </table>
+        </div>
+        <div id="account_info" class="alert alert-info mt-3" style="display:none"></div>
+    </div>
+ </div>
+
+<script src="{% static 'ajax/admin/adsense_manager/account.js' %}"></script>
+{% endblock %}

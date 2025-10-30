@@ -1,6 +1,6 @@
 from threading import local
 from django.conf import settings
-from hris.settings import get_credentials_from_db
+from .credential_loader import get_credentials_from_db
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.contrib import messages
@@ -35,7 +35,12 @@ class AuthMiddleware:
             '/accounts/login/google-oauth2/',
             '/accounts/complete/google-oauth2/',
             reverse('oauth_redirect'),
-            '/management/admin/adx_sites_list'  # Allow AJAX requests for site filter
+            '/management/admin/adx_sites_list',  # Allow AJAX requests for site filter
+            # Allow utility endpoint to import env credentials without login
+            reverse('app_credentials_import_env'),
+            # Allow OAuth URL generation and callback without requiring session login
+            reverse('generate_oauth_url_api'),
+            reverse('oauth_callback_api')
         ]
         
         # Cek apakah user sudah login
@@ -115,7 +120,7 @@ class OAuthCredentialsMiddleware:
                 'user_id': user_id,
                 'user_mail': user_mail
             }
-            credentials = get_credentials_from_db(request)
+            credentials = get_credentials_from_db(user_mail)
             
             if credentials:
                 # Update settings dengan kredensial dari database

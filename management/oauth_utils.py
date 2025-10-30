@@ -4,6 +4,7 @@ Utility functions yang dapat diintegrasikan ke dalam Django views
 """
 
 from django.conf import settings
+from django.urls import reverse
 from django.http import JsonResponse
 from django.contrib import messages
 from .database import data_mysql
@@ -13,6 +14,7 @@ from management.credential_loader import get_credentials_for_oauth_login, update
 import requests
 import urllib.parse
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +70,7 @@ def get_oauth_credentials(user_mail=None, scopes=None):
     
     return client_id, client_secret
 
-def generate_oauth_url_for_user(user_mail, scopes=None, redirect_uri=None):
+def generate_oauth_url_for_user(user_mail, scopes=None, redirect_uri=None, flow=None):
     """
     Generate OAuth authorization URL untuk user tertentu dengan kredensial yang sesuai
     """
@@ -90,6 +92,11 @@ def generate_oauth_url_for_user(user_mail, scopes=None, redirect_uri=None):
     # Generate OAuth URL
     base_url = "https://accounts.google.com/o/oauth2/v2/auth"
     
+    # Bangun state untuk tracking user dan mode flow
+    state = f'user:{user_mail}'
+    if flow == 'adx':
+        state = f'{state}|flow:adx'
+
     params = {
         'client_id': client_id,
         'redirect_uri': redirect_uri,
@@ -97,14 +104,14 @@ def generate_oauth_url_for_user(user_mail, scopes=None, redirect_uri=None):
         'response_type': 'code',
         'access_type': 'offline',
         'prompt': 'consent',
-        'state': f'user:{user_mail}'  # Tambahkan state untuk tracking user
+        'state': state  # Tambahkan state untuk tracking user dan mode flow
     }
-    
+
     oauth_url = f"{base_url}?{urllib.parse.urlencode(params)}"
     logger.info(
-        f"Generated OAuth URL for user={user_mail}, client_id={client_id[:10]}..., redirect_uri={redirect_uri}, scopes={' '.join(scopes)}"
+        f"Generated OAuth URL for user={user_mail}, client_id={client_id[:10]}..., redirect_uri={redirect_uri}, scopes={' '.join(scopes)}, flow={flow or 'default'}"
     )
-    
+
     return oauth_url, None
 
 def exchange_code_for_refresh_token(auth_code, user_mail=None, redirect_uri=None, scopes=None):
@@ -364,7 +371,8 @@ def handle_oauth_callback(request, auth_code, target_user_mail=None):
         logger.info(f"Processing OAuth callback for user: {user_mail}")
         
         # Pastikan redirect_uri yang dipakai saat exchange SAMA dengan yang dipakai saat authorization
-        callback_url = request.build_absolute_uri('/management/admin/oauth/callback/')
+        # Gunakan path callback yang diset di start (tanpa query) agar cocok dengan Authorized Redirect URIs
+        callback_url = request.build_absolute_uri(reverse('oauth_callback_api'))
         # Scope sensitif untuk Ad Manager
         scopes = ['https://www.googleapis.com/auth/admanager']
         # Exchange code untuk refresh token dengan kredensial user yang sesuai
@@ -404,7 +412,239 @@ def handle_oauth_callback(request, auth_code, target_user_mail=None):
             'message': f'Error processing callback: {str(e)}'
         }
 
-def generate_oauth_flow_for_current_user(request):
+def handle_adx_oauth_callback(request, auth_code, target_user_mail=None):
+    """
+    Handle OAuth callback khusus untuk flow AdX:
+    - Tukar code menjadi credentials (access_token + refresh_token)
+    - Deteksi network_code dari Ad Manager
+    - Simpan ke tabel app_credentials (insert/update by user_mail)
+    """
+    try:
+        current_user = get_current_user_from_request(request)
+        # Jangan paksa email dari session; izinkan kosong agar diambil dari userinfo Google
+        user_mail = target_user_mail or None
+
+        # Gunakan client dari .env secara eksplisit (tanpa DB mapping)
+        # Scope disesuaikan dengan yang dikembalikan Google (expanded form)
+        scopes = [
+            'openid',
+            'https://www.googleapis.com/auth/userinfo.email',
+            'https://www.googleapis.com/auth/userinfo.profile', 
+            'https://www.googleapis.com/auth/admanager',
+            'https://www.googleapis.com/auth/adsense.readonly'
+        ]
+        client_id = os.getenv('GOOGLE_OAUTH2_CLIENT_ID')
+        client_secret = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET')
+        if not client_id or not client_secret:
+            return {
+                'status': False,
+                'message': 'GOOGLE_OAUTH2_CLIENT_ID/SECRET tidak ditemukan di .env'
+            }
+
+        # Redirect URI harus sama dengan yang dipakai saat authorization (tanpa query)
+        callback_url = request.build_absolute_uri(reverse('oauth_callback_api'))
+
+        # Bangun flow dan tukar code menjadi token
+        try:
+            from google_auth_oauthlib.flow import Flow
+            flow = Flow.from_client_config({
+                'web': {
+                    'client_id': client_id,
+                    'client_secret': client_secret,
+                    'auth_uri': 'https://accounts.google.com/o/oauth2/v2/auth',
+                    'token_uri': 'https://oauth2.googleapis.com/token',
+                    'redirect_uris': [callback_url]
+                }
+            }, scopes=scopes)
+            flow.redirect_uri = callback_url
+            flow.fetch_token(code=auth_code)
+            credentials = flow.credentials
+            refresh_token = credentials.refresh_token
+        except Exception as e:
+            return {
+                'status': False,
+                'message': f'Gagal menukar code menjadi token: {str(e)}'
+            }
+
+        if not refresh_token:
+            return {
+                'status': False,
+                'message': 'Refresh token tidak diterima. Ulangi proses dengan prompt consent.'
+            }
+
+        # Deteksi network_code otomatis dari Ad Manager menggunakan REST API
+        network_code = None
+        try:
+            print(f"[DEBUG] Starting network_code detection using REST API...")
+            from google.auth.transport.requests import Request
+            credentials.refresh(Request())
+            print(f"[DEBUG] Credentials refreshed successfully")
+            
+            # Gunakan REST API langsung untuk mendapatkan network info
+            headers = {'Authorization': f'Bearer {credentials.token}'}
+            
+            # Coba endpoint Ad Manager REST API untuk mendapatkan network
+            try:
+                print(f"[DEBUG] Trying Ad Manager REST API...")
+                # Endpoint untuk mendapatkan network information
+                url = 'https://admanager.googleapis.com/v1/networks'
+                resp = requests.get(url, headers=headers, timeout=10)
+                print(f"[DEBUG] Ad Manager API response status: {resp.status_code}")
+                
+                if resp.status_code == 200:
+                    data = resp.json()
+                    print(f"[DEBUG] Ad Manager API response: {data}")
+                    
+                    if 'networks' in data and data['networks']:
+                        first_network = data['networks'][0]
+                        network_code = first_network.get('networkCode')
+                        print(f"[DEBUG] Extracted network_code from REST API: {network_code}")
+                else:
+                    print(f"[DEBUG] Ad Manager API failed with status {resp.status_code}: {resp.text}")
+                    
+            except Exception as e:
+                print(f"[DEBUG] Ad Manager REST API failed: {e}")
+                
+                # Fallback: coba dengan googleads library tapi dengan credentials wrapper
+                try:
+                    print(f"[DEBUG] Trying googleads library with credentials wrapper...")
+                    
+                    # Buat wrapper credentials yang kompatibel dengan googleads
+                    class CredentialsWrapper:
+                        def __init__(self, oauth_credentials):
+                            self.oauth_credentials = oauth_credentials
+                            
+                        def CreateHttpHeader(self):
+                            return {'Authorization': f'Bearer {self.oauth_credentials.token}'}
+                            
+                        def refresh(self, request):
+                            return self.oauth_credentials.refresh(request)
+                    
+                    wrapped_credentials = CredentialsWrapper(credentials)
+                    
+                    from googleads import ad_manager
+                    ad_manager_client = ad_manager.AdManagerClient(wrapped_credentials, 'HRIS AdX Integration')
+                    network_service = ad_manager_client.GetService('NetworkService')
+                    current_network = network_service.getCurrentNetwork()
+                    
+                    print(f"[DEBUG] getCurrentNetwork() with wrapper returned: {current_network}")
+                    network_code = getattr(current_network, 'networkCode', None)
+                    print(f"[DEBUG] Extracted network_code with wrapper: {network_code}")
+                    
+                except Exception as e2:
+                    print(f"[DEBUG] Googleads library with wrapper also failed: {e2}")
+                    network_code = None
+                    
+        except Exception as e:
+            print(f"[DEBUG] Network detection completely failed: {e}")
+            network_code = None
+
+        # Ambil userinfo untuk mengisi account_id, account_name, dan email aktif
+        account_id = None
+        account_name = None
+        userinfo_email = None
+        try:
+            resp = requests.get(
+                'https://openidconnect.googleapis.com/v1/userinfo',
+                headers={'Authorization': f'Bearer {credentials.token}'},
+                timeout=10
+            )
+            if resp.status_code == 200:
+                info = resp.json()
+                account_id = info.get('sub')
+                account_name = info.get('name') or info.get('email')
+                userinfo_email = info.get('email')
+        except Exception:
+            pass
+
+        # Fallback jika userinfo tidak tersedia
+        if not account_id:
+            account_id = (current_user.get('user_id') if current_user else None)
+        if not account_name:
+            account_name = (
+                (current_user.get('user_alias') if current_user else None)
+                or (current_user.get('user_name') if current_user else None)
+                or (userinfo_email or user_mail)
+            )
+
+        # Metadata perekam dan developer_token
+        admin_session = current_user or {}
+        mdb = admin_session.get('user_id')
+        mdb_name = admin_session.get('user_alias') or admin_session.get('user_name')
+        developer_token = getattr(settings, 'GOOGLE_ADS_DEVELOPER_TOKEN', os.getenv('GOOGLE_ADS_DEVELOPER_TOKEN', ''))
+
+        # Tentukan email efektif: prioritaskan userinfo (email akun aktif di browser)
+        effective_user_mail = userinfo_email or user_mail or (current_user.get('user_mail') if current_user else None)
+
+        if not effective_user_mail:
+            return {
+                'status': False,
+                'message': 'Email pengguna tidak dapat ditentukan dari Google userinfo maupun session.'
+            }
+
+        # Simpan ke app_credentials (insert/update)
+        db = data_mysql()
+        exists = db.check_app_credentials_exist(effective_user_mail)
+        if isinstance(exists, dict) and not exists.get('status', True):
+            return {
+                'status': False,
+                'message': 'Gagal mengecek app_credentials di database.'
+            }
+
+        if exists > 0:
+            print(f"[DEBUG] Updating existing app_credentials for {effective_user_mail}")
+            result = db.update_app_credentials(
+                effective_user_mail,
+                account_name,
+                client_id,
+                client_secret,
+                refresh_token,
+                network_code,
+                developer_token,
+                mdb,
+                mdb_name,
+                '1'
+            )
+            print(f"[DEBUG] Update result: {result}")
+        else:
+            print(f"[DEBUG] Inserting new app_credentials for {effective_user_mail}")
+            result = db.insert_app_credentials(
+                account_name,
+                effective_user_mail,
+                client_id,
+                client_secret,
+                refresh_token,
+                network_code,
+                developer_token,
+                mdb,
+                mdb_name
+            )
+            print(f"[DEBUG] Insert result: {result}")
+
+        if isinstance(result, dict) and result.get('status'):
+            return {
+                'status': True,
+                'message': (
+                    f'Kredensial disimpan. Network Code: {network_code}' if network_code
+                    else 'Kredensial disimpan, namun network_code belum terdeteksi.'
+                ),
+                'user_mail': effective_user_mail,
+                'network_code': network_code,
+                'refresh_token_saved': True
+            }
+        else:
+            return {
+                'status': False,
+                'message': (result.get('error') if isinstance(result, dict) else 'Gagal menyimpan app_credentials.')
+            }
+    except Exception as e:
+        logger.error(f"Error in AdX OAuth callback: {str(e)}")
+        return {
+            'status': False,
+            'message': f'Error processing AdX callback: {str(e)}'
+        }
+
+def generate_oauth_flow_for_current_user(request, flow=None):
     """
     Generate OAuth flow untuk user yang sedang login dengan kredensial dinamis
     """
@@ -427,7 +667,7 @@ def generate_oauth_flow_for_current_user(request):
     # Scope sensitif untuk Ad Manager
     scopes = ['https://www.googleapis.com/auth/admanager']
     # Generate OAuth URL dengan kredensial user yang sesuai dan redirect web
-    oauth_url, error = generate_oauth_url_for_user(user_mail, scopes=scopes, redirect_uri=callback_url)
+    oauth_url, error = generate_oauth_url_for_user(user_mail, scopes=scopes, redirect_uri=callback_url, flow=flow)
     
     if error:
         logger.error(f"Failed to generate OAuth URL for {user_mail}: {error}")
@@ -441,16 +681,22 @@ def generate_oauth_flow_for_current_user(request):
         'oauth_url': oauth_url,
         'user_mail': user_mail,
         'user_name': current_user.get('user_alias', 'Unknown'),
-        'instructions': [
-            f"1. Klik OAuth URL untuk membuka consent screen",
-            f"2. Login dengan akun: {user_mail}",
-            f"3. Berikan izin akses untuk Google Ad Manager",
-            f"4. Setelah sukses, kamu akan dialihkan kembali ke dashboard",
-            f"5. Token akan otomatis disimpan; jika gagal, gunakan form manual"
-        ]
+        'instructions': (
+            [
+                f"1. Klik OAuth URL untuk membuka consent screen",
+                f"2. Login dengan akun: {user_mail}",
+                f"3. Berikan izin akses untuk Google Ad Manager",
+                (
+                    "4. Setelah sukses, kamu akan dialihkan ke halaman AdX Account"
+                    if flow == 'adx' else
+                    "4. Setelah sukses, kamu akan dialihkan kembali ke dashboard"
+                ),
+                "5. Token akan otomatis disimpan; jika gagal, gunakan form manual"
+            ]
+        )
     }
 
-def generate_oauth_flow_for_selected_user(request, target_user_mail):
+def generate_oauth_flow_for_selected_user(request, target_user_mail, flow=None):
     """
     Generate OAuth flow untuk email yang dipilih admin.
     Menggunakan kredensial user tersebut dan mengembalikan URL dengan state berisi email.
@@ -470,7 +716,7 @@ def generate_oauth_flow_for_selected_user(request, target_user_mail):
     scopes = ['https://www.googleapis.com/auth/admanager']
 
     # Buat URL OAuth untuk email target
-    oauth_url, error = generate_oauth_url_for_user(target_user_mail, scopes=scopes, redirect_uri=callback_url)
+    oauth_url, error = generate_oauth_url_for_user(target_user_mail, scopes=scopes, redirect_uri=callback_url, flow=flow)
     if error:
         logger.error(f"Failed to generate OAuth URL for {target_user_mail}: {error}")
         return {
@@ -493,11 +739,17 @@ def generate_oauth_flow_for_selected_user(request, target_user_mail):
         'oauth_url': oauth_url,
         'user_mail': target_user_mail,
         'user_name': user_alias or target_user_mail,
-        'instructions': [
-            f"1. Klik OAuth URL untuk membuka consent screen",
-            f"2. Login dengan akun: {target_user_mail}",
-            f"3. Berikan izin akses untuk Google Ad Manager",
-            f"4. Setelah sukses, kamu akan dialihkan kembali ke dashboard",
-            f"5. Token akan otomatis disimpan; jika gagal, gunakan form manual"
-        ]
+        'instructions': (
+            [
+                f"1. Klik OAuth URL untuk membuka consent screen",
+                f"2. Login dengan akun: {target_user_mail}",
+                f"3. Berikan izin akses untuk Google Ad Manager",
+                (
+                    "4. Setelah sukses, kamu akan dialihkan ke halaman AdX Account"
+                    if flow == 'adx' else
+                    "4. Setelah sukses, kamu akan dialihkan kembali ke dashboard"
+                ),
+                "5. Token akan otomatis disimpan; jika gagal, gunakan form manual"
+            ]
+        )
     }

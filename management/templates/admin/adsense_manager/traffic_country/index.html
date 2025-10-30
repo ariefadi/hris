@@ -1,8 +1,9 @@
-{% extends "admin/template_admin.html" %}
+{% extends 'admin/template_admin.html' %}
 {% load static %}
 {% block more_stylesheet %}
 {% endblock %}
-{% block content %}  
+
+{% block content %}
 <style>
   .dt-buttons {
       margin-bottom: 20px;
@@ -10,24 +11,28 @@
 </style>
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title">Traffic Adsense Per Account</h3>
+        <h3 class="card-title">Traffic Adsense Per Country</h3>
     </div> <!-- /.card-header -->
     <div class="card-body">
         <div class="form-row">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label>Range Dari</label>
                 <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Dari"/>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label>Range Sampai</label>
                  <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label>Filter Site</label>
                 <select class="form-control" id="site_filter">
                     <option value="">Semua Site</option>
                     <!-- Options akan diisi secara dinamis oleh JavaScript -->
                 </select>
+            </div>
+            <div class="col-md-3">
+                <label>Filter Countries</label>
+                <input type="text" id="country_filter" class="form-control"/>
             </div>
             <div class="col-md-2">
                 <label>&nbsp;</label>
@@ -41,7 +46,7 @@
 <div class="card">
     <div class="card-header">
         <div class="card-title d-flex justify-content-between align-items-center w-100">
-            <h3 class="card-title"><b><i class="bi bi-bar-chart"></i> Data Traffic Per Akun</b></h3>
+            <h3 class="card-title"><b><i class="bi bi-bar-chart"></i> Data Traffic Per Country</b></h3>
         </div>
     </div>
     <div class="card-body">
@@ -133,38 +138,13 @@
             </div>
         </div>
         
-        <!-- Charts Section -->
-        <div class="row mt-3" id="charts_section" style="display: none;">
-            <div class="col-12 col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h4 class="card-title"><i class="bi bi-bar-chart"></i> Top 10 Unit Iklan berdasarkan Tayangan</h4>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="chart_top_ad_units" style="height: 300px;"></canvas>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h4 class="card-title"><i class="bi bi-pie-chart"></i> Distribusi Pendapatan per Domain</h4>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="chart_revenue_distribution" style="height: 300px;"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
         <!-- Data Table -->
         <div class="dt-responsive-table mt-3">
-            <table id="table_traffic_account" class="table table-bordered table-striped" style="width:100%">
+            <table id="table_traffic_country" class="table table-bordered table-striped" style="width:100%">
                 <thead>
                     <tr>
                         <th>No</th>
-                        <th>Tanggal</th>
-                        <th>Site Name</th>
+                        <th>Country</th>
                         <th>Klik</th>
                         <th>Tayangan</th>
                         <th>CTR (%)</th>
@@ -180,8 +160,38 @@
     </div>
 </div>
 {% endblock %}
+
 {% block more_scripts %}
-<script src="{% static 'ajax/admin/adsense_manager/traffic_account.js'%}?v={%now 'u'%}"></script>
+<script>
+// Setup CSRF token for AJAX requests
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+const csrftoken = getCookie('csrftoken');
+
+// Setup AJAX to include CSRF token
+$.ajaxSetup({
+    beforeSend: function(xhr, settings) {
+        if (!(/^http:.*/.test(settings.url) || /^https:.*/.test(settings.url))) {
+            // Only send the token to relative URLs i.e. locally.
+            xhr.setRequestHeader("X-CSRFToken", csrftoken);
+        }
+    }
+});
+</script>
+<script src="{% static 'ajax/admin/adsense_manager/traffic_country.js'%}?v={%now 'u'%}"></script>
 <script>
 $(document).ready(function() {
     // Format semua elemen mata uang yang mungkin sudah ada di halaman
@@ -198,34 +208,18 @@ $(document).ready(function() {
              }
          });
         
-        // Format tabel yang mungkin sudah memiliki data
-        $('#table_traffic_account tbody tr').each(function() {
-            // Format kolom tanggal (kolom ke-2)
-            var dateCell = $(this).find('td:nth-child(2)');
-            var dateText = dateCell.text();
-            if (dateText && dateText.match(/\d{4}-\d{2}-\d{2}/)) {
-                var months = [
-                    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-                    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-                ];
-                var date = new Date(dateText + 'T00:00:00');
-                var day = date.getDate();
-                var month = months[date.getMonth()];
-                var year = date.getFullYear();
-                dateCell.text(day + ' ' + month + ' ' + year);
-            }
-            
-            // Format kolom mata uang (kolom 4, 5, 6)
-             $(this).find('td:nth-child(4), td:nth-child(5), td:nth-child(6)').each(function() {
-                 var text = $(this).text();
-                 if (text && text.includes('$')) {
-                     // Convert to number, round to remove decimals, then format with Rp
-                     var numValue = parseFloat(text.replace(/[$,]/g, ''));
-                     if (!isNaN(numValue)) {
-                         $(this).text('Rp. ' + Math.round(numValue).toLocaleString('id-ID'));
-                     }
-                 }
-             });
+        // Format table cells yang mungkin sudah memiliki data dollar
+        $('#table_traffic_country tbody tr').each(function() {
+            // Format columns 5, 6, 7 (CPM, CPC, Pendapatan) from $ to Rp
+            $(this).find('td:nth-child(6), td:nth-child(7), td:nth-child(8)').each(function() {
+                var text = $(this).text();
+                if (text && text.includes('$')) {
+                    var numValue = parseFloat(text.replace(/[$,]/g, ''));
+                    if (!isNaN(numValue)) {
+                        $(this).text('Rp' + Math.round(numValue).toLocaleString('id-ID'));
+                    }
+                }
+            });
         });
     }, 500);
 });

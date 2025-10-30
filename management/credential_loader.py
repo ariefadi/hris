@@ -9,24 +9,41 @@ logger = logging.getLogger(__name__)
 
 def get_credentials_from_db(user_mail=None):
     """
-    Mengambil kredensial OAuth dari database berdasarkan user_mail
-    Jika user_mail tidak diberikan, ambil kredensial default (user pertama yang aktif)
-    
-    Args:
-        user_mail (str, optional): Email user untuk mengambil kredensial spesifik
-        
-    Returns:
-        dict: Kredensial OAuth atau None jika tidak ditemukan
+    Mengambil kredensial OAuth dari database.
+    Prioritas baca dari tabel baru `app_credentials` (client_id, client_secret, refresh_token, network_code, developer_token)
+    Fallback ke tabel lama `app_oauth_credentials` jika tidak ditemukan.
     """
     try:
         db = data_mysql()
-        
+
         if user_mail:
-            # Ambil kredensial untuk user spesifik
+            # Coba ambil dari tabel baru app_credentials
+            sql_new = '''
+                SELECT user_mail, client_id, client_secret, refresh_token, network_code, developer_token
+                FROM app_credentials
+                WHERE user_mail = %s
+                LIMIT 1
+            '''
+            if db.execute_query(sql_new, (user_mail,)):
+                row = db.cur_hris.fetchone()
+                if row:
+                    logger.info(f"Loaded app_credentials for user: {user_mail}")
+                    return {
+                        'google_oauth2_client_id': row.get('client_id', ''),
+                        'google_oauth2_client_secret': row.get('client_secret', ''),
+                        'google_ads_client_id': '',
+                        'google_ads_client_secret': '',
+                        'google_ads_refresh_token': row.get('refresh_token', ''),
+                        'google_ad_manager_network_code': row.get('network_code', ''),
+                        'user_mail': row.get('user_mail', ''),
+                        'user_id': ''
+                    }
+
+            # Fallback: ambil dari tabel lama app_oauth_credentials
             result = db.get_user_oauth_credentials(user_mail)
-            if result['status']:
+            if isinstance(result, dict) and result.get('status'):
                 credentials = result['data']
-                logger.info(f"Loaded credentials for user: {user_mail}")
+                logger.info(f"Loaded legacy credentials for user: {user_mail}")
                 return {
                     'google_oauth2_client_id': credentials.get('google_oauth2_client_id', ''),
                     'google_oauth2_client_secret': credentials.get('google_oauth2_client_secret', ''),
@@ -37,24 +54,46 @@ def get_credentials_from_db(user_mail=None):
                     'user_mail': credentials.get('user_mail', ''),
                     'user_id': credentials.get('user_id', '')
                 }
-            else:
-                logger.warning(f"No credentials found for user: {user_mail}")
+
+            logger.warning(f"No credentials found for user: {user_mail}")
         else:
-            # Ambil kredensial default (user pertama yang aktif)
-            sql = '''
+            # Default: ambil kredensial aktif dari app_credentials
+            sql_new_default = '''
+                SELECT user_mail, client_id, client_secret, refresh_token, network_code, developer_token
+                FROM app_credentials
+                WHERE is_active = '1'
+                ORDER BY mdd DESC
+                LIMIT 1
+            '''
+            if db.execute_query(sql_new_default):
+                row = db.cur_hris.fetchone()
+                if row:
+                    logger.info("Loaded default credentials from app_credentials")
+                    return {
+                        'google_oauth2_client_id': row.get('client_id', ''),
+                        'google_oauth2_client_secret': row.get('client_secret', ''),
+                        'google_ads_client_id': '',
+                        'google_ads_client_secret': '',
+                        'google_ads_refresh_token': row.get('refresh_token', ''),
+                        'google_ad_manager_network_code': row.get('network_code', ''),
+                        'user_mail': row.get('user_mail', ''),
+                        'user_id': ''
+                    }
+
+            # Fallback: ambil default dari tabel lama
+            sql_old_default = '''
                 SELECT user_id, user_mail, google_oauth2_client_id, google_oauth2_client_secret,
                        google_ads_client_id, google_ads_client_secret, google_ads_refresh_token,
                        google_ad_manager_network_code
                 FROM app_oauth_credentials
                 WHERE is_active = 1
-                ORDER BY created_at ASC
+                ORDER BY created_at DESC
                 LIMIT 1
             '''
-            
-            if db.execute_query(sql):
+            if db.execute_query(sql_old_default):
                 credentials = db.cur_hris.fetchone()
                 if credentials:
-                    logger.info("Loaded default credentials from database")
+                    logger.info("Loaded default credentials from app_oauth_credentials")
                     return {
                         'google_oauth2_client_id': credentials.get('google_oauth2_client_id', ''),
                         'google_oauth2_client_secret': credentials.get('google_oauth2_client_secret', ''),
@@ -65,14 +104,11 @@ def get_credentials_from_db(user_mail=None):
                         'user_mail': credentials.get('user_mail', ''),
                         'user_id': credentials.get('user_id', '')
                     }
-                else:
-                    logger.warning("No active credentials found in database")
-            else:
-                logger.error("Failed to execute query for default credentials")
-                
+            logger.warning("No active credentials found in database")
+
     except Exception as e:
         logger.error(f"Error loading credentials from database: {str(e)}")
-    
+
     # Fallback ke environment variables jika database tidak tersedia
     logger.info("Falling back to environment variables")
     return {

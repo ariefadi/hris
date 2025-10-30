@@ -135,6 +135,16 @@
                             <input type="email" id="targetEmail" class="form-control" placeholder="contoh: user@domain.com">
                             <small class="form-text text-muted">Isi jika ingin mengelola token untuk akun lain.</small>
                         </div>
+                        <!-- Mode AdX toggle -->
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input" type="checkbox" id="adxModeToggle">
+                            <label class="form-check-label" for="adxModeToggle">
+                                Mode AdX (simpan ke <code>app_credentials</code>)
+                            </label>
+                            <small class="form-text text-muted d-block">
+                                Aktifkan jika ingin menyimpan refresh token dan network code ke tabel app_credentials.
+                            </small>
+                        </div>
                         <!-- Generate OAuth URL Button -->
                         <button id="generateOAuthBtn" class="btn btn-primary btn-oauth me-2 mb-2">
                             <i class="fas fa-link"></i> Generate OAuth URL
@@ -246,6 +256,9 @@
             const targetEmail = document.getElementById('targetEmail').value.trim();
 
             const payload = targetEmail ? { user_mail: targetEmail } : {};
+            if (document.getElementById('adxModeToggle').checked) {
+                payload.flow = 'adx';
+            }
 
             fetch('/management/admin/oauth/generate-url/', {
                 method: 'POST',
@@ -299,6 +312,9 @@
             
             const targetEmailPost = document.getElementById('targetEmail').value.trim();
             const bodyPayload = targetEmailPost ? { code: authCode, user_mail: targetEmailPost } : { code: authCode };
+            if (document.getElementById('adxModeToggle').checked) {
+                bodyPayload.flow = 'adx';
+            }
 
             fetch('/management/admin/oauth/callback/', {
                 method: 'POST',

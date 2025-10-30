@@ -159,4 +159,14 @@ If issues persist after following this guide:
 
 ---
 
+**Database Schema and Token Consistency**
+
+- If you see errors like `Out of range value for column 'network_code'`, update the column type to handle 11-digit network codes:
+
+  ```sql
+  ALTER TABLE app_credentials MODIFY COLUMN network_code BIGINT UNSIGNED NULL;
+  ```
+
+- If you see `unauthorized_client` or `invalid_client` during token refresh, ensure the `refresh_token` was issued by the same OAuth client (`client_id`/`client_secret`) currently configured in environment and saved in `app_credentials`. A refresh token is bound to the client that issued it — mismatched client credentials will fail to refresh. Re-run the OAuth consent flow to generate a refresh token aligned with the active client.
+
 **Note**: This fix addresses the OAuth scope issue. If authentication errors persist, it may indicate service account configuration issues in Google Ad Manager, which require additional setup as described in `ADMANAGER_SETUP_GUIDE.md`.

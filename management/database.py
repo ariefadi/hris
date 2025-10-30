@@ -1258,6 +1258,116 @@ class data_mysql:
                 'error': f'Failed to check OAuth credentials existence: {str(e)}'
             }
 
+    # =========================
+    # app_credentials (NEW)
+    # =========================
+    def check_app_credentials_exist(self, user_mail):
+        """
+        Memeriksa apakah kredensial aplikasi sudah ada untuk user tertentu
+        """
+        sql = '''
+            SELECT COUNT(*) AS total 
+            FROM app_credentials 
+            WHERE user_mail = %s
+        '''
+        try:
+            if not self.execute_query(sql, (user_mail,)):
+                raise pymysql.Error("Failed to check app_credentials existence")
+
+            result = self.cur_hris.fetchone()
+            if isinstance(result, dict):
+                return result.get('total', 0)
+            # Some cursors return tuple
+            return result[0] if result else 0
+        except pymysql.Error as e:
+            return {
+                'status': False,
+                'error': f'Failed to check app_credentials existence: {str(e)}'
+            }
+
+    def insert_app_credentials(self, account_name, user_mail, client_id, client_secret, refresh_token, network_code, developer_token, mdb, mdb_name):
+        """
+        Insert kredensial aplikasi sesuai skema baru ke tabel app_credentials.
+        Kolom: account_name, user_mail, client_id, client_secret, refresh_token,
+               network_code, developer_token, is_active, mdb, mdb_name, mdd
+        Note: account_id is auto-increment, so it's excluded from INSERT
+        """
+        sql = '''
+            INSERT INTO app_credentials (
+                account_name, user_mail, client_id, client_secret, refresh_token,
+                network_code, developer_token, is_active, mdb, mdb_name, mdd
+            ) VALUES (
+                %s, %s, %s, %s, %s,
+                %s, %s, '1', %s, %s, NOW()
+            )
+        '''
+        try:
+            params = (account_name, user_mail, client_id, client_secret, refresh_token,
+                      network_code, developer_token, mdb, mdb_name)
+            if not self.execute_query(sql, params):
+                raise pymysql.Error("Failed to insert app_credentials")
+
+            # Verifikasi baris yang terpengaruh
+            affected = getattr(self.cur_hris, 'rowcount', None)
+            if affected is not None and affected <= 0:
+                raise pymysql.Error(f"No rows inserted for app_credentials (user_mail={user_mail})")
+
+            if not self.commit():
+                raise pymysql.Error("Failed to commit app_credentials insert")
+
+            return {
+                'status': True,
+                'message': f'Successfully inserted app_credentials for {user_mail}'
+            }
+        except pymysql.Error as e:
+            return {
+                'status': False,
+                'error': f'Failed to insert app_credentials: {str(e)}'
+            }
+
+    def update_app_credentials(self, user_mail, account_name, client_id, client_secret, refresh_token, network_code, developer_token, mdb, mdb_name, is_active='1'):
+        """
+        Update kredensial aplikasi untuk user tertentu sesuai skema baru.
+        Note: account_id is auto-increment primary key, so it's excluded from UPDATE
+        """
+        sql = '''
+            UPDATE app_credentials 
+            SET account_name = %s,
+                client_id = %s,
+                client_secret = %s,
+                refresh_token = %s,
+                network_code = %s,
+                developer_token = %s,
+                is_active = %s,
+                mdb = %s,
+                mdb_name = %s,
+                mdd = NOW()
+            WHERE user_mail = %s
+        '''
+        try:
+            params = (account_name, client_id, client_secret, refresh_token, network_code,
+                      developer_token, is_active, mdb, mdb_name, user_mail)
+            if not self.execute_query(sql, params):
+                raise pymysql.Error("Failed to update app_credentials")
+
+            # Verifikasi baris yang terpengaruh
+            affected = getattr(self.cur_hris, 'rowcount', None)
+            if affected is not None and affected <= 0:
+                raise pymysql.Error(f"No rows updated for app_credentials (user_mail={user_mail})")
+
+            if not self.commit():
+                raise pymysql.Error("Failed to commit app_credentials update")
+
+            return {
+                'status': True,
+                'message': f'Successfully updated app_credentials for {user_mail}'
+            }
+        except pymysql.Error as e:
+            return {
+                'status': False,
+                'error': f'Failed to update app_credentials: {str(e)}'
+            }
+
     def update_refresh_token(self, user_mail, refresh_token):
         """
         Update refresh token untuk user tertentu
@@ -1282,4 +1392,30 @@ class data_mysql:
             return {
                 'status': False,
                 'error': f'Failed to update refresh token: {str(e)}'
+            }
+
+    def get_all_app_credentials(self):
+        """
+        Mengambil semua data dari tabel app_credentials
+        """
+        sql = '''
+            SELECT account_id, account_name, user_mail, client_id, client_secret, 
+                   refresh_token, network_code, developer_token, is_active, 
+                   mdb, mdb_name, mdd
+            FROM app_credentials
+            ORDER BY mdd DESC
+        '''
+        try:
+            if not self.execute_query(sql):
+                raise pymysql.Error("Failed to fetch app_credentials data")
+            
+            results = self.cur_hris.fetchall()
+            return {
+                'status': True,
+                'data': results if results else []
+            }
+        except pymysql.Error as e:
+            return {
+                'status': False,
+                'error': f'Database error: {str(e)}'
             }

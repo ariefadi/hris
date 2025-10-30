@@ -18,11 +18,16 @@ def get_user_credentials(user_mail):
         db = data_mysql()
         sql = """
             SELECT client_id, client_secret, refresh_token, network_code, developer_token
-            FROM app_users 
+            FROM app_credentials
             WHERE user_mail = %s
+            LIMIT 1
         """
-        
-        db.cur_hris.execute(sql, (user_mail,))
+
+        if not db.execute_query(sql, (user_mail,)):
+            return {
+                'status': False,
+                'error': 'Failed to query app_credentials'
+            }
         user_data = db.cur_hris.fetchone()
         
         if not user_data:

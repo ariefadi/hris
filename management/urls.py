@@ -70,6 +70,8 @@ urlpatterns = [
     path('admin/page_adx_active_sites', views.AdxActiveSitesView.as_view(), name='adx_active_sites'),
     # Menu AdX Account Data
     path('admin/adx_account', views.AdxAccountView.as_view(), name='adx_account'),
+    path('admin/adx_account/oauth_start', views.AdxAccountOAuthStartView.as_view(), name='adx_account_oauth_start'),
+    path('admin/adx_account/oauth_callback', views.AdxAccountOAuthCallbackView.as_view(), name='adx_account_oauth_callback'),
     path('admin/page_adx_account', views.AdxAccountDataView.as_view()),
     path('admin/page_adx_user_account', views.AdxUserAccountDataView.as_view()),
     path('admin/generate_refresh_token', views.GenerateRefreshTokenView.as_view(), name='generate_refresh_token'),
@@ -88,22 +90,20 @@ urlpatterns = [
     path('admin/get_countries_adx', views.get_countries_adx, name='get_countries_adx'),
     # MENU ADSENSE MANAGER
     # Menu Adsense Summary
-    # path('admin/adsense_summary', views.AdsenseSummaryView.as_view(), name='adsense_summary'),
-    # path('admin/adsense_summary_data/', views.AdsenseSummaryDataView.as_view()),
-    # # Menu Adsense Account Data
-    # path('admin/adsense_account', views.AdsenseAccountView.as_view(), name='adsense_account'), 
-    # path('admin/page_adsense_account', views.AdsenseAccountDataView.as_view()),
+    path('admin/adsense_summary', views_adsense.AdsenseSummaryView.as_view(), name='adsense_summary'),
+    path('admin/adsense_summary_data/', views_adsense.AdsenseSummaryDataView.as_view()),
+    # Menu Adsense Account Data
+    path('admin/adsense_account', views_adsense.AdsenseAccountView.as_view(), name='adsense_account'), 
+    path('admin/page_adsense_account', views_adsense.AdsenseAccountDataView.as_view()),
     # Menu Adsense Traffic Account
     path('admin/adsense_traffic_account', views_adsense.AdsenseTrafficAccountView.as_view(), name='adsense_traffic_account'),
     path('admin/adsense_traffic_account_data', views_adsense.AdsenseTrafficAccountDataView.as_view(), name='adsense_traffic_account_data'),
     path('admin/adsense_sites_list', views_adsense.AdsenseSitesListView.as_view(), name='adsense_sites_list'),
     # # Menu Adsense Traffic Country
-    # path('admin/adsense_traffic_country', views.AdsenseTrafficPerCountryView.as_view(), name='adsense_traffic_country'),
-    # path('admin/page_adsense_traffic_country', views.AdsenseTrafficPerCountryDataView.as_view()),
-    # # Menu Adsense Traffic Campaign
-    # path('admin/adsense_traffic_campaign', views.AdsenseTrafficPerCampaignView.as_view(), name='adsense_traffic_campaign'),
-    # path('admin/page_adsense_traffic_campaign', views.AdsenseTrafficPerCampaignDataView.as_view()),
-
+    path('admin/adsense_traffic_country', views_adsense.AdsenseTrafficPerCountryView.as_view(), name='adsense_traffic_country'),
+    path('admin/adsense_traffic_country_data', views_adsense.AdsenseTrafficPerCountryDataView.as_view(), name='adsense_traffic_country_data'),
+    path('admin/page_adsense_traffic_country', views_adsense.AdsenseTrafficPerCountryDataView.as_view()),
+    
     # OAuth Management - menggunakan oauth_views_package untuk konsistensi
     path('admin/oauth/management/', oauth_management_dashboard, name='oauth_management_dashboard'),
     path('admin/oauth/status/', oauth_status_api, name='oauth_status_api'),
@@ -126,5 +126,8 @@ urlpatterns = [
 
     # test
     path('admin/fetch_report', views.fetch_report, name='fetch_report'),
+
+    # Utility: Import OAuth client dari environment ke app_credentials
+    path('admin/app_credentials/import_env', views.ImportEnvAppCredentialsView.as_view(), name='app_credentials_import_env'),
 
 ]

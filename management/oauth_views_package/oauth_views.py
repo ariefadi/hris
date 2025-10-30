@@ -18,6 +18,7 @@ from management.oauth_utils import (
     generate_oauth_flow_for_current_user,
     generate_oauth_flow_for_selected_user,
     handle_oauth_callback,
+    handle_adx_oauth_callback,
     get_user_oauth_status,
     save_refresh_token_for_current_user
 )
@@ -63,17 +64,20 @@ class GenerateOAuthURLView(View):
     def post(self, request):
         try:
             target_mail = None
+            flow = None
             if request.content_type == 'application/json' and request.body:
                 try:
                     body = json.loads(request.body)
                     target_mail = body.get('user_mail')
+                    flow = body.get('flow')
                 except Exception:
                     target_mail = None
+                    flow = None
 
             if target_mail:
-                oauth_flow = generate_oauth_flow_for_selected_user(request, target_mail)
+                oauth_flow = generate_oauth_flow_for_selected_user(request, target_mail, flow=flow)
             else:
-                oauth_flow = generate_oauth_flow_for_current_user(request)
+                oauth_flow = generate_oauth_flow_for_current_user(request, flow=flow)
 
             if oauth_flow['status']:
                 return JsonResponse({
@@ -189,19 +193,79 @@ class OAuthCallbackView(View):
     @csrf_exempt
     def dispatch(self, request, *args, **kwargs):
         if request.method == 'GET':
+            # DEBUG: Print all received parameters
+            print(f"[DEBUG] OAuth Callback - Method: {request.method}")
+            print(f"[DEBUG] OAuth Callback - Full URL: {request.get_full_path()}")
+            print(f"[DEBUG] OAuth Callback - GET params: {dict(request.GET)}")
+            
             # Baca code dari querystring
             auth_code = request.GET.get('code')
             # Baca target email dari parameter opsional (baik sebagai query `user_mail` maupun `state`)
             target_mail = request.GET.get('user_mail')
             # Jika state berformat "user:<email>", ekstrak email untuk ketepatan target
             state = request.GET.get('state')
-            if not target_mail and state and state.startswith('user:'):
-                target_mail = state.split('user:', 1)[1]
+            # Baca penanda flow dari query langsung (lebih tahan terhadap kehilangan state)
+            flow_param = request.GET.get('flow')
+            # Google biasanya mengembalikan scope di query; gunakan sebagai sinyal tambahan
+            scope_param = request.GET.get('scope', '') or ''
+            
+            print(f"[DEBUG] OAuth Callback - auth_code: {auth_code[:20] if auth_code else None}...")
+            print(f"[DEBUG] OAuth Callback - target_mail: {target_mail}")
+            print(f"[DEBUG] OAuth Callback - state: {state}")
+            print(f"[DEBUG] OAuth Callback - flow_param: {flow_param}")
+            print(f"[DEBUG] OAuth Callback - scope_param: {scope_param}")
+            # Parse state: dukung format "user:<email>|flow:adx"
+            is_adx_flow = False
+            if state:
+                if 'flow:adx' in state:
+                    is_adx_flow = True
+                    print(f"[DEBUG] AdX flow detected from state: {state}")
+                if not target_mail and state.startswith('user:'):
+                    remainder = state.split('user:', 1)[1]
+                    # potong jika ada tambahan parameter setelah email
+                    target_mail = remainder.split('|', 1)[0]
+            # Jika query menyebutkan flow=adx, prioritaskan sebagai AdX
+            if isinstance(flow_param, str) and flow_param.lower() == 'adx':
+                is_adx_flow = True
+                print(f"[DEBUG] AdX flow detected from flow_param: {flow_param}")
+            # Jika scope mengandung admanager/dfp, tandai sebagai AdX (login umum tidak memakai scope ini)
+            if isinstance(scope_param, str) and ('admanager' in scope_param or 'dfp' in scope_param):
+                is_adx_flow = True
+                print(f"[DEBUG] AdX flow detected from scope: {scope_param}")
+            
+            print(f"[DEBUG] Final is_adx_flow decision: {is_adx_flow}")
+            
             if not auth_code:
                 return JsonResponse({'status': False, 'message': 'Authorization code tidak ditemukan di query'}, status=400)
-            result = handle_oauth_callback(request, auth_code, target_user_mail=target_mail)
+            # Routing ke handler AdX jika flow:adx
+            if is_adx_flow:
+                print(f"[DEBUG] Calling handle_adx_oauth_callback with target_mail: {target_mail}")
+                result = handle_adx_oauth_callback(request, auth_code, target_user_mail=target_mail)
+                print(f"[DEBUG] handle_adx_oauth_callback result: {result}")
+            else:
+                print(f"[DEBUG] Calling handle_oauth_callback with target_mail: {target_mail}")
+                result = handle_oauth_callback(request, auth_code, target_user_mail=target_mail)
             # Jika HTML page, tampilkan pesan dan redirect ke dashboard oauth
             if request.headers.get('Accept', '').find('text/html') != -1:
+                # Untuk flow AdX, arahkan ke halaman AdX Account dan set pesan sesi agar tampil di halaman itu
+                if is_adx_flow:
+                    if result.get('status'):
+                        request.session['oauth_added_success'] = True
+                        network_code = result.get('network_code')
+                        email_used = result.get('user_mail')
+                        if network_code:
+                            request.session['oauth_added_message'] = (
+                                f'Kredensial disimpan untuk {email_used}. Network Code: {network_code}'
+                            )
+                        else:
+                            request.session['oauth_added_message'] = (
+                                f'Kredensial disimpan untuk {email_used}, namun network_code belum terdeteksi.'
+                            )
+                    else:
+                        request.session['oauth_added_success'] = False
+                        request.session['oauth_added_message'] = result.get('message', 'Gagal menyimpan app_credentials.')
+                    return redirect('/management/admin/adx_account')
+                # Default: flow umum, arahkan ke dashboard OAuth
                 if result.get('status'):
                     messages.success(request, 'Refresh token berhasil disimpan!')
                 else:
@@ -213,12 +277,20 @@ class OAuthCallbackView(View):
                 body = json.loads(request.body or '{}')
                 auth_code = body.get('code')
                 target_mail = body.get('user_mail')
+                body_state = body.get('state')
+                is_adx_flow = False
+                if body.get('flow') == 'adx' or (isinstance(body_state, str) and 'flow:adx' in body_state):
+                    is_adx_flow = True
             except Exception:
                 auth_code = None
                 target_mail = None
+                is_adx_flow = False
             if not auth_code:
                 return JsonResponse({'status': False, 'message': 'Authorization code tidak boleh kosong'}, status=400)
-            result = handle_oauth_callback(request, auth_code, target_user_mail=target_mail)
+            if is_adx_flow:
+                result = handle_adx_oauth_callback(request, auth_code, target_user_mail=target_mail)
+            else:
+                result = handle_oauth_callback(request, auth_code, target_user_mail=target_mail)
             return JsonResponse(result)
         return super().dispatch(request, *args, **kwargs)
 

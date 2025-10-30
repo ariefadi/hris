@@ -1,0 +1,97 @@
+{% extends 'admin/template_admin.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-fluid py-3">
+  <h4 class="mb-3">AdSense Summary</h4>
+
+  <!-- Filters -->
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label for="start_date" class="form-label">Start Date</label>
+          <input type="date" id="start_date" class="form-control" />
+        </div>
+        <div class="col-md-3">
+          <label for="end_date" class="form-label">End Date</label>
+          <input type="date" id="end_date" class="form-control" />
+        </div>
+        <div class="col-md-4">
+          <label for="selected_sites" class="form-label">Sites</label>
+          <select id="selected_sites" class="form-select" multiple size="4"></select>
+          <div class="form-text">Pilih satu atau lebih situs (opsional).</div>
+        </div>
+        <div class="col-md-2">
+          <button id="btn_load_summary" class="btn btn-primary w-100">Load Data</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary boxes -->
+  <div class="row g-3" id="summary_boxes">
+    <div class="col-sm-6 col-lg-2">
+      <div class="card text-center">
+        <div class="card-body">
+          <div class="text-muted">Impressions</div>
+          <div id="sum_impressions" class="fs-5 fw-semibold">0</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-2">
+      <div class="card text-center">
+        <div class="card-body">
+          <div class="text-muted">Clicks</div>
+          <div id="sum_clicks" class="fs-5 fw-semibold">0</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-2">
+      <div class="card text-center">
+        <div class="card-body">
+          <div class="text-muted">CTR</div>
+          <div id="sum_ctr" class="fs-5 fw-semibold">0%</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-2">
+      <div class="card text-center">
+        <div class="card-body">
+          <div class="text-muted">CPC</div>
+          <div id="sum_cpc" class="fs-5 fw-semibold">$0.00</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-2">
+      <div class="card text-center">
+        <div class="card-body">
+          <div class="text-muted">eCPM</div>
+          <div id="sum_ecpm" class="fs-5 fw-semibold">$0.00</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-2">
+      <div class="card text-center">
+        <div class="card-body">
+          <div class="text-muted">Revenue</div>
+          <div id="sum_revenue" class="fs-5 fw-semibold">$0.00</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info message -->
+  <div class="alert alert-info mt-3" id="summary_info" style="display:none"></div>
+
+  <!-- Placeholder for future charts -->
+  <div class="card mt-3">
+    <div class="card-body">
+      <div class="text-muted">Charts</div>
+      <div class="small">Grafik harian akan ditambahkan kemudian.</div>
+    </div>
+  </div>
+</div>
+
+<script src="{% static 'ajax/admin/adsense_manager/summary.js' %}"></script>
+{% endblock %}

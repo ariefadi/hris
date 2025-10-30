@@ -259,7 +259,7 @@
                                 </li>
                             </ul>
                         </li>
-                        <!-- <li {% if '/adsense_summary' in request.path or '/adsense_account' in request.path or '/adsense_traffic_account' in request.path or '/adsense_traffic_country' in request.path %}
+                        <li {% if '/adsense_summary' in request.path or '/adsense_account' in request.path or '/adsense_traffic_account' in request.path or '/adsense_traffic_country' in request.path %}
                                 class="nav-item menu-open"
                             {% else %}
                                 class="nav-item"
@@ -276,7 +276,7 @@
                             <ul class="nav nav-treeview">
                                 <li class="nav-item">
                                     <li class="nav-item">
-                                        <a href="#"
+                                        <a href="{% url 'adsense_summary' %}" 
                                             {% if '/adsense_summary' in request.path %}
                                                 class="nav-link active"
                                             {% else %}
@@ -287,7 +287,7 @@
                                         </a>
                                     </li> 
                                     <li class="nav-item">
-                                        <a href="#"  
+                                        <a href="{% url 'adsense_account' %}" 
                                             {% if '/adsense_account' in request.path %}
                                                 class="nav-link active"
                                             {% else %}
@@ -309,7 +309,7 @@
                                         </a>
                                     </li> 
                                     <li class="nav-item">
-                                        <a href="#" 
+                                        <a href="{% url 'adsense_traffic_country' %}" 
                                             {% if '/adsense_traffic_country' in request.path %}
                                                 class="nav-link active"
                                             {% else %}
@@ -321,7 +321,7 @@
                                     </li>
                                 </li>
                             </ul>
-                        </li> -->
+                        </li>
                         <li class="nav-item">
                                 <li {% if '/summary_facebook' in request.path or '/account_facebook' in request.path or '/per_account_facebook' in request.path or '/per_campaign_facebook' in request.path or '/per_country_facebook' in request.path %}
                                     class="nav-item menu-open"

@@ -2,13 +2,32 @@
 {% load static %}
 {% block more_stylesheet %}
 {% endblock %}
-{% block content %}  
+{% block content %}
 {% csrf_token %}
 <style>
-  .dt-buttons {
-      margin-bottom: 20px;
-  }
+    .dt-buttons {
+        margin-bottom: 20px;
+    }
 </style>
+{% if oauth_banner.show %}
+<div class="alert alert-warning d-flex align-items-center" role="alert" style="border-radius: 10px;">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    <div class="flex-grow-1">
+        {{ oauth_banner.message }}
+    </div>
+    <a href="{% url 'oauth_management_dashboard' %}" class="btn btn-sm btn-primary ms-3">
+        Authorize Ad Manager
+    </a>
+</div>
+{% endif %}
+{% if oauth_success_msg %}
+<div class="alert alert-success d-flex align-items-center" role="alert" style="border-radius: 10px;">
+    <i class="bi bi-check-circle-fill me-2"></i>
+    <div class="flex-grow-1">
+        {{ oauth_success_msg }}
+    </div>
+</div>
+{% endif %}
 <div class="card">
     <div class="card-header">
         <h3 class="card-title">AdX Account Data</h3>
@@ -31,9 +50,16 @@
                     <i class="fas fa-search"></i> Muat Data
                 </button>
             </div>
+            <div class="col-md-3">
+                <label>&nbsp;</label>
+                <button type="button" class="btn btn-success form-control" id="btn_add_credentials">
+                    <i class="bi bi-shield-lock"></i> Tambah Kredensial (Google OAuth)
+                </button>
+            </div>
             <div class="col-md-2">
                 <label>&nbsp;</label>
-                <button type="button" class="btn btn-info form-control" id="btn_oauth_setup" data-toggle="modal" data-target="#oauthModal">
+                <button type="button" class="btn btn-info form-control" id="btn_oauth_setup" data-toggle="modal"
+                    data-target="#oauthModal">
                     <i class="fas fa-cog"></i> OAuth Setup Credensial
                 </button>
             </div>
@@ -48,9 +74,16 @@
                     <i class="fas fa-search"></i> Muat Data
                 </button>
             </div>
+            <div class="col-md-3">
+                <label>&nbsp;</label>
+                <button type="button" class="btn btn-success form-control" id="btn_add_credentials">
+                    <i class="bi bi-shield-lock"></i> Tambah Kredensial (Google OAuth)
+                </button>
+            </div>
             <div class="col-md-2">
                 <label>&nbsp;</label>
-                <button type="button" class="btn btn-info form-control" id="btn_oauth_setup" data-toggle="modal" data-target="#oauthModal">
+                <button type="button" class="btn btn-info form-control" id="btn_oauth_setup" data-toggle="modal"
+                    data-target="#oauthModal">
                     <i class="fas fa-search"></i> OAuth Setup Credensial
                 </button>
             </div>
@@ -58,131 +91,126 @@
     </div><!-- /.card-body -->
     {% endif %}
 </div>
-<div class="card">
-    <div class="card-header">
-        <div class="card-title d-flex justify-content-between align-items-center w-100">
-            <h3 class="card-title"><b><i class="bi bi-building"></i> AdX Account Information</b></h3>
-        </div>
-    </div>
-    <div class="card-body">
-        <div id="overlay" 
-            style="
-                display: none;
-                position: fixed;
-                top: 0; left: 0;
-                width: 100%; height: 100%;
-                background: rgba(0,0,0,0.5);
-                z-index: 9999;
-                text-align: center;
-                color: white;
-                font-size: 2rem;
-                padding-top: 20%;">
-            <i class="fas fa fa-sync-alt fa-spin"></i> Loading Account Data ... 
-        </div>
-        <!-- Account Info Cards -->
-        <div class="row">
-            <div class="col-12 col-md-6">
-                <div class="card card-outline card-primary">
-                    <div class="card-header">
-                        <h3 class="card-title"><i class="bi bi-info-circle"></i> Network Information</h3>
-                    </div>
-                    <div class="card-body">
-                        <table class="table table-borderless">
-                            <tr>
-                                <td><strong>Network ID:</strong></td>
-                                <td id="network_id">-</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Network Code:</strong></td>
-                                <td id="network_code">-</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Display Name:</strong></td>
-                                <td id="display_name">-</td>
-                            </tr>
-                        </table>
-                    </div>
+<div class="row">
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title d-flex justify-content-between align-items-center w-100">
+                    <h3 class="card-title"><b><i class="bi bi-building"></i> AdX Account Information</b></h3>
                 </div>
             </div>
-            <div class="col-12 col-md-6">
-                <div class="card card-outline card-success">
-                    <div class="card-header">
-                        <h3 class="card-title"><i class="bi bi-gear"></i> Settings</h3>
+            <div class="card-body">
+                <div id="overlay" style="
+                        display: none;
+                        position: fixed;
+                        top: 0; left: 0;
+                        width: 100%; height: 100%;
+                        background: rgba(0,0,0,0.5);
+                        z-index: 9999;
+                        text-align: center;
+                        color: white;
+                        font-size: 2rem;
+                        padding-top: 20%;">
+                    <i class="fas fa fa-sync-alt fa-spin"></i> Loading Account Data ...
+                </div>
+                <!-- Account Info Cards -->
+                <div class="row">
+                    <div class="col-12 col-md-6">
+                        <div class="card card-outline card-primary">
+                            <div class="card-header">
+                                <h3 class="card-title"><i class="bi bi-info-circle"></i> Network Information</h3>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-borderless">
+                                    <tr>
+                                        <td><strong>Network ID:</strong></td>
+                                        <td id="network_id">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Network Code:</strong></td>
+                                        <td id="network_code">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Display Name:</strong></td>
+                                        <td id="display_name">-</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <table class="table table-borderless">
-                            <tr>
-                                <td><strong>Timezone:</strong></td>
-                                <td id="timezone">-</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Currency Code:</strong></td>
-                                <td id="currency_code">-</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Status:</strong></td>
-                                <td><span class="badge badge-success" id="status">Active</span></td>
-                            </tr>
-                        </table>
+                    <div class="col-12 col-md-6">
+                        <div class="card card-outline card-success">
+                            <div class="card-header">
+                                <h3 class="card-title"><i class="bi bi-gear"></i> Settings</h3>
+                            </div>
+                            <div class="card-body">
+                                <table class="table table-borderless">
+                                    <tr>
+                                        <td><strong>Timezone:</strong></td>
+                                        <td id="timezone">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Currency Code:</strong></td>
+                                        <td id="currency_code">-</td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Status:</strong></td>
+                                        <td><span class="badge badge-success" id="status">Active</span></td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-        
-        <!-- Additional Account Details -->
-        <div class="row mt-3">
-            <div class="col-12">
-                <div class="card card-outline card-info">
-                    <div class="card-header">
-                        <h3 class="card-title"><i class="bi bi-list-ul"></i> Account Details</h3>
-                    </div>
-                    <div class="card-body">
-                        <div id="account_details">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <h5><i class="bi bi-person"></i> User Information</h5>
-                                    <table class="table table-sm table-borderless">
-                                        <tr>
-                                            <td><strong>Email:</strong></td>
-                                            <td id="user_mail">-</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>User ID:</strong></td>
-                                            <td id="user_id">-</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>User Name:</strong></td>
-                                            <td id="user_name">-</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>Role:</strong></td>
-                                            <td id="user_role">-</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>Active:</strong></td>
-                                            <td id="user_is_active">-</td>
-                                        </tr>
-                                    </table>
-                                </div>
-                                <div class="col-md-6">
-                                    <h5><i class="bi bi-bar-chart"></i> Account Statistics</h5>
-                                    <table class="table table-sm table-borderless">
-                                        <tr>
-                                            <td><strong>Active Ad Units:</strong></td>
-                                            <td id="active_ad_units_count">-</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>Last Updated:</strong></td>
-                                            <td id="last_updated">-</td>
-                                        </tr>
-                                    </table>
-                                    <div id="additional_info" class="mt-3">
-                                        <!-- Additional information will be loaded here -->
+
+                <!-- Additional Account Details -->
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <div class="card card-outline card-info">
+                            <div class="card-header">
+                                <h3 class="card-title"><i class="bi bi-list-ul"></i> Account Details</h3>
+                            </div>
+                            <div class="card-body">
+                                <div id="account_details">
+                                    <div class="row">
+                                        <div class="col-md-12">
+                                            <h5><i class="bi bi-person"></i> User Information</h5>
+                                            <table class="table table-sm table-borderless">
+                                                <tr>
+                                                    <td><strong>Email:</strong></td>
+                                                    <td id="user_mail">-</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>User ID:</strong></td>
+                                                    <td id="user_id">-</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>User Name:</strong></td>
+                                                    <td id="user_name">-</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Role:</strong></td>
+                                                    <td id="user_role">-</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Active:</strong></td>
+                                                    <td id="user_is_active">-</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Active Ad Units:</strong></td>
+                                                    <td id="active_ad_units_count">-</td>
+                                                </tr>
+                                                <tr>
+                                                    <td><strong>Last Updated:</strong></td>
+                                                    <td id="last_updated">-</td>
+                                                </tr>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <div class="alert alert-info mt-3" id="data_note" style="display: none;">
+                                        <i class="bi bi-info-circle"></i> <span id="note_text"></span>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="alert alert-info mt-3" id="data_note" style="display: none;">
-                                <i class="bi bi-info-circle"></i> <span id="note_text"></span>
                             </div>
                         </div>
                     </div>
@@ -190,10 +218,74 @@
             </div>
         </div>
     </div>
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title"><b><i class="bi bi-list"></i> Data Kredensial Aplikasi</b></h3>
+            </div>
+            <div class="card-body">
+                {% if credentials_data %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                        <thead class="table-dark">
+                            <tr>
+                                <th class="text-center">No</th>
+                                <th class="text-center">Account</th>
+                                <th class="text-center">Client ID</th>
+                                <th class="text-center">Network Code</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Created</th>
+                                <th class="text-center">#</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for credential in credentials_data %}
+                            <tr>
+                                <td class="text-center">{{ forloop.counter }}</td>
+                                <td><b><u>{{ credential.account_name|default:"-" }}</u></b> <br> <small class="text-muted">{{ credential.user_mail|default:"-" }}</small></td>
+                                <td>{{ credential.client_id|truncatechars:20|default:"-" }}</td>
+                                <td class="text-center">{{ credential.network_code|default:"-" }}</td>
+                                <td class="text-center">
+                                    {% if credential.is_active %}
+                                        <span class="badge badge-success">Aktif</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">Tidak Aktif</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ credential.mdd|date:"d M Y H:i"|default:"-" }}</td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-primary load-account-data" 
+                                            data-email="{{ credential.user_mail }}"
+                                            data-account-id="{{ credential.account_id }}"
+                                            data-account-name="{{ credential.account_name }}"
+                                            data-network-code="{{ credential.network_code }}"
+                                            title="Load Data Akun">
+                                        <i class="bi bi-tv"></i> 
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted">
+                        Total: {{ total_accounts }} kredensial terdaftar
+                    </small>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    Belum ada data kredensial aplikasi yang terdaftar.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 </div>
-
 <!-- OAuth Setup Modal -->
-<div class="modal fade" id="oauthModal" tabindex="-1" role="dialog" aria-labelledby="oauthModalLabel" aria-hidden="true">
+<div class="modal fade" id="oauthModal" tabindex="-1" role="dialog" aria-labelledby="oauthModalLabel"
+    aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
@@ -206,32 +298,39 @@
                 <form id="oauthForm">
                     <div class="form-group">
                         <label for="client_id">Client ID:</label>
-                        <input type="text" class="form-control" id="client_id" name="client_id" placeholder="Enter client ID" required>
+                        <input type="text" class="form-control" id="client_id" name="client_id"
+                            placeholder="Enter client ID" required>
                     </div>
                     <div class="form-group">
                         <label for="client_secret">Client Secret:</label>
-                        <input type="text" class="form-control" id="client_secret" name="client_secret" placeholder="Enter client secret" required>
+                        <input type="text" class="form-control" id="client_secret" name="client_secret"
+                            placeholder="Enter client secret" required>
                     </div>
                     <div class="form-group">
                         <label for="network_code">Network Code:</label>
-                        <input type="text" class="form-control" id="network_code_input" name="network_code" placeholder="Enter network code" required>
+                        <input type="text" class="form-control" id="network_code_input" name="network_code"
+                            placeholder="Enter network code" required>
                     </div>
                     <div class="form-group">
                         <label for="user_mail">Email Account:</label>
-                        <input type="email" class="form-control" id="user_mail_input" name="user_mail" placeholder="Enter email" required>
+                        <input type="email" class="form-control" id="user_mail_input" name="user_mail"
+                            placeholder="Enter email" required>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal"><i class="fa fa-times"></i> Close</button>
-                <button type="button" class="btn btn-primary" id="btn_save_oauth"><i class="fa fa-save"></i> Save</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal"><i class="fa fa-times"></i>
+                    Close</button>
+                <button type="button" class="btn btn-primary" id="btn_save_oauth"><i class="fa fa-save"></i>
+                    Save</button>
             </div>
         </div>
     </div>
 </div>
 
 <!-- OAuth Refresh Token Generation Modal -->
-<div class="modal fade" id="oauthRefreshTokenModal" tabindex="-1" role="dialog" aria-labelledby="oauthRefreshTokenModalLabel" aria-hidden="true">
+<div class="modal fade" id="oauthRefreshTokenModal" tabindex="-1" role="dialog"
+    aria-labelledby="oauthRefreshTokenModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
             <div class="modal-header">
@@ -245,11 +344,12 @@
             <div class="modal-body">
                 <div id="oauth-step-1" class="oauth-step">
                     <h6><i class="fas fa-info-circle text-info"></i> Step 1: Generate OAuth URL</h6>
-                    <p>Klik tombol di bawah untuk generate OAuth URL yang akan digunakan untuk mendapatkan authorization code.</p>
+                    <p>Klik tombol di bawah untuk generate OAuth URL yang akan digunakan untuk mendapatkan authorization
+                        code.</p>
                     <div class="form-group">
                         <label for="oauth_user_email">Email Account:</label>
-                        <input type="email" class="form-control" id="oauth_user_email" name="oauth_user_email" 
-                               placeholder="Enter your Google account email" required>
+                        <input type="email" class="form-control" id="oauth_user_email" name="oauth_user_email"
+                            placeholder="Enter your Google account email" required>
                         <small class="form-text text-muted">Email yang memiliki akses ke Google Ad Manager</small>
                     </div>
                     <button type="button" class="btn btn-primary" id="btn_generate_oauth_url">
@@ -275,20 +375,20 @@
                         </div>
                     </div>
                 </div>
-                
+
                 <div id="oauth-step-2" class="oauth-step mt-4" style="display: none;">
                     <h6><i class="fas fa-code text-warning"></i> Step 2: Submit Authorization Code</h6>
                     <p>Paste authorization code yang didapat dari Google di sini:</p>
                     <div class="form-group">
                         <label for="authorization_code">Authorization Code:</label>
-                        <textarea class="form-control" id="authorization_code" name="authorization_code" 
-                                  rows="3" placeholder="Paste authorization code here..." required></textarea>
+                        <textarea class="form-control" id="authorization_code" name="authorization_code" rows="3"
+                            placeholder="Paste authorization code here..." required></textarea>
                     </div>
                     <button type="button" class="btn btn-success" id="btn_submit_auth_code">
                         <i class="fas fa-check"></i> Submit & Generate Refresh Token
                     </button>
                 </div>
-                
+
                 <div id="oauth_generation_result" class="mt-3" style="display: none;">
                     <!-- Result will be shown here -->
                 </div>
@@ -302,4 +402,183 @@
 {% endblock %}
 {% block more_scripts %}
 <script src="{% static 'ajax/admin/adx_manager/account.js'%}?v={%now 'u'%}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var btn = document.getElementById('btn_add_credentials');
+        if (btn) {
+            btn.addEventListener('click', function () {
+                // Langsung mulai OAuth tanpa meminta email agar Google Account Chooser muncul
+                var baseUrl = "{% url 'adx_account_oauth_start' %}";
+                window.location.href = baseUrl;
+            });
+        }
+
+        // Handle Load Data buttons for each credential row
+        document.querySelectorAll('.load-account-data').forEach(function(button) {
+            button.addEventListener('click', function() {
+                var email = this.getAttribute('data-email');
+                var accountId = this.getAttribute('data-account-id');
+                var accountName = this.getAttribute('data-account-name');
+                var networkCode = this.getAttribute('data-network-code');
+                
+                loadAccountDataByCredentials(email, accountId, accountName, networkCode, this);
+            });
+        });
+    });
+
+    function loadAccountDataByCredentials(email, accountId, accountName, networkCode, buttonElement) {
+        // Show loading state
+        var originalText = buttonElement.innerHTML;
+        buttonElement.innerHTML = '<i class="bi bi-hourglass-split"></i>';
+        buttonElement.disabled = true;
+        
+        // Show overlay if exists
+        if ($("#overlay").length) {
+            $("#overlay").show();
+        }
+
+        $.ajax({
+            url: '/management/admin/page_adx_user_account',
+            type: 'GET',
+            data: {
+                'user_email': email,
+                'account_id': accountId,
+                'network_code': networkCode
+            },
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            },
+            success: function (response) {
+                // Hide overlay
+                if ($("#overlay").length) {
+                    $("#overlay").hide();
+                }
+                
+                // Reset button state
+                buttonElement.innerHTML = originalText;
+                buttonElement.disabled = false;
+                
+                console.log('Account data response:', response);
+                
+                if (response && response.status) {
+                    // Update account information in AdX Account Information section
+                    if (response.data) {
+                        // Update Network Information
+                        $("#network_id").text(response.data.network_id || accountId || '-');
+                        $("#network_code").text(response.data.network_code || networkCode || '-');
+                        $("#display_name").text(response.data.display_name || response.data.network_name || accountName || '-');
+                        
+                        // Update Settings
+                        $("#timezone").text(response.data.timezone || '-');
+                        $("#currency_code").text(response.data.currency_code || '-');
+                        
+                        // Update Account Details - User Information
+                        $("#user_mail").text(response.data.user_mail || email || '-');
+                        $("#user_id").text(response.data.user_id || '-');
+                        $("#user_name").text(response.data.user_name || '-');
+                        $("#user_role").text(response.data.user_role || '-');
+                        
+                        // Format user active status
+                        var userActiveText = response.data.user_is_active !== undefined ? 
+                            (response.data.user_is_active ? 'Yes' : 'No') : '-';
+                        $("#user_is_active").text(userActiveText);
+                        
+                        // Update Account Statistics
+                        $("#active_ad_units_count").text(response.data.active_ad_units_count || '0');
+                        
+                        // Format last updated time
+                        var lastUpdated = response.data.last_updated ? 
+                            new Date(response.data.last_updated).toLocaleString() : new Date().toLocaleString();
+                        $("#last_updated").text(lastUpdated);
+                        
+                        // Add additional network information if available
+                        var additionalInfo = '';
+                        if (response.data.effective_root_ad_unit_id) {
+                            additionalInfo += '<p><strong>Root Ad Unit ID:</strong> ' + response.data.effective_root_ad_unit_id + '</p>';
+                        }
+                        if (response.data.is_test_network !== undefined) {
+                            var testNetworkText = response.data.is_test_network ? 'Yes' : 'No';
+                            additionalInfo += '<p><strong>Test Network:</strong> ' + testNetworkText + '</p>';
+                        }
+                        $("#additional_info").html(additionalInfo);
+                        
+                        // Show note if available
+                        if (response.note) {
+                            $("#note_text").text(response.note);
+                            $("#data_note").show();
+                        } else {
+                            $("#data_note").hide();
+                        }
+                        
+                        // Show success message
+                        showSuccessMessage('Data akun berhasil dimuat untuk: ' + email);
+                        
+                        // Scroll to account information section
+                        $('html, body').animate({
+                            scrollTop: $("#network_id").closest('.card').offset().top - 100
+                        }, 500);
+                        
+                    } else {
+                        showErrorMessage('Data akun tidak tersedia untuk: ' + email);
+                    }
+                } else {
+                    var errorMsg = response && response.error ? response.error : 'Terjadi kesalahan yang tidak diketahui';
+                    showErrorMessage('Error memuat data akun: ' + errorMsg);
+                }
+            },
+            error: function (xhr, status, error) {
+                // Hide overlay
+                if ($("#overlay").length) {
+                    $("#overlay").hide();
+                }
+                
+                // Reset button state
+                buttonElement.innerHTML = originalText;
+                buttonElement.disabled = false;
+                
+                console.error('AJAX Error:', error);
+                showErrorMessage('Gagal memuat data akun. Silakan coba lagi.');
+            }
+        });
+    }
+
+    function showSuccessMessage(message) {
+        // Create or update success alert
+        var alertHtml = '<div class="alert alert-success alert-dismissible fade show" role="alert">' +
+                       '<i class="bi bi-check-circle-fill me-2"></i>' + message +
+                       '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                       '</div>';
+        
+        // Remove existing alerts
+        $('.alert-success, .alert-danger').remove();
+        
+        // Add new alert at the top of the card body
+        $('.card-body').first().prepend(alertHtml);
+        
+        // Auto-hide after 5 seconds
+        setTimeout(function() {
+            $('.alert-success').fadeOut();
+        }, 5000);
+    }
+
+    function showErrorMessage(message) {
+        // Create or update error alert
+        var alertHtml = '<div class="alert alert-danger alert-dismissible fade show" role="alert">' +
+                       '<i class="bi bi-exclamation-triangle-fill me-2"></i>' + message +
+                       '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>' +
+                       '</div>';
+        
+        // Remove existing alerts
+        $('.alert-success, .alert-danger').remove();
+        
+        // Add new alert at the top of the card body
+        $('.card-body').first().prepend(alertHtml);
+        
+        // Auto-hide after 8 seconds
+        setTimeout(function() {
+            $('.alert-danger').fadeOut();
+        }, 8000);
+    }
+</script>
 {% endblock %}
