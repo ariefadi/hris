@@ -2188,7 +2188,7 @@ class AdxAccountOAuthStartView(View):
                 # Scope untuk Google Ad Manager
                 'https://www.googleapis.com/auth/admanager',
                 # Scope untuk Google AdSense
-                'https://www.googleapis.com/auth/adsense.readonly'
+                'https://www.googleapis.com/auth/adsense'
             ]
 
             flow = Flow.from_client_config(client_config, scopes=scopes)
