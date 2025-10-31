@@ -74,21 +74,24 @@ $().ready(function () {
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
         var selected_account_adx = $("#account_filter").val() || "";
-        if (tanggal_dari != "" && tanggal_sampai != "") {
+        if (tanggal_dari != "" && tanggal_sampai != "" && selected_account_adx != "") {
             // Reset status fetch sebelum mulai menarik data
             window.fetchStatus = { summary: false, country: false };
             $('#overlay').show();
-            loadSitesList(selected_account_adx);
-            load_country_options(selected_account_adx);
             load_ROI_traffic_country_data();
             load_ROI_summary_data(tanggal_dari, tanggal_sampai, selected_account_adx);
+            loadSitesList();
+            load_country_options();
         } else {
-            alert('Silakan pilih tanggal dari dan sampai');
+            alert('Silakan pilih tanggal dari dan sampai, serta akun ADX');
         }
     });
     // Load data situs untuk select2
-    function loadSitesList(selected_account_adx) {
-        var selectedAccounts = selected_account_adx;
+    function loadSitesList() {
+        var selectedAccounts = $("#account_filter").val() || "";
+        // Simpan pilihan domain yang sudah dipilih sebelumnya
+        var previouslySelected = $("#site_filter").val() || [];
+        
         $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
@@ -104,9 +107,22 @@ $().ready(function () {
                 if (response.status) {
                     var select_site = $("#site_filter");
                     select_site.empty();
+                    
+                    // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
+                    var validPreviousSelections = [];
                     $.each(response.data, function (index, site) {
-                        select_site.append(new Option(site, site, false, false));
+                        var isSelected = previouslySelected.includes(site);
+                        if (isSelected) {
+                            validPreviousSelections.push(site);
+                        }
+                        select_site.append(new Option(site, site, false, isSelected));
                     });
+                    
+                    // Set nilai yang dipilih kembali
+                    if (validPreviousSelections.length > 0) {
+                        select_site.val(validPreviousSelections);
+                    }
+                    
                     select_site.trigger('change');
                 }
             },
@@ -116,8 +132,11 @@ $().ready(function () {
         });
     }
     // Load data saat halaman pertama kali dibuka
-    function load_country_options(selected_account_adx) {
-        var selectedAccounts = selected_account_adx;
+    function load_country_options() {
+        var selectedAccounts = $("#account_filter").val() || "";
+        // Simpan pilihan country yang sudah dipilih sebelumnya
+        var previouslySelected = $("#country_filter").val() || [];
+        
         $.ajax({
             url: '/management/admin/get_countries_adx',
             type: 'GET',
@@ -133,9 +152,22 @@ $().ready(function () {
                 if (response.status) {
                     var select_country = $('#country_filter');
                     select_country.empty();
+                    
+                    // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
+                    var validPreviousSelections = [];
                     $.each(response.countries, function (index, country) {
-                        select_country.append(new Option(country.name, country.code, false, false));
+                        var isSelected = previouslySelected.includes(country.code);
+                        if (isSelected) {
+                            validPreviousSelections.push(country.code);
+                        }
+                        select_country.append(new Option(country.name, country.code, false, isSelected));
                     });
+                    
+                    // Set nilai yang dipilih kembali
+                    if (validPreviousSelections.length > 0) {
+                        select_country.val(validPreviousSelections);
+                    }
+                    
                     select_country.trigger('change');
                 }
             },

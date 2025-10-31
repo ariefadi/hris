@@ -3266,18 +3266,18 @@ def get_user_adsense_client(user_mail):
         from google.oauth2.credentials import Credentials
         from googleapiclient.discovery import build
         
-        # Get user credentials from app_oauth_credentials
+        # Get user credentials from app_credentials
         db = data_mysql()
-        creds_result = db.get_user_oauth_credentials(user_mail)
+        creds_result = db.get_user_credentials(user_mail)
         if not creds_result['status']:
             return creds_result
         
         credentials = creds_result['data']
         
         # Extract OAuth2 credentials
-        client_id = str(credentials.get('google_oauth2_client_id', '')).strip()
-        client_secret = str(credentials.get('google_oauth2_client_secret', '')).strip()
-        refresh_token = str(credentials.get('google_ads_refresh_token', '')).strip()
+        client_id = str(credentials.get('client_id', '')).strip()
+        client_secret = str(credentials.get('client_secret', '')).strip()
+        refresh_token = str(credentials.get('refresh_token', '')).strip()
         
         # Validate required credentials
         if not all([client_id, client_secret, refresh_token]):
@@ -3323,7 +3323,7 @@ def get_user_adx_credentials(user_mail):
         
         # Ambil kredensial dengan parameter yang benar
         db = data_mysql()
-        creds_result = db.get_user_oauth_credentials(user_mail=user_mail)
+        creds_result = db.get_user_credentials(user_mail=user_mail)
         print("✅ creds_result:", creds_result)
         
         # Periksa apakah query berhasil
@@ -3338,10 +3338,10 @@ def get_user_adx_credentials(user_mail):
         
         # Validasi kredensial yang diperlukan
         required_fields = [
-            'google_oauth2_client_id',
-            'google_oauth2_client_secret',
-            'google_ads_refresh_token',
-            'google_ad_manager_network_code'
+            'client_id',
+            'client_secret',
+            'refresh_token',
+            'network_code'
         ]
         missing_fields = [
             field for field in required_fields 
@@ -3375,15 +3375,15 @@ def get_user_ad_manager_client(user_mail):
         credentials = creds_result['data']
         
         # Pastikan semua kredensial dalam format string yang benar
-        client_id = str(credentials.get('google_oauth2_client_id', '')).strip()
-        client_secret = str(credentials.get('google_oauth2_client_secret', '')).strip()
-        refresh_token = str(credentials.get('google_ads_refresh_token', '')).strip()
+        client_id = str(credentials.get('client_id', '')).strip()
+        client_secret = str(credentials.get('client_secret', '')).strip()
+        refresh_token = str(credentials.get('refresh_token', '')).strip()
         
         # Ambil network_code dari kredensial
         network_code = None
         try:
-            if 'google_ad_manager_network_code' in credentials:
-                network_code = int(credentials['google_ad_manager_network_code'])
+            if 'network_code' in credentials:
+                network_code = int(credentials['network_code'])
             if not network_code:
                 raise ValueError("Network code tidak ditemukan dalam kredensial")
         except (ValueError, TypeError) as e:

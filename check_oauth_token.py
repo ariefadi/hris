@@ -71,10 +71,9 @@ def main():
     
     # Ambil semua user yang memiliki OAuth credentials
     sql = """
-        SELECT user_mail, google_oauth2_client_id, google_oauth2_client_secret, 
-               google_ads_refresh_token, google_ad_manager_network_code
-        FROM app_oauth_credentials 
-        WHERE is_active = 1 AND google_ads_refresh_token IS NOT NULL
+        SELECT account_name, user_mail, client_id, client_secret, refresh_token, network_code
+        FROM app_credentials 
+        WHERE is_active = 1 AND refresh_token IS NOT NULL
     """
     
     if not db.execute_query(sql):

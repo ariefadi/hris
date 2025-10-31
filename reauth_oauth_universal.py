@@ -50,11 +50,11 @@ def main():
     print("✅ User ditemukan di database")
     
     # Periksa OAuth credentials
-    oauth_creds = db.get_user_oauth_credentials(user_mail=user_mail)
+    oauth_creds = db.get_user_credentials(user_mail=user_mail)
     
     if not oauth_creds['status']:
         print("❌ OAuth credentials tidak ditemukan untuk user ini")
-        print("💡 User perlu ditambahkan ke tabel app_oauth_credentials terlebih dahulu")
+        print("💡 User perlu ditambahkan ke tabel app_credentials terlebih dahulu")
         return
     
     credentials = oauth_creds['data']

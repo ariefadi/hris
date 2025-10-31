@@ -49,27 +49,23 @@ def get_credentials_from_db(request=None):
     Mengambil kredensial dari tabel app_oauth_credentials berdasarkan user_id dan user_mail dari session.
     """
     from management.database import data_mysql
-    
     # Ambil user_id dan user_mail dari request.oauth_user jika tersedia
     user_id = None
     user_mail = None
     if request and hasattr(request, 'oauth_user'):
-        user_id = request.oauth_user.get('user_id')
         user_mail = request.oauth_user.get('user_mail')
-    
     # Ambil kredensial dari database
     db = data_mysql()
-    credentials = db.get_user_oauth_credentials(user_mail=user_mail)
+    credentials = db.get_user_credentials(user_mail=user_mail)
     
     if credentials['status'] and credentials['data']:
         creds = credentials['data']
         return {
-            'google_oauth2_client_id': creds['google_oauth2_client_id'],
-            'google_oauth2_client_secret': creds['google_oauth2_client_secret'],
-            'google_ads_client_id': creds['google_ads_client_id'],
-            'google_ads_client_secret': creds['google_ads_client_secret'],
-            'google_ads_refresh_token': creds['google_ads_refresh_token'],
-            'google_ad_manager_network_code': creds['google_ad_manager_network_code']
+            'client_id': creds['client_id'],
+            'client_secret': creds['client_secret'],
+            'refresh_token': creds['refresh_token'],
+            'network_code': creds['network_code'],
+            'developer_token': creds['developer_token']
         }
     return None
 
@@ -299,26 +295,17 @@ LOGIN_REDIRECT_URL = '/management/admin/oauth_redirect'
 LOGOUT_REDIRECT_URL = '/management/admin/login'
 
 
-
-# Default OAuth credentials from environment variables
-GOOGLE_OAUTH2_CLIENT_ID = os.getenv('GOOGLE_OAUTH2_CLIENT_ID', '')
-GOOGLE_OAUTH2_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET', '')
-GOOGLE_ADS_CLIENT_ID = os.getenv('GOOGLE_ADS_CLIENT_ID', '')
-GOOGLE_ADS_CLIENT_SECRET = os.getenv('GOOGLE_ADS_CLIENT_SECRET', '')
-GOOGLE_ADS_REFRESH_TOKEN = os.getenv('GOOGLE_ADS_REFRESH_TOKEN', '')
-GOOGLE_AD_MANAGER_NETWORK_CODE = os.getenv('GOOGLE_AD_MANAGER_NETWORK_CODE', '')
-
 # Load credentials from database
 try:
     from management.credential_loader import get_credentials_from_db
     db_credentials = get_credentials_from_db()
-    if db_credentials and db_credentials.get('google_oauth2_client_id'):
-        GOOGLE_OAUTH2_CLIENT_ID = db_credentials['google_oauth2_client_id']
-        GOOGLE_OAUTH2_CLIENT_SECRET = db_credentials['google_oauth2_client_secret']
-        GOOGLE_ADS_CLIENT_ID = db_credentials['google_ads_client_id']
-        GOOGLE_ADS_CLIENT_SECRET = db_credentials['google_ads_client_secret']
-        GOOGLE_ADS_REFRESH_TOKEN = db_credentials['google_ads_refresh_token']
-        GOOGLE_AD_MANAGER_NETWORK_CODE = db_credentials['google_ad_manager_network_code']
+    if db_credentials and db_credentials.get('client_id'):
+        GOOGLE_OAUTH2_CLIENT_ID = db_credentials['client_id']
+        GOOGLE_OAUTH2_CLIENT_SECRET = db_credentials['client_secret']
+        GOOGLE_ADS_CLIENT_ID = db_credentials['client_id']
+        GOOGLE_ADS_CLIENT_SECRET = db_credentials['client_secret']
+        GOOGLE_ADS_REFRESH_TOKEN = db_credentials['refresh_token']
+        GOOGLE_AD_MANAGER_NETWORK_CODE = db_credentials['network_code']
         print(f"[SETTINGS] Loaded credentials from database for user: {db_credentials.get('user_mail', 'default')}")
 except Exception as e:
     print(f"[SETTINGS] Could not load credentials from database: {str(e)}")

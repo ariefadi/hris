@@ -199,9 +199,9 @@ def save_refresh_token_for_current_user(request, refresh_token):
     try:
         # Coba UPDATE terlebih dahulu
         sql_update = """
-            UPDATE app_oauth_credentials 
-            SET google_ads_refresh_token = %s,
-                updated_at = NOW()
+            UPDATE app_credentials 
+            SET refresh_token = %s,
+                mdd = NOW()
             WHERE user_mail = %s
         """
         
@@ -221,10 +221,10 @@ def save_refresh_token_for_current_user(request, refresh_token):
                 try:
                     user_id = current_user.get('user_id')
                     sql_insert = """
-                        INSERT INTO app_oauth_credentials (user_id, user_mail, google_ads_refresh_token)
-                        VALUES (%s, %s, %s)
+                        INSERT INTO app_credentials (account_id, account_name, user_mail, refresh_token)
+                        VALUES (%s, %s, %s, %s)
                     """
-                    if db.execute_query(sql_insert, (user_id, user_mail, refresh_token)):
+                    if db.execute_query(sql_insert, (user_id, current_user.get('user_alias', 'Unknown'), user_mail, refresh_token)):
                         db.db_hris.commit()
                         logger.info(f"Refresh token inserted for user: {user_mail}")
                         return {
@@ -236,18 +236,18 @@ def save_refresh_token_for_current_user(request, refresh_token):
                     else:
                         return {
                             'status': False,
-                            'message': 'Gagal mengeksekusi INSERT ke app_oauth_credentials'
+                            'message': 'Gagal mengeksekusi INSERT ke app_credentials'
                         }
                 except Exception as insert_err:
                     logger.error(f"Error inserting refresh token row: {str(insert_err)}")
                     return {
                         'status': False,
-                        'message': f'Gagal membuat row app_oauth_credentials: {str(insert_err)}'
+                        'message': f'Gagal membuat row app_credentials: {str(insert_err)}'
                     }
         else:
             return {
                 'status': False,
-                'message': 'Gagal mengeksekusi query UPDATE app_oauth_credentials'
+                'message': 'Gagal mengeksekusi query UPDATE app_credentials'
             }
             
     except Exception as e:
@@ -274,7 +274,7 @@ def save_refresh_token_for_user(user_mail, refresh_token):
 
         db = data_mysql()
         # Pastikan kredensial user ada terlebih dahulu
-        creds = db.get_user_oauth_credentials(user_mail)
+        creds = db.get_user_credentials(user_mail)
         if not creds.get('status'):
             return {
                 'status': False,
@@ -314,12 +314,12 @@ def get_user_oauth_status(user_mail):
     try:
         sql = """
             SELECT user_mail, 
-                   CASE WHEN google_ads_refresh_token IS NOT NULL AND google_ads_refresh_token != ''
+                   CASE WHEN refresh_token IS NOT NULL AND refresh_token != ''
                         THEN 'active' ELSE 'inactive' END as token_status,
-                   CASE WHEN google_ads_refresh_token IS NOT NULL 
-                        THEN LENGTH(google_ads_refresh_token) ELSE 0 END as token_length,
-                   updated_at
-            FROM app_oauth_credentials 
+                   CASE WHEN refresh_token IS NOT NULL 
+                        THEN LENGTH(refresh_token) ELSE 0 END as token_length,
+                   mdd as updated_at
+            FROM app_credentials 
             WHERE user_mail = %s
         """
         

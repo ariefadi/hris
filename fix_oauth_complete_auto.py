@@ -139,11 +139,13 @@ def check_oauth_status(email):
         cursor = conn.cursor()
         query = """
         SELECT 
-            google_oauth2_client_id,
-            google_oauth2_client_secret,
-            google_ads_refresh_token,
-            google_ad_manager_network_code
-        FROM app_oauth_credentials 
+            account_name,
+            user_mail,
+            client_id,
+            client_secret,
+            refresh_token,
+            network_code
+        FROM app_credentials 
         WHERE user_mail = %s
         """
         
@@ -275,8 +277,8 @@ def update_refresh_token_db(email, refresh_token):
         
         cursor = conn.cursor()
         query = """
-        UPDATE app_oauth_credentials 
-        SET google_ads_refresh_token = %s, updated_at = %s
+        UPDATE app_credentials 
+        SET refresh_token = %s, updated_at = %s
         WHERE user_mail = %s
         """
         
@@ -311,10 +313,13 @@ def test_new_token(email):
         cursor = conn.cursor()
         query = """
         SELECT 
-            google_oauth2_client_id,
-            google_oauth2_client_secret,
-            google_ads_refresh_token
-        FROM app_oauth_credentials 
+            account_name,
+            user_mail,
+            client_id,
+            client_secret,
+            refresh_token,
+            network_code
+        FROM app_credentials 
         WHERE user_mail = %s
         """
         

@@ -328,17 +328,14 @@ def get_countries_adx(request):
         return redirect('admin_login')
     try:
         selected_accounts = request.GET.get('selected_accounts')
+        print(f"Selected Accounts: {selected_accounts}")
         if selected_accounts:
-            user_id = selected_accounts.split(',')
+            user_mail = selected_accounts
         else:
-            user_id = request.session.get('hris_admin', {}).get('user_id')
-        user_data = data_mysql().get_user_by_id(user_id)
-        print(f"Selected user_data : {user_data}")
+            user_mail = request.session.get('hris_admin', {}).get('user_mail')
         # Ambil data negara dari AdX untuk periode 30 hari terakhir
         end_date = datetime.now().date()
-        start_date = end_date - timedelta(days=30)
-        # Ambil semua data negara tanpa filter
-        user_mail = user_data['data']['user_mail']
+        start_date = end_date - timedelta(days=7)
         result = fetch_adx_traffic_per_country(
             start_date.strftime('%Y-%m-%d'), 
             end_date.strftime('%Y-%m-%d'),
@@ -385,10 +382,8 @@ def get_countries_adx(request):
             if not isinstance(country_data, dict):
                 print(f"[WARNING] Country data is not a dict: {type(country_data)}")
                 continue
-                
             country_name = country_data.get('country_name')
             country_code = country_data.get('country_code', '')
-            
             if country_name:
                 country_label = f"{country_name} ({country_code})" if country_code else country_name
                 countries.append({
@@ -398,7 +393,6 @@ def get_countries_adx(request):
             
         # Sort berdasarkan nama negara
         countries.sort(key=lambda x: x['name'])
-        
         return JsonResponse({
             'status': 'success',
             'countries': countries
@@ -1647,41 +1641,19 @@ class AdxSummaryDataView(View):
         selected_accounts = req.GET.get('selected_accounts')
         selected_sites = req.GET.get('selected_sites')
         if selected_accounts:
-            user_id = selected_accounts.split(',')
+            user_mail = selected_accounts.split(',')
         else:
-            user_id = req.session.get('hris_admin', {}).get('user_id')
+            user_mail = req.session.get('hris_admin', {}).get('user_mail')
         if not start_date or not end_date:      
             return JsonResponse({
                 'status': False,
                 'error': 'Start date and end date are required'
             })
         try:
-            # Ambil user_id dari session
-            user_id = user_id
-            print(f"DEBUG - Session user_id: {user_id}")
-            if not user_id:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'User ID tidak ditemukan dalam session'
-                })
-            # Ambil email user dari database berdasarkan user_id
-            user_data = data_mysql().get_user_by_id(user_id)
-            if not user_data['status'] or not user_data['data']:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'Data user tidak ditemukan dalam database'
-                })
-            user_mail = user_data['data']['user_mail']
-            if not user_mail:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'Email user tidak ditemukan dalam database'
-                })
             result = fetch_adx_traffic_account_by_user(user_mail, start_date, end_date, selected_sites)
             # Tambahkan data traffic hari ini
             today = datetime.now().strftime('%Y-%m-%d')
             today_result = fetch_adx_traffic_account_by_user(user_mail, today, today, selected_sites)
-            
             # Tambahkan today_traffic ke result
             if today_result.get('status') and today_result.get('summary'):
                 result['today_traffic'] = {
@@ -1856,12 +1828,10 @@ class AdxAccountView(View):
             user_mail = req.session.get('hris_admin', {}).get('user_mail')
         except Exception:
             user_mail = None
-
         oauth_banner = {
             'show': False,
             'message': None
         }
-
         if user_mail:
             try:
                 from management.oauth_utils import get_user_oauth_status
@@ -1875,23 +1845,19 @@ class AdxAccountView(View):
             except Exception:
                 # Jika gagal cek status, sembunyikan banner agar halaman tetap tampil
                 pass
-
         data_account_adx = data_mysql().get_all_adx_account_data()
         if not data_account_adx['status']:
             return JsonResponse({
                 'status': False,
                 'error': data_account_adx['data']
             })
-
         # Ambil data dari tabel app_credentials
         db = data_mysql()
         result = db.get_all_app_credentials()
-        
         if result.get('status'):
             credentials_data = result.get('data', [])
         else:
             credentials_data = []
-            
         # Tampilkan pesan sukses jika baru selesai OAuth
         oauth_success_msg = None
         if req.session.get('oauth_added_success'):
@@ -1936,11 +1902,9 @@ class AdxUserAccountDataView(View):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
-    
     def get(self, req):
         # Prioritas: gunakan user_email dari parameter frontend jika ada
         user_email = req.GET.get('user_email')
-        
         if user_email:
             # Gunakan email dari parameter frontend (dari Load Data button)
             user_mail = user_email
@@ -1948,34 +1912,15 @@ class AdxUserAccountDataView(View):
             # Fallback ke logika lama jika tidak ada parameter user_email
             selected_accounts = req.GET.get('selected_accounts')
             if selected_accounts:
-                user_id = selected_accounts.split(',')
+                user_mail = selected_accounts.split(',')
             else:
-                user_id = req.session.get('hris_admin', {}).get('user_id')
-            try:
-                # Ambil user_id dari session
-                user_id = user_id
-                # Ambil email user dari database berdasarkan user_id
-                user_data = data_mysql().get_user_by_id(user_id)
-                if not user_data['status'] or not user_data['data']:
-                    return JsonResponse({
-                        'status': False,
-                        'error': 'User data tidak ditemukan'
-                    })
-                user_mail = user_data['data']['user_mail']
-            except Exception as e:
-                return JsonResponse({
-                    'status': False,
-                    'error': f'Error mengambil data user: {str(e)}'
-                })
-        
+                user_mail = req.session.get('hris_admin', {}).get('user_mail')
         try:
             # Fetch comprehensive account data using user's credentials
             result = fetch_user_adx_account_data(user_mail)
-            print(f"resultnya adalah : {result}")
             # Enhance error message for better user feedback
             if not result.get('status', False):
                 error_msg = result.get('error', 'Unknown error')
-                
                 # Provide more user-friendly error messages
                 if 'Service MakeSoapRequest not found' in error_msg:
                     result['error'] = 'Terjadi masalah dengan koneksi Google Ad Manager. Silakan coba lagi dalam beberapa saat.'
@@ -1985,12 +1930,9 @@ class AdxUserAccountDataView(View):
                     result['error'] = 'Kredensial Google Ad Manager tidak valid atau belum dikonfigurasi.'
                 elif 'network' in error_msg.lower():
                     result['error'] = 'Tidak dapat mengakses network Google Ad Manager. Periksa konfigurasi network code.'
-                
             return JsonResponse(result)
-            
         except Exception as e:
             error_msg = str(e)
-            
             # Provide user-friendly error messages
             if 'Service MakeSoapRequest not found' in error_msg:
                 error_msg = 'Terjadi masalah dengan koneksi Google Ad Manager. Silakan coba lagi dalam beberapa saat.'
@@ -1998,7 +1940,6 @@ class AdxUserAccountDataView(View):
                 error_msg = 'Terjadi masalah encoding data. Silakan refresh halaman.'
             elif 'credentials' in error_msg.lower():
                 error_msg = 'Kredensial Google Ad Manager tidak valid atau belum dikonfigurasi.'
-            
             return JsonResponse({
                 'status': False,
                 'error': error_msg
@@ -2199,7 +2140,7 @@ class AdxTrafficPerAccountView(View):
         data = {
             'title': 'AdX Traffic Per Account',
             'user': req.session['hris_admin'],
-            'adx_account_data': data_account_adx['data'],
+            'data_account_adx': data_account_adx['data'],
         }
         return render(req, 'admin/adx_manager/traffic_account/index.html', data)
 
@@ -2533,16 +2474,11 @@ class AdxTrafficPerAccountDataView(View):
         end_date = req.GET.get('end_date')
         selected_accounts = req.GET.get('selected_accounts')
         if selected_accounts:
-            user_id = selected_accounts.split(',')
+            user_mail = selected_accounts.split(',')
         else:
-            user_id = req.session.get('hris_admin', {}).get('user_id')
+            user_mail = req.session.get('hris_admin', {}).get('user_mail')
         selected_sites = req.GET.get('selected_sites')
         try:
-            # Ambil user_id dari session
-            user_id = user_id
-            # Ambil email user dari database berdasarkan user_id
-            user_data = data_mysql().get_user_by_id(user_id)
-            user_mail = user_data['data']['user_mail']
             # Format tanggal untuk AdManager API
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
             end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')  
@@ -2564,15 +2500,10 @@ class AdxSitesListView(View):
     def get(self, req):
         selected_accounts = req.GET.get('selected_accounts')
         if selected_accounts:
-            user_id = selected_accounts.split(',')
+            user_mail = selected_accounts
         else:
-            user_id = req.session.get('hris_admin', {}).get('user_id')
+            user_mail = req.session.get('hris_admin', {}).get('user_mail')
         try:
-            # Ambil user_id dari session
-            user_id = user_id
-            # Ambil email user dari database berdasarkan user_id
-            user_data = data_mysql().get_user_by_id(user_id)
-            user_mail = user_data['data']['user_mail']
             # Ambil daftar situs dari Ad Manager
             from management.utils import fetch_user_sites_list
             result = fetch_user_sites_list(user_mail)
@@ -2678,7 +2609,7 @@ class AdxTrafficPerCountryView(View):
         data = {
             'title': 'AdX Traffic Per Country',
             'user': req.session['hris_admin'],
-            'adx_account_data': data_account_adx['data'],
+            'data_account_adx': data_account_adx['data'],
         }
         return render(req, 'admin/adx_manager/traffic_country/index.html', data)
 
@@ -2694,9 +2625,9 @@ class AdxTrafficPerCountryDataView(View):
         end_date = req.GET.get('end_date')
         selected_accounts = req.GET.get('selected_accounts')
         if selected_accounts:
-            user_id = selected_accounts.split(',')
+            user_mail = selected_accounts.split(',')
         else:
-            user_id = req.session.get('hris_admin', {}).get('user_id')
+            user_mail = req.session.get('hris_admin', {}).get('user_mail')
         selected_sites = req.GET.get('selected_sites', '') 
         selected_countries = req.GET.get('selected_countries', '')
         try:
@@ -2709,11 +2640,6 @@ class AdxTrafficPerCountryDataView(View):
                 countries_list = [country.strip() for country in selected_countries.split(',') if country.strip()]
             else:
                 print("[DEBUG] No countries selected, will fetch all countries")
-            # Ambil user_id dari session
-            user_id = user_id
-            # Ambil email user dari database berdasarkan user_id
-            user_data = data_mysql().get_user_by_id(user_id)
-            user_mail = user_data['data']['user_mail']
             result = fetch_adx_traffic_per_country(start_date_formatted, end_date_formatted, user_mail, selected_sites, countries_list)    
             print(f"[DEBUG] fetch_adx_traffic_per_country result: {result}")
             if isinstance(result, dict):
@@ -2825,25 +2751,38 @@ class RoiTrafficPerCountryDataView(View):
         selected_sites = req.GET.get('selected_sites', '')
         selected_account = req.GET.get('selected_account', '')
         selected_countries = req.GET.get('selected_countries', '')
-        if selected_account_adx:
-            user_id = selected_account_adx.split(',')
-        else:
-            user_id = req.session.get('hris_admin', {}).get('user_id')
+        
         try:
             # Format tanggal untuk AdManager API
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
             end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
+            
             # Parse selected countries dari string yang dipisah koma
             countries_list = []
             if selected_countries and selected_countries.strip():
                 countries_list = [country.strip() for country in selected_countries.split(',') if country.strip()]
             else:
                 print("[DEBUG] No countries selected, will fetch all countries")
-            # Ambil user_id dari session
-            user_id = user_id
-            # Ambil email user dari database berdasarkan user_id
-            user_data = data_mysql().get_user_by_id(user_id)
-            user_mail = user_data['data']['user_mail']
+            
+            # Jika ada selected_account_adx dari frontend, gunakan sebagai user_mail
+            if selected_account_adx:
+                user_mail = selected_account_adx
+            else:
+                # Fallback ke session user_id dan ambil email dari database
+                user_id = req.session.get('hris_admin', {}).get('user_id')
+                if not user_id:
+                    return JsonResponse({
+                        'status': False,
+                        'error': 'User ID tidak ditemukan dalam session'
+                    })
+                
+                user_data = data_mysql().get_user_by_id(user_id)
+                if not user_data.get('status') or not user_data.get('data'):
+                    return JsonResponse({
+                        'status': False,
+                        'error': 'Data user tidak ditemukan'
+                    })
+                user_mail = user_data['data']['user_mail']
             data_adx = fetch_roi_per_country(start_date_formatted, end_date_formatted, user_mail, selected_sites, countries_list)
             if selected_account:
                 rs_account = data_mysql().master_account_ads_by_params({
@@ -3004,16 +2943,26 @@ class RoiTrafficPerDomainDataView(View):
         selected_accounts = req.GET.get('selected_account_adx')
         selected_sites = req.GET.get('selected_sites', '')
         selected_account = req.GET.get('selected_account', '')
-        if selected_accounts:
-            user_id = selected_accounts.split(',')
-        else:
-            user_id = req.session.get('hris_admin', {}).get('user_id')
         try:
-            # Ambil user_id dari session
-            user_id = user_id
-            # Ambil email user dari database berdasarkan user_id
-            user_data = data_mysql().get_user_by_id(user_id)
-            user_mail = user_data['data']['user_mail']
+            # Jika ada selected_account_adx dari frontend, gunakan sebagai user_mail
+            if selected_accounts:
+                user_mail = selected_accounts
+            else:
+                # Fallback ke session user_id dan ambil email dari database
+                user_id = req.session.get('hris_admin', {}).get('user_id')
+                if not user_id:
+                    return JsonResponse({
+                        'status': False,
+                        'error': 'User ID tidak ditemukan dalam session'
+                    })
+                
+                user_data = data_mysql().get_user_by_id(user_id)
+                if not user_data.get('status') or not user_data.get('data'):
+                    return JsonResponse({
+                        'status': False,
+                        'error': 'Data user tidak ditemukan'
+                    })
+                user_mail = user_data['data']['user_mail']
             # Format tanggal untuk AdManager API
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
             end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
@@ -3340,3 +3289,38 @@ class ImportEnvAppCredentialsView(View):
                 }, status=500)
         except Exception as e:
             return JsonResponse({'status': False, 'message': f'Error: {str(e)}'}, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class UpdateAccountNameView(View):
+    def post(self, request):
+        try:
+            user_mail = request.POST.get('user_mail')
+            new_account_name = request.POST.get('account_name')
+            
+            if not user_mail or not new_account_name:
+                return JsonResponse({
+                    'status': False,
+                    'message': 'User mail dan account name harus diisi'
+                }, status=400)
+                
+            # Update account name in database
+            db = data_mysql()
+            result = db.update_account_name(user_mail, new_account_name)
+            
+            if result['status']:
+                return JsonResponse({
+                    'status': True,
+                    'message': 'Account name berhasil diupdate'
+                })
+            else:
+                return JsonResponse({
+                    'status': False,
+                    'message': result.get('message', 'Gagal mengupdate account name')
+                }, status=500)
+                
+        except Exception as e:
+            return JsonResponse({
+                'status': False,
+                'message': f'Error: {str(e)}'
+            }, status=500)

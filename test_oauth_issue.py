@@ -108,10 +108,10 @@ if __name__ == "__main__":
     print("=" * 80)
     
     # Kredensial untuk test - ganti dengan nilai sebenarnya
-    # Ambil dari database app_oauth_credentials untuk user aksarabrita470@gmail.com
+    # Ambil dari database app_credentials untuk user aksarabrita470@gmail.com
     
     print("\n⚠️  PERLU DIISI MANUAL:")
-    print("   Ambil kredensial dari database app_oauth_credentials")
+    print("   Ambil kredensial dari database app_credentials")
     print("   untuk user aksarabrita470@gmail.com")
     print()
     

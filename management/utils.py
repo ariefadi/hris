@@ -39,12 +39,12 @@ def with_user_credentials(view_func):
         
         # Update settings with user credentials if available
         if credentials:
-            settings.GOOGLE_OAUTH2_CLIENT_ID = credentials.get('google_oauth2_client_id', settings.GOOGLE_OAUTH2_CLIENT_ID)
-            settings.GOOGLE_OAUTH2_CLIENT_SECRET = credentials.get('google_oauth2_client_secret', settings.GOOGLE_OAUTH2_CLIENT_SECRET)
-            settings.GOOGLE_ADS_CLIENT_ID = credentials.get('google_ads_client_id', settings.GOOGLE_ADS_CLIENT_ID)
-            settings.GOOGLE_ADS_CLIENT_SECRET = credentials.get('google_ads_client_secret', settings.GOOGLE_ADS_CLIENT_SECRET)
-            settings.GOOGLE_ADS_REFRESH_TOKEN = credentials.get('google_ads_refresh_token', settings.GOOGLE_ADS_REFRESH_TOKEN)
-            settings.GOOGLE_AD_MANAGER_NETWORK_CODE = credentials.get('google_ad_manager_network_code', settings.GOOGLE_AD_MANAGER_NETWORK_CODE)
+            settings.GOOGLE_OAUTH2_CLIENT_ID = credentials.get('client_id', settings.GOOGLE_OAUTH2_CLIENT_ID)
+            settings.GOOGLE_OAUTH2_CLIENT_SECRET = credentials.get('client_secret', settings.GOOGLE_OAUTH2_CLIENT_SECRET)
+            settings.GOOGLE_ADS_CLIENT_ID = credentials.get('client_id', settings.GOOGLE_ADS_CLIENT_ID)
+            settings.GOOGLE_ADS_CLIENT_SECRET = credentials.get('client_secret', settings.GOOGLE_ADS_CLIENT_SECRET)
+            settings.GOOGLE_ADS_REFRESH_TOKEN = credentials.get('refresh_token', settings.GOOGLE_ADS_REFRESH_TOKEN)
+            settings.GOOGLE_AD_MANAGER_NETWORK_CODE = credentials.get('network_code', settings.GOOGLE_AD_MANAGER_NETWORK_CODE)
             
             # Update social auth settings
             settings.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = settings.GOOGLE_OAUTH2_CLIENT_ID
@@ -2730,14 +2730,10 @@ def fetch_user_sites_list(user_mail):
     """
     try:
         sites = set()
-        
         # Get recent traffic data to extract site names
         from datetime import date, timedelta
         end_date = date.today()
-        start_date = end_date - timedelta(days=30)  # Get last 30 days of data
-        
-        print(f"[DEBUG] Fetching traffic data for {user_mail} from {start_date} to {end_date}")
-        
+        start_date = end_date - timedelta(days=7)  # Get last 30 days of data
         # Fetch traffic data
         traffic_result = fetch_adx_traffic_account_by_user(
             user_mail, 
@@ -3267,18 +3263,18 @@ def get_user_adsense_client(user_mail):
         from google.oauth2.credentials import Credentials
         from googleapiclient.discovery import build
         
-        # Get user credentials from app_oauth_credentials
+        # Get user credentials from app_credentials
         db = data_mysql()
-        creds_result = db.get_user_oauth_credentials(user_mail)
+        creds_result = db.get_user_credentials(user_mail)
         if not creds_result['status']:
             return creds_result
         
         credentials = creds_result['data']
         
         # Extract OAuth2 credentials
-        client_id = str(credentials.get('google_oauth2_client_id', '')).strip()
-        client_secret = str(credentials.get('google_oauth2_client_secret', '')).strip()
-        refresh_token = str(credentials.get('google_ads_refresh_token', '')).strip()
+        client_id = str(credentials.get('client_id', '')).strip()
+        client_secret = str(credentials.get('client_secret', '')).strip()
+        refresh_token = str(credentials.get('refresh_token', '')).strip()
         
         # Validate required credentials
         if not all([client_id, client_secret, refresh_token]):
@@ -3321,28 +3317,24 @@ def get_user_adx_credentials(user_mail):
                 'status': False,
                 'error': 'Email tidak boleh kosong'
             }
-        
         # Ambil kredensial dengan parameter yang benar
         db = data_mysql()
-        creds_result = db.get_user_oauth_credentials(user_mail=user_mail)
+        creds_result = db.get_user_credentials(user_mail=user_mail)
         print("✅ creds_result:", creds_result)
-        
         # Periksa apakah query berhasil
         if not creds_result['status']:
             return {
                 'status': False,
                 'error': f'Gagal mengambil kredensial: {creds_result.get("error", "Unknown error")}'
             }
-        
         credentials = creds_result['data']
         print(f"✅ credentials: {credentials}")
-        
         # Validasi kredensial yang diperlukan
         required_fields = [
-            'google_oauth2_client_id',
-            'google_oauth2_client_secret',
-            'google_ads_refresh_token',
-            'google_ad_manager_network_code'
+            'client_id',
+            'client_secret',
+            'refresh_token',
+            'network_code'
         ]
         missing_fields = [
             field for field in required_fields 
@@ -3370,14 +3362,14 @@ def get_user_ad_manager_client(user_mail, skip_network_verification=False):
         creds_result = get_user_adx_credentials(user_mail=user_mail)
         credentials = creds_result['data']
         # Pastikan semua kredensial dalam format string yang benar
-        client_id = str(credentials.get('google_oauth2_client_id', '')).strip()
-        client_secret = str(credentials.get('google_oauth2_client_secret', '')).strip()
-        refresh_token = str(credentials.get('google_ads_refresh_token', '')).strip()
+        client_id = str(credentials.get('client_id', '')).strip()
+        client_secret = str(credentials.get('client_secret', '')).strip()
+        refresh_token = str(credentials.get('refresh_token', '')).strip()
         # Ambil network_code dari kredensial
         network_code = None
         try:
-            if 'google_ad_manager_network_code' in credentials:
-                network_code = int(credentials['google_ad_manager_network_code'])
+            if 'network_code' in credentials:
+                network_code = int(credentials['network_code'])
             if not network_code:
                 raise ValueError("Network code tidak ditemukan dalam kredensial")
         except (ValueError, TypeError) as e:
@@ -4684,7 +4676,6 @@ def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, 
     all_data = []
     total = []
     total_budget = total_spend = total_clicks = total_impressions = total_reach = total_cpr = 0
-
     # ⬅️ Gabungkan semua akun ke satu agregasi global
     global_aggregates = defaultdict(lambda: {
         'spend': 0.0,
@@ -4727,7 +4718,6 @@ def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, 
                 AdsInsights.Field.spend,
                 AdsInsights.Field.reach,
                 AdsInsights.Field.impressions,
-                'cost_per_result',
                 AdsInsights.Field.actions,
                 AdsInsights.Field.date_start,
             ]
@@ -4751,6 +4741,7 @@ def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, 
                     'operator': 'CONTAIN',
                     'value': '__NO_MATCH__'  # atau string seperti '___INVALID___'
                 }]
+            # When site_filter is '%', don't add any filtering to get all campaigns
             insights = account.get_insights(fields=fields, params=params)
             for item in insights:
                 campaign_id = item.get('campaign_id')
@@ -4770,9 +4761,6 @@ def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, 
                 agg['impressions'] += int(item.get('impressions', 0))
                 if agg['reach'] > 0:
                     agg['frequency'] = float(agg['impressions'] / agg['reach'])
-                # CPR
-                cost_per_result = item.get('cost_per_result')
-                agg['cpr'] += float(cost_per_result)
                 # Clicks
                 for action in item.get('actions', []):
                     if action.get('action_type') == 'link_click':
@@ -4796,16 +4784,14 @@ def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, 
             'impressions': agg['impressions'],
             'reach': agg['reach'],
             'clicks': agg['clicks'],
-            'frequency': round(agg['frequency'], 2),
-            'cpr': round(agg['cpr'], 2),
+            'frequency': round(agg['frequency'], 2)
         })
         total_budget += agg['daily_budget']
         total_spend += agg['spend']
         total_impressions += agg['impressions']
         total_reach += agg['reach']
         total_clicks += agg['clicks']
-        total_cpr += agg['cpr']
-    total_frequency = float(total_impressions / total_reach) if total_reach > 0 else 0.0
+        total_frequency = float(total_impressions / total_reach) if total_reach > 0 else 0.0
     total.append({
         'total_budget': total_budget,
         'total_spend': total_spend,

@@ -21,7 +21,7 @@ def check_user_network_access(user_mail):
     
     # Get credentials from database
     db = data_mysql()
-    sql = "SELECT google_oauth2_client_id, google_oauth2_client_secret, google_ads_refresh_token, google_ad_manager_network_code FROM app_oauth_credentials WHERE user_mail = %s"
+    sql = "SELECT account_name, user_mail, client_id, client_secret, refresh_token, network_code FROM app_credentials WHERE user_mail = %s"
     success = db.execute_query(sql, (user_mail,))
     
     if not success:

@@ -146,7 +146,7 @@ def generate_reauth_instructions(client_id):
     print(f"   - Berikan consent untuk scope yang diminta")
     
     print(f"\n6. ✅ Verifikasi:")
-    print(f"   - Cek database app_oauth_credentials untuk refresh token baru")
+    print(f"   - Cek database app_credentials untuk refresh token baru")
     print(f"   - Test akses AdX Account page")
 
 if __name__ == "__main__":
@@ -157,7 +157,7 @@ if __name__ == "__main__":
     # Kredensial untuk test - HARUS DIISI MANUAL
     print("\n⚠️  PERLU DIISI MANUAL:")
     print("   Ambil CLIENT_ID dan CLIENT_SECRET dari database")
-    print("   app_oauth_credentials untuk user aksarabrita470@gmail.com")
+    print("   app_credentials untuk user aksarabrita470@gmail.com")
     print()
     
     CLIENT_ID = "YOUR_CLIENT_ID_HERE"
@@ -167,8 +167,8 @@ if __name__ == "__main__":
         print("❌ CLIENT_ID belum diisi!")
         print("\n📋 Cara mengambil kredensial:")
         print("   1. Akses database MySQL")
-        print("   2. Query: SELECT google_oauth2_client_id, google_oauth2_client_secret")
-        print("      FROM app_oauth_credentials WHERE user_mail = 'aksarabrita470@gmail.com'")
+        print("   2. Query: SELECT account_name, user_mail, client_id, client_secret")
+        print("      FROM app_credentials WHERE user_mail = 'aksarabrita470@gmail.com'")
         print("   3. Copy nilai ke script ini")
         print()
         

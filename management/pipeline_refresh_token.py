@@ -22,17 +22,17 @@ def save_refresh_token(backend, user, response, request, *args, **kwargs):
             
             # Cek apakah user sudah ada di tabel oauth credentials
             check_sql = '''
-                SELECT user_id, user_mail FROM app_oauth_credentials 
+                SELECT account_name, user_mail FROM app_credentials 
                 WHERE user_mail = %s AND is_active = 1
             '''
             existing_user = db.execute_query(check_sql, (user.email,))
-            print(f"[DEBUG] Existing OAuth credentials check: {existing_user}")
+            print(f"[DEBUG] Existing credentials check: {existing_user}")
             
             if existing_user:
                 # Update existing record
                 update_sql = '''
-                    UPDATE app_oauth_credentials 
-                    SET google_ads_refresh_token = %s, updated_at = NOW()
+                    UPDATE app_credentials 
+                    SET refresh_token = %s, mdd = NOW()
                     WHERE user_mail = %s AND is_active = 1
                 '''
                 if db.execute_query(update_sql, (refresh_token, user.email)):
@@ -41,7 +41,7 @@ def save_refresh_token(backend, user, response, request, *args, **kwargs):
                     
                     # Verifikasi penyimpanan
                     verify_sql = '''
-                        SELECT google_ads_refresh_token FROM app_oauth_credentials 
+                        SELECT refresh_token FROM app_credentials 
                         WHERE user_mail = %s AND is_active = 1
                     '''
                     saved_token = db.execute_query(verify_sql, (user.email,))
@@ -49,8 +49,8 @@ def save_refresh_token(backend, user, response, request, *args, **kwargs):
                 else:
                     print(f"[DEBUG] Failed to save refresh token for {user.email}")
             else:
-                print(f"[DEBUG] No existing OAuth credentials found for {user.email}")
-                print(f"[DEBUG] User needs to be added to app_oauth_credentials table first")
+                print(f"[DEBUG] No existing credentials found for {user.email}")
+                print(f"[DEBUG] User needs to be added to app_credentials table first")
         else:
             print(f"[DEBUG] No refresh_token found in OAuth response")
             print(f"[DEBUG] This might be because:")
@@ -61,7 +61,7 @@ def save_refresh_token(backend, user, response, request, *args, **kwargs):
             # Cek apakah user sudah memiliki refresh token di database
             db = data_mysql()
             check_existing_token_sql = '''
-                SELECT google_ads_refresh_token FROM app_oauth_credentials 
+                SELECT refresh_token FROM app_credentials 
                 WHERE user_mail = %s AND is_active = 1
             '''
             existing_token = db.execute_query(check_existing_token_sql, (user.email,))

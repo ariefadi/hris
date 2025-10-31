@@ -11,7 +11,7 @@ def get_credentials_from_db(user_mail=None):
     """
     Mengambil kredensial OAuth dari database.
     Prioritas baca dari tabel baru `app_credentials` (client_id, client_secret, refresh_token, network_code, developer_token)
-    Fallback ke tabel lama `app_oauth_credentials` jika tidak ditemukan.
+    Fallback ke tabel lama `app_credentials` jika tidak ditemukan.
     """
     try:
         db = data_mysql()
@@ -29,28 +29,25 @@ def get_credentials_from_db(user_mail=None):
                 if row:
                     logger.info(f"Loaded app_credentials for user: {user_mail}")
                     return {
-                        'google_oauth2_client_id': row.get('client_id', ''),
-                        'google_oauth2_client_secret': row.get('client_secret', ''),
-                        'google_ads_client_id': '',
-                        'google_ads_client_secret': '',
-                        'google_ads_refresh_token': row.get('refresh_token', ''),
-                        'google_ad_manager_network_code': row.get('network_code', ''),
+                        'client_id': row.get('client_id', ''),
+                        'client_secret': row.get('client_secret', ''),
+                        'refresh_token': row.get('refresh_token', ''),
+                        'network_code': row.get('network_code', ''),
+                        'developer_token': row.get('developer_token', ''),
                         'user_mail': row.get('user_mail', ''),
                         'user_id': ''
                     }
 
-            # Fallback: ambil dari tabel lama app_oauth_credentials
-            result = db.get_user_oauth_credentials(user_mail)
+            # Fallback: ambil dari tabel lama app_credentials
+            result = db.get_user_credentials(user_mail)
             if isinstance(result, dict) and result.get('status'):
                 credentials = result['data']
                 logger.info(f"Loaded legacy credentials for user: {user_mail}")
                 return {
-                    'google_oauth2_client_id': credentials.get('google_oauth2_client_id', ''),
-                    'google_oauth2_client_secret': credentials.get('google_oauth2_client_secret', ''),
-                    'google_ads_client_id': credentials.get('google_ads_client_id', ''),
-                    'google_ads_client_secret': credentials.get('google_ads_client_secret', ''),
-                    'google_ads_refresh_token': credentials.get('google_ads_refresh_token', ''),
-                    'google_ad_manager_network_code': credentials.get('google_ad_manager_network_code', ''),
+                    'client_id': credentials.get('client_id', ''),
+                    'client_secret': credentials.get('client_secret', ''),
+                    'refresh_token': credentials.get('refresh_token', ''),
+                    'network_code': credentials.get('network_code', ''),
                     'user_mail': credentials.get('user_mail', ''),
                     'user_id': credentials.get('user_id', '')
                 }
@@ -70,57 +67,17 @@ def get_credentials_from_db(user_mail=None):
                 if row:
                     logger.info("Loaded default credentials from app_credentials")
                     return {
-                        'google_oauth2_client_id': row.get('client_id', ''),
-                        'google_oauth2_client_secret': row.get('client_secret', ''),
-                        'google_ads_client_id': '',
-                        'google_ads_client_secret': '',
-                        'google_ads_refresh_token': row.get('refresh_token', ''),
-                        'google_ad_manager_network_code': row.get('network_code', ''),
+                        'client_id': row.get('client_id', ''),
+                        'client_secret': row.get('client_secret', ''),
+                        'refresh_token': row.get('refresh_token', ''),
+                        'network_code': row.get('network_code', ''),
+                        'developer_token': row.get('developer_token', ''),
                         'user_mail': row.get('user_mail', ''),
                         'user_id': ''
                     }
 
-            # Fallback: ambil default dari tabel lama
-            sql_old_default = '''
-                SELECT user_id, user_mail, google_oauth2_client_id, google_oauth2_client_secret,
-                       google_ads_client_id, google_ads_client_secret, google_ads_refresh_token,
-                       google_ad_manager_network_code
-                FROM app_oauth_credentials
-                WHERE is_active = 1
-                ORDER BY created_at DESC
-                LIMIT 1
-            '''
-            if db.execute_query(sql_old_default):
-                credentials = db.cur_hris.fetchone()
-                if credentials:
-                    logger.info("Loaded default credentials from app_oauth_credentials")
-                    return {
-                        'google_oauth2_client_id': credentials.get('google_oauth2_client_id', ''),
-                        'google_oauth2_client_secret': credentials.get('google_oauth2_client_secret', ''),
-                        'google_ads_client_id': credentials.get('google_ads_client_id', ''),
-                        'google_ads_client_secret': credentials.get('google_ads_client_secret', ''),
-                        'google_ads_refresh_token': credentials.get('google_ads_refresh_token', ''),
-                        'google_ad_manager_network_code': credentials.get('google_ad_manager_network_code', ''),
-                        'user_mail': credentials.get('user_mail', ''),
-                        'user_id': credentials.get('user_id', '')
-                    }
-            logger.warning("No active credentials found in database")
-
     except Exception as e:
         logger.error(f"Error loading credentials from database: {str(e)}")
-
-    # Fallback ke environment variables jika database tidak tersedia
-    logger.info("Falling back to environment variables")
-    return {
-        'google_oauth2_client_id': settings.GOOGLE_OAUTH2_CLIENT_ID,
-        'google_oauth2_client_secret': settings.GOOGLE_OAUTH2_CLIENT_SECRET,
-        'google_ads_client_id': settings.GOOGLE_ADS_CLIENT_ID,
-        'google_ads_client_secret': settings.GOOGLE_ADS_CLIENT_SECRET,
-        'google_ads_refresh_token': settings.GOOGLE_ADS_REFRESH_TOKEN,
-        'google_ad_manager_network_code': getattr(settings, 'GOOGLE_AD_MANAGER_NETWORK_CODE', ''),
-        'user_mail': '',
-        'user_id': ''
-    }
 
 def load_credentials_to_settings(user_mail=None):
     """
@@ -133,15 +90,15 @@ def load_credentials_to_settings(user_mail=None):
     
     if credentials:
         # Update Django settings dengan kredensial dari database
-        settings.GOOGLE_OAUTH2_CLIENT_ID = credentials['google_oauth2_client_id']
-        settings.GOOGLE_OAUTH2_CLIENT_SECRET = credentials['google_oauth2_client_secret']
-        settings.GOOGLE_ADS_CLIENT_ID = credentials['google_ads_client_id']
-        settings.GOOGLE_ADS_CLIENT_SECRET = credentials['google_ads_client_secret']
-        settings.GOOGLE_ADS_REFRESH_TOKEN = credentials['google_ads_refresh_token']
+        settings.GOOGLE_OAUTH2_CLIENT_ID = credentials['client_id']
+        settings.GOOGLE_OAUTH2_CLIENT_SECRET = credentials['client_secret']
+        settings.GOOGLE_ADS_CLIENT_ID = credentials['client_id']
+        settings.GOOGLE_ADS_CLIENT_SECRET = credentials['client_secret']
+        settings.GOOGLE_ADS_REFRESH_TOKEN = credentials['refresh_token']
         
         # Update Social Auth settings
-        settings.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = credentials['google_oauth2_client_id']
-        settings.SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = credentials['google_oauth2_client_secret']
+        settings.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = credentials['client_id']
+        settings.SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = credentials['client_secret']
         
         logger.info(f"Settings updated with credentials for user: {credentials.get('user_mail', 'default')}")
         return True
@@ -207,10 +164,10 @@ def update_settings_for_user(user_mail):
         
         if credentials and credentials.get('google_oauth2_client_id'):
             # Update settings secara real-time
-            settings.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = credentials['google_oauth2_client_id']
-            settings.SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = credentials['google_oauth2_client_secret']
-            settings.GOOGLE_OAUTH2_CLIENT_ID = credentials['google_oauth2_client_id']
-            settings.GOOGLE_OAUTH2_CLIENT_SECRET = credentials['google_oauth2_client_secret']
+            settings.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = credentials['client_id']
+            settings.SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = credentials['client_secret']
+            settings.GOOGLE_OAUTH2_CLIENT_ID = credentials['client_id']
+            settings.GOOGLE_OAUTH2_CLIENT_SECRET = credentials['client_secret']
             
             logger.info(f"Updated settings for OAuth login: {user_mail}")
             return True

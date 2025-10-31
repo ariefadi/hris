@@ -79,8 +79,8 @@ def test_code_exchange(client_id, client_secret, auth_code):
                 print(f"\n💾 REFRESH TOKEN BARU:")
                 print(f"   {result['refresh_token']}")
                 print(f"\n📋 Update database dengan query:")
-                print(f"   UPDATE app_oauth_credentials")
-                print(f"   SET google_ads_refresh_token = '{result['refresh_token']}'")
+                print(f"   UPDATE app_credentials")
+                print(f"   SET refresh_token = '{result['refresh_token']}'")
                 print(f"   WHERE user_mail = 'aksarabrita470@gmail.com';")
             
             return True, result
@@ -204,7 +204,7 @@ if __name__ == "__main__":
     
     print("\n⚠️  PERLU DIISI MANUAL:")
     print("   Ambil CLIENT_ID dan CLIENT_SECRET dari database")
-    print("   app_oauth_credentials untuk user aksarabrita470@gmail.com")
+    print("   app_credentials untuk user aksarabrita470@gmail.com")
     print()
     
     # Kredensial - HARUS DIISI MANUAL
@@ -216,8 +216,8 @@ if __name__ == "__main__":
         print("❌ Kredensial belum diisi!")
         print("\n📋 Cara mengambil kredensial:")
         print("   1. Akses database MySQL")
-        print("   2. Query: SELECT google_oauth2_client_id, google_oauth2_client_secret, google_ads_refresh_token")
-        print("      FROM app_oauth_credentials WHERE user_mail = 'aksarabrita470@gmail.com'")
+        print("   2. Query: SELECT client_id, client_secret, refresh_token")
+        print("      FROM app_credentials WHERE user_mail = 'aksarabrita470@gmail.com'")
         print("   3. Copy nilai ke script ini")
         exit(1)
     

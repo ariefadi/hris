@@ -51,7 +51,7 @@ def check_common_oauth_issues():
         {
             "issue": "Client ID/Secret mismatch", 
             "solution": "Pastikan client_id di database = client_id di Google Cloud",
-            "check": "Bandingkan nilai di app_oauth_credentials dengan Google Cloud Console"
+            "check": "Bandingkan nilai di app_credentials dengan Google Cloud Console"
         },
         {
             "issue": "Insufficient scopes",
@@ -130,13 +130,13 @@ def generate_debug_sql_queries():
             "query": """
 SELECT 
     user_mail,
-    google_oauth2_client_id,
-    google_oauth2_client_secret,
-    google_ads_refresh_token,
-    google_ad_manager_network_code,
-    created_at,
-    updated_at
-FROM app_oauth_credentials 
+    client_id,
+    client_secret,
+    refresh_token,
+    network_code,
+    mdb,
+    mdd
+FROM app_credentials 
 WHERE user_mail = 'aksarabrita470@gmail.com';
 """
         },
@@ -145,24 +145,25 @@ WHERE user_mail = 'aksarabrita470@gmail.com';
             "query": """
 SELECT 
     user_mail,
-    google_oauth2_client_id,
-    google_ad_manager_network_code,
-    updated_at
-FROM app_oauth_credentials 
-WHERE google_ads_refresh_token IS NOT NULL
-ORDER BY updated_at DESC;
+    client_id,
+    network_code,
+    mdb,
+    mdd
+FROM app_credentials 
+WHERE refresh_token IS NOT NULL
+ORDER BY mdd DESC;
 """
         },
         {
             "purpose": "Cek apakah ada duplicate client_id",
             "query": """
 SELECT 
-    google_oauth2_client_id,
+    client_id,
     COUNT(*) as count,
     GROUP_CONCAT(user_mail) as users
-FROM app_oauth_credentials 
-WHERE google_oauth2_client_id IS NOT NULL
-GROUP BY google_oauth2_client_id
+FROM app_credentials 
+WHERE client_id IS NOT NULL
+GROUP BY client_id
 HAVING count > 1;
 """
         }

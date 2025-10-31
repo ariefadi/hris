@@ -30,18 +30,16 @@ def check_database_direct():
         # Query untuk mencari user aksarabrita470@gmail.com
         query = """
         SELECT 
-            user_id,
+            account_id,
+            account_name,
             user_mail,
-            google_oauth2_client_id,
-            google_oauth2_client_secret,
-            google_ads_client_id,
-            google_ads_client_secret,
-            google_ads_refresh_token,
-            google_ad_manager_network_code,
+            client_id,
+            client_secret,
+            refresh_token,
+            network_code,
+            developer_token,
             is_active,
-            created_at,
-            updated_at
-        FROM app_oauth_credentials 
+        FROM app_credentials 
         WHERE user_mail = %s
         """
         
@@ -52,12 +50,11 @@ def check_database_direct():
             print("❌ User aksarabrita470@gmail.com tidak ditemukan di database!")
             
             # Cek semua user yang ada
-            cursor.execute("SELECT user_mail FROM app_oauth_credentials")
+            cursor.execute("SELECT account_name, user_mail FROM app_credentials")
             all_users = cursor.fetchall()
             print(f"\n📋 User yang ada di database ({len(all_users)}):")
             for user in all_users:
-                print(f"   - {user['user_mail']}")
-            
+                print(f"   - {user['account_name']} ({user['user_mail']})")
             return
         
         print("✅ User ditemukan di database!")

@@ -69,6 +69,9 @@ $().ready(function () {
     // Load sites list on page load
     function loadSitesList(selected_account_adx) {
         var selectedAccounts = selected_account_adx;
+        // Simpan pilihan domain yang sudah dipilih sebelumnya
+        var previouslySelected = $("#site_filter").val() || [];
+        
         $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
@@ -84,9 +87,22 @@ $().ready(function () {
                 if (response.status) {
                     var select_site = $("#site_filter");
                     select_site.empty();
+                    
+                    // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
+                    var validPreviousSelections = [];
                     $.each(response.data, function (index, site) {
-                        select_site.append(new Option(site, site, false, false));
+                        var isSelected = previouslySelected.includes(site);
+                        if (isSelected) {
+                            validPreviousSelections.push(site);
+                        }
+                        select_site.append(new Option(site, site, false, isSelected));
                     });
+                    
+                    // Set nilai yang dipilih kembali
+                    if (validPreviousSelections.length > 0) {
+                        select_site.val(validPreviousSelections);
+                    }
+                    
                     // Jangan trigger change di sini untuk menghindari loop
                     select_site.trigger('change');
                 }
@@ -120,8 +136,8 @@ function load_adx_traffic_account_data() {
     var selectedAccounts = $('#account_filter').val();
     var selectedSites = $('#site_filter').val();
     var selectedAccount = $('#select_account').val();
-    if (!tanggal_dari || !tanggal_sampai) {
-        alert('Please select both start and end dates.');
+    if (!tanggal_dari || !tanggal_sampai || !selectedAccounts) {
+        alert('Silakan pilih tanggal dari dan sampai, serta akun ADX.');
         return;
     }
     // Convert array to comma-separated string for backend

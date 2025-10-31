@@ -228,3 +228,149 @@ function getCookie(name) {
     }
     return cookieValue;
 }
+
+// Handle Edit Account Name Modal
+$(document).ready(function() {
+    console.log('Account.js loaded - Modal handler initialized');
+    
+    // Function to get cookie value
+    function getCookie(name) {
+        var cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            var cookies = document.cookie.split(';');
+            for (var i = 0; i < cookies.length; i++) {
+                var cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // Handle Edit Account Name buttons
+    $(document).on('click', '.edit-account-name', function() {
+        console.log('Edit button clicked');
+        
+        var email = $(this).data('email');
+        var accountName = $(this).data('account-name');
+        
+        console.log('Data:', email, accountName);
+        
+        // Populate modal fields
+        $('#edit_user_mail').val(email);
+        $('#edit_account_name').val(accountName);
+        
+        // Show the modal (Bootstrap 4 syntax)
+        $('#editAccountNameModal').modal('show');
+        console.log('Modal show called');
+    });
+    
+    // Alert function
+    function showAlert(message, type) {
+        var alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+        var alertHtml = '<div class="alert ' + alertClass + ' alert-dismissible fade show" role="alert">' +
+                       message +
+                       '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
+                       '<span aria-hidden="true">&times;</span>' +
+                       '</button>' +
+                       '</div>';
+        
+        // Remove existing alerts
+        $('.alert').remove();
+        
+        // Add new alert at the top of the modal body
+        $('.modal-body').prepend(alertHtml);
+        
+        // Auto-hide after 5 seconds
+        setTimeout(function() {
+            $('.alert').fadeOut();
+        }, 5000);
+    }
+
+    // Handle Save Account Name button
+    $('#btn_save_account_name').click(function() {
+        var userMail = $('#edit_user_mail').val();
+        var newAccountName = $('#edit_account_name').val().trim();
+        
+        if (!newAccountName) {
+            alert('Account name tidak boleh kosong!');
+            return;
+        }
+        
+        // Show loading state
+        $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Saving...');
+        
+        // AJAX request to update account name
+        $.ajax({
+            url: '/management/admin/update_account_name',
+            type: 'POST',
+            data: {
+                'user_mail': userMail,
+                'account_name': newAccountName,
+                'csrfmiddlewaretoken': getCookie('csrftoken')
+            },
+            success: function(response) {
+                console.log('AJAX Success Response:', response);
+                $('#btn_save_account_name').prop('disabled', false).text('Save Changes');
+                
+                if (response.status) {
+                    showAlert('success', response.message);
+                    $('#editAccountNameModal').modal('hide');
+                    // Refresh the page to show updated data
+                    location.reload();
+                } else {
+                    showAlert('error', response.message || 'Gagal mengupdate account name');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX Error:', {
+                    status: xhr.status,
+                    statusText: xhr.statusText,
+                    responseText: xhr.responseText,
+                    error: error
+                });
+                $('#btn_save_account_name').prop('disabled', false).text('Save Changes');
+                
+                let errorMessage = 'Terjadi kesalahan saat menyimpan';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                } else if (xhr.status === 403) {
+                    errorMessage = 'CSRF verification failed. Silakan refresh halaman dan coba lagi.';
+                } else if (xhr.status === 500) {
+                    errorMessage = 'Server error. Silakan coba lagi.';
+                }
+                
+                showAlert('error', errorMessage);
+             },
+             complete: function() {
+                // Reset button state
+                $('#btn_save_account_name').prop('disabled', false).html('<i class="bi bi-check"></i> Save Changes');
+            }
+        });
+    });
+});
+
+function showAlert(type, message) {
+    var alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+    var iconClass = type === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle';
+    
+    var alertHtml = '<div class="alert ' + alertClass + ' alert-dismissible fade show" role="alert">' +
+        '<i class="' + iconClass + '"></i> ' + message +
+        '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
+        '<span aria-hidden="true">&times;</span>' +
+        '</button>' +
+        '</div>';
+    
+    // Remove existing alerts
+    $('.alert-success, .alert-danger').remove();
+    
+    // Add new alert at the top of the card body
+    $('.card-body').first().prepend(alertHtml);
+    
+    // Auto-hide after 5 seconds
+    setTimeout(function() {
+        $('.alert').fadeOut();
+    }, 5000);
+}

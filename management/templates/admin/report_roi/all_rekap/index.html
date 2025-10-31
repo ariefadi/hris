@@ -35,7 +35,7 @@
                 <select class="form-control select2" id="account_filter">
                     <option value="">-- Pilih Akun Terdaftar --</option>
                     {% for account in data_account_adx %}
-                    <option value="{{ account.user_id }}">{{ account.user_mail }}</option>
+                    <option value="{{ account.user_mail }}">{{ account.account_name }}</option>
                     {% endfor %}
                 </select>
             </div>

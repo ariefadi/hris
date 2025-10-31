@@ -91,15 +91,15 @@ def set_hris_session(backend, user, response, request, *args, **kwargs):
             
             # Cek apakah user sudah ada di tabel oauth credentials
             check_sql = '''
-                SELECT user_id, user_mail FROM app_oauth_credentials 
+                SELECT account_name, user_mail FROM app_credentials 
                 WHERE user_mail = %s AND is_active = 1
             '''
             existing_user = db.execute_query(check_sql, (user.email,))
             print(f"[DEBUG] Existing OAuth credentials check: {existing_user}")
             
             update_sql = '''
-                UPDATE app_oauth_credentials 
-                SET google_ads_refresh_token = %s, updated_at = NOW()
+                UPDATE app_credentials 
+                SET refresh_token = %s, mdd = NOW()
                 WHERE user_mail = %s AND is_active = 1
             '''
             if db.execute_query(update_sql, (refresh_token, user.email)):
@@ -107,7 +107,7 @@ def set_hris_session(backend, user, response, request, *args, **kwargs):
                 
                 # Verifikasi penyimpanan
                 verify_sql = '''
-                    SELECT google_ads_refresh_token FROM app_oauth_credentials 
+                    SELECT refresh_token FROM app_credentials 
                     WHERE user_mail = %s AND is_active = 1
                 '''
                 saved_token = db.execute_query(verify_sql, (user.email,))

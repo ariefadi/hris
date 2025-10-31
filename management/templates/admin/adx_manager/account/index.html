@@ -28,6 +28,47 @@
     </div>
 </div>
 {% endif %}
+
+<!-- Edit Account Name Modal -->
+<div class="modal fade" id="editAccountNameModal" tabindex="-1" role="dialog" aria-labelledby="editAccountNameModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editAccountNameModalLabel">
+                    <i class="bi bi-pencil"></i> Edit Account Name
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="editAccountNameForm">
+                    <div class="form-group">
+                        <label for="edit_account_name">Account Name:</label>
+                        <input type="text" class="form-control" id="edit_account_name" name="account_name"
+                            placeholder="Enter new account name" required>
+                        <input type="hidden" id="edit_user_mail" name="user_mail">
+                    </div>
+                    <div class="form-group">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i> 
+                            Hanya account name yang dapat diubah. Field lainnya tidak dapat diedit.
+                        </small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="bi bi-x"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-primary" id="btn_save_account_name">
+                    <i class="bi bi-check"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-header">
         <h3 class="card-title">AdX Account Data</h3>
@@ -39,8 +80,8 @@
                 <label>Filter Account</label>
                 <select class="form-control select2" id="account_filter">
                     <option value="">-- Pilih Akun Terdaftar --</option>
-                    {% for account in adx_account_data %}
-                    <option value="{{ account.user_id }}">{{ account.user_mail }}</option>
+                    {% for account in data_account_adx %}
+                    <option value="{{ account.user_mail }}">{{ account.account_name }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -234,7 +275,6 @@
                                 <th class="text-center">Client ID</th>
                                 <th class="text-center">Network Code</th>
                                 <th class="text-center">Status</th>
-                                <th class="text-center">Created</th>
                                 <th class="text-center">#</th>
                             </tr>
                         </thead>
@@ -252,7 +292,6 @@
                                         <span class="badge badge-secondary">Tidak Aktif</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ credential.mdd|date:"d M Y H:i"|default:"-" }}</td>
                                 <td class="text-center">
                                     <button class="btn btn-sm btn-primary load-account-data" 
                                             data-email="{{ credential.user_mail }}"
@@ -261,6 +300,12 @@
                                             data-network-code="{{ credential.network_code }}"
                                             title="Load Data Akun">
                                         <i class="bi bi-tv"></i> 
+                                    </button>
+                                    <button class="btn btn-sm btn-warning edit-account-name" 
+                                            data-email="{{ credential.user_mail }}"
+                                            data-account-name="{{ credential.account_name }}"
+                                            title="Edit Account Name">
+                                        <i class="bi bi-pencil"></i> 
                                     </button>
                                 </td>
                             </tr>
@@ -424,6 +469,7 @@
                 loadAccountDataByCredentials(email, accountId, accountName, networkCode, this);
             });
         });
+
     });
 
     function loadAccountDataByCredentials(email, accountId, accountName, networkCode, buttonElement) {

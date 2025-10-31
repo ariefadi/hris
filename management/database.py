@@ -381,7 +381,7 @@ class data_mysql:
     def get_all_adx_account_data(self):
         """Get user data by user_mail"""
         sql = """
-            SELECT * FROM app_oauth_credentials 
+            SELECT * FROM app_credentials 
         """
         try:
             if not self.execute_query(sql,):
@@ -400,7 +400,7 @@ class data_mysql:
     def get_user_by_mail(self, user_mail):
         """Get user data by user_mail"""
         sql = """
-            SELECT * FROM app_oauth_credentials 
+            SELECT * FROM app_credentials 
             WHERE user_mail = %s
         """
         try:
@@ -530,11 +530,10 @@ class data_mysql:
         sql = '''
             SELECT a.user_id, a.user_name, a.user_pass, a.user_alias, 
             a.user_mail, a.user_telp, a.user_alamat, a.user_st,
-            b.google_oauth2_client_id AS 'client_id', b.google_oauth2_client_secret AS 'client_secret',
-            b.google_ads_refresh_token AS 'refresh_token', b.google_ad_manager_network_code AS 'network_code',
+            b.client_id, b.client_secret, b.refresh_token, b.network_code,
             b.developer_token
             FROM app_users a
-            LEFT JOIN app_oauth_credentials b ON a.`user_mail` = b.`user_mail`
+            LEFT JOIN app_credentials b ON a.`user_mail` = b.`user_mail`
             WHERE a.user_mail = %s
         '''
         try:
@@ -1110,15 +1109,19 @@ class data_mysql:
             }
         return hasil
 
-    def get_user_oauth_credentials(self, user_mail=None):
+    # =========================
+    # app_credentials (NEW)
+    # =========================
+
+    def get_user_credentials(self, user_mail=None):
         """
         Mengambil kredensial OAuth dari database berdasarkan user_id atau user_mail
         """
         sql = '''
-            SELECT user_id, user_mail, google_oauth2_client_id, google_oauth2_client_secret,
-                   google_ads_client_id, google_ads_client_secret, google_ads_refresh_token,
-                   google_ad_manager_network_code, developer_token
-            FROM app_oauth_credentials
+            SELECT account_id, account_name, user_mail, client_id,
+                   client_secret, refresh_token, network_code,
+                   developer_token, is_active
+            FROM app_credentials
             WHERE user_mail = %s
             LIMIT 1
         '''
@@ -1142,125 +1145,7 @@ class data_mysql:
                 'status': False,
                 'error': f'Database error: {str(e)}'
             }
-
-    def update_oauth_credentials(self, user_mail, client_id, client_secret, ads_client_id, ads_client_secret, network_code):
-        """
-        Update kredensial OAuth (client_id dan client_secret) untuk user tertentu
-        """
-        sql = '''
-            UPDATE app_oauth_credentials 
-            SET google_oauth2_client_id = %s,
-                google_oauth2_client_secret = %s,
-                google_ads_client_id = %s,
-                google_ads_client_secret = %s,
-                google_ad_manager_network_code = %s,
-                updated_at = NOW()
-            WHERE user_mail = %s
-        '''
-        try:
-            if not self.execute_query(sql, (client_id, client_secret, ads_client_id, ads_client_secret, network_code, user_mail)):
-                raise pymysql.Error("Failed to update OAuth credentials")
             
-            if not self.commit():
-                raise pymysql.Error("Failed to commit OAuth credentials update")
-            
-            return {
-                'status': True,
-                'message': f'Successfully updated OAuth credentials for {user_mail}'
-            }
-        except pymysql.Error as e:
-            return {
-                'status': False,
-                'error': f'Failed to update OAuth credentials: {str(e)}'
-            }
-
-    def update_oauth_credentials_exist(self, user_id, user_mail, client_id, client_secret, ads_client_id, ads_client_secret, network_code):
-        """
-        Update kredensial OAuth (client_id dan client_secret) untuk user tertentu
-        """
-        sql = '''
-            UPDATE app_oauth_credentials 
-            SET google_oauth2_client_id = %s,
-                google_oauth2_client_secret = %s,
-                google_ads_client_id = %s,
-                google_ads_client_secret = %s,
-                google_ad_manager_network_code = %s,
-                updated_at = NOW()
-            WHERE user_id = %s
-            AND user_mail = %s
-        '''
-        try:
-            if not self.execute_query(sql, (client_id, client_secret, ads_client_id, ads_client_secret, network_code, user_id, user_mail)):
-                raise pymysql.Error("Failed to update OAuth credentials")
-            
-            if not self.commit():
-                raise pymysql.Error("Failed to commit OAuth credentials update")
-            
-            return {
-                'status': True,
-                'message': f'Successfully updated OAuth credentials for {user_mail}'
-            }
-        except pymysql.Error as e:
-            return {
-                'status': False,
-                'error': f'Failed to update OAuth credentials: {str(e)}'
-            }
-
-    def insert_oauth_credentials(self, user_id, user_mail, client_id, client_secret, ads_client_id, ads_client_secret, network_code):
-        """
-        Insert kredensial OAuth (client_id dan client_secret) untuk user tertentu
-        """
-        sql = '''
-            INSERT INTO app_oauth_credentials (
-                user_id, user_mail, google_oauth2_client_id, google_oauth2_client_secret,
-                google_ads_client_id, google_ads_client_secret, google_ad_manager_network_code, developer_token,
-                is_active, created_at, updated_at
-            ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, '-', '1', NOW(), NOW()
-            )
-        '''
-        try:
-            if not self.execute_query(sql, (user_id, user_mail, client_id, client_secret, ads_client_id, ads_client_secret, network_code)):
-                raise pymysql.Error("Failed to insert OAuth credentials")
-            
-            if not self.commit():
-                raise pymysql.Error("Failed to commit OAuth credentials insert")
-            
-            return {
-                'status': True,
-                'message': f'Successfully inserted OAuth credentials for {user_mail}'
-            }
-        except pymysql.Error as e:
-            return {
-                'status': False,
-                'error': f'Failed to insert OAuth credentials: {str(e)}'
-            }
-
-    def check_oauth_credentials_exist(self, user_id, user_mail):
-        """
-        Memeriksa apakah kredensial OAuth sudah ada untuk user tertentu
-        """
-        sql = '''
-            SELECT COUNT(*) AS total 
-            FROM app_oauth_credentials 
-            WHERE user_id = %s 
-            AND user_mail = %s
-        '''
-        try:
-            if not self.execute_query(sql, (user_id, user_mail)):
-                raise pymysql.Error("Failed to check OAuth credentials existence")
-            
-            result = self.cur_hris.fetchone()
-            return result['total'] 
-        except pymysql.Error as e:
-            return {
-                'status': False,
-                'error': f'Failed to check OAuth credentials existence: {str(e)}'
-            }
-
-    # =========================
-    # app_credentials (NEW)
-    # =========================
     def check_app_credentials_exist(self, user_mail):
         """
         Memeriksa apakah kredensial aplikasi sudah ada untuk user tertentu
@@ -1373,8 +1258,8 @@ class data_mysql:
         Update refresh token untuk user tertentu
         """
         sql = '''
-            UPDATE app_oauth_credentials 
-            SET google_ads_refresh_token = %s
+            UPDATE app_credentials 
+            SET refresh_token = %s
             WHERE user_mail = %s
         '''
         try:
@@ -1418,4 +1303,59 @@ class data_mysql:
             return {
                 'status': False,
                 'error': f'Database error: {str(e)}'
+            }
+
+    def update_account_name(self, user_mail, new_account_name):
+        """Update account name for a specific user"""
+        try:
+            # Check if user exists
+            check_query = "SELECT user_mail FROM app_credentials WHERE user_mail = %s"
+            if not self.execute_query(check_query, (user_mail,)):
+                return {
+                    'status': False,
+                    'message': 'Database error saat mengecek user'
+                }
+            
+            result = self.cur_hris.fetchone()
+            
+            if not result:
+                return {
+                    'status': False,
+                    'message': 'User tidak ditemukan'
+                }
+            
+            # Update account name
+            update_query = """
+                UPDATE app_credentials 
+                SET account_name = %s, mdd = NOW() 
+                WHERE user_mail = %s
+            """
+            
+            if not self.execute_query(update_query, (new_account_name, user_mail)):
+                return {
+                    'status': False,
+                    'message': 'Database error saat mengupdate account name'
+                }
+            
+            if not self.commit():
+                return {
+                    'status': False,
+                    'message': 'Gagal menyimpan perubahan'
+                }
+            
+            if self.cur_hris.rowcount > 0:
+                return {
+                    'status': True,
+                    'message': 'Account name berhasil diupdate'
+                }
+            else:
+                return {
+                    'status': False,
+                    'message': 'Tidak ada data yang diupdate'
+                }
+                
+        except pymysql.Error as e:
+            return {
+                'status': False,
+                'message': f'Database error: {str(e)}'
             }

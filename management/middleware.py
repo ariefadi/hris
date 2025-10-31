@@ -124,12 +124,10 @@ class OAuthCredentialsMiddleware:
             
             if credentials:
                 # Update settings dengan kredensial dari database
-                settings.GOOGLE_OAUTH2_CLIENT_ID = credentials['google_oauth2_client_id']
-                settings.GOOGLE_OAUTH2_CLIENT_SECRET = credentials['google_oauth2_client_secret']
-                settings.GOOGLE_ADS_CLIENT_ID = credentials['google_ads_client_id']
-                settings.GOOGLE_ADS_CLIENT_SECRET = credentials['google_ads_client_secret']
-                settings.GOOGLE_ADS_REFRESH_TOKEN = credentials['google_ads_refresh_token']
-                settings.GOOGLE_AD_MANAGER_NETWORK_CODE = credentials['google_ad_manager_network_code']
+                settings.GOOGLE_OAUTH2_CLIENT_ID = credentials['client_id']
+                settings.GOOGLE_OAUTH2_CLIENT_SECRET = credentials['client_secret']
+                settings.GOOGLE_ADS_REFRESH_TOKEN = credentials['refresh_token']
+                settings.GOOGLE_AD_MANAGER_NETWORK_CODE = credentials['network_code']
             
             # Update social auth settings
             settings.SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = settings.GOOGLE_OAUTH2_CLIENT_ID

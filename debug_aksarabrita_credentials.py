@@ -32,7 +32,7 @@ def compare_user_credentials(user1_mail, user2_mail):
         try:
             # 1. Periksa kredensial di database
             db = data_mysql()
-            creds_result = db.get_user_oauth_credentials(user_mail=user_mail)
+            creds_result = db.get_user_credentials(user_mail=user_mail)
             
             if not creds_result['status']:
                 print(f"❌ Gagal mengambil kredensial: {creds_result.get('error')}")
@@ -59,10 +59,10 @@ def compare_user_credentials(user1_mail, user2_mail):
             # 2. Validasi kredensial yang diperlukan
             print(f"\n📝 Validasi kredensial untuk {user_mail}:")
             required_fields = [
-                'google_oauth2_client_id',
-                'google_oauth2_client_secret', 
-                'google_ads_refresh_token',
-                'google_ad_manager_network_code'
+                'client_id',
+                'client_secret', 
+                'refresh_token',
+                'network_code'
             ]
             
             missing_fields = []
