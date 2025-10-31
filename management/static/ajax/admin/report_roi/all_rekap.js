@@ -74,7 +74,7 @@ $().ready(function () {
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
         var selected_account_adx = $("#account_filter").val() || "";
-        if (tanggal_dari != "" && tanggal_sampai != "" && selected_account_adx != "") {
+        if (tanggal_dari != "" && tanggal_sampai != "") {
             // Reset status fetch sebelum mulai menarik data
             window.fetchStatus = { summary: false, country: false };
             $('#overlay').show();
@@ -83,7 +83,7 @@ $().ready(function () {
             loadSitesList();
             load_country_options();
         } else {
-            alert('Silakan pilih tanggal dari dan sampai, serta akun ADX');
+            alert('Silakan pilih tanggal dari dan sampai');
         }
     });
     // Load data situs untuk select2

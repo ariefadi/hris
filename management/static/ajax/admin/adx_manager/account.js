@@ -189,7 +189,6 @@ function saveOAuthCredentials() {
             'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
         },
         data: {
-            'network_code': $('#network_code').val(),
             'client_id': clientId,
             'client_secret': clientSecret,
             'network_code': networkCode,
@@ -343,8 +342,8 @@ $(document).ready(function() {
                 }
                 
                 showAlert('error', errorMessage);
-             },
-             complete: function() {
+            },
+            complete: function() {
                 // Reset button state
                 $('#btn_save_account_name').prop('disabled', false).html('<i class="bi bi-check"></i> Save Changes');
             }

@@ -24,15 +24,17 @@ access_log_format = '%(h)s %(l)s %(u)s %(t)s "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s"
 # Process naming
 proc_name = 'hris_gunicorn'
 raw_env = [
-    'PYCRYPTODOME_DISABLE_CPUID=1'
+    'PYCRYPTODOME_DISABLE_CPUID=1',
+    'HOME=/var/cache/hris',
+    'XDG_CACHE_HOME=/var/cache/hris/.cache'
 ]
 
 # Server mechanics
 preload_app = True
 daemon = False
 pidfile = "/var/run/gunicorn/hris.pid"
-user = "root"
-group = "root"
+user = "www-data"
+group = "www-data"
 tmp_upload_dir = None
 
 # SSL

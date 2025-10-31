@@ -3290,7 +3290,7 @@ def get_user_adsense_client(user_mail):
             token_uri='https://oauth2.googleapis.com/token',
             client_id=client_id,
             client_secret=client_secret,
-            scopes=['https://www.googleapis.com/auth/adsense.readonly']
+            scopes=['https://www.googleapis.com/auth/adsense']
         )
         
         # Build AdSense Management API service

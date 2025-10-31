@@ -1611,8 +1611,17 @@ class page_ad_manager_reports(View):
 class AdxSummaryView(View):
     """View untuk AdX Summary - menampilkan ringkasan data AdManager"""
     def dispatch(self, request, *args, **kwargs):
+        print(f"[SaveOAuthCredentialsView] Dispatch called")
+        print(f"  Request host: {request.get_host()}")
+        print(f"  Request is_secure: {request.is_secure()}")
+        print(f"  Session keys: {list(request.session.keys())}")
+        print(f"  Has hris_admin: {'hris_admin' in request.session}")
+        
         if 'hris_admin' not in request.session:
+            print(f"[SaveOAuthCredentialsView] No hris_admin in session, redirecting to login")
             return redirect('admin_login')
+        
+        print(f"[SaveOAuthCredentialsView] Session valid, proceeding to view")
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
         data_account_adx = data_mysql().get_all_adx_account_data()
@@ -2012,6 +2021,12 @@ class SaveOAuthCredentialsView(View):
         return super().dispatch(request, *args, **kwargs)
     
     def post(self, req):
+        print("[SaveOAuthCredentialsView] POST request received!")
+        print(f"  Request method: {req.method}")
+        print(f"  Request path: {req.path}")
+        print(f"  Session has hris_admin: {'hris_admin' in req.session}")
+        print(f"  POST data keys: {list(req.POST.keys())}")
+        
         try:
             client_id = req.POST.get('client_id')
             client_secret = req.POST.get('client_secret')
@@ -2025,6 +2040,7 @@ class SaveOAuthCredentialsView(View):
             print(f"  client_secret: {'(provided)' if client_secret else '(empty)'}")
             print(f"  network_code: {network_code}")
             print(f"  user_mail: {user_mail}")
+            print(f"  admin session: {admin}")
 
             # Validasi input minimal
             if not client_id or not client_secret or not user_mail:
@@ -2063,16 +2079,19 @@ class SaveOAuthCredentialsView(View):
             final_network_code = network_code or existing_network_code
 
             exists = db.check_app_credentials_exist(user_mail)
+            print(f"[SaveOAuthCredentialsView] Database check result: {exists}")
+            
             if isinstance(exists, dict) and not exists.get('status', True):
+                print(f"[SaveOAuthCredentialsView] Database check failed: {exists}")
                 return JsonResponse({
                     'status': False,
                     'error': 'Gagal mengecek app_credentials di database'
                 })
 
             if isinstance(exists, int) and exists > 0:
+                print(f"[SaveOAuthCredentialsView] Updating existing credentials for {user_mail}")
                 result = db.update_app_credentials(
                     user_mail,
-                    account_id,
                     account_name,
                     client_id,
                     client_secret,
@@ -2083,9 +2102,10 @@ class SaveOAuthCredentialsView(View):
                     mdb_name,
                     '1'
                 )
+                print(f"[SaveOAuthCredentialsView] Update result: {result}")
             else:
+                print(f"[SaveOAuthCredentialsView] Inserting new credentials for {user_mail}")
                 result = db.insert_app_credentials(
-                    account_id,
                     account_name,
                     user_mail,
                     client_id,
@@ -2096,8 +2116,10 @@ class SaveOAuthCredentialsView(View):
                     mdb,
                     mdb_name
                 )
+                print(f"[SaveOAuthCredentialsView] Insert result: {result}")
 
             if isinstance(result, dict) and result.get('status'):
+                print(f"[SaveOAuthCredentialsView] SUCCESS: Credentials saved successfully")
                 return JsonResponse({
                     'status': True,
                     'message': 'Kredensial berhasil disimpan ke app_credentials',
@@ -2109,6 +2131,7 @@ class SaveOAuthCredentialsView(View):
                     }
                 })
             else:
+                print(f"[SaveOAuthCredentialsView] FAILED: Database operation failed - {result}")
                 return JsonResponse({
                     'status': False,
                     'error': (result.get('error') if isinstance(result, dict) else 'Gagal menyimpan app_credentials')
@@ -2154,10 +2177,13 @@ class AdxAccountOAuthStartView(View):
 
     def get(self, req):
         try:
+            print("DEBUG: AdxAccountOAuthStartView called")
+            logger.info(f"OAuth Start - GET parameters: {dict(req.GET)}")
             current_user = req.session.get('hris_admin', {})
             # Izinkan target email via query (?email=xxx); jika tidak ada, JANGAN paksa fallback ke email session
             target_mail = req.GET.get('email')
             user_id = current_user.get('user_id')
+            logger.info(f"OAuth Start - target_mail: {target_mail}, user_id: {user_id}")
 
             # Ambil konfigurasi dari .env secara eksklusif
             client_id = os.getenv('GOOGLE_OAUTH2_CLIENT_ID')
@@ -2196,21 +2222,26 @@ class AdxAccountOAuthStartView(View):
 
             # Bangun authorization URL secara manual untuk memastikan nilai parameter tepat (lowercase)
             # Gunakan state minimal untuk menandai flow AdX agar routing callback tepat
-            state = 'flow:adx'
+            import time
+            timestamp = str(int(time.time()))
+            state = f'flow:adx:t{timestamp}'  # Tambahkan timestamp untuk memaksa request baru
             params = {
                 'client_id': client_id,
                 'redirect_uri': redirect_uri,
                 'scope': ' '.join(scopes),
                 'response_type': 'code',
                 'access_type': 'offline',
-                'include_granted_scopes': 'true',
-                'prompt': 'consent',
+                'include_granted_scopes': 'false',  # Ubah ke false untuk memaksa scope baru
+                'prompt': 'consent select_account',  # Tambahkan select_account untuk memaksa pilih akun
                 'state': state,
             }
             # Hanya gunakan login_hint bila admin sengaja memilih email tertentu
             if target_mail:
                 params['login_hint'] = target_mail
             authorization_url = 'https://accounts.google.com/o/oauth2/v2/auth?' + urllib.parse.urlencode(params)
+            
+            logger.info(f"OAuth Start - Generated authorization URL: {authorization_url}")
+            logger.info(f"OAuth Start - Redirect URI: {redirect_uri}")
 
             # Simpan state di session untuk validasi callback
             req.session['oauth_flow_state'] = state
@@ -2265,6 +2296,13 @@ class AdxAccountOAuthCallbackView(View):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, req):
+        logger.info("=== OAuth Callback Started ===")
+        logger.info(f"OAuth Callback - GET parameters: {dict(req.GET)}")
+        logger.info(f"OAuth Callback - Session keys: {list(req.session.keys())}")
+        logger.info(f"OAuth Callback - User mail from session: {req.session.get('user_mail')}")
+        logger.info(f"OAuth Callback - Client ID from session: {req.session.get('client_id')}")
+        logger.info(f"OAuth Callback - Developer token from session: {req.session.get('developer_token')}")
+        
         print("[DEBUG] OAuth Callback - Method called!")
         print(f"[DEBUG] OAuth Callback - State: {req.GET.get('state')}, Code present: {bool(req.GET.get('code'))}")
         try:
@@ -2292,11 +2330,14 @@ class AdxAccountOAuthCallbackView(View):
             }
 
             scopes = [
+                # Scope dasar untuk identitas user (gunakan expanded form yang dikembalikan Google)
                 'openid',
-                'email',
-                'profile',
-                'https://www.googleapis.com/auth/dfp',
-                'https://www.googleapis.com/auth/admanager'
+                'https://www.googleapis.com/auth/userinfo.email',
+                'https://www.googleapis.com/auth/userinfo.profile',
+                # Scope untuk Google Ad Manager
+                'https://www.googleapis.com/auth/admanager',
+                # Scope untuk Google AdSense
+                'https://www.googleapis.com/auth/adsense'
             ]
 
             flow = Flow.from_client_config(client_config, scopes=scopes)
@@ -2402,6 +2443,16 @@ class AdxAccountOAuthCallbackView(View):
                 return redirect('adx_account')
 
             # Debug logging
+            logger.info("=== OAuth Callback - Preparing to save credentials ===")
+            logger.info(f"OAuth Callback - User mail: {user_mail}")
+            logger.info(f"OAuth Callback - Account name: {account_name}")
+            logger.info(f"OAuth Callback - Client ID: {client_id}")
+            logger.info(f"OAuth Callback - Client secret length: {len(client_secret) if client_secret else 0}")
+            logger.info(f"OAuth Callback - Refresh token length: {len(refresh_token) if refresh_token else 0}")
+            logger.info(f"OAuth Callback - Network code: {network_code} (type: {type(network_code)})")
+            logger.info(f"OAuth Callback - Developer token length: {len(developer_token) if developer_token else 0}")
+            logger.info(f"OAuth Callback - MDB: {mdb}, MDB Name: {mdb_name}")
+            
             print(f"[DEBUG] OAuth Callback - Attempting to save credentials for user: {user_mail}")
             print(f"[DEBUG] OAuth Callback - Network code detected: {network_code}")
             print(f"[DEBUG] OAuth Callback - Existing credentials check result: {exists}")
@@ -2941,8 +2992,8 @@ class RoiTrafficPerDomainDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_accounts = req.GET.get('selected_account_adx')
-        selected_sites = req.GET.get('selected_sites', '')
-        selected_account = req.GET.get('selected_account', '')
+        selected_sites = req.GET.get('selected_sites', '%')
+        selected_account = req.GET.get('selected_account', '%')
         try:
             # Jika ada selected_account_adx dari frontend, gunakan sebagai user_mail
             if selected_accounts:
@@ -2955,7 +3006,6 @@ class RoiTrafficPerDomainDataView(View):
                         'status': False,
                         'error': 'User ID tidak ditemukan dalam session'
                     })
-                
                 user_data = data_mysql().get_user_by_id(user_id)
                 if not user_data.get('status') or not user_data.get('data'):
                     return JsonResponse({
@@ -2969,7 +3019,7 @@ class RoiTrafficPerDomainDataView(View):
             # Ambil data AdX (klik, ctr, cpc, eCPM, pendapatan)
             adx_result = fetch_adx_traffic_account_by_user(user_mail, start_date_formatted, end_date_formatted, selected_sites)
             # Ambil data Facebook (spend)
-            if selected_account:
+            if selected_account and selected_account != '%':
                 rs_account = data_mysql().master_account_ads_by_params({
                     'data_account': selected_account,
                 })['data']

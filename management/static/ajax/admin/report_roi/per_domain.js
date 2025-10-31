@@ -58,10 +58,6 @@ $().ready(function () {
     })
     $('#btn_load_data').click(function (e) {
         var selected_account_adx = $("#account_filter").val();
-        if (!selected_account_adx) {
-            alert('Mohon pilih akun terdaftar.');
-            return;
-        }
         $('#overlay').show();
         loadSitesList(selected_account_adx);
         load_adx_traffic_account_data();
@@ -136,8 +132,8 @@ function load_adx_traffic_account_data() {
     var selectedAccounts = $('#account_filter').val();
     var selectedSites = $('#site_filter').val();
     var selectedAccount = $('#select_account').val();
-    if (!tanggal_dari || !tanggal_sampai || !selectedAccounts) {
-        alert('Silakan pilih tanggal dari dan sampai, serta akun ADX.');
+    if (!tanggal_dari || !tanggal_sampai) {
+        alert('Silakan pilih tanggal dari dan sampai.');
         return;
     }
     // Convert array to comma-separated string for backend
