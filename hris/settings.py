@@ -135,11 +135,11 @@ WSGI_APPLICATION = 'hris.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'hris_trendHorizone',
-        'USER': 'root',
-        'PASSWORD': 'hris123456',
-        'HOST': '127.0.0.1',
-        'PORT': '3306',
+        'NAME': os.getenv('HRIS_DB_NAME', 'hris_trendhorizone'),
+        'USER': os.getenv('HRIS_DB_USER', 'root'),
+        'PASSWORD': os.getenv('HRIS_DB_PASSWORD', ''),
+        'HOST': os.getenv('HRIS_DB_HOST', '127.0.0.1'),
+        'PORT': os.getenv('HRIS_DB_PORT', '3306'),
         'OPTIONS': {
             'sql_mode': 'STRICT_TRANS_TABLES',
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES', time_zone='+00:00'",
@@ -299,15 +299,6 @@ SOCIAL_AUTH_PIPELINE = (
 LOGIN_URL = '/management/admin/login'
 LOGIN_REDIRECT_URL = '/management/admin/oauth_redirect'
 LOGOUT_REDIRECT_URL = '/management/admin/login'
-
-
-# Initialize default values for OAuth credentials
-GOOGLE_OAUTH2_CLIENT_ID = os.getenv('GOOGLE_OAUTH2_CLIENT_ID', '')
-GOOGLE_OAUTH2_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET', '')
-GOOGLE_ADS_CLIENT_ID = os.getenv('GOOGLE_ADS_CLIENT_ID', '')
-GOOGLE_ADS_CLIENT_SECRET = os.getenv('GOOGLE_ADS_CLIENT_SECRET', '')
-GOOGLE_ADS_REFRESH_TOKEN = os.getenv('GOOGLE_ADS_REFRESH_TOKEN', '')
-GOOGLE_AD_MANAGER_NETWORK_CODE = os.getenv('GOOGLE_AD_MANAGER_NETWORK_CODE', '')
 
 # Try to load credentials from database, fallback to environment variables
 try:
