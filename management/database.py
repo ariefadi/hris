@@ -26,15 +26,15 @@ class data_mysql:
             # Use the same port as Django (3306, not 3307)
             raw_port = os.getenv('DB_PORT', '').strip()
             if not raw_port:
-                raw_port = os.getenv('DB_PORT', 'root')  # Changed from 3307 to 3306 to match Django
+                raw_port = '3306'
             try:
                 port = int(raw_port)
             except (ValueError, TypeError):
-                print(f"Invalid DB_PORT value '{raw_port}', defaulting to 3306")
-                port = os.getenv('DB_PORT', 'root')  # Changed from 3307 to 3306
-            user = os.getenv('DB_USER', 'root')
-            password = os.getenv('DB_PASSWORD', '')
-            database = os.getenv('DB_NAME', 'hris_trendHorizone')  # Changed to match Django
+                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
+                port = 3306
+            user = os.getenv('HRIS_DB_USER', 'root')
+            password = os.getenv('HRIS_DB_PASSWORD', 'hris123456')
+            database = os.getenv('HRIS_DB_NAME', 'hris_trendHorizone')
 
             self.db_hris = pymysql.connect(
                 host=host,
@@ -1177,6 +1177,20 @@ class data_mysql:
                network_code, developer_token, is_active, mdb, mdb_name, mdd
         Note: account_id is auto-increment, so it's excluded from INSERT
         """
+        # Convert network_code to integer if it's a string, or None if empty/invalid
+        processed_network_code = None
+        if network_code is not None:
+            if isinstance(network_code, str):
+                # Remove any non-numeric characters and convert to int
+                cleaned_code = ''.join(filter(str.isdigit, network_code))
+                if cleaned_code:
+                    try:
+                        processed_network_code = int(cleaned_code)
+                    except (ValueError, TypeError):
+                        processed_network_code = None
+            elif isinstance(network_code, (int, float)):
+                processed_network_code = int(network_code)
+        
         sql = '''
             INSERT INTO app_credentials (
                 account_name, user_mail, client_id, client_secret, refresh_token,
@@ -1188,7 +1202,7 @@ class data_mysql:
         '''
         try:
             params = (account_name, user_mail, client_id, client_secret, refresh_token,
-                      network_code, developer_token, mdb, mdb_name)
+                      processed_network_code, developer_token, mdb, mdb_name)
             if not self.execute_query(sql, params):
                 raise pymysql.Error("Failed to insert app_credentials")
 
@@ -1215,6 +1229,20 @@ class data_mysql:
         Update kredensial aplikasi untuk user tertentu sesuai skema baru.
         Note: account_id is auto-increment primary key, so it's excluded from UPDATE
         """
+        # Convert network_code to integer if it's a string, or None if empty/invalid
+        processed_network_code = None
+        if network_code is not None:
+            if isinstance(network_code, str):
+                # Remove any non-numeric characters and convert to int
+                cleaned_code = ''.join(filter(str.isdigit, network_code))
+                if cleaned_code:
+                    try:
+                        processed_network_code = int(cleaned_code)
+                    except (ValueError, TypeError):
+                        processed_network_code = None
+            elif isinstance(network_code, (int, float)):
+                processed_network_code = int(network_code)
+        
         sql = '''
             UPDATE app_credentials 
             SET account_name = %s,
@@ -1230,7 +1258,7 @@ class data_mysql:
             WHERE user_mail = %s
         '''
         try:
-            params = (account_name, client_id, client_secret, refresh_token, network_code,
+            params = (account_name, client_id, client_secret, refresh_token, processed_network_code,
                       developer_token, is_active, mdb, mdb_name, user_mail)
             if not self.execute_query(sql, params):
                 raise pymysql.Error("Failed to update app_credentials")

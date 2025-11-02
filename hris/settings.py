@@ -64,12 +64,8 @@ def get_credentials_from_db(request=None):
 
 # Quick-start development settings - unsuitable for production
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'your-secret-key-here')
-
-# Force DEBUG to True for development
-DEBUG = os.getenv('DEBUG', 'true')
-
-# ALLOWED_HOSTS configuration
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'kiwipixel.com', 'www.kiwipixel.com', '*']
+DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() == 'true'
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'kiwipixel.com', 'www.kiwipixel.com', '159.223.63.249']
 
 # Application definition
 INSTALLED_APPS = [
@@ -139,14 +135,14 @@ WSGI_APPLICATION = 'hris.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('DB_NAME', 'hris_trendhorizone'),
-        'USER': os.getenv('DB_USER', 'root'),
-        'PASSWORD': os.getenv('DB_PASSWORD', ''),
-        'HOST': os.getenv('DB_HOST', '127.0.0.1'),
-        'PORT': os.getenv('DB_PORT', '3306'),
+        'NAME': 'hris_trendHorizone',
+        'USER': 'root',
+        'PASSWORD': 'hris123456',
+        'HOST': '127.0.0.1',
+        'PORT': '3306',
         'OPTIONS': {
             'sql_mode': 'STRICT_TRANS_TABLES',
-            'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
+            'init_command': "SET sql_mode='STRICT_TRANS_TABLES', time_zone='+00:00'",
         }
     }
 }
@@ -186,16 +182,21 @@ STATICFILES_DIRS = [
 ]
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Timezone Configuration
+TIME_ZONE = 'Asia/Jakarta'  # Western Indonesia Time (WIB)
+USE_TZ = True  # Enable timezone support
+
 # Session Configuration for OAuth State Fix
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_COOKIE_AGE = 3600  # 1 hour (shorter for OAuth)
-SESSION_COOKIE_SECURE = False  # Set to False for HTTP development
+SESSION_COOKIE_SECURE = not DEBUG  # True for production HTTPS, False for development HTTP
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_SAVE_EVERY_REQUEST = True  # Important for OAuth state
 
 # CSRF Configuration
-CSRF_COOKIE_SECURE = False  # Set to False for HTTP development
+CSRF_COOKIE_SECURE = not DEBUG  # True for production HTTPS, False for development HTTP
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_USE_SESSIONS = True  # Use sessions for CSRF tokens
 CSRF_TRUSTED_ORIGINS = [
@@ -257,7 +258,7 @@ GOOGLE_SCOPES = [
 SENSITIVE_GOOGLE_SCOPES = [
     'https://www.googleapis.com/auth/dfp',
     'https://www.googleapis.com/auth/admanager',
-    'https://www.googleapis.com/auth/adsense.readonly',
+    'https://www.googleapis.com/auth/adsense',
 ]
 
 # OAuth Redirect URLs - harus sesuai dengan yang terdaftar di Google Console
@@ -300,7 +301,15 @@ LOGIN_REDIRECT_URL = '/management/admin/oauth_redirect'
 LOGOUT_REDIRECT_URL = '/management/admin/login'
 
 
-# Load credentials from database (with better error handling)
+# Initialize default values for OAuth credentials
+GOOGLE_OAUTH2_CLIENT_ID = os.getenv('GOOGLE_OAUTH2_CLIENT_ID', '')
+GOOGLE_OAUTH2_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET', '')
+GOOGLE_ADS_CLIENT_ID = os.getenv('GOOGLE_ADS_CLIENT_ID', '')
+GOOGLE_ADS_CLIENT_SECRET = os.getenv('GOOGLE_ADS_CLIENT_SECRET', '')
+GOOGLE_ADS_REFRESH_TOKEN = os.getenv('GOOGLE_ADS_REFRESH_TOKEN', '')
+GOOGLE_AD_MANAGER_NETWORK_CODE = os.getenv('GOOGLE_AD_MANAGER_NETWORK_CODE', '')
+
+# Try to load credentials from database, fallback to environment variables
 try:
     # Only try to load from database if we're not in a management command that doesn't need DB
     import sys

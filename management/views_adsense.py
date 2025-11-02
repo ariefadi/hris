@@ -49,13 +49,11 @@ class AdsenseTrafficAccountView(View):
 @method_decorator(csrf_exempt, name='dispatch')
 class AdsenseTrafficAccountDataView(View):
     """API endpoint untuk mengambil data AdSense Traffic Account"""
-    
     def dispatch(self, request, *args, **kwargs):
         # Check if user is logged in as admin
         if 'hris_admin' not in request.session:
             return JsonResponse({'error': 'Unauthorized'}, status=401)
         return super().dispatch(request, *args, **kwargs)
-    
     def post(self, request):
         try:
             # Get user ID from session
@@ -64,35 +62,29 @@ class AdsenseTrafficAccountDataView(View):
                 return JsonResponse({
                     'error': 'User ID not found in session'
                 }, status=400)
-            
             # Get user email from database using user_id
             from .database import data_mysql
             db = data_mysql()
             sql = "SELECT user_mail FROM app_users WHERE user_id = %s"
             db.cur_hris.execute(sql, (user_id,))
             user_data = db.cur_hris.fetchone()
-            
             if not user_data or not user_data.get('user_mail'):
                 return JsonResponse({
                     'error': 'User email not found in database'
                 }, status=400)
-            
             user_mail = user_data['user_mail']
-            
             # Get form data
             start_date = request.POST.get('start_date')
             end_date = request.POST.get('end_date')
             site_filter = request.POST.get('site_filter', '%')
-            
             # Validate required fields
             if not start_date or not end_date:
                 return JsonResponse({
                     'error': 'Start date and end date are required'
                 }, status=400)
-            
             # Call the AdSense API function
             result = fetch_adsense_traffic_account_data(user_mail, start_date, end_date, site_filter)
-            
+            print(f"Raw result: {result}")
             if result.get('status'):
                 data = result.get('data', {})
                 
@@ -143,62 +135,56 @@ class AdsenseTrafficAccountDataView(View):
             }, status=500)
 
 class AdsenseSitesListView(View):
-    """AJAX endpoint untuk mengambil daftar domain dari AdSense data.
-    Mengembalikan daftar domain unik yang tersedia untuk filtering.
+    """AJAX endpoint untuk mengambil daftar account_name dari app_credentials.
+    Mengembalikan daftar account yang tersedia untuk filtering.
     """
     def get(self, request):
         try:
-            # Ambil user_mail dari app_credentials yang aktif
+            # Ambil semua account_name dari app_credentials yang aktif
             from .database import data_mysql
             db = data_mysql()
             sql = """
-                SELECT user_mail 
+                SELECT DISTINCT account_name, user_mail 
                 FROM app_credentials 
                 WHERE is_active = '1' 
-                ORDER BY mdd DESC 
-                LIMIT 1
+                ORDER BY account_name ASC
             """
             db.cur_hris.execute(sql)
-            credential_data = db.cur_hris.fetchone()
+            credentials_data = db.cur_hris.fetchall()
             
-            if not credential_data:
+            if not credentials_data:
                 # Return dummy data for preview
                 return JsonResponse({
                     'status': True,
-                    'data': ['example.com', 'test.com', 'demo.com']
+                    'data': [
+                        {'site_id': 'example@gmail.com', 'site_name': 'Example Account'},
+                        {'site_id': 'test@gmail.com', 'site_name': 'Test Account'},
+                        {'site_id': 'demo@gmail.com', 'site_name': 'Demo Account'}
+                    ]
                 })
             
-            user_mail = credential_data['user_mail']
-            
-            # Ambil domain unik dari database
-            sql_domains = """
-                SELECT DISTINCT domain_name 
-                FROM adsense_traffic_account 
-                WHERE user_mail = %s 
-                AND domain_name IS NOT NULL 
-                AND domain_name != ''
-                ORDER BY domain_name
-            """
-            db.cur_hris.execute(sql_domains, (user_mail,))
-            domains_data = db.cur_hris.fetchall()
-            
-            # Extract domain names into simple array
-            domains = [row['domain_name'] for row in domains_data if row['domain_name']]
-            
-            # If no domains found, return dummy data
-            if not domains:
-                domains = ['example.com', 'test.com', 'demo.com']
+            # Format data sesuai dengan yang diharapkan JavaScript
+            sites_data = []
+            for credential in credentials_data:
+                sites_data.append({
+                    'site_id': credential['user_mail'],  # Menggunakan user_mail sebagai site_id
+                    'site_name': credential['account_name']  # Menggunakan account_name sebagai site_name
+                })
             
             return JsonResponse({
                 'status': True,
-                'data': domains
+                'data': sites_data
             })
             
         except Exception as e:
             # Return dummy data on error for preview
             return JsonResponse({
                 'status': True,
-                'data': ['example.com', 'test.com', 'demo.com']
+                'data': [
+                    {'site_id': 'example@gmail.com', 'site_name': 'Example Account'},
+                    {'site_id': 'test@gmail.com', 'site_name': 'Test Account'},
+                    {'site_id': 'demo@gmail.com', 'site_name': 'Demo Account'}
+                ]
             })
 
 class AdsenseSummaryView(View):
@@ -220,6 +206,8 @@ class AdsenseSummaryDataView(View):
 
     def get(self, request):
         try:
+            print(f"[DEBUG] AdsenseSummaryDataView called with params: {request.GET}")
+            
             # Ambil user_mail dari app_credentials yang aktif
             from .database import data_mysql
             db = data_mysql()
@@ -233,23 +221,34 @@ class AdsenseSummaryDataView(View):
             db.cur_hris.execute(sql)
             credential_data = db.cur_hris.fetchone()
             
+            print(f"[DEBUG] Credential data found: {credential_data}")
+            
             if not credential_data:
+                print("[DEBUG] No active credentials found")
                 return JsonResponse({'status': False, 'error': 'Tidak ada kredensial aktif yang ditemukan'})
             
             user_mail = credential_data['user_mail']
+            print(f"[DEBUG] Using user_mail: {user_mail}")
 
             # Ambil parameter
             start_date = request.GET.get('start_date')
             end_date = request.GET.get('end_date')
             site_filter = request.GET.get('selected_sites') or '%'
+            
+            print(f"[DEBUG] Parameters - start_date: {start_date}, end_date: {end_date}, site_filter: {site_filter}")
 
             if not start_date or not end_date:
+                print("[DEBUG] Missing start_date or end_date")
                 return JsonResponse({'status': False, 'error': 'Start date dan end date wajib diisi'})
 
             # Ambil data summary
+            print(f"[DEBUG] Calling fetch_adsense_summary_data with user_mail: {user_mail}")
             result = fetch_adsense_summary_data(user_mail, start_date, end_date, site_filter)
             
+            print(f"[DEBUG] fetch_adsense_summary_data result: {result}")
+            
             if not result.get('status'):
+                print(f"[DEBUG] fetch_adsense_summary_data failed: {result.get('error')}")
                 return JsonResponse({'status': False, 'error': result.get('error', 'Gagal mengambil data summary')})
 
             response_data = {
@@ -263,9 +262,14 @@ class AdsenseSummaryDataView(View):
                     'cpc': result['data'].get('avg_cpc', 0)
                 }
             }
+            
+            print(f"[DEBUG] Returning response: {response_data}")
             return JsonResponse(response_data)
 
         except Exception as e:
+            print(f"[DEBUG] Exception in AdsenseSummaryDataView: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return JsonResponse({'status': False, 'error': str(e)})
 
 class AdsenseTrafficPerCountryView(View):

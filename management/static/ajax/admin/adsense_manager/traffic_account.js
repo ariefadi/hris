@@ -178,8 +178,7 @@ function load_adsense_traffic_account_data() {
                 if (response.message) {
                     // Show informative message for no data
                     table.row.add([
-                        '',
-                        '',
+                        '', '', 
                         '<div class="alert alert-info" style="margin: 20px; text-align: left;"><h5><i class="fas fa-info-circle"></i> Tidak Ada Data AdSense</h5><p>' + response.message + '</p><hr><small><strong>Saran:</strong><br>• Periksa <a href="https://www.google.com/adsense/" target="_blank">Google AdSense Dashboard</a> untuk memverifikasi data<br>• Pastikan kode iklan AdSense sudah terpasang dengan benar di website<br>• Coba periode tanggal yang berbeda jika akun baru saja aktif</small></div>',
                         '', '', '', '', '', '', ''
                     ]);

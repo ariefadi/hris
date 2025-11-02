@@ -120,4 +120,12 @@ document.addEventListener('DOMContentLoaded', () => {
   btnLoad.addEventListener('click', loadSummary);
   setDefaultDates();
   loadSites();
+  
+  // Initialize Select2 for sites dropdown
+  $('#selected_sites').select2({
+    theme: 'bootstrap4',
+    placeholder: 'Pilih satu atau lebih situs (opsional)',
+    allowClear: true,
+    width: '100%'
+  });
 });

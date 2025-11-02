@@ -431,7 +431,7 @@ def handle_adx_oauth_callback(request, auth_code, target_user_mail=None):
             'https://www.googleapis.com/auth/userinfo.email',
             'https://www.googleapis.com/auth/userinfo.profile', 
             'https://www.googleapis.com/auth/admanager',
-            'https://www.googleapis.com/auth/adsense.readonly'
+            'https://www.googleapis.com/auth/adsense'
         ]
         client_id = os.getenv('GOOGLE_OAUTH2_CLIENT_ID')
         client_secret = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET')

@@ -460,8 +460,10 @@
         var btn = document.getElementById('btn_add_credentials');
         if (btn) {
             btn.addEventListener('click', function () {
+                console.log('DEBUG: Tambah Kredensial button clicked');
                 // Langsung mulai OAuth tanpa meminta email agar Google Account Chooser muncul
                 var baseUrl = "{% url 'adx_account_oauth_start' %}";
+                console.log('DEBUG: Redirecting to:', baseUrl);
                 window.location.href = baseUrl;
             });
         }
