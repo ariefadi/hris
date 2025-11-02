@@ -1,0 +1,205 @@
+{% extends "admin_base.html" %}
+
+{% block page_title %}Update Access{% endblock %}
+{% block page_heading %}Update Access{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="/settings/overview">Overview</a></li>
+<li class="breadcrumb-item"><a href="/settings/sistem/permissions">Permissions</a></li>
+<li class="breadcrumb-item active">Update Access</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="card">
+    <div class="card-header">
+        <h3 class="card-title">{{ role.role_nm }}</h3>
+        <div class="card-tools">
+            <a href="/settings/sistem/permissions" class="btn btn-sm btn-secondary">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+        </div>
+    </div>
+
+    <div class="card-body border-bottom">
+      <form action="/settings/sistem/permissions/filter_portal_process" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="role_id" value="{{ role.role_id }}" />
+        <div class="row">
+          <div class="col-md-10">
+            <div class="form-group">
+              <select name="portal_id" class="form-control" data-placeholder="Filter by Portal">
+                {% for p in portals %}
+                <option value="{{ p.portal_id }}" {% if selected_portal_id == p.portal_id %}selected="selected"{% endif %}>
+                  {{ p.portal_id }} / {{ p.portal_title|default:p.portal_nm|upper }}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="col-md-2">
+            <div class="btn-group btn-block">
+              <button type="submit" name="save" value="Cari" class="btn btn-dark"><i class="bi bi-search"></i></button>
+              <button type="submit" name="save" value="Reset" class="btn btn-light"><i class="bi bi-x-lg"></i></button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <form action="/settings/sistem/permissions/process" method="post">
+      {% csrf_token %}
+      <input type="hidden" name="portal_id" value="{{ selected_portal_id|default:'' }}" />
+      <input type="hidden" name="role_id" value="{{ role.role_id|default:'' }}" />
+      <div class="card-body">
+        {% if messages %}
+          <div aria-live="polite" aria-atomic="true" class="mb-3">
+            {% for message in messages %}
+              <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                  <span aria-hidden="true">&times;</span>
+                </button>
+                {{ message }}
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <div class="table-responsive">
+          <table class="table table-striped">
+            <thead class="thead-dark text-center">
+              <tr>
+                <th style="width:5%">
+                  <input type="checkbox" id="checked-all-menu" />
+                </th>
+                <th style="width:55%">Judul Menu</th>
+                <th style="width:10%">Create</th>
+                <th style="width:10%">Read</th>
+                <th style="width:10%">Update</th>
+                <th style="width:10%">Delete</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in menu_rows %}
+              {% with rt=m.role_tp %}
+              <tr>
+                <td class="text-center">
+                  <input type="checkbox" class="checked-menu-row" data-nav-id="{{ m.nav_id }}" />
+                </td>
+                <td>
+                  <label>
+                    {{ m.indent }}<strong>{{ m.nav_name }}</strong>
+                  </label>
+                </td>
+                <td class="text-center">
+                  <input type="checkbox" class="crud-checkbox" data-nav-id="{{ m.nav_id }}" name="rules[{{ m.nav_id }}][C]" value="1" {% if rt and rt|length >= 1 and rt.0 == '1' %}checked{% endif %} />
+                </td>
+                <td class="text-center">
+                  <input type="checkbox" class="crud-checkbox" data-nav-id="{{ m.nav_id }}" name="rules[{{ m.nav_id }}][R]" value="1" {% if rt and rt|length >= 2 and rt.1 == '1' %}checked{% endif %} />
+                </td>
+                <td class="text-center">
+                  <input type="checkbox" class="crud-checkbox" data-nav-id="{{ m.nav_id }}" name="rules[{{ m.nav_id }}][U]" value="1" {% if rt and rt|length >= 3 and rt.2 == '1' %}checked{% endif %} />
+                </td>
+                <td class="text-center">
+                  <input type="checkbox" class="crud-checkbox" data-nav-id="{{ m.nav_id }}" name="rules[{{ m.nav_id }}][D]" value="1" {% if rt and rt|length >= 4 and rt.3 == '1' %}checked{% endif %} />
+                </td>
+              </tr>
+              {% endwith %}
+              {% empty %}
+              <tr>
+                <td colspan="6" class="text-center">Data tidak ditemukan!</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card-footer border-top">
+        <button type="submit" class="btn btn-md btn-success mr-2">
+          <span class="fa fa-check mr-1"></span> Simpan
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var headerMaster = document.getElementById('checked-all-menu');
+
+    function getRowMaster(navId) {
+      return document.querySelector('.checked-menu-row[data-nav-id="' + navId + '"]');
+    }
+
+    function getRowCrud(navId) {
+      return Array.prototype.slice.call(document.querySelectorAll('.crud-checkbox[data-nav-id="' + navId + '"]'));
+    }
+
+    function allRowsNavIds() {
+      return Array.prototype.slice.call(document.querySelectorAll('.checked-menu-row'))
+        .map(function (el) { return el.getAttribute('data-nav-id'); });
+    }
+
+    function syncRowMaster(navId) {
+      var master = getRowMaster(navId);
+      var crud = getRowCrud(navId);
+      if (!master || crud.length === 0) return;
+      var allChecked = crud.every(function (c) { return c.checked; });
+      master.checked = allChecked;
+    }
+
+    function setRowCrud(navId, checked) {
+      getRowCrud(navId).forEach(function (c) { c.checked = checked; });
+      syncRowMaster(navId);
+    }
+
+    function syncHeaderMaster() {
+      var navIds = allRowsNavIds();
+      if (!headerMaster) return;
+      if (navIds.length === 0) { headerMaster.checked = false; return; }
+      var allFullChecked = navIds.every(function (nid) {
+        var crud = getRowCrud(nid);
+        return crud.length > 0 && crud.every(function (c) { return c.checked; });
+      });
+      headerMaster.checked = allFullChecked;
+    }
+
+    // Row master toggles its CRUD
+    document.querySelectorAll('.checked-menu-row').forEach(function (rowMaster) {
+      rowMaster.addEventListener('change', function () {
+        var navId = rowMaster.getAttribute('data-nav-id');
+        setRowCrud(navId, rowMaster.checked);
+        syncHeaderMaster();
+      });
+    });
+
+    // CRUD changes re-sync row master and header
+    document.querySelectorAll('.crud-checkbox').forEach(function (crud) {
+      crud.addEventListener('change', function () {
+        var navId = crud.getAttribute('data-nav-id');
+        syncRowMaster(navId);
+        syncHeaderMaster();
+      });
+    });
+
+    // Header master toggles all rows and CRUD
+    if (headerMaster) {
+      headerMaster.addEventListener('change', function () {
+        var navIds = allRowsNavIds();
+        navIds.forEach(function (nid) { setRowCrud(nid, headerMaster.checked); });
+        // After CRUD set, mark each row master to reflect all checked state
+        document.querySelectorAll('.checked-menu-row').forEach(function (rm) {
+          var nid = rm.getAttribute('data-nav-id');
+          syncRowMaster(nid);
+        });
+      });
+    }
+
+    // Initial sync
+    allRowsNavIds().forEach(function (nid) { syncRowMaster(nid); });
+    syncHeaderMaster();
+  });
+</script>
+{% endblock %}

@@ -8,6 +8,8 @@ from django.shortcuts import render, redirect
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.conf import settings
 from django import template
 from calendar import month, monthrange
 from datetime import datetime, date, timedelta
@@ -24,11 +26,12 @@ try:
     import pandas as pd
 except Exception as _pandas_err:
     pd = None
-    try:
-        import logging as _logging
-        _logging.getLogger(__name__).warning("Pandas import failed; disabling pandas-dependent features: %s", _pandas_err)
-    except Exception:
-        pass
+
+try:
+    import logging as _logging
+    _logging.getLogger(__name__).warning("Pandas import failed; disabling pandas-dependent features: %s", _pandas_err)
+except Exception:
+    pass
 import io
 from .crypto import sandi
 import requests
@@ -62,6 +65,9 @@ import os
 from django.urls import reverse
 from django.shortcuts import redirect
 from .utils import fetch_data_all_insights_data_all, fetch_data_all_insights_total_all, fetch_data_insights_account_range_all, fetch_data_all_insights, fetch_data_all_insights_total, fetch_data_insights_account_range, fetch_data_insights_account, fetch_data_insights_account_filter_all, fetch_daily_budget_per_campaign, fetch_status_per_campaign, fetch_data_insights_campaign_filter_sub_domain, fetch_data_insights_campaign_filter_account, fetch_data_country_facebook_ads, fetch_data_insights_by_country_filter_campaign, fetch_data_insights_by_country_filter_account, fetch_ad_manager_reports, fetch_ad_manager_inventory, fetch_adx_summary_data, fetch_adx_traffic_account_by_user, fetch_user_adx_account_data, fetch_adx_account_data, fetch_data_insights_all_accounts_by_subdomain, fetch_adx_traffic_per_country, fetch_roi_per_country, fetch_data_insights_by_country_filter_campaign_roi, fetch_data_insights_by_date_subdomain_roi
+
+# Global default for active portal ID to avoid hard-coding across views
+DEFAULT_ACTIVE_PORTAL_ID = '30'
 
 # OAuth views will be imported directly in urls.py to avoid circular imports
 
@@ -139,7 +145,35 @@ def redirect_login_user(request):
 class LoginAdmin(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' in request.session:
-            return redirect('dashboard_admin')
+            # Redirect to role default page if available
+            try:
+                admin = request.session.get('hris_admin', {})
+                user_id = admin.get('user_id')
+                if user_id:
+                    from .database import data_mysql
+                    db = data_mysql()
+                    # Portal-aware default page selection (defaults to portal 12)
+                    q = '''
+                        SELECT DISTINCT r.default_page
+                        FROM app_user_role ur
+                        JOIN app_menu_role mr ON mr.role_id = ur.role_id
+                        JOIN app_menu m ON m.menu_id = mr.menu_id
+                        JOIN app_role r ON r.role_id = ur.role_id
+                        WHERE ur.user_id = %s AND m.portal_id = %s
+                        ORDER BY CASE WHEN ur.role_default = '1' THEN 0 ELSE 1 END
+                        LIMIT 1
+                    '''
+                    default_page = None
+                    portal_id = request.session.get('active_portal_id', DEFAULT_ACTIVE_PORTAL_ID)
+                    if db.execute_query(q, (user_id, portal_id)):
+                        row = db.cur_hris.fetchone() or {}
+                        default_page = row.get('default_page')
+                    target = default_page or 'management/admin/dashboard'
+                    if not target.startswith('/'):
+                        target = '/' + target
+                    return redirect(target)
+            except Exception:
+                return redirect('dashboard_admin')
         return super(LoginAdmin, self).dispatch(request, *args, **kwargs)
     def get(self, req):
         # Hapus pesan error OAuth setelah ditampilkan
@@ -212,7 +246,51 @@ class OAuthRedirectView(View):
             'user_alias': user_data['data'][0]['user_alias'],
             'user_mail': user_data['data'][0]['user_mail']  # Tambahkan user_mail ke session
         }
-        return redirect('dashboard_admin')
+        # Set default active portal on first login
+        try:
+            request.session['active_portal_id'] = DEFAULT_ACTIVE_PORTAL_ID
+        except Exception:
+            pass
+        # Redirect to role default page if available
+        try:
+            from .database import data_mysql
+            db = data_mysql()
+            # Portal-aware default page selection using active portal (defaults to 12)
+            q = '''
+                SELECT DISTINCT r.default_page
+                FROM app_user_role ur
+                JOIN app_menu_role mr ON mr.role_id = ur.role_id
+                JOIN app_menu m ON m.menu_id = mr.menu_id
+                JOIN app_role r ON r.role_id = ur.role_id
+                WHERE ur.user_id = %s AND m.portal_id = %s
+                ORDER BY CASE WHEN ur.role_default = '1' THEN 0 ELSE 1 END
+                LIMIT 1
+            '''
+            default_page = None
+            uid = user_data['data'][0]['user_id']
+            portal_id = request.session.get('active_portal_id', DEFAULT_ACTIVE_PORTAL_ID)
+            if db.execute_query(q, (uid, portal_id)):
+                row = db.cur_hris.fetchone() or {}
+                default_page = row.get('default_page')
+            target = default_page or 'management/admin/dashboard'
+            if not target.startswith('/'):
+                target = '/' + target
+            return redirect(target)
+        except Exception:
+            return redirect('dashboard_admin')
+
+class SettingsOverview(View):
+    def get(self, request):
+        # Require authenticated admin session
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        active_portal_id = request.session.get('active_portal_id', DEFAULT_ACTIVE_PORTAL_ID)
+        context = {
+            'user': admin,
+            'active_portal_id': active_portal_id,
+        }
+        return render(request, 'admin/settings_overview.html', context)
 
 class LoginProcess(View):
     def post(self, req):
@@ -229,10 +307,13 @@ class LoginProcess(View):
                 'username': username,
                 'password': password
             })
-            if rs_data['data'] == None:
+            # Check if login was successful and data exists
+            if not rs_data.get('status', False) or rs_data.get('data') is None:
+                # Handle both error cases and no user found cases
+                error_message = rs_data.get('message', 'Username dan Password tidak ditemukan !')
                 hasil = {
                     'status': False,
-                    'data': f"Username dan Password tidak ditemukan !",
+                    'data': error_message,
                     'message': "Silahkan cek kembali username dan password anda."
                 }
             else:
@@ -266,6 +347,11 @@ class LoginProcess(View):
                     'user_mail': rs_data['data']['user_mail']  # Tambahkan user_mail ke session
                 }
                 req.session['hris_admin'] = user_data
+                # Set default active portal on first login
+                try:
+                    req.session['active_portal_id'] = DEFAULT_ACTIVE_PORTAL_ID
+                except Exception:
+                    pass
                 hasil = {
                     'status': True,
                     'data': "Login Berhasil",
@@ -464,6 +550,61 @@ class DashboardAdmin(View):
         }
         return render(req, 'admin/dashboard_admin.html', data)
 
+class SwitchPortal(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super(SwitchPortal, self).dispatch(request, *args, **kwargs)
+
+    def get(self, req, portal_id):
+        # Validate user has access to the portal
+        try:
+            user_id = req.session.get('hris_admin', {}).get('user_id')
+            from .database import data_mysql
+            db = data_mysql()
+            sql = '''
+                SELECT DISTINCT p.portal_id
+                FROM app_user_role ur
+                JOIN app_menu_role rm ON rm.role_id = ur.role_id
+                JOIN app_menu m ON m.nav_id = rm.nav_id
+                JOIN app_portal p ON p.portal_id = m.portal_id
+                WHERE ur.user_id = %s AND p.portal_id = %s AND m.display_st = '1' AND m.active_st = '1'
+                LIMIT 1
+            '''
+            has_access = False
+            if db.execute_query(sql, (user_id, portal_id)):
+                row = db.cur_hris.fetchone()
+                has_access = bool(row)
+            if has_access:
+                req.session['active_portal_id'] = portal_id
+                # Redirect to role default_page related to this portal
+                try:
+                    q_default = '''
+                        SELECT r.default_page
+                        FROM app_user_role ur
+                        JOIN app_menu_role rm ON rm.role_id = ur.role_id
+                        JOIN app_menu m ON m.nav_id = rm.nav_id
+                        JOIN app_role r ON r.role_id = ur.role_id
+                        WHERE ur.user_id = %s AND m.portal_id = %s
+                        ORDER BY CASE WHEN ur.role_default = '1' THEN 0 ELSE 1 END
+                        LIMIT 1
+                    '''
+                    default_page = None
+                    if db.execute_query(q_default, (user_id, portal_id)):
+                        rrow = db.cur_hris.fetchone() or {}
+                        default_page = rrow.get('default_page')
+                    if default_page:
+                        target = default_page
+                        if not target.startswith('/'):
+                            target = '/' + target
+                        return redirect(target)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        # Fallback: dashboard if default_page not found
+        return redirect('dashboard_admin')
+
 class DashboardData(View):
     """API endpoint untuk data dashboard dengan statistik user dan login"""
     def dispatch(self, request, *args, **kwargs):
@@ -555,14 +696,7 @@ class DashboardData(View):
                 'error': str(e)
             })
 
-# Fungsi handler untuk halaman 404
-def handler404(request, exception):
-    # Gunakan template admin khusus untuk halaman 404
-    return render(request, 'admin/404.html', status=404)
-
-# Catch-all view untuk development (DEBUG=True) agar tetap merender 404 kustom
-def dev_404(request):
-    return render(request, 'admin/404.html', status=404)
+# (Removed legacy 404 handlers)
 
 # USER MANAGEMENT   
 class DataUser(View):

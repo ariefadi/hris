@@ -1,0 +1,117 @@
+{% extends "admin_base.html" %}
+
+{% block page_title %}Add Menu{% endblock %}
+{% block page_heading %}Add Menu{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="/settings/overview">Overview</a></li>
+<li class="breadcrumb-item"><a href="/settings/sistem/menu">Menu</a></li>
+<li class="breadcrumb-item"><a href="/settings/sistem/menu/{{ portal.portal_id }}/edit">{{ portal.portal_nm }}</a></li>
+<li class="breadcrumb-item active">Add</li>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">Add Menu Item</h3>
+    <div class="card-tools">
+      <a href="/settings/sistem/menu/{{ portal.portal_id }}/edit" class="btn btn-sm btn-secondary">
+        <i class="bi bi-arrow-left"></i> Back
+      </a>
+    </div>
+  </div>
+  <div class="card-body">
+    {% if messages %}
+      {% for message in messages %}
+        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags }}{% endif %} alert-dismissible fade show" role="alert">
+          <button type="button" class="close" data-dismiss="alert">×</button>
+          {{ message }}
+        </div>
+      {% endfor %}
+    {% endif %}
+    <form method="post" action="/settings/sistem/menu/{{ portal.portal_id }}/add">
+      {% csrf_token %}
+
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label>Parent Menu</label>
+            <select id="parent_id" name="parent_id" class="form-control" style="width:100%">
+              {% for opt in parent_options %}
+                <option value="{{ opt.nav_id }}">{{ opt.label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-group">
+            <label>Nav Icon</label>
+            <input type="text" name="nav_icon" class="form-control" placeholder="e.g. bi bi-gear" />
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label>Nav Title</label>
+            <input type="text" name="nav_name" class="form-control" required />
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-group">
+            <label>Nav URL</label>
+            <input type="text" name="nav_url" class="form-control" placeholder="path/relative" />
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label>Nav Desc</label>
+            <textarea name="nav_desc" class="form-control" rows="2" placeholder="Optional description"></textarea>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="form-group">
+            <label>Nav Order</label>
+            <input type="number" name="nav_order" class="form-control" />
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="form-group">
+            <label>Active Status</label>
+            <select name="active_st" class="form-control">
+              <option value="1" selected>Active</option>
+              <option value="0">Inactive</option>
+            </select>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <div class="form-group">
+            <label>Display Status</label>
+            <select name="display_st" class="form-control">
+              <option value="1" selected>Display</option>
+              <option value="0">Hidden</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="mt-2">
+        <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Save</button>
+        <a href="/settings/sistem/menu/{{ portal.portal_id }}/edit" class="btn btn-secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  $(document).ready(function() {
+    $('#parent_id').select2({ placeholder: 'Choose parent menu', allowClear: true });
+    $.fn.select2.defaults.set("theme", "bootstrap");
+    $.fn.select2.defaults.set("width", "100%");
+  });
+</script>
+{% endblock %}

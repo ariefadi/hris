@@ -1,0 +1,81 @@
+{% extends "admin_base.html" %}
+
+{% block page_title %}Application Roles{% endblock %}
+{% block page_heading %}Application Roles{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="/settings/overview">Overview</a></li>
+<li class="breadcrumb-item"><a href="/settings/sistem/roles">Roles</a></li>
+<li class="breadcrumb-item active">Edit</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% if messages %}
+    <div aria-live="polite" aria-atomic="true" class="mb-3">
+      {% for message in messages %}
+        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show" role="alert">
+          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Update Role</h3>
+      <div class="card-tools">
+        <a href="/settings/sistem/roles" class="btn btn-sm btn-secondary">
+          <i class="bi bi-arrow-left"></i> Back
+        </a>
+      </div>
+    </div>
+    <div class="card-body">
+      <form method="post" action="/settings/sistem/roles/{{ role.role_id }}/edit">
+        {% csrf_token %}
+        <div class="row">
+          <div class="col-md-4">
+            <label for="group_id" class="form-label">Group</label>
+            <select id="group_id" name="group_id" class="form-control select2" data-placeholder="Select group">
+              <option value=""></option>
+              {% for g in groups %}
+              <option value="{{ g.group_id }}" {% if role.group_id == g.group_id %}selected{% endif %}>{{ g.group_id }} - {{ g.group_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label for="role_nm" class="form-label">Role Name</label>
+            <input type="text" class="form-control" id="role_nm" name="role_nm" value="{{ role.role_nm|default_if_none:'' }}" required>
+          </div>
+          <div class="col-md-4">
+            <label for="default_page" class="form-label">Default Page</label>
+            <input type="text" class="form-control" id="default_page" name="default_page" value="{{ role.default_page|default_if_none:'' }}" placeholder="e.g. /dashboard_admin">
+          </div>
+        </div>
+        <div class="row mt-3">
+          <div class="col-md-8">
+            <label for="role_desc" class="form-label">Description</label>
+            <input type="text" class="form-control" id="role_desc" name="role_desc" value="{{ role.role_desc|default_if_none:'' }}">
+          </div>
+        </div>
+        <div class="mt-3">
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-save"></i> Update Role
+          </button>
+          <a href="/settings/sistem/roles" class="btn btn-secondary">Back</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script>
+  $(function(){
+    $('.select2').select2({ theme: 'bootstrap4', width: '100%' });
+  });
+</script>
+{% endblock %}

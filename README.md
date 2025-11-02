@@ -1,13 +1,19 @@
 # HRIS - Human Resource Information System
 
-Sistem informasi manajemen SDM dengan integrasi Facebook Ads dan Google Ads Manager.
+Sistem informasi manajemen SDM dengan integrasi Facebook Ads dan Google Ad Manager and Adsense.
+
+## Requirements
+
+- **Python 3.11** or Maks 3.13
+- Redis server
+- MySQL database
 
 ## Features
 
 - **Facebook Ads Management**: Dashboard untuk monitoring dan analisis Facebook Ads insights
 - **Redis Caching**: Sistem caching untuk meningkatkan performa dan mengatasi rate limit API
 - **Google OAuth2**: Autentikasi menggunakan Google OAuth2
-- **Google Ads Integration**: Integrasi dengan Google Ads Manager
+- **Google Ad Manager and Adsense Integration**: Integrasi dengan Google Ad Manager dan Adsense
 - **Real-time Analytics**: Dashboard real-time untuk monitoring campaign performance
 
 ## Setup
@@ -24,38 +30,37 @@ pip install -r requiredment.txt
 ```
 
 ### 3. Environment Variables
-Copy `.env.example` ke `.env` dan isi dengan nilai yang sesuai:
+Copy file `.env.example` menjadi `.env`:
 ```bash
+# Windows (Command Prompt)
+copy .env.example .env
+
+# Windows (PowerShell)
+Copy-Item .env.example .env
+
+# Linux/Mac
 cp .env.example .env
 ```
 
-Edit file `.env` dan isi dengan konfigurasi Anda:
+Kemudian edit file `.env` dan isi dengan konfigurasi Anda:
 ```env
 # Django Configuration
-DJANGO_SECRET_KEY=your-actual-secret-key-here
+DJANGO_SECRET_KEY=your-secret-key-here
 DEBUG=True
 
+# Database Configuration
+DB_NAME=hris_trendhorizone
+DB_USER=root
+DB_PASSWORD=
+DB_HOST=localhost
+DB_PORT=3306
+
 # Google OAuth2 Configuration
-GOOGLE_OAUTH2_KEY=your-google-oauth2-key
-GOOGLE_OAUTH2_SECRET=your-google-oauth2-secret
-
-# Facebook API Configuration
-FACEBOOK_APP_ID=your-facebook-app-id
-FACEBOOK_APP_SECRET=your-facebook-app-secret
-FACEBOOK_ACCESS_TOKEN=your-facebook-access-token
+GOOGLE_OAUTH2_CLIENT_ID=your-google-oauth2-client-id
+GOOGLE_OAUTH2_CLIENT_SECRET=your-google-oauth2-client-secret
 ```
 
-### 4. Setup Google Ads API
-Buat file `googleads.yaml` di root directory:
-```yaml
-developer_token: 'YOUR_DEVELOPER_TOKEN'
-client_id: 'YOUR_CLIENT_ID'
-client_secret: 'YOUR_CLIENT_SECRET'
-refresh_token: 'YOUR_REFRESH_TOKEN'
-customer_id: 'YOUR_CUSTOMER_ID'
-```
-
-### 5. Setup Redis
+### 4. Setup Redis
 Install dan jalankan Redis server:
 ```bash
 # macOS
@@ -67,12 +72,12 @@ sudo apt-get install redis-server
 sudo systemctl start redis-server
 ```
 
-### 6. Database Migration
+### 5. Database Migration
 ```bash
 python manage.py migrate
 ```
 
-### 7. Run Server
+### 6. Run Server
 ```bash
 python manage.py runserver
 ```
@@ -81,7 +86,6 @@ python manage.py runserver
 
 ⚠️ **PENTING**: Jangan pernah commit file yang mengandung secrets ke repository!
 
-- File `googleads.yaml` sudah di-exclude di `.gitignore`
 - File `.env` sudah di-exclude di `.gitignore`
 - Gunakan environment variables untuk semua konfigurasi sensitif
 - File `.env.example` hanya berisi template, bukan nilai sebenarnya
@@ -101,95 +105,34 @@ Sistem menggunakan Redis untuk caching Facebook API responses:
 - Budget management
 - Status tracking
 
-### Google Ads Manager
-- Ad inventory management
+### Google Ad Manager and Adsense
 - Revenue reporting
 - Traffic analytics
 
-## Google Ads & Ad Manager Configuration
+## OAuth2 Configuration
 
-### 1. Google Ads API Setup
+For Google OAuth2 authentication, you need to configure the following in your Google Cloud Console:
 
-1. **Create Google Cloud Project**:
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Create a new project or select existing one
-   - Enable Google Ads API
+### Required OAuth2 Credentials:
+- **Client ID**: Your Google OAuth2 client ID
+- **Client Secret**: Your Google OAuth2 client secret
 
-2. **Create OAuth2 Credentials**:
-   - Go to APIs & Services > Credentials
-   - Create OAuth 2.0 Client ID (Desktop Application)
-   - Download the credentials JSON file
+### Authorized Redirect URIs:
+Add these callback URLs to your Google Cloud Console OAuth2 client configuration:
+- `https://kiwipixel.com/accounts/complete/google-oauth2/`
+- `https://kiwipixel.com/management/admin/oauth/callback/`
 
-3. **Get Refresh Token**:
-   ```bash
-   # Install Google Ads Python library
-   pip install google-ads
-   
-   # Generate refresh token using OAuth2 flow
-   python -c "from google.ads.googleads.oauth2 import get_refresh_token; get_refresh_token()"
-   ```
+### OAuth2 Scopes:
+The application requests the following scopes for full functionality:
+- `openid` - OpenID Connect authentication
+- `email` - Access to user's email address
+- `profile` - Access to user's basic profile information
+- `https://www.googleapis.com/auth/dfp` - Google Ad Manager API access
+- `https://www.googleapis.com/auth/adsense` - Google AdSense API access
+- `https://www.googleapis.com/auth/adsense.readonly` - Google AdSense read-only access
 
-4. **Set Environment Variables**:
-   ```bash
-   export GOOGLE_ADS_DEVELOPER_TOKEN="your-developer-token"
-   export GOOGLE_ADS_CLIENT_ID="your-client-id"
-   export GOOGLE_ADS_CLIENT_SECRET="your-client-secret"
-   export GOOGLE_ADS_REFRESH_TOKEN="your-refresh-token"
-   export GOOGLE_ADS_CUSTOMER_ID="your-customer-id"
-   ```
-
-### 2. Google Ad Manager Setup
-
-1. **Create Service Account**:
-   - Go to Google Cloud Console > IAM & Admin > Service Accounts
-   - Create new service account
-   - Download JSON key file
-
-2. **Grant Ad Manager Access**:
-   - Add service account email to your Ad Manager account
-   - Grant appropriate permissions (Admin or Report access)
-
-3. **Set Environment Variables**:
-   ```bash
-   export GOOGLE_AD_MANAGER_NETWORK_CODE="your-network-code"
-   export GOOGLE_AD_MANAGER_KEY_FILE="/path/to/service-account-key.json"
-   ```
-
-### 3. Configuration Files
-
-The `googleads.yaml` file uses environment variables for security:
-```yaml
-# OAuth2 credentials for installed application flow
-client_id: ${GOOGLE_ADS_CLIENT_ID}
-client_secret: ${GOOGLE_ADS_CLIENT_SECRET}
-refresh_token: ${GOOGLE_ADS_REFRESH_TOKEN}
-
-# Google Ads API configuration
-developer_token: ${GOOGLE_ADS_DEVELOPER_TOKEN}
-use_proto_plus: True
-
-# Ad Manager API configuration
-ad_manager:
-  application_name: 'AdX Manager Dashboard'
-  network_code: ${GOOGLE_AD_MANAGER_NETWORK_CODE}
-  path_to_private_key_file: ${GOOGLE_AD_MANAGER_KEY_FILE}
-```
-
-### 4. Troubleshooting
-
-**Error: "could not find some keys"**
-- Ensure all environment variables are set
-- Check `.env` file contains all required values
-- Verify `googleads.yaml` syntax is correct
-
-**Error: "Invalid refresh token"**
-- Regenerate refresh token using OAuth2 flow
-- Ensure client_id and client_secret match
-
-**Error: "Access denied"**
-- Check service account has proper Ad Manager permissions
-- Verify network_code is correct
-- Ensure service account key file path is accessible
+### Configuration:
+No JSON file is required. Simply configure the Client ID and Client Secret values in your `.env` file as shown in the Environment Variables section above.
 
 ## Development
 

@@ -1,0 +1,47 @@
+{% load nav_context %}
+{% for item in items %}
+  {% if level == 1 %}
+    {% if item.nav_url and item.nav_url != '#' %}
+      <li class="nav-item">
+        <a href="/{{ item.nav_url }}" class="nav-link {% if item.is_active %}active{% endif %}">
+          <i class="{{ item.nav_icon|default:'bi bi-circle' }}"></i>
+          <p>{{ item.nav_name }}</p>
+        </a>
+      </li>
+    {% else %}
+      <li class="nav-header"><b>{{ item.nav_name }}</b></li>
+      {% if item.children and item.children|length > 0 %}
+        {% render_menu_tree item.children current_path level|add:1 max_depth %}
+      {% endif %}
+    {% endif %}
+  {% elif level == 2 %}
+    {% if item.children and item.children|length > 0 %}
+      <li class="nav-item {% if item.is_open %}menu-open{% endif %}">
+        <a href="#" class="nav-link {% if item.is_active %}active{% endif %}">
+          <i class="{{ item.nav_icon|default:'bi bi-activity' }}"></i>
+          <p>{{ item.nav_name }} <i class="right bi bi-caret-left"></i></p>
+        </a>
+        <ul class="nav nav-treeview">
+          {% if level < max_depth %}
+            {% render_menu_tree item.children current_path level|add:1 max_depth %}
+          {% endif %}
+        </ul>
+      </li>
+    {% else %}
+      <li class="nav-item">
+        <a href="/{{ item.nav_url }}" class="nav-link {% if item.is_active %}active{% endif %}">
+          <i class="{{ item.nav_icon|default:'bi bi-activity' }}"></i>
+          <p>{{ item.nav_name }}</p>
+        </a>
+      </li>
+    {% endif %}
+  {% else %}
+    <!-- Level 3 (or deeper, but we stop at max_depth) -->
+    <li class="nav-item">
+      <a href="/{{ item.nav_url }}" class="nav-link {% if item.is_active %}active{% endif %}">
+        <i class="{{ item.nav_icon|default:'bi bi-circle' }}"></i>
+        <p>{{ item.nav_name }}</p>
+      </a>
+    </li>
+  {% endif %}
+{% endfor %}

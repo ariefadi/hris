@@ -18,6 +18,8 @@ urlpatterns = [
     # DASHBOARD
     path('admin/dashboard', views.DashboardAdmin.as_view(), name='dashboard_admin'),
     path('admin/dashboard_data', views.DashboardData.as_view(), name='dashboard_data'),
+    # Portal switching
+    path('admin/switch_portal/<str:portal_id>', views.SwitchPortal.as_view(), name='switch_portal'),
     # USER MANAGEMENT
     # Menu Data User   
     path('admin/data_user', views.DataUser.as_view(), name='data_user'),
@@ -130,5 +132,8 @@ urlpatterns = [
 
     # Utility: Import OAuth client dari environment ke app_credentials
     path('admin/app_credentials/import_env', views.ImportEnvAppCredentialsView.as_view(), name='app_credentials_import_env'),
+
+    # SETTINGS
+    path('settings/overview', views.SettingsOverview.as_view(), name='settings_overview'),
 
 ]

@@ -1,12 +1,21 @@
-{% extends 'admin/template_admin.html' %}
+{% extends "admin_base.html" %}
 {% load static %}
+{% block page_title %}Adsense Manager{% endblock %}
+
+{% block page_heading %}Adsense Manager{% endblock %}
+
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Adsense Manager</li>
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid py-3">
-  <h4 class="mb-3">AdSense Summary</h4>
-
   <!-- Filters -->
   <div class="card mb-3">
+    <div class="card-header">
+        <h3 class="card-title">AdSense Summary</h3>
+    </div> <!-- /.card-header -->
     <div class="card-body">
       <div class="row g-3 align-items-end">
         <div class="col-md-3">

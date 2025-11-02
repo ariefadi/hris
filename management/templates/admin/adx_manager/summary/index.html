@@ -1,5 +1,13 @@
-{% extends "admin/template_admin.html" %}
+{% extends "admin_base.html" %}
 {% load static %}
+{% block page_title %}Adx Manager{% endblock %}
+
+{% block page_heading %}Adx Manager{% endblock %}
+
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Adx Manager</li>
+{% endblock %}
 {% block more_stylesheet %}
 {% endblock %}
 {% block content %}  

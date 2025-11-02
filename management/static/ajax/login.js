@@ -43,9 +43,14 @@ $().ready(function () {
                         icon: 'success',
                         title: 'Berhasil Login',
                         text: data.message,
-                    }).then(() => {
-                        location.reload();
+                        timer: 2000,
+                        timerProgressBar: true,
+                        showConfirmButton: false
                     });
+                    // Redirect to admin panel after 2 seconds
+                    setTimeout(() => {
+                        location.reload();
+                    }, 2000);
                 } else {
                     Swal.fire({
                         icon: 'error',

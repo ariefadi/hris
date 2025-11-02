@@ -15,7 +15,6 @@ static/
 .env.production
 
 # Secrets and API keys
-googleads.yaml
 *.key
 *.pem
 *.p12

@@ -1,0 +1,68 @@
+{% extends "admin_base.html" %}
+
+{% block page_title %}Application Portal{% endblock %}
+{% block page_heading %}Application Portal{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="/settings/overview">Overview</a></li>
+<li class="breadcrumb-item active">Portal</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% if messages %}
+    <div aria-live="polite" aria-atomic="true" class="mb-3">
+      {% for message in messages %}
+        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show" role="alert">
+          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Update Portal</h3>
+      <div class="card-tools">
+        <a href="/settings/sistem/portal" class="btn btn-sm btn-secondary">
+          <i class="bi bi-arrow-left"></i> Back
+        </a>
+      </div>
+    </div>
+    <div class="card-body">
+      <form method="post" action="/settings/sistem/portal/{{ portal.portal_id }}/edit">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label for="portal_nm" class="form-label">Portal Name</label>
+          <input type="text" class="form-control" id="portal_nm" name="portal_nm" value="{{ portal.portal_nm|default_if_none:'' }}" required>
+        </div>
+        <div class="mb-3">
+          <label for="site_title" class="form-label">Site Title</label>
+          <input type="text" class="form-control" id="site_title" name="site_title" value="{{ portal.site_title|default_if_none:'' }}">
+        </div>
+        <div class="mb-3">
+          <label for="site_desc" class="form-label">Site Description</label>
+          <textarea class="form-control" id="site_desc" name="site_desc" rows="3">{{ portal.site_desc|default_if_none:'' }}</textarea>
+        </div>
+        <div class="mb-3">
+          <label for="meta_keyword" class="form-label">Meta Keyword</label>
+          <input type="text" class="form-control" id="meta_keyword" name="meta_keyword" value="{{ portal.meta_keyword|default_if_none:'' }}">
+        </div>
+        <div class="mb-3">
+          <label for="meta_desc" class="form-label">Meta Description</label>
+          <textarea class="form-control" id="meta_desc" name="meta_desc" rows="2">{{ portal.meta_desc|default_if_none:'' }}</textarea>
+        </div>
+        <div class="mt-3">
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-save"></i> Update Role
+          </button>
+          <a href="/settings/sistem/portal" class="btn btn-secondary">Back</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

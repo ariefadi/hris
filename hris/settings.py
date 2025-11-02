@@ -5,9 +5,10 @@ import os
 from pathlib import Path
 from pickle import FALSE
 from dotenv import load_dotenv
-import pymysql
 
-# Install PyMySQL as MySQLdb
+# Configure pymysql for Django MySQL backend
+import pymysql
+pymysql.version_info = (1, 4, 6, 'final', 0)  # Fake version to satisfy Django
 pymysql.install_as_MySQLdb()
 
 # Apply JSONField compatibility patch for social_django
@@ -46,37 +47,34 @@ except Exception:
 # Function to get credentials from database
 def get_credentials_from_db(request=None):
     """
-    Mengambil kredensial dari tabel app_oauth_credentials berdasarkan user_id dan user_mail dari session.
+    Get OAuth credentials from database with better error handling
     """
-    from management.database import data_mysql
-    # Ambil user_id dan user_mail dari request.oauth_user jika tersedia
-    user_id = None
-    user_mail = None
-    if request and hasattr(request, 'oauth_user'):
-        user_mail = request.oauth_user.get('user_mail')
-    # Ambil kredensial dari database
-    db = data_mysql()
-    credentials = db.get_user_credentials(user_mail=user_mail)
-    
-    if credentials['status'] and credentials['data']:
-        creds = credentials['data']
+    try:
+        # Import here to avoid circular imports during startup
+        from management.credential_loader import get_credentials_from_db as _get_credentials
+        return _get_credentials(request)
+    except Exception as e:
+        print(f"[SETTINGS] Error loading credentials from database: {str(e)}")
+        # Return empty dict as fallback
         return {
-            'client_id': creds['client_id'],
-            'client_secret': creds['client_secret'],
-            'refresh_token': creds['refresh_token'],
-            'network_code': creds['network_code'],
-            'developer_token': creds['developer_token']
+            'client_id': os.getenv('GOOGLE_OAUTH2_CLIENT_ID', ''),
+            'client_secret': os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET', ''),
+            'user_mail': 'fallback'
         }
-    return None
 
 # Quick-start development settings - unsuitable for production
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'your-secret-key-here')
-DEBUG = True
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'kiwipixel.com', 'www.kiwipixel.com']
+
+# Force DEBUG to True for development
+DEBUG = os.getenv('DEBUG', 'true')
+
+# ALLOWED_HOSTS configuration
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'kiwipixel.com', 'www.kiwipixel.com', '*']
 
 # Application definition
 INSTALLED_APPS = [
     'management',
+    'settings',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -112,7 +110,14 @@ ROOT_URLCONF = 'hris.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],
+        'DIRS': [
+            BASE_DIR / 'templates',  # Project-level templates
+            BASE_DIR / 'management' / 'templates',  # Management app templates
+            BASE_DIR / 'settings' / 'templates',  # Settings app templates
+            # Add other app template directories as needed:
+            # BASE_DIR / 'tasks' / 'templates',
+            # BASE_DIR / 'system' / 'templates',
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -122,6 +127,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'social_django.context_processors.backends',
                 'social_django.context_processors.login_redirect',
+                'management.context_processors.nav_context',
             ],
         },
     },
@@ -133,11 +139,11 @@ WSGI_APPLICATION = 'hris.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'hris_trendHorizone',
-        'USER': 'root',
-        'PASSWORD': '',
-        'HOST': '127.0.0.1',
-        'PORT': '3307',
+        'NAME': os.getenv('DB_NAME', 'hris_trendhorizone'),
+        'USER': os.getenv('DB_USER', 'root'),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'HOST': os.getenv('DB_HOST', '127.0.0.1'),
+        'PORT': os.getenv('DB_PORT', '3306'),
         'OPTIONS': {
             'sql_mode': 'STRICT_TRANS_TABLES',
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
@@ -149,20 +155,19 @@ DATABASES = {
 import django.db.backends.mysql.base
 import django.db.backends.mysql.features
 
-# Override mysql_server_info property
 def get_mysql_server_info(self):
-    return '10.5.0-MariaDB'
+    return '10.4.0-MariaDB'
 
-# Override mysql_is_mariadb property  
 def get_mysql_is_mariadb(self):
     return True
 
-# Override minimum_database_version property
 def get_minimum_database_version(self):
     return (10, 4)
 
+# Apply the overrides
 django.db.backends.mysql.base.DatabaseWrapper.mysql_server_info = property(get_mysql_server_info)
-django.db.backends.mysql.base.DatabaseWrapper.mysql_is_mariadb = property(get_mysql_is_mariadb)
+django.db.backends.mysql.features.DatabaseFeatures.is_sql_auto_is_null_enabled = False
+django.db.backends.mysql.features.DatabaseFeatures.mysql_is_mariadb = property(get_mysql_is_mariadb)
 django.db.backends.mysql.features.DatabaseFeatures.minimum_database_version = property(get_minimum_database_version)
 
 # SQLite Configuration (backup/fallback)
@@ -295,21 +300,35 @@ LOGIN_REDIRECT_URL = '/management/admin/oauth_redirect'
 LOGOUT_REDIRECT_URL = '/management/admin/login'
 
 
-# Load credentials from database
+# Load credentials from database (with better error handling)
 try:
-    from management.credential_loader import get_credentials_from_db
-    db_credentials = get_credentials_from_db()
-    if db_credentials and db_credentials.get('client_id'):
-        GOOGLE_OAUTH2_CLIENT_ID = db_credentials['client_id']
-        GOOGLE_OAUTH2_CLIENT_SECRET = db_credentials['client_secret']
-        GOOGLE_ADS_CLIENT_ID = db_credentials['client_id']
-        GOOGLE_ADS_CLIENT_SECRET = db_credentials['client_secret']
-        GOOGLE_ADS_REFRESH_TOKEN = db_credentials['refresh_token']
-        GOOGLE_AD_MANAGER_NETWORK_CODE = db_credentials['network_code']
-        print(f"[SETTINGS] Loaded credentials from database for user: {db_credentials.get('user_mail', 'default')}")
+    # Only try to load from database if we're not in a management command that doesn't need DB
+    import sys
+    skip_db_load = any(cmd in sys.argv for cmd in ['migrate', 'makemigrations', 'collectstatic', 'shell'])
+    
+    if not skip_db_load:
+        from management.credential_loader import get_credentials_from_db
+        db_credentials = get_credentials_from_db()
+        if db_credentials and db_credentials.get('client_id'):
+            GOOGLE_OAUTH2_CLIENT_ID = db_credentials['client_id']
+            GOOGLE_OAUTH2_CLIENT_SECRET = db_credentials['client_secret']
+            print(f"[SETTINGS] Loaded credentials from database for user: {db_credentials.get('user_mail', 'default')}")
+        else:
+            # Fallback to environment variables if no database credentials
+            GOOGLE_OAUTH2_CLIENT_ID = os.getenv('GOOGLE_OAUTH2_CLIENT_ID', '')
+            GOOGLE_OAUTH2_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET', '')
+            print("[SETTINGS] Using environment variables as fallback")
+    else:
+        # Skip database loading for management commands
+        GOOGLE_OAUTH2_CLIENT_ID = os.getenv('GOOGLE_OAUTH2_CLIENT_ID', '')
+        GOOGLE_OAUTH2_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET', '')
+        print("[SETTINGS] Skipping database credential loading for management command")
 except Exception as e:
     print(f"[SETTINGS] Could not load credentials from database: {str(e)}")
     print("[SETTINGS] Using environment variables as fallback")
+    # Fallback to environment variables if database loading fails
+    GOOGLE_OAUTH2_CLIENT_ID = os.getenv('GOOGLE_OAUTH2_CLIENT_ID', '')
+    GOOGLE_OAUTH2_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET', '')
 
 # Social Auth Configuration
 SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = GOOGLE_OAUTH2_CLIENT_ID

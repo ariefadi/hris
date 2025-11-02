@@ -1,0 +1,99 @@
+{% extends "admin_base.html" %}
+
+{% block page_title %}Application Portal{% endblock %}
+{% block page_heading %}Application Portal{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="/settings/overview">Overview</a></li>
+<li class="breadcrumb-item active">Portal</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% if messages %}
+    <div aria-live="polite" aria-atomic="true" class="mb-3">
+      {% for message in messages %}
+        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show" role="alert">
+          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+  <div class="row">
+    <div class="col-lg-6">
+      <div class="card mb-4">
+        <div class="card-header">Create New Portal</div>
+        <div class="card-body">
+          <form method="post" action="/settings/sistem/portal/create">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label for="portal_nm" class="form-label">Portal Name</label>
+              <input type="text" class="form-control" id="portal_nm" name="portal_nm" required>
+            </div>
+            <div class="mb-3">
+              <label for="site_title" class="form-label">Site Title</label>
+              <input type="text" class="form-control" id="site_title" name="site_title">
+            </div>
+            <div class="mb-3">
+              <label for="site_desc" class="form-label">Site Description</label>
+              <textarea class="form-control" id="site_desc" name="site_desc" rows="3"></textarea>
+            </div>
+            <div class="mb-3">
+              <label for="meta_keyword" class="form-label">Meta Keyword</label>
+              <input type="text" class="form-control" id="meta_keyword" name="meta_keyword">
+            </div>
+            <div class="mb-3">
+              <label for="meta_desc" class="form-label">Meta Description</label>
+              <textarea class="form-control" id="meta_desc" name="meta_desc" rows="2"></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Create Portal</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-lg-6">
+      <div class="card mb-4">
+        <div class="card-header">Existing Portals</div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-striped table-hover">
+              <thead>
+                <tr>
+                  <th>Portal ID</th>
+                  <th>Name</th>
+                  <th>Site Title</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in portals %}
+                <tr>
+                  <td>{{ p.portal_id }}</td>
+                  <td>{{ p.portal_nm }}</td>
+                  <td>{{ p.site_title }}</td>
+                  <td>
+                    <a href="/settings/sistem/portal/{{ p.portal_id }}/edit" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
+                    <form method="post" action="/settings/sistem/portal/{{ p.portal_id }}/delete" style="display:inline">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete portal {{ p.portal_nm }}?')"><i class="bi bi-trash"></i></button>
+                    </form>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="4" class="text-muted">No portals found.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -5,8 +5,8 @@ pandas==1.5.3
 # pycrypt==0.7.2
 # pycrypto==2.6.1
 pycryptodome==3.20.0
-PyMySQL==1.0.2
 python-dateutil==2.8.2
+PyMySQL==1.0.2
 pytz==2021.3
 six==1.16.0
 sqlparse>=0.4.4
@@ -28,7 +28,7 @@ django-redis==5.2.0
 python-dotenv==1.0.0
 zeep==4.1.0
 iso3166==2.1.1
-mysqlclient>=2.1.0
+# mysqlclient>=2.1.0
 django-extensions>=4.1
 geopy==2.4.1
 pycountry==22.3.5

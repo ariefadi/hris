@@ -1,5 +1,13 @@
-{% extends "admin/template_admin.html" %}
+{% extends "admin_base.html" %}
 {% load static %}
+
+{% block page_title %}Data Login User{% endblock %}
+{% block page_heading %}Data Login User{% endblock %}
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Login Activity</li>
+{% endblock %}
+
 {% block more_stylesheet %}
 {% endblock %}
 {% block content %}  
