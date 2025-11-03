@@ -21,6 +21,10 @@ from operator import itemgetter
 import tempfile
 from django.core.files.storage import FileSystemStorage
 from django.template.loader import render_to_string
+from django.contrib import messages
+from hris.mail import send_mail
+from argon2 import PasswordHasher
+import random
 # Pandas can fail to import if numpy binary is incompatible; avoid crashing at module load
 try:
     import pandas as pd
@@ -533,6 +537,73 @@ class LogoutAdmin(View):
         finally:
             req.session.flush()
         return redirect('admin_login')
+
+class ForgotPasswordView(View):
+    def get(self, req):
+        data = {
+            'title': 'Forgot Password'
+        }
+        return render(req, 'admin/forgot_password.html', data)
+
+    def post(self, req):
+        username = req.POST.get('username', '').strip()
+        email = req.POST.get('email', '').strip()
+
+        if not username or not email:
+            messages.error(req, 'Username and email are required.')
+            return redirect('forgot_password')
+
+        try:
+            db = data_mysql()
+            sql = """
+                SELECT user_id, user_mail
+                FROM app_users
+                WHERE user_name = %s AND user_mail = %s
+                LIMIT 1
+            """
+            has_row = db.execute_query(sql, (username, email))
+            row = db.cur_hris.fetchone() if has_row else None
+
+            if not row:
+                messages.error(req, 'Record not found. Please check your username and email.')
+                return redirect('forgot_password')
+
+            # Generate new 6-digit password
+            new_password_plain = f"{random.randint(0, 999999):06d}"
+
+            # Hash using Argon2
+            ph = PasswordHasher()
+            new_hash = ph.hash(new_password_plain)
+
+            # Update password in database
+            update_sql = "UPDATE app_users SET user_pass = %s WHERE user_id = %s"
+            user_id = row.get('user_id') if isinstance(row, dict) else (row[0] if row else None)
+            db.execute_query(update_sql, (new_hash, user_id))
+            db.commit()
+
+            # Send email with the new password
+            subject = 'Reset Password HRIS'
+            context = {
+                'subject': subject,
+                'body': f'Your new password is: {new_password_plain}. Please log in and change it immediately.',
+                'brand_name': getattr(settings, 'BRAND_NAME', 'Trend Horizone')
+            }
+            try:
+                send_mail(to=[email], subject=subject, template='emails/simple.html', context=context)
+            except Exception as e:
+                print(f"[ERROR] Failed to send reset password email: {e}")
+                messages.warning(req, 'Password has been reset, but email failed to send.')
+                return redirect('admin_login')
+
+            messages.success(req, 'A new password has been sent to your email.')
+            return redirect('admin_login')
+
+        except Exception as e:
+            print(f"[ERROR] ForgotPasswordView: {e}")
+            import traceback
+            print(traceback.format_exc())
+            messages.error(req, 'An error occurred while processing your request.')
+            return redirect('forgot_password')
 
 # DASHBOARD
 class DashboardAdmin(View):

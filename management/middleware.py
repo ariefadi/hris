@@ -32,6 +32,7 @@ class AuthMiddleware:
         excluded_paths = [
             reverse('admin_login'),
             reverse('admin_login_process'),
+            reverse('forgot_password'),
             '/accounts/login/google-oauth2/',
             '/accounts/complete/google-oauth2/',
             reverse('oauth_redirect'),
@@ -42,6 +43,21 @@ class AuthMiddleware:
             reverse('generate_oauth_url_api'),
             reverse('oauth_callback_api')
         ]
+
+        # Abaikan request untuk static/media/favicon/vite agar tidak men-trigger alert berulang
+        excluded_prefixes = []
+        try:
+            excluded_prefixes.extend([
+                getattr(settings, 'STATIC_URL', '/static/'),
+                getattr(settings, 'MEDIA_URL', '/media/')
+            ])
+        except Exception:
+            # Default prefix jika settings tidak tersedia
+            excluded_prefixes.extend(['/static/', '/media/'])
+        excluded_prefixes.extend(['/favicon.ico', '/@vite'])
+
+        if any(request.path.startswith(prefix) for prefix in excluded_prefixes):
+            return self.get_response(request)
         
         # Cek apakah user sudah login
         if not request.session.get('hris_admin'):
