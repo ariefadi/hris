@@ -70,8 +70,8 @@ function table_data_user() {
                     event_data += '<td class="text-center"><span class="badge badge-danger" style="color: white;">Tidak Aktif</span></td>';
                 }
                 event_data += '<td class="text-center">' +
-                    '<button type="button" class="btn btn-warning btn-xs btn-edit-user me-1" data-user-id="' + value.user_id + '"><i class="bi bi-pencil"></i> Edit</button>'  +
-                    '<button type="button" class="btn btn-danger btn-xs btn-delete-user" data-user-id="' + value.user_id + '"><i class="bi bi-trash"></i> Delete</button>' +
+                    '<button type="button" class="btn btn-warning btn-xs btn-edit-user me-1" data-user-id="' + value.user_id + '"><i class="bi bi-pencil"></i></button>'  +
+                    '<button type="button" class="btn btn-danger btn-xs btn-delete-user" data-user-id="' + value.user_id + '"><i class="bi bi-trash"></i></button>' +
                     '</td>';
                 event_data += '</tr>';  
                 $("#table_data_user tbody").append(event_data);    

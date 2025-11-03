@@ -1,0 +1,8 @@
+{% extends 'emails/base2.html' %}
+
+{% block title %}{{ subject|default:'HRiS Notification' }}{% endblock %}
+{% block preheader %}{{ preheader|default:'' }}{% endblock %}
+
+{% block content %}
+{{ body|safe }}
+{% endblock %}

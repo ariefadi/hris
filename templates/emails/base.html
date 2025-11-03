@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>{% block title %}HRiS Notification{% endblock %}</title>
+    <style>
+      /* Basic reset for consistent rendering */
+      body { margin: 0; padding: 0; background-color: #f5f7fb; color: #333; }
+      img { border: none; -ms-interpolation-mode: bicubic; max-width: 100%; }
+      table { border-collapse: separate; width: 100%; }
+      .container { max-width: 620px; margin: 0 auto; }
+      .card { background: #ffffff; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
+      .header { padding: 24px; text-align: center; }
+      .brand { font-family: Arial, Helvetica, sans-serif; font-size: 20px; font-weight: 700; color: #0b5ed7; letter-spacing: 0.3px; }
+      .content { padding: 24px; font-family: Arial, Helvetica, sans-serif; line-height: 1.6; font-size: 14px; }
+      .btn { display: inline-block; padding: 12px 18px; background: #0b5ed7; color: #fff !important; text-decoration: none; border-radius: 6px; font-weight: 600; }
+      .muted { color: #6c757d; }
+      .footer { padding: 16px 24px; text-align: center; font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #6c757d; }
+      .divider { height: 1px; background: #e9ecef; margin: 0 24px; }
+      @media only screen and (max-width: 620px) {
+        .container { width: 100% !important; }
+        .content { padding: 16px !important; }
+        .header { padding: 16px !important; }
+        .footer { padding: 16px !important; }
+      }
+      /* Preheader: preview text in inbox */
+      .preheader { display:none!important; visibility:hidden; opacity:0; color:transparent; height:0; width:0; }
+    </style>
+  </head>
+  <body>
+    <!-- Preheader text -->
+    <span class="preheader">{% block preheader %}{% endblock %}</span>
+
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" align="center" class="container">
+      <tr>
+        <td style="padding: 24px 12px;">
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" class="card">
+            <tr>
+              <td class="header">
+                <div class="brand">{% block brand %}HRiS Trend Horizone{% endblock %}</div>
+              </td>
+            </tr>
+            <tr>
+              <td><div class="divider"></div></td>
+            </tr>
+            <tr>
+              <td class="content">
+                {% block content %}
+                <p>Hi,</p>
+                <p>There is a new notification from HRiS.</p>
+                {% endblock %}
+              </td>
+            </tr>
+            <tr>
+              <td><div class="divider"></div></td>
+            </tr>
+            <tr>
+              <td class="footer">
+                {% block footer %}
+                <p class="muted">This email was sent by HRiS Trend Horizone. Please do not reply directly to this message.</p>
+                <p class="muted">&copy; {% now "Y" %} Trend Horizone. All rights reserved.</p>
+                {% endblock %}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+  </html>

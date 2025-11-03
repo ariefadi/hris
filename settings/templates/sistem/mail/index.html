@@ -1,0 +1,180 @@
+{% extends 'admin_base.html' %}
+
+{% block page_title %}Mail Sender{% endblock %}
+{% block page_heading %}Mail Sender{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="/settings/overview">Settings</a></li>
+<li class="breadcrumb-item active">Mail</li>
+{% endblock %}
+
+{% load static %}
+
+{% block content %}
+<div class="container-fluid"> 
+    <div class="card mb-4">
+        <div class="card-header">Kirim Email</div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data" action="">
+                {% csrf_token %}
+                <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">To (pisahkan dengan koma)</label>
+                    <input type="text" class="form-control" name="to" placeholder="user@example.com, admin@example.com" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Subject</label>
+                    <input type="text" class="form-control" name="subject" placeholder="Judul email" required>
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">CC</label>
+                    <input type="text" class="form-control" name="cc" placeholder="opsional, pisahkan dengan koma">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">BCC</label>
+                    <input type="text" class="form-control" name="bcc" placeholder="opsional, pisahkan dengan koma">
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label">Reply-To</label>
+                    <input type="text" class="form-control" name="reply_to" placeholder="opsional, pisahkan dengan koma">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">From Address</label>
+                    <input type="email" class="form-control" name="from_address" placeholder="opsional">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">From Name</label>
+                    <input type="text" value="Trend Horizone" class="form-control" name="from_name" placeholder="opsional">
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label">Body</label>
+                    <!-- Quill Editor Container -->
+                    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet" />
+                    <!-- Load requested Google Fonts -->
+                    <link rel="preconnect" href="https://fonts.googleapis.com">
+                    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+                    <link href="https://fonts.googleapis.com/css2?family=Sofia&family=Slabo+27px&family=Roboto:wght@400;700&family=Inconsolata:wght@400;700&family=Ubuntu:wght@400;700&display=swap" rel="stylesheet">
+                    <!-- Style font picker labels and font classes -->
+                    <style>
+                      /* Dropdown item labels preview */
+                      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="sofia"]::before,
+                      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="sofia"]::before {
+                        content: 'Sofia';
+                        font-family: 'Sofia', sans-serif;
+                      }
+                      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="slabo"]::before,
+                      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="slabo"]::before {
+                        content: 'Slabo 27px';
+                        font-family: 'Slabo 27px', serif;
+                      }
+                      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="roboto"]::before,
+                      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="roboto"]::before {
+                        content: 'Roboto';
+                        font-family: 'Roboto', sans-serif;
+                      }
+                      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="inconsolata"]::before,
+                      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="inconsolata"]::before {
+                        content: 'Inconsolata';
+                        font-family: 'Inconsolata', monospace;
+                      }
+                      .ql-snow .ql-picker.ql-font .ql-picker-label[data-value="ubuntu"]::before,
+                      .ql-snow .ql-picker.ql-font .ql-picker-item[data-value="ubuntu"]::before {
+                        content: 'Ubuntu';
+                        font-family: 'Ubuntu', sans-serif;
+                      }
+
+                      /* Apply selected font classes in the editor */
+                      .ql-font-sofia { font-family: 'Sofia', sans-serif; }
+                      .ql-font-slabo { font-family: 'Slabo 27px', serif; }
+                      .ql-font-roboto { font-family: 'Roboto', sans-serif; }
+                      .ql-font-inconsolata { font-family: 'Inconsolata', monospace; }
+                      .ql-font-ubuntu { font-family: 'Ubuntu', sans-serif; }
+                    </style>
+                    <div id="quill-editor" style="height: 250px; background: #fff;"></div>
+                    <!-- Hidden input to submit HTML -->
+                    <input type="hidden" name="body" id="body-html" />
+                    <div class="form-check mt-2">
+                      <input class="form-check-input" type="checkbox" value="on" id="is_html" name="is_html" checked>
+                      <label class="form-check-label" for="is_html">Treat body as HTML</label>
+                    </div>
+                    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.min.js"></script>
+                    <script>
+                      (function() {
+                        // Use CLASS attributor for font per Quill docs, with custom whitelist
+                        var Font = Quill.import('attributors/class/font');
+                        Font.whitelist = ['sofia', 'slabo', 'roboto', 'inconsolata', 'ubuntu', 'serif', 'sans-serif', 'monospace'];
+                        Quill.register(Font, true);
+                        var Size = Quill.import('attributors/style/size');
+                        Quill.register(Size, true);
+
+                        // Define full-feature toolbar using array container (Quill v2)
+                        var toolbarOptions = [
+                          [{ 'font': ['sofia', 'slabo', 'roboto', 'inconsolata', 'ubuntu', 'serif', 'sans-serif', 'monospace'] }],
+                          [{ 'size': ['small', false, 'large', 'huge'] }],
+                          [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+                          ['bold', 'italic', 'underline', 'strike'],
+                          [{ 'color': [] }, { 'background': [] }],
+                          [{ 'script': 'sub' }, { 'script': 'super' }],
+                          ['blockquote', 'code-block'],
+                          [{ 'list': 'ordered' }, { 'list': 'bullet' }, { 'list': 'check' }],
+                          [{ 'indent': '-1' }, { 'indent': '+1' }],
+                          [{ 'direction': 'rtl' }],
+                          [{ 'align': [] }],
+                          ['link', 'image', 'video'],
+                          ['clean']
+                        ];
+
+                        var quill = new Quill('#quill-editor', {
+                          modules: { toolbar: toolbarOptions },
+                          theme: 'snow',
+                          placeholder: 'Tulis isi email di sini…'
+                        });
+                        // Populate from server if needed (optional)
+                        // Submit HTML to hidden input
+                        var form = document.querySelector('form');
+                        form.addEventListener('submit', function() {
+                          // Convert class-based fonts to inline styles for better email client support
+                          var html = quill.root.innerHTML;
+                          var tmp = document.createElement('div');
+                          tmp.innerHTML = html;
+                          var fontMap = {
+                            'sofia': "'Sofia', sans-serif",
+                            'slabo': "'Slabo 27px', serif",
+                            'roboto': "'Roboto', sans-serif",
+                            'inconsolata': "'Inconsolata', monospace",
+                            'ubuntu': "'Ubuntu', sans-serif",
+                            'serif': 'serif',
+                            'sans-serif': 'sans-serif',
+                            'monospace': 'monospace'
+                          };
+                          Object.keys(fontMap).forEach(function(key) {
+                            var nodes = tmp.querySelectorAll('.ql-font-' + key);
+                            nodes.forEach(function(node) {
+                              var current = node.getAttribute('style') || '';
+                              node.setAttribute('style', (current + '; font-family: ' + fontMap[key]).trim());
+                            });
+                          });
+                          document.getElementById('body-html').value = tmp.innerHTML;
+                        });
+                      })();
+                    </script>
+                </div>
+
+                <div class="col-12">
+                    <label class="form-label">Attachments</label>
+                    <input type="file" class="form-control" name="attachments" multiple>
+                    <small class="text-muted">Anda dapat memilih lebih dari satu file.</small>
+                </div>
+
+                <div class="col-12 mt-3">
+                    <button type="submit" class="btn btn-primary">Kirim Email</button>
+                </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

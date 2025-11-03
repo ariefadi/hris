@@ -15,6 +15,7 @@ Sistem informasi manajemen SDM dengan integrasi Facebook Ads dan Google Ad Manag
 - **Google OAuth2**: Autentikasi menggunakan Google OAuth2
 - **Google Ad Manager and Adsense Integration**: Integrasi dengan Google Ad Manager dan Adsense
 - **Real-time Analytics**: Dashboard real-time untuk monitoring campaign performance
+ - **Mail Utility**: Kirim email via SMTP dengan antarmuka mirip Laravel Mail
 
 ## Setup
 
@@ -58,6 +59,19 @@ DB_PORT=3306
 # Google OAuth2 Configuration
 GOOGLE_OAUTH2_CLIENT_ID=your-google-oauth2-client-id
 GOOGLE_OAUTH2_CLIENT_SECRET=your-google-oauth2-client-secret
+```
+
+Tambahkan konfigurasi Mail (SMTP) di `.env`:
+```env
+# Mail Configuration
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=cs.extools@gmail.com
+MAIL_PASSWORD=cfvgewmrevypiscx
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS=account@trendhorizone.id
+MAIL_FROM_NAME="HRiS Trend Horizone"
 ```
 
 ### 4. Setup Redis
@@ -154,6 +168,7 @@ hris/
 - `hris/settings.py`: Django configuration dengan Redis setup
 - `.gitignore`: Security exclusions
 - `.env.example`: Environment variables template
+ - `hris/mail/`: Utilitas pengiriman email (builder & fungsi cepat)
 
 ## Contributing
 
@@ -166,3 +181,42 @@ hris/
 ## License
 
 Private project - All rights reserved.
+## Mail Usage
+
+Kirim email dari file mana pun dengan antarmuka mirip Laravel.
+
+- Quick helper:
+
+```python
+from hris.mail import send_mail
+
+send_mail(
+    to=['user@example.com', 'admin@example.com'],
+    subject='Welcome to HRIS',
+    template='emails/simple.html',  # opsional: gunakan template Django
+    context={'name': 'Hendrik', 'body': body, 'subject': subject, 'brand_name': from_name or 'HRiS Trend Horizone'},     # data untuk template
+    attachments=['/path/to/file.pdf']  # dukungan lampiran (path atau bytes)
+)
+```
+
+- Fluent builder:
+
+```python
+from hris.mail import Mail
+
+Mail.to('user@example.com') \
+    .cc(['manager@example.com']) \
+    .subject('Weekly Report') \
+    .view('emails/report.html', {'week': 44, 'summary': 'OK'}) \
+    .attach(file_path='reports/week_44.xlsx') \
+    .send()
+```
+
+Konfigurasi diambil otomatis dari `.env` (atau `settings`) menggunakan `python-dotenv`:
+
+- `MAIL_MAILER`: `smtp` (default) atau backend Django lainnya
+- `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`
+- `MAIL_ENCRYPTION`: `tls` atau `ssl`
+- `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`
+
+Jika menggunakan template, pastikan direktori template telah diset di `hris/settings.py` sesuai panduan `TEMPLATE_SETTINGS_UPDATE.md`.

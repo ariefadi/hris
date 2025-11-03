@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>{% block title %}HRiS Notification{% endblock %}</title>
+    <style>
+        /* Preheader: preview text in inbox */
+      .preheader { display:none!important; visibility:hidden; opacity:0; color:transparent; height:0; width:0; }
+      .muted { color: #a1aab3; }
+      blockquote{
+        margin: 0 0 12px 0;
+        padding: 12px 24px;
+        background-color: #f0f4ff;
+        border-radius: 8px;
+        border-left: 4px solid #0D28F0;
+      }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f8f9fa;">
+    <span class="preheader">{% block preheader %}{% endblock %}</span>
+<table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f8f9fa;">
+    <tr>
+        <td style="padding: 40px 20px;">
+            <!-- Main Container -->
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden;">
+                    
+                <!-- Header -->
+                <tr>
+                    <td style="background-color: #0D28F0; padding: 50px 40px; text-align: center;">
+                        <h1 style="margin: 0; color: #ffffff; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">{{ brand_name|default:'Trend Horizone' }}</h1>
+                        <p style="margin: 12px 0 0 0; color: #ffffff; font-size: 16px; opacity: 0.9; font-weight: 400;">Tetap terdepan dalam tren</p>
+                    </td>
+                </tr>
+                
+                <!-- Content -->
+                <tr>
+                    <td style="padding: 50px 40px;">
+                        {% block content %}
+                        <h2>Hey there! 👋</h2>
+                        <p>There is a new notification from HRiS.</p>
+                        {% endblock %}
+                    </td>
+                </tr>
+                
+                <!-- Divider -->
+                <tr>
+                    <td style="padding: 0 40px;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                            <tr>
+                                <td style="border-top: 2px solid #e2e8f0;"></td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                    
+                    <!-- Footer -->
+                <tr>
+                    <td style="padding: 40px; text-align: center; background-color: #fafbfc;">  
+                        {% block footer %}
+                        <p style="margin: 0 0 12px 0; color: #718096; font-size: 15px; line-height: 1.6;">
+                            <p class="muted">This email was sent by HRiS Trend Horizone. Please do not reply directly to this message.</p>
+                            <strong style="color: #2d3748;">{{ brand_name|default:'Trend Horizone' }}</strong><br>
+                            Jl. Pelita 1, RT 02 Desa Talang Lindung, Kecamatan Sungai Bungkal<br>
+                            Kota Sungai Penuh, Jambi, Indonesia
+                        </p>    
+                        <p style="margin: 0; color: #cbd5e0; font-size: 13px;">&copy; {% now "Y" %} {{ brand_name|default:'Trend Horizone' }}. All rights reserved.</p>
+                        {% endblock %}
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

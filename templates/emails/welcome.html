@@ -1,0 +1,31 @@
+{% extends 'emails/base.html' %}
+
+{% block title %}Welcome to HRiS{% endblock %}
+{% block preheader %}Welcome aboard — your access is ready.{% endblock %}
+
+{% block content %}
+<p>Hi {{ name|default:'there' }},</p>
+
+<p>Welcome to <strong>HRiS Trend Horizone</strong> — we’re excited to have you on board.</p>
+
+<p class="muted">Here’s a quick summary:</p>
+<ul style="padding-left:18px; margin-top:8px; margin-bottom:8px;">
+  <li>Your account is active and ready to use</li>
+  <li>You can manage campaigns and permissions from the dashboard</li>
+  <li>Need help? Our support is just one click away</li>
+  {% if extra_points %}
+    {% for point in extra_points %}
+      <li>{{ point }}</li>
+    {% endfor %}
+  {% endif %}
+  </ul>
+
+{% if action_url %}
+  <p style="margin: 20px 0;">
+    <a href="{{ action_url }}" class="btn">Go to Dashboard</a>
+  </p>
+{% endif %}
+
+<p>If you didn’t expect this email, please ignore it.</p>
+<p>Cheers,<br><strong>HRiS Team</strong></p>
+{% endblock %}

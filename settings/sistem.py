@@ -6,6 +6,8 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from settings.database import data_mysql
 from datetime import datetime
+from hris.mail import send_mail, Mail
+import re
 
 class Overview(View):
     def get(self, request):
@@ -1101,7 +1103,6 @@ class PermissionsProcessView(View):
         if not role_id or not portal_id:
             messages.error(request, 'Portal atau Role tidak valid.')
             return redirect('/settings/sistem/permissions')
-
         db = data_mysql()
         ok = True
         try:
@@ -1139,5 +1140,89 @@ class PermissionsProcessView(View):
             messages.success(request, 'Data berhasil disimpan')
         else:
             messages.error(request, 'Data gagal disimpan')
-
         return redirect(f'/settings/sistem/permissions/access_update/{role_id}?portal_id={portal_id}')
+
+class MailIndexView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        context = {
+            'user': admin,
+        }
+        return render(request, 'sistem/mail/index.html', context)
+
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+
+        def parse_emails(raw: str):
+            parts = re.split(r'[;,\s]+', raw or '')
+            return [p for p in (x.strip() for x in parts) if p]
+
+        to_raw = request.POST.get('to', '')
+        cc_raw = request.POST.get('cc', '')
+        bcc_raw = request.POST.get('bcc', '')
+        reply_to_raw = request.POST.get('reply_to', '')
+        subject = request.POST.get('subject', '').strip()
+        body = request.POST.get('body', '')
+        is_html = request.POST.get('is_html', '') == 'on'
+        from_address = request.POST.get('from_address', '').strip() or None
+        from_name = request.POST.get('from_name', '').strip() or None
+
+        if not to_raw or not subject:
+            messages.error(request, 'Kolom To dan Subject wajib diisi.')
+            return redirect('/settings/sistem/mail')
+
+        to = parse_emails(to_raw)
+        cc = parse_emails(cc_raw)
+        bcc = parse_emails(bcc_raw)
+        reply_to = parse_emails(reply_to_raw)
+
+        # Handle attachments
+        attachments = []
+        for f in request.FILES.getlist('attachments'):
+            try:
+                content = f.read()
+                attachments.append((f.name, content, getattr(f, 'content_type', None)))
+            except Exception:
+                messages.warning(request, f'Gagal membaca lampiran: {f.name}')
+
+        try:
+            if is_html:
+                # Render HTML inside base layout content block
+                ok = send_mail(
+                    to=to,
+                    subject=subject,
+                    template='emails/simple.html',
+                    context={'body': body, 'subject': subject, 'brand_name': from_name or 'HRiS Trend Horizone'},
+                    attachments=attachments,
+                    cc=cc or None,
+                    bcc=bcc or None,
+                    reply_to=reply_to or None,
+                    from_address=from_address,
+                    from_name=from_name,
+                )
+            else:
+                # Send plain text and include HTML rendering for better client support
+                ok = send_mail(
+                    to=to,
+                    subject=subject,
+                    body=body,
+                    template='emails/simple.html',
+                    context={'body': body, 'subject': subject, 'brand_name': from_name or 'HRiS Trend Horizone'},
+                    attachments=attachments,
+                    cc=cc or None,
+                    bcc=bcc or None,
+                    reply_to=reply_to or None,
+                    from_address=from_address,
+                    from_name=from_name,
+                )
+            if ok:
+                messages.success(request, 'Email berhasil dikirim.')
+            else:
+                messages.error(request, 'Email gagal dikirim.')
+        except Exception as e:
+            messages.error(request, f'Gagal mengirim email: {e}')
+
+        return redirect('/settings/sistem/mail')

@@ -4,7 +4,7 @@
 {% block page_heading %}Permissions{% endblock %}
 
 {% block breadcrumbs %}
-<li class="breadcrumb-item"><a href="/settings/overview">Overview</a></li>
+<li class="breadcrumb-item"><a href="/settings/overview">Settings</a></li>
 <li class="breadcrumb-item active">Permissions</li>
 {% endblock %}
 
@@ -35,7 +35,7 @@
               </td>
               <td>{{ r.default_page }}</td>
               <td class="text-center">
-                <a href="/settings/sistem/permissions/access_update/{{ r.role_id }}" class="btn btn-sm btn-success" title="Edit Access">
+                <a href="/settings/sistem/permissions/access_update/{{ r.role_id }}" class="btn btn-sm btn-warning" title="Edit Access">
                   <i class="bi bi-pencil"></i>
                 </a>
               </td>
