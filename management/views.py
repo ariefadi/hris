@@ -585,7 +585,7 @@ class ForgotPasswordView(View):
             subject = 'Reset Password HRIS'
             context = {
                 'subject': subject,
-                'body': f'Your new password is: {new_password_plain}. Please log in and change it immediately.',
+                'body': f'<p>Your new password is: <b>{new_password_plain}</b>. Please log in and change it immediately.</p>',
                 'brand_name': getattr(settings, 'BRAND_NAME', 'Trend Horizone')
             }
             try:
