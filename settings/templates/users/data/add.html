@@ -1,0 +1,135 @@
+{% extends "admin_base.html" %}
+{% load static %}
+
+{% block page_title %}Tambah User{% endblock %}
+{% block page_heading %}Tambah User{% endblock %}
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'users_data' %}">Users</a></li>
+    <li class="breadcrumb-item active">Tambah</li>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title"><b><i class="bi bi-person-plus"></i> Form Tambah User</b></h3>
+    <div class="card-tools">
+        <a href="{% url 'users_data' %}" class="btn btn-sm btn-secondary">
+          <i class="bi bi-arrow-left"></i> Kembali
+        </a>
+      </div>
+  </div>
+  <div class="card-body">
+    <ul class="nav nav-tabs" role="tablist">
+      <li class="nav-item">
+        <a class="nav-link active" data-toggle="tab" href="#tab-user-detail" role="tab">User Detail</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-toggle="tab" href="#tab-set-roles" role="tab">Set Roles</a>
+      </li>
+    </ul>
+    <div class="tab-content pt-3">
+      <!-- Tab: User Detail -->
+      <div class="tab-pane fade show active" id="tab-user-detail" role="tabpanel">
+        <form method="post" action="{% url 'users_data_create' %}">
+          {% csrf_token %}
+          <div class="form-group">
+            <label>Nama User</label>
+            <input type="text" class="form-control" name="user_alias" id="user_alias_add" placeholder="Masukkan Nama User" required>
+          </div>
+          <div class="form-group">
+            <label>User Name</label>
+            <input type="text" class="form-control" name="user_name" id="user_name_add" placeholder="Masukkan User Name" required>
+          </div>
+          <div class="form-group">
+            <label>User Password</label>
+            <input type="password" class="form-control" name="user_pass" id="user_pass_add" placeholder="Masukkan User Password" required>
+            <small class="form-text text-muted">Password akan disimpan secara aman menggunakan hashing dan tidak akan ditampilkan kembali.</small>
+          </div>
+          <div class="form-group">
+            <label>User Email</label>
+            <input type="email" class="form-control" name="user_mail" id="user_mail_add" placeholder="Masukkan User Email" required>
+          </div>
+          <div class="form-group">
+            <label>User Telepon</label>
+            <input type="text" class="form-control" name="user_telp" id="user_telp_add" placeholder="Masukkan User Telepon">
+          </div>
+          <div class="form-group">
+            <label>User Alamat</label>
+            <textarea class="form-control" name="user_alamat" id="user_alamat_add" rows="3" placeholder="Masukkan User Alamat"></textarea>
+          </div>
+          <div class="form-group">
+            <label>User Status</label>
+            <select class="form-control" name="user_st" id="select_user_st_add" required>
+              <option value="">-- Pilih Status --</option>
+              <option value="1">Aktif</option>
+              <option value="0">Tidak Aktif</option>
+            </select>
+          </div>
+          <div class="mt-3">
+            <button type="submit" class="btn btn-success"><i class="bi bi-floppy2-fill"></i> Simpan Data</button>
+            <a href="{% url 'users_data' %}" class="btn btn-secondary"><i class="bi bi-x-circle"></i> Batal</a>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tab: Set Roles -->
+      <div class="tab-pane fade" id="tab-set-roles" role="tabpanel">
+        <div class="alert alert-info" role="alert">
+          Simpan user terlebih dahulu untuk menyetel roles.
+        </div>
+        <div class="col-md-12">
+          <div class="form-group">
+            <input type="text" name="input_search_role" class="form-control" placeholder="Search Group atau Role Name.." id="input_search_role" onkeyup="searchTabel()"/>
+          </div>
+          <br/>
+          <div class="table-responsive">
+            <table class="table table-striped" id="table_roles">
+              <thead class="thead-dark text-center">
+                <tr>
+                  <th width='10%' class="text-center">#</th>
+                  <th width='25%' class="text-center">Group</th>
+                  <th width='20%' class="text-center">Role Name</th>
+                  <th width='35%' class="text-center">Role Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% if rs_roles and rs_roles|length > 0 %}
+                  {% for role in rs_roles %}
+                  <tr>
+                    <td class="text-center">
+                      <label class="custom-switch">
+                        <input type="checkbox" class="custom-switch-input toggle-role" name="roles[]" value="{{ role.role_id }}" disabled>
+                        <span class="custom-switch-indicator"></span>
+                      </label>
+                    </td>
+                    <td>{{ role.group_name|default:'-' }}</td>
+                    <td>{{ role.role_nm }}</td>
+                    <td>{{ role.role_desc }}</td>
+                  </tr>
+                  {% endfor %}
+                {% else %}
+                  <tr>
+                    <td colspan="4">Data tidak ditemukan!</td>
+                  </tr>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <script>
+          function searchTabel(){
+            var input = document.getElementById('input_search_role');
+            var filter = (input.value || '').toLowerCase();
+            var rows = document.querySelectorAll('#table_roles tbody tr');
+            rows.forEach(function(row){
+              var text = (row.textContent || '').toLowerCase();
+              row.style.display = text.indexOf(filter) !== -1 ? '' : 'none';
+            });
+          }
+        </script>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

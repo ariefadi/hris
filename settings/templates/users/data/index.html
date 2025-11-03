@@ -1,11 +1,11 @@
 {% extends "admin_base.html" %}
 {% load static %}
 
-{% block page_title %}Data Login User{% endblock %}
-{% block page_heading %}Data Login User{% endblock %}
+{% block page_title %}Data User{% endblock %}
+{% block page_heading %}Data User{% endblock %}
 {% block breadcrumbs %}
     <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
-    <li class="breadcrumb-item active">Login Activity</li>
+    <li class="breadcrumb-item active">Users</li>
 {% endblock %}
 
 {% block more_stylesheet %}
@@ -19,7 +19,10 @@
 <div class="card">
     <div class="card-header">
         <div class="card-title d-flex justify-content-between align-items-center w-100">
-            <h3 class="card-title"><b><i class="bi bi-table"></i> Tabel Data Login User</b></h3>
+            <h3 class="card-title"><b><i class="bi bi-table"></i> Tabel Data User</b></h3>
+            <a href="{% url 'users_data_add' %}" class="btn btn-sm btn-primary">
+                <i class="bi bi-plus-circle-dotted"></i> Tambah User
+            </a>
         </div>
     </div>
     <div class="card-body">
@@ -37,18 +40,18 @@
                 padding-top: 20%;">
             <i class="fas fa fa-sync-alt fa-spin"></i> Menyiapkan Data ... 
         </div>
-        <div class="dt-responsive-table">
-            <table id="table_data_login_user" class="table table-bordered">
+        <div>
+            <table id="table_data_user" class="table">
             <thead>
                 <tr>
                     <th class="text-center" width="5%" >No</th>
-                    <th class="text-center" width="20%">Nama User</th>
-                    <th class="text-center" width="10%">Log-In <br> Date</th>
-                    <th class="text-center" width="5%">Time</th>
-                    <th class="text-center" width="10%">IP Address <br> (Public)</th>
-                    <th class="text-center" width="25%">Lokasi Akses</th>
-                    <th class="text-center" width="10%">Log-Out <br> Date</th>
-                    <th class="text-center" width="5%">Time</th>
+                    <th class="text-center" width="25%">Nama User</th>
+                    <th class="text-center" width="10%">Username</th>
+                    <th class="text-center" width="15%">E-mail</th>
+                    <th class="text-center" width="10%">Telepon</th>
+                    <th class="text-center" width="25%">Alamat</th>
+                    <th class="text-center" width="5%">Status</th>
+                    <th class="text-center" width="5%">#</th>
                 </tr>
             </thead>
             <tbody>
@@ -58,8 +61,8 @@
         </div>
     </div>
 </div>
+<!-- Modals removed: using separate pages for Add and Edit -->
 {% endblock %}
 {% block more_scripts %}
-<script src="https://cdn.jsdelivr.net/npm/dayjs@1/dayjs.min.js"></script>
-<script src="{% static 'ajax/admin/data_login_user/data_login_user.js'%}?v={%now 'u'%}"></script>
+<script src="{% static 'ajax/admin/data_user/data_user.js'%}?v={%now 'u'%}"></script>
 {% endblock %}

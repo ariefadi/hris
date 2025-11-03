@@ -1,5 +1,6 @@
 from unicodedata import name
 from django.urls import path
+from django.views.generic.base import RedirectView
 from . import views
 from . import views_adsense
 from .oauth_views_package.oauth_views import (
@@ -20,23 +21,7 @@ urlpatterns = [
     path('admin/dashboard_data', views.DashboardData.as_view(), name='dashboard_data'),
     # Portal switching
     path('admin/switch_portal/<str:portal_id>', views.SwitchPortal.as_view(), name='switch_portal'),
-    # USER MANAGEMENT
-    # Menu Data User   
-    path('admin/data_user', views.DataUser.as_view(), name='data_user'),
-    path('admin/page_user', views.page_user.as_view()),
-    path('admin/post_tambah_user', views.post_tambah_user.as_view()),
-    path('admin/get_user_by_id/<str:user_id>', views.get_user_by_id.as_view()),
-    path('admin/post_edit_user', views.post_edit_user.as_view()),
-    # Menu Login User
-    path('admin/data_login_user', views.DataLoginUser.as_view(), name='data_login_user'),
-    path('admin/page_login_user', views.page_login_user.as_view()),
-    # Menu Master Plan
-    path('admin/master_plan', views.MasterPlan.as_view(), name='master_plan'),
-    path('admin/page_master_plan', views.page_master_plan.as_view()),
-    path('admin/page_detail_master_plan/<str:master_plan_id>', views.page_detail_master_plan.as_view(), name='page_detail_master_plan'),
-    path('admin/add_master_plan', views.add_master_plan.as_view(), name='add_master_plan'),
-    path('admin/post_tambah_master_plan', views.post_tambah_master_plan.as_view(), name='post_tambah_master_plan'),
-    # path('admin/post_tambah_master_plan', views.post_tambah_master_plan.as_view()),
+ 
     # MENU FACEBOOK ADS 
     # Menu Summary Facebook Ads
     path('admin/summary_facebook', views.SummaryFacebookAds.as_view(), name='summary_facebook'),

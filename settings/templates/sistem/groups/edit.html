@@ -11,29 +11,17 @@
 
 {% block content %}
 <div class="container-fluid">
-  {% if messages %}
-    <div aria-live="polite" aria-atomic="true" class="mb-3">
-      {% for message in messages %}
-        <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show" role="alert">
-          <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-            <span aria-hidden="true">&times;</span>
-          </button>
-          {{ message }}
-        </div>
-      {% endfor %}
-    </div>
-  {% endif %}
   <div class="card">
     <div class="card-header">
       <h3 class="card-title">Update Group</h3>
       <div class="card-tools">
-        <a href="/settings/sistem/groups" class="btn btn-sm btn-secondary">
-          <i class="bi bi-arrow-left"></i> Back
+        <a href="{% url 'groups' %}" class="btn btn-sm btn-secondary">
+          <i class="bi bi-arrow-left"></i> Kembali
         </a>
       </div>
     </div>
     <div class="card-body">
-      <form method="post" action="/settings/sistem/groups/{{ group.group_id }}/edit">
+      <form method="post" action="{% url 'groups_edit' group.group_id %}">
         {% csrf_token %}
         <div class="mb-3">
           <label for="group_name" class="form-label">Group Name</label>

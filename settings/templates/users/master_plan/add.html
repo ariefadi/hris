@@ -1,0 +1,200 @@
+{% extends "admin_base.html" %}
+{% load static %}
+{% block page_title %}Master Plan{% endblock %}
+
+{% block page_heading %}Master Plan{% endblock %}
+
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Master Plan</li>
+{% endblock %}
+{% block more_stylesheet %}
+<style>
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    .form-control {
+        border-radius: 0.375rem;
+    }
+    .btn {
+        border-radius: 0.375rem;
+    }
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    .required {
+        color: red;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <div class="card-title d-flex justify-content-between align-items-center w-100">
+            <h3 class="card-title"><b><i class="bi bi-plus-circle"></i> Tambah Master Plan</b></h3>
+            <a href="{% url 'master_plan' %}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Kembali
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <form method="post" action="{% url 'post_tambah_master_plan' %}">
+            {% csrf_token %}
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="master_task_code" class="form-label">Code Task <span class="required">*</span></label>
+                        <input type="text" class="form-control" id="master_task_code" name="master_task_code" 
+                               placeholder="Masukkan code task" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="project_kategori" class="form-label">Kategori <span class="required">*</span></label>
+                        <select class="form-control" id="project_kategori" name="project_kategori" required>
+                            <option value="">Pilih Kategori</option>
+                            <option value="Development">Development</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Design">Design</option>
+                            <option value="Testing">Testing</option>
+                            <option value="Research">Research</option>
+                            <option value="Documentation">Documentation</option>
+                            <option value="Maintenance">Maintenance</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="master_task_plan" class="form-label">Tugas <span class="required">*</span></label>
+                <textarea class="form-control" id="master_task_plan" name="master_task_plan" rows="4" 
+                          placeholder="Deskripsikan tugas yang akan dikerjakan" required></textarea>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="urgency" class="form-label">Urgency <span class="required">*</span></label>
+                        <select class="form-control" id="urgency" name="urgency" required>
+                            <option value="">Pilih Urgency</option>
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                            <option value="Critical">Critical</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="execute_status" class="form-label">Status</label>
+                        <select class="form-control" id="execute_status" name="execute_status">
+                            <option value="Pending" selected>Pending</option>
+                            <option value="In Progress">In Progress</option>
+                            <option value="Completed">Completed</option>
+                            <option value="On Hold">On Hold</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="assignment_to" class="form-label">Assignment To</label>
+                <select class="form-control" id="assignment_to" name="assignment_to">
+                    <option value="">Pilih User</option>
+                    {% for user in users %}
+                        <option value="{{ user.user_id }}">{{ user.user_alias }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="catatan" class="form-label">Catatan</label>
+                <textarea class="form-control" id="catatan" name="catatan" rows="3" 
+                          placeholder="Tambahkan catatan jika diperlukan"></textarea>
+            </div>
+
+            <div class="form-group mt-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i> Simpan Master Plan
+                </button>
+                <a href="{% url 'master_plan' %}" class="btn btn-secondary ms-2">
+                    <i class="bi bi-x-circle"></i> Batal
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+$(document).ready(function() {
+    // Auto-generate task code based on category and current date
+    $('#project_kategori').change(function() {
+        var kategori = $(this).val();
+        if (kategori) {
+            var today = new Date();
+            var dateStr = today.getFullYear().toString().substr(-2) + 
+                         ('0' + (today.getMonth() + 1)).slice(-2) + 
+                         ('0' + today.getDate()).slice(-2);
+            var timeStr = ('0' + today.getHours()).slice(-2) + 
+                         ('0' + today.getMinutes()).slice(-2);
+            
+            var codePrefix = '';
+            switch(kategori) {
+                case 'Development': codePrefix = 'DEV'; break;
+                case 'Marketing': codePrefix = 'MKT'; break;
+                case 'Design': codePrefix = 'DSN'; break;
+                case 'Testing': codePrefix = 'TST'; break;
+                case 'Research': codePrefix = 'RSC'; break;
+                case 'Documentation': codePrefix = 'DOC'; break;
+                case 'Maintenance': codePrefix = 'MNT'; break;
+                default: codePrefix = 'OTH'; break;
+            }
+            
+            var suggestedCode = codePrefix + '-' + dateStr + '-' + timeStr;
+            
+            // Only suggest if field is empty
+            if ($('#master_task_code').val() === '') {
+                $('#master_task_code').val(suggestedCode);
+            }
+        }
+    });
+
+    // Form validation
+    $('form').submit(function(e) {
+        var isValid = true;
+        var requiredFields = ['master_task_code', 'master_task_plan', 'project_kategori', 'urgency'];
+        
+        requiredFields.forEach(function(field) {
+            var value = $('#' + field).val().trim();
+            if (!value) {
+                $('#' + field).addClass('is-invalid');
+                isValid = false;
+            } else {
+                $('#' + field).removeClass('is-invalid');
+            }
+        });
+        
+        if (!isValid) {
+            e.preventDefault();
+            alert('Mohon lengkapi semua field yang wajib diisi (*)');
+        }
+    });
+    
+    // Remove invalid class on input
+    $('.form-control').on('input change', function() {
+        $(this).removeClass('is-invalid');
+    });
+});
+</script>
+{% endblock %}

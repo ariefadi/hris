@@ -7,6 +7,7 @@ from django.conf import settings
 from datetime import datetime
 from google_auth_oauthlib.flow import InstalledAppFlow
 from random import sample
+from argon2 import PasswordHasher, exceptions as argon2_exceptions
 
 def run_sql(sql):
     print(json.dumps(sql, indent=2, sort_keys=True))
@@ -97,25 +98,34 @@ class data_mysql:
             return False
 
     def login_admin(self, data):
+        # Fetch user by username, then verify hashed password with Argon2
         sql = """
               SELECT * FROM `app_users` 
-              WHERE `user_name`=%s 
-              AND `user_pass`=%s
+              WHERE `user_name`=%s
+              LIMIT 1
               """
         try:
-            if not self.execute_query(sql, (data['username'], data['password'])):
+            if not self.execute_query(sql, (data['username'],)):
                 raise pymysql.Error("Failed to execute login query")
-            result = self.cur_hris.fetchone()
-            hasil = {
-                "status": True,
-                "data": result
-            }
+            row = self.cur_hris.fetchone()
+            if not row:
+                return {"status": True, "data": None}
+            try:
+                ph = PasswordHasher()
+                ph.verify(row.get('user_pass') or '', data['password'])
+                # Password valid: return user data
+                return {"status": True, "data": row}
+            except argon2_exceptions.VerifyMismatchError:
+                # Wrong password
+                return {"status": True, "data": None}
+            except Exception:
+                # Any other verification error
+                return {"status": True, "data": None}
         except pymysql.Error as e:
-            hasil = {
+            return {
                 "status": False,
                 'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
-        return hasil
     
     def update_account_ads(self, data):
         try:
@@ -246,7 +256,7 @@ class data_mysql:
     def data_user_by_params(self, params=None):
         if params and 'user_mail' in params:
             sql='''
-                SELECT user_id, user_name, user_pass, user_alias, 
+                SELECT user_id, user_name, user_alias, 
                 user_mail, user_telp, user_alamat, user_st 
                 FROM `app_users`
                 WHERE user_mail = %s
@@ -267,7 +277,7 @@ class data_mysql:
                 }
         else:
             sql='''
-                SELECT user_id, user_name, user_pass, user_alias, 
+                SELECT user_id, user_name, user_alias, 
                 user_mail, user_telp, user_alamat, user_st 
                 FROM `app_users`
                 ORDER BY user_alias ASC
@@ -286,97 +296,6 @@ class data_mysql:
                     'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
                 }
         return hasil
-
-    def is_exist_user(self, data):
-        sql='''
-            SELECT *
-            FROM app_users 
-            WHERE user_alias = %s
-            AND user_name = %s
-            AND user_pass = %s
-        '''
-        try:
-            if not self.execute_query(sql, (
-                data['user_alias'],
-                data['user_name'],
-                data['user_pass']
-            )):
-                raise pymysql.Error("Failed to check user existence")
-            datanya = self.cur_hris.fetchone()
-            hasil = {
-                "status": True,
-                "data": datanya
-            }
-        except pymysql.Error as e:
-            hasil = {
-                "status": False,
-                'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
-            }
-        return {'hasil': hasil}
-    
-    def insert_user(self, data):
-        try:
-            sql_insert = """
-                        INSERT INTO app_users
-                        (
-                            app_users.user_id,
-                            app_users.user_name,
-                            app_users.user_pass,
-                            app_users.user_alias,
-                            app_users.user_mail,
-                            app_users.user_telp,
-                            app_users.user_alamat,
-                            app_users.user_st,
-                            app_users.user_foto,
-                            app_users.mdb,
-                            app_users.mdb_name,
-                            app_users.mdd
-                        )
-                    VALUES
-                        (
-                            UUID(),
-                            %s,
-                            %s,
-                            %s,
-                            %s,
-                            %s,
-                            %s,
-                            %s,
-                            %s,
-                            %s,
-                            %s,
-                            %s
-                        )
-                """
-            if not self.execute_query(sql_insert, (
-                data['user_name'],
-                data['user_pass'],
-                data['user_alias'],
-                data['user_mail'],
-                data['user_telp'],
-                data['user_alamat'],
-                data['user_st'],
-                data['user_foto'],
-                data['mdb'],
-                data['mdb_name'],
-                data['mdd'],
-            )):
-                raise pymysql.Error("Failed to insert user data")
-            
-            if not self.commit():
-                raise pymysql.Error("Failed to commit user data")
-            
-            hasil = {
-                "status": True,
-                "message": "Data Berhasil Disimpan"
-            }
-
-        except pymysql.Error as e:
-            hasil = {
-                "status": False,
-                'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
-            }
-        return {'hasil': hasil}
     
     def get_all_adx_account_data(self):
         """Get user data by user_mail"""
@@ -427,6 +346,9 @@ class data_mysql:
             if not self.execute_query(sql, (user_id)):
                 raise pymysql.Error("Failed to fetch user data")
             result = self.cur_hris.fetchone()
+            # Sanitize password field from being exposed
+            if isinstance(result, dict) and 'user_pass' in result:
+                result['user_pass'] = None
             return {
                 "status": True,
                 "data": result
@@ -436,52 +358,6 @@ class data_mysql:
                 "status": False,
                 'data': f'Terjadi error {e!r}, error nya {e.args[0]}'
             }
-    
-    def update_user(self, data):
-        try:
-            sql_update = """
-                        UPDATE app_users SET
-                            user_name = %s,
-                            user_pass = %s,
-                            user_alias = %s,
-                            user_mail = %s,
-                            user_telp = %s,
-                            user_alamat = %s,
-                            user_st = %s,
-                            mdb = %s,
-                            mdb_name = %s,
-                            mdd = %s
-                        WHERE user_id = %s
-                """
-            if not self.execute_query(sql_update, (
-                data['user_name'],
-                data['user_pass'],
-                data['user_alias'],
-                data['user_mail'],
-                data['user_telp'],
-                data['user_alamat'],
-                data['user_st'],
-                data['mdb'],
-                data['mdb_name'],
-                data['mdd'],
-                data['user_id']
-            )):
-                raise pymysql.Error("Failed to update user data")
-            
-            if not self.commit():
-                raise pymysql.Error("Failed to commit user update")
-            
-            hasil = {
-                "status": True,
-                "message": "Data Berhasil Diupdate"
-            }
-
-        except pymysql.Error as e:
-            hasil = {
-                "status": False,
-                'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
-            }
-        return {'hasil': hasil}
     
     def check_refresh_token(self, user_mail):
         """
@@ -774,93 +650,6 @@ class data_mysql:
                     }
                 }
 
-    def data_master_plan(self):
-        sql = '''
-            SELECT a.`master_plan_id`, DATE(a.master_plan_date) AS task_date, 
-            TIME(a.master_plan_date) AS task_time, a.`master_task_code`, a.`master_task_plan`,
-            b.user_alias AS 'submit_task', c.user_alias AS 'assign_task', a.`project_kategori`,
-            a.`urgency`, a.`execute_status`, a.`catatan`
-            FROM app_master_plan a
-            LEFT JOIN app_users b ON a.submitted_task = b.user_id
-            LEFT JOIN app_users c ON a.assignment_to = c.user_id
-            ORDER BY DATE(a.master_plan_date) DESC
-        '''
-        try:
-            if not self.execute_query(sql):
-                raise pymysql.Error("Failed to fetch master plan data")
-            datanya = self.cur_hris.fetchall()
-            hasil = {
-                "status": True,
-                "data": datanya
-            }
-        except pymysql.Error as e:
-            hasil = {
-                "status": False,
-                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
-            }
-        return hasil
-
-    def get_master_plan_by_id(self, master_plan_id):
-        sql = '''
-            SELECT a.`master_plan_id`, DATE(a.master_plan_date) AS task_date, 
-            TIME(a.master_plan_date) AS task_time, a.`master_task_code`, a.`master_task_plan`,
-            b.user_alias AS 'submit_task', c.user_alias AS 'assign_task', a.`project_kategori`,
-            a.`urgency`, a.`execute_status`, a.`catatan`, a.`submitted_task`, a.`assignment_to`
-            FROM app_master_plan a
-            LEFT JOIN app_users b ON a.submitted_task = b.user_id
-            LEFT JOIN app_users c ON a.assignment_to = c.user_id
-            WHERE a.master_plan_id = %s
-        '''
-        try:
-            if not self.execute_query(sql, (master_plan_id,)):
-                raise pymysql.Error("Failed to fetch master plan by ID")
-            datanya = self.cur_hris.fetchone()
-            hasil = {
-                "status": True,
-                "data": datanya
-            }
-        except pymysql.Error as e:
-            hasil = {
-                "status": False,
-                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
-            }
-        return hasil
-
-    def insert_master_plan(self, data):
-        sql = '''
-            INSERT INTO app_master_plan 
-            (master_plan_id, master_plan_date, master_task_code, master_task_plan, 
-             project_kategori, urgency, execute_status, catatan, submitted_task, assignment_to)
-            VALUES (%s, NOW(), %s, %s, %s, %s, %s, %s, %s, %s)
-        '''
-        try:
-            if not self.execute_query(sql, (
-                data['master_plan_id'],
-                data['master_task_code'],
-                data['master_task_plan'],
-                data['project_kategori'],
-                data['urgency'],
-                data['execute_status'],
-                data['catatan'],
-                data['submitted_task'],
-                data['assignment_to']
-            )):
-                raise pymysql.Error("Failed to insert master plan")
-            
-            if not self.commit():
-                raise pymysql.Error("Failed to commit master plan insert")
-            
-            hasil = {
-                "status": True,
-                "data": "Master plan berhasil ditambahkan"
-            }
-        except pymysql.Error as e:
-            hasil = {
-                "status": False,
-                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
-            }
-        return hasil
-
     def data_account_ads_by_params(self):
         sql='''
             SELECT a.account_ads_id, a.account_name, a.account_email, a.account_id, 
@@ -1007,40 +796,6 @@ class data_mysql:
                 data['data_account']
             ))
             datanya = self.cur_hris.fetchone()
-            hasil = {
-                "status": True,
-                "data": datanya
-            }
-        except pymysql.Error as e:
-            hasil = {
-                "status": False,
-                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
-            }
-        return hasil
-
-    def data_login_user(self):
-        sql = '''
-            SELECT a.login_id, a.user_id, sub.login_day, sub.login_time, a.login_date, 
-            a.logout_date, DATE(logout_date) AS logout_day, TIME(logout_date) AS logout_time, 
-            a.ip_address, a.user_agent, a.lokasi, b.user_alias
-            FROM app_user_login a
-            INNER JOIN (
-                SELECT user_id, 
-                DATE(login_date) AS login_day,
-                TIME(login_date) AS login_time,
-                MAX(login_date) AS max_login
-                FROM app_user_login
-                GROUP BY user_id, DATE(login_date)
-            ) sub ON sub.user_id = a.user_id 
-            AND DATE(a.login_date) = sub.login_day 
-            AND a.login_date = sub.max_login
-            INNER JOIN app_users b ON b.user_id = a.user_id
-            ORDER BY a.login_date DESC
-        '''
-        try:
-            if not self.execute_query(sql):
-                raise pymysql.Error("Failed to fetch login data")
-            datanya = self.cur_hris.fetchall()
             hasil = {
                 "status": True,
                 "data": datanya

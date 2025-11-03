@@ -177,7 +177,9 @@ django.db.backends.mysql.features.DatabaseFeatures.minimum_database_version = pr
 # Static files Configuration
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+# Serve app-level static from management/static to ensure JS/CSS are available
 STATICFILES_DIRS = [
+    # Optionally include project-level static if present
     os.path.join(BASE_DIR, 'static'),
 ]
 

@@ -2,15 +2,13 @@ from django.views import View
 from django.shortcuts import render, redirect
 from django.http import HttpResponseBadRequest
 from django.contrib import messages
-from management.database import data_mysql
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import csrf_exempt
+from settings.database import data_mysql
 from datetime import datetime
-from pprint import pprint
-import logging
-logger = logging.getLogger(__name__)
 
 class Overview(View):
     def get(self, request):
-        # Require authenticated admin session
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
         admin = request.session.get('hris_admin', {})
@@ -21,6 +19,7 @@ class Overview(View):
         }
         return render(request, 'overview.html', context)
 
+# Helpers
 
 def generate_next_portal_id(db: data_mysql):
     """Generate the next portal_id filling gaps: 10,20,...,90. If 20 is deleted, next is 20."""
@@ -41,16 +40,116 @@ def generate_next_portal_id(db: data_mysql):
                     existing.add(val)
             except (ValueError, TypeError):
                 continue
-        # Fill the smallest missing bucket first
         for i in range(1, 10):
             if i not in existing:
                 return f"{i}0"
-        # All buckets 10..90 are used
         return None
     except Exception:
         return None
 
 
+def generate_next_group_id(db: data_mysql):
+    """Generate next group_id as two digits: '01', '02', ..., '98'. Returns None if >=99 or error."""
+    try:
+        sql = """
+            SELECT group_id AS last_number
+            FROM app_group
+            ORDER BY group_id DESC
+            LIMIT 1
+        """
+        if not db.execute_query(sql):
+            return None
+        row = db.cur_hris.fetchone()
+        if row and row.get('last_number'):
+            try:
+                number = int(str(row['last_number']).strip()) + 1
+            except (ValueError, TypeError):
+                return None
+            if number >= 99:
+                return None
+            num_str = str(number)
+            zero = ''
+            for i in range(len(num_str), 2):
+                zero += '0'
+            return f"{zero}{num_str}"
+        else:
+            return '01'
+    except Exception:
+        return None
+
+
+def generate_next_nav_id(db: data_mysql, portal_id: str):
+    """Generate the next unique nav_id as `<portal_id><8-digit>`.
+    - Computes numeric max of the rightmost 8 digits per portal.
+    - Ensures the generated candidate does not already exist; bumps until free.
+    Note: Not concurrency-proof across processes; the insert code should still retry on duplicate.
+    """
+    try:
+        portal_id = (portal_id or '').strip()
+        if not portal_id:
+            return None
+        sql_max = """
+            SELECT MAX(CAST(RIGHT(nav_id, 8) AS UNSIGNED)) AS last_number
+            FROM app_menu
+            WHERE portal_id = %s
+        """
+        if not db.execute_query(sql_max, (portal_id,)):
+            number = 1
+        else:
+            row = db.cur_hris.fetchone() or {}
+            last_number = row.get('last_number')
+            try:
+                number = (int(last_number) + 1) if last_number is not None else 1
+            except (ValueError, TypeError):
+                number = 1
+        if number > 99999999:
+            return None
+        while True:
+            candidate = f"{portal_id}{number:08d}"
+            sql_exists = 'SELECT nav_id FROM app_menu WHERE nav_id = %s LIMIT 1'
+            if not db.execute_query(sql_exists, (candidate,)):
+                return candidate
+            exists_row = db.cur_hris.fetchone()
+            if not exists_row:
+                return candidate
+            number += 1
+            if number > 99999999:
+                return None
+    except Exception:
+        return None
+
+
+def generate_next_role_id(db: data_mysql, group_id: str):
+    """Generate next role_id scoped by group_id, like: '01' + '001' → '01001'."""
+    try:
+        group_id = (group_id or '').strip()
+        if not group_id:
+            return None
+        sql = """
+            SELECT RIGHT(role_id, 3) AS last_number
+            FROM app_role
+            WHERE group_id = %s
+            ORDER BY role_id DESC
+            LIMIT 1
+        """
+        if not db.execute_query(sql, (group_id,)):
+            return f"{group_id}001"
+        row = db.cur_hris.fetchone()
+        if row and row.get('last_number') is not None:
+            try:
+                number = int(str(row['last_number']).strip()) + 1
+            except (ValueError, TypeError):
+                number = 1
+        else:
+            number = 1
+        if number > 999:
+            return None
+        return f"{group_id}{number:03d}"
+    except Exception:
+        return None
+
+
+# Sistem / Portal
 class PortalIndexView(View):
     def get(self, request):
         if 'hris_admin' not in request.session:
@@ -103,7 +202,7 @@ class PortalCreateView(View):
         params = (
             portal_id,
             portal_nm,
-            portal_nm,  # portal_title same as portal_nm for now
+            portal_nm,
             site_title,
             site_desc,
             meta_keyword,
@@ -116,7 +215,6 @@ class PortalCreateView(View):
             messages.success(request, 'Portal berhasil dibuat.')
         else:
             messages.error(request, 'Gagal membuat portal.')
-        # Use direct path to avoid namespacing reverse issues
         return redirect('/settings/sistem/portal')
 
 
@@ -205,36 +303,7 @@ class PortalDeleteView(View):
         return redirect('/settings/sistem/portal')
 
 
-def generate_next_group_id(db: data_mysql):
-    """Generate next group_id as two digits: '01', '02', ..., '98'. Returns None if >=99 or error."""
-    try:
-        sql = """
-            SELECT group_id AS last_number
-            FROM app_group
-            ORDER BY group_id DESC
-            LIMIT 1
-        """
-        if not db.execute_query(sql):
-            return None
-        row = db.cur_hris.fetchone()
-        if row and row.get('last_number'):
-            try:
-                number = int(str(row['last_number']).strip()) + 1
-            except (ValueError, TypeError):
-                return None
-            if number >= 99:
-                return None
-            num_str = str(number)
-            zero = ''
-            for i in range(len(num_str), 2):
-                zero += '0'
-            return f"{zero}{num_str}"
-        else:
-            return '01'
-    except Exception:
-        return None
-
-
+# Sistem / Groups
 class GroupsIndexView(View):
     def get(self, request):
         if 'hris_admin' not in request.session:
@@ -367,6 +436,7 @@ class GroupsDeleteView(View):
         return redirect('/settings/sistem/groups')
 
 
+# Sistem / Menu
 class MenuIndexView(View):
     def get(self, request):
         if 'hris_admin' not in request.session:
@@ -399,7 +469,6 @@ class MenuEditView(View):
         admin = request.session.get('hris_admin', {})
         active_portal_id = request.session.get('active_portal_id', '12')
         db = data_mysql()
-        # Fetch portal details
         portal = None
         q_portal = '''
             SELECT portal_id, portal_nm, portal_title
@@ -412,7 +481,6 @@ class MenuEditView(View):
         if not portal:
             return redirect('/settings/sistem/menu')
 
-        # Fetch menus for this portal
         sql_menus = '''
             SELECT nav_id, nav_parent, nav_name, nav_url, nav_icon, active_st, display_st
             FROM app_menu
@@ -422,7 +490,6 @@ class MenuEditView(View):
         menus = []
         if db.execute_query(sql_menus, (portal_id,)):
             rows = db.cur_hris.fetchall() or []
-            # Build tree structure
             by_id = {}
             for m in rows:
                 by_id[m['nav_id']] = {**m, 'children': []}
@@ -434,7 +501,6 @@ class MenuEditView(View):
                 else:
                     roots.append(by_id[m['nav_id']])
 
-            # Flatten tree with level and indent prefix
             flat = []
             def walk(node, level=1):
                 indent_prefix = '' if level <= 1 else ('-- ' * (level - 1))
@@ -453,43 +519,6 @@ class MenuEditView(View):
             'menus': menus,
         }
         return render(request, 'sistem/menu/navigation.html', context)
-
-
-def generate_next_nav_id(db: data_mysql, portal_id: str):
-    """Generate next nav_id based on PHP example: `<portal_id><8-digit>`.
-    Logic:
-    - Query the max of the rightmost 8 digits across all `app_menu.nav_id`.
-    - Increment that number and pad to 8 digits.
-    - If no rows exist, start from `00000001`.
-    - If number exceeds 99,999,999 return None.
-    - Prepend the given `portal_id` (assumed 2 chars) to form a 10-char `nav_id`.
-    """
-    try:
-        portal_id = (portal_id or '').strip()
-        if not portal_id:
-            return None
-        sql = """
-            SELECT RIGHT(nav_id, 8) AS last_number
-            FROM app_menu
-            ORDER BY RIGHT(nav_id, 8) DESC
-            LIMIT 1
-        """
-        # When there are no rows, start from 00000001
-        if not db.execute_query(sql):
-            return f"{portal_id}00000001"
-        row = db.cur_hris.fetchone()
-        if row and row.get('last_number') is not None:
-            try:
-                number = int(str(row['last_number']).strip()) + 1
-            except (ValueError, TypeError):
-                number = 1
-        else:
-            number = 1
-        if number > 99999999:
-            return None
-        return f"{portal_id}{number:08d}"
-    except Exception:
-        return None
 
 
 class MenuItemCreateView(View):
@@ -527,7 +556,6 @@ class MenuItemCreateView(View):
         admin = request.session.get('hris_admin', {})
         active_portal_id = request.session.get('active_portal_id', '12')
         db = data_mysql()
-        # Fetch portal details
         portal = None
         q_portal = '''
             SELECT portal_id, portal_nm, portal_title
@@ -554,7 +582,7 @@ class MenuItemCreateView(View):
         admin = request.session.get('hris_admin', {})
         db = data_mysql()
         nav_name = (request.POST.get('nav_name') or '').strip()
-        nav_desc = (request.POST.get('nav_desc') or '').strip()  # Not stored; schema lacks this column
+        nav_desc = (request.POST.get('nav_desc') or '').strip()
         nav_url = (request.POST.get('nav_url') or '').strip()
         nav_order_raw = (request.POST.get('nav_order') or '').strip()
         parent_id = (request.POST.get('parent_id') or '').strip()
@@ -570,23 +598,31 @@ class MenuItemCreateView(View):
         nav_id = generate_next_nav_id(db, portal_id)
         if not nav_id:
             return HttpResponseBadRequest('Cannot generate new nav_id; limit reached or error')
-        sql = '''
-            INSERT INTO app_menu
-            (nav_id, portal_id, nav_name, nav_url, nav_icon, nav_parent, nav_order, active_st, display_st, mdb, mdb_name, mdd)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
-        '''
-        params = (
-            nav_id, portal_id, nav_name, nav_url, nav_icon,
-            parent_id, nav_order, active_st or '1', display_st or '1',
-            admin.get('user_id', ''), admin.get('user_alias', ''),
-        )
-        if db.execute_query(sql, params):
-            db.commit()
-            messages.success(request, 'Menu berhasil ditambahkan.')
-            return redirect(f'/settings/sistem/menu/{portal_id}/edit')
-        else:
-            messages.error(request, 'Gagal menambahkan menu.')
-            return redirect(f'/settings/sistem/menu/{portal_id}/add')
+        attempts = 3
+        for i in range(attempts):
+            sql = '''
+                INSERT INTO app_menu
+                (nav_id, portal_id, nav_name, nav_url, nav_icon, nav_parent, nav_order, active_st, display_st, mdb, mdb_name, mdd)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            '''
+            params = (
+                nav_id, portal_id, nav_name, nav_url, nav_icon,
+                parent_id, nav_order, active_st or '1', display_st or '1',
+                admin.get('user_id', ''), admin.get('user_alias', ''),
+            )
+            if db.execute_query(sql, params):
+                db.commit()
+                messages.success(request, 'Menu berhasil ditambahkan.')
+                return redirect(f'/settings/sistem/menu/{portal_id}/edit')
+            check_sql = 'SELECT nav_id FROM app_menu WHERE nav_id = %s LIMIT 1'
+            if db.execute_query(check_sql, (nav_id,)) and db.cur_hris.fetchone():
+                nav_id = generate_next_nav_id(db, portal_id)
+                if not nav_id:
+                    break
+                continue
+            break
+        messages.error(request, 'Gagal menambahkan menu: duplicate atau kesalahan database.')
+        return redirect(f'/settings/sistem/menu/{portal_id}/add')
 
 
 class MenuItemEditView(View):
@@ -626,7 +662,6 @@ class MenuItemEditView(View):
         admin = request.session.get('hris_admin', {})
         active_portal_id = request.session.get('active_portal_id', '12')
         db = data_mysql()
-        # Portal
         portal = None
         q_portal = '''
             SELECT portal_id, portal_nm, portal_title
@@ -638,7 +673,6 @@ class MenuItemEditView(View):
             portal = db.cur_hris.fetchone()
         if not portal:
             return redirect('/settings/sistem/menu')
-        # Menu item
         item = None
         q_item = '''
             SELECT nav_id, portal_id, nav_name, nav_url, nav_icon, nav_parent, nav_order, active_st, display_st
@@ -666,7 +700,7 @@ class MenuItemEditView(View):
         admin = request.session.get('hris_admin', {})
         db = data_mysql()
         nav_name = (request.POST.get('nav_name') or '').strip()
-        nav_desc = (request.POST.get('nav_desc') or '').strip()  # Not stored
+        nav_desc = (request.POST.get('nav_desc') or '').strip()
         nav_url = (request.POST.get('nav_url') or '').strip()
         nav_order_raw = (request.POST.get('nav_order') or '').strip()
         parent_id = (request.POST.get('parent_id') or '').strip()
@@ -679,7 +713,6 @@ class MenuItemEditView(View):
             nav_order = int(nav_order_raw) if nav_order_raw else 0
         except ValueError:
             return HttpResponseBadRequest('nav_order must be an integer')
-        # prevent setting itself as parent
         if parent_id and parent_id == nav_id:
             return HttpResponseBadRequest('A menu cannot be its own parent')
         sql = '''
@@ -710,42 +743,63 @@ class MenuItemEditView(View):
         return redirect(f'/settings/sistem/menu/{portal_id}/edit')
 
 
-def generate_next_role_id(db: data_mysql, group_id: str):
-    """Generate next role_id scoped by group_id, like: '01' + '001' → '01001'.
-    Logic:
-    - Find last 3-digit number in role_id for the given group_id.
-    - Increment and pad to 3 digits.
-    - If no existing role for group, start at '001'.
-    - If number exceeds 999, return None.
-    """
-    try:
-        group_id = (group_id or '').strip()
-        if not group_id:
-            return None
-        sql = """
-            SELECT RIGHT(role_id, 3) AS last_number
-            FROM app_role
-            WHERE group_id = %s
-            ORDER BY role_id DESC
-            LIMIT 1
-        """
-        if not db.execute_query(sql, (group_id,)):
-            return f"{group_id}001"
-        row = db.cur_hris.fetchone()
-        if row and row.get('last_number') is not None:
-            try:
-                number = int(str(row['last_number']).strip()) + 1
-            except (ValueError, TypeError):
-                number = 1
+class MenuItemDeleteView(View):
+    def post(self, request, portal_id, nav_id):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        db = data_mysql()
+
+        # Build list of nav_ids to delete (nav_id and all its descendants)
+        q_menus = '''
+            SELECT nav_id, nav_parent
+            FROM app_menu
+            WHERE portal_id = %s
+        '''
+        if not db.execute_query(q_menus, (portal_id,)):
+            messages.error(request, 'Gagal memuat data menu untuk penghapusan.')
+            return redirect(f'/settings/sistem/menu/{portal_id}/edit')
+
+        rows = db.cur_hris.fetchall() or []
+        by_parent = {}
+        for m in rows:
+            parent = (m.get('nav_parent') or '').strip()
+            by_parent.setdefault(parent, []).append(m['nav_id'])
+
+        to_delete = set()
+        stack = [nav_id]
+        while stack:
+            current = stack.pop()
+            if current in to_delete:
+                continue
+            to_delete.add(current)
+            children = by_parent.get(current, [])
+            for child in children:
+                stack.append(child)
+
+        if not to_delete:
+            messages.error(request, 'Menu tidak ditemukan untuk dihapus.')
+            return redirect(f'/settings/sistem/menu/{portal_id}/edit')
+
+        # Delete related role mappings first
+        placeholders = ','.join(['%s'] * len(to_delete))
+        sql_del_roles = f"DELETE FROM app_menu_role WHERE nav_id IN ({placeholders})"
+        if not db.execute_query(sql_del_roles, tuple(to_delete)):
+            messages.error(request, 'Gagal menghapus relasi role untuk menu.')
+            return redirect(f'/settings/sistem/menu/{portal_id}/edit')
+
+        # Delete menus (only for this portal)
+        sql_del_menus = f"DELETE FROM app_menu WHERE portal_id = %s AND nav_id IN ({placeholders})"
+        params = (portal_id, *tuple(to_delete))
+        if db.execute_query(sql_del_menus, params):
+            db.commit()
+            messages.success(request, 'Menu berhasil dihapus.')
         else:
-            number = 1
-        if number > 999:
-            return None
-        return f"{group_id}{number:03d}"
-    except Exception:
-        return None
+            messages.error(request, 'Gagal menghapus menu.')
+
+        return redirect(f'/settings/sistem/menu/{portal_id}/edit')
 
 
+# Sistem / Roles
 class RolesIndexView(View):
     def get(self, request):
         if 'hris_admin' not in request.session:
@@ -753,7 +807,6 @@ class RolesIndexView(View):
         admin = request.session.get('hris_admin', {})
         active_portal_id = request.session.get('active_portal_id', '12')
         db = data_mysql()
-        # Fetch roles with group names
         sql_roles = """
             SELECT r.role_id, r.group_id, g.group_name, r.role_nm, r.role_desc, r.default_page
             FROM app_role r
@@ -763,7 +816,6 @@ class RolesIndexView(View):
         roles = []
         if db.execute_query(sql_roles):
             roles = db.cur_hris.fetchall() or []
-        # Fetch groups for select list
         sql_groups = """
             SELECT group_id, group_name
             FROM app_group
@@ -841,7 +893,6 @@ class RolesEditView(View):
             role = db.cur_hris.fetchone()
         if not role:
             return redirect('/settings/sistem/roles')
-        # Fetch groups for select list
         sql_groups = """
             SELECT group_id, group_name
             FROM app_group
@@ -913,6 +964,7 @@ class RolesDeleteView(View):
         return redirect('/settings/sistem/roles')
 
 
+# Sistem / Permissions
 class PermissionsIndexView(View):
     def get(self, request):
         if 'hris_admin' not in request.session:
@@ -944,8 +996,6 @@ class PermissionsAccessUpdateView(View):
         admin = request.session.get('hris_admin', {})
         active_portal_id = request.session.get('active_portal_id', '12')
         db = data_mysql()
-
-        # Fetch role detail
         role = None
         q_role = '''
             SELECT role_id, role_nm, role_desc, default_page
@@ -959,7 +1009,6 @@ class PermissionsAccessUpdateView(View):
             messages.error(request, 'Role tidak ditemukan.')
             return redirect('/settings/sistem/permissions')
 
-        # Fetch portals
         portals = []
         q_portal = '''
             SELECT portal_id, COALESCE(portal_title, portal_nm) AS portal_title, portal_nm
@@ -971,10 +1020,8 @@ class PermissionsAccessUpdateView(View):
 
         selected_portal_id = request.GET.get('portal_id') or active_portal_id or (portals[0]['portal_id'] if portals else '')
 
-        # Fetch menus for selected portal and build hierarchical rows with role mapping
         menu_rows = []
         if selected_portal_id:
-            # Fetch all menus for portal
             q_all = '''
                 SELECT m.nav_id, m.nav_parent, m.nav_name, m.nav_order
                 FROM app_menu m
@@ -985,7 +1032,6 @@ class PermissionsAccessUpdateView(View):
             if db.execute_query(q_all, (selected_portal_id,)):
                 menus = db.cur_hris.fetchall() or []
 
-            # Fetch role mappings for this role
             role_map = {}
             q_map = '''
                 SELECT nav_id, role_tp
@@ -996,7 +1042,6 @@ class PermissionsAccessUpdateView(View):
                 for row in (db.cur_hris.fetchall() or []):
                     role_map[row['nav_id']] = row.get('role_tp') or '0000'
 
-            # Build tree
             by_id = {m['nav_id']: {**m, 'children': []} for m in menus}
             roots = []
             for m in menus:
@@ -1058,13 +1103,11 @@ class PermissionsProcessView(View):
             return redirect('/settings/sistem/permissions')
 
         db = data_mysql()
-        # First, delete all role-menu mappings for this role (match legacy behavior)
         ok = True
         try:
             sql_delete_all = 'DELETE FROM app_menu_role WHERE role_id = %s'
             db.execute_query(sql_delete_all, (role_id,))
 
-            # Get menus for the selected portal to read submitted rules
             q_menus = '''
                 SELECT nav_id
                 FROM app_menu
@@ -1075,7 +1118,6 @@ class PermissionsProcessView(View):
                 return redirect(f'/settings/sistem/permissions/access_update/{role_id}?portal_id={portal_id}')
             menus = db.cur_hris.fetchall() or []
 
-            # Insert submitted rules
             for m in menus:
                 nav_id = m['nav_id']
                 c = '1' if request.POST.get(f'rules[{nav_id}][C]') else '0'

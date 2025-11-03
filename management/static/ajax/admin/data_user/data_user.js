@@ -45,7 +45,7 @@ $().ready(function () {
 });
 function table_data_user() {
     $.ajax({
-        url: '/management/admin/page_user',
+        url: '/settings/users/data/page',
         method: 'GET',
         dataType: 'json',
         beforeSend: function () {
@@ -69,7 +69,10 @@ function table_data_user() {
                 }else{
                     event_data += '<td class="text-center"><span class="badge badge-danger" style="color: white;">Tidak Aktif</span></td>';
                 }
-                event_data += '<td class="text-center">' + '<button type="button" class="btn btn-warning btn-xs btn-edit-user" data-user-id="' + value.user_id + '"><i class="bi bi-pencil"></i> Edit</button>'  + '</td>';
+                event_data += '<td class="text-center">' +
+                    '<button type="button" class="btn btn-warning btn-xs btn-edit-user me-1" data-user-id="' + value.user_id + '"><i class="bi bi-pencil"></i> Edit</button>'  +
+                    '<button type="button" class="btn btn-danger btn-xs btn-delete-user" data-user-id="' + value.user_id + '"><i class="bi bi-trash"></i> Delete</button>' +
+                    '</td>';
                 event_data += '</tr>';  
                 $("#table_data_user tbody").append(event_data);    
             })
@@ -210,7 +213,7 @@ $('#simpan_data_user').on('click',function(e){
         formData.append('user_st',user_st);
         $.ajax({
             type: 'POST',
-            url: '/management/admin/post_tambah_user',
+            url: '/settings/users/data/create',
             data: formData,
             headers: { 
                 "X-CSRFToken": csrftoken 
@@ -244,7 +247,87 @@ $('#simpan_data_user').on('click',function(e){
 // Handle edit user button click
 $(document).on('click', '.btn-edit-user', function() {
     var user_id = $(this).data('user-id');
-    load_user_data(user_id);
+    window.location.href = '/settings/users/data/edit/' + user_id;
+});
+
+// Handle delete user button click with double confirmation
+$(document).on('click', '.btn-delete-user', function() {
+    var user_id = $(this).data('user-id');
+    var $row = $(this).closest('tr');
+
+    Swal.fire({
+        icon: 'warning',
+        title: 'Hapus User?',
+        text: 'Apakah Anda yakin ingin menghapus user ini?',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, hapus',
+        cancelButtonText: 'Batal'
+    }).then(function(firstConfirm) {
+        if (!firstConfirm.isConfirmed) return;
+
+        Swal.fire({
+            title: 'Konfirmasi Hapus',
+            html: 'Ketik <b>HAPUS</b> untuk melanjutkan.',
+            input: 'text',
+            inputPlaceholder: 'HAPUS',
+            showCancelButton: true,
+            confirmButtonText: 'Konfirmasi',
+            cancelButtonText: 'Batal',
+            preConfirm: function(value) {
+                if (value !== 'HAPUS') {
+                    Swal.showValidationMessage('Anda harus mengetik HAPUS');
+                }
+                return value;
+            }
+        }).then(function(secondConfirm) {
+            if (!secondConfirm.isConfirmed || secondConfirm.value !== 'HAPUS') return;
+
+            // Proceed to delete via AJAX
+            let formData = new FormData();
+            formData.append('user_id', user_id);
+            $.ajax({
+                url: '/settings/users/data/delete',
+                type: 'POST',
+                data: formData,
+                headers: { "X-CSRFToken": csrftoken },
+                processData: false,
+                contentType: false,
+                dataType: 'json',
+                beforeSend: function() { $('#overlay').fadeIn(200); },
+                complete: function() { $('#overlay').fadeOut(200); },
+                success: function(response) {
+                    if (response && response.status) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil',
+                            text: response.message
+                        });
+                        // Remove row from DataTable
+                        try {
+                            var table = $('#table_data_user').DataTable();
+                            table.row($row).remove().draw();
+                        } catch (e) {
+                            // Fallback: reload page
+                            location.reload();
+                        }
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: (response && response.message) ? response.message : 'Gagal menghapus user'
+                        });
+                    }
+                },
+                error: function() {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error',
+                        text: 'Terjadi kesalahan saat menghapus user'
+                    });
+                }
+            });
+        });
+    });
 });
 
 // Handle update user button click
@@ -255,7 +338,7 @@ $('#update_data_user').click(function() {
 // Function to load user data for editing
 function load_user_data(user_id) {
     $.ajax({
-        url: '/management/admin/get_user_by_id/' + user_id,
+        url: '/settings/users/data/get/' + user_id,
         type: 'GET',
         success: function(response) {
             if (response && response.status) {
@@ -263,7 +346,8 @@ function load_user_data(user_id) {
                 $('#user_id_edit').val(user.user_id);
                 $('#user_alias_edit').val(user.user_alias);
                 $('#user_name_edit').val(user.user_name);
-                $('#user_pass_edit').val(user.user_pass);
+                // Do not prefill password for security; leave empty
+                $('#user_pass_edit').val('');
                 $('#user_mail_edit').val(user.user_mail);
                 $('#user_telp_edit').val(user.user_telp);
                 $('#user_alamat_edit').val(user.user_alamat);
@@ -298,7 +382,8 @@ function update_user_data() {
     var user_alamat = $('#user_alamat_edit').val();
     var user_st = $('#select_user_st_edit').val();
 
-    if (!user_alias || !user_name || !user_pass || !user_mail || !user_st) {
+    // Password optional during edit; do not require user_pass
+    if (!user_alias || !user_name || !user_mail || !user_st) {
         Swal.fire({
             icon: 'warning',
             title: 'Peringatan!',
@@ -311,14 +396,16 @@ function update_user_data() {
     formData.append('user_id', user_id);
     formData.append('user_alias', user_alias);
     formData.append('user_name', user_name);
-    formData.append('user_pass', user_pass);
+    if (user_pass && user_pass.trim() !== '') {
+        formData.append('user_pass', user_pass);
+    }
     formData.append('user_mail', user_mail);
     formData.append('user_telp', user_telp);
     formData.append('user_alamat', user_alamat);
     formData.append('user_st', user_st);
 
     $.ajax({
-        url: '/management/admin/post_edit_user',
+        url: '/settings/users/data/update',
         type: 'POST',
         data: formData,
         headers: { 

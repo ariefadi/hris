@@ -27,7 +27,7 @@ $().ready(function () {
 });
 function table_data_master_plan() {
     $.ajax({
-        url: '/management/admin/page_master_plan',
+        url: '/settings/users/page_master_plan',
         method: 'GET',
         dataType: 'json',
         beforeSend: function () {

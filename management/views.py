@@ -317,12 +317,36 @@ class LoginProcess(View):
                     'message': "Silahkan cek kembali username dan password anda."
                 }
             else:
-                # get lat lang
-                response = requests.get("https://ipinfo.io/json")
-                data = response.json()
-                lat_long = data["loc"].split(",")
-                ip_address = requests.get("https://api.ipify.org").text
-                location = geocode.reverse((lat_long), language='id')
+                # Get IP/location info; tolerate failures and continue with nulls
+                lat_long = [None, None]
+                ip_address = req.META.get('REMOTE_ADDR', '')
+                location = None
+                try:
+                    resp = requests.get("https://ipinfo.io/json", timeout=5)
+                    if resp.status_code == 200:
+                        info = resp.json()
+                        if 'loc' in info and info['loc']:
+                            parts = str(info['loc']).split(',')
+                            if len(parts) == 2:
+                                lat_long = [parts[0], parts[1]]
+                        ip_address = info.get('ip', ip_address) or ip_address
+                except Exception:
+                    # DNS/connection failure: keep defaults
+                    pass
+                # Try to get public IP via ipify (optional)
+                try:
+                    ip_resp = requests.get("https://api.ipify.org", timeout=5)
+                    if ip_resp.status_code == 200 and ip_resp.text:
+                        ip_address = ip_resp.text.strip() or ip_address
+                except Exception:
+                    pass
+                # Try to reverse geocode only if lat/long available
+                try:
+                    if geocode and lat_long[0] and lat_long[1]:
+                        location_obj = geocode.reverse((lat_long), language='id')
+                        location = location_obj.address if location_obj else None
+                except Exception:
+                    location = None
                 # insert user login
                 data_insert = {
                     'login_id': str(uuid.uuid4()),
@@ -333,7 +357,7 @@ class LoginProcess(View):
                     'user_agent': req.META.get('HTTP_USER_AGENT', ''),
                     'latitude': lat_long[0] if len(lat_long) > 0 else None,
                     'longitude': lat_long[1] if len(lat_long) > 1 else None,
-                    'lokasi':location.address if location.address else None,
+                    'lokasi': location,
                     'mdb': rs_data['data']['user_id']
                 }
                 data_login = data_mysql().insert_login(data_insert)
@@ -342,7 +366,7 @@ class LoginProcess(View):
                     'login_id': login_id,
                     'user_id': rs_data['data']['user_id'],
                     'user_name': rs_data['data']['user_name'],
-                    'user_pass': rs_data['data']['user_pass'],
+                    'user_pass': '',
                     'user_alias': rs_data['data']['user_alias'],
                     'user_mail': rs_data['data']['user_mail']  # Tambahkan user_mail ke session
                 }
@@ -698,321 +722,92 @@ class DashboardData(View):
 
 # (Removed legacy 404 handlers)
 
-# USER MANAGEMENT   
-class DataUser(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('admin_login')
-        return super(DataUser, self).dispatch(request, *args, **kwargs)
+# # USER MANAGEMENT   
+# class DataUser(View):
+#     def dispatch(self, request, *args, **kwargs):
+#         if 'hris_admin' not in request.session:
+#             return redirect('admin_login')
+#         return super(DataUser, self).dispatch(request, *args, **kwargs)
 
-    def get(self, req):
-        data = {
-            'title': 'Data User',
-            'user': req.session['hris_admin'],
-        }
-        return render(req, 'admin/data_user/index.html', data)
+#     def get(self, req):
+#         # Redirect to new settings-based path after migration
+#         return redirect('/settings/users/data')
     
-class page_user(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('admin_login')
-        elif 'hris_admin' not in request.session:
-            return redirect('user_login')
-        return super(page_user, self).dispatch(request, *args, **kwargs)
-    def get(self, req):
-        data_user = data_mysql().data_user_by_params()['data']
-        hasil = {
-            'hasil': "Data User",
-            'data_user': data_user
-        }
-        return JsonResponse(hasil)
+# class page_user(View):
+#     def dispatch(self, request, *args, **kwargs):
+#         if 'hris_admin' not in request.session:
+#             return redirect('admin_login')
+#         elif 'hris_admin' not in request.session:
+#             return redirect('user_login')
+#         return super(page_user, self).dispatch(request, *args, **kwargs)
+#     def get(self, req):
+#         data_user = data_mysql().data_user_by_params()['data']
+#         hasil = {
+#             'hasil': "Data User",
+#             'data_user': data_user
+#         }
+#         return JsonResponse(hasil)
     
-class get_user_by_id(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('admin_login')
-        return super(get_user_by_id, self).dispatch(request, *args, **kwargs)
+# class get_user_by_id(View):
+#     def dispatch(self, request, *args, **kwargs):
+#         if 'hris_admin' not in request.session:
+#             return redirect('admin_login')
+#         return super(get_user_by_id, self).dispatch(request, *args, **kwargs)
     
-    def get(self, req, user_id):
-        user_data = data_mysql().get_user_by_id(user_id)
-        hasil = {
-            'status': user_data['status'],
-            'data': user_data['data']
-        }
-        return JsonResponse(hasil)
+#     def get(self, req, user_id):
+#         user_data = data_mysql().get_user_by_id(user_id)
+#         hasil = {
+#             'status': user_data['status'],
+#             'data': user_data['data']
+#         }
+#         return JsonResponse(hasil)
 
-@method_decorator(csrf_exempt, name='dispatch')
-class post_edit_user(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('admin_login')
-        return super(post_edit_user, self).dispatch(request, *args, **kwargs)
+# @method_decorator(csrf_exempt, name='dispatch')
+# class post_edit_user(View):
+#     def dispatch(self, request, *args, **kwargs):
+#         if 'hris_admin' not in request.session:
+#             return redirect('admin_login')
+#         return super(post_edit_user, self).dispatch(request, *args, **kwargs)
     
-    def post(self, req):
-        user_id = req.POST.get('user_id')
-        user_alias = req.POST.get('user_alias')
-        user_name = req.POST.get('user_name')
-        user_pass = req.POST.get('user_pass')
-        user_mail = req.POST.get('user_mail')
-        user_telp = req.POST.get('user_telp')
-        user_alamat = req.POST.get('user_alamat')
-        user_st = req.POST.get('user_st')
+#     def post(self, req):
+#         user_id = req.POST.get('user_id')
+#         user_alias = req.POST.get('user_alias')
+#         user_name = req.POST.get('user_name')
+#         user_pass = req.POST.get('user_pass')
+#         user_mail = req.POST.get('user_mail')
+#         user_telp = req.POST.get('user_telp')
+#         user_alamat = req.POST.get('user_alamat')
+#         user_st = req.POST.get('user_st')
         
-        if not all([user_id, user_alias, user_name, user_pass, user_mail, user_st]):
-            hasil = {
-                "status": False,
-                "message": "Semua field wajib diisi!"
-            }
-        else:
-            data_update = {
-                'user_id': user_id,
-                'user_name': user_name,
-                'user_pass': user_pass,
-                'user_alias': user_alias,
-                'user_mail': user_mail,
-                'user_telp': user_telp,
-                'user_alamat': user_alamat,
-                'user_st': user_st,
-                'mdb': req.session['hris_admin']['user_id'],
-                'mdb_name': req.session['hris_admin']['user_alias'],
-                'mdd': datetime.now().strftime('%y-%m-%d %H:%M:%S')
-            }
-            data = data_mysql().update_user(data_update)
-            hasil = {
-                "status": data['hasil']['status'],
-                "message": data['hasil']['message']
-            }
-        return JsonResponse(hasil)
+#         # Password optional in edit; do not require user_pass
+#         if not all([user_id, user_alias, user_name, user_mail, user_st]):
+#             hasil = {
+#                 "status": False,
+#                 "message": "Semua field wajib diisi!"
+#             }
+#         else:
+#             data_update = {
+#                 'user_id': user_id,
+#                 'user_name': user_name,
+#                 'user_pass': user_pass,
+#                 'user_alias': user_alias,
+#                 'user_mail': user_mail,
+#                 'user_telp': user_telp,
+#                 'user_alamat': user_alamat,
+#                 'user_st': user_st,
+#                 'mdb': req.session['hris_admin']['user_id'],
+#                 'mdb_name': req.session['hris_admin']['user_alias'],
+#                 'mdd': datetime.now().strftime('%y-%m-%d %H:%M:%S')
+#             }
+#             data = data_mysql().update_user(data_update)
+#             hasil = {
+#                 "status": data['hasil']['status'],
+#                 "message": data['hasil']['message']
+#             }
+#         return JsonResponse(hasil)
 
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-
-@method_decorator(csrf_exempt, name='dispatch')
-class post_tambah_user(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('admin_login')
-        return super(post_tambah_user, self).dispatch(request, *args, **kwargs)
-        
-    def post(self, req):
-        user_alias = req.POST.get('user_alias')
-        user_name = req.POST.get('user_name')
-        user_pass = req.POST.get('user_pass')
-        user_mail = req.POST.get('user_mail')
-        user_telp = req.POST.get('user_telp')
-        user_alamat = req.POST.get('user_alamat')
-        user_st = req.POST.get('user_st')
-        is_exist = data_mysql().is_exist_user({
-            'user_alias'    : user_alias,
-            'user_name'     : user_name,
-            'user_pass'     : user_pass
-        })
-        if is_exist['hasil']['data'] != None :
-            hasil = {
-                "status": False,
-                "message": "Data User Sudah Ada ! Silahkan di cek kembali datanya."
-            }
-        else:
-            data_insert = {
-                'user_name': user_name,
-                'user_pass': user_pass,
-                'user_alias': user_alias,
-                'user_mail': user_mail,
-                'user_telp': user_telp,
-                'user_alamat': user_alamat,
-                'user_st': user_st,
-                'user_foto': '',
-                'mdb': req.session['hris_admin']['user_id'],
-                'mdb_name': req.session['hris_admin']['user_alias'],
-                'mdd' : datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            }
-            data = data_mysql().insert_user(data_insert)
-            hasil = {
-                "status": data['hasil']['status'],
-                "message": data['hasil']['message']
-            }
-        return JsonResponse(hasil)
-    
-class DataLoginUser(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('admin_login')
-        return super(DataLoginUser, self).dispatch(request, *args, **kwargs)
-
-    def get(self, req):
-        data = {
-            'title': 'Data Login User',
-            'user': req.session['hris_admin'],
-        }
-        return render(req, 'admin/data_login_user/index.html', data)
-    
-class page_login_user(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('admin_login')
-        elif 'hris_admin' not in request.session:
-            return redirect('user_login')
-        return super(page_login_user, self).dispatch(request, *args, **kwargs)
-    def get(self, req):
-        data_login_user = data_mysql().data_login_user()['data']
-        hasil = {
-            'hasil': "Data Login User",
-            'data_login_user': data_login_user
-        }
-        return JsonResponse(hasil)
-
-class MasterPlan(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('admin_login')
-        return super(MasterPlan, self).dispatch(request, *args, **kwargs)
-
-    def get(self, req):
-        data = {
-            'title': 'Data Master Plan',
-            'user': req.session['hris_admin'],
-        }
-        return render(req, 'admin/master_plan/index.html', data)
-    
-class page_master_plan(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('admin_login')
-        elif 'hris_admin' not in request.session:
-            return redirect('user_login')
-        return super(page_master_plan, self).dispatch(request, *args, **kwargs)
-    def get(self, req):
-        data_master_plan = data_mysql().data_master_plan()['data']
-        hasil = {
-            'hasil': "Data Master Plan",
-            'data_master_plan': data_master_plan
-        }
-        return JsonResponse(hasil)
-
-
-class page_detail_master_plan(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('admin_login')
-        return super(page_detail_master_plan, self).dispatch(request, *args, **kwargs)
-        
-    def get(self, request, master_plan_id):
-        try:
-            # Ambil data master plan berdasarkan ID
-            db = data_mysql()
-            result = db.get_master_plan_by_id(master_plan_id)
-            
-            if result['status']:
-                context = {
-                    'master_plan_data': result['data'],
-                    'master_plan_id': master_plan_id,
-                    'title': 'Detail Master Plan',
-                    'user': request.session['hris_admin']
-                }
-                return render(request, 'admin/master_plan/detail.html', context)
-            else:
-                messages.error(request, 'Data master plan tidak ditemukan')
-                return redirect('master_plan')
-                
-        except Exception as e:
-            messages.error(request, f'Terjadi error: {str(e)}')
-            return redirect('master_plan')
-
-    def post(self, request, master_plan_id):
-        try:
-            # Handle update master plan
-            data = {
-                'master_plan_id': master_plan_id,
-                'master_task_code': request.POST.get('master_task_code'),
-                'master_task_plan': request.POST.get('master_task_plan'),
-                'project_kategori': request.POST.get('project_kategori'),
-                'urgency': request.POST.get('urgency'),
-                'execute_status': request.POST.get('execute_status'),
-                'catatan': request.POST.get('catatan'),
-                'assignment_to': request.POST.get('assignment_to')
-            }
-            
-            db = data_mysql()
-            result = db.update_master_plan(data)
-            
-            if result['status']:
-                messages.success(request, 'Master plan berhasil diupdate')
-            else:
-                messages.error(request, 'Gagal mengupdate master plan')
-                
-            return redirect('master_plan')
-            
-        except Exception as e:
-            messages.error(request, f'Terjadi error: {str(e)}')
-            return redirect('master_plan')
-
-
-class add_master_plan(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('admin_login')
-        return super(add_master_plan, self).dispatch(request, *args, **kwargs)
-        
-    def get(self, request):
-        # Ambil data users untuk dropdown assignment
-        db = data_mysql()
-        users_result = db.data_user_by_params()
-        
-        context = {
-            'title': 'Tambah Master Plan',
-            'user': request.session['hris_admin'],
-            'users': users_result['data'] if users_result['status'] else []
-        }
-        return render(request, 'admin/master_plan/add.html', context)
-
-
-class post_tambah_master_plan(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('admin_login')
-        return super(post_tambah_master_plan, self).dispatch(request, *args, **kwargs)
-        
-    def post(self, request):
-        try:
-            # Generate UUID untuk master_plan_id
-            import uuid
-            master_plan_id = str(uuid.uuid4())
-            
-            # Ambil data dari form
-            data = {
-                'master_plan_id': master_plan_id,
-                'master_task_code': request.POST.get('master_task_code'),
-                'master_task_plan': request.POST.get('master_task_plan'),
-                'project_kategori': request.POST.get('project_kategori'),
-                'urgency': request.POST.get('urgency'),
-                'execute_status': request.POST.get('execute_status', 'Pending'),
-                'catatan': request.POST.get('catatan', ''),
-                'submitted_task': request.session['hris_admin']['user_id'],  # User yang login
-                'assignment_to': request.POST.get('assignment_to')
-            }
-            
-            # Validasi data required
-            required_fields = ['master_task_code', 'master_task_plan', 'project_kategori', 'urgency']
-            for field in required_fields:
-                if not data[field]:
-                    messages.error(request, f'Field {field} harus diisi')
-                    return redirect('add_master_plan')
-            
-            # Insert ke database
-            db = data_mysql()
-            result = db.insert_master_plan(data)
-            
-            if result['status']:
-                messages.success(request, 'Master plan berhasil ditambahkan')
-                return redirect('master_plan')
-            else:
-                messages.error(request, f'Gagal menambahkan master plan: {result["data"]}')
-                return redirect('add_master_plan')
-                
-        except Exception as e:
-            messages.error(request, f'Terjadi error: {str(e)}')
-            return redirect('add_master_plan')
-    
 
 # FACEBOOK ADS
 class SummaryFacebookAds(View):
