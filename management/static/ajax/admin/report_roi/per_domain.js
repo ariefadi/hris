@@ -83,7 +83,6 @@ $().ready(function () {
                 if (response.status) {
                     var select_site = $("#site_filter");
                     select_site.empty();
-                    
                     // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
                     var validPreviousSelections = [];
                     $.each(response.data, function (index, site) {
@@ -237,9 +236,26 @@ function formatNumber(num, decimals = 0) {
 }
 // Fungsi untuk format mata uang IDR
 function formatCurrencyIDR(value) {
-    // Convert to number, round to remove decimals, then format with Rp
-    let numValue = parseFloat(value.toString().replace(/[$,]/g, ''));
-    if (isNaN(numValue)) return value;
+    // Handle null, undefined, or non-numeric values
+    if (value === null || value === undefined || value === '') {
+        return 'Rp. 0';
+    }
+    
+    // Handle set objects or other complex objects
+    if (typeof value === 'object' && value !== null) {
+        // If it's a set-like object, try to get the first value or return 0
+        if (value.constructor && value.constructor.name === 'Set') {
+            return 'Rp. 0';
+        }
+        // For other objects, try to convert to string first
+        value = String(value);
+    }
+    
+    // Convert to string and remove currency symbols and commas
+    let stringValue = String(value);
+    let numValue = parseFloat(stringValue.replace(/[$,]/g, ''));
+    
+    if (isNaN(numValue)) return 'Rp. 0';
 
     // Round to remove decimals and format with Indonesian number format
     return 'Rp. ' + Math.round(numValue).toLocaleString('id-ID');

@@ -39,9 +39,9 @@ $().ready(function () {
         todayHighlight: true
     }).datepicker('setDate', today);
     
-    // Initialize Select2 for site filter
+    // Initialize Select2 for domain filter
     $('#site_filter').select2({
-        placeholder: 'Pilih Situs (Opsional)',
+        placeholder: 'Pilih Domain (Opsional)',
         allowClear: true,
         width: '100%',
         height: '100%',
@@ -55,10 +55,10 @@ $().ready(function () {
         load_adsense_traffic_account_data(tanggal_dari, tanggal_sampai);
     }
     
-    // Load sites list on page load
-    loadSitesList();
+    // Load domains list on page load
+    loadDomainsList();
     
-    function loadSitesList() {
+    function loadDomainsList() {
         $.ajax({
             url: '/management/admin/adsense_sites_list',
             type: 'GET',
@@ -66,21 +66,21 @@ $().ready(function () {
             success: function(response) {
                 if (response.status) {
                     // Clear existing options except the first one
-                    $('#site_filter').empty().append('<option value="">Semua Situs</option>');
+                    $('#site_filter').empty().append('<option value="">Semua Domain</option>');
                     
-                    // Add sites to dropdown
-                    response.data.forEach(function(site) {
-                        $('#site_filter').append('<option value="' + site + '">' + site + '</option>');
+                    // Add domains to dropdown
+                    response.data.forEach(function(domain) {
+                        $('#site_filter').append('<option value="' + domain + '">' + domain + '</option>');
                     });
                     
                     // Refresh Select2
                     $('#site_filter').trigger('change');
                 } else {
-                    console.error('Failed to load sites:', response.error);
+                    console.error('Failed to load domains:', response.error);
                 }
             },
             error: function(xhr, status, error) {
-                console.error('Error loading sites:', error);
+                console.error('Error loading domains:', error);
             }
         });
     }
@@ -103,7 +103,7 @@ $().ready(function () {
             "buttons": ["copy", "csv", "excel", "pdf", "print", "colvis"],
             "columnDefs": [
                 {
-                    "targets": [2, 3, 4, 5, 6], // Numeric columns
+                    "targets": [3, 4, 5, 6, 7, 8], // Numeric columns (Klik, Tayangan, CTR, CPM, CPC, Pendapatan)
                     "className": "text-right"
                 }
             ],
@@ -158,14 +158,16 @@ function load_adsense_traffic_account_data() {
             if (response && response.status) {
                 // Update summary boxes
                 if (response.summary) {
+                    $("#total_impressions").text(formatNumber(response.summary.total_impressions || 0));
                     $("#total_clicks").text(formatNumber(response.summary.total_clicks || 0));
                     $("#total_revenue").text(formatCurrencyIDR(response.summary.total_revenue || 0));
-                    $("#avg_cpc").text(formatCurrencyIDR(response.summary.avg_cpc || 0));
-                    $("#avg_ecpm").text(formatCurrencyIDR(response.summary.avg_ecpm || 0));
                     $("#avg_ctr").text(formatNumber(response.summary.avg_ctr || 0, 2) + '%');
+                    $("#average_cpc").text(formatCurrencyIDR(response.summary.avg_cpc || 0));
+                    $("#avg_cpm").text(formatCurrencyIDR(response.summary.avg_cpm || 0));
                     
                     // Show summary boxes
                     $('#summary_boxes').show();
+                    $('#summary_boxes_2').show();
                 }
                 
                 // Update DataTable
@@ -176,12 +178,14 @@ function load_adsense_traffic_account_data() {
                 if (response.message) {
                     // Show informative message for no data
                     table.row.add([
+                        '', '', 
                         '<div class="alert alert-info" style="margin: 20px; text-align: left;"><h5><i class="fas fa-info-circle"></i> Tidak Ada Data AdSense</h5><p>' + response.message + '</p><hr><small><strong>Saran:</strong><br>• Periksa <a href="https://www.google.com/adsense/" target="_blank">Google AdSense Dashboard</a> untuk memverifikasi data<br>• Pastikan kode iklan AdSense sudah terpasang dengan benar di website<br>• Coba periode tanggal yang berbeda jika akun baru saja aktif</small></div>',
-                        '', '', '', '', '', ''
+                        '', '', '', '', '', '', ''
                     ]);
                 }
                 // Populate table with data
                 else if (response.data && response.data.length > 0) {
+                    var rowNumber = 1;
                     response.data.forEach(function(item) {
                         // Format tanggal ke format Indonesia
                         var formattedDate = item.date || '-';
@@ -198,19 +202,21 @@ function load_adsense_traffic_account_data() {
                         }
                         
                         table.row.add([
-                            item.site_name || '-',
+                            rowNumber++,
                             formattedDate,
+                            item.site_name || item.ad_unit_name || '-',
                             formatNumber(item.clicks || 0),
-                            formatCurrencyIDR(item.revenue || 0),
+                            formatNumber(item.impressions || 0),
+                            formatNumber(item.ctr || 0, 2) + '%',
+                            formatCurrencyIDR(item.cpm || 0),
                             formatCurrencyIDR(item.cpc || 0),
-                            formatCurrencyIDR(item.ecpm || 0),
-                            formatNumber(item.ctr || 0, 2) + ' %'
+                            formatCurrencyIDR(item.revenue || 0)
                         ]);
                     });
                 } else {
                     table.row.add([
-                        'Tidak ada data tersedia untuk periode ini',
-                        '', '', '', '', '', ''
+                        '', '', 'Tidak ada data tersedia untuk periode ini',
+                        '', '', '', '', '', '', ''
                     ]);
                 }
                 

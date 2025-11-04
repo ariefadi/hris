@@ -54,12 +54,15 @@ $().ready(function () {
     // Load sites list on page load
     $('#btn_load_data').click(function (e) {
         e.preventDefault();
+        $("#overlay").show();
         loadSitesList();
         load_adx_traffic_account_data();
     });
     function loadSitesList() {
-        $("#overlay").show();
-        var selectedAccounts = $('#account_filter').val();
+        var selectedAccounts = $("#account_filter").val() || "";
+        // Simpan pilihan domain yang sudah dipilih sebelumnya
+        var previouslySelected = $("#site_filter").val() || [];
+        
         $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
@@ -71,22 +74,31 @@ $().ready(function () {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
             },
-            success: function(response) {
-                $("#overlay").hide();
+            success: function (response) {
                 if (response.status) {
                     var select_site = $("#site_filter");
                     select_site.empty();
-                    $.each(response.data, function(index, site) {
-                        select_site.append(new Option(site, site, false, false));
+                    
+                    // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
+                    var validPreviousSelections = [];
+                    $.each(response.data, function (index, site) {
+                        var isSelected = previouslySelected.includes(site);
+                        if (isSelected) {
+                            validPreviousSelections.push(site);
+                        }
+                        select_site.append(new Option(site, site, false, isSelected));
                     });
-                    // Jangan trigger change di sini untuk menghindari loop
+                    
+                    // Set nilai yang dipilih kembali
+                    if (validPreviousSelections.length > 0) {
+                        select_site.val(validPreviousSelections);
+                    }
+                    
                     select_site.trigger('change');
-                } 
+                }
             },
-            error: function(xhr, status, error) {
-                console.error('Error loading sites:', error);
-                console.error('Status:', status);
-                console.error('Response:', xhr.responseText);
+            error: function (xhr, status, error) {
+                report_eror(xhr, status);
             }
         });
     }
@@ -173,6 +185,9 @@ function load_adx_traffic_account_data() {
                             formatCurrencyIDR(item.revenue || 0)
                         ]);
                     });
+                    
+                    // Create daily revenue line chart
+                    create_revenue_line_chart(response.data);
                 }
                 table.draw();
                 showSuccessMessage('Traffic data loaded successfully!');
@@ -234,3 +249,113 @@ function getCookie(name) {
     return cookieValue;
 }
 const csrftoken = getCookie('csrftoken');
+
+// Function to create revenue line chart (matching adx_summary style)
+function create_revenue_line_chart(data) {
+    if (!data || data.length === 0) {
+        console.log('No data available for chart');
+        return;
+    }
+    
+    // Check if Highcharts is available
+    if (typeof Highcharts === 'undefined') {
+        console.error('Highcharts is not defined. Cannot create chart.');
+        return;
+    }
+    
+    // Group data by date and sum revenue
+    var dailyRevenue = {};
+    data.forEach(function (item) {
+        var date = item.date;
+        if (!dailyRevenue[date]) {
+            dailyRevenue[date] = 0;
+        }
+        dailyRevenue[date] += parseFloat(item.revenue || 0);
+    });
+    
+    // Convert to arrays for Highcharts
+    var dates = Object.keys(dailyRevenue).sort();
+    var revenues = dates.map(function (date) {
+        return dailyRevenue[date];
+    });
+    
+    // Format dates for display
+    var formattedDates = dates.map(function (date) {
+        var d = new Date(date + 'T00:00:00');
+        return d.toLocaleDateString('id-ID', {
+            day: 'numeric',
+            month: 'short'
+        });
+    });
+    
+    // Create line chart for daily revenue
+    Highcharts.chart('revenue_chart', {
+        chart: {
+            type: 'line'
+        },
+        title: {
+            text: 'Pergerakan Pendapatan Harian'
+        },
+        xAxis: {
+            categories: formattedDates,
+            title: {
+                text: 'Tanggal'
+            }
+        },
+        yAxis: {
+            title: {
+                text: 'Pendapatan (Rp)'
+            },
+            labels: {
+                formatter: function () {
+                    return 'Rp ' + formatNumber(this.value, 0);
+                }
+            }
+        },
+        series: [{
+            name: 'Pendapatan Harian',
+            data: revenues,
+            color: '#28a745',
+            lineWidth: 3,
+            marker: {
+                radius: 5
+            }
+        }],
+        tooltip: {
+            formatter: function () {
+                var dateIndex = this.point.index;
+                var actualDate = dates[dateIndex];
+                var formattedDate = formatDateForDisplay(actualDate);
+                return '<b>' + this.series.name + '</b><br/>' +
+                    'Tanggal: ' + formattedDate + '<br/>' +
+                    'Pendapatan: Rp ' + formatNumber(this.y, 2);
+            }
+        },
+        legend: {
+            enabled: false
+        },
+        plotOptions: {
+            line: {
+                dataLabels: {
+                    enabled: false
+                },
+                enableMouseTracking: true
+            }
+        }
+    });
+}
+
+// Function to format date for display
+function formatDateForDisplay(dateString) {
+    if (!dateString) return '';
+    
+    try {
+        var date = new Date(dateString + 'T00:00:00');
+        var day = String(date.getDate()).padStart(2, '0');
+        var month = String(date.getMonth() + 1).padStart(2, '0');
+        var year = date.getFullYear();
+        return day + '/' + month + '/' + year;
+    } catch (e) {
+        return dateString;
+    }
+}

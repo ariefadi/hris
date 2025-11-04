@@ -34,6 +34,13 @@ $().ready(function () {
         autoclose: true,
         todayHighlight: true
     }).datepicker('setDate', today);
+    $('#account_filter').select2({
+        placeholder: '-- Pilih Akun Terdaftar --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4'
+    });
     // Initialize Select2 for site filter
     $('#site_filter').select2({
         placeholder: '-- Pilih Domain --',
@@ -50,16 +57,24 @@ $().ready(function () {
         theme: 'bootstrap4'
     })
     $('#btn_load_data').click(function (e) {
+        var selected_account_adx = $("#account_filter").val();
+        $('#overlay').show();
+        loadSitesList(selected_account_adx);
         load_adx_traffic_account_data();
     });
     // Load sites list on page load
-    loadSitesList();
-    function loadSitesList() {
-        $("#overlay").show();
+    function loadSitesList(selected_account_adx) {
+        var selectedAccounts = selected_account_adx;
+        // Simpan pilihan domain yang sudah dipilih sebelumnya
+        var previouslySelected = $("#site_filter").val() || [];
+        
         $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
             dataType: 'json',
+            data: {
+                'selected_accounts': selectedAccounts
+            },
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
@@ -68,19 +83,30 @@ $().ready(function () {
                 if (response.status) {
                     var select_site = $("#site_filter");
                     select_site.empty();
+                    
+                    // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
+                    var validPreviousSelections = [];
                     $.each(response.data, function (index, site) {
-                        select_site.append(new Option(site, site, false, false));
+                        var isSelected = previouslySelected.includes(site);
+                        if (isSelected) {
+                            validPreviousSelections.push(site);
+                        }
+                        select_site.append(new Option(site, site, false, isSelected));
                     });
+                    
+                    // Set nilai yang dipilih kembali
+                    if (validPreviousSelections.length > 0) {
+                        select_site.val(validPreviousSelections);
+                    }
+                    
                     // Jangan trigger change di sini untuk menghindari loop
                     select_site.trigger('change');
                 }
-                $("#overlay").hide();
             },
             error: function (xhr, status, error) {
                 console.error('Error loading sites:', error);
                 console.error('Status:', status);
                 console.error('Response:', xhr.responseText);
-                $("#overlay").hide();
             }
         });
     }
@@ -103,10 +129,11 @@ $().ready(function () {
 function load_adx_traffic_account_data() {
     var tanggal_dari = $('#tanggal_dari').val();
     var tanggal_sampai = $('#tanggal_sampai').val();
+    var selectedAccounts = $('#account_filter').val();
     var selectedSites = $('#site_filter').val();
     var selectedAccount = $('#select_account').val();
     if (!tanggal_dari || !tanggal_sampai) {
-        alert('Please select both start and end dates.');
+        alert('Silakan pilih tanggal dari dan sampai.');
         return;
     }
     // Convert array to comma-separated string for backend
@@ -114,13 +141,13 @@ function load_adx_traffic_account_data() {
     if (selectedSites && selectedSites.length > 0) {
         siteFilter = selectedSites.join(',');
     }
-    $("#overlay").show();
     $.ajax({
         url: '/management/admin/page_roi_traffic_domain',
         type: 'GET',
         data: {
             start_date: tanggal_dari,
             end_date: tanggal_sampai,
+            selected_account_adx: selectedAccounts,
             selected_sites: siteFilter,
             selected_account: selectedAccount,
         },

@@ -3,6 +3,7 @@ from django.urls import path, include, re_path
 from django.shortcuts import redirect
 from django.conf import settings
 from django.conf.urls.static import static
+from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 from management import views
 from hris import views as project_views
 
@@ -25,10 +26,9 @@ urlpatterns = [
 
 # Serve static files during development
 if settings.DEBUG:
-    doc_root = settings.STATICFILES_DIRS[0] if getattr(settings, 'STATICFILES_DIRS', None) else None
-    if doc_root:
-        urlpatterns += static(settings.STATIC_URL, document_root=doc_root)
+    urlpatterns += static(settings.STATIC_URL, document_root=settings.STATICFILES_DIRS[0])
     # Catch-all route to render custom 404 page during development (DEBUG=True)
+    # This should be LAST to avoid catching static files
     urlpatterns += [
         re_path(r'^.*$', project_views.dev_404, name='dev_404'),
     ]

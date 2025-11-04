@@ -21,6 +21,7 @@ from .utils_adsense import (
     fetch_adsense_traffic_account_data,
     fetch_adsense_summary_data,
     fetch_adsense_traffic_per_country,
+    fetch_adsense_account_info_and_units,
 )
 
 # OAuth functions removed - using standardized OAuth flow from oauth_views_package
@@ -56,23 +57,24 @@ class AdsenseTrafficAccountDataView(View):
         return super().dispatch(request, *args, **kwargs)
     def post(self, request):
         try:
-            # Get user ID from session
-            user_id = request.session['hris_admin'].get('user_id')
-            if not user_id:
-                return JsonResponse({
-                    'error': 'User ID not found in session'
-                }, status=400)
-            # Get user email from database using user_id
-            from .database import data_mysql
-            db = data_mysql()
-            sql = "SELECT user_mail FROM app_users WHERE user_id = %s"
-            db.cur_hris.execute(sql, (user_id,))
-            user_data = db.cur_hris.fetchone()
-            if not user_data or not user_data.get('user_mail'):
-                return JsonResponse({
-                    'error': 'User email not found in database'
-                }, status=400)
-            user_mail = user_data['user_mail']
+            # Prioritaskan user_mail dari filter akun jika disediakan
+            account_filter = request.POST.get('account_filter')
+            if account_filter:
+                user_mail = account_filter
+            else:
+                # Fallback: ambil dari session app_users
+                user_id = request.session['hris_admin'].get('user_id')
+                if not user_id:
+                    return JsonResponse({'error': 'User ID not found in session'}, status=400)
+                # Get user email from database using user_id
+                from .database import data_mysql
+                db = data_mysql()
+                sql = "SELECT user_mail FROM app_users WHERE user_id = %s"
+                db.cur_hris.execute(sql, (user_id,))
+                user_data = db.cur_hris.fetchone()
+                if not user_data or not user_data.get('user_mail'):
+                    return JsonResponse({'error': 'User email not found in database'}, status=400)
+                user_mail = user_data['user_mail']
             # Get form data
             start_date = request.POST.get('start_date')
             end_date = request.POST.get('end_date')
@@ -200,8 +202,7 @@ class AdsenseSummaryView(View):
 class AdsenseSummaryDataView(View):
     """AJAX endpoint untuk data Summary AdSense (dibuka untuk preview)."""
     def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('admin_login')
+        # Izinkan akses untuk preview/API; otentikasi akan ditangani di dalam get()
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request):
@@ -223,12 +224,14 @@ class AdsenseSummaryDataView(View):
             
             print(f"[DEBUG] Credential data found: {credential_data}")
             
-            if not credential_data:
-                print("[DEBUG] No active credentials found")
+            # Gunakan account_filter jika tersedia, fallback ke kredensial aktif
+            account_filter = request.GET.get('account_filter')
+            if not credential_data and not account_filter:
+                print("[DEBUG] No active credentials found and no account_filter provided")
                 return JsonResponse({'status': False, 'error': 'Tidak ada kredensial aktif yang ditemukan'})
             
-            user_mail = credential_data['user_mail']
-            print(f"[DEBUG] Using user_mail: {user_mail}")
+            user_mail = account_filter if account_filter else credential_data['user_mail']
+            print(f"[DEBUG] Using user_mail: {user_mail} (from {'account_filter' if account_filter else 'active credential'})")
 
             # Ambil parameter
             start_date = request.GET.get('start_date')
@@ -260,7 +263,9 @@ class AdsenseSummaryDataView(View):
                     'ctr': result['data'].get('avg_ctr', 0),
                     'ecpm': result['data'].get('avg_ecpm', 0),
                     'cpc': result['data'].get('avg_cpc', 0)
-                }
+                },
+                'daily': result['data'].get('daily', []),
+                'currency': result['data'].get('currency', 'USD')
             }
             
             print(f"[DEBUG] Returning response: {response_data}")
@@ -292,26 +297,31 @@ class AdsenseTrafficPerCountryDataView(View):
 
     def post(self, request):
         try:
-            # Get user ID from session
-            user_id = request.session['hris_admin'].get('user_id')
-            if not user_id:
-                return JsonResponse({
-                    'error': 'User ID not found in session'
-                }, status=400)
-            
-            # Get user email from database using user_id
-            from .database import data_mysql
-            db = data_mysql()
-            sql = "SELECT user_mail FROM app_users WHERE user_id = %s"
-            db.cur_hris.execute(sql, (user_id,))
-            user_data = db.cur_hris.fetchone()
-            
-            if not user_data or not user_data.get('user_mail'):
-                return JsonResponse({
-                    'error': 'User email not found in database'
-                }, status=400)
-            
-            user_mail = user_data['user_mail']
+            # Prioritaskan user_mail dari filter akun jika disediakan
+            account_filter = request.POST.get('account_filter')
+            if account_filter:
+                user_mail = account_filter
+            else:
+                # Fallback: ambil dari session app_users
+                user_id = request.session['hris_admin'].get('user_id')
+                if not user_id:
+                    return JsonResponse({
+                        'error': 'User ID not found in session'
+                    }, status=400)
+                
+                # Get user email from database using user_id
+                from .database import data_mysql
+                db = data_mysql()
+                sql = "SELECT user_mail FROM app_users WHERE user_id = %s"
+                db.cur_hris.execute(sql, (user_id,))
+                user_data = db.cur_hris.fetchone()
+                
+                if not user_data or not user_data.get('user_mail'):
+                    return JsonResponse({
+                        'error': 'User email not found in database'
+                    }, status=400)
+                
+                user_mail = user_data['user_mail']
             # Get form data (same as Traffic Account)
             start_date = request.POST.get('start_date')
             end_date = request.POST.get('end_date')
@@ -380,23 +390,57 @@ class AdsenseAccountView(View):
         return render(request, 'admin/adsense_manager/account/index.html')
 
 class AdsenseAccountDataView(View):
-    """AJAX endpoint untuk data AdSense Account (dummy untuk preview)."""
+    """AJAX endpoint untuk data AdSense Account dan unit iklan berbasis data real."""
     def get(self, request):
         try:
-            data = [
-                {
-                    'account_id': 'pub-1234567890123456',
-                    'user_mail': 'adsense_user@example.com',
-                    'site_count': 2,
-                    'authorized': True,
-                },
-                {
-                    'account_id': 'pub-9876543210987654',
-                    'user_mail': 'another_user@example.com',
-                    'site_count': 1,
-                    'authorized': False,
-                },
-            ]
+            # Ambil kredensial yang dipilih (user_mail). Jika tidak ada, gunakan kredensial aktif terbaru
+            selected_user_mail = request.GET.get('user_mail')
+            if not selected_user_mail:
+                from .database import data_mysql
+                db = data_mysql()
+                sql = """
+                    SELECT user_mail
+                    FROM app_credentials
+                    WHERE is_active = '1'
+                    ORDER BY mdd DESC
+                    LIMIT 1
+                """
+                db.cur_hris.execute(sql)
+                row = db.cur_hris.fetchone()
+                if not row:
+                    return JsonResponse({'status': False, 'error': 'Tidak ada kredensial aktif ditemukan'})
+                selected_user_mail = row['user_mail']
+
+            # Ambil data akun dan unit iklan dari AdSense API menggunakan utilitas
+            result = fetch_adsense_account_info_and_units(selected_user_mail)
+            if not result.get('status'):
+                return JsonResponse({'status': False, 'error': result.get('error', 'Gagal mengambil data AdSense')})
+
+            # Kembalikan data real
+            return JsonResponse({
+                'status': True,
+                'data': result.get('accounts', []),
+                'ad_units': result.get('ad_units', []),
+                'user_mail': selected_user_mail
+            })
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
+
+class AdsenseCredentialsListView(View):
+    """AJAX endpoint: daftar kredensial AdSense aktif untuk dipilih di UI."""
+    def get(self, request):
+        try:
+            from .database import data_mysql
+            db = data_mysql()
+            sql = """
+                SELECT account_name, user_mail 
+                FROM app_credentials 
+                WHERE is_active = '1'
+                ORDER BY account_name ASC
+            """
+            db.cur_hris.execute(sql)
+            rows = db.cur_hris.fetchall() or []
+            data = [{'user_mail': r['user_mail'], 'account_name': r['account_name']} for r in rows]
             return JsonResponse({'status': True, 'data': data})
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})

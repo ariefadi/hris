@@ -131,26 +131,45 @@ def get_user_adsense_client(user_mail):
                 'status': False,
                 'error': 'Missing required credentials for AdSense client (client_id, client_secret, refresh_token)'
             }
-        # Create OAuth2 credentials object
-        creds = Credentials(
-            token=None,
-            refresh_token=refresh_token,
-            token_uri='https://oauth2.googleapis.com/token',
-            client_id=client_id,
-            client_secret=client_secret,
-            scopes=['https://www.googleapis.com/auth/adsense']
-        )
-        
-        # Refresh the token to get a valid access token
+        # Try with full-access scope first, then fallback to readonly on invalid_scope
+        def build_credentials(scope):
+            return Credentials(
+                token=None,
+                refresh_token=refresh_token,
+                token_uri='https://oauth2.googleapis.com/token',
+                client_id=client_id,
+                client_secret=client_secret,
+                scopes=[scope] if scope else None
+            )
+
+        request = Request()
+        creds = build_credentials('https://www.googleapis.com/auth/adsense')
         try:
-            request = Request()
             creds.refresh(request)
-            print(f"[DEBUG] Token refreshed successfully")
+            print("[DEBUG] Token refreshed successfully with scope 'adsense'")
         except Exception as refresh_error:
-            return {
-                'status': False,
-                'error': f'Failed to refresh OAuth credentials: {str(refresh_error)}'
-            }
+            err_str = str(refresh_error).lower()
+            print(f"[WARNING] Refresh failed with scope 'adsense': {refresh_error}")
+            if 'invalid_scope' in err_str or 'bad request' in err_str:
+                # Fallback to readonly scope
+                try:
+                    creds = build_credentials('https://www.googleapis.com/auth/adsense.readonly')
+                    creds.refresh(request)
+                    print("[DEBUG] Token refreshed successfully with scope 'adsense.readonly'")
+                except Exception as refresh_error2:
+                    return {
+                        'status': False,
+                        'error': (
+                            "Failed to refresh OAuth credentials (invalid_scope). "
+                            "Coba re-authorize kredensial dengan scope AdSense yang benar "
+                            "(adsense atau adsense.readonly). Detail: " + str(refresh_error2)
+                        )
+                    }
+            else:
+                return {
+                    'status': False,
+                    'error': f'Failed to refresh OAuth credentials: {str(refresh_error)}'
+                }
         # Build AdSense Management API service
         if build is None:
             return {
@@ -329,6 +348,9 @@ def fetch_adsense_summary_data(user_mail, start_date, end_date, site_filter='%')
     """
     Fetch AdSense summary metrics (impressions, clicks, earnings, ctr, ecpm, cpc)
     for a user between start_date and end_date. Optionally filter by site/ad unit name.
+
+    Additionally returns per-day time series in key 'daily' for charting purposes.
+    Each item of 'daily' contains: { 'date', 'impressions', 'clicks', 'revenue', 'ctr', 'ecpm', 'cpc' }.
     """
     try:
         print(f"[DEBUG] fetch_adsense_summary_data called with user_mail: {user_mail}")
@@ -386,6 +408,14 @@ def fetch_adsense_summary_data(user_mail, start_date, end_date, site_filter='%')
                 'error': 'No AdSense accounts found. This could be due to: 1) Invalid or expired OAuth credentials, 2) Account does not have AdSense access, 3) Incorrect OAuth scopes'
             }
 
+        # Determine currency code from account info (fallback to USD)
+        currency_code = 'USD'
+        try:
+            acc0 = accounts['accounts'][0]
+            currency_code = acc0.get('currencyCode') or acc0.get('currency_code') or currency_code
+        except Exception:
+            pass
+
         account_id = accounts['accounts'][0]['name']
         print(f"[DEBUG] Using AdSense account: {account_id}")
 
@@ -420,6 +450,16 @@ def fetch_adsense_summary_data(user_mail, start_date, end_date, site_filter='%')
         try:
             report = report_request.execute()
             print(f"[DEBUG] AdSense report result: {report}")
+            # Try to read currency from report response if available
+            try:
+                report_currency = report.get('currencyCode') or report.get('currency_code')
+                if not report_currency:
+                    meta = report.get('metadata') or {}
+                    report_currency = meta.get('currencyCode') or meta.get('currency_code')
+                if report_currency:
+                    currency_code = report_currency
+            except Exception:
+                pass
         except Exception as report_error:
             print(f"[DEBUG] AdSense report request failed: {str(report_error)}")
             return {
@@ -432,12 +472,14 @@ def fetch_adsense_summary_data(user_mail, start_date, end_date, site_filter='%')
         total_earnings = 0.0
         total_page_views = 0
         total_requests = 0
+        daily = []
 
         if 'rows' in report:
             print(f"[DEBUG] Processing {len(report['rows'])} rows from AdSense report")
             for row in report['rows']:
                 cells = row.get('cells', [])
                 # cells[0] is DATE, metrics start from index 1
+                date_str = cells[0]['value'] if len(cells) > 0 else ''
                 impressions = int(float(cells[1]['value'])) if len(cells) > 1 else 0
                 clicks = int(float(cells[2]['value'])) if len(cells) > 2 else 0
                 earnings = float(cells[3]['value']) if len(cells) > 3 else 0.0
@@ -449,6 +491,21 @@ def fetch_adsense_summary_data(user_mail, start_date, end_date, site_filter='%')
                 total_earnings += earnings
                 total_page_views += page_views
                 total_requests += ad_requests
+
+                # Derived metrics per day
+                ctr_day = (clicks / impressions * 100) if impressions > 0 else 0.0
+                ecpm_day = (earnings / impressions * 1000) if impressions > 0 else 0.0
+                cpc_day = (earnings / clicks) if clicks > 0 else 0.0
+
+                daily.append({
+                    'date': date_str,
+                    'impressions': impressions,
+                    'clicks': clicks,
+                    'revenue': round(earnings, 4),
+                    'ctr': round(ctr_day, 4),
+                    'ecpm': round(ecpm_day, 4),
+                    'cpc': round(cpc_day, 4),
+                })
         else:
             print(f"[DEBUG] No rows found in AdSense report")
 
@@ -465,7 +522,9 @@ def fetch_adsense_summary_data(user_mail, start_date, end_date, site_filter='%')
             'total_ad_requests': total_requests,
             'avg_ctr': avg_ctr,
             'avg_ecpm': avg_ecpm,
-            'avg_cpc': avg_cpc
+            'avg_cpc': avg_cpc,
+            'daily': daily,
+            'currency': currency_code
         }
         
         print(f"[DEBUG] Final result data: {result_data}")
@@ -651,4 +710,162 @@ def fetch_adsense_sites_list(user_mail):
         return {
             'status': False,
             'error': f'Error fetching AdSense sites: {str(e)}'
+        }
+
+def fetch_adsense_account_info_and_units(user_mail):
+    """
+    Fetch real AdSense account information and ad units using the selected user's credentials.
+
+    Returns:
+    {
+        'status': True,
+        'accounts': [
+            {
+                'account_id': '<account name>',
+                'user_mail': '<email>',
+                'site_count': <int>,
+                'authorized': <bool>,
+            },
+            ...
+        ],
+        'ad_units': [
+            {
+                'account_id': '<account name>',
+                'ad_client': '<ad client name>',
+                'ad_unit_name': '<display name or name>',
+                'ad_unit_type': '<type>'
+            },
+            ...
+        ]
+    }
+    """
+    try:
+        # Initialize AdSense client for the given user
+        client_result = get_user_adsense_client(user_mail)
+        if not client_result.get('status'):
+            return {
+                'status': False,
+                'error': client_result.get('error', 'Failed to initialize AdSense client')
+            }
+
+        service = client_result['service']
+
+        # List accounts
+        accounts_resp = service.accounts().list().execute()
+        accounts_list = accounts_resp.get('accounts', []) or []
+        if not accounts_list:
+            return {
+                'status': True,
+                'accounts': [],
+                'ad_units': []
+            }
+
+        results_accounts = []
+        results_ad_units = []
+
+        for acc in accounts_list:
+            account_name = acc.get('name') or ''
+            # Compute site_count via Accounts.sites.list
+            site_count = 0
+            try:
+                sites_resp = service.accounts().sites().list(parent=account_name).execute()
+                sites = sites_resp.get('sites', []) or []
+                site_count = len(sites)
+            except Exception as e:
+                # If sites API fails, keep site_count as 0
+                print(f"[WARNING] Failed to list sites for {account_name}: {e}")
+                site_count = 0
+
+            # Mark authorized as True when we can access the account and list anything
+            authorized = True
+
+            results_accounts.append({
+                'account_id': account_name,
+                'user_mail': user_mail,
+                'site_count': site_count,
+                'authorized': authorized
+            })
+
+            # List ad clients for the account with pagination
+            try:
+                adclients = []
+                adclients_req = service.accounts().adclients().list(parent=account_name, pageSize=200)
+                while True:
+                    adclients_resp = adclients_req.execute()
+                    adclients.extend(adclients_resp.get('adclients', []) or [])
+                    next_token = adclients_resp.get('nextPageToken')
+                    if not next_token:
+                        break
+                    adclients_req = service.accounts().adclients().list(parent=account_name, pageSize=200, pageToken=next_token)
+
+                for adclient in adclients:
+                    adclient_name = adclient.get('name') or ''
+                    # List ad units under this ad client with pagination
+                    try:
+                        adunits = []
+                        adunits_req = service.accounts().adclients().adunits().list(parent=adclient_name, pageSize=200)
+                        while True:
+                            adunits_resp = adunits_req.execute()
+                            adunits.extend(adunits_resp.get('adunits', []) or [])
+                            next_unit_token = adunits_resp.get('nextPageToken')
+                            if not next_unit_token:
+                                break
+                            adunits_req = service.accounts().adclients().adunits().list(parent=adclient_name, pageSize=200, pageToken=next_unit_token)
+
+                        for adunit in adunits:
+                            display_name = adunit.get('displayName') or adunit.get('name') or ''
+                            unit_type = adunit.get('adUnitType') or adunit.get('contentAdsSettings', {}).get('type') or ''
+                            results_ad_units.append({
+                                'account_id': account_name,
+                                'ad_client': adclient_name,
+                                'ad_unit_name': display_name,
+                                'ad_unit_type': unit_type
+                            })
+                    except Exception as e:
+                        print(f"[WARNING] Failed to list ad units for {adclient_name}: {e}")
+                        continue
+                # Fallback: if no ad units found under adclients, try to derive from report
+                if not results_ad_units:
+                    try:
+                        report = service.accounts().reports().generate(
+                            account=account_name,
+                            dateRange='YEAR_TO_DATE',
+                            dimensions=['AD_CLIENT_ID', 'AD_UNIT_NAME'],
+                            metrics=['IMPRESSIONS']
+                        ).execute()
+                        seen = set()
+                        for row in report.get('rows', []):
+                            cells = row.get('cells', [])
+                            ad_client_id = cells[0]['value'] if len(cells) > 0 else ''
+                            ad_unit_name = cells[1]['value'] if len(cells) > 1 else ''
+                            if ad_unit_name:
+                                key = (ad_client_id, ad_unit_name)
+                                if key in seen:
+                                    continue
+                                seen.add(key)
+                                results_ad_units.append({
+                                    'account_id': account_name,
+                                    'ad_client': ad_client_id or 'unknown',
+                                    'ad_unit_name': ad_unit_name,
+                                    'ad_unit_type': ''
+                                })
+                        if not report.get('rows'):
+                            print(f"[DEBUG] Report fallback returned no rows for account {account_name}")
+                    except Exception as e:
+                        print(f"[WARNING] Report fallback failed for account {account_name}: {e}")
+            except Exception as e:
+                print(f"[WARNING] Failed to list ad clients for {account_name}: {e}")
+                continue
+
+        return {
+            'status': True,
+            'accounts': results_accounts,
+            'ad_units': results_ad_units
+        }
+
+    except Exception as e:
+        print(f"[ERROR] fetch_adsense_account_info_and_units failed: {e}")
+        return {
+            'status': False,
+            'error': f'Error fetching AdSense account info and ad units: {str(e)}'
         }

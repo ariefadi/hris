@@ -10,6 +10,13 @@ $(document).ready(function () {
     var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     $('#tanggal_dari').val(formatDateForInput(lastWeek));
     $('#tanggal_sampai').val(formatDateForInput(today));
+    $('#account_filter').select2({
+        placeholder: '-- Pilih Akun Terdaftar --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4'
+    });
     // Initialize Select2 for site filter
     $('#site_filter').select2({
         placeholder: '-- Pilih Domain --',
@@ -36,16 +43,24 @@ $(document).ready(function () {
     });
     // Event handler untuk tombol Load
     $('#btn_load_data').click(function () {
+        var selected_account_adx = $("#account_filter").val();
+        $('#overlay').show();
+        loadSitesList(selected_account_adx);
+        load_country_options(selected_account_adx);
         load_adx_traffic_country_data();
     });
     // Load data situs untuk select2
-    loadSitesList();
-    function loadSitesList() {
-        $("#overlay").show();
+    function loadSitesList(selected_account_adx) {
+        var selectedAccounts = selected_account_adx;
+        // Simpan pilihan domain yang sudah dipilih sebelumnya
+        var previouslySelected = $("#site_filter").val() || [];
         $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
             dataType: 'json',
+            data: {
+                'selected_accounts': selectedAccounts
+            },
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
@@ -54,45 +69,72 @@ $(document).ready(function () {
                 if (response.status) {
                     var select_site = $("#site_filter");
                     select_site.empty();
+                    
+                    // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
+                    var validPreviousSelections = [];
                     $.each(response.data, function (index, site) {
-                        select_site.append(new Option(site, site, false, false));
+                        var isSelected = previouslySelected.includes(site);
+                        if (isSelected) {
+                            validPreviousSelections.push(site);
+                        }
+                        select_site.append(new Option(site, site, false, isSelected));
                     });
+                    
+                    // Set nilai yang dipilih kembali
+                    if (validPreviousSelections.length > 0) {
+                        select_site.val(validPreviousSelections);
+                    }
+                    
                     select_site.trigger('change');
                 }
-                $("#overlay").hide();
             },
             error: function (xhr, status, error) {
                 console.error('Error loading sites:', error);
                 console.error('Status:', status);
                 console.error('Response:', xhr.responseText);
-                $("#overlay").hide();
             }
         });
     }
     // Load data saat halaman pertama kali dibuka
-    load_country_options();
-    function load_country_options() {
-        $("#overlay").show();
+    function load_country_options(selected_account_adx) {
+        var selectedAccounts = selected_account_adx;
+        // Simpan pilihan negara yang sudah dipilih sebelumnya
+        var previouslySelected = $('#country_filter').val() || [];
+        
         $.ajax({
             url: '/management/admin/get_countries_adx',
             type: 'GET',
             dataType: 'json',
+            data: {
+                'selected_accounts': selectedAccounts
+            },
             success: function (response) {
                 if (response.status) {
                     var select_country = $('#country_filter');
                     select_country.empty();
+                    
+                    // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
+                    var validPreviousSelections = [];
                     $.each(response.countries, function (index, country) {
-                        select_country.append(new Option(country.name, country.code, false, false));
+                        var isSelected = previouslySelected.includes(country.code);
+                        if (isSelected) {
+                            validPreviousSelections.push(country.code);
+                        }
+                        select_country.append(new Option(country.name, country.code, false, isSelected));
                     });
+                    
+                    // Set nilai yang dipilih kembali
+                    if (validPreviousSelections.length > 0) {
+                        select_country.val(validPreviousSelections);
+                    }
+                    
                     select_country.trigger('change');
                 }
-                $("#overlay").hide();
             },
             error: function (xhr, status, error) {
                 console.error('Error loading countries:', error);
                 console.error('Status:', status);
                 console.error('Response:', xhr.responseText);
-                $("#overlay").hide();
             }
         });
     }
@@ -115,6 +157,7 @@ $(document).ready(function () {
     function load_adx_traffic_country_data() {
         var startDate = $('#tanggal_dari').val();
         var endDate = $('#tanggal_sampai').val();
+        var selectedAccountAdx = $('#account_filter').val();
         var selectedSites = $('#site_filter').val();
         var selectedAccount = $('#select_account').val();
         var selectedCountries = $('#country_filter').val();
@@ -136,8 +179,6 @@ $(document).ready(function () {
         if ($.fn.DataTable.isDataTable('#table_traffic_country')) {
             $('#table_traffic_country').DataTable().destroy();
         }
-        // Tampilkan overlay loading
-        $('#overlay').show();
         // AJAX request
         $.ajax({
             url: '/management/admin/page_roi_traffic_country',
@@ -145,6 +186,7 @@ $(document).ready(function () {
             data: {
                 start_date: startDate,
                 end_date: endDate,
+                selected_account_adx: selectedAccountAdx,
                 selected_sites: siteFilter,
                 selected_account: selectedAccount,
                 selected_countries: countryFilter
@@ -162,13 +204,12 @@ $(document).ready(function () {
                     // Generate charts if data available
                     generateTrafficCountryCharts(response.data);
                     $('#charts_section').show();
-                    $('#overlay').hide();
                 } else {
                     var errorMsg = response.error || 'Terjadi kesalahan yang tidak diketahui';
                     console.error('[DEBUG] Response error:', errorMsg);
                     alert('Error: ' + errorMsg);
-                    $('#overlay').hide();
                 }
+                $('#overlay').hide();
             },
             error: function (xhr, status, error) {
                 console.error('[DEBUG] AJAX Error:', {

@@ -5,14 +5,19 @@ $(document).ready(function() {
         autoclose: true,
         todayHighlight: true
     });
-
     // Set tanggal default (7 hari terakhir)
     var today = new Date();
     var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    
     $('#tanggal_dari').val(formatDateForInput(lastWeek));
     $('#tanggal_sampai').val(formatDateForInput(today));
-
+    // Initialize Select2 for account
+    $('#account_filter').select2({
+        placeholder: '-- Pilih Akun Terdaftar --',
+        allowClear: true,
+        width: '100%',
+        height: '100%',
+        theme: 'bootstrap4'
+    });
     // Inisialisasi Select2 untuk site filter
     $('#site_filter').select2({
         placeholder: '-- Pilih Domain --',
@@ -22,7 +27,6 @@ $(document).ready(function() {
         theme: 'bootstrap4',
         multiple: true
     });
-
     // Inisialisasi Select2 untuk country filter
     $('#country_filter').select2({
         placeholder: '-- Pilih Negara --',
@@ -36,7 +40,6 @@ $(document).ready(function() {
     $('#btn_load_data').click(function() {
         load_adx_traffic_country_data();
     });
-
     // Load sites list on page load
     loadSitesList();
     function loadSitesList() {
@@ -125,6 +128,7 @@ $(document).ready(function() {
     function load_adx_traffic_country_data() {
         var startDate = $('#tanggal_dari').val();
         var endDate = $('#tanggal_sampai').val();
+        var selectedAccounts = $('#account_filter').val();
         var selectedSites = $('#site_filter').val();
         var selectedCountries = $('#country_filter').val();
         if (!startDate || !endDate) {
@@ -156,6 +160,7 @@ $(document).ready(function() {
             data: {
                 start_date: startDate,
                 end_date: endDate,
+                selected_accounts: selectedAccounts,
                 selected_sites: siteFilter,
                 selected_countries: countryFilter
             },

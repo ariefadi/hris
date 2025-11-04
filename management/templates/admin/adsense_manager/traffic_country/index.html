@@ -32,15 +32,17 @@
                  <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
             </div>
             <div class="col-md-3">
-                <label>Filter Site</label>
-                <select class="form-control" id="site_filter">
-                    <option value="">Semua Site</option>
+                <label>Filter Account</label>
+                <select class="form-control" id="account_filter">
+                    <option value="">Semua Akun</option>
                     <!-- Options akan diisi secara dinamis oleh JavaScript -->
                 </select>
             </div>
             <div class="col-md-3">
                 <label>Filter Countries</label>
-                <input type="text" id="country_filter" class="form-control"/>
+                <select class="form-control" id="country_filter" multiple>
+                    <!-- Gunakan Select2 dengan tags: true; pengguna dapat mengetik negara -->
+                </select>
             </div>
             <div class="col-md-2">
                 <label>&nbsp;</label>

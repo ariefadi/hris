@@ -23,18 +23,18 @@ $().ready(function () {
         alert(msg);
     };
     // Configure datepicker with YYYY-MM-DD format
+    var today = new Date();
+    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     $('#tanggal_dari').datepicker({
         format: 'yyyy-mm-dd',
         autoclose: true,
-        todayHighlight: true,
-        orientation: 'bottom auto'
-    });
+        todayHighlight: true
+    }).datepicker('setDate', lastWeek);
     $('#tanggal_sampai').datepicker({
         format: 'yyyy-mm-dd',
         autoclose: true,
-        todayHighlight: true,
-        orientation: 'bottom auto'
-    });
+        todayHighlight: true
+    }).datepicker('setDate', today);
     // Initialize Select2 for account
     $('#account_filter').select2({
         placeholder: '-- Pilih Akun Terdaftar --',
@@ -63,16 +63,19 @@ $().ready(function () {
         var selected_sites = $("#site_filter").val();
         if (tanggal_dari != "" && tanggal_sampai != "") {
             e.preventDefault();
-            loadSitesList(selected_accounts);
+            $("#overlay").show();
+            loadSitesList();
             load_adx_summary_data(tanggal_dari, tanggal_sampai, selected_accounts, selected_sites);
             load_adx_traffic_country_data();
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
         }
     });
-    function loadSitesList(selected_accounts) {
-        $("#overlay").show();
-        var selectedAccounts = selected_accounts;
+    function loadSitesList() {
+        var selectedAccounts = $("#account_filter").val() || "";
+        // Simpan pilihan domain yang sudah dipilih sebelumnya
+        var previouslySelected = $("#site_filter").val() || [];
+        
         $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
@@ -84,27 +87,34 @@ $().ready(function () {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
             },
-            success: function(response) {
-                $("#overlay").hide();
+            success: function (response) {
                 if (response.status) {
                     var select_site = $("#site_filter");
                     select_site.empty();
-                    $.each(response.data, function(index, site) {
-                        select_site.append(new Option(site, site, false, false));
+                    
+                    // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
+                    var validPreviousSelections = [];
+                    $.each(response.data, function (index, site) {
+                        var isSelected = previouslySelected.includes(site);
+                        if (isSelected) {
+                            validPreviousSelections.push(site);
+                        }
+                        select_site.append(new Option(site, site, false, isSelected));
                     });
-                    // Jangan trigger change di sini untuk menghindari loop
+                    
+                    // Set nilai yang dipilih kembali
+                    if (validPreviousSelections.length > 0) {
+                        select_site.val(validPreviousSelections);
+                    }
+                    
                     select_site.trigger('change');
-                } 
+                }
             },
-            error: function(xhr, status, error) {
-                console.error('Error loading sites:', error);
-                console.error('Status:', status);
-                console.error('Response:', xhr.responseText);
-                $("#overlay").hide();
+            error: function (xhr, status, error) {
+                report_eror(xhr, status);
             }
         });
     }
-
     // Fungsi untuk load data traffic per country
     function load_adx_traffic_country_data() {
         var startDate = $('#tanggal_dari').val();
@@ -116,7 +126,6 @@ $().ready(function () {
         if (selectedSites && selectedSites.length > 0) {
             siteFilter = selectedSites.join(',');
         }
-        $("#overlay").show();
         // AJAX request
         $.ajax({
             url: '/management/admin/page_adx_traffic_country',
@@ -131,7 +140,6 @@ $().ready(function () {
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
             },
             success: function(response) {
-                $("#overlay").hide();
                 if (response && response.status) {
                     // Generate charts if data available
                     if (response.data && response.data.length > 0) {
@@ -146,13 +154,11 @@ $().ready(function () {
                     } else {
                         console.log('Tidak ada data untuk periode yang dipilih');
                     }
-                    // Hide overlay after country data is loaded
-                    $("#overlay").hide();
+                    // Hide overlay after country data is loaded   
                 } else {
                     var errorMsg = response.error || 'Terjadi kesalahan yang tidak diketahui';
                     console.error('[DEBUG] Response error:', errorMsg);
                     alert('Error: ' + errorMsg);
-                    $("#overlay").hide();
                 }
             },
             error: function(xhr, status, error) {
@@ -162,14 +168,12 @@ $().ready(function () {
                     error: error
                 });
                 report_eror('Terjadi kesalahan saat memuat data: ' + error);
-                $("#overlay").hide();
             }
         });
     }
 });
 
 function load_adx_summary_data(tanggal_dari, tanggal_sampai, selectedAccounts, selectedSites) {
-    $("#overlay").show();
     $.ajax({
         url: '/management/admin/page_adx_summary',
         type: 'GET',
@@ -183,7 +187,6 @@ function load_adx_summary_data(tanggal_dari, tanggal_sampai, selectedAccounts, s
             'X-CSRFToken': csrftoken
         },
         success: function (response) {
-            $("#overlay").hide();
             if (response && response.status) {
                 // Show summary boxes
                 $("#summary_boxes").show();

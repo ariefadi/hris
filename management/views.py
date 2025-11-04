@@ -68,7 +68,7 @@ from google_auth_oauthlib.flow import Flow
 import os
 from django.urls import reverse
 from django.shortcuts import redirect
-from .utils import fetch_data_all_insights_data_all, fetch_data_all_insights_total_all, fetch_data_insights_account_range_all, fetch_data_all_insights, fetch_data_all_insights_total, fetch_data_insights_account_range, fetch_data_insights_account, fetch_data_insights_account_filter_all, fetch_daily_budget_per_campaign, fetch_status_per_campaign, fetch_data_insights_campaign_filter_sub_domain, fetch_data_insights_campaign_filter_account, fetch_data_country_facebook_ads, fetch_data_insights_by_country_filter_campaign, fetch_data_insights_by_country_filter_account, fetch_ad_manager_reports, fetch_ad_manager_inventory, fetch_adx_summary_data, fetch_adx_traffic_account_by_user, fetch_user_adx_account_data, fetch_adx_account_data, fetch_data_insights_all_accounts_by_subdomain, fetch_adx_traffic_per_country, fetch_roi_per_country, fetch_data_insights_by_country_filter_campaign_roi, fetch_data_insights_by_date_subdomain_roi
+from .utils import fetch_data_all_insights_data_all, fetch_data_all_insights_total_all, fetch_data_insights_account_range_all, fetch_data_all_insights, fetch_data_all_insights_total, fetch_data_insights_account_range, fetch_data_insights_account, fetch_data_insights_account_filter_all, fetch_daily_budget_per_campaign, fetch_status_per_campaign, fetch_data_insights_campaign_filter_sub_domain, fetch_data_insights_campaign_filter_account, fetch_data_country_facebook_ads, fetch_data_insights_by_country_filter_campaign, fetch_data_insights_by_country_filter_account, fetch_user_sites_list, fetch_ad_manager_reports, fetch_ad_manager_inventory, fetch_adx_summary_data, fetch_adx_traffic_account_by_user, fetch_user_adx_account_data, fetch_adx_account_data, fetch_data_insights_all_accounts_by_subdomain, fetch_adx_traffic_per_country, fetch_roi_per_country, fetch_data_insights_by_country_filter_campaign_roi, fetch_data_insights_by_date_subdomain_roi
 
 # Global default for active portal ID to avoid hard-coding across views
 DEFAULT_ACTIVE_PORTAL_ID = '30'
@@ -321,36 +321,38 @@ class LoginProcess(View):
                     'message': "Silahkan cek kembali username dan password anda."
                 }
             else:
-                # Get IP/location info; tolerate failures and continue with nulls
+                # Get IP and location with robust fallbacks
                 lat_long = [None, None]
                 ip_address = req.META.get('REMOTE_ADDR', '')
-                location = None
+                location_address = None
                 try:
                     resp = requests.get("https://ipinfo.io/json", timeout=5)
-                    if resp.status_code == 200:
-                        info = resp.json()
-                        if 'loc' in info and info['loc']:
-                            parts = str(info['loc']).split(',')
-                            if len(parts) == 2:
-                                lat_long = [parts[0], parts[1]]
-                        ip_address = info.get('ip', ip_address) or ip_address
+                    if resp.ok:
+                        data_ipinfo = resp.json()
+                        if isinstance(data_ipinfo, dict):
+                            loc_val = data_ipinfo.get("loc")
+                            if loc_val:
+                                tmp = loc_val.split(",")
+                                if len(tmp) == 2:
+                                    lat_long = [tmp[0], tmp[1]]
+                            ip_address = data_ipinfo.get('ip', ip_address) or ip_address
                 except Exception:
-                    # DNS/connection failure: keep defaults
                     pass
-                # Try to get public IP via ipify (optional)
                 try:
-                    ip_resp = requests.get("https://api.ipify.org", timeout=5)
-                    if ip_resp.status_code == 200 and ip_resp.text:
-                        ip_address = ip_resp.text.strip() or ip_address
+                    if not ip_address or ip_address in ("127.0.0.1", "::1"):
+                        ip_resp = requests.get("https://api.ipify.org", timeout=5)
+                        if ip_resp.status_code == 200 and ip_resp.text:
+                            ip_address = ip_resp.text.strip()
                 except Exception:
                     pass
-                # Try to reverse geocode only if lat/long available
                 try:
                     if geocode and lat_long[0] and lat_long[1]:
-                        location_obj = geocode.reverse((lat_long), language='id')
-                        location = location_obj.address if location_obj else None
+                        lat_f = float(lat_long[0])
+                        lon_f = float(lat_long[1])
+                        loc = geocode.reverse((lat_f, lon_f), language='id')
+                        location_address = loc.address if hasattr(loc, 'address') else None
                 except Exception:
-                    location = None
+                    location_address = None
                 # insert user login
                 data_insert = {
                     'login_id': str(uuid.uuid4()),
@@ -361,7 +363,7 @@ class LoginProcess(View):
                     'user_agent': req.META.get('HTTP_USER_AGENT', ''),
                     'latitude': lat_long[0] if len(lat_long) > 0 else None,
                     'longitude': lat_long[1] if len(lat_long) > 1 else None,
-                    'lokasi': location,
+                    'lokasi': location_address,
                     'mdb': rs_data['data']['user_id']
                 }
                 data_login = data_mysql().insert_login(data_insert)
@@ -442,7 +444,6 @@ def get_countries_adx(request):
         return redirect('admin_login')
     try:
         selected_accounts = request.GET.get('selected_accounts')
-        print(f"Selected Accounts: {selected_accounts}")
         if selected_accounts:
             user_mail = selected_accounts
         else:
@@ -1525,21 +1526,12 @@ class page_ad_manager_reports(View):
 class AdxSummaryView(View):
     """View untuk AdX Summary - menampilkan ringkasan data AdManager"""
     def dispatch(self, request, *args, **kwargs):
-        print(f"[SaveOAuthCredentialsView] Dispatch called")
-        print(f"  Request host: {request.get_host()}")
-        print(f"  Request is_secure: {request.is_secure()}")
-        print(f"  Session keys: {list(request.session.keys())}")
-        print(f"  Has hris_admin: {'hris_admin' in request.session}")
-        
         if 'hris_admin' not in request.session:
-            print(f"[SaveOAuthCredentialsView] No hris_admin in session, redirecting to login")
             return redirect('admin_login')
-        
-        print(f"[SaveOAuthCredentialsView] Session valid, proceeding to view")
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
         data_account_adx = data_mysql().get_all_adx_account_data()
-        print(f"DEBUG AdxTrafficPerAccountView - data_account_adx: {data_account_adx}")
+        print(f"DEBUG - Raw AdX Account Data: {data_account_adx}")
         if not data_account_adx['status']:
             return JsonResponse({
                 'status': False,
@@ -1548,7 +1540,7 @@ class AdxSummaryView(View):
         data = {
             'title': 'AdX Summary Dashboard',
             'user': req.session['hris_admin'],
-            'adx_account_data': data_account_adx['data'],
+            'data_account_adx': data_account_adx['data'],
         }
         return render(req, 'admin/adx_manager/summary/index.html', data)
 
@@ -2470,7 +2462,6 @@ class AdxSitesListView(View):
             user_mail = req.session.get('hris_admin', {}).get('user_mail')
         try:
             # Ambil daftar situs dari Ad Manager
-            from management.utils import fetch_user_sites_list
             result = fetch_user_sites_list(user_mail)
             return JsonResponse(result, safe=False)
         except Exception as e:
@@ -2716,19 +2707,16 @@ class RoiTrafficPerCountryDataView(View):
         selected_sites = req.GET.get('selected_sites', '')
         selected_account = req.GET.get('selected_account', '')
         selected_countries = req.GET.get('selected_countries', '')
-        
         try:
             # Format tanggal untuk AdManager API
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
             end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
-            
             # Parse selected countries dari string yang dipisah koma
             countries_list = []
             if selected_countries and selected_countries.strip():
                 countries_list = [country.strip() for country in selected_countries.split(',') if country.strip()]
             else:
                 print("[DEBUG] No countries selected, will fetch all countries")
-            
             # Jika ada selected_account_adx dari frontend, gunakan sebagai user_mail
             if selected_account_adx:
                 user_mail = selected_account_adx
@@ -2749,16 +2737,42 @@ class RoiTrafficPerCountryDataView(View):
                     })
                 user_mail = user_data['data']['user_mail']
             data_adx = fetch_roi_per_country(start_date_formatted, end_date_formatted, user_mail, selected_sites, countries_list)
+            print(f"adx_data: {data_adx}")
             if selected_account:
                 rs_account = data_mysql().master_account_ads_by_params({
                     'data_account': selected_account,
                 })['data']
             else:
                  rs_account = data_mysql().master_account_ads()['data']
-            data_facebook = fetch_data_insights_by_country_filter_campaign_roi(rs_account, str(start_date_formatted), str(end_date_formatted), selected_sites) 
+            
+            data_facebook = None
+            if selected_sites != '':
+                data_facebook = fetch_data_insights_by_country_filter_campaign_roi(
+                    rs_account, str(start_date_formatted), str(end_date_formatted), selected_sites
+                )
+            else:
+                # Extract unique site names from AdX result
+                extracted_sites = []
+                if data_adx and data_adx.get('status') and data_adx.get('data'):
+                    unique_sites = set()
+                    for adx_item in data_adx['data']:
+                        site_name = adx_item.get('site_name', '').strip()
+                        if site_name and site_name != 'Unknown':
+                            unique_sites.add(site_name)
+                    extracted_sites = list(unique_sites)
+                    print(f"extracted_sites from AdX: {extracted_sites}")
+                # Use extracted sites for Facebook data fetching
+                if extracted_sites:
+                    # Convert list to comma-separated string for Facebook function
+                    extracted_sites_str = ','.join(extracted_sites)
+                    data_facebook = fetch_data_insights_by_country_filter_campaign_roi(
+                        rs_account, str(start_date_formatted), str(end_date_formatted), extracted_sites_str
+                    )
+                    print(f"facebook_data with extracted sites: {data_facebook}")
+                else:
+                    print("No valid sites found in AdX data, skipping Facebook data fetch")    
             # Proses penggabungan data AdX dan Facebook
             result = process_roi_traffic_country_data(data_adx, data_facebook)
-            
             # Filter hasil berdasarkan negara yang dipilih jika ada
             if countries_list and result.get('status') and result.get('data'):
                 print(f"[DEBUG ROI] Original data has {len(result['data'])} countries")
@@ -2903,11 +2917,13 @@ class RoiTrafficPerDomainDataView(View):
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
+        print("=== ROI Traffic Domain Data View Called ===")
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_accounts = req.GET.get('selected_account_adx')
-        selected_sites = req.GET.get('selected_sites', '%')
+        selected_sites = req.GET.get('selected_sites')
         selected_account = req.GET.get('selected_account', '%')
+        print(f"Parameters: start_date={start_date}, end_date={end_date}, selected_sites='{selected_sites}'")
         try:
             # Jika ada selected_account_adx dari frontend, gunakan sebagai user_mail
             if selected_accounts:
@@ -2939,11 +2955,35 @@ class RoiTrafficPerDomainDataView(View):
                 })['data']
             else:
                  rs_account = data_mysql().master_account_ads()['data']
-
-            facebook_data = fetch_data_insights_by_date_subdomain_roi(
-                rs_account, start_date_formatted, end_date_formatted, selected_sites
-            )
-            print(f"facebook_data: {facebook_data}")    
+            
+            # Extract site names from AdX data if no sites selected
+            facebook_data = None
+            if selected_sites != '':
+                facebook_data = fetch_data_insights_by_date_subdomain_roi(
+                    rs_account, start_date_formatted, end_date_formatted, selected_sites
+                )
+            else:
+                # Extract unique site names from AdX result
+                extracted_sites = []
+                if adx_result and adx_result.get('status') and adx_result.get('data'):
+                    unique_sites = set()
+                    for adx_item in adx_result['data']:
+                        site_name = adx_item.get('site_name', '').strip()
+                        if site_name and site_name != 'Unknown':
+                            unique_sites.add(site_name)
+                    extracted_sites = list(unique_sites)
+                    print(f"extracted_sites from AdX: {extracted_sites}")
+                
+                # Use extracted sites for Facebook data fetching
+                if extracted_sites:
+                    # Convert list to comma-separated string for Facebook function
+                    extracted_sites_str = ','.join(extracted_sites)
+                    facebook_data = fetch_data_insights_by_date_subdomain_roi(
+                        rs_account, start_date_formatted, end_date_formatted, extracted_sites_str
+                    )
+                    print(f"facebook_data with extracted sites: {facebook_data}")
+                else:
+                    print("No valid sites found in AdX data, skipping Facebook data fetch")    
             # Gabungkan data Facebook dan AdX
             combined_data = []
             total_spend = 0

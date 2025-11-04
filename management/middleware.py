@@ -28,6 +28,10 @@ class AuthMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
+        # Skip authentication for static files
+        if request.path.startswith('/static/'):
+            return self.get_response(request)
+            
         # Daftar path yang tidak perlu autentikasi
         excluded_paths = [
             reverse('admin_login'),

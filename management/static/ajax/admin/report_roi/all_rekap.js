@@ -78,10 +78,10 @@ $().ready(function () {
             // Reset status fetch sebelum mulai menarik data
             window.fetchStatus = { summary: false, country: false };
             $('#overlay').show();
-            load_ROI_traffic_country_data();
-            load_ROI_summary_data(tanggal_dari, tanggal_sampai, selected_account_adx);
             loadSitesList();
             load_country_options();
+            load_ROI_traffic_country_data();
+            load_ROI_summary_data(tanggal_dari, tanggal_sampai, selected_account_adx);
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
         }
@@ -251,15 +251,15 @@ function updateSummaryBoxes(data) {
     var averageROI = validROICount > 0 ? (totalROI / validROICount) : 0;
     $('#total_impressions').text(totalImpressions.toLocaleString('id-ID'));
     $('#total_spend').text(formatCurrencyIDR(totalSpend));
-    // Jika belum memilih domain, set Total Klik & Total Pendapatan ke 0
-    var selectedSites = $('#site_filter').val();
-    var noSiteSelected = !selectedSites || selectedSites.length === 0;
-    if (noSiteSelected) {
-        $('#total_clicks').text(formatNumber(0));
-        $('#total_revenue').text(formatCurrencyIDR(0));
-    } else {
+    // Jika AdX Account sudah dipilih, tampilkan data meskipun domain belum dipilih
+    var selectedAccountAdx = $('#account_filter').val();
+    var hasAdxAccount = selectedAccountAdx && selectedAccountAdx.length > 0;
+    if (hasAdxAccount) {
         $('#total_clicks').text(totalClicks.toLocaleString('id-ID'));
         $('#total_revenue').text(formatCurrencyIDR(totalRevenue));
+    } else {
+        $('#total_clicks').text(formatNumber(0));
+        $('#total_revenue').text(formatCurrencyIDR(0));
     }
     // Isi ROI Nett sesuai elemen template
     $('#roi_nett').text(averageROI.toFixed(2) + '%');
@@ -271,9 +271,27 @@ function updateSummaryBoxes(data) {
 
 // Fungsi untuk format mata uang IDR
 function formatCurrencyIDR(value) {
-    // Convert to number, round to remove decimals, then format with Rp
-    let numValue = parseFloat(value.toString().replace(/[$,]/g, ''));
-    if (isNaN(numValue)) return value;
+    // Handle null, undefined, or non-numeric values
+    if (value === null || value === undefined || value === '') {
+        return 'Rp. 0';
+    }
+    
+    // Handle set objects or other complex objects
+    if (typeof value === 'object' && value !== null) {
+        // If it's a set-like object, try to get the first value or return 0
+        if (value.constructor && value.constructor.name === 'Set') {
+            return 'Rp. 0';
+        }
+        // For other objects, try to convert to string first
+        value = String(value);
+    }
+    
+    // Convert to string and remove currency symbols and commas
+    let stringValue = String(value);
+    let numValue = parseFloat(stringValue.replace(/[$,]/g, ''));
+    
+    if (isNaN(numValue)) return 'Rp. 0';
+    
     // Round to remove decimals and format with Indonesian number format
     return 'Rp. ' + Math.round(numValue).toLocaleString('id-ID');
 }
@@ -657,13 +675,15 @@ function load_ROI_summary_data(startDate, endDate, selectedAccountAdx) {
             if (response && response.status) {
                 // Perbarui summary jika tersedia
                 if (response.summary) {
-                    if (siteFilter) {
+                    // Jika AdX Account sudah dipilih, tampilkan data meskipun domain belum dipilih
+                    var hasAdxAccount = selectedAccountAdx && selectedAccountAdx.length > 0;
+                    if (hasAdxAccount) {
                         $('#total_clicks').text(formatNumber(response.summary.total_clicks || 0));
                         $('#total_spend').text(formatCurrencyIDR(response.summary.total_spend || 0));
                         $('#roi_nett').text(formatNumber(response.summary.roi_nett || 0, 2) + '%');
                         $('#total_revenue').text(formatCurrencyIDR(response.summary.total_revenue || 0));
                     } else {
-                        // Jika belum memilih domain, set Total Klik & Total Pendapatan ke 0
+                        // Jika belum memilih AdX Account, set semua ke 0
                         $('#total_clicks').text(formatNumber(0));
                         $('#total_revenue').text(formatCurrencyIDR(0));
                     }
@@ -702,10 +722,10 @@ function load_ROI_summary_data(startDate, endDate, selectedAccountAdx) {
                         });
                         var todayTotalCosts = todaySpend + todayOtherCosts;
                         var todayRoi = todayTotalCosts > 0 ? ((todayRevenue - todayTotalCosts) / todayTotalCosts) * 100 : 0;
-                        // Jika filter domain belum dipilih, nol-kan Klik Hari Ini & Pendapatan Hari Ini
-                        var siteSelected = !!siteFilter;
-                        var displayClicks = siteSelected ? todayClicks : 0;
-                        var displayRevenue = siteSelected ? todayRevenue : 0;
+                        // Jika AdX Account sudah dipilih, tampilkan data meskipun domain belum dipilih
+                        var hasAdxAccount = selectedAccountAdx && selectedAccountAdx.length > 0;
+                        var displayClicks = hasAdxAccount ? todayClicks : 0;
+                        var displayRevenue = hasAdxAccount ? todayRevenue : 0;
                         $('#today_spend').text(formatCurrencyIDR(todaySpend));
                         $('#today_clicks').text(formatNumber(displayClicks));
                         $('#today_roi').text(todayRoi.toFixed(2) + '%');

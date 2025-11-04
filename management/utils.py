@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta
+from typing import Any
 from facebook_business.api import FacebookAdsApi
 from facebook_business.adobjects.adaccount import AdAccount
 from facebook_business.adobjects.adsinsights import AdsInsights
@@ -124,17 +125,63 @@ def get_country_name_from_code(code):
         return code
 
 def build_country_filter_from_codes(countries_list):
+    """Build country filter from list of country codes"""
+    print(f"[DEBUG] build_country_filter_from_codes called with: {countries_list} (type: {type(countries_list)})")
+    
+    if not countries_list:
+        return ""
+    
+    # Handle case where countries_list itself might be a set
+    if isinstance(countries_list, set):
+        print(f"[DEBUG] Converting set countries_list to list: {countries_list}")
+        countries_list = list(countries_list)
+    elif countries_list is None:
+        return ""
+    
     country_names = []
-    for code in countries_list:
+    for i, code in enumerate(countries_list):
+        print(f"[DEBUG] Processing code[{i}]: {code} (type: {type(code)})")
+        
+        # Handle different data types for code
+        if isinstance(code, set):
+            print(f"[DEBUG] Received set object as country code: {code}")
+            continue
+        elif not isinstance(code, str):
+            print(f"[DEBUG] Converting non-string code to string: {code} (type: {type(code)})")
+            code = str(code)
+            
         name = get_country_name_from_code(code)
+        print(f"[DEBUG] get_country_name_from_code({code}) returned: {name} (type: {type(name)})")
+        
         if name:
+            # Handle different data types that might be returned
+            if isinstance(name, set):
+                # Convert set to string representation or skip
+                print(f"[DEBUG] Received set object for country code {code}: {name}")
+                continue
+            elif not isinstance(name, str):
+                # Convert other types to string
+                print(f"[DEBUG] Converting non-string name to string: {name} (type: {type(name)})")
+                name = str(name)
+            
             # Escape single quotes if needed
-            name = name.replace("'", "''")
-            country_names.append(f"'{name}'")
+            print(f"[DEBUG] About to call replace() on name: '{name}' (type: {type(name)})")
+            try:
+                name = name.replace("'", "''")
+                country_names.append(f"'{name}'")
+                print(f"[DEBUG] Successfully processed country: {name}")
+            except Exception as e:
+                print(f"[ERROR] Failed to call replace() on name: {name} (type: {type(name)}), error: {e}")
+                continue
         else:
             print(f"[DEBUG] Invalid country code: {code}")
+    
     if country_names:
-        return f"COUNTRY_NAME IN ({', '.join(country_names)})"
+        result = f"COUNTRY_NAME IN ({', '.join(country_names)})"
+        print(f"[DEBUG] Final country filter: {result}")
+        return result
+    
+    print(f"[DEBUG] No valid countries found, returning empty filter")
     return ""
 
 def generate_cache_key(prefix, *args, **kwargs):
@@ -1546,6 +1593,16 @@ def fetch_data_insights_by_country_filter_campaign(start_date, end_date, rs_acco
             }
         insights = account.get_insights(fields=fields, params=params)
         for item in insights:
+            # Post-processing filter for multiple sites
+            if site_filter != '%' and ',' in site_filter:
+                campaign_name = item.get('campaign_name', '').lower()
+                sites_to_match = [site.strip().replace("'", "").lower() for site in site_filter.split(',')]
+                
+                # Check if campaign name contains any of the sites
+                site_matched = any(site in campaign_name for site in sites_to_match if site)
+                if not site_matched:
+                    continue  # Skip this campaign if it doesn't match any site
+            
             country_code = item.get('country')
             country_name = get_country_name_from_code(country_code)
             if not country_name:
@@ -2759,7 +2816,7 @@ def fetch_user_sites_list(user_mail):
             print(f"[DEBUG] Failed to fetch traffic data: {traffic_result.get('error', 'Unknown error')}")
         
         # Convert set to sorted list
-        sites_list = sorted(list(sites))
+        sites_list = sorted(list[Any](sites))
         
         print(f"[DEBUG] Final sites list: {sites_list}")
         
@@ -3720,6 +3777,10 @@ def _run_regular_report(client, start_date, end_date, selected_sites):
                 
                 # Add site filter if specified (using SITE_NAME for multiple sites)
                 if selected_sites:
+                    # Convert set to string if needed
+                    if isinstance(selected_sites, set):
+                        selected_sites = ','.join(selected_sites)
+                    
                     print(f"[DEBUG] Processing site_filter in regular report: '{selected_sites}'")
                     # Handle multiple sites (comma-separated string)
                     if ',' in selected_sites:
@@ -4114,6 +4175,10 @@ def _run_regular_country_report(client, start_date, end_date, selected_sites, co
                 }
                 site_filter = ""
                 if selected_sites:
+                    # Convert set to string if needed
+                    if isinstance(selected_sites, set):
+                        selected_sites = ','.join(selected_sites)
+                    
                     if ',' in selected_sites:
                         sites = [f"'{s.strip()}'" for s in selected_sites.split(',')]
                         site_filter = f"SITE_NAME IN ({', '.join(sites)})"
@@ -4403,6 +4468,10 @@ def _run_regular_roi_country_report(client, start_date, end_date, selected_sites
                 # Build site filter
                 site_filter = ""
                 if selected_sites:
+                    # Convert set to string if needed
+                    if isinstance(selected_sites, set):
+                        selected_sites = ','.join(selected_sites)
+                    
                     if ',' in selected_sites:
                         sites = [f"'{s.strip()}'" for s in selected_sites.split(',')]
                         site_filter = f"SITE_NAME IN ({', '.join(sites)})"
@@ -4424,6 +4493,77 @@ def _run_regular_roi_country_report(client, start_date, end_date, selected_sites
                 # Run the report
                 report_job = report_service.runReportJob(report_query)
                 result = _wait_and_download_roi_country_report(client, report_job['id'])
+
+                # Jika ada filter domain, lakukan penyaringan di aplikasi agar konsisten
+                if result.get('status') and selected_sites:
+                    # Normalisasi daftar situs
+                    if isinstance(selected_sites, (set, list)):
+                        selected_sites_list = [str(s) for s in selected_sites]
+                    else:
+                        selected_sites_list = [str(selected_sites)]
+
+                    sites_norm = [(s or '').lower().replace("'", "").replace('.com', '').strip() for s in selected_sites_list if s]
+
+                    filtered_data = []
+                    for row in result.get('data', []) or []:
+                        site_name = (row.get('site_name') or '').lower()
+                        if any(sn in site_name for sn in sites_norm):
+                            filtered_data.append(row)
+
+                    # Jika hasil kosong, lakukan fallback tanpa statement, lalu filter di aplikasi
+                    if not filtered_data:
+                        fallback_query = {
+                            'reportQuery': {
+                                'dimensions': dimensions,
+                                'columns': columns,
+                                'dateRangeType': 'CUSTOM_DATE',
+                                'startDate': {
+                                    'year': start_date.year,
+                                    'month': start_date.month,
+                                    'day': start_date.day
+                                },
+                                'endDate': {
+                                    'year': end_date.year,
+                                    'month': end_date.month,
+                                    'day': end_date.day
+                                }
+                            }
+                        }
+                        # Country filter tetap dipertahankan jika ada
+                        if country_filter:
+                            fallback_query['reportQuery']['statement'] = {'query': f"WHERE {country_filter}"}
+
+                        fb_job = report_service.runReportJob(fallback_query)
+                        fb_result = _wait_and_download_roi_country_report(client, fb_job['id'])
+                        if fb_result.get('status'):
+                            filtered_data = []
+                            for row in fb_result.get('data', []) or []:
+                                site_name = (row.get('site_name') or '').lower()
+                                if any(sn in site_name for sn in sites_norm):
+                                    filtered_data.append(row)
+                            # Ganti data pada result dengan data yang sudah difilter
+                            result['data'] = filtered_data
+                        else:
+                            # Jika fallback gagal, tetap kembalikan result awal
+                            return result
+                    else:
+                        # Ganti data pada result dengan data yang sudah difilter
+                        result['data'] = filtered_data
+
+                    # Recalculate summary agar sesuai data yang difilter
+                    total_impressions = sum(row.get('impressions', 0) for row in result['data'])
+                    total_clicks = sum(row.get('clicks', 0) for row in result['data'])
+                    total_revenue = sum(row.get('revenue', 0.0) for row in result['data'])
+                    total_ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0
+                    result['summary'] = {
+                        'total_impressions': total_impressions,
+                        'total_clicks': total_clicks,
+                        'total_revenue': total_revenue,
+                        'total_requests': total_impressions,
+                        'total_matched_requests': total_impressions,
+                        'total_ctr': total_ctr
+                    }
+
                 return result
     
             except Exception as e:
@@ -4460,6 +4600,7 @@ def _process_roi_country_csv_data(raw_data):
             country_code = _get_roi_country_code_from_name(country_name)
             
             data.append({
+                'site_name': row.get('Dimension.SITE_NAME', '').strip(),
                 'country_name': country_name,
                 'country_code': country_code,
                 'impressions': impressions,
@@ -4520,21 +4661,31 @@ def fetch_data_insights_by_country_filter_campaign_roi(rs_account, start_date_fo
         'other_costs': 0.0  # Tambahan untuk biaya lainnya
     })
     site_filter = ""
+    sites_list_for_match = []
     if selected_sites:
+        # Normalisasi tipe: dukung set/list/str
+        if isinstance(selected_sites, (set, list)):
+            selected_sites = ','.join([str(s) for s in selected_sites])
+        else:
+            selected_sites = str(selected_sites)
+
         if ',' in selected_sites:
-            sites = [f"'{s.strip()}'" for s in selected_sites.split(',')]
-            site_filter = {', '.join(sites)}
+            # Simpan daftar situs untuk post-filtering campaign_name
+            sites_list_for_match = [s.strip() for s in selected_sites.split(',') if s.strip()]
+            # Bangun string gabungan untuk logging / pemeriksaan ringan
+            site_filter = ', '.join(sites_list_for_match)
         else:
             site_filter = selected_sites.strip()
+            sites_list_for_match = [site_filter] if site_filter else []
     else:
         site_filter = '%'
+    # Bersihkan pola umum agar pencocokan tidak terlalu ketat
     site_filter = site_filter.replace('.com', '')
     for data in rs_account:
         FacebookAdsApi.init(access_token=data['access_token'])
         account = AdAccount(data['account_id'])
         # Ambil data budget campaign untuk biaya lainnya
         campaign_budgets = get_campaign_budgets(account)
-                
         fields = [
             AdsInsights.Field.ad_id,
             AdsInsights.Field.ad_name,
@@ -4547,39 +4698,52 @@ def fetch_data_insights_by_country_filter_campaign_roi(rs_account, start_date_fo
             'cost_per_result',
             AdsInsights.Field.actions
         ]
+        params = {
+            'level': 'campaign',
+            'time_range': {
+                'since': start_date_formatted,
+                'until': end_date_formatted
+            },
+            'breakdowns': ['country'],
+            'limit': 1000
+        }
         if site_filter != '%':
-            params = {
-                'level': 'campaign',
-                'time_range': {
-                    'since': start_date_formatted,
-                    'until': end_date_formatted
-                },
-                'filtering': [{
+            # Facebook API tidak mendukung banyak nilai CONTAIN sekaligus,
+            # gunakan filter API hanya untuk satu situs, dan lakukan post-filtering untuk multi-situs.
+            if len(sites_list_for_match) == 1:
+                params['filtering'] = [{
                     'field': 'campaign.name',
                     'operator': 'CONTAIN',
-                    'value': site_filter
-                }],
-                'breakdowns': ['country'],
-                'limit': 1000
-            }
-        else:
-            # Gunakan filter yang tidak akan cocok dengan campaign apa pun
-            params = {
-                'level': 'campaign',
-                'time_range': {
-                    'since': start_date_formatted,
-                    'until': end_date_formatted
-                },
-                'filtering': [{
-                    'field': 'campaign.name',
-                    'operator': 'CONTAIN',
-                    'value': '__NO_MATCH__'  # atau string seperti '___INVALID___'
-                }],
-                'breakdowns': ['country'],
-                'limit': 1000
-            }
-        insights = account.get_insights(fields=fields, params=params)
-        for item in insights:
+                    'value': sites_list_for_match[0]
+                }]
+            # Untuk multi-situs, kita akan memfilter di post-processing di bawah
+        # Ambil insights dengan kemungkinan fallback untuk single domain
+        insights_cursor = account.get_insights(fields=fields, params=params)
+        insights = list(insights_cursor)
+
+        if site_filter != '%' and len(sites_list_for_match) == 1 and not insights:
+            # Fallback: jika filter API terlalu ketat, ambil semua lalu filter di aplikasi
+            fallback_params = dict(params)
+            fallback_params.pop('filtering', None)
+            insights = list(account.get_insights(fields=fields, params=fallback_params))
+
+        # Normalisasi daftar situs untuk post-filtering case-insensitive (single/multi)
+        insights_to_process = insights
+        if site_filter != '%' and len(sites_list_for_match) >= 1:
+            sites_norm = []
+            for s in sites_list_for_match:
+                s_norm = (s or '').lower().replace("'", "").replace('.com', '').strip()
+                if s_norm:
+                    sites_norm.append(s_norm)
+            filtered = []
+            for item in insights:
+                campaign_name = item.get('campaign_name', '') or ''
+                cn_lc = campaign_name.lower()
+                if any(sn in cn_lc for sn in sites_norm):
+                    filtered.append(item)
+            insights_to_process = filtered
+
+        for item in insights_to_process:
             country_code = item.get('country')
             country_name = get_country_name_from_code(country_code)
             if not country_name:
@@ -4675,7 +4839,7 @@ def fetch_data_insights_by_country_filter_campaign_roi(rs_account, start_date_fo
 def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, end_date_formatted, selected_sites = None):
     all_data = []
     total = []
-    total_budget = total_spend = total_clicks = total_impressions = total_reach = total_cpr = 0
+    total_budget = total_spend = total_clicks = total_impressions = total_reach = total_cpr = total_frequency = 0
     # ⬅️ Gabungkan semua akun ke satu agregasi global
     global_aggregates = defaultdict(lambda: {
         'spend': 0.0,
@@ -4688,6 +4852,10 @@ def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, 
     })
     site_filter = ""
     if selected_sites:
+        # Convert set to string if needed
+        if isinstance(selected_sites, set):
+            selected_sites = ','.join(selected_sites)
+        
         if ',' in selected_sites:
             sites = [f"'{s.strip()}'" for s in selected_sites.split(',')]
             site_filter = ', '.join(sites)
@@ -4696,11 +4864,12 @@ def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, 
     else:
         site_filter = '%'
     site_filter = site_filter.replace('.com', '')
+    print(f"DEBUG: Original selected_sites: {selected_sites}")
+    print(f"DEBUG: Processed site_filter: {site_filter}")
     try:
         for data in rs_account:
             FacebookAdsApi.init(access_token=data['access_token'])
             account = AdAccount(data['account_id'])
-
             campaign_configs = account.get_campaigns(fields=[
                 'id', 'name', 'status', 'daily_budget'
             ])
@@ -4711,7 +4880,6 @@ def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, 
                     'daily_budget': float(c.get('daily_budget') or 0)
                 } for c in campaign_configs
             }
-
             fields = [
                 AdsInsights.Field.campaign_id,
                 AdsInsights.Field.campaign_name,
@@ -4721,33 +4889,49 @@ def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, 
                 AdsInsights.Field.actions,
                 AdsInsights.Field.date_start,
             ]
-
             params = {
                 'level': 'campaign',
                 'time_range': {'since': start_date_formatted, 'until': end_date_formatted},
                 'time_increment': 1,  # ⬅️ ini penting!
                 'limit': 1000
             }
-
-            if site_filter != '%':
-                params['filtering'] = [{
-                    'field': 'campaign.name',
-                    'operator': 'CONTAIN',
-                    'value': site_filter
-                }]
-            else:
-                params['filtering'] = [{
-                    'field': 'campaign.name',
-                    'operator': 'CONTAIN',
-                    'value': '__NO_MATCH__'  # atau string seperti '___INVALID___'
-                }]
             # When site_filter is '%', don't add any filtering to get all campaigns
+            if site_filter != '%':
+                # For multiple sites, we'll filter after getting the data since Facebook API
+                # doesn't support multiple CONTAIN values in one filter
+                if ',' in site_filter:
+                    # Don't add filtering here, we'll filter in post-processing
+                    pass
+                else:
+                    params['filtering'] = [{
+                        'field': 'campaign.name',
+                        'operator': 'CONTAIN',
+                        'value': site_filter
+                    }]
             insights = account.get_insights(fields=fields, params=params)
             for item in insights:
                 campaign_id = item.get('campaign_id')
                 if not campaign_id:
                     continue
                 campaign_name = item.get('campaign_name', '')
+                print(f"DEBUG: Processing campaign: {campaign_name}")
+                
+                # Post-processing filter for multiple sites
+                if site_filter != '%' and ',' in site_filter:
+                    # Extract individual sites from comma-separated string
+                    sites_to_match = [s.strip().replace("'", "") for s in site_filter.split(',')]
+                    print(f"DEBUG: Sites to match: {sites_to_match}")
+                    # Check if campaign_name contains any of the sites
+                    campaign_matches = False
+                    for site in sites_to_match:
+                        if site in campaign_name:
+                            campaign_matches = True
+                            print(f"DEBUG: Campaign '{campaign_name}' matches site '{site}'")
+                            break
+                    if not campaign_matches:
+                        print(f"DEBUG: Campaign '{campaign_name}' does not match any sites, skipping")
+                        continue
+                
                 campaign_config = campaign_map.get(campaign_id, {})
                 daily_budget = float(campaign_config.get('daily_budget', 0))
                 date_start = item.get('date_start')

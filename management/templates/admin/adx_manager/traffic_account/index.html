@@ -126,25 +126,48 @@
                 </div>
             </div>
         </div>
-        <!-- Charts Section -->
-        <div class="row mt-3" id="charts_section" style="display: none;">
-            <div class="col-12 col-md-6">
+        <!-- Line Chart untuk Pergerakan Pendapatan Harian -->
+        <div class="row mt-3">
+            <div class="col-12">
                 <div class="card">
-                    <div class="card-header">
-                        <h4 class="card-title"><i class="bi bi-bar-chart"></i> Top 10 Ad Units by Impressions</h4>
-                    </div>
                     <div class="card-body">
-                        <div id="chart_impressions" style="height: 400px;"></div>
+                        <div id="revenue_chart" style="height: 400px;"></div>
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-md-6">
+        </div>
+
+        <!-- Additional Charts Section -->
+        <div class="row mt-3" id="additional_charts_section" style="display: none;">
+            <div class="col-md-6">
                 <div class="card">
                     <div class="card-header">
-                        <h4 class="card-title"><i class="bi bi-pie-chart"></i> Revenue Distribution</h4>
+                        <h3 class="card-title">
+                            <i class="fas fa-chart-bar"></i>
+                            Top 10 Ad Units by Impressions
+                        </h3>
                     </div>
                     <div class="card-body">
-                        <div id="chart_revenue" style="height: 400px;"></div>
+                        <!-- Chart placeholder -->
+                        <div id="chart_top_ad_units" style="height: 300px;">
+                            <p class="text-center text-muted">Chart will be implemented in future updates</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title">
+                            <i class="fas fa-chart-pie"></i>
+                            Revenue Distribution
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <!-- Chart placeholder -->
+                        <div id="chart_revenue_distribution" style="height: 300px;">
+                            <p class="text-center text-muted">Chart will be implemented in future updates</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -172,7 +195,28 @@
 </div>
 {% endblock %}
 {% block more_scripts %}
-<script src="{% static 'ajax/admin/adx_manager/traffic_account.js'%}?v={%now 'u'%}"></script>
+<!-- Highcharts for line chart -->
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highcharts.min.js" onload="console.log('Highcharts loaded successfully')" onerror="console.error('Failed to load Highcharts')"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
+
+<script>
+// Ensure Highcharts is loaded before loading our custom script
+function loadTrafficAccountScript() {
+    if (typeof Highcharts !== 'undefined') {
+        console.log('Highcharts loaded successfully');
+        // Load our custom script
+        var script = document.createElement('script');
+        script.src = "{% static 'ajax/admin/adx_manager/traffic_account.js'%}?v={%now 'u'%}";
+        document.head.appendChild(script);
+    } else {
+        console.log('Waiting for Highcharts to load...');
+        setTimeout(loadTrafficAccountScript, 100);
+    }
+}
+loadTrafficAccountScript();
+</script>
+
 <script>
 $(document).ready(function() {
     // Format semua elemen mata uang yang mungkin sudah ada di halaman

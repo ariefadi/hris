@@ -30,20 +30,20 @@
     <div class="card-body">
         <div class="form-row">
             <div class="col-md-2">
-                <label for="tanggal_dari">Tanggal Dari:</label>
-                <input type="date" id="tanggal_dari" class="form-control" required>
+                <label>Range Dari</label>
+                <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Dari"/>
             </div>
             <div class="col-md-2">
-                <label for="tanggal_sampai">Tanggal Sampai:</label>
-                <input type="date" id="tanggal_sampai" class="form-control" required>
+                <label>Range Sampai</label>
+                 <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
             </div>
             {% if user.user_name == 'superadmin' %}
             <div class="col-md-3">
                 <label>Filter Account</label>
                 <select class="form-control select2" id="account_filter">
                     <option value="">-- Pilih Akun Terdaftar --</option>
-                    {% for account in adx_account_data %}
-                    <option value="{{ account.user_id }}">{{ account.user_mail }}</option>
+                    {% for account in data_account_adx %}
+                    <option value="{{ account.user_mail }}">{{ account.account_name }}</option>
                     {% endfor %}
                 </select>
             </div>

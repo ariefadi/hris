@@ -19,10 +19,18 @@
         <h3 class="card-title">AdSense Account Data</h3>
     </div>
     <div class="card-body">
-        <div class="mb-3">
-            <button id="btn_reload" class="btn btn-primary">
-                <i class="bi bi-arrow-repeat"></i> Load Data
-            </button>
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label for="select_credentials" class="form-label">Pilih Kredensial AdSense</label>
+                <select id="select_credentials" class="form-select">
+                    <option value="">Memuat kredensial...</option>
+                </select>
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+                <button id="btn_reload" class="btn btn-primary">
+                    <i class="bi bi-arrow-repeat"></i> Muat Data
+                </button>
+            </div>
         </div>
         <div class="table-responsive">
             <table class="table table-bordered" id="table_adsense_account">
@@ -36,6 +44,20 @@
                     </tr>
                 </thead>
                 <tbody id="tbody_adsense_account"></tbody>
+            </table>
+        </div>
+        <hr/>
+        <div class="table-responsive mt-3">
+            <table class="table table-bordered" id="table_adsense_units">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center" width="5%">No</th>
+                        <th>Ad Client</th>
+                        <th>Ad Unit Name</th>
+                        <th>Type</th>
+                    </tr>
+                </thead>
+                <tbody id="tbody_adsense_units"></tbody>
             </table>
         </div>
         <div id="account_info" class="alert alert-info mt-3" style="display:none"></div>

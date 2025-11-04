@@ -22,11 +22,9 @@ $().ready(function () {
         }
         alert(msg);
     };
-    
     // Initialize date pickers
     var today = new Date();
     var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    
     $('#tanggal_dari').datepicker({
         format: 'yyyy-mm-dd',
         autoclose: true,
@@ -39,9 +37,9 @@ $().ready(function () {
         todayHighlight: true
     }).datepicker('setDate', today);
     
-    // Initialize Select2 for domain filter
-    $('#site_filter').select2({
-        placeholder: 'Pilih Domain (Opsional)',
+    // Initialize Select2 for account filter
+    $('#account_filter').select2({
+        placeholder: 'Pilih Akun (Opsional)',
         allowClear: true,
         width: '100%',
         height: '100%',
@@ -52,35 +50,32 @@ $().ready(function () {
     var tanggal_dari = $("#tanggal_dari").val();
     var tanggal_sampai = $("#tanggal_sampai").val();
     if (tanggal_dari != "" && tanggal_sampai != "") {
-        load_adsense_traffic_account_data(tanggal_dari, tanggal_sampai);
+        loadAccountsList();
     }
-    
-    // Load domains list on page load
-    loadDomainsList();
-    
-    function loadDomainsList() {
+    // Load accounts list on page load
+    function loadAccountsList() {
         $.ajax({
-            url: '/management/admin/adsense_sites_list',
+            url: '/management/admin/adsense_credentials_list',
             type: 'GET',
             dataType: 'json',
             success: function(response) {
                 if (response.status) {
-                    // Clear existing options except the first one
-                    $('#site_filter').empty().append('<option value="">Semua Domain</option>');
-                    
-                    // Add domains to dropdown
-                    response.data.forEach(function(domain) {
-                        $('#site_filter').append('<option value="' + domain + '">' + domain + '</option>');
+                    // Clear existing options and set default
+                    $('#account_filter').empty().append('<option value="">Semua Akun</option>');
+
+                    // Add accounts to dropdown (value: user_mail, text: account_name)
+                    response.data.forEach(function(account) {
+                        $('#account_filter').append('<option value="' + account.user_mail + '">' + (account.account_name || account.user_mail) + '</option>');
                     });
-                    
+
                     // Refresh Select2
-                    $('#site_filter').trigger('change');
+                    $('#account_filter').trigger('change');
                 } else {
-                    console.error('Failed to load domains:', response.error);
+                    console.error('Failed to load accounts:', response.error);
                 }
             },
             error: function(xhr, status, error) {
-                console.error('Error loading domains:', error);
+                console.error('Error loading accounts:', error);
             }
         });
     }
@@ -132,7 +127,7 @@ $().ready(function () {
 function load_adsense_traffic_account_data() {
     var start_date = $('#tanggal_dari').val();
     var end_date = $('#tanggal_sampai').val();
-    var site_filter = $('#site_filter').val();
+    var account_filter = $('#account_filter').val();
     
     if (!start_date || !end_date) {
         alert('Please select both start and end dates.');
@@ -147,7 +142,7 @@ function load_adsense_traffic_account_data() {
         data: {
             'start_date': start_date,
             'end_date': end_date,
-            'site_filter': site_filter
+            'account_filter': account_filter
         },
         headers: {
             'X-CSRFToken': csrftoken

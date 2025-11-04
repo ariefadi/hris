@@ -147,9 +147,27 @@ $(document).ready(function () {
     }
     // Fungsi untuk format mata uang IDR
     function formatCurrencyIDR(value) {
-        // Convert to number, round to remove decimals, then format with Rp
-        let numValue = parseFloat(value.toString().replace(/[$,]/g, ''));
-        if (isNaN(numValue)) return value;
+        // Handle null, undefined, or non-numeric values
+        if (value === null || value === undefined || value === '') {
+            return 'Rp 0';
+        }
+        
+        // Handle set objects or other complex objects
+        if (typeof value === 'object' && value !== null) {
+            // If it's a set-like object, try to get the first value or return 0
+            if (value.constructor && value.constructor.name === 'Set') {
+                return 'Rp 0';
+            }
+            // For other objects, try to convert to string first
+            value = String(value);
+        }
+        
+        // Convert to string and remove currency symbols and commas
+        let stringValue = String(value);
+        let numValue = parseFloat(stringValue.replace(/[$,]/g, ''));
+        
+        if (isNaN(numValue)) return 'Rp 0';
+        
         // Round to remove decimals and format with Indonesian number format
         return 'Rp ' + Math.round(numValue).toLocaleString('id-ID');
     }
@@ -203,7 +221,6 @@ $(document).ready(function () {
                     initializeDataTable(response.data);
                     // Generate charts if data available
                     generateTrafficCountryCharts(response.data);
-                    $('#charts_section').show();
                 } else {
                     var errorMsg = response.error || 'Terjadi kesalahan yang tidak diketahui';
                     console.error('[DEBUG] Response error:', errorMsg);
@@ -319,99 +336,267 @@ $(document).ready(function () {
             order: [[2, 'desc']] // Sort by impressions descending
         });
     }
-    // Fungsi untuk generate charts
+    // Fungsi untuk generate charts (hanya world map)
     function generateTrafficCountryCharts(data) {
         // Bersihkan chart jika data kosong dan sembunyikan section chart
         if (!data || data.length === 0) {
-            if (window.roiChartInstance) {
-                try { window.roiChartInstance.destroy(); } catch (e) { console.warn('Failed to destroy ROI chart:', e); }
-                window.roiChartInstance = null;
+            $('#charts_section').hide();
+            return;
+        }
+        
+        // Tampilkan section charts dan buat world map
+        $('#charts_section').show();
+        createWorldMap(data);
+    }
+    
+    // Fungsi untuk membuat world map dengan Highcharts Maps (sama seperti ADX Traffic Country)
+    function createWorldMap(data) {
+        console.log('[DEBUG] createWorldMap called with data length:', data ? data.length : 0);
+        
+        // Jika tidak ada data, pastikan charts dibersihkan dan section disembunyikan
+        if (!data || data.length === 0) {
+            if (window.worldMapInstance) {
+                try { window.worldMapInstance.destroy(); } catch (e) { console.warn('Failed to destroy world map:', e); }
+                window.worldMapInstance = null;
             }
             $('#charts_section').hide();
             return;
         }
-        // Sort data by ROI and take top 10
-        var sortedData = data.sort(function (a, b) {
-            return (b.roi || 0) - (a.roi || 0);
-        }).slice(0, 10);
-        // Prepare data for charts
-        var countries = sortedData.map(function (item) {
-            return item.country || 'Unknown';
-        });
-        var roi = sortedData.map(function (item) {
-            return item.roi || 0;
-        });
-        // Create charts if Chart.js is available
-        if (typeof Chart !== 'undefined') {
-            // ROI Chart
-            var ctx = document.getElementById('roiChart');
-            if (ctx) {
-                // Hancurkan chart sebelumnya jika ada untuk mencegah error canvas in use
-                if (window.roiChartInstance) {
-                    try { window.roiChartInstance.destroy(); } catch (e) { console.warn('Failed to destroy ROI chart:', e); }
-                    window.roiChartInstance = null;
+
+        // Prepare data for Highcharts Maps
+        var mapData = [];
+        var maxROI = 0;
+        var minROI = Infinity;
+        
+        // Country code mapping (ISO 2-letter codes) - sama seperti ADX
+        var countryCodeMap = {
+            'Indonesia': 'id',
+            'United States': 'us',
+            'United Kingdom': 'gb',
+            'Germany': 'de',
+            'France': 'fr',
+            'Japan': 'jp',
+            'China': 'cn',
+            'India': 'in',
+            'Brazil': 'br',
+            'Australia': 'au',
+            'Canada': 'ca',
+            'Italy': 'it',
+            'Spain': 'es',
+            'Netherlands': 'nl',
+            'South Korea': 'kr',
+            'Mexico': 'mx',
+            'Russia': 'ru',
+            'Turkey': 'tr',
+            'Saudi Arabia': 'sa',
+            'South Africa': 'za',
+            'Argentina': 'ar',
+            'Thailand': 'th',
+            'Malaysia': 'my',
+            'Singapore': 'sg',
+            'Philippines': 'ph',
+            'Vietnam': 'vn',
+            'Egypt': 'eg',
+            'Nigeria': 'ng',
+            'Kenya': 'ke',
+            'Morocco': 'ma',
+            'Chile': 'cl',
+            'Peru': 'pe',
+            'Colombia': 'co',
+            'Venezuela': 've',
+            'Ecuador': 'ec',
+            'Uruguay': 'uy',
+            'Paraguay': 'py',
+            'Bolivia': 'bo',
+            'Guyana': 'gy',
+            'Suriname': 'sr',
+            'French Guiana': 'gf'
+        };
+        
+        // Process data and find max ROI for color scaling
+        data.forEach(function(item) {
+            var roiValue = parseFloat(item.roi) || 0;
+            if (roiValue > 0) {
+                if (roiValue > maxROI) {
+                    maxROI = roiValue;
                 }
-                window.roiChartInstance = new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: countries,
-                        datasets: [{
-                            label: 'ROI (%)',
-                            data: roi,
-                            backgroundColor: [
-                                'rgba(255, 99, 132, 0.8)',
-                                'rgba(54, 162, 235, 0.8)',
-                                'rgba(255, 205, 86, 0.8)',
-                                'rgba(75, 192, 192, 0.8)',
-                                'rgba(153, 102, 255, 0.8)',
-                                'rgba(255, 159, 64, 0.8)',
-                                'rgba(199, 199, 199, 0.8)',
-                                'rgba(83, 102, 255, 0.8)',
-                                'rgba(255, 99, 255, 0.8)',
-                                'rgba(99, 255, 132, 0.8)'
-                            ],
-                            borderColor: [
-                                'rgba(255, 99, 132, 1)',
-                                'rgba(54, 162, 235, 1)',
-                                'rgba(255, 205, 86, 1)',
-                                'rgba(75, 192, 192, 1)',
-                                'rgba(153, 102, 255, 1)',
-                                'rgba(255, 159, 64, 1)',
-                                'rgba(199, 199, 199, 1)',
-                                'rgba(83, 102, 255, 1)',
-                                'rgba(255, 99, 255, 1)',
-                                'rgba(99, 255, 132, 1)'
-                            ],
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        indexAxis: 'y',
-                        responsive: true,
-                        scales: {
-                            x: {
-                                beginAtZero: true,
-                                ticks: {
-                                    callback: function (value) {
-                                        return value + '%';
-                                    }
-                                }
-                            }
-                        },
-                        plugins: {
-                            tooltip: {
-                                callbacks: {
-                                    label: function (context) {
-                                        return context.dataset.label + ': ' + context.parsed.x + '%';
-                                    }
+                if (roiValue < minROI) {
+                    minROI = roiValue;
+                }
+                
+                // Map country codes to Highcharts format
+                var countryName = item.country || 'Unknown';
+                var countryCode = countryCodeMap[countryName] || countryName.toLowerCase().substring(0, 2);
+                
+                mapData.push({
+                    'hc-key': countryCode,
+                    code: countryCode.toUpperCase(),
+                    name: countryName,
+                    value: roiValue,
+                    impressions: item.impressions || 0,
+                    clicks: item.clicks || 0,
+                    spend: item.spend || 0,
+                    revenue: item.revenue || 0
+                });
+            }
+        });
+
+        // Create fixed color ranges with more vibrant colors and informative labels (sama seperti ADX)
+        var ranges = [
+            { from: null, to: null, color: '#E6E7E8', name: 'Tidak ada data' },
+            { from: 0, to: 50, color: '#FFF2CC', name: '0% - 50%' },
+            { from: 50, to: 100, color: '#FFE066', name: 'Lebih dari 50% - 100%' },
+            { from: 100, to: 200, color: '#FFCC02', name: 'Lebih dari 100% - 200%' },
+            { from: 200, to: 500, color: '#FF9500', name: 'Lebih dari 200% - 500%' },
+            { from: 500, to: 1000, color: '#FF6B35', name: 'Lebih dari 500% - 1000%' },
+            { from: 1000, to: 2000, color: '#E63946', name: 'Lebih dari 1000% - 2000%' },
+            { from: 2000, to: Infinity, color: '#A4161A', name: '> 2000%' }
+        ];
+
+        // Destroy existing chart if any
+        if (window.worldMapInstance) {
+            try { window.worldMapInstance.destroy(); } catch (e) { console.warn('Failed to destroy world map:', e); }
+            window.worldMapInstance = null;
+        }
+
+        // Create Highcharts Map
+        try {
+            // Check if Highcharts is available
+            if (typeof Highcharts === 'undefined' || !Highcharts.mapChart) {
+                throw new Error('Highcharts Maps library not loaded');
+            }
+            
+            // Ensure map container is visible and has proper dimensions
+            $('#worldMap').css({
+                'height': '500px',
+                'width': '100%',
+                'display': 'block',
+                'visibility': 'visible'
+            });
+            
+            // Check if we have data to display
+            if (mapData.length === 0) {
+                $('#worldMap').html('<div style="text-align: center; padding: 100px; color: #666; font-size: 16px;">Tidak ada data untuk ditampilkan.<br>Silakan pilih tanggal dan akun, lalu klik Load Data.</div>');
+                return;
+            }
+            
+            window.worldMapInstance = Highcharts.mapChart('worldMap', {
+                chart: {
+                    map: 'custom/world',
+                    backgroundColor: 'transparent',
+                    style: {
+                        fontFamily: 'Arial, sans-serif'
+                    }
+                },
+                title: {
+                    text: 'ROI Per Negara',
+                    style: {
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        color: '#333'
+                    }
+                },
+                subtitle: {
+                    text: 'Berdasarkan data traffic dan revenue',
+                    style: {
+                        fontSize: '12px',
+                        color: '#666'
+                    }
+                },
+                mapNavigation: {
+                    enabled: true,
+                    buttonOptions: {
+                        verticalAlign: 'bottom',
+                        theme: {
+                            fill: 'white',
+                            'stroke-width': 1,
+                            stroke: 'silver',
+                            r: 0,
+                            states: {
+                                hover: {
+                                    fill: '#a4edba'
+                                },
+                                select: {
+                                    stroke: '#039',
+                                    fill: '#a4edba'
                                 }
                             }
                         }
                     }
-                });
-            }
+                },
+                colorAxis: {
+                    min: 0,
+                    minColor: '#FFF2CC', // Warna kuning muda untuk ROI terendah
+                    maxColor: '#A4161A', // Warna merah tua untuk ROI tertinggi
+                    dataClasses: ranges.map(function(range) {
+                        return {
+                            from: range.from,
+                            to: range.to,
+                            color: range.color,
+                            name: range.name
+                        };
+                    })
+                },
+                legend: {
+                    title: {
+                        text: 'Tingkat ROI',
+                        style: {
+                            color: '#333',
+                            fontSize: '12px'
+                        }
+                    },
+                    align: 'left',
+                    verticalAlign: 'bottom',
+                    floating: true,
+                    layout: 'vertical',
+                    valueDecimals: 0,
+                    backgroundColor: 'rgba(255,255,255,0.9)',
+                    symbolRadius: 0,
+                    symbolHeight: 14
+                },
+                series: [{
+                    name: 'Negara',
+                    data: mapData,
+                    joinBy: ['hc-key', 'hc-key'],
+                    nullColor: '#E6E7E8', // Warna abu-abu untuk negara tanpa data
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.85)',
+                        style: {
+                            color: 'white'
+                        },
+                        pointFormat: '<b>{point.name}</b><br>' +
+                                    'Kode: {point.code}<br>' +
+                                    'ROI: <b>{point.value:.2f}%</b><br>',
+                        pointFormatter: function() {
+                            var formattedValue = this.value.toFixed(2) + '%';
+                            return '<b>' + this.name + '</b><br>' +
+                                   'Kode: ' + this.code + '<br>' +
+                                   'ROI: <b>' + formattedValue + '</b><br>' +
+                                   'Impressions: <b>' + this.impressions.toLocaleString('id-ID') + '</b><br>' +
+                                   'Clicks: <b>' + this.clicks.toLocaleString('id-ID') + '</b><br>' +
+                                   'Spend: <b>Rp ' + Math.round(this.spend).toLocaleString('id-ID') + '</b><br>' +
+                                   'Revenue: <b>Rp ' + Math.round(this.revenue).toLocaleString('id-ID') + '</b><br>';
+                        },
+                        nullFormat: '<b>{point.name}</b><br>Tidak ada data ROI'
+                    },
+                    borderColor: '#606060',
+                    borderWidth: 0.5,
+                    states: {
+                        hover: {
+                            color: '#a4edba'
+                        }
+                    }
+                }]
+            });
+            
+            console.log('World map created successfully with', mapData.length, 'countries');
+            
+        } catch (error) {
+            console.error('Error creating world map:', error);
+            $('#worldMap').html('<div class="text-center p-4"><h5 class="text-danger">Error loading map: ' + error.message + '</h5></div>');
         }
     }
+    
     // Fungsi untuk report error (jika ada)
     function report_eror(message) {
         console.error('Error:', message);

@@ -81,13 +81,14 @@
                 </div>
                 {% endif %}
                 
-                <form>{% csrf_token %}
+                <form id="loginForm" action="{% url 'admin_login_process' %}" method="POST" onsubmit="return false;">
+                    {% csrf_token %}
                     <div class="input-group mb-3">
-                        <input class="form-control" type="text" placeholder="Username" name="username">
+                        <input class="form-control" type="text" placeholder="Username" name="username" id="username">
                         <div class="input-group-text"><span class="bi bi-envelope"></span></div>
                     </div>
                     <div class="input-group mb-3">
-                        <input class="form-control" type="password" placeholder="password" name="password">
+                        <input class="form-control" type="password" placeholder="password" name="password" id="password">
                         <div class="input-group-text"><span class="bi bi-lock-fill"></span></div>
                     </div>
                     <!--begin::Row-->
@@ -100,7 +101,7 @@
                     <!-- /.col -->
                     <div class="col-4">
                         <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary"><i class="bi bi-box-arrow-in-right"></i> Sign-In</button>
+                        <button type="submit" id="loginButton" class="btn btn-primary"><i class="bi bi-box-arrow-in-right"></i> Sign-In</button>
                         </div>
                     </div>
                     <!-- /.col -->

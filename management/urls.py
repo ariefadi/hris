@@ -84,6 +84,7 @@ urlpatterns = [
     # Menu Adsense Account Data
     path('admin/adsense_account', views_adsense.AdsenseAccountView.as_view(), name='adsense_account'), 
     path('admin/page_adsense_account', views_adsense.AdsenseAccountDataView.as_view()),
+    path('admin/adsense_credentials_list', views_adsense.AdsenseCredentialsListView.as_view(), name='adsense_credentials_list'),
     # Menu Adsense Traffic Account
     path('admin/adsense_traffic_account', views_adsense.AdsenseTrafficAccountView.as_view(), name='adsense_traffic_account'),
     path('admin/adsense_traffic_account_data', views_adsense.AdsenseTrafficAccountDataView.as_view(), name='adsense_traffic_account_data'),
