@@ -154,7 +154,6 @@ class LoginAdmin(View):
                 admin = request.session.get('hris_admin', {})
                 user_id = admin.get('user_id')
                 if user_id:
-                    from .database import data_mysql
                     db = data_mysql()
                     # Portal-aware default page selection (defaults to portal 12)
                     q = '''
@@ -257,7 +256,6 @@ class OAuthRedirectView(View):
             pass
         # Redirect to role default page if available
         try:
-            from .database import data_mysql
             db = data_mysql()
             # Portal-aware default page selection using active portal (defaults to 12)
             q = '''
@@ -656,7 +654,6 @@ class SwitchPortal(View):
         # Validate user has access to the portal
         try:
             user_id = req.session.get('hris_admin', {}).get('user_id')
-            from .database import data_mysql
             db = data_mysql()
             sql = '''
                 SELECT DISTINCT p.portal_id

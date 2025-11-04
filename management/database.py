@@ -253,6 +253,40 @@ class data_mysql:
             }
         return hasil
     
+    def data_login_user(self):
+        sql = '''
+            SELECT a.login_id, a.user_id, sub.login_day, sub.login_time, a.login_date, 
+            a.logout_date, DATE(logout_date) AS logout_day, TIME(logout_date) AS logout_time, 
+            a.ip_address, a.user_agent, a.lokasi, b.user_alias
+            FROM app_user_login a
+            INNER JOIN (
+                SELECT user_id, 
+                DATE(login_date) AS login_day,
+                TIME(login_date) AS login_time,
+                MAX(login_date) AS max_login
+                FROM app_user_login
+                GROUP BY user_id, DATE(login_date)
+            ) sub ON sub.user_id = a.user_id 
+            AND DATE(a.login_date) = sub.login_day 
+            AND a.login_date = sub.max_login
+            INNER JOIN app_users b ON b.user_id = a.user_id
+            ORDER BY a.login_date DESC
+        '''
+        try:
+            if not self.execute_query(sql):
+                raise pymysql.Error("Failed to fetch login data")
+            datanya = self.cur_hris.fetchall()
+            hasil = {
+                "status": True,
+                "data": datanya
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return hasil
+
     def data_user_by_params(self, params=None):
         if params and 'user_mail' in params:
             sql='''
