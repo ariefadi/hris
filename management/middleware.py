@@ -41,6 +41,8 @@ class AuthMiddleware:
             '/accounts/complete/google-oauth2/',
             reverse('oauth_redirect'),
             '/management/admin/adx_sites_list',  # Allow AJAX requests for site filter
+            '/management/admin/adsense_summary_data/',  # Allow AdSense summary data AJAX without redirect
+            reverse('adsense_credentials_list'),  # Allow accounts list for AdSense filter
             # Allow utility endpoint to import env credentials without login
             reverse('app_credentials_import_env'),
             # Allow OAuth URL generation and callback without requiring session login
