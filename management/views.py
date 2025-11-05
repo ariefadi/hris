@@ -68,7 +68,39 @@ from google_auth_oauthlib.flow import Flow
 import os
 from django.urls import reverse
 from django.shortcuts import redirect
-from .utils import fetch_data_all_insights_data_all, fetch_data_all_insights_total_all, fetch_data_insights_account_range_all, fetch_data_all_insights, fetch_data_all_insights_total, fetch_data_insights_account_range, fetch_data_insights_account, fetch_data_insights_account_filter_all, fetch_daily_budget_per_campaign, fetch_status_per_campaign, fetch_data_insights_campaign_filter_sub_domain, fetch_data_insights_campaign_filter_account, fetch_data_country_facebook_ads, fetch_data_insights_by_country_filter_campaign, fetch_data_insights_by_country_filter_account, fetch_user_sites_list, fetch_ad_manager_reports, fetch_ad_manager_inventory, fetch_adx_summary_data, fetch_adx_traffic_account_by_user, fetch_user_adx_account_data, fetch_adx_account_data, fetch_data_insights_all_accounts_by_subdomain, fetch_adx_traffic_per_country, fetch_roi_per_country, fetch_data_insights_by_country_filter_campaign_roi, fetch_data_insights_by_date_subdomain_roi
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
+from .utils import (
+    fetch_data_all_insights_data_all,
+    fetch_data_all_insights_total_all,
+    fetch_data_insights_account_range_all,
+    fetch_data_all_insights,
+    fetch_data_all_insights_total,
+    fetch_data_insights_account_range,
+    fetch_data_insights_account,
+    fetch_data_insights_account_filter_all,
+    fetch_daily_budget_per_campaign,
+    fetch_status_per_campaign,
+    fetch_data_insights_campaign_filter_sub_domain,
+    fetch_data_insights_campaign_filter_account,
+    fetch_data_country_facebook_ads,
+    fetch_data_insights_by_country_filter_campaign,
+    fetch_data_insights_by_country_filter_account,
+    fetch_user_sites_list,
+    fetch_ad_manager_reports,
+    fetch_ad_manager_inventory,
+    fetch_adx_traffic_account_by_user,
+    fetch_user_adx_account_data,
+    fetch_adx_account_data,
+    fetch_data_insights_all_accounts_by_subdomain,
+    fetch_adx_traffic_per_country,
+    fetch_roi_per_country,
+    fetch_data_insights_by_country_filter_campaign_roi,
+    fetch_data_insights_by_date_subdomain_roi,
+    # cache helpers
+    generate_cache_key,
+    get_cached_data,
+    set_cached_data,
+)
 
 # Global default for active portal ID to avoid hard-coding across views
 DEFAULT_ACTIVE_PORTAL_ID = '30'
@@ -2757,41 +2789,66 @@ class RoiTrafficPerCountryDataView(View):
                 countries_list = [country.strip() for country in selected_countries.split(',') if country.strip()]
             else:
                 print("[DEBUG] No countries selected, will fetch all countries")
+
+            # ===== Response-level cache (meng-cache hasil akhir penggabungan) =====
+            response_cache_key = generate_cache_key(
+                'roi_country_response',
+                start_date_formatted,
+                end_date_formatted,
+                selected_account_adx or '',
+                selected_sites or '',
+                selected_account or '',
+                ','.join(countries_list) if countries_list else ''
+            )
+            cached_response = get_cached_data(response_cache_key)
+            if cached_response is not None:
+                return JsonResponse(cached_response, safe=False)
             # Jika ada selected_account_adx dari frontend, gunakan sebagai user_mail
             if selected_account_adx:
                 user_mail = selected_account_adx
             else:
                 # Fallback ke session user_id dan ambil email dari database
                 user_id = req.session.get('hris_admin', {}).get('user_id')
-                if not user_id:
-                    return JsonResponse({
-                        'status': False,
-                        'error': 'User ID tidak ditemukan dalam session'
-                    })
-                
                 user_data = data_mysql().get_user_by_id(user_id)
-                if not user_data.get('status') or not user_data.get('data'):
-                    return JsonResponse({
-                        'status': False,
-                        'error': 'Data user tidak ditemukan'
-                    })
                 user_mail = user_data['data']['user_mail']
-            data_adx = fetch_roi_per_country(start_date_formatted, end_date_formatted, user_mail, selected_sites, countries_list)
-            print(f"adx_data: {data_adx}")
+            # Siapkan data akun Facebook
             if selected_account:
                 rs_account = data_mysql().master_account_ads_by_params({
                     'data_account': selected_account,
                 })['data']
             else:
                  rs_account = data_mysql().master_account_ads()['data']
-            
             data_facebook = None
-            if selected_sites != '':
-                data_facebook = fetch_data_insights_by_country_filter_campaign_roi(
-                    rs_account, str(start_date_formatted), str(end_date_formatted), selected_sites
-                )
+
+            # Jalankan paralel jika selected_sites sudah ada (menghindari fetch FB yang terlalu lebar)
+            if selected_sites:
+                with ThreadPoolExecutor(max_workers=2) as executor:
+                    adx_future = executor.submit(
+                        fetch_roi_per_country,
+                        start_date_formatted,
+                        end_date_formatted,
+                        user_mail,
+                        selected_sites,
+                        countries_list
+                    )
+                    fb_future = executor.submit(
+                        fetch_data_insights_by_country_filter_campaign_roi,
+                        rs_account,
+                        str(start_date_formatted),
+                        str(end_date_formatted),
+                        selected_sites
+                    )
+                    data_adx = adx_future.result()
+                    print(f"adx_data (parallel): {data_adx}")
+                    try:
+                        data_facebook = fb_future.result(timeout=6)
+                    except FuturesTimeoutError:
+                        print("[DEBUG] Facebook fetch timed out; continue with AdX-only result")
+                        data_facebook = None
             else:
-                # Extract unique site names from AdX result
+                # Tanpa selected_sites: ambil AdX dulu, baru ekstraksi situs untuk memperkecil fetch FB
+                data_adx = fetch_roi_per_country(start_date_formatted, end_date_formatted, user_mail, selected_sites, countries_list)
+                print(f"adx_data: {data_adx}")
                 extracted_sites = []
                 if data_adx and data_adx.get('status') and data_adx.get('data'):
                     unique_sites = set()
@@ -2801,16 +2858,24 @@ class RoiTrafficPerCountryDataView(View):
                             unique_sites.add(site_name)
                     extracted_sites = list(unique_sites)
                     print(f"extracted_sites from AdX: {extracted_sites}")
-                # Use extracted sites for Facebook data fetching
                 if extracted_sites:
-                    # Convert list to comma-separated string for Facebook function
                     extracted_sites_str = ','.join(extracted_sites)
-                    data_facebook = fetch_data_insights_by_country_filter_campaign_roi(
-                        rs_account, str(start_date_formatted), str(end_date_formatted), extracted_sites_str
-                    )
-                    print(f"facebook_data with extracted sites: {data_facebook}")
+                    try:
+                        # Batasi waktu tunggu FB agar respon tidak tertahan
+                        with ThreadPoolExecutor(max_workers=1) as executor:
+                            fb_future = executor.submit(
+                                fetch_data_insights_by_country_filter_campaign_roi,
+                                rs_account,
+                                str(start_date_formatted),
+                                str(end_date_formatted),
+                                extracted_sites_str
+                            )
+                            data_facebook = fb_future.result(timeout=6)
+                    except FuturesTimeoutError:
+                        print("[DEBUG] Facebook fetch (post-AdX) timed out; continue without FB data")
+                        data_facebook = None
                 else:
-                    print("No valid sites found in AdX data, skipping Facebook data fetch")    
+                    print("No valid sites found in AdX data, skipping Facebook data fetch")
             # Proses penggabungan data AdX dan Facebook
             result = process_roi_traffic_country_data(data_adx, data_facebook)
             # Filter hasil berdasarkan negara yang dipilih jika ada
@@ -2856,6 +2921,12 @@ class RoiTrafficPerCountryDataView(View):
                 result['total_records'] = len(filtered_data)
                 print(f"[DEBUG ROI] Manually filtered results to {len(filtered_data)} countries")
             
+            # Simpan hasil akhir ke cache dengan TTL 15 menit
+            try:
+                set_cached_data(response_cache_key, result, timeout=900)
+            except Exception as _cache_err:
+                print(f"[DEBUG] Failed to cache ROI Country final response: {_cache_err}")
+
             return JsonResponse(result, safe=False)
             
         except Exception as e:
@@ -2899,20 +2970,19 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                 ecpm = ((revenue / impressions) * 1000) if impressions > 0 else 0
                 roi = (((revenue - spend)/spend)*100) if spend > 0 else 0
                 
-                # Tambahkan ke hasil
-                if spend > 0 or roi > 0:
-                    combined_data.append({
-                        'country': country_name,
-                        'country_code': country_code,
-                        'impressions': impressions,
-                        'spend': round(spend, 2),
-                        'clicks': clicks,
-                        'revenue': round(revenue, 2),
-                        'ctr': round(ctr, 2),
-                        'cpc': round(cpc, 4),
-                        'ecpm': round(ecpm, 2),
-                        'roi': round(roi, 2)
-                    })
+                # Tambahkan ke hasil tanpa memfilter AdX-only
+                combined_data.append({
+                    'country': country_name,
+                    'country_code': country_code,
+                    'impressions': impressions,
+                    'spend': round(spend, 2),
+                    'clicks': clicks,
+                    'revenue': round(revenue, 2),
+                    'ctr': round(ctr, 2),
+                    'cpc': round(cpc, 4),
+                    'ecpm': round(ecpm, 2),
+                    'roi': round(roi, 2)
+                })
         # Urutkan berdasarkan ROI tertinggi
         combined_data.sort(key=lambda x: x['roi'], reverse=True)
         return {
@@ -2963,7 +3033,6 @@ class RoiTrafficPerDomainDataView(View):
         selected_accounts = req.GET.get('selected_account_adx')
         selected_sites = req.GET.get('selected_sites')
         selected_account = req.GET.get('selected_account')
-        print(f"Parameters: start_date={start_date}, end_date={end_date}, selected_sites='{selected_sites}'")
         try:
             # Jika ada selected_account_adx dari frontend, gunakan sebagai user_mail
             if selected_accounts:
@@ -2971,23 +3040,23 @@ class RoiTrafficPerDomainDataView(View):
             else:
                 # Fallback ke session user_id dan ambil email dari database
                 user_id = req.session.get('hris_admin', {}).get('user_id')
-                if not user_id:
-                    return JsonResponse({
-                        'status': False,
-                        'error': 'User ID tidak ditemukan dalam session'
-                    })
                 user_data = data_mysql().get_user_by_id(user_id)
-                if not user_data.get('status') or not user_data.get('data'):
-                    return JsonResponse({
-                        'status': False,
-                        'error': 'Data user tidak ditemukan'
-                    })
                 user_mail = user_data['data']['user_mail']
             # Format tanggal untuk AdManager API
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
             end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
+            # Normalisasi selected_sites: dukung multi-select (comma separated)
+            selected_sites_list = []
+            if selected_sites is not None:
+                selected_sites_list = [s.strip() for s in str(selected_sites).split(',') if s.strip()]
             # Ambil data AdX (klik, ctr, cpc, eCPM, pendapatan)
-            adx_result = fetch_adx_traffic_account_by_user(user_mail, start_date_formatted, end_date_formatted, selected_sites)
+            # Nonaktifkan filter di level query AdX karena sering tidak konsisten
+            # terhadap format SITE_NAME/AD_EXCHANGE_SITE_NAME dan menyebabkan data kosong.
+            # Selalu ambil data tanpa filter, lalu lakukan penyaringan di aplikasi.
+            adx_result = fetch_adx_traffic_account_by_user(
+                user_mail, start_date_formatted, end_date_formatted, None
+            )
+            print(f"adx_result: {adx_result}")
             # Ambil data Facebook (spend)
             if selected_account and selected_account != '%':
                 rs_account = data_mysql().master_account_ads_by_params({
@@ -2998,9 +3067,9 @@ class RoiTrafficPerDomainDataView(View):
             
             # Extract site names from AdX data if no sites selected
             facebook_data = None
-            if selected_sites != '':
+            if selected_sites_list:
                 facebook_data = fetch_data_insights_by_date_subdomain_roi(
-                    rs_account, start_date_formatted, end_date_formatted, selected_sites
+                    rs_account, start_date_formatted, end_date_formatted, ','.join(selected_sites_list)
                 )
             else:
                 # Extract unique site names from AdX result
@@ -3041,7 +3110,37 @@ class RoiTrafficPerDomainDataView(View):
                     facebook_map[key] = fb_item
             # Proses data AdX dan gabungkan dengan data Facebook
             if adx_result and adx_result.get('status') and adx_result.get('data'):
-                for adx_item in adx_result['data']:
+                # Jika ada pilihan domain, filter data AdX di sisi aplikasi
+                adx_rows = adx_result['data']
+                if selected_sites_list:
+                    # Normalisasi daftar domain yang dipilih
+                    def _normalize(s):
+                        s = (s or '').strip().lower()
+                        if s.startswith('www.'):
+                            s = s[4:]
+                        return s
+                    allowed_domains = set(_normalize(s) for s in selected_sites_list)
+                    allowed_bases = set(_normalize(extract_base_subdomain(s)) for s in selected_sites_list)
+
+                    def _matches_site(site_val):
+                        val = _normalize(site_val)
+                        base = _normalize(extract_base_subdomain(val))
+                        # Cocokkan jika sama persis, atau salah satu adalah substring lainnya,
+                        # baik versi lengkap maupun base subdomain.
+                        if not val:
+                            return False
+                        if val in allowed_domains or val in allowed_bases:
+                            return True
+                        if base in allowed_domains or base in allowed_bases:
+                            return True
+                        # Substring match dua arah untuk toleransi format (mis. tanpa TLD)
+                        for a in allowed_domains.union(allowed_bases):
+                            if a in val or val in a or a in base or base in a:
+                                return True
+                        return False
+
+                    adx_rows = [row for row in adx_rows if _matches_site(row.get('site_name'))]
+                for adx_item in adx_rows:
                     date_key = adx_item.get('date', '')
                     subdomain = adx_item.get('site_name', '')
                     base_subdomain = extract_base_subdomain(subdomain)
