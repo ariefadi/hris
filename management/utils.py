@@ -2816,7 +2816,7 @@ def fetch_user_sites_list(user_mail):
             print(f"[DEBUG] Failed to fetch traffic data: {traffic_result.get('error', 'Unknown error')}")
         
         # Convert set to sorted list
-        sites_list = sorted(list[Any](sites))
+        sites_list = sorted(list(sites))
         
         print(f"[DEBUG] Final sites list: {sites_list}")
         
@@ -3775,28 +3775,40 @@ def _run_regular_report(client, start_date, end_date, selected_sites):
                     }
                 }
                 
-                # Add site filter if specified (using SITE_NAME for multiple sites)
+                # Add site filter if specified; prefer dimensionFilters to avoid statement errors
                 if selected_sites:
-                    # Convert set to string if needed
                     if isinstance(selected_sites, set):
                         selected_sites = ','.join(selected_sites)
-                    
                     print(f"[DEBUG] Processing site_filter in regular report: '{selected_sites}'")
-                    # Handle multiple sites (comma-separated string)
+                    # Determine best available dimension to filter on
+                    preferred_dimensions_order = ['SITE_NAME', 'AD_EXCHANGE_SITE_NAME', 'AD_UNIT_NAME']
+                    filter_dimension = None
+                    for d in preferred_dimensions_order:
+                        if d in dimensions:
+                            filter_dimension = d
+                            break
+                    # Fallback: if none present, still use AD_UNIT_NAME (server may accept)
+                    if not filter_dimension:
+                        filter_dimension = 'AD_UNIT_NAME'
+                    # Single vs multi-site handling
                     if ',' in selected_sites:
-                        sites = [site.strip() for site in selected_sites.split(',')]
+                        sites = [site.strip() for site in selected_sites.split(',') if site.strip()]
                         print(f"[DEBUG] Multiple sites detected in regular report: {sites}")
-                        # Use IN operator for multiple sites
-                        sites_list = "', '".join(sites)
-                        report_query['reportQuery']['statement'] = {
-                            'query': f"WHERE SITE_NAME IN ('{sites_list}')"
-                        }
+                        # For multiple sites, use CONTAINS filters per site to emulate IN
+                        report_query['reportQuery']['dimensionFilters'] = [
+                            {
+                                'dimension': filter_dimension,
+                                'operator': 'CONTAINS',
+                                'values': [site]
+                            } for site in sites
+                        ]
                     else:
-                        # Single site
                         print(f"[DEBUG] Single site detected in regular report: '{selected_sites}'")
-                        report_query['reportQuery']['statement'] = {
-                            'query': f"WHERE SITE_NAME = '{selected_sites}'"
-                        }
+                        report_query['reportQuery']['dimensionFilters'] = [{
+                            'dimension': filter_dimension,
+                            'operator': 'CONTAINS',
+                            'values': [selected_sites]
+                        }]
                 
                 
                 # Try to run the report job
@@ -3809,6 +3821,10 @@ def _run_regular_report(client, start_date, end_date, selected_sites):
                 # Process the raw CSV data to match expected frontend format
                 if raw_result.get('status') and raw_result.get('data'):
                     processed_data = _process_regular_csv_data(raw_result['data'])
+                    # Client-side filter for multiple sites to ensure accurate selection
+                    if selected_sites and ',' in selected_sites:
+                        sites_norm = [s.strip().lower() for s in selected_sites.split(',') if s.strip()]
+                        processed_data = [row for row in processed_data if any(sn in row.get('site_name', '').lower() for sn in sites_norm)]
                     summary = _calculate_summary_from_processed_data(processed_data, start_date, end_date)
                     
                     return {
@@ -4074,56 +4090,26 @@ def fetch_adx_traffic_per_country(start_date, end_date, user_mail, selected_site
             'error': f'Error mengambil data traffic per country: {str(e)}'
         }
 
-def _wait_and_download_country_report(client, report_job_id):
-    """Wait for country report completion and download data"""
-    report_service = client.GetService('ReportService', version='v202502')
-    # Wait for report completion
-    max_attempts = 30
-    attempt = 0
-    while attempt < max_attempts:
-        try:
-            report_job_status = report_service.getReportJobStatus(report_job_id)
-            if report_job_status == 'COMPLETED':
-                break
-            elif report_job_status == 'FAILED':
-                return {
-                    'status': False,
-                    'error': 'Country report generation failed'
-                }
-            time.sleep(10)  # Wait 10 seconds before checking again
-            attempt += 1
-        except Exception as e:
-            return {
-                'status': False,
-                'error': f'Error checking country report status: {str(e)}'
-            }
-    if attempt >= max_attempts:
-        return {
-            'status': False,
-            'error': 'Country report generation timeout'
-        }
-    # Download report using DownloadReportToFile
+def _wait_and_download_country_report(client, report_job):
+    """Use DataDownloader.WaitForReport and download CSV for country report"""
     try:
         report_downloader = client.GetDataDownloader(version='v202502')
-        # Create temporary file for report data
+        # Block until the report is ready and get job id
+        report_job_id = report_downloader.WaitForReport(report_job)
+        # Download report using DownloadReportToFile
         with tempfile.NamedTemporaryFile(mode='w+b', delete=True, suffix='.csv.gz') as temp_file:
-            try:
-                # Download report to file
-                report_downloader.DownloadReportToFile(report_job_id, 'CSV_DUMP', temp_file)
-                # Read the gzip compressed file content
-                temp_file.seek(0)
-                with gzip.open(temp_file, 'rt') as gz_file:
-                    report_data = gz_file.read()
-            except Exception as download_error:
-                raise download_error
+            report_downloader.DownloadReportToFile(report_job_id, 'CSV_DUMP', temp_file)
+            # Read the gzip compressed file content
+            temp_file.seek(0)
+            with gzip.open(temp_file, 'rt') as gz_file:
+                report_data = gz_file.read()
         # Process the CSV data
         return _process_country_csv_data(report_data)
-        
     except Exception as e:
-        print(f"[ERROR] Error downloading country report: {e}")
+        print(f"[ERROR] Error waiting/downloading country report: {e}")
         return {
             'status': False,
-            'error': f'Error downloading country report: {str(e)}'
+            'error': f'Error waiting/downloading country report: {str(e)}'
         }
 
 def _run_regular_country_report(client, start_date, end_date, selected_sites, countries_list):
@@ -4178,12 +4164,22 @@ def _run_regular_country_report(client, start_date, end_date, selected_sites, co
                     # Convert set to string if needed
                     if isinstance(selected_sites, set):
                         selected_sites = ','.join(selected_sites)
-                    
+                    # Pick the correct dimension to filter on based on the current combination
+                    preferred_dimensions_order = ['SITE_NAME', 'AD_EXCHANGE_SITE_NAME', 'AD_UNIT_NAME']
+                    filter_dimension = None
+                    for d in preferred_dimensions_order:
+                        if d in dimensions:
+                            filter_dimension = d
+                            break
+                    # Fallback if none present
+                    if not filter_dimension:
+                        filter_dimension = 'AD_UNIT_NAME'
+
                     if ',' in selected_sites:
-                        sites = [f"'{s.strip()}'" for s in selected_sites.split(',')]
-                        site_filter = f"SITE_NAME IN ({', '.join(sites)})"
+                        sites = [f"'{s.strip()}'" for s in selected_sites.split(',') if s.strip()]
+                        site_filter = f"{filter_dimension} IN ({', '.join(sites)})"
                     else:
-                        site_filter = f"SITE_NAME = '{selected_sites.strip()}'"
+                        site_filter = f"{filter_dimension} = '{selected_sites.strip()}'"
 
                 country_filter = ""
                 if countries_list:
@@ -4200,7 +4196,7 @@ def _run_regular_country_report(client, start_date, end_date, selected_sites, co
                 # Try to run the report job WITHOUT dimensionFilters
                 report_job = report_service.runReportJob(report_query)
                 # Wait for completion and download
-                result = _wait_and_download_country_report(client, report_job['id'])
+                result = _wait_and_download_country_report(client, report_job)
                 # If we got data and need to filter by countries, do manual filtering
                 return result
                 
@@ -4377,53 +4373,22 @@ def fetch_roi_per_country(start_date, end_date, user_mail, selected_sites=None, 
             'error': f'Error mengambil data traffic per country: {str(e)}'
         }
 
-def _wait_and_download_roi_country_report(client, report_job_id):
-    """Wait for country report completion and download data"""
-    report_service = client.GetService('ReportService', version='v202502')
-    # Wait for report completion
-    max_attempts = 30
-    attempt = 0
-    while attempt < max_attempts:
-        try:
-            report_job_status = report_service.getReportJobStatus(report_job_id)
-            if report_job_status == 'COMPLETED':
-                break
-            elif report_job_status == 'FAILED':
-                return {
-                    'status': False,
-                    'error': 'Country report generation failed'
-                }
-            time.sleep(10)  # Wait 10 seconds before checking again
-            attempt += 1
-        except Exception as e:
-            return {
-                'status': False,
-                'error': f'Error checking country report status: {str(e)}'
-            }
-    if attempt >= max_attempts:
-        return {
-            'status': False,
-            'error': 'Country report generation timeout'
-        }
-    # Download report
+def _wait_and_download_roi_country_report(client, report_job):
+    """Use DataDownloader.WaitForReport and download CSV for ROI country report"""
     try:
         report_downloader = client.GetDataDownloader(version='v202502')
-        # Use DownloadReportToFile with binary mode
+        report_job_id = report_downloader.WaitForReport(report_job)
         with tempfile.NamedTemporaryFile(mode='w+b', delete=True, suffix='.csv.gz') as temp_file:
-            report_downloader.DownloadReportToFile(
-                report_job_id, 'CSV_DUMP', temp_file
-            )
-            # Read the gzip compressed file content
+            report_downloader.DownloadReportToFile(report_job_id, 'CSV_DUMP', temp_file)
             temp_file.seek(0)
             with gzip.open(temp_file, 'rt') as gz_file:
                 report_data = gz_file.read()
-        # Process the CSV data
         return _process_roi_country_csv_data(report_data)
     except Exception as e:
-        print(f"[ERROR] Error downloading country report: {e}")
+        print(f"[ERROR] Error waiting/downloading ROI country report: {e}")
         return {
             'status': False,
-            'error': f'Error downloading country report: {str(e)}'
+            'error': f'Error waiting/downloading ROI country report: {str(e)}'
         }
 
 def _run_regular_roi_country_report(client, start_date, end_date, selected_sites=None, countries_list=None):
@@ -4471,12 +4436,22 @@ def _run_regular_roi_country_report(client, start_date, end_date, selected_sites
                     # Convert set to string if needed
                     if isinstance(selected_sites, set):
                         selected_sites = ','.join(selected_sites)
-                    
+                    # Pick the correct dimension to filter on based on the current combination
+                    preferred_dimensions_order = ['SITE_NAME', 'AD_EXCHANGE_SITE_NAME', 'AD_UNIT_NAME']
+                    filter_dimension = None
+                    for d in preferred_dimensions_order:
+                        if d in dimensions:
+                            filter_dimension = d
+                            break
+                    # Fallback if none present
+                    if not filter_dimension:
+                        filter_dimension = 'AD_UNIT_NAME'
+
                     if ',' in selected_sites:
-                        sites = [f"'{s.strip()}'" for s in selected_sites.split(',')]
-                        site_filter = f"SITE_NAME IN ({', '.join(sites)})"
+                        sites = [f"'{s.strip()}'" for s in selected_sites.split(',') if s.strip()]
+                        site_filter = f"{filter_dimension} IN ({', '.join(sites)})"
                     else:
-                        site_filter = f"SITE_NAME = '{selected_sites.strip()}'"
+                        site_filter = f"{filter_dimension} = '{selected_sites.strip()}'"
 
                 # Build country filter
                 country_filter = ""
@@ -4492,7 +4467,7 @@ def _run_regular_roi_country_report(client, start_date, end_date, selected_sites
 
                 # Run the report
                 report_job = report_service.runReportJob(report_query)
-                result = _wait_and_download_roi_country_report(client, report_job['id'])
+                result = _wait_and_download_roi_country_report(client, report_job)
 
                 # Jika ada filter domain, lakukan penyaringan di aplikasi agar konsisten
                 if result.get('status') and selected_sites:
@@ -4534,7 +4509,7 @@ def _run_regular_roi_country_report(client, start_date, end_date, selected_sites
                             fallback_query['reportQuery']['statement'] = {'query': f"WHERE {country_filter}"}
 
                         fb_job = report_service.runReportJob(fallback_query)
-                        fb_result = _wait_and_download_roi_country_report(client, fb_job['id'])
+                        fb_result = _wait_and_download_roi_country_report(client, fb_job)
                         if fb_result.get('status'):
                             filtered_data = []
                             for row in fb_result.get('data', []) or []:
@@ -4586,6 +4561,12 @@ def _process_roi_country_csv_data(raw_data):
             country_name = row.get('Dimension.COUNTRY_NAME', '').strip()
             if not country_name or country_name in ['Country', 'Total', 'N/A']:
                 continue
+            # Derive site name robustly from available dimensions
+            site_name = (row.get('Dimension.SITE_NAME', '') or '').strip()
+            if not site_name:
+                site_name = (row.get('Dimension.AD_EXCHANGE_SITE_NAME', '') or '').strip()
+            if not site_name:
+                site_name = (row.get('Dimension.AD_UNIT_NAME', '') or '').strip()
             # Extract metrics with fallback - use the correct column names
             impressions = int(row.get('Column.TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS', 0) or 0)
             clicks = int(row.get('Column.TOTAL_LINE_ITEM_LEVEL_CLICKS', 0) or 0)
@@ -4600,7 +4581,7 @@ def _process_roi_country_csv_data(raw_data):
             country_code = _get_roi_country_code_from_name(country_name)
             
             data.append({
-                'site_name': row.get('Dimension.SITE_NAME', '').strip(),
+                'site_name': site_name,
                 'country_name': country_name,
                 'country_code': country_code,
                 'impressions': impressions,
@@ -4650,6 +4631,7 @@ def _get_roi_country_code_from_name(country_name):
     except Exception as e:
         return 'XX'
 
+@cache_facebook_insights
 def fetch_data_insights_by_country_filter_campaign_roi(rs_account, start_date_formatted, end_date_formatted, selected_sites = None):
     country_totals = defaultdict(lambda: {
         'spend': 0.0,
@@ -4686,6 +4668,16 @@ def fetch_data_insights_by_country_filter_campaign_roi(rs_account, start_date_fo
         account = AdAccount(data['account_id'])
         # Ambil data budget campaign untuk biaya lainnya
         campaign_budgets = get_campaign_budgets(account)
+        # Ambil daftar campaign dan lakukan early-filter berdasarkan nama campaign yang memuat kata kunci situs
+        campaign_configs = account.get_campaigns(fields=['id', 'name', 'status', 'daily_budget'])
+        filtered_campaigns = []
+        if site_filter != '%':
+            for c in campaign_configs:
+                name = c.get('name', '')
+                if any(site in name for site in sites_list_for_match):
+                    filtered_campaigns.append(c)
+        else:
+            filtered_campaigns = list(campaign_configs)
         fields = [
             AdsInsights.Field.ad_id,
             AdsInsights.Field.ad_name,
@@ -4708,15 +4700,22 @@ def fetch_data_insights_by_country_filter_campaign_roi(rs_account, start_date_fo
             'limit': 1000
         }
         if site_filter != '%':
-            # Facebook API tidak mendukung banyak nilai CONTAIN sekaligus,
-            # gunakan filter API hanya untuk satu situs, dan lakukan post-filtering untuk multi-situs.
-            if len(sites_list_for_match) == 1:
+            if len(sites_list_for_match) > 1:
+                filtered_ids = [c.get('id') for c in filtered_campaigns]
+                if not filtered_ids:
+                    # Tidak ada campaign yang cocok untuk situs yang dipilih, lewati akun ini
+                    continue
+                params['filtering'] = [{
+                    'field': 'campaign.id',
+                    'operator': 'IN',
+                    'value': filtered_ids
+                }]
+            elif len(sites_list_for_match) == 1:
                 params['filtering'] = [{
                     'field': 'campaign.name',
                     'operator': 'CONTAIN',
                     'value': sites_list_for_match[0]
                 }]
-            # Untuk multi-situs, kita akan memfilter di post-processing di bawah
         # Ambil insights dengan kemungkinan fallback untuk single domain
         insights_cursor = account.get_insights(fields=fields, params=params)
         insights = list(insights_cursor)
@@ -4866,6 +4865,13 @@ def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, 
     site_filter = site_filter.replace('.com', '')
     print(f"DEBUG: Original selected_sites: {selected_sites}")
     print(f"DEBUG: Processed site_filter: {site_filter}")
+    # Build sites_to_match list for multi/single site cases
+    sites_to_match = []
+    if site_filter != '%':
+        if ',' in site_filter:
+            sites_to_match = [s.strip().replace("'", "") for s in site_filter.split(',')]
+        else:
+            sites_to_match = [site_filter.strip()]
     try:
         for data in rs_account:
             FacebookAdsApi.init(access_token=data['access_token'])
@@ -4873,12 +4879,21 @@ def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, 
             campaign_configs = account.get_campaigns(fields=[
                 'id', 'name', 'status', 'daily_budget'
             ])
+            # Filter campaigns early by site keywords to reduce load
+            filtered_campaigns = []
+            if sites_to_match:
+                for c in campaign_configs:
+                    name = c.get('name', '')
+                    if any(site in name for site in sites_to_match):
+                        filtered_campaigns.append(c)
+            else:
+                filtered_campaigns = list(campaign_configs)
             campaign_map = {
                 c['id']: {
                     'name': c.get('name'),
                     'status': c.get('status'),
                     'daily_budget': float(c.get('daily_budget') or 0)
-                } for c in campaign_configs
+                } for c in filtered_campaigns
             }
             fields = [
                 AdsInsights.Field.campaign_id,
@@ -4897,16 +4912,23 @@ def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, 
             }
             # When site_filter is '%', don't add any filtering to get all campaigns
             if site_filter != '%':
-                # For multiple sites, we'll filter after getting the data since Facebook API
-                # doesn't support multiple CONTAIN values in one filter
-                if ',' in site_filter:
-                    # Don't add filtering here, we'll filter in post-processing
-                    pass
+                # For multiple sites, filter by campaign IDs that match any site keyword
+                if len(sites_to_match) > 1:
+                    filtered_ids = [c['id'] for c in filtered_campaigns]
+                    if not filtered_ids:
+                        print("DEBUG: No campaigns matched site keywords; skipping insights fetch for this account")
+                        continue
+                    params['filtering'] = [{
+                        'field': 'campaign.id',
+                        'operator': 'IN',
+                        'value': filtered_ids
+                    }]
                 else:
+                    # Single site: use name CONTAIN to leverage FB API
                     params['filtering'] = [{
                         'field': 'campaign.name',
                         'operator': 'CONTAIN',
-                        'value': site_filter
+                        'value': sites_to_match[0]
                     }]
             insights = account.get_insights(fields=fields, params=params)
             for item in insights:
@@ -4915,22 +4937,6 @@ def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, 
                     continue
                 campaign_name = item.get('campaign_name', '')
                 print(f"DEBUG: Processing campaign: {campaign_name}")
-                
-                # Post-processing filter for multiple sites
-                if site_filter != '%' and ',' in site_filter:
-                    # Extract individual sites from comma-separated string
-                    sites_to_match = [s.strip().replace("'", "") for s in site_filter.split(',')]
-                    print(f"DEBUG: Sites to match: {sites_to_match}")
-                    # Check if campaign_name contains any of the sites
-                    campaign_matches = False
-                    for site in sites_to_match:
-                        if site in campaign_name:
-                            campaign_matches = True
-                            print(f"DEBUG: Campaign '{campaign_name}' matches site '{site}'")
-                            break
-                    if not campaign_matches:
-                        print(f"DEBUG: Campaign '{campaign_name}' does not match any sites, skipping")
-                        continue
                 
                 campaign_config = campaign_map.get(campaign_id, {})
                 daily_budget = float(campaign_config.get('daily_budget', 0))
@@ -5025,7 +5031,7 @@ def fetch_roi_traffic_account_by_user(user_mail, start_date, end_date, site_filt
         try:
             return _run_roi_report_with_fallback(client, start_date, end_date, site_filter)
         except Exception as adx_error:
-            return _run_regular_report(client, start_date, end_date, selected_sites)
+            return _run_regular_report(client, start_date, end_date, site_filter)
             
     except Exception as e:
         return {

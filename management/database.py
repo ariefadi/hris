@@ -8,6 +8,13 @@ from datetime import datetime
 from google_auth_oauthlib.flow import InstalledAppFlow
 from random import sample
 from argon2 import PasswordHasher, exceptions as argon2_exceptions
+from .crypto import sandi
+def _log_debug(message):
+    try:
+        with open('/tmp/hris_login_debug.log', 'a') as f:
+            f.write(str(message) + '\n')
+    except Exception:
+        pass
 
 def run_sql(sql):
     print(json.dumps(sql, indent=2, sort_keys=True))
@@ -27,14 +34,14 @@ class data_mysql:
             # Use the same port as Django (3306, not 3307)
             raw_port = os.getenv('HRIS_DB_PORT', '').strip()
             if not raw_port:
-                raw_port = '3307'
+                raw_port = '3306'
             try:
                 port = int(raw_port)
             except (ValueError, TypeError):
-                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3307")
-                port = 3307
+                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
+                port = 3306
             user = os.getenv('HRIS_DB_USER', 'root')
-            password = os.getenv('HRIS_DB_PASSWORD', '')
+            password = os.getenv('HRIS_DB_PASSWORD', 'hris123456')
             database = os.getenv('HRIS_DB_NAME', 'hris_trendHorizone')
 
             self.db_hris = pymysql.connect(
@@ -98,28 +105,69 @@ class data_mysql:
             return False
 
     def login_admin(self, data):
-        # Fetch user by username, then verify hashed password with Argon2
+        # Fetch user by username, then verify password (Argon2 with legacy fallbacks)
         sql = """
-              SELECT * FROM `app_users` 
-              WHERE `user_name`=%s
-              LIMIT 1
+                SELECT * FROM `app_users` 
+                WHERE `user_name`=%s
+                LIMIT 1
               """
         try:
+            _log_debug(f"[LOGIN_DEBUG] Attempting login for username={data.get('username')} from DB host={os.getenv('DB_HOST','127.0.0.1')} port={os.getenv('HRIS_DB_PORT','3306')} db={os.getenv('HRIS_DB_NAME','hris_trendHorizone')}")
             if not self.execute_query(sql, (data['username'],)):
                 raise pymysql.Error("Failed to execute login query")
             row = self.cur_hris.fetchone()
+            _log_debug(f"[LOGIN_DEBUG] Query result exists={bool(row)} for username={data.get('username')}")
             if not row:
                 return {"status": True, "data": None}
             try:
+                stored_pass = row.get('user_pass') or ''
                 ph = PasswordHasher()
-                ph.verify(row.get('user_pass') or '', data['password'])
-                # Password valid: return user data
-                return {"status": True, "data": row}
-            except argon2_exceptions.VerifyMismatchError:
-                # Wrong password
+                try:
+                    ph.verify(stored_pass, data['password'])
+                    _log_debug(f"[LOGIN_DEBUG] Argon2 verification SUCCESS for username={data.get('username')}")
+                    return {"status": True, "data": row}
+                except (argon2_exceptions.VerifyMismatchError, argon2_exceptions.InvalidHash, Exception):
+                    pass
+
+                # Legacy plaintext match
+                if stored_pass == data['password']:
+                    _log_debug(f"[LOGIN_DEBUG] Legacy plaintext match SUCCESS for username={data.get('username')}")
+                    # Auto-rehash to Argon2 for security
+                    try:
+                        new_hash = ph.hash(data['password'])
+                        if self.execute_query("UPDATE app_users SET user_pass=%s WHERE user_id=%s", (new_hash, row['user_id'])):
+                            self.commit()
+                            _log_debug(f"[LOGIN_DEBUG] Auto-rehash applied (plaintext→argon2) for user_id={row['user_id']}")
+                        else:
+                            _log_debug(f"[LOGIN_DEBUG] Auto-rehash UPDATE failed for user_id={row['user_id']}")
+                    except Exception as e:
+                        _log_debug(f"[LOGIN_DEBUG] Auto-rehash error for user_id={row.get('user_id')}: {e}")
+                    return {"status": True, "data": row}
+
+                # Legacy AES-encrypted match
+                try:
+                    legacy = sandi()
+                    decrypted = legacy.decrypt(stored_pass)
+                    if decrypted == data['password']:
+                        _log_debug(f"[LOGIN_DEBUG] Legacy AES decrypt match SUCCESS for username={data.get('username')}")
+                        # Auto-rehash to Argon2 after AES legacy match
+                        try:
+                            new_hash = ph.hash(data['password'])
+                            if self.execute_query("UPDATE app_users SET user_pass=%s WHERE user_id=%s", (new_hash, row['user_id'])):
+                                self.commit()
+                                _log_debug(f"[LOGIN_DEBUG] Auto-rehash applied (AES→argon2) for user_id={row['user_id']}")
+                            else:
+                                _log_debug(f"[LOGIN_DEBUG] Auto-rehash UPDATE failed for user_id={row['user_id']}")
+                        except Exception as e:
+                            _log_debug(f"[LOGIN_DEBUG] Auto-rehash error for user_id={row.get('user_id')}: {e}")
+                        return {"status": True, "data": row}
+                except Exception:
+                    pass
+
+                _log_debug(f"[LOGIN_DEBUG] All verification methods FAILED for username={data.get('username')}")
                 return {"status": True, "data": None}
             except Exception:
-                # Any other verification error
+                _log_debug(f"[LOGIN_DEBUG] Unexpected error during verification for username={data.get('username')}")
                 return {"status": True, "data": None}
         except pymysql.Error as e:
             return {

@@ -296,8 +296,15 @@ class SettingsOverview(View):
 
 class LoginProcess(View):
     def post(self, req):
-        username = req.POST.get('username')
-        password = req.POST.get('password')
+        # Normalize input: trim whitespace to avoid accidental mismatch
+        raw_username = req.POST.get('username')
+        raw_password = req.POST.get('password')
+        username = (raw_username or '').strip()
+        password = (raw_password or '').strip()
+        try:
+            print(f"[LOGIN_DEBUG] Incoming POST username={username!r} has_password={(bool(password))} sessionid={req.session.session_key}")
+        except Exception:
+            pass
         if not username or not password:
             hasil = {
                 'status': False,
@@ -309,10 +316,18 @@ class LoginProcess(View):
                 'username': username,
                 'password': password
             })
+            try:
+                print(f"[LOGIN_DEBUG] DB helper returned status={rs_data.get('status')} has_data={rs_data.get('data') is not None}")
+            except Exception:
+                pass
             # Check if login was successful and data exists
             if not rs_data.get('status', False) or rs_data.get('data') is None:
                 # Handle both error cases and no user found cases
                 error_message = rs_data.get('message', 'Username dan Password tidak ditemukan !')
+                try:
+                    print(f"[LOGIN_DEBUG] Login failed. message={error_message}")
+                except Exception:
+                    pass
                 hasil = {
                     'status': False,
                     'data': error_message,
@@ -375,6 +390,10 @@ class LoginProcess(View):
                     'user_mail': rs_data['data']['user_mail']  # Tambahkan user_mail ke session
                 }
                 req.session['hris_admin'] = user_data
+                try:
+                    print(f"[LOGIN_DEBUG] Session set for user_id={user_data['user_id']} login_id={login_id}")
+                except Exception:
+                    pass
                 # Set default active portal on first login
                 try:
                     req.session['active_portal_id'] = DEFAULT_ACTIVE_PORTAL_ID
@@ -385,6 +404,10 @@ class LoginProcess(View):
                     'data': "Login Berhasil",
                     'message': "Selamat Datang " + rs_data['data']['user_alias'] + " !",
                 }
+                try:
+                    print(f"[LOGIN_DEBUG] Login success for username={username}")
+                except Exception:
+                    pass
         return JsonResponse(hasil)
 
     
@@ -2693,7 +2716,21 @@ class RoiTrafficPerCountryView(View):
 
 class RoiTrafficPerCountryDataView(View):
     def dispatch(self, request, *args, **kwargs):
+        # Jika session tidak ada, untuk request AJAX kembalikan JSON error,
+        # selain itu redirect ke halaman login.
         if 'hris_admin' not in request.session:
+            is_ajax = False
+            try:
+                is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            except Exception:
+                pass
+            if not is_ajax:
+                is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+            if is_ajax:
+                return JsonResponse({
+                    'status': False,
+                    'error': 'Sesi berakhir atau tidak valid. Silakan login ulang.'
+                })
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
     
@@ -2705,6 +2742,12 @@ class RoiTrafficPerCountryDataView(View):
         selected_account = req.GET.get('selected_account', '')
         selected_countries = req.GET.get('selected_countries', '')
         try:
+            # Validasi parameter tanggal terlebih dahulu
+            if not start_date or not end_date:
+                return JsonResponse({
+                    'status': False,
+                    'error': 'Parameter tanggal tidak lengkap'
+                })
             # Format tanggal untuk AdManager API
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
             end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
@@ -2919,7 +2962,7 @@ class RoiTrafficPerDomainDataView(View):
         end_date = req.GET.get('end_date')
         selected_accounts = req.GET.get('selected_account_adx')
         selected_sites = req.GET.get('selected_sites')
-        selected_account = req.GET.get('selected_account', '%')
+        selected_account = req.GET.get('selected_account')
         print(f"Parameters: start_date={start_date}, end_date={end_date}, selected_sites='{selected_sites}'")
         try:
             # Jika ada selected_account_adx dari frontend, gunakan sebagai user_mail

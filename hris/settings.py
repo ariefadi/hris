@@ -24,6 +24,11 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Load environment variables from .env file
 load_dotenv(BASE_DIR / '.env')
 
+# Ensure OAuth2 client variables are defined early to avoid NameError during import
+# These will be overridden later by database-loaded credentials if available
+GOOGLE_OAUTH2_CLIENT_ID = os.getenv('GOOGLE_OAUTH2_CLIENT_ID', '')
+GOOGLE_OAUTH2_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET', '')
+
 # Provide compatibility alias for deprecated force_text used by older packages
 try:
     from django.utils.encoding import force_str
@@ -137,9 +142,9 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': os.getenv('HRIS_DB_NAME', 'hris_trendHorizone'),
         'USER': os.getenv('HRIS_DB_USER', 'root'),
-        'PASSWORD': os.getenv('HRIS_DB_PASSWORD', ''),
+        'PASSWORD': os.getenv('HRIS_DB_PASSWORD', 'hris123456'),
         'HOST': os.getenv('HRIS_DB_HOST', '127.0.0.1'),
-        'PORT': os.getenv('HRIS_DB_PORT', '3307'),
+        'PORT': os.getenv('HRIS_DB_PORT', '3306'),
         'OPTIONS': {
             'sql_mode': 'STRICT_TRANS_TABLES',
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES', time_zone='+00:00'",
@@ -332,9 +337,10 @@ except Exception as e:
     GOOGLE_OAUTH2_CLIENT_ID = os.getenv('GOOGLE_OAUTH2_CLIENT_ID', '')
     GOOGLE_OAUTH2_CLIENT_SECRET = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET', '')
 
-# Social Auth Configuration
-SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = GOOGLE_OAUTH2_CLIENT_ID
-SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = GOOGLE_OAUTH2_CLIENT_SECRET
+# Social Auth Configuration (robust against import order)
+# Use globals().get with env fallback to prevent NameError during early import
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = globals().get('GOOGLE_OAUTH2_CLIENT_ID', os.getenv('GOOGLE_OAUTH2_CLIENT_ID', ''))
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = globals().get('GOOGLE_OAUTH2_CLIENT_SECRET', os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET', ''))
 # Set HTTPS redirect based on environment
 if DEBUG:
     SOCIAL_AUTH_REDIRECT_IS_HTTPS = False   # Development now uses HTTP
