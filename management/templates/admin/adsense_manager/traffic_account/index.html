@@ -16,6 +16,8 @@
       margin-bottom: 20px;
   }
 </style>
+<!-- Flatpickr Datepicker -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <div class="card">
     <div class="card-header">
         <h3 class="card-title">Traffic Adsense Per Account</h3>
@@ -143,23 +145,13 @@
         
         <!-- Charts Section -->
         <div class="row mt-3" id="charts_section" style="display: none;">
-            <div class="col-12 col-md-6">
+            <div class="col-12">
                 <div class="card">
                     <div class="card-header">
-                        <h4 class="card-title"><i class="bi bi-bar-chart"></i> Top 10 Unit Iklan berdasarkan Tayangan</h4>
+                        <h4 class="card-title"><i class="bi bi-graph-up"></i> Pendapatan Harian (Line Chart)</h4>
                     </div>
                     <div class="card-body">
-                        <canvas id="chart_top_ad_units" style="height: 300px;"></canvas>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h4 class="card-title"><i class="bi bi-pie-chart"></i> Distribusi Pendapatan per Domain</h4>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="chart_revenue_distribution" style="height: 300px;"></canvas>
+                        <div id="chart_daily_revenue" style="height: 320px;"></div>
                     </div>
                 </div>
             </div>
@@ -189,6 +181,8 @@
 </div>
 {% endblock %}
 {% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://code.highcharts.com/highcharts.js"></script>
 <script src="{% static 'ajax/admin/adsense_manager/traffic_account.js'%}?v={%now 'u'%}"></script>
 <script>
 $(document).ready(function() {

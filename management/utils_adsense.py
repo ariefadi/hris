@@ -615,6 +615,7 @@ def fetch_adsense_traffic_per_country(user_mail, start_date, end_date, site_filt
 
                 results.append({
                     'country': country_name,
+                    'country_code': country_code,
                     'impressions': impressions,
                     'clicks': clicks,
                     'ctr': round(ctr, 2),

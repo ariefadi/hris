@@ -453,28 +453,70 @@ def get_countries_facebook_ads(request):
         tanggal_sampai = request.POST.get('tanggal_sampai')
         data_account = request.POST.get('data_account')
         data_sub_domain = request.POST.get('data_sub_domain')
-        rs_data_account = data_mysql().master_account_ads_by_id({
-            'data_account': data_account,
-        })['data']
-        # Ambil semua data negara tanpa filter
-        result = fetch_data_country_facebook_ads(
-            tanggal_dari, 
-            tanggal_sampai,
-            str(rs_data_account['access_token']), 
-            str(rs_data_account['account_id']),
-            data_sub_domain
-        )
-        print(f"Data Negara : {result}")
-        countries = []
-        for country_data in result: 
-            country_name = country_data.get('name')
-            country_code = country_data.get('code')
-            if country_name:
-                countries.append({
-                    'code': country_code,
-                    'name': country_name
-                })
-            
+        # Normalisasi nilai kosong/invalid untuk account
+        def _is_empty_account(val):
+            if val is None:
+                return True
+            v = str(val).strip().lower()
+            return v in ('', '%', 'null', 'none', 'undefined')
+        countries_map = {}
+        # Jika filter account kosong, fallback ke semua akun Facebook Ads
+        if _is_empty_account(data_account):
+            accounts_resp = data_mysql().master_account_ads()
+            rs_accounts = []
+            if accounts_resp:
+                try:
+                    rs_accounts = accounts_resp.get('data', [])
+                except Exception:
+                    rs_accounts = []
+            for acc in rs_accounts:
+                try:
+                    result = fetch_data_country_facebook_ads(
+                        tanggal_dari,
+                        tanggal_sampai,
+                        str(acc.get('access_token')),
+                        str(acc.get('account_id')),
+                        data_sub_domain
+                    )
+                except Exception as e:
+                    print(f"[DEBUG] Gagal fetch negara untuk akun {acc.get('account_id')}: {e}")
+                    result = []
+                for country_data in result:
+                    name = country_data.get('name')
+                    code = country_data.get('code')
+                    if name:
+                        countries_map[(code or name)] = {
+                            'code': code,
+                            'name': name
+                        }
+        else:
+            # Jika account terisi, gunakan akun tersebut saja
+            rs_data_resp = data_mysql().master_account_ads_by_id({'data_account': data_account})
+            rs_data_account = None
+            if isinstance(rs_data_resp, dict):
+                rs_data_account = rs_data_resp.get('data')
+            if not rs_data_account:
+                # Fallback: jika ID tidak valid, jangan crash; kembalikan kosong
+                print("[DEBUG] data_account tidak valid atau tidak ditemukan; mengembalikan daftar negara kosong")
+                result = []
+            else:
+                result = fetch_data_country_facebook_ads(
+                    tanggal_dari, 
+                    tanggal_sampai,
+                    str(rs_data_account.get('access_token')),
+                    str(rs_data_account.get('account_id')),
+                    data_sub_domain
+                )
+            for country_data in result:
+                name = country_data.get('name')
+                code = country_data.get('code')
+                if name:
+                    countries_map[(code or name)] = {
+                        'code': code,
+                        'name': name
+                    }
+        countries = list(countries_map.values())
+        
         # Sort berdasarkan nama negara
         countries.sort(key=lambda x: x['name'])
         return JsonResponse({
@@ -504,6 +546,23 @@ def get_countries_adx(request):
         # Ambil data negara dari AdX untuk periode 30 hari terakhir
         end_date = datetime.now().date()
         start_date = end_date - timedelta(days=7)
+        # Gunakan cache untuk menghindari pemanggilan API berulang
+        try:
+            cache_key = generate_cache_key(
+                'countries_adx',
+                str(user_mail or ''),
+                start_date.strftime('%Y-%m-%d'),
+                end_date.strftime('%Y-%m-%d')
+            )
+            cached_countries = get_cached_data(cache_key)
+            if cached_countries is not None:
+                return JsonResponse({
+                    'status': 'success',
+                    'countries': cached_countries
+                })
+        except Exception as _cache_err:
+            # Jika cache bermasalah, lanjutkan tanpa memblokir proses
+            print(f"[WARNING] countries_adx cache unavailable: {_cache_err}")
         result = fetch_adx_traffic_per_country(
             start_date.strftime('%Y-%m-%d'), 
             end_date.strftime('%Y-%m-%d'),
@@ -544,23 +603,35 @@ def get_countries_adx(request):
                 'countries': []
             })
         
-        # Ekstrak daftar negara dari data yang tersedia
+        # Ekstrak daftar negara dari data yang tersedia dan hilangkan duplikasi
         countries = []
+        seen = set()
         for country_data in result['data']:
             if not isinstance(country_data, dict):
                 print(f"[WARNING] Country data is not a dict: {type(country_data)}")
                 continue
-            country_name = country_data.get('country_name')
-            country_code = country_data.get('country_code', '')
-            if country_name:
-                country_label = f"{country_name} ({country_code})" if country_code else country_name
-                countries.append({
-                    'code': country_code,
-                    'name': country_label
-                })
+            country_name = (country_data.get('country_name') or '').strip()
+            country_code = (country_data.get('country_code') or '').strip().upper()
+            if not country_name:
+                continue
+            # Gunakan code jika ada, jika tidak gunakan nama sebagai key dedup
+            key = country_code or country_name.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            country_label = f"{country_name} ({country_code})" if country_code else country_name
+            countries.append({
+                'code': country_code,
+                'name': country_label
+            })
             
         # Sort berdasarkan nama negara
         countries.sort(key=lambda x: x['name'])
+        # Simpan hasil ke cache agar panggilan berikutnya cepat
+        try:
+            set_cached_data(cache_key, countries, timeout=6 * 60 * 60)  # 6 jam
+        except Exception as _cache_set_err:
+            print(f"[WARNING] failed to cache countries_adx: {_cache_set_err}")
         return JsonResponse({
             'status': 'success',
             'countries': countries
@@ -1399,11 +1470,69 @@ class page_per_country_facebook(View):
         countries_param = req.GET.get('countries', '')
         selected_countries = []
         if countries_param:
-            selected_countries = countries_param.split(',')
-        rs_data_account = data_mysql().master_account_ads_by_id({
+            # Terima format CSV sederhana atau JSON array, lalu normalisasi
+            try:
+                import json as _json
+                parsed = _json.loads(countries_param)
+                if isinstance(parsed, list):
+                    selected_countries = [str(x).strip() for x in parsed]
+                else:
+                    selected_countries = [str(parsed).strip()]
+            except Exception:
+                selected_countries = [s.strip() for s in countries_param.split(',') if s.strip()]
+        # Ambil data akun dan pastikan formatnya valid (dict)
+        account_result = data_mysql().master_account_ads_by_id({
             'data_account': data_account,
-        })['data']
-        data = fetch_data_insights_by_country_filter_account(str(tanggal_dari), str(tanggal_sampai), str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(data_sub_domain))
+        })
+        rs_data_account = None
+        if isinstance(account_result, dict):
+            rs_data_account = account_result.get('data')
+
+        # Jika berupa string (mis. pesan error/JSON), coba parse; jika gagal set None
+        if isinstance(rs_data_account, str):
+            try:
+                rs_data_account = json.loads(rs_data_account)
+            except Exception:
+                rs_data_account = None
+
+        # Validasi struktur akun sebelum lanjut
+        if not isinstance(rs_data_account, dict) or not rs_data_account:
+            return JsonResponse({
+                'hasil': "Data Traffic Per Country",
+                'data_country': [],
+                'total_country': [],
+                'error': 'Account tidak ditemukan atau format data tidak valid'
+            })
+
+        access_token = rs_data_account.get('access_token')
+        account_id = rs_data_account.get('account_id')
+        if not access_token or not account_id:
+            return JsonResponse({
+                'hasil': "Data Traffic Per Country",
+                'data_country': [],
+                'total_country': [],
+                'error': 'Account tidak lengkap: access_token/account_id kosong'
+            })
+
+        data = fetch_data_insights_by_country_filter_account(
+            str(tanggal_dari),
+            str(tanggal_sampai),
+            str(access_token),
+            str(account_id),
+            str(data_sub_domain)
+        )
+        # Pastikan struktur data valid
+        if not isinstance(data, dict):
+            data = {'data': [], 'total': []}
+        if not isinstance(data.get('data', []), list):
+            # Jika 'data' berbentuk string JSON, coba parse
+            try:
+                import json as _json
+                data['data'] = _json.loads(data.get('data') or '[]')
+                if not isinstance(data['data'], list):
+                    data['data'] = []
+            except Exception:
+                data['data'] = []
         # Filter data berdasarkan negara yang dipilih jika ada
         if selected_countries:
             filtered_data = []
@@ -1414,10 +1543,29 @@ class page_per_country_facebook(View):
             total_frequency = 0
             total_cpr = 0
             
+            def _extract_country_parts(label):
+                # label contoh: "Indonesia (ID)" atau hanya nama negara
+                label = (label or '').strip()
+                if not label:
+                    return ('', '')
+                name = label
+                code = ''
+                try:
+                    import re
+                    m = re.search(r"\(([^)]+)\)", label)
+                    if m:
+                        code = m.group(1).strip().upper()
+                        name = label[:m.start()].strip()
+                except Exception:
+                    pass
+                return (name, code)
+
             for item in data['data']:
+                if not isinstance(item, dict):
+                    # Hindari TypeError bila item bertipe string
+                    continue
                 # Cek apakah negara ada dalam filter yang dipilih
-                country_code = item.get('country_code', '')
-                country_name = item.get('country', '')
+                country_name, country_code = _extract_country_parts(item.get('country', ''))
                 
                 # Cek berdasarkan kode negara atau nama negara
                 if country_code in selected_countries or country_name in selected_countries:
@@ -1465,14 +1613,44 @@ class page_per_country_facebook(View):
         except:
             selected_countries = []
         
+        # Normalisasi nilai kosong menjadi '%'
+        data_sub_domain = data_sub_domain if data_sub_domain else '%'
+        data_account = data_account if data_account else '%'
+
         rs_account = data_mysql().master_account_ads()
-        if data_sub_domain != '%' and data_account != '%':
+
+        # Kasus 1: Account dipilih, Domain kosong -> ambil semua campaign akun tsb (tanpa filter domain)
+        if data_account != '%' and data_sub_domain == '%':
             rs_data_account = data_mysql().master_account_ads_by_id({
                 'data_account': data_account,
-            })['data']
-            data = fetch_data_insights_by_country_filter_account(str(tanggal_dari), str(tanggal_sampai), str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(data_sub_domain))
-        else: 
-            data = fetch_data_insights_by_country_filter_campaign(str(tanggal_dari), str(tanggal_sampai), rs_account['data'], str(data_sub_domain)) 
+            }).get('data', {})
+            data = fetch_data_insights_by_country_filter_account(
+                str(tanggal_dari), str(tanggal_sampai),
+                str(rs_data_account.get('access_token','')),
+                str(rs_data_account.get('account_id','')),
+                '%'
+            )
+        # Kasus 2: Domain dipilih, Account kosong -> gabungkan semua akun dengan filter domain
+        elif data_account == '%' and data_sub_domain != '%':
+            data = fetch_data_insights_by_country_filter_campaign(
+                str(tanggal_dari), str(tanggal_sampai), rs_account['data'], str(data_sub_domain)
+            )
+        # Kasus 3: Keduanya dipilih -> gunakan akun spesifik dengan filter domain
+        elif data_account != '%' and data_sub_domain != '%':
+            rs_data_account = data_mysql().master_account_ads_by_id({
+                'data_account': data_account,
+            }).get('data', {})
+            data = fetch_data_insights_by_country_filter_account(
+                str(tanggal_dari), str(tanggal_sampai),
+                str(rs_data_account.get('access_token','')),
+                str(rs_data_account.get('account_id','')),
+                str(data_sub_domain)
+            )
+        # Kasus 4: Keduanya kosong -> tampilkan semua akun tanpa filter domain
+        else:
+            data = fetch_data_insights_by_country_filter_campaign(
+                str(tanggal_dari), str(tanggal_sampai), rs_account['data'], '%'
+            )
         
         # Normalize total structure - utils.py returns total as array, we need object
         if 'total' in data and isinstance(data['total'], list) and len(data['total']) > 0:
@@ -2112,7 +2290,6 @@ class AdxTrafficPerAccountView(View):
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
         data_account_adx = data_mysql().get_all_adx_account_data()
-        print(f"DEBUG AdxTrafficPerAccountView - data_account_adx: {data_account_adx}")
         if not data_account_adx['status']:
             return JsonResponse({
                 'status': False,
@@ -2141,8 +2318,6 @@ class AdxAccountOAuthStartView(View):
             # Izinkan target email via query (?email=xxx); jika tidak ada, JANGAN paksa fallback ke email session
             target_mail = req.GET.get('email')
             user_id = current_user.get('user_id')
-            logger.info(f"OAuth Start - target_mail: {target_mail}, user_id: {user_id}")
-
             # Ambil konfigurasi dari .env secara eksklusif
             client_id = os.getenv('GOOGLE_OAUTH2_CLIENT_ID')
             client_secret = os.getenv('GOOGLE_OAUTH2_CLIENT_SECRET')
@@ -2151,10 +2326,8 @@ class AdxAccountOAuthStartView(View):
                 req.session['oauth_added_success'] = False
                 req.session['oauth_added_message'] = 'GOOGLE_OAUTH2_CLIENT_ID/SECRET tidak ditemukan di .env.'
                 return redirect('adx_account')
-
             # Gunakan endpoint callback yang telah diseragamkan (tanpa query) agar cocok dengan Authorized Redirect URIs
             redirect_uri = req.build_absolute_uri(reverse('oauth_callback_api'))
-
             client_config = {
                 'web': {
                     'client_id': client_id,
@@ -2174,10 +2347,8 @@ class AdxAccountOAuthStartView(View):
                 # Scope untuk Google AdSense
                 'https://www.googleapis.com/auth/adsense'
             ]
-
             flow = Flow.from_client_config(client_config, scopes=scopes)
             flow.redirect_uri = redirect_uri
-
             # Bangun authorization URL secara manual untuk memastikan nilai parameter tepat (lowercase)
             # Gunakan state minimal untuk menandai flow AdX agar routing callback tepat
             import time
@@ -2493,6 +2664,7 @@ class AdxTrafficPerAccountDataView(View):
             end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')  
             # Gunakan fungsi baru yang mengambil data berdasarkan kredensial user
             result = fetch_adx_traffic_account_by_user(user_mail, start_date_formatted, end_date_formatted, selected_sites)
+            print(f"[DEBUG] AdxTrafficPerAccountDataView - result: {result}")   
             return JsonResponse(result, safe=False)
         except Exception as e:
             return JsonResponse({
@@ -2513,8 +2685,26 @@ class AdxSitesListView(View):
         else:
             user_mail = req.session.get('hris_admin', {}).get('user_mail')
         try:
-            # Ambil daftar situs dari Ad Manager
+            # Cek cache terlebih dahulu untuk mempercepat respons
+            try:
+                cache_key = generate_cache_key('adx_sites_list', str(user_mail or ''))
+                cached_sites = get_cached_data(cache_key)
+                if cached_sites is not None:
+                    return JsonResponse(cached_sites, safe=False)
+            except Exception as _cache_err:
+                # Lanjutkan tanpa memblokir jika cache gagal
+                print(f"[WARNING] adx_sites_list cache unavailable: {_cache_err}")
+
+            # Ambil daftar situs dari Ad Manager jika cache miss
             result = fetch_user_sites_list(user_mail)
+
+            # Simpan ke cache untuk permintaan berikutnya
+            try:
+                # Cache selama 6 jam; daftar situs jarang berubah
+                set_cached_data(cache_key, result, timeout=6 * 60 * 60)
+            except Exception as _cache_set_err:
+                print(f"[WARNING] failed to cache adx_sites_list: {_cache_set_err}")
+
             return JsonResponse(result, safe=False)
         except Exception as e:
             return JsonResponse({
@@ -2790,13 +2980,29 @@ class RoiTrafficPerCountryDataView(View):
             else:
                 print("[DEBUG] No countries selected, will fetch all countries")
 
+            # Tentukan daftar situs untuk Facebook ketika Filter Domain kosong,
+            # agar FB mengikuti domain yang ada di akun AdX terpilih
+            sites_for_fb = None
+            if not selected_sites or not selected_sites.strip():
+                try:
+                    sites_result = fetch_user_sites_list(selected_account_adx or req.session.get('hris_admin', {}).get('user_mail'))
+                    if sites_result and sites_result.get('status') and sites_result.get('data'):
+                        sites_for_fb = sites_result.get('data')
+                        print(f"[DEBUG ROI] Derived sites_for_fb from AdX account: {sites_for_fb}")
+                    else:
+                        print(f"[DEBUG ROI] No sites derived for FB filter: {sites_result}")
+                except Exception as _sites_err:
+                    print(f"[DEBUG ROI] Unable to derive sites_for_fb: {_sites_err}")
+
             # ===== Response-level cache (meng-cache hasil akhir penggabungan) =====
+            # Sertakan 'effective sites' (selected_sites atau sites_for_fb) agar cache selaras dengan FB filter
+            effective_sites_key = selected_sites if (selected_sites and selected_sites.strip()) else (','.join(sites_for_fb) if sites_for_fb else '')
             response_cache_key = generate_cache_key(
                 'roi_country_response',
                 start_date_formatted,
                 end_date_formatted,
                 selected_account_adx or '',
-                selected_sites or '',
+                effective_sites_key,
                 selected_account or '',
                 ','.join(countries_list) if countries_list else ''
             )
@@ -2831,6 +3037,7 @@ class RoiTrafficPerCountryDataView(View):
                         selected_sites,
                         countries_list
                     )
+                    print(f"adx_data: {adx_future}")
                     fb_future = executor.submit(
                         fetch_data_insights_by_country_filter_campaign_roi,
                         rs_account,
@@ -2838,44 +3045,55 @@ class RoiTrafficPerCountryDataView(View):
                         str(end_date_formatted),
                         selected_sites
                     )
+                    print(f"adx_facebook: {fb_future}")
                     data_adx = adx_future.result()
-                    print(f"adx_data (parallel): {data_adx}")
                     try:
-                        data_facebook = fb_future.result(timeout=6)
-                    except FuturesTimeoutError:
-                        print("[DEBUG] Facebook fetch timed out; continue with AdX-only result")
+                        # Hapus timeout: tunggu hingga FB selesai agar data lengkap
+                        data_facebook = fb_future.result()
+                    except Exception as e:
+                        print(f"[DEBUG] Facebook fetch failed: {e}; continue with AdX-only result")
                         data_facebook = None
             else:
-                # Tanpa selected_sites: ambil AdX dulu, baru ekstraksi situs untuk memperkecil fetch FB
+                # Filter Domain kosong: tampilkan data semua domain dari akun AdX terpilih
+                # Ambil AdX terlebih dahulu
                 data_adx = fetch_roi_per_country(start_date_formatted, end_date_formatted, user_mail, selected_sites, countries_list)
                 print(f"adx_data: {data_adx}")
-                extracted_sites = []
-                if data_adx and data_adx.get('status') and data_adx.get('data'):
-                    unique_sites = set()
-                    for adx_item in data_adx['data']:
-                        site_name = adx_item.get('site_name', '').strip()
-                        if site_name and site_name != 'Unknown':
-                            unique_sites.add(site_name)
-                    extracted_sites = list(unique_sites)
-                    print(f"extracted_sites from AdX: {extracted_sites}")
-                if extracted_sites:
-                    extracted_sites_str = ','.join(extracted_sites)
-                    try:
-                        # Batasi waktu tunggu FB agar respon tidak tertahan
-                        with ThreadPoolExecutor(max_workers=1) as executor:
-                            fb_future = executor.submit(
-                                fetch_data_insights_by_country_filter_campaign_roi,
-                                rs_account,
-                                str(start_date_formatted),
-                                str(end_date_formatted),
-                                extracted_sites_str
-                            )
-                            data_facebook = fb_future.result(timeout=6)
-                    except FuturesTimeoutError:
-                        print("[DEBUG] Facebook fetch (post-AdX) timed out; continue without FB data")
-                        data_facebook = None
+                # Ambil data Facebook tanpa filter situs agar mencakup semua campaign
+                try:
+                    with ThreadPoolExecutor(max_workers=1) as executor:
+                        fb_future = executor.submit(
+                            fetch_data_insights_by_country_filter_campaign_roi,
+                            rs_account,
+                            str(start_date_formatted),
+                            str(end_date_formatted),
+                            sites_for_fb
+                        )
+                        # Hapus timeout: proses all domains bisa lama, biarkan selesai
+                        data_facebook = fb_future.result()
+                except Exception as e:
+                    print(f"[DEBUG] Facebook fetch (all domains) failed: {e}; continue without FB data")
+                    data_facebook = None
+            # Ringkas data Facebook untuk diagnosa
+            try:
+                if data_facebook:
+                    fb_items = data_facebook.get('data', []) or []
+                    fb_count = len(fb_items)
+                    fb_total_spend = 0.0
+                    for _it in fb_items:
+                        try:
+                            fb_total_spend += float(_it.get('spend', 0) or 0)
+                        except Exception:
+                            pass
+                    print(f"[DEBUG ROI] Facebook items: {fb_count}, total spend: {fb_total_spend}")
+                    if fb_items:
+                        sample_labels = []
+                        for _s in fb_items[:5]:
+                            sample_labels.append(_s.get('country'))
+                        print(f"[DEBUG ROI] Sample FB countries: {sample_labels}")
                 else:
-                    print("No valid sites found in AdX data, skipping Facebook data fetch")
+                    print("[DEBUG ROI] No Facebook data returned or fetch failed")
+            except Exception as _sum_e:
+                print(f"[DEBUG ROI] Unable to summarize FB data: {_sum_e}")
             # Proses penggabungan data AdX dan Facebook
             result = process_roi_traffic_country_data(data_adx, data_facebook)
             # Filter hasil berdasarkan negara yang dipilih jika ada
@@ -2940,20 +3158,29 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
     try:
         # Inisialisasi hasil
         combined_data = []
-        # Buat mapping data Facebook berdasarkan country_cd
+        print(f"[DEBUG ROI] process() ADX present: {bool(data_adx and data_adx.get('data'))}, FB present: {bool(data_facebook and data_facebook.get('data'))}")
+        # Buat mapping data Facebook berdasarkan country_cd (kode negara 2 huruf)
         facebook_spend_map = {}
         facebook_click_map = {}
+        fb_code_set = set()
         if data_facebook and data_facebook.get('data'):
             for fb_item in data_facebook['data']:
-                country_cd = fb_item.get('country_cd', 'unknown')
+                # Normalisasi ke uppercase untuk konsistensi dengan AdX
+                country_cd = (fb_item.get('country_cd', 'unknown') or 'unknown').upper()
                 spend = float(fb_item.get('spend', 0))
                 facebook_spend_map[country_cd] = spend
                 facebook_click_map[country_cd] = int(fb_item.get('clicks', 0))
+                fb_code_set.add(country_cd)
+        print(f"[DEBUG ROI] FB spend map keys: {len(facebook_spend_map)}")
         # Proses data AdX dan gabungkan dengan data Facebook
+        adx_code_set = set()
         if data_adx and data_adx.get('status') and data_adx.get('data'):
             for adx_item in data_adx['data']:
                 country_name = adx_item.get('country_name', '')
-                country_code = adx_item.get('country_code', '')
+                # Pastikan kode negara AdX uppercase agar cocok dengan FB
+                country_code = (adx_item.get('country_code', '') or '').upper()
+                if country_code:
+                    adx_code_set.add(country_code)
                 impressions = int(adx_item.get('impressions', 0))
                 clicks_adx = int(adx_item.get('clicks', 0))
                 revenue = float(adx_item.get('revenue', 0))
@@ -2983,6 +3210,24 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                     'ecpm': round(ecpm, 2),
                     'roi': round(roi, 2)
                 })
+        try:
+            total_spend_combined = sum([float(it.get('spend', 0) or 0) for it in combined_data])
+            intersect_codes = adx_code_set.intersection(fb_code_set)
+            missing_in_fb = sorted(list(adx_code_set - fb_code_set))
+            missing_in_adx = sorted(list(fb_code_set - adx_code_set))
+            print(f"[DEBUG ROI] Combined countries: {len(combined_data)}, total spend merged: {total_spend_combined}")
+            print(f"[DEBUG ROI] Code intersection size: {len(intersect_codes)}")
+            if missing_in_fb:
+                print(f"[DEBUG ROI] Codes present in AdX but missing in FB: {missing_in_fb[:10]}")
+            if missing_in_adx:
+                print(f"[DEBUG ROI] Codes present in FB but missing in AdX: {missing_in_adx[:10]}")
+        except Exception:
+            pass
+        # Jangan exclude negara spend 0: tetap tampilkan data AdX-only
+        try:
+            print("[DEBUG ROI] Keeping zero-spend countries to show AdX-only results")
+        except Exception:
+            pass
         # Urutkan berdasarkan ROI tertinggi
         combined_data.sort(key=lambda x: x['roi'], reverse=True)
         return {

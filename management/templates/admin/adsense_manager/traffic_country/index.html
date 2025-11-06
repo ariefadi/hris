@@ -9,6 +9,8 @@
     <li class="breadcrumb-item active">Adsense Manager</li>
 {% endblock %}
 {% block more_stylesheet %}
+<!-- Flatpickr CSS untuk datepicker yang konsisten -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 {% endblock %}
 
 {% block content %}
@@ -39,7 +41,7 @@
                 </select>
             </div>
             <div class="col-md-3">
-                <label>Filter Countries</label>
+                <label>Filter Negara</label>
                 <select class="form-control" id="country_filter" multiple>
                     <!-- Gunakan Select2 dengan tags: true; pengguna dapat mengetik negara -->
                 </select>
@@ -122,7 +124,7 @@
                 </div>
             </div>
         </div>
-        
+
         <div class="row" id="summary_boxes_2" style="display: none;">
             <div class="col-12 col-sm-6 col-md-3">
                 <div class="info-box">
@@ -147,7 +149,22 @@
                 </div>
             </div>
         </div>
-        
+
+        <!-- Map Chart -->
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex align-items-center justify-content-between">
+                        <h3 class="card-title mb-0">Peta Traffic AdSense per Negara</h3>
+                        <small class="text-muted">Visualisasi distribusi impresi per negara</small>
+                    </div>
+                    <div class="card-body">
+                        <div id="worldMapAdsense" style="height: 520px; min-height: 420px; width: 100%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Data Table -->
         <div class="dt-responsive-table mt-3">
             <table id="table_traffic_country" class="table table-bordered table-striped" style="width:100%">
@@ -172,6 +189,14 @@
 {% endblock %}
 
 {% block more_scripts %}
+<!-- Flatpickr JS -->
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<!-- Highcharts Maps (mengikuti pola AdX) -->
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highmaps.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
+<!-- World Map Data -->
+<script src="https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.1.0/custom/world.js"></script>
 <script>
 // Setup CSRF token for AJAX requests
 function getCookie(name) {

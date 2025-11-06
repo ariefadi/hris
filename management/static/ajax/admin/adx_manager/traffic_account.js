@@ -55,8 +55,8 @@ $().ready(function () {
     $('#btn_load_data').click(function (e) {
         e.preventDefault();
         $("#overlay").show();
-        loadSitesList();
         load_adx_traffic_account_data();
+        loadSitesList();
     });
     function loadSitesList() {
         var selectedAccounts = $("#account_filter").val() || "";

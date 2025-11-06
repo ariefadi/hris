@@ -47,7 +47,6 @@ $(document).ready(function() {
         var selectedAccounts = $("#account_filter").val() || "";
         // Simpan pilihan domain yang sudah dipilih sebelumnya
         var previouslySelected = $("#site_filter").val() || [];
-        
         $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
@@ -240,6 +239,7 @@ $(document).ready(function() {
                 if (row.country_code) {
                     countryFlag = '<img src="https://flagcdn.com/16x12/' + row.country_code.toLowerCase() + '.png" alt="' + row.country_code + '" style="margin-right: 5px;"> ';
                 }
+                var revenueNum = parseFloat(row.revenue || 0) || 0;
                 tableData.push([
                     countryFlag + (row.country_name || ''),
                     row.country_code || '',
@@ -248,7 +248,7 @@ $(document).ready(function() {
                     row.ctr ? row.ctr.toFixed(2) + '%' : '0%',
                     formatCurrencyIDR(row.cpc || 0),
                     formatCurrencyIDR(row.ecpm || 0),
-                    formatCurrencyIDR(row.revenue || 0)
+                    revenueNum
                 ]);
             });
         }
@@ -256,7 +256,7 @@ $(document).ready(function() {
         if ($.fn.DataTable.isDataTable('#table_traffic_country')) {
             $('#table_traffic_country').DataTable().destroy();
         }
-        $('#table_traffic_country').DataTable({
+        var table = $('#table_traffic_country').DataTable({
             data: tableData,
             responsive: true,
             pageLength: 25,
@@ -292,8 +292,23 @@ $(document).ready(function() {
                     className: 'btn btn-danger'
                 }
             ],
-            order: [[2, 'desc']] // Sort by impressions descending
+            columnDefs: [
+                {
+                    targets: 7,
+                    type: 'num',
+                    render: function(data, type, row) {
+                        if (type === 'display') {
+                            return formatCurrencyIDR(data || 0);
+                        }
+                        return data; // gunakan nilai numerik untuk sort/filter
+                    }
+                }
+            ],
+            order: [[7, 'desc']] // Sort by revenue descending
         });
+
+        // Paksa urutan setelah inisialisasi untuk memastikan tidak tertimpa
+        table.order([7, 'desc']).draw();
     }
 
     // Fungsi untuk membuat chart dengan Highcharts Maps

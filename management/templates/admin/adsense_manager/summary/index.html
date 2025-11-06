@@ -33,6 +33,20 @@
         <h3 class="card-title">AdSense Summary</h3>
     </div> <!-- /.card-header -->
     <div class="card-body">
+      <div id="overlay"
+           style="
+               display: none;
+               position: fixed;
+               top: 0; left: 0;
+               width: 100%; height: 100%;
+               background: rgba(0,0,0,0.5);
+               z-index: 9999;
+               text-align: center;
+               color: white;
+               font-size: 2rem;
+               padding-top: 20%;">
+          <i class="fas fa fa-sync-alt fa-spin"></i> Memuat Data Summary AdSense ...
+      </div>
       <div class="row g-3 align-items-end">
         <div class="col-md-3">
           <label for="start_date" class="form-label">Range Dari</label>
@@ -83,7 +97,7 @@
       <div class="card text-center">
         <div class="card-body">
           <div class="text-muted">CPC</div>
-          <div id="sum_cpc" class="fs-5 fw-semibold">$0.00</div>
+          <div id="sum_cpc" class="fs-5 fw-semibold">Rp.0</div>
         </div>
       </div>
     </div>
@@ -91,7 +105,7 @@
       <div class="card text-center">
         <div class="card-body">
           <div class="text-muted">eCPM</div>
-          <div id="sum_ecpm" class="fs-5 fw-semibold">$0.00</div>
+          <div id="sum_ecpm" class="fs-5 fw-semibold">Rp.0</div>
         </div>
       </div>
     </div>
@@ -99,7 +113,7 @@
       <div class="card text-center">
         <div class="card-body">
           <div class="text-muted">Revenue</div>
-          <div id="sum_revenue" class="fs-5 fw-semibold">$0.00</div>
+          <div id="sum_revenue" class="fs-5 fw-semibold">Rp.0</div>
         </div>
       </div>
     </div>

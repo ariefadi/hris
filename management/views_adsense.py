@@ -57,24 +57,15 @@ class AdsenseTrafficAccountDataView(View):
         return super().dispatch(request, *args, **kwargs)
     def post(self, request):
         try:
-            # Prioritaskan user_mail dari filter akun jika disediakan
+            # Validasi: wajib pilih akun terlebih dahulu
             account_filter = request.POST.get('account_filter')
             if account_filter:
                 user_mail = account_filter
             else:
-                # Fallback: ambil dari session app_users
-                user_id = request.session['hris_admin'].get('user_id')
-                if not user_id:
-                    return JsonResponse({'error': 'User ID not found in session'}, status=400)
-                # Get user email from database using user_id
-                from .database import data_mysql
-                db = data_mysql()
-                sql = "SELECT user_mail FROM app_users WHERE user_id = %s"
-                db.cur_hris.execute(sql, (user_id,))
-                user_data = db.cur_hris.fetchone()
-                if not user_data or not user_data.get('user_mail'):
-                    return JsonResponse({'error': 'User email not found in database'}, status=400)
-                user_mail = user_data['user_mail']
+                return JsonResponse({
+                    'status': False,
+                    'error': 'Filter Account harus dipilih terlebih dahulu'
+                })
             # Get form data
             start_date = request.POST.get('start_date')
             end_date = request.POST.get('end_date')
@@ -124,9 +115,18 @@ class AdsenseTrafficAccountDataView(View):
                         'summary': summary
                     })
             else:
+                # Jika akun tidak memiliki AdSense, kembalikan pesan informatif tanpa error 500
+                error_msg = result.get('error', 'Failed to fetch AdSense data')
+                if 'No AdSense accounts found' in error_msg:
+                    return JsonResponse({
+                        'status': True,
+                        'data': [],
+                        'message': 'Akun tidak memiliki AdSense'
+                    })
                 return JsonResponse({
-                    'error': result.get('error', 'Failed to fetch AdSense data')
-                }, status=500)
+                    'status': False,
+                    'error': error_msg
+                })
                 
         except Exception as e:
             print(f"[ERROR] Exception in AdsenseTrafficAccountDataView: {str(e)}")
@@ -302,26 +302,11 @@ class AdsenseTrafficPerCountryDataView(View):
             if account_filter:
                 user_mail = account_filter
             else:
-                # Fallback: ambil dari session app_users
-                user_id = request.session['hris_admin'].get('user_id')
-                if not user_id:
-                    return JsonResponse({
-                        'error': 'User ID not found in session'
-                    }, status=400)
-                
-                # Get user email from database using user_id
-                from .database import data_mysql
-                db = data_mysql()
-                sql = "SELECT user_mail FROM app_users WHERE user_id = %s"
-                db.cur_hris.execute(sql, (user_id,))
-                user_data = db.cur_hris.fetchone()
-                
-                if not user_data or not user_data.get('user_mail'):
-                    return JsonResponse({
-                        'error': 'User email not found in database'
-                    }, status=400)
-                
-                user_mail = user_data['user_mail']
+                # Validasi baru: wajib pilih akun terlebih dahulu
+                return JsonResponse({
+                    'status': False,
+                    'error': 'Filter Account harus dipilih terlebih dahulu'
+                })
             # Get form data (same as Traffic Account)
             start_date = request.POST.get('start_date')
             end_date = request.POST.get('end_date')
@@ -368,9 +353,27 @@ class AdsenseTrafficPerCountryDataView(View):
                     'summary': summary
                 })
             else:
+                # Jika akun tidak memiliki AdSense, kembalikan status sukses dengan pesan informatif
+                err = result.get('error', '')
+                if 'No AdSense accounts found' in err or 'no adsense' in err.lower():
+                    return JsonResponse({
+                        'status': True,
+                        'data': [],
+                        'summary': {
+                            'total_impressions': 0,
+                            'total_clicks': 0,
+                            'total_revenue': 0,
+                            'avg_ctr': 0,
+                            'avg_cpc': 0,
+                            'avg_cpm': 0
+                        },
+                        'message': 'Akun tidak memiliki AdSense'
+                    })
+                # Selain itu, beri status False agar frontend bisa tampilkan info tanpa error 500
                 return JsonResponse({
+                    'status': False,
                     'error': result.get('error', 'Failed to fetch AdSense country data')
-                }, status=500)
+                })
                 
         except Exception as e:
             print(f"[ERROR] Exception in AdsenseTrafficPerCountryDataView: {str(e)}")

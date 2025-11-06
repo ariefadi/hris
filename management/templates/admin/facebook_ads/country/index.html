@@ -64,6 +64,19 @@
         </div>
     </div><!-- /.card-body -->
 </div>
+
+<!-- Map Spend Per Negara -->
+<div class="card" id="charts_section" style="display: none;">
+    <div class="card-header">
+        <div class="card-title d-flex justify-content-between align-items-center w-100">
+            <h3 class="card-title"><b><i class="bi bi-globe"></i> Peta Spend Per Negara (Facebook Ads)</b></h3>
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="worldMap" style="height: 500px; width: 100%;"></div>
+    </div>
+</div>
+
 <div class="card">
     <div class="card-header">
         <div class="card-title d-flex justify-content-between align-items-center w-100">
@@ -118,5 +131,11 @@
 </div>
 {% endblock %}
 {% block more_scripts %}
+<!-- Highcharts Maps Library -->
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highmaps.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
+<!-- World Map Data -->
+<script src="https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.1.0/custom/world.js"></script>
 <script src="{% static 'ajax/admin/facebook_ads/country.js'%}?v={%now 'u'%}"></script>
 {% endblock %}

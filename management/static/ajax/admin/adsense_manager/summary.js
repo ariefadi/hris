@@ -162,6 +162,9 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Loading AdSense summary with params:', { start_date, end_date, account_filter });
     
     try {
+      if (typeof $ !== 'undefined' && $("#overlay").length) {
+        $("#overlay").show();
+      }
       const params = new URLSearchParams({ start_date, end_date });
       if (account_filter) params.set('account_filter', account_filter);
       
@@ -179,6 +182,9 @@ document.addEventListener('DOMContentLoaded', () => {
       updateSummaryBoxes(json.summary || {});
       renderRevenueChart(json.daily || []);
       
+      if (typeof $ !== 'undefined' && $("#overlay").length) {
+        $("#overlay").hide();
+      }
       console.log('Summary boxes updated successfully');
     } catch (err) {
       console.error('Error loading summary:', err);
@@ -186,6 +192,9 @@ document.addEventListener('DOMContentLoaded', () => {
       infoBox.classList.remove('alert-info');
       infoBox.classList.add('alert-danger');
       infoBox.textContent = `Error load summary: ${err.message}`;
+      if (typeof $ !== 'undefined' && $("#overlay").length) {
+        $("#overlay").hide();
+      }
     }
   };
 

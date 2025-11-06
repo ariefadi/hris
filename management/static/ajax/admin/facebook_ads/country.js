@@ -284,6 +284,13 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                     }
                 ]
             });
+
+            // Render world spend map (white-to-black)
+            try {
+                createSpendMap(data_country.data_country || []);
+            } catch (err) {
+                console.error('Failed to create spend map:', err);
+            }
         }
     });
 }
@@ -312,4 +319,135 @@ function destroy_table_data_per_country_facebook() {
     }
     // Bersihkan konten tbody secara manual
     $('#table_data_per_country_facebook tbody').empty();
+}
+
+// Highcharts Map: Spend per Country (White → Black)
+function createSpendMap(items) {
+    // Siapkan data peta
+    var mapData = [];
+    if (!items || !items.length) {
+        // Bersihkan peta bila tidak ada data
+        if (window.fbSpendMapInstance) {
+            try { window.fbSpendMapInstance.destroy(); } catch (e) {}
+            window.fbSpendMapInstance = null;
+        }
+        $('#charts_section').hide();
+        return;
+    }
+
+    items.forEach(function (item) {
+        var spend = parseFloat(item.spend) || 0;
+        var countryField = String(item.country || '');
+        // Ekstrak kode negara dari format "Nama Negara (CODE)"
+        var codeMatch = countryField.match(/\(([A-Za-z]{2})\)/);
+        var countryCode = codeMatch ? codeMatch[1].toLowerCase() : null;
+        if (!countryCode) return;
+
+        mapData.push({
+            'hc-key': countryCode,
+            code: countryCode.toUpperCase(),
+            name: countryField.split('(')[0].trim(),
+            value: spend,
+            impressions: item.impressions || 0,
+            clicks: item.clicks || 0,
+            reach: item.reach || 0,
+            frequency: item.frequency || 0,
+            cpr: item.cpr || 0
+        });
+    });
+
+    if (!mapData.length) {
+        $('#charts_section').hide();
+        return;
+    }
+
+    // Tampilkan section peta
+    $('#charts_section').show();
+    $('#worldMap').css({ height: '500px', width: '100%', display: 'block', visibility: 'visible' });
+
+    // Hancurkan instance lama
+    if (window.fbSpendMapInstance) {
+        try { window.fbSpendMapInstance.destroy(); } catch (e) {}
+        window.fbSpendMapInstance = null;
+    }
+
+    // Kelas warna: putih (rendah) ke hitam (tinggi)
+    var ranges = [
+        { from: 0, to: 0, color: '#ffffff', name: '0' },
+        { from: 1, to: 50, color: '#f2f2f2', name: '1 - 50' },
+        { from: 50, to: 250, color: '#d9d9d9', name: '51 - 250' },
+        { from: 250, to: 1000, color: '#bfbfbf', name: '251 - 1.000' },
+        { from: 1000, to: 5000, color: '#999999', name: '1.001 - 5.000' },
+        { from: 5000, to: 10000, color: '#666666', name: '5.001 - 10.000' },
+        { from: 10000, to: Infinity, color: '#000000', name: '> 10.000' }
+    ];
+
+    // Render peta
+    window.fbSpendMapInstance = Highcharts.mapChart('worldMap', {
+        chart: {
+            map: 'custom/world',
+            backgroundColor: 'transparent',
+            style: { fontFamily: 'Arial, sans-serif' }
+        },
+        title: {
+            text: 'Spend Facebook Ads Per Negara',
+            style: { fontSize: '16px', fontWeight: '600', color: '#333' }
+        },
+        subtitle: {
+            text: 'Skema warna: putih → hitam berdasarkan spend',
+            style: { fontSize: '12px', color: '#666' }
+        },
+        mapNavigation: {
+            enabled: true,
+            buttonOptions: { verticalAlign: 'bottom' }
+        },
+        colorAxis: {
+            min: 0,
+            minColor: '#ffffff',
+            maxColor: '#000000',
+            dataClasses: ranges.map(function (range) {
+                return { from: range.from, to: range.to, color: range.color, name: range.name };
+            })
+        },
+        legend: {
+            title: { text: 'Tingkat Spend', style: { color: '#333', fontSize: '12px' } },
+            align: 'left',
+            verticalAlign: 'bottom',
+            floating: true,
+            layout: 'vertical',
+            backgroundColor: 'rgba(255,255,255,0.9)',
+            symbolRadius: 0,
+            symbolHeight: 14
+        },
+        series: [{
+            name: 'Negara',
+            data: mapData,
+            joinBy: ['hc-key', 'hc-key'],
+            nullColor: '#e6e7e8',
+            borderColor: '#606060',
+            borderWidth: 0.5,
+            states: { hover: { color: '#444444' } },
+            tooltip: {
+                backgroundColor: 'rgba(0,0,0,0.85)',
+                style: { color: 'white' },
+                pointFormatter: function () {
+                    var spendStr = 'Rp ' + Math.round(this.value).toLocaleString('id-ID');
+                    return '<b>' + this.name + '</b><br>' +
+                        'Kode: ' + this.code + '<br>' +
+                        'Spend: <b>' + spendStr + '</b><br>' +
+                        'Impressions: ' + Number(this.impressions).toLocaleString('id-ID') + '<br>' +
+                        'Reach: ' + Number(this.reach).toLocaleString('id-ID') + '<br>' +
+                        'Clicks: ' + Number(this.clicks).toLocaleString('id-ID') + '<br>' +
+                        'Frequency: ' + (Number(this.frequency) || 0).toFixed(2) + '<br>' +
+                        'CPR: Rp ' + (Number(this.cpr) || 0).toFixed(0).replace(',', '.');
+                },
+                nullFormat: '<b>{point.name}</b><br>Tidak ada data'
+            },
+            allAreas: true
+        }],
+        exporting: {
+            enabled: true,
+            buttons: { contextButton: { menuItems: ['viewFullscreen', 'separator', 'downloadPNG', 'downloadJPEG', 'downloadPDF', 'downloadSVG'] } }
+        }
+    });
 }

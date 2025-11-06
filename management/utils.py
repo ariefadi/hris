@@ -1593,15 +1593,6 @@ def fetch_data_insights_by_country_filter_campaign(start_date, end_date, rs_acco
             }
         insights = account.get_insights(fields=fields, params=params)
         for item in insights:
-            # Post-processing filter for multiple sites
-            if site_filter != '%' and ',' in site_filter:
-                campaign_name = item.get('campaign_name', '').lower()
-                sites_to_match = [site.strip().replace("'", "").lower() for site in site_filter.split(',')]
-                
-                # Check if campaign name contains any of the sites
-                site_matched = any(site in campaign_name for site in sites_to_match if site)
-                if not site_matched:
-                    continue  # Skip this campaign if it doesn't match any site
             
             country_code = item.get('country')
             country_name = get_country_name_from_code(country_code)
@@ -1714,10 +1705,16 @@ def fetch_data_country_facebook_ads(tanggal_dari, tanggal_sampai, access_token, 
             'since': tanggal_dari,
             'until': tanggal_sampai
         },
-        'subdomain': data_sub_domain,
         'breakdowns': ['country'],
         'limit': 1000
     }
+    # Terapkan filter domain ke nama campaign bila disediakan
+    if data_sub_domain and str(data_sub_domain).strip() != '%':
+        params['filtering'] = [{
+            'field': 'campaign.name',
+            'operator': 'CONTAIN',
+            'value': str(data_sub_domain).strip()
+        }]
     # Mengambil data insights berdasarkan parameter yang ditentukan
     try:
         insights = account.get_insights(fields=fields, params=params)
@@ -1762,6 +1759,8 @@ def fetch_data_country_facebook_ads(tanggal_dari, tanggal_sampai, access_token, 
     return result
 
 def fetch_data_insights_by_country_filter_account(start_date, end_date, access_token, account_id, data_sub_domain):
+    """Ambil insights FB dan gabungkan per negara untuk satu akun.
+    """
     try:
         FacebookAdsApi.init(access_token=access_token)
         account = AdAccount(account_id)
@@ -1778,6 +1777,7 @@ def fetch_data_insights_by_country_filter_account(start_date, end_date, access_t
                 'total_frequency': 0.0
             }]
         }
+
     fields = [
         AdsInsights.Field.ad_id,
         AdsInsights.Field.ad_name,
@@ -1790,94 +1790,108 @@ def fetch_data_insights_by_country_filter_account(start_date, end_date, access_t
         'cost_per_result',
         AdsInsights.Field.actions
     ]
+    # Siapkan params dasar; tambahkan filter subdomain hanya jika diberikan
     params = {
         'level': 'campaign',
         'time_range': {
             'since': start_date,
             'until': end_date
         },
-        'filtering': [{
-            'field': 'campaign.name',
-            'operator': 'CONTAIN',
-            'value': data_sub_domain
-        }],
         'breakdowns': ['country'],
         'limit': 1000,
     }
+    if data_sub_domain and str(data_sub_domain).strip() != '%':
+        params['filtering'] = [{
+            'field': 'campaign.name',
+            'operator': 'CONTAIN',
+            'value': str(data_sub_domain).strip()
+        }]
+
     try:
         insights = account.get_insights(fields=fields, params=params)
     except (FacebookRequestError, requests.exceptions.RequestException, urllib3.exceptions.HTTPError, Exception) as e:
         print(f"[ERROR] Gagal mengambil insights Facebook: {e}")
         insights = []
-    rs_data = []
-    data = []
-    total = []
-    total_spend = 0
-    total_impressions = 0
-    total_reach = 0
-    total_clicks = 0
-    total_cpr = 0
-    total_frequency = 0
+
+    # Agregasi per negara
+    aggregates = defaultdict(lambda: {
+        'spend': 0.0,
+        'impressions': 0,
+        'reach': 0,
+        'clicks': 0.0
+    })
+
     for item in insights:
         country_code = item.get('country')
         country_name = get_country_name_from_code(country_code)
-        # Skip jika tidak ditemukan country name
         if not country_name:
             continue
         country_label = f"{country_name} ({country_code})"
-        spend = float(item.get('spend', 0))
-        impressions = int(item.get('impressions', 0))
-        reach = int(item.get('reach', 0))
-        frequency = float(impressions/reach) if reach > 0 else 0.0
-        # Ekstrak cost_per_result (CPR)
-        cost_per_result = None
-        for cpr_item in item.get('cost_per_result', []):
-            # Ambil CPR untuk indicator tertentu (contoh: actions:link_click)
-            if cpr_item.get('indicator') == 'actions:link_click':
-                values = cpr_item.get('values', [])
-                if values:
-                    cost_per_result = values[0].get('value')
-                break  # Berhenti setelah ketemu yang cocok
-        result_action_type = 'link_click'
-        result_count = 0
+
+        spend = float(item.get('spend', 0) or 0)
+        impressions = int(item.get('impressions', 0) or 0)
+        reach = int(item.get('reach', 0) or 0)
+
+        # Ambil clicks dari actions:link_click
+        clicks = 0.0
         for action in item.get('actions', []):
-            if action.get('action_type') == result_action_type:
-                result_count = float(action.get('value', 0))
+            if action.get('action_type') == 'link_click':
+                try:
+                    clicks = float(action.get('value', 0) or 0)
+                except Exception:
+                    clicks = 0.0
                 break
-        clicks = result_count
+
+        agg = aggregates[country_label]
+        agg['spend'] += spend
+        agg['impressions'] += impressions
+        agg['reach'] += reach
+        agg['clicks'] += clicks
+
+    # Bangun list data unik per negara
+    data = []
+    total_spend = total_impressions = total_reach = 0
+    total_clicks = 0.0
+
+    for country_label, agg in aggregates.items():
+        spend = float(agg['spend'])
+        impressions = int(agg['impressions'])
+        reach = int(agg['reach'])
+        clicks = float(agg['clicks'])
+        frequency = float(impressions/reach) if reach > 0 else 0.0
+        cpr = float(spend/clicks) if clicks > 0 else 0.0
+
+        data.append({
+            'country': country_label,
+            'spend': spend,
+            'impressions': impressions,
+            'reach': reach,
+            'clicks': clicks,
+            'cpr': cpr,
+            'frequency': frequency
+        })
+
         total_spend += spend
         total_impressions += impressions
         total_reach += reach
         total_clicks += clicks
-        total_frequency += frequency
-        total_cpr += float(cost_per_result)
-        data.append({
-            'country': country_label,
-            'ad_id': item.get('ad_id'),
-            'ad_name': item.get('ad_name'),
-            'adset_id': item.get('adset_id'),
-            'campaign_id': item.get('campaign_id'),
-            'campaign_name': item.get('campaign_name'),
-            'spend': item.get('spend'),
-            'impressions': int(item.get('impressions', 0)),
-            'reach': int(item.get('reach', 0)),
-            'clicks': clicks,
-            'cpr': cost_per_result,
-            'frequency': frequency
-        })
+
     # Urutkan berdasarkan impressions tertinggi
     data_sorted = sorted(data, key=lambda x: x['impressions'], reverse=True)
-    total.append({
-        'total_spend': total_spend,
-        'total_impressions': total_impressions,
-        'total_reach' : total_reach,
-        'total_click': total_clicks,
-        'total_cpr' : total_cpr,
-        'total_frequency' : total_frequency
-    })
+
+    total_frequency = float(total_impressions/total_reach) if total_reach > 0 else 0.0
+    total_cpr = float(total_spend/total_clicks) if total_clicks > 0 else 0.0
+
     rs_data = {
         'data': data_sorted,
-        'total': total
+        'total': [{
+            'total_spend': total_spend,
+            'total_impressions': total_impressions,
+            'total_reach': total_reach,
+            'total_click': total_clicks,
+            'total_cpr': total_cpr,
+            'total_frequency': total_frequency
+        }]
     }
     return rs_data
 
@@ -3489,32 +3503,26 @@ def fetch_adx_traffic_campaign_by_user(user_mail, start_date, end_date, site_fil
         }
 
 def _run_regular_report(client, start_date, end_date, selected_sites):
-    """Run regular Ad Manager report as fallback"""
+    """Run regular Ad Manager report as fallback (no dimensionFilters; post-filter by site)"""
     report_service = client.GetService('ReportService', version='v202502')
-    
-    # Use regular Ad Manager columns - prioritize line item level columns that work
+    # Lebihkan fallback kolom agar lebih tahan error
     regular_column_combinations = [
-        # Best working combination from debug
         ['TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CLICKS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE'],
-        # Fallback combinations
-        ['TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CLICKS'],
-        ['TOTAL_IMPRESSIONS', 'TOTAL_CLICKS', 'TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS'],
+        ['TOTAL_IMPRESSIONS', 'TOTAL_CLICKS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE'],
         ['TOTAL_IMPRESSIONS', 'TOTAL_CLICKS'],
-        ['TOTAL_IMPRESSIONS'],
-        ['TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS']
+        ['AD_SERVER_IMPRESSIONS', 'AD_SERVER_CLICKS'],
+        ['TOTAL_IMPRESSIONS']
     ]
-    
-    # Try different dimension combinations to get site name directly from API
+    # Coba beberapa variasi dimensi; hindari filter di level query
     dimension_combinations = [
-        # Try to get site name directly from Ad Manager
-        ['DATE', 'SITE_NAME']
+        ['DATE', 'SITE_NAME'],
+        ['DATE', 'AD_EXCHANGE_SITE_NAME'],
+        ['DATE']
     ]
-    
     for dimensions in dimension_combinations:
         for columns in regular_column_combinations:
             try:
                 print(f"[DEBUG] Trying dimensions: {dimensions}, columns: {columns}")
-                
                 report_query = {
                     'reportQuery': {
                         'dimensions': dimensions,
@@ -3532,59 +3540,27 @@ def _run_regular_report(client, start_date, end_date, selected_sites):
                         }
                     }
                 }
-                
-                # Add site filter if specified; prefer dimensionFilters to avoid statement errors
-                if selected_sites:
-                    if isinstance(selected_sites, set):
-                        selected_sites = ','.join(selected_sites)
-                    print(f"[DEBUG] Processing site_filter in regular report: '{selected_sites}'")
-                    # Determine best available dimension to filter on
-                    preferred_dimensions_order = ['SITE_NAME', 'AD_EXCHANGE_SITE_NAME', 'AD_UNIT_NAME']
-                    filter_dimension = None
-                    for d in preferred_dimensions_order:
-                        if d in dimensions:
-                            filter_dimension = d
-                            break
-                    # Fallback: if none present, still use AD_UNIT_NAME (server may accept)
-                    if not filter_dimension:
-                        filter_dimension = 'AD_UNIT_NAME'
-                    # Single vs multi-site handling
-                    if ',' in selected_sites:
-                        sites = [site.strip() for site in selected_sites.split(',') if site.strip()]
-                        print(f"[DEBUG] Multiple sites detected in regular report: {sites}")
-                        # For multiple sites, use CONTAINS filters per site to emulate IN
-                        report_query['reportQuery']['dimensionFilters'] = [
-                            {
-                                'dimension': filter_dimension,
-                                'operator': 'CONTAINS',
-                                'values': [site]
-                            } for site in sites
-                        ]
-                    else:
-                        print(f"[DEBUG] Single site detected in regular report: '{selected_sites}'")
-                        report_query['reportQuery']['dimensionFilters'] = [{
-                            'dimension': filter_dimension,
-                            'operator': 'CONTAINS',
-                            'values': [selected_sites]
-                        }]
-                
-                
                 # Try to run the report job
                 report_job = report_service.runReportJob(report_query)
                 print(f"[DEBUG] Regular report created successfully with dimensions: {dimensions}, columns: {columns}")
-                
                 # Wait for completion and download
                 raw_result = _wait_and_download_report(client, report_job['id'])
-                
                 # Process the raw CSV data to match expected frontend format
                 if raw_result.get('status') and raw_result.get('data'):
                     processed_data = _process_regular_csv_data(raw_result['data'])
-                    # Client-side filter for multiple sites to ensure accurate selection
-                    if selected_sites and ',' in selected_sites:
-                        sites_norm = [s.strip().lower() for s in selected_sites.split(',') if s.strip()]
-                        processed_data = [row for row in processed_data if any(sn in row.get('site_name', '').lower() for sn in sites_norm)]
+                    # Post-filter situs jika filter domain diberikan
+                    if selected_sites:
+                        if isinstance(selected_sites, (set, list)):
+                            selected_sites_str = ','.join([str(s) for s in selected_sites])
+                        else:
+                            selected_sites_str = str(selected_sites)
+                        sites_norm = [s.strip().lower().replace('www.', '').replace('.com', '')
+                                      for s in selected_sites_str.split(',') if s.strip()]
+                        def _match(row_name: str) -> bool:
+                            nm = (row_name or '').lower().replace('www.', '').replace('.com', '')
+                            return any(sn in nm for sn in sites_norm)
+                        processed_data = [row for row in processed_data if _match(row.get('site_name'))]
                     summary = _calculate_summary_from_processed_data(processed_data, start_date, end_date)
-                    
                     return {
                         'status': True,
                         'data': processed_data,
@@ -3593,12 +3569,11 @@ def _run_regular_report(client, start_date, end_date, selected_sites):
                         'note': f'Using regular Ad Manager metrics (dimensions: {dimensions}, columns: {columns})'
                     }
                 else:
-                    return raw_result
-                
+                    # Lanjutkan mencoba kombinasi berikutnya jika hasil kosong
+                    continue
             except Exception as e:
                 error_msg = str(e)
                 print(f"[DEBUG] Combination dimensions: {dimensions}, columns: {columns} failed: {error_msg}")
-                
                 # If NOT_NULL error, try next combination
                 if 'NOT_NULL' in error_msg:
                     continue
@@ -3608,8 +3583,7 @@ def _run_regular_report(client, start_date, end_date, selected_sites):
                 # For other errors, try next combination
                 else:
                     continue
-    
-    # If all regular combinations failed, raise error
+    # Jika semua kombinasi reguler gagal, beri pesan yang lebih jelas
     raise Exception("All regular column combinations failed")
 
 def _wait_and_download_report(client, report_job_id):
@@ -4051,12 +4025,53 @@ def _process_country_csv_data(raw_data):
         print(f"[DEBUG] - Rows filtered out: {filtered_count}")
         print(f"[DEBUG] - Final data rows: {len(data)}")
         
-        # Calculate summary
-        total_impressions = sum(row['impressions'] for row in data)
-        total_clicks = sum(row['clicks'] for row in data)
-        total_revenue = sum(row['revenue'] for row in data)
+        # Agregasi data per negara untuk menghindari duplikasi baris
+        aggregated = {}
+        for row in data:
+            key = row.get('country_code') or row.get('country_name')
+            if key not in aggregated:
+                aggregated[key] = {
+                    'country_name': row.get('country_name'),
+                    'country_code': row.get('country_code'),
+                    'impressions': 0,
+                    'clicks': 0,
+                    'revenue': 0.0
+                }
+            aggregated[key]['impressions'] += row.get('impressions', 0)
+            aggregated[key]['clicks'] += row.get('clicks', 0)
+            aggregated[key]['revenue'] += row.get('revenue', 0.0)
+
+        # Hitung metrik turunan untuk hasil agregasi
+        aggregated_data = []
+        for _, agg in aggregated.items():
+            impressions = agg['impressions']
+            clicks = agg['clicks']
+            revenue = agg['revenue']
+            ctr = (clicks / impressions * 100) if impressions > 0 else 0
+            ecpm = (revenue / impressions * 1000) if impressions > 0 else 0
+            cpc = (revenue / clicks) if clicks > 0 else 0
+            aggregated_data.append({
+                'country_name': agg['country_name'],
+                'country_code': agg['country_code'],
+                'impressions': impressions,
+                'clicks': clicks,
+                'revenue': revenue,
+                'ctr': ctr,
+                'ecpm': ecpm,
+                'cpc': cpc,
+                'requests': impressions,
+                'matched_requests': impressions
+            })
+
+        # Urutkan berdasarkan pendapatan terbesar ke terkecil
+        aggregated_data.sort(key=lambda x: x.get('revenue', 0.0), reverse=True)
+
+        # Calculate summary dari data agregasi
+        total_impressions = sum(row['impressions'] for row in aggregated_data)
+        total_clicks = sum(row['clicks'] for row in aggregated_data)
+        total_revenue = sum(row['revenue'] for row in aggregated_data)
         total_ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0
-        
+
         summary = {
             'total_impressions': total_impressions,
             'total_clicks': total_clicks,
@@ -4065,13 +4080,13 @@ def _process_country_csv_data(raw_data):
             'total_matched_requests': total_impressions,
             'total_ctr': total_ctr
         }
-        
+
         print(f"[DEBUG] Final summary: {summary}")
         print(f"[DEBUG] ===== _process_country_csv_data END =====")
-        
+
         return {
             'status': True,
-            'data': data,
+            'data': aggregated_data,
             'summary': summary
         }
         
@@ -4415,6 +4430,7 @@ def fetch_data_insights_by_country_filter_campaign_roi(rs_account, start_date_fo
     })
     site_filter = ""
     sites_list_for_match = []
+    sites_norm = []
     if selected_sites:
         # Normalisasi tipe: dukung set/list/str
         if isinstance(selected_sites, (set, list)):
@@ -4434,6 +4450,13 @@ def fetch_data_insights_by_country_filter_campaign_roi(rs_account, start_date_fo
         site_filter = '%'
     # Bersihkan pola umum agar pencocokan tidak terlalu ketat
     site_filter = site_filter.replace('.com', '')
+    # Bangun daftar kata kunci situs yang sudah dinormalisasi (lowercase, tanpa www/.com/quote)
+    if sites_list_for_match:
+        sites_norm = []
+        for s in sites_list_for_match:
+            s_norm = (s or '').lower().replace("'", "").replace('www.', '').replace('.com', '').strip()
+            if s_norm:
+                sites_norm.append(s_norm)
     for data in rs_account:
         FacebookAdsApi.init(access_token=data['access_token'])
         account = AdAccount(data['account_id'])
@@ -4443,9 +4466,10 @@ def fetch_data_insights_by_country_filter_campaign_roi(rs_account, start_date_fo
         campaign_configs = account.get_campaigns(fields=['id', 'name', 'status', 'daily_budget'])
         filtered_campaigns = []
         if site_filter != '%':
+            # Early-filter campaign berdasarkan nama (case-insensitive)
             for c in campaign_configs:
-                name = c.get('name', '')
-                if any(site in name for site in sites_list_for_match):
+                name_lc = (c.get('name', '') or '').lower()
+                if sites_norm and any(sn in name_lc for sn in sites_norm):
                     filtered_campaigns.append(c)
         else:
             filtered_campaigns = list(campaign_configs)
@@ -4473,14 +4497,14 @@ def fetch_data_insights_by_country_filter_campaign_roi(rs_account, start_date_fo
         if site_filter != '%':
             if len(sites_list_for_match) > 1:
                 filtered_ids = [c.get('id') for c in filtered_campaigns]
-                if not filtered_ids:
-                    # Tidak ada campaign yang cocok untuk situs yang dipilih, lewati akun ini
-                    continue
-                params['filtering'] = [{
-                    'field': 'campaign.id',
-                    'operator': 'IN',
-                    'value': filtered_ids
-                }]
+                if filtered_ids:
+                    params['filtering'] = [{
+                        'field': 'campaign.id',
+                        'operator': 'IN',
+                        'value': filtered_ids
+                    }]
+                # Fallback multi-select: jika tidak ada campaign yang cocok, jangan set filtering
+                # dan lanjutkan ambil semua lalu post-filter di aplikasi
             elif len(sites_list_for_match) == 1:
                 params['filtering'] = [{
                     'field': 'campaign.name',
@@ -4500,11 +4524,6 @@ def fetch_data_insights_by_country_filter_campaign_roi(rs_account, start_date_fo
         # Normalisasi daftar situs untuk post-filtering case-insensitive (single/multi)
         insights_to_process = insights
         if site_filter != '%' and len(sites_list_for_match) >= 1:
-            sites_norm = []
-            for s in sites_list_for_match:
-                s_norm = (s or '').lower().replace("'", "").replace('.com', '').strip()
-                if s_norm:
-                    sites_norm.append(s_norm)
             filtered = []
             for item in insights:
                 campaign_name = item.get('campaign_name', '') or ''
@@ -4534,8 +4553,21 @@ def fetch_data_insights_by_country_filter_campaign_roi(rs_account, start_date_fo
             cost_per_result = 0.0
             for cpr_item in item.get('cost_per_result', []):
                 if cpr_item.get('indicator') == 'actions:link_click':
-                    values = cpr_item.get('values', [])
-                    cost_per_result = float(values[0].get('value'))
+                    values = cpr_item.get('values') or []
+                    try:
+                        if isinstance(values, list) and len(values) > 0 and isinstance(values[0], dict):
+                            val = values[0].get('value')
+                            if val is not None:
+                                cost_per_result = float(val)
+                    except Exception:
+                        # Jika parsing gagal atau tidak ada nilai, biarkan 0.0
+                        pass
+            # Jika CPR tidak tersedia dari API, estimasi sebagai spend per click
+            if (cost_per_result == 0.0) and (clicks > 0):
+                try:
+                    cost_per_result = float(spend) / float(clicks)
+                except Exception:
+                    pass
             
             # Hitung biaya lainnya dari budget campaign
             campaign_id = item.get('campaign_id')
