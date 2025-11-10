@@ -1224,3 +1224,123 @@ class data_mysql:
                 'status': False,
                 'message': f'Database error: {str(e)}'
             }
+
+# CRON JOB
+    def insert_data_master_ads(self, data):
+        try:
+            sql_insert = """
+                        INSERT INTO master_ads
+                        (
+                            master_ads.master_date,
+                            master_ads.account_ads_id,
+                            master_ads.master_domain,
+                            master_ads.master_campaign_nm,
+                            master_ads.master_budget,
+                            master_ads.master_date_start,
+                            master_ads.master_date_end,
+                            master_ads.master_status,
+                            master_ads.mdb,
+                            master_ads.mdb_name,
+                            master_ads.mdd
+                        )
+                    VALUES
+                        (
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s
+                        )
+                """
+            if not self.execute_query(sql_insert, (
+                data['master_date'],
+                data['account_ads_id'],
+                data['master_domain'],
+                data['master_campaign_nm'],
+                data['master_budget'],
+                data['master_date_start'],
+                data['master_date_end'],
+                data['master_status'],
+                data['mdb'],
+                data['mdb_name'],
+                data['mdd']
+            )):
+                raise pymysql.Error("Failed to insert data master ads campaign")
+            if not self.commit():
+                raise pymysql.Error("Failed to commit data master ads campaign insert")
+            
+            hasil = {
+                "status": True,
+                "message": "Data master ads campaign berhasil ditambahkan"
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+
+    def insert_data_ads_campaign(self, data):
+        try:
+            sql_insert = """
+                        INSERT INTO data_ads_campaign
+                        (
+                            data_ads_campaign.master_ads_id,
+                            data_ads_campaign.data_ads_tanggal,
+                            data_ads_campaign.data_ads_spend,
+                            data_ads_campaign.data_ads_impresi,
+                            data_ads_campaign.data_ads_click,
+                            data_ads_campaign.data_ads_reach,
+                            data_ads_campaign.data_ads_cpr,
+                            data_ads_campaign.data_ads_cpc,
+                            data_ads_campaign.mdb,
+                            data_ads_campaign.mdb_name,
+                            data_ads_campaign.mdd
+                        )
+                    VALUES
+                        (
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s
+                        )
+                """
+            if not self.execute_query(sql_insert, (
+                data['master_ads_id'],
+                data['data_ads_tanggal'],
+                data['data_ads_spend'],
+                data['data_ads_impresi'],
+                data['data_ads_click'],
+                data['data_ads_reach'],
+                data['data_ads_cpr'],
+                data['data_ads_cpc'],
+                data['mdb'],
+                data['mdb_name'],
+                data['mdd']
+            )):
+                raise pymysql.Error("Failed to insert data ads campaign")
+            if not self.commit():
+                raise pymysql.Error("Failed to commit data ads campaign insert")
+            
+            hasil = {
+                "status": True,
+                "message": "Data ads campaign berhasil ditambahkan"
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
