@@ -60,7 +60,7 @@ class Command(BaseCommand):
                 account = AdAccount(account_data['account_id'])
 
                 if not tanggal or tanggal == '%':
-                    today = datetime.now().strftime('2025-11-01')
+                    today = datetime.now().strftime('%Y-%m-%d')
                 else:
                     today = tanggal
 

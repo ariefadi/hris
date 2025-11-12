@@ -104,6 +104,16 @@ class data_mysql:
             print(f"Error committing transaction: {e}")
             return False
 
+    def fetch_all(self):
+        """Mengambil semua baris dari cursor aktif sebagai list of dicts"""
+        try:
+            if self.cur_hris:
+                return self.cur_hris.fetchall()
+            return []
+        except pymysql.Error as e:
+            print(f"Error fetching rows: {e}")
+            return []
+
     def login_admin(self, data):
         # Fetch user by username, then verify password (Argon2 with legacy fallbacks)
         sql = """
@@ -783,6 +793,58 @@ class data_mysql:
                 'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
         return {'hasil': hasil}
+
+    def delete_data_ads_campaign_by_date_range(self, start_date, end_date):
+        try:
+            sql_delete = """
+                        DELETE FROM data_ads_campaign
+                        WHERE data_ads_tanggal BETWEEN %s AND %s
+                """
+            if not self.execute_query(sql_delete, (start_date, end_date)):
+                raise pymysql.Error("Failed to delete data ads campaign by date range")
+
+            affected = self.cur_hris.rowcount if self.cur_hris else 0
+
+            if not self.commit():
+                raise pymysql.Error("Failed to commit delete data ads campaign by date range")
+
+            hasil = {
+                "status": True,
+                "message": f"Berhasil menghapus {affected} baris pada rentang tanggal",
+                "affected": affected
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+
+    def delete_data_ads_country_by_date_range(self, start_date, end_date):
+        try:
+            sql_delete = """
+                        DELETE FROM data_ads_country
+                        WHERE data_ads_country_tanggal BETWEEN %s AND %s
+                """
+            if not self.execute_query(sql_delete, (start_date, end_date)):
+                raise pymysql.Error("Failed to delete data ads country by date range")
+
+            affected = self.cur_hris.rowcount if self.cur_hris else 0
+
+            if not self.commit():
+                raise pymysql.Error("Failed to commit delete data ads country by date range")
+
+            hasil = {
+                "status": True,
+                "message": f"Berhasil menghapus {affected} baris pada rentang tanggal",
+                "affected": affected
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
     
     def insert_account_ads(self, data):
         try:
@@ -1291,7 +1353,9 @@ class data_mysql:
             sql_insert = """
                         INSERT INTO data_ads_campaign
                         (
-                            data_ads_campaign.master_ads_id,
+                            data_ads_campaign.account_ads_id,
+                            data_ads_campaign.data_ads_domain,
+                            data_ads_campaign.data_ads_campaign_nm,
                             data_ads_campaign.data_ads_tanggal,
                             data_ads_campaign.data_ads_spend,
                             data_ads_campaign.data_ads_impresi,
@@ -1314,11 +1378,16 @@ class data_mysql:
                             %s,
                             %s,
                             %s,
+                            %s,
+                            %s,
+                            %s,
                             %s
                         )
                 """
             if not self.execute_query(sql_insert, (
-                data['master_ads_id'],
+                data['account_ads_id'],
+                data['data_ads_domain'],
+                data['data_ads_campaign_nm'],
                 data['data_ads_tanggal'],
                 data['data_ads_spend'],
                 data['data_ads_impresi'],
@@ -1337,6 +1406,394 @@ class data_mysql:
             hasil = {
                 "status": True,
                 "message": "Data ads campaign berhasil ditambahkan"
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+
+    def insert_data_ads_country(self, data):
+        try:
+            sql_insert = """
+                        INSERT INTO data_ads_country
+                        (
+                            data_ads_country.account_ads_id,
+                            data_ads_country.data_ads_country_cd,
+                            data_ads_country.data_ads_country_nm,
+                            data_ads_country.data_ads_domain,
+                            data_ads_country.data_ads_campaign_nm,
+                            data_ads_country.data_ads_country_tanggal,
+                            data_ads_country.data_ads_country_spend,
+                            data_ads_country.data_ads_country_impresi,
+                            data_ads_country.data_ads_country_click,
+                            data_ads_country.data_ads_country_reach,
+                            data_ads_country.data_ads_country_cpr,
+                            data_ads_country.data_ads_country_cpc,
+                            data_ads_country.mdb,
+                            data_ads_country.mdb_name,
+                            data_ads_country.mdd
+                        )
+                    VALUES
+                        (
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s
+                        )
+                """
+            if not self.execute_query(sql_insert, (
+                data['account_ads_id'],
+                data['data_ads_country_cd'],
+                data['data_ads_country_nm'],
+                data['data_ads_domain'],
+                data['data_ads_campaign_nm'],
+                data['data_ads_country_tanggal'],
+                data['data_ads_country_spend'],
+                data['data_ads_country_impresi'],
+                data['data_ads_country_click'],
+                data['data_ads_country_reach'],
+                data['data_ads_country_cpr'],
+                data['data_ads_country_cpc'],
+                data['mdb'],
+                data['mdb_name'],
+                data['mdd']
+            )):
+                raise pymysql.Error("Failed to insert data ads country")
+            if not self.commit():
+                raise pymysql.Error("Failed to commit data ads country insert")
+            
+            hasil = {
+                "status": True,
+                "message": "Data ads country berhasil ditambahkan"
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+
+    def delete_data_adx_country_by_date_range(self, start_date, end_date):
+        try:
+            sql_delete = (
+                "DELETE FROM data_adx_country WHERE data_adx_country_tanggal BETWEEN %s AND %s"
+            )
+            if not self.execute_query(sql_delete, (start_date, end_date)):
+                raise pymysql.Error("Failed to delete data adx country by date range")
+            affected_rows = self.cur_hris.rowcount if hasattr(self, 'cur_hris') and self.cur_hris else 0
+            if not self.commit():
+                raise pymysql.Error("Failed to commit data adx country delete")
+            hasil = {
+                "status": True,
+                "message": "Data adx country berhasil dihapus",
+                "affected": affected_rows
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+
+    def insert_data_adx_country(self, data):
+        try:
+            sql_insert = """
+                        INSERT INTO data_adx_country
+                        (
+                            data_adx_country.account_id,
+                            data_adx_country.data_adx_country_tanggal,
+                            data_adx_country.data_adx_country_cd,
+                            data_adx_country.data_adx_country_nm,
+                            data_adx_country.data_adx_country_domain,
+                            data_adx_country.data_adx_country_impresi,
+                            data_adx_country.data_adx_country_click,
+                            data_adx_country.data_adx_country_ctr,
+                            data_adx_country.data_adx_country_cpc,
+                            data_adx_country.data_adx_country_cpm,
+                            data_adx_country.data_adx_country_revenue,
+                            data_adx_country.mdb,
+                            data_adx_country.mdb_name,
+                            data_adx_country.mdd
+                        )
+                    VALUES
+                        (
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s
+                        )
+                """
+            if not self.execute_query(sql_insert, (
+                data['account_id'],
+                data['data_adx_country_tanggal'],
+                data['data_adx_country_cd'],
+                data['data_adx_country_nm'],
+                data['data_adx_country_domain'],
+                data['data_adx_country_impresi'],
+                data['data_adx_country_click'],
+                data['data_adx_country_ctr'],
+                data['data_adx_country_cpc'],
+                data['data_adx_country_cpm'],
+                data['data_adx_country_revenue'],
+                data['mdb'],
+                data['mdb_name'],
+                data['mdd']
+            )):
+                raise pymysql.Error("Failed to insert data adx country")
+            if not self.commit():
+                raise pymysql.Error("Failed to commit data adx country insert")
+
+            hasil = {
+                "status": True,
+                "message": "Data adx country berhasil ditambahkan"
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+
+    def delete_data_adx_domain_by_date_range(self, start_date, end_date):
+        try:
+            sql_delete = (
+                "DELETE FROM data_adx_domain WHERE DATE(data_adx_domain_tanggal) BETWEEN %s AND %s"
+            )
+            if not self.execute_query(sql_delete, (start_date, end_date)):
+                raise pymysql.Error("Failed to delete data adx by date range")
+            affected_rows = self.cur_hris.rowcount if hasattr(self, 'cur_hris') and self.cur_hris else 0
+            if not self.commit():
+                raise pymysql.Error("Failed to commit data adx delete")
+            hasil = {
+                "status": True,
+                "message": "Data adx domain berhasil dihapus",
+                "affected": affected_rows
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+
+    def insert_data_adx_domain(self, data):
+        try:
+            sql_insert = """
+                        INSERT INTO data_adx_domain
+                        (
+                            data_adx_domain.account_id,
+                            data_adx_domain.data_adx_domain_tanggal,
+                            data_adx_domain.data_adx_domain,
+                            data_adx_domain.data_adx_domain_impresi,
+                            data_adx_domain.data_adx_domain_click,
+                            data_adx_domain.data_adx_domain_cpc,
+                            data_adx_domain.data_adx_domain_ctr,
+                            data_adx_domain.data_adx_domain_cpm,
+                            data_adx_domain.data_adx_domain_revenue,
+                            data_adx_domain.mdb,
+                            data_adx_domain.mdb_name,
+                            data_adx_domain.mdd
+                        )
+                    VALUES
+                        (
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s
+                        )
+                """
+            if not self.execute_query(sql_insert, (
+                data['account_id'],
+                data['data_adx_domain_tanggal'],
+                data['data_adx_domain'],
+                data['data_adx_domain_impresi'],
+                data['data_adx_domain_click'],
+                data['data_adx_domain_cpc'],
+                data['data_adx_domain_ctr'],
+                data['data_adx_domain_cpm'],
+                data['data_adx_domain_revenue'],
+                data['mdb'],
+                data['mdb_name'],
+                data['mdd']
+            )):
+                raise pymysql.Error("Failed to insert data adx domain")
+            if not self.commit():
+                raise pymysql.Error("Failed to commit data adx domain insert")
+            hasil = {
+                "status": True,
+                "message": "Data adx domain berhasil ditambahkan"
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+        
+    def delete_data_adsense_country_by_date_range(self, start_date, end_date):
+        try:
+            sql = (
+                "DELETE FROM data_adsense WHERE DATE(data_adsense_tanggal) BETWEEN %s AND %s"
+            )
+            if not self.execute_query(sql, (start_date, end_date)):
+                raise pymysql.Error("Failed to delete data_adsense by date range")
+            deleted = self.cur_hris.rowcount if hasattr(self, 'cur_hris') and self.cur_hris else 0
+            if not self.commit():
+                raise pymysql.Error("Failed to commit delete data_adsense by date range")
+            hasil = {
+                "status": True,
+                "message": "Berhasil menghapus data adsense dalam rentang tanggal",
+                "deleted": deleted
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+
+    def insert_data_adsense_country(self, data):
+        try:
+            sql_insert = """
+                        INSERT INTO data_adsense
+                        (
+                            data_adsense.account_id,
+                            data_adsense.data_adsense_tanggal,
+                            data_adsense.data_adsense_country_cd,
+                            data_adsense.data_adsense_country_nm,
+                            data_adsense.data_adsense_domain,
+                            data_adsense.data_adsense_impresi,
+                            data_adsense.data_adsense_click,
+                            data_adsense.data_adsense_ctr,
+                            data_adsense.data_adsense_cpc,
+                            data_adsense.data_adsense_cpm,
+                            data_adsense.data_adsense_revenue,
+                            data_adsense.mdb,
+                            data_adsense.mdb_name,
+                            data_adsense.mdd
+                        )
+                    VALUES
+                        (
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s
+                        )
+                """
+            if not self.execute_query(sql_insert, (
+                data['account_id'],
+                data['data_adsense_tanggal'],
+                data['data_adsense_country_cd'],
+                data['data_adsense_country_nm'],
+                data['data_adsense_domain'],
+                data['data_adsense_impresi'],
+                data['data_adsense_click'],
+                data['data_adsense_ctr'],
+                data['data_adsense_cpc'],
+                data['data_adsense_cpm'],
+                data['data_adsense_revenue'],
+                data['mdb'],
+                data['mdb_name'],
+                data['mdd']
+            )):
+                raise pymysql.Error("Failed to insert data adsense country")
+            if not self.commit():
+                raise pymysql.Error("Failed to commit data adsense country insert")
+
+            hasil = {
+                "status": True,
+                "message": "Data adsense country berhasil ditambahkan"
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+        
+    def get_all_adx_traffic_account_by_params(self, user_mail, start_date, end_date, selected_sites):
+        try:
+            base_sql = [
+                "SELECT",
+                "\ta.account_id, a.account_name, a.user_mail, b.data_adx_domain AS 'site_name',",
+                "\tb.data_adx_domain_tanggal AS 'date', b.data_adx_domain_impresi AS 'impressions',",
+                "\tb.data_adx_domain_click AS 'clicks', b.data_adx_domain_cpc AS 'cpc', b.data_adx_domain_ctr AS 'ctr',",
+                "\tb.data_adx_domain_cpm AS 'cpm', b.data_adx_domain_revenue AS 'revenue'",
+                "FROM",
+                "\tapp_credentials a",
+                "INNER JOIN data_adx_domain b ON a.account_id = b.account_id",
+                "WHERE a.user_mail = %s",
+                "AND b.data_adx_domain_tanggal BETWEEN %s AND %s",
+            ]
+
+            params = [user_mail, start_date, end_date]
+
+            # Normalize selected_sites which may be a CSV string or list
+            sites_list = []
+            if selected_sites:
+                if isinstance(selected_sites, str):
+                    sites_list = [s.strip() for s in selected_sites.split(',') if s.strip()]
+                elif isinstance(selected_sites, (list, tuple)):
+                    sites_list = [str(s).strip() for s in selected_sites if str(s).strip()]
+
+            if sites_list:
+                placeholders = ','.join(['%s'] * len(sites_list))
+                base_sql.append(f"AND b.data_adx_domain IN ({placeholders})")
+                params.extend(sites_list)
+
+            base_sql.append("ORDER BY b.data_adx_domain ASC, b.data_adx_domain_tanggal ASC")
+            sql = "\n".join(base_sql)
+
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get all adx traffic account by params")
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get all adx traffic account by params")
+            hasil = {
+                "status": True,
+                "message": "Data adx traffic account berhasil diambil",
+                "data": data
             }
         except pymysql.Error as e:
             hasil = {

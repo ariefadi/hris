@@ -3979,8 +3979,13 @@ def _process_country_csv_data(raw_data):
             if not country_name or country_name in ['Country', 'Total', 'N/A']:
                 continue
             
-            # Get site name if available (when AD_EXCHANGE_SITE_NAME dimension is included)
+            # Get site name if available with robust fallbacks
+            # Prefer AD_EXCHANGE_SITE_NAME, then SITE_NAME, then AD_UNIT_NAME
             site_name = row.get('Dimension.AD_EXCHANGE_SITE_NAME', '').strip()
+            if not site_name:
+                site_name = row.get('Dimension.SITE_NAME', '').strip()
+            if not site_name:
+                site_name = row.get('Dimension.AD_UNIT_NAME', '').strip()
             
             if row_count <= 3:
                 print(f"[DEBUG] Row {row_count} - Country: {country_name}, Site: {site_name}")
@@ -4025,14 +4030,18 @@ def _process_country_csv_data(raw_data):
         print(f"[DEBUG] - Rows filtered out: {filtered_count}")
         print(f"[DEBUG] - Final data rows: {len(data)}")
         
-        # Agregasi data per negara untuk menghindari duplikasi baris
+        # Agregasi data per negara+site (jika site tersedia) untuk hindari duplikasi
         aggregated = {}
         for row in data:
-            key = row.get('country_code') or row.get('country_name')
+            # Gunakan kombinasi country + site_name bila tersedia
+            key_country = row.get('country_code') or row.get('country_name')
+            key_site = (row.get('site_name') or '').strip()
+            key = (key_country, key_site)
             if key not in aggregated:
                 aggregated[key] = {
                     'country_name': row.get('country_name'),
                     'country_code': row.get('country_code'),
+                    'site_name': row.get('site_name'),
                     'impressions': 0,
                     'clicks': 0,
                     'revenue': 0.0
@@ -4053,6 +4062,7 @@ def _process_country_csv_data(raw_data):
             aggregated_data.append({
                 'country_name': agg['country_name'],
                 'country_code': agg['country_code'],
+                'site_name': agg.get('site_name') or '',
                 'impressions': impressions,
                 'clicks': clicks,
                 'revenue': revenue,

@@ -2653,8 +2653,10 @@ class AdxTrafficPerAccountDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_accounts = req.GET.get('selected_accounts')
+        # Normalize selected_accounts to a single email (first) for DB query
         if selected_accounts:
-            user_mail = selected_accounts.split(',')
+            parts = [p.strip() for p in selected_accounts.split(',') if p.strip()]
+            user_mail = parts[0] if parts else req.session.get('hris_admin', {}).get('user_mail')
         else:
             user_mail = req.session.get('hris_admin', {}).get('user_mail')
         selected_sites = req.GET.get('selected_sites')
@@ -2663,9 +2665,27 @@ class AdxTrafficPerAccountDataView(View):
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
             end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')  
             # Gunakan fungsi baru yang mengambil data berdasarkan kredensial user
-            result = fetch_adx_traffic_account_by_user(user_mail, start_date_formatted, end_date_formatted, selected_sites)
-            print(f"[DEBUG] AdxTrafficPerAccountDataView - result: {result}")   
-            return JsonResponse(result, safe=False)
+            # result = fetch_adx_traffic_account_by_user(user_mail, start_date_formatted, end_date_formatted, selected_sites)
+            result = data_mysql().get_all_adx_traffic_account_by_params(user_mail, start_date_formatted, end_date_formatted, selected_sites)
+            print(f"[DEBUG] AdxTrafficPerAccountDataView - result: {result}")
+
+            # Pastikan format respons sesuai ekspektasi frontend
+            if isinstance(result, dict) and 'hasil' in result:
+                payload = result['hasil']
+                # Selaraskan penamaan kolom untuk frontend (ecpm vs cpm)
+                data_rows = payload.get('data')
+                if isinstance(data_rows, list):
+                    for row in data_rows:
+                        if 'cpm' in row and 'ecpm' not in row:
+                            row['ecpm'] = row.get('cpm')
+                return JsonResponse(payload, safe=False)
+
+            # Fallback: jika format di luar ekspektasi, bungkus ke format standar
+            return JsonResponse({
+                'status': True,
+                'message': 'Data diambil',
+                'data': result if isinstance(result, list) else []
+            }, safe=False)
         except Exception as e:
             return JsonResponse({
                 'status': False,
