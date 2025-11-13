@@ -53,6 +53,7 @@ $(document).ready(function () {
         var selected_account_adx = $("#account_filter").val();
         $('#overlay').show();
         loadSitesList(selected_account_adx);
+        load_country_options(selected_account_adx);
         load_adx_traffic_country_data();
     });
     // Load data situs untuk select2

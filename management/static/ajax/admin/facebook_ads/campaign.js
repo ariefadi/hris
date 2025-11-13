@@ -91,7 +91,6 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 var event_data = '<tr>';
                 event_data += '<td class="text-left" style="font-size: 12px;"><span class="badge badge-info" style="color: white;">' + value.account_name + '</span></td>';
                 event_data += '<td class="text-left" style="font-size: 12px;"><span class="badge badge-danger" style="color: white;">' + value.campaign_name + '</span></td>';
-                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.budget).replace(/\B(?=(\d{3})+(?!\d))/g, ".") +  '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.spend).replace(/\B(?=(\d{3})+(?!\d))/g, ".") +  '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.impressions).replace(/\B(?=(\d{3})+(?!\d))/g, ".") +  '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.reach).replace(/\B(?=(\d{3})+(?!\d))/g, ".") +  '</td>';
@@ -102,9 +101,6 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 $("#table_data_campaign_facebook tbody").append(event_data);    
             })
             $.each(data_campaign.total_campaign, function (index, value) {
-                // Budget
-                const budget = Number(value?.total_budget) || 0;
-                const totalBudget = budget.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                 // Spend
                 const spend = Number(value?.total_spend) || 0;
                 const totalSpend = spend.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
@@ -124,7 +120,6 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 let data_cpr = value.total_cpr;
                 let cpr_number = parseFloat(data_cpr)
                 let totalCpr = cpr_number.toFixed(0).replace(',', '.');
-                $('#total_budget').text(totalBudget);
                 $('#total_spend').text(totalSpend);
                 $('#total_impressions').text(totalImpressions);
                 $('#total_reach').text(totalReach);
@@ -155,7 +150,7 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                                     +tanggal.getFullYear(),
                         exportOptions: {
                             columns: ':visible', 
-                            columns: [0, 1, 2, 3, 4, 5, 6, 7],      // hanya kolom yang terlihat
+                            columns: [0, 1, 2, 3, 4, 5, 6],      // hanya kolom yang terlihat
                             modifier: {
                                 search: 'applied',      // sesuai filter pencarian
                                 order: 'applied'        // sesuai urutan saat itu
@@ -166,7 +161,7 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                             // =========================
                             // Set column width secara manual (unit: character width)
                             // =========================
-                            const colWidths = [10, 15, 10, 10, 10, 10, 10, 10]; // 💡 Sesuaikan berdasarkan % di HTML
+                            const colWidths = [10, 15, 10, 10, 10, 10, 10]; // 💡 Sesuaikan berdasarkan % di HTML
                             const cols = $('cols', sheet);
                             cols.empty(); // Kosongkan default <col> dari DataTables
                             for (let i = 0; i < colWidths.length; i++) {
@@ -212,13 +207,12 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                                     if (body[i][4]) body[i][4].alignment = 'right';
                                     if (body[i][5]) body[i][5].alignment = 'right';
                                     if (body[i][6]) body[i][6].alignment = 'right';
-                                    if (body[i][7]) body[i][7].alignment = 'right';
                                 }
                             }
                             // Margin
-                            doc.content[1].margin = [0, 0, 0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
+                            doc.content[1].margin = [0, 0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
                             // Manual width sesuai presentase kolom HTML (tanpa kolom terakhir)
-                            doc.content[1].table.widths = ['10%', '15%', '10%', '10%', '10%', '10%', '10%', '10%'];
+                            doc.content[1].table.widths = ['10%', '15%', '10%', '10%', '10%', '10%', '10%'];
                         }
                     }
                 ]

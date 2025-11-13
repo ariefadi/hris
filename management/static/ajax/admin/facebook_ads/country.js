@@ -131,9 +131,6 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
             const tanggal = new Date();
             judul = "Rekapitulasi Traffic Per Country Facebook";
             $.each(data_country.data_country, function (index, value) {
-                let data_cpr = value.cpr;
-                let cpr_number = parseFloat(data_cpr)
-                let cpr = cpr_number.toFixed(0).replace(',', '.');
                 const frequency = Number(value?.frequency) || 0;
                 const formattedFrequency = frequency.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
                 var event_data = '<tr>';
@@ -143,7 +140,6 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.reach).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.clicks).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + formattedFrequency + ' %</td>';
-                event_data += '<td class="text-right" style="font-size: 12px;">' + cpr + '</td>';
                 event_data += '</tr>';
                 $("#table_data_per_country_facebook tbody").append(event_data);
             })
@@ -176,12 +172,8 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
             const frequency = Number(totalData?.frequency) || 0;
             const totalFrequency = frequency.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + ' %';
 
-            // CPR (Cost Per Result)
-            const cpr = Number(totalData?.cost_per_result) || 0;
-            const totalCpr = cpr.toFixed(0).replace(',', '.');
-
             console.log("DEBUG - Calculated values:", {
-                spend, impressions, reach, clicks, frequency, cpr
+                spend, impressions, reach, clicks, frequency
             });
 
             $('#total_spend').text(totalSpend);
@@ -189,7 +181,6 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
             $('#total_reach').text(totalReach);
             $('#total_clicks').text(totalClicks);
             $('#total_frequency').text(totalFrequency);
-            $('#total_cpr').text(totalCpr);
             // Periksa apakah DataTable sudah diinisialisasi sebelumnya
             if ($.fn.dataTable.isDataTable('#table_data_per_country_facebook')) {
                 $('#table_data_per_country_facebook').DataTable().destroy();
@@ -218,7 +209,7 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                             + tanggal.getFullYear(),
                         exportOptions: {
                             columns: ':visible',
-                            columns: [0, 1, 2, 3, 4, 5, 6],      // hanya kolom yang terlihat
+                            columns: [0, 1, 2, 3, 4, 5],      // hanya kolom yang terlihat
                             modifier: {
                                 search: 'applied',      // sesuai filter pencarian
                                 order: 'applied'        // sesuai urutan saat itu
@@ -229,7 +220,7 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                             // =========================
                             // Set column width secara manual (unit: character width)
                             // =========================
-                            const colWidths = [20, 10, 10, 10, 10, 10, 10]; // 💡 Sesuaikan berdasarkan % di HTML
+                            const colWidths = [20, 10, 10, 10, 10, 10]; // 💡 Sesuaikan berdasarkan % di HTML
                             const cols = $('cols', sheet);
                             cols.empty(); // Kosongkan default <col> dari DataTables
                             for (let i = 0; i < colWidths.length; i++) {
@@ -351,8 +342,7 @@ function createSpendMap(items) {
             impressions: item.impressions || 0,
             clicks: item.clicks || 0,
             reach: item.reach || 0,
-            frequency: item.frequency || 0,
-            cpr: item.cpr || 0
+            frequency: item.frequency || 0
         });
     });
 
@@ -438,8 +428,7 @@ function createSpendMap(items) {
                         'Impressions: ' + Number(this.impressions).toLocaleString('id-ID') + '<br>' +
                         'Reach: ' + Number(this.reach).toLocaleString('id-ID') + '<br>' +
                         'Clicks: ' + Number(this.clicks).toLocaleString('id-ID') + '<br>' +
-                        'Frequency: ' + (Number(this.frequency) || 0).toFixed(2) + '<br>' +
-                        'CPR: Rp ' + (Number(this.cpr) || 0).toFixed(0).replace(',', '.');
+                        'Frequency: ' + (Number(this.frequency) || 0).toFixed(2);
                 },
                 nullFormat: '<b>{point.name}</b><br>Tidak ada data'
             },

@@ -207,7 +207,7 @@ function load_adx_traffic_account_data() {
                             formatNumber(item.clicks || 0),
                             formatNumber(item.ctr || 0, 2) + ' %',
                             formatCurrencyIDR(item.cpc || 0),
-                            formatCurrencyIDR(item.ecpm || 0),
+                            formatCurrencyIDR(item.cpm || 0),
                             formatNumber(item.roi || 0, 2) + ' %',
                             formatCurrencyIDR(item.revenue || 0)
                         ]);

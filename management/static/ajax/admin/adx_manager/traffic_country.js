@@ -223,10 +223,14 @@ $(document).ready(function() {
 
     // Fungsi untuk update summary boxes
     function updateSummaryBoxes(data) {
-        $('#total_impressions').text(data.total_impressions.toLocaleString('id-ID'));
-        $('#total_clicks').text(data.total_clicks.toLocaleString('id-ID'));
-        $('#total_ctr').text(data.total_ctr > 0 ? (data.total_ctr * 100).toFixed(2) + '%' : '0%');
-        $('#total_revenue').text(formatCurrencyIDR(data.total_revenue));
+        var totalImpressions = Number(data.total_impressions || 0);
+        var totalClicks = Number(data.total_clicks || 0);
+        var totalRevenue = parseFloat(data.total_revenue || 0) || 0;
+        var totalCtrRatio = parseFloat(data.total_ctr || 0) || 0;
+        $('#total_impressions').text(totalImpressions.toLocaleString('id-ID'));
+        $('#total_clicks').text(totalClicks.toLocaleString('id-ID'));
+        $('#total_ctr').text(totalCtrRatio > 0 ? (totalCtrRatio * 100).toFixed(2) + '%' : '0%');
+        $('#total_revenue').text(formatCurrencyIDR(totalRevenue));
     }
 
     // Fungsi untuk inisialisasi DataTable
@@ -234,20 +238,26 @@ $(document).ready(function() {
         var tableData = [];
         if (data && Array.isArray(data)) {
             data.forEach(function(row) {
-                // Get country flag
                 var countryFlag = '';
                 if (row.country_code) {
-                    countryFlag = '<img src="https://flagcdn.com/16x12/' + row.country_code.toLowerCase() + '.png" alt="' + row.country_code + '" style="margin-right: 5px;"> ';
+                    countryFlag = '<img src="https://flagcdn.com/16x12/' + String(row.country_code).toLowerCase() + '.png" alt="' + row.country_code + '" style="margin-right: 5px;"> ';
                 }
+                var impressionsNum = Number(row.impressions || 0);
+                var clicksNum = Number(row.clicks || 0);
+                var ctrNum = parseFloat(row.ctr);
+                if (isNaN(ctrNum)) ctrNum = 0;
+                var cpcNum = parseFloat(row.cpc || 0) || 0;
+                var ecpmNum = parseFloat(row.ecpm || 0) || 0;
                 var revenueNum = parseFloat(row.revenue || 0) || 0;
+
                 tableData.push([
                     countryFlag + (row.country_name || ''),
                     row.country_code || '',
-                    row.impressions ? row.impressions.toLocaleString('id-ID') : '0',
-                    row.clicks ? row.clicks.toLocaleString('id-ID') : '0',
-                    row.ctr ? row.ctr.toFixed(2) + '%' : '0%',
-                    formatCurrencyIDR(row.cpc || 0),
-                    formatCurrencyIDR(row.ecpm || 0),
+                    impressionsNum.toLocaleString('id-ID'),
+                    clicksNum.toLocaleString('id-ID'),
+                    ctrNum.toFixed(2) + '%',
+                    formatCurrencyIDR(cpcNum),
+                    formatCurrencyIDR(ecpmNum),
                     revenueNum
                 ]);
             });

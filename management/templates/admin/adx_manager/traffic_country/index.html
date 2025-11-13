@@ -175,49 +175,32 @@
 <!-- World Map Data dari CDN alternatif -->
 <script src="https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.1.0/custom/world.js"></script>
 <script>
-    // Pastikan Highcharts ter-load sebelum memuat script kita
-    function loadTrafficCountryScript() {
-        if (typeof Highcharts !== 'undefined' && Highcharts.mapChart) {
-            console.log('Highcharts Maps loaded successfully');
-            
-            // Check if world map data is loaded, if not, load fallback
+    // Jika data world map tidak berhasil dimuat dari CDN, siapkan fallback minimal
+    (function ensureWorldMap() {
+        if (typeof Highcharts !== 'undefined') {
             if (!Highcharts.maps || !Highcharts.maps['custom/world']) {
-                console.log('Loading fallback world map data...');
-                loadFallbackWorldMap();
+                Highcharts.maps = Highcharts.maps || {};
+                Highcharts.maps['custom/world'] = {
+                    "title": "World (Fallback)",
+                    "type": "FeatureCollection",
+                    "features": [
+                        {"type": "Feature", "id": "ID", "properties": {"hc-key": "id", "name": "Indonesia"}},
+                        {"type": "Feature", "id": "US", "properties": {"hc-key": "us", "name": "United States"}},
+                        {"type": "Feature", "id": "GB", "properties": {"hc-key": "gb", "name": "United Kingdom"}},
+                        {"type": "Feature", "id": "DE", "properties": {"hc-key": "de", "name": "Germany"}},
+                        {"type": "Feature", "id": "FR", "properties": {"hc-key": "fr", "name": "France"}},
+                        {"type": "Feature", "id": "JP", "properties": {"hc-key": "jp", "name": "Japan"}},
+                        {"type": "Feature", "id": "CN", "properties": {"hc-key": "cn", "name": "China"}},
+                        {"type": "Feature", "id": "IN", "properties": {"hc-key": "in", "name": "India"}},
+                        {"type": "Feature", "id": "BR", "properties": {"hc-key": "br", "name": "Brazil"}},
+                        {"type": "Feature", "id": "AU", "properties": {"hc-key": "au", "name": "Australia"}}
+                    ]
+                };
+                console.log('Fallback world map data loaded');
             }
-            
-            var script = document.createElement('script');
-            script.src = '{% static "ajax/admin/adx_manager/traffic_country.js" %}?v={%now "U"%}';
-            document.head.appendChild(script);
-        } else {
-            console.log('Waiting for Highcharts Maps to load...');
-            setTimeout(loadTrafficCountryScript, 100);
         }
-    }
-    
-    // Fallback function to load minimal world map data
-    function loadFallbackWorldMap() {
-        // Minimal world map data for common countries
-        Highcharts.maps = Highcharts.maps || {};
-        Highcharts.maps['custom/world'] = {
-            "title": "World (Fallback)",
-            "type": "FeatureCollection",
-            "features": [
-                {"type": "Feature", "id": "ID", "properties": {"hc-key": "id", "name": "Indonesia"}},
-                {"type": "Feature", "id": "US", "properties": {"hc-key": "us", "name": "United States"}},
-                {"type": "Feature", "id": "GB", "properties": {"hc-key": "gb", "name": "United Kingdom"}},
-                {"type": "Feature", "id": "DE", "properties": {"hc-key": "de", "name": "Germany"}},
-                {"type": "Feature", "id": "FR", "properties": {"hc-key": "fr", "name": "France"}},
-                {"type": "Feature", "id": "JP", "properties": {"hc-key": "jp", "name": "Japan"}},
-                {"type": "Feature", "id": "CN", "properties": {"hc-key": "cn", "name": "China"}},
-                {"type": "Feature", "id": "IN", "properties": {"hc-key": "in", "name": "India"}},
-                {"type": "Feature", "id": "BR", "properties": {"hc-key": "br", "name": "Brazil"}},
-                {"type": "Feature", "id": "AU", "properties": {"hc-key": "au", "name": "Australia"}}
-            ]
-        };
-        console.log('Fallback world map data loaded');
-    }
-    
-    loadTrafficCountryScript();
+    })();
 </script>
+<!-- Muat script halaman secara langsung agar tombol dan tabel bekerja meski Highcharts belum siap -->
+<script src="{% static 'ajax/admin/adx_manager/traffic_country.js' %}?v={%now 'U'%}"></script>
 {% endblock %}
