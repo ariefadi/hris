@@ -15,7 +15,13 @@ from django import template
 from calendar import month, monthrange
 from datetime import datetime, date, timedelta
 from django.http import HttpResponse, JsonResponse, QueryDict
-from .database import data_mysql
+try:
+    from .database import data_mysql
+except Exception:
+    try:
+        from management.database import data_mysql
+    except Exception:
+        from settings.database import data_mysql
 from itertools import groupby, product
 from django.core import serializers
 from operator import itemgetter
