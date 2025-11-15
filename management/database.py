@@ -2058,8 +2058,25 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def get_all_ads_roi_traffic_campaign_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None):   
+    def get_all_ads_roi_traffic_campaign_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None):
         try:
+            # --- 1. Pastikan data_sub_domain adalah list string
+            if isinstance(data_sub_domain, str):
+                data_sub_domain = [data_sub_domain.strip()]
+            elif data_sub_domain is None:
+                data_sub_domain = []
+            elif isinstance(data_sub_domain, (set, tuple)):
+                data_sub_domain = list(data_sub_domain)
+            data_sub_domain = [str(d).strip() for d in data_sub_domain if str(d).strip()]
+
+            if not data_sub_domain:
+                raise ValueError("data_sub_domain is required and tidak boleh kosong")
+
+            # --- 2. Buat kondisi LIKE untuk setiap domain
+            like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
+            like_params = [f"{domain}%" for domain in data_sub_domain]
+
+            # --- 3. Susun query
             base_sql = [
                 "SELECT",
                 "\trs.account_id, rs.account_name, rs.account_email,",
@@ -2083,34 +2100,58 @@ class data_mysql:
                 "\tFROM master_account_ads a",
                 "\tINNER JOIN data_ads_campaign b ON a.account_id = b.account_ads_id",
                 "\tWHERE b.data_ads_tanggal BETWEEN %s AND %s",
-                "\tAND b.data_ads_domain LIKE %s",
+                f"\tAND ({like_conditions})",
                 ") rs",
                 "GROUP BY rs.date, rs.domain",
             ]
 
-            # Handle LIKE pattern
-            domain_pattern = f"%{data_sub_domain}%" if data_sub_domain else "%"
-            params = [start_date_formatted, end_date_formatted, domain_pattern]
+            # --- 4. Gabungkan parameter
+            params = [start_date_formatted, end_date_formatted] + like_params
+
+            # --- 5. Eksekusi query
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all ads roi traffic campaign by params")
+
             data = self.fetch_all()
             if not self.commit():
                 raise pymysql.Error("Failed to commit get all ads roi traffic campaign by params")
+
             hasil = {
                 "status": True,
                 "message": "Data ads traffic campaign berhasil diambil",
                 "data": data
             }
+
         except pymysql.Error as e:
             hasil = {
                 "status": False,
                 "data": f"Terjadi error {e!r}, error nya {e.args[0]}"
             }
+        except Exception as e:
+            hasil = {
+                "status": False,
+                "data": f"Terjadi error {e}"
+            }
+
         return {"hasil": hasil}
 
-    def get_all_ads_roi_traffic_country_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None, countries_list=None):   
+
+
+    def get_all_ads_roi_traffic_country_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None, countries_list=None):
         try:
+            # --- 1. Siapkan data_sub_domain sebagai list
+            if isinstance(data_sub_domain, str):
+                data_sub_domain = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
+            elif data_sub_domain is None:
+                data_sub_domain = []
+            elif isinstance(data_sub_domain, (set, tuple)):
+                data_sub_domain = list(data_sub_domain)
+            if not data_sub_domain:
+                raise ValueError("data_sub_domain is required and cannot be empty")
+            # --- 2. Buat kondisi LIKE untuk tiap domain
+            like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
+            like_params = [f"{d}%" for d in data_sub_domain]  # tambahkan % supaya match '.com'
             sql_parts = [
                 "SELECT",
                 "\trs.account_id, rs.account_name, rs.account_email,",
@@ -2134,12 +2175,10 @@ class data_mysql:
                 "\tFROM master_account_ads a",
                 "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
                 "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
-                "\tAND b.data_ads_domain LIKE %s",
+                f"\tAND ({like_conditions})",
             ]
-
-            # Handle LIKE pattern
-            domain_pattern = f"%{data_sub_domain}%" if data_sub_domain else "%"
-            params = [start_date_formatted, end_date_formatted, domain_pattern]
+            params = [start_date_formatted, end_date_formatted] + like_params
+            # --- 3. Filter countries jika ada
             country_codes = []
             if countries_list:
                 if isinstance(countries_list, str):
@@ -2150,11 +2189,11 @@ class data_mysql:
                 placeholders = ','.join(['%s'] * len(country_codes))
                 sql_parts.append(f"AND b.data_ads_country_cd IN ({placeholders})")
                 params.extend(country_codes)
-
             sql_parts.append(") rs")
             sql_parts.append("GROUP BY rs.country_code")
             sql_parts.append("ORDER BY rs.country_name ASC")
             sql = "\n".join(sql_parts)
+            # --- 4. Eksekusi query
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all ads roi traffic campaign by params")
             data = self.fetch_all()
@@ -2165,12 +2204,13 @@ class data_mysql:
                 "message": "Data ads traffic campaign berhasil diambil",
                 "data": data
             }
-        except pymysql.Error as e:
+        except Exception as e:
             hasil = {
                 "status": False,
-                "data": f"Terjadi error {e!r}, error nya {e.args[0]}"
+                "data": f"Terjadi error {e!r}"
             }
         return {"hasil": hasil}
+
 
     def fetch_country_list(self, selected_accounts, tanggal_dari, tanggal_sampai):
         try:
