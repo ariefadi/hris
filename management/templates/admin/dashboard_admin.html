@@ -1,12 +1,7 @@
 {% extends "admin_base.html" %}
 {% load static %}
-
 {% block page_title %}Dashboard{% endblock %}
 {% block page_heading %}Dashboard{% endblock %}
-{% block breadcrumbs %}
-    <li class="breadcrumb-item active"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
-{% endblock %}
-
 {% block more_stylesheet %}
 <!-- Custom Dashboard CSS -->
 <style>
@@ -160,52 +155,77 @@
                         </div>
                     </div>
                 </div>
-                <!-- Charts Row -->
-                <div class="row">
-                    <!-- Login Activity Chart -->
-                    <div class="col-md-8">
-                        <div class="card dashboard-card">
-                            <div class="card-header">
-                                <h5 class="card-title">
-                                    <i class="bi bi-graph-up me-2"></i> Login Activity (7 Days)
-                                </h5>
-                            </div>
-                            <div class="card-body">
-                                <div class="chart-container">
-                                    <canvas id="loginChart" style="height: 300px;"></canvas>
-                                </div>
+                <!-- Metrik Akun Ads & AdX -->
+                <div class="row mt-2">
+                    <div class="col-12 col-sm-6 col-md-6">
+                        <div class="info-box">
+                            <span class="info-box-icon text-bg-success shadow-sm">
+                                <i class="bi bi-badge-ad-fill me-2"></i>
+                            </span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">Ads Accounts</span>
+                                <div class="metric-value" id="ads-accounts-count">0</div>
                             </div>
                         </div>
                     </div>
-                    <!-- User Distribution Chart -->
-                    <div class="col-md-4">
-                        <div class="card dashboard-card">
-                            <div class="card-header">
-                                <h5 class="card-title">
-                                    <i class="bi bi-pie-chart me-2"></i> User Status
-                                </h5>
+                    <div class="col-12 col-sm-6 col-md-6">
+                        <div class="info-box">
+                            <span class="info-box-icon text-bg-success shadow-sm">
+                                <i class="bi bi-diagram-3-fill me-2"></i>
+                            </span>
+                            <div class="info-box-content">
+                                <span class="info-box-text">AdX Accounts</span>
+                                <div class="metric-value" id="adx-accounts-count">0</div>
                             </div>
-                            <div class="card-body">
-                                <div class="chart-container">
-                                    <canvas id="userChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Filter Akun AdX -->
+                <div class="row mt-3">
+                    <div class="col-md-12">
+                        <div class="card dashboard-card">
+                            <div class="card-header d-flex align-items-center justify-content-between">
+                                <h5 class="card-title mb-0">
+                                    <i class="bi bi-filter me-2"></i> ROI Filters
+                                </h5>
+                                <div class="d-flex align-items-center gap-2">
+                                    <label for="account-filter" class="me-2 mb-0">AdX Account: </label>&nbsp; &nbsp;
+                                    <select id="account-filter" class="form-select" style="min-width: 280px;"></select> &nbsp; &nbsp;
+                                    <small class="text-muted ms-2">Range: last 7 days</small>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <!-- Recent Logins -->
-                <div class="row mt-4">
-                    <div class="col-md-12">
+
+                <!-- ROI Charts -->
+                <div class="row">
+                    <div class="col-md-6">
                         <div class="card dashboard-card">
                             <div class="card-header">
                                 <h5 class="card-title">
-                                    <i class="bi bi-clock-history me-2"></i> Recent Login
+                                    <i class="bi bi-activity me-2"></i> ROI per Domain (Line)
                                 </h5>
                             </div>
                             <div class="card-body">
-                                <div id="recent-logins" class="recent-logins">
-                                    <!-- Recent logins will be populated here -->
+                                <div class="chart-container">
+                                    <!-- Tinggi diseragamkan -->
+                                    <canvas id="roiDomainChart" style="height: 400px;"></canvas>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card dashboard-card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="bi bi-map me-2"></i> ROI per Country (Map)
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <!-- Tinggi diseragamkan -->
+                                <div id="roiCountryMap" style="height: 440px;"></div>
                             </div>
                         </div>
                     </div>
@@ -216,8 +236,20 @@
 </main>
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- Highcharts Maps (samakan dengan roi_traffic_country) -->
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highmaps.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.1.0/custom/world.js"></script>
+<!-- Select2 (untuk AdX Account) -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@1.5.2/dist/select2-bootstrap4.min.css" rel="stylesheet">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
 <script>
 let loginChart, userChart;
+let roiDomainChart;
 // Fetch dashboard data
 async function fetchDashboardData() {
     try {
@@ -294,8 +326,19 @@ function updateDashboard(data) {
         document.getElementById('active-users').textContent = data.user_stats.active_users;
         document.getElementById('activity-rate').textContent = data.user_stats.activity_rate + '%';
     }
+
+    // Update Ads/AdX account stats
+    if (data.account_stats) {
+        document.getElementById('ads-accounts-count').textContent = data.account_stats.ads_accounts_count ?? 0;
+        document.getElementById('adx-accounts-count').textContent = data.account_stats.adx_accounts_count ?? 0;
+
+        populateAccountFilter(
+            data.account_stats.adx_accounts || [],
+            data.account_stats.default_selected_account || ''
+        );
+    }
     
-    // Update charts
+    // Update charts (existing login charts if present)
     if (data.charts && data.charts.login_activity) {
         updateLoginChart(data.charts.login_activity);
         updateUserChart(data.user_stats);
@@ -307,159 +350,286 @@ function updateDashboard(data) {
     }
 }
 
-// Update login activity chart
-function updateLoginChart(chartData) {
-    const canvas = document.getElementById('loginChart');
-    if (!canvas) {
-        return;
+// Populate AdX account filter and trigger ROI load
+function populateAccountFilter(accounts, defaultMail) {
+    const sel = document.getElementById('account-filter');
+    if (!sel) return;
+
+    // Hancurkan Select2 sebelumnya bila ada
+    if (window.jQuery && jQuery(sel).data('select2')) {
+        jQuery(sel).select2('destroy');
     }
-    
+
+    // Bangun opsi
+    sel.innerHTML = '';
+    accounts.forEach(acc => {
+        const opt = document.createElement('option');
+        opt.value = acc.user_mail || '';
+        opt.textContent = acc.account_name || acc.user_mail || '(unknown)';
+        sel.appendChild(opt);
+    });
+
+    // Inisialisasi Select2
+    if (window.jQuery) {
+        jQuery(sel).select2({
+            placeholder: '-- Pilih AdX Account --',
+            theme: 'bootstrap4',
+            width: 'style',
+            allowClear: true
+        });
+    }
+
+    // Select default
+    if (defaultMail) sel.value = defaultMail;
+
+    // Load ROI untuk pilihan saat ini
+    const selectedMail = sel.value || defaultMail || (accounts[0]?.user_mail || '');
+    if (selectedMail) {
+        loadRoiData(selectedMail);
+    }
+
+    // Change handler
+    // Jika memakai Select2, event change tetap terpanggil
+    sel.onchange = () => loadRoiData(sel.value);
+}
+
+// Fetch and render ROI per Domain (line) and per Country (map)
+async function loadRoiData(selectedAccountMail) {
+    const { startDate, endDate } = getLast7DaysRange();
+
+    // ROI per Domain
+    const qsDomain = new URLSearchParams({
+        start_date: startDate,
+        end_date: endDate,
+        selected_account_adx: selectedAccountMail,
+        selected_sites: '' // all domains
+    });
+    try {
+        const resp = await fetch('/management/admin/page_roi_traffic_domain?' + qsDomain.toString());
+        const json = await resp.json();
+        if (json.status && Array.isArray(json.data)) {
+            renderRoiDomainChart(json.data);
+        } else {
+            renderRoiDomainChart([]); // clear
+        }
+    } catch (e) {
+        renderRoiDomainChart([]);
+        console.warn('ROI Domain fetch error:', e);
+    }
+
+    // ROI per Country
+    const qsCountry = new URLSearchParams({
+        start_date: startDate,
+        end_date: endDate,
+        selected_account_adx: selectedAccountMail,
+        selected_countries: '',
+        selected_sites: '' // all domains
+    });
+    try {
+        const resp = await fetch('/management/admin/page_roi_traffic_country?' + qsCountry.toString());
+        const json = await resp.json();
+        if (json.status && Array.isArray(json.data)) {
+            renderRoiCountryMap(json.data);
+        } else {
+            renderRoiCountryMap([]); // clear
+        }
+    } catch (e) {
+        renderRoiCountryMap([]);
+        console.warn('ROI Country fetch error:', e);
+    }
+}
+
+// Build last 7 days date range (YYYY-MM-DD)
+function getLast7DaysRange() {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - 6);
+    const fmt = d => d.toISOString().slice(0,10);
+    return { startDate: fmt(start), endDate: fmt(end) };
+}
+
+// Render ROI per Domain (Chart.js line)
+function renderRoiDomainChart(items) {
+    const canvas = document.getElementById('roiDomainChart');
+    if (!canvas) return;
+
+    // Group by domain and date
+    const byDomain = new Map();
+    const dateSet = new Set();
+    items.forEach(it => {
+        const dom = String(it.site_name || '').trim();
+        const dt = String(it.date || '').trim();
+        if (!dom || !dt) return;
+        dateSet.add(dt);
+        if (!byDomain.has(dom)) byDomain.set(dom, new Map());
+        byDomain.get(dom).set(dt, Number(it.roi || 0));
+    });
+
+    // Sort dates ascending and format labels
+    const dates = Array.from(dateSet).sort();
+    const labels = dates.map(d => {
+        const [y,m,dd] = d.split('-');
+        return `${dd}/${m}/${y}`; // tampilkan tanggal lengkap
+    });
+
+    // Compute top 5 domains by revenue (fallback to random if not available)
+    const revenueByDomain = new Map();
+    items.forEach(it => {
+        const dom = String(it.site_name || '').trim();
+        const rev = Number(it.revenue || 0);
+        revenueByDomain.set(dom, (revenueByDomain.get(dom) || 0) + rev);
+    });
+    const topDomains = Array.from(revenueByDomain.entries())
+        .sort((a,b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([dom]) => dom);
+
+    // Build datasets
+    const palette = ['#4facfe','#43e97b','#fa709a','#764ba2','#ff9800','#009688'];
+    const datasets = topDomains.map((dom, i) => {
+        const map = byDomain.get(dom) || new Map();
+        const series = dates.map(d => map.get(d) ?? 0);
+        return {
+            label: dom,
+            data: series,
+            borderColor: palette[i % palette.length],
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            tension: 0.3
+        };
+    });
+
+    if (roiDomainChart) roiDomainChart.destroy();
     const ctx = canvas.getContext('2d');
-    
-    if (loginChart) {
-        loginChart.destroy();
-    }
-    
-    loginChart = new Chart(ctx, {
+    roiDomainChart = new Chart(ctx, {
         type: 'line',
-        data: {
-            labels: chartData.labels,
-            datasets: [{
-                label: 'Total Logins',
-                data: chartData.login_counts,
-                borderColor: '#4facfe',
-                backgroundColor: 'rgba(79, 172, 254, 0.1)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4
-            }, {
-                label: 'Unique Users',
-                data: chartData.unique_users,
-                borderColor: '#43e97b',
-                backgroundColor: 'rgba(67, 233, 123, 0.1)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4
-            }]
-        },
+        data: { labels, datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'top',
-                },
-                title: {
-                    display: false
-                }
-            },
+            plugins: { legend: { position: 'top' }, title: { display: false } },
             scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        stepSize: 1
-                    }
-                }
+                x: { ticks: { autoSkip: true, maxRotation: 0 } }, // rapikan label
+                y: { beginAtZero: true }
             }
         }
     });
 }
 
-// Update user distribution chart
-function updateUserChart(userStats) {
-    const canvas = document.getElementById('userChart');
-    if (!canvas) {
+// Render ROI per Country (Highcharts map)
+function renderRoiCountryMap(items) {
+    const raw = Array.isArray(items) ? items : [];
+
+    // Bentuk data seperti di roi_traffic_country (pakai hc-key objek)
+    const data = raw.map(it => {
+        const code = String(it.country_code || '').toLowerCase();
+        return {
+            'hc-key': code,
+            code: code.toUpperCase(),
+            name: it.country || code.toUpperCase(),
+            value: Number(it.roi || 0),
+            impressions: Number(it.impressions || 0),
+            clicks: Number(it.clicks || 0),
+            spend: Number(it.spend || 0),
+            revenue: Number(it.revenue || 0)
+        };
+    });
+
+    // Pastikan world map ter-load; bila belum, jangan render
+    if (!Highcharts || !Highcharts.mapChart) {
+        console.error('Highcharts Maps belum ter-load');
         return;
     }
-    
-    const ctx = canvas.getContext('2d');
-    
-    if (userChart) {
-        userChart.destroy();
+    if (!Highcharts.maps || !Highcharts.maps['custom/world']) {
+        console.error('World map data tidak ter-load');
+        return;
     }
-    
-    const inactiveUsers = userStats.total_users - userStats.active_users;
-    
-    userChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Active Users', 'Inactive Users'],
-            datasets: [{
-                data: [userStats.active_users, inactiveUsers],
-                backgroundColor: [
-                    '#43e97b',
-                    '#fa709a'
-                ],
-                borderWidth: 0
-            }]
+
+    // Buat rentang warna (dataClasses) seperti halaman ROI
+    let maxROI = 0;
+    data.forEach(d => { if (d.value > maxROI) maxROI = d.value; });
+
+    let ranges;
+    if (maxROI <= 100) {
+        ranges = [
+            { from: 0, to: 20, color: '#FFF2CC', name: '0% - 20%' },
+            { from: 20, to: 40, color: '#FFE066', name: '20% - 40%' },
+            { from: 40, to: 60, color: '#FFCC02', name: '40% - 60%' },
+            { from: 60, to: 80, color: '#FF9500', name: '60% - 80%' },
+            { from: 80, to: 100, color: '#FF6B35', name: '80% - 100%' }
+        ];
+    } else if (maxROI <= 500) {
+        ranges = [
+            { from: 0, to: 50, color: '#FFF2CC', name: '0% - 50%' },
+            { from: 50, to: 100, color: '#FFE066', name: '50% - 100%' },
+            { from: 100, to: 200, color: '#FFCC02', name: '100% - 200%' },
+            { from: 200, to: 350, color: '#FF9500', name: '200% - 350%' },
+            { from: 350, to: 500, color: '#FF6B35', name: '350% - 500%' }
+        ];
+    } else if (maxROI <= 1000) {
+        ranges = [
+            { from: 0, to: 50, color: '#FFF2CC', name: '0% - 50%' },
+            { from: 50, to: 100, color: '#FFE066', name: '50% - 100%' },
+            { from: 100, to: 200, color: '#FFCC02', name: '100% - 200%' },
+            { from: 200, to: 500, color: '#FF9500', name: '200% - 500%' },
+            { from: 500, to: 1000, color: '#FF6B35', name: '500% - 1000%' }
+        ];
+    } else {
+        ranges = [
+            { from: 0, to: 50, color: '#FFF2CC', name: '0% - 50%' },
+            { from: 50, to: 100, color: '#FFE066', name: '50% - 100%' },
+            { from: 100, to: 200, color: '#FFCC02', name: '100% - 200%' },
+            { from: 200, to: 500, color: '#FF9500', name: '200% - 500%' },
+            { from: 500, to: 1000, color: '#FF6B35', name: '500% - 1000%' },
+            { from: 1000, to: 2000, color: '#E63946', name: '1000% - 2000%' },
+            { from: 2000, to: Infinity, color: '#A4161A', name: '> 2000%' }
+        ];
+    }
+
+    Highcharts.mapChart('roiCountryMap', {
+        chart: {
+            map: 'custom/world',
+            backgroundColor: 'transparent'
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
+        title: { text: 'ROI Per Negara' },
+        subtitle: { text: 'Berdasarkan data traffic dan revenue' },
+        mapNavigation: { enabled: true },
+        colorAxis: {
+            min: 0,
+            dataClasses: ranges.map(r => ({
+                from: r.from, to: r.to, color: r.color, name: r.name
+            }))
+        },
+        legend: {
+            title: { text: 'Tingkat ROI' },
+            align: 'left',
+            verticalAlign: 'bottom',
+            floating: true,
+            layout: 'vertical',
+            backgroundColor: 'rgba(255,255,255,0.9)',
+            symbolRadius: 0,
+            symbolHeight: 14
+        },
+        series: [{
+            name: 'Negara',
+            data,
+            joinBy: ['hc-key', 'hc-key'],
+            nullColor: '#E6E7E8',
+            borderColor: '#606060',
+            borderWidth: 0.5,
+            tooltip: {
+                pointFormatter: function () {
+                    return '<b>' + (this.name || this.code) + '</b><br>' +
+                           'Kode: ' + (this.code || '').toUpperCase() + '<br>' +
+                           'ROI: <b>' + (this.value || 0).toFixed(2) + '%</b><br>' +
+                           'Impressions: <b>' + (this.impressions || 0).toLocaleString('id-ID') + '</b><br>' +
+                           'Clicks: <b>' + (this.clicks || 0).toLocaleString('id-ID') + '</b><br>' +
+                           'Spend: <b>Rp ' + Math.round(this.spend || 0).toLocaleString('id-ID') + '</b><br>' +
+                           'Revenue: <b>Rp ' + Math.round(this.revenue || 0).toLocaleString('id-ID') + '</b><br>';
                 }
             }
-        }
+        }]
     });
-}
-
-// Update recent logins
-function updateRecentLogins(logins) {
-    const container = document.getElementById('recent-logins');
-    if (!container) {
-        return;
-    }
-    
-    if (logins.length === 0) {
-        container.innerHTML = '<p class="text-muted text-center">No recent logins found</p>';
-        return;
-    }
-    
-    const loginsHtml = logins.map(login => {
-        const loginDate = new Date(login.login_date);
-        const timeAgo = getTimeAgo(loginDate);
-        const initials = login.user_alias.substring(0, 2).toUpperCase();
-        
-        return `
-            <div class="login-item">
-                <div class="d-flex align-items-center">
-                    <div class="user-avatar me-3">${initials}</div>
-                    <div>
-                        <div class="fw-bold">${login.user_alias}</div>
-                        <small class="text-muted">${login.ip_address} • ${login.lokasi || 'Unknown location'}</small>
-                    </div>
-                </div>
-                <div class="text-end">
-                    <small class="text-muted">${timeAgo}</small>
-                </div>
-            </div>
-        `;
-    }).join('');
-    
-    container.innerHTML = loginsHtml;
-}
-
-// Get time ago string
-function getTimeAgo(date) {
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-    
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    return `${diffDays}d ago`;
-}
-
-// Show error message
-function showError(message) {
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('error-text').textContent = message;
-    document.getElementById('error-message').style.display = 'block';
 }
 
 // Initialize dashboard

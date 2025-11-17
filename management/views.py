@@ -934,7 +934,41 @@ class DashboardData(View):
                 },
                 'recent_logins': recent_logins[:10]  # 10 login terakhir
             }
-            
+            # Tambah statistik akun Ads & AdX + daftar akun AdX untuk filter
+            try:
+                rs_ads_accounts = data_mysql().master_account_ads()
+                ads_accounts_count = len(rs_ads_accounts['data']) if rs_ads_accounts.get('status') else 0
+            except Exception:
+                ads_accounts_count = 0
+
+            try:
+                rs_adx_credentials = data_mysql().get_all_app_credentials()
+                adx_accounts_count = len(rs_adx_credentials['data']) if rs_adx_credentials.get('status') else 0
+                adx_accounts_list = []
+                if rs_adx_credentials.get('status'):
+                    for row in rs_adx_credentials['data']:
+                        adx_accounts_list.append({
+                            'user_mail': row.get('user_mail') or row.get('account_email') or '',
+                            'account_name': row.get('account_name') or (row.get('user_mail') or '')
+                        })
+                else:
+                    adx_accounts_list = []
+            except Exception:
+                adx_accounts_count = 0
+                adx_accounts_list = []
+
+            default_selected_account = (
+                req.session.get('hris_admin', {}).get('user_mail')
+                or (adx_accounts_list[0]['user_mail'] if adx_accounts_list else '')
+            )
+
+            dashboard_data['account_stats'] = {
+                'ads_accounts_count': ads_accounts_count,
+                'adx_accounts_count': adx_accounts_count,
+                'adx_accounts': adx_accounts_list,
+                'default_selected_account': default_selected_account
+            }
+
             return JsonResponse({
                 'status': True,
                 'data': dashboard_data
@@ -3073,46 +3107,34 @@ class RoiTrafficPerCountryDataView(View):
                         data_facebook = None
             else:
                 # Filter Domain kosong: tampilkan data semua domain dari akun AdX terpilih
-                # Ambil AdX terlebih dahulu
                 data_adx = data_mysql().get_all_adx_traffic_country_by_params(
-                            user_mail,
-                            start_date,
-                            end_date,
-                            selected_sites,
-                            countries_list
-                        )
-                # Ambil data Facebook tanpa filter situs agar mencakup semua campaign
+                    user_mail, start_date, end_date, selected_sites, countries_list
+                )
                 try:
+                    unique_name_site = []
                     with ThreadPoolExecutor(max_workers=1) as executor:
                         if sites_for_fb:
                             unique_sites = set(site.strip() for site in sites_for_fb if site.strip() and site.strip() != 'Unknown')
-
                             extracted_names = []
                             for site in unique_sites:
-                                # pastikan ada titik
                                 if "." in site:
-                                    # rsplit dengan maxsplit=1 supaya hanya hapus TLD terakhir
-                                    main_domain = site.rsplit(".", 1)[0]
-                                    extracted_names.append(main_domain)
-
-                            # hilangkan duplikat
+                                    extracted_names.append(site.rsplit(".", 1)[0])
                             unique_name_site = list(set(extracted_names))
-                        fb_future = executor.submit(
-                            data_mysql().get_all_ads_roi_traffic_country_by_params,
-                            start_date,
-                            end_date,
-                            unique_name_site,
-                            countries_list
-                        )
-                        # Hapus timeout: proses all domains bisa lama, biarkan selesai
-                        data_facebook = fb_future.result()
+                        if unique_name_site:
+                            fb_future = executor.submit(
+                                data_mysql().get_all_ads_roi_traffic_country_by_params,
+                                start_date, end_date, unique_name_site, countries_list
+                            )
+                            data_facebook = fb_future.result()
+                        else:
+                            data_facebook = None
                 except Exception as e:
                     print(f"[DEBUG] Facebook fetch (all domains) failed: {e}; continue without FB data")
                     data_facebook = None
             # Ringkas data Facebook untuk diagnosa
             try:
-                if data_facebook['hasil']:
-                    fb_items = data_facebook.get('data', []) or []
+                if data_facebook and isinstance(data_facebook, dict) and data_facebook.get('hasil') and data_facebook['hasil'].get('data'):
+                    fb_items = data_facebook['hasil'].get('data', []) or []
                     fb_count = len(fb_items)
                     fb_total_spend = 0.0
                     for _it in fb_items:
@@ -3129,7 +3151,10 @@ class RoiTrafficPerCountryDataView(View):
             except Exception as _sum_e:
                 print(f"[DEBUG ROI] Unable to summarize FB data: {_sum_e}")
             # Proses penggabungan data AdX dan Facebook
-            result = process_roi_traffic_country_data(data_adx, data_facebook['hasil'])
+            # Pastikan bentuk payload sesuai: gunakan 'hasil' untuk AdX dan FB jika tersedia
+            adx_payload = data_adx.get('hasil') if isinstance(data_adx, dict) and data_adx.get('hasil') else data_adx
+            fb_payload = (data_facebook.get('hasil') if isinstance(data_facebook, dict) and data_facebook.get('hasil') else {'status': True, 'data': []})
+            result = process_roi_traffic_country_data(adx_payload, fb_payload)
             # Filter hasil berdasarkan negara yang dipilih jika ada
             if countries_list and result.get('status') and result.get('data'):
                 # Parse selected countries dari format "Country Name (CODE)" menjadi list nama negara
