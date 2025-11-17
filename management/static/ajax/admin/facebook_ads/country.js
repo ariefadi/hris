@@ -47,7 +47,7 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     });
-    $('#select_domain').select2({
+    $('#select_sub_domain').select2({
         placeholder: '-- Pilih Domain --',
         allowClear: true,
         width: '100%',
@@ -69,43 +69,99 @@ $().ready(function () {
         var tanggal_sampai = $("#tanggal_sampai").val();
         var selected_account = $("#select_account").val() || '%';
         var data_account = selected_account ? selected_account : '%';
-        var selected_sub_domain = $('#select_domain').val() || '%';
+        var selected_sub_domain = $('#select_sub_domain').val() || '%';
         var data_sub_domain = selected_sub_domain ? selected_sub_domain : '%';
-        if (tanggal_dari !== '' && tanggal_sampai !== '' && data_account != "" && data_sub_domain != "") {
-            load_country_options(tanggal_dari, tanggal_sampai, data_account, data_sub_domain);
+        if (tanggal_dari !== '' && tanggal_sampai !== '' && data_account != "") {
+            loadSitesList();
+            load_country_options(tanggal_dari, tanggal_sampai, data_account);
             destroy_table_data_per_country_facebook();
             table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_account, data_sub_domain);
         }
     });
 });
+
+function loadSitesList() {
+    var selectedAccounts = $("#select_account").val() || "";
+    // Simpan pilihan domain yang sudah dipilih sebelumnya
+    var previouslySelected = $("#select_sub_domain").val() || [];
+    $.ajax({
+        url: '/management/admin/ads_sites_list',
+        type: 'GET',
+        dataType: 'json',
+        data: {
+            'selected_accounts': selectedAccounts
+        },
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+        },
+        success: function (response) {
+            if (response.status) {
+                var select_site = $("#select_sub_domain");
+                select_site.empty();
+                // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
+                var validPreviousSelections = [];
+                $.each(response.data, function (index, site) {
+                    var isSelected = previouslySelected.includes(site);
+                    if (isSelected) {
+                        validPreviousSelections.push(site);
+                    }
+                    select_site.append(new Option(site, site, false, isSelected));
+                });
+                // Set nilai yang dipilih kembali
+                if (validPreviousSelections.length > 0) {
+                    select_site.val(validPreviousSelections);
+                }
+                select_site.trigger('change');
+            }
+        },
+        error: function (xhr, status, error) {
+            report_eror(xhr, status);
+        }
+    });
+}
+
 // Fungsi untuk memuat opsi negara ke select2
-function load_country_options(tanggal_dari, tanggal_sampai, data_account, data_sub_domain) {
+function load_country_options(tanggal_dari, tanggal_sampai, data_account) {
+    // Simpan pilihan country yang sudah dipilih sebelumnya
+    var previouslySelected = $("#select_country").val() || [];
     $.ajax({
         url: '/management/admin/get_countries_facebook_ads',
-        type: 'POST',
+        type: 'GET',
+        dataType: 'json',
         data: {
             'tanggal_dari': tanggal_dari,
             'tanggal_sampai': tanggal_sampai,
-            'data_account': data_account,
-            'data_sub_domain': data_sub_domain
+            'data_account': data_account
         },
-        dataType: 'json',
-        beforeSend: function () {
-            $('#overlay').show();
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
         },
         success: function (response) {
-            $('#overlay').hide();
             if (response.status) {
                 var select_country = $('#select_country');
                 select_country.empty();
+                // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
+                var validPreviousSelections = [];
                 $.each(response.countries, function (index, country) {
-                    select_country.append(new Option(country.name, country.code, false, false));
+                    var isSelected = previouslySelected.includes(country.code);
+                    if (isSelected) {
+                        validPreviousSelections.push(country.code);
+                    }
+                    select_country.append(new Option(country.name, country.code, false, isSelected));
                 });
+
+                // Set nilai yang dipilih kembali
+                if (validPreviousSelections.length > 0) {
+                    select_country.val(validPreviousSelections);
+                }
+
                 select_country.trigger('change');
             }
         },
         error: function (xhr, status, error) {
-            console.log('Error loading countries:', error);
+            report_eror(xhr, status);
         }
     });
 }
@@ -143,39 +199,23 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                 event_data += '</tr>';
                 $("#table_data_per_country_facebook tbody").append(event_data);
             })
-            // Debug: Log response structure
-            console.log("DEBUG - Full response:", data_country);
-            console.log("DEBUG - total_country:", data_country.total_country);
-
             // Menggunakan data total yang sudah difilter dari backend
             const totalData = data_country.total_country;
-
-            console.log("DEBUG - totalData:", totalData);
-
             // Spend
             const spend = Number(totalData?.spend) || 0;
             const totalSpend = spend.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-
             // Impressions
             const impressions = Number(totalData?.impressions) || 0;
             const totalImpressions = impressions.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-
             // Reach
             const reach = Number(totalData?.reach) || 0;
             const totalReach = reach.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-
             // Clicks
             const clicks = Number(totalData?.clicks) || 0;
             const totalClicks = clicks.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-
             // Frequency
             const frequency = Number(totalData?.frequency) || 0;
             const totalFrequency = frequency.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + ' %';
-
-            console.log("DEBUG - Calculated values:", {
-                spend, impressions, reach, clicks, frequency
-            });
-
             $('#total_spend').text(totalSpend);
             $('#total_impressions').text(totalImpressions);
             $('#total_reach').text(totalReach);
@@ -185,7 +225,6 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
             if ($.fn.dataTable.isDataTable('#table_data_per_country_facebook')) {
                 $('#table_data_per_country_facebook').DataTable().destroy();
             }
-
             $('#table_data_per_country_facebook').DataTable({
                 "paging": true,
                 "pageLength": 50,
@@ -319,7 +358,7 @@ function createSpendMap(items) {
     if (!items || !items.length) {
         // Bersihkan peta bila tidak ada data
         if (window.fbSpendMapInstance) {
-            try { window.fbSpendMapInstance.destroy(); } catch (e) {}
+            try { window.fbSpendMapInstance.destroy(); } catch (e) { }
             window.fbSpendMapInstance = null;
         }
         $('#charts_section').hide();
@@ -357,7 +396,7 @@ function createSpendMap(items) {
 
     // Hancurkan instance lama
     if (window.fbSpendMapInstance) {
-        try { window.fbSpendMapInstance.destroy(); } catch (e) {}
+        try { window.fbSpendMapInstance.destroy(); } catch (e) { }
         window.fbSpendMapInstance = null;
     }
 

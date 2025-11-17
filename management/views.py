@@ -456,76 +456,97 @@ def get_countries_facebook_ads(request):
     if 'hris_admin' not in request.session:
         return redirect('admin_login')
     try:
-        tanggal_dari = request.POST.get('tanggal_dari')
-        tanggal_sampai = request.POST.get('tanggal_sampai')
-        data_account = request.POST.get('data_account')
-        data_sub_domain = request.POST.get('data_sub_domain')
-        # Normalisasi nilai kosong/invalid untuk account
-        def _is_empty_account(val):
-            if val is None:
-                return True
-            v = str(val).strip().lower()
-            return v in ('', '%', 'null', 'none', 'undefined')
-        countries_map = {}
-        # Jika filter account kosong, fallback ke semua akun Facebook Ads
-        if _is_empty_account(data_account):
-            accounts_resp = data_mysql().master_account_ads()
-            rs_accounts = []
-            if accounts_resp:
-                try:
-                    rs_accounts = accounts_resp.get('data', [])
-                except Exception:
-                    rs_accounts = []
-            for acc in rs_accounts:
-                try:
-                    result = fetch_data_country_facebook_ads(
-                        tanggal_dari,
-                        tanggal_sampai,
-                        str(acc.get('access_token')),
-                        str(acc.get('account_id')),
-                        data_sub_domain
-                    )
-                except Exception as e:
-                    print(f"[DEBUG] Gagal fetch negara untuk akun {acc.get('account_id')}: {e}")
-                    result = []
-                for country_data in result:
-                    name = country_data.get('name')
-                    code = country_data.get('code')
-                    if name:
-                        countries_map[(code or name)] = {
-                            'code': code,
-                            'name': name
-                        }
-        else:
-            # Jika account terisi, gunakan akun tersebut saja
-            rs_data_resp = data_mysql().master_account_ads_by_id({'data_account': data_account})
-            rs_data_account = None
-            if isinstance(rs_data_resp, dict):
-                rs_data_account = rs_data_resp.get('data')
-            if not rs_data_account:
-                # Fallback: jika ID tidak valid, jangan crash; kembalikan kosong
-                print("[DEBUG] data_account tidak valid atau tidak ditemukan; mengembalikan daftar negara kosong")
-                result = []
-            else:
-                result = fetch_data_country_facebook_ads(
-                    tanggal_dari, 
-                    tanggal_sampai,
-                    str(rs_data_account.get('access_token')),
-                    str(rs_data_account.get('account_id')),
-                    data_sub_domain
-                )
-            for country_data in result:
-                name = country_data.get('name')
-                code = country_data.get('code')
-                if name:
-                    countries_map[(code or name)] = {
-                        'code': code,
-                        'name': name
-                    }
-        countries = list(countries_map.values())
+        data_account = request.GET.get('data_account')
+        tanggal_dari = request.GET.get('tanggal_dari')
+        tanggal_sampai = request.GET.get('tanggal_sampai')
+         # Gunakan cache untuk menghindari pemanggilan API berulang
+        try:
+            cache_key = generate_cache_key(
+                'countries_facebook_ads',
+                data_account,
+                tanggal_dari,
+                tanggal_sampai
+            )
+            cached_countries = get_cached_data(cache_key)
+            if cached_countries is not None:
+                return JsonResponse({
+                    'status': 'success',
+                    'countries': cached_countries
+                })
+        except Exception as _cache_err:
+        # Jika cache bermasalah, lanjutkan tanpa memblokir proses
+            print(f"[WARNING] countries_adx cache unavailable: {_cache_err}")
+        # Sort berdasarkan nama negara
+        print(f"[DEBUG] Request params - account={data_account}, dari={tanggal_dari}, sampai={tanggal_sampai}")
+        result = data_mysql().fetch_country_ads_list(
+            data_account,
+            tanggal_dari,
+            tanggal_sampai,
+        )
+        print(f"[DEBUG] Raw negara: {result}")
+        # Validasi struktur result
+        if not result['hasil']['data']:
+            print("[WARNING] Result is None or empty")
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Tidak ada data yang tersedia.',
+                'countries': []
+            })
+        if not isinstance(result['hasil'], dict):
+            print(f"[WARNING] Result['hasil'] is not a dict: {type(result['hasil'])}")
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Format data tidak valid.',
+                'countries': []
+            })
         
+        # Periksa apakah ada key 'data' dalam result['hasil']
+        if 'data' not in result['hasil']:
+            print(f"[WARNING] No 'data' key in result['hasil']. Available keys: {list(result['hasil'].keys())}")
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Data negara tidak tersedia.',
+                'countries': []
+            })
+        
+        # Periksa apakah data adalah list
+        if not isinstance(result['hasil']['data'], list):
+            print(f"[WARNING] result['hasil']['data'] is not a list: {type(result['hasil']['data'])}")
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Format data negara tidak valid.',
+                'countries': []
+            })
+        
+        # Ekstrak daftar negara dari data yang tersedia dan hilangkan duplikasi
+        countries = []
+        seen = set()
+        for country_data in result['hasil']['data']:
+            if not isinstance(country_data, dict):
+                print(f"[WARNING] Country data is not a dict: {type(country_data)}")
+                continue
+            country_name = (country_data.get('country_name') or '').strip()
+            country_code = (country_data.get('country_code') or '').strip().upper()
+            if not country_name:
+                continue
+            # Gunakan code jika ada, jika tidak gunakan nama sebagai key dedup
+            key = country_code or country_name.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            country_label = f"{country_name} ({country_code})" if country_code else country_name
+            countries.append({
+                'code': country_code,
+                'name': country_label
+            })
+            
         # Sort berdasarkan nama negara
         countries.sort(key=lambda x: x['name'])
+        # Simpan hasil ke cache agar panggilan berikutnya cepat
+        try:
+            set_cached_data(cache_key, countries, timeout=6 * 60 * 60)  # 6 jam
+        except Exception as _cache_set_err:
+            print(f"[WARNING] failed to cache countries_adx: {_cache_set_err}")
         return JsonResponse({
             'status': 'success',
             'countries': countries
@@ -533,11 +554,14 @@ def get_countries_facebook_ads(request):
         
     except Exception as e:
         print(f"[ERROR] Gagal mengambil data negara: {e}")
+        import traceback
+        print(f"[ERROR] Traceback: {traceback.format_exc()}")
         return JsonResponse({
             'status': 'error',
             'message': 'Gagal mengambil data negara.',
-            'error': str(e)
-        }, status=500)  # <- Ini penting
+            'error': str(e),
+            'countries': []
+        }, status=500)
 
 @csrf_exempt
 def get_countries_adx(request):
@@ -1050,14 +1074,12 @@ class PerAccountFacebookAds(View):
         return super(PerAccountFacebookAds, self).dispatch(request, *args, **kwargs)
     def get(self, req):
         data_account = data_mysql().master_account_ads()['data']
-        rs_account = data_mysql().master_account_ads()
-        data_campaign = fetch_data_insights_account_filter_all(rs_account['data'])
         today = datetime.now().strftime('%Y-%m-%d')
         data = {
             'title': 'Data Traffic Per Account Facebook Ads',
             'user': req.session['hris_admin'],
         }
-        return render(req, 'admin/facebook_ads/per_account/index.html', {'data_account': data_account, 'data_campaign': data_campaign, 'data': data, 'today': today})
+        return render(req, 'admin/facebook_ads/per_account/index.html', {'data_account': data_account, 'data': data, 'today': today})
     
 class page_per_account_facebook(View):
     def dispatch(self, request, *args, **kwargs):
@@ -1403,6 +1425,36 @@ class bulk_update_campaign_status(View):
                 'message': f'Terjadi kesalahan: {str(e)}'
             })
     
+class AdsSitesListView(View):
+    """AJAX endpoint untuk mengambil daftar situs dari Facebook Ads Manager"""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+    def get(self, req):
+        selected_accounts = req.GET.get('selected_accounts')
+        if selected_accounts:
+            ads_id = selected_accounts
+        else:
+            ads_id = req.session.get('hris_admin', {}).get('ads_id')
+        try:
+            # Ambil daftar situs dari Facebook Ads Manager jika cache miss
+            result = data_mysql().fetch_ads_sites_list(
+                ads_id
+            )
+            # Simpan ke cache untuk permintaan berikutnya
+            try:
+                # Cache selama 6 jam; daftar situs jarang berubah
+                set_cached_data(cache_key, result['hasil'], timeout=6 * 60 * 60)
+            except Exception as _cache_set_err:
+                print(f"[WARNING] failed to cache ads_sites_list: {_cache_set_err}")
+            return JsonResponse(result['hasil'], safe=False)
+        except Exception as e:
+            return JsonResponse({
+                'status': False,
+                'error': str(e)
+            })
+
 class PerCampaignFacebookAds(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
@@ -1410,13 +1462,11 @@ class PerCampaignFacebookAds(View):
         return super(PerCampaignFacebookAds, self).dispatch(request, *args, **kwargs)
     def get(self, req):
         data_account = data_mysql().master_account_ads()['data']
-        rs_account = data_mysql().master_account_ads()
-        data_campaign = fetch_data_insights_account_filter_all(rs_account['data'])
         data = {
             'title': 'Data Traffic Per Campaign Facebook Ads',
             'user': req.session['hris_admin'],
         }
-        return render(req, 'admin/facebook_ads/campaign/index.html', {'data_account': data_account, 'data_campaign': data_campaign, 'data': data})
+        return render(req, 'admin/facebook_ads/campaign/index.html', {'data_account': data_account, 'data': data})
 
 class page_per_campaign_facebook(View):
     def dispatch(self, request, *args, **kwargs):
@@ -1511,13 +1561,11 @@ class PerCountryFacebookAds(View):
         return super(PerCountryFacebookAds, self).dispatch(request, *args, **kwargs)
     def get(self, req):
         data_account = data_mysql().master_account_ads()['data']
-        rs_account = data_mysql().master_account_ads()
-        data_campaign = fetch_data_insights_account_filter_all(rs_account['data'])
         data = {
             'title': 'Data Traffic Per Country Facebook Ads',
             'user': req.session['hris_admin'],
         }
-        return render(req, 'admin/facebook_ads/country/index.html', {'data_account': data_account, 'data_campaign': data_campaign, 'data': data})
+        return render(req, 'admin/facebook_ads/country/index.html', {'data_account': data_account, 'data': data})
     
 class page_per_country_facebook(View):
     def dispatch(self, request, *args, **kwargs):
@@ -1526,87 +1574,8 @@ class page_per_country_facebook(View):
         elif 'hris_admin' not in request.session:
             return redirect('user_login')
         return super(page_per_country_facebook, self).dispatch(request, *args, **kwargs)
-    
-    def get(self, req):
-        tanggal_dari = req.GET.get('tanggal_dari')
-        tanggal_sampai = req.GET.get('tanggal_sampai')
-        data_account = req.GET.get('data_account')
-        data_sub_domain = req.GET.get('data_sub_domain')
-        # Ambil parameter countries dari query string
-        countries_param = req.GET.get('countries', '')
-        selected_countries = []
-        if countries_param:
-            # Terima format CSV sederhana atau JSON array, lalu normalisasi
-            try:
-                import json as _json
-                parsed = _json.loads(countries_param)
-                if isinstance(parsed, list):
-                    selected_countries = [str(x).strip().upper() for x in parsed]
-                else:
-                    selected_countries = [str(parsed).strip().upper()]
-            except Exception:
-                selected_countries = [s.strip().upper() for s in countries_param.split(',') if s.strip()]
-
-        # Ambil dari DB dengan 5 argumen (termasuk filter negara)
-        db_resp = data_mysql().get_all_ads_traffic_country_by_params(
-            data_account,
-            tanggal_dari,
-            tanggal_sampai,
-            data_sub_domain or '%',
-            selected_countries
-        )
-        normalized_rows = []
-        total_spend = 0.0
-        total_impressions = 0
-        total_reach = 0
-        total_clicks = 0
-        try:
-            rows = []
-            if isinstance(db_resp, dict) and db_resp.get('status'):
-                rows = db_resp.get('data') or []
-            for r in rows:
-                if not isinstance(r, dict):
-                    continue
-                country_name = (r.get('country_name') or '').strip()
-                country_code = (r.get('country_code') or '').strip().upper()
-                country_label = f"{country_name} ({country_code})" if country_code else country_name
-                spend = float(r.get('spend') or 0)
-                impressions = int(r.get('impressions') or 0)
-                reach = int(r.get('reach') or 0)
-                clicks = int(r.get('clicks') or 0)
-                frequency = round((impressions / reach * 100), 2) if reach > 0 else 0.0
-                normalized_rows.append({
-                    'country': country_label,
-                    'spend': spend,
-                    'impressions': impressions,
-                    'reach': reach,
-                    'clicks': clicks,
-                    'frequency': frequency,
-                })
-                total_spend += spend
-                total_impressions += impressions
-                total_reach += reach
-                total_clicks += clicks
-        except Exception as _err:
-            print(f"[ERROR] Normalize GET country data failed: {_err}")
-
-        total_frequency = round((total_impressions / total_reach * 100), 2) if total_reach > 0 else 0.0
-        hasil = {
-            'hasil': "Data Traffic Per Country",
-            'data_country': normalized_rows,
-            'total_country': {
-                'spend': total_spend,
-                'impressions': total_impressions,
-                'reach': total_reach,
-                'clicks': total_clicks,
-                'frequency': total_frequency,
-            },
-        }
-        return JsonResponse(hasil)
-    
     def post(self, req):
-        import json
-        tanggal_dari = req.POST.get('tanggal_dari')
+        tanggal_dari = req.POST.get('tanggal_dari') 
         tanggal_sampai = req.POST.get('tanggal_sampai')
         data_sub_domain = req.POST.get('data_sub_domain')
         data_account = req.POST.get('data_account')
@@ -1615,118 +1584,53 @@ class page_per_country_facebook(View):
             selected_countries = json.loads(selected_countries_json)
         except:
             selected_countries = []
-        # Normalisasi nilai kosong menjadi '%'
-        data_sub_domain = data_sub_domain if data_sub_domain else '%'
-        data_account = data_account if data_account else '%'
-
-        rs_account = data_mysql().master_account_ads()
-
-        # Kasus 1: Account dipilih, Domain kosong -> ambil data dari DB untuk akun tsb (tanpa filter domain)
-        if data_account != '%' and data_sub_domain == '%':
-            db_resp = data_mysql().get_all_ads_traffic_country_by_params(
-                data_account,
-                tanggal_dari,
-                tanggal_sampai,
-                '%',
-                selected_countries
-            )
-            data_rows = db_resp.get('data') if isinstance(db_resp, dict) else []
-            # Normalisasi rows ke format yang diharapkan JS
-            normalized = []
-            total_spend = 0.0
-            total_impressions = 0
-            total_reach = 0
-            total_clicks = 0
-            for r in (data_rows or []):
-                country_name = (r.get('country_name') or '').strip()
-                country_code = (r.get('country_code') or '').strip().upper()
-                country_label = f"{country_name} ({country_code})" if country_code else country_name
-                spend = float(r.get('spend') or 0)
-                impressions = int(r.get('impressions') or 0)
-                reach = int(r.get('reach') or 0)
-                clicks = int(r.get('clicks') or 0)
-                frequency = round((impressions / reach * 100), 2) if reach > 0 else 0.0
-                normalized.append({
-                    'country': country_label,
-                    'spend': spend,
-                    'impressions': impressions,
-                    'reach': reach,
-                    'clicks': clicks,
-                    'frequency': frequency,
-                })
-                total_spend += spend
-                total_impressions += impressions
-                total_reach += reach
-                total_clicks += clicks
-            frequency_total = round((total_impressions / total_reach * 100), 2) if total_reach > 0 else 0.0
-            data = {
-                'data': normalized,
-                'total': {
-                    'impressions': total_impressions,
-                    'spend': total_spend,
-                    'clicks': total_clicks,
-                    'reach': total_reach,
-                    'frequency': frequency_total,
-                }
+        db_resp = data_mysql().get_all_ads_traffic_country_by_params(
+            data_account,
+            tanggal_dari,
+            tanggal_sampai,
+            data_sub_domain,
+            selected_countries
+        )
+        print(f"[DEBUG] db_resp: {db_resp}")
+        data_rows = db_resp.get('data') if isinstance(db_resp, dict) else []
+        # Normalisasi rows ke format yang diharapkan JS
+        normalized = []
+        total_spend = 0.0
+        total_impressions = 0
+        total_reach = 0
+        total_clicks = 0
+        for r in (data_rows or []):
+            country_name = (r.get('country_name') or '').strip()
+            country_code = (r.get('country_code') or '').strip().upper()
+            country_label = f"{country_name} ({country_code})" if country_code else country_name
+            spend = float(r.get('spend') or 0)
+            impressions = int(r.get('impressions') or 0)
+            reach = int(r.get('reach') or 0)
+            clicks = int(r.get('clicks') or 0)
+            frequency = round((impressions / reach * 100), 2) if reach > 0 else 0.0
+            normalized.append({
+                'country': country_label,
+                'spend': spend,
+                'impressions': impressions,
+                'reach': reach,
+                'clicks': clicks,
+                'frequency': frequency,
+            })
+            total_spend += spend
+            total_impressions += impressions
+            total_reach += reach
+            total_clicks += clicks
+        frequency_total = round((total_impressions / total_reach * 100), 2) if total_reach > 0 else 0.0
+        data = {
+            'data': normalized,
+            'total': {
+                'impressions': total_impressions,
+                'spend': total_spend,
+                'clicks': total_clicks,
+                'reach': total_reach,
+                'frequency': frequency_total,
             }
-        # Kasus 2: Domain dipilih, Account kosong -> gabungkan semua akun dengan filter domain
-        elif data_account == '%' and data_sub_domain != '%':
-            data = fetch_data_insights_by_country_filter_campaign(
-                str(tanggal_dari), str(tanggal_sampai), rs_account['data'], str(data_sub_domain)
-            )
-        # Kasus 3: Keduanya dipilih -> gunakan akun spesifik dengan filter domain
-        elif data_account != '%' and data_sub_domain != '%':
-            db_resp = data_mysql().get_all_ads_traffic_country_by_params(
-                data_account,
-                tanggal_dari,
-                tanggal_sampai,
-                str(data_sub_domain),
-                selected_countries
-            )
-            data_rows = db_resp.get('data') if isinstance(db_resp, dict) else []
-            normalized = []
-            total_spend = 0.0
-            total_impressions = 0
-            total_reach = 0
-            total_clicks = 0
-            for r in (data_rows or []):
-                country_name = (r.get('country_name') or '').strip()
-                country_code = (r.get('country_code') or '').strip().upper()
-                country_label = f"{country_name} ({country_code})" if country_code else country_name
-                spend = float(r.get('spend') or 0)
-                impressions = int(r.get('impressions') or 0)
-                reach = int(r.get('reach') or 0)
-                clicks = int(r.get('clicks') or 0)
-                frequency = round((impressions / reach * 100), 2) if reach > 0 else 0.0
-                normalized.append({
-                    'country': country_label,
-                    'spend': spend,
-                    'impressions': impressions,
-                    'reach': reach,
-                    'clicks': clicks,
-                    'frequency': frequency,
-                })
-                total_spend += spend
-                total_impressions += impressions
-                total_reach += reach
-                total_clicks += clicks
-            frequency_total = round((total_impressions / total_reach * 100), 2) if total_reach > 0 else 0.0
-            data = {
-                'data': normalized,
-                'total': {
-                    'impressions': total_impressions,
-                    'spend': total_spend,
-                    'clicks': total_clicks,
-                    'reach': total_reach,
-                    'frequency': frequency_total,
-                }
-            }
-        # Kasus 4: Keduanya kosong -> tampilkan semua akun tanpa filter domain
-        else:
-            data = fetch_data_insights_by_country_filter_campaign(
-                str(tanggal_dari), str(tanggal_sampai), rs_account['data'], '%'
-            )
-        
+        }
         # Normalize total structure jika berasal dari utils.py (berbentuk list)
         if isinstance(data, dict) and 'total' in data and isinstance(data['total'], list) and len(data['total']) > 0:
             original_total = data['total'][0]
@@ -1737,9 +1641,6 @@ class page_per_country_facebook(View):
                 'reach': original_total.get('total_reach', 0),
                 'frequency': original_total.get('total_frequency', 0)
             }
-        
-        print(f"DEBUG - Normalized total: {data.get('total', {})}")
-        
         # Filter data berdasarkan negara yang dipilih
         if selected_countries and len(selected_countries) > 0:
             print(f"DEBUG - Filtering by countries: {selected_countries}")
@@ -1753,17 +1654,14 @@ class page_per_country_facebook(View):
                     if country_code in selected_countries:
                         filtered_data.append(country_data)
             data['data'] = filtered_data
-            
             # Recalculate totals hanya jika ada data yang difilter
             if filtered_data:
                 total_impressions = sum(int(item.get('impressions', 0)) for item in filtered_data)
                 total_spend = sum(float(item.get('spend', 0)) for item in filtered_data)
                 total_clicks = sum(int(item.get('clicks', 0)) for item in filtered_data)
                 total_reach = sum(int(item.get('reach', 0)) for item in filtered_data)
-                
                 # Hitung frequency dan CPR yang benar berdasarkan total agregat
                 frequency = round(total_impressions / total_reach, 2) if total_reach > 0 else 0
-                
                 data['total'] = {
                     'impressions': total_impressions,
                     'spend': total_spend,
@@ -1771,12 +1669,6 @@ class page_per_country_facebook(View):
                     'reach': total_reach,
                     'frequency': frequency,
                 }
-                print(f"DEBUG - Recalculated total after filtering:")
-                print(f"  - Total impressions: {total_impressions}")
-                print(f"  - Total reach: {total_reach}")
-                print(f"  - Total clicks: {total_clicks}")
-                print(f"  - Total spend: {total_spend}")
-                print(f"  - Calculated frequency: {frequency}")
             else:
                 # Jika tidak ada data setelah filter, set total ke 0
                 data['total'] = {
@@ -1786,17 +1678,14 @@ class page_per_country_facebook(View):
                     'reach': 0,
                     'frequency': 0
                 }
-                print("DEBUG - No data after filtering, set total to 0")
         else:
             print("DEBUG - No country filter applied, using original total")
-        
         hasil = {
             'hasil': "Data Traffic Per Country",
             'data_country': data['data'],
             'total_country': data['total'],
         }
         return JsonResponse(hasil)
-
 
 class page_ad_manager_reports(View):
     def dispatch(self, request, *args, **kwargs):
@@ -2826,12 +2715,13 @@ class AdxSitesListView(View):
                 start_date.strftime('%Y-%m-%d'), 
                 end_date.strftime('%Y-%m-%d')
             )
+            print(f"[DEBUG] AdxSitesListView - result: {result}")
             # Simpan ke cache untuk permintaan berikutnya
             try:
                 # Cache selama 6 jam; daftar situs jarang berubah
                 set_cached_data(cache_key, result['hasil'], timeout=6 * 60 * 60)
             except Exception as _cache_set_err:
-                print(f"[WARNING] failed to cache adx_sites_list: {_cache_set_err}")
+                print(f"[WARNING] failed to cache ads_sites_list: {_cache_set_err}")
             return JsonResponse(result['hasil'], safe=False)
         except Exception as e:
             return JsonResponse({
