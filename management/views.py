@@ -1157,16 +1157,19 @@ class EditAccountFacebookAds(View):
         return super(EditAccountFacebookAds, self).dispatch(request, *args, **kwargs)
     
     def get(self, req, account_ads_id):
-        rs_data_account = data_mysql().master_account_ads_by_id({
+        # Ambil data account menggunakan fungsi yang mengembalikan list records
+        rs_account = data_mysql().master_account_ads_by_params({
             'data_account': account_ads_id,
-        })['data']
-        
+        })
+        records = rs_account.get('data') or []
+        rs_data_account = records[0] if records else None
+
         if rs_data_account is None:
             return JsonResponse({
                 'status': False,
                 'message': 'Account not found'
             }, status=404)
-        
+
         context = {
             'account_data': rs_data_account,
             'account_ads_id': account_ads_id
@@ -1196,10 +1199,12 @@ class UpdateAccountFacebookAds(View):
             }
             return JsonResponse(hasil)
         
-        # Cek apakah account exists
-        existing_account = data_mysql().master_account_ads_by_id({
+        # Cek apakah account exists - gunakan account_ads_id (UUID)
+        rs_account = data_mysql().master_account_ads_by_params({
             'data_account': account_ads_id,
-        })['data']
+        })
+        data_list = rs_account.get('data') or []
+        existing_account = data_list[0] if data_list else None
         
         if existing_account is None:
             hasil = {
