@@ -315,12 +315,13 @@ $(document).ready(function () {
             }
         });
         var averageCTR = totalImpressions > 0 ? (totalClicks / totalImpressions * 100) : 0;
-        var averageROI = validROICount > 0 ? (totalROI / validROICount) : 0;
+        var totalROI = (((totalRevenue - totalSpend) / totalSpend) * 100);
+        console.log(totalROI)
         $('#total_impressions').text(totalImpressions.toLocaleString('id-ID'));
         $('#total_spend').text(formatCurrencyIDR(totalSpend));
         $('#total_clicks').text(totalClicks.toLocaleString('id-ID'));
         $('#total_ctr').text(averageCTR.toFixed(2) + '%');
-        $('#average_roi').text(averageROI.toFixed(2) + '%');
+        $('#total_roi').text(totalROI.toFixed(2) + '%');
         $('#total_revenue').text(formatCurrencyIDR(totalRevenue));
     }
     // Fungsi untuk inisialisasi DataTable
