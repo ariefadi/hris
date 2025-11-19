@@ -102,6 +102,9 @@
     border-radius: 10px;
     margin: 20px 0;
 }
+.equal-group > * {
+    flex: 1;
+}
 </style>
 {% endblock %}
 
@@ -160,7 +163,7 @@
                     <div class="col-12 col-sm-6 col-md-6">
                         <div class="info-box">
                             <span class="info-box-icon text-bg-success shadow-sm">
-                                <i class="bi bi-badge-ad-fill me-2"></i>
+                                <i class="bi bi-facebook me-2"></i>
                             </span>
                             <div class="info-box-content">
                                 <span class="info-box-text">Ads Accounts</span>
@@ -171,7 +174,7 @@
                     <div class="col-12 col-sm-6 col-md-6">
                         <div class="info-box">
                             <span class="info-box-icon text-bg-success shadow-sm">
-                                <i class="bi bi-diagram-3-fill me-2"></i>
+                                <i class="bi bi-badge-ad-fill me-2"></i>
                             </span>
                             <div class="info-box-content">
                                 <span class="info-box-text">AdX Accounts</span>
@@ -186,13 +189,19 @@
                     <div class="col-md-12">
                         <div class="card dashboard-card">
                             <div class="card-header d-flex align-items-center justify-content-between">
-                                <h5 class="card-title mb-0">
-                                    <i class="bi bi-filter me-2"></i> ROI Filters
-                                </h5>
-                                <div class="d-flex align-items-center gap-2">
-                                    <label for="account-filter" class="me-2 mb-0">AdX Account: </label>&nbsp; &nbsp;
-                                    <select id="account-filter" class="form-select" style="min-width: 280px;"></select> &nbsp; &nbsp;
-                                    <small class="text-muted ms-2">Range: last 7 days</small>
+                                <div class="row w-100">
+                                    <!-- Kolom kiri -->
+                                    <div class="col-md-6 d-flex align-items-center">
+                                        <h5 class="card-title mb-0">
+                                            <i class="bi bi-filter me-2"></i> ROI Filters
+                                        </h5>
+                                    </div>
+                                    <!-- Kolom kanan -->
+                                    <div class="col-md-6 d-flex align-items-center justify-content-md-end gap-3 equal-group">
+                                        <label for="account-filter" class="mb-0">AdX Account:</label>
+                                        <select id="account-filter" class="form-select"></select>
+                                        <small class="text-muted">&nbsp;&nbsp; Range: last 7 days</small>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -261,47 +270,6 @@ async function fetchDashboardData() {
             return;
         }
         
-        if (!response.ok) {
-            // If not authenticated, use dummy data for testing
-            const dummyData = {
-                user_stats: {
-                    total_users: 25,
-                    active_users: 18,
-                    total_logins_7days: 45,
-                    activity_rate: 72.0
-                },
-                charts: {
-                    login_activity: {
-                        labels: ['20/01', '21/01', '22/01', '23/01', '24/01', '25/01', '26/01'],
-                        login_counts: [5, 8, 12, 6, 15, 9, 11],
-                        unique_users: [4, 6, 8, 5, 10, 7, 9]
-                    }
-                },
-                recent_logins: [
-                    {
-                        user_alias: 'John Doe',
-                        login_date: '2024-01-26 09:30:00',
-                        ip_address: '192.168.1.100',
-                        lokasi: 'Jakarta, Indonesia'
-                    },
-                    {
-                        user_alias: 'Jane Smith',
-                        login_date: '2024-01-26 08:45:00',
-                        ip_address: '192.168.1.101',
-                        lokasi: 'Bandung, Indonesia'
-                    },
-                    {
-                        user_alias: 'Bob Wilson',
-                        login_date: '2024-01-25 16:20:00',
-                        ip_address: '192.168.1.102',
-                        lokasi: 'Surabaya, Indonesia'
-                    }
-                ]
-            };
-            updateDashboard(dummyData);
-            return;
-        }
-        
         const result = await response.json();
         
         if (result.status) {
@@ -310,7 +278,7 @@ async function fetchDashboardData() {
             showError(result.error || 'Failed to load dashboard data');
         }
     } catch (error) {
-        showError('Network error: ' + error.message);
+
     }
 }
 
@@ -374,7 +342,7 @@ function populateAccountFilter(accounts, defaultMail) {
         jQuery(sel).select2({
             placeholder: '-- Pilih AdX Account --',
             theme: 'bootstrap4',
-            width: 'style',
+            width: '100%',
             allowClear: true
         });
     }
