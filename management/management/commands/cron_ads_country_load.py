@@ -14,7 +14,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument(
             '--tanggal', type=str, default=None,
-            help='Tanggal format YYYY-MM-DD. Jika tidak diisi, default: 7 hari terakhir.'
+            help='Tanggal format YYYY-MM-DD. Jika tidak diisi, default: hari ini.'
         )
         parser.add_argument(
             '--start', type=str, default=None,
@@ -29,26 +29,13 @@ class Command(BaseCommand):
             help='Filter sub-domain (nama campaign mengandung). Default: %'
         )
     def handle(self, *args, **kwargs):
-        tanggal = kwargs.get('tanggal')
-        start = kwargs.get('start')
-        end = kwargs.get('end')
         rs_account = data_mysql().master_account_ads()['data']
         total_insert = 0
         total_error = 0
-        # Tentukan tanggal (since/until) untuk insights
-        if start and end:
-            start_date = start
-            end_date = end
-        else:
-            if tanggal and tanggal != '%':
-                # Single hari sesuai --tanggal
-                start_date = tanggal
-                end_date = tanggal
-            else:
-                # Default: 7 hari terakhir (termasuk hari ini)
-                today_dt = datetime.now().date()
-                start_date = (today_dt - timedelta(days=6)).strftime('%Y-%m-%d')
-                end_date = today_dt.strftime('%Y-%m-%d')
+        # Default: hari ini
+        today_dt = datetime.now().date()
+        start_date = today_dt.strftime('%Y-%m-%d')
+        end_date = today_dt.strftime('%Y-%m-%d')
         # Hapus data existing pada rentang tanggal agar ditimpa data baru
         try:
             del_res = data_mysql().delete_data_ads_country_by_date_range(start_date, end_date)
@@ -65,7 +52,6 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(
                 f"Error saat menghapus data existing: {e}"
             ))
-
         for account_data in rs_account:
             try:
                 domain_filter = kwargs.get('domain')
@@ -168,11 +154,13 @@ class Command(BaseCommand):
                         self.stdout.write(self.style.ERROR(
                             f"Gagal insert baris negara untuk akun {account_data.get('account_name','Unknown')}: {ie}"
                         ))
+
             except Exception as e:
                 total_error += 1
                 self.stdout.write(self.style.ERROR(
                     f"Gagal memproses akun {account_data.get('account_name','Unknown')}: {e}"
                 ))
+
         self.stdout.write(self.style.SUCCESS(
             f"Selesai. Berhasil insert: {total_insert}, gagal: {total_error}."
         ))

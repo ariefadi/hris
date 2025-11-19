@@ -4,26 +4,21 @@ from management.database import data_mysql
 from management.utils import fetch_adx_traffic_account_by_user
 
 class Command(BaseCommand):
-    help = "Tarik dan simpan data Ad Manager (AdX) per tanggal & domain ke tabel data_adx untuk 7 hari kebelakang. Kredensial diambil dari app_credentials."
+    help = "Tarik dan simpan data Ad Manager (AdX) per tanggal & domain ke tabel data_adx untuk hari ini. Kredensial diambil dari app_credentials."
     def add_arguments(self, parser):
         parser.add_argument(
             '--tanggal',
             type=str,
             default='%',
-            help='Tanggal tunggal (YYYY-MM-DD). Jika tidak diisi, ambil 7 hari kebelakang termasuk hari ini.'
+            help='Tanggal tunggal (YYYY-MM-DD). Jika tidak diisi, ambil hari ini.'
         )
     def handle(self, *args, **kwargs):
-        tanggal = kwargs.get('tanggal')
-        # Hitung range tanggal: default 7 hari terakhir (termasuk hari ini)
-        if tanggal and tanggal != '%':
-            start_date = tanggal
-            end_date = tanggal
-        else:
-            today_dt = datetime.now().date()
-            start_date = (today_dt - timedelta(days=6)).strftime('%Y-%m-%d')
-            end_date = today_dt.strftime('%Y-%m-%d')
+        # range tanggal hari ini
+        today_dt = datetime.now().date()
+        start_date = today_dt.strftime('%Y-%m-%d')
+        end_date = today_dt.strftime('%Y-%m-%d')
         self.stdout.write(self.style.WARNING(
-            f"Menarik dan menyimpan AdX per domain untuk range {start_date} s/d {end_date} (7 hari)."
+            f"Menarik dan menyimpan AdX per domain untuk range {start_date} s/d {end_date}."
         ))
         db = data_mysql()
         # Bersihkan data existing untuk range agar idempotent
