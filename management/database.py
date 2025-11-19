@@ -34,14 +34,14 @@ class data_mysql:
             # Use the same port as Django (3306, not 3307)
             raw_port = os.getenv('HRIS_DB_PORT', '').strip()
             if not raw_port:
-                raw_port = '3306'
+                raw_port = '3307'
             try:
                 port = int(raw_port)
             except (ValueError, TypeError):
-                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3307 ")
-                port = 3306
+                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3307")
+                port = 3307
             user = os.getenv('HRIS_DB_USER', 'root')
-            password = os.getenv('HRIS_DB_PASSWORD', 'hris123456')
+            password = os.getenv('HRIS_DB_PASSWORD', '')
             database = os.getenv('HRIS_DB_NAME', 'hris_trendHorizone')
 
             self.db_hris = pymysql.connect(
@@ -745,10 +745,15 @@ class data_mysql:
 
     def data_account_ads_by_params(self):
         sql='''
-            SELECT a.account_ads_id, a.account_name, a.account_email, a.account_id, 
+            SELECT a.account_ads_id, a.account_name, c.total_data, a.account_email, a.account_id, 
             a.app_id, a.app_secret, a.access_token, b.user_alias AS 'pemilik_account', a.mdd
             FROM `master_account_ads` a
             LEFT JOIN app_users b ON a.account_owner = b.user_id
+            LEFT JOIN (
+            	SELECT account_ads_id, COUNT(*) AS 'total_data' 
+            	FROM master_ads
+            	GROUP BY account_ads_id
+            )c ON a.account_id = c.account_ads_id
             ORDER BY a.account_name ASC
         '''
         try:
