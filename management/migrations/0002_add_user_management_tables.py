@@ -24,7 +24,7 @@ class Migration(migrations.Migration):
                 PRIMARY KEY (`group_id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
             """,
-            reverse_sql="DROP TABLE IF EXISTS `app_group`"
+            # reverse_sql="DROP TABLE IF EXISTS `app_group`"
         ),
         
         # Create app_role table (requires app_group table to exist)
@@ -44,7 +44,7 @@ class Migration(migrations.Migration):
                 CONSTRAINT `app_role_ibfk_1` FOREIGN KEY (`group_id`) REFERENCES `app_group` (`group_id`) ON UPDATE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
             """,
-            reverse_sql="DROP TABLE IF EXISTS `app_role`"
+            # reverse_sql="DROP TABLE IF EXISTS `app_role`"
         ),
         
         # Create app_users table
@@ -66,7 +66,7 @@ class Migration(migrations.Migration):
                 PRIMARY KEY (`user_id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
             """,
-            reverse_sql="DROP TABLE IF EXISTS `app_users`"
+            # reverse_sql="DROP TABLE IF EXISTS `app_users`"
         ),
         
         # Create app_user_role table (requires app_role and app_users table to exist)
@@ -83,7 +83,7 @@ class Migration(migrations.Migration):
                 CONSTRAINT `app_user_role_ibfk_2` FOREIGN KEY (`role_id`) REFERENCES `app_role` (`role_id`) ON DELETE CASCADE ON UPDATE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=latin1
             """,
-            reverse_sql="DROP TABLE IF EXISTS `app_user_role`"
+            # reverse_sql="DROP TABLE IF EXISTS `app_user_role`"
         ),
         
         # Create app_user_login table
@@ -102,7 +102,7 @@ class Migration(migrations.Migration):
                 PRIMARY KEY (`login_id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
             """,
-            reverse_sql="DROP TABLE IF EXISTS `app_user_login`"
+            # reverse_sql="DROP TABLE IF EXISTS `app_user_login`"
         ),
         
         # Update app_oauth_credentials table to match the new schema (with conditional column additions)
@@ -181,7 +181,7 @@ class Migration(migrations.Migration):
                 PRIMARY KEY (`master_plan_id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
             """,
-            reverse_sql="DROP TABLE IF EXISTS `app_master_plan`"
+            # reverse_sql="DROP TABLE IF EXISTS `app_master_plan`"
         ),
         
         # Create sessions table
@@ -199,7 +199,7 @@ class Migration(migrations.Migration):
                 KEY `sessions_last_activity_index` (`last_activity`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci
             """,
-            reverse_sql="DROP TABLE IF EXISTS `sessions`"
+            # reverse_sql="DROP TABLE IF EXISTS `sessions`"
         ),
         
         # Create app_menu table
@@ -224,7 +224,7 @@ class Migration(migrations.Migration):
                 CONSTRAINT `app_menu_ibfk_1` FOREIGN KEY (`portal_id`) REFERENCES `app_portal` (`portal_id`) ON UPDATE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=latin1
             """,
-            reverse_sql="DROP TABLE IF EXISTS `app_menu`"
+            # reverse_sql="DROP TABLE IF EXISTS `app_menu`"
         ),
         
         # Create app_menu_role table (requires app_menu and app_role table to exist)
@@ -240,7 +240,7 @@ class Migration(migrations.Migration):
                 CONSTRAINT `app_menu_role_ibfk_2` FOREIGN KEY (`nav_id`) REFERENCES `app_menu` (`nav_id`) ON DELETE CASCADE ON UPDATE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=latin1
             """,
-            reverse_sql="DROP TABLE IF EXISTS `app_role_menu`"
+            # reverse_sql="DROP TABLE IF EXISTS `app_role_menu`"
         ),
         
         # Create app_portal table
@@ -265,7 +265,7 @@ class Migration(migrations.Migration):
                 PRIMARY KEY (`portal_id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=latin1
             """,
-            reverse_sql="DROP TABLE IF EXISTS `app_portal`"
+            # reverse_sql="DROP TABLE IF EXISTS `app_portal`"
         ),
 
         # migration for app_credentials table
@@ -287,6 +287,26 @@ class Migration(migrations.Migration):
                 PRIMARY KEY (`account_id`)
             ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
             """,
-            reverse_sql="DROP TABLE IF EXISTS `app_credentials`;"
+            # reverse_sql="DROP TABLE IF EXISTS `app_credentials`;"
+        ),
+
+        # create media partner table
+        migrations.RunSQL(
+            sql="""
+                CREATE TABLE `data_media_partner` (
+                `partner_id` int NOT NULL AUTO_INCREMENT,
+                `partner_name` varchar(100) DEFAULT NULL,
+                `partner_contact` varchar(20) DEFAULT NULL,
+                `partner_domain` varchar(255) DEFAULT NULL,
+                `partner_region` varchar(100) DEFAULT NULL,
+                `request_date` datetime DEFAULT NULL,
+                `pic` varchar(100) DEFAULT NULL,
+                `mdb` varchar(36) DEFAULT NULL,
+                `mdb_name` varchar(50) DEFAULT NULL,
+                `mdd` datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`partner_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+            """,
+            # reverse_sql="DROP TABLE IF EXISTS `data_media_partner`;"
         ),
     ]
