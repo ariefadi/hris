@@ -1,0 +1,22 @@
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=""
+
+APPDIR=/var/www/html/hris
+VENV=/var/www/html/hris/hris_env/bin/python3
+DJANGO_MANAGE="$VENV $APPDIR/manage.py"
+
+# Ads Master: setiap 6 jam
+0 */6 * * * root cd $APPDIR && flock -n /var/run/hris_ads_master.lock -c "$DJANGO_MANAGE cron_ads_master >> /var/log/hris/cron_ads_master.log 2>&1"
+
+# AdX Domain: setiap 30 menit
+*/30 * * * * root cd $APPDIR && flock -n /var/run/hris_adx_domain.lock -c "$DJANGO_MANAGE cron_adx_domain >> /var/log/hris/cron_adx_domain.log 2>&1"
+
+# AdX Country: setiap 30 menit
+*/30 * * * * root cd $APPDIR && flock -n /var/run/hris_adx_country.lock -c "$DJANGO_MANAGE cron_adx_country >> /var/log/hris/cron_adx_country.log 2>&1"
+
+# Ads Campaign: setiap 30 menit
+*/30 * * * * root cd $APPDIR && flock -n /var/run/hris_ads_campaign.lock -c "$DJANGO_MANAGE cron_ads_campaign >> /var/log/hris/cron_ads_campaign.log 2>&1"
+
+# Ads Country: setiap 30 menit
+*/30 * * * * root cd $APPDIR && flock -n /var/run/hris_ads_country.lock -c "$DJANGO_MANAGE cron_ads_country >> /var/log/hris/cron_ads_country.log 2>&1"

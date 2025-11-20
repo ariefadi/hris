@@ -49,13 +49,55 @@ $().ready(function () {
         var data_account = selected_account ? selected_account : '%';
         var selected_sub_domain = $('#select_sub_domain').val() || '%';
         var data_sub_domain = selected_sub_domain ? selected_sub_domain : '%';
-        if(tanggal && tanggal !== '' && data_account!="" && data_sub_domain!="")
-        {
+        if(tanggal && tanggal !== '' && data_account!="") {
+            loadSitesList();
             destroy_table_data_per_account_facebook()
             table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
         }    
     });
 });
+
+function loadSitesList() {
+    var selectedAccounts = $("#select_account").val() || "";
+    // Simpan pilihan domain yang sudah dipilih sebelumnya
+    var previouslySelected = $("#select_sub_domain").val() || [];
+    $.ajax({
+        url: '/management/admin/ads_sites_list',
+        type: 'GET',
+        dataType: 'json',
+        data: {
+            'selected_accounts': selectedAccounts
+        },
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+        },
+        success: function (response) {
+            if (response.status) {
+                var select_site = $("#select_sub_domain");
+                select_site.empty();
+                // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
+                var validPreviousSelections = [];
+                $.each(response.data, function (index, site) {
+                    var isSelected = previouslySelected.includes(site);
+                    if (isSelected) {
+                        validPreviousSelections.push(site);
+                    }
+                    select_site.append(new Option(site, site, false, isSelected));
+                });
+                // Set nilai yang dipilih kembali
+                if (validPreviousSelections.length > 0) {
+                    select_site.val(validPreviousSelections);
+                }
+                select_site.trigger('change');
+            }
+        },
+        error: function (xhr, status, error) {
+            report_eror(xhr, status);
+        }
+    });
+}
+
 function table_data_per_account_facebook(tanggal, data_account, data_sub_domain) {
     $.ajax({
         url: '/management/admin/page_per_account_facebook?tanggal='+tanggal+'&data_account='+data_account+'&data_sub_domain='+data_sub_domain,

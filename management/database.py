@@ -34,14 +34,14 @@ class data_mysql:
             # Use the same port as Django (3306, not 3307)
             raw_port = os.getenv('HRIS_DB_PORT', '').strip()
             if not raw_port:
-                raw_port = '3306'
+                raw_port = '3307'
             try:
                 port = int(raw_port)
             except (ValueError, TypeError):
-                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306 ")
-                port = 3306
+                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3307")
+                port = 3307
             user = os.getenv('HRIS_DB_USER', 'root')
-            password = os.getenv('HRIS_DB_PASSWORD', 'hris123456')
+            password = os.getenv('HRIS_DB_PASSWORD', '')
             database = os.getenv('HRIS_DB_NAME', 'hris_trendHorizone')
 
             self.db_hris = pymysql.connect(
@@ -57,6 +57,7 @@ class data_mysql:
         except pymysql.Error as e:
             print(f"Error connecting to database: {e}")
             return False
+            
 
     def ensure_connection(self):
         """Memastikan koneksi database masih aktif"""
@@ -122,7 +123,7 @@ class data_mysql:
                 LIMIT 1
               """
         try:
-            _log_debug(f"[LOGIN_DEBUG] Attempting login for username={data.get('username')} from DB host={os.getenv('DB_HOST','127.0.0.1')} port={os.getenv('HRIS_DB_PORT','3306')} db={os.getenv('HRIS_DB_NAME','hris_trendHorizone')}")
+            _log_debug(f"[LOGIN_DEBUG] Attempting login for username={data.get('username')} from DB host={os.getenv('DB_HOST','127.0.0.1')} port={os.getenv('HRIS_DB_PORT','3307')} db={os.getenv('HRIS_DB_NAME','hris_trendHorizone')}")
             if not self.execute_query(sql, (data['username'],)):
                 raise pymysql.Error("Failed to execute login query")
             row = self.cur_hris.fetchone()
@@ -744,10 +745,15 @@ class data_mysql:
 
     def data_account_ads_by_params(self):
         sql='''
-            SELECT a.account_ads_id, a.account_name, a.account_email, a.account_id, 
+            SELECT a.account_ads_id, a.account_name, c.total_data, a.account_email, a.account_id, 
             a.app_id, a.app_secret, a.access_token, b.user_alias AS 'pemilik_account', a.mdd
             FROM `master_account_ads` a
             LEFT JOIN app_users b ON a.account_owner = b.user_id
+            LEFT JOIN (
+            	SELECT account_ads_id, COUNT(*) AS 'total_data' 
+            	FROM master_ads
+            	GROUP BY account_ads_id
+            )c ON a.account_id = c.account_ads_id
             ORDER BY a.account_name ASC
         '''
         try:
@@ -933,7 +939,7 @@ class data_mysql:
             SELECT a.account_ads_id, a.account_name, a.account_email, a.account_id, 
             a.app_id, a.app_secret, a.access_token
             FROM `master_account_ads` a
-            WHERE a.account_ads_id = %s
+            WHERE a.account_id = %s
         '''
         try:
             self.cur_hris.execute(sql,(
@@ -1287,7 +1293,7 @@ class data_mysql:
                 'message': f'Database error: {str(e)}'
             }
 
-# CRON JOB
+    # CRON JOB
     def insert_data_master_ads(self, data):
         try:
             sql_insert = """
@@ -1903,7 +1909,72 @@ class data_mysql:
                 "error": f"Terjadi error {e!r}, error nya {e.args[0]}"
             }
 
-    def get_all_ads_traffic_campaign_by_params(self, data_account, tanggal_dari, tanggal_sampai, data_sub_domain = None):   
+    def fetch_ads_sites_list(self, ads_id):
+        try:
+            base_sql = [
+                "SELECT",
+                "\tDISTINCT data_ads_domain AS 'site_name'",
+                "FROM",
+                "\tdata_ads_campaign",
+                "WHERE account_ads_id = %s",
+            ]
+            params = [ads_id]
+            if not self.execute_query("\n".join(base_sql), tuple(params)):
+                raise pymysql.Error("Failed to get ads sites list by params")
+            data_rows = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get ads sites list by params")
+            hasil = {
+                "status": True,
+                "message": "Data ads traffic campaign berhasil diambil",
+                "data": [row['site_name'] for row in data_rows]
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                "error": f"Terjadi error {e!r}, error nya {e.args[0]}"
+            }
+        return {'hasil': hasil}
+
+    def fetch_country_ads_list(self, data_account, tanggal_dari, tanggal_sampai):
+        try:
+            base_sql = [
+                "SELECT",
+                "\tdata_ads_country_cd AS 'country_code',",
+                "\tdata_ads_country_nm AS 'country_name'",
+                "FROM",
+                "\tdata_ads_country",
+                "WHERE account_ads_id = %s",
+                "AND data_ads_country_tanggal BETWEEN %s AND %s",
+                "GROUP BY data_ads_country_cd, data_ads_country_nm",
+                "ORDER BY data_ads_country_nm ASC",
+            ]
+            params = [data_account, tanggal_dari, tanggal_sampai]
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get all country list by params")
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get all country list by params")
+            hasil = {
+                "status": True,
+                "message": "Data country list berhasil diambil",
+                "data": data
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                "data": f"Terjadi error {e!r}, error nya {e.args[0]}"
+            }
+        except Exception as e:
+            hasil = {
+                "status": "error",
+                "message": "Gagal mengambil data negara.",
+                "error": str(e)
+            }
+        return {"hasil": hasil}
+
+    def get_all_ads_domain_by_active(self, data_account, tanggal_dari, tanggal_sampai, data_sub_domain = None):   
         try:
             base_sql = [
                 "SELECT",
@@ -1951,7 +2022,62 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def get_all_ads_traffic_country_by_params(self, data_account, tanggal_dari, tanggal_sampai, data_sub_domain, countries_list):
+    def get_all_ads_traffic_campaign_by_params(self, data_account, tanggal_dari, tanggal_sampai, data_sub_domain = None):   
+        try:
+            base_sql = [
+                "SELECT",
+                "\ta.account_id, a.account_name, a.account_email,",
+                "\tb.data_ads_tanggal AS 'date',",
+                "\tb.data_ads_domain AS 'domain',",
+                "\tb.data_ads_campaign_nm AS 'campaign',",
+                "\tb.data_ads_spend AS 'spend',",
+                "\tb.data_ads_impresi AS 'impressions',",
+                "\tb.data_ads_click AS 'clicks',",
+                "\tb.data_ads_reach AS 'reach',",
+                "\tb.data_ads_cpr AS 'cpr',",
+                "\tb.data_ads_cpc AS 'cpc'",
+                "FROM",
+                "\tmaster_account_ads a",
+                "INNER JOIN data_ads_campaign b ON a.account_id = b.account_ads_id",
+                "WHERE a.account_id = %s",
+                "AND b.data_ads_tanggal BETWEEN %s AND %s",
+            ]
+
+            params = [data_account, tanggal_dari, tanggal_sampai]
+
+            # Tangani filter domain: jika None/kosong/list, gunakan wildcard '%'
+            sites_list = []
+            if data_sub_domain:
+                if isinstance(data_sub_domain, str):
+                    sites_list = [s.strip() for s in data_sub_domain.split(',') if s.strip()]
+                elif isinstance(data_sub_domain, (list, tuple)):
+                    sites_list = [str(s).strip() for s in data_sub_domain if str(s).strip()]
+        
+            if sites_list:
+                placeholders = ','.join(['%s'] * len(sites_list))
+                base_sql.append(f"AND b.data_ads_domain IN ({placeholders})")
+                params.extend(sites_list)
+
+            base_sql.append("ORDER BY b.data_ads_domain ASC, b.data_ads_tanggal ASC")
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get all adx traffic account by params")
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get all adx traffic account by params")
+            hasil = {
+                "status": True,
+                "message": "Data ads traffic campaign berhasil diambil",
+                "data": data
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+
+    def get_all_ads_traffic_country_by_params(self, data_account, tanggal_dari, tanggal_sampai, data_sub_domain = None, countries_list = None):
         try:
             sql_parts = [
                 "SELECT",
@@ -1975,12 +2101,22 @@ class data_mysql:
                 "\t\tb.data_ads_country_reach AS 'reach'",
                 "\tFROM master_account_ads a",
                 "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
-                "\tWHERE a.account_ads_id = %s",
+                "\tWHERE a.account_id = %s",
                 "\tAND b.data_ads_country_tanggal BETWEEN %s AND %s",
-                "\tAND b.data_ads_domain LIKE %s",
             ]
-
-            params = [data_account, tanggal_dari, tanggal_sampai, f"%{data_sub_domain}%"]
+            params = [data_account, tanggal_dari, tanggal_sampai]
+            # Tangani filter domain: jika None/kosong/list, gunakan wildcard '%'
+            sites_list = []
+            if data_sub_domain:
+                if isinstance(data_sub_domain, str):
+                    sites_list = [s.strip() for s in data_sub_domain.split(',') if s.strip()]
+                elif isinstance(data_sub_domain, (list, tuple)):
+                    sites_list = [str(s).strip() for s in data_sub_domain if str(s).strip()]
+            
+            if sites_list:
+                placeholders = ','.join(['%s'] * len(sites_list))
+                sql_parts.append(f"AND b.data_ads_domain IN ({placeholders})")
+                params.extend(sites_list)
             # Normalize countries_list and apply country code filter
             country_codes = []
             if countries_list:

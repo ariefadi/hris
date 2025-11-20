@@ -49,7 +49,9 @@ urlpatterns = [
     path('admin/get_countries_facebook_ads', views.get_countries_facebook_ads, name='get_countries_facebook_ads'),
     # Cache Management
     path('admin/cache_stats', views.CacheStatsView.as_view(), name='cache_stats'),
-    
+    path('admin/ads_sites_list', views.AdsSitesListView.as_view(), name='ads_sites_list'),
+
+
     # MENU ADX MANAGER
     # Menu AdX Summary
     path('admin/adx_summary', views.AdxSummaryView.as_view(), name='adx_summary'),

@@ -36,17 +36,14 @@
                 <select class="form-control select2" id="select_account">
                     <option value=""></option>
                     {% for data_account in data_account %}
-                    <option value="{{data_account.account_ads_id}}">{{data_account.account_name|upper}}</option>
+                    <option value="{{data_account.account_id}}">{{data_account.account_name|upper}}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="col-md-3">
                 <label>Filter Domain</label>
-                <select class="form-control select2" id="select_domain">
-                    <option value=""></option>
-                    {% for data_campaign in data_campaign %}
-                    <option value="{{data_campaign.campaign_name}}">{{data_campaign.campaign_name|upper}}</option>
-                    {% endfor %}
+                <select class="form-control select2-multiple" id="select_sub_domain" multiple>
+                    <!-- Options akan diisi secara dinamis oleh JavaScript -->
                 </select>
             </div>
             <div class="col-md-3">

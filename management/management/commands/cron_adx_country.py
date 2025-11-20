@@ -2,36 +2,30 @@ from django.core.management.base import BaseCommand
 from datetime import datetime, timedelta, date
 from management.database import data_mysql
 from management.utils import fetch_adx_traffic_per_country
-
 class Command(BaseCommand):
-    help = "Tarik dan simpan data Ad Manager (AdX) per negara ke data_adx, default 3 hari terakhir. Kredensial diambil dari app_credentials."
-
+    help = "Tarik dan simpan data Ad Manager (AdX) per negara ke data_adx, default 7 hari terakhir. Kredensial diambil dari app_credentials."
     def add_arguments(self, parser):
         parser.add_argument(
             '--tanggal',
             type=str,
             default='%',
-            help='Tanggal tunggal (YYYY-MM-DD) atau kosong untuk default 3 hari terakhir.'
+            help='Tanggal tunggal (YYYY-MM-DD) atau kosong untuk default 7 hari terakhir.'
         )
 
     def handle(self, *args, **kwargs):
         tanggal = kwargs.get('tanggal')
-
-        # Hitung range tanggal: default 3 hari terakhir (termasuk hari ini)
+        # Hitung range tanggal: default 7 hari terakhir (termasuk hari ini)
         if tanggal and tanggal != '%':
             start_date = tanggal
             end_date = tanggal
         else:
             today_dt = datetime.now().date()
-            start_date = (today_dt - timedelta(days=2)).strftime('%Y-%m-%d')
+            start_date = (today_dt - timedelta(days=6)).strftime('%Y-%m-%d')
             end_date = today_dt.strftime('%Y-%m-%d')
-
         self.stdout.write(self.style.WARNING(
-            f"Menarik dan menyimpan AdX per negara untuk range {start_date} s/d {end_date} (3 hari)."
+            f"Menarik dan menyimpan AdX per negara untuk range {start_date} s/d {end_date} (7 hari)."
         ))
-
         db = data_mysql()
-
         # Bersihkan data existing untuk range agar idempotent
         try:
             del_res = db.delete_data_adx_country_by_date_range(start_date, end_date)
@@ -46,7 +40,6 @@ class Command(BaseCommand):
                 ))
         except Exception as e:
             self.stdout.write(self.style.ERROR(f"Error saat menghapus data existing AdX: {e}"))
-
         # Ambil semua kredensial dari app_credentials
         creds = db.get_all_app_credentials()
         if not creds.get('status'):
@@ -57,27 +50,22 @@ class Command(BaseCommand):
         if not rows:
             self.stdout.write(self.style.ERROR("Tidak ada kredensial aktif di app_credentials."))
             return
-
         total_insert = 0
         total_error = 0
-
         # Loop per hari agar data per tanggal tersimpan akurat
         start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
         end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
         day_count = (end_dt - start_dt).days + 1
-
         for i in range(day_count):
             day_dt = start_dt + timedelta(days=i)
             day_str = day_dt.strftime('%Y-%m-%d')
             self.stdout.write(self.style.SUCCESS(f"Proses tanggal: {day_str}"))
-
             for cred in rows:
                 try:
                     user_mail = cred.get('user_mail')
                     account_name = cred.get('account_name')
                     if not user_mail:
                         continue
-
                     # Ambil data AdX per negara untuk 1 hari (start=end)
                     res = fetch_adx_traffic_per_country(day_dt, day_dt, user_mail, selected_sites=None, countries_list=None)
                     if not res or not res.get('status'):
@@ -86,7 +74,6 @@ class Command(BaseCommand):
                             f"Gagal fetch AdX untuk {user_mail} ({account_name}): {res.get('error') if isinstance(res, dict) else 'Unknown error'}"
                         ))
                         continue
-
                     for item in res.get('data', []):
                         try:
                             # Map dan hitung metrik sesuai schema data_adx
@@ -96,7 +83,6 @@ class Command(BaseCommand):
                             # Gunakan nilai turunan dari utils bila ada
                             cpc = float(item.get('cpc', 0.0) or (revenue / clicks if clicks > 0 else 0.0))
                             cpm = float(item.get('ecpm', 0.0) or (revenue / impressions * 1000 if impressions > 0 else 0.0))
-
                             record = {
                                 'account_id': cred.get('account_id') or '',
                                 'data_adx_country_tanggal': day_str,
@@ -131,7 +117,6 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.ERROR(
                         f"Gagal memproses kredensial {cred.get('user_mail','Unknown')}: {e}"
                     ))
-
         self.stdout.write(self.style.SUCCESS(
             f"Selesai. Berhasil insert: {total_insert}, gagal: {total_error}."
         ))

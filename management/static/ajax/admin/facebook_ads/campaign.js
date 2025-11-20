@@ -22,23 +22,23 @@ $().ready(function () {
         }
         alert(msg);
     };
-    
+
     // Set default tanggal hari ini
     var today = new Date();
-    var todayString = today.getFullYear() + '-' + 
-                     String(today.getMonth() + 1).padStart(2, '0') + '-' + 
-                     String(today.getDate()).padStart(2, '0');
+    var todayString = today.getFullYear() + '-' +
+        String(today.getMonth() + 1).padStart(2, '0') + '-' +
+        String(today.getDate()).padStart(2, '0');
     $('#tanggal_dari').val(todayString);
     $('#tanggal_sampai').val(todayString);
     $('#tanggal_dari').datepicker({
-      format: 'yyyy-mm-dd',
-      autoclose: true,
-      todayHighlight: true
+        format: 'yyyy-mm-dd',
+        autoclose: true,
+        todayHighlight: true
     });
     $('#tanggal_sampai').datepicker({
-      format: 'yyyy-mm-dd',
-      autoclose: true,
-      todayHighlight: true
+        format: 'yyyy-mm-dd',
+        autoclose: true,
+        todayHighlight: true
     });
     $('#select_account').select2({
         placeholder: '-- Pilih Account --',
@@ -62,17 +62,59 @@ $().ready(function () {
         var data_account = selected_account ? selected_account : '%';
         var selected_sub_domain = $('#select_sub_domain').val() || '%';
         var data_sub_domain = selected_sub_domain ? selected_sub_domain : '%';
-        if(tanggal_dari !== '' && tanggal_sampai !== '' && data_account!="" && data_sub_domain!="")
-        {
+        if (tanggal_dari !== '' && tanggal_sampai !== '' && data_account != "") {
+            loadSitesList();
             destroy_table_data_campaign_facebook()
             table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account, data_sub_domain)
-        }    
+        }
     });
 });
 
+function loadSitesList() {
+    var selectedAccounts = $("#select_account").val() || "";
+    console.log(selectedAccounts);
+    // Simpan pilihan domain yang sudah dipilih sebelumnya
+    var previouslySelected = $("#select_sub_domain").val() || [];
+    $.ajax({
+        url: '/management/admin/ads_sites_list',
+        type: 'GET',
+        dataType: 'json',
+        data: {
+            'selected_accounts': selectedAccounts
+        },
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+        },
+        success: function (response) {
+            if (response.status) {
+                var select_site = $("#select_sub_domain");
+                select_site.empty();
+                // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
+                var validPreviousSelections = [];
+                $.each(response.data, function (index, site) {
+                    var isSelected = previouslySelected.includes(site);
+                    if (isSelected) {
+                        validPreviousSelections.push(site);
+                    }
+                    select_site.append(new Option(site, site, false, isSelected));
+                });
+                // Set nilai yang dipilih kembali
+                if (validPreviousSelections.length > 0) {
+                    select_site.val(validPreviousSelections);
+                }
+                select_site.trigger('change');
+            }
+        },
+        error: function (xhr, status, error) {
+            report_eror(xhr, status);
+        }
+    });
+}
+
 function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account, data_sub_domain) {
     $.ajax({
-        url: '/management/admin/page_per_campaign_facebook?tanggal_dari='+tanggal_dari+'&tanggal_sampai='+tanggal_sampai+'&data_account='+data_account+'&data_sub_domain='+data_sub_domain,
+        url: '/management/admin/page_per_campaign_facebook?tanggal_dari=' + tanggal_dari + '&tanggal_sampai=' + tanggal_sampai + '&data_account=' + data_account + '&data_sub_domain=' + data_sub_domain,
         method: 'GET',
         dataType: 'json',
         beforeSend: function () {
@@ -91,14 +133,14 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 var event_data = '<tr>';
                 event_data += '<td class="text-left" style="font-size: 12px;"><span class="badge badge-info" style="color: white;">' + value.account_name + '</span></td>';
                 event_data += '<td class="text-left" style="font-size: 12px;"><span class="badge badge-danger" style="color: white;">' + value.campaign_name + '</span></td>';
-                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.spend).replace(/\B(?=(\d{3})+(?!\d))/g, ".") +  '</td>';
-                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.impressions).replace(/\B(?=(\d{3})+(?!\d))/g, ".") +  '</td>';
-                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.reach).replace(/\B(?=(\d{3})+(?!\d))/g, ".") +  '</td>';
-                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.clicks).replace(/\B(?=(\d{3})+(?!\d))/g, ".") +  '</td>';
-                event_data += '<td class="text-right" style="font-size: 12px;">' + formattedFrequency +  ' %</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.spend).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.impressions).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.reach).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.clicks).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + formattedFrequency + ' %</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + cpr + '</td>';
-                event_data += '</tr>';  
-                $("#table_data_campaign_facebook tbody").append(event_data);    
+                event_data += '</tr>';
+                $("#table_data_campaign_facebook tbody").append(event_data);
             })
             $.each(data_campaign.total_campaign, function (index, value) {
                 // Spend
@@ -127,7 +169,7 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 $('#total_frequency').text(totalFrequency);
                 $('#total_cpr').text(totalCpr);
             })
-            $('#table_data_campaign_facebook').DataTable({  
+            $('#table_data_campaign_facebook').DataTable({
                 "paging": true,
                 "pageLength": 50,
                 "lengthChange": true,
@@ -143,13 +185,13 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                         text: 'Download Excel',
                         title: judul,
                         messageTop: "laporan traffic per campaign facebook didownload pada "
-                                    +tanggal.getHours()+":"
-                                    +tanggal.getMinutes()+" "
-                                    +tanggal.getDate()+"-"
-                                    +(tanggal.getMonth()+1)+"-"
-                                    +tanggal.getFullYear(),
+                            + tanggal.getHours() + ":"
+                            + tanggal.getMinutes() + " "
+                            + tanggal.getDate() + "-"
+                            + (tanggal.getMonth() + 1) + "-"
+                            + tanggal.getFullYear(),
                         exportOptions: {
-                            columns: ':visible', 
+                            columns: ':visible',
                             columns: [0, 1, 2, 3, 4, 5, 6],      // hanya kolom yang terlihat
                             modifier: {
                                 search: 'applied',      // sesuai filter pencarian
@@ -169,23 +211,23 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                                     `<col min="${i + 1}" max="${i + 1}" width="${colWidths[i]}" customWidth="1"/>`
                                 );
                             }
-                            
+
                         }
                     },
                     {
                         extend: 'pdf',
                         orientation: 'landscape',
-                        pageSize: 'A4', 
+                        pageSize: 'A4',
                         filename: judul,
                         text: 'Download Pdf',
                         className: 'btn btn-warning',
                         title: judul,
                         messageBottom: "laporan traffic per campaign facebook didownload pada "
-                                    +tanggal.getHours()+":"
-                                    +tanggal.getMinutes()
-                                    +" "+tanggal.getDate()
-                                    +"-"+(tanggal.getMonth()+1)
-                                    +"-"+tanggal.getFullYear(),
+                            + tanggal.getHours() + ":"
+                            + tanggal.getMinutes()
+                            + " " + tanggal.getDate()
+                            + "-" + (tanggal.getMonth() + 1)
+                            + "-" + tanggal.getFullYear(),
                         customize: function (doc) {
                             // Header style (bold + center)
                             doc.styles.tableHeader = {
@@ -238,7 +280,7 @@ function getCookie(name) {
 }
 const csrftoken = getCookie('csrftoken');
 
-function destroy_table_data_campaign_facebook(){
+function destroy_table_data_campaign_facebook() {
     $('#table_data_campaign_facebook').dataTable().fnClearTable();
     $('#table_data_campaign_facebook').dataTable().fnDraw();
     $('#table_data_campaign_facebook').dataTable().fnDestroy();
