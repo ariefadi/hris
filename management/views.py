@@ -84,14 +84,11 @@ from .utils import (
     fetch_data_all_insights_total,
     fetch_data_insights_account_range,
     fetch_data_insights_account,
-    fetch_data_insights_account_filter_all,
     fetch_daily_budget_per_campaign,
     fetch_status_per_campaign,
     fetch_data_insights_campaign_filter_sub_domain,
     fetch_data_insights_campaign_filter_account,
-    fetch_data_country_facebook_ads,
     fetch_data_insights_by_country_filter_campaign,
-    fetch_data_insights_by_country_filter_account,
     fetch_user_sites_list,
     fetch_ad_manager_reports,
     fetch_ad_manager_inventory,
@@ -100,9 +97,6 @@ from .utils import (
     fetch_adx_account_data,
     fetch_data_insights_all_accounts_by_subdomain,
     fetch_adx_traffic_per_country,
-    fetch_roi_per_country,
-    fetch_data_insights_by_country_filter_campaign_roi,
-    fetch_data_insights_by_date_subdomain_roi,
     # cache helpers
     generate_cache_key,
     get_cached_data,
@@ -286,7 +280,8 @@ class OAuthRedirectView(View):
             'user_name': user_data['data'][0]['user_name'],
             'user_pass': '',  # Kosong untuk OAuth login
             'user_alias': user_data['data'][0]['user_alias'],
-            'user_mail': user_data['data'][0]['user_mail']  # Tambahkan user_mail ke session
+            'user_mail': user_data['data'][0]['user_mail'],  # Tambahkan user_mail ke session
+            'super_st': user_data['data'][0]['super_st']  # Tambahkan superadmin ke session
         }
         # Set default active portal on first login
         try:
@@ -426,7 +421,8 @@ class LoginProcess(View):
                     'user_name': rs_data['data']['user_name'],
                     'user_pass': '',
                     'user_alias': rs_data['data']['user_alias'],
-                    'user_mail': rs_data['data']['user_mail']  # Tambahkan user_mail ke session
+                    'user_mail': rs_data['data']['user_mail'],  # Tambahkan user_mail ke session
+                    'super_st': rs_data['data']['super_st']  # Tambahkan superadmin ke session
                 }
                 req.session['hris_admin'] = user_data
                 try:
@@ -774,12 +770,10 @@ class DashboardAdmin(View):
             user_mail = req.session.get('hris_admin', {}).get('user_mail')
         except Exception:
             user_mail = None
-
         oauth_banner = {
             'show': False,
             'message': None
         }
-
         if user_mail:
             try:
                 from management.oauth_utils import get_user_oauth_status
@@ -1754,8 +1748,11 @@ class AdxSummaryView(View):
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
-        data_account_adx = data_mysql().get_all_adx_account_data()
-        print(f"DEBUG - Raw AdX Account Data: {data_account_adx}")
+        admin = req.session.get('hris_admin', {})
+        if admin.get('super_st') == '0':
+            data_account_adx = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+        else:
+            data_account_adx = data_mysql().get_all_adx_account_data()
         if not data_account_adx['status']:
             return JsonResponse({
                 'status': False,
@@ -1999,6 +1996,7 @@ class AdxAccountView(View):
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
         # Siapkan banner otorisasi OAuth jika token belum ada
+        admin = req.session.get('hris_admin', {})
         try:
             user_mail = req.session.get('hris_admin', {}).get('user_mail')
         except Exception:
@@ -2020,19 +2018,26 @@ class AdxAccountView(View):
             except Exception:
                 # Jika gagal cek status, sembunyikan banner agar halaman tetap tampil
                 pass
-        data_account_adx = data_mysql().get_all_adx_account_data()
+        if admin.get('super_st') == '0':
+            data_account_adx = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+            result = data_mysql().get_all_app_credentials_user(admin.get('user_id'))
+        else:
+            data_account_adx = data_mysql().get_all_adx_account_data()
+            result = data_mysql().get_all_app_credentials()
         if not data_account_adx['status']:
             return JsonResponse({
                 'status': False,
                 'error': data_account_adx['data']
             })
-        # Ambil data dari tabel app_credentials
-        db = data_mysql()
-        result = db.get_all_app_credentials()
         if result.get('status'):
             credentials_data = result.get('data', [])
         else:
             credentials_data = []
+        rs_users = data_mysql().data_user_by_params()
+        if rs_users.get('status'):
+            rs_users = rs_users.get('data', [])
+        else:
+            rs_users = []
         # Tampilkan pesan sukses jika baru selesai OAuth
         oauth_success_msg = None
         if req.session.get('oauth_added_success'):
@@ -2047,6 +2052,7 @@ class AdxAccountView(View):
         data = {
             'title': 'AdX Account Data',
             'user': req.session['hris_admin'],
+            'rs_users': rs_users,
             'data_account_adx': data_account_adx['data'],
             'credentials_data': credentials_data,
             'total_accounts': len(credentials_data),
@@ -2319,7 +2325,11 @@ class AdxTrafficPerAccountView(View):
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
-        data_account_adx = data_mysql().get_all_adx_account_data()
+        admin = req.session.get('hris_admin', {})
+        if admin.get('super_st') == '0':
+            data_account_adx = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+        else:
+            data_account_adx = data_mysql().get_all_adx_account_data()
         if not data_account_adx['status']:
             return JsonResponse({
                 'status': False,
@@ -2854,7 +2864,11 @@ class AdxTrafficPerCountryView(View):
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
-        data_account_adx = data_mysql().get_all_adx_account_data()
+        admin = req.session.get('hris_admin', {})
+        if admin.get('super_st') == '0':
+            data_account_adx = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+        else:
+            data_account_adx = data_mysql().get_all_adx_account_data()
         if not data_account_adx['status']:
             return JsonResponse({
                 'status': False,
@@ -2978,7 +2992,11 @@ class RoiTrafficPerCountryView(View):
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
-        data_account_adx = data_mysql().get_all_adx_account_data()
+        admin = req.session.get('hris_admin', {})
+        if admin.get('super_st') == '0':
+            data_account_adx = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+        else:
+            data_account_adx = data_mysql().get_all_adx_account_data()
         if not data_account_adx['status']:
             return JsonResponse({
                 'status': False,
@@ -3012,15 +3030,26 @@ class RoiTrafficPerCountryDataView(View):
         return super().dispatch(request, *args, **kwargs)
     
     def get(self, req):
-        start_date = req.GET.get('start_date')
-        end_date = req.GET.get('end_date')
+        start_date_str = req.GET.get('start_date')
+        end_date_str = req.GET.get('end_date')
+        count_date = int((datetime.strptime(end_date_str, '%Y-%m-%d') - datetime.strptime(start_date_str, '%Y-%m-%d')).days)
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+        end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+        start_date_last = start_date - timedelta(days=(count_date+1))
+        end_date_last = start_date_last + timedelta(days=(count_date))
+        # fix date
+        start_date_str = start_date.strftime("%Y-%m-%d")
+        end_date_str = end_date.strftime("%Y-%m-%d")
+        start_date_last_str = start_date_last.strftime("%Y-%m-%d")
+        end_date_last_str = end_date_last.strftime("%Y-%m-%d")
+        print(f"[DEBUG ROI] Request params - start_date: {start_date_str}, end_date: {end_date_str}, start_date_last: {start_date_last_str}, end_date_last: {end_date_last_str}")
         selected_account_adx = req.GET.get('selected_account_adx', '')
         selected_sites = req.GET.get('selected_sites', '')
         selected_account = req.GET.get('selected_account', '')
         selected_countries = req.GET.get('selected_countries', '')
         try:
             # Validasi parameter tanggal terlebih dahulu
-            if not start_date or not end_date:
+            if not start_date_str or not end_date_str:
                 return JsonResponse({
                     'status': False,
                     'error': 'Parameter tanggal tidak lengkap'
@@ -3037,7 +3066,7 @@ class RoiTrafficPerCountryDataView(View):
             if not selected_sites or not selected_sites.strip():
                 try:
                     # sites_result = fetch_user_sites_list(selected_account_adx or req.session.get('hris_admin', {}).get('user_mail'))
-                    sites_result = data_mysql().fetch_user_sites_list(selected_account_adx or req.session.get('hris_admin', {}).get('user_mail'), start_date, end_date)
+                    sites_result = data_mysql().fetch_user_sites_list(selected_account_adx or req.session.get('hris_admin', {}).get('user_mail'), start_date_str, end_date_str)
                     if sites_result['hasil']['data']:
                         sites_for_fb = sites_result['hasil']['data']
                     else:
@@ -3049,8 +3078,8 @@ class RoiTrafficPerCountryDataView(View):
             effective_sites_key = selected_sites if (selected_sites and selected_sites.strip()) else (','.join(sites_for_fb) if sites_for_fb else '')
             response_cache_key = generate_cache_key(
                 'roi_country_response',
-                start_date,
-                end_date,
+                start_date_str,
+                end_date_str,
                 selected_account_adx or '',
                 effective_sites_key,
                 selected_account or '',
@@ -3074,8 +3103,8 @@ class RoiTrafficPerCountryDataView(View):
                     adx_future = executor.submit(
                         data_mysql().get_all_adx_traffic_country_by_params,
                         user_mail,
-                        start_date,
-                        end_date,
+                        start_date_str,
+                        end_date_str,
                         selected_sites,
                         countries_list
                     )
@@ -3097,24 +3126,24 @@ class RoiTrafficPerCountryDataView(View):
                         unique_name_site = list(set(extracted_names))
                     fb_future = executor.submit(
                         data_mysql().get_all_ads_roi_traffic_country_by_params,
-                        start_date,
-                        end_date,
+                        start_date_str,
+                        end_date_str,
                         unique_name_site,
                         countries_list
                     )
-                    print(f"fb_data_ok: {fb_future.result()}")
                     data_adx = adx_future.result()
                     try:
                         # Hapus timeout: tunggu hingga FB selesai agar data lengkap
                         data_facebook = fb_future.result()
                     except Exception as e:
-                        print(f"[DEBUG] Facebook fetch failed: {e}; continue with AdX-only result")
                         data_facebook = None
             else:
                 # Filter Domain kosong: tampilkan data semua domain dari akun AdX terpilih
                 data_adx = data_mysql().get_all_adx_traffic_country_by_params(
-                    user_mail, start_date, end_date, selected_sites, countries_list
+                    # user_mail, start_date_str, end_date_str, selected_sites, countries_list
+                    user_mail, start_date_str, end_date_str, user_mail, start_date_last, end_date_last
                 )
+                print(f"[DEBUG ROI] AdX data: {data_adx}")
                 try:
                     unique_name_site = []
                     with ThreadPoolExecutor(max_workers=1) as executor:
@@ -3128,7 +3157,7 @@ class RoiTrafficPerCountryDataView(View):
                         if unique_name_site:
                             fb_future = executor.submit(
                                 data_mysql().get_all_ads_roi_traffic_country_by_params,
-                                start_date, end_date, unique_name_site, countries_list
+                                start_date_str, end_date_str, unique_name_site, countries_list
                             )
                             data_facebook = fb_future.result()
                         else:
@@ -3300,7 +3329,11 @@ class RoiTrafficPerDomainView(View):
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
-        data_account_adx = data_mysql().get_all_adx_account_data()
+        admin = req.session.get('hris_admin', {})
+        if admin.get('super_st') == '0':
+            data_account_adx = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+        else:
+            data_account_adx = data_mysql().get_all_adx_account_data()
         if not data_account_adx['status']:
             return JsonResponse({
                 'status': False,
@@ -3327,7 +3360,6 @@ class RoiTrafficPerDomainDataView(View):
             end_date = req.GET.get('end_date')
             selected_accounts = req.GET.get('selected_account_adx')
             selected_sites = req.GET.get('selected_sites')
-
             # --- 1. Ambil user_mail
             if selected_accounts:
                 user_mail = selected_accounts
@@ -3335,22 +3367,18 @@ class RoiTrafficPerDomainDataView(View):
                 user_id = req.session.get('hris_admin', {}).get('user_id')
                 user_data = data_mysql().get_user_by_id(user_id)
                 user_mail = user_data['data']['user_mail']
-
             # --- 2. Parse tanggal aman
             def parse_date(d):
                 try:
                     return datetime.strptime(d, '%Y-%m-%d').strftime('%Y-%m-%d')
                 except (ValueError, TypeError):
                     raise ValueError(f"Tanggal tidak valid: {d}")
-
             start_date_formatted = parse_date(start_date)
             end_date_formatted = parse_date(end_date)
-
             # --- 3. Normalisasi selected_sites_list
             selected_sites_list = []
             if selected_sites:
                 selected_sites_list = [str(s).strip() for s in selected_sites.split(',') if s.strip()]
-
             # --- 4. Ambil data AdX
             adx_result = data_mysql().get_all_adx_traffic_account_by_params(
                 user_mail,
@@ -3358,7 +3386,6 @@ class RoiTrafficPerDomainDataView(View):
                 end_date_formatted,
                 selected_sites_list
             )
-
             # --- 5. Proses Facebook data
             facebook_data = None
             unique_name_site = []
@@ -3378,28 +3405,23 @@ class RoiTrafficPerDomainDataView(View):
                 for site in extracted_sites:
                     if "." in site:
                         unique_name_site.append(site.rsplit(".", 1)[0])
-
             unique_name_site = list(set(unique_name_site))
-
             if unique_name_site:
                 facebook_data = data_mysql().get_all_ads_roi_traffic_campaign_by_params(
                     start_date_formatted,
                     end_date_formatted,
                     unique_name_site
                 )
-
             # --- 6. Gabungkan data AdX dan Facebook
             combined_data = []
             total_spend = total_revenue = total_clicks = total_other_costs = 0
             facebook_map = {}
-
             if facebook_data and facebook_data['hasil']['data']:
                 for fb_item in facebook_data['hasil']['data']:
                     date_key = str(fb_item.get('date', ''))
                     subdomain = str(fb_item.get('domain', ''))
                     key = f"{date_key}_{extract_base_subdomain(subdomain)}"
                     facebook_map[key] = fb_item
-
             if adx_result and adx_result['hasil']['data']:
                 for adx_item in adx_result['hasil']['data']:
                     date_key = str(adx_item.get('date', ''))
@@ -3430,10 +3452,8 @@ class RoiTrafficPerDomainDataView(View):
                     total_revenue += revenue
                     total_clicks += clicks
                     total_other_costs += other_costs
-
             total_costs_summary = total_spend + total_other_costs
             roi_nett_summary = ((total_revenue - total_costs_summary) / total_costs_summary * 100) if total_costs_summary > 0 else 0
-
             result = {
                 'status': True,
                 'data': combined_data,
@@ -3445,7 +3465,6 @@ class RoiTrafficPerDomainDataView(View):
                 }
             }
             return JsonResponse(result, safe=False)
-
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
 
@@ -3463,7 +3482,11 @@ class RoiSummaryView(View):
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
-        data_account_adx = data_mysql().get_all_adx_account_data()
+        admin = req.session.get('hris_admin', {})
+        if admin.get('super_st') == '0':
+            data_account_adx = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+        else:
+            data_account_adx = data_mysql().get_all_adx_account_data()
         if not data_account_adx['status']:
             return JsonResponse({
                 'status': False,
@@ -3677,6 +3700,48 @@ class ImportEnvAppCredentialsView(View):
 
 
 @method_decorator(csrf_exempt, name='dispatch')
+class AssignAccountUserView(View):
+    def post(self, request):
+        try:
+            admin = request.session.get('hris_admin', {})
+            account_id = request.POST.get('account_id')
+            user_akun = request.POST.getlist('user_akun[]') # FIXED
+
+            if not user_akun:
+                return JsonResponse({
+                    'status': False,
+                    'message': 'Tidak ada user dipilih'
+                })
+
+            db = data_mysql()
+
+            for user in user_akun:
+                params = {
+                    'account_id': account_id,
+                    'user_id': user,
+                    'mdb': admin.get('user_id'),
+                    'mdb_name': admin.get('user_alias') or admin.get('user_name')
+                }
+                result = db.assign_account_user(params)
+                if not result['status']:
+                    return JsonResponse({
+                        'status': False,
+                        'message': result.get('message', 'Gagal assign account user')
+                    }, status=500)
+
+            return JsonResponse({
+                'status': True,
+                'message': 'Account user berhasil diassign'
+            })
+
+        except Exception as e:
+            return JsonResponse({
+                'status': False,
+                'message': f'Error: {str(e)}'
+            }, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
 class UpdateAccountNameView(View):
     def post(self, request):
         try:
@@ -3709,3 +3774,5 @@ class UpdateAccountNameView(View):
                 'status': False,
                 'message': f'Error: {str(e)}'
             }, status=500)
+
+

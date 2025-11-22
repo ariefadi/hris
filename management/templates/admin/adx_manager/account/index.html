@@ -37,6 +37,50 @@
 </div>
 {% endif %}
 
+<!-- Assign Account Modal -->
+<div class="modal fade" id="assignAccountModal" tabindex="-1" role="dialog" aria-labelledby="assignAccountModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="assignAccountModalLabel">
+                    <i class="bi bi-box-arrow-right"></i> Assign Account
+                </h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="assignAccountNameForm">
+                    <input type="hidden" id="assign_account_adx" name="account_adx">
+                    <div class="form-group">
+                        <label for="user_akun">User Login Akun :</label>
+                        <select class="form-control select2" id="user_akun" multiple name="user_akun[]">
+                            <option value=""></option>
+                            {% for user in rs_users %}
+                            <option value="{{ user.user_id }}">{{ user.user_alias }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <small class="text-muted">
+                            <i class="bi bi-info-circle"></i> 
+                            Pilih user yang akan diassign untuk akses ke account Ad Manager ini.
+                        </small>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <i class="bi bi-x"></i> Cancel
+                </button>
+                <button type="button" class="btn btn-primary" id="btn_save_assign_account">
+                    <i class="bi bi-check"></i> Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Edit Account Name Modal -->
 <div class="modal fade" id="editAccountNameModal" tabindex="-1" role="dialog" aria-labelledby="editAccountNameModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
@@ -81,7 +125,6 @@
     <div class="card-header">
         <h3 class="card-title">AdX Account Data</h3>
     </div> <!-- /.card-header -->
-    {% if user.user_name == 'superadmin' %}
     <div class="card-body">
         <div class="form-row">
             <div class="col-md-4">
@@ -99,12 +142,14 @@
                     <i class="fas fa-search"></i> Muat Data
                 </button>
             </div>
+            {% if user.super_st == '1' %}
             <div class="col-md-3">
                 <label>&nbsp;</label>
                 <button type="button" class="btn btn-success form-control" id="btn_add_credentials">
                     <i class="bi bi-shield-lock"></i> Tambah Kredensial (Google OAuth)
                 </button>
             </div>
+            {% endif %}
             <div class="col-md-2">
                 <label>&nbsp;</label>
                 <button type="button" class="btn btn-info form-control" id="btn_oauth_setup" data-toggle="modal"
@@ -114,34 +159,9 @@
             </div>
         </div>
     </div><!-- /.card-body -->
-    {% else %}
-    <div class="card-body">
-        <div class="form-row">
-            <div class="col-md-2">
-                <label>&nbsp;</label>
-                <button type="button" class="btn btn-primary form-control" id="btn_load_data">
-                    <i class="fas fa-search"></i> Muat Data
-                </button>
-            </div>
-            <div class="col-md-3">
-                <label>&nbsp;</label>
-                <button type="button" class="btn btn-success form-control" id="btn_add_credentials">
-                    <i class="bi bi-shield-lock"></i> Tambah Kredensial (Google OAuth)
-                </button>
-            </div>
-            <div class="col-md-2">
-                <label>&nbsp;</label>
-                <button type="button" class="btn btn-info form-control" id="btn_oauth_setup" data-toggle="modal"
-                    data-target="#oauthModal">
-                    <i class="fas fa-search"></i> OAuth Setup Credensial
-                </button>
-            </div>
-        </div>
-    </div><!-- /.card-body -->
-    {% endif %}
 </div>
 <div class="row">
-    <div class="col-md-5">
+    <div class="col-md-12">
         <div class="card">
             <div class="card-header">
                 <div class="card-title d-flex justify-content-between align-items-center w-100">
@@ -211,7 +231,6 @@
                         </div>
                     </div>
                 </div>
-
                 <!-- Additional Account Details -->
                 <div class="row mt-3">
                     <div class="col-12">
@@ -267,7 +286,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-7">
+    <div class="col-md-12">
         <div class="card">
             <div class="card-header">
                 <h3 class="card-title"><b><i class="bi bi-list"></i> Data Kredensial Aplikasi</b></h3>
@@ -283,6 +302,7 @@
                                 <th class="text-center">Client ID</th>
                                 <th class="text-center">Network Code</th>
                                 <th class="text-center">Status</th>
+                                <th class="text-center">Assigned Users</th>
                                 <th class="text-center">#</th>
                             </tr>
                         </thead>
@@ -300,6 +320,7 @@
                                         <span class="badge badge-secondary">Tidak Aktif</span>
                                     {% endif %}
                                 </td>
+                                <td class="text-center">{{ credential.assigned_users|safe|default:'-' }}</td>
                                 <td class="text-center">
                                     <button class="btn btn-sm btn-primary load-account-data" 
                                             data-email="{{ credential.user_mail }}"
@@ -309,12 +330,22 @@
                                             title="Load Data Akun">
                                         <i class="bi bi-tv"></i> 
                                     </button>
+                                    {% if user.user_name == 'superadmin' %}
+                                    <button class="btn btn-sm btn-info assign-account-data" 
+                                            data-email="{{ credential.user_mail }}"
+                                            data-account-id="{{ credential.account_id }}"
+                                            data-account-name="{{ credential.account_name }}"
+                                            data-network-code="{{ credential.network_code }}"
+                                            title="Assign Akun">
+                                        <i class="bi bi-box-arrow-right"></i> 
+                                    </button>
                                     <button class="btn btn-sm btn-warning edit-account-name" 
                                             data-email="{{ credential.user_mail }}"
                                             data-account-name="{{ credential.account_name }}"
                                             title="Edit Account Name">
                                         <i class="bi bi-pencil"></i> 
                                     </button>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% endfor %}

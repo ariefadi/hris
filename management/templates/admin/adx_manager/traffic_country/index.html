@@ -31,7 +31,6 @@
                 <label>Sampai</label>
                  <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
             </div>
-            {% if user.user_name == 'superadmin' %}
             <div class="col-md-2">
                 <label>Filter Account</label>
                 <select class="form-control select2" id="account_filter">
@@ -41,7 +40,6 @@
                     {% endfor %}
                 </select>
             </div>
-            {% endif %}
             <div class="col-md-3">
                 <label>Filter Domain</label>
                 <select class="form-control select2-multiple" id="site_filter" multiple>

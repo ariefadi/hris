@@ -14,8 +14,8 @@ $(document).ready(function () {
     });
     // Set tanggal default (7 hari terakhir)
     var today = new Date();
-    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    $('#tanggal_dari').val(formatDateForInput(lastWeek));
+    // var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    $('#tanggal_dari').val(formatDateForInput(today));
     $('#tanggal_sampai').val(formatDateForInput(today));
     $('#account_filter').select2({
         placeholder: '-- Pilih Akun Terdaftar --',

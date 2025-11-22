@@ -40,7 +40,6 @@
                 <label>Sampai</label>
                  <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
             </div>
-            {% if user.user_name == 'superadmin' %}
             <div class="col-md-2">
                 <label>Adx Account</label>
                 <select class="form-control select2" id="account_filter">
@@ -50,7 +49,6 @@
                     {% endfor %}
                 </select>
             </div>
-            {% endif %}
             <div class="col-md-2">
                 <label>Domain</label>
                 <select class="form-control select2-multiple" id="site_filter" multiple>
@@ -199,17 +197,37 @@
         <div class="dt-responsive-table mt-3">
             <table id="table_traffic_country" class="table table-bordered table-striped" style="width:100%">
                 <thead>
+                    <!-- <tr>
+                        <th rowspan="2" class="text-center">Negara</th>
+                        <th rowspan="2" class="text-center">Kode Negara</th>
+                        <th rowspan="2" class="text-center">Impresi</th>
+                        <th rowspan="2" class="text-center">Spend</th>
+                        <th rowspan="2" class="text-center">Klik</th>
+                        <th rowspan="2" class="text-center">CTR (%)</th>
+                        <th rowspan="2" class="text-center">CPC</th>
+                        <th rowspan="2" class="text-center">eCPM</th>
+                        <th colspan="3" class="text-center">ROI (%)</th>
+                        <th colspan="3" class="text-center">Pendapatan</th>
+                    </tr>
                     <tr>
-                        <th>Negara</th>
-                        <th>Kode Negara</th>
-                        <th>Impresi</th>
-                        <th>Spend</th>
-                        <th>Klik</th>
-                        <th>CTR (%)</th>
-                        <th>CPC</th>
-                        <th>eCPM</th>
-                        <th>ROI (%)</th>
-                        <th>Pendapatan</th>
+                        <th class="text-center">Now</th>
+                        <th class="text-center">Last</th>
+                        <th class="text-center">&#931;</th>
+                        <th class="text-center">Now</th>
+                        <th class="text-center">Last</th>
+                        <th class="text-center">&#931;</th>
+                    </tr> -->
+                    <tr>
+                        <th class="text-center">Negara</th>
+                        <th class="text-center">Kode Negara</th>
+                        <th class="text-center">Impresi</th>
+                        <th class="text-center">Spend</th>
+                        <th class="text-center">Klik</th>
+                        <th class="text-center">CTR (%)</th>
+                        <th class="text-center">CPC</th>
+                        <th class="text-center">eCPM</th>
+                        <th class="text-center">ROI (%)</th>
+                        <th class="text-center">Pendapatan</th>
                     </tr>
                 </thead>
                 <tbody>

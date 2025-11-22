@@ -36,22 +36,6 @@ class Command(BaseCommand):
         today_dt = datetime.now().date()
         start_date = today_dt.strftime('%Y-%m-%d')
         end_date = today_dt.strftime('%Y-%m-%d')
-        # Hapus data existing pada rentang tanggal agar ditimpa data baru
-        try:
-            del_res = data_mysql().delete_data_ads_country_by_date_range(start_date, end_date)
-            if del_res.get('hasil', {}).get('status'):
-                affected = del_res.get('hasil', {}).get('affected', 0)
-                self.stdout.write(self.style.WARNING(
-                    f"Membersihkan data existing ({affected} baris) untuk range {start_date} s/d {end_date}."
-                ))
-            else:
-                self.stdout.write(self.style.ERROR(
-                    f"Gagal menghapus data existing untuk range {start_date} s/d {end_date}: {del_res.get('hasil', {}).get('data')}"
-                ))
-        except Exception as e:
-            self.stdout.write(self.style.ERROR(
-                f"Error saat menghapus data existing: {e}"
-            ))
         for account_data in rs_account:
             try:
                 domain_filter = kwargs.get('domain')
@@ -144,6 +128,22 @@ class Command(BaseCommand):
                             'mdb_name': 'Cron Job',
                             'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                         }
+                        # Hapus data existing pada rentang tanggal agar ditimpa data baru
+                        try:
+                            del_res = data_mysql().delete_data_ads_country_by_date_range_account(account_data['account_id'], start_date, end_date)
+                            if del_res.get('hasil', {}).get('status'):
+                                affected = del_res.get('hasil', {}).get('affected', 0)
+                                self.stdout.write(self.style.WARNING(
+                                    f"Membersihkan data existing ({affected} baris) untuk range {start_date} s/d {end_date}."
+                                ))
+                            else:
+                                self.stdout.write(self.style.ERROR(
+                                    f"Gagal menghapus data existing untuk range {start_date} s/d {end_date}: {del_res.get('hasil', {}).get('data')}"
+                                ))
+                        except Exception as e:
+                            self.stdout.write(self.style.ERROR(
+                                f"Error saat menghapus data existing: {e}"
+                            ))
                         res = data_mysql().insert_data_ads_country(record)
                         if res.get('hasil', {}).get('status'):
                             total_insert += 1

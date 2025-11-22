@@ -111,17 +111,64 @@ $().ready(function () {
     }
     // Initialize DataTable
     $('#table_traffic_account').DataTable({
-        "paging": true,
-        "pageLength": 25,
-        "lengthChange": true,
-        "searching": true,
-        "ordering": true,
-        "columnDefs": [
-            {
-                "targets": [2, 3, 4, 5, 6, 7, 8], // Numeric columns
-                "className": "text-right"
+        responsive: true,
+        paging: true,
+        pageLength: 25,
+        lengthChange: true,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Semua"]],
+        searching: true,
+        ordering: true,
+        language: {
+            "decimal": ",",
+            "thousands": ".",
+            "info": "Menampilkan _START_ sampai _END_ dari _TOTAL_ entri",
+            "infoEmpty": "Menampilkan 0 sampai 0 dari 0 entri",
+            "infoFiltered": "(disaring dari _MAX_ total entri)",
+            "lengthMenu": "Tampilkan _MENU_ entri",
+            "loadingRecords": "Memuat...",
+            "processing": "Memproses...",
+            "search": "Cari:",
+            "zeroRecords": "Tidak ada data yang cocok",
+            "paginate": {
+                "first": "Pertama",
+                "last": "Terakhir",
+                "next": "Selanjutnya",
+                "previous": "Sebelumnya"
             }
-        ]
+        },
+        dom: 'Bfrtip',
+        buttons: [
+            {
+                extend: 'excel',
+                text: 'Export Excel',
+                className: 'btn btn-success'
+            },
+            {
+                extend: 'pdf',
+                text: 'Export PDF',
+                className: 'btn btn-danger'
+            }
+        ],
+        columnDefs: [
+            {
+                targets: [2, 3, 4, 5, 6, 7, 8], // kolom numerik ditata kanan
+                className: "text-right"
+            },
+            {
+                // pastikan sorting ROI numerik (kolom ke-8, index 7)
+                targets: 7,
+                type: 'num',
+                render: function (data, type) {
+                    // data biasanya "12.34 %"; parsing aman untuk sort/type
+                    if (type === 'sort' || type === 'type') {
+                        var val = parseFloat(String(data).replace('%', '').trim());
+                        return isNaN(val) ? 0 : val;
+                    }
+                    return data; // tampilan tetap seperti yang sudah ditambahkan (mis. "12.34 %")
+                }
+            }
+        ],
+        order: [[7, 'desc']]
     });
 });
 

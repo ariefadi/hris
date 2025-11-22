@@ -183,7 +183,6 @@
                         </div>
                     </div>
                 </div>
-
                 <!-- Filter Akun AdX -->
                 <div class="row mt-3">
                     <div class="col-md-12">
@@ -207,7 +206,6 @@
                         </div>
                     </div>
                 </div>
-
                 <!-- ROI Charts -->
                 <div class="row">
                     <div class="col-md-6">
@@ -255,7 +253,6 @@
 <link href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@1.5.2/dist/select2-bootstrap4.min.css" rel="stylesheet">
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
 <script>
 let loginChart, userChart;
 let roiDomainChart;
@@ -263,15 +260,12 @@ let roiDomainChart;
 async function fetchDashboardData() {
     try {
         const response = await fetch('/management/admin/dashboard_data');
-        
         // Check if redirected to login page
         if (response.url.includes('/login')) {
             window.location.href = '/management/admin/login';
             return;
         }
-        
         const result = await response.json();
-        
         if (result.status) {
             updateDashboard(result.data);
         } else {
@@ -281,53 +275,44 @@ async function fetchDashboardData() {
 
     }
 }
-
 // Update dashboard with data
 function updateDashboard(data) {
     // Hide loading, show content
     document.getElementById('loading').style.display = 'none';
     document.getElementById('dashboard-content').style.display = 'block';
-    
     // Update metric cards
     if (data.user_stats) {
         document.getElementById('total-users').textContent = data.user_stats.total_users;
         document.getElementById('active-users').textContent = data.user_stats.active_users;
         document.getElementById('activity-rate').textContent = data.user_stats.activity_rate + '%';
     }
-
     // Update Ads/AdX account stats
     if (data.account_stats) {
         document.getElementById('ads-accounts-count').textContent = data.account_stats.ads_accounts_count ?? 0;
         document.getElementById('adx-accounts-count').textContent = data.account_stats.adx_accounts_count ?? 0;
-
         populateAccountFilter(
             data.account_stats.adx_accounts || [],
             data.account_stats.default_selected_account || ''
         );
     }
-    
     // Update charts (existing login charts if present)
     if (data.charts && data.charts.login_activity) {
         updateLoginChart(data.charts.login_activity);
         updateUserChart(data.user_stats);
     }
-    
     // Update recent logins
     if (data.recent_logins) {
         updateRecentLogins(data.recent_logins);
     }
 }
-
 // Populate AdX account filter and trigger ROI load
 function populateAccountFilter(accounts, defaultMail) {
     const sel = document.getElementById('account-filter');
     if (!sel) return;
-
     // Hancurkan Select2 sebelumnya bila ada
     if (window.jQuery && jQuery(sel).data('select2')) {
         jQuery(sel).select2('destroy');
     }
-
     // Bangun opsi
     sel.innerHTML = '';
     accounts.forEach(acc => {
@@ -336,7 +321,6 @@ function populateAccountFilter(accounts, defaultMail) {
         opt.textContent = acc.account_name || acc.user_mail || '(unknown)';
         sel.appendChild(opt);
     });
-
     // Inisialisasi Select2
     if (window.jQuery) {
         jQuery(sel).select2({
@@ -346,25 +330,20 @@ function populateAccountFilter(accounts, defaultMail) {
             allowClear: true
         });
     }
-
     // Select default
     if (defaultMail) sel.value = defaultMail;
-
     // Load ROI untuk pilihan saat ini
     const selectedMail = sel.value || defaultMail || (accounts[0]?.user_mail || '');
     if (selectedMail) {
         loadRoiData(selectedMail);
     }
-
     // Change handler
     // Jika memakai Select2, event change tetap terpanggil
     sel.onchange = () => loadRoiData(sel.value);
 }
-
 // Fetch and render ROI per Domain (line) and per Country (map)
 async function loadRoiData(selectedAccountMail) {
     const { startDate, endDate } = getLast7DaysRange();
-
     // ROI per Domain
     const qsDomain = new URLSearchParams({
         start_date: startDate,
@@ -384,7 +363,6 @@ async function loadRoiData(selectedAccountMail) {
         renderRoiDomainChart([]);
         console.warn('ROI Domain fetch error:', e);
     }
-
     // ROI per Country
     const qsCountry = new URLSearchParams({
         start_date: startDate,
@@ -406,7 +384,6 @@ async function loadRoiData(selectedAccountMail) {
         console.warn('ROI Country fetch error:', e);
     }
 }
-
 // Build last 7 days date range (YYYY-MM-DD)
 function getLast7DaysRange() {
     const end = new Date();
@@ -415,12 +392,10 @@ function getLast7DaysRange() {
     const fmt = d => d.toISOString().slice(0,10);
     return { startDate: fmt(start), endDate: fmt(end) };
 }
-
 // Render ROI per Domain (Chart.js line)
 function renderRoiDomainChart(items) {
     const canvas = document.getElementById('roiDomainChart');
     if (!canvas) return;
-
     // Group by domain and date
     const byDomain = new Map();
     const dateSet = new Set();
@@ -432,14 +407,12 @@ function renderRoiDomainChart(items) {
         if (!byDomain.has(dom)) byDomain.set(dom, new Map());
         byDomain.get(dom).set(dt, Number(it.roi || 0));
     });
-
     // Sort dates ascending and format labels
     const dates = Array.from(dateSet).sort();
     const labels = dates.map(d => {
         const [y,m,dd] = d.split('-');
         return `${dd}/${m}/${y}`; // tampilkan tanggal lengkap
     });
-
     // Compute top 5 domains by revenue (fallback to random if not available)
     const revenueByDomain = new Map();
     items.forEach(it => {
@@ -451,7 +424,6 @@ function renderRoiDomainChart(items) {
         .sort((a,b) => b[1] - a[1])
         .slice(0, 5)
         .map(([dom]) => dom);
-
     // Build datasets
     const palette = ['#4facfe','#43e97b','#fa709a','#764ba2','#ff9800','#009688'];
     const datasets = topDomains.map((dom, i) => {
@@ -466,7 +438,6 @@ function renderRoiDomainChart(items) {
             tension: 0.3
         };
     });
-
     if (roiDomainChart) roiDomainChart.destroy();
     const ctx = canvas.getContext('2d');
     roiDomainChart = new Chart(ctx, {
@@ -483,11 +454,9 @@ function renderRoiDomainChart(items) {
         }
     });
 }
-
 // Render ROI per Country (Highcharts map)
 function renderRoiCountryMap(items) {
     const raw = Array.isArray(items) ? items : [];
-
     // Bentuk data seperti di roi_traffic_country (pakai hc-key objek)
     const data = raw.map(it => {
         const code = String(it.country_code || '').toLowerCase();
@@ -502,7 +471,6 @@ function renderRoiCountryMap(items) {
             revenue: Number(it.revenue || 0)
         };
     });
-
     // Pastikan world map ter-load; bila belum, jangan render
     if (!Highcharts || !Highcharts.mapChart) {
         console.error('Highcharts Maps belum ter-load');
@@ -512,7 +480,6 @@ function renderRoiCountryMap(items) {
         console.error('World map data tidak ter-load');
         return;
     }
-
     // Buat rentang warna (dataClasses) seperti halaman ROI
     let maxROI = 0;
     data.forEach(d => { if (d.value > maxROI) maxROI = d.value; });
@@ -553,7 +520,6 @@ function renderRoiCountryMap(items) {
             { from: 2000, to: Infinity, color: '#A4161A', name: '> 2000%' }
         ];
     }
-
     Highcharts.mapChart('roiCountryMap', {
         chart: {
             map: 'custom/world',
@@ -599,7 +565,6 @@ function renderRoiCountryMap(items) {
         }]
     });
 }
-
 // Initialize dashboard
 document.addEventListener('DOMContentLoaded', function() {
     // Check if Chart.js is loaded
@@ -607,9 +572,7 @@ document.addEventListener('DOMContentLoaded', function() {
         showError('Chart.js library is not loaded. Please refresh the page.');
         return;
     }
-    
     fetchDashboardData();
-    
     // Auto-refresh every 5 minutes
     setInterval(fetchDashboardData, 5 * 60 * 1000);
 });
