@@ -130,11 +130,11 @@ class Command(BaseCommand):
                         }
                         # Hapus data existing pada rentang tanggal agar ditimpa data baru
                         try:
-                            del_res = data_mysql().delete_data_ads_country_by_date_range_account(account_data['account_id'], start_date, end_date)
+                            del_res = data_mysql().delete_data_ads_country_by_date_account(record['account_id'], record['data_ads_country_cd'], record['data_ads_domain'], record['data_ads_campaign_nm'], record['data_ads_country_tanggal'])
                             if del_res.get('hasil', {}).get('status'):
                                 affected = del_res.get('hasil', {}).get('affected', 0)
                                 self.stdout.write(self.style.WARNING(
-                                    f"Membersihkan data existing ({affected} baris) untuk range {start_date} s/d {end_date}."
+                                    f"Membersihkan data existing ({affected} baris) untuk akun {account_data.get('account_name','Unknown')}."
                                 ))
                             else:
                                 self.stdout.write(self.style.ERROR(

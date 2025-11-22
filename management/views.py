@@ -3140,8 +3140,8 @@ class RoiTrafficPerCountryDataView(View):
             else:
                 # Filter Domain kosong: tampilkan data semua domain dari akun AdX terpilih
                 data_adx = data_mysql().get_all_adx_traffic_country_by_params(
-                    # user_mail, start_date_str, end_date_str, selected_sites, countries_list
-                    user_mail, start_date_str, end_date_str, user_mail, start_date_last, end_date_last
+                    user_mail, start_date_str, end_date_str, selected_sites, countries_list
+                    # user_mail, start_date_str, end_date_str, user_mail, start_date_last, end_date_last
                 )
                 print(f"[DEBUG ROI] AdX data: {data_adx}")
                 try:

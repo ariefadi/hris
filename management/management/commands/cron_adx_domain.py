@@ -84,7 +84,7 @@ class Command(BaseCommand):
                             }
                             # Bersihkan data existing untuk range agar idempotent
                             try:
-                                del_res = db.delete_data_adx_domain_by_date_range_account(record.get('account_id'), start_date, end_date)
+                                del_res = db.delete_data_adx_domain_by_date_account(cred.get('account_id'), day_str, item.get('site_name'))
                                 if del_res.get('hasil', {}).get('status'):
                                     affected = del_res.get('hasil', {}).get('affected', 0)
                                     self.stdout.write(self.style.WARNING(

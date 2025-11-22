@@ -821,14 +821,16 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def delete_data_ads_campaign_by_date_range_account(self, account, start_date, end_date):
+    def delete_data_ads_campaign_by_date_account(self, account, domain, campaign_name, tanggal):
         try:
             sql_delete = """
                         DELETE FROM data_ads_campaign
                         WHERE account_ads_id = %s
-                        AND data_ads_tanggal BETWEEN %s AND %s
+                        AND data_ads_domain = %s
+                        AND campaign_name = %s
+                        AND data_ads_tanggal = %s
                 """
-            if not self.execute_query(sql_delete, (account, start_date, end_date)):
+            if not self.execute_query(sql_delete, (account, domain, campaign_name, tanggal)):
                 raise pymysql.Error("Failed to delete data ads campaign by date range")
 
             affected = self.cur_hris.rowcount if self.cur_hris else 0
@@ -848,14 +850,17 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def delete_data_ads_country_by_date_range_account(self, account, start_date, end_date):
+    def delete_data_ads_country_by_date_account(self, account, country, domain, campaign, tanggal):
         try:
             sql_delete = """
                         DELETE FROM data_ads_country
                         WHERE account_ads_id = %s
-                        AND data_ads_country_tanggal BETWEEN %s AND %s
+                        AND data_ads_country_cd = %s
+                        AND data_ads_domain = %s
+                        AND data_ads_campaign_nm = %s
+                        AND data_ads_country_tanggal = %s
                 """
-            if not self.execute_query(sql_delete, (account, start_date, end_date)): 
+            if not self.execute_query(sql_delete, (account, country, domain, campaign, tanggal)): 
                 raise pymysql.Error("Failed to delete data ads country by date range")
             affected = self.cur_hris.rowcount if self.cur_hris else 0
             if not self.commit():
@@ -1582,12 +1587,12 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def delete_data_adx_country_by_date_range_account(self, account_id, start_date, end_date):
+    def delete_data_adx_country_by_date(self, account_id, tanggal, code_negara, site_name):
         try:
             sql_delete = (
-                "DELETE FROM data_adx_country WHERE account_id = %s AND data_adx_country_tanggal BETWEEN %s AND %s"
+                "DELETE FROM data_adx_country WHERE account_id = %s AND data_adx_country_tanggal LIKE %s AND data_adx_country_cd = %s AND data_adx_country_domain LIKE %s"
             )
-            if not self.execute_query(sql_delete, (account_id, start_date, end_date)): 
+            if not self.execute_query(sql_delete, (account_id, f"{tanggal}%", code_negara, site_name)): 
                 raise pymysql.Error("Failed to delete data adx country by date range")
             affected_rows = self.cur_hris.rowcount if hasattr(self, 'cur_hris') and self.cur_hris else 0
             if not self.commit():
@@ -1673,13 +1678,13 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def delete_data_adx_domain_by_date_range_account(self, account_id, start_date, end_date):
+    def delete_data_adx_domain_by_date_account(self, account_id, start_date, site_name):
         try:
             sql_delete = (
-                "DELETE FROM data_adx_domain WHERE account_id = %s AND DATE(data_adx_domain_tanggal) BETWEEN %s AND %s"
+                "DELETE FROM data_adx_domain WHERE account_id = %s AND data_adx_domain_tanggal LIKE %s AND data_adx_domain LIKE %s"
             )
-            if not self.execute_query(sql_delete, (account_id, start_date, end_date)):
-                raise pymysql.Error("Failed to delete data adx by date range")
+            if not self.execute_query(sql_delete, (account_id, f"{start_date}%", site_name)):
+                raise pymysql.Error("Failed to delete data adx domain by date range")
             affected_rows = self.cur_hris.rowcount if hasattr(self, 'cur_hris') and self.cur_hris else 0
             if not self.commit():
                 raise pymysql.Error("Failed to commit data adx delete")
@@ -1898,186 +1903,186 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    # def get_all_adx_traffic_country_by_params(self, user_mail, start_date, end_date, selected_sites, countries_list):
-    #     try:
-    #         sql_parts = [
-    #             "SELECT",
-    #             "\ta.account_id, a.account_name, a.user_mail,",
-    #             "\tb.data_adx_country_nm AS country_name,",
-    #             "\tb.data_adx_country_cd AS country_code,",
-    #             "\tSUM(b.data_adx_country_impresi) AS impressions,",
-    #             "\tSUM(b.data_adx_country_click) AS clicks,",
-    #             "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
-    #             "\t\tTHEN ROUND((SUM(b.data_adx_country_click) / SUM(b.data_adx_country_impresi)) * 100, 2)",
-    #             "\t\tELSE 0 END AS ctr,",
-    #             "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
-    #             "\t\tTHEN ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000)",
-    #             "\t\tELSE 0 END AS ecpm,",
-    #             "\tCASE WHEN SUM(b.data_adx_country_click) > 0",
-    #             "\t\tTHEN ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 0)",
-    #             "\t\tELSE 0 END AS cpc,",
-    #             "\tSUM(b.data_adx_country_revenue) AS revenue",
-    #             "FROM app_credentials a",
-    #             "INNER JOIN data_adx_country b ON a.account_id = b.account_id",
-    #             "WHERE",
-    #         ]
-
-    #         params = []
-
-    #         # Handle user_mail filter (single or multiple)
-    #         if isinstance(user_mail, (list, tuple)):
-    #             user_mail_list = [str(u).strip() for u in user_mail if str(u).strip()]
-    #             if user_mail_list:
-    #                 placeholders = ','.join(['%s'] * len(user_mail_list))
-    #                 sql_parts.append(f"a.user_mail IN ({placeholders})")
-    #                 params.extend(user_mail_list)
-    #             else:
-    #                 sql_parts.append("a.user_mail = %s")
-    #                 params.append(user_mail if isinstance(user_mail, str) else '')
-    #         else:
-    #             sql_parts.append("a.user_mail = %s")
-    #             params.append(user_mail)
-
-    #         # Date range
-    #         sql_parts.append("AND b.data_adx_country_tanggal BETWEEN %s AND %s")
-    #         params.extend([start_date, end_date])
-
-    #         # Normalize selected_sites (CSV string or list) and apply domain filter
-    #         sites_list = []
-    #         if selected_sites:
-    #             if isinstance(selected_sites, str):
-    #                 sites_list = [s.strip() for s in selected_sites.split(',') if s.strip()]
-    #             elif isinstance(selected_sites, (list, tuple)):
-    #                 sites_list = [str(s).strip() for s in selected_sites if str(s).strip()]
-    #         if sites_list:
-    #             placeholders = ','.join(['%s'] * len(sites_list))
-    #             sql_parts.append(f"AND b.data_adx_country_domain IN ({placeholders})")
-    #             params.extend(sites_list)
-
-    #         # Normalize countries_list and apply country code filter
-    #         country_codes = []
-    #         if countries_list:
-    #             if isinstance(countries_list, str):
-    #                 country_codes = [c.strip() for c in countries_list.split(',') if c.strip()]
-    #             elif isinstance(countries_list, (list, tuple)):
-    #                 country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
-    #         if country_codes:
-    #             placeholders = ','.join(['%s'] * len(country_codes))
-    #             sql_parts.append(f"AND b.data_adx_country_cd IN ({placeholders})")
-    #             params.extend(country_codes)
-
-    #         sql_parts.append("GROUP BY b.data_adx_country_cd, b.data_adx_country_nm")
-    #         sql_parts.append("ORDER BY revenue DESC")
-    #         sql = "\n".join(sql_parts)
-
-    #         if not self.execute_query(sql, tuple(params)):
-    #             raise pymysql.Error("Failed to get all adx traffic country by params")
-    #         data_rows = self.fetch_all()
-    #         if not self.commit():
-    #             raise pymysql.Error("Failed to commit get all adx traffic country by params")
-
-    #         # Build summary
-    #         total_impressions = sum((row.get('impressions') or 0) for row in data_rows) if data_rows else 0
-    #         total_clicks = sum((row.get('clicks') or 0) for row in data_rows) if data_rows else 0
-    #         total_revenue = sum((row.get('revenue') or 0) for row in data_rows) if data_rows else 0.0
-    #         total_ctr_ratio = (float(total_clicks) / float(total_impressions)) if total_impressions else 0.0
-
-    #         return {
-    #             "status": True,
-    #             "message": "Data adx traffic country berhasil diambil",
-    #             "data": data_rows,
-    #             "summary": {
-    #                 "total_impressions": total_impressions,
-    #                 "total_clicks": total_clicks,
-    #                 "total_revenue": total_revenue,
-    #                 "total_ctr": total_ctr_ratio
-    #             }
-    #         }
-    #     except pymysql.Error as e:
-    #         return {
-    #             "status": False,
-    #             "error": f"Terjadi error {e!r}, error nya {e.args[0]}"
-    #         }
-
-    def get_all_adx_traffic_country_by_params(self, user_mail, start_date, end_date, user_mail_last, start_date_last, end_date_last):
-        """
-        Perbandingan ROI per country now & last
-        """
-        sql = '''
-            SELECT 
-            now.account_id, now.account_name, now.user_mail,
-            now.country_name, now.country_code, now.impressions,
-            now.clicks, now.ctr, now.ecpm, now.cpc, 
-            COALESCE(now.revenue, 0) AS revenue,
-            COALESCE(last.revenue, 0) AS revenue_last,
-            CASE WHEN COALESCE(now.revenue, 0) > COALESCE(last.revenue, 0) 
-            THEN 'naik'
-            ELSE 'turun'
-            END 'kesimpulan',
-            COALESCE(now.revenue, 0) - COALESCE(last.revenue, 0) AS 'hasil'
-            FROM (
-                SELECT 
-                a.account_id, a.account_name, a.user_mail,
-                b.data_adx_country_nm AS country_name,
-                b.data_adx_country_cd AS country_code,
-                SUM(b.data_adx_country_impresi) AS impressions,
-                SUM(b.data_adx_country_click) AS clicks,
-                CASE WHEN SUM(b.data_adx_country_impresi) > 0
-                THEN ROUND((SUM(b.data_adx_country_click) / SUM(b.data_adx_country_impresi)) * 100, 2)
-                ELSE 0 END AS ctr,
-                CASE WHEN SUM(b.data_adx_country_impresi) > 0
-                THEN ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000)
-                ELSE 0 END AS ecpm,
-                CASE WHEN SUM(b.data_adx_country_click) > 0
-                THEN ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 0)
-                ELSE 0 END AS cpc,
-                SUM(b.data_adx_country_revenue) AS revenue
-                FROM app_credentials a
-                INNER JOIN data_adx_country b ON a.account_id = b.account_id
-                WHERE a.user_mail = %s
-                AND b.data_adx_country_tanggal BETWEEN %s AND %s
-                GROUP BY b.data_adx_country_cd, b.data_adx_country_nm
-                ORDER BY revenue DESC
-            )now
-            LEFT JOIN (
-                SELECT 
-                a.account_id, a.account_name, a.user_mail,
-                b.data_adx_country_nm AS country_name,
-                b.data_adx_country_cd AS country_code,
-                SUM(b.data_adx_country_impresi) AS impressions,
-                SUM(b.data_adx_country_click) AS clicks,
-                CASE WHEN SUM(b.data_adx_country_impresi) > 0
-                THEN ROUND((SUM(b.data_adx_country_click) / SUM(b.data_adx_country_impresi)) * 100, 2)
-                ELSE 0 END AS ctr,
-                CASE WHEN SUM(b.data_adx_country_impresi) > 0
-                THEN ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000)
-                ELSE 0 END AS ecpm,
-                CASE WHEN SUM(b.data_adx_country_click) > 0
-                THEN ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 0)
-                ELSE 0 END AS cpc,
-                SUM(b.data_adx_country_revenue) AS revenue
-                FROM app_credentials a
-                INNER JOIN data_adx_country b ON a.account_id = b.account_id
-                WHERE a.user_mail = %s
-                AND b.data_adx_country_tanggal BETWEEN %s AND %s
-                GROUP BY b.data_adx_country_cd, b.data_adx_country_nm
-                ORDER BY revenue DESC
-            ) last ON now.country_code = last.country_code
-        '''
+    def get_all_adx_traffic_country_by_params(self, user_mail, start_date, end_date, selected_sites, countries_list):
         try:
-            params = [user_mail, start_date, end_date, user_mail_last, start_date_last, end_date_last]
-            if not self.execute_query(sql, tuple(params)):  
-                raise pymysql.Error("Failed to fetch app_credentials data")
-            results = self.cur_hris.fetchall()
+            sql_parts = [
+                "SELECT",
+                "\ta.account_id, a.account_name, a.user_mail,",
+                "\tb.data_adx_country_nm AS country_name,",
+                "\tb.data_adx_country_cd AS country_code,",
+                "\tSUM(b.data_adx_country_impresi) AS impressions,",
+                "\tSUM(b.data_adx_country_click) AS clicks,",
+                "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
+                "\t\tTHEN ROUND((SUM(b.data_adx_country_click) / SUM(b.data_adx_country_impresi)) * 100, 2)",
+                "\t\tELSE 0 END AS ctr,",
+                "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
+                "\t\tTHEN ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000)",
+                "\t\tELSE 0 END AS ecpm,",
+                "\tCASE WHEN SUM(b.data_adx_country_click) > 0",
+                "\t\tTHEN ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 0)",
+                "\t\tELSE 0 END AS cpc,",
+                "\tSUM(b.data_adx_country_revenue) AS revenue",
+                "FROM app_credentials a",
+                "INNER JOIN data_adx_country b ON a.account_id = b.account_id",
+                "WHERE",
+            ]
+
+            params = []
+
+            # Handle user_mail filter (single or multiple)
+            if isinstance(user_mail, (list, tuple)):
+                user_mail_list = [str(u).strip() for u in user_mail if str(u).strip()]
+                if user_mail_list:
+                    placeholders = ','.join(['%s'] * len(user_mail_list))
+                    sql_parts.append(f"a.user_mail IN ({placeholders})")
+                    params.extend(user_mail_list)
+                else:
+                    sql_parts.append("a.user_mail = %s")
+                    params.append(user_mail if isinstance(user_mail, str) else '')
+            else:
+                sql_parts.append("a.user_mail = %s")
+                params.append(user_mail)
+
+            # Date range
+            sql_parts.append("AND b.data_adx_country_tanggal BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+
+            # Normalize selected_sites (CSV string or list) and apply domain filter
+            sites_list = []
+            if selected_sites:
+                if isinstance(selected_sites, str):
+                    sites_list = [s.strip() for s in selected_sites.split(',') if s.strip()]
+                elif isinstance(selected_sites, (list, tuple)):
+                    sites_list = [str(s).strip() for s in selected_sites if str(s).strip()]
+            if sites_list:
+                placeholders = ','.join(['%s'] * len(sites_list))
+                sql_parts.append(f"AND b.data_adx_country_domain IN ({placeholders})")
+                params.extend(sites_list)
+
+            # Normalize countries_list and apply country code filter
+            country_codes = []
+            if countries_list:
+                if isinstance(countries_list, str):
+                    country_codes = [c.strip() for c in countries_list.split(',') if c.strip()]
+                elif isinstance(countries_list, (list, tuple)):
+                    country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
+            if country_codes:
+                placeholders = ','.join(['%s'] * len(country_codes))
+                sql_parts.append(f"AND b.data_adx_country_cd IN ({placeholders})")
+                params.extend(country_codes)
+
+            sql_parts.append("GROUP BY b.data_adx_country_cd, b.data_adx_country_nm")
+            sql_parts.append("ORDER BY revenue DESC")
+            sql = "\n".join(sql_parts)
+
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get all adx traffic country by params")
+            data_rows = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get all adx traffic country by params")
+
+            # Build summary
+            total_impressions = sum((row.get('impressions') or 0) for row in data_rows) if data_rows else 0
+            total_clicks = sum((row.get('clicks') or 0) for row in data_rows) if data_rows else 0
+            total_revenue = sum((row.get('revenue') or 0) for row in data_rows) if data_rows else 0.0
+            total_ctr_ratio = (float(total_clicks) / float(total_impressions)) if total_impressions else 0.0
+
             return {
-                'status': True,
-                'data': results if results else []
+                "status": True,
+                "message": "Data adx traffic country berhasil diambil",
+                "data": data_rows,
+                "summary": {
+                    "total_impressions": total_impressions,
+                    "total_clicks": total_clicks,
+                    "total_revenue": total_revenue,
+                    "total_ctr": total_ctr_ratio
+                }
             }
         except pymysql.Error as e:
             return {
-                'status': False,
-                'error': f'Database error: {str(e)}'
+                "status": False,
+                "error": f"Terjadi error {e!r}, error nya {e.args[0]}"
             }
+
+    # def get_all_adx_traffic_country_by_params(self, user_mail, start_date, end_date, user_mail_last, start_date_last, end_date_last):
+    #     """
+    #     Perbandingan ROI per country now & last
+    #     """
+    #     sql = '''
+    #         SELECT 
+    #         now.account_id, now.account_name, now.user_mail,
+    #         now.country_name, now.country_code, now.impressions,
+    #         now.clicks, now.ctr, now.ecpm, now.cpc, 
+    #         COALESCE(now.revenue, 0) AS revenue,
+    #         COALESCE(last.revenue, 0) AS revenue_last,
+    #         CASE WHEN COALESCE(now.revenue, 0) > COALESCE(last.revenue, 0) 
+    #         THEN 'naik'
+    #         ELSE 'turun'
+    #         END 'kesimpulan',
+    #         COALESCE(now.revenue, 0) - COALESCE(last.revenue, 0) AS 'hasil'
+    #         FROM (
+    #             SELECT 
+    #             a.account_id, a.account_name, a.user_mail,
+    #             b.data_adx_country_nm AS country_name,
+    #             b.data_adx_country_cd AS country_code,
+    #             SUM(b.data_adx_country_impresi) AS impressions,
+    #             SUM(b.data_adx_country_click) AS clicks,
+    #             CASE WHEN SUM(b.data_adx_country_impresi) > 0
+    #             THEN ROUND((SUM(b.data_adx_country_click) / SUM(b.data_adx_country_impresi)) * 100, 2)
+    #             ELSE 0 END AS ctr,
+    #             CASE WHEN SUM(b.data_adx_country_impresi) > 0
+    #             THEN ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000)
+    #             ELSE 0 END AS ecpm,
+    #             CASE WHEN SUM(b.data_adx_country_click) > 0
+    #             THEN ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 0)
+    #             ELSE 0 END AS cpc,
+    #             SUM(b.data_adx_country_revenue) AS revenue
+    #             FROM app_credentials a
+    #             INNER JOIN data_adx_country b ON a.account_id = b.account_id
+    #             WHERE a.user_mail = %s
+    #             AND b.data_adx_country_tanggal BETWEEN %s AND %s
+    #             GROUP BY b.data_adx_country_cd, b.data_adx_country_nm
+    #             ORDER BY revenue DESC
+    #         )now
+    #         LEFT JOIN (
+    #             SELECT 
+    #             a.account_id, a.account_name, a.user_mail,
+    #             b.data_adx_country_nm AS country_name,
+    #             b.data_adx_country_cd AS country_code,
+    #             SUM(b.data_adx_country_impresi) AS impressions,
+    #             SUM(b.data_adx_country_click) AS clicks,
+    #             CASE WHEN SUM(b.data_adx_country_impresi) > 0
+    #             THEN ROUND((SUM(b.data_adx_country_click) / SUM(b.data_adx_country_impresi)) * 100, 2)
+    #             ELSE 0 END AS ctr,
+    #             CASE WHEN SUM(b.data_adx_country_impresi) > 0
+    #             THEN ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000)
+    #             ELSE 0 END AS ecpm,
+    #             CASE WHEN SUM(b.data_adx_country_click) > 0
+    #             THEN ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 0)
+    #             ELSE 0 END AS cpc,
+    #             SUM(b.data_adx_country_revenue) AS revenue
+    #             FROM app_credentials a
+    #             INNER JOIN data_adx_country b ON a.account_id = b.account_id
+    #             WHERE a.user_mail = %s
+    #             AND b.data_adx_country_tanggal BETWEEN %s AND %s
+    #             GROUP BY b.data_adx_country_cd, b.data_adx_country_nm
+    #             ORDER BY revenue DESC
+    #         ) last ON now.country_code = last.country_code
+    #     '''
+    #     try:
+    #         params = [user_mail, start_date, end_date, user_mail_last, start_date_last, end_date_last]
+    #         if not self.execute_query(sql, tuple(params)):  
+    #             raise pymysql.Error("Failed to fetch app_credentials data")
+    #         results = self.cur_hris.fetchall()
+    #         return {
+    #             'status': True,
+    #             'data': results if results else []
+    #         }
+    #     except pymysql.Error as e:
+    #         return {
+    #             'status': False,
+    #             'error': f'Database error: {str(e)}'
+    #         }
 
     def fetch_ads_sites_list(self, ads_id):
         try:
