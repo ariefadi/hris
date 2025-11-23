@@ -143,7 +143,7 @@ class Command(BaseCommand):
                         }
                         # Hapus data existing pada rentang tanggal agar ditimpa data baru
                         try:
-                            del_res = data_mysql().delete_data_ads_country_by_date_account(record['account_ads_id'], record['data_ads_country_cd'], record['data_ads_domain'], record['data_ads_campaign_nm'], record['data_ads_country_tanggal'])
+                            del_res = data_mysql().delete_data_ads_country_by_date_account(account_data['account_id'], country_code_val, domain_value, campaign_name, tanggal_row)
                             if del_res.get('hasil', {}).get('status'):
                                 affected = del_res.get('hasil', {}).get('affected', 0)
                                 self.stdout.write(self.style.WARNING(

@@ -3386,6 +3386,7 @@ class RoiTrafficPerDomainDataView(View):
                 end_date_formatted,
                 selected_sites_list
             )
+            print(f"[DEBUG ROI] AdX result: {adx_result}")
             # --- 5. Proses Facebook data
             facebook_data = None
             unique_name_site = []
@@ -3406,12 +3407,14 @@ class RoiTrafficPerDomainDataView(View):
                     if "." in site:
                         unique_name_site.append(site.rsplit(".", 1)[0])
             unique_name_site = list(set(unique_name_site))
+            print(f"[DEBUG ROI] Unique name site: {unique_name_site}")
             if unique_name_site:
                 facebook_data = data_mysql().get_all_ads_roi_traffic_campaign_by_params(
                     start_date_formatted,
                     end_date_formatted,
                     unique_name_site
                 )
+                print(f"[DEBUG ROI] Facebook data: {facebook_data}")
             # --- 6. Gabungkan data AdX dan Facebook
             combined_data = []
             total_spend = total_revenue = total_clicks = total_other_costs = 0

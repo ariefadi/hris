@@ -138,7 +138,7 @@ class Command(BaseCommand):
                         'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                     }
                     try:
-                        del_res = data_mysql().delete_data_ads_campaign_by_date_account(record['account_ads_id'], record['data_ads_domain'], record['data_ads_campaign_nm'], record['data_ads_tanggal'])
+                        del_res = data_mysql().delete_data_ads_campaign_by_date_account(account_data['account_id'], (agg['campaign_name'] or '').split('_')[0], agg['campaign_name'], agg['tanggal'])
                         if del_res.get('hasil', {}).get('status'):
                             affected = del_res.get('hasil', {}).get('affected', 0)
                             self.stdout.write(self.style.WARNING(
