@@ -1610,7 +1610,7 @@ class page_per_country_facebook(View):
     def post(self, req):
         tanggal_dari = req.POST.get('tanggal_dari') 
         tanggal_sampai = req.POST.get('tanggal_sampai')
-        data_sub_domain = req.POST.get('data_sub_domain')
+        data_sub_domain = req.POST.get('data_sub_domain[]')
         data_account = req.POST.get('data_account')
         selected_countries_json = req.POST.get('selected_countries', '[]')
         try:
