@@ -329,31 +329,35 @@ $(document).ready(function () {
         var tableData = [];
         if (data && Array.isArray(data)) {
             data.forEach(function (row) {
-                // Get country flag
                 var countryFlag = '';
                 if (row.country_code) {
                     countryFlag = '<img src="https://flagcdn.com/16x12/' + row.country_code.toLowerCase() + '.png" alt="' + row.country_code + '" style="margin-right: 5px;"> ';
                 }
+                // Simpan ANGKA MURNI; format dilakukan di renderer display
                 tableData.push([
-                    countryFlag + (row.country || ''),
-                    row.country_code || '',
-                    row.impressions ? row.impressions.toLocaleString('id-ID') : '0',
-                    formatCurrencyIDR(row.spend || 0),
-                    row.clicks ? row.clicks.toLocaleString('id-ID') : '0',
-                    row.ctr ? row.ctr.toFixed(2) + '%' : '0%',
-                    formatCurrencyIDR(row.cpc || 0),
-                    formatCurrencyIDR(row.ecpm || 0),
-                    // Simpan ROI sebagai angka untuk sorting numerik, render nanti
-                    row.roi ? Number(row.roi) : 0,
-                    formatCurrencyIDR(row.revenue || 0)
+                    countryFlag + (row.country || ''),   // 0: Negara
+                    row.country_code || '',              // 1: Kode
+                    Number(row.impressions || 0),        // 2: Impresi
+                    Number(row.spend || 0),              // 3: Spend (Rp)
+                    Number(row.clicks || 0),             // 4: Klik
+                    Number(row.ctr || 0),                // 5: CTR (%)
+                    Number(row.cpc || 0),                // 6: CPC (Rp)
+                    Number(row.ecpm || 0),               // 7: eCPM (Rp)
+                    Number(row.roi || 0),                // 8: ROI (%)
+                    Number(row.revenue || 0)             // 9: Pendapatan (Rp)
                 ]);
             });
         }
-        // Destroy existing DataTable if it exists
+        // Destroy existing DataTable dan bersihkan state agar default order berlaku
         if ($.fn.DataTable.isDataTable('#table_traffic_country')) {
-            $('#table_traffic_country').DataTable().destroy();
+            var existing = $('#table_traffic_country').DataTable();
+            if (existing.state) { existing.state.clear(); }
+            existing.destroy();
         }
-        $('#table_traffic_country').DataTable({
+        
+        var table = $('#table_traffic_country').DataTable({
+            // Matikan stateSave supaya default order tidak di-override oleh state lama
+            stateSave: false,
             data: tableData,
             responsive: true,
             pageLength: 25,
@@ -387,22 +391,122 @@ $(document).ready(function () {
                     extend: 'pdf',
                     text: 'Export PDF',
                     className: 'btn btn-danger'
+                },
+                {
+                    extend: 'copy',
+                    text: 'Copy',
+                    className: 'btn btn-info'
+                },
+                {
+                    extend: 'csv',
+                    text: 'Export CSV',
+                    className: 'btn btn-primary'
+                },
+                {
+                    extend: 'print',
+                    text: 'Print',
+                    className: 'btn btn-warning'
+                },
+                {
+                    extend: 'colvis',
+                    text: 'Column Visibility',
+                    className: 'btn btn-default'
                 }
             ],
-            // Definisikan render untuk kolom ROI agar tampil dengan '%', namun tetap disortir numerik
             columnDefs: [
+                // Impresi (kolom 2): tampil ribuan, sort numerik
+                {
+                    targets: 2,
+                    type: 'num',
+                    render: function (data, type) {
+                        var v = Number(data) || 0;
+                        return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toLocaleString('id-ID');
+                    }
+                },
+                // Spend (kolom 3): tampil Rupiah tanpa desimal, sort numerik
+                {
+                    targets: 3,
+                    type: 'num',
+                    render: function (data, type) {
+                        var v = Number(data) || 0;
+                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
+                        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
+                        // Atau: return formatCurrencyIDR(v);
+                    }
+                },
+                // Klik (kolom 4): tampil ribuan, sort numerik
+                {
+                    targets: 4,
+                    type: 'num',
+                    render: function (data, type) {
+                        var v = Number(data) || 0;
+                        return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toLocaleString('id-ID');
+                    }
+                },
+                // CTR (kolom 5): tampil persen, sort numerik
+                {
+                    targets: 5,
+                    type: 'num',
+                    render: function (data, type) {
+                        var v = Number(data) || 0;
+                        return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toFixed(2) + '%';
+                    }
+                },
+                // CPC (kolom 6): tampil Rupiah dengan desimal, sort numerik
+                {
+                    targets: 6,
+                    type: 'num',
+                    render: function (data, type) {
+                        var v = Number(data) || 0;
+                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
+                        return new Intl.NumberFormat('id-ID', { 
+                            style: 'currency', 
+                            currency: 'IDR', 
+                            minimumFractionDigits: 0, 
+                            maximumFractionDigits: 0 
+                        }).format(v);
+                    }
+                },
+                // eCPM (kolom 7): tampil Rupiah dengan desimal, sort numerik
+                {
+                    targets: 7,
+                    type: 'num',
+                    render: function (data, type) {
+                        var v = Number(data) || 0;
+                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
+                        return new Intl.NumberFormat('id-ID', { 
+                            style: 'currency', 
+                            currency: 'IDR', 
+                            minimumFractionDigits: 0, 
+                            maximumFractionDigits: 0 
+                        }).format(v);
+                    }
+                },
+                // ROI (kolom 8): tampil persen, sort numerik
                 {
                     targets: 8,
+                    type: 'num-fmt',
+                    render: function (data, type) {
+                        var v = Number(data) || 0;
+                        return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toFixed(2) + '%';
+                    }
+                },
+                // Pendapatan (kolom 9): tampil Rupiah tanpa desimal, sort numerik
+                {
+                    targets: 9,
                     type: 'num',
-                    render: function (data, type, row) {
-                        var value = Number(data) || 0;
-                        return value.toFixed(2) + '%';
+                    render: function (data, type) {
+                        var v = Number(data) || 0;
+                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
+                        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
+                        // Atau: return formatCurrencyIDR(v);
                     }
                 }
             ],
-            // Urutkan berdasarkan ROI (kolom ke-9 / index 8) menurun
             order: [[8, 'desc']]
+            // ... existing code ...
         });
+        // ... existing code ...
     }
     // Fungsi untuk generate charts (hanya world map)
     function generateTrafficCountryCharts(data) {

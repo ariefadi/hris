@@ -140,6 +140,26 @@ $().ready(function () {
                 extend: 'pdf',
                 text: 'Export PDF',
                 className: 'btn btn-danger'
+            },
+            {
+                extend: 'copy',
+                text: 'Copy',
+                className: 'btn btn-info'
+            },
+            {
+                extend: 'csv',
+                text: 'Export CSV',
+                className: 'btn btn-primary'
+            },
+            {
+                extend: 'print',
+                text: 'Print',
+                className: 'btn btn-warning'
+            },
+            {
+                extend: 'colvis',
+                text: 'Column Visibility',
+                className: 'btn btn-default'
             }
         ],
         columnDefs: [
@@ -195,9 +215,7 @@ $().ready(function () {
                     return data;
                 }
             }
-        ],
-        // Urutan default bisa disesuaikan; contoh: urutkan pendapatan menurun
-        order: [[6, 'desc']]
+        ]
     });
 });
 function load_adx_traffic_account_data() {

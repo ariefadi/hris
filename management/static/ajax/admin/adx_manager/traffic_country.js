@@ -300,6 +300,26 @@ $(document).ready(function() {
                     extend: 'pdf',
                     text: 'Export PDF',
                     className: 'btn btn-danger'
+                },
+                {
+                    extend: 'copy',
+                    text: 'Copy',
+                    className: 'btn btn-info'
+                },
+                {
+                    extend: 'csv',
+                    text: 'Export CSV',
+                    className: 'btn btn-primary'
+                },
+                {
+                    extend: 'print',
+                    text: 'Print',
+                    className: 'btn btn-warning'
+                },
+                {
+                    extend: 'colvis',
+                    text: 'Column Visibility',
+                    className: 'btn btn-default'
                 }
             ],
             columnDefs: [
@@ -313,8 +333,7 @@ $(document).ready(function() {
                         return data; // gunakan nilai numerik untuk sort/filter
                     }
                 }
-            ],
-            order: [[7, 'desc']] // Sort by revenue descending
+            ]
         });
 
         // Paksa urutan setelah inisialisasi untuk memastikan tidak tertimpa

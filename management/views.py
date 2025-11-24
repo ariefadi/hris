@@ -3042,7 +3042,6 @@ class RoiTrafficPerCountryDataView(View):
         end_date_str = end_date.strftime("%Y-%m-%d")
         start_date_last_str = start_date_last.strftime("%Y-%m-%d")
         end_date_last_str = end_date_last.strftime("%Y-%m-%d")
-        print(f"[DEBUG ROI] Request params - start_date: {start_date_str}, end_date: {end_date_str}, start_date_last: {start_date_last_str}, end_date_last: {end_date_last_str}")
         selected_account_adx = req.GET.get('selected_account_adx', '')
         selected_sites = req.GET.get('selected_sites', '')
         selected_account = req.GET.get('selected_account', '')

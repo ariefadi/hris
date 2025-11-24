@@ -147,24 +147,94 @@ $().ready(function () {
                 extend: 'pdf',
                 text: 'Export PDF',
                 className: 'btn btn-danger'
+            },
+            {
+                extend: 'copy',
+                text: 'Copy',
+                className: 'btn btn-info'
+            },
+            {
+                extend: 'csv',
+                text: 'Export CSV',
+                className: 'btn btn-primary'
+            },
+            {
+                extend: 'print',
+                text: 'Print',
+                className: 'btn btn-warning'
+            },
+            {
+                extend: 'colvis',
+                text: 'Column Visibility',
+                className: 'btn btn-default'
             }
         ],
         columnDefs: [
             {
-                targets: [2, 3, 4, 5, 6, 7, 8], // kolom numerik ditata kanan
+                targets: [2, 3, 4, 5, 6, 7, 8],
                 className: "text-right"
             },
+            // Spend (kolom 2) — tampil Rupiah, sort numerik
             {
-                // pastikan sorting ROI numerik (kolom ke-8, index 7)
+                targets: 2,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                }
+            },
+            // Klik (kolom 3) — tampil ribuan, sort numerik
+            {
+                targets: 3,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val);
+                }
+            },
+            // CTR (kolom 4) — tampil persen, sort numerik
+            {
+                targets: 4,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val, 2) + ' %';
+                }
+            },
+            // CPC (kolom 5) — tampil Rupiah bulat, sort numerik
+            {
+                targets: 5,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                }
+            },
+            // eCPM (kolom 6) — tampil Rupiah bulat, sort numerik
+            {
+                targets: 6,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                }
+            },
+            // ROI (kolom 7) — tampil persen, sort numerik
+            {
                 targets: 7,
                 type: 'num',
                 render: function (data, type) {
-                    // data biasanya "12.34 %"; parsing aman untuk sort/type
-                    if (type === 'sort' || type === 'type') {
-                        var val = parseFloat(String(data).replace('%', '').trim());
-                        return isNaN(val) ? 0 : val;
-                    }
-                    return data; // tampilan tetap seperti yang sudah ditambahkan (mis. "12.34 %")
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val, 2) + ' %';
+                }
+            },
+            // Pendapatan (kolom 8) — tampil Rupiah bulat, sort numerik
+            {
+                targets: 8,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
                 }
             }
         ],
@@ -250,13 +320,14 @@ function load_adx_traffic_account_data() {
                         table.row.add([
                             item.site_name || '-',
                             formattedDate,
-                            formatCurrencyIDR(item.spend || 0),
-                            formatNumber(item.clicks || 0),
-                            formatNumber(item.ctr || 0, 2) + ' %',
-                            formatCurrencyIDR(item.cpc || 0),
-                            formatCurrencyIDR(item.cpm || 0),
-                            formatNumber(item.roi || 0, 2) + ' %',
-                            formatCurrencyIDR(item.revenue || 0)
+                            // SIMPAN ANGKA MURNI AGAR SORTING AKURAT
+                            Number(item.spend || 0),
+                            Number(item.clicks || 0),
+                            Number(item.ctr || 0),
+                            Number(item.cpc || 0),
+                            Number(item.cpm || 0),
+                            Number(item.roi || 0),
+                            Number(item.revenue || 0)
                         ]);
                     });
                 }
