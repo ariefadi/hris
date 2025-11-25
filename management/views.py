@@ -2754,10 +2754,15 @@ class AdxSitesListView(View):
             except Exception as _cache_err:
                 # Lanjutkan tanpa memblokir jika cache gagal
                 print(f"[WARNING] adx_sites_list cache unavailable: {_cache_err}")
+
             # Ambil daftar situs dari Ad Manager jika cache miss
             # result = fetch_user_sites_list(user_mail)
+            end_date = date.today()
+            start_date = end_date - timedelta(days=7)
             result = data_mysql().fetch_user_sites_list(
-                user_mail
+                user_mail, 
+                start_date.strftime('%Y-%m-%d'), 
+                end_date.strftime('%Y-%m-%d')
             )
             print(f"[DEBUG] AdxSitesListView - result: {result}")
             # Simpan ke cache untuk permintaan berikutnya

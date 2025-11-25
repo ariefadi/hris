@@ -2338,7 +2338,7 @@ class data_mysql:
                 "error": f"Terjadi error {e!r}, error nya {e.args[0]}"
             }
 
-    def fetch_user_sites_list(self, user_mail):   
+    def fetch_user_sites_list(self, user_mail, tanggal_dari, tanggal_sampai):   
         try:
             base_sql = [
                 "SELECT",
@@ -2347,9 +2347,10 @@ class data_mysql:
                 "\tapp_credentials a",
                 "INNER JOIN data_adx_domain b ON a.account_id = b.account_id",
                 "WHERE a.user_mail = %s",
+                "AND b.data_adx_domain_tanggal BETWEEN %s AND %s",
                 "GROUP BY b.data_adx_domain",
             ]
-            params = [user_mail]
+            params = [user_mail, tanggal_dari, tanggal_sampai]
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all adx traffic account by params")
