@@ -3264,11 +3264,7 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                 revenue = float(adx_item.get('revenue', 0))
                 # Ambil spend dan biaya lainnya dari Facebook berdasarkan country_code
                 spend = facebook_spend_map.get(country_code, 0)
-                click_fb = facebook_click_map.get(country_code, 0)
-                if click_fb > 0:
-                    clicks = click_fb
-                else:
-                    clicks = clicks_adx
+                clicks = clicks_adx
                 # Hitung metrik
                 ctr = ((clicks / impressions) * 100) if impressions > 0 else 0
                 cpc = (revenue / clicks) if clicks > 0 else 0
