@@ -2201,21 +2201,30 @@ class data_mysql:
         try:
             base_sql = [
                 "SELECT",
-                "\ta.account_id, a.account_name, a.account_email,",
-                "\tb.data_ads_tanggal AS 'date',",
-                "\tb.data_ads_domain AS 'domain',",
-                "\tb.data_ads_campaign_nm AS 'campaign',",
-                "\tb.data_ads_spend AS 'spend',",
-                "\tb.data_ads_impresi AS 'impressions',",
-                "\tb.data_ads_click AS 'clicks',",
-                "\tb.data_ads_reach AS 'reach',",
-                "\tb.data_ads_cpr AS 'cpr',",
-                "\tb.data_ads_cpc AS 'cpc'",
-                "FROM",
-                "\tmaster_account_ads a",
-                "INNER JOIN data_ads_campaign b ON a.account_id = b.account_ads_id",
-                "WHERE a.account_id = %s",
-                "AND b.data_ads_tanggal BETWEEN %s AND %s",
+                "\trs.account_id, rs.account_name, rs.account_email,",
+                "\trs.date, rs.domain, rs.campaign,",
+                "\tSUM(rs.spend) AS 'spend',",
+                "\tSUM(rs.clicks) AS 'clicks',",
+                "\tSUM(rs.impressions) AS 'impressions',",
+                "\tSUM(rs.reach) AS 'reach',",
+                "\tSUM(rs.cpr) AS 'cpr',",
+                "\tSUM(rs.cpc) AS 'cpc'",
+                "FROM (",
+                "\tSELECT",
+                "\t\ta.account_id, a.account_name, a.account_email,",
+                "\t\tb.data_ads_tanggal AS 'date',",
+                "\t\tb.data_ads_domain AS 'domain',",
+                "\t\tb.data_ads_campaign_nm AS 'campaign',",
+                "\t\tb.data_ads_spend AS 'spend',",
+                "\t\tb.data_ads_impresi AS 'impressions',",
+                "\t\tb.data_ads_click AS 'clicks',",
+                "\t\tb.data_ads_reach AS 'reach',",
+                "\t\tb.data_ads_cpr AS 'cpr',",
+                "\t\tb.data_ads_cpc AS 'cpc'",
+                "\tFROM master_account_ads a",
+                "\tINNER JOIN data_ads_campaign b ON a.account_id = b.account_ads_id",
+                "\tWHERE a.account_id = %s",
+                "\tAND b.data_ads_tanggal BETWEEN %s AND %s",
             ]
 
             params = [data_account, tanggal_dari, tanggal_sampai]
@@ -2232,8 +2241,9 @@ class data_mysql:
                 placeholders = ','.join(['%s'] * len(sites_list))
                 base_sql.append(f"AND b.data_ads_domain IN ({placeholders})")
                 params.extend(sites_list)
-
-            base_sql.append("ORDER BY b.data_ads_domain ASC, b.data_ads_tanggal ASC")
+            base_sql.append(") rs")
+            base_sql.append("GROUP BY rs.domain ASC, rs.date ASC")
+            base_sql.append("ORDER BY rs.date ASC")
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all adx traffic account by params")
@@ -2395,7 +2405,7 @@ class data_mysql:
                 "\tSUM(rs.spend) AS 'spend',",
                 "\tSUM(rs.clicks) AS 'clicks',",
                 "\tSUM(rs.impressions) AS 'impressions',",
-                "\tSUM(rs.reach) AS 'reach'",
+                "\tSUM(rs.cpr) AS 'cpr'",
                 "FROM (",
                 "\tSELECT",
                 "\t\ta.account_id, a.account_name, a.account_email,",
@@ -2543,7 +2553,7 @@ class data_mysql:
                 "\tSUM(rs.spend) AS 'spend',",
                 "\tSUM(rs.clicks) AS 'clicks',",
                 "\tSUM(rs.impressions) AS 'impressions',",
-                "\tSUM(rs.reach) AS 'reach'",
+                "\tSUM(rs.cpr) AS 'cpr'",
                 "FROM (",
                 "\tSELECT",
                 "\t\ta.account_id, a.account_name, a.account_email,",
@@ -2555,7 +2565,7 @@ class data_mysql:
                 "\t\tb.data_ads_country_spend AS 'spend',",
                 "\t\tb.data_ads_country_impresi AS 'impressions',",
                 "\t\tb.data_ads_country_click AS 'clicks',",
-                "\t\tb.data_ads_country_reach AS 'reach'",
+                "\t\tb.data_ads_country_cpr AS 'cpr'",
                 "\tFROM master_account_ads a",
                 "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
                 "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",

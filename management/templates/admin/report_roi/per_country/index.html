@@ -113,17 +113,6 @@
         <div class="row" id="summary_boxes" style="display: none;">
             <div class="col-12 col-sm-6 col-md-2">
                 <div class="info-box">
-                    <span class="info-box-icon text-bg-primary shadow-sm">
-                        <i class="bi bi-eye-fill"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Total Impresi</span>
-                        <span class="info-box-number" id="total_impressions">0</span>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-2">
-                <div class="info-box">
                     <span class="info-box-icon text-bg-info shadow-sm">
                         <i class="bi bi-cash-stack"></i>
                     </span>
@@ -146,23 +135,23 @@
             </div>
             <div class="col-12 col-sm-6 col-md-2">
                 <div class="info-box">
-                    <span class="info-box-icon text-bg-warning shadow-sm">
-                        <i class="bi bi-currency-dollar"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Total Pendapatan</span>
-                        <span class="info-box-number" id="total_revenue">Rp 0</span>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-2">
-                <div class="info-box">
                     <span class="info-box-icon text-bg-danger shadow-sm">
                         <i class="bi bi-graph-up-arrow"></i>
                     </span>
                     <div class="info-box-content">
                         <span class="info-box-text">CTR</span>
                         <span class="info-box-number" id="total_ctr">0%</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-2">
+                <div class="info-box">
+                    <span class="info-box-icon text-bg-secondary shadow-sm">
+                        <i class="bi bi-currency-dollar"></i>
+                    </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Total CPR</span>
+                        <span class="info-box-number" id="total_cpr">Rp 0</span>
                     </div>
                 </div>
             </div>
@@ -177,8 +166,18 @@
                     </div>
                 </div>
             </div>
+            <div class="col-12 col-sm-6 col-md-2">
+                <div class="info-box">
+                    <span class="info-box-icon text-bg-warning shadow-sm">
+                        <i class="bi bi-currency-dollar"></i>
+                    </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Total Pendapatan</span>
+                        <span class="info-box-number" id="total_revenue">Rp 0</span>
+                    </div>
+                </div>
+            </div>
         </div>
-        
         <!-- Charts Section -->
         <div class="row mt-3" id="charts_section" style="display: none;">
             <div class="col-12">
@@ -220,9 +219,9 @@
                     <tr>
                         <th class="text-center">Negara</th>
                         <th class="text-center">Kode Negara</th>
-                        <th class="text-center">Impresi</th>
                         <th class="text-center">Spend</th>
                         <th class="text-center">Klik</th>
+                        <th class="text-center">CPR</th>
                         <th class="text-center">CTR (%)</th>
                         <th class="text-center">CPC</th>
                         <th class="text-center">eCPM</th>

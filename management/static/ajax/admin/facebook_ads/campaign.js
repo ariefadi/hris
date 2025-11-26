@@ -130,9 +130,22 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 let cpr = cpr_number.toFixed(0).replace(',', '.');
                 const frequency = Number(value?.frequency) || 0;
                 const formattedFrequency = frequency.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                var formattedDate = value.date || '-';
+                if (value.date && value.date.match(/\d{4}-\d{2}-\d{2}/)) {
+                    var months = [
+                        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+                        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+                    ];
+                    var date = new Date(value.date + 'T00:00:00');
+                    var day = date.getDate();
+                    var month = months[date.getMonth()];
+                    var year = date.getFullYear();
+                    formattedDate = day + ' ' + month + ' ' + year;
+                }
                 var event_data = '<tr>';
+                event_data += '<td class="text-center" style="font-size: 12px;"><b>' + formattedDate + '</b></td>';
                 event_data += '<td class="text-left" style="font-size: 12px;"><span class="badge badge-info" style="color: white;">' + value.account_name + '</span></td>';
-                event_data += '<td class="text-left" style="font-size: 12px;"><span class="badge badge-danger" style="color: white;">' + value.campaign_name + '</span></td>';
+                event_data += '<td class="text-left" style="font-size: 12px;"><span class="badge badge-danger" style="color: white;">' + value.domain + '</span></td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.spend).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.impressions).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.reach).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
@@ -160,14 +173,13 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 const totalFrequency = frequency.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + ' %';
                 // CPR
                 let data_cpr = value.total_cpr;
-                let cpr_number = parseFloat(data_cpr)
-                let totalCpr = cpr_number.toFixed(0).replace(',', '.');
+                console.log(data_cpr);
                 $('#total_spend').text(totalSpend);
                 $('#total_impressions').text(totalImpressions);
                 $('#total_reach').text(totalReach);
                 $('#total_clicks').text(totalClicks);
                 $('#total_frequency').text(totalFrequency);
-                $('#total_cpr').text(totalCpr);
+                $('#total_cpr').text(data_cpr);
             })
             $('#table_data_campaign_facebook').DataTable({
                 "paging": true,
@@ -192,7 +204,7 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                             + tanggal.getFullYear(),
                         exportOptions: {
                             columns: ':visible',
-                            columns: [0, 1, 2, 3, 4, 5, 6],      // hanya kolom yang terlihat
+                            columns: [0, 1, 2, 3, 4, 5, 6, 7],      // hanya kolom yang terlihat
                             modifier: {
                                 search: 'applied',      // sesuai filter pencarian
                                 order: 'applied'        // sesuai urutan saat itu
@@ -203,7 +215,7 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                             // =========================
                             // Set column width secara manual (unit: character width)
                             // =========================
-                            const colWidths = [10, 15, 10, 10, 10, 10, 10]; // 💡 Sesuaikan berdasarkan % di HTML
+                            const colWidths = [10, 15, 15, 10, 10, 10, 10, 10]; // 💡 Sesuaikan berdasarkan % di HTML
                             const cols = $('cols', sheet);
                             cols.empty(); // Kosongkan default <col> dari DataTables
                             for (let i = 0; i < colWidths.length; i++) {
@@ -242,19 +254,20 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                             // Loop dari baris kedua (index 1, karena index 0 adalah header)
                             for (let i = 1; i < body.length; i++) {
                                 if (body[i]) {
-                                    if (body[i][0]) body[i][0].alignment = 'left';
+                                    if (body[i][0]) body[i][0].alignment = 'center';
                                     if (body[i][1]) body[i][1].alignment = 'left';
-                                    if (body[i][2]) body[i][2].alignment = 'right';
+                                    if (body[i][2]) body[i][2].alignment = 'left';
                                     if (body[i][3]) body[i][3].alignment = 'right';
                                     if (body[i][4]) body[i][4].alignment = 'right';
                                     if (body[i][5]) body[i][5].alignment = 'right';
                                     if (body[i][6]) body[i][6].alignment = 'right';
+                                    if (body[i][7]) body[i][7].alignment = 'right';
                                 }
                             }
                             // Margin
-                            doc.content[1].margin = [0, 0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
+                            doc.content[1].margin = [0, 0, 0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
                             // Manual width sesuai presentase kolom HTML (tanpa kolom terakhir)
-                            doc.content[1].table.widths = ['10%', '15%', '10%', '10%', '10%', '10%', '10%'];
+                            doc.content[1].table.widths = ['10%', '15%', '15%', '10%', '10%', '10%', '10%', '10%'];
                         }
                     }
                 ]

@@ -192,25 +192,25 @@ $().ready(function () {
                     return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val);
                 }
             },
-            // CTR (kolom 4) — tampil persen, sort numerik
+            // CPR (kolom 4) — tampil Rupiah, sort numerik
             {
                 targets: 4,
-                type: 'num',
-                render: function (data, type) {
-                    var val = Number(data) || 0;
-                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val, 2) + ' %';
-                }
-            },
-            // CPC (kolom 5) — tampil Rupiah bulat, sort numerik
-            {
-                targets: 5,
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
                     return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
                 }
             },
-            // eCPM (kolom 6) — tampil Rupiah bulat, sort numerik
+            // CTR (kolom 5) — tampil persen, sort numerik
+            {
+                targets: 5,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val, 2) + ' %';
+                }
+            },
+            // CPC (kolom 6) — tampil Rupiah bulat, sort numerik
             {
                 targets: 6,
                 type: 'num',
@@ -219,18 +219,27 @@ $().ready(function () {
                     return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
                 }
             },
-            // ROI (kolom 7) — tampil persen, sort numerik
+            // eCPM (kolom 7) — tampil Rupiah bulat, sort numerik
             {
                 targets: 7,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                }
+            },
+            // ROI (kolom 8) — tampil persen, sort numerik
+            {
+                targets: 8,
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
                     return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val, 2) + ' %';
                 }
             },
-            // Pendapatan (kolom 8) — tampil Rupiah bulat, sort numerik
+            // Pendapatan (kolom 9) — tampil Rupiah bulat, sort numerik
             {
-                targets: 8,
+                targets: 9,
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
@@ -238,7 +247,7 @@ $().ready(function () {
                 }
             }
         ],
-        order: [[7, 'desc']]
+        order: [[8, 'desc']]
     });
 });
 
@@ -323,6 +332,7 @@ function load_adx_traffic_account_data() {
                             // SIMPAN ANGKA MURNI AGAR SORTING AKURAT
                             Number(item.spend || 0),
                             Number(item.clicks || 0),
+                            Number(item.cpr || 0),
                             Number(item.ctr || 0),
                             Number(item.cpc || 0),
                             Number(item.cpm || 0),

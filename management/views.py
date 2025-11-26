@@ -1544,7 +1544,7 @@ class page_per_campaign_facebook(View):
         for row in raw_rows or []:
             # Pastikan akses aman terhadap dictionary
             account_name = row.get('account_name')
-            campaign_name = row.get('campaign') or row.get('campaign_name')
+            domain = row.get('domain')
             spend = float(row.get('spend', 0) or 0)
             impressions = int(row.get('impressions', 0) or 0)
             reach = int(row.get('reach', 0) or 0)
@@ -1553,8 +1553,9 @@ class page_per_campaign_facebook(View):
             # Hitung frequency sebagai persen (impressions/reach * 100)
             frequency = (float(impressions) / float(reach) * 100.0) if reach > 0 else 0.0
             normalized_rows.append({
+                'date': row.get('date'),
                 'account_name': account_name,
-                'campaign_name': campaign_name,
+                'domain': domain,
                 'spend': spend,
                 'impressions': impressions,
                 'reach': reach,
@@ -1569,7 +1570,7 @@ class page_per_campaign_facebook(View):
             total_clicks += clicks
         # Agregasi total: frequency total sebagai (impressions/reach)*100, CPR total sebagai spend/clicks
         total_frequency = (float(total_impressions) / float(total_reach) * 100.0) if total_reach > 0 else 0.0
-        total_cpr = (float(total_spend) / float(total_clicks)) if total_clicks > 0 else 0.0
+        total_cpr = sum([row['cpr'] for row in normalized_rows])
         response_data = {
             'hasil': "Data Traffic Per Campaign",
             'data_campaign': normalized_rows,
@@ -1579,7 +1580,7 @@ class page_per_campaign_facebook(View):
                 'total_reach': total_reach,
                 'total_click': total_clicks,
                 'total_frequency': total_frequency,
-                'total_cpr': total_cpr,
+                'total_cpr': format(total_cpr, '.0f'),
             }],
         }
         # Jika terjadi kegagalan di layer DB, kirimkan respons kosong agar frontend tidak error
@@ -3187,6 +3188,7 @@ class RoiTrafficPerCountryDataView(View):
             # Pastikan bentuk payload sesuai: gunakan 'hasil' untuk AdX dan FB jika tersedia
             adx_payload = data_adx.get('hasil') if isinstance(data_adx, dict) and data_adx.get('hasil') else data_adx
             fb_payload = (data_facebook.get('hasil') if isinstance(data_facebook, dict) and data_facebook.get('hasil') else {'status': True, 'data': []})
+            print(f"[DEBUG ROI] Facebook payload: {fb_payload}")
             result = process_roi_traffic_country_data(adx_payload, fb_payload)
             # Filter hasil berdasarkan negara yang dipilih jika ada
             if countries_list and result.get('status') and result.get('data'):
@@ -3239,6 +3241,7 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
         print(f"[DEBUG ROI] process() ADX present: {bool(data_adx and data_adx.get('data'))}, FB present: {bool(data_facebook and data_facebook.get('data'))}")
         # Buat mapping data Facebook berdasarkan country_cd (kode negara 2 huruf)
         facebook_spend_map = {}
+        facebook_cpr_map = {}
         facebook_click_map = {}
         fb_code_set = set()
         if data_facebook and data_facebook.get('data'):
@@ -3247,6 +3250,8 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                 country_cd = (fb_item.get('country_code', 'unknown') or 'unknown').upper()
                 spend = float(fb_item.get('spend', 0))
                 facebook_spend_map[country_cd] = spend
+                cpr = float(fb_item.get('cpr', 0))
+                facebook_cpr_map[country_cd] = cpr
                 facebook_click_map[country_cd] = int(fb_item.get('clicks', 0))
                 fb_code_set.add(country_cd)
         print(f"[DEBUG ROI] FB spend map keys: {len(facebook_spend_map)}")
@@ -3264,13 +3269,16 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                 revenue = float(adx_item.get('revenue', 0))
                 # Ambil spend dan biaya lainnya dari Facebook berdasarkan country_code
                 spend = facebook_spend_map.get(country_code, 0)
-                clicks = clicks_adx
+                click_fb = facebook_click_map.get(country_code, 0)
+                if click_fb > 0:
+                    clicks = click_fb
+                else:
+                    clicks = clicks_adx
                 # Hitung metrik
                 ctr = ((clicks / impressions) * 100) if impressions > 0 else 0
                 cpc = (revenue / clicks) if clicks > 0 else 0
                 ecpm = ((revenue / impressions) * 1000) if impressions > 0 else 0
                 roi = (((revenue - spend)/spend)*100) if spend > 0 else 0
-                
                 # Tambahkan ke hasil tanpa memfilter AdX-only
                 combined_data.append({
                     'country': country_name,
@@ -3279,6 +3287,7 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                     'spend': round(spend, 2),
                     'clicks': clicks,
                     'revenue': round(revenue, 2),
+                    'cpr': round(cpr, 2),
                     'ctr': round(ctr, 2),
                     'cpc': round(cpc, 4),
                     'ecpm': round(ecpm, 2),
@@ -3381,7 +3390,6 @@ class RoiTrafficPerDomainDataView(View):
                 end_date_formatted,
                 selected_sites_list
             )
-            print(f"[DEBUG ROI] AdX result: {adx_result}")
             # --- 5. Proses Facebook data
             facebook_data = None
             unique_name_site = []
@@ -3402,7 +3410,6 @@ class RoiTrafficPerDomainDataView(View):
                     if "." in site:
                         unique_name_site.append(site.rsplit(".", 1)[0])
             unique_name_site = list(set(unique_name_site))
-            print(f"[DEBUG ROI] Unique name site: {unique_name_site}")
             if unique_name_site:
                 facebook_data = data_mysql().get_all_ads_roi_traffic_campaign_by_params(
                     start_date_formatted,
@@ -3429,15 +3436,18 @@ class RoiTrafficPerDomainDataView(View):
                     fb_data = facebook_map.get(key)
                     spend = float((fb_data or {}).get('spend', 0))
                     other_costs = float((fb_data or {}).get('other_costs', 0))
-                    clicks_fb = int((fb_data or {}).get('clicks', 0))
+                    # clicks_fb = int((fb_data or {}).get('clicks', 0))
+                    cpr = int((fb_data or {}).get('cpr', 0))
                     revenue = float(adx_item.get('revenue', 0))
-                    clicks = clicks_fb if clicks_fb > 0 else int(adx_item.get('clicks', 0))
+                    # clicks = clicks_fb if clicks_fb > 0 else int(adx_item.get('clicks', 0))
+                    clicks = int(adx_item.get('clicks', 0))
                     roi = ((revenue - spend) / spend * 100) if spend > 0 else 0
                     combined_item = {
                         'date': date_key,
                         'site_name': subdomain,
                         'spend': spend,
                         'clicks': clicks,
+                        'cpr': cpr,
                         'ctr': float(adx_item.get('ctr', 0)),
                         'cpc': float(adx_item.get('cpc', 0)),
                         'cpm': float(adx_item.get('cpm', 0)),

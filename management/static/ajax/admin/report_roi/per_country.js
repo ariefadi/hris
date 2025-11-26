@@ -300,6 +300,7 @@ $(document).ready(function () {
         var totalImpressions = 0;
         var totalSpend = 0;
         var totalClicks = 0;
+        var totalCPR = 0;
         var totalRevenue = 0;
         var totalROI = 0;
         var validROICount = 0;
@@ -307,8 +308,8 @@ $(document).ready(function () {
             totalImpressions += item.impressions || 0;
             totalSpend += item.spend || 0;
             totalClicks += item.clicks || 0;
+            totalCPR += item.cpr || 0;
             totalRevenue += item.revenue || 0;
-
             if (item.roi && item.roi !== 0) {
                 totalROI += item.roi;
                 validROICount++;
@@ -317,9 +318,9 @@ $(document).ready(function () {
         var averageCTR = totalImpressions > 0 ? (totalClicks / totalImpressions * 100) : 0;
         var totalROI = (((totalRevenue - totalSpend) / totalSpend) * 100);
         console.log(totalROI)
-        $('#total_impressions').text(totalImpressions.toLocaleString('id-ID'));
         $('#total_spend').text(formatCurrencyIDR(totalSpend));
         $('#total_clicks').text(totalClicks.toLocaleString('id-ID'));
+        $('#total_cpr').text(formatCurrencyIDR(totalCPR));
         $('#total_ctr').text(averageCTR.toFixed(2) + '%');
         $('#total_roi').text(totalROI.toFixed(2) + '%');
         $('#total_revenue').text(formatCurrencyIDR(totalRevenue));
@@ -336,10 +337,10 @@ $(document).ready(function () {
                 // Simpan ANGKA MURNI; format dilakukan di renderer display
                 tableData.push([
                     countryFlag + (row.country || ''),   // 0: Negara
-                    row.country_code || '',              // 1: Kode
-                    Number(row.impressions || 0),        // 2: Impresi
-                    Number(row.spend || 0),              // 3: Spend (Rp)
-                    Number(row.clicks || 0),             // 4: Klik
+                    row.country_code || '',              // 1: Kode Negara
+                    Number(row.spend || 0),              // 2: Spend (Rp)
+                    Number(row.clicks || 0),             // 3: Klik
+                    Number(row.cpr || 0),                // 4: CPR
                     Number(row.ctr || 0),                // 5: CTR (%)
                     Number(row.cpc || 0),                // 6: CPC (Rp)
                     Number(row.ecpm || 0),               // 7: eCPM (Rp)
@@ -414,18 +415,9 @@ $(document).ready(function () {
                 }
             ],
             columnDefs: [
-                // Impresi (kolom 2): tampil ribuan, sort numerik
+                // Spend (kolom 2): tampil Rupiah tanpa desimal, sort numerik
                 {
                     targets: 2,
-                    type: 'num',
-                    render: function (data, type) {
-                        var v = Number(data) || 0;
-                        return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toLocaleString('id-ID');
-                    }
-                },
-                // Spend (kolom 3): tampil Rupiah tanpa desimal, sort numerik
-                {
-                    targets: 3,
                     type: 'num',
                     render: function (data, type) {
                         var v = Number(data) || 0;
@@ -434,16 +426,26 @@ $(document).ready(function () {
                         // Atau: return formatCurrencyIDR(v);
                     }
                 },
-                // Klik (kolom 4): tampil ribuan, sort numerik
+                // Klik (kolom 3): tampil ribuan, sort numerik
                 {
-                    targets: 4,
+                    targets: 3,
                     type: 'num',
                     render: function (data, type) {
                         var v = Number(data) || 0;
                         return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toLocaleString('id-ID');
                     }
                 },
-                // CTR (kolom 5): tampil persen, sort numerik
+                // CPR (kolom 4): tampil ribuan, sort numerik
+                {
+                    targets: 4,
+                    type: 'num',
+                    render: function (data, type) {
+                        var v = Number(data) || 0;
+                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
+                        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
+                    }
+                },
+                // CTR (kolom 5): tampil ribuan, sort numerik
                 {
                     targets: 5,
                     type: 'num',
@@ -558,7 +560,6 @@ $(document).ready(function () {
                 code: countryCode.toUpperCase(),
                 name: countryName,
                 value: roiValue,
-                impressions: item.impressions || 0,
                 clicks: item.clicks || 0,
                 spend: item.spend || 0,
                 revenue: item.revenue || 0
@@ -722,9 +723,9 @@ $(document).ready(function () {
                             return '<b>' + this.name + '</b><br>' +
                                    'Kode: ' + this.code + '<br>' +
                                    'ROI: <b>' + formattedValue + '</b><br>' +
-                                   'Impressions: <b>' + this.impressions.toLocaleString('id-ID') + '</b><br>' +
                                    'Clicks: <b>' + this.clicks.toLocaleString('id-ID') + '</b><br>' +
                                    'Spend: <b>Rp ' + Math.round(this.spend).toLocaleString('id-ID') + '</b><br>' +
+                                   'CPR: <b>' + this.cpr.toLocaleString('id-ID') + '</b><br>' +
                                    'Revenue: <b>Rp ' + Math.round(this.revenue).toLocaleString('id-ID') + '</b><br>';
                         },
                         nullFormat: '<b>{point.name}</b><br>Tidak ada data ROI'
