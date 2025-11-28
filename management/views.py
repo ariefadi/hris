@@ -2340,7 +2340,7 @@ class AdxTrafficPerAccountView(View):
                 'status': False,
                 'error': data_account_adx['data']
             })
-        last_update = data_mysql().get_last_update_roi_traffic_per_domain()['data']['last_update']
+        last_update = data_mysql().get_last_update_adx_traffic_per_domain()['data']['last_update']
         data = {
             'title': 'AdX Traffic Per Account',
             'user': req.session['hris_admin'],
@@ -3356,7 +3356,7 @@ class RoiTrafficPerDomainView(View):
                 'error': data_account_adx['data']
             })
         data_account = data_mysql().master_account_ads()['data']
-        last_update = data_mysql().get_last_update_roi_traffic_per_domain()['data']['last_update']
+        last_update = data_mysql().get_last_update_adx_traffic_per_domain()['data']['last_update']
         data = {
             'title': 'ROI Per Domain',
             'user': req.session['hris_admin'],
@@ -3514,7 +3514,7 @@ class RoiSummaryView(View):
                 'error': data_account_adx['data']
             })
         data_account = data_mysql().master_account_ads()['data']
-        last_update = data_mysql().get_last_update_roi_traffic_per_domain()['data']['last_update']
+        last_update = data_mysql().get_last_update_adx_traffic_per_domain()['data']['last_update']
         data = {
             'title': 'ROI Summary Dashboard',
             'user': req.session['hris_admin'],
