@@ -1495,9 +1495,11 @@ class PerCampaignFacebookAds(View):
         return super(PerCampaignFacebookAds, self).dispatch(request, *args, **kwargs)
     def get(self, req):
         data_account = data_mysql().master_account_ads()['data']
+        last_update = data_mysql().get_last_update_ads_traffic_per_domain()['data']['last_update']
         data = {
             'title': 'Data Traffic Per Campaign Facebook Ads',
-            'user': req.session['hris_admin'],
+            'user': req.session['hris_admin'],  
+            'last_update': last_update,
         }
         return render(req, 'admin/facebook_ads/campaign/index.html', {'data_account': data_account, 'data': data})
 
@@ -1595,9 +1597,11 @@ class PerCountryFacebookAds(View):
         return super(PerCountryFacebookAds, self).dispatch(request, *args, **kwargs)
     def get(self, req):
         data_account = data_mysql().master_account_ads()['data']
+        last_update = data_mysql().get_last_update_ads_traffic_country()['data']['last_update']
         data = {
             'title': 'Data Traffic Per Country Facebook Ads',
             'user': req.session['hris_admin'],
+            'last_update': last_update,
         }
         return render(req, 'admin/facebook_ads/country/index.html', {'data_account': data_account, 'data': data})
     

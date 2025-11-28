@@ -959,6 +959,44 @@ class data_mysql:
             }
         return hasil
 
+    def get_last_update_ads_traffic_country(self):
+        sql = '''
+            SELECT MAX(mdd) AS 'last_update'
+            FROM `data_ads_country`
+        '''
+        try:
+            self.cur_hris.execute(sql)
+            datanya = self.cur_hris.fetchone()
+            hasil = {
+                "status": True,
+                "data": datanya
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return hasil
+
+    def get_last_update_ads_traffic_per_domain(self):
+        sql = '''
+            SELECT MAX(mdd) AS 'last_update'
+            FROM `data_ads_campaign`
+        '''
+        try:
+            self.cur_hris.execute(sql)
+            datanya = self.cur_hris.fetchone()
+            hasil = {
+                "status": True,
+                "data": datanya
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return hasil
+
     def get_last_update_adx_traffic_country(self):
         sql = '''
             SELECT MAX(mdd) AS 'last_update'
@@ -978,7 +1016,7 @@ class data_mysql:
             }
         return hasil
 
-    def get_last_update_roi_traffic_per_domain(self):
+    def get_last_update_adx_traffic_per_domain(self):
         sql = '''
             SELECT MAX(mdd) AS 'last_update'
             FROM `data_adx_domain`
