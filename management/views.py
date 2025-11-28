@@ -2336,10 +2336,12 @@ class AdxTrafficPerAccountView(View):
                 'status': False,
                 'error': data_account_adx['data']
             })
+        last_update = data_mysql().get_last_update_roi_traffic_per_domain()['data']['last_update']
         data = {
             'title': 'AdX Traffic Per Account',
             'user': req.session['hris_admin'],
             'data_account_adx': data_account_adx['data'],
+            'last_update': last_update
         }
         return render(req, 'admin/adx_manager/traffic_account/index.html', data)
 
@@ -2875,10 +2877,12 @@ class AdxTrafficPerCountryView(View):
                 'status': False,
                 'error': data_account_adx['data']
             })
+        last_update = data_mysql().get_last_update_adx_traffic_country()['data']['last_update']
         data = {
             'title': 'AdX Traffic Per Country',
             'user': req.session['hris_admin'],
             'data_account_adx': data_account_adx['data'],
+            'last_update': last_update,
         }
         return render(req, 'admin/adx_manager/traffic_country/index.html', data)
 
@@ -3004,9 +3008,11 @@ class RoiTrafficPerCountryView(View):
                 'error': data_account_adx['data']
             })
         data_account = data_mysql().master_account_ads()['data']
+        last_update = data_mysql().get_last_update_adx_traffic_country()['data']['last_update']
         data = {
             'title': 'ROI Per Country',
             'user': req.session['hris_admin'],
+            'last_update': last_update,
             'data_account': data_account,
             'data_account_adx': data_account_adx['data'],
         }
@@ -3346,11 +3352,13 @@ class RoiTrafficPerDomainView(View):
                 'error': data_account_adx['data']
             })
         data_account = data_mysql().master_account_ads()['data']
+        last_update = data_mysql().get_last_update_roi_traffic_per_domain()['data']['last_update']
         data = {
             'title': 'ROI Per Domain',
             'user': req.session['hris_admin'],
             'data_account': data_account,
             'data_account_adx': data_account_adx['data'],
+            'last_update': last_update
         }
         return render(req, 'admin/report_roi/per_domain/index.html', data)
 
@@ -3478,7 +3486,6 @@ class RoiTrafficPerDomainDataView(View):
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
 
-
 def extract_base_subdomain(full_string):
     parts = full_string.split('.')
     if len(parts) >= 2:
@@ -3503,11 +3510,13 @@ class RoiSummaryView(View):
                 'error': data_account_adx['data']
             })
         data_account = data_mysql().master_account_ads()['data']
+        last_update = data_mysql().get_last_update_roi_traffic_per_domain()['data']['last_update']
         data = {
             'title': 'ROI Summary Dashboard',
             'user': req.session['hris_admin'],
             'data_account': data_account,
             'data_account_adx': data_account_adx['data'],
+            'last_update': last_update
         }
         return render(req, 'admin/report_roi/all_rekap/index.html', data)
 

@@ -325,7 +325,6 @@ function load_adx_traffic_account_data() {
                             var year = date.getFullYear();
                             formattedDate = day + ' ' + month + ' ' + year;
                         }
-
                         table.row.add([
                             item.site_name || '-',
                             formattedDate,
