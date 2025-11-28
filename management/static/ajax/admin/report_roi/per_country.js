@@ -14,8 +14,8 @@ $(document).ready(function () {
     });
     // Set tanggal default (7 hari terakhir)
     var today = new Date();
-    // var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    $('#tanggal_dari').val(formatDateForInput(today));
+    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    $('#tanggal_dari').val(formatDateForInput(lastWeek));
     $('#tanggal_sampai').val(formatDateForInput(today));
     $('#account_filter').select2({
         placeholder: '-- Pilih Akun Terdaftar --',
@@ -320,7 +320,7 @@ $(document).ready(function () {
         console.log(totalROI)
         $('#total_spend').text(formatCurrencyIDR(totalSpend));
         $('#total_clicks').text(totalClicks.toLocaleString('id-ID'));
-        $('#total_cpr').text(formatCurrencyIDR(totalCPR));
+        $('#rata_cpr').text(formatCurrencyIDR(totalCPR / data.length));
         $('#total_ctr').text(averageCTR.toFixed(2) + '%');
         $('#total_roi').text(totalROI.toFixed(2) + '%');
         $('#total_revenue').text(formatCurrencyIDR(totalRevenue));
