@@ -3198,7 +3198,6 @@ class RoiTrafficPerCountryDataView(View):
             # Pastikan bentuk payload sesuai: gunakan 'hasil' untuk AdX dan FB jika tersedia
             adx_payload = data_adx.get('hasil') if isinstance(data_adx, dict) and data_adx.get('hasil') else data_adx
             fb_payload = (data_facebook.get('hasil') if isinstance(data_facebook, dict) and data_facebook.get('hasil') else {'status': True, 'data': []})
-            print(f"[DEBUG ROI] Facebook payload: {fb_payload}")
             result = process_roi_traffic_country_data(adx_payload, fb_payload)
             # Filter hasil berdasarkan negara yang dipilih jika ada
             if countries_list and result.get('status') and result.get('data'):
@@ -3280,15 +3279,12 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                 # Ambil spend dan biaya lainnya dari Facebook berdasarkan country_code
                 spend = facebook_spend_map.get(country_code, 0)
                 cpr = facebook_cpr_map.get(country_code, 0)
-                # click_fb = facebook_click_map.get(country_code, 0)
-                # if click_fb > 0:
-                #     clicks = click_fb
-                # else:
-                #     clicks = clicks_adx
-                clicks = clicks_adx
+                click_fb = facebook_click_map.get(country_code, 0)
                 # Hitung metrik
-                ctr = ((clicks / impressions) * 100) if impressions > 0 else 0
-                cpc = (revenue / clicks) if clicks > 0 else 0
+                ctr_fb = ((click_fb / impressions) * 100) if impressions > 0 else 0
+                cpc_fb = (revenue / click_fb) if click_fb > 0 else 0
+                ctr_adx = ((clicks_adx / impressions) * 100) if impressions > 0 else 0
+                cpc_adx = (revenue / clicks_adx) if clicks_adx > 0 else 0
                 ecpm = ((revenue / impressions) * 1000) if impressions > 0 else 0
                 roi = (((revenue - spend)/spend)*100) if spend > 0 else 0
                 # Tambahkan ke hasil tanpa memfilter AdX-only
@@ -3297,11 +3293,14 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                     'country_code': country_code,
                     'impressions': impressions,
                     'spend': round(spend, 2),
-                    'clicks': clicks,
+                    'clicks_fb': click_fb,
+                    'clicks_adx': clicks_adx,
                     'revenue': round(revenue, 2),
                     'cpr': round(cpr, 2),
-                    'ctr': round(ctr, 2),
-                    'cpc': round(cpc, 4),
+                    'ctr_fb': round(ctr_fb, 2),
+                    'ctr_adx': round(ctr_adx, 2),
+                    'cpc_fb': round(cpc_fb, 4),
+                    'cpc_adx': round(cpc_adx, 4),
                     'ecpm': round(ecpm, 2),
                     'roi': round(roi, 2)
                 })
@@ -3433,7 +3432,7 @@ class RoiTrafficPerDomainDataView(View):
                 print(f"[DEBUG ROI] Facebook data: {facebook_data}")
             # --- 6. Gabungkan data AdX dan Facebook
             combined_data = []
-            total_spend = total_revenue = total_clicks = total_other_costs = 0
+            total_spend = total_revenue = total_clicks_fb = total_clicks_adx = 0
             facebook_map = {}
             if facebook_data and facebook_data['hasil']['data']:
                 for fb_item in facebook_data['hasil']['data']:
@@ -3445,42 +3444,48 @@ class RoiTrafficPerDomainDataView(View):
                 for adx_item in adx_result['hasil']['data']:
                     date_key = str(adx_item.get('date', ''))
                     subdomain = str(adx_item.get('site_name', ''))
+                    impressions = int(adx_item.get('impressions', 0))
                     base_subdomain = extract_base_subdomain(subdomain)
                     key = f"{date_key}_{base_subdomain}"
                     fb_data = facebook_map.get(key)
                     spend = float((fb_data or {}).get('spend', 0))
-                    other_costs = float((fb_data or {}).get('other_costs', 0))
-                    # clicks_fb = int((fb_data or {}).get('clicks', 0))
+                    clicks_fb = int((fb_data or {}).get('clicks', 0))
+                    clicks_adx = int(adx_item.get('clicks', 0))
                     cpr = int((fb_data or {}).get('cpr', 0))
                     revenue = float(adx_item.get('revenue', 0))
-                    # clicks = clicks_fb if clicks_fb > 0 else int(adx_item.get('clicks', 0))
-                    clicks = int(adx_item.get('clicks', 0))
+                    ctr_fb = ((clicks_fb / impressions) * 100) if impressions > 0 else 0
+                    cpc_fb = (revenue / clicks_fb) if clicks_fb > 0 else 0
+                    ctr_adx = ((clicks_adx / impressions) * 100) if impressions > 0 else 0
+                    cpc_adx = (revenue / clicks_adx) if clicks_adx > 0 else 0
                     roi = ((revenue - spend) / spend * 100) if spend > 0 else 0
                     combined_item = {
                         'date': date_key,
                         'site_name': subdomain,
                         'spend': spend,
-                        'clicks': clicks,
+                        'clicks_fb': clicks_fb,
+                        'clicks_adx': clicks_adx,
                         'cpr': cpr,
-                        'ctr': float(adx_item.get('ctr', 0)),
-                        'cpc': float(adx_item.get('cpc', 0)),
+                        'ctr_fb': ctr_fb,
+                        'cpc_fb': cpc_fb,
+                        'ctr_adx': ctr_adx,
+                        'cpc_adx': cpc_adx,
                         'cpm': float(adx_item.get('cpm', 0)),
-                        'other_costs': other_costs,
                         'revenue': revenue,
                         'roi': roi
                     }
                     combined_data.append(combined_item)
+                    total_clicks_fb += clicks_fb
+                    total_clicks_adx += clicks_adx
                     total_spend += spend
                     total_revenue += revenue
-                    total_clicks += clicks
-                    total_other_costs += other_costs
-            total_costs_summary = total_spend + total_other_costs
+            total_costs_summary = total_spend
             roi_nett_summary = ((total_revenue - total_costs_summary) / total_costs_summary * 100) if total_costs_summary > 0 else 0
             result = {
                 'status': True,
                 'data': combined_data,
                 'summary': {
-                    'total_clicks': total_clicks,
+                    'total_clicks_fb': total_clicks_fb,
+                    'total_clicks_adx': total_clicks_adx,
                     'total_spend': total_spend,
                     'roi_nett': roi_nett_summary,
                     'total_revenue': total_revenue

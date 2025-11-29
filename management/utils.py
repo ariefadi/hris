@@ -3545,6 +3545,7 @@ def _run_regular_report(client, start_date, end_date, selected_sites):
                 print(f"[DEBUG] Regular report created successfully with dimensions: {dimensions}, columns: {columns}")
                 # Wait for completion and download
                 raw_result = _wait_and_download_report(client, report_job['id'])
+                print(f"[DEBUG] Raw result: {raw_result}")
                 # Process the raw CSV data to match expected frontend format
                 if raw_result.get('status') and raw_result.get('data'):
                     processed_data = _process_regular_csv_data(raw_result['data'])

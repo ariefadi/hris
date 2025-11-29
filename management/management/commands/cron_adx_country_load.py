@@ -1,7 +1,32 @@
+# Module imports & helper
 from django.core.management.base import BaseCommand
 from datetime import datetime, timedelta, date
 from management.database import data_mysql
 from management.utils import fetch_adx_traffic_per_country
+from management.utils import fetch_user_adx_account_data
+import os
+
+def convert_to_idr(amount, currency_code):
+    try:
+        code = (currency_code or 'IDR').upper()
+        base = float(amount or 0.0)
+        if code == 'IDR':
+            return base
+        env_key = f'EXCHANGE_RATE_{code}_IDR'
+        if os.getenv(env_key):
+            rate = float(os.getenv(env_key))
+            return base * rate
+        default_rates = {
+            'USD': float(os.getenv('USD_IDR_RATE', '16000')),
+            'EUR': float(os.getenv('EUR_IDR_RATE', '17500')),
+            'SGD': float(os.getenv('SGD_IDR_RATE', '12000')),
+            'HKG': float(os.getenv('HKG_IDR_RATE', '3000')),
+            'GBP': float(os.getenv('GBP_IDR_RATE', '20000')),
+        }
+        rate = default_rates.get(code)
+        return base * rate if rate else base
+    except Exception:
+        return float(amount or 0.0)
 
 class Command(BaseCommand):
     help = "Tarik dan simpan data Ad Manager (AdX) per negara ke data_adx, default hari ini. Kredensial diambil dari app_credentials."
@@ -48,6 +73,11 @@ class Command(BaseCommand):
                     account_name = cred.get('account_name')
                     if not user_mail:
                         continue
+                    # Ambil currency code akun user (hari ini)
+                    acct_info = fetch_user_adx_account_data(user_mail)
+                    currency_code = 'IDR'
+                    if isinstance(acct_info, dict) and acct_info.get('status'):
+                        currency_code = (acct_info.get('data', {}) or {}).get('currency_code') or 'IDR'
                     # Ambil data AdX per negara untuk 1 hari (start=end)
                     res = fetch_adx_traffic_per_country(day_dt, day_dt, user_mail, selected_sites=None, countries_list=None)
                     if not res or not res.get('status'):
@@ -62,9 +92,11 @@ class Command(BaseCommand):
                             impressions = int(item.get('impressions', 0) or 0)
                             clicks = int(item.get('clicks', 0) or 0)
                             revenue = float(item.get('revenue', 0.0) or 0.0)
-                            # Gunakan nilai turunan dari utils bila ada
-                            cpc = float(item.get('cpc', 0.0) or (revenue / clicks if clicks > 0 else 0.0))
-                            cpm = float(item.get('ecpm', 0.0) or (revenue / impressions * 1000 if impressions > 0 else 0.0))
+                            # Konversi revenue ke IDR
+                            revenue_idr = convert_to_idr(revenue, currency_code)
+                            # Hitung turunan dari revenue yang sudah IDR agar konsisten
+                            cpc = float(item.get('cpc', 0.0) or (revenue_idr / clicks if clicks > 0 else 0.0))
+                            cpm = float(item.get('ecpm', 0.0) or (revenue_idr / impressions * 1000 if impressions > 0 else 0.0))
                             record = {
                                 'account_id': cred.get('account_id') or '',
                                 'data_adx_country_tanggal': day_str,
@@ -76,7 +108,7 @@ class Command(BaseCommand):
                                 'data_adx_country_cpc': cpc,
                                 'data_adx_country_ctr': float(item.get('ctr', 0.0) or (clicks / impressions * 100 if impressions > 0 else 0.0)),
                                 'data_adx_country_cpm': cpm,
-                                'data_adx_country_revenue': revenue,
+                                'data_adx_country_revenue': revenue_idr,
                                 'mdb': '0',
                                 'mdb_name': 'Cron Job',
                                 'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),

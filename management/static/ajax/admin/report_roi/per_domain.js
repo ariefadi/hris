@@ -171,7 +171,7 @@ $().ready(function () {
         ],
         columnDefs: [
             {
-                targets: [2, 3, 4, 5, 6, 7, 8],
+                targets: [2, 3, 4, 5, 6, 10, 11, 12],
                 className: "text-right"
             },
             // Spend (kolom 2) — tampil Rupiah, sort numerik
@@ -183,7 +183,7 @@ $().ready(function () {
                     return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
                 }
             },
-            // Klik (kolom 3) — tampil ribuan, sort numerik
+            // Klik Fb (kolom 3) — tampil ribuan, sort numerik
             {
                 targets: 3,
                 type: 'num',
@@ -192,52 +192,52 @@ $().ready(function () {
                     return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val);
                 }
             },
-            // CPR (kolom 4) — tampil Rupiah, sort numerik
+            // Klik Adx (kolom 4) — tampil ribuan, sort numerik
             {
                 targets: 4,
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
-                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val);
                 }
             },
-            // CTR (kolom 5) — tampil persen, sort numerik
+            // CPR Fb (kolom 5) — tampil Rupiah, sort numerik
             {
                 targets: 5,
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
-                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val, 2) + ' %';
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
                 }
             },
-            // CPC (kolom 6) — tampil Rupiah bulat, sort numerik
+            // CTR Fb (kolom 6) — tampil persen, sort numerik
             {
                 targets: 6,
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
-                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val, 2) + ' %';
                 }
             },
-            // eCPM (kolom 7) — tampil Rupiah bulat, sort numerik
+            // CTR Adx (kolom 7) — tampil persen, sort numerik
             {
                 targets: 7,
-                type: 'num',
-                render: function (data, type) {
-                    var val = Number(data) || 0;
-                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
-                }
-            },
-            // ROI (kolom 8) — tampil persen, sort numerik
-            {
-                targets: 8,
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
                     return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val, 2) + ' %';
                 }
             },
-            // Pendapatan (kolom 9) — tampil Rupiah bulat, sort numerik
+            // CPC Fb (kolom 8) — tampil Rupiah bulat, sort numerik
+            {
+                targets: 8,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                }
+            },
+            // CPC Adx (kolom 9) — tampil Rupiah bulat, sort numerik
             {
                 targets: 9,
                 type: 'num',
@@ -245,9 +245,36 @@ $().ready(function () {
                     var val = Number(data) || 0;
                     return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
                 }
+            },
+            // eCPM Fb (kolom 10) — tampil Rupiah bulat, sort numerik
+            {
+                targets: 10,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                }
+            },
+            // ROI Fb (kolom 11) — tampil persen, sort numerik
+            {
+                targets: 11,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val, 2) + ' %';
+                }
+            },
+            // Pendapatan Fb (kolom 12) — tampil Rupiah bulat, sort numerik
+            {
+                targets: 12,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                }
             }
         ],
-        order: [[8, 'desc']]
+        order: [[11, 'desc']]
     });
 });
 
@@ -283,7 +310,8 @@ function load_adx_traffic_account_data() {
             if (response && response.status) {
                 // Update summary boxes
                 if (response.summary) {
-                    $("#total_clicks").text(formatNumber(response.summary.total_clicks || 0));
+                    $("#total_clicks_fb").text(formatNumber(response.summary.total_clicks_fb || 0));
+                    $("#total_clicks_adx").text(formatNumber(response.summary.total_clicks_adx || 0));
                     $("#total_spend").text(formatCurrencyIDR(response.summary.total_spend || 0));
                     $("#roi_nett").text(formatNumber(response.summary.roi_nett || 0, 2) + '%');
                     $("#total_revenue").text(formatCurrencyIDR(response.summary.total_revenue || 0));
@@ -330,10 +358,13 @@ function load_adx_traffic_account_data() {
                             formattedDate,
                             // SIMPAN ANGKA MURNI AGAR SORTING AKURAT
                             Number(item.spend || 0),
-                            Number(item.clicks || 0),
+                            Number(item.clicks_fb || 0),
+                            Number(item.clicks_adx || 0),
                             Number(item.cpr || 0),
-                            Number(item.ctr || 0),
-                            Number(item.cpc || 0),
+                            Number(item.ctr_fb || 0),
+                            Number(item.ctr_adx || 0),
+                            Number(item.cpc_fb || 0),
+                            Number(item.cpc_adx || 0),
                             Number(item.cpm || 0),
                             Number(item.roi || 0),
                             Number(item.revenue || 0)

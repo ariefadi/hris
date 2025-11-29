@@ -91,7 +91,6 @@ $(document).ready(function () {
                     if (validPreviousSelections.length > 0) {
                         select_site.val(validPreviousSelections);
                     }
-                    
                     select_site.trigger('change');
                 }
             },
@@ -107,7 +106,6 @@ $(document).ready(function () {
         var selectedAccounts = selected_account_adx;
         // Simpan pilihan negara yang sudah dipilih sebelumnya
         var previouslySelected = $('#country_filter').val() || [];
-        
         $.ajax({
             url: '/management/admin/get_countries_adx',
             type: 'GET',
@@ -119,7 +117,6 @@ $(document).ready(function () {
                 if (response.status) {
                     var select_country = $('#country_filter');
                     select_country.empty();
-                    
                     // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
                     var validPreviousSelections = [];
                     $.each(response.countries, function (index, country) {
@@ -129,12 +126,10 @@ $(document).ready(function () {
                         }
                         select_country.append(new Option(country.name, country.code, false, isSelected));
                     });
-                    
                     // Set nilai yang dipilih kembali
                     if (validPreviousSelections.length > 0) {
                         select_country.val(validPreviousSelections);
                     }
-                    
                     select_country.trigger('change');
                 }
             },
@@ -299,7 +294,8 @@ $(document).ready(function () {
         // Hitung summary dari data
         var totalImpressions = 0;
         var totalSpend = 0;
-        var totalClicks = 0;
+        var totalClicksFb = 0;
+        var totalClicksAdx = 0;
         var totalCPR = 0;
         var totalRevenue = 0;
         var totalROI = 0;
@@ -307,7 +303,8 @@ $(document).ready(function () {
         data.forEach(function (item) {
             totalImpressions += item.impressions || 0;
             totalSpend += item.spend || 0;
-            totalClicks += item.clicks || 0;
+            totalClicksFb += item.clicks_fb || 0;
+            totalClicksAdx += item.clicks_adx || 0;
             totalCPR += item.cpr || 0;
             totalRevenue += item.revenue || 0;
             if (item.roi && item.roi !== 0) {
@@ -315,13 +312,16 @@ $(document).ready(function () {
                 validROICount++;
             }
         });
-        var averageCTR = totalImpressions > 0 ? (totalClicks / totalImpressions * 100) : 0;
+        var averageCTRFb = totalImpressions > 0 ? (totalClicksFb / totalImpressions * 100) : 0;
+        var averageCTRAdx = totalImpressions > 0 ? (totalClicksAdx / totalImpressions * 100) : 0;
         var totalROI = (((totalRevenue - totalSpend) / totalSpend) * 100);
         console.log(totalROI)
         $('#total_spend').text(formatCurrencyIDR(totalSpend));
-        $('#total_clicks').text(totalClicks.toLocaleString('id-ID'));
+        $('#total_clicks_fb').text(totalClicksFb.toLocaleString('id-ID'));
+        $('#total_clicks_adx').text(totalClicksAdx.toLocaleString('id-ID'));
         $('#rata_cpr').text(formatCurrencyIDR(totalCPR / data.length));
-        $('#total_ctr').text(averageCTR.toFixed(2) + '%');
+        $('#total_ctr_fb').text(averageCTRFb.toFixed(2) + '%');
+        $('#total_ctr_adx').text(averageCTRAdx.toFixed(2) + '%');
         $('#total_roi').text(totalROI.toFixed(2) + '%');
         $('#total_revenue').text(formatCurrencyIDR(totalRevenue));
     }
@@ -339,13 +339,16 @@ $(document).ready(function () {
                     countryFlag + (row.country || ''),   // 0: Negara
                     row.country_code || '',              // 1: Kode Negara
                     Number(row.spend || 0),              // 2: Spend (Rp)
-                    Number(row.clicks || 0),             // 3: Klik
-                    Number(row.cpr || 0),                // 4: CPR
-                    Number(row.ctr || 0),                // 5: CTR (%)
-                    Number(row.cpc || 0),                // 6: CPC (Rp)
-                    Number(row.ecpm || 0),               // 7: eCPM (Rp)
-                    Number(row.roi || 0),                // 8: ROI (%)
-                    Number(row.revenue || 0)             // 9: Pendapatan (Rp)
+                    Number(row.clicks_fb || 0),          // 3: Klik FB
+                    Number(row.clicks_adx || 0),         // 4: Klik ADX
+                    Number(row.cpr || 0),                // 5: CPR
+                    Number(row.ctr_fb || 0),             // 6: CTR FB (%)
+                    Number(row.ctr_adx || 0),            // 7: CTR ADX (%)
+                    Number(row.cpc_fb || 0),             // 8: CPC FB (Rp)
+                    Number(row.cpc_adx || 0),            // 9: CPC ADX (Rp)
+                    Number(row.ecpm || 0),               // 10: eCPM (Rp)
+                    Number(row.roi || 0),                // 11: ROI (%)
+                    Number(row.revenue || 0)             // 12: Pendapatan (Rp)
                 ]);
             });
         }
@@ -426,7 +429,7 @@ $(document).ready(function () {
                         // Atau: return formatCurrencyIDR(v);
                     }
                 },
-                // Klik (kolom 3): tampil ribuan, sort numerik
+                // Klik FB (kolom 3): tampil ribuan, sort numerik
                 {
                     targets: 3,
                     type: 'num',
@@ -435,9 +438,18 @@ $(document).ready(function () {
                         return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toLocaleString('id-ID');
                     }
                 },
-                // CPR (kolom 4): tampil ribuan, sort numerik
+                // Klik ADX (kolom 4): tampil ribuan, sort numerik
                 {
                     targets: 4,
+                    type: 'num',
+                    render: function (data, type) {
+                        var v = Number(data) || 0;
+                        return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toLocaleString('id-ID');
+                    }
+                },
+                // CPR (kolom 5): tampil ribuan, sort numerik
+                {
+                    targets: 5,
                     type: 'num',
                     render: function (data, type) {
                         var v = Number(data) || 0;
@@ -445,36 +457,30 @@ $(document).ready(function () {
                         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
                     }
                 },
-                // CTR (kolom 5): tampil ribuan, sort numerik
+                // CTR FB (kolom 6): tampil ribuan, sort numerik
                 {
-                    targets: 5,
+                    targets: 6,
                     type: 'num',
                     render: function (data, type) {
                         var v = Number(data) || 0;
                         return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toFixed(2) + '%';
                     }
                 },
-                // CPC (kolom 6): tampil Rupiah dengan desimal, sort numerik
-                {
-                    targets: 6,
-                    type: 'num',
-                    render: function (data, type) {
-                        var v = Number(data) || 0;
-                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
-                        return new Intl.NumberFormat('id-ID', { 
-                            style: 'currency', 
-                            currency: 'IDR', 
-                            minimumFractionDigits: 0, 
-                            maximumFractionDigits: 0 
-                        }).format(v);
-                    }
-                },
-                // eCPM (kolom 7): tampil Rupiah dengan desimal, sort numerik
+                // CTR ADX (kolom 7): tampil ribuan, sort numerik
                 {
                     targets: 7,
                     type: 'num',
                     render: function (data, type) {
                         var v = Number(data) || 0;
+                        return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toFixed(2) + '%';
+                    }
+                },
+                // CPC FB (kolom 8): tampil Rupiah dengan desimal, sort numerik
+                {
+                    targets: 8,
+                    type: 'num',
+                    render: function (data, type) {
+                        var v = Number(data) || 0;
                         if (type === 'sort' || type === 'type' || type === 'filter') return v;
                         return new Intl.NumberFormat('id-ID', { 
                             style: 'currency', 
@@ -484,18 +490,48 @@ $(document).ready(function () {
                         }).format(v);
                     }
                 },
-                // ROI (kolom 8): tampil persen, sort numerik
+                // CPC ADX (kolom 9): tampil Rupiah dengan desimal, sort numerik
                 {
-                    targets: 8,
+                    targets: 9,
+                    type: 'num',
+                    render: function (data, type) {
+                        var v = Number(data) || 0;
+                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
+                        return new Intl.NumberFormat('id-ID', { 
+                            style: 'currency', 
+                            currency: 'IDR', 
+                            minimumFractionDigits: 0, 
+                            maximumFractionDigits: 0 
+                        }).format(v);
+                    }
+                },
+                // eCPM (kolom 10): tampil Rupiah dengan desimal, sort numerik
+                {
+                    targets: 10,
+                    type: 'num',
+                    render: function (data, type) {
+                        var v = Number(data) || 0;
+                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
+                        return new Intl.NumberFormat('id-ID', { 
+                            style: 'currency', 
+                            currency: 'IDR', 
+                            minimumFractionDigits: 0, 
+                            maximumFractionDigits: 0 
+                        }).format(v);
+                    }
+                },
+                // ROI (kolom 11): tampil persen, sort numerik
+                {
+                    targets: 11,
                     type: 'num-fmt',
                     render: function (data, type) {
                         var v = Number(data) || 0;
                         return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toFixed(2) + '%';
                     }
                 },
-                // Pendapatan (kolom 9): tampil Rupiah tanpa desimal, sort numerik
+                // Pendapatan (kolom 12): tampil Rupiah tanpa desimal, sort numerik
                 {
-                    targets: 9,
+                    targets: 12,
                     type: 'num',
                     render: function (data, type) {
                         var v = Number(data) || 0;
@@ -505,7 +541,7 @@ $(document).ready(function () {
                     }
                 }
             ],
-            order: [[8, 'desc']]
+            order: [[11, 'desc']]
             // ... existing code ...
         });
         // ... existing code ...
@@ -560,7 +596,8 @@ $(document).ready(function () {
                 code: countryCode.toUpperCase(),
                 name: countryName,
                 value: roiValue,
-                clicks: item.clicks || 0,
+                clicks_fb: item.clicks_fb || 0,
+                clicks_adx: item.clicks_adx || 0,
                 spend: item.spend || 0,
                 revenue: item.revenue || 0
             });
@@ -723,7 +760,8 @@ $(document).ready(function () {
                             return '<b>' + this.name + '</b><br>' +
                                    'Kode: ' + this.code + '<br>' +
                                    'ROI: <b>' + formattedValue + '</b><br>' +
-                                   'Clicks: <b>' + this.clicks.toLocaleString('id-ID') + '</b><br>' +
+                                   'Clicks (FB): <b>' + this.clicks_fb.toLocaleString('id-ID') + '</b><br>' +
+                                   'Clicks (ADX): <b>' + this.clicks_adx.toLocaleString('id-ID') + '</b><br>' +
                                    'Spend: <b>Rp ' + Math.round(this.spend).toLocaleString('id-ID') + '</b><br>' +
                                    'CPR: <b>' + this.cpr.toLocaleString('id-ID') + '</b><br>' +
                                    'Revenue: <b>Rp ' + Math.round(this.revenue).toLocaleString('id-ID') + '</b><br>';

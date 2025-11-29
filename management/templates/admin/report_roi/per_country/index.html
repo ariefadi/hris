@@ -116,7 +116,7 @@
         </div>
         <!-- Summary Info boxes -->
         <div class="row" id="summary_boxes" style="display: none;">
-            <div class="col-12 col-sm-6 col-md-2">
+            <div class="col-12 col-sm-6 col-md-3">
                 <div class="info-box">
                     <span class="info-box-icon text-bg-info shadow-sm">
                         <i class="bi bi-cash-stack"></i>
@@ -127,29 +127,51 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-md-2">
+            <div class="col-12 col-sm-6 col-md-3">
                 <div class="info-box">
                     <span class="info-box-icon text-bg-success shadow-sm">
                         <i class="bi bi-cursor-fill"></i>
                     </span>
                     <div class="info-box-content">
-                        <span class="info-box-text">Total Klik</span>
-                        <span class="info-box-number" id="total_clicks">0</span>
+                        <span class="info-box-text">Total Klik (FB)</span>
+                        <span class="info-box-number" id="total_clicks_fb">0</span>
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-md-2">
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="info-box">
+                    <span class="info-box-icon text-bg-success shadow-sm">
+                        <i class="bi bi-cursor-fill"></i>
+                    </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Total Klik (ADX)</span>
+                        <span class="info-box-number" id="total_clicks_adx">0</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
                 <div class="info-box">
                     <span class="info-box-icon text-bg-danger shadow-sm">
                         <i class="bi bi-graph-up-arrow"></i>
                     </span>
                     <div class="info-box-content">
-                        <span class="info-box-text">CTR</span>
-                        <span class="info-box-number" id="total_ctr">0%</span>
+                        <span class="info-box-text">CTR (FB)</span>
+                        <span class="info-box-number" id="total_ctr_fb">0%</span>
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-md-2">
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="info-box">
+                    <span class="info-box-icon text-bg-danger shadow-sm">
+                        <i class="bi bi-graph-up-arrow"></i>
+                    </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">CTR (ADX)</span>
+                        <span class="info-box-number" id="total_ctr_adx">0%</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
                 <div class="info-box">
                     <span class="info-box-icon text-bg-secondary shadow-sm">
                         <i class="bi bi-currency-dollar"></i>
@@ -160,7 +182,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-md-2">
+            <div class="col-12 col-sm-6 col-md-3">
                 <div class="info-box">
                     <span class="info-box-icon text-bg-secondary shadow-sm">
                         <i class="bi bi-percent"></i>
@@ -171,7 +193,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-md-2">
+            <div class="col-12 col-sm-6 col-md-3">
                 <div class="info-box">
                     <span class="info-box-icon text-bg-warning shadow-sm">
                         <i class="bi bi-currency-dollar"></i>
@@ -221,16 +243,24 @@
                         <th class="text-center">&#931;</th>
                     </tr> -->
                     <tr>
-                        <th class="text-center">Negara</th>
-                        <th class="text-center">Kode Negara</th>
-                        <th class="text-center">Spend</th>
-                        <th class="text-center">Klik</th>
-                        <th class="text-center">CPR</th>
-                        <th class="text-center">CTR (%)</th>
-                        <th class="text-center">CPC</th>
-                        <th class="text-center">eCPM</th>
-                        <th class="text-center">ROI (%)</th>
-                        <th class="text-center">Pendapatan</th>
+                        <th rowspan="2" class="text-center">Negara</th>
+                        <th rowspan="2" class="text-center">Kode Negara</th>
+                        <th rowspan="2" class="text-center">Spend</th>
+                        <th colspan="2" class="text-center">Klik</th>
+                        <th rowspan="2" class="text-center">CPR</th>
+                        <th colspan="2" class="text-center">CTR (%)</th>
+                        <th colspan="2" class="text-center">CPC</th>
+                        <th rowspan="2" class="text-center">eCPM</th>
+                        <th rowspan="2" class="text-center">ROI (%)</th>
+                        <th rowspan="2" class="text-center">Pendapatan</th>
+                    </tr>
+                    <tr>
+                        <th class="text-center">Facebook</th>
+                        <th class="text-center">Adx</th>
+                        <th class="text-center">Facebook</th>
+                        <th class="text-center">Adx</th>
+                        <th class="text-center">Facebook</th>
+                        <th class="text-center">Adx</th>
                     </tr>
                 </thead>
                 <tbody>

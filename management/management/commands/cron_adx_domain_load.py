@@ -1,7 +1,32 @@
+# Top-level imports and helper
 from django.core.management.base import BaseCommand
 from datetime import datetime, timedelta, date
 from management.database import data_mysql
 from management.utils import fetch_adx_traffic_account_by_user
+from management.utils import fetch_user_adx_account_data
+import os
+
+def convert_to_idr(amount, currency_code):
+    try:
+        code = (currency_code or 'IDR').upper()
+        base = float(amount or 0.0)
+        if code == 'IDR':
+            return base
+        env_key = f'EXCHANGE_RATE_{code}_IDR'
+        if os.getenv(env_key):
+            rate = float(os.getenv(env_key))
+            return base * rate
+        default_rates = {
+            'USD': float(os.getenv('USD_IDR_RATE', '16000')),
+            'EUR': float(os.getenv('EUR_IDR_RATE', '17500')),
+            'SGD': float(os.getenv('SGD_IDR_RATE', '12000')),
+            'HKG': float(os.getenv('HKG_IDR_RATE', '3000')),
+            'GBP': float(os.getenv('GBP_IDR_RATE', '20000')),
+        }
+        rate = default_rates.get(code)
+        return base * rate if rate else base
+    except Exception:
+        return float(amount or 0.0)
 
 class Command(BaseCommand):
     help = "Tarik dan simpan data Ad Manager (AdX) per tanggal & domain ke tabel data_adx untuk hari ini. Kredensial diambil dari app_credentials."
@@ -15,8 +40,10 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         # range tanggal hari ini
         today_dt = datetime.now().date()
-        start_date = today_dt.strftime('%Y-%m-%d')
-        end_date = today_dt.strftime('%Y-%m-%d')
+        # start_date = today_dt.strftime('%Y-%m-%d')
+        # end_date = today_dt.strftime('%Y-%m-%d')
+        start_date = '2025-11-29'
+        end_date = '2025-11-29'
         self.stdout.write(self.style.WARNING(
             f"Menarik dan menyimpan AdX per domain untuk range {start_date} s/d {end_date}."
         ))
@@ -46,6 +73,11 @@ class Command(BaseCommand):
                     account_name = cred.get('account_name')
                     if not user_mail:
                         continue
+                    # Ambil currency_code akun user (hari ini)
+                    acct_info = fetch_user_adx_account_data(user_mail)
+                    currency_code = 'IDR'
+                    if isinstance(acct_info, dict) and acct_info.get('status'):
+                        currency_code = (acct_info.get('data', {}) or {}).get('currency_code') or 'IDR'
                     # Ambil data AdX per domain untuk 1 hari (start=end)
                     res = fetch_adx_traffic_account_by_user(user_mail, day_dt, day_dt, selected_sites=None)
                     if not res or not res.get('status'):
@@ -62,7 +94,8 @@ class Command(BaseCommand):
                             cpc = float(item.get('cpc', 0.0) or 0.0)
                             ctr = float(item.get('ctr', 0.0) or 0.0)
                             cpm = float(item.get('ecpm', 0.0) or 0.0)
-
+                            # Konversi revenue ke IDR jika currency bukan IDR
+                            revenue_idr = convert_to_idr(revenue, currency_code)
                             record = {
                                 'account_id': cred.get('account_id') or '',
                                 'data_adx_domain_tanggal': day_str,
@@ -72,7 +105,7 @@ class Command(BaseCommand):
                                 'data_adx_domain_cpc': cpc,
                                 'data_adx_domain_ctr': ctr,
                                 'data_adx_domain_cpm': cpm,
-                                'data_adx_domain_revenue': revenue,
+                                'data_adx_domain_revenue': revenue_idr,
                                 'mdb': '0',
                                 'mdb_name': 'Cron Job',
                                 'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),

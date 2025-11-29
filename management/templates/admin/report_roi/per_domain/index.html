@@ -98,19 +98,19 @@
                         <i class="bi bi-cursor-fill"></i>
                     </span>
                     <div class="info-box-content">
-                        <span class="info-box-text">Total Klik</span>
-                        <span class="info-box-number" id="total_clicks">0</span>
+                        <span class="info-box-text">Total Klik FB</span>
+                        <span class="info-box-number" id="total_clicks_fb">0</span>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-md-3">
                 <div class="info-box">
-                    <span class="info-box-icon text-bg-warning shadow-sm">
-                        <i class="bi bi-currency-dollar"></i>
+                    <span class="info-box-icon text-bg-success shadow-sm">
+                        <i class="bi bi-cursor-fill"></i>
                     </span>
                     <div class="info-box-content">
-                        <span class="info-box-text">Total Pendapatan</span>
-                        <span class="info-box-number" id="total_revenue">$0</span>
+                        <span class="info-box-text">Total Klik Adx</span>
+                        <span class="info-box-number" id="total_clicks_adx">0</span>
                     </div>
                 </div>
             </div>
@@ -136,6 +136,17 @@
                     </div>
                 </div>
             </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="info-box">
+                    <span class="info-box-icon text-bg-warning shadow-sm">
+                        <i class="bi bi-currency-dollar"></i>
+                    </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Total Pendapatan</span>
+                        <span class="info-box-number" id="total_revenue">$0</span>
+                    </div>
+                </div>
+            </div>
         </div>
         <!-- Charts Section -->
         <div class="row mt-3" id="charts_section" style="display: none;">
@@ -150,22 +161,29 @@
                 </div>
             </div>
         </div>
-        
         <!-- Data Table -->
-        <div class="dt-responsive-table mt-3">
+        <div class="dt-responsive-table mt-3 table-responsive">
             <table id="table_traffic_account" class="table table-bordered table-striped" style="width:100%">
                 <thead>
                     <tr>
-                        <th>Subdomain</th>
-                        <th>Tanggal</th>
-                        <th>Spend (Rp)</th>
-                        <th>Klik</th>
-                        <th>CPR</th>
-                        <th>CTR (%)</th>
-                        <th>CPC (Rp)</th>
-                        <th>eCPM (Rp)</th>
-                        <th>ROI (%)</th>
-                        <th>Pendapatan (Rp)</th>
+                        <th rowspan="2" class="text-center">Subdomain</th>
+                        <th rowspan="2" class="text-center">Tanggal</th>
+                        <th rowspan="2" class="text-center">Spend (Rp)</th>
+                        <th colspan="2" class="text-center">Klik</th>
+                        <th rowspan="2" class="text-center">CPR</th>
+                        <th colspan="2" class="text-center">CTR (%)</th>
+                        <th colspan="2" class="text-center">CPC (Rp)</th>
+                        <th rowspan="2" class="text-center">eCPM (Rp)</th>
+                        <th rowspan="2" class="text-center">ROI (%)</th>
+                        <th rowspan="2" class="text-center">Pendapatan (Rp)</th>
+                    </tr>
+                    <tr>
+                        <th class="text-center">Facebook</th>
+                        <th class="text-center">Adx</th>
+                        <th class="text-center">Facebook</th>
+                        <th class="text-center">Adx</th>
+                        <th class="text-center">Facebook</th>
+                        <th class="text-center">Adx</th>
                     </tr>
                 </thead>
                 <tbody>
