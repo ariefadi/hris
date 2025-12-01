@@ -1780,7 +1780,8 @@ class AdxSummaryDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_accounts = req.GET.get('selected_accounts')
-        selected_sites = req.GET.get('selected_sites')
+        selected_sites = req.GET.get('selected_sites[]')
+        print(f"DEBUG - coba: {selected_sites}")
         # Gunakan akun pertama jika multiple dipilih; fallback ke sesi
         if selected_accounts:
             parts = [p.strip() for p in selected_accounts.split(',') if p.strip()]
@@ -1806,7 +1807,6 @@ class AdxSummaryDataView(View):
             total_revenue = sum((row.get('revenue') or 0) for row in data_rows) if data_rows else 0.0
             avg_cpc = (float(total_revenue) / float(total_clicks)) if total_clicks else 0.0
             avg_ctr = ((float(total_clicks) / float(total_impressions)) * 100.0) if total_impressions else 0.0
-
             # Tambahkan data traffic hari ini
             today = datetime.now().strftime('%Y-%m-%d')
             today_result = data_mysql().get_all_adx_traffic_account_by_params(user_mail, today, today, selected_sites)
