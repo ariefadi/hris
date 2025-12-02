@@ -196,6 +196,8 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.reach).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.clicks).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + formattedFrequency + ' %</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.cpr).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.cpc).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '</tr>';
                 $("#table_data_per_country_facebook tbody").append(event_data);
             })
@@ -221,6 +223,14 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
             $('#total_reach').text(totalReach);
             $('#total_clicks').text(totalClicks);
             $('#total_frequency').text(totalFrequency);
+            // CPR
+            const cpr = Number(totalData?.cpr) || 0;
+            const totalCpr = cpr.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            // CPC
+            const cpc = Number(totalData?.cpc) || 0;
+            const totalCpc = cpc.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            $('#total_cpr').text(totalCpr);
+            $('#total_cpc').text(totalCpc);
             // Periksa apakah DataTable sudah diinisialisasi sebelumnya
             if ($.fn.dataTable.isDataTable('#table_data_per_country_facebook')) {
                 $('#table_data_per_country_facebook').DataTable().destroy();
@@ -248,7 +258,7 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                             + tanggal.getFullYear(),
                         exportOptions: {
                             columns: ':visible',
-                            columns: [0, 1, 2, 3, 4, 5],      // hanya kolom yang terlihat
+                            columns: [0, 1, 2, 3, 4, 5, 6],      // hanya kolom yang terlihat
                             modifier: {
                                 search: 'applied',      // sesuai filter pencarian
                                 order: 'applied'        // sesuai urutan saat itu
@@ -259,7 +269,7 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                             // =========================
                             // Set column width secara manual (unit: character width)
                             // =========================
-                            const colWidths = [20, 10, 10, 10, 10, 10]; // 💡 Sesuaikan berdasarkan % di HTML
+                            const colWidths = [20, 10, 10, 10, 10, 10, 10]; // 💡 Sesuaikan berdasarkan % di HTML
                             const cols = $('cols', sheet);
                             cols.empty(); // Kosongkan default <col> dari DataTables
                             for (let i = 0; i < colWidths.length; i++) {
@@ -304,12 +314,13 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                                     if (body[i][3]) body[i][3].alignment = 'right';
                                     if (body[i][4]) body[i][4].alignment = 'right';
                                     if (body[i][5]) body[i][5].alignment = 'right';
+                                    if (body[i][6]) body[i][6].alignment = 'right';
                                 }
                             }
                             // Margin
-                            doc.content[1].margin = [0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
+                            doc.content[1].margin = [0, 0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
                             // Manual width sesuai presentase kolom HTML (tanpa kolom terakhir)
-                            doc.content[1].table.widths = ['20%', '10%', '10%', '10%', '10%', '10%', '10%'];
+                            doc.content[1].table.widths = ['20%', '10%', '10%', '10%', '10%', '10%', '10%', '10%'];
                         }
                     }
                 ]

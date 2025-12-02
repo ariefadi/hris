@@ -1552,6 +1552,7 @@ class page_per_campaign_facebook(View):
             reach = int(row.get('reach', 0) or 0)
             clicks = int(row.get('clicks', 0) or 0)
             cpr = float(row.get('cpr', 0) or 0)
+            cpc = float(row.get('cpc', 0) or 0)
             # Hitung frequency sebagai persen (impressions/reach * 100)
             frequency = (float(impressions) / float(reach) * 100.0) if reach > 0 else 0.0
             normalized_rows.append({
@@ -1564,6 +1565,7 @@ class page_per_campaign_facebook(View):
                 'clicks': clicks,
                 'frequency': frequency,
                 'cpr': cpr,
+                'cpc': cpc,
             })
             # Akumulasi untuk total
             total_spend += spend
@@ -1573,6 +1575,7 @@ class page_per_campaign_facebook(View):
         # Agregasi total: frequency total sebagai (impressions/reach)*100, CPR total sebagai spend/clicks
         total_frequency = (float(total_impressions) / float(total_reach) * 100.0) if total_reach > 0 else 0.0
         total_cpr = sum([row['cpr'] for row in normalized_rows])
+        total_cpc = sum([row['cpc'] for row in normalized_rows])
         response_data = {
             'hasil': "Data Traffic Per Campaign",
             'data_campaign': normalized_rows,
@@ -1583,6 +1586,7 @@ class page_per_campaign_facebook(View):
                 'total_click': total_clicks,
                 'total_frequency': total_frequency,
                 'total_cpr': format(total_cpr, '.0f'),
+                'total_cpc': format(total_cpc, '.0f'),
             }],
         }
         # Jika terjadi kegagalan di layer DB, kirimkan respons kosong agar frontend tidak error
@@ -1653,12 +1657,16 @@ class page_per_country_facebook(View):
                 'reach': reach,
                 'clicks': clicks,
                 'frequency': frequency,
+                'cpr': round(float(r.get('cpr') or 0), 0),
+                'cpc': round(float(r.get('cpc') or 0), 0),
             })
             total_spend += spend
             total_impressions += impressions
             total_reach += reach
             total_clicks += clicks
-        frequency_total = round((total_impressions / total_reach * 100), 2) if total_reach > 0 else 0.0
+            frequency_total = round((total_impressions / total_reach * 100), 2) if total_reach > 0 else 0.0
+            total_cpr_ratio = sum((row.get('cpr') or 0) for row in normalized) if normalized else 0.0
+            total_cpc_ratio = sum((row.get('cpc') or 0) for row in normalized) if normalized else 0.0
         data = {
             'data': normalized,
             'total': {
@@ -1667,6 +1675,8 @@ class page_per_country_facebook(View):
                 'clicks': total_clicks,
                 'reach': total_reach,
                 'frequency': frequency_total,
+                'cpr': round(float(total_cpr_ratio or 0), 0),
+                'cpc': round(float(total_cpc_ratio or 0), 0),
             }
         }
         # Normalize total structure jika berasal dari utils.py (berbentuk list)
@@ -3251,6 +3261,7 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
         # Buat mapping data Facebook berdasarkan country_cd (kode negara 2 huruf)
         facebook_spend_map = {}
         facebook_cpr_map = {}
+        facebook_cpc_map = {}
         facebook_click_map = {}
         fb_code_set = set()
         if data_facebook and data_facebook.get('data'):
@@ -3260,7 +3271,9 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                 spend = float(fb_item.get('spend', 0))
                 facebook_spend_map[country_cd] = spend
                 cpr = float(fb_item.get('cpr', 0))
+                cpc = float(fb_item.get('cpc', 0))
                 facebook_cpr_map[country_cd] = cpr
+                facebook_cpc_map[country_cd] = cpc
                 facebook_click_map[country_cd] = int(fb_item.get('clicks', 0))
                 fb_code_set.add(country_cd)
         print(f"[DEBUG ROI] FB spend map keys: {len(facebook_spend_map)}")
@@ -3278,11 +3291,12 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                 revenue = float(adx_item.get('revenue', 0))
                 # Ambil spend dan biaya lainnya dari Facebook berdasarkan country_code
                 spend = facebook_spend_map.get(country_code, 0)
+                impressions_fb = int(adx_item.get('impressions', 0))
                 cpr = facebook_cpr_map.get(country_code, 0)
                 click_fb = facebook_click_map.get(country_code, 0)
                 # Hitung metrik
-                ctr_fb = ((click_fb / impressions) * 100) if impressions > 0 else 0
-                cpc_fb = (revenue / click_fb) if click_fb > 0 else 0
+                ctr_fb = ((click_fb / impressions_fb) * 100) if impressions_fb > 0 else 0
+                cpc_fb = facebook_cpc_map.get(country_code, 0)
                 ctr_adx = ((clicks_adx / impressions) * 100) if impressions > 0 else 0
                 cpc_adx = (revenue / clicks_adx) if clicks_adx > 0 else 0
                 ecpm = ((revenue / impressions) * 1000) if impressions > 0 else 0
@@ -3449,12 +3463,14 @@ class RoiTrafficPerDomainDataView(View):
                     key = f"{date_key}_{base_subdomain}"
                     fb_data = facebook_map.get(key)
                     spend = float((fb_data or {}).get('spend', 0))
+                    impressions_fb = int((fb_data or {}).get('impressions', 0))
                     clicks_fb = int((fb_data or {}).get('clicks', 0))
                     clicks_adx = int(adx_item.get('clicks', 0))
                     cpr = int((fb_data or {}).get('cpr', 0))
+                    cpc = int((fb_data or {}).get('cpc', 0))
                     revenue = float(adx_item.get('revenue', 0))
-                    ctr_fb = ((clicks_fb / impressions) * 100) if impressions > 0 else 0
-                    cpc_fb = (revenue / clicks_fb) if clicks_fb > 0 else 0
+                    ctr_fb = ((clicks_fb / impressions_fb) * 100) if impressions_fb > 0 else 0
+                    cpc_fb = cpc
                     ctr_adx = ((clicks_adx / impressions) * 100) if impressions > 0 else 0
                     cpc_adx = (revenue / clicks_adx) if clicks_adx > 0 else 0
                     roi = ((revenue - spend) / spend * 100) if spend > 0 else 0

@@ -152,6 +152,7 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.clicks).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + formattedFrequency + ' %</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + cpr + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + value.cpc + '</td>';
                 event_data += '</tr>';
                 $("#table_data_campaign_facebook tbody").append(event_data);
             })
@@ -173,13 +174,16 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 const totalFrequency = frequency.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + ' %';
                 // CPR
                 let data_cpr = value.total_cpr;
-                console.log(data_cpr);
+                // CPC
+                let data_cpc = value.total_cpc;
                 $('#total_spend').text(totalSpend);
                 $('#total_impressions').text(totalImpressions);
                 $('#total_reach').text(totalReach);
                 $('#total_clicks').text(totalClicks);
                 $('#total_frequency').text(totalFrequency);
                 $('#total_cpr').text(data_cpr);
+                // CPC
+                $('#total_cpc').text(data_cpc);
             })
             $('#table_data_campaign_facebook').DataTable({
                 "paging": true,
