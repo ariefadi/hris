@@ -1574,8 +1574,8 @@ class page_per_campaign_facebook(View):
             total_clicks += clicks
         # Agregasi total: frequency total sebagai (impressions/reach)*100, CPR total sebagai spend/clicks
         total_frequency = (float(total_impressions) / float(total_reach) * 100.0) if total_reach > 0 else 0.0
-        total_cpr = sum([row['cpr'] for row in normalized_rows])
-        total_cpc = sum([row['cpc'] for row in normalized_rows])
+        rata_cpr = round(sum([row['cpr'] for row in normalized_rows]) / len(normalized_rows), 0) if normalized_rows else 0.0
+        rata_cpc = round(sum([row['cpc'] for row in normalized_rows]) / len(normalized_rows), 0) if normalized_rows else 0.0
         response_data = {
             'hasil': "Data Traffic Per Campaign",
             'data_campaign': normalized_rows,
@@ -1585,8 +1585,8 @@ class page_per_campaign_facebook(View):
                 'total_reach': total_reach,
                 'total_click': total_clicks,
                 'total_frequency': total_frequency,
-                'total_cpr': format(total_cpr, '.0f'),
-                'total_cpc': format(total_cpc, '.0f'),
+                'total_cpr': format(rata_cpr, '.0f'),
+                'total_cpc': format(rata_cpc, '.0f'),
             }],
         }
         # Jika terjadi kegagalan di layer DB, kirimkan respons kosong agar frontend tidak error
@@ -1665,8 +1665,8 @@ class page_per_country_facebook(View):
             total_reach += reach
             total_clicks += clicks
             frequency_total = round((total_impressions / total_reach * 100), 2) if total_reach > 0 else 0.0
-            total_cpr_ratio = sum((row.get('cpr') or 0) for row in normalized) if normalized else 0.0
-            total_cpc_ratio = sum((row.get('cpc') or 0) for row in normalized) if normalized else 0.0
+            rata_cpr_ratio = round(sum((row.get('cpr') or 0) for row in normalized) / len(normalized), 0) if normalized else 0.0
+            rata_cpc_ratio = round(sum((row.get('cpc') or 0) for row in normalized) / len(normalized), 0) if normalized else 0.0
         data = {
             'data': normalized,
             'total': {
@@ -1675,8 +1675,8 @@ class page_per_country_facebook(View):
                 'clicks': total_clicks,
                 'reach': total_reach,
                 'frequency': frequency_total,
-                'cpr': round(float(total_cpr_ratio or 0), 0),
-                'cpc': round(float(total_cpc_ratio or 0), 0),
+                'cpr': round(float(rata_cpr_ratio or 0), 0),
+                'cpc': round(float(rata_cpc_ratio or 0), 0),
             }
         }
         # Normalize total structure jika berasal dari utils.py (berbentuk list)
