@@ -1,0 +1,567 @@
+{% extends 'admin_base.html' %}
+
+{% block page_title %}Technical{% endblock %}
+{% block page_heading %}Technical{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item">Task</li>
+<li class="breadcrumb-item active"><a href="/projects/task/technical">Technical</a></li>
+{% endblock %}
+
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Technical</h3>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th width="5%">No</th>
+                <th width="12%">Nama</th>
+                <th width="12%">PIC</th>
+                <th width="10%">Domain</th>
+                <th width="50%" class="text-center">Data Server & Website</th>
+                <th width="10%">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in partners %}
+              <tr>
+                  <td class="align-middle">{{ forloop.counter }}</td>
+                  <td class="align-middle"><u>{{ p.partner_name }}</u>{% if p.request_date %}<br>Tgl Request: {{ p.request_date|date:'Y-m-d' }}{% endif %}</td>
+                  <td class="align-middle">{{ p.pic }}</td>
+                  <td class="align-middle">{{ p.domain }}</td>
+                  <td class="align-middle">
+                    <table class="table table-sm">
+                      <thead>
+                        <tr>
+                          <th  class="text-center">Server IP</th>
+                          <th  class="text-center">Cloudflare</th>
+                          <th  class="text-center">Website Login</th>
+                          <th  class="text-center"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for s in p.subrows %}
+                        <tr>
+                          <td class="align-middle text-center">{{ s.public_ipv4 }}</td>
+                          <td class="align-middle text-center">{{ s.cloudflare }}</td>
+                          <td class="align-middle text-left">
+                            {{ s.website }}<br>
+                            User: {{ s.website_user }} <br>
+                            Pass: {{ s.website_pass }}
+                          </td>
+                          <td class="align-middle text-center">
+                            <a href="#" class="btn btn-xs btn-warning btn-edit-subrow" data-partner-id="{{ p.partner_id }}" data-subdomain-id="{{ s.subdomain_id }}" title="Edit"><i class="bi bi-pencil"></i></a>
+                            <a href="#" class="btn btn-xs btn-danger btn-delete-subrow" data-partner-id="{{ p.partner_id }}" data-subdomain-id="{{ s.subdomain_id }}" title="Delete"><i class="bi bi-trash"></i></a>
+                          </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                          <td colspan="4" class="text-center text-muted">Belum ada subdomain.</td>
+                        </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                    <br>
+                    <div class="text-center">
+                      <button class="btn btn-sm btn-primary" id="add_edit_server_{{ p.partner_id }}"><i class="bi bi-plus"></i> Tambah / Pilih Data Server</button>
+                    </div>
+                  </td>
+                  <td class="align-middle">
+                    <a href="#" class="btn btn-sm btn-success btn-send" data-partner-id="{{ p.partner_id }}" data-process-id="{{ p.process_id }}" title="Kirim"><i class="bi bi-send"></i></a>
+                  </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="9" class="text-center text-muted">Belum ada data waiting.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalAddEditServer" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Tambah / Pilih Data Server</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="modal_partner_id" value="">
+        <input type="hidden" id="modal_domain_name" value="">
+        {% csrf_token %}
+        <div class="row">
+          <div class="col-md-6">
+            <label>Server IP</label>
+            <div class="input-group mb-3">
+              <input type="text" class="form-control" id="lookup_ip" placeholder="IP Server" required>
+              <div class="input-group-append">
+                <button type="button" class="btn btn-outline-primary" id="btn_check_ip">Cek</button>
+              </div>
+            </div>
+            <b class="result-text"></b>
+          </div>
+        </div>
+        <hr>
+        <div class="row">
+          <div class="col-12">
+            <h6>Data Server</h6>
+          </div>
+          <div class="col-md-4">
+            <label>Hostname</label>
+            <input type="text" class="form-control" id="srv_hostname" placeholder="serverChipichip" required>
+          </div>
+          <div class="col-md-4">
+            <label>Label</label>
+            <input type="text" class="form-control" id="srv_label" placeholder="chipichips" required>
+          </div>
+          <div class="col-md-4">
+            <label>Provider</label>
+            <select class="form-control select2" id="srv_provider" data-placeholder="-- Pilih Provider --" required>
+              <option value=""></option>
+              {% for p in providers %}
+                <option value="{{ p.provider }}">{{ p.provider }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4 mt-2">
+            <label>vCPU</label>
+            <input type="number" min="1" class="form-control" id="srv_vcpu_count" placeholder="cth: 8" required>
+          </div>
+          <div class="col-md-4 mt-2">
+            <label>Memory (GB)</label>
+            <input type="number" min="1" class="form-control" id="srv_memory_gb" placeholder="Memory / RAM" required>
+          </div>
+          <div class="col-md-4 mt-2">
+            <label>IP Publik</label>
+            <input type="text" class="form-control" id="srv_public_ipv4" placeholder="IP Publik" required>
+          </div>
+          <div class="col-md-4 mt-2">
+            <label>SSH User</label>
+            <input type="text" class="form-control" id="srv_ssh_user" placeholder="ssh user" required>
+          </div>
+          <div class="col-md-4 mt-2">
+            <label>SSH Pass</label>
+            <input type="text" class="form-control" id="srv_ssh_pass" placeholder="ssh pass">
+          </div>
+          <div class="col-md-4 mt-2">
+            <label>SSH Keys</label>
+            <textarea class="form-control" id="srv_ssh_keys" rows="2" placeholder="ssh keys"></textarea>
+          </div>
+        </div>
+        <hr>
+        <div class="row">
+          <div class="col-12">
+            <h6>Data Subdomain & Website</h6>
+          </div>
+          <div class="col-12" id="sdws_rows_container"></div>
+          <div class="col-12 mt-2">
+            <button type="button" class="btn btn-sm btn-outline-primary" id="btn_add_sdws_row"><i class="bi bi-plus"></i> Tambah Subdomain</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+        <button type="button" class="btn btn-primary" id="btn_save_server">Simpan</button>
+      </div>
+    </div>
+  </div>
+ </div>
+
+<script>
+(function(){
+  var lastPartnerDomains = [];
+  var currentDomainName = '';
+  function showModal(){
+    var m = document.getElementById('modalAddEditServer');
+    if (window.jQuery && $('#modalAddEditServer').modal) { $('#modalAddEditServer').modal('show'); return; }
+    if (!m) return;
+    m.classList.add('show');
+    m.style.display = 'block';
+    m.setAttribute('aria-modal','true');
+    m.removeAttribute('aria-hidden');
+    var bd = document.createElement('div');
+    bd.className = 'modal-backdrop fade show';
+    bd.id = 'modal-backdrop-addedit';
+    document.body.appendChild(bd);
+  }
+  function hideModal(){
+    var m = document.getElementById('modalAddEditServer');
+    if (window.jQuery && $('#modalAddEditServer').modal) { $('#modalAddEditServer').modal('hide'); return; }
+    if (!m) return;
+    m.classList.remove('show');
+    m.style.display = 'none';
+    m.setAttribute('aria-hidden','true');
+    var bd = document.getElementById('modal-backdrop-addedit');
+    if (bd) bd.remove();
+  }
+  document.addEventListener('click', function(e){
+    if (e.target.matches('#modalAddEditServer .close') || e.target.matches('#modalAddEditServer [data-dismiss="modal"]')) {
+      hideModal();
+    }
+  });
+  document.querySelectorAll('button[id^=add_edit_server_]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var pid = this.id.replace('add_edit_server_', '');
+      var hidden = document.getElementById('modal_partner_id');
+      if (hidden) hidden.value = pid;
+      var modalEl = document.getElementById('modalAddEditServer');
+      if (modalEl) modalEl.dataset.mode = 'add';
+      ['lookup_ip','srv_public_ipv4','srv_hostname','srv_label','srv_vcpu_count','srv_memory_gb','srv_ssh_user','srv_ssh_pass','srv_ssh_keys'].forEach(function(id){ var el=document.getElementById(id); if(el){ el.value=''; el.classList.remove('is-invalid'); }});
+      var rt = document.querySelector('.result-text'); if (rt){ rt.textContent=''; rt.classList.remove('text-danger','text-success'); }
+      var cont = document.getElementById('sdws_rows_container');
+      if (cont) { cont.innerHTML=''; }
+      showModal();
+      // add mode: fetch partner domains and store first domain
+      // fetch partner domains only
+      var url = '{% url "projects_task_technical_partner_domains" %}' + '?partner_id=' + encodeURIComponent(pid);
+      fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function(r){ return r.json(); })
+        .then(function(resp){
+          var ds = resp.domains || [];
+          lastPartnerDomains = ds;
+          var mdid = document.getElementById('modal_domain_id');
+          var mdn = document.getElementById('modal_domain_name');
+          if (ds.length){
+            currentDomainName = ds[0].domain || '';
+            if (mdid) mdid.value = ds[0].domain_id;
+            if (mdn) mdn.value = currentDomainName;
+          } else {
+            currentDomainName = '';
+            if (mdid) mdid.value = '';
+            if (mdn) mdn.value = '';
+          }
+        });
+    });
+  });
+  function setValues(resp, ip){
+    var srv = resp && resp.server ? resp.server : {};
+    var el;
+    el = document.getElementById('lookup_ip'); if (el) el.value = srv.public_ipv4 || ip || '';
+    el = document.getElementById('srv_public_ipv4'); if (el) el.value = srv.public_ipv4 || ip || '';
+    el = document.getElementById('srv_hostname'); if (el) el.value = srv.hostname || '';
+    el = document.getElementById('srv_label'); if (el) el.value = srv.label || '';
+    el = document.getElementById('srv_provider'); if (el) { el.value = srv.provider || ''; if (window.jQuery && $.fn.select2) { $('#srv_provider').val(srv.provider || '').trigger('change'); } }
+    el = document.getElementById('srv_vcpu_count'); if (el) el.value = srv.vcpu_count || '';
+    el = document.getElementById('srv_memory_gb'); if (el) el.value = srv.memory_gb || '';
+    el = document.getElementById('srv_ssh_user'); if (el) el.value = srv.ssh_user || '';
+    el = document.getElementById('srv_ssh_pass'); if (el) el.value = srv.ssh_pass || '';
+    el = document.getElementById('srv_ssh_keys'); if (el) el.value = srv.ssh_keys || '';
+  }
+  function domainNameFrom(resp, domainId){
+    var ds = resp && resp.domains ? resp.domains : [];
+    var name = '';
+    if (domainId && ds && ds.length){
+      for (var i=0;i<ds.length;i++){ if (String(ds[i].domain_id) === String(domainId)) { name = ds[i].domain; break; } }
+    }
+    if (!name && ds && ds.length){ name = ds[0].domain; }
+    return name;
+  }
+  function appendSdwsRow(defaults){
+    var c = document.getElementById('sdws_rows_container');
+    if (!c) return;
+    var sub = defaults && defaults.subdomain ? defaults.subdomain : '';
+    var cf = defaults && defaults.cloudflare ? defaults.cloudflare : '';
+    var ip = defaults && defaults.public_ipv4 ? defaults.public_ipv4 : '';
+    var web = defaults && defaults.website ? defaults.website : '';
+    var wuser = defaults && defaults.website_user ? defaults.website_user : '';
+    var wpass = defaults && defaults.website_pass ? defaults.website_pass : '';
+    var dname = defaults && defaults.domain_name ? defaults.domain_name : '';
+    var html = ''+
+      '<div class="sdws-row border p-2 mb-2">'+
+      '  <div class="row">'+
+      '    <div class="col-md-4">'+
+      '      <label>Subdomain</label>'+
+      '      <div class="input-group mb-3">'+
+      '        <input type="text" class="form-control" name="sd_subdomain" placeholder="subdomain" value="'+ (sub || '') +'" required>'+
+      '        <span class="input-group-text domain-text">'+ (dname ? ('.'+dname) : '.example.com') +'</span>'+
+      '      </div>'+
+      '    </div>'+
+      '    <div class="col-md-4">'+
+      '      <label>Akun Cloudflare</label>'+
+      '      <input type="text" class="form-control" name="sd_cloudflare" placeholder="cloudflare" value="'+ (cf || '') +'" required>'+
+      '    </div>'+
+      '    <div class="col-md-4">'+
+      '      <label>IP Server</label>'+
+      '      <input type="text" class="form-control ip-field" name="sd_public_ipv4" placeholder="IP Server" value="'+ (ip || '') +'" required>'+
+      '    </div>'+
+      '    <div class="col-md-4">'+
+      '      <label>Website</label>'+
+      '      <input type="text" class="form-control" name="ws_website" placeholder="https://..." value="'+ (web || '') +'" required>'+
+      '    </div>'+
+      '    <div class="col-md-4">'+
+      '      <label>Website User</label>'+
+      '      <input type="text" class="form-control" name="ws_website_user" placeholder="user" value="'+ (wuser || '') +'" required>'+
+      '    </div>'+
+      '    <div class="col-md-4">'+
+      '      <label>Website Pass</label>'+
+      '      <input type="text" class="form-control" name="ws_website_pass" placeholder="pass" value="'+ (wpass || '') +'" required>'+
+      '    </div>'+
+      '    <div class="col-12 mt-2">'+
+      '      <button type="button" class="btn btn-sm btn-outline-danger btn-del-sdws">Hapus Baris</button>'+
+      '    </div>'+
+      '  </div>'+
+      '</div>';
+    var div = document.createElement('div');
+    div.innerHTML = html;
+    var rowEl = div.firstChild;
+    c.appendChild(rowEl);
+    rowEl.querySelector('.btn-del-sdws').addEventListener('click', function(){ rowEl.remove(); });
+  }
+  function renderSdwsRows(resp, ip){
+    var c = document.getElementById('sdws_rows_container');
+    if (!c) return;
+    c.innerHTML = '';
+    var list = resp && resp.subrows ? resp.subrows : [];
+    if (list && list.length){
+      list.forEach(function(item){
+        var dname = domainNameFrom(resp, item.domain_id);
+        appendSdwsRow({
+          subdomain: item.subdomain,
+          cloudflare: item.cloudflare,
+          public_ipv4: item.public_ipv4,
+          website: item.website,
+          website_user: item.website_user,
+          website_pass: item.website_pass,
+          domain_name: dname
+        });
+      });
+    } else {
+      var dname = domainNameFrom(resp, (resp && resp.selected_domain_id) ? resp.selected_domain_id : null);
+      appendSdwsRow({ public_ipv4: ip || (document.getElementById('srv_public_ipv4').value || ''), domain_name: dname });
+    }
+  }
+  var btnCheck = document.getElementById('btn_check_ip');
+  if (btnCheck) {
+    btnCheck.addEventListener('click', function(){
+      var ip = (document.getElementById('lookup_ip').value || '').trim();
+      var pid = document.getElementById('modal_partner_id').value;
+      if (!ip) return;
+      var url = '{% url "projects_task_technical_server_lookup" %}' + '?ip=' + encodeURIComponent(ip) + '&partner_id=' + encodeURIComponent(pid);
+      fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function(r){ return r.json(); })
+        .then(function(resp){
+          setValues(resp, ip);
+          var rt = document.querySelector('.result-text');
+          if (rt){
+            rt.classList.remove('text-danger','text-success');
+            if (resp && resp.server){
+              rt.textContent = 'Data server ditemukan.';
+              rt.classList.add('text-success');
+            } else {
+              rt.textContent = 'Data server tidak ditemukan, silahkan lengkapi form di bawah.';
+              rt.classList.add('text-danger');
+            }
+          }
+        });
+    });
+  }
+  if (window.jQuery && $.fn.select2) {
+    $('#srv_provider').select2({
+      theme: 'bootstrap4',
+      dropdownParent: $('#modalAddEditServer'),
+      allowClear: true,
+      placeholder: $('#srv_provider').data('placeholder') || '-- Pilih Provider --'
+    });
+  }
+  function syncSubdomainIP(){
+    var ip = (document.getElementById('srv_public_ipv4').value || '').trim();
+    if (ip) { var s = document.getElementById('sd_public_ipv4'); if (s) s.value = ip; }
+  }
+  var ipInput = document.getElementById('srv_public_ipv4');
+  if (ipInput) {
+    ['input','change','keyup'].forEach(function(ev){ ipInput.addEventListener(ev, syncSubdomainIP); });
+  }
+  var btnSave = document.getElementById('btn_save_server');
+  if (btnSave) {
+    btnSave.addEventListener('click', function(){
+      var pid = document.getElementById('modal_partner_id').value;
+      var form = new FormData();
+      form.append('partner_id', pid);
+      var modeEl = document.getElementById('modalAddEditServer');
+      var isAddMode = modeEl && modeEl.dataset && modeEl.dataset.mode === 'add';
+      if (isAddMode) {
+        var mdid = document.getElementById('modal_domain_id');
+        var did = mdid ? (mdid.value || '') : '';
+        if (!did) {
+          var ds = (typeof lastPartnerDomains !== 'undefined' && lastPartnerDomains) ? lastPartnerDomains : [];
+          if (ds.length) { did = ds[0].domain_id; }
+        }
+        if (!did) { alert('Domain untuk partner tidak tersedia'); return; }
+        form.append('domain_id', did);
+      }
+      var requiredFilled = true;
+      var modal = document.getElementById('modalAddEditServer');
+      if (modal){
+        var reqs = modal.querySelectorAll('[required]');
+        reqs.forEach(function(el){
+          var v = (el.value || '').trim();
+          if (!v){ requiredFilled = false; el.classList.add('is-invalid'); } else { el.classList.remove('is-invalid'); }
+        });
+      }
+      if (!requiredFilled) { alert('Lengkapi semua field yang wajib diisi.'); return; }
+      var hiddenSid = document.getElementById('modal_subdomain_id');
+      if (!isAddMode && hiddenSid) { form.append('subdomain_id', hiddenSid.value || ''); }
+      form.append('srv_hostname', document.getElementById('srv_hostname').value || '');
+      form.append('srv_label', document.getElementById('srv_label').value || '');
+      form.append('srv_provider', document.getElementById('srv_provider').value || '');
+      form.append('srv_vcpu_count', document.getElementById('srv_vcpu_count').value || '');
+      form.append('srv_memory_gb', document.getElementById('srv_memory_gb').value || '');
+      form.append('srv_public_ipv4', document.getElementById('srv_public_ipv4').value || '');
+      form.append('srv_ssh_user', document.getElementById('srv_ssh_user').value || '');
+      form.append('srv_ssh_pass', document.getElementById('srv_ssh_pass').value || '');
+      form.append('srv_ssh_keys', document.getElementById('srv_ssh_keys').value || '');
+      var container = document.getElementById('sdws_rows_container');
+      if (container){
+        container.querySelectorAll('.sdws-row').forEach(function(row){
+          var get = function(sel){ var el = row.querySelector(sel); return el ? el.value : ''; };
+          form.append('sd_subdomain', get('input[name=sd_subdomain]'));
+          form.append('sd_cloudflare', get('input[name=sd_cloudflare]'));
+          form.append('sd_public_ipv4', get('input[name=sd_public_ipv4]'));
+          form.append('ws_website', get('input[name=ws_website]'));
+          form.append('ws_website_user', get('input[name=ws_website_user]'));
+          form.append('ws_website_pass', get('input[name=ws_website_pass]'));
+        });
+      }
+      var csrfEl = document.querySelector('#modalAddEditServer input[name=csrfmiddlewaretoken]');
+      var csrf = csrfEl ? csrfEl.value : '';
+      if (csrf) { form.append('csrfmiddlewaretoken', csrf); }
+      var headers = { 'X-Requested-With': 'XMLHttpRequest' };
+      if (csrf) { headers['X-CSRFToken'] = csrf; }
+      var submitUrl = isAddMode ? '{% url "projects_task_technical_server_save" %}' : '{% url "projects_task_technical_subrow_update" %}';
+      fetch(submitUrl, {
+        method: 'POST',
+        headers: headers,
+        credentials: 'same-origin',
+        body: form
+      }).then(function(r){ return r.json(); }).then(function(resp){
+        var ok = resp && (resp.status === true || resp.status === 'True');
+        if (ok) {
+          var msg = 'Data berhasil disimpan';
+          if (window.Swal) {
+            Swal.fire({icon: 'success', title: 'Berhasil', text: msg, timer: 1000, showConfirmButton: false}).then(function(){ window.location.reload() });
+          } else {
+            window.location.reload()
+          }
+        } else {
+          var emsg = (resp && resp.message) ? resp.message : 'Gagal menyimpan';
+          if (window.Swal) {
+            Swal.fire({icon: 'error', title: 'Gagal', text: emsg});
+          } else {
+            alert(emsg);
+          }
+        }
+      });
+    });
+  }
+  var btnAdd = document.getElementById('btn_add_sdws_row');
+  if (btnAdd){
+    btnAdd.addEventListener('click', function(){
+      var mdn=document.getElementById('modal_domain_name');
+      var dname = mdn ? (mdn.value || '') : '';
+      if (!dname && lastPartnerDomains && lastPartnerDomains.length){ dname = lastPartnerDomains[0].domain || ''; }
+      appendSdwsRow({ public_ipv4: (document.getElementById('srv_public_ipv4').value || ''), domain_name: dname });
+    });
+  }
+  // Edit subrow buttons
+  document.querySelectorAll('.btn-edit-subrow').forEach(function(a){
+    a.addEventListener('click', function(e){
+      e.preventDefault();
+      var modalEl = document.getElementById('modalAddEditServer');
+      if (modalEl) modalEl.dataset.mode = 'edit';
+      document.getElementById('btn_add_sdws_row').style.display = 'none';
+      var pid = this.getAttribute('data-partner-id');
+      var sid = this.getAttribute('data-subdomain-id');
+      var hiddenPid = document.getElementById('modal_partner_id');
+      if (hiddenPid) hiddenPid.value = pid;
+      var sh = document.getElementById('sdwsHeader'); if (sh) sh.style.display = 'block';
+      // clear fields
+      ['lookup_ip','srv_public_ipv4','srv_hostname','srv_label','srv_vcpu_count','srv_memory_gb','srv_ssh_user','srv_ssh_pass','srv_ssh_keys'].forEach(function(id){ var el=document.getElementById(id); if(el){ el.value=''; el.classList.remove('is-invalid'); }});
+      var rt = document.querySelector('.result-text'); if (rt){ rt.textContent=''; rt.classList.remove('text-danger','text-success'); }
+      var cont = document.getElementById('sdws_rows_container'); if (cont) cont.innerHTML='';
+      showModal();
+      var url = '{% url "projects_task_technical_subrow_lookup" %}' + '?partner_id=' + encodeURIComponent(pid) + '&subdomain_id=' + encodeURIComponent(sid);
+      fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(function(r){ return r.json(); })
+        .then(function(resp){
+          var srv = resp.server || {};
+          setValues({server: srv}, srv.public_ipv4 || null);
+          var s = resp.subrow || {};
+          var dname = (resp.domain && resp.domain.domain) ? resp.domain.domain : '';
+          appendSdwsRow({
+            subdomain: s.subdomain,
+            cloudflare: s.cloudflare,
+            public_ipv4: s.public_ipv4,
+            website: (resp.website && resp.website.website) ? resp.website.website : '',
+            website_user: (resp.website && resp.website.website_user) ? resp.website.website_user : '',
+            website_pass: (resp.website && resp.website.website_pass) ? resp.website.website_pass : '',
+            domain_name: dname
+          });
+          var hiddenSid = document.getElementById('modal_subdomain_id');
+          if (!hiddenSid){
+            var h = document.createElement('input'); h.type='hidden'; h.id='modal_subdomain_id'; h.value=sid; document.getElementById('modalAddEditServer').appendChild(h);
+          } else { hiddenSid.value = sid; }
+        });
+    });
+  });
+  document.querySelectorAll('.btn-delete-subrow').forEach(function(a){
+    a.addEventListener('click', function(e){
+      e.preventDefault();
+      var pid = this.getAttribute('data-partner-id');
+      var sid = this.getAttribute('data-subdomain-id');
+      if (!confirm('Hapus subdomain ini?')) return;
+      var form = new FormData();
+      form.append('partner_id', pid);
+      form.append('subdomain_id', sid);
+      var csrfEl = document.querySelector('#modalAddEditServer input[name=csrfmiddlewaretoken]');
+      var csrf = csrfEl ? csrfEl.value : '';
+      if (csrf) { form.append('csrfmiddlewaretoken', csrf); }
+      var headers = { 'X-Requested-With': 'XMLHttpRequest' };
+      if (csrf) { headers['X-CSRFToken'] = csrf; }
+      fetch('{% url "projects_task_technical_subrow_delete" %}', {
+        method: 'POST',
+        headers: headers,
+        credentials: 'same-origin',
+        body: form
+      }).then(function(r){ return r.json(); }).then(function(resp){
+        if (resp && resp.status === true) {
+          var tr = a.closest('tr');
+          if (tr) tr.remove();
+          window.location.reload();
+        } else {
+          alert(resp && resp.message ? resp.message : 'Gagal menghapus');
+        }
+      });
+    });
+  });
+  // Send to next flow (1002)
+  document.querySelectorAll('.btn-send').forEach(function(a){
+    a.addEventListener('click', function(e){
+      e.preventDefault();
+      var pid = this.getAttribute('data-partner-id');
+      var prc = this.getAttribute('data-process-id');
+      var confirmFn = function(doSend){ if (!doSend) return; var form = new FormData(); form.append('partner_id', pid); form.append('process_id', prc); var tokenEl = document.querySelector('input[name=csrfmiddlewaretoken]'); var csrf = tokenEl ? tokenEl.value : ''; if (csrf) { form.append('csrfmiddlewaretoken', csrf); } var headers = { 'X-Requested-With': 'XMLHttpRequest' }; if (csrf) { headers['X-CSRFToken'] = csrf; } fetch('{% url "projects_task_technical_send" %}', { method: 'POST', headers: headers, credentials: 'same-origin', body: form }).then(function(r){ return r.json(); }).then(function(resp){ var ok = resp && (resp.status === true || resp.status === 'True'); if (ok) { if (window.Swal) { Swal.fire({icon: 'success', title: 'Berhasil', text: 'Data dikirim ke proses berikutnya', timer: 1000, showConfirmButton: false}).then(function(){ window.location.reload(); }); } else { window.location.reload(); } } else { var emsg = (resp && resp.message) ? resp.message : 'Gagal mengirim data'; if (window.Swal) { Swal.fire({icon: 'error', title: 'Gagal', text: emsg}); } else { alert(emsg); } } }); };
+      if (window.Swal) {
+        Swal.fire({icon: 'question', title: 'Kirim?', text: 'Kirim data ke proses berikutnya?', showCancelButton: true, confirmButtonText: 'Ya, kirim', cancelButtonText: 'Batal'}).then(function(res){ confirmFn(res && res.isConfirmed); });
+      } else {
+        var ok = confirm('Kirim data ke proses berikutnya?');
+        confirmFn(ok);
+      }
+    });
+  });
+})();
+</script>
+
+{% endblock %}
+<!-- scripts consolidated above -->

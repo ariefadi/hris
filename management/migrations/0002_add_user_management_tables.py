@@ -81,7 +81,7 @@ class Migration(migrations.Migration):
                 KEY `role_id` (`role_id`),
                 CONSTRAINT `app_user_role_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `app_users` (`user_id`) ON DELETE CASCADE ON UPDATE CASCADE,
                 CONSTRAINT `app_user_role_ibfk_2` FOREIGN KEY (`role_id`) REFERENCES `app_role` (`role_id`) ON DELETE CASCADE ON UPDATE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+            ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
             """,
             # reverse_sql="DROP TABLE IF EXISTS `app_user_role`"
         ),
@@ -197,7 +197,7 @@ class Migration(migrations.Migration):
                 PRIMARY KEY (`id`),
                 KEY `sessions_user_id_index` (`user_id`),
                 KEY `sessions_last_activity_index` (`last_activity`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_unicode_ci
+            ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
             """,
             # reverse_sql="DROP TABLE IF EXISTS `sessions`"
         ),
@@ -222,7 +222,7 @@ class Migration(migrations.Migration):
                 PRIMARY KEY (`nav_id`),
                 KEY `portal_id` (`portal_id`),
                 CONSTRAINT `app_menu_ibfk_1` FOREIGN KEY (`portal_id`) REFERENCES `app_portal` (`portal_id`) ON UPDATE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+            ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
             """,
             # reverse_sql="DROP TABLE IF EXISTS `app_menu`"
         ),
@@ -238,7 +238,7 @@ class Migration(migrations.Migration):
                 KEY `role_id` (`role_id`),
                 CONSTRAINT `app_menu_role_ibfk_1` FOREIGN KEY (`role_id`) REFERENCES `app_role` (`role_id`) ON DELETE CASCADE ON UPDATE CASCADE,
                 CONSTRAINT `app_menu_role_ibfk_2` FOREIGN KEY (`nav_id`) REFERENCES `app_menu` (`nav_id`) ON DELETE CASCADE ON UPDATE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+            ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
             """,
             # reverse_sql="DROP TABLE IF EXISTS `app_role_menu`"
         ),
@@ -263,7 +263,7 @@ class Migration(migrations.Migration):
                 `mdb_name` varchar(50) DEFAULT NULL,
                 `mdd` datetime DEFAULT NULL,
                 PRIMARY KEY (`portal_id`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+            ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
             """,
             # reverse_sql="DROP TABLE IF EXISTS `app_portal`"
         ),
@@ -285,7 +285,7 @@ class Migration(migrations.Migration):
                 `mdb_name` varchar(250) DEFAULT NULL,
                 `mdd` datetime DEFAULT NULL,
                 PRIMARY KEY (`account_id`)
-            ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+            ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci
             """,
             # reverse_sql="DROP TABLE IF EXISTS `app_credentials`;"
         ),
@@ -294,19 +294,247 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             sql="""
                 CREATE TABLE `data_media_partner` (
-                `partner_id` int NOT NULL AUTO_INCREMENT,
+                `partner_id` varchar(20) NOT NULL,
                 `partner_name` varchar(100) DEFAULT NULL,
                 `partner_contact` varchar(20) DEFAULT NULL,
-                `partner_domain` varchar(255) DEFAULT NULL,
                 `partner_region` varchar(100) DEFAULT NULL,
                 `request_date` datetime DEFAULT NULL,
                 `pic` varchar(100) DEFAULT NULL,
+                `status` enum('draft','waiting','canceled','rejected','completed') CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT 'draft',
+                `adnetwork` varchar(100) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT 'adx',
                 `mdb` varchar(36) DEFAULT NULL,
                 `mdb_name` varchar(50) DEFAULT NULL,
                 `mdd` datetime DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (`partner_id`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+                ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
             """,
             # reverse_sql="DROP TABLE IF EXISTS `data_media_partner`;"
+        ),
+
+        # create data registrar provider table
+        migrations.RunSQL(
+            sql="""
+                CREATE TABLE `data_server_registrar_provider` (
+                `provider_id` int NOT NULL AUTO_INCREMENT,
+                `provider` varchar(100) NOT NULL,
+                `mdb` varchar(36) DEFAULT NULL,
+                `mdb_name` varchar(50) DEFAULT NULL,
+                `mdd` datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`server_id`),
+                UNIQUE KEY `provider` (`provider`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+            """,
+            # reverse_sql="DROP TABLE IF EXISTS `data_server_registrar_provider`;"
+        ),
+
+        # create data servers table
+        migrations.RunSQL(
+            sql="""
+                CREATE TABLE `data_servers` (
+                `server_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                `hostname` varchar(253) NOT NULL,
+                `label` varchar(100) DEFAULT NULL,
+                `provider` varchar(100) DEFAULT NULL,
+                `region` varchar(100) DEFAULT NULL,
+                `location` varchar(100) DEFAULT NULL,
+                `server_code` varchar(100) DEFAULT NULL,
+                `server_name` varchar(100) DEFAULT NULL,
+                `server_status` enum('active','stopped','suspended','terminated','provisioning','error') NOT NULL DEFAULT 'active',
+                `os_name` varchar(100) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+                `os_version` varchar(100) DEFAULT NULL,
+                `arch` enum('x86_64','arm64','i386','armhf') DEFAULT NULL,
+                `vcpu_count` smallint unsigned NOT NULL,
+                `memory_gb` int unsigned NOT NULL,
+                `swap_mb` int unsigned DEFAULT NULL,
+                `disk_gb` decimal(10,2) unsigned NOT NULL,
+                `disk_type` enum('HDD','SSD','NVMe') DEFAULT NULL,
+                `bandwidth_tb` decimal(10,2) DEFAULT NULL,
+                `network_speed_mbps` int unsigned DEFAULT NULL,
+                `public_ipv4` varchar(45) DEFAULT NULL,
+                `public_ipv6` varchar(45) DEFAULT NULL,
+                `private_ipv4` varchar(45) DEFAULT NULL,
+                `private_ipv6` varchar(45) DEFAULT NULL,
+                `ssh_port` smallint unsigned NOT NULL DEFAULT '22',
+                `ssh_user` varchar(64) DEFAULT NULL,
+                `ssh_fingerprint` varchar(128) DEFAULT NULL,
+                `ssh_keys` json DEFAULT NULL,
+                `ssh_pass` varchar(100) DEFAULT NULL,
+                `cost_monthly` decimal(10,2) DEFAULT NULL,
+                `currency` enum('IDR','USD','EUR') NOT NULL DEFAULT 'IDR',
+                `currency_conversion_idr` decimal(10,2) DEFAULT NULL,
+                `purchased_at` datetime DEFAULT NULL,
+                `expires_at` datetime DEFAULT NULL,
+                `notes` text,
+                `mdd` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                `mdb` varchar(36) DEFAULT NULL,
+                `mdb_name` varchar(50) DEFAULT NULL,
+                PRIMARY KEY (`server_id`),
+                KEY `idx_hostname` (`hostname`),
+                KEY `idx_status` (`server_status`),
+                KEY `idx_expires_at` (`expires_at`),
+                KEY `provider_id` (`povider`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+            """,
+            # reverse_sql="DROP TABLE IF EXISTS `data_servers`;"
+        ),
+
+        # create data domains table
+        migrations.RunSQL(
+            sql="""
+                CREATE TABLE `data_domains` (
+                    `domain_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                    `server_id` bigint unsigned DEFAULT NULL,
+                    `website_id` bigint unsigned DEFAULT NULL,
+                    `domain` varchar(253) DEFAULT NULL,
+                    `provider` varchar(100) DEFAULT NULL,
+                    `registrar` varchar(100) DEFAULT NULL,
+                    `domain_status` enum('active','expired','pending_transfer','client_hold','server_hold') NOT NULL DEFAULT 'active',
+                    `registration_date` date DEFAULT NULL,
+                    `expiration_date` date DEFAULT NULL,
+                    `nameservers` json DEFAULT NULL,
+                    `primary_ip` varchar(45) DEFAULT NULL,
+                    `contact_email` varchar(254) DEFAULT NULL,
+                    `tags` json DEFAULT NULL,
+                    `notes` text,
+                    `mdd` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    `mdb` varchar(36) DEFAULT NULL,
+                    `mdb_name` varchar(50) DEFAULT NULL,
+                    PRIMARY KEY (`domain_id`),
+                    UNIQUE KEY `uq_domain` (`domain`),
+                    KEY `idx_expiration_date` (`expiration_date`),
+                    KEY `idx_provider` (`provider`),
+                    KEY `idx_status` (`domain_status`),
+                    KEY `data_domains_ibfk_2` (`registrar`),
+                    KEY `data_domains_ibfk_3` (`server_id`),
+                    KEY `website_id` (`website_id`),
+                    CONSTRAINT `data_domains_ibfk_3` FOREIGN KEY (`server_id`) REFERENCES `data_servers` (`server_id`) ON DELETE SET NULL ON UPDATE CASCADE,
+                    CONSTRAINT `data_domains_ibfk_4` FOREIGN KEY (`website_id`) REFERENCES `data_website` (`website_id`) ON UPDATE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+            """,
+            # reverse_sql="DROP TABLE IF EXISTS `data_domains`;"
+        ),
+
+        # create data subdomain table
+        migrations.RunSQL(
+            sql="""
+                CREATE TABLE `data_subdomain` (
+                `subdomain_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                `subdomain` varchar(100) DEFAULT NULL,
+                `domain_id` bigint unsigned DEFAULT NULL,
+                `website_id` bigint unsigned DEFAULT NULL,
+                `cloudflare` varchar(100) DEFAULT NULL,
+                `public_ipv4` varchar(45) DEFAULT NULL,
+                `mdb` varchar(36) DEFAULT NULL,
+                `mdb_name` varchar(50) DEFAULT NULL,
+                `mdd` datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`subdomain_id`),
+                KEY `subdomain` (`subdomain`),
+                KEY `domain_id` (`domain_id`),
+                KEY `website_id` (`website_id`),
+                CONSTRAINT `data_subdomain_ibfk_1` FOREIGN KEY (`domain_id`) REFERENCES `data_domains` (`domain_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+                CONSTRAINT `data_subdomain_ibfk_2` FOREIGN KEY (`website_id`) REFERENCES `data_website` (`website_id`) ON UPDATE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+            """,
+            # reverse_sql="DROP TABLE IF EXISTS `data_media_partner_domain`;"
+        ),
+        
+        # create media partner domain table
+        migrations.RunSQL(
+            sql="""
+                CREATE TABLE `data_media_partner_domain` (
+                `dmpd_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                `partner_id` varchar(20) DEFAULT NULL,
+                `domain_id` bigint unsigned DEFAULT NULL,
+                PRIMARY KEY (`dmpd_id`),
+                KEY `partner_id` (`partner_id`),
+                KEY `domain_id` (`domain_id`),
+                CONSTRAINT `data_media_partner_domain_ibfk_1` FOREIGN KEY (`partner_id`) REFERENCES `data_media_partner` (`partner_id`),
+                CONSTRAINT `data_media_partner_domain_ibfk_2` FOREIGN KEY (`domain_id`) REFERENCES `data_domains` (`domain_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+            """,
+            # reverse_sql="DROP TABLE IF EXISTS `data_media_partner_domain`;"
+        ),
+
+        # create data flow group table
+        migrations.RunSQL(
+            sql="""
+                CREATE TABLE `data_flow_group` (
+                `group_id` varchar(2) NOT NULL,
+                `group_type` varchar(50) DEFAULT NULL,
+                `group_name` varchar(50) DEFAULT NULL,
+                `group_desc` varchar(255) DEFAULT NULL,
+                `group_alias` varchar(20) DEFAULT NULL,
+                `mdb` varchar(36) DEFAULT NULL,
+                `mdb_name` varchar(50) DEFAULT NULL,
+                `mdd` datetime DEFAULT NULL,
+                PRIMARY KEY (`group_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+            """,
+            # reverse_sql="DROP TABLE IF EXISTS `data_flow_group`;"
+        ),
+        
+        # create data flow table
+        migrations.RunSQL(
+            sql="""
+                CREATE TABLE `data_flow` (
+                `flow_id` varchar(5) NOT NULL,
+                `group_id` varchar(2) DEFAULT NULL,
+                `task_name` varchar(50) DEFAULT NULL,
+                `task_desc` varchar(255) DEFAULT NULL,
+                `task_link` varchar(100) DEFAULT NULL,
+                `task_number` int unsigned DEFAULT NULL,
+                `mdb` varchar(36) DEFAULT NULL,
+                `mdb_name` varchar(50) DEFAULT NULL,
+                `mdd` datetime DEFAULT NULL,
+                PRIMARY KEY (`flow_id`),
+                KEY `group_id` (`group_id`),
+                CONSTRAINT `pas_flow_ibfk_1` FOREIGN KEY (`group_id`) REFERENCES `data_flow_group` (`group_id`) ON DELETE CASCADE ON UPDATE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+            """,
+            # reverse_sql="DROP TABLE IF EXISTS `data_flow`;"
+        ),
+
+        # create data media process table
+        migrations.RunSQL(
+            sql="""
+                CREATE TABLE `data_media_process` (
+                `process_id` varchar(20) NOT NULL,
+                `partner_id` varchar(20) DEFAULT NULL,
+                `flow_id` varchar(5) DEFAULT NULL,
+                `flow_revisi_id` varchar(5) DEFAULT NULL,
+                `process_st` enum('waiting','approve','reject') DEFAULT 'waiting',
+                `action_st` enum('process','done') DEFAULT 'process',
+                `catatan` text,
+                `mdb` varchar(10) DEFAULT NULL,
+                `mdb_name` varchar(50) DEFAULT NULL,
+                `mdd` datetime DEFAULT NULL,
+                `mdb_finish` varchar(36) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+                `mdb_finish_name` varchar(50) DEFAULT NULL,
+                `mdd_finish` datetime DEFAULT NULL,
+                PRIMARY KEY (`process_id`),
+                KEY `flow_id` (`flow_id`),
+                KEY `partner_id` (`partner_id`),
+                CONSTRAINT `data_media_process_ibfk_1` FOREIGN KEY (`partner_id`) REFERENCES `data_media_partner` (`partner_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+                CONSTRAINT `data_media_process_ibfk_2` FOREIGN KEY (`flow_id`) REFERENCES `data_flow` (`flow_id`) ON DELETE CASCADE ON UPDATE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+            """,
+            # reverse_sql="DROP TABLE IF EXISTS `data_media_process`;"
+        ),
+
+        # create data negara table
+        migrations.RunSQL(
+            sql="""
+                CREATE TABLE `master_negara` (
+                `negara_id` varchar(36) NOT NULL,
+                `negara_kd` char(2) DEFAULT NULL,
+                `negara_nm` varchar(250) DEFAULT NULL,
+                `tier` varchar(10) DEFAULT NULL,
+                `mdb` varchar(36) DEFAULT NULL,
+                `mdb_name` varchar(250) DEFAULT NULL,
+                `mdd` datetime DEFAULT NULL,
+                PRIMARY KEY (`negara_id`)
+                ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+            """,
+            # reverse_sql="DROP TABLE IF EXISTS `data_media_process`;"
         ),
     ]

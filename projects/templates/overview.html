@@ -1,0 +1,50 @@
+{% extends 'admin_base.html' %}
+
+{% block page_title %}Projects Overview{% endblock %}
+{% block page_heading %}Projects Overview{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item">Projects</li>
+<li class="breadcrumb-item active"><a href="/projects/overview">Overview</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Current Context</h3>
+      </div>
+      <div class="card-body">
+        <p><strong>Active Portal ID:</strong> {{ active_portal_id }}</p>
+        <p><strong>User:</strong> {{ user.user_alias }}</p>
+        <p class="text-muted mb-0">Menus adapt by active portal and your role.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Quick Actions</h3>
+      </div>
+      <div class="card-body">
+        <ul class="list-unstyled">
+          <li><i class="bi bi-columns-gap mr-1"></i> Switch portal using the navbar dropdown</li>
+          <li><i class="bi bi-list-ul mr-1"></i> Explore menus in the sidebar</li>
+          <li><i class="bi bi-person mr-1"></i> Review your role default page via portal switch</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-12">
+    <div class="alert alert-info">
+      <i class="bi bi-info-circle-fill mr-2"></i>
+      This overview page uses the active portal to drive menus and defaults. Switching portals will redirect to the role’s default page.
+    </div>
+  </div>
+</div>
+{% endblock %}

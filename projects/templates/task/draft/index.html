@@ -1,0 +1,221 @@
+{% extends 'admin_base.html' %}
+
+{% block page_title %}Create Project{% endblock %}
+{% block page_heading %}Create Project{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item">Task</li>
+<li class="breadcrumb-item active"><a href="/projects/task/draft">Create</a></li>
+{% endblock %}
+
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Daftar Draft Media</h3>
+        <div class="card-tools">
+          <a href="#" class="btn btn-sm btn-primary" data-toggle="modal" data-target="#modalCreateProject">
+            <i class="bi bi-plus-circle"></i> Tambah Project
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th width="5%">No</th>
+                <th width="15%">Nama</th>
+                <th width="15%">Region</th>
+                <th width="10%">Tanggal Request</th>
+                <th width="15%">Ad Network</th>
+                <th width="15%">PIC</th>
+                <th width="10%">Status</th>
+                <th width="10%">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in partners %}
+              <tr>
+                  <td class="align-middle">{{ forloop.counter }}</td>
+                  <td class="align-middle"><u>{{ p.partner_name }}</u><br>Kontak: {{ p.partner_contact }}</td>
+                  <td class="align-middle">{{ p.partner_region }}</td>
+                  <td class="align-middle">{% if p.request_date %}{{ p.request_date|date:'Y-m-d' }}{% endif %}</td>
+                  <td class="align-middle">{{ p.adnetwork }}</td>
+                  <td class="align-middle">{{ p.pic }}</td>
+                  <td class="align-middle">{{ p.status|title }}</td>
+                  <td class="align-middle">
+                    <a href="{% url 'projects_task_draft_edit' p.partner_id %}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
+                    <form action="{% url 'projects_task_draft_delete' p.partner_id %}" method="post" style="display:inline-block;margin-left:6px;">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Hapus draft ini?')"><i class="bi bi-trash"></i></button>
+                    </form>
+                  </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="9" class="text-center text-muted">Belum ada data draft.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Modal Create Project -->
+<div class="modal fade" id="modalCreateProject" tabindex="-1" role="dialog" aria-labelledby="modalCreateProjectLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalCreateProjectLabel">Tambah Project</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form id="formCreateProject"  method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label>Nama Partner</label>
+              <input type="text" name="partner_name" class="form-control" required>
+            </div>
+            <div class="form-group col-md-6">
+              <label>Kontak</label>
+              <input type="text" name="partner_contact" class="form-control" required>
+            </div>
+            <div class="form-group col-md-6">
+              <label>Region</label>
+              <input type="text" name="partner_region" class="form-control">
+            </div>
+            <div class="form-group col-md-6">
+              <label>Tanggal Request</label>
+              <input type="text" name="request_date" class="form-control datepicker-input" required>
+            </div>
+            <div class="form-group col-md-6">
+              <label>Ad Network</label>
+              <select name="adnetwork" class="form-control select2" id="adnetwork_select" data-placeholder="-- Pilih Ad Network --">
+                <option value=""></option>
+                <option value="adsense">adsense</option>
+                <option value="adx">adx</option>
+                <option value="adsense &amp; adx">adsense &amp; adx</option>
+              </select>
+            </div>
+            <div class="form-group col-md-6">
+              <label>PIC</label>
+              <select name="pic" class="form-control select2" id="pic_select" data-placeholder="-- Pilih PIC --">
+                <option value=""></option>
+                {% for u in users %}
+                  <option value="{{ u.user_alias }}">{{ u.user_alias }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group col-md-6">
+              <label>Domain</label>
+              <div class="input-group mb-3">
+                <select name="domains" class="form-control select2-multiple" id="domain_select" multiple data-placeholder="-- Pilih Domain --">
+                  {% for d in domains %}
+                    <option value="{{ d.domain_id }}">{{ d.domain_label }}</option>
+                  {% endfor %}
+                </select>
+                <a href="{% url 'projects_master_domain' %}" class="btn btn-outline-primary" id="btn_add_domain"><i class="bi bi-plus"></i> Tambah Domain</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btn_submit_create">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block more_scripts %}
+<script>
+$(function(){
+  if (window.jQuery && $.fn.select2) {
+    $('#pic_select').select2({
+      theme: 'bootstrap4',
+      tags: true,
+      allowClear: true,
+      dropdownParent: $('#modalCreateProject'),
+      placeholder: $('#pic_select').data('placeholder') || '-- Pilih PIC --'
+    });
+    $('#domain_select').select2({
+      theme: 'bootstrap4',
+      tags: false,
+      multiple: true,
+      dropdownParent: $('#modalCreateProject'),
+      placeholder: $('#domain_select').data('placeholder') || '-- Pilih Domain --'
+    });
+    $('#adnetwork_select').select2({
+      theme: 'bootstrap4',
+      dropdownParent: $('#modalCreateProject'),
+      allowClear: true,
+      placeholder: $('#adnetwork_select').data('placeholder') || '-- Pilih Ad Network --'
+    });
+  }
+  if (window.jQuery && $.fn.datepicker) {
+    $('.datepicker-input').datepicker({
+      format: 'yyyy-mm-dd',
+      autoclose: true,
+      todayHighlight: true
+    });
+  }
+  $('#formCreateProject').on('submit', function(e){
+    e.preventDefault();
+    var $btn = $('#btn_submit_create');
+    $btn.prop('disabled', true);
+    var formData = $(this).serialize();
+    $.ajax({
+      url: '{% url "projects_task_draft_create" %}',
+      method: 'POST',
+      data: formData,
+      dataType: 'json',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      success: function(resp){
+        var ok = resp && (resp.status === true || resp.status === 'True');
+        var pid = resp && resp.partner_id ? String(resp.partner_id) : '';
+        if (ok) {
+          var msg = pid ? ('Draft partner #' + pid + ' ditambahkan') : 'Draft partner ditambahkan';
+          if (window.Swal) {
+            Swal.fire({icon: 'success', title: 'Berhasil', text: msg}).then(function(){
+              window.location.reload();
+            });
+          } else {
+            window.location.reload();
+          }
+        } else {
+          var emsg = (resp && resp.message) ? resp.message : 'Gagal menyimpan';
+          if (window.Swal) {
+            Swal.fire({icon: 'error', title: 'Gagal', text: emsg});
+          } else {
+            alert(emsg);
+          }
+          $btn.prop('disabled', false);
+        }
+      },
+      error: function(xhr){
+        var emsg = (xhr && xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Terjadi kesalahan saat menyimpan';
+        if (window.Swal) {
+          Swal.fire({icon: 'error', title: 'Gagal', text: emsg});
+        } else {
+          alert(emsg);
+        }
+      },
+      complete: function(){
+        $btn.prop('disabled', false);
+      }
+    });
+  });
+
+});
+</script>
+{% endblock %}

@@ -1,0 +1,256 @@
+{% extends 'admin_base.html' %}
+
+{% block page_title %}Edit Server{% endblock %}
+{% block page_heading %}Edit Server{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item">Projects</li>
+<li class="breadcrumb-item"><a href="/projects/master/server">Master Server</a></li>
+<li class="breadcrumb-item active">Edit</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Edit Server</h3>
+        <div class="card-tools">
+          <a href="{% url 'projects_master_server' %}" class="btn btn-sm btn-secondary">
+            <i class="bi bi-arrow-left"></i> Kembali
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+        <form id="formEditServer" action="{% url 'projects_master_server_edit' server.server_id %}" method="post">
+          {% csrf_token %}
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label>Hostname <span class="text-danger">*</span></label>
+              <input type="text" name="hostname" value="{{ server.hostname }}" class="form-control" required>
+            </div>
+            <div class="form-group col-md-3">
+              <label>Label <span class="text-danger">*</span></label>
+              <input type="text" name="label" value="{{ server.label }}" class="form-control" required>
+            </div>
+            <div class="form-group col-md-3">
+              <label>Provider <span class="text-danger">*</span></label>
+              <select name="provider" class="form-control select2" id="provider_edit_select" data-placeholder="-- Pilih Provider --" required>
+                <option value=""></option>
+                {% for p in providers %}
+                  <option value="{{ p.provider }}" {% if server.provider == p.provider %}selected{% endif %}>{{ p.provider }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group col-md-3">
+              <label>Region</label>
+              <input type="text" name="region" value="{{ server.region }}" class="form-control">
+            </div>
+            <div class="form-group col-md-3">
+              <label>Location</label>
+              <input type="text" name="location" value="{{ server.location }}" class="form-control">
+            </div>
+            <div class="form-group col-md-3">
+              <label>Server Code</label>
+              <input type="text" name="server_code" value="{{ server.server_code }}" class="form-control">
+            </div>
+            <div class="form-group col-md-3">
+              <label>Server Name</label>
+              <input type="text" name="server_name" value="{{ server.server_name }}" class="form-control">
+            </div>
+            <div class="form-group col-md-3">
+              <label>Status <span class="text-danger">*</span></label>
+              <select name="server_status" class="form-control" required>
+                {% for st in statuses %}
+                  <option value="{{ st }}" {% if server.server_status == st %}selected{% endif %}>{{ st|title }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group col-md-3">
+              <label>OS Name <span class="text-danger">*</span></label>
+              <input type="text" name="os_name" value="{{ server.os_name }}" class="form-control" required>
+            </div>
+            <div class="form-group col-md-3">
+              <label>OS Version</label>
+              <input type="text" name="os_version" value="{{ server.os_version }}" class="form-control">
+            </div>
+            <div class="form-group col-md-3">
+              <label>Arch</label>
+              <select name="arch" class="form-control">
+                {% for a in archs %}
+                  <option value="{{ a }}" {% if server.arch == a %}selected{% endif %}>{{ a }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group col-md-3">
+              <label>vCPU</label>
+              <input type="number" name="vcpu_count" value="{{ server.vcpu_count }}" class="form-control" min="1" required>
+            </div>
+            <div class="form-group col-md-3">
+              <label>Memory (GB)</label>
+              <input type="number" name="memory_gb" value="{{ server.memory_gb }}" class="form-control" min="1" required>
+            </div>
+            <div class="form-group col-md-3">
+              <label>Swap (MB)</label>
+              <input type="number" name="swap_mb" value="{{ server.swap_mb }}" class="form-control" min="0">
+            </div>
+            <div class="form-group col-md-3">
+              <label>Disk (GB)</label>
+              <input type="number" step="0.01" name="disk_gb" value="{{ server.disk_gb }}" class="form-control" min="1" required>
+            </div>
+            <div class="form-group col-md-3">
+              <label>Disk Type</label>
+              <select name="disk_type" class="form-control">
+                {% for t in disk_types %}
+                  <option value="{{ t }}" {% if server.disk_type == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group col-md-3">
+              <label>Bandwidth (TB)</label>
+              <input type="number" step="0.01" name="bandwidth_tb" value="{{ server.bandwidth_tb }}" class="form-control" min="0">
+            </div>
+            <div class="form-group col-md-3">
+              <label>Network Speed (Mbps)</label>
+              <input type="number" name="network_speed_mbps" value="{{ server.network_speed_mbps }}" class="form-control" min="0">
+            </div>
+            <div class="form-group col-md-3">
+              <label>Public IPv4 <span class="text-danger">*</span></label>
+              <input type="text" name="public_ipv4" value="{{ server.public_ipv4 }}" class="form-control" required>
+            </div>
+            <div class="form-group col-md-3">
+              <label>Public IPv6</label>
+              <input type="text" name="public_ipv6" value="{{ server.public_ipv6 }}" class="form-control">
+            </div>
+            <div class="form-group col-md-3">
+              <label>Private IPv4</label>
+              <input type="text" name="private_ipv4" value="{{ server.private_ipv4 }}" class="form-control">
+            </div>
+            <div class="form-group col-md-3">
+              <label>Private IPv6 <span class="text-danger">*</span></label>
+              <input type="text" name="private_ipv6" value="{{ server.private_ipv6 }}" class="form-control" required>
+            </div>
+            <div class="form-group col-md-3">
+              <label>SSH Port <span class="text-danger">*</span></label>
+              <input type="number" name="ssh_port" value="{{ server.ssh_port }}" class="form-control" min="1" required>
+            </div>
+            <div class="form-group col-md-3">
+              <label>SSH User <span class="text-danger">*</span></label>
+              <input type="text" name="ssh_user" value="{{ server.ssh_user }}" class="form-control" required>
+            </div>
+            <div class="form-group col-md-3">
+              <label>SSH Fingerprint</label>
+              <input type="text" name="ssh_fingerprint" value="{{ server.ssh_fingerprint }}" class="form-control">
+            </div>
+            <div class="form-group col-md-6">
+              <label>SSH Keys (comma separated)</label>
+              <textarea name="ssh_keys" class="form-control" placeholder="ssh-rsa AAA..., ssh-ed25519 AAA...">{{ ssh_keys_text }}</textarea>
+            </div>
+            <div class="form-group col-md-3">
+              <label>SSH Password</label>
+              <input type="text" name="ssh_pass" value="{{ server.ssh_pass }}" class="form-control">
+            </div>
+            <div class="form-group col-md-3">
+              <label>Cost Monthly</label>
+              <input type="number" step="0.01" name="cost_monthly" value="{{ server.cost_monthly }}" class="form-control" min="0">
+            </div>
+            <div class="form-group col-md-3">
+              <label>Currency</label>
+              <select name="currency" class="form-control">
+                {% for c in currencies %}
+                  <option value="{{ c }}" {% if server.currency == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group col-md-3">
+              <label>Conversion to IDR</label>
+              <input type="number" step="0.01" name="currency_conversion_idr" value="{{ server.currency_conversion_idr }}" class="form-control" min="0">
+            </div>
+            <div class="form-group col-md-3">
+              <label>Purchased At</label>
+              <input type="text" name="purchased_at" value="{% if server.purchased_at %}{{ server.purchased_at|date:'Y-m-d' }}{% endif %}" class="form-control datepicker-input" placeholder="YYYY-mm-dd">
+            </div>
+            <div class="form-group col-md-3">
+              <label>Expires At <span class="text-danger">*</span></label>
+              <input type="text" name="expires_at" value="{% if server.expires_at %}{{ server.expires_at|date:'Y-m-d' }}{% endif %}" class="form-control datepicker-input" placeholder="YYYY-mm-dd" required>
+            </div>
+            <div class="form-group col-md-12">
+              <label>Notes</label>
+              <textarea name="notes" class="form-control" rows="3">{{ server.notes }}</textarea>
+            </div>
+          </div>
+          <div class="mt-3">
+            <button type="submit" class="btn btn-primary" id="btn_submit_edit_server"><i class="bi bi-floppy2"></i> Simpan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script>
+$(function(){
+  if (window.jQuery && $.fn.select2) {
+    $('#provider_edit_select').select2({
+      theme: 'bootstrap4',
+      width: '100%',
+      allowClear: true,
+      placeholder: $('#provider_edit_select').data('placeholder') || '-- Pilih Provider --'
+    });
+  }
+  if (window.jQuery && $.fn.datepicker) {
+    $('.datepicker-input').datepicker({
+      format: 'yyyy-mm-dd',
+      autoclose: true,
+      todayHighlight: true
+    });
+  }
+  $('#formEditServer').on('submit', function(e){
+    e.preventDefault();
+    var $btn = $('#btn_submit_edit_server');
+    $btn.prop('disabled', true);
+    var formData = $(this).serialize();
+    $.ajax({
+      url: $(this).attr('action'),
+      method: 'POST',
+      data: formData,
+      dataType: 'json',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      success: function(resp){
+        var ok = resp && (resp.status === true || resp.status === 'True');
+        if (ok) {
+          if (window.Swal) {
+            Swal.fire({icon: 'success', title: 'Berhasil', text: 'Server diperbarui'}).then(function(){
+              window.location.href = "{% url 'projects_master_server' %}";
+            });
+          } else {
+            window.location.href = "{% url 'projects_master_server' %}";
+          }
+        } else {
+          var emsg = (resp && resp.message) ? resp.message : 'Gagal menyimpan server';
+          if (window.Swal) {
+            Swal.fire({icon: 'error', title: 'Gagal', text: emsg});
+          } else {
+            alert(emsg);
+          }
+          $btn.prop('disabled', false);
+        }
+      },
+      error: function(xhr){
+        var emsg = (xhr && xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Terjadi kesalahan saat menyimpan';
+        if (window.Swal) {
+          Swal.fire({icon: 'error', title: 'Gagal', text: emsg});
+        } else {
+          alert(emsg);
+        }
+      },
+      complete: function(){
+        $btn.prop('disabled', false);
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,189 @@
+{% extends 'admin_base.html' %}
+
+{% block page_title %}Edit Project{% endblock %}
+{% block page_heading %}Edit Project{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item">Task</li>
+<li class="breadcrumb-item"><a href="/projects/task/draft">Draft</a></li>
+<li class="breadcrumb-item active">Edit</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Edit Draft</h3>
+        <div class="card-tools">
+            <a href="{% url 'projects_task_draft' %}" class="btn btn-sm btn-secondary">
+                <i class="bi bi-arrow-left"></i> Kembali
+            </a>
+        </div>
+      </div>
+      <div class="card-body">
+        <form id="formEditProject" action="{% url 'projects_task_draft_edit' partner.partner_id %}" method="post">
+          {% csrf_token %}
+          <input type="hidden" name="update" id="update_action" value="draft">
+          <div class="form-row">
+            <div class="form-group col-md-3">
+              <label>ID</label>
+              <input type="text" class="form-control" value="{{ partner.partner_id }}" readonly>
+            </div>
+            <div class="form-group col-md-3">
+              <label>Tanggal Request</label>
+              <input type="text" name="request_date" value="{% if partner.request_date %}{{ partner.request_date|date:'Y-m-d' }}{% endif %}" class="form-control datepicker-input" placeholder="YYYY-mm-dd" required>
+            </div>
+            <div class="form-group col-md-6">
+              <label>Nama Partner</label>
+              <input type="text" name="partner_name" value="{{ partner.partner_name }}" class="form-control" required>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label>Kontak</label>
+              <input type="text" name="partner_contact" value="{{ partner.partner_contact }}" class="form-control" placeholder="08xxxxxxxxx">
+            </div>
+            <div class="form-group col-md-6">
+              <label>Region</label>
+              <input type="text" name="partner_region" value="{{ partner.partner_region }}" class="form-control">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label>Ad Network</label>
+              <select name="adnetwork" class="form-control select2" id="adnetwork_edit_select" data-placeholder="-- Pilih Ad Network --">
+                <option value=""></option>
+                <option value="adsense" {% if partner.adnetwork == 'adsense' %}selected{% endif %}>adsense</option>
+                <option value="adx" {% if partner.adnetwork == 'adx' %}selected{% endif %}>adx</option>
+                <option value="adsense &amp; adx" {% if partner.adnetwork == 'adsense & adx' %}selected{% endif %}>adsense &amp; adx</option>
+              </select>
+            </div>
+            <div class="form-group col-md-6">
+              <label>PIC</label>
+              <select name="pic" class="form-control select2" id="pic_edit_select" data-placeholder="-- Pilih PIC --">
+                <option value=""></option>
+                {% for u in users %}
+                  <option value="{{ u.user_alias }}" {% if partner.pic == u.user_alias %}selected{% endif %}>{{ u.user_alias }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label>Domain</label>
+              <div class="input-group mb-3">
+                <select name="domains" class="form-control select2-multiple" id="domain_edit_select" multiple data-placeholder="-- Pilih Domain --">
+                    {% for d in domains %}
+                    <option value="{{ d.domain_id }}" {% if d.domain_id in selected_domains %}selected{% endif %}>{{ d.domain_label }}</option>
+                    {% endfor %}
+                </select>
+                <a href="{% url 'projects_master_domain' %}" class="btn btn-outline-primary" id="btn_add_domain"><i class="bi bi-plus"></i> Tambah Domain</a>
+              </div>
+            </div>
+          </div>
+          <div class="mt-3">
+            <button type="submit" class="btn btn-success" name="update" value="draft" id="btn_submit_edit"><i class="bi bi-floppy2"></i> Simpan Draft</button>
+            <button type="submit" class="btn btn-primary" name="update" value="send"><i class="bi bi-send"></i> Kirim ke Proses Selanjutnya</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script>
+$(function(){
+  if (window.jQuery && $.fn.select2) {
+    $('#pic_edit_select').select2({
+      theme: 'bootstrap4',
+      tags: true,
+      allowClear: true,
+      placeholder: $('#pic_edit_select').data('placeholder') || '-- Pilih PIC --'
+    });
+    var currentPic = "{{ partner.pic|default:''|escapejs }}";
+    if (currentPic) {
+      var $sel = $('#pic_edit_select');
+      var found = $sel.find('option').filter(function(){ return $(this).val() === currentPic; }).length > 0;
+      if (!found) {
+        var newOption = new Option(currentPic, currentPic, true, true);
+        $sel.append(newOption).trigger('change');
+      } else {
+        $sel.val(currentPic).trigger('change');
+      }
+    }
+    $('#domain_edit_select').select2({
+      theme: 'bootstrap4',
+      multiple: true,
+      placeholder: $('#domain_edit_select').data('placeholder') || '-- Pilih Domain --'
+    });
+    $('#adnetwork_edit_select').select2({
+      theme: 'bootstrap4',
+      allowClear: true,
+      placeholder: $('#adnetwork_edit_select').data('placeholder') || '-- Pilih Ad Network --'
+    });
+  }
+  if (window.jQuery && $.fn.datepicker) {
+    $('.datepicker-input').datepicker({
+      format: 'yyyy-mm-dd',
+      autoclose: true,
+      todayHighlight: true
+    });
+  }
+  $('#formEditProject').on('submit', function(e){
+    e.preventDefault();
+    var $btn = $('#btn_submit_edit');
+    $btn.prop('disabled', true);
+    var formData = $(this).serialize();
+    $.ajax({
+      url: $(this).attr('action'),
+      method: 'POST',
+      data: formData,
+      dataType: 'json',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      success: function(resp){
+        var ok = resp && (resp.status === true || resp.status === 'True');
+        if (ok) {
+          if (window.Swal) {
+            Swal.fire({icon: 'success', title: 'Berhasil', text: resp.message}).then(function(){
+              window.location.href = '{% url "projects_task_draft" %}';
+            });
+          } else {
+            window.location.href = '{% url "projects_task_draft" %}';
+          }
+        } else {
+          var emsg = (resp && resp.message) ? resp.message : 'Gagal menyimpan';
+          if (window.Swal) {
+            Swal.fire({icon: 'error', title: 'Gagal', text: emsg});
+          } else {
+            alert(emsg);
+          }
+          $btn.prop('disabled', false);
+        }
+      },
+      error: function(xhr){
+        var emsg = (xhr && xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Terjadi kesalahan saat menyimpan';
+        if (window.Swal) {
+          Swal.fire({icon: 'error', title: 'Gagal', text: emsg});
+        } else {
+          alert(emsg);
+        }
+      },
+      complete: function(){
+        $btn.prop('disabled', false);
+      }
+    });
+  });
+  // Ensure clicked submit button value is included in AJAX data
+  var lastSubmitBtn = null;
+  $('#formEditProject').on('click', 'button[type=submit][name=update]', function(){
+    lastSubmitBtn = this;
+    var val = $(this).val() || 'draft';
+    $('#update_action').val(val);
+  });
+  // When submitting via Enter key, keep hidden value default 'draft'
+})
+</script>
+{% endblock %}

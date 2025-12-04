@@ -115,6 +115,7 @@ TEMPLATES = [
             BASE_DIR / 'templates',  # Project-level templates
             BASE_DIR / 'management' / 'templates',  # Management app templates
             BASE_DIR / 'settings' / 'templates',  # Settings app templates
+            BASE_DIR / 'projects' / 'templates',  # Projects app templates
             # Add other app template directories as needed:
             # BASE_DIR / 'tasks' / 'templates',
             # BASE_DIR / 'system' / 'templates',

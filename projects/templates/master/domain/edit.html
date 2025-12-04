@@ -1,0 +1,334 @@
+{% extends 'admin_base.html' %}
+
+{% block page_title %}Edit Domain{% endblock %}
+{% block page_heading %}Edit Domain{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item">Projects</li>
+<li class="breadcrumb-item"><a href="/projects/master/domain">Master Domain</a></li>
+<li class="breadcrumb-item active">Edit</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Edit Domain</h3>
+        <div class="card-tools">
+          <a href="{% url 'projects_master_domain' %}" class="btn btn-sm btn-secondary">
+            <i class="bi bi-arrow-left"></i> Kembali
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+        <form id="formEditDomain" action="{% url 'projects_master_domain_edit' domain.domain_id %}" method="post">
+          {% csrf_token %}
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label>Domain</label>
+              <input type="text" name="domain" value="{{ domain.domain }}" class="form-control" required>
+            </div>
+            <div class="form-group col-md-3">
+              <label>Status</label>
+              <select name="domain_status" class="form-control">
+                {% for st in statuses %}
+                  <option value="{{ st }}" {% if domain.domain_status == st %}selected{% endif %}>{{ st|title }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group col-md-3">
+              <label>Server</label>
+              <select name="server_id" class="form-control select2" id="server_edit_select" data-placeholder="-- Pilih Server --" required>
+                <option value=""></option>
+                {% for s in servers %}
+                  <option value="{{ s.server_id }}" {% if domain.server_id == s.server_id %}selected{% endif %}>{{ s.label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group col-md-3">
+              <label>Provider (DNS Hosting)</label>
+              <select name="provider" class="form-control select2" id="domain_provider_edit_select" data-placeholder="-- Pilih Provider --">
+                <option value=""></option>
+                {% for p in providers %}
+                  <option value="{{ p.provider }}" {% if domain.provider == p.provider %}selected{% endif %}>{{ p.provider }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group col-md-3">
+              <label>Registrar (Asal beli domain)</label>
+              <select name="registrar" class="form-control select2" id="domain_registrar_edit_select" data-placeholder="-- Pilih Registrar --">
+                <option value=""></option>
+                {% for p in providers %}
+                  <option value="{{ p.provider }}" {% if domain.registrar == p.provider %}selected{% endif %}>{{ p.provider }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group col-md-3">
+              <label>Tanggal Registrasi</label>
+              <input type="text" name="registration_date" value="{% if domain.registration_date %}{{ domain.registration_date|date:'Y-m-d' }}{% endif %}" class="form-control datepicker-input" placeholder="YYYY-mm-dd">
+            </div>
+            <div class="form-group col-md-3">
+              <label>Tanggal Expired</label>
+              <input type="text" name="expiration_date" value="{% if domain.expiration_date %}{{ domain.expiration_date|date:'Y-m-d' }}{% endif %}" class="form-control datepicker-input" placeholder="YYYY-mm-dd">
+            </div>
+            <div class="form-group col-md-3">
+              <label>Primary IP</label>
+              <input type="text" name="primary_ip" value="{{ domain.primary_ip }}" class="form-control" placeholder="IPv4/IPv6">
+            </div>
+            <div class="form-group col-md-3">
+              <label>Contact Email</label>
+              <input type="email" name="contact_email" value="{{ domain.contact_email }}" class="form-control">
+            </div>
+            <div class="form-group col-md-6">
+              <label>Nameservers</label>
+              <textarea name="nameservers" class="form-control" placeholder="ns1.example.com, ns2.example.com">{{ nameservers_text }}</textarea>
+            </div>
+            <div class="form-group col-md-6">
+              <label>Tags</label>
+              <textarea name="tags" class="form-control" placeholder="tag1, tag2">{{ tags_text }}</textarea>
+            </div>
+            
+            <div class="form-group col-md-12">
+              <label>Catatan</label>
+              <textarea name="notes" class="form-control" rows="3">{{ domain.notes }}</textarea>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-12">
+              <h4>SUBDOMAIN</h4>
+              <div id="subrows_edit_container">
+                {% for r in subrows %}
+                <div class="form-row subrow">
+                  <div class="form-group col-md-6">
+                    <label>Subdomain</label>
+                    <div class="input-group mb-3">
+                      <input type="text" name="sub_subdomain" value="{{ r.subdomain }}" class="form-control" placeholder="subdomain">
+                      <span class="input-group-text domain-text">.example.com</span>
+                    </div>
+                  </div>
+                  <div class="form-group col-md-3">
+                    <label>Cloudflare</label>
+                    <input type="text" name="sub_cloudflare" value="{{ r.cloudflare }}" class="form-control" placeholder="cloudflare@gmail.com">
+                  </div>
+                  <div class="form-group col-md-3">
+                    <label>IP Server</label>
+                    <select name="sub_public_ipv4" class="form-control select2-ipv4" data-placeholder="IP Server">
+                      {% if r.public_ipv4 %}
+                        <option value="{{ r.public_ipv4 }}" selected>{{ r.public_ipv4 }}</option>
+                      {% endif %}
+                    </select>
+                  </div>
+                  <div class="form-group col-md-3">
+                    <label>Website</label>
+                    <input type="text" name="sub_website" value="{{ r.website }}" class="form-control" placeholder="website">
+                  </div>
+                  <div class="form-group col-md-3">
+                    <label>Login User</label>
+                    <input type="text" name="sub_website_user" value="{{ r.website_user }}" class="form-control" placeholder="website user">
+                  </div>
+                  <div class="form-group col-md-3">
+                    <label>Login Password</label>
+                    <input type="text" name="sub_website_pass" value="{{ r.website_pass }}" class="form-control" placeholder="website pass">
+                  </div>
+                  <div class="form-group col-md-12">
+                    <button type="button" class="btn btn-sm btn-outline-danger btn-del-subrow"><i class="bi bi-trash"></i> Hapus Baris</button>
+                  </div>
+                </div>
+                <hr>
+                {% empty %}
+                <div class="form-row subrow">
+                  <div class="form-group col-md-6">
+                    <label>Subdomain</label>
+                    <div class="input-group mb-3">
+                      <input type="text" name="sub_subdomain" class="form-control" placeholder="subdomain">
+                      <span class="input-group-text domain-text">.example.com</span>
+                    </div>
+                  </div>
+                  <div class="form-group col-md-3">
+                    <input type="text" name="sub_cloudflare" class="form-control" placeholder="cloudflare">
+                  </div>
+                  <div class="form-group col-md-3">
+                    <label>IP Server</label>
+                    <select name="sub_public_ipv4" class="form-control select2-ipv4" data-placeholder="IP Server"></select>
+                  </div>
+                  <div class="form-group col-md-3">
+                    <input type="text" name="sub_website" class="form-control" placeholder="website">
+                  </div>
+                  <div class="form-group col-md-3">
+                    <input type="text" name="sub_website_user" class="form-control" placeholder="website user">
+                  </div>
+                  <div class="form-group col-md-3">
+                    <input type="text" name="sub_website_pass" class="form-control" placeholder="website pass">
+                  </div>
+                </div>
+                <hr>
+                {% endfor %}
+              </div>
+              <button type="button" class="btn btn-sm btn-outline-primary" id="btn_add_subrow_edit"><i class="bi bi-plus"></i> Tambah Baris</button>
+            </div>
+          </div>
+          
+          <div class="mt-3">
+            <button type="submit" class="btn btn-primary" id="btn_submit_edit_domain"><i class="bi bi-floppy2"></i> Simpan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script>
+$(function(){
+  if (window.jQuery && $.fn.datepicker) {
+    $('.datepicker-input').datepicker({
+      format: 'yyyy-mm-dd',
+      autoclose: true,
+      todayHighlight: true
+    });
+  }
+  function initIPv4Edit($el){
+    if (window.jQuery && $.fn.select2) {
+      var opts = [];
+      {% for ip in ipv4s %}
+        opts.push({id: '{{ ip.public_ipv4 }}', text: '{{ ip.public_ipv4 }}'});
+      {% endfor %}
+      opts.unshift({id: '', text: ''});
+      $el.select2({
+        theme: 'bootstrap4',
+        width: '100%',
+        tags: true,
+        allowClear: true,
+        data: opts,
+        placeholder: $el.data('placeholder') || 'IP Server'
+      });
+      var hasSelected = $el.find('option:selected').length > 0;
+      if (!hasSelected) {
+        $el.val(null).trigger('change');
+      }
+    }
+  }
+  initIPv4Edit($('.select2-ipv4'));
+  $('#btn_add_subrow_edit').on('click', function(){
+    var $row = $('<div class="form-row subrow">\
+      <div class="form-group col-md-6">\
+        <label>Subdomain</label>\
+        <div class="input-group mb-3">\
+          <input type="text" name="sub_subdomain" class="form-control" placeholder="subdomain">\
+          <span class="input-group-text domain-text">.example.com</span>\
+        </div>\
+      </div>\
+      <div class="form-group col-md-3">\
+        <label>Akun Cloudflare</label>\
+        <input type="text" name="sub_cloudflare" class="form-control" placeholder="cloudflare@gmail.com">\
+      </div>\
+      <div class="form-group col-md-3">\
+        <label>IP Server</label>\
+        <select name="sub_public_ipv4" class="form-control select2-ipv4" data-placeholder="IP Server"></select>\
+      </div>\
+      <div class="form-group col-md-4">\
+        <label>Website</label>\
+        <input type="text" name="sub_website" class="form-control" placeholder="example.com/wp-login.php">\
+      </div>\
+      <div class="form-group col-md-4">\
+        <label>Login User</label>\
+        <input type="text" name="sub_website_user" class="form-control" placeholder="website user">\
+      </div>\
+      <div class="form-group col-md-4">\
+        <label>Login Password</label>\
+        <input type="text" name="sub_website_pass" class="form-control" placeholder="website pass">\
+      </div>\
+      <div class="form-group col-md-12">\
+        <button type="button" class="btn btn-sm btn-outline-danger btn-del-subrow"><i class="bi bi-trash"></i> Hapus Baris</button>\
+      </div>\
+      </div>\
+      <hr>\
+    ');
+    $('#subrows_edit_container').append($row);
+    initIPv4Edit($row.find('.select2-ipv4'));
+    updateDomainSuffixEdit();
+  });
+  $('#subrows_edit_container').on('click', '.btn-del-subrow', function(){
+    $(this).closest('.subrow').remove();
+  });
+  var $domainInputEdit = $('input[name=domain]');
+  function updateDomainSuffixEdit(){
+    var d = ($domainInputEdit.val() || '').trim();
+    var suffix = d ? ('.' + d) : '.example.com';
+    $('.domain-text').text(suffix);
+  }
+  $domainInputEdit.on('input change keyup', updateDomainSuffixEdit);
+  updateDomainSuffixEdit();
+  if (window.jQuery && $.fn.select2) {
+    $('#server_edit_select').select2({
+      theme: 'bootstrap4',
+      width: '100%',
+      allowClear: true,
+      placeholder: $('#server_edit_select').data('placeholder') || '-- Pilih Server --'
+    });
+  }
+  if (window.jQuery && $.fn.select2) {
+    $('#domain_provider_edit_select').select2({
+      theme: 'bootstrap4',
+      width: '100%',
+      allowClear: true,
+      placeholder: $('#domain_provider_edit_select').data('placeholder') || '-- Pilih Provider --'
+    });
+  }
+  if (window.jQuery && $.fn.select2) {
+    $('#domain_registrar_edit_select').select2({
+      theme: 'bootstrap4',
+      width: '100%',
+      allowClear: true,
+      placeholder: $('#domain_registrar_edit_select').data('placeholder') || '-- Pilih Registrar --'
+    });
+  }
+  $('#formEditDomain').on('submit', function(e){
+    e.preventDefault();
+    var $btn = $('#btn_submit_edit_domain');
+    $btn.prop('disabled', true);
+    var formData = $(this).serialize();
+    $.ajax({
+      url: $(this).attr('action'),
+      method: 'POST',
+      data: formData,
+      dataType: 'json',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      success: function(resp){
+        var ok = resp && (resp.status === true || resp.status === 'True');
+        if (ok) {
+          if (window.Swal) {
+            Swal.fire({icon: 'success', title: 'Berhasil', text: 'Domain diperbarui'}).then(function(){
+              window.location.href = "{% url 'projects_master_domain' %}";
+            });
+          } else {
+            window.location.href = "{% url 'projects_master_domain' %}";
+          }
+        } else {
+          var emsg = (resp && resp.message) ? resp.message : 'Gagal menyimpan domain';
+          if (window.Swal) {
+            Swal.fire({icon: 'error', title: 'Gagal', text: emsg});
+          } else {
+            alert(emsg);
+          }
+          $btn.prop('disabled', false);
+        }
+      },
+      error: function(xhr){
+        var emsg = (xhr && xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Terjadi kesalahan saat menyimpan';
+        if (window.Swal) {
+          Swal.fire({icon: 'error', title: 'Gagal', text: emsg});
+        } else {
+          alert(emsg);
+        }
+      },
+      complete: function(){
+        $btn.prop('disabled', false);
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

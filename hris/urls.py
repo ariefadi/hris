@@ -19,6 +19,7 @@ urlpatterns = [
     path('', root_redirect),
     path('management/', include('management.urls')),
     path('settings/', include('settings.urls')),
+    path('projects/', include('projects.urls')),
     path('accounts/', include('social_django.urls', namespace='social')),
     # Direct access to AdX Traffic Account
     path('adx-traffic-account/', views.AdxTrafficPerAccountView.as_view(), name='adx_traffic_account_direct'),
