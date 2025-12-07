@@ -1,4 +1,4 @@
-$(document).ready(function() {
+$(document).ready(function () {
     // Inisialisasi datepicker
     $('.datepicker-input').datepicker({
         format: 'yyyy-mm-dd',
@@ -12,20 +12,19 @@ $(document).ready(function() {
     $('#tanggal_sampai').val(formatDateForInput(today));
     // Initialize Select2 for account
     $('#account_filter').select2({
-        placeholder: '-- Pilih Akun Terdaftar --',
+        placeholder: '-- Pilih Account Terdaftar --',
         allowClear: true,
         width: '100%',
         height: '100%',
         theme: 'bootstrap4'
     });
-    // Inisialisasi Select2 untuk site filter
-    $('#site_filter').select2({
-        placeholder: '-- Pilih Domain --',
+    // Initialize Select2 for domain
+    $('#domain_filter').select2({
+        placeholder: '-- Pilih Domain Terdaftar --',
         allowClear: true,
         width: '100%',
         height: '100%',
-        theme: 'bootstrap4',
-        multiple: true
+        theme: 'bootstrap4'
     });
     // Inisialisasi Select2 untuk country filter
     $('#country_filter').select2({
@@ -37,67 +36,34 @@ $(document).ready(function() {
         multiple: true
     });
     // Event handler untuk tombol Load
-    $('#btn_load_data').click(function() {
-        loadSitesList();
-        load_country_options();
-        load_adx_traffic_country_data();
+    $('#btn_load_data').click(function (e) {
+        var tanggal_dari = $("#tanggal_dari").val();
+        var tanggal_sampai = $("#tanggal_sampai").val();
+        var selected_account = $("#account_filter").val();
+        var selected_domain = $("#domain_filter").val();
+        if (tanggal_dari != "" && tanggal_sampai != "") {
+            e.preventDefault();
+            $("#overlay").show();
+            load_country_options(selected_account, selected_domain);
+            load_adx_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain);
+        } else {
+            alert('Silakan pilih tanggal dari dan sampai');
+        }
     });
-    // Load sites list on page load
-    function loadSitesList() {
-        var selectedAccounts = $("#account_filter").val() || "";
-        // Simpan pilihan domain yang sudah dipilih sebelumnya
-        var previouslySelected = $("#site_filter").val() || [];
-        $.ajax({
-            url: '/management/admin/adx_sites_list',
-            type: 'GET',
-            dataType: 'json',
-            data: {
-                'selected_accounts': selectedAccounts
-            },
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
-            },
-            success: function (response) {
-                if (response.status) {
-                    var select_site = $("#site_filter");
-                    select_site.empty();
-                    
-                    // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
-                    var validPreviousSelections = [];
-                    $.each(response.data, function (index, site) {
-                        var isSelected = previouslySelected.includes(site);
-                        if (isSelected) {
-                            validPreviousSelections.push(site);
-                        }
-                        select_site.append(new Option(site, site, false, isSelected));
-                    });
-                    
-                    // Set nilai yang dipilih kembali
-                    if (validPreviousSelections.length > 0) {
-                        select_site.val(validPreviousSelections);
-                    }
-                    
-                    select_site.trigger('change');
-                }
-            },
-            error: function (xhr, status, error) {
-                report_eror(xhr, status);
-            }
-        });
-    }
     // Fungsi untuk memuat opsi negara ke select2
-    function load_country_options() {
-        var selectedAccounts = $("#account_filter").val() || "";
+    function load_country_options(selected_account, selectedDomains) {
+        if (selectedDomains) {
+            selectedDomains = selectedDomains.join(',');
+        }
         // Simpan pilihan country yang sudah dipilih sebelumnya
         var previouslySelected = $("#country_filter").val() || [];
-        
         $.ajax({
             url: '/management/admin/get_countries_adx',
             type: 'GET',
             dataType: 'json',
             data: {
-                'selected_accounts': selectedAccounts
+                'selected_account': selected_account,
+                'selected_domains': selectedDomains
             },
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
@@ -107,7 +73,7 @@ $(document).ready(function() {
                 if (response.status) {
                     var select_country = $('#country_filter');
                     select_country.empty();
-                    
+
                     // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
                     var validPreviousSelections = [];
                     $.each(response.countries, function (index, country) {
@@ -117,12 +83,12 @@ $(document).ready(function() {
                         }
                         select_country.append(new Option(country.name, country.code, false, isSelected));
                     });
-                    
+
                     // Set nilai yang dipilih kembali
                     if (validPreviousSelections.length > 0) {
                         select_country.val(validPreviousSelections);
                     }
-                    
+
                     select_country.trigger('change');
                 }
             },
@@ -150,20 +116,20 @@ $(document).ready(function() {
     }
 
     // Fungsi untuk load data traffic per country
-    function load_adx_traffic_country_data() {
-        var startDate = $('#tanggal_dari').val();
-        var endDate = $('#tanggal_sampai').val();
-        var selectedAccounts = $('#account_filter').val();
-        var selectedSites = $('#site_filter').val();
+    function load_adx_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account, selectedDomains) {
+        var startDate = tanggal_dari;
+        var endDate = tanggal_sampai;
+        var selected_account = selected_account;
+        var selectedDomains = selectedDomains;
         var selectedCountries = $('#country_filter').val();
         if (!startDate || !endDate) {
             alert('Silakan pilih rentang tanggal');
             return;
         }
         // Convert array to comma-separated string for backend
-        var siteFilter = '';
-        if (selectedSites && selectedSites.length > 0) {
-            siteFilter = selectedSites.join(',');
+        var domainFilter = '';
+        if (selectedDomains && selectedDomains.length > 0) {
+            domainFilter = selectedDomains.join(',');
         }
         // Convert array to comma-separated string for backend
         var countryFilter = '';
@@ -185,14 +151,14 @@ $(document).ready(function() {
             data: {
                 start_date: startDate,
                 end_date: endDate,
-                selected_accounts: selectedAccounts,
-                selected_sites: siteFilter,
+                selected_account: selected_account,
+                selected_domains: domainFilter,
                 selected_countries: countryFilter
             },
             headers: {
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
             },
-            success: function(response) {
+            success: function (response) {
                 if (response && response.status) {
                     // Update summary boxes
                     updateSummaryBoxes(response.summary);
@@ -209,7 +175,7 @@ $(document).ready(function() {
                     alert('Error: ' + errorMsg);
                 }
             },
-            error: function(xhr, status, error) {
+            error: function (xhr, status, error) {
                 console.error('[DEBUG] AJAX Error:', {
                     xhr: xhr,
                     status: status,
@@ -237,7 +203,7 @@ $(document).ready(function() {
     function initializeDataTable(data) {
         var tableData = [];
         if (data && Array.isArray(data)) {
-            data.forEach(function(row) {
+            data.forEach(function (row) {
                 var countryFlag = '';
                 if (row.country_code) {
                     countryFlag = '<img src="https://flagcdn.com/16x12/' + String(row.country_code).toLowerCase() + '.png" alt="' + row.country_code + '" style="margin-right: 5px;"> ';
@@ -326,7 +292,7 @@ $(document).ready(function() {
                 {
                     targets: 7,
                     type: 'num',
-                    render: function(data, type, row) {
+                    render: function (data, type, row) {
                         if (type === 'display') {
                             return formatCurrencyIDR(data || 0);
                         }
@@ -342,25 +308,25 @@ $(document).ready(function() {
 
     // Fungsi untuk membuat chart dengan Highcharts Maps
     function createCountryMap(data) {
-    console.log('[DEBUG] createCountryMap called with data length:', data ? data.length : 0);
-    
-    // Jika tidak ada data, pastikan charts dibersihkan dan section disembunyikan
-    if (!data || data.length === 0) {
-        if (window.countryMapInstance) {
-            try { window.countryMapInstance.destroy(); } catch (e) { console.warn('Failed to destroy world map:', e); }
-            window.countryMapInstance = null;
+        console.log('[DEBUG] createCountryMap called with data length:', data ? data.length : 0);
+
+        // Jika tidak ada data, pastikan charts dibersihkan dan section disembunyikan
+        if (!data || data.length === 0) {
+            if (window.countryMapInstance) {
+                try { window.countryMapInstance.destroy(); } catch (e) { console.warn('Failed to destroy world map:', e); }
+                window.countryMapInstance = null;
+            }
+            $('#charts_section').hide();
+            return;
         }
-        $('#charts_section').hide();
-        return;
-    }
 
         // Prepare data for Highcharts Maps
         var mapData = [];
         var maxRevenue = 0;
         var minRevenue = Infinity;
-        
+
         // Process data and find max revenue for color scaling
-        data.forEach(function(item) {
+        data.forEach(function (item) {
             var revenue = parseFloat(item.revenue) || 0;
             if (revenue > 0) {
                 if (revenue > maxRevenue) {
@@ -369,7 +335,7 @@ $(document).ready(function() {
                 if (revenue < minRevenue) {
                     minRevenue = revenue;
                 }
-                
+
                 // Map country codes to Highcharts format
                 var countryCode = item.country_code;
                 if (countryCode) {
@@ -387,7 +353,6 @@ $(document).ready(function() {
                 }
             }
         });
-
         // Create fixed color ranges with more vibrant colors and informative labels
         var ranges = [
             { from: null, to: null, color: '#E6E7E8', name: 'Tidak ada data' }, // Entry untuk negara tanpa data
@@ -399,31 +364,29 @@ $(document).ready(function() {
             { from: 5000000, to: 10000000, color: '#E63946', name: 'Lebih dari Rp.5.000.000 - Rp.10.000.000' },
             { from: 10000000, to: Infinity, color: '#A4161A', name: '> Rp.10.000.000' }
         ];
-
         // Destroy existing chart if any
         if (window.countryMapInstance) {
             try { window.countryMapInstance.destroy(); } catch (e) { console.warn('Failed to destroy world map:', e); }
             window.countryMapInstance = null;
         }
-
         // Create Highcharts Map
         try {
-        // Check if Highcharts is available
-        if (typeof Highcharts === 'undefined' || !Highcharts.mapChart) {
-            throw new Error('Highcharts Maps library not loaded');
-        }
-        // Ensure map container is visible and has proper dimensions
-        $('#worldMap').css({
-            'height': '500px',
-            'width': '100%',
-            'display': 'block',
-            'visibility': 'visible'
-        });
-        // Check if we have data to display
-        if (mapData.length === 0) {
-            $('#worldMap').html('<div style="text-align: center; padding: 100px; color: #666; font-size: 16px;">Tidak ada data untuk ditampilkan.<br>Silakan pilih tanggal dan akun, lalu klik Load Data.</div>');
-            return;
-        }
+            // Check if Highcharts is available
+            if (typeof Highcharts === 'undefined' || !Highcharts.mapChart) {
+                throw new Error('Highcharts Maps library not loaded');
+            }
+            // Ensure map container is visible and has proper dimensions
+            $('#worldMap').css({
+                'height': '500px',
+                'width': '100%',
+                'display': 'block',
+                'visibility': 'visible'
+            });
+            // Check if we have data to display
+            if (mapData.length === 0) {
+                $('#worldMap').html('<div style="text-align: center; padding: 100px; color: #666; font-size: 16px;">Tidak ada data untuk ditampilkan.<br>Silakan pilih tanggal dan akun, lalu klik Load Data.</div>');
+                return;
+            }
             window.countryMapInstance = Highcharts.mapChart('worldMap', {
                 chart: {
                     map: 'custom/world',
@@ -440,98 +403,17 @@ $(document).ready(function() {
                         color: '#333'
                     }
                 },
-            subtitle: {
-                text: 'Berdasarkan data traffic dan revenue',
-                style: {
-                    fontSize: '12px',
-                    color: '#666'
-                }
-            },
-            mapNavigation: {
-                enabled: true,
-                buttonOptions: {
-                    verticalAlign: 'bottom',
-                    theme: {
-                        fill: 'white',
-                        'stroke-width': 1,
-                        stroke: 'silver',
-                        r: 0,
-                        states: {
-                            hover: {
-                                fill: '#a4edba'
-                            },
-                            select: {
-                                stroke: '#039',
-                                fill: '#a4edba'
-                            }
-                        }
-                    }
-                }
-            },
-            colorAxis: {
-                min: 0,
-                minColor: '#FFF2CC', // Warna kuning muda untuk pendapatan terendah
-                maxColor: '#A4161A', // Warna merah tua untuk pendapatan tertinggi
-                dataClasses: ranges.map(function(range) {
-                    return {
-                        from: range.from,
-                        to: range.to,
-                        color: range.color,
-                        name: range.name
-                    };
-                })
-            },
-            legend: {
-                title: {
-                    text: 'Tingkat Pendapatan',
+                subtitle: {
+                    text: 'Berdasarkan data traffic dan revenue',
                     style: {
-                        color: '#333',
-                        fontSize: '12px'
+                        fontSize: '12px',
+                        color: '#666'
                     }
                 },
-                align: 'left',
-                verticalAlign: 'bottom',
-                floating: true,
-                layout: 'vertical',
-                valueDecimals: 0,
-                backgroundColor: 'rgba(255,255,255,0.9)',
-                symbolRadius: 0,
-                symbolHeight: 14
-            },
-            series: [{
-                name: 'Negara',
-                data: mapData,
-                joinBy: ['hc-key', 'hc-key'],
-                nullColor: '#E6E7E8', // Warna abu-abu untuk negara tanpa data
-                tooltip: {
-                    backgroundColor: 'rgba(0,0,0,0.85)',
-                    style: {
-                        color: 'white'
-                    },
-                    pointFormat: '<b>{point.name}</b><br>' +
-                                'Kode: {point.code}<br>' +
-                                'Pendapatan: <b>Rp {point.value:,.0f}</b><br>',
-                    pointFormatter: function() {
-                        var formattedValue = 'Rp ' + Math.round(this.value).toLocaleString('id-ID');
-                        return '<b>' + this.name + '</b><br>' +
-                               'Kode: ' + this.code + '<br>' +
-                               'Pendapatan: <b>' + formattedValue + '</b><br>';
-                    },
-                    nullFormat: '<b>{point.name}</b><br>Tidak ada data traffic'
-                },
-                borderColor: '#606060',
-                borderWidth: 0.5,
-                states: {
-                    hover: {
-                        color: '#FFD700' // Warna emas untuk hover yang lebih sesuai dengan skema warna baru
-                    }
-                },
-                allAreas: true // Tampilkan semua negara, termasuk yang tidak ada data
-            }],
-            exporting: {
-                enabled: true,
-                buttons: {
-                    contextButton: {
+                mapNavigation: {
+                    enabled: false,
+                    buttonOptions: {
+                        verticalAlign: 'bottom',
                         theme: {
                             fill: 'white',
                             'stroke-width': 1,
@@ -540,30 +422,106 @@ $(document).ready(function() {
                             states: {
                                 hover: {
                                     fill: '#a4edba'
+                                },
+                                select: {
+                                    stroke: '#039',
+                                    fill: '#a4edba'
                                 }
                             }
+                        }
+                    }
+                },
+                colorAxis: {
+                    min: 0,
+                    minColor: '#FFF2CC', // Warna kuning muda untuk pendapatan terendah
+                    maxColor: '#A4161A', // Warna merah tua untuk pendapatan tertinggi
+                    dataClasses: ranges.map(function (range) {
+                        return {
+                            from: range.from,
+                            to: range.to,
+                            color: range.color,
+                            name: range.name
+                        };
+                    })
+                },
+                legend: {
+                    title: {
+                        text: 'Tingkat Pendapatan',
+                        style: {
+                            color: '#333',
+                            fontSize: '12px'
+                        }
+                    },
+                    align: 'left',
+                    verticalAlign: 'bottom',
+                    floating: true,
+                    layout: 'vertical',
+                    valueDecimals: 0,
+                    backgroundColor: 'rgba(255,255,255,0.9)',
+                    symbolRadius: 0,
+                    symbolHeight: 14
+                },
+                series: [{
+                    name: 'Negara',
+                    data: mapData,
+                    joinBy: ['hc-key', 'hc-key'],
+                    nullColor: '#E6E7E8', // Warna abu-abu untuk negara tanpa data
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.85)',
+                        style: {
+                            color: 'white'
                         },
-                        menuItems: ['viewFullscreen', 'separator', 'downloadPNG', 'downloadJPEG', 'downloadPDF', 'downloadSVG']
+                        pointFormat: '<b>{point.name}</b><br>' +
+                            'Kode: {point.code}<br>' +
+                            'Pendapatan: <b>Rp {point.value:,.0f}</b><br>',
+                        pointFormatter: function () {
+                            var formattedValue = 'Rp ' + Math.round(this.value).toLocaleString('id-ID');
+                            return '<b>' + this.name + '</b><br>' +
+                                'Kode: ' + this.code + '<br>' +
+                                'Pendapatan: <b>' + formattedValue + '</b><br>';
+                        },
+                        nullFormat: '<b>{point.name}</b><br>Tidak ada data traffic'
+                    },
+                    borderColor: '#606060',
+                    borderWidth: 0.5,
+                    states: {
+                        hover: {
+                            color: '#FFD700' // Warna emas untuk hover yang lebih sesuai dengan skema warna baru
+                        }
+                    },
+                    allAreas: true // Tampilkan semua negara, termasuk yang tidak ada data
+                }],
+                exporting: {
+                    enabled: true,
+                    buttons: {
+                        contextButton: {
+                            theme: {
+                                fill: 'white',
+                                'stroke-width': 1,
+                                stroke: 'silver',
+                                r: 0,
+                                states: {
+                                    hover: {
+                                        fill: '#a4edba'
+                                    }
+                                }
+                            },
+                            menuItems: ['viewFullscreen', 'separator', 'downloadPNG', 'downloadJPEG', 'downloadPDF', 'downloadSVG']
+                        }
                     }
                 }
-            }
-        });
-        
-        console.log('[DEBUG] Map created successfully');
-        
-    } catch (error) {
-        console.error('[ERROR] Failed to create map:', error);
-        alert('Error creating map: ' + error.message);
-        
-        // Fallback: show a message in the map container
-        $('#worldMap').html('<div style="text-align: center; padding: 50px; color: #666;">Error loading map: ' + error.message + '</div>');
+            });
+            console.log('[DEBUG] Map created successfully');
+        } catch (error) {
+            console.error('[ERROR] Failed to create map:', error);
+            alert('Error creating map: ' + error.message);
+            // Fallback: show a message in the map container
+            $('#worldMap').html('<div style="text-align: center; padding: 50px; color: #666;">Error loading map: ' + error.message + '</div>');
+        }
     }
-}
-
     // Fungsi untuk report error (jika ada)
     function report_eror(message) {
         console.error('Error:', message);
         alert(message);
     }
-
 });

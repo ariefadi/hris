@@ -139,7 +139,7 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                 const formattedReach = reach.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                 // Frequency
                 const frequency = Number(value?.frequency) || 0;
-                const formattedFrequency = frequency.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                const formattedFrequency = frequency.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
                 // Clicks
                 const clicks = Number(value?.clicks) || 0;
                 const formattedClicks = clicks.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
@@ -170,7 +170,7 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                 event_data += ' <td class="text-right" style="font-size: 12px;">' + formattedImpressions +  '</td>';
                 event_data += ' <td class="text-right" style="font-size: 12px;">' + formattedReach +  '</td>';
                 event_data += ' <td class="text-right" style="font-size: 12px;">' + formattedClicks + '</td>';
-                event_data += ' <td class="text-right" style="font-size: 12px;">' + formattedFrequency + ' %</td>';
+                event_data += ' <td class="text-right" style="font-size: 12px;">' + formattedFrequency + '</td>';
                 event_data += ' <td class="text-right" style="font-size: 12px;">' + cpr + '</td>';
                 event_data += '<td class="text-center">' +
                                     '<div class="form-check form-switch">' +
@@ -332,7 +332,7 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                 const totalClicks = clicks.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                 // Frequency
                 const frequency = Number(value?.total_frequency) || 0;
-                const totalFrequency = frequency.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + ' %';
+                const totalFrequency = frequency.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                 // CPR
                 let data_cpr = value.total_cpr;
                 let cpr_number = parseFloat(data_cpr)

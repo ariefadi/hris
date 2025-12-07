@@ -31,25 +31,28 @@
         <div class="form-row">
             <div class="col-md-1">
                 <label>Dari</label>
-                <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Dari"/>
+                <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" data-date-orientation="bottom auto" placeholder="Tanggal Dari"/>
             </div>
             <div class="col-md-1">
                 <label>Sampai</label>
-                 <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
+                 <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" data-date-orientation="bottom auto" placeholder="Tanggal Sampai"/>
             </div>
             <div class="col-md-2">
-                <label>Filter Adx Account</label>
+                <label>Filter Account</label>
                 <select class="form-control select2" id="account_filter">
-                    <option value="">-- Pilih Akun Terdaftar --</option>
+                    <option value="">-- Pilih Account Terdaftar --</option>
                     {% for account in data_account_adx %}
-                    <option value="{{ account.user_mail }}">{{ account.account_name }}</option>
+                    <option value="{{account.account_id}}">{{account.account_name|upper}}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <label>Filter Domain</label>
-                <select class="form-control select2-multiple" id="site_filter" multiple>
-                    <!-- Options akan diisi secara dinamis oleh JavaScript -->
+                <select class="form-control select2-multiple" id="domain_filter" multiple>
+                    <option value="">-- Pilih Domain Terdaftar --</option>
+                    {% for domain in data_domain_adx %}
+                    <option value="{{ domain.data_adx_domain }}">{{ domain.data_adx_domain }}</option>
+                    {% endfor %}
                 </select>
             </div>
             <div class="col-md-2">
@@ -61,7 +64,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label>Filter Negara</label>
                 <select class="form-control select2-multiple" id="country_filter" multiple="multiple">
                     <!-- Options akan dimuat secara dinamis -->
@@ -104,7 +107,7 @@
         </div>
         <!-- Summary Info boxes -->
         <div class="row" id="summary_boxes" style="display: none;">
-            <div class="col-12 col-sm-6 col-md-3">
+            <!-- <div class="col-12 col-sm-6 col-md-3">
                 <div class="info-box">
                     <span class="info-box-icon text-bg-success shadow-sm">
                         <i class="bi bi-cursor-fill"></i>
@@ -114,8 +117,8 @@
                         <span class="info-box-number" id="total_clicks">0</span>
                     </div>
                 </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-3">
+            </div> -->
+            <div class="col-12 col-sm-6 col-md-4">
                 <div class="info-box">
                     <span class="info-box-icon text-bg-danger shadow-sm">
                         <i class="bi bi-credit-card"></i>
@@ -126,7 +129,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-4">
                 <div class="info-box">
                     <span class="info-box-icon text-bg-primary shadow-sm">
                         <i class="bi bi-percent"></i>
@@ -137,7 +140,7 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-4">
                 <div class="info-box">
                     <span class="info-box-icon text-bg-warning shadow-sm">
                         <i class="bi bi-currency-dollar"></i>
@@ -181,7 +184,7 @@
                     </div>
                     <div class="card-body">
                         <div class="row">
-                            <div class="col-12 col-sm-6 col-md-3">
+                            <div class="col-12 col-sm-6 col-md-4">
                                 <div class="info-box">
                                     <span class="info-box-icon text-bg-primary shadow-sm">
                                         <i class="bi bi-eye-fill"></i>
@@ -192,7 +195,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-12 col-sm-6 col-md-3">
+                            <!-- <div class="col-12 col-sm-6 col-md-3">
                                 <div class="info-box">
                                     <span class="info-box-icon text-bg-success shadow-sm">
                                         <i class="bi bi-cursor-fill"></i>
@@ -202,8 +205,8 @@
                                         <span class="info-box-number" id="today_clicks">0</span>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="col-12 col-sm-6 col-md-3">
+                            </div> -->
+                            <div class="col-12 col-sm-6 col-md-4">
                                 <div class="info-box">
                                     <span class="info-box-icon text-bg-info shadow-sm">
                                         <i class="bi bi-graph-up-arrow"></i>
@@ -214,7 +217,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-12 col-sm-6 col-md-3">
+                            <div class="col-12 col-sm-6 col-md-4">
                                 <div class="info-box">
                                     <span class="info-box-icon text-bg-warning shadow-sm">
                                         <i class="bi bi-currency-dollar"></i>

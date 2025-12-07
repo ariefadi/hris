@@ -34,16 +34,19 @@
             <div class="col-md-2">
                 <label>Filter Account</label>
                 <select class="form-control select2" id="account_filter">
-                    <option value="">-- Pilih Akun Terdaftar --</option>
+                    <option value="">-- Pilih Account Terdaftar --</option>
                     {% for account in data_account_adx %}
-                    <option value="{{ account.user_mail }}">{{ account.account_name }}</option>
+                    <option value="{{ account.account_id }}">{{ account.account_name }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div class="col-md-3">
                 <label>Filter Domain</label>
-                <select class="form-control select2-multiple" id="site_filter" multiple>
-                    <!-- Options akan diisi secara dinamis oleh JavaScript -->
+                <select class="form-control select2-multiple" id="domain_filter" multiple>
+                    <option value="">-- Pilih Domain Terdaftar --</option>
+                    {% for domain in data_domain_adx %}
+                    <option value="{{ domain.data_adx_domain }}">{{ domain.data_adx_domain }}</option>
+                    {% endfor %}
                 </select>
             </div>
             <div class="col-md-3">

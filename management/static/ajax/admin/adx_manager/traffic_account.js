@@ -35,17 +35,17 @@ $().ready(function () {
         autoclose: true,
         todayHighlight: true
     }).datepicker('setDate', today);
-    // Initialize Select2 for account
+    // Initialize Select2 for account filter
     $('#account_filter').select2({
-        placeholder: '-- Pilih Akun Terdaftar --',
+        placeholder: '-- Pilih Account Terdaftar --',
         allowClear: true,
         width: '100%',
         height: '100%',
         theme: 'bootstrap4'
     });
-    // Initialize Select2 for site filter
-    $('#site_filter').select2({
-        placeholder: '-- Pilih Domain --',
+    // Initialize Select2 for domain filter
+    $('#domain_filter').select2({
+        placeholder: '-- Pilih Domain Terdaftar --',
         allowClear: true,
         width: '100%',
         height: '100%',
@@ -53,55 +53,18 @@ $().ready(function () {
     });
     // Load sites list on page load
     $('#btn_load_data').click(function (e) {
-        e.preventDefault();
-        $("#overlay").show();
-        load_adx_traffic_account_data();
-        loadSitesList();
+        var tanggal_dari = $("#tanggal_dari").val();
+        var tanggal_sampai = $("#tanggal_sampai").val();
+        var selected_account = $("#account_filter").val();
+        var selected_domain = $("#domain_filter").val();
+        if (tanggal_dari != "" && tanggal_sampai != "") {
+            e.preventDefault();
+            $("#overlay").show();
+            load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain);
+        } else {
+            alert('Silakan pilih tanggal dari dan sampai');
+        }
     });
-    function loadSitesList() {
-        var selectedAccounts = $("#account_filter").val() || "";
-        // Simpan pilihan domain yang sudah dipilih sebelumnya
-        var previouslySelected = $("#site_filter").val() || [];
-        
-        $.ajax({
-            url: '/management/admin/adx_sites_list',
-            type: 'GET',
-            dataType: 'json',
-            data: {
-                'selected_accounts': selectedAccounts
-            },
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
-            },
-            success: function (response) {
-                if (response.status) {
-                    var select_site = $("#site_filter");
-                    select_site.empty();
-                    
-                    // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
-                    var validPreviousSelections = [];
-                    $.each(response.data, function (index, site) {
-                        var isSelected = previouslySelected.includes(site);
-                        if (isSelected) {
-                            validPreviousSelections.push(site);
-                        }
-                        select_site.append(new Option(site, site, false, isSelected));
-                    });
-                    
-                    // Set nilai yang dipilih kembali
-                    if (validPreviousSelections.length > 0) {
-                        select_site.val(validPreviousSelections);
-                    }
-                    
-                    select_site.trigger('change');
-                }
-            },
-            error: function (xhr, status, error) {
-                report_eror(xhr, status);
-            }
-        });
-    }
     // Initialize DataTable
     $('#table_traffic_account').DataTable({
         responsive: true,
@@ -164,11 +127,23 @@ $().ready(function () {
         ],
         columnDefs: [
             {
-                targets: [2, 3, 4, 5, 6], // Kolom numerik ditata kanan
+                targets: [2, 3, 4, 5], // Kolom numerik ditata kanan
                 className: "text-right"
             },
             {
-                // Sort numerik untuk CPC (Rp) - kolom index 3
+                // Sort numerik untuk CPC (Rp) - kolom index 2
+                targets: 2,
+                type: 'num',
+                render: function (data, type) {
+                    if (type === 'sort' || type === 'type') {
+                        var v = parseFloat(String(data).replace(/[Rp.\s]/g, '').replace(/,/g, ''));
+                        return isNaN(v) ? 0 : v;
+                    }
+                    return data;
+                }
+            },
+            {
+                // Sort numerik untuk eCPM (Rp) - kolom index 3
                 targets: 3,
                 type: 'num',
                 render: function (data, type) {
@@ -180,20 +155,8 @@ $().ready(function () {
                 }
             },
             {
-                // Sort numerik untuk eCPM (Rp) - kolom index 4
+                // Sort numerik untuk CTR (%) - kolom index 4
                 targets: 4,
-                type: 'num',
-                render: function (data, type) {
-                    if (type === 'sort' || type === 'type') {
-                        var v = parseFloat(String(data).replace(/[Rp.\s]/g, '').replace(/,/g, ''));
-                        return isNaN(v) ? 0 : v;
-                    }
-                    return data;
-                }
-            },
-            {
-                // Sort numerik untuk CTR (%) - kolom index 5
-                targets: 5,
                 type: 'num',
                 render: function (data, type) {
                     if (type === 'sort' || type === 'type') {
@@ -204,8 +167,8 @@ $().ready(function () {
                 }
             },
             {
-                // Sort numerik untuk Pendapatan (Rp) - kolom index 6
-                targets: 6,
+                // Sort numerik untuk Pendapatan (Rp) - kolom index 5
+                targets: 5,
                 type: 'num',
                 render: function (data, type) {
                     if (type === 'sort' || type === 'type') {
@@ -218,29 +181,21 @@ $().ready(function () {
         ]
     });
 });
-function load_adx_traffic_account_data() {
-    var start_date = $('#tanggal_dari').val();
-    var end_date = $('#tanggal_sampai').val();
-    var selectedAccounts = $('#account_filter').val();
-    var selectedSites = $('#site_filter').val();
-    if (!start_date || !end_date) {
-        alert('Please select both start and end dates.');
-        return;
-    }
+function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_account, selectedDomains) {
     // Convert array to comma-separated string for backend
-    var siteFilter = '';
-    if (selectedSites && selectedSites.length > 0) {
-        siteFilter = selectedSites.join(',');
+    var domainFilter = '';
+    if (selectedDomains && selectedDomains.length > 0) {
+        domainFilter = selectedDomains.join(',');
     }
     $("#overlay").show();
     $.ajax({
         url: '/management/admin/page_adx_traffic_account',
         type: 'GET',
         data: {
-            'start_date': start_date,
-            'end_date': end_date,
-            'selected_accounts': selectedAccounts,
-            'selected_sites': siteFilter
+            'start_date': tanggal_dari,
+            'end_date': tanggal_sampai,
+            'selected_account': selected_account,
+            'selected_domains': domainFilter
         },
         headers: {
             'X-CSRFToken': csrftoken
@@ -275,10 +230,9 @@ function load_adx_traffic_account_data() {
                             var year = date.getFullYear();
                             formattedDate = day + ' ' + month + ' ' + year;
                         }
-                        
                         table.row.add([
-                            item.site_name || '-',
                             formattedDate,
+                            item.site_name || '-',
                             formatNumber(item.clicks || 0),
                             formatCurrencyIDR(item.cpc || 0),
                             formatCurrencyIDR(item.ecpm || 0),
@@ -286,7 +240,6 @@ function load_adx_traffic_account_data() {
                             formatCurrencyIDR(item.revenue || 0)
                         ]);
                     });
-                    
                     // Create daily revenue line chart
                     create_revenue_line_chart(response.data);
                 }

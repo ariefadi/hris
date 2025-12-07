@@ -42,7 +42,7 @@ $().ready(function () {
         theme: 'bootstrap4'
     });
     // Initialize Select2 for site filter
-    $('#site_filter').select2({
+    $('#domain_filter').select2({   
         placeholder: '-- Pilih Domain --',
         allowClear: true,
         width: '100%',
@@ -57,58 +57,19 @@ $().ready(function () {
         theme: 'bootstrap4'
     })
     $('#btn_load_data').click(function (e) {
-        var selected_account_adx = $("#account_filter").val();
         $('#overlay').show();
-        loadSitesList(selected_account_adx);
-        load_adx_traffic_account_data();
+        var tanggal_dari = $("#tanggal_dari").val();
+        var tanggal_sampai = $("#tanggal_sampai").val();
+        var selected_account = $("#account_filter").val();
+        var selected_domain = $("#domain_filter").val();
+        if (tanggal_dari != "" && tanggal_sampai != "") {
+            e.preventDefault();
+            $("#overlay").show();
+            load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain);
+        } else {
+            alert('Silakan pilih tanggal dari dan sampai');
+        }
     });
-    // Load sites list on page load
-    function loadSitesList(selected_account_adx) {
-        var selectedAccounts = selected_account_adx;
-        // Simpan pilihan domain yang sudah dipilih sebelumnya
-        var previouslySelected = $("#site_filter").val() || [];
-        
-        $.ajax({
-            url: '/management/admin/adx_sites_list',
-            type: 'GET',
-            dataType: 'json',
-            data: {
-                'selected_accounts': selectedAccounts
-            },
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
-            },
-            success: function (response) {
-                if (response.status) {
-                    var select_site = $("#site_filter");
-                    select_site.empty();
-                    // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
-                    var validPreviousSelections = [];
-                    $.each(response.data, function (index, site) {
-                        var isSelected = previouslySelected.includes(site);
-                        if (isSelected) {
-                            validPreviousSelections.push(site);
-                        }
-                        select_site.append(new Option(site, site, false, isSelected));
-                    });
-                    
-                    // Set nilai yang dipilih kembali
-                    if (validPreviousSelections.length > 0) {
-                        select_site.val(validPreviousSelections);
-                    }
-                    
-                    // Jangan trigger change di sini untuk menghindari loop
-                    select_site.trigger('change');
-                }
-            },
-            error: function (xhr, status, error) {
-                console.error('Error loading sites:', error);
-                console.error('Status:', status);
-                console.error('Response:', xhr.responseText);
-            }
-        });
-    }
     // Initialize DataTable
     $('#table_traffic_account').DataTable({
         responsive: true,
@@ -278,20 +239,16 @@ $().ready(function () {
     });
 });
 
-function load_adx_traffic_account_data() {
-    var tanggal_dari = $('#tanggal_dari').val();
-    var tanggal_sampai = $('#tanggal_sampai').val();
-    var selectedAccounts = $('#account_filter').val();
-    var selectedSites = $('#site_filter').val();
+function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain) {
     var selectedAccount = $('#select_account').val();
     if (!tanggal_dari || !tanggal_sampai) {
         alert('Silakan pilih tanggal dari dan sampai.');
         return;
     }
     // Convert array to comma-separated string for backend
-    var siteFilter = '';
-    if (selectedSites && selectedSites.length > 0) {
-        siteFilter = selectedSites.join(',');
+    var domainFilter = '';
+    if (selected_domain && selected_domain.length > 0) {
+        domainFilter = selected_domain.join(',');
     }
     $.ajax({
         url: '/management/admin/page_roi_traffic_domain',
@@ -299,9 +256,9 @@ function load_adx_traffic_account_data() {
         data: {
             start_date: tanggal_dari,
             end_date: tanggal_sampai,
-            selected_account_adx: selectedAccounts,
-            selected_sites: siteFilter,
-            selected_account: selectedAccount,
+            selected_account: selected_account,
+            selected_domains: domainFilter,
+            selected_account_ads: selectedAccount,
         },
         headers: {
             'X-CSRFToken': csrftoken

@@ -1,9 +1,7 @@
 {% extends "admin_base.html" %}
 {% load static %}
 {% block page_title %}Facebook Ads{% endblock %}
-
 {% block page_heading %}Facebook Ads{% endblock %}
-
 {% block breadcrumbs %}
     <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
     <li class="breadcrumb-item active">Facebook Ads</li>
@@ -42,8 +40,11 @@
             </div>
             <div class="col-md-3">
                 <label>Filter Domain</label>
-                <select class="form-control select2-multiple" id="select_sub_domain" multiple>
-                    <!-- Options akan diisi secara dinamis oleh JavaScript -->
+                <select class="form-control select2-multiple" id="select_domain" multiple="multiple">
+                    <option value=""></option>
+                    {% for data_domain in data_domain %}
+                    <option value="{{data_domain.data_ads_domain}}">{{data_domain.data_ads_domain|upper}}</option>
+                    {% endfor %}
                 </select>
             </div>
             <div class="col-md-3">
@@ -61,7 +62,6 @@
         </div>
     </div><!-- /.card-body -->
 </div>
-
 <!-- Map Spend Per Negara -->
 <div class="card" id="charts_section" style="display: none;">
     <div class="card-header">
@@ -73,7 +73,6 @@
         <div id="worldMap" style="height: 500px; width: 100%;"></div>
     </div>
 </div>
-
 <div class="card">
     <div class="card-header">
         <div class="row">
@@ -115,7 +114,6 @@
                 </tr>
             </thead>
             <tbody>
-
             </tbody>
             <tfoot>
                 <tr>

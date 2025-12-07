@@ -35,14 +35,13 @@ $().ready(function () {
         todayHighlight: true
     }).datepicker('setDate', today);
     $('#account_filter').select2({
-        placeholder: '-- Pilih Akun Terdaftar --',
+        placeholder: '-- Pilih Account --',
         allowClear: true,
         width: '100%',
         height: '100%',
         theme: 'bootstrap4'
     });
-    // Initialize Select2 for site filter
-    $('#site_filter').select2({
+    $('#domain_filter').select2({
         placeholder: '-- Pilih Domain --',
         allowClear: true,
         width: '100%',
@@ -73,76 +72,35 @@ $().ready(function () {
     $('#btn_load_data').click(function (e) {
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
-        var selected_account_adx = $("#account_filter").val() || "";
+        var selectedAccounts = $("#account_filter").val() || "";
+        var selectedDomains = $("#domain_filter").val() || "";
+        var selectedAccountsAds = $("#select_account").val() || "";
         if (tanggal_dari != "" && tanggal_sampai != "") {
             // Reset status fetch sebelum mulai menarik data
             window.fetchStatus = { summary: false, country: false };
             $('#overlay').show();
-            loadSitesList();
-            load_country_options();
-            load_ROI_traffic_country_data();
-            load_ROI_summary_data(tanggal_dari, tanggal_sampai, selected_account_adx);
+            load_country_options(selectedAccounts, selectedDomains);
+            load_ROI_traffic_country_data(tanggal_dari, tanggal_sampai, selectedAccounts, selectedDomains, selectedAccountsAds);
+            load_ROI_summary_data(tanggal_dari, tanggal_sampai, selectedAccounts, selectedDomains, selectedAccountsAds);
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
         }
     });
-    // Load data situs untuk select2
-    function loadSitesList() {
-        var selectedAccounts = $("#account_filter").val() || "";
-        // Simpan pilihan domain yang sudah dipilih sebelumnya
-        var previouslySelected = $("#site_filter").val() || [];
-        
-        $.ajax({
-            url: '/management/admin/adx_sites_list',
-            type: 'GET',
-            dataType: 'json',
-            data: {
-                'selected_accounts': selectedAccounts
-            },
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
-            },
-            success: function (response) {
-                if (response.status) {
-                    var select_site = $("#site_filter");
-                    select_site.empty();
-                    
-                    // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
-                    var validPreviousSelections = [];
-                    $.each(response.data, function (index, site) {
-                        var isSelected = previouslySelected.includes(site);
-                        if (isSelected) {
-                            validPreviousSelections.push(site);
-                        }
-                        select_site.append(new Option(site, site, false, isSelected));
-                    });
-                    
-                    // Set nilai yang dipilih kembali
-                    if (validPreviousSelections.length > 0) {
-                        select_site.val(validPreviousSelections);
-                    }
-                    
-                    select_site.trigger('change');
-                }
-            },
-            error: function (xhr, status, error) {
-                report_eror(xhr, status);
-            }
-        });
-    }
     // Load data saat halaman pertama kali dibuka
-    function load_country_options() {
-        var selectedAccounts = $("#account_filter").val() || "";
+    function load_country_options(selectedAccounts, selectedDomains) {
+        var selectedAccountAdx = $('#account_filter').val() || '';
+        if (selectedDomains) {
+            selectedDomains = selectedDomains.join(',');
+        }
         // Simpan pilihan country yang sudah dipilih sebelumnya
         var previouslySelected = $("#country_filter").val() || [];
-        
         $.ajax({
             url: '/management/admin/get_countries_adx',
             type: 'GET',
             dataType: 'json',
             data: {
-                'selected_accounts': selectedAccounts
+                'selected_account': selectedAccounts,
+                'selected_domains': selectedDomains
             },
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
@@ -162,12 +120,10 @@ $().ready(function () {
                         }
                         select_country.append(new Option(country.name, country.code, false, isSelected));
                     });
-                    
                     // Set nilai yang dipilih kembali
                     if (validPreviousSelections.length > 0) {
                         select_country.val(validPreviousSelections);
                     }
-                    
                     select_country.trigger('change');
                 }
             },
@@ -177,25 +133,23 @@ $().ready(function () {
         });
     }
     // Fungsi untuk load data traffic per country
-    function load_ROI_traffic_country_data() {
-        var startDate = $('#tanggal_dari').val();
-        var endDate = $('#tanggal_sampai').val();
-        var selectedAccountAdx = $('#account_filter').val();
-        var selectedSites = $('#site_filter').val();
-        var selectedAccountAds = $('#select_account').val();
+    function load_ROI_traffic_country_data(tanggal_dari, tanggal_sampai, selectedAccounts, selectedDomains, selectedAccountsAds) {
+        var domainFilter = '';
+        if (selectedDomains && selectedDomains.length > 0) {
+            domainFilter = selectedDomains.join(',');
+        }
         var selectedCountries = $('#country_filter').val();
         var selectedCountriesStr = Array.isArray(selectedCountries) ? selectedCountries.join(',') : (selectedCountries || '');
-        var selectedSitesStr = Array.isArray(selectedSites) ? selectedSites.join(',') : (selectedSites || '');
         // AJAX request
         $.ajax({
             url: '/management/admin/page_roi_traffic_country',
             type: 'GET',
             data: {
-                start_date: startDate,
-                end_date: endDate,
-                selected_account_adx: selectedAccountAdx,
-                selected_sites: selectedSitesStr,
-                selected_account: selectedAccountAds,
+                start_date: tanggal_dari,
+                end_date: tanggal_sampai,
+                selected_account: selectedAccounts,
+                selected_domains: domainFilter,
+                selected_account_ads: selectedAccountsAds,
                 selected_countries: selectedCountriesStr
             },
             headers: {
@@ -241,7 +195,6 @@ function updateSummaryBoxes(data) {
         totalSpend += item.spend || 0;
         totalClicks += item.clicks || 0;
         totalRevenue += item.revenue || 0;
-
         if (item.roi && item.roi !== 0) {
             totalROI += item.roi;
             validROICount++;
@@ -252,7 +205,7 @@ function updateSummaryBoxes(data) {
     $('#total_impressions').text(totalImpressions.toLocaleString('id-ID'));
     $('#total_spend').text(formatCurrencyIDR(totalSpend));
     // Jika AdX Account sudah dipilih, tampilkan data meskipun domain belum dipilih
-    var selectedAccountAdx = $('#account_filter').val();
+    var selectedAccountAdx = $('#account_filter').val() || '';
     var hasAdxAccount = selectedAccountAdx && selectedAccountAdx.length > 0;
     if (hasAdxAccount) {
         $('#total_clicks').text(totalClicks.toLocaleString('id-ID'));
@@ -648,9 +601,9 @@ function getCookie(name) {
 const csrftoken = getCookie('csrftoken');
 
 // Memuat data ROI Summary (ringkasan & grafik ROI harian)
-function load_ROI_summary_data(startDate, endDate, selectedAccountAdx) {
+function load_ROI_summary_data(startDate, endDate, selectedAccounts, selectedDomains) {
     var selectedSites = $('#site_filter').val();
-    var selectedAccount = $('#select_account').val();
+    var selectedAccount = selectedAccounts || '';
     var siteFilter = '';
     if (selectedSites && selectedSites.length > 0) {
         siteFilter = selectedSites.join(',');
@@ -661,8 +614,8 @@ function load_ROI_summary_data(startDate, endDate, selectedAccountAdx) {
         data: {
             start_date: startDate,
             end_date: endDate,
-            selected_account_adx: selectedAccountAdx,
-            selected_sites: siteFilter,
+            selected_account_adx: selectedAccount,
+            selected_domains: selectedDomains,
             selected_account: selectedAccount
         },
         headers: {
@@ -676,6 +629,7 @@ function load_ROI_summary_data(startDate, endDate, selectedAccountAdx) {
                 // Perbarui summary jika tersedia
                 if (response.summary) {
                     // Jika AdX Account sudah dipilih, tampilkan data meskipun domain belum dipilih
+                    var selectedAccountAdx = $('#account_filter').val() || '';
                     var hasAdxAccount = selectedAccountAdx && selectedAccountAdx.length > 0;
                     if (hasAdxAccount) {
                         $('#total_clicks').text(formatNumber(response.summary.total_clicks || 0));

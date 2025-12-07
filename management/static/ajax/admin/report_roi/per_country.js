@@ -25,7 +25,7 @@ $(document).ready(function () {
         theme: 'bootstrap4'
     });
     // Initialize Select2 for site filter
-    $('#site_filter').select2({
+    $('#domain_filter').select2({
         placeholder: '-- Pilih Domain --',
         allowClear: true,
         width: '100%',
@@ -49,61 +49,23 @@ $(document).ready(function () {
         theme: 'bootstrap4'
     });
     // Event handler untuk tombol Load
-    $('#btn_load_data').click(function () {
-        var selected_account_adx = $("#account_filter").val();
-        $('#overlay').show();
-        loadSitesList(selected_account_adx);
-        load_country_options(selected_account_adx);
-        load_adx_traffic_country_data();
+    $('#btn_load_data').click(function (e) {
+        var tanggal_dari = $("#tanggal_dari").val();
+        var tanggal_sampai = $("#tanggal_sampai").val();
+        var selected_account = $("#account_filter").val();
+        var selected_domain = $("#domain_filter").val();
+        if (tanggal_dari != "" && tanggal_sampai != "") {
+            e.preventDefault();
+            $('#overlay').show();
+            load_country_options(selected_account, selected_domain);
+            load_adx_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain);
+        } else {
+            alert('Silakan pilih tanggal dari dan sampai');
+        }
     });
-    // Load data situs untuk select2
-    function loadSitesList(selected_account_adx) {
-        var selectedAccounts = selected_account_adx;
-        // Simpan pilihan domain yang sudah dipilih sebelumnya
-        var previouslySelected = $("#site_filter").val() || [];
-        $.ajax({
-            url: '/management/admin/adx_sites_list',
-            type: 'GET',
-            dataType: 'json',
-            data: {
-                'selected_accounts': selectedAccounts
-            },
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
-            },
-            success: function (response) {
-                if (response.status) {
-                    var select_site = $("#site_filter");
-                    select_site.empty();
-                    
-                    // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
-                    var validPreviousSelections = [];
-                    $.each(response.data, function (index, site) {
-                        var isSelected = previouslySelected.includes(site);
-                        if (isSelected) {
-                            validPreviousSelections.push(site);
-                        }
-                        select_site.append(new Option(site, site, false, isSelected));
-                    });
-                    
-                    // Set nilai yang dipilih kembali
-                    if (validPreviousSelections.length > 0) {
-                        select_site.val(validPreviousSelections);
-                    }
-                    select_site.trigger('change');
-                }
-            },
-            error: function (xhr, status, error) {
-                console.error('Error loading sites:', error);
-                console.error('Status:', status);
-                console.error('Response:', xhr.responseText);
-            }
-        });
-    }
     // Load data saat halaman pertama kali dibuka
-    function load_country_options(selected_account_adx) {
-        var selectedAccounts = selected_account_adx;
+    function load_country_options(selected_account, selected_domain) {
+        var selectedAccounts = selected_account;
         // Simpan pilihan negara yang sudah dipilih sebelumnya
         var previouslySelected = $('#country_filter').val() || [];
         $.ajax({
@@ -111,9 +73,11 @@ $(document).ready(function () {
             type: 'GET',
             dataType: 'json',
             data: {
-                'selected_accounts': selectedAccounts
+                'selected_accounts': selectedAccounts,
+                'selected_domains': selected_domain
             },
             success: function (response) {
+                console.log(response);
                 if (response.status) {
                     var select_country = $('#country_filter');
                     select_country.empty();
@@ -174,21 +138,17 @@ $(document).ready(function () {
         return 'Rp ' + Math.round(numValue).toLocaleString('id-ID');
     }
     // Fungsi untuk load data traffic per country
-    function load_adx_traffic_country_data() {
-        var startDate = $('#tanggal_dari').val();
-        var endDate = $('#tanggal_sampai').val();
-        var selectedAccountAdx = $('#account_filter').val();
-        var selectedSites = $('#site_filter').val();
-        var selectedAccount = $('#select_account').val();
+    function load_adx_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain) {
+        var selectedAccountads = $('#select_account').val();
         var selectedCountries = $('#country_filter').val();
-        if (!startDate || !endDate) {
+        if (!tanggal_dari || !tanggal_sampai) {
             alert('Silakan pilih rentang tanggal');
             return;
         }
         // Convert array to comma-separated string for backend
-        var siteFilter = '';
-        if (selectedSites && selectedSites.length > 0) {
-            siteFilter = selectedSites.join(',');
+        var domainFilter = '';
+        if (selected_domain && selected_domain.length > 0) {
+            domainFilter = selected_domain.join(',');
         }
         // Convert array to comma-separated string for backend
         var countryFilter = '';
@@ -204,11 +164,11 @@ $(document).ready(function () {
             url: '/management/admin/page_roi_traffic_country',
             type: 'GET',
             data: {
-                start_date: startDate,
-                end_date: endDate,
-                selected_account_adx: selectedAccountAdx,
-                selected_sites: siteFilter,
-                selected_account: selectedAccount,
+                start_date: tanggal_dari,
+                end_date: tanggal_sampai,
+                selected_account: selected_account,
+                selected_domains: domainFilter,
+                selected_account_ads: selectedAccountads,
                 selected_countries: countryFilter
             },
             headers: {
@@ -692,7 +652,7 @@ $(document).ready(function () {
                     }
                 },
                 mapNavigation: {
-                    enabled: true,
+                    enabled: false,
                     buttonOptions: {
                         verticalAlign: 'bottom',
                         theme: {
