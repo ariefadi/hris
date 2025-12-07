@@ -72,25 +72,23 @@ $().ready(function () {
     $('#btn_load_data').click(function (e) {
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
-        var selectedAccounts = $("#account_filter").val() || "";
-        var selectedDomains = $("#domain_filter").val() || "";
-        var selectedAccountsAds = $("#select_account").val() || "";
+        var selected_account = $("#account_filter").val() || "";
+        var selected_domain = $("#domain_filter").val() || "";
         if (tanggal_dari != "" && tanggal_sampai != "") {
             // Reset status fetch sebelum mulai menarik data
             window.fetchStatus = { summary: false, country: false };
             $('#overlay').show();
-            load_country_options(selectedAccounts, selectedDomains);
-            load_ROI_traffic_country_data(tanggal_dari, tanggal_sampai, selectedAccounts, selectedDomains, selectedAccountsAds);
-            load_ROI_summary_data(tanggal_dari, tanggal_sampai, selectedAccounts, selectedDomains, selectedAccountsAds);
+            load_country_options(selected_account, selected_domain);
+            load_ROI_traffic_country_data(tanggal_dari, tanggal_sampai);
+            load_ROI_summary_data(tanggal_dari, tanggal_sampai);
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
         }
     });
     // Load data saat halaman pertama kali dibuka
-    function load_country_options(selectedAccounts, selectedDomains) {
-        var selectedAccountAdx = $('#account_filter').val() || '';
-        if (selectedDomains) {
-            selectedDomains = selectedDomains.join(',');
+    function load_country_options(selected_account, selected_domain) {
+        if (selected_domain) {
+            selected_domain = selected_domain.join(',');
         }
         // Simpan pilihan country yang sudah dipilih sebelumnya
         var previouslySelected = $("#country_filter").val() || [];
@@ -99,8 +97,8 @@ $().ready(function () {
             type: 'GET',
             dataType: 'json',
             data: {
-                'selected_account': selectedAccounts,
-                'selected_domains': selectedDomains
+                'selected_account': selected_account,
+                'selected_domains': selected_domain
             },
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
@@ -110,7 +108,6 @@ $().ready(function () {
                 if (response.status) {
                     var select_country = $('#country_filter');
                     select_country.empty();
-                    
                     // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
                     var validPreviousSelections = [];
                     $.each(response.countries, function (index, country) {
@@ -133,11 +130,14 @@ $().ready(function () {
         });
     }
     // Fungsi untuk load data traffic per country
-    function load_ROI_traffic_country_data(tanggal_dari, tanggal_sampai, selectedAccounts, selectedDomains, selectedAccountsAds) {
+    function load_ROI_traffic_country_data(tanggal_dari, tanggal_sampai) {
+        var selected_account = $("#account_filter").val() || "";
+        var selected_domain = $("#domain_filter").val() || "";
         var domainFilter = '';
-        if (selectedDomains && selectedDomains.length > 0) {
-            domainFilter = selectedDomains.join(',');
+        if (selected_domain && selected_domain.length > 0) {
+            domainFilter = selected_domain.join(',');
         }
+        var selectedAccountads = $('#select_account').val();
         var selectedCountries = $('#country_filter').val();
         var selectedCountriesStr = Array.isArray(selectedCountries) ? selectedCountries.join(',') : (selectedCountries || '');
         // AJAX request
@@ -147,9 +147,9 @@ $().ready(function () {
             data: {
                 start_date: tanggal_dari,
                 end_date: tanggal_sampai,
-                selected_account: selectedAccounts,
+                selected_account: selected_account,
                 selected_domains: domainFilter,
-                selected_account_ads: selectedAccountsAds,
+                selected_account_ads: selectedAccountads,
                 selected_countries: selectedCountriesStr
             },
             headers: {
@@ -205,15 +205,8 @@ function updateSummaryBoxes(data) {
     $('#total_impressions').text(totalImpressions.toLocaleString('id-ID'));
     $('#total_spend').text(formatCurrencyIDR(totalSpend));
     // Jika AdX Account sudah dipilih, tampilkan data meskipun domain belum dipilih
-    var selectedAccountAdx = $('#account_filter').val() || '';
-    var hasAdxAccount = selectedAccountAdx && selectedAccountAdx.length > 0;
-    if (hasAdxAccount) {
-        $('#total_clicks').text(totalClicks.toLocaleString('id-ID'));
-        $('#total_revenue').text(formatCurrencyIDR(totalRevenue));
-    } else {
-        $('#total_clicks').text(formatNumber(0));
-        $('#total_revenue').text(formatCurrencyIDR(0));
-    }
+    $('#total_clicks').text(totalClicks.toLocaleString('id-ID'));
+    $('#total_revenue').text(formatCurrencyIDR(totalRevenue));
     // Isi ROI Nett sesuai elemen template
     $('#roi_nett').text(averageROI.toFixed(2) + '%');
     // Elemen total_ctr mungkin tidak ada di template; abaikan jika tidak ada
@@ -228,7 +221,6 @@ function formatCurrencyIDR(value) {
     if (value === null || value === undefined || value === '') {
         return 'Rp. 0';
     }
-    
     // Handle set objects or other complex objects
     if (typeof value === 'object' && value !== null) {
         // If it's a set-like object, try to get the first value or return 0
@@ -238,13 +230,10 @@ function formatCurrencyIDR(value) {
         // For other objects, try to convert to string first
         value = String(value);
     }
-    
     // Convert to string and remove currency symbols and commas
     let stringValue = String(value);
     let numValue = parseFloat(stringValue.replace(/[$,]/g, ''));
-    
     if (isNaN(numValue)) return 'Rp. 0';
-    
     // Round to remove decimals and format with Indonesian number format
     return 'Rp. ' + Math.round(numValue).toLocaleString('id-ID');
 }
@@ -265,7 +254,6 @@ function create_roi_daily_chart(data) {
     if (window.dailyRoiChart && typeof window.dailyRoiChart.destroy === 'function') {
         window.dailyRoiChart.destroy();
     }
-
     // Group data by date and calculate ROI
     var dailyData = {};
     data.forEach(function (item) {
@@ -601,27 +589,29 @@ function getCookie(name) {
 const csrftoken = getCookie('csrftoken');
 
 // Memuat data ROI Summary (ringkasan & grafik ROI harian)
-function load_ROI_summary_data(startDate, endDate, selectedAccounts, selectedDomains) {
-    var selectedSites = $('#site_filter').val();
-    var selectedAccount = selectedAccounts || '';
-    var siteFilter = '';
-    if (selectedSites && selectedSites.length > 0) {
-        siteFilter = selectedSites.join(',');
+function load_ROI_summary_data(tanggal_dari, tanggal_sampai) {
+    var selected_account = $("#account_filter").val() || "";
+    var selected_domain = $("#domain_filter").val() || "";
+    var domainFilter = '';
+    if (selected_domain && selected_domain.length > 0) {
+        domainFilter = selected_domain.join(',');
     }
+    var selectedAccount = $('#account_filter').val() || '';
     $.ajax({
         url: '/management/admin/page_roi_traffic_domain',
         type: 'GET',
         data: {
-            start_date: startDate,
-            end_date: endDate,
-            selected_account_adx: selectedAccount,
-            selected_domains: selectedDomains,
+            start_date: tanggal_dari,
+            end_date: tanggal_sampai,
+            selected_account_adx: selected_account,
+            selected_domains: domainFilter,
             selected_account: selectedAccount
         },
         headers: {
             'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
         },
         success: function (response) {
+            console.log(response)
             // Tandai selesai tarik data summary
             window.fetchStatus = window.fetchStatus || { summary: false, country: false };
             window.fetchStatus.summary = true;
@@ -629,18 +619,9 @@ function load_ROI_summary_data(startDate, endDate, selectedAccounts, selectedDom
                 // Perbarui summary jika tersedia
                 if (response.summary) {
                     // Jika AdX Account sudah dipilih, tampilkan data meskipun domain belum dipilih
-                    var selectedAccountAdx = $('#account_filter').val() || '';
-                    var hasAdxAccount = selectedAccountAdx && selectedAccountAdx.length > 0;
-                    if (hasAdxAccount) {
-                        $('#total_clicks').text(formatNumber(response.summary.total_clicks || 0));
-                        $('#total_spend').text(formatCurrencyIDR(response.summary.total_spend || 0));
-                        $('#roi_nett').text(formatNumber(response.summary.roi_nett || 0, 2) + '%');
-                        $('#total_revenue').text(formatCurrencyIDR(response.summary.total_revenue || 0));
-                    } else {
-                        // Jika belum memilih AdX Account, set semua ke 0
-                        $('#total_clicks').text(formatNumber(0));
-                        $('#total_revenue').text(formatCurrencyIDR(0));
-                    }
+                    $('#total_spend').text(formatCurrencyIDR(response.summary.total_spend || 0));
+                    $('#roi_nett').text(formatNumber(response.summary.roi_nett || 0, 2) + '%');
+                    $('#total_revenue').text(formatCurrencyIDR(response.summary.total_revenue || 0));
                     $('#summary_boxes').show();
                 }
                 // Tampilkan chart ROI harian jika ada data
@@ -648,7 +629,7 @@ function load_ROI_summary_data(startDate, endDate, selectedAccounts, selectedDom
                     $('#charts_section').show();
                     create_roi_daily_chart(response.data);
                     // Tentukan tanggal yang akan digunakan untuk "Hari Ini": gunakan endDate yang dipilih, fallback ke hari terakhir di dataset
-                    var targetDayStr = endDate || new Date().toISOString().split('T')[0];
+                    var targetDayStr = tanggal_sampai || new Date().toISOString().split('T')[0];
                     targetDayStr = normalizeDateStr(targetDayStr);
                     var normalizedData = response.data.map(function (item) {
                         return {
@@ -677,13 +658,10 @@ function load_ROI_summary_data(startDate, endDate, selectedAccounts, selectedDom
                         var todayTotalCosts = todaySpend + todayOtherCosts;
                         var todayRoi = todayTotalCosts > 0 ? ((todayRevenue - todayTotalCosts) / todayTotalCosts) * 100 : 0;
                         // Jika AdX Account sudah dipilih, tampilkan data meskipun domain belum dipilih
-                        var hasAdxAccount = selectedAccountAdx && selectedAccountAdx.length > 0;
-                        var displayClicks = hasAdxAccount ? todayClicks : 0;
-                        var displayRevenue = hasAdxAccount ? todayRevenue : 0;
                         $('#today_spend').text(formatCurrencyIDR(todaySpend));
-                        $('#today_clicks').text(formatNumber(displayClicks));
+                        $('#today_clicks').text(formatNumber(todayClicks));
                         $('#today_roi').text(todayRoi.toFixed(2) + '%');
-                        $('#today_revenue').text(formatCurrencyIDR(displayRevenue));
+                        $('#today_revenue').text(formatCurrencyIDR(todayRevenue));
                         $('#today_traffic').show();
                         $('#overlay').hide();
                     } else {

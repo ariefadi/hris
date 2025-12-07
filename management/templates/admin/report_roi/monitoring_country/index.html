@@ -7,6 +7,96 @@
     <li class="breadcrumb-item active">Report Roi - Monitoring Negara</li>
 {% endblock %}
 {% block more_stylesheet %}
+<style>
+  /* Kolom header checklist */
+  th.checkbox-cell {
+    width: 44px;
+  }
+
+  /* Pusatkan konten checkbox */
+  .checkbox-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Naikkan posisi checkbox sedikit lagi */
+  #select_all_rows,
+  .form-check-input.row-select,
+  .form-check-input.align-top {
+    transform: translateY(-4px);
+    margin-top: -2px;
+  }
+
+  #select_all_rows,
+  .form-check-input.row-select {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    border: 2px solid #ADB5BD;
+    border-radius: 4px;
+    transition: all .15s ease-in-out;
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: #fff;
+    outline: none;
+  }
+  #select_all_rows:checked,
+  .form-check-input.row-select:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
+  }
+  #select_all_rows:focus,
+  .form-check-input.row-select:focus {
+    box-shadow: 0 0 0 0.16rem rgba(13,110,253,.15);
+  }
+
+  /* Highlight baris saat dicentang */
+  #table_traffic_country tbody tr.selected-row {
+    background-color: rgba(13, 110, 253, 0.08) !important;
+  }
+  /* Nudge checkbox sedikit ke atas agar presisi */
+  #select_all_rows,
+  .form-check-input.row-select,
+  .form-check-input.align-top {
+      transform: translateY(-2px);
+      margin-top: -1px;
+  }
+  /* Lebar kolom header checkbox tetap */
+  th.checkbox-cell { width: 44px; }
+  /* Wrapper untuk memposisikan checkbox */
+  .checkbox-center {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+  }
+  /* Highlight baris terpilih tetap */
+  #table_traffic_country tbody tr.selected-row {
+      background-color: rgba(13, 110, 253, 0.08) !important;
+  }
+  /* Pastikan sel kolom checkbox rata tengah secara vertikal */
+  #table_traffic_country th.checkbox-cell,
+  #table_traffic_country td.checkbox-cell {
+      vertical-align: middle !important;
+  }
+  
+  /* Wrapper checkbox: benar-benar center */
+  .checkbox-center {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+  }
+  
+  /* Hilangkan nudge; posisikan input tepat di tengah */
+  #select_all_rows,
+  .form-check-input.row-select,
+  .form-check-input.align-top {
+      transform: none !important;
+      margin-top: 0 !important;
+  }
+</style>
 {% endblock %}
 {% block content %}
 {% csrf_token %}  
@@ -42,7 +132,7 @@
                 <label>Filter Domain</label>
                 <select class="form-control select2 select2-multiple" id="domain_filter" multiple>
                     {% for domain in data_domain_adx %}
-                    <option value="{{ domain.data_adx_domain }}">{{ domain.data_adx_domain|upper }}</option>
+                    <option value="{{ domain.data_adx_domain }}">{{ domain.data_adx_domain }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -127,6 +217,13 @@
             <table id="table_traffic_country" class="table table-bordered table-striped" style="width:100%">
                 <thead>
                     <tr>
+                        <th class="text-center checkbox-cell">
+                            <div class="form-check checkbox-center m-0">
+                                <input type="checkbox" class="form-check-input" id="select_all_rows" />
+                                <label class="form-check-label" for="select_all_rows" title="Pilih semua"></label>
+                            </div>
+                        </th>
+                        <!-- Kolom baru untuk checklist -->
                         <th class="text-center">Negara</th>
                         <th class="text-center">Kode Negara</th>
                         <th class="text-center">Spend (Rp)</th>

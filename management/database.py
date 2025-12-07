@@ -2703,7 +2703,7 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def fetch_user_sites_id_list(self, account_id, tanggal_dari, tanggal_sampai):   
+    def fetch_user_sites_id_list(self, tanggal_dari, tanggal_sampai, account_id):   
         try:
             base_sql = [
                 "SELECT",
@@ -2711,11 +2711,11 @@ class data_mysql:
                 "FROM",
                 "\tapp_credentials a",
                 "INNER JOIN data_adx_domain b ON a.account_id = b.account_id",
-                "WHERE a.account_id = %s",
-                "AND b.data_adx_domain_tanggal BETWEEN %s AND %s",
+                "WHERE b.data_adx_domain_tanggal BETWEEN %s AND %s",
+                "AND a.account_id LIKE %s",
                 "GROUP BY b.data_adx_domain",
             ]
-            params = [account_id, tanggal_dari, tanggal_sampai]
+            params = [tanggal_dari, tanggal_sampai, account_id]
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all adx traffic account by params")

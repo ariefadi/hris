@@ -44,7 +44,7 @@
                 <label>Filter Domain</label>
                 <select class="form-control select2 select2-multiple" id="domain_filter" multiple>
                     {% for domain in data_domain_adx %}
-                    <option value="{{ domain.data_adx_domain }}">{{ domain.data_adx_domain|upper }}</option>
+                    <option value="{{ domain.data_adx_domain }}">{{ domain.data_adx_domain }}</option>
                     {% endfor %}
                 </select>
             </div>
