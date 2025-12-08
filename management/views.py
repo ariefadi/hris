@@ -3153,7 +3153,8 @@ class RoiTrafficPerCountryDataView(View):
                         for site in unique_sites:
                             if "." not in site:
                                 continue
-                            main_domain = site.rsplit(".", 1)[0]
+                            parts = site.split(".")       # pisah berdasarkan titik
+                            main_domain = ".".join(parts[:2])
                             extracted_names.append(main_domain)
                         unique_name_site = list(set(extracted_names))
                     fb_future = executor.submit(
@@ -3186,7 +3187,9 @@ class RoiTrafficPerCountryDataView(View):
                             extracted_names = []
                             for site in unique_sites:
                                 if "." in site:
-                                    extracted_names.append(site.rsplit(".", 1)[0])
+                                    parts = site.split(".")       # pisah berdasarkan titik
+                                    main_domain = ".".join(parts[:2])
+                                    extracted_names.append(main_domain)
                             unique_name_site = list(set(extracted_names))
                         if unique_name_site:
                             fb_future = executor.submit(
@@ -3485,7 +3488,8 @@ class RoiTrafficPerDomainDataView(View):
                 for site in selected_domain_list:
                     site = str(site).strip()
                     if "." in site:
-                        main_domain = site.rsplit(".", 1)[0]
+                        parts = site.split(".")       # pisah berdasarkan titik
+                        main_domain = ".".join(parts[:2])
                         unique_name_site.append(main_domain)
             elif adx_result:
                 # Ambil unique site dari AdX
@@ -3496,7 +3500,9 @@ class RoiTrafficPerDomainDataView(View):
                         extracted_sites.add(site_name)
                 for site in extracted_sites:
                     if "." in site:
-                        unique_name_site.append(site.rsplit(".", 1)[0])
+                        parts = site.split(".")       # pisah berdasarkan titik
+                        main_domain = ".".join(parts[:2])
+                        unique_name_site.append(main_domain)
             unique_name_site = list(set(unique_name_site))
             if unique_name_site:
                 facebook_data = data_mysql().get_all_ads_roi_traffic_campaign_by_params(
@@ -3864,7 +3870,8 @@ class RoiMonitoringDomainDataView(View):
                 for site in selected_domain_list:
                     site = str(site).strip()
                     if "." in site:
-                        main_domain = site.rsplit(".", 1)[0]
+                        parts = site.split(".")       # pisah berdasarkan titik
+                        main_domain = ".".join(parts[:2])
                         unique_name_site.append(main_domain)
             elif adx_result:
                 # Ambil unique site dari AdX
@@ -3875,7 +3882,9 @@ class RoiMonitoringDomainDataView(View):
                         extracted_sites.add(site_name)
                 for site in extracted_sites:
                     if "." in site:
-                        unique_name_site.append(site.rsplit(".", 1)[0])
+                        parts = site.split(".")       # pisah berdasarkan titik
+                        main_domain = ".".join(parts[:2])
+                        unique_name_site.append(main_domain)
             unique_name_site = list(set(unique_name_site))
             if unique_name_site:
                 facebook_data = data_mysql().get_all_ads_roi_monitoring_campaign_by_params(
@@ -4052,7 +4061,8 @@ class RoiMonitoringCountryDataView(View):
                         for site in unique_sites:
                             if "." not in site:
                                 continue
-                            main_domain = site.rsplit(".", 1)[0]
+                            parts = site.split(".")       # pisah berdasarkan titik
+                            main_domain = ".".join(parts[:2])
                             extracted_names.append(main_domain)
                         unique_name_site = list(set(extracted_names))
                     fb_future = executor.submit(
@@ -4085,7 +4095,9 @@ class RoiMonitoringCountryDataView(View):
                             extracted_names = []
                             for site in unique_sites:
                                 if "." in site:
-                                    extracted_names.append(site.rsplit(".", 1)[0])
+                                    parts = site.split(".")       # pisah berdasarkan titik
+                                    main_domain = ".".join(parts[:2])
+                                    extracted_names.append(main_domain)
                             unique_name_site = list(set(extracted_names))
                         if unique_name_site:
                             fb_future = executor.submit(
