@@ -366,20 +366,9 @@ $(document).ready(function () {
                             var tr = $(this).closest('tr');
                             var r = dt.row(tr).data();
                             if (!r) return;
+                            // Ambil nama negara saja, hilangkan HTML (flag) jika ada
                             var negaraPlain = String(r[1]).replace(/<[^>]*>/g, '').trim();
-                            var kode = r[2];
-                            var spend = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(r[3] || 0));
-                            var klikFb = Number(r[4] || 0).toLocaleString('id-ID');
-                            var klikAdx = Number(r[5] || 0).toLocaleString('id-ID');
-                            var cpr = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(r[6] || 0));
-                            var ctrFb = Number(r[7] || 0).toFixed(2) + '%';
-                            var ctrAdx = Number(r[8] || 0).toFixed(2) + '%';
-                            var cpcFb = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(r[9] || 0));
-                            var cpcAdx = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(r[10] || 0));
-                            var ecpm = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(r[11] || 0));
-                            var roi = Number(r[12] || 0).toFixed(2) + '%';
-                            var revenue = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(r[13] || 0));
-                            lines.push([negaraPlain, kode, spend, klikFb, klikAdx, cpr, ctrFb, ctrAdx, cpcFb, cpcAdx, ecpm, roi, revenue].join('\t'));
+                            lines.push(negaraPlain);
                         });
                         if (lines.length === 0) {
                             alert('Pilih minimal satu negara terlebih dahulu.');
@@ -388,7 +377,7 @@ $(document).ready(function () {
                         var textToCopy = lines.join('\n');
                         if (navigator.clipboard && navigator.clipboard.writeText) {
                             navigator.clipboard.writeText(textToCopy)
-                                .then(function () { alert('Data terpilih berhasil dicopy ke clipboard.'); })
+                                .then(function () { alert('Nama negara terpilih berhasil dicopy.'); })
                                 .catch(function () { fallbackCopyText(textToCopy); });
                         } else {
                             fallbackCopyText(textToCopy);
