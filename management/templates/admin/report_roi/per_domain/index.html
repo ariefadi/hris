@@ -16,6 +16,52 @@
   .dt-buttons {
       margin-bottom: 20px;
   }
+  /* Toggle switch custom (Bootstrap 4 compatible) */
+  .switch-toggle { display: flex; align-items: center; gap: 10px; }
+  .switch-toggle .switch { position: relative; display: inline-block; width: 52px; height: 28px; }
+  .switch-toggle .switch input { opacity: 0; width: 0; height: 0; }
+  .switch-toggle .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #dee2e6; transition: .25s; border-radius: 999px; }
+  .switch-toggle .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background: #fff; transition: .25s; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
+  .switch-toggle input:checked + .slider { background: #0d6efd; }
+  .switch-toggle input:checked + .slider:before { transform: translateX(24px); }
+  @media (max-width: 576px) { .switch-toggle { font-size: 12px; } }
+  /* Presisi dan centering checkbox header & baris */
+  #table_traffic_country th.checkbox-cell,
+  #table_traffic_country td.checkbox-cell {
+      vertical-align: middle !important;
+      width: 44px;
+  }
+  .checkbox-center {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+  }
+  /* Gaya checkbox */
+  #select_all_rows,
+  .form-check-input.row-select {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      border: 2px solid #ADB5BD;
+      border-radius: 4px;
+      transition: all .15s ease-in-out;
+      appearance: none;
+      -webkit-appearance: none;
+      background-color: #fff;
+      outline: none;
+      margin-top: 0 !important; /* tepat di tengah */
+      transform: none !important; /* hilangkan nudge */
+  }
+  #select_all_rows:checked,
+  .form-check-input.row-select:checked {
+      background-color: #0d6efd;
+      border-color: #0d6efd;
+      box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
+  }
+  #table_traffic_country tbody tr.selected-row {
+      background-color: rgba(13, 110, 253, 0.08) !important;
+  }
 </style>
 <div class="card">
     <div class="card-header">
@@ -40,7 +86,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <label>Filter Domain</label>
                 <select class="form-control select2 select2-multiple" id="domain_filter" multiple>
                     {% for domain in data_domain_adx %}
@@ -48,7 +94,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label>Filter Ads Account</label>
                 <select class="form-control select2" id="select_account">
                     <option value=""></option>
@@ -57,7 +103,16 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-1">
+                <label>Tanpa Spends</label>
+                <div class="switch-toggle" title="Sembunyikan negara tanpa spend FB">
+                    <label class="switch">
+                        <input type="checkbox" id="toggle_hide_zero_spend" aria-label="Sembunyikan negara tanpa spend FB">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-1">
                 <label>&nbsp;</label>
                 <button type="button" class="btn btn-primary form-control" id="btn_load_data">
                     <i class="fas fa-search"></i> Muat Data
