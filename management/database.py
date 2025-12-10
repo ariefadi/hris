@@ -2785,7 +2785,8 @@ class data_mysql:
                     "\t\tb.data_ads_country_tanggal AS 'date',",
                     "\t\tb.data_ads_country_cd AS 'country_code',",
                     "\t\tb.data_ads_country_nm AS 'country_name',",
-                    "\t\tb.data_ads_domain AS 'domain',",
+                    "\t\tb.data_ads_domain AS 'domain_raw',",
+                    "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS domain,",
                     "\t\tb.data_ads_campaign_nm AS 'campaign',",
                     "\t\tb.data_ads_country_spend AS 'spend',",
                     "\t\tb.data_ads_country_impresi AS 'impressions',",
@@ -2796,6 +2797,8 @@ class data_mysql:
                     "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
                     f"\tAND ({like_conditions})",
                 ") rs",
+                "GROUP BY rs.domain, rs.date",
+                "ORDER BY rs.account_id, rs.date",
             ]
             # --- 4. Gabungkan parameter
             params = [start_date_formatted, end_date_formatted] + like_params
@@ -2850,13 +2853,15 @@ class data_mysql:
                 "FROM (",
                     "\tSELECT",
                     "\t\ta.account_id, a.account_name,",
-                    "\t\tb.data_ads_domain AS 'domain',",
+                    "\t\tb.data_ads_domain AS 'domain_raw',",
+                    "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS domain,",
                     "\t\tb.data_ads_country_spend AS 'spend'",
                     "\tFROM master_account_ads a",
                     "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
                     "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
                     f"{like_clause}",
                 ") rs",
+                "GROUP BY rs.domain"
             ]
             # --- 4. Gabungkan parameter
             params = [start_date_formatted, end_date_formatted] + like_params

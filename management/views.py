@@ -3545,12 +3545,12 @@ class RoiTrafficPerDomainDataView(View):
                     base_subdomain = extract_base_subdomain(subdomain)
                     key = f"{date_key}_{base_subdomain}"
                     fb_data = facebook_map.get(key)
-                    spend = float(fb_data.get('spend', 0)) if fb_data else 0
-                    impressions_fb = int(fb_data.get('impressions', 0)) if fb_data else 0
-                    clicks_fb = int(fb_data.get('clicks', 0)) if fb_data else 0
-                    clicks_adx = int(adx_item.get('clicks', 0))
-                    cpr = int(fb_data.get('cpr', 0)) if fb_data else 0
-                    cpc = int(fb_data.get('cpc', 0)) if fb_data else 0
+                    spend = float(fb_data.get('spend') or 0) if fb_data else 0
+                    impressions_fb = float(fb_data.get('impressions') or 0) if fb_data else 0
+                    clicks_fb = float(fb_data.get('clicks') or 0) if fb_data else 0
+                    clicks_adx = float(adx_item.get('clicks') or 0)
+                    cpr = float(fb_data.get('cpr') or 0) if fb_data else 0
+                    cpc = float(fb_data.get('cpc') or 0) if fb_data else 0
                     revenue = float(adx_item.get('revenue', 0))
                     ctr_fb = ((clicks_fb / impressions_fb) * 100) if impressions_fb > 0 else 0
                     cpc_fb = cpc
@@ -3937,6 +3937,7 @@ class RoiMonitoringDomainDataView(View):
                     key = f"{date_key}_{base_subdomain}"
                     fb_data = facebook_map.get(key)
                     spend = float((fb_data or {}).get('spend', 0))
+                    print(f"[DEBUG ROI] spend-fb: {spend}")
                     revenue = float(adx_item.get('revenue', 0))
                     roi = ((revenue - spend) / spend * 100) if spend > 0 else 0
                     combined_item = {
