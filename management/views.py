@@ -3106,11 +3106,16 @@ class RoiTrafficPerCountryDataView(View):
             sites_for_fb = None
             if not selected_domain or not selected_domain.strip():
                 try:
-                    # sites_result = fetch_user_sites_list(selected_account_adx or req.session.get('hris_admin', {}).get('user_mail'))
-                    sites_result = data_mysql().fetch_user_sites_id_list(start_date, end_date, selected_account or '%')
-                    print(f"[DEBUG ROI] sites_result: {sites_result}")
+                    # Ambil list sites dari database
+                    sites_result = data_mysql().fetch_user_sites_id_list(
+                        start_date, end_date, selected_account or '%'
+                    )
                     if sites_result['hasil']['data']:
+                        # Ambil data sites
                         sites_for_fb = sites_result['hasil']['data']
+                        # Hapus semua 'Unknown'
+                        sites_for_fb = [site for site in sites_for_fb if site != 'Unknown']
+                        print(f"[DEBUG ROI] Sites for FB filter: {sites_for_fb}")
                     else:
                         print(f"[DEBUG ROI] No sites derived for FB filter: {sites_result['hasil']['data']}")
                 except Exception as _sites_err:
@@ -3154,7 +3159,10 @@ class RoiTrafficPerCountryDataView(View):
                             if "." not in site:
                                 continue
                             parts = site.split(".")       # pisah berdasarkan titik
-                            main_domain = ".".join(parts[:2])
+                            if len(parts) >= 2:
+                                main_domain = ".".join(parts[:2])
+                            else:
+                                main_domain = site
                             extracted_names.append(main_domain)
                         unique_name_site = list(set(extracted_names))
                     fb_future = executor.submit(
@@ -3188,7 +3196,10 @@ class RoiTrafficPerCountryDataView(View):
                             for site in unique_sites:
                                 if "." in site:
                                     parts = site.split(".")       # pisah berdasarkan titik
-                                    main_domain = ".".join(parts[:2])
+                                    if len(parts) >= 2:
+                                        main_domain = ".".join(parts[:2])
+                                    else:
+                                        main_domain = site
                                     extracted_names.append(main_domain)
                             unique_name_site = list(set(extracted_names))
                         if unique_name_site:
@@ -3225,7 +3236,6 @@ class RoiTrafficPerCountryDataView(View):
             adx_payload = data_adx.get('hasil') if isinstance(data_adx, dict) and data_adx.get('hasil') else data_adx
             fb_payload = (data_facebook.get('hasil') if isinstance(data_facebook, dict) and data_facebook.get('hasil') else {'status': True, 'data': []})
             result = process_roi_traffic_country_data(adx_payload, fb_payload)
-            print(f"[DEBUG ROI] result: {result}")
             # Filter hasil berdasarkan negara yang dipilih jika ada
             if countries_list and result.get('status') and result.get('data'):
                 # Parse selected countries dari format "Country Name (CODE)" menjadi list nama negara
@@ -3368,7 +3378,6 @@ def process_roi_monitoring_country_data(data_adx, data_facebook):
                 spend = float(fb_item.get('spend', 0))
                 facebook_spend_map[country_cd] = spend
                 fb_code_set.add(country_cd)
-        print(f"[DEBUG ROI] FB spend map keys: {len(facebook_spend_map)}")
         # Proses data AdX dan gabungkan dengan data Facebook
         adx_code_set = set()
         if data_adx and data_adx.get('status') and data_adx.get('data'):
@@ -3391,8 +3400,10 @@ def process_roi_monitoring_country_data(data_adx, data_facebook):
                     'revenue': round(revenue, 2),
                     'roi': round(roi, 2)
                 })
+                print(f"[DEBUG ROI] combined_data: {combined_data}")
         try:
             total_spend_combined = sum([float(it.get('spend', 0) or 0) for it in combined_data])
+            print(f"[DEBUG ROI] total_spend_combined: {total_spend_combined}")
             intersect_codes = adx_code_set.intersection(fb_code_set)
             missing_in_fb = sorted(list(adx_code_set - fb_code_set))
             missing_in_adx = sorted(list(fb_code_set - adx_code_set))
@@ -3489,7 +3500,10 @@ class RoiTrafficPerDomainDataView(View):
                     site = str(site).strip()
                     if "." in site:
                         parts = site.split(".")       # pisah berdasarkan titik
-                        main_domain = ".".join(parts[:2])
+                        if len(parts) >= 2:
+                            main_domain = ".".join(parts[:2])
+                        else:
+                            main_domain = site
                         unique_name_site.append(main_domain)
             elif adx_result:
                 # Ambil unique site dari AdX
@@ -3502,7 +3516,9 @@ class RoiTrafficPerDomainDataView(View):
                     if "." in site:
                         parts = site.split(".")       # pisah berdasarkan titik
                         main_domain = ".".join(parts[:2])
-                        unique_name_site.append(main_domain)
+                    else:
+                        main_domain = site
+                    unique_name_site.append(main_domain)
             unique_name_site = list(set(unique_name_site))
             if unique_name_site:
                 facebook_data = data_mysql().get_all_ads_roi_traffic_campaign_by_params(
@@ -3529,12 +3545,12 @@ class RoiTrafficPerDomainDataView(View):
                     base_subdomain = extract_base_subdomain(subdomain)
                     key = f"{date_key}_{base_subdomain}"
                     fb_data = facebook_map.get(key)
-                    spend = float((fb_data or {}).get('spend', 0))
-                    impressions_fb = int((fb_data or {}).get('impressions', 0))
-                    clicks_fb = int((fb_data or {}).get('clicks', 0))
+                    spend = float(fb_data.get('spend', 0)) if fb_data else 0
+                    impressions_fb = int(fb_data.get('impressions', 0)) if fb_data else 0
+                    clicks_fb = int(fb_data.get('clicks', 0)) if fb_data else 0
                     clicks_adx = int(adx_item.get('clicks', 0))
-                    cpr = int((fb_data or {}).get('cpr', 0))
-                    cpc = int((fb_data or {}).get('cpc', 0))
+                    cpr = int(fb_data.get('cpr', 0)) if fb_data else 0
+                    cpc = int(fb_data.get('cpc', 0)) if fb_data else 0
                     revenue = float(adx_item.get('revenue', 0))
                     ctr_fb = ((clicks_fb / impressions_fb) * 100) if impressions_fb > 0 else 0
                     cpc_fb = cpc
@@ -3561,8 +3577,7 @@ class RoiTrafficPerDomainDataView(View):
                     total_clicks_adx += clicks_adx
                     total_spend += spend
                     total_revenue += revenue
-            total_costs_summary = total_spend
-            roi_nett_summary = ((total_revenue - total_costs_summary) / total_costs_summary * 100) if total_costs_summary > 0 else 0
+            roi_nett_summary = ((total_revenue - total_spend) / total_spend * 100) if total_spend > 0 else 0
             result = {
                 'status': True,
                 'data': combined_data,
@@ -3580,9 +3595,13 @@ class RoiTrafficPerDomainDataView(View):
 
 def extract_base_subdomain(full_string):
     parts = full_string.split('.')
+    # jika ada minimal 2 bagian (1 titik), ambil dua bagian pertama
     if len(parts) >= 2:
-        return '.'.join(parts[:2])
-    return full_string  # fallback kalau tidak sesuai format
+        main_domain = ".".join(parts[:2])
+    else:
+        main_domain = full_string
+    # jika tidak ada titik, kembalikan string asli
+    return main_domain
 
 class RoiSummaryView(View):
     """View untuk ROI Summary - menampilkan ringkasan data ROI"""
@@ -3871,8 +3890,11 @@ class RoiMonitoringDomainDataView(View):
                     site = str(site).strip()
                     if "." in site:
                         parts = site.split(".")       # pisah berdasarkan titik
-                        main_domain = ".".join(parts[:2])
-                        unique_name_site.append(main_domain)
+                        if len(parts) >= 2:
+                            main_domain = ".".join(parts[:2])
+                        else:
+                            main_domain = site
+                    unique_name_site.append(main_domain)
             elif adx_result:
                 # Ambil unique site dari AdX
                 extracted_sites = set()
@@ -3883,8 +3905,11 @@ class RoiMonitoringDomainDataView(View):
                 for site in extracted_sites:
                     if "." in site:
                         parts = site.split(".")       # pisah berdasarkan titik
-                        main_domain = ".".join(parts[:2])
-                        unique_name_site.append(main_domain)
+                        if len(parts) >= 2:
+                            main_domain = ".".join(parts[:2])
+                        else:
+                            main_domain = site
+                    unique_name_site.append(main_domain)
             unique_name_site = list(set(unique_name_site))
             if unique_name_site:
                 facebook_data = data_mysql().get_all_ads_roi_monitoring_campaign_by_params(
@@ -3892,11 +3917,12 @@ class RoiMonitoringDomainDataView(View):
                     end_date_formatted,
                     unique_name_site
                 )
-                print(f"[DEBUG ROI] Facebook data: {facebook_data}")
             # --- 5. Gabungkan data AdX dan Facebook
             combined_data = []
-            total_spend = total_revenue = 0
+            total_spend = 0
+            total_revenue = 0
             facebook_map = {}
+            print(f"[DEBUG ROI] facebook_data: {facebook_data}")
             if facebook_data and facebook_data['hasil']['data']:
                 for fb_item in facebook_data['hasil']['data']:
                     date_key = str(fb_item.get('date', ''))
@@ -3922,8 +3948,9 @@ class RoiMonitoringDomainDataView(View):
                     combined_data.append(combined_item)
                     total_spend += spend
                     total_revenue += revenue
-            total_costs_summary = total_spend
-            roi_nett_summary = ((total_revenue - total_costs_summary) / total_costs_summary * 100) if total_costs_summary > 0 else 0
+                    print(f"[DEBUG ROI] combined_item: {combined_item}")
+                    print(f"[DEBUG ROI] total_spend: {total_spend}")
+            roi_nett_summary = ((total_revenue - total_spend) / total_spend * 100) if total_spend > 0 else 0
             result = {
                 'status': True,
                 'data': combined_data,
@@ -4014,15 +4041,20 @@ class RoiMonitoringCountryDataView(View):
             sites_for_fb = None
             if not selected_domain or not selected_domain.strip():
                 try:
-                    # sites_result = fetch_user_sites_list(selected_account_adx or req.session.get('hris_admin', {}).get('user_mail'))
-                    sites_result = data_mysql().fetch_user_sites_id_list(start_date, end_date, selected_account or '%')
+                    # Ambil list sites dari database
+                    sites_result = data_mysql().fetch_user_sites_id_list(
+                        start_date, end_date, selected_account or '%'
+                    )
                     if sites_result['hasil']['data']:
+                        # Ambil data sites
                         sites_for_fb = sites_result['hasil']['data']
+                        # Hapus semua 'Unknown'
+                        sites_for_fb = [site for site in sites_for_fb if site != 'Unknown']
+                        print(f"[DEBUG ROI] Sites for FB filter: {sites_for_fb}")
                     else:
                         print(f"[DEBUG ROI] No sites derived for FB filter: {sites_result['hasil']['data']}")
                 except Exception as _sites_err:
                     print(f"[DEBUG ROI] Unable to derive sites_for_fb: {_sites_err}")
-            print(f"[DEBUG ROI] sites_for_fb: {sites_for_fb}")
             # ===== Response-level cache (meng-cache hasil akhir penggabungan) =====
             response_cache_key = generate_cache_key(
                 'roi_country_response',
@@ -4062,7 +4094,10 @@ class RoiMonitoringCountryDataView(View):
                             if "." not in site:
                                 continue
                             parts = site.split(".")       # pisah berdasarkan titik
-                            main_domain = ".".join(parts[:2])
+                            if len(parts) >= 2:
+                                main_domain = ".".join(parts[:2])
+                            else:
+                                main_domain = site
                             extracted_names.append(main_domain)
                         unique_name_site = list(set(extracted_names))
                     fb_future = executor.submit(
@@ -4096,7 +4131,10 @@ class RoiMonitoringCountryDataView(View):
                             for site in unique_sites:
                                 if "." in site:
                                     parts = site.split(".")       # pisah berdasarkan titik
-                                    main_domain = ".".join(parts[:2])
+                                    if len(parts) >= 2:
+                                        main_domain = ".".join(parts[:2])
+                                    else:
+                                        main_domain = site
                                     extracted_names.append(main_domain)
                             unique_name_site = list(set(extracted_names))
                         if unique_name_site:
@@ -4107,7 +4145,6 @@ class RoiMonitoringCountryDataView(View):
                                 unique_name_site, 
                                 countries_list
                             )
-                            print(f"[DEBUG ROI] fb_future: {fb_future}")
                             data_facebook = fb_future.result()
                         else:
                             data_facebook = None
@@ -4136,6 +4173,7 @@ class RoiMonitoringCountryDataView(View):
             # Pastikan bentuk payload sesuai: gunakan 'hasil' untuk AdX dan FB jika tersedia
             adx_payload = data_adx.get('hasil') if isinstance(data_adx, dict) and data_adx.get('hasil') else data_adx
             fb_payload = (data_facebook.get('hasil') if isinstance(data_facebook, dict) and data_facebook.get('hasil') else {'status': True, 'data': []})
+            print(f"[DEBUG ROI] fb_payload: {fb_payload}")
             result = process_roi_monitoring_country_data(adx_payload, fb_payload)
             # Filter hasil berdasarkan negara yang dipilih jika ada
             if countries_list and result.get('status') and result.get('data'):
