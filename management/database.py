@@ -2032,7 +2032,7 @@ class data_mysql:
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
             # --- 2. Buat kondisi LIKE untuk setiap domain
             like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
-            like_params = [f"{domain}%" for domain in data_domain_list] 
+            like_params = [f"%{domain}%" for domain in data_domain_list] 
             # base_sql = [
             #     "SELECT",
             #     "\trs.date AS 'date',",
@@ -2114,7 +2114,7 @@ class data_mysql:
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
             # --- 2. Buat kondisi LIKE untuk setiap domain
             like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
-            like_params = [f"{domain}%" for domain in data_domain_list] 
+            like_params = [f"%{domain}%" for domain in data_domain_list] 
             # base_sql = [
             #     "SELECT",
             #     "\trs.site_name AS 'site_name',"
@@ -2178,7 +2178,7 @@ class data_mysql:
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
             # --- 2. Buat kondisi LIKE untuk setiap domain
             like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
-            like_params = [f"{domain}%" for domain in data_domain_list] 
+            like_params = [f"%{domain}%" for domain in data_domain_list] 
             base_sql = [
                 "SELECT",
                 "\ta.account_id, a.account_name, a.user_mail,",
@@ -2265,7 +2265,7 @@ class data_mysql:
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
             # --- 2. Buat kondisi LIKE untuk setiap domain
             like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
-            like_params = [f"{domain}%" for domain in data_domain_list] 
+            like_params = [f"%{domain}%" for domain in data_domain_list] 
             base_sql = [
                 "SELECT",
                 "\ta.account_id, a.account_name, a.user_mail,",
@@ -2444,7 +2444,7 @@ class data_mysql:
                 raise ValueError("selected_domain_list is required and tidak boleh kosong")
             # --- 2. Buat kondisi LIKE untuk setiap domain
             like_conditions = " OR ".join(["data_ads_domain LIKE %s"] * len(data_domain_list))
-            like_params = [f"{domain}%" for domain in data_domain_list] 
+            like_params = [f"%{domain}%" for domain in data_domain_list] 
             base_sql = [
                 "SELECT",
                 "\tdata_ads_country_cd AS 'country_code',",
@@ -2548,7 +2548,7 @@ class data_mysql:
             selected_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
             # --- 2. Buat kondisi LIKE untuk setiap domain
             like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(selected_domain_list))
-            like_params = [f"{domain}%" for domain in selected_domain_list] 
+            like_params = [f"%{domain}%" for domain in selected_domain_list] 
             base_sql = [
                 "SELECT",
                 "\trs.account_id, rs.account_name, rs.account_email,",
@@ -2616,7 +2616,7 @@ class data_mysql:
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
             # --- 2. Buat kondisi LIKE untuk setiap domain
             like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_domain_list))
-            like_params = [f"{domain}%" for domain in data_domain_list] 
+            like_params = [f"%{domain}%" for domain in data_domain_list] 
             base_sql = [
                 "SELECT",
                 "\trs.account_id, rs.account_name, rs.account_email,",
@@ -2971,7 +2971,7 @@ class data_mysql:
                 raise ValueError("data_sub_domain is required and cannot be empty")
             # --- 2. Buat kondisi LIKE untuk tiap domain
             like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
-            like_params = [f"{d}%" for d in data_sub_domain]  # tambahkan % supaya match '.com'
+            like_params = [f"%{d}%" for d in data_sub_domain]  # tambahkan % supaya match '.com'
             sql_parts = [
                 "SELECT",
                 "\trs.account_id, rs.account_name, rs.account_email,",
@@ -3046,7 +3046,7 @@ class data_mysql:
             # --- 2. Buat kondisi LIKE untuk tiap domain
             like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
             like_clause = f"\tAND ({like_conditions})" if like_conditions else ""
-            like_params = [f"{d}%" for d in data_sub_domain]  # tambahkan % supaya match '.com'
+            like_params = [f"%{d}%" for d in data_sub_domain]  # tambahkan % supaya match '.com'
             sql_parts = [
                 "SELECT",
                 "\trs.account_id, rs.account_name,",
@@ -3110,7 +3110,7 @@ class data_mysql:
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
             # --- 2. Buat kondisi LIKE untuk setiap domain
             like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_domain_list))
-            like_params = [f"{domain}%" for domain in data_domain_list] 
+            like_params = [f"%{domain}%" for domain in data_domain_list] 
             base_sql = [
                 "SELECT",
                 "\tb.data_adx_country_cd AS 'country_code',",
