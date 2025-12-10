@@ -2444,6 +2444,7 @@ class data_mysql:
                 raise ValueError("selected_domain_list is required and tidak boleh kosong")
             # --- 2. Buat kondisi LIKE untuk setiap domain
             like_conditions = " OR ".join(["data_ads_domain LIKE %s"] * len(data_domain_list))
+            like_clause = f"\tAND ({like_conditions})" if like_conditions else ""
             like_params = [f"%{domain}%" for domain in data_domain_list] 
             base_sql = [
                 "SELECT",
@@ -2451,19 +2452,13 @@ class data_mysql:
                 "\tdata_ads_country_nm AS 'country_name'",
                 "FROM",
                 "\tdata_ads_country",
-                "WHERE",
+                "WHERE data_ads_country_tanggal BETWEEN %s AND %s",
+                "\tAND account_ads_id LIKE %s",
+                f"{like_clause}",
+                "GROUP BY data_ads_country_cd, data_ads_country_nm",
+                "ORDER BY data_ads_country_cd ASC",
             ]
-            params = []
-            base_sql.append("data_ads_country_tanggal BETWEEN %s AND %s")
-            params.extend([tanggal_dari, tanggal_sampai])
-            if selected_account:
-                base_sql.append(f"\tAND account_ads_id LIKE %s")
-                params.append(f"{selected_account}%")
-            if selected_domain_list:    
-                base_sql.append(f"\tAND ({like_conditions})")
-                params.extend(like_params)
-            base_sql.append("GROUP BY data_ads_country_cd, data_ads_country_nm")
-            base_sql.append("ORDER BY data_ads_country_cd ASC")
+            params = [tanggal_dari, tanggal_sampai, f"{selected_account}%"] + like_params
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all country list by params")

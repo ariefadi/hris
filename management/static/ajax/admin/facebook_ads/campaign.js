@@ -148,9 +148,10 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 "paging": true,
                 "pageLength": 50,
                 "lengthChange": true,
+                "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Semua"]],
                 "searching": true,
                 "ordering": true,
-                responsive: true,
+                responsive: false,
                 dom: 'Blfrtip',
                 searching: true,
                 buttons: [

@@ -202,11 +202,12 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
             }
             $('#table_data_per_country_facebook').DataTable({
                 "paging": true,
-                "pageLength": 20,
+                "pageLength": 50,
                 "lengthChange": true,
+                "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Semua"]],
                 "searching": true,
                 "ordering": true,
-                responsive: true,
+                responsive: false,
                 dom: 'Blfrtip',
                 searching: true,
                 buttons: [

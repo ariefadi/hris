@@ -255,7 +255,7 @@ $(document).ready(function () {
                     "previous": "Sebelumnya"
                 }
             },
-            dom: 'Bfrtip',
+            dom: 'Blfrtip',
             buttons: [
                 {
                     extend: 'excel',

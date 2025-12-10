@@ -349,6 +349,7 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                 "paging": true,
                 "pageLength": 50,
                 "lengthChange": true,
+                "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Semua"]],
                 "searching": true,
                 "ordering": true,
                 responsive: false,
