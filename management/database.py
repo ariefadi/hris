@@ -2768,7 +2768,7 @@ class data_mysql:
                 raise ValueError("data_sub_domain is required and cannot be empty")
             # --- 2. Buat kondisi LIKE untuk tiap domain
             like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
-            like_params = [f"{d}%" for d in data_sub_domain]  # tambahkan % supaya match '.com'
+            like_params = [f"%{d}%" for d in data_sub_domain]  # tambahkan % supaya match '.com'
             # --- 3. Susun query
             base_sql = [
                 "SELECT",
@@ -2796,7 +2796,6 @@ class data_mysql:
                     "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
                     f"\tAND ({like_conditions})",
                 ") rs",
-                "GROUP BY rs.date, rs.domain",
             ]
             # --- 4. Gabungkan parameter
             params = [start_date_formatted, end_date_formatted] + like_params
@@ -2840,7 +2839,8 @@ class data_mysql:
             # --- 2. Buat kondisi LIKE untuk setiap domain
             like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
             like_clause = f"\tAND ({like_conditions})" if like_conditions else ""
-            like_params = [f"{d}%" for d in data_sub_domain] 
+            like_params = [f"%{d}%" for d in data_sub_domain]
+            print(f"like_params: {like_params}") 
             # --- 3. Susun query
             base_sql = [
                 "SELECT",
@@ -2857,7 +2857,6 @@ class data_mysql:
                     "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
                     f"{like_clause}",
                 ") rs",
-                "GROUP BY rs.domain",
             ]
             # --- 4. Gabungkan parameter
             params = [start_date_formatted, end_date_formatted] + like_params
