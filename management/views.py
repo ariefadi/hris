@@ -485,7 +485,7 @@ def get_countries_facebook_ads(request):
             data_account,
             selected_domain_list
         )
-        print(f"[DEBUG] Raw negara: {result}")
+        print(f"[DEBUG] Raw negara_OK: {result}")
         # Validasi struktur result
         if not result['hasil']['data']:
             return JsonResponse({

@@ -2432,20 +2432,32 @@ class data_mysql:
 
     def fetch_country_ads_list(self, tanggal_dari, tanggal_sampai, selected_account, selected_domain_list):
         try:
-            # --- 1. Pastikan selected_domain_list adalah list string
+            # --- 1. Normalisasi input ---
             if isinstance(selected_domain_list, str):
                 selected_domain_list = [selected_domain_list.strip()]
             elif selected_domain_list is None:
                 selected_domain_list = []
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
-            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
-            if not data_domain_list:
-                raise ValueError("selected_domain_list is required and tidak boleh kosong")
-            # --- 2. Buat kondisi LIKE untuk setiap domain
-            like_conditions = " OR ".join(["data_ads_domain LIKE %s"] * len(data_domain_list))
-            like_clause = f"\tAND ({like_conditions})" if like_conditions else ""
-            like_params = [f"%{domain}%" for domain in data_domain_list] 
+            elif not isinstance(selected_domain_list, list):
+                selected_domain_list = []
+
+            # --- 2. Sanitasi ---
+            data_domain_list = [
+                str(d).strip()
+                for d in selected_domain_list
+                if d is not None and str(d).strip()
+            ]
+
+            # --- 3. Buat LIKE clause hanya jika ada domain ---
+            if data_domain_list:
+                like_conditions = " OR ".join(["data_ads_domain LIKE %s"] * len(data_domain_list))
+                like_clause = f"\tAND ({like_conditions})"
+                like_params = [f"%{domain}%" for domain in data_domain_list]
+            else:
+                like_clause = ""      # tidak menambah filter domain
+                like_params = []      # tidak menambah parameter
+
             base_sql = [
                 "SELECT",
                 "\tdata_ads_country_cd AS 'country_code',",
@@ -2458,18 +2470,23 @@ class data_mysql:
                 "GROUP BY data_ads_country_cd, data_ads_country_nm",
                 "ORDER BY data_ads_country_cd ASC",
             ]
+
             params = [tanggal_dari, tanggal_sampai, f"{selected_account}%"] + like_params
             sql = "\n".join(base_sql)
+
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all country list by params")
+
             data = self.fetch_all()
             if not self.commit():
                 raise pymysql.Error("Failed to commit get all country list by params")
+
             hasil = {
                 "status": True,
                 "message": "Data country list berhasil diambil",
                 "data": data
             }
+
         except pymysql.Error as e:
             hasil = {
                 "status": False,
@@ -2481,7 +2498,9 @@ class data_mysql:
                 "message": "Gagal mengambil data negara.",
                 "error": str(e)
             }
+
         return {"hasil": hasil}
+
 
     def get_all_ads_domain_by_active(self, data_account, tanggal_dari, tanggal_sampai, data_sub_domain = None):   
         try:
