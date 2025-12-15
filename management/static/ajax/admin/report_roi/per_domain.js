@@ -253,14 +253,26 @@ $().ready(function () {
             return spendVal > 0;
         });
     };
+    // Tambahkan helper: pilih dataset sesuai toggle, prioritaskan data_filtered dari backend
+    window.applyZeroSpendFilterDataset = function () {
+        var hideZero = $('#toggle_hide_zero_spend').is(':checked');
+        if (hideZero) {
+            if (Array.isArray(window.lastRoiDataFiltered) && window.lastRoiDataFiltered.length > 0) {
+                return window.lastRoiDataFiltered;
+            }
+            var base = Array.isArray(window.lastRoiDataAll) ? window.lastRoiDataAll : (window.lastRoiData || []);
+            return (base || []).filter(function (item) { return Number(item.spend || 0) > 0; });
+        }
+        return Array.isArray(window.lastRoiDataAll) ? window.lastRoiDataAll : (window.lastRoiData || []);
+    };
 
     // Re-render saat toggle hide zero spend berubah
     $('#toggle_hide_zero_spend').on('change', function () {
         var checked = $(this).is(':checked');
         localStorage.setItem('roi_hide_zero_spend', checked ? '1' : '0');
 
-        var baseData = window.lastRoiData || [];
-        var displayData = window.applyZeroSpendFilter(baseData);
+        // Gunakan dataset sesuai toggle (prioritas backend data_filtered)
+        var displayData = window.applyZeroSpendFilterDataset();
 
         // Update summary box sesuai data yang ditampilkan
         window.updateSummaryBoxes(displayData);
@@ -357,13 +369,22 @@ function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_ac
                     $('#summary_boxes').show();
                 };
                 // Create ROI Daily Chart
-                // Simpan dataset asli lalu terapkan filter sesuai toggle
-                window.lastRoiData = response.data || [];
-                var displayData = window.applyZeroSpendFilter(window.lastRoiData);
-                
+                // Simpan dataset agregasi (all vs filtered)
+                window.lastRoiDataAll = Array.isArray(response.data) ? response.data : [];
+                window.lastRoiDataFiltered = Array.isArray(response.data_filtered)
+                    ? response.data_filtered
+                    : (window.lastRoiDataAll || []).filter(function (i) {
+                        return Number(i.spend || 0) > 0;
+                    });
+                // Pertahankan kompatibilitas lama
+                window.lastRoiData = window.lastRoiDataAll;
+
+                // Gunakan dataset sesuai toggle (prioritas backend data_filtered)
+                var displayData = window.applyZeroSpendFilterDataset();
+
                 // UPDATE SUMMARY BOX dari data hasil filter
                 window.updateSummaryBoxes(displayData);
-                
+
                 // Chart: gunakan data hasil filter
                 if (displayData && displayData.length > 0) {
                     $('#charts_section').show();
