@@ -180,7 +180,8 @@ $(document).ready(function () {
                 if (response && response.status) {
                     // Simpan data mentah untuk kebutuhan toggle
                     window.lastRoiData = Array.isArray(response.data) ? response.data : [];
-                    var displayData = applyZeroSpendFilter(window.lastRoiData);
+                    window.lastRoiDataFiltered = Array.isArray(response.data_filtered) ? response.data_filtered : [];
+                    var displayData = applyZeroSpendFilter();
                     // Sinkronkan opsi Filter Negara berdasarkan data ROI yang tampil di tabel
                     updateCountryOptionsFromRoi(displayData);
                     // Update summary boxes
@@ -209,13 +210,12 @@ $(document).ready(function () {
         });
     }
     // Terapkan filter berdasar toggle hide zero spend
-    function applyZeroSpendFilter(data) {
+    function applyZeroSpendFilter() {
         var hideZero = $('#toggle_hide_zero_spend').is(':checked');
-        if (!hideZero) return data || [];
-        return (data || []).filter(function (item) {
-            var spendVal = parseFloat(item.spend || 0);
-            return spendVal > 0;
-        });
+        if (!hideZero) return window.lastRoiData || [];
+        if (Array.isArray(window.lastRoiDataFiltered)) return window.lastRoiDataFiltered;
+        var base = window.lastRoiData || [];
+        return base.filter(function (item) { return parseFloat(item.spend || 0) > 0; });
     }
     // Perbarui opsi Select2 negara supaya hanya menampilkan negara yang ada di tabel
     function updateCountryOptionsFromRoi(data) {
@@ -254,7 +254,8 @@ $(document).ready(function () {
     function updateSummaryBoxes(data) {
         if (!data || !Array.isArray(data)) return;
         // Hitung summary dari data
-        var totalImpressions = 0;
+        var totalImpressionsFb = 0;
+        var totalImpressionsAdx = 0;
         var totalSpend = 0;
         var totalClicksFb = 0;
         var totalClicksAdx = 0;
@@ -263,7 +264,8 @@ $(document).ready(function () {
         var totalROI = 0;
         var validROICount = 0;
         data.forEach(function (item) {
-            totalImpressions += item.impressions || 0;
+            totalImpressionsFb += item.impressions_fb || 0;
+            totalImpressionsAdx += item.impressions_adx || 0;
             totalSpend += item.spend || 0;
             totalClicksFb += item.clicks_fb || 0;
             totalClicksAdx += item.clicks_adx || 0;
@@ -274,10 +276,9 @@ $(document).ready(function () {
                 validROICount++;
             }
         });
-        var averageCTRFb = totalImpressions > 0 ? (totalClicksFb / totalImpressions * 100) : 0;
-        var averageCTRAdx = totalImpressions > 0 ? (totalClicksAdx / totalImpressions * 100) : 0;
-        var totalROI = (((totalRevenue - totalSpend) / totalSpend) * 100);
-        console.log(totalROI)
+        var averageCTRFb = totalImpressionsFb > 0 ? (totalClicksFb / totalImpressionsFb * 100) : 0;
+        var averageCTRAdx = totalImpressionsAdx > 0 ? (totalClicksAdx / totalImpressionsAdx * 100) : 0;
+        var totalROI = totalSpend > 0 ? (((totalRevenue - totalSpend) / totalSpend) * 100) : 0;
         $('#total_spend').text(formatCurrencyIDR(totalSpend));
         $('#total_clicks_fb').text(totalClicksFb.toLocaleString('id-ID'));
         $('#total_clicks_adx').text(totalClicksAdx.toLocaleString('id-ID'));
@@ -847,8 +848,7 @@ $(document).ready(function () {
         // Simpan preferensi pengguna
         var checked = $(this).is(':checked');
         localStorage.setItem('roi_hide_zero_spend', checked ? '1' : '0');
-        var baseData = window.lastRoiData || [];
-        var displayData = applyZeroSpendFilter(baseData);
+        var displayData = applyZeroSpendFilter();
         updateCountryOptionsFromRoi(displayData);
         updateSummaryBoxes(displayData);
         initializeDataTable(displayData);

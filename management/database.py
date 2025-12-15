@@ -3167,6 +3167,142 @@ class data_mysql:
             }
         return {"hasil": hasil}
 
+    def get_all_adx_roi_country_detail_by_params(self, start_date, end_date, selected_account = None, selected_domain_list = None, countries_list = None):
+        # ... existing code ...
+        try:
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+
+            like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_params = [f"%{domain}%" for domain in data_domain_list]
+
+            base_sql = [
+                "SELECT",
+                "\tb.data_adx_country_tanggal AS 'date',",
+                "\tb.data_adx_country_domain AS 'site_name',",
+                "\tb.data_adx_country_cd AS 'country_code',",
+                "\tb.data_adx_country_nm AS 'country_name',",
+                "\tSUM(b.data_adx_country_impresi) AS impressions,",
+                "\tSUM(b.data_adx_country_click) AS clicks,",
+                "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
+                "\t\tTHEN ROUND((SUM(b.data_adx_country_click) / SUM(b.data_adx_country_impresi)) * 100, 2)",
+                "\t\tELSE 0 END AS ctr,",
+                "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
+                "\t\tTHEN ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000)",
+                "\t\tELSE 0 END AS ecpm,",
+                "\tCASE WHEN SUM(b.data_adx_country_click) > 0",
+                "\t\tTHEN ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 0)",
+                "\t\tELSE 0 END AS cpc,",
+                "\tSUM(b.data_adx_country_revenue) AS 'revenue'",
+                "FROM app_credentials a",
+                "INNER JOIN data_adx_country b ON a.account_id = b.account_id",
+                "WHERE",
+            ]
+            params = []
+            base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+
+            if selected_account:
+                base_sql.append("\tAND a.account_id LIKE %s")
+                params.append(f"{selected_account}%")
+
+            if data_domain_list:
+                base_sql.append(f"\tAND ({like_conditions})")
+                params.extend(like_params)
+
+            country_codes = []
+            if countries_list:
+                if isinstance(countries_list, str):
+                    country_codes = [c.strip() for c in countries_list.split(',') if c.strip()]
+                elif isinstance(countries_list, (list, tuple)):
+                    country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
+            if country_codes:
+                placeholders = ','.join(['%s'] * len(country_codes))
+                base_sql.append(f"AND b.data_adx_country_cd IN ({placeholders})")
+                params.extend(country_codes)
+
+            base_sql.append("GROUP BY b.data_adx_country_tanggal, b.data_adx_country_domain, b.data_adx_country_cd, b.data_adx_country_nm")
+            base_sql.append("ORDER BY b.data_adx_country_tanggal ASC")
+            sql = "\n".join(base_sql)
+
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get adx country detail by params")
+            data_rows = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit adx country detail by params")
+            return {
+                "status": True,
+                "message": "Detail AdX country berhasil diambil",
+                "data": data_rows
+            }
+        except pymysql.Error as e:
+            return {"status": False, "error": f"Terjadi error {e!r}, error nya {e.args[0]}"}
+        # ... existing code ...
+
+    def get_all_ads_roi_country_detail_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None, countries_list=None):
+        # ... existing code ...
+        try:
+            if isinstance(data_sub_domain, str):
+                data_sub_domain = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
+            elif data_sub_domain is None:
+                data_sub_domain = []
+            elif isinstance(data_sub_domain, (set, tuple)):
+                data_sub_domain = list(data_sub_domain)
+            if not data_sub_domain:
+                raise ValueError("data_sub_domain is required and cannot be empty")
+
+            like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
+            like_params = [f"%{d}%" for d in data_sub_domain]
+
+            sql_parts = [
+                "SELECT",
+                "\tb.data_ads_country_tanggal AS 'date',",
+                "\tb.data_ads_country_cd AS 'country_code',",
+                "\tb.data_ads_country_nm AS 'country_name',",
+                "\tb.data_ads_domain AS 'domain',",
+                "\tSUM(b.data_ads_country_spend) AS 'spend',",
+                "\tSUM(b.data_ads_country_click) AS 'clicks',",
+                "\tSUM(b.data_ads_country_impresi) AS 'impressions',",
+                "\tROUND(AVG(b.data_ads_country_cpr), 0) AS 'cpr'",
+                "FROM master_account_ads a",
+                "INNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
+                "WHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
+                f"\tAND ({like_conditions})",
+            ]
+            params = [start_date_formatted, end_date_formatted] + like_params
+
+            country_codes = []
+            if countries_list:
+                if isinstance(countries_list, str):
+                    country_codes = [c.strip() for c in countries_list.split(',') if c.strip()]
+                elif isinstance(countries_list, (list, tuple)):
+                    country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
+            if country_codes:
+                placeholders = ','.join(['%s'] * len(country_codes))
+                sql_parts.append(f"AND b.data_ads_country_cd IN ({placeholders})")
+                params.extend(country_codes)
+
+            sql_parts.append("GROUP BY b.data_ads_country_tanggal, b.data_ads_country_cd, b.data_ads_country_nm, b.data_ads_domain")
+            sql_parts.append("ORDER BY b.data_ads_country_tanggal ASC")
+            sql = "\n".join(sql_parts)
+
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get ads country detail by params")
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit ads country detail by params")
+
+            hasil = {"status": True, "message": "Detail Ads country berhasil diambil", "data": data}
+        except Exception as e:
+            hasil = {"status": False, "data": f"Terjadi error {e!r}"}
+        return {"hasil": hasil}
+
+
     def get_all_adx_country_detail_by_params(self, start_date, end_date, selected_account = None, selected_domain_list = None, countries_list = None):
         # ... existing code ...
         try:
@@ -3290,6 +3426,5 @@ class data_mysql:
         except Exception as e:
             hasil = {"status": False, "data": f"Terjadi error {e!r}"}
         return {"hasil": hasil}
-        # ... existing code ...
 
 

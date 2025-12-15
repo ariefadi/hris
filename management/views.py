@@ -3139,7 +3139,7 @@ class RoiTrafficPerCountryDataView(View):
             if selected_domain_list:
                 with ThreadPoolExecutor(max_workers=2) as executor:
                     adx_future = executor.submit(
-                        data_mysql().get_all_adx_traffic_country_by_params,
+                        data_mysql().get_all_adx_roi_country_detail_by_params,
                         start_date,
                         end_date,
                         selected_account or '',
@@ -3167,7 +3167,7 @@ class RoiTrafficPerCountryDataView(View):
                             extracted_names.append(main_domain)
                         unique_name_site = list(set(extracted_names))
                     fb_future = executor.submit(
-                        data_mysql().get_all_ads_roi_traffic_country_by_params,
+                        data_mysql().get_all_ads_roi_country_detail_by_params,
                         start_date,
                         end_date,
                         unique_name_site,
@@ -3181,7 +3181,7 @@ class RoiTrafficPerCountryDataView(View):
                         data_facebook = None
             else:
                 # Filter Domain kosong: tampilkan data semua domain dari akun AdX terpilih
-                data_adx = data_mysql().get_all_adx_traffic_country_by_params(
+                data_adx = data_mysql().get_all_adx_roi_country_detail_by_params(
                     start_date, 
                     end_date, 
                     selected_account, 
@@ -3205,7 +3205,7 @@ class RoiTrafficPerCountryDataView(View):
                             unique_name_site = list(set(extracted_names))
                         if unique_name_site:
                             fb_future = executor.submit(
-                                data_mysql().get_all_ads_roi_traffic_country_by_params,
+                                data_mysql().get_all_ads_roi_country_detail_by_params,
                                 start_date, end_date, unique_name_site, countries_list
                             )
                             data_facebook = fb_future.result()
@@ -3284,78 +3284,207 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
     """Fungsi untuk menggabungkan data AdX dan Facebook berdasarkan kode negara dan menghitung ROI"""
     try:
         # Inisialisasi hasil
-        combined_data = []
-        # Buat mapping data Facebook berdasarkan country_cd (kode negara 2 huruf)
-        facebook_spend_map = {}
-        facebook_cpr_map = {}
-        facebook_cpc_map = {}
-        facebook_click_map = {}
-        fb_code_set = set()
-        if data_facebook and data_facebook.get('data'):
-            for fb_item in data_facebook['data']:
-                # Normalisasi ke uppercase untuk konsistensi dengan AdX
-                country_cd = (fb_item.get('country_code', 'unknown') or 'unknown').upper()
-                spend = float(fb_item.get('spend') or 0)
-                facebook_spend_map[country_cd] = spend
-                cpr = float(fb_item.get('cpr', 0) or 0)
-                cpc = float(fb_item.get('cpc', 0) or 0)
-                facebook_cpr_map[country_cd] = cpr
-                facebook_cpc_map[country_cd] = cpc
-                facebook_click_map[country_cd] = int(fb_item.get('clicks', 0))
-                fb_code_set.add(country_cd)
-        # Proses data AdX dan gabungkan dengan data Facebook
-        adx_code_set = set()
-        if data_adx and data_adx.get('status') and data_adx.get('data'):
-            for adx_item in data_adx['data']:
-                country_name = adx_item.get('country_name', '')
-                # Pastikan kode negara AdX uppercase agar cocok dengan FB
-                country_code = (adx_item.get('country_code', '') or '').upper()
-                if country_code:
-                    adx_code_set.add(country_code)
-                impressions = int(adx_item.get('impressions', 0))
-                clicks_adx = int(adx_item.get('clicks', 0))
-                revenue = float(adx_item.get('revenue', 0))
-                # Ambil spend dan biaya lainnya dari Facebook berdasarkan country_code
-                spend = facebook_spend_map.get(country_code, 0)
-                impressions_fb = int(adx_item.get('impressions', 0))
-                cpr = facebook_cpr_map.get(country_code, 0)
-                clicks_fb = facebook_click_map.get(country_code, 0)
-                clicks_adx = int(adx_item.get('clicks', 0))
-                # Hitung metrik
-                ctr_fb = ((clicks_fb / impressions_fb) * 100) if impressions_fb > 0 else 0
-                cpc_fb = facebook_cpc_map.get(country_code, 0)
-                ctr_adx = ((clicks_adx / impressions) * 100) if impressions > 0 else 0
-                cpc_adx = (revenue / clicks_adx) if clicks_adx > 0 else 0
-                ecpm = ((revenue / impressions) * 1000) if impressions > 0 else 0
-                roi = (((revenue - spend)/spend)*100) if spend > 0 else 0
-                # Tambahkan ke hasil tanpa memfilter AdX-only
-                combined_data.append({
-                    'country': country_name,
-                    'country_code': country_code,
-                    'impressions': impressions,
-                    'spend': round(spend, 2),
-                    'clicks_fb': clicks_fb,
-                    'clicks_adx': clicks_adx,
-                    'revenue': round(revenue, 2),
-                    'cpr': round(cpr, 2),
-                    'ctr_fb': round(ctr_fb, 2),
-                    'ctr_adx': round(ctr_adx, 2),
-                    'cpc_fb': round(cpc_fb, 4),
-                    'cpc_adx': round(cpc_adx, 4),
-                    'ecpm': round(ecpm, 2),
-                    'roi': round(roi, 2)
-                })
-        # Jangan exclude negara spend 0: tetap tampilkan data AdX-only
-        try:
-            print("[DEBUG ROI] Keeping zero-spend countries to show AdX-only results")
-        except Exception:
-            pass
-        # Urutkan berdasarkan ROI tertinggi
-        combined_data.sort(key=lambda x: x['roi'], reverse=True)
+        adx_map = {}
+        fb_map = {}
+        country_name_by_code = {}
+        # Normalisasi AdX: date + base_subdomain + country_code
+        adx_items = data_adx.get('data') if isinstance(data_adx, dict) else []
+        for adx_item in (adx_items or []):
+            date_key = str(adx_item.get('date', '') or '')
+            site_name = str(adx_item.get('site_name', '') or '')
+            base_subdomain = extract_base_subdomain(site_name)
+            country_code = (adx_item.get('country_code', '') or '').upper()
+            country_name = adx_item.get('country_name', '') or ''
+            impressions_adx = int(adx_item.get('impressions', 0) or 0)
+            clicks_adx = int(adx_item.get('clicks', 0) or 0)
+            revenue = float(adx_item.get('revenue', 0) or 0)
+            # Pastikan date_key, base_subdomain, dan country_code tersedia agar agregasi sesuai pasangan site/tanggal/negara
+            if not date_key or not base_subdomain or not country_code:
+                continue
+            country_name_by_code[country_code] = country_name or country_name_by_code.get(country_code, '')
+            var_key = f"{date_key}_{base_subdomain}_{country_code}"
+            entry = adx_map.get(var_key) or {'revenue': 0.0, 'impressions_adx': 0, 'clicks_adx': 0}
+            entry['revenue'] += revenue
+            entry['impressions_adx'] += impressions_adx
+            entry['clicks_adx'] += clicks_adx
+            adx_map[var_key] = entry
+
+        # Normalisasi FB: date + base_subdomain + country_code
+        fb_payload = data_facebook if isinstance(data_facebook, dict) else {'status': True, 'data': []}
+        fb_items = fb_payload.get('data') or []
+        for fb_item in fb_items:
+            date_key = str(fb_item.get('date', '') or '')
+            domain = str(fb_item.get('domain', '') or '')
+            base_subdomain = extract_base_subdomain(domain)
+            country_code = (fb_item.get('country_code', '') or '').upper()
+            country_name = fb_item.get('country_name', '') or ''
+            spend = float(fb_item.get('spend', 0) or 0)
+            clicks_fb = int(fb_item.get('clicks', 0) or 0)
+            impressions_fb = int(fb_item.get('impressions', 0) or 0)
+            cpr = float(fb_item.get('cpr', 0) or 0)
+            # Pastikan date_key, base_subdomain, dan country_code tersedia agar agregasi sesuai pasangan site/tanggal/negara
+            if not date_key or not base_subdomain or not country_code:
+                continue
+            country_name_by_code[country_code] = country_name or country_name_by_code.get(country_code, '')
+            var_key = f"{date_key}_{base_subdomain}_{country_code}"
+            entry = fb_map.get(var_key) or {'spend': 0.0, 'impressions_fb': 0, 'clicks_fb': 0, 'cpr_sum': 0.0, 'cpr_count': 0}
+            entry['spend'] += spend
+            entry['impressions_fb'] += impressions_fb
+            entry['clicks_fb'] += clicks_fb
+            if cpr > 0:
+                entry['cpr_sum'] += cpr
+                entry['cpr_count'] += 1
+            fb_map[var_key] = entry
+
+        # Agregasi per country_code
+        agg_all = {}
+        agg_filtered = {}
+        union_keys = set(list(adx_map.keys()) + list(fb_map.keys()))
+        for key in union_keys:
+            try:
+                country_code = key.split('_')[-1]
+            except Exception:
+                continue
+            adx_entry = adx_map.get(key) or {'revenue': 0.0, 'impressions_adx': 0, 'clicks_adx': 0}
+            fb_entry = fb_map.get(key) or {'spend': 0.0, 'impressions_fb': 0, 'clicks_fb': 0, 'cpr_sum': 0.0, 'cpr_count': 0}
+            revenue = float(adx_entry['revenue'])
+            spend = float(fb_entry['spend'])
+            impressions_fb = int(fb_entry['impressions_fb'])
+            clicks_fb = int(fb_entry['clicks_fb'])
+            impressions_adx = int(adx_entry['impressions_adx'])
+            clicks_adx = int(adx_entry['clicks_adx'])
+            name = country_name_by_code.get(country_code, '')
+            if country_code not in agg_all:
+                agg_all[country_code] = {'country': name, 'country_code': country_code, 'impressions_fb': 0, 'impressions_adx': 0, 'spend': 0.0, 'clicks_fb': 0, 'clicks_adx': 0, 'revenue': 0.0, 'cpr_sum': 0.0, 'cpr_count': 0}
+            agg_all[country_code]['spend'] += spend
+            agg_all[country_code]['revenue'] += revenue
+            agg_all[country_code]['impressions_fb'] += impressions_fb
+            agg_all[country_code]['clicks_fb'] += clicks_fb
+            agg_all[country_code]['impressions_adx'] += impressions_adx
+            agg_all[country_code]['clicks_adx'] += clicks_adx
+            agg_all[country_code]['cpr_sum'] += fb_entry.get('cpr_sum', 0.0)
+            agg_all[country_code]['cpr_count'] += fb_entry.get('cpr_count', 0)
+
+            if spend > 0:
+                if country_code not in agg_filtered:
+                    agg_filtered[country_code] = {'country': name, 'country_code': country_code, 'impressions_fb': 0, 'impressions_adx': 0, 'spend': 0.0, 'clicks_fb': 0, 'clicks_adx': 0, 'revenue': 0.0, 'cpr_sum': 0.0, 'cpr_count': 0}
+                agg_filtered[country_code]['spend'] += spend
+                agg_filtered[country_code]['revenue'] += revenue
+                agg_filtered[country_code]['impressions_fb'] += impressions_fb
+                agg_filtered[country_code]['clicks_fb'] += clicks_fb
+                agg_filtered[country_code]['impressions_adx'] += impressions_adx
+                agg_filtered[country_code]['clicks_adx'] += clicks_adx
+                agg_filtered[country_code]['cpr_sum'] += fb_entry.get('cpr_sum', 0.0)
+                agg_filtered[country_code]['cpr_count'] += fb_entry.get('cpr_count', 0)
+                
+
+        combined_data_all = []
+        for code, item in agg_all.items():
+            s = float(item['spend'])
+            r = float(item['revenue'])
+            imp_fb = int(item['impressions_fb'])
+            clk_fb = int(item['clicks_fb'])
+            imp_adx = int(item['impressions_adx'])
+            clk_adx = int(item['clicks_adx'])
+            ctr_fb = ((clk_fb / imp_fb) * 100) if imp_fb > 0 else 0
+            ctr_adx = ((clk_adx / imp_adx) * 100) if imp_adx > 0 else 0
+            cpc_fb = (s / clk_fb) if clk_fb > 0 else 0
+            cpc_adx = (r / clk_adx) if clk_adx > 0 else 0
+            ecpm = ((r / imp_adx) * 1000) if imp_adx > 0 else 0
+            roi = ((r - s) / s * 100) if s > 0 else 0
+            cpr = 0.0
+            if item.get('cpr_count', 0) > 0:
+                cpr = float(item.get('cpr_sum', 0.0)) / int(item.get('cpr_count', 0))
+            elif clk_fb > 0:
+                cpr = s / clk_fb
+            combined_data_all.append({
+                'country': item['country'],
+                'country_code': code,
+                'impressions_fb': imp_fb,
+                'impressions_adx': imp_adx,
+                'clicks_fb': clk_fb,
+                'clicks_adx': clk_adx,
+                'cpr': round(cpr, 2),
+                'cpc_fb': round(cpc_fb, 2),
+                'ctr_fb': round(ctr_fb, 2),
+                'cpc_adx': round(cpc_adx, 2),
+                'ctr_adx': round(ctr_adx, 2),
+                'ecpm': round(ecpm, 2),
+                'spend': round(s, 2),
+                'revenue': round(r, 2),
+                'roi': round(roi, 2)
+            })
+
+        combined_data_filtered = []
+        for code, item in agg_filtered.items():
+            s = float(item['spend'])
+            r = float(item['revenue'])
+            imp_fb = int(item['impressions_fb'])
+            clk_fb = int(item['clicks_fb'])
+            imp_adx = int(item['impressions_adx'])
+            clk_adx = int(item['clicks_adx'])
+            ctr_fb = ((clk_fb / imp_fb) * 100) if imp_fb > 0 else 0
+            ctr_adx = ((clk_adx / imp_adx) * 100) if imp_adx > 0 else 0
+            cpc_fb = (s / clk_fb) if clk_fb > 0 else 0
+            cpc_adx = (r / clk_adx) if clk_adx > 0 else 0
+            ecpm = ((r / imp_adx) * 1000) if imp_adx > 0 else 0
+            roi = ((r - s) / s * 100) if s > 0 else 0
+            cpr = 0.0
+            if item.get('cpr_count', 0) > 0:
+                cpr = float(item.get('cpr_sum', 0.0)) / int(item.get('cpr_count', 0))
+            elif clk_fb > 0:
+                cpr = s / clk_fb
+            combined_data_filtered.append({
+                'country': item['country'],
+                'country_code': code,
+                'impressions_fb': imp_fb,
+                'impressions_adx': imp_adx,
+                'clicks_fb': clk_fb,
+                'clicks_adx': clk_adx,
+                'cpr': round(cpr, 2),
+                'cpc_fb': round(cpc_fb, 2),
+                'ctr_fb': round(ctr_fb, 2),
+                'cpc_adx': round(cpc_adx, 2),
+                'ctr_adx': round(ctr_adx, 2),
+                'ecpm': round(ecpm, 2),
+                'spend': round(s, 2),
+                'revenue': round(r, 2),
+                'roi': round(roi, 2)
+            })
+
+        combined_data_all.sort(key=lambda x: x['roi'], reverse=True)
+        combined_data_filtered.sort(key=lambda x: x['roi'], reverse=True)
+        total_spend_all = sum(d['spend'] for d in combined_data_all) if combined_data_all else 0.0
+        total_revenue_all = sum(d['revenue'] for d in combined_data_all) if combined_data_all else 0.0
+        total_spend_filtered = sum(d['spend'] for d in combined_data_filtered) if combined_data_filtered else 0.0
+        total_revenue_filtered = sum(d['revenue'] for d in combined_data_filtered) if combined_data_filtered else 0.0
+
         return {
             'status': True,
-            'data': combined_data,
-            'total_records': len(combined_data)
+            'data': combined_data_all,
+            'data_filtered': combined_data_filtered,
+            'total_records': len(combined_data_all),
+            'total_records_filtered': len(combined_data_filtered),
+            'summary_all': {
+                'total_spend': round(total_spend_all, 2),
+                'total_clicks_fb': sum(d['clicks_fb'] for d in combined_data_all),
+                'total_clicks_adx': sum(d['clicks_adx'] for d in combined_data_all),
+                'total_ctr_fb': sum(d['ctr_fb'] for d in combined_data_all),
+                'total_ctr_adx': sum(d['ctr_adx'] for d in combined_data_all),
+                'rata_cpr': round(sum(d['cpr'] for d in combined_data_all) / len(combined_data_all), 2),
+                'total_revenue': round(total_revenue_all, 2),
+                'total_roi': round(((total_revenue_all - total_spend_all) / total_spend_all * 100) if total_spend_all > 0 else 0, 2)
+            },
+            'summary_filtered': {
+                'total_spend': round(total_spend_filtered, 2),
+                'total_clicks_fb': sum(d['clicks_fb'] for d in combined_data_filtered),
+                'total_clicks_adx': sum(d['clicks_adx'] for d in combined_data_filtered),
+                'total_ctr_fb': sum(d['ctr_fb'] for d in combined_data_filtered),
+                'total_ctr_adx': sum(d['ctr_adx'] for d in combined_data_filtered),
+                'rata_cpr': round(sum(d['cpr'] for d in combined_data_filtered) / len(combined_data_filtered), 2),
+                'total_revenue': round(total_revenue_filtered, 2),
+                'total_roi': round(((total_revenue_filtered - total_spend_filtered) / total_spend_filtered * 100) if total_spend_filtered > 0 else 0, 2)
+            }
         }
         
     except Exception as e:
@@ -4380,7 +4509,6 @@ class RoiMonitoringCountryDataView(View):
             # Pastikan bentuk payload sesuai: gunakan 'hasil' untuk AdX dan FB jika tersedia
             adx_payload = data_adx.get('hasil') if isinstance(data_adx, dict) and data_adx.get('hasil') else data_adx
             fb_payload = (data_facebook.get('hasil') if isinstance(data_facebook, dict) and data_facebook.get('hasil') else {'status': True, 'data': []})
-            print(f"[DEBUG ROI] fb_payload: {fb_payload}")
             result = process_roi_monitoring_country_data(adx_payload, fb_payload)
             # Filter hasil berdasarkan negara yang dipilih jika ada
             if countries_list and result.get('status') and result.get('data'):
