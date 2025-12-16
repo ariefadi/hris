@@ -63,12 +63,39 @@ $().ready(function () {
         if (tanggal_dari != "" && tanggal_sampai != "") {
             e.preventDefault();
             $("#overlay").show();
+            if (selected_account != "") {
+                adx_site_list();
+            }
+            // adx_account_list();
             load_adx_summary_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain);
             load_adx_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain);
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
         }
     });
+    function adx_site_list() {
+        var selected_account = $("#account_filter").val();
+        return $.ajax({
+            url: '/management/admin/adx_sites_list',
+            type: 'GET',
+            data: {
+                selected_accounts: selected_account
+            },
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function (response) {
+                if (response && response.status) {
+                    $('#domain_filter')
+                        .val(response.data)
+                        .trigger('change');
+                }
+            },
+            error: function (xhr, status, error) {
+                report_eror(xhr, error);
+            }
+        });
+    }
     // Fungsi untuk load data traffic per country
     function load_adx_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain) {
         // Convert array to comma-separated string for backend

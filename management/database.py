@@ -2698,7 +2698,7 @@ class data_mysql:
                 "error": f"Terjadi error {e!r}, error nya {e.args[0]}"
             }
 
-    def fetch_user_sites_list(self, tanggal_dari, tanggal_sampai):   
+    def fetch_user_sites_list(self, user_mail, tanggal_dari, tanggal_sampai):   
         try:
             base_sql = [
                 "SELECT",
@@ -2710,7 +2710,7 @@ class data_mysql:
                 "AND b.data_adx_domain_tanggal BETWEEN %s AND %s",
                 "GROUP BY b.data_adx_domain",
             ]
-            params = [tanggal_dari, tanggal_sampai]
+            params = [user_mail, tanggal_dari, tanggal_sampai]
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all adx traffic account by params")
@@ -2728,6 +2728,27 @@ class data_mysql:
                 'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
         return {'hasil': hasil}
+
+    def get_user_mail_by_account(self, account_id):
+        try:
+            base_sql = [
+                "SELECT",
+                "\ta.user_mail",
+                "FROM",
+                "\tapp_credentials a",
+                "WHERE a.account_id = %s",
+            ]
+            params = [account_id]
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get user mail by account id")
+            data = self.cur_hris.fetchone()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get user mail by account id")
+            user_mail = data.get('user_mail') if data else None
+        except pymysql.Error as e:
+            user_mail = None
+        return user_mail
 
     def fetch_user_sites_id_list(self, tanggal_dari, tanggal_sampai, account_id):   
         try:

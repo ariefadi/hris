@@ -1839,7 +1839,6 @@ class AdxSummaryDataView(View):
             data_rows = payload.get('data') if isinstance(payload, dict) else []
             if not isinstance(data_rows, list):
                 data_rows = []
-            print(f"DEBUG - data_rows: {data_rows}")
             # Agregasi summary untuk periode terpilih
             total_impressions = sum((row.get('impressions_adx') or 0) for row in data_rows) if data_rows else 0
             total_clicks = sum((row.get('clicks_adx') or 0) for row in data_rows) if data_rows else 0
@@ -2821,8 +2820,9 @@ class AdxSitesListView(View):
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
         selected_accounts = req.GET.get('selected_accounts')
+        print(f"[DEBUG] AdxSitesListView - selected_accounts: {selected_accounts}")
         if selected_accounts:
-            user_mail = selected_accounts
+            user_mail = data_mysql().get_user_mail_by_account(selected_accounts)
         else:
             user_mail = req.session.get('hris_admin', {}).get('user_mail')
         try:

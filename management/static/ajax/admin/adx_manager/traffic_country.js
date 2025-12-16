@@ -44,12 +44,38 @@ $(document).ready(function () {
         if (tanggal_dari != "" && tanggal_sampai != "") {
             e.preventDefault();
             $("#overlay").show();
+            if (selected_account != "") {
+                adx_site_list();
+            }
             load_country_options(selected_account, selected_domain);
             load_adx_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain);
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
         }
     });
+    function adx_site_list() {
+        var selected_account = $("#account_filter").val();
+        return $.ajax({
+            url: '/management/admin/adx_sites_list',
+            type: 'GET',
+            data: {
+                selected_accounts: selected_account
+            },
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function (response) {
+                if (response && response.status) {
+                    $('#domain_filter')
+                        .val(response.data)
+                        .trigger('change');
+                }
+            },
+            error: function (xhr, status, error) {
+                report_eror(xhr, error);
+            }
+        });
+    }
     // Fungsi untuk memuat opsi negara ke select2
     function load_country_options(selected_account, selectedDomains) {
         if (selectedDomains) {
@@ -525,3 +551,19 @@ $(document).ready(function () {
         alert(message);
     }
 });
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');

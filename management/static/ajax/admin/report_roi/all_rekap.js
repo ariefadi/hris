@@ -78,6 +78,9 @@ $().ready(function () {
             // Reset status fetch sebelum mulai menarik data
             window.fetchStatus = { summary: false, country: false };
             $('#overlay').show();
+            if (selected_account != "") {
+                adx_site_list();
+            }
             load_country_options(selected_account, selected_domain);
             load_ROI_traffic_country_data(tanggal_dari, tanggal_sampai);
             load_ROI_summary_data(tanggal_dari, tanggal_sampai);
@@ -85,6 +88,29 @@ $().ready(function () {
             alert('Silakan pilih tanggal dari dan sampai');
         }
     });
+    function adx_site_list() {
+        var selected_account = $("#account_filter").val();
+        return $.ajax({
+            url: '/management/admin/adx_sites_list',
+            type: 'GET',
+            data: {
+                selected_accounts: selected_account
+            },
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function (response) {
+                if (response && response.status) {
+                    $('#domain_filter')
+                        .val(response.data)
+                        .trigger('change');
+                }
+            },
+            error: function (xhr, status, error) {
+                report_eror(xhr, error);
+            }
+        });
+    }
     // Load data saat halaman pertama kali dibuka
     function load_country_options(selected_account, selected_domain) {
         if (selected_domain) {
