@@ -3783,7 +3783,6 @@ class RoiTrafficPerDomainDataView(View):
                     impressions_fb = float(fb_data.get('impressions_fb') or 0) if fb_data else 0
                     clicks_fb = float(fb_data.get('clicks_fb') or 0) if fb_data else 0
                     clicks_adx = float(adx_item.get('clicks_adx') or 0)
-                    print(f"[DEBUG ROI] clicks_adx_data: {clicks_adx}")
                     cpr = float(fb_data.get('cpr') or 0) if fb_data else 0
                     cpc = float(fb_data.get('cpc') or 0) if fb_data else 0
                     revenue = float(adx_item.get('revenue', 0))
@@ -3792,9 +3791,8 @@ class RoiTrafficPerDomainDataView(View):
                     ctr_adx = ((clicks_adx / impressions_adx) * 100) if impressions_adx > 0 else 0
                     cpc_adx = (revenue / clicks_adx) if clicks_adx > 0 else 0
                     cpm = float(adx_item.get('ecpm', 0))
-                    # Simpan baris mentah (diagnosa)
                     raw_rows_all.append({
-                        'site_name': subdomain,
+                        'site_name': base_subdomain or subdomain,
                         'date': date_key,
                         'country_code': country_code,
                         'spend': spend,
@@ -3808,35 +3806,33 @@ class RoiTrafficPerDomainDataView(View):
                         'cpm': cpm,
                         'revenue': revenue
                     })
-                    # Agregasi: semua kontribusi
-                    if subdomain not in grouped_all:
-                        grouped_all[subdomain] = {'site_name': subdomain, 'date': date_key, 'country_code': country_code, 'spend': 0.0, 'revenue': 0.0, 'clicks_fb': 0.0, 'clicks_adx': 0.0, 'cpr': 0.0, 'ctr_fb': 0.0, 'cpc_fb': 0.0, 'ctr_adx': 0.0, 'cpc_adx': 0.0, 'cpm': 0.0}
-                    grouped_all[subdomain]['spend'] += spend
-                    grouped_all[subdomain]['clicks_fb'] += clicks_fb
-                    grouped_all[subdomain]['clicks_adx'] += clicks_adx
-                    grouped_all[subdomain]['cpr'] += cpr
-                    grouped_all[subdomain]['ctr_fb'] += ctr_fb
-                    grouped_all[subdomain]['cpc_fb'] += cpc_fb
-                    grouped_all[subdomain]['ctr_adx'] += ctr_adx
-                    grouped_all[subdomain]['cpc_adx'] += cpc_adx
-                    grouped_all[subdomain]['cpm'] += cpm
-                    grouped_all[subdomain]['revenue'] += revenue
-                    # Agregasi: hanya spend > 0
+                    key = f"{date_key}|{base_subdomain or subdomain}"
+                    entry = grouped_all.get(key) or {'site_name': base_subdomain or subdomain, 'date': date_key, 'spend': 0.0, 'revenue': 0.0, 'clicks_fb': 0.0, 'clicks_adx': 0.0, 'cpr': 0.0, 'ctr_fb': 0.0, 'cpc_fb': 0.0, 'ctr_adx': 0.0, 'cpc_adx': 0.0, 'cpm': 0.0}
+                    entry['spend'] += spend
+                    entry['clicks_fb'] += clicks_fb
+                    entry['clicks_adx'] += clicks_adx
+                    entry['cpr'] += cpr
+                    entry['ctr_fb'] += ctr_fb
+                    entry['cpc_fb'] += cpc_fb
+                    entry['ctr_adx'] += ctr_adx
+                    entry['cpc_adx'] += cpc_adx
+                    entry['cpm'] += cpm
+                    entry['revenue'] += revenue
+                    grouped_all[key] = entry
                     if spend > 0:
-                        if subdomain not in grouped_filtered:
-                            grouped_filtered[subdomain] = {'site_name': subdomain, 'date': date_key, 'country_code': country_code, 'spend': 0.0, 'revenue': 0.0, 'clicks_fb': 0.0, 'clicks_adx': 0.0, 'cpr': 0.0, 'ctr_fb': 0.0, 'cpc_fb': 0.0, 'ctr_adx': 0.0, 'cpc_adx': 0.0, 'cpm': 0.0}
-                        grouped_filtered[subdomain]['spend'] += spend
-                        grouped_filtered[subdomain]['clicks_fb'] += clicks_fb
-                        grouped_filtered[subdomain]['clicks_adx'] += clicks_adx
-                        grouped_filtered[subdomain]['cpr'] += cpr
-                        grouped_filtered[subdomain]['ctr_fb'] += ctr_fb
-                        grouped_filtered[subdomain]['cpc_fb'] += cpc_fb
-                        grouped_filtered[subdomain]['ctr_adx'] += ctr_adx
-                        grouped_filtered[subdomain]['cpc_adx'] += cpc_adx
-                        grouped_filtered[subdomain]['cpm'] += cpm
-                        grouped_filtered[subdomain]['revenue'] += revenue
+                        f_entry = grouped_filtered.get(key) or {'site_name': base_subdomain or subdomain, 'date': date_key, 'spend': 0.0, 'revenue': 0.0, 'clicks_fb': 0.0, 'clicks_adx': 0.0, 'cpr': 0.0, 'ctr_fb': 0.0, 'cpc_fb': 0.0, 'ctr_adx': 0.0, 'cpc_adx': 0.0, 'cpm': 0.0}
+                        f_entry['spend'] += spend
+                        f_entry['clicks_fb'] += clicks_fb
+                        f_entry['clicks_adx'] += clicks_adx
+                        f_entry['cpr'] += cpr
+                        f_entry['ctr_fb'] += ctr_fb
+                        f_entry['cpc_fb'] += cpc_fb
+                        f_entry['ctr_adx'] += ctr_adx
+                        f_entry['cpc_adx'] += cpc_adx
+                        f_entry['cpm'] += cpm
+                        f_entry['revenue'] += revenue
+                        grouped_filtered[key] = f_entry
 
-                # Bentuk output agregasi + ROI (per date+domain)
                 combined_data_all = []
                 total_spend = 0
                 total_clicks_fb = 0
@@ -3848,7 +3844,7 @@ class RoiTrafficPerDomainDataView(View):
                 total_cpc_adx = 0
                 total_cpm = 0
                 total_revenue = 0
-                for item in grouped_all.values():
+                for _, item in sorted(grouped_all.items(), key=lambda kv: (kv[1]['date'], kv[1]['site_name'])):
                     spend_val = item['spend']
                     clicks_fb_val = item['clicks_fb']
                     clicks_adx_val = item['clicks_adx']
@@ -3887,7 +3883,7 @@ class RoiTrafficPerDomainDataView(View):
                     total_revenue += revenue_val
 
                 combined_data_filtered = []
-                for item in grouped_filtered.values():
+                for _, item in sorted(grouped_filtered.items(), key=lambda kv: (kv[1]['date'], kv[1]['site_name'])):
                     spend_val = item['spend']
                     clicks_fb_val = item['clicks_fb']
                     clicks_adx_val = item['clicks_adx']
