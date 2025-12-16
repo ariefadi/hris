@@ -63,12 +63,37 @@ $().ready(function () {
         var selected_domain = $("#select_domain").val() || '%';
         var data_domain = selected_domain ? selected_domain : '%';
         if (tanggal_dari !== '' && tanggal_sampai !== '') {
+            if (selected_account != "") {
+                ads_site_list();
+            }
             destroy_table_data_campaign_facebook()
             table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain)
         }
     });
 });
-
+function ads_site_list() {
+    var selected_account = $("#select_account").val();
+    return $.ajax({
+        url: '/management/admin/ads_sites_list',
+        type: 'GET',
+        data: {
+            selected_accounts: selected_account
+        },
+        headers: {
+            'X-CSRFToken': csrftoken
+        },
+        success: function (response) {
+            if (response && response.status) {
+                $('#select_domain')
+                    .val(response.data)
+                    .trigger('change');
+            }
+        },
+        error: function (xhr, status, error) {
+            report_eror(xhr, error);
+        }
+    });
+}
 function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain) {
     $.ajax({
         url: '/management/admin/page_per_campaign_facebook?tanggal_dari=' + tanggal_dari + '&tanggal_sampai=' + tanggal_sampai + '&data_account=' + data_account + '&data_domain=' + data_domain,
