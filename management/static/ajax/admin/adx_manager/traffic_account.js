@@ -74,6 +74,7 @@ $().ready(function () {
         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Semua"]],
         searching: true,
         ordering: true,
+        order: [[0, 'asc']],
         language: {
             "decimal": ",",
             "thousands": ".",
@@ -230,11 +231,12 @@ function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_ac
                             var year = date.getFullYear();
                             formattedDate = day + ' ' + month + ' ' + year;
                         }
+                        var cellDate = '<span data-order="' + (item.date || '-') + '">' + formattedDate + '</span>';
                         table.row.add([
-                            formattedDate,
+                            cellDate,
                             item.site_name || '-',
-                            formatNumber(item.clicks || 0),
-                            formatCurrencyIDR(item.cpc || 0),
+                            formatNumber(item.clicks_adx || 0),
+                            formatCurrencyIDR(item.cpc_adx || 0),
                             formatCurrencyIDR(item.ecpm || 0),
                             formatNumber(item.ctr || 0, 2) + ' %',
                             formatCurrencyIDR(item.revenue || 0)

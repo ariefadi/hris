@@ -1823,9 +1823,7 @@ class AdxSummaryDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_account = req.GET.get('selected_account', '')
-        print(f"DEBUG - selected_account: {selected_account}")
         selected_domain = req.GET.get('selected_domain')
-        print(f"DEBUG - selected_domain: {selected_domain}")
         selected_domain_list = []
         if selected_domain:
             selected_domain_list = [str(s).strip() for s in selected_domain.split(',') if s.strip()]
@@ -1841,9 +1839,10 @@ class AdxSummaryDataView(View):
             data_rows = payload.get('data') if isinstance(payload, dict) else []
             if not isinstance(data_rows, list):
                 data_rows = []
+            print(f"DEBUG - data_rows: {data_rows}")
             # Agregasi summary untuk periode terpilih
-            total_impressions = sum((row.get('impressions') or 0) for row in data_rows) if data_rows else 0
-            total_clicks = sum((row.get('clicks') or 0) for row in data_rows) if data_rows else 0
+            total_impressions = sum((row.get('impressions_adx') or 0) for row in data_rows) if data_rows else 0
+            total_clicks = sum((row.get('clicks_adx') or 0) for row in data_rows) if data_rows else 0
             total_revenue = sum((row.get('revenue') or 0) for row in data_rows) if data_rows else 0.0
             avg_cpc = (float(total_revenue) / float(total_clicks)) if total_clicks else 0.0
             avg_ctr = ((float(total_clicks) / float(total_impressions)) * 100.0) if total_impressions else 0.0
@@ -1854,8 +1853,8 @@ class AdxSummaryDataView(View):
             today_rows = today_payload.get('data') if isinstance(today_payload, dict) else []
             if not isinstance(today_rows, list):
                 today_rows = []
-            today_impressions = sum((row.get('impressions') or 0) for row in today_rows) if today_rows else 0
-            today_clicks = sum((row.get('clicks') or 0) for row in today_rows) if today_rows else 0
+            today_impressions = sum((row.get('impressions_adx') or 0) for row in today_rows) if today_rows else 0
+            today_clicks = sum((row.get('clicks_adx') or 0) for row in today_rows) if today_rows else 0
             today_revenue = sum((row.get('revenue') or 0) for row in today_rows) if today_rows else 0.0
             today_ctr = ((float(today_clicks) / float(today_impressions)) * 100.0) if today_impressions else 0.0
             # Bangun respons konsisten untuk frontend
@@ -2752,23 +2751,61 @@ class AdxTrafficPerAccountDataView(View):
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
             end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')  
             # Gunakan fungsi baru yang mengambil data berdasarkan kredensial user
-            result = data_mysql().get_all_adx_traffic_account_by_params(start_date_formatted, end_date_formatted, selected_account, selected_domain_list)
-            # Pastikan format respons sesuai ekspektasi frontend
-            if isinstance(result, dict) and 'hasil' in result:
-                payload = result['hasil']
-                # Selaraskan penamaan kolom untuk frontend (ecpm vs cpm)
-                data_rows = payload.get('data')
-                if isinstance(data_rows, list):
-                    for row in data_rows:
-                        if 'cpm' in row and 'ecpm' not in row:
-                            row['ecpm'] = row.get('cpm')
-                return JsonResponse(payload, safe=False)
-
-            # Fallback: jika format di luar ekspektasi, bungkus ke format standar
+            rs_result = data_mysql().get_all_adx_traffic_account_by_params(start_date_formatted, end_date_formatted, selected_account, selected_domain_list)
+            rows_map = {}
+            if rs_result and rs_result['hasil']['data']:
+                for rs in rs_result['hasil']['data']:
+                    date_key = str(rs.get('date', '') or '')
+                    raw_site = str(rs.get('site_name', '') or '')
+                    base_subdomain = extract_base_subdomain(raw_site) if raw_site else ''
+                    if not base_subdomain:
+                        base_subdomain = raw_site
+                    impressions = int(rs.get('impressions_adx', 0) or 0)
+                    clicks = int(rs.get('clicks_adx', 0) or 0)
+                    revenue = float(rs.get('revenue', 0.0) or 0.0)
+                    key = f"{date_key}|{base_subdomain}"
+                    entry = rows_map.get(key) or {'date': date_key, 'site_name': base_subdomain, 'impressions_adx': 0, 'clicks_adx': 0, 'revenue': 0.0}
+                    entry['impressions_adx'] += impressions
+                    entry['clicks_adx'] += clicks
+                    entry['revenue'] += revenue
+                    rows_map[key] = entry
+            result_rows = []
+            total_impressions = 0
+            total_clicks = 0
+            total_revenue = 0.0
+            for _, item in rows_map.items():
+                imp = int(item.get('impressions_adx') or 0)
+                clk = int(item.get('clicks_adx') or 0)
+                rev = float(item.get('revenue') or 0.0)
+                cpc_adx = (rev / clk) if clk > 0 else 0.0
+                ctr = ((clk / imp) * 100) if imp > 0 else 0.0
+                ecpm = ((rev / imp) * 1000) if imp > 0 else 0.0
+                total_impressions += imp
+                total_clicks += clk
+                total_revenue += rev
+                result_rows.append({
+                    'date': item['date'],
+                    'site_name': item['site_name'],
+                    'clicks_adx': clk,
+                    'cpc_adx': round(cpc_adx, 2),
+                    'ecpm': round(ecpm, 2),
+                    'ctr': round(ctr, 2),
+                    'revenue': round(rev, 2)
+                })
+            result_rows.sort(key=lambda x: (x['date'] or '', x['site_name'] or ''))
+            summary = {
+                'total_clicks': total_clicks,
+                'total_impressions': total_impressions,
+                'total_revenue': round(total_revenue, 2),
+                'avg_cpc': round((total_revenue / total_clicks), 2) if total_clicks > 0 else 0.0,
+                'avg_ecpm': round(((total_revenue / total_impressions) * 1000), 2) if total_impressions > 0 else 0.0,
+                'avg_ctr': round(((total_clicks / total_impressions) * 100), 2) if total_impressions > 0 else 0.0
+            }
             return JsonResponse({
                 'status': True,
-                'message': 'Data diambil',
-                'data': result if isinstance(result, list) else []
+                'message': 'Data adx traffic account berhasil diambil',
+                'summary': summary,
+                'data': result_rows
             }, safe=False)
         except Exception as e:
             return JsonResponse({
