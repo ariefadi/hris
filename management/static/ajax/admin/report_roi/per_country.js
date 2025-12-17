@@ -1,6 +1,8 @@
 $(document).ready(function () {
     // Simpan data terakhir untuk re-render cepat saat toggle berubah
     window.lastRoiData = null;
+    // Mode hanya tampilkan baris terpilih
+    window.showOnlySelected = false;
     // Pulihkan preferensi toggle dari localStorage (default: off)
     var savedHideZero = localStorage.getItem('roi_hide_zero_spend');
     if (savedHideZero !== null) {
@@ -25,7 +27,7 @@ $(document).ready(function () {
         theme: 'bootstrap4'
     });
     // Initialize Select2 for site filter
-    $('#site_filter').select2({
+    $('#domain_filter').select2({
         placeholder: '-- Pilih Domain --',
         allowClear: true,
         width: '100%',
@@ -49,61 +51,49 @@ $(document).ready(function () {
         theme: 'bootstrap4'
     });
     // Event handler untuk tombol Load
-    $('#btn_load_data').click(function () {
-        var selected_account_adx = $("#account_filter").val();
-        $('#overlay').show();
-        loadSitesList(selected_account_adx);
-        load_country_options(selected_account_adx);
-        load_adx_traffic_country_data();
+    $('#btn_load_data').click(function (e) {
+        var tanggal_dari = $("#tanggal_dari").val();
+        var tanggal_sampai = $("#tanggal_sampai").val();
+        var selected_account = $("#account_filter").val();
+        var selected_domain = $("#domain_filter").val();
+        if (tanggal_dari != "" && tanggal_sampai != "") {
+            e.preventDefault();
+            $('#overlay').show();
+            if (selected_account != "") {
+                adx_site_list();
+            }
+            load_country_options(selected_account, selected_domain);
+            load_adx_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain);
+        } else {
+            alert('Silakan pilih tanggal dari dan sampai');
+        }
     });
-    // Load data situs untuk select2
-    function loadSitesList(selected_account_adx) {
-        var selectedAccounts = selected_account_adx;
-        // Simpan pilihan domain yang sudah dipilih sebelumnya
-        var previouslySelected = $("#site_filter").val() || [];
-        $.ajax({
+    function adx_site_list() {
+        var selected_account = $("#account_filter").val();
+        return $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
-            dataType: 'json',
             data: {
-                'selected_accounts': selectedAccounts
+                selected_accounts: selected_account
             },
             headers: {
-                'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
             },
             success: function (response) {
-                if (response.status) {
-                    var select_site = $("#site_filter");
-                    select_site.empty();
-                    
-                    // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
-                    var validPreviousSelections = [];
-                    $.each(response.data, function (index, site) {
-                        var isSelected = previouslySelected.includes(site);
-                        if (isSelected) {
-                            validPreviousSelections.push(site);
-                        }
-                        select_site.append(new Option(site, site, false, isSelected));
-                    });
-                    
-                    // Set nilai yang dipilih kembali
-                    if (validPreviousSelections.length > 0) {
-                        select_site.val(validPreviousSelections);
-                    }
-                    select_site.trigger('change');
+                if (response && response.status) {
+                    $('#domain_filter')
+                        .val(response.data)
+                        .trigger('change');
                 }
             },
             error: function (xhr, status, error) {
-                console.error('Error loading sites:', error);
-                console.error('Status:', status);
-                console.error('Response:', xhr.responseText);
+                report_eror(xhr, error);
             }
         });
     }
     // Load data saat halaman pertama kali dibuka
-    function load_country_options(selected_account_adx) {
-        var selectedAccounts = selected_account_adx;
+    function load_country_options(selected_account, selected_domain) {
+        var selectedAccounts = selected_account;
         // Simpan pilihan negara yang sudah dipilih sebelumnya
         var previouslySelected = $('#country_filter').val() || [];
         $.ajax({
@@ -111,9 +101,11 @@ $(document).ready(function () {
             type: 'GET',
             dataType: 'json',
             data: {
-                'selected_accounts': selectedAccounts
+                'selected_accounts': selectedAccounts,
+                'selected_domains': selected_domain
             },
             success: function (response) {
+                console.log(response);
                 if (response.status) {
                     var select_country = $('#country_filter');
                     select_country.empty();
@@ -174,21 +166,17 @@ $(document).ready(function () {
         return 'Rp ' + Math.round(numValue).toLocaleString('id-ID');
     }
     // Fungsi untuk load data traffic per country
-    function load_adx_traffic_country_data() {
-        var startDate = $('#tanggal_dari').val();
-        var endDate = $('#tanggal_sampai').val();
-        var selectedAccountAdx = $('#account_filter').val();
-        var selectedSites = $('#site_filter').val();
-        var selectedAccount = $('#select_account').val();
+    function load_adx_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain) {
+        var selectedAccountads = $('#select_account').val();
         var selectedCountries = $('#country_filter').val();
-        if (!startDate || !endDate) {
+        if (!tanggal_dari || !tanggal_sampai) {
             alert('Silakan pilih rentang tanggal');
             return;
         }
         // Convert array to comma-separated string for backend
-        var siteFilter = '';
-        if (selectedSites && selectedSites.length > 0) {
-            siteFilter = selectedSites.join(',');
+        var domainFilter = '';
+        if (selected_domain && selected_domain.length > 0) {
+            domainFilter = selected_domain.join(',');
         }
         // Convert array to comma-separated string for backend
         var countryFilter = '';
@@ -204,11 +192,11 @@ $(document).ready(function () {
             url: '/management/admin/page_roi_traffic_country',
             type: 'GET',
             data: {
-                start_date: startDate,
-                end_date: endDate,
-                selected_account_adx: selectedAccountAdx,
-                selected_sites: siteFilter,
-                selected_account: selectedAccount,
+                start_date: tanggal_dari,
+                end_date: tanggal_sampai,
+                selected_account: selected_account,
+                selected_domains: domainFilter,
+                selected_account_ads: selectedAccountads,
                 selected_countries: countryFilter
             },
             headers: {
@@ -218,7 +206,8 @@ $(document).ready(function () {
                 if (response && response.status) {
                     // Simpan data mentah untuk kebutuhan toggle
                     window.lastRoiData = Array.isArray(response.data) ? response.data : [];
-                    var displayData = applyZeroSpendFilter(window.lastRoiData);
+                    window.lastRoiDataFiltered = Array.isArray(response.data_filtered) ? response.data_filtered : [];
+                    var displayData = applyZeroSpendFilter();
                     // Sinkronkan opsi Filter Negara berdasarkan data ROI yang tampil di tabel
                     updateCountryOptionsFromRoi(displayData);
                     // Update summary boxes
@@ -247,13 +236,12 @@ $(document).ready(function () {
         });
     }
     // Terapkan filter berdasar toggle hide zero spend
-    function applyZeroSpendFilter(data) {
+    function applyZeroSpendFilter() {
         var hideZero = $('#toggle_hide_zero_spend').is(':checked');
-        if (!hideZero) return data || [];
-        return (data || []).filter(function (item) {
-            var spendVal = parseFloat(item.spend || 0);
-            return spendVal > 0;
-        });
+        if (!hideZero) return window.lastRoiData || [];
+        if (Array.isArray(window.lastRoiDataFiltered)) return window.lastRoiDataFiltered;
+        var base = window.lastRoiData || [];
+        return base.filter(function (item) { return parseFloat(item.spend || 0) > 0; });
     }
     // Perbarui opsi Select2 negara supaya hanya menampilkan negara yang ada di tabel
     function updateCountryOptionsFromRoi(data) {
@@ -292,7 +280,8 @@ $(document).ready(function () {
     function updateSummaryBoxes(data) {
         if (!data || !Array.isArray(data)) return;
         // Hitung summary dari data
-        var totalImpressions = 0;
+        var totalImpressionsFb = 0;
+        var totalImpressionsAdx = 0;
         var totalSpend = 0;
         var totalClicksFb = 0;
         var totalClicksAdx = 0;
@@ -301,7 +290,8 @@ $(document).ready(function () {
         var totalROI = 0;
         var validROICount = 0;
         data.forEach(function (item) {
-            totalImpressions += item.impressions || 0;
+            totalImpressionsFb += item.impressions_fb || 0;
+            totalImpressionsAdx += item.impressions_adx || 0;
             totalSpend += item.spend || 0;
             totalClicksFb += item.clicks_fb || 0;
             totalClicksAdx += item.clicks_adx || 0;
@@ -312,10 +302,9 @@ $(document).ready(function () {
                 validROICount++;
             }
         });
-        var averageCTRFb = totalImpressions > 0 ? (totalClicksFb / totalImpressions * 100) : 0;
-        var averageCTRAdx = totalImpressions > 0 ? (totalClicksAdx / totalImpressions * 100) : 0;
-        var totalROI = (((totalRevenue - totalSpend) / totalSpend) * 100);
-        console.log(totalROI)
+        var averageCTRFb = totalImpressionsFb > 0 ? (totalClicksFb / totalImpressionsFb * 100) : 0;
+        var averageCTRAdx = totalImpressionsAdx > 0 ? (totalClicksAdx / totalImpressionsAdx * 100) : 0;
+        var totalROI = totalSpend > 0 ? (((totalRevenue - totalSpend) / totalSpend) * 100) : 0;
         $('#total_spend').text(formatCurrencyIDR(totalSpend));
         $('#total_clicks_fb').text(totalClicksFb.toLocaleString('id-ID'));
         $('#total_clicks_adx').text(totalClicksAdx.toLocaleString('id-ID'));
@@ -329,26 +318,27 @@ $(document).ready(function () {
     function initializeDataTable(data) {
         var tableData = [];
         if (data && Array.isArray(data)) {
-            data.forEach(function (row) {
+            data.forEach(function (row, idx) {
                 var countryFlag = '';
                 if (row.country_code) {
                     countryFlag = '<img src="https://flagcdn.com/16x12/' + row.country_code.toLowerCase() + '.png" alt="' + row.country_code + '" style="margin-right: 5px;"> ';
                 }
-                // Simpan ANGKA MURNI; format dilakukan di renderer display
+                // Sisipkan kolom pertama untuk checkbox
                 tableData.push([
-                    countryFlag + (row.country || ''),   // 0: Negara
-                    row.country_code || '',              // 1: Kode Negara
-                    Number(row.spend || 0),              // 2: Spend (Rp)
-                    Number(row.clicks_fb || 0),          // 3: Klik FB
-                    Number(row.clicks_adx || 0),         // 4: Klik ADX
-                    Number(row.cpr || 0),                // 5: CPR
-                    Number(row.ctr_fb || 0),             // 6: CTR FB (%)
-                    Number(row.ctr_adx || 0),            // 7: CTR ADX (%)
-                    Number(row.cpc_fb || 0),             // 8: CPC FB (Rp)
-                    Number(row.cpc_adx || 0),            // 9: CPC ADX (Rp)
-                    Number(row.ecpm || 0),               // 10: eCPM (Rp)
-                    Number(row.roi || 0),                // 11: ROI (%)
-                    Number(row.revenue || 0)             // 12: Pendapatan (Rp)
+                    '',                                     // 0: Checkbox (render di columnDefs)
+                    countryFlag + (row.country || ''),     // 1: Negara
+                    row.country_code || '',                // 2: Kode Negara
+                    Number(row.spend || 0),                // 3: Spend (Rp) — was 2
+                    Number(row.clicks_fb || 0),            // 4: Klik FB — was 3
+                    Number(row.clicks_adx || 0),           // 5: Klik ADX — was 4
+                    Number(row.cpr || 0),                  // 6: CPR — was 5
+                    Number(row.ctr_fb || 0),               // 7: CTR FB (%) — was 6
+                    Number(row.ctr_adx || 0),              // 8: CTR ADX (%) — was 7
+                    Number(row.cpc_fb || 0),               // 9: CPC FB (Rp) — was 8
+                    Number(row.cpc_adx || 0),              // 10: CPC ADX (Rp) — was 9
+                    Number(row.ecpm || 0),                 // 11: eCPM (Rp) — was 10
+                    Number(row.roi || 0),                  // 12: ROI (%) — was 11
+                    Number(row.revenue || 0)               // 13: Pendapatan (Rp) — was 12
                 ]);
             });
         }
@@ -358,9 +348,8 @@ $(document).ready(function () {
             if (existing.state) { existing.state.clear(); }
             existing.destroy();
         }
-        
+
         var table = $('#table_traffic_country').DataTable({
-            // Matikan stateSave supaya default order tidak di-override oleh state lama
             stateSave: false,
             data: tableData,
             responsive: true,
@@ -384,8 +373,44 @@ $(document).ready(function () {
                     "previous": "Sebelumnya"
                 }
             },
-            dom: 'Bfrtip',
+            dom: 'Blfrtip',
             buttons: [
+                {
+                    text: 'Tampilkan Terpilih',
+                    className: 'btn btn-secondary',
+                    action: function (e, dt) {
+                        window.showOnlySelected = !window.showOnlySelected;
+                        $(e.currentTarget).toggleClass('active', window.showOnlySelected);
+                        dt.draw();
+                    }
+                },
+                {
+                    text: 'Copy Terpilih',
+                    className: 'btn btn-info',
+                    action: function (e, dt) {
+                        var lines = [];
+                        $('#table_traffic_country tbody input.row-select:checked').each(function () {
+                            var tr = $(this).closest('tr');
+                            var r = dt.row(tr).data();
+                            if (!r) return;
+                            // Ambil nama negara saja, hilangkan HTML (flag) jika ada
+                            var negaraPlain = String(r[1]).replace(/<[^>]*>/g, '').trim();
+                            lines.push(negaraPlain);
+                        });
+                        if (lines.length === 0) {
+                            alert('Pilih minimal satu negara terlebih dahulu.');
+                            return;
+                        }
+                        var textToCopy = lines.join('\n');
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                            navigator.clipboard.writeText(textToCopy)
+                                .then(function () { alert('Nama negara terpilih berhasil dicopy.'); })
+                                .catch(function () { fallbackCopyText(textToCopy); });
+                        } else {
+                            fallbackCopyText(textToCopy);
+                        }
+                    }
+                },
                 {
                     extend: 'excel',
                     text: 'Export Excel',
@@ -398,7 +423,7 @@ $(document).ready(function () {
                 },
                 {
                     extend: 'copy',
-                    text: 'Copy',
+                    text: 'Copy (Semua)',
                     className: 'btn btn-info'
                 },
                 {
@@ -418,27 +443,31 @@ $(document).ready(function () {
                 }
             ],
             columnDefs: [
-                // Spend (kolom 2): tampil Rupiah tanpa desimal, sort numerik
+                // Kolom 0: checkbox per-baris
                 {
-                    targets: 2,
-                    type: 'num',
-                    render: function (data, type) {
-                        var v = Number(data) || 0;
-                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
-                        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
-                        // Atau: return formatCurrencyIDR(v);
+                    targets: 0,
+                    orderable: false,
+                    searchable: false,
+                    className: 'dt-body-center checkbox-cell',
+                    render: function (data, type, row, meta) {
+                        var id = 'row_select_' + meta.row;
+                        return '<div class="form-check checkbox-center m-0">' +
+                               '<input type="checkbox" class="form-check-input row-select" id="' + id + '" />' +
+                               '<label class="form-check-label" for="' + id + '" title="Pilih baris"></label>' +
+                               '</div>';
                     }
                 },
-                // Klik FB (kolom 3): tampil ribuan, sort numerik
+                // Spend (kolom 3)
                 {
                     targets: 3,
                     type: 'num',
                     render: function (data, type) {
                         var v = Number(data) || 0;
-                        return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toLocaleString('id-ID');
+                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
+                        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
                     }
                 },
-                // Klik ADX (kolom 4): tampil ribuan, sort numerik
+                // Klik FB (kolom 4)
                 {
                     targets: 4,
                     type: 'num',
@@ -447,9 +476,18 @@ $(document).ready(function () {
                         return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toLocaleString('id-ID');
                     }
                 },
-                // CPR (kolom 5): tampil ribuan, sort numerik
+                // Klik ADX (kolom 5)
                 {
                     targets: 5,
+                    type: 'num',
+                    render: function (data, type) {
+                        var v = Number(data) || 0;
+                        return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toLocaleString('id-ID');
+                    }
+                },
+                // CPR (kolom 6)
+                {
+                    targets: 6,
                     type: 'num',
                     render: function (data, type) {
                         var v = Number(data) || 0;
@@ -457,16 +495,7 @@ $(document).ready(function () {
                         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
                     }
                 },
-                // CTR FB (kolom 6): tampil ribuan, sort numerik
-                {
-                    targets: 6,
-                    type: 'num',
-                    render: function (data, type) {
-                        var v = Number(data) || 0;
-                        return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toFixed(2) + '%';
-                    }
-                },
-                // CTR ADX (kolom 7): tampil ribuan, sort numerik
+                // CTR FB (kolom 7)
                 {
                     targets: 7,
                     type: 'num',
@@ -475,75 +504,130 @@ $(document).ready(function () {
                         return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toFixed(2) + '%';
                     }
                 },
-                // CPC FB (kolom 8): tampil Rupiah dengan desimal, sort numerik
+                // CTR ADX (kolom 8)
                 {
                     targets: 8,
                     type: 'num',
                     render: function (data, type) {
                         var v = Number(data) || 0;
-                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
-                        return new Intl.NumberFormat('id-ID', { 
-                            style: 'currency', 
-                            currency: 'IDR', 
-                            minimumFractionDigits: 0, 
-                            maximumFractionDigits: 0 
-                        }).format(v);
+                        return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toFixed(2) + '%';
                     }
                 },
-                // CPC ADX (kolom 9): tampil Rupiah dengan desimal, sort numerik
+                // CPC FB (kolom 9)
                 {
                     targets: 9,
                     type: 'num',
                     render: function (data, type) {
                         var v = Number(data) || 0;
                         if (type === 'sort' || type === 'type' || type === 'filter') return v;
-                        return new Intl.NumberFormat('id-ID', { 
-                            style: 'currency', 
-                            currency: 'IDR', 
-                            minimumFractionDigits: 0, 
-                            maximumFractionDigits: 0 
-                        }).format(v);
+                        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
                     }
                 },
-                // eCPM (kolom 10): tampil Rupiah dengan desimal, sort numerik
+                // CPC ADX (kolom 10)
                 {
                     targets: 10,
                     type: 'num',
                     render: function (data, type) {
                         var v = Number(data) || 0;
                         if (type === 'sort' || type === 'type' || type === 'filter') return v;
-                        return new Intl.NumberFormat('id-ID', { 
-                            style: 'currency', 
-                            currency: 'IDR', 
-                            minimumFractionDigits: 0, 
-                            maximumFractionDigits: 0 
-                        }).format(v);
+                        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
                     }
                 },
-                // ROI (kolom 11): tampil persen, sort numerik
+                // eCPM (kolom 11)
                 {
                     targets: 11,
+                    type: 'num',
+                    render: function (data, type) {
+                        var v = Number(data) || 0;
+                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
+                        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
+                    }
+                },
+                // ROI (kolom 12)
+                {
+                    targets: 12,
                     type: 'num-fmt',
                     render: function (data, type) {
                         var v = Number(data) || 0;
                         return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toFixed(2) + '%';
                     }
                 },
-                // Pendapatan (kolom 12): tampil Rupiah tanpa desimal, sort numerik
+                // Pendapatan (kolom 13)
                 {
-                    targets: 12,
+                    targets: 13,
                     type: 'num',
                     render: function (data, type) {
                         var v = Number(data) || 0;
                         if (type === 'sort' || type === 'type' || type === 'filter') return v;
                         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
-                        // Atau: return formatCurrencyIDR(v);
                     }
                 }
             ],
-            order: [[11, 'desc']]
+            order: [[12, 'desc']]
             // ... existing code ...
         });
+
+        // Filter hanya baris yang dicentang saat mode aktif
+        $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+            if (!window.showOnlySelected) return true;
+            var rowNode = table.row(dataIndex).node();
+            var checked = $(rowNode).find('input.row-select').prop('checked');
+            return !!checked;
+        });
+
+        // Header: pilih semua, sinkron highlight
+        $('#select_all_rows').off('change').on('change', function () {
+            var checked = $(this).is(':checked');
+            var $inputs = $('#table_traffic_country tbody input.row-select').prop('checked', checked);
+            $inputs.each(function () {
+                $(this).closest('tr').toggleClass('selected-row', checked);
+            });
+            table.draw(false);
+        });
+
+        // Per-baris: toggle highlight dan sinkron header
+        $('#table_traffic_country tbody').off('change', 'input.row-select').on('change', 'input.row-select', function () {
+            var $tr = $(this).closest('tr');
+            $tr.toggleClass('selected-row', $(this).is(':checked'));
+
+            var all = $('#table_traffic_country tbody input.row-select').length;
+            var selected = $('#table_traffic_country tbody input.row-select:checked').length;
+            $('#select_all_rows').prop('checked', all > 0 && selected === all);
+
+            if (window.showOnlySelected) {
+                table.draw(false);
+            }
+        });
+
+        // Saat redraw, pastikan highlight sesuai state checkbox
+        table.on('draw', function () {
+            $('#table_traffic_country tbody input.row-select').each(function () {
+                $(this).closest('tr').toggleClass('selected-row', $(this).is(':checked'));
+            });
+            var all = $('#table_traffic_country tbody input.row-select').length;
+            var selected = $('#table_traffic_country tbody input.row-select:checked').length;
+            $('#select_all_rows').prop('checked', all > 0 && selected === all);
+        });
+
+        // Fallback copy ke clipboard
+        function fallbackCopyText(text) {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.top = '-1000px';
+            ta.style.left = '-1000px';
+            document.body.appendChild(ta);
+            ta.focus();
+            ta.select();
+            try {
+                document.execCommand('copy');
+                alert('Data terpilih berhasil dicopy ke clipboard.');
+            } catch (e) {
+                alert('Gagal menyalin ke clipboard.');
+            } finally {
+                document.body.removeChild(ta);
+            }
+        }
         // ... existing code ...
     }
     // Fungsi untuk generate charts (hanya world map)
@@ -692,7 +776,7 @@ $(document).ready(function () {
                     }
                 },
                 mapNavigation: {
-                    enabled: true,
+                    enabled: false,
                     buttonOptions: {
                         verticalAlign: 'bottom',
                         theme: {
@@ -790,8 +874,7 @@ $(document).ready(function () {
         // Simpan preferensi pengguna
         var checked = $(this).is(':checked');
         localStorage.setItem('roi_hide_zero_spend', checked ? '1' : '0');
-        var baseData = window.lastRoiData || [];
-        var displayData = applyZeroSpendFilter(baseData);
+        var displayData = applyZeroSpendFilter();
         updateCountryOptionsFromRoi(displayData);
         updateSummaryBoxes(displayData);
         initializeDataTable(displayData);

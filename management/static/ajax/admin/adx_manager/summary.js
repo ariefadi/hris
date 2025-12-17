@@ -1,7 +1,6 @@
 /**
  * Reference Ajax AdX Summary
  */
-
 $().ready(function () {
     report_eror = function (jqXHR, exception) {
         var msg = '';
@@ -37,15 +36,15 @@ $().ready(function () {
     }).datepicker('setDate', today);
     // Initialize Select2 for account
     $('#account_filter').select2({
-        placeholder: '-- Pilih Akun Terdaftar --',
+        placeholder: '-- Pilih Account Terdaftar --',
         allowClear: true,
         width: '100%',
         height: '100%',
         theme: 'bootstrap4'
     });
-    // Initialize Select2 for site filter
-    $('#site_filter').select2({
-        placeholder: '-- Pilih Domain --',
+    // Initialize Select2 for domain
+    $('#domain_filter').select2({
+        placeholder: '-- Pilih Domain Terdaftar --',
         allowClear: true,
         width: '100%',
         height: '100%',
@@ -59,87 +58,65 @@ $().ready(function () {
     $('#btn_load_data').click(function (e) {
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
-        var selected_accounts = $("#account_filter").val();
-        var selected_sites = $("#site_filter").val();
+        var selected_account = $("#account_filter").val();
+        var selected_domain = $("#domain_filter").val();
         if (tanggal_dari != "" && tanggal_sampai != "") {
             e.preventDefault();
             $("#overlay").show();
-            loadSitesList();
-            load_adx_summary_data(tanggal_dari, tanggal_sampai, selected_accounts, selected_sites);
-            load_adx_traffic_country_data();
+            if (selected_account != "") {
+                adx_site_list();
+            }
+            // adx_account_list();
+            load_adx_summary_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain);
+            load_adx_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain);
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
         }
     });
-    function loadSitesList() {
-        var selectedAccounts = $("#account_filter").val() || "";
-        // Simpan pilihan domain yang sudah dipilih sebelumnya
-        var previouslySelected = $("#site_filter").val() || [];
-        
-        $.ajax({
+    function adx_site_list() {
+        var selected_account = $("#account_filter").val();
+        return $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
-            dataType: 'json',
             data: {
-                'selected_accounts': selectedAccounts
+                selected_accounts: selected_account
             },
             headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+                'X-CSRFToken': csrftoken
             },
             success: function (response) {
-                if (response.status) {
-                    var select_site = $("#site_filter");
-                    select_site.empty();
-                    
-                    // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
-                    var validPreviousSelections = [];
-                    $.each(response.data, function (index, site) {
-                        var isSelected = previouslySelected.includes(site);
-                        if (isSelected) {
-                            validPreviousSelections.push(site);
-                        }
-                        select_site.append(new Option(site, site, false, isSelected));
-                    });
-                    
-                    // Set nilai yang dipilih kembali
-                    if (validPreviousSelections.length > 0) {
-                        select_site.val(validPreviousSelections);
-                    }
-                    
-                    select_site.trigger('change');
+                if (response && response.status) {
+                    $('#domain_filter')
+                        .val(response.data)
+                        .trigger('change');
                 }
             },
             error: function (xhr, status, error) {
-                report_eror(xhr, status);
+                report_eror(xhr, error);
             }
         });
     }
     // Fungsi untuk load data traffic per country
-    function load_adx_traffic_country_data() {
-        var startDate = $('#tanggal_dari').val();
-        var endDate = $('#tanggal_sampai').val();
-        var selectedAccounts = $("#account_filter").val();
-        var selectedSites = $("#site_filter").val();
+    function load_adx_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain) {
         // Convert array to comma-separated string for backend
-        var siteFilter = '';
-        if (selectedSites && selectedSites.length > 0) {
-            siteFilter = selectedSites.join(',');
+        var domainFilter = '';
+        if (selected_domain && selected_domain.length > 0) {
+            domainFilter = selected_domain.join(',');
         }
         // AJAX request
         $.ajax({
             url: '/management/admin/page_adx_traffic_country',
             type: 'GET',
             data: {
-                start_date: startDate,
-                end_date: endDate,
-                selected_accounts: selectedAccounts,
-                selected_sites: siteFilter
+                start_date: tanggal_dari,
+                end_date: tanggal_sampai,
+                selected_account: selected_account,
+                selected_domains: domainFilter
             },
             headers: {
-                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+                'X-CSRFToken': csrftoken
             },
-            success: function(response) {
+            success: function (response) {
                 if (response && response.status) {
                     // Generate charts if data available
                     if (response.data && response.data.length > 0) {
@@ -161,7 +138,7 @@ $().ready(function () {
                     alert('Error: ' + errorMsg);
                 }
             },
-            error: function(xhr, status, error) {
+            error: function (xhr, status, error) {
                 console.error('[DEBUG] AJAX Error:', {
                     xhr: xhr,
                     status: status,
@@ -173,15 +150,20 @@ $().ready(function () {
     }
 });
 
-function load_adx_summary_data(tanggal_dari, tanggal_sampai, selectedAccounts, selectedSites) {
+function load_adx_summary_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain) {
+    // Convert array to comma-separated string for backend
+    var domainFilter = '';
+    if (selected_domain && selected_domain.length > 0) {
+        domainFilter = selected_domain.join(',');
+    }
     $.ajax({
         url: '/management/admin/page_adx_summary',
         type: 'GET',
         data: {
             'start_date': tanggal_dari,
             'end_date': tanggal_sampai,
-            'selected_accounts': selectedAccounts,
-            'selected_sites': selectedSites
+            'selected_account': selected_account,
+            'selected_domain': domainFilter
         },
         headers: {
             'X-CSRFToken': csrftoken
@@ -216,7 +198,7 @@ function load_adx_summary_data(tanggal_dari, tanggal_sampai, selectedAccounts, s
                             } else {
                                 console.error('Highcharts failed to load after retry.');
                             }
-                            
+
                         }, 1000);
                     }
                 }
@@ -322,7 +304,12 @@ function create_revenue_line_chart(data) {
         }
     });
 }
-// Fungsi untuk generate charts
+
+let trafficCharts = {
+    impressions: null,
+    revenue: null
+};
+
 function generateTrafficCountryCharts(data) {
     if (!data || data.length === 0) return;
     // Sort data by impressions and take top 10
@@ -330,24 +317,24 @@ function generateTrafficCountryCharts(data) {
         return (b.impressions || 0) - (a.impressions || 0);
     }).slice(0, 10);
     // Prepare data for charts
-    var countries = sortedData.map(function (item) {
-        return item.country_name || 'Unknown';
-    });
-    var impressions = sortedData.map(function (item) {
-        return item.impressions || 0;
-    });
-    var clicks = sortedData.map(function (item) {
-        return item.clicks || 0;
-    });
-    var revenue = sortedData.map(function (item) {
-        return item.revenue || 0;
-    });
-    // Create charts if Chart.js is available
+    var countries = sortedData.map(item => item.country_name || 'Unknown');
+    var impressions = sortedData.map(item => item.impressions || 0);
+    var clicks = sortedData.map(item => item.clicks || 0);
+    var revenue = sortedData.map(item => item.revenue || 0);
     if (typeof Chart !== 'undefined') {
-        // Impressions Chart
+
+        // ---------------------------
+        // IMPRESSIONS CHART (BAR)
+        // ---------------------------
         var ctx1 = document.getElementById('impressionsChart');
+
         if (ctx1) {
-            new Chart(ctx1, {
+            // destroy old chart if exists
+            if (trafficCharts.impressions !== null) {
+                trafficCharts.impressions.destroy();
+            }
+
+            trafficCharts.impressions = new Chart(ctx1, {
                 type: 'bar',
                 data: {
                     labels: countries,
@@ -362,17 +349,21 @@ function generateTrafficCountryCharts(data) {
                 options: {
                     responsive: true,
                     scales: {
-                        y: {
-                            beginAtZero: true
-                        }
+                        y: { beginAtZero: true }
                     }
                 }
             });
         }
-        // Revenue Chart
+        // ---------------------------
+        // REVENUE CHART (DOUGHNUT)
+        // ---------------------------
         var ctx2 = document.getElementById('revenueChart');
         if (ctx2) {
-            new Chart(ctx2, {
+            // destroy old chart if exists
+            if (trafficCharts.revenue !== null) {
+                trafficCharts.revenue.destroy();
+            }
+            trafficCharts.revenue = new Chart(ctx2, {
                 type: 'doughnut',
                 data: {
                     labels: countries,
@@ -381,8 +372,7 @@ function generateTrafficCountryCharts(data) {
                         data: revenue,
                         backgroundColor: [
                             '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
-                            '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384',
-                            '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF', '#FF9F40'
+                            '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
                         ]
                     }]
                 },
@@ -395,9 +385,9 @@ function generateTrafficCountryCharts(data) {
         }
     }
 }
+
 function formatDate(dateString) {
     if (!dateString) return 'N/A';
-
     var months = [
         'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
         'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
@@ -408,6 +398,7 @@ function formatDate(dateString) {
     var year = date.getFullYear();
     return day + ' ' + month + ' ' + year;
 }
+
 function formatNumber(num, decimals = 0) {
     if (num === null || num === undefined || isNaN(num)) {
         return '0';
@@ -417,6 +408,7 @@ function formatNumber(num, decimals = 0) {
         maximumFractionDigits: decimals
     });
 }
+
 function getCookie(name) {
     let cookieValue = null;
     if (document.cookie && document.cookie !== '') {

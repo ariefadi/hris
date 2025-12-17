@@ -40,10 +40,10 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         # range tanggal hari ini
         today_dt = datetime.now().date()
-        # start_date = today_dt.strftime('%Y-%m-%d')
-        # end_date = today_dt.strftime('%Y-%m-%d')
-        start_date = '2025-11-29'
-        end_date = '2025-11-29'
+        start_date = today_dt.strftime('%Y-%m-%d')
+        end_date = today_dt.strftime('%Y-%m-%d')
+        # start_date = '2025-11-29'
+        # end_date = '2025-11-29'
         self.stdout.write(self.style.WARNING(
             f"Menarik dan menyimpan AdX per domain untuk range {start_date} s/d {end_date}."
         ))

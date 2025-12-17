@@ -1,4 +1,5 @@
 
+from ast import If
 from google.auth import credentials
 import pymysql.cursors
 import json
@@ -409,12 +410,80 @@ class data_mysql:
                 'data': f'Terjadi error {e!r}, error nya {e.args[0]}'
             }
 
+    def get_all_adx_domain_data(self):
+        """Get user data by user_mail"""
+        sql = """
+            SELECT a.account_id, a.data_adx_domain 
+            FROM data_adx_domain a
+            INNER JOIN app_credentials b ON a.account_id = b.account_id
+            GROUP BY a.data_adx_domain
+            ORDER BY a.account_id ASC
+        """
+        try:
+            if not self.execute_query(sql,):
+                raise pymysql.Error("Failed to fetch user data")
+            result = self.cur_hris.fetchall()
+            return {
+                "status": True,
+                "data": result
+            }
+        except pymysql.Error as e:
+            return {
+                "status": False,
+                'data': f'Terjadi error {e!r}, error nya {e.args[0]}'
+            }
+
+    def get_all_domain(self):
+        """Get all domain collected"""
+        sql = """
+            SELECT data_adx_domain FROM data_adx_domain
+            GROUP BY data_adx_domain
+        """
+        try:
+            if not self.execute_query(sql,):
+                raise pymysql.Error("Failed to fetch domain")
+            result = self.cur_hris.fetchall()
+            return {
+                "status": True,
+                "data": result
+            }
+        except pymysql.Error as e:
+            return {
+                "status": False,
+                'data': f'Terjadi error {e!r}, error nya {e.args[0]}'
+            }
+
     def get_all_adx_account_data_user(self, user_id):
         """Get user data by user_mail"""
         sql = """
             SELECT * FROM app_credentials a
             INNER JOIN app_credentials_assign b ON b.account_id = a.account_id
             WHERE b.user_id = %s
+        """
+        try:
+            if not self.execute_query(sql, (user_id)): 
+                raise pymysql.Error("Failed to fetch user data")
+            result = self.cur_hris.fetchall()
+            return {
+                "status": True,
+                "data": result
+            }
+        except pymysql.Error as e:
+            return {
+                "status": False,
+                'data': f'Terjadi error {e!r}, error nya {e.args[0]}'
+            }
+
+    def get_all_adx_domain_data_user(self, user_id):
+        """Get user data by user_mail"""
+        sql = """
+            SELECT a.account_id, a.data_adx_domain 
+            FROM data_adx_domain a
+            INNER JOIN app_credentials b ON a.account_id = b.account_id
+            INNER JOIN app_credentials_assign c ON b.account_id = c.account_id
+            WHERE c.user_id = %s
+            GROUP BY a.data_adx_domain
+            ORDER BY a.account_id ASC
         """
         try:
             if not self.execute_query(sql, (user_id)): 
@@ -959,6 +1028,28 @@ class data_mysql:
             }
         return hasil
 
+    def master_domain_ads(self):
+        sql = '''
+            SELECT a.account_ads_id AS 'account_id', a.data_ads_domain
+            FROM data_ads_campaign a
+            LEFT JOIN master_account_ads b ON a.account_ads_id = b.account_id
+            LEFT JOIN app_users c ON b.account_owner = c.user_id
+            GROUP BY a.data_ads_domain
+        '''
+        try:
+            self.cur_hris.execute(sql)
+            datanya = self.cur_hris.fetchall()
+            hasil = {
+                "status": True,
+                "data": datanya
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return hasil
+
     def get_last_update_ads_traffic_country(self):
         sql = '''
             SELECT MAX(mdd) AS 'last_update'
@@ -1368,8 +1459,7 @@ class data_mysql:
                 'status': True,
                 'data': results if results else []
             }
-        except pymysql.Error as e:
-            return {
+        except pymysql.Error as e:            return {
                 'status': False,
                 'error': f'Database error: {str(e)}'
             }
@@ -1929,41 +2019,74 @@ class data_mysql:
             }
         return {'hasil': hasil}
         
-    def get_all_adx_traffic_account_by_params(self, user_mail, start_date, end_date, selected_sites):
+    def get_all_adx_traffic_account_by_params(self, start_date, end_date, selected_account = None, selected_domain_list = None):
         try:
+            # --- 1. Pastikan selected_domain_list adalah list string
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+            # --- 2. Buat kondisi LIKE untuk setiap domain
+            like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_params = [f"%{domain}%" for domain in data_domain_list] 
+            # base_sql = [
+            #     "SELECT",
+            #     "\trs.date AS 'date',",
+            #     "\trs.site_name AS 'site_name',"
+            #     "\tSUM(rs.impressions) AS 'impressions',",
+            #     "\tSUM(rs.clicks) AS 'clicks',",
+            #     "\tSUM(rs.cpc) AS 'cpc',",
+            #     "\tSUM(rs.ctr) AS 'ctr',",
+            #     "\tSUM(rs.cpm) AS 'cpm',",
+            #     "\tSUM(rs.revenue) AS 'revenue'",
+            #     "FROM (",
+            #         "\tSELECT",
+            #         "\t\ta.data_adx_domain AS 'site_name',",
+            #         "\t\ta.data_adx_domain_tanggal AS 'date',",
+            #         "\t\ta.data_adx_domain_impresi AS 'impressions',",
+            #         "\t\ta.data_adx_domain_click AS 'clicks',",
+            #         "\t\ta.data_adx_domain_cpc AS 'cpc',",
+            #         "\t\ta.data_adx_domain_ctr AS 'ctr',",
+            #         "\t\ta.data_adx_domain_cpm AS 'cpm',",
+            #         "\t\ta.data_adx_domain_revenue AS 'revenue'",
+            #         "\tFROM data_adx_domain a",
+            #         "\tWHERE",
+            # ]
+
             base_sql = [
                 "SELECT",
-                "\ta.account_id, a.account_name, a.user_mail, b.data_adx_domain AS 'site_name',",
-                "\tb.data_adx_domain_tanggal AS 'date', b.data_adx_domain_impresi AS 'impressions',",
-                "\tb.data_adx_domain_click AS 'clicks', b.data_adx_domain_cpc AS 'cpc', b.data_adx_domain_ctr AS 'ctr',",
-                "\tb.data_adx_domain_cpm AS 'cpm', b.data_adx_domain_revenue AS 'revenue'",
-                "FROM",
-                "\tapp_credentials a",
-                "INNER JOIN data_adx_domain b ON a.account_id = b.account_id",
-                "WHERE a.user_mail = %s",
-                "AND b.data_adx_domain_tanggal BETWEEN %s AND %s",
-            ]
-
-            params = [user_mail, start_date, end_date]
-
-            # Normalize selected_sites which may be a CSV string or list
-            sites_list = []
-            if selected_sites:
-                if isinstance(selected_sites, str):
-                    sites_list = [s.strip() for s in selected_sites.split(',') if s.strip()]
-                elif isinstance(selected_sites, (list, tuple)):
-                    sites_list = [str(s).strip() for s in selected_sites if str(s).strip()]
-
-            if sites_list:
-                placeholders = ','.join(['%s'] * len(sites_list))
-                base_sql.append(f"AND b.data_adx_domain IN ({placeholders})")
-                params.extend(sites_list)
-
-            base_sql.append("ORDER BY b.data_adx_domain ASC, b.data_adx_domain_tanggal ASC")
+                "\ta.account_id, a.account_name, a.user_mail,",
+                "\tb.data_adx_country_tanggal AS 'date',",
+                "\tb.data_adx_country_domain AS 'site_name',",
+                "\tb.data_adx_country_cd AS 'country_code',",
+                "\tSUM(b.data_adx_country_impresi) AS 'impressions_adx',",
+                "\tSUM(b.data_adx_country_click) AS 'clicks_adx',",
+                "\tCASE WHEN SUM(b.data_adx_country_click) > 0 THEN ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 0) ELSE 0 END AS 'cpc_adx',",
+                "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0 THEN ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000) ELSE 0 END AS 'ecpm',",
+                "\tSUM(b.data_adx_country_revenue) AS 'revenue'",
+                "FROM app_credentials a",
+                "INNER JOIN data_adx_country b ON a.account_id = b.account_id",
+                "WHERE",
+            ]    
+            params = []
+            base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+            # Normalize selected_account and apply account filter
+            if selected_account:
+                base_sql.append(f"\tAND a.account_id LIKE %s")
+                params.append(f"{selected_account}%")
+            # Normalize selected_sites (CSV string or list) and apply domain filter
+            if data_domain_list:
+                base_sql.append(f"\tAND ({like_conditions})")
+                params.extend(like_params)
+            base_sql.append("GROUP BY b.data_adx_country_tanggal, b.data_adx_country_domain, b.data_adx_country_cd")
+            base_sql.append("ORDER BY b.data_adx_country_tanggal ASC")
             sql = "\n".join(base_sql)
-
             if not self.execute_query(sql, tuple(params)):
-                raise pymysql.Error("Failed to get all adx traffic account by params")
+                raise pymysql.Error("Failed to get all adx traffic account by params")  
             data = self.fetch_all()
             if not self.commit():
                 raise pymysql.Error("Failed to commit get all adx traffic account by params")
@@ -1979,9 +2102,74 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def get_all_adx_traffic_country_by_params(self, user_mail, start_date, end_date, selected_sites, countries_list):
+    def get_all_adx_monitoring_account_by_params(self, start_date, end_date, selected_account = None, selected_domain_list = None):
         try:
-            sql_parts = [
+            # --- 1. Pastikan selected_domain_list adalah list string
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+            # --- 2. Buat kondisi LIKE untuk setiap domain
+            like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_params = [f"%{domain}%" for domain in data_domain_list] 
+            base_sql = [
+                "SELECT",
+                "\tb.data_adx_country_domain AS 'site_name',",
+                "\tb.data_adx_country_cd AS 'country_code',",
+                "\tSUM(b.data_adx_country_revenue) AS 'revenue'",
+                "FROM app_credentials a",
+                "INNER JOIN data_adx_country b ON a.account_id = b.account_id",
+                "WHERE",
+            ]
+            params = []
+            base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+            # Normalize selected_account and apply account filter
+            if selected_account:
+                base_sql.append(f"\tAND a.account_id LIKE %s")
+                params.append(f"{selected_account}%")
+            # Normalize selected_sites (CSV string or list) and apply domain filter
+            if data_domain_list:
+                base_sql.append(f"\tAND ({like_conditions})")
+                params.extend(like_params)
+            base_sql.append("GROUP BY b.data_adx_country_domain, b.data_adx_country_cd")
+            base_sql.append("ORDER BY b.data_adx_country_domain ASC")
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get all adx monitoring account by params")  
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get all adx monitoring account by params")
+            hasil = {
+                "status": True,
+                "message": "Data adx monitoring account berhasil diambil",
+                "data": data
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+
+
+    def get_all_adx_traffic_country_by_params(self, start_date, end_date, selected_account = None, selected_domain_list = None, countries_list = None):
+        try:
+            # --- 1. Pastikan selected_domain_list adalah list string
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+            # --- 2. Buat kondisi LIKE untuk setiap domain
+            like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_params = [f"%{domain}%" for domain in data_domain_list] 
+            base_sql = [
                 "SELECT",
                 "\ta.account_id, a.account_name, a.user_mail,",
                 "\tb.data_adx_country_nm AS country_name,",
@@ -2002,39 +2190,18 @@ class data_mysql:
                 "INNER JOIN data_adx_country b ON a.account_id = b.account_id",
                 "WHERE",
             ]
-
             params = []
-
-            # Handle user_mail filter (single or multiple)
-            if isinstance(user_mail, (list, tuple)):
-                user_mail_list = [str(u).strip() for u in user_mail if str(u).strip()]
-                if user_mail_list:
-                    placeholders = ','.join(['%s'] * len(user_mail_list))
-                    sql_parts.append(f"a.user_mail IN ({placeholders})")
-                    params.extend(user_mail_list)
-                else:
-                    sql_parts.append("a.user_mail = %s")
-                    params.append(user_mail if isinstance(user_mail, str) else '')
-            else:
-                sql_parts.append("a.user_mail = %s")
-                params.append(user_mail)
-
             # Date range
-            sql_parts.append("AND b.data_adx_country_tanggal BETWEEN %s AND %s")
+            base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
             params.extend([start_date, end_date])
-
+            # Normalize selected_account and apply account filter
+            if selected_account:
+                base_sql.append(f"\tAND a.account_id LIKE %s")
+                params.append(f"{selected_account}%")
             # Normalize selected_sites (CSV string or list) and apply domain filter
-            sites_list = []
-            if selected_sites:
-                if isinstance(selected_sites, str):
-                    sites_list = [s.strip() for s in selected_sites.split(',') if s.strip()]
-                elif isinstance(selected_sites, (list, tuple)):
-                    sites_list = [str(s).strip() for s in selected_sites if str(s).strip()]
-            if sites_list:
-                placeholders = ','.join(['%s'] * len(sites_list))
-                sql_parts.append(f"AND b.data_adx_country_domain IN ({placeholders})")
-                params.extend(sites_list)
-
+            if data_domain_list:
+                base_sql.append(f"\tAND ({like_conditions})")
+                params.extend(like_params)
             # Normalize countries_list and apply country code filter
             country_codes = []
             if countries_list:
@@ -2044,25 +2211,21 @@ class data_mysql:
                     country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
             if country_codes:
                 placeholders = ','.join(['%s'] * len(country_codes))
-                sql_parts.append(f"AND b.data_adx_country_cd IN ({placeholders})")
+                base_sql.append(f"AND b.data_adx_country_cd IN ({placeholders})")
                 params.extend(country_codes)
-
-            sql_parts.append("GROUP BY b.data_adx_country_cd, b.data_adx_country_nm")
-            sql_parts.append("ORDER BY revenue DESC")
-            sql = "\n".join(sql_parts)
-
+            base_sql.append("GROUP BY b.data_adx_country_cd, b.data_adx_country_nm")
+            base_sql.append("ORDER BY revenue DESC")
+            sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all adx traffic country by params")
             data_rows = self.fetch_all()
             if not self.commit():
                 raise pymysql.Error("Failed to commit get all adx traffic country by params")
-
             # Build summary
             total_impressions = sum((row.get('impressions') or 0) for row in data_rows) if data_rows else 0
             total_clicks = sum((row.get('clicks') or 0) for row in data_rows) if data_rows else 0
             total_revenue = sum((row.get('revenue') or 0) for row in data_rows) if data_rows else 0.0
             total_ctr_ratio = (float(total_clicks) / float(total_impressions)) if total_impressions else 0.0
-
             return {
                 "status": True,
                 "message": "Data adx traffic country berhasil diambil",
@@ -2072,6 +2235,77 @@ class data_mysql:
                     "total_clicks": total_clicks,
                     "total_revenue": total_revenue,
                     "total_ctr": total_ctr_ratio
+                }
+            }
+        except pymysql.Error as e:
+            return {
+                "status": False,
+                "error": f"Terjadi error {e!r}, error nya {e.args[0]}"
+            }
+
+    def get_all_adx_monitoring_country_by_params(self, start_date, end_date, selected_account = None, selected_domain_list = None, countries_list = None):
+        try:
+            # --- 1. Pastikan selected_domain_list adalah list string
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+            # --- 2. Buat kondisi LIKE untuk setiap domain
+            like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_params = [f"%{domain}%" for domain in data_domain_list] 
+            base_sql = [
+                "SELECT",
+                "\ta.account_id, a.account_name, a.user_mail,",
+                "\tb.data_adx_country_domain AS 'site_name',",
+                "\tb.data_adx_country_nm AS country_name,",
+                "\tb.data_adx_country_cd AS country_code,",
+                "\tSUM(b.data_adx_country_revenue) AS revenue",
+                "FROM app_credentials a",
+                "INNER JOIN data_adx_country b ON a.account_id = b.account_id",
+                "WHERE",
+            ]
+            params = []
+            # Date range
+            base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+            # Normalize selected_account and apply account filter
+            if selected_account:
+                base_sql.append(f"\tAND a.account_id LIKE %s")
+                params.append(f"{selected_account}%")
+            # Normalize selected_sites (CSV string or list) and apply domain filter
+            if data_domain_list:
+                base_sql.append(f"\tAND ({like_conditions})")
+                params.extend(like_params)
+            # Normalize countries_list and apply country code filter
+            country_codes = []
+            if countries_list:
+                if isinstance(countries_list, str):
+                    country_codes = [c.strip() for c in countries_list.split(',') if c.strip()]
+                elif isinstance(countries_list, (list, tuple)):
+                    country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
+            if country_codes:
+                placeholders = ','.join(['%s'] * len(country_codes))
+                base_sql.append(f"AND b.data_adx_country_cd IN ({placeholders})")
+                params.extend(country_codes)
+            base_sql.append("GROUP BY b.data_adx_country_domain, b.data_adx_country_cd, b.data_adx_country_nm")
+            base_sql.append("ORDER BY revenue DESC")
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get all adx traffic country by params")
+            data_rows = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get all adx traffic country by params")
+            # Build summary
+            total_revenue = sum((row.get('revenue') or 0) for row in data_rows) if data_rows else 0.0
+            return {
+                "status": True,
+                "message": "Data adx monitoring country berhasil diambil",
+                "data": data_rows,
+                "summary": {
+                    "total_revenue": total_revenue
                 }
             }
         except pymysql.Error as e:
@@ -2160,6 +2394,33 @@ class data_mysql:
     #             'error': f'Database error: {str(e)}'
     #         }
 
+    def fetch_ads_campaign_list(self, ads_id):
+        try:
+            base_sql = [
+                "SELECT",
+                "\tDISTINCT data_ads_domain AS 'site_name'",
+                "FROM",
+                "\tdata_ads_campaign",
+                "WHERE account_ads_id = %s",
+            ]
+            params = [ads_id]
+            if not self.execute_query("\n".join(base_sql), tuple(params)):
+                raise pymysql.Error("Failed to get ads sites list by params")
+            data_rows = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get ads sites list by params")
+            hasil = {
+                "status": True,
+                "message": "Data ads traffic campaign berhasil diambil",
+                "data": [row['site_name'] for row in data_rows]
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                "error": f"Terjadi error {e!r}, error nya {e.args[0]}"
+            }
+        return {'hasil': hasil}
+
     def fetch_ads_sites_list(self, ads_id):
         try:
             base_sql = [
@@ -2187,31 +2448,63 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def fetch_country_ads_list(self, data_account, tanggal_dari, tanggal_sampai):
+    def fetch_country_ads_list(self, tanggal_dari, tanggal_sampai, selected_account, selected_domain_list):
         try:
+            # --- 1. Normalisasi input ---
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            elif not isinstance(selected_domain_list, list):
+                selected_domain_list = []
+
+            # --- 2. Sanitasi ---
+            data_domain_list = [
+                str(d).strip()
+                for d in selected_domain_list
+                if d is not None and str(d).strip()
+            ]
+
+            # --- 3. Buat LIKE clause hanya jika ada domain ---
+            if data_domain_list:
+                like_conditions = " OR ".join(["data_ads_domain LIKE %s"] * len(data_domain_list))
+                like_clause = f"\tAND ({like_conditions})"
+                like_params = [f"%{domain}%" for domain in data_domain_list]
+            else:
+                like_clause = ""      # tidak menambah filter domain
+                like_params = []      # tidak menambah parameter
+
             base_sql = [
                 "SELECT",
                 "\tdata_ads_country_cd AS 'country_code',",
                 "\tdata_ads_country_nm AS 'country_name'",
                 "FROM",
                 "\tdata_ads_country",
-                "WHERE account_ads_id = %s",
-                "AND data_ads_country_tanggal BETWEEN %s AND %s",
+                "WHERE data_ads_country_tanggal BETWEEN %s AND %s",
+                "\tAND account_ads_id LIKE %s",
+                f"{like_clause}",
                 "GROUP BY data_ads_country_cd, data_ads_country_nm",
-                "ORDER BY data_ads_country_nm ASC",
+                "ORDER BY data_ads_country_cd ASC",
             ]
-            params = [data_account, tanggal_dari, tanggal_sampai]
+
+            params = [tanggal_dari, tanggal_sampai, f"{selected_account}%"] + like_params
             sql = "\n".join(base_sql)
+
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all country list by params")
+
             data = self.fetch_all()
             if not self.commit():
                 raise pymysql.Error("Failed to commit get all country list by params")
+
             hasil = {
                 "status": True,
                 "message": "Data country list berhasil diambil",
                 "data": data
             }
+
         except pymysql.Error as e:
             hasil = {
                 "status": False,
@@ -2223,7 +2516,9 @@ class data_mysql:
                 "message": "Gagal mengambil data negara.",
                 "error": str(e)
             }
+
         return {"hasil": hasil}
+
 
     def get_all_ads_domain_by_active(self, data_account, tanggal_dari, tanggal_sampai, data_sub_domain = None):   
         try:
@@ -2273,8 +2568,19 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def get_all_ads_traffic_campaign_by_params(self, data_account, tanggal_dari, tanggal_sampai, data_sub_domain = None):   
+    def get_all_ads_traffic_campaign_by_params(self, tanggal_dari, tanggal_sampai, data_account, selected_domain_list = None):   
         try:
+            # --- 1. Pastikan selected_domain_list adalah list string
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            selected_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+            # --- 2. Buat kondisi LIKE untuk setiap domain
+            like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(selected_domain_list))
+            like_params = [f"%{domain}%" for domain in selected_domain_list] 
             base_sql = [
                 "SELECT",
                 "\trs.account_id, rs.account_name, rs.account_email,",
@@ -2298,26 +2604,20 @@ class data_mysql:
                     "\t\tb.data_ads_cpr AS 'cpr'",
                     "\tFROM master_account_ads a",
                     "\tINNER JOIN data_ads_campaign b ON a.account_id = b.account_ads_id",
-                    "\tWHERE a.account_id = %s",
-                    "\tAND b.data_ads_tanggal BETWEEN %s AND %s",
+                    "\tWHERE",
             ]
-
-            params = [data_account, tanggal_dari, tanggal_sampai]
-
-            # Tangani filter domain: jika None/kosong/list, gunakan wildcard '%'
-            sites_list = []
-            if data_sub_domain:
-                if isinstance(data_sub_domain, str):
-                    sites_list = [s.strip() for s in data_sub_domain.split(',') if s.strip()]
-                elif isinstance(data_sub_domain, (list, tuple)):
-                    sites_list = [str(s).strip() for s in data_sub_domain if str(s).strip()]
-        
-            if sites_list:
-                placeholders = ','.join(['%s'] * len(sites_list))
-                base_sql.append(f"AND b.data_ads_domain IN ({placeholders})")
-                params.extend(sites_list)
+            params = []
+            base_sql.append("b.data_ads_tanggal BETWEEN %s AND %s")
+            params.extend([tanggal_dari, tanggal_sampai])
+            if data_account:
+                base_sql.append(f"\tAND a.account_id LIKE %s")
+                params.extend([f"%{data_account}%"])
+            if selected_domain_list:
+                base_sql.append(f"\tAND ({like_conditions})")
+                params.extend(like_params)
             base_sql.append(") rs")
-            base_sql.append("GROUP BY rs.domain ASC, rs.date ASC")
+            base_sql.append("GROUP BY rs.account_name, rs.date, rs.domain")
+            base_sql.append("ORDER BY rs.date, rs.domain, rs.campaign")
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all adx traffic account by params")
@@ -2336,9 +2636,20 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def get_all_ads_traffic_country_by_params(self, data_account, tanggal_dari, tanggal_sampai, data_sub_domain = None, countries_list = None):
+    def get_all_ads_traffic_country_by_params(self, tanggal_dari, tanggal_sampai, data_account, selected_domain_list, countries_list = None):
         try:
-            sql_parts = [
+            # --- 1. Pastikan selected_domain_list adalah list string
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+            # --- 2. Buat kondisi LIKE untuk setiap domain
+            like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_domain_list))
+            like_params = [f"%{domain}%" for domain in data_domain_list] 
+            base_sql = [
                 "SELECT",
                 "\trs.account_id, rs.account_name, rs.account_email,",
                 "\trs.country_name, rs.country_code, rs.domain, rs.campaign,",
@@ -2363,22 +2674,17 @@ class data_mysql:
                     "\t\tb.data_ads_country_cpr AS 'cpr'",
                     "\tFROM master_account_ads a",
                     "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
-                    "\tWHERE a.account_id = %s",
-                    "\tAND b.data_ads_country_tanggal BETWEEN %s AND %s",
+                    "\tWHERE",
             ]
-            params = [data_account, tanggal_dari, tanggal_sampai]
-            # Tangani filter domain: jika None/kosong/list, gunakan wildcard '%'
-            sites_list = []
-            if data_sub_domain:
-                if isinstance(data_sub_domain, str):
-                    sites_list = [s.strip() for s in data_sub_domain.split(',') if s.strip()]
-                elif isinstance(data_sub_domain, (list, tuple)):
-                    sites_list = [str(s).strip() for s in data_sub_domain if str(s).strip()]
-            
-            if sites_list:
-                placeholders = ','.join(['%s'] * len(sites_list))
-                sql_parts.append(f"AND b.data_ads_domain IN ({placeholders})")
-                params.extend(sites_list)
+            params = []
+            base_sql.append("b.data_ads_country_tanggal BETWEEN %s AND %s")
+            params.extend([tanggal_dari, tanggal_sampai])
+            if data_account:
+                base_sql.append(f"\tAND a.account_id LIKE %s")
+                params.extend([f"%{data_account}%"])
+            if selected_domain_list:
+                base_sql.append(f"\tAND ({like_conditions})")
+                params.extend(like_params)
             # Normalize countries_list and apply country code filter
             country_codes = []
             if countries_list:
@@ -2388,13 +2694,12 @@ class data_mysql:
                     country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
             if country_codes:
                 placeholders = ','.join(['%s'] * len(country_codes))
-                sql_parts.append(f"AND b.data_ads_country_cd IN ({placeholders})")
+                base_sql.append(f"AND b.data_ads_country_cd IN ({placeholders})")
                 params.extend(country_codes)
-
-            sql_parts.append(") rs")
-            sql_parts.append("GROUP BY rs.country_code")
-            sql_parts.append("ORDER BY rs.country_name ASC")
-            sql = "\n".join(sql_parts)
+            base_sql.append(") rs")
+            base_sql.append("GROUP BY rs.country_code")
+            base_sql.append("ORDER BY rs.country_name ASC")
+            sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all adx traffic country by params")
             data_rows = self.fetch_all()
@@ -2451,65 +2756,112 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
+    def get_user_mail_by_account(self, account_id):
+        try:
+            base_sql = [
+                "SELECT",
+                "\ta.user_mail",
+                "FROM",
+                "\tapp_credentials a",
+                "WHERE a.account_id = %s",
+            ]
+            params = [account_id]
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get user mail by account id")
+            data = self.cur_hris.fetchone()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get user mail by account id")
+            user_mail = data.get('user_mail') if data else None
+        except pymysql.Error as e:
+            user_mail = None
+        return user_mail
+
+    def fetch_user_sites_id_list(self, tanggal_dari, tanggal_sampai, account_id):   
+        try:
+            base_sql = [
+                "SELECT",
+                "\tb.data_adx_domain AS 'site_name'",
+                "FROM",
+                "\tapp_credentials a",
+                "INNER JOIN data_adx_domain b ON a.account_id = b.account_id",
+                "WHERE b.data_adx_domain_tanggal BETWEEN %s AND %s",
+                "AND a.account_id LIKE %s",
+                "GROUP BY b.data_adx_domain",
+            ]
+            params = [tanggal_dari, tanggal_sampai, account_id]
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get all adx traffic account by params")
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get all adx traffic account by params")
+            hasil = {
+                "status": True,
+                "message": "Data ads traffic campaign berhasil diambil",
+                "data": [row['site_name'] for row in data]
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+
     def get_all_ads_roi_traffic_campaign_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None):
         try:
             # --- 1. Pastikan data_sub_domain adalah list string
             if isinstance(data_sub_domain, str):
-                data_sub_domain = [data_sub_domain.strip()]
+                data_sub_domain = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
             elif data_sub_domain is None:
                 data_sub_domain = []
             elif isinstance(data_sub_domain, (set, tuple)):
                 data_sub_domain = list(data_sub_domain)
-            data_sub_domain = [str(d).strip() for d in data_sub_domain if str(d).strip()]
-
             if not data_sub_domain:
-                raise ValueError("data_sub_domain is required and tidak boleh kosong")
-
-            # --- 2. Buat kondisi LIKE untuk setiap domain
+                raise ValueError("data_sub_domain is required and cannot be empty")
+            # --- 2. Buat kondisi LIKE untuk tiap domain
             like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
-            like_params = [f"{domain}%" for domain in data_sub_domain]
-
+            like_params = [f"%{d}%" for d in data_sub_domain]  # tambahkan % supaya match '.com'
             # --- 3. Susun query
             base_sql = [
                 "SELECT",
                 "\trs.account_id, rs.account_name, rs.account_email,",
-                "\trs.date, rs.domain, rs.campaign,",
+                "\trs.date, rs.domain, rs.campaign, rs.country_code,",
                 "\tSUM(rs.spend) AS 'spend',",
-                "\tSUM(rs.clicks) AS 'clicks',",
-                "\tSUM(rs.impressions) AS 'impressions',",
+                "\tSUM(rs.clicks_fb) AS 'clicks_fb',",
+                "\tSUM(rs.impressions_fb) AS 'impressions_fb',",
                 "\tROUND(AVG(rs.cpr), 0) AS 'cpr',",
-                "\tROUND((SUM(rs.spend)/SUM(rs.clicks)), 0) AS 'cpc'",
+                "\tROUND((SUM(rs.spend)/SUM(rs.clicks_fb)), 0) AS 'cpc_fb'",
                 "FROM (",
-                "\tSELECT",
-                "\t\ta.account_id, a.account_name, a.account_email,",
-                "\t\tb.data_ads_tanggal AS 'date',",
-                "\t\tb.data_ads_domain AS 'domain',",
-                "\t\tb.data_ads_campaign_nm AS 'campaign',",
-                "\t\tb.data_ads_spend AS 'spend',",
-                "\t\tb.data_ads_impresi AS 'impressions',",
-                "\t\tb.data_ads_click AS 'clicks',",
-                "\t\tb.data_ads_reach AS 'reach',",
-                "\t\tb.data_ads_cpr AS 'cpr'",
-                "\tFROM master_account_ads a",
-                "\tINNER JOIN data_ads_campaign b ON a.account_id = b.account_ads_id",
-                "\tWHERE b.data_ads_tanggal BETWEEN %s AND %s",
-                f"\tAND ({like_conditions})",
+                    "\tSELECT",
+                    "\t\ta.account_id, a.account_name, a.account_email,",
+                    "\t\tb.data_ads_country_tanggal AS 'date',",
+                    "\t\tb.data_ads_country_cd AS 'country_code',",
+                    "\t\tb.data_ads_country_nm AS 'country_name',",
+                    "\t\tb.data_ads_domain AS 'domain_raw',",
+                    "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS domain,",
+                    "\t\tb.data_ads_campaign_nm AS 'campaign',",
+                    "\t\tb.data_ads_country_spend AS 'spend',",
+                    "\t\tb.data_ads_country_impresi AS 'impressions_fb',",
+                    "\t\tb.data_ads_country_click AS 'clicks_fb',",
+                    "\t\tb.data_ads_country_cpr AS 'cpr'",
+                    "\tFROM master_account_ads a",
+                    "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
+                    "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
+                    f"\tAND ({like_conditions})",
                 ") rs",
-                "GROUP BY rs.date, rs.domain",
+                "GROUP BY rs.date, rs.domain, rs.country_code",
+                "ORDER BY rs.account_id, rs.date",
             ]
-
             # --- 4. Gabungkan parameter
             params = [start_date_formatted, end_date_formatted] + like_params
-
             # --- 5. Eksekusi query
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all ads roi traffic campaign by params")
-
             data = self.fetch_all()
             if not self.commit():
                 raise pymysql.Error("Failed to commit get all ads roi traffic campaign by params")
-
             hasil = {
                 "status": True,
                 "message": "Data ads traffic campaign berhasil diambil",
@@ -2529,7 +2881,68 @@ class data_mysql:
 
         return {"hasil": hasil}
 
+    def get_all_ads_roi_monitoring_campaign_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None):
+        try:
+            # --- 1. Pastikan data_sub_domain adalah list string
+            if isinstance(data_sub_domain, str):
+                data_sub_domain = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
+            elif data_sub_domain is None:
+                data_sub_domain = []
+            elif isinstance(data_sub_domain, (set, tuple)):
+                data_sub_domain = list(data_sub_domain)
+            if not data_sub_domain:
+                raise ValueError("data_sub_domain is required and cannot be empty")
+            # --- 2. Buat kondisi LIKE untuk setiap domain
+            like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
+            like_clause = f"\tAND ({like_conditions})" if like_conditions else ""
+            like_params = [f"%{d}%" for d in data_sub_domain]
+            print(f"like_params: {like_params}") 
+            # --- 3. Susun query
+            base_sql = [
+                "SELECT",
+                "\trs.account_id, rs.account_name,",
+                "\trs.domain, rs.country_code,",
+                "\tSUM(rs.spend) AS 'spend'",
+                "FROM (",
+                    "\tSELECT",
+                    "\t\ta.account_id, a.account_name,",
+                    "\t\tb.data_ads_domain AS 'domain_raw',",
+                    "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS domain,",
+                    "\t\tb.data_ads_country_cd AS 'country_code',",
+                    "\t\tb.data_ads_country_spend AS 'spend'",
+                    "\tFROM master_account_ads a",
+                    "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
+                    "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
+                    f"{like_clause}",
+                ") rs",
+                "GROUP BY rs.domain, rs.country_code"
+            ]
+            # --- 4. Gabungkan parameter
+            params = [start_date_formatted, end_date_formatted] + like_params
+            # --- 5. Eksekusi query
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get all ads roi traffic campaign by params")
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get all ads roi traffic campaign by params")
+            hasil = {
+                "status": True,
+                "message": "Data ads traffic campaign berhasil diambil",
+                "data": data
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                "data": f"Terjadi error {e!r}, error nya {e.args[0]}"
+            }
+        except Exception as e:
+            hasil = {
+                "status": False,
+                "data": f"Terjadi error {e}"
+            }
 
+        return {"hasil": hasil}
 
     # def get_all_ads_roi_traffic_country_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None, countries_list=None):
     #     try:
@@ -2617,7 +3030,7 @@ class data_mysql:
                 raise ValueError("data_sub_domain is required and cannot be empty")
             # --- 2. Buat kondisi LIKE untuk tiap domain
             like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
-            like_params = [f"{d}%" for d in data_sub_domain]  # tambahkan % supaya match '.com'
+            like_params = [f"%{d}%" for d in data_sub_domain]  # tambahkan % supaya match '.com'
             sql_parts = [
                 "SELECT",
                 "\trs.account_id, rs.account_name, rs.account_email,",
@@ -2678,9 +3091,86 @@ class data_mysql:
             }
         return {"hasil": hasil}
 
-
-    def fetch_country_list(self, selected_accounts, tanggal_dari, tanggal_sampai):
+    def get_all_ads_monitoring_country_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None, countries_list=None):
         try:
+            # --- 1. Siapkan data_sub_domain sebagai list
+            if isinstance(data_sub_domain, str):
+                data_sub_domain = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
+            elif data_sub_domain is None:
+                data_sub_domain = []
+            elif isinstance(data_sub_domain, (set, tuple)):
+                data_sub_domain = list(data_sub_domain)
+            if not data_sub_domain:
+                raise ValueError("data_sub_domain is required and cannot be empty")
+            # --- 2. Buat kondisi LIKE untuk tiap domain
+            like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
+            like_clause = f"\tAND ({like_conditions})" if like_conditions else ""
+            like_params = [f"%{d}%" for d in data_sub_domain]  # tambahkan % supaya match '.com'
+            sql_parts = [
+                "SELECT",
+                "\trs.account_id, rs.account_name, rs.domain,",
+                "\trs.country_name, rs.country_code,",
+                "\tSUM(rs.spend) AS 'spend'",
+                "FROM (",
+                    "\tSELECT",
+                    "\t\ta.account_id, a.account_name,",
+                    "\t\tb.data_ads_domain AS 'domain',",
+                    "\t\tb.data_ads_country_cd AS 'country_code',",
+                    "\t\tb.data_ads_country_nm AS 'country_name',",
+                    "\t\tb.data_ads_country_spend AS 'spend'",
+                    "\tFROM master_account_ads a",
+                    "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
+                    "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
+                     f"{like_clause}",
+            ]
+            params = [start_date_formatted, end_date_formatted] + like_params
+            # --- 3. Filter countries jika ada
+            country_codes = []
+            if countries_list:
+                if isinstance(countries_list, str):
+                    country_codes = [c.strip() for c in countries_list.split(',') if c.strip()]
+                elif isinstance(countries_list, (list, tuple)):
+                    country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
+            if country_codes:
+                placeholders = ','.join(['%s'] * len(country_codes))
+                sql_parts.append(f"AND b.data_ads_country_cd IN ({placeholders})")
+                params.extend(country_codes)
+            sql_parts.append(") rs")
+            sql_parts.append("GROUP BY rs.domain, rs.country_code")
+            sql_parts.append("ORDER BY rs.country_name ASC")
+            sql = "\n".join(sql_parts)
+            # --- 4. Eksekusi query
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get all ads roi traffic campaign by params")
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get all ads roi traffic campaign by params")
+            hasil = {
+                "status": True,
+                "message": "Data ads traffic campaign berhasil diambil",
+                "data": data
+            }
+        except Exception as e:
+            hasil = {
+                "status": False,
+                "data": f"Terjadi error {e!r}"
+            }
+        return {"hasil": hasil}
+
+
+    def fetch_country_list(self, start_date, end_date, selected_account=None, selected_domain_list=None):
+        try:
+            # --- 1. Pastikan selected_domain_list adalah list string
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+            # --- 2. Buat kondisi LIKE untuk setiap domain
+            like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_domain_list))
+            like_params = [f"%{domain}%" for domain in data_domain_list] 
             base_sql = [
                 "SELECT",
                 "\tb.data_adx_country_cd AS 'country_code',",
@@ -2688,20 +3178,23 @@ class data_mysql:
                 "FROM",
                 "\tapp_credentials a",
                 "INNER JOIN data_adx_country b ON a.account_id = b.account_id",
-                "WHERE a.user_mail = %s",
-                "AND b.data_adx_country_tanggal BETWEEN %s AND %s",
-                "GROUP BY b.data_adx_country_cd, b.data_adx_country_nm",
-                "ORDER BY b.data_adx_country_nm ASC",
+                "\tWHERE",
             ]
-
-            params = [selected_accounts, tanggal_dari, tanggal_sampai]
+            params = []
+            base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+            if selected_account:
+                base_sql.append(f"\tAND b.account_id LIKE %s")
+                params.append(f"{selected_account}%")
+            if data_domain_list:
+                base_sql.append(f"\tAND ({like_conditions})")
+                params.extend(like_params)
+            base_sql.append("GROUP BY b.data_adx_country_cd, b.data_adx_country_nm")
+            base_sql.append("ORDER BY b.data_adx_country_cd ASC")
             sql = "\n".join(base_sql)
-
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all country list by params")
-
             data = self.fetch_all()
-
             if not self.commit():
                 raise pymysql.Error("Failed to commit get all country list by params")
             hasil = {
@@ -2709,19 +3202,277 @@ class data_mysql:
                 "message": "Data country list berhasil diambil",
                 "data": data
             }
-
         except pymysql.Error as e:
             hasil = {
                 "status": False,
                 "data": f"Terjadi error {e!r}, error nya {e.args[0]}"
             }
-
         except Exception as e:
             hasil = {
                 "status": "error",
                 "message": "Gagal mengambil data negara.",
                 "error": str(e)
             }
-
         return {"hasil": hasil}
+
+    def get_all_adx_roi_country_detail_by_params(self, start_date, end_date, selected_account = None, selected_domain_list = None, countries_list = None):
+        # ... existing code ...
+        try:
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+
+            like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_params = [f"%{domain}%" for domain in data_domain_list]
+
+            base_sql = [
+                "SELECT",
+                "\tb.data_adx_country_tanggal AS 'date',",
+                "\tb.data_adx_country_domain AS 'site_name',",
+                "\tb.data_adx_country_cd AS 'country_code',",
+                "\tb.data_adx_country_nm AS 'country_name',",
+                "\tSUM(b.data_adx_country_impresi) AS impressions,",
+                "\tSUM(b.data_adx_country_click) AS clicks,",
+                "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
+                "\t\tTHEN ROUND((SUM(b.data_adx_country_click) / SUM(b.data_adx_country_impresi)) * 100, 2)",
+                "\t\tELSE 0 END AS ctr,",
+                "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
+                "\t\tTHEN ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000)",
+                "\t\tELSE 0 END AS ecpm,",
+                "\tCASE WHEN SUM(b.data_adx_country_click) > 0",
+                "\t\tTHEN ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 0)",
+                "\t\tELSE 0 END AS cpc,",
+                "\tSUM(b.data_adx_country_revenue) AS 'revenue'",
+                "FROM app_credentials a",
+                "INNER JOIN data_adx_country b ON a.account_id = b.account_id",
+                "WHERE",
+            ]
+            params = []
+            base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+
+            if selected_account:
+                base_sql.append("\tAND a.account_id LIKE %s")
+                params.append(f"{selected_account}%")
+
+            if data_domain_list:
+                base_sql.append(f"\tAND ({like_conditions})")
+                params.extend(like_params)
+
+            country_codes = []
+            if countries_list:
+                if isinstance(countries_list, str):
+                    country_codes = [c.strip() for c in countries_list.split(',') if c.strip()]
+                elif isinstance(countries_list, (list, tuple)):
+                    country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
+            if country_codes:
+                placeholders = ','.join(['%s'] * len(country_codes))
+                base_sql.append(f"AND b.data_adx_country_cd IN ({placeholders})")
+                params.extend(country_codes)
+
+            base_sql.append("GROUP BY b.data_adx_country_tanggal, b.data_adx_country_domain, b.data_adx_country_cd, b.data_adx_country_nm")
+            base_sql.append("ORDER BY b.data_adx_country_tanggal ASC")
+            sql = "\n".join(base_sql)
+
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get adx country detail by params")
+            data_rows = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit adx country detail by params")
+            return {
+                "status": True,
+                "message": "Detail AdX country berhasil diambil",
+                "data": data_rows
+            }
+        except pymysql.Error as e:
+            return {"status": False, "error": f"Terjadi error {e!r}, error nya {e.args[0]}"}
+        # ... existing code ...
+
+    def get_all_ads_roi_country_detail_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None, countries_list=None):
+        # ... existing code ...
+        try:
+            if isinstance(data_sub_domain, str):
+                data_sub_domain = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
+            elif data_sub_domain is None:
+                data_sub_domain = []
+            elif isinstance(data_sub_domain, (set, tuple)):
+                data_sub_domain = list(data_sub_domain)
+            if not data_sub_domain:
+                raise ValueError("data_sub_domain is required and cannot be empty")
+
+            like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
+            like_params = [f"%{d}%" for d in data_sub_domain]
+
+            sql_parts = [
+                "SELECT",
+                "\tb.data_ads_country_tanggal AS 'date',",
+                "\tb.data_ads_country_cd AS 'country_code',",
+                "\tb.data_ads_country_nm AS 'country_name',",
+                "\tb.data_ads_domain AS 'domain',",
+                "\tSUM(b.data_ads_country_spend) AS 'spend',",
+                "\tSUM(b.data_ads_country_click) AS 'clicks',",
+                "\tSUM(b.data_ads_country_impresi) AS 'impressions',",
+                "\tROUND(AVG(b.data_ads_country_cpr), 0) AS 'cpr'",
+                "FROM master_account_ads a",
+                "INNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
+                "WHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
+                f"\tAND ({like_conditions})",
+            ]
+            params = [start_date_formatted, end_date_formatted] + like_params
+
+            country_codes = []
+            if countries_list:
+                if isinstance(countries_list, str):
+                    country_codes = [c.strip() for c in countries_list.split(',') if c.strip()]
+                elif isinstance(countries_list, (list, tuple)):
+                    country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
+            if country_codes:
+                placeholders = ','.join(['%s'] * len(country_codes))
+                sql_parts.append(f"AND b.data_ads_country_cd IN ({placeholders})")
+                params.extend(country_codes)
+
+            sql_parts.append("GROUP BY b.data_ads_country_tanggal, b.data_ads_country_cd, b.data_ads_country_nm, b.data_ads_domain")
+            sql_parts.append("ORDER BY b.data_ads_country_tanggal ASC")
+            sql = "\n".join(sql_parts)
+
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get ads country detail by params")
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit ads country detail by params")
+
+            hasil = {"status": True, "message": "Detail Ads country berhasil diambil", "data": data}
+        except Exception as e:
+            hasil = {"status": False, "data": f"Terjadi error {e!r}"}
+        return {"hasil": hasil}
+
+
+    def get_all_adx_country_detail_by_params(self, start_date, end_date, selected_account = None, selected_domain_list = None, countries_list = None):
+        # ... existing code ...
+        try:
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+
+            like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_params = [f"%{domain}%" for domain in data_domain_list]
+
+            base_sql = [
+                "SELECT",
+                "\tb.data_adx_country_tanggal AS 'date',",
+                "\tb.data_adx_country_domain AS 'site_name',",
+                "\tb.data_adx_country_cd AS 'country_code',",
+                "\tb.data_adx_country_nm AS 'country_name',",
+                "\tSUM(b.data_adx_country_revenue) AS 'revenue'",
+                "FROM app_credentials a",
+                "INNER JOIN data_adx_country b ON a.account_id = b.account_id",
+                "WHERE",
+            ]
+            params = []
+            base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+
+            if selected_account:
+                base_sql.append("\tAND a.account_id LIKE %s")
+                params.append(f"{selected_account}%")
+
+            if data_domain_list:
+                base_sql.append(f"\tAND ({like_conditions})")
+                params.extend(like_params)
+
+            country_codes = []
+            if countries_list:
+                if isinstance(countries_list, str):
+                    country_codes = [c.strip() for c in countries_list.split(',') if c.strip()]
+                elif isinstance(countries_list, (list, tuple)):
+                    country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
+            if country_codes:
+                placeholders = ','.join(['%s'] * len(country_codes))
+                base_sql.append(f"AND b.data_adx_country_cd IN ({placeholders})")
+                params.extend(country_codes)
+
+            base_sql.append("GROUP BY b.data_adx_country_tanggal, b.data_adx_country_domain, b.data_adx_country_cd, b.data_adx_country_nm")
+            base_sql.append("ORDER BY b.data_adx_country_tanggal ASC")
+            sql = "\n".join(base_sql)
+
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get adx country detail by params")
+            data_rows = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit adx country detail by params")
+            return {
+                "status": True,
+                "message": "Detail AdX country berhasil diambil",
+                "data": data_rows
+            }
+        except pymysql.Error as e:
+            return {"status": False, "error": f"Terjadi error {e!r}, error nya {e.args[0]}"}
+        # ... existing code ...
+
+    def get_all_ads_country_detail_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None, countries_list=None):
+        # ... existing code ...
+        try:
+            if isinstance(data_sub_domain, str):
+                data_sub_domain = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
+            elif data_sub_domain is None:
+                data_sub_domain = []
+            elif isinstance(data_sub_domain, (set, tuple)):
+                data_sub_domain = list(data_sub_domain)
+            if not data_sub_domain:
+                raise ValueError("data_sub_domain is required and cannot be empty")
+
+            like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
+            like_params = [f"%{d}%" for d in data_sub_domain]
+
+            sql_parts = [
+                "SELECT",
+                "\tb.data_ads_country_tanggal AS 'date',",
+                "\tb.data_ads_country_cd AS 'country_code',",
+                "\tb.data_ads_country_nm AS 'country_name',",
+                "\tb.data_ads_domain AS 'domain',",
+                "\tSUM(b.data_ads_country_spend) AS 'spend',",
+                "\tSUM(b.data_ads_country_click) AS 'clicks',",
+                "\tSUM(b.data_ads_country_impresi) AS 'impressions',",
+                "\tROUND(AVG(b.data_ads_country_cpr), 0) AS 'cpr'",
+                "FROM master_account_ads a",
+                "INNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
+                "WHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
+                f"\tAND ({like_conditions})",
+            ]
+            params = [start_date_formatted, end_date_formatted] + like_params
+
+            country_codes = []
+            if countries_list:
+                if isinstance(countries_list, str):
+                    country_codes = [c.strip() for c in countries_list.split(',') if c.strip()]
+                elif isinstance(countries_list, (list, tuple)):
+                    country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
+            if country_codes:
+                placeholders = ','.join(['%s'] * len(country_codes))
+                sql_parts.append(f"AND b.data_ads_country_cd IN ({placeholders})")
+                params.extend(country_codes)
+
+            sql_parts.append("GROUP BY b.data_ads_country_tanggal, b.data_ads_country_cd, b.data_ads_country_nm, b.data_ads_domain")
+            sql_parts.append("ORDER BY b.data_ads_country_tanggal ASC")
+            sql = "\n".join(sql_parts)
+
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get ads country detail by params")
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit ads country detail by params")
+
+            hasil = {"status": True, "message": "Detail Ads country berhasil diambil", "data": data}
+        except Exception as e:
+            hasil = {"status": False, "data": f"Terjadi error {e!r}"}
+        return {"hasil": hasil}
+
 

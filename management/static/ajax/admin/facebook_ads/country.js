@@ -47,7 +47,7 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     });
-    $('#select_sub_domain').select2({
+    $('#select_domain').select2({
         placeholder: '-- Pilih Domain --',
         allowClear: true,
         width: '100%',
@@ -69,60 +69,46 @@ $().ready(function () {
         var tanggal_sampai = $("#tanggal_sampai").val();
         var selected_account = $("#select_account").val() || '%';
         var data_account = selected_account ? selected_account : '%';
-        var selected_sub_domain = $('#select_sub_domain').val() || '%';
-        var data_sub_domain = selected_sub_domain ? selected_sub_domain : '%';
-        if (tanggal_dari !== '' && tanggal_sampai !== '' && data_account != "") {
-            loadSitesList();
-            load_country_options(tanggal_dari, tanggal_sampai, data_account);
+        var selected_domain = $("#select_domain").val() || '%';
+        var data_domain = selected_domain ? selected_domain : '%';
+        if (tanggal_dari !== '' && tanggal_sampai !== '') {
+            if (selected_account != "") {
+                ads_site_list();
+            }
+            load_country_options(data_account, data_domain);
             destroy_table_data_per_country_facebook();
-            table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_account, data_sub_domain);
+            table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain);
         }
     });
 });
-
-function loadSitesList() {
-    var selectedAccounts = $("#select_account").val() || "";
-    // Simpan pilihan domain yang sudah dipilih sebelumnya
-    var previouslySelected = $("#select_sub_domain").val() || [];
-    $.ajax({
+function ads_site_list() {
+    var selected_account = $("#select_account").val();
+    return $.ajax({
         url: '/management/admin/ads_sites_list',
         type: 'GET',
-        dataType: 'json',
         data: {
-            'selected_accounts': selectedAccounts
+            selected_accounts: selected_account
         },
         headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            'X-CSRFToken': csrftoken
         },
         success: function (response) {
-            if (response.status) {
-                var select_site = $("#select_sub_domain");
-                select_site.empty();
-                // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
-                var validPreviousSelections = [];
-                $.each(response.data, function (index, site) {
-                    var isSelected = previouslySelected.includes(site);
-                    if (isSelected) {
-                        validPreviousSelections.push(site);
-                    }
-                    select_site.append(new Option(site, site, false, isSelected));
-                });
-                // Set nilai yang dipilih kembali
-                if (validPreviousSelections.length > 0) {
-                    select_site.val(validPreviousSelections);
-                }
-                select_site.trigger('change');
+            if (response && response.status) {
+                $('#select_domain')
+                    .val(response.data)
+                    .trigger('change');
             }
         },
         error: function (xhr, status, error) {
-            report_eror(xhr, status);
+            report_eror(xhr, error);
         }
     });
 }
-
 // Fungsi untuk memuat opsi negara ke select2
-function load_country_options(tanggal_dari, tanggal_sampai, data_account) {
+function load_country_options(data_account, data_domain) {
+    if (data_domain) {
+        data_domain = data_domain.join(',');
+    }
     // Simpan pilihan country yang sudah dipilih sebelumnya
     var previouslySelected = $("#select_country").val() || [];
     $.ajax({
@@ -130,9 +116,8 @@ function load_country_options(tanggal_dari, tanggal_sampai, data_account) {
         type: 'GET',
         dataType: 'json',
         data: {
-            'tanggal_dari': tanggal_dari,
-            'tanggal_sampai': tanggal_sampai,
-            'data_account': data_account
+            'data_account': data_account,
+            'data_domain': data_domain
         },
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
@@ -165,8 +150,13 @@ function load_country_options(tanggal_dari, tanggal_sampai, data_account) {
         }
     });
 }
-function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_account, data_sub_domain) {
+function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain) {
     var selected_countries = $('#select_country').val() || [];
+    // Convert array to comma-separated string for backend
+    var domainFilter = '';
+    if (data_domain && data_domain.length > 0) {
+        domainFilter = data_domain.join(',');
+    }
     $.ajax({
         url: '/management/admin/page_per_country_facebook',
         type: 'POST',
@@ -174,7 +164,7 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
             'tanggal_dari': tanggal_dari,
             'tanggal_sampai': tanggal_sampai,
             'data_account': data_account,
-            'data_sub_domain': data_sub_domain,
+            'data_domain': domainFilter,
             'selected_countries': JSON.stringify(selected_countries),
             'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
         },
@@ -188,14 +178,14 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
             judul = "Rekapitulasi Traffic Per Country Facebook";
             $.each(data_country.data_country, function (index, value) {
                 const frequency = Number(value?.frequency) || 0;
-                const formattedFrequency = frequency.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                const formattedFrequency = frequency.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                 var event_data = '<tr>';
                 event_data += '<td class="text-left" style="font-size: 12px;"><b>' + value.country + '</b></td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.spend).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.impressions).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.reach).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.clicks).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
-                event_data += '<td class="text-right" style="font-size: 12px;">' + formattedFrequency + ' %</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + formattedFrequency + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.cpr).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.cpc).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '</tr>';
@@ -217,7 +207,7 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
             const totalClicks = clicks.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
             // Frequency
             const frequency = Number(totalData?.frequency) || 0;
-            const totalFrequency = frequency.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + ' %';
+            const totalFrequency = frequency.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
             $('#total_spend').text(totalSpend);
             $('#total_impressions').text(totalImpressions);
             $('#total_reach').text(totalReach);
@@ -239,9 +229,10 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                 "paging": true,
                 "pageLength": 50,
                 "lengthChange": true,
+                "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Semua"]],
                 "searching": true,
                 "ordering": true,
-                responsive: true,
+                responsive: false,
                 dom: 'Blfrtip',
                 searching: true,
                 buttons: [
@@ -277,7 +268,6 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                                     `<col min="${i + 1}" max="${i + 1}" width="${colWidths[i]}" customWidth="1"/>`
                                 );
                             }
-
                         }
                     },
                     {
@@ -438,7 +428,7 @@ function createSpendMap(items) {
             style: { fontSize: '12px', color: '#666' }
         },
         mapNavigation: {
-            enabled: true,
+            enabled: false,
             buttonOptions: { verticalAlign: 'bottom' }
         },
         colorAxis: {
@@ -478,7 +468,7 @@ function createSpendMap(items) {
                         'Impressions: ' + Number(this.impressions).toLocaleString('id-ID') + '<br>' +
                         'Reach: ' + Number(this.reach).toLocaleString('id-ID') + '<br>' +
                         'Clicks: ' + Number(this.clicks).toLocaleString('id-ID') + '<br>' +
-                        'Frequency: ' + (Number(this.frequency) || 0).toFixed(2);
+                        'Frequency: ' + (Number(this.frequency) || 0).toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                 },
                 nullFormat: '<b>{point.name}</b><br>Tidak ada data'
             },

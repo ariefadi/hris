@@ -50,6 +50,7 @@ urlpatterns = [
     # Cache Management
     path('admin/cache_stats', views.CacheStatsView.as_view(), name='cache_stats'),
     path('admin/ads_sites_list', views.AdsSitesListView.as_view(), name='ads_sites_list'),
+    path('admin/ads_campaign_list', views.AdsCampaignListView.as_view(), name='ads_campaign_list'),
 
 
     # MENU ADX MANAGER
@@ -108,14 +109,21 @@ urlpatterns = [
     # MENU REPORT
     # Menu Report ROI
     path('admin/roi_summary', views.RoiSummaryView.as_view(), name='roi_summary'),
-    path('admin/page_roi_ad_change_data', views.RoiSummaryAdChangeDataView.as_view(), name='roi_ad_change_data'),
-    path('admin/page_roi_active_sites', views.RoiActiveSitesView.as_view(), name='roi_active_sites'),
     # Menu ROI Per Domain
     path('admin/roi_traffic_domain', views.RoiTrafficPerDomainView.as_view(), name='roi_traffic_domain'),
     path('admin/page_roi_traffic_domain', views.RoiTrafficPerDomainDataView.as_view()),
     # Menu ROI Per Country
     path('admin/roi_traffic_country', views.RoiTrafficPerCountryView.as_view(), name='roi_traffic_country'),
     path('admin/page_roi_traffic_country', views.RoiTrafficPerCountryDataView.as_view()),
+    # Menu ROI Monitoring Domain
+    path('admin/monitoring_domain', views.RoiMonitoringDomainView.as_view(), name='roi_monitoring_domain'),
+    path('admin/page_monitoring_domain', views.RoiMonitoringDomainDataView.as_view()),
+    # Menu ROI Monitoring Country
+    path('admin/monitoring_country', views.RoiMonitoringCountryView.as_view(), name='roi_monitoring_country'),
+    path('admin/page_monitoring_country', views.RoiMonitoringCountryDataView.as_view()),
+    # Menu ROI Rekapitulasi
+    path('admin/rekapitulasi', views.RoiRekapitulasiView.as_view(), name='roi_rekapitulasi'),
+    # path('admin/page_rekapitulasi', views.RoiRekapitulasiDataView.as_view()),
 
     # test
     path('admin/fetch_report', views.fetch_report, name='fetch_report'),

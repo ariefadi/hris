@@ -2147,13 +2147,11 @@ def fetch_data_insights_all_accounts_by_subdomain(tanggal, rs_account, data_sub_
                 agg['spend'] += float(row.get('spend') or 0)
                 agg['reach'] += int(row.get('reach') or 0)
                 agg['impressions'] += int(row.get('impressions') or 0)
-                
                 # Hitung frequency dengan pengecekan pembagian nol
                 if agg['reach'] > 0:
-                    agg['frequency'] = float(agg['impressions'] / agg['reach'])
+                    agg['frequency'] = format(agg['impressions'] / agg['reach'], '.1f')
                 else:
-                    agg['frequency'] = 0.0
-                
+                    agg['frequency'] = '0.0'
                 # Ambil cost per result
                 cost_per_result = None
                 for cpr_item in row.get('cost_per_result', []):
@@ -2161,8 +2159,7 @@ def fetch_data_insights_all_accounts_by_subdomain(tanggal, rs_account, data_sub_
                         values = cpr_item.get('values', [])
                         if values:
                             cost_per_result = values[0].get('value')
-                        break
-                        
+                        break    
                 agg['cpr'] = float(cost_per_result or 0)
                 # Ambil clicks
                 result_action_type = 'link_click'

@@ -1,14 +1,102 @@
 {% extends "admin_base.html" %}
 {% load static %}
-{% block page_title %}Report Roi{% endblock %}
-
-{% block page_heading %}Report Roi{% endblock %}
-
+{% block page_title %}Report Roi - Monitoring Negara{% endblock %}
+{% block page_heading %}Report Roi - Monitoring Negara{% endblock %}
 {% block breadcrumbs %}
     <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
-    <li class="breadcrumb-item active">Report Roi</li>
+    <li class="breadcrumb-item active">Report Roi - Monitoring Negara</li>
 {% endblock %}
 {% block more_stylesheet %}
+<style>
+  /* Kolom header checklist */
+  th.checkbox-cell {
+    width: 44px;
+  }
+
+  /* Pusatkan konten checkbox */
+  .checkbox-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Naikkan posisi checkbox sedikit lagi */
+  #select_all_rows,
+  .form-check-input.row-select,
+  .form-check-input.align-top {
+    transform: translateY(-4px);
+    margin-top: -2px;
+  }
+
+  #select_all_rows,
+  .form-check-input.row-select {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    border: 2px solid #ADB5BD;
+    border-radius: 4px;
+    transition: all .15s ease-in-out;
+    appearance: none;
+    -webkit-appearance: none;
+    background-color: #fff;
+    outline: none;
+  }
+  #select_all_rows:checked,
+  .form-check-input.row-select:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
+  }
+  #select_all_rows:focus,
+  .form-check-input.row-select:focus {
+    box-shadow: 0 0 0 0.16rem rgba(13,110,253,.15);
+  }
+
+  /* Highlight baris saat dicentang */
+  #table_traffic_country tbody tr.selected-row {
+    background-color: rgba(13, 110, 253, 0.08) !important;
+  }
+  /* Nudge checkbox sedikit ke atas agar presisi */
+  #select_all_rows,
+  .form-check-input.row-select,
+  .form-check-input.align-top {
+      transform: translateY(-2px);
+      margin-top: -1px;
+  }
+  /* Lebar kolom header checkbox tetap */
+  th.checkbox-cell { width: 44px; }
+  /* Wrapper untuk memposisikan checkbox */
+  .checkbox-center {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+  }
+  /* Highlight baris terpilih tetap */
+  #table_traffic_country tbody tr.selected-row {
+      background-color: rgba(13, 110, 253, 0.08) !important;
+  }
+  /* Pastikan sel kolom checkbox rata tengah secara vertikal */
+  #table_traffic_country th.checkbox-cell,
+  #table_traffic_country td.checkbox-cell {
+      vertical-align: middle !important;
+  }
+  
+  /* Wrapper checkbox: benar-benar center */
+  .checkbox-center {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+  }
+  
+  /* Hilangkan nudge; posisikan input tepat di tengah */
+  #select_all_rows,
+  .form-check-input.row-select,
+  .form-check-input.align-top {
+      transform: none !important;
+      margin-top: 0 !important;
+  }
+</style>
 {% endblock %}
 {% block content %}
 {% csrf_token %}  
@@ -65,7 +153,7 @@
 </style>
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title">ROI Per Domain</h3>
+        <h3 class="card-title">Monitoring Negara</h3>
     </div>
     <div class="card-body">
         <div class="form-row">
@@ -86,7 +174,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label>Filter Domain</label>
                 <select class="form-control select2 select2-multiple" id="domain_filter" multiple>
                     {% for domain in data_domain_adx %}
@@ -94,13 +182,9 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-2">
-                <label>Filter Ads Account</label>
-                <select class="form-control select2" id="select_account">
-                    <option value=""></option>
-                    {% for data_account in data_account %}
-                    <option value="{{data_account.account_ads_id}}">{{data_account.account_name|upper}}</option>
-                    {% endfor %}
+            <div class="col-md-3">
+                <label>Filter Negara</label>
+                <select class="form-control select2-multiple" id="country_filter" multiple="multiple">
                 </select>
             </div>
             <div class="col-md-1">
@@ -125,7 +209,7 @@
     <div class="card-header">
         <div class="row">
             <div class="col-6">
-                <h3 class="card-title"><b><i class="bi bi-bar-chart"></i> Data ROI Per Akun</b></h3>
+                <h3 class="card-title"><b><i class="bi bi-bar-chart"></i> Data Monitoring Negara</b></h3>
             </div>
             <div class="col-6 d-flex justify-content-end">
                 <span><i class="bi bi-clock-history"></i> Data Diupdate Terakhir <b>Tanggal {{ last_update|date:"d F Y" }} Jam {{ last_update|date:"H:i:s" }}</b></span>
@@ -149,29 +233,7 @@
         </div>
         <!-- Summary Info boxes -->
         <div class="row" id="summary_boxes" style="display: none;">
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-success shadow-sm">
-                        <i class="bi bi-cursor-fill"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Total Klik</span>
-                        <span class="info-box-number" id="total_clicks_fb">0</span>
-                    </div>
-                </div>
-            </div>
-            <!-- <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-success shadow-sm">
-                        <i class="bi bi-cursor-fill"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Total Klik Adx</span>
-                        <span class="info-box-number" id="total_clicks_adx">0</span>
-                    </div>
-                </div>
-            </div> -->
-            <div class="col-12 col-sm-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-4">
                 <div class="info-box">
                     <span class="info-box-icon text-bg-primary shadow-sm">
                         <i class="bi bi-cash-stack"></i>
@@ -182,18 +244,18 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-4">
                 <div class="info-box">
                     <span class="info-box-icon text-bg-danger shadow-sm">
                         <i class="bi bi-graph-up-arrow"></i>
                     </span>
                     <div class="info-box-content">
                         <span class="info-box-text">ROI Nett</span>
-                        <span class="info-box-number" id="roi_nett">0%</span>
+                        <span class="info-box-number" id="total_roi">0%</span>
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-4">
                 <div class="info-box">
                     <span class="info-box-icon text-bg-warning shadow-sm">
                         <i class="bi bi-currency-dollar"></i>
@@ -205,42 +267,23 @@
                 </div>
             </div>
         </div>
-        <!-- Charts Section -->
-        <div class="row mt-3" id="charts_section" style="display: none;">
-            <div class="col-12 col-md-12 mx-auto">
-                <div class="card">
-                    <div class="card-header">
-                        <h4 class="card-title"><i class="bi bi-bar-chart"></i> Traffic ROI Harian</h4>
-                    </div>
-                    <div class="card-body">
-                        <canvas id="chart_roi_daily" width="400" height="60" style="max-height: 300px;"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
         <!-- Data Table -->
         <div class="dt-responsive-table mt-3 table-responsive">
-            <table id="table_traffic_account" class="table table-bordered table-striped" style="width:100%">
+            <table id="table_traffic_country" class="table table-bordered table-striped" style="width:100%">
                 <thead>
                     <tr>
-                        <th rowspan="2" class="text-center">Subdomain</th>
-                        <th rowspan="2" class="text-center">Tanggal</th>
-                        <th rowspan="2" class="text-center">Spend (Rp)</th>
-                        <th colspan="2" class="text-center">Klik</th>
-                        <th rowspan="2" class="text-center">CPR</th>
-                        <th colspan="2" class="text-center">CTR (%)</th>
-                        <th colspan="2" class="text-center">CPC (Rp)</th>
-                        <th rowspan="2" class="text-center">eCPM (Rp)</th>
-                        <th rowspan="2" class="text-center">ROI (%)</th>
-                        <th rowspan="2" class="text-center">Pendapatan (Rp)</th>
-                    </tr>
-                    <tr>
-                        <th class="text-center">Fb Ads</th>
-                        <th class="text-center">Adx</th>
-                        <th class="text-center">Fb Ads</th>
-                        <th class="text-center">Adx</th>
-                        <th class="text-center">Fb Ads</th>
-                        <th class="text-center">Adx</th>
+                        <th class="text-center checkbox-cell">
+                            <div class="form-check checkbox-center m-0">
+                                <input type="checkbox" class="form-check-input" id="select_all_rows" />
+                                <label class="form-check-label" for="select_all_rows" title="Pilih semua"></label>
+                            </div>
+                        </th>
+                        <!-- Kolom baru untuk checklist -->
+                        <th class="text-center">Negara</th>
+                        <th class="text-center">Kode Negara</th>
+                        <th class="text-center">Spend (Rp)</th>
+                        <th class="text-center">Pendapatan (Rp)</th>
+                        <th class="text-center">ROI (%)</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -252,5 +295,5 @@
 {% endblock %}
 {% block more_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{% static 'ajax/admin/report_roi/per_domain.js'%}?v={%now 'u'%}"></script>
+<script src="{% static 'ajax/admin/report_roi/monitoring_country.js'%}?v={%now 'u'%}"></script>
 {% endblock %}
