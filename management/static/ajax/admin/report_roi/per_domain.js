@@ -153,32 +153,129 @@ $().ready(function () {
             {
                 extend: 'excel',
                 text: 'Export Excel',
-                className: 'btn btn-success'
+                className: 'btn btn-success',
+                exportOptions: { columns: ':visible' },
+                title: function () { return 'ROI Traffic Per Domain'; },
+                customize: function (xlsx) {
+                    var start = $('#tanggal_dari').val();
+                    var end = $('#tanggal_sampai').val();
+                    var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+                    function fmt(d) { if (!d) return '-'; try { var date = new Date(d + 'T00:00:00'); return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear(); } catch(e) { return d; } }
+                    var titleText = 'ROI Traffic Per Domain';
+                    var periodText = 'Periode ' + fmt(start) + ' s/d ' + fmt(end);
+                    var sheet = xlsx.xl.worksheets['sheet1.xml'];
+                    var numrows = 2;
+                    $('row', sheet).each(function () { var r = parseInt($(this).attr('r')); $(this).attr('r', r + numrows); });
+                    $('row c', sheet).each(function () { var attr = $(this).attr('r'); var col = attr.replace(/[0-9]/g, ''); var row = parseInt(attr.replace(/[A-Z]/g, '')); $(this).attr('r', col + (row + numrows)); });
+                    function escapeXml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;').replace(/'/g,'&apos;'); }
+                    var dim = $('dimension', sheet).attr('ref');
+                    var lastCol = 'A';
+                    if (dim) { var parts = dim.split(':'); if (parts[1]) { lastCol = parts[1].replace(/[0-9]/g,'') || 'A'; var lastRowNum = parseInt(parts[1].replace(/[A-Z]/g,'')) || 0; $('dimension', sheet).attr('ref', parts[0] + ':' + lastCol + (lastRowNum + numrows)); } }
+                    var row1 = '<row r="1"><c t="inlineStr" r="A1"><is><t>' + escapeXml(titleText) + '</t></is></c></row>';
+                    var row2 = '<row r="2"><c t="inlineStr" r="A2"><is><t>' + escapeXml(periodText) + '</t></is></c></row>';
+                    $('sheetData', sheet).prepend(row2);
+                    $('sheetData', sheet).prepend(row1);
+                    var merges = $('mergeCells', sheet);
+                    var mergeA1 = 'A1:' + lastCol + '1';
+                    var mergeA2 = 'A2:' + lastCol + '2';
+                    if (merges.length === 0) {
+                        $('worksheet', sheet).append('<mergeCells count="2"><mergeCell ref="' + mergeA1 + '"/><mergeCell ref="' + mergeA2 + '"/></mergeCells>');
+                    } else {
+                        var c = parseInt(merges.attr('count') || '0');
+                        merges.attr('count', c + 2);
+                        merges.append('<mergeCell ref="' + mergeA1 + '"/>');
+                        merges.append('<mergeCell ref="' + mergeA2 + '"/>');
+                    }
+                }
             },
             {
                 extend: 'pdf',
                 text: 'Export PDF',
-                className: 'btn btn-danger'
+                className: 'btn btn-danger',
+                orientation: 'landscape',
+                exportOptions: { columns: ':visible' },
+                title: function () { return 'ROI Traffic Per Domain'; },
+                customize: function (doc) {
+                    var start = $('#tanggal_dari').val();
+                    var end = $('#tanggal_sampai').val();
+                    var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+                    function fmt(d) { if (!d) return '-'; try { var date = new Date(d + 'T00:00:00'); return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear(); } catch(e) { return d; } }
+                    var header = 'Periode ' + fmt(start) + ' s/d ' + fmt(end);
+                    doc.content.splice(1, 0, { text: header, alignment: 'center', margin: [0, 0, 0, 12] });
+                }
             },
             {
-                extend: 'copy',
                 text: 'Copy',
-                className: 'btn btn-info'
+                className: 'btn btn-info',
+                action: function (e, dt) {
+                    var start = $('#tanggal_dari').val();
+                    var end = $('#tanggal_sampai').val();
+                    var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+                    function fmt(d) { if (!d) return '-'; try { var date = new Date(d + 'T00:00:00'); return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear(); } catch(e) { return d; } }
+                    var titleText = 'ROI Traffic Per Domain';
+                    var header = 'Periode ' + fmt(start) + ' s/d ' + fmt(end);
+                    var data = dt.buttons.exportData({ columns: ':visible' });
+                    var lines = [];
+                    lines.push(titleText);
+                    lines.push(header);
+                    lines.push('');
+                    lines.push((data.header || []).join('\t'));
+                    (data.body || []).forEach(function (row) { lines.push(row.join('\t')); });
+                    var text = lines.join('\n');
+                    function fallbackCopy(str) {
+                        var ta = document.createElement('textarea');
+                        ta.value = str;
+                        ta.style.position = 'fixed';
+                        ta.style.top = '-1000px';
+                        document.body.appendChild(ta);
+                        ta.focus();
+                        ta.select();
+                        try { document.execCommand('copy'); } catch(e) {}
+                        document.body.removeChild(ta);
+                    }
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(text).catch(function(){ fallbackCopy(text); });
+                    } else {
+                        fallbackCopy(text);
+                    }
+                },
+                exportOptions: { columns: ':visible' } 
             },
             {
                 extend: 'csv',
                 text: 'Export CSV',
-                className: 'btn btn-primary'
+                className: 'btn btn-primary',
+                exportOptions: { columns: ':visible' },
+                title: function () { return 'ROI Traffic Per Domain'; },
+                customize: function (csv) {
+                    var start = $('#tanggal_dari').val();
+                    var end = $('#tanggal_sampai').val();
+                    var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+                    function fmt(d) { if (!d) return '-'; try { var date = new Date(d + 'T00:00:00'); return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear(); } catch(e) { return d; } }
+                    var titleText = 'ROI Traffic Per Domain';
+                    var header = 'Periode ' + fmt(start) + ' s/d ' + fmt(end);
+                    return titleText + '\n' + header + '\n\n' + csv;
+                }
             },
             {
                 extend: 'print',
                 text: 'Print',
-                className: 'btn btn-warning'
+                className: 'btn btn-warning',
+                exportOptions: { columns: ':visible' },
+                title: function () { return '<h3 style="text-align:center;margin:0">ROI Traffic Per Domain</h3>'; },
+                messageTop: function () {
+                    var start = $('#tanggal_dari').val();
+                    var end = $('#tanggal_sampai').val();
+                    var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+                    function fmt(d) { if (!d) return '-'; try { var date = new Date(d + 'T00:00:00'); return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear(); } catch(e) { return d; } }
+                    return '<div style="text-align:center;margin-bottom:8px">Periode ' + fmt(start) + ' s/d ' + fmt(end) + '</div>';
+                }
             },
             {
                 extend: 'colvis',
                 text: 'Column Visibility',
-                className: 'btn btn-default'
+                className: 'btn btn-default',
+                exportOptions: { columns: ':visible' } 
             }
         ],
         columnDefs: [
