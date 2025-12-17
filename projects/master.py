@@ -305,40 +305,343 @@ class DomainEditView(View):
         }
         return render(request, 'master/domain/edit.html', context)
 
-    def post(self, request, domain_id):
+class NieceIndexView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        active_portal_id = request.session.get('active_portal_id', '12')
+        db = data_mysql()
+        sql = """
+            SELECT niece_id, niece, focuses, tier, country_list, keyword_cpc, status, keywords, file, mdd
+            FROM data_niece
+            ORDER BY COALESCE(mdd, NOW()) DESC
+        """
+        rows = []
+        if db.execute_query(sql):
+            rows = db.cur_hris.fetchall() or []
+        statuses = ['pending','done']
+        countries = []
+        q_countries = """
+            SELECT negara_nm, tier
+            FROM master_negara
+            ORDER BY negara_nm ASC
+        """
+        if db.execute_query(q_countries):
+            countries = db.cur_hris.fetchall() or []
+        country_tier_map = {}
+        for c in countries:
+            try:
+                nm = c.get('negara_nm')
+                tr = c.get('tier')
+            except AttributeError:
+                nm = c[0]
+                tr = c[1]
+            country_tier_map[str(nm)] = str(tr) if tr is not None else ''
+        for r in rows:
+            try:
+                foc = r.get('focuses') or ''
+            except AttributeError:
+                foc = ''
+            fs = foc[:50] + ('...' if len(foc) > 50 else '')
+            try:
+                r['focuses_short'] = fs
+            except TypeError:
+                pass
+            cl_text = ''
+            try:
+                cl_text = r.get('country_list') or ''
+            except AttributeError:
+                cl_text = ''
+            items = [v.strip() for v in str(cl_text).split(',') if v.strip()]
+            tier_groups = {}
+            for nm in items:
+                tv = country_tier_map.get(nm, '')
+                if not tv:
+                    continue
+                lbl = tv if str(tv).lower().startswith('tier') else f"Tier {tv}"
+                tier_groups.setdefault(lbl, []).append(nm)
+            groups = []
+            for lbl, names in tier_groups.items():
+                groups.append({'label': lbl, 'countries': ', '.join(names)})
+            try:
+                r['tier_groups'] = groups
+            except TypeError:
+                pass
+        context = {
+            'user': admin,
+            'active_portal_id': active_portal_id,
+            'nieces': rows,
+            'statuses': statuses,
+            'countries': countries,
+        }
+        return render(request, 'master/niece/index.html', context)
+
+class NieceCreateView(View):
+    def post(self, request):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
         admin = request.session.get('hris_admin', {})
         db = data_mysql()
-        domain = request.POST.get('domain', '').strip()
-        domain_status = request.POST.get('domain_status', '').strip() or 'active'
-        server_id_raw = request.POST.get('server_id', '').strip()
-        server_id = None
+        niece = request.POST.get('niece', '').strip()
+        focuses = request.POST.get('focuses', '').strip()
+        country_list_vals = request.POST.getlist('country_list')
+        keyword_cpc_raw = request.POST.get('keyword_cpc', '').strip()
+        status = request.POST.get('status', '').strip() or 'pending'
+        keywords = request.POST.get('keywords', '').strip()
+        is_ajax = (request.headers.get('x-requested-with') == 'XMLHttpRequest') or (request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest')
+        if not niece:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Niece wajib diisi.'}, status=400)
+            messages.error(request, 'Niece wajib diisi.')
+            return redirect('/projects/master/niece')
         try:
-            sid = int(server_id_raw)
-            if sid > 0:
-                server_id = sid
+            keyword_cpc = int(keyword_cpc_raw) if keyword_cpc_raw else None
         except Exception:
-            server_id = None
-        registration_date_raw = request.POST.get('registration_date', '').strip()
-        expiration_date_raw = request.POST.get('expiration_date', '').strip()
-        primary_ip = request.POST.get('primary_ip', '').strip() or None
-        contact_email = request.POST.get('contact_email', '').strip() or None
-        provider = request.POST.get('provider', '').strip() or None
-        registrar = request.POST.get('registrar', '').strip() or None
-        nameservers_text = request.POST.get('nameservers', '').strip()
-        sub_subdomain = request.POST.getlist('sub_subdomain')
-        sub_cloudflare = request.POST.getlist('sub_cloudflare')
-        sub_public_ipv4 = request.POST.getlist('sub_public_ipv4')
-        sub_website = request.POST.getlist('sub_website')
-        sub_website_user = request.POST.getlist('sub_website_user')
-        sub_website_pass = request.POST.getlist('sub_website_pass')
-        tags_text = request.POST.get('tags', '').strip()
-        notes = request.POST.get('notes', '').strip() or None
+            keyword_cpc = None
+        countries_text = None
+        if country_list_vals:
+            countries_text = ",".join([v.strip() for v in country_list_vals if v.strip()])
+        sql = """
+            INSERT INTO data_niece (niece, focuses, country_list, keyword_cpc, status, keywords, mdb, mdb_name, mdd)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        """
+        params = (niece or None, focuses or None, countries_text, keyword_cpc, status, keywords or None, admin.get('user_id',''), admin.get('user_alias',''))
+        if db.execute_query(sql, params):
+            db.commit()
+            if is_ajax:
+                return JsonResponse({'status': True})
+            messages.success(request, 'Niece berhasil ditambahkan.')
+        else:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Gagal menambahkan niece.'}, status=500)
+            messages.error(request, 'Gagal menambahkan niece.')
+        return redirect('/projects/master/niece')
+
+class NieceEditView(View):
+    def get(self, request, niece_id):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        active_portal_id = request.session.get('active_portal_id', '12')
+        db = data_mysql()
+        sql = """
+            SELECT niece_id, niece, focuses, country_list, keyword_cpc, status, keywords
+            FROM data_niece
+            WHERE niece_id = %s
+            LIMIT 1
+        """
+        row = None
+        if db.execute_query(sql, (niece_id,)):
+            row = db.cur_hris.fetchone() or {}
+        def _to_list(val):
+            if val is None:
+                return []
+            try:
+                obj = val
+                if isinstance(obj, (bytes, bytearray)):
+                    obj = obj.decode('utf-8')
+                # try json list
+                obj = json.loads(obj) if isinstance(obj, str) else obj
+                if isinstance(obj, list):
+                    return [str(x) for x in obj]
+                # fallback split by comma
+                return [v.strip() for v in str(val).split(',') if v.strip()]
+            except Exception:
+                try:
+                    return [v.strip() for v in str(val).split(',') if v.strip()]
+                except Exception:
+                    return []
+        selected_countries = _to_list(row.get('country_list') if isinstance(row, dict) else None)
+        countries = []
+        q_countries = """
+            SELECT negara_nm
+            FROM master_negara
+            ORDER BY negara_nm ASC
+        """
+        if db.execute_query(q_countries):
+            countries = db.cur_hris.fetchall() or []
+        statuses = ['pending','done']
+        context = {
+            'user': admin,
+            'active_portal_id': active_portal_id,
+            'niece': row,
+            'countries': countries,
+            'selected_countries': selected_countries,
+            'statuses': statuses,
+        }
+        return render(request, 'master/niece/edit.html', context)
+
+class NieceUpdateView(View):
+    def post(self, request, niece_id):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        db = data_mysql()
+        niece = request.POST.get('niece', '').strip()
+        focuses = request.POST.get('focuses', '').strip()
+        country_list_vals = request.POST.getlist('country_list')
+        keyword_cpc_raw = request.POST.get('keyword_cpc', '').strip()
+        status = request.POST.get('status', '').strip() or 'pending'
+        keywords = request.POST.get('keywords', '').strip()
+        is_ajax = (request.headers.get('x-requested-with') == 'XMLHttpRequest') or (request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest')
+        if not niece:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Niece wajib diisi.'}, status=400)
+            messages.error(request, 'Niece wajib diisi.')
+            return redirect('/projects/master/niece')
         try:
-            registration_date = datetime.strptime(registration_date_raw, '%Y-%m-%d') if registration_date_raw else None
-        except ValueError:
-            registration_date = None
+            keyword_cpc = int(keyword_cpc_raw) if keyword_cpc_raw else None
+        except Exception:
+            keyword_cpc = None
+        countries_text = None
+        if country_list_vals:
+            countries_text = ",".join([v.strip() for v in country_list_vals if v.strip()])
+        sql = """
+            UPDATE data_niece SET niece=%s, focuses=%s, country_list=%s, keyword_cpc=%s, status=%s, keywords=%s,
+                mdb=%s, mdb_name=%s, mdd=NOW()
+            WHERE niece_id=%s
+        """
+        params = (niece or None, focuses or None, countries_text, keyword_cpc, status, keywords or None, admin.get('user_id',''), admin.get('user_alias',''), niece_id)
+        if db.execute_query(sql, params):
+            db.commit()
+            if is_ajax:
+                return JsonResponse({'status': True})
+            messages.success(request, 'Niece berhasil diperbarui.')
+        else:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Gagal memperbarui niece.'}, status=500)
+            messages.error(request, 'Gagal memperbarui niece.')
+        return redirect('/projects/master/niece')
+
+class NieceDeleteView(View):
+    def post(self, request, niece_id):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        db = data_mysql()
+        if db.execute_query("DELETE FROM data_niece WHERE niece_id=%s", (niece_id,)):
+            db.commit()
+            return JsonResponse({'status': True})
+        return JsonResponse({'status': False, 'message': 'Gagal menghapus niece.'}, status=500)
+
+class KeywordIndexView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        active_portal_id = request.session.get('active_portal_id', '12')
+        db = data_mysql()
+        sql = """
+            SELECT k.keyword_id,
+                   k.niece_id,
+                   k.keyword,
+                   k.mdb_name,
+                   k.mdd,
+                   n.niece
+            FROM data_keywords k
+            LEFT JOIN data_niece n ON n.niece_id = k.niece_id
+            ORDER BY COALESCE(k.mdd, NOW()) DESC, k.keyword_id ASC
+        """
+        rows = []
+        if db.execute_query(sql):
+            rows = db.cur_hris.fetchall() or []
+        nieces = []
+        if db.execute_query("SELECT niece_id, niece FROM data_niece ORDER BY niece ASC"):
+            nieces = db.cur_hris.fetchall() or []
+        context = {
+            'user': admin,
+            'active_portal_id': active_portal_id,
+            'keywords': rows,
+            'nieces': nieces,
+        }
+        return render(request, 'master/niece/keyword.html', context)
+
+class KeywordCreateView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        admin = request.session.get('hris_admin', {})
+        db = data_mysql()
+        niece_id_raw = (request.POST.get('niece_id') or '').strip()
+        keyword = (request.POST.get('keyword') or '').strip()
+        
+        
+        is_ajax = (request.headers.get('x-requested-with') == 'XMLHttpRequest') or (request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest')
+        try:
+            niece_id = int(niece_id_raw) if niece_id_raw else None
+        except Exception:
+            niece_id = None
+        if not keyword:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Keyword wajib diisi.'}, status=400)
+            messages.error(request, 'Keyword wajib diisi.')
+            return redirect('/projects/master/niece/keyword')
+        ok = db.execute_query(
+            """
+            INSERT INTO data_keywords (niece_id, keyword, mdb, mdb_name, mdd)
+            VALUES (%s, %s, %s, %s, NOW())
+            """,
+            (niece_id, keyword or None, admin.get('user_id',''), admin.get('user_alias',''))
+        )
+        if ok:
+            db.commit()
+            if is_ajax:
+                return JsonResponse({'status': True})
+            messages.success(request, 'Keyword berhasil ditambahkan.')
+        else:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Gagal menambahkan keyword.'}, status=500)
+            messages.error(request, 'Gagal menambahkan keyword.')
+        return redirect('/projects/master/niece/keyword')
+
+class KeywordUpdateView(View):
+    def post(self, request, keyword_id):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        admin = request.session.get('hris_admin', {})
+        db = data_mysql()
+        niece_id_raw = (request.POST.get('niece_id') or '').strip()
+        keyword = (request.POST.get('keyword') or '').strip()
+        
+        
+        is_ajax = (request.headers.get('x-requested-with') == 'XMLHttpRequest') or (request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest')
+        try:
+            niece_id = int(niece_id_raw) if niece_id_raw else None
+        except Exception:
+            niece_id = None
+        if not keyword:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Keyword wajib diisi.'}, status=400)
+            messages.error(request, 'Keyword wajib diisi.')
+            return redirect('/projects/master/niece/keyword')
+        ok = db.execute_query(
+            """
+            UPDATE data_keywords
+            SET niece_id=%s, keyword=%s, mdb=%s, mdb_name=%s, mdd=NOW()
+            WHERE keyword_id=%s
+            """,
+            (niece_id, keyword or None, admin.get('user_id',''), admin.get('user_alias',''), keyword_id)
+        )
+        if ok:
+            db.commit()
+            if is_ajax:
+                return JsonResponse({'status': True})
+            messages.success(request, 'Keyword berhasil diperbarui.')
+        else:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Gagal memperbarui keyword.'}, status=500)
+            messages.error(request, 'Gagal memperbarui keyword.')
+        return redirect('/projects/master/niece/keyword')
+
+class KeywordDeleteView(View):
+    def post(self, request, keyword_id):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        if db.execute_query("DELETE FROM data_keywords WHERE keyword_id=%s", (keyword_id,)):
+            db.commit()
+            return JsonResponse({'status': True})
+        return JsonResponse({'status': False, 'message': 'Gagal menghapus keyword.'}, status=500)
         try:
             expiration_date = datetime.strptime(expiration_date_raw, '%Y-%m-%d') if expiration_date_raw else None
         except ValueError:
@@ -947,3 +1250,245 @@ class ServerDeleteView(View):
         else:
             messages.error(request, 'Gagal menghapus server.')
         return redirect('/projects/master/server')
+
+class WebsiteIndexView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        active_portal_id = request.session.get('active_portal_id', '12')
+        db = data_mysql()
+        sql = """
+            SELECT
+                w.website_id AS website_id,
+                s.subdomain_id AS subdomain_id,
+                CONCAT(s.subdomain, '.', d.domain) AS website_name,
+                w.website_user AS website_user,
+                w.website_pass AS website_pass,
+                (SELECT COUNT(*) FROM data_website_niece k WHERE k.subdomain_id = s.subdomain_id) AS keyword_count,
+                MAX(n.niece) AS niece
+            FROM data_website w
+            INNER JOIN data_subdomain s ON s.website_id = w.website_id
+            LEFT JOIN data_domains d ON d.domain_id = s.domain_id
+            LEFT JOIN data_website_niece wn ON wn.subdomain_id = s.subdomain_id
+            LEFT JOIN data_niece n ON n.niece_id = wn.niece_id
+            WHERE s.subdomain_id IS NOT NULL
+            GROUP BY s.subdomain_id
+            ORDER BY s.subdomain ASC, COALESCE(w.mdd, '0000-00-00 00:00:00') DESC
+        """
+        rows = []
+        if db.execute_query(sql):
+            rows = db.cur_hris.fetchall() or []
+        context = {
+            'user': admin,
+            'active_portal_id': active_portal_id,
+            'websites': rows,
+        }
+        return render(request, 'master/website/index.html', context)
+
+class WebsiteKeywordsView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        subdomain_id_raw = (request.GET.get('subdomain_id') or '').strip()
+        try:
+            subdomain_id = int(subdomain_id_raw)
+        except Exception:
+            subdomain_id = None
+        if not subdomain_id:
+            return JsonResponse({'status': False, 'message': 'Subdomain wajib diisi.'}, status=400)
+        sql = """
+            SELECT k.keyword,
+                   n.niece,
+                   k.prompt AS prompt_text
+            FROM data_website_niece k
+            LEFT JOIN data_niece n ON n.niece_id = k.niece_id
+            WHERE k.subdomain_id = %s
+            ORDER BY COALESCE(k.mdd, '0000-00-00 00:00:00') DESC
+        """
+        items = []
+        if db.execute_query(sql, (subdomain_id,)):
+            items = db.cur_hris.fetchall() or []
+        return JsonResponse({'status': True, 'items': items})
+
+class WebsiteUpdateView(View):
+    def post(self, request, website_id):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        admin = request.session.get('hris_admin', {})
+        db = data_mysql()
+        website_user = (request.POST.get('website_user') or '').strip()
+        website_pass = (request.POST.get('website_pass') or '').strip()
+        is_ajax = (request.headers.get('x-requested-with') == 'XMLHttpRequest') or (
+            request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+        )
+        ok = db.execute_query(
+            """
+            UPDATE data_website
+            SET website_user=%s, website_pass=%s, mdb=%s, mdb_name=%s, mdd=NOW()
+            WHERE website_id=%s
+            """,
+            (website_user or None, website_pass or None, admin.get('user_id',''), admin.get('user_alias',''), website_id)
+        )
+        if ok:
+            db.commit()
+            if is_ajax:
+                return JsonResponse({'status': True})
+            messages.success(request, 'Website berhasil diperbarui.')
+        else:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Gagal memperbarui website.'}, status=500)
+            messages.error(request, 'Gagal memperbarui website.')
+        return redirect('/projects/master/website')
+
+class CountryIndexView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        active_portal_id = request.session.get('active_portal_id', '12')
+        db = data_mysql()
+        sql = """
+            SELECT negara_kd, negara_nm, tier
+            FROM master_negara
+            ORDER BY negara_nm ASC
+        """
+        rows = []
+        if db.execute_query(sql):
+            rows = db.cur_hris.fetchall() or []
+        tiers = ['1','2','3']
+        context = {
+            'user': admin,
+            'active_portal_id': active_portal_id,
+            'countries': rows,
+            'tiers': tiers,
+        }
+        return render(request, 'master/country/index.html', context)
+
+class CountryCreateView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        db = data_mysql()
+        negara_kd = (request.POST.get('negara_kd') or '').strip()
+        negara_nm = (request.POST.get('negara_nm') or '').strip()
+        tier_raw = (request.POST.get('tier') or '').strip()
+        tier = tier_raw.replace('Tier','').strip()
+        is_ajax = (request.headers.get('x-requested-with') == 'XMLHttpRequest') or (request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest')
+        if not negara_nm:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Nama negara wajib diisi.'}, status=400)
+            messages.error(request, 'Nama negara wajib diisi.')
+            return redirect('/projects/master/country')
+        ok = db.execute_query(
+            """
+            INSERT INTO master_negara (negara_kd, negara_nm, tier, mdd)
+            VALUES (%s, %s, %s, NOW())
+            """,
+            (negara_kd or None, negara_nm, tier or None)
+        )
+        if ok:
+            db.commit()
+            if is_ajax:
+                return JsonResponse({'status': True, 'item': {'negara_kd': negara_kd, 'negara_nm': negara_nm, 'tier': tier}})
+            messages.success(request, 'Negara berhasil ditambahkan.')
+        else:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Gagal menambahkan negara.'}, status=500)
+            messages.error(request, 'Gagal menambahkan negara.')
+        return redirect('/projects/master/country')
+
+class CountryEditView(View):
+    def get(self, request, negara_kd):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        active_portal_id = request.session.get('active_portal_id', '12')
+        db = data_mysql()
+        sql = """
+            SELECT negara_kd, negara_nm, tier
+            FROM master_negara
+            WHERE negara_kd = %s
+            LIMIT 1
+        """
+        row = None
+        if db.execute_query(sql, (negara_kd,)):
+            row = db.cur_hris.fetchone() or {}
+        tiers = ['1','2','3']
+        context = {
+            'user': admin,
+            'active_portal_id': active_portal_id,
+            'country': row,
+            'tiers': tiers,
+        }
+        return render(request, 'master/country/edit.html', context)
+
+class CountryUpdateView(View):
+    def post(self, request, negara_kd):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        db = data_mysql()
+        negara_nm = (request.POST.get('negara_nm') or '').strip()
+        tier_raw = (request.POST.get('tier') or '').strip()
+        tier = tier_raw.replace('Tier','').strip()
+        is_ajax = (request.headers.get('x-requested-with') == 'XMLHttpRequest') or (request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest')
+        if not negara_nm:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Nama negara wajib diisi.'}, status=400)
+            messages.error(request, 'Nama negara wajib diisi.')
+            return redirect('/projects/master/country')
+        ok = db.execute_query(
+            """
+            UPDATE master_negara
+            SET negara_nm=%s, tier=%s, mdd=NOW()
+            WHERE negara_kd=%s
+            """,
+            (negara_nm, tier or None, negara_kd)
+        )
+        if ok:
+            db.commit()
+            if is_ajax:
+                return JsonResponse({'status': True})
+            messages.success(request, 'Negara berhasil diperbarui.')
+        else:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Gagal memperbarui negara.'}, status=500)
+            messages.error(request, 'Gagal memperbarui negara.')
+        return redirect('/projects/master/country')
+
+class CountryDeleteView(View):
+    def post(self, request, negara_kd):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        db = data_mysql()
+        is_ajax = (request.headers.get('x-requested-with') == 'XMLHttpRequest') or (request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest')
+        ok = db.execute_query("DELETE FROM master_negara WHERE negara_kd=%s", (negara_kd,))
+        if ok:
+            db.commit()
+            if is_ajax:
+                return JsonResponse({'status': True})
+            messages.success(request, 'Negara berhasil dihapus.')
+        else:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Gagal menghapus negara.'}, status=500)
+            messages.error(request, 'Gagal menghapus negara.')
+        return redirect('/projects/master/country')
+
+class CountryGetView(View):
+    def get(self, request, negara_kd):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        sql = """
+            SELECT negara_kd, negara_nm, tier
+            FROM master_negara
+            WHERE negara_kd = %s
+            LIMIT 1
+        """
+        row = None
+        if db.execute_query(sql, (negara_kd,)):
+            row = db.cur_hris.fetchone() or {}
+        return JsonResponse({'status': True, 'item': row or {}})

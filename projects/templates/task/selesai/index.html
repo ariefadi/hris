@@ -1,0 +1,286 @@
+{% extends 'admin_base.html' %}
+
+{% block page_title %}Task Selesai{% endblock %}
+{% block page_heading %}Task Selesai{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item">Task</li>
+<li class="breadcrumb-item active"><a href="/projects/task/selesai">Selesai</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Daftar Website</h3>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th width="5%">No</th>
+                <th width="15%">Website</th>
+                <th width="10%" class="text-center">Niece & Keyword</th>
+                <th width="20%">Ads</th>
+                <th width="20%">Server</th>
+                <th width="10%">User / Pass</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for w in websites %}
+              <tr>
+                <td class="align-middle">{{ forloop.counter }}</td>
+                <td class="align-middle">
+                    {{ w.website_name }}
+                    <div class="border p-2 mt-1 rounded shadow">
+                        <small class="text-muted">Owner</small>
+                        <br>
+                        <small class="text-primary" data-bs-toggle="tooltip" title="Nama Pertner"><b>{{ w.partner_name }} ( {{ w.partner_contact }} )</b></small>
+                        <br>
+                        <small class="text-primary" data-bs-toggle="tooltip" title="Tgl Request"><b>{{ w.request_date|date:"d-m-Y" }}</b></small>
+                    </div>
+                </td>
+                <td class="align-middle text-center">
+                    {{ w.niece }}
+                    <br>
+                    <span class="badge badge-info btn-show-keywords" style="cursor:pointer;"
+                        data-subdomain="{{ w.subdomain_id }}"
+                        data-name="{{ w.website_name }}">
+                    {{ w.keyword_count|default:"0" }} Keyword <i class="bi bi-list"></i>
+                  </span>
+                </td>
+                <td class="align-middle">
+                  <div class="mb-1">
+                    <span class="badge badge-primary badge-pill" data-bs-toggle="tooltip" title="Daily Budget"><i class="bi bi-wallet2"></i> <span class="fmt-idr" data-amount="{{ w.fb_daily_budget|default:'0' }}"></span></span>
+                  </div>
+                  <div class="mb-1">
+                    <span class="badge badge-secondary" data-bs-toggle="tooltip" title="Facebook Account"><i class="bi bi-person-badge"></i> {{ w.fb_account|default:"-" }}</span>
+                    <span class="badge badge-info" data-bs-toggle="tooltip" title="Fanpage"><i class="bi bi-collection"></i> {{ w.fb_fanpage|default:"-" }}</span>
+                  </div>
+                  <div class="mb-1" data-bs-toggle="tooltip" title="Country">
+                    {% if w.country_tier %}
+                      {% if 'Tier 1' in w.country_tier %}<span class="badge badge-warning">Tier 1</span>{% endif %}
+                      {% if 'Tier 2' in w.country_tier %}<span class="badge badge-warning">Tier 2</span>{% endif %}
+                      {% if 'Tier 3' in w.country_tier %}<span class="badge badge-warning">Tier 3</span>{% endif %}
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </div>
+                  <div class="mb-1">
+                    <span class="badge badge-dark" data-bs-toggle="tooltip" title="LP"><i class="bi bi-link"></i> {{ w.plugin_lp|default:"-" }}?{{ w.plugin_params|default:"-" }}</span>
+                  </div>
+                  <div class="mb-1">
+                    <span class="badge badge-dark" data-bs-toggle="tooltip" title="Keitaro"><i class="bi bi-link"></i> {{ w.tracker|default:"-" }}?{{ w.tracker_params|default:"-" }}</span>
+                  </div>
+                  <div>
+                    <button type="button" class="btn btn-xs btn-success btn-show-ads-detail"
+                            data-id="{{ w.subdomain_id }}"
+                            data-amount="{{ w.fb_daily_budget|default:'0' }}"
+                            data-account="{{ w.fb_account|default:'' }}"
+                            data-fanpage="{{ w.fb_fanpage|default:'' }}"
+                            data-country="{{ w.fb_country|default:'' }}"
+                            data-tier="{{ w.country_tier|default:'' }}"
+                            data-interest="{{ w.fb_interest|default:'' }}"
+                            data-cpc="{{ w.fb_avg_cpc|default:'' }}">
+                      <i class="bi bi-list"></i> Detail
+                    </button>
+                  </div>
+                </td>
+                <td class="align-middle">
+                    <div class="mb-1">
+                        <span class="badge badge-primary">{{ w.provider }}</span>
+                    </div>
+                    <div class="mb-1">
+                        <span class="badge badge-info">{{ w.hostname }} ( {{ w.public_ipv4 }} )</span>
+                    </div>
+                    <div class="mb-1">
+                        <span class="badge badge-warning">{{ w.vcpu }} vCPU, {{ w.memory_gb }} GB RAM</span>
+                    </div>
+                </td>
+                <td class="align-middle">{{ w.website_user }}<br>{{ w.website_pass }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="7" class="text-center text-muted">Belum ada data website.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+</div>
+  
+<!-- Modal Keyword List -->
+<div class="modal fade" id="modalKeywordList" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="keywordListTitle">Keywords</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <div class="table-responsive">
+          <table class="table table-striped" id="keywordListTable">
+            <thead>
+              <tr>
+                <th width="25%">Niece</th>
+                <th width="35%">Keyword</th>
+                <th width="40%">Prompt</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script>
+$(function(){
+  try {
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el){ new bootstrap.Tooltip(el); });
+  } catch(e) {}
+  if (window.jQuery) {
+    if ($.fn.tooltip) { $('[data-toggle="tooltip"]').tooltip({ container: 'body' }); }
+
+    $('.btn-edit-website').on('click', function(e){
+      e.preventDefault();
+      var id = $(this).data('id');
+      var user = $(this).data('user') || '';
+      var pass = $(this).data('pass') || '';
+      var name = $(this).data('name') || '';
+      $('#website_id').val(id);
+      $('#website_user').val(user);
+      $('#website_pass').val(pass);
+      $('#website_label').val(name);
+    });
+   
+    $('.btn-show-keywords').on('click', function(e){
+      e.preventDefault();
+      var sid = $(this).data('subdomain');
+      var name = $(this).data('name') || '';
+      $('#keywordListTitle').text('Keywords for ' + name);
+      $('#keywordListTable tbody').html('<tr><td colspan="3" class="text-center text-muted">Loading...</td></tr>');
+      $('#modalKeywordList').modal('show');
+      $.ajax({
+        url: '/projects/master/website/keywords',
+        method: 'GET',
+        data: { subdomain_id: sid },
+        dataType: 'json',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(resp){
+          var items = (resp && resp.items) ? resp.items : [];
+          var html = '';
+          if (!items.length) {
+            html = '<tr><td colspan="3" class="text-center text-muted">No keywords.</td></tr>';
+          } else {
+            for (var i=0;i<items.length;i++){
+              var it = items[i] || {};
+              var niece = safeHtml(it.niece || '-');
+              var kw = safeHtml(it.keyword || '-');
+              var prompt = String(it.prompt_text || '');
+              var short = prompt.length > 50 ? prompt.slice(0,50) + '...' : prompt;
+              var pop = '<span class="prompt-pop" style="cursor:pointer;" data-toggle="popover" data-placement="bottom" data-container="#modalKeywordList" data-trigger="click" data-content="' + safeAttr(prompt) + '">' + safeHtml(short) + '</span>';
+              html += '<tr><td class="align-middle">' + niece + '</td><td class="align-middle">' + kw + '</td><td class="align-middle">' + pop + '</td></tr>';
+            }
+          }
+          $('#keywordListTable tbody').html(html);
+          $('#modalKeywordList .prompt-pop').popover({
+            container: '#modalKeywordList',
+            trigger: 'click',
+            template: '<div class="popover popover-prompt" role="tooltip"><div class="arrow"></div><h3 class="popover-header"></h3><div class="popover-body"></div></div>'
+          });
+          $(document).off('click.popoverDismiss').on('click.popoverDismiss', function(e){
+            if (!$(e.target).closest('#modalKeywordList .popover, #modalKeywordList .prompt-pop').length) {
+              $('#modalKeywordList .prompt-pop').popover('hide');
+            }
+          });
+        },
+        error: function(){
+          $('#keywordListTable tbody').html('<tr><td colspan="3" class="text-center text-danger">Failed to load.</td></tr>');
+        }
+      });
+    });
+
+    $('#modalKeywordList').on('hide.bs.modal', function(){
+      $(document).off('click.popoverDismiss');
+      $('#modalKeywordList .prompt-pop').popover('hide');
+    });
+
+    // Format Rupiah (IDR) currency
+    try {
+      $('.fmt-idr').each(function(){
+        var amt = parseFloat(String($(this).data('amount') || '0').replace(/[^0-9.-]/g,'')) || 0;
+        var fmt = new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(amt);
+        $(this).text(fmt);
+      });
+    } catch(e) {
+      $('.fmt-idr').each(function(){
+        var amt = parseFloat(String($(this).data('amount') || '0').replace(/[^0-9.-]/g,'')) || 0;
+        var rounded = Math.round(amt);
+        var str = String(rounded).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        $(this).text('Rp ' + str);
+      });
+    }
+
+    function safeHtml(txt){
+      return String(txt || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\'/g,'&#39;');
+    }
+    function safeAttr(txt){
+      return String(txt || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+    $(document).on('click', '.btn-show-ads-detail', function(e){
+      e.preventDefault();
+      var $btn = $(this);
+      var amt = parseFloat(String($btn.data('amount') || '0').replace(/[^0-9.-]/g,'')) || 0;
+      var acc = String($btn.data('account') || '');
+      var fp = String($btn.data('fanpage') || '');
+      var ct = String($btn.data('country') || '');
+      var tr = String($btn.data('tier') || '');
+      var it = String($btn.data('interest') || '');
+      var cpc = String($btn.data('cpc') || '');
+      function formatIDR(n){
+        try { return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n || 0); }
+        catch(e){ var r = Math.round(n || 0); return 'Rp ' + String(r).replace(/\B(?=(\d{3})+(?!\d))/g,'.'); }
+      }
+      var html = ''+
+        '<div><b>Budget</b>: '+safeHtml(formatIDR(amt))+'</div>'+
+        '<div><b>Account</b>: '+safeHtml(acc || '-')+'</div>'+
+        '<div><b>Fanpage</b>: '+safeHtml(fp || '-')+'</div>'+
+        '<div><b>Countries</b>: '+safeHtml(ct || '-')+'</div>'+
+        '<div><b>Tiers</b>: '+safeHtml(tr || '-')+'</div>'+
+        '<div><b>Avg CPC</b>: '+safeHtml(cpc || '-')+'</div>'+
+        '<div class="mt-1"><b>Interest</b>:</div>'+
+        '<div style="white-space: pre-wrap">'+safeHtml(it || '-')+'</div>';
+      $('.btn-show-ads-detail').not($btn).each(function(){ var $b=$(this); if ($b.data('bs.popover')) { $b.popover('hide'); } });
+      var inst = $btn.data('bs.popover');
+      var visible = !!$btn.attr('aria-describedby');
+      if (inst) {
+        if (visible) { $btn.popover('hide'); } else { $btn.popover('show'); }
+      } else {
+        $btn.popover({ html: true, content: html, container: 'body', placement: 'auto', trigger: 'manual' });
+        $btn.popover('show');
+      }
+    });
+    $(document).on('click', function(e){
+      if ($(e.target).closest('.popover, .btn-show-ads-detail').length === 0) {
+        $('.btn-show-ads-detail').each(function(){ var $b=$(this); if ($b.data('bs.popover')) { $b.popover('hide'); } });
+      }
+    });
+  }
+});
+</script>
+<style>
+.popover.popover-prompt { max-width: 600px; width: 600px; }
+@media (max-width: 768px) { .popover.popover-prompt { max-width: 90vw; width: 90vw; } }
+</style>
+{% endblock %}

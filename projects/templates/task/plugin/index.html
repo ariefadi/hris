@@ -1,0 +1,123 @@
+{% extends 'admin_base.html' %}
+
+{% block page_title %}Plugin{% endblock %}
+{% block page_heading %}Plugin{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item">Task</li>
+<li class="breadcrumb-item active"><a href="/projects/task/plugin">Plugin</a></li>
+{% endblock %}
+
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Plugin</h3>
+      </div>
+      <div class="card-body">
+        {% csrf_token %}
+        <div class="table-responsive">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th width="5%">No</th>
+                <th width="25%">Subdomain</th>
+                <th width="23%">Plugin Setup</th>
+                <th width="23%">Link LP</th>
+                <th width="24%">Parameter</th>
+                <th width="10%"></th>
+                <th width="5%"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for g in groups %}
+                {% for r in g.rows %}
+                <tr>
+                  <td class="align-middle">{{ forloop.counter }}</td>
+                  <td class="align-middle">{{ r.subdomain_name }}</td>
+                  <td class="align-middle">
+                    <input type="text" class="form-control input-setup" data-subdomain-id="{{ r.subdomain_id }}" placeholder="AFS, Display, dll" value="{{ r.plugin_setup|default:'' }}">
+                  </td>
+                  <td class="align-middle">
+                    <textarea class="form-control input-lp" data-subdomain-id="{{ r.subdomain_id }}" placeholder="cth: https://sub.sample.id/luxurena" rows="3">{{ r.plugin_lp|default:'' }}</textarea>
+                  </td>
+                  <td class="align-middle">
+                    <textarea class="form-control input-params" data-subdomain-id="{{ r.subdomain_id }}" placeholder="cth: gen=joBs20N" rows="3">{{ r.plugin_params|default:'' }}</textarea>
+                  </td>
+                  <td class="align-middle">
+                    <button class="btn btn-sm btn-primary btn-update-plugin" data-subdomain-id="{{ r.subdomain_id }}"><i class="bi bi-save"></i> Update</button>
+                  </td>
+                  {% if forloop.first %}
+                  <td class="align-middle" rowspan="{{ g.rowspan }}">
+                    <a href="#" class="btn btn-sm btn-success btn-send" data-partner-id="{{ g.partner_id }}" data-process-id="{{ g.process_id }}" title="Kirim"><i class="bi bi-send"></i></a>
+                  </td>
+                  {% endif %}
+                </tr>
+                {% endfor %}
+              {% empty %}
+              <tr>
+                <td colspan="7" class="text-center text-muted">Belum ada data.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block more_scripts %}
+<script>
+(function(){
+  document.querySelectorAll('.btn-update-plugin').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.preventDefault();
+      var sid = this.getAttribute('data-subdomain-id');
+      var setup = document.querySelector('textarea.input-setup[data-subdomain-id="'+sid+'"]');
+      var lp = document.querySelector('textarea.input-lp[data-subdomain-id="'+sid+'"]');
+      var params = document.querySelector('textarea.input-params[data-subdomain-id="'+sid+'"]');
+      var form = new FormData();
+      form.append('subdomain_id', sid);
+      form.append('plugin_setup', setup ? setup.value : '');
+      form.append('plugin_lp', lp ? lp.value : '');
+      form.append('plugin_params', params ? params.value : '');
+      var tokenEl = document.querySelector('input[name=csrfmiddlewaretoken]');
+      var csrf = tokenEl ? tokenEl.value : '';
+      if (csrf) { form.append('csrfmiddlewaretoken', csrf); }
+      var headers = { 'X-Requested-With': 'XMLHttpRequest' };
+      if (csrf) { headers['X-CSRFToken'] = csrf; }
+      fetch('{% url "projects_task_plugin_update" %}', { method: 'POST', headers: headers, credentials: 'same-origin', body: form })
+        .then(function(r){ return r.json(); })
+        .then(function(resp){
+          var ok = resp && (resp.status === true || resp.status === 'True');
+          if (ok) {
+            if (window.Swal) { Swal.fire({icon:'success', title:'Berhasil', text:'Plugin diperbarui', timer:800, showConfirmButton:false}); } else { alert('Plugin diperbarui'); }
+          } else {
+            var emsg = (resp && resp.message) ? resp.message : 'Gagal memperbarui plugin';
+            if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: emsg}); } else { alert(emsg); }
+          }
+        });
+    });
+  });
+  document.querySelectorAll('.btn-send').forEach(function(a){
+    a.addEventListener('click', function(e){
+      e.preventDefault();
+      var pid = this.getAttribute('data-partner-id');
+      var prc = this.getAttribute('data-process-id');
+      var confirmFn = function(doSend){ if (!doSend) return; var form = new FormData(); form.append('partner_id', pid); form.append('process_id', prc); var tokenEl = document.querySelector('input[name=csrfmiddlewaretoken]'); var csrf = tokenEl ? tokenEl.value : ''; if (csrf) { form.append('csrfmiddlewaretoken', csrf); } var headers = { 'X-Requested-With': 'XMLHttpRequest' }; if (csrf) { headers['X-CSRFToken'] = csrf; } fetch('{% url "projects_task_plugin_send" %}', { method: 'POST', headers: headers, credentials: 'same-origin', body: form }).then(function(r){ return r.json(); }).then(function(resp){ var ok = resp && (resp.status === true || resp.status === 'True'); if (ok) { if (window.Swal) { Swal.fire({icon: 'success', title: 'Berhasil', text: 'Data dikirim ke proses berikutnya', timer: 1000, showConfirmButton: false}).then(function(){ window.location.reload(); }); } else { window.location.reload(); } } else { var emsg = (resp && resp.message) ? resp.message : 'Gagal mengirim data'; if (window.Swal) { Swal.fire({icon: 'error', title: 'Gagal', text: emsg}); } else { alert(emsg); } } }); };
+      if (window.Swal) {
+        Swal.fire({icon: 'question', title: 'Kirim?', text: 'Kirim data ke proses berikutnya?', showCancelButton: true, confirmButtonText: 'Ya, kirim', cancelButtonText: 'Batal'}).then(function(res){ confirmFn(res && res.isConfirmed); });
+      } else {
+        var ok = confirm('Kirim data ke proses berikutnya?');
+        confirmFn(ok);
+      }
+    });
+  });
+})();
+</script>
+{% endblock %}

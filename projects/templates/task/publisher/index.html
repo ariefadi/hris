@@ -1,0 +1,408 @@
+{% extends 'admin_base.html' %}
+
+{% block page_title %}Publisher{% endblock %}
+{% block page_heading %}Publisher{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item">Task</li>
+<li class="breadcrumb-item active"><a href="/projects/task/publisher">Publisher</a></li>
+{% endblock %}
+
+{% block content %}
+
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Publisher</h3>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th width="5%">No</th>
+                <th width="25%">Subdomain</th>
+                <th width="40%">Niece & Keywords</th>
+                <th width="15%"></th>
+                <th width="5%"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for g in groups %}
+                {% for r in g.rows %}
+                <tr>
+                  <td class="align-middle">{{ forloop.counter }}</td>
+                  <td class="align-middle">{{ r.subdomain_name }}</td>
+                  <td class="align-middle">
+                    <div><b>Niece:</b> {{ r.niece }}</div>
+                    <div><b>Keywords:</b> {% if r.keyword_total > 0 %} {{ r.keyword_total }} {% else %} - {% endif %}</div>
+                  </td>
+                  <td class="align-middle">
+                    {% if r.niece and r.keyword_total %}
+                    <button class="btn btn-sm btn-warning btn-edit-nk" data-subdomain-id="{{ r.subdomain_id }}"><i class="bi bi-pencil"></i></button>
+                    <button class="btn btn-sm btn-danger btn-delete-nk" data-subdomain-id="{{ r.subdomain_id }}"><i class="bi bi-trash"></i></button>
+                    {% else %}
+                    <button class="btn btn-sm btn-primary btn-add-nk" data-subdomain-id="{{ r.subdomain_id }}"><i class="bi bi-plus"></i> Tambah Niece</button>
+                    {% endif %}
+                  </td>
+                  {% if forloop.first %}
+                  <td class="align-middle" rowspan="{{ g.rowspan }}">
+                    <a href="#" class="btn btn-sm btn-success btn-send" data-partner-id="{{ g.partner_id }}" data-process-id="{{ g.process_id }}" title="Kirim"><i class="bi bi-send"></i></a>
+                  </td>
+                  {% endif %}
+                </tr>
+                {% endfor %}
+              {% empty %}
+              <tr>
+                <td colspan="5" class="text-center text-muted">Belum ada data.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalAddNieceKeyword" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Tambah / Edit Niece & Keyword</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="modal_subdomain_id" value="">
+        <input type="hidden" id="modal_action" value="">
+        {% csrf_token %}
+        <div class="form-group">
+          <label>Niece</label>
+          <select id="modal_niece_id" class="form-control select2" data-placeholder="-- Pilih Niece --">
+            <option value=""></option>
+            {% for n in nieces %}
+              <option value="{{ n.niece_id }}">{{ n.niece }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <template id="nk_group_template">
+          <div class="nk-group border p-3">
+            <div class="form-group">
+              <label>Keyword</label>
+              <select class="form-control select2 keyword-select" name="keyword[]" multiple data-placeholder="-- Pilih Keyword --"></select>
+            </div>
+            <div class="form-group">
+              <label>Prompt</label>
+              <select class="form-control select2" name="prompt_id[]" data-placeholder="-- Pilih Prompt --">
+                <option value=""></option>
+                {% for p in prompts %}
+                  <option value="{{ p.prompt_id }}">{{ p.prompt }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <select class="form-control select2" name="status[]" data-placeholder="-- Pilih Status --">
+                <option value="draft">draft</option>
+                <option value="posted">posted</option>
+                <option value="indexed">indexed</option>
+              </select>
+            </div>
+            <button type="button" class="btn btn-sm btn-danger btn-del-group"><i class="bi bi-trash"></i> Hapus</button>
+          </div>
+        </template>
+        <div id="nk_groups"></div>
+        <div class="mt-2">
+          <button type="button" class="btn btn-sm btn-secondary btn-add-group"><i class="bi bi-plus"></i> Tambah Keyword</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+        <button type="button" class="btn btn-primary btn-save-nk">Simpan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block more_scripts %}
+<script>
+$(function(){
+  function initSelect2(ctx){
+    $(ctx).find('select.select2:visible').each(function(){
+      if (!$(this).data('select2')) {
+        $(this).select2({
+            theme: 'bootstrap4',
+            allowClear: true
+        });
+      }
+    });
+  }
+  function loadKeywordsOptions(nid, target){
+    nid = nid || '';
+    var dfd = $.Deferred();
+    if (!nid) {
+      // clear options if niece not selected
+      var scope = target ? target : $('#nk_groups .keyword-select');
+      scope.each(function(){ $(this).empty(); });
+      return dfd.resolve().promise();
+    }
+    $.ajax({
+      url: '/projects/task/publisher/keywords-by-niece',
+      method: 'GET',
+      data: { niece_id: nid },
+      success: function(resp){
+        var items = (resp && resp.items) ? resp.items : [];
+        var scope = target ? target : $('#nk_groups .keyword-select');
+        scope.each(function(){
+          var sel = $(this);
+          var prev = sel.val() || [];
+          sel.empty();
+          items.forEach(function(it){
+            var opt = $('<option>').attr('value', (it.keyword || ''));
+            opt.text(it.keyword || '');
+            sel.append(opt);
+          });
+          // restore previous selection if possible
+          if (prev && prev.length) {
+            sel.val(prev).trigger('change');
+          } else {
+            sel.trigger('change');
+          }
+        });
+        dfd.resolve();
+      },
+      error: function(){ dfd.resolve(); }
+    });
+    return dfd.promise();
+  }
+  function addGroup(){
+    var html = $('#nk_group_template').html();
+    var el = $(html);
+    $('#nk_groups').append(el);
+    initSelect2(el);
+  }
+  $(document).on('click', '.btn-add-nk', function(e){
+    e.preventDefault();
+    var sid = $(this).data('subdomain-id') || '';
+    $('#modal_subdomain_id').val(sid);
+    $('#modal_action').val('');
+    // reset modal state for create
+    $('#modal_niece_id').prop('disabled', false).val('').trigger('change');
+    $('#nk_groups').empty();
+    addGroup();
+    // if ($('#nk_groups .nk-group').length === 0) {
+    //   addGroup();
+    // }
+    $('#modalAddNieceKeyword').modal('show');
+  });
+  $(document).on('click', '.btn-edit-nk', function(e){
+    e.preventDefault();
+    var sid = $(this).data('subdomain-id') || '';
+    $('#modal_subdomain_id').val(sid);
+    $('#modal_action').val('update');
+    $('#nk_groups').empty();
+    $.ajax({
+      url: '/projects/task/publisher/keywords-load',
+      method: 'GET',
+      data: { subdomain_id: sid },
+      success: function(resp){
+        if (resp && resp.status === true) {
+          var nid = resp.niece_id || '';
+          if (nid) {
+            $('#modal_niece_id').val(nid).trigger('change').prop('disabled', true);
+          }
+          var items = resp.items || [];
+          if (!items.length) {
+            addGroup();
+          } else {
+            items.forEach(function(it){
+              addGroup();
+              var g = $('#nk_groups .nk-group').last();
+              var sel = g.find('select.keyword-select');
+              sel.prop('multiple', false);
+              try { sel.select2('destroy'); } catch(e){}
+              sel.select2({ theme: 'bootstrap4', allowClear: true });
+              loadKeywordsOptions(nid, sel).done(function(){
+                if (it.keyword) { sel.val(it.keyword).trigger('change'); }
+              });
+              if (it.prompt_id) {
+                g.find('select[name="prompt_id[]"]').val(String(it.prompt_id)).trigger('change');
+              }
+              g.find('select[name="status[]"]').val(it.status || 'posted').trigger('change');
+            });
+          }
+          $('#modalAddNieceKeyword').modal('show');
+        } else {
+          var emsg = (resp && resp.message) ? resp.message : 'Gagal memuat data';
+          if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: emsg}); } else { alert(emsg); }
+        }
+      },
+      error: function(xhr){
+        var msg = 'Gagal memuat data';
+        try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e){}
+        if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: msg}); } else { alert(msg); }
+      }
+    });
+  });
+  $(document).on('click', '.btn-send', function(e){
+    e.preventDefault();
+    var pid = this.getAttribute('data-partner-id');
+    var prc = this.getAttribute('data-process-id');
+    var confirmFn = function(doSend){
+      if (!doSend) return;
+      var form = new FormData();
+      form.append('partner_id', pid);
+      form.append('process_id', prc);
+      var tokenEl = document.querySelector('input[name=csrfmiddlewaretoken]');
+      var csrf = tokenEl ? tokenEl.value : '';
+      if (csrf) { form.append('csrfmiddlewaretoken', csrf); }
+      var headers = { 'X-Requested-With': 'XMLHttpRequest' };
+      if (csrf) { headers['X-CSRFToken'] = csrf; }
+      fetch('{% url "projects_task_publisher_send" %}', { method: 'POST', headers: headers, credentials: 'same-origin', body: form })
+        .then(function(r){ return r.json(); })
+        .then(function(resp){
+          var ok = resp && (resp.status === true || resp.status === 'True');
+          if (ok) {
+            if (window.Swal) { Swal.fire({icon:'success', title:'Berhasil', text:'Data dikirim ke proses berikutnya', timer:1000, showConfirmButton:false}).then(function(){ window.location.reload(); }); } else { window.location.reload(); }
+          } else {
+            var list = (resp && resp.missing) ? resp.missing.join(', ') : '';
+            var emsg = (resp && resp.message) ? resp.message : 'Gagal mengirim data';
+            if (list) { emsg = emsg + ': ' + list; }
+            if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: emsg}); } else { alert(emsg); }
+          }
+        });
+    };
+    if (window.Swal) {
+      Swal.fire({icon:'question', title:'Kirim?', text:'Kirim data ke proses berikutnya?', showCancelButton:true, confirmButtonText:'Ya, kirim', cancelButtonText:'Batal'}).then(function(res){ confirmFn(res && res.isConfirmed); });
+    } else {
+      var ok = confirm('Kirim data ke proses berikutnya?');
+      confirmFn(ok);
+    }
+  });
+  $(document).on('click', '.btn-add-group', function(e){
+    e.preventDefault();
+    addGroup();
+    var nid = $('#modal_niece_id').val() || '';
+    var g = $('#nk_groups .nk-group').last();
+    var sel = g.find('select.keyword-select');
+    var act = ($('#modal_action').val() || '').toLowerCase();
+    if (act === 'update') {
+      sel.prop('multiple', false);
+      try { sel.select2('destroy'); } catch(e){}
+      sel.select2({ theme: 'bootstrap4', allowClear: true });
+    }
+    if (nid) {
+      loadKeywordsOptions(nid, sel);
+    }
+  });
+  $(document).on('click', '.btn-delete-nk', function(e){
+    e.preventDefault();
+    var sid = $(this).data('subdomain-id') || '';
+    var doDelete = function(ok){
+      if (!ok) return;
+      var tokenEl = document.querySelector('input[name=csrfmiddlewaretoken]');
+      var csrf = tokenEl ? tokenEl.value : '';
+      $.ajax({
+        url: '/projects/task/publisher/keywords-delete',
+        method: 'POST',
+        data: { subdomain_id: sid },
+        headers: csrf ? { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' } : { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(resp){
+          var ok = resp && (resp.status === true || resp.status === 'True');
+          if (ok) {
+            if (window.Swal) { Swal.fire({icon:'success', title:'Berhasil', text:'Semua keyword telah dihapus', timer:1000, showConfirmButton:false}).then(function(){ window.location.reload(); }); } else { window.location.reload(); }
+          } else {
+            var emsg = (resp && resp.message) ? resp.message : 'Gagal menghapus data';
+            if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: emsg}); } else { alert(emsg); }
+          }
+        },
+        error: function(xhr){
+          var msg = 'Gagal menghapus data';
+          try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e){}
+          if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: msg}); } else { alert(msg); }
+        }
+      });
+    };
+    if (window.Swal) {
+      Swal.fire({icon:'question', title:'Hapus?', text:'Hapus semua keyword untuk subdomain ini?', showCancelButton:true, confirmButtonText:'Ya, hapus', cancelButtonText:'Batal'}).then(function(res){ doDelete(res && res.isConfirmed); });
+    } else {
+      var ok = confirm('Hapus semua keyword untuk subdomain ini?');
+      doDelete(ok);
+    }
+  });
+  $(document).on('click', '.btn-del-group', function(e){
+    e.preventDefault();
+    var g = $(this).closest('.nk-group');
+    g.remove();
+  });
+  $('#modalAddNieceKeyword').on('shown.bs.modal', function(){
+    initSelect2(this);
+  });
+  $('#modal_niece_id').on('change', function(){
+    var nid = $(this).val();
+    loadKeywordsOptions(nid);
+  });
+
+  $(document).on('click', '.btn-save-nk', function(e){
+    e.preventDefault();
+    var sid = $('#modal_subdomain_id').val();
+    var nieceId = $('#modal_niece_id').val();
+    var keywords = [];
+    var promptIds = [];
+    var statuses = [];
+    $('#nk_groups .nk-group').each(function(){
+      var pid = $(this).find('select[name="prompt_id[]"]').val() || '';
+      var st = $(this).find('select[name="status[]"]').val() || 'posted';
+      var sel = $(this).find('select.keyword-select');
+      if (sel.length) {
+        var isMulti = sel.prop('multiple');
+        if (isMulti) {
+          var arr = sel.val() || [];
+          arr.forEach(function(kw){
+            keywords.push(kw || '');
+            promptIds.push(pid);
+            statuses.push(st);
+          });
+        } else {
+          var v = sel.val() || '';
+          if (v) {
+            keywords.push(v);
+            promptIds.push(pid);
+            statuses.push(st);
+          }
+        }
+      }
+    });
+    $.ajax({
+      url: '/projects/task/publisher/keywords-save',
+      method: 'POST',
+      data: {
+        subdomain_id: sid,
+        niece_id: nieceId,
+        action: ($('#modal_action').val() || ''),
+        'keyword[]': keywords,
+        'prompt_id[]': promptIds,
+        'status[]': statuses
+      },
+      success: function(resp){
+        var ok = resp && (resp.status === true || resp.status === 'True');
+        if (ok) {
+          if (window.Swal) { Swal.fire({icon:'success', title:'Berhasil', text:'Data berhasil disimpan', timer: 1000, showConfirmButton: false}).then(function(){ window.location.reload(); }); } else { window.location.reload(); }
+        } else {
+          var emsg = (resp && resp.message) ? resp.message : 'Gagal menyimpan data';
+          if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: emsg}); } else { alert(emsg); }
+        }
+      },
+      error: function(xhr){
+        var msg = 'Gagal menyimpan data';
+        try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e){}
+        if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: msg}); } else { alert(msg); }
+      }
+    });
+  });
+});
+</script>
+{% endblock %}

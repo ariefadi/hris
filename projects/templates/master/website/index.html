@@ -1,0 +1,251 @@
+{% extends 'admin_base.html' %}
+
+{% block page_title %}Master Website{% endblock %}
+{% block page_heading %}Master Website{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item">Projects</li>
+<li class="breadcrumb-item active"><a href="/projects/master/website">Master Website</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Daftar Website</h3>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th width="5%">No</th>
+                <th width="25%">Website</th>
+                <th width="15%">Niece</th>
+                <th width="20%">Keyword</th>
+                <th width="10%">User</th>
+                <th width="10%">Pass</th>
+                <th width="10%">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for w in websites %}
+              <tr>
+                <td class="align-middle">{{ forloop.counter }}</td>
+                <td class="align-middle">{{ w.website_name }}</td>
+                <td class="align-middle">{% if w.niece == None %}<span class="text-muted">-</span>{% else %}{{ w.niece }}{% endif %}</td>
+                <td class="align-middle">
+                  <span class="badge badge-info btn-show-keywords" style="cursor:pointer;"
+                        data-subdomain="{{ w.subdomain_id }}"
+                        data-name="{{ w.website_name }}">
+                    {{ w.keyword_count|default:"0" }} Keyword <i class="bi bi-list"></i>
+                  </span>
+                </td>
+                <td class="align-middle">{{ w.website_user }}</td>
+                <td class="align-middle">{{ w.website_pass }}</td>
+                <td class="align-middle">
+                  <button type="button" class="btn btn-sm btn-warning btn-edit-website"
+                          data-id="{{ w.website_id }}"
+                          data-user="{{ w.website_user }}"
+                          data-pass="{{ w.website_pass }}"
+                          data-name="{{ w.website_name }}">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="7" class="text-center text-muted">Belum ada data website.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+<!-- Modal Edit Website -->
+<div class="modal fade" id="modalEditWebsite" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalEditWebsiteTitle">Edit Website</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <form id="formEditWebsite" method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="website_id" id="website_id">
+          <div class="form-group">
+            <label>Website</label>
+            <input type="text" id="website_label" class="form-control" readonly>
+          </div>
+          <div class="form-group">
+            <label>Login User</label>
+            <input type="text" name="website_user" id="website_user" class="form-control">
+          </div>
+          <div class="form-group">
+            <label>Login Password</label>
+            <input type="text" name="website_pass" id="website_pass" class="form-control">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btn_submit_website">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+</div>
+<!-- Modal Keyword List -->
+<div class="modal fade" id="modalKeywordList" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="keywordListTitle">Keywords</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <div class="table-responsive">
+          <table class="table table-striped" id="keywordListTable">
+            <thead>
+              <tr>
+                <th width="25%">Niece</th>
+                <th width="35%">Keyword</th>
+                <th width="40%">Prompt</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script>
+$(function(){
+  if (window.jQuery) {
+    $('.btn-edit-website').on('click', function(e){
+      e.preventDefault();
+      var id = $(this).data('id');
+      var user = $(this).data('user') || '';
+      var pass = $(this).data('pass') || '';
+      var name = $(this).data('name') || '';
+      $('#website_id').val(id);
+      $('#website_user').val(user);
+      $('#website_pass').val(pass);
+      $('#website_label').val(name);
+      $('#modalEditWebsite').modal('show');
+    });
+    $('#formEditWebsite').on('submit', function(e){
+      e.preventDefault();
+      var $btn = $('#btn_submit_website');
+      $btn.prop('disabled', true);
+      var id = $('#website_id').val();
+      var action = '/projects/master/website/' + id + '/update';
+      var formData = $(this).serialize();
+      $.ajax({
+        url: action,
+        method: 'POST',
+        data: formData,
+        dataType: 'json',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(resp){
+          var ok = resp && (resp.status === true || resp.status === 'True');
+          if (ok) {
+            if (window.Swal) {
+              Swal.fire({icon: 'success', title: 'Berhasil', text: 'Website diperbarui', timer: 1000, showConfirmButton: false}).then(function(){ window.location.reload(); });
+            } else {
+              window.location.reload();
+            }
+          } else {
+            var emsg = (resp && resp.message) ? resp.message : 'Gagal menyimpan';
+            if (window.Swal) { Swal.fire({icon: 'error', title: 'Gagal', text: emsg}); } else { alert(emsg); }
+            $btn.prop('disabled', false);
+          }
+        },
+        error: function(xhr){
+          var emsg = (xhr && xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Terjadi kesalahan saat menyimpan';
+          if (window.Swal) { Swal.fire({icon: 'error', title: 'Gagal', text: emsg}); } else { alert(emsg); }
+          $btn.prop('disabled', false);
+        },
+        complete: function(){ $btn.prop('disabled', false); }
+      });
+    });
+
+    // Keyword list modal
+    $('.btn-show-keywords').on('click', function(e){
+      e.preventDefault();
+      var sid = $(this).data('subdomain');
+      var name = $(this).data('name') || '';
+      $('#keywordListTitle').text('Keywords for ' + name);
+      $('#keywordListTable tbody').html('<tr><td colspan="3" class="text-center text-muted">Loading...</td></tr>');
+      $('#modalKeywordList').modal('show');
+      $.ajax({
+        url: '/projects/master/website/keywords',
+        method: 'GET',
+        data: { subdomain_id: sid },
+        dataType: 'json',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(resp){
+          var items = (resp && resp.items) ? resp.items : [];
+          var html = '';
+          if (!items.length) {
+            html = '<tr><td colspan="3" class="text-center text-muted">No keywords.</td></tr>';
+          } else {
+            for (var i=0;i<items.length;i++){
+              var it = items[i] || {};
+              var niece = safeHtml(it.niece || '-');
+              var kw = safeHtml(it.keyword || '-');
+              var prompt = String(it.prompt_text || '');
+              var short = prompt.length > 50 ? prompt.slice(0,50) + '...' : prompt;
+              var pop = '<span class="prompt-pop" data-toggle="popover" data-placement="bottom" data-container="#modalKeywordList" data-trigger="click" data-content="' + safeAttr(prompt) + '">' + safeHtml(short) + '</span>';
+              html += '<tr><td class="align-middle">' + niece + '</td><td class="align-middle">' + kw + '</td><td class="align-middle">' + pop + '</td></tr>';
+            }
+          }
+          $('#keywordListTable tbody').html(html);
+          $('#modalKeywordList .prompt-pop').popover({
+            container: '#modalKeywordList',
+            trigger: 'click',
+            template: '<div class="popover popover-prompt" role="tooltip"><div class="arrow"></div><h3 class="popover-header"></h3><div class="popover-body"></div></div>'
+          });
+          $(document).off('click.popoverDismiss').on('click.popoverDismiss', function(e){
+            if (!$(e.target).closest('#modalKeywordList .popover, #modalKeywordList .prompt-pop').length) {
+              $('#modalKeywordList .prompt-pop').popover('hide');
+            }
+          });
+        },
+        error: function(){
+          $('#keywordListTable tbody').html('<tr><td colspan="3" class="text-center text-danger">Failed to load.</td></tr>');
+        }
+      });
+    });
+
+    $('#modalKeywordList').on('hide.bs.modal', function(){
+      $(document).off('click.popoverDismiss');
+      $('#modalKeywordList .prompt-pop').popover('hide');
+    });
+
+    function safeHtml(txt){
+      return String(txt || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/\'/g,'&#39;');
+    }
+    function safeAttr(txt){
+      return String(txt || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+  }
+});
+</script>
+<style>
+.popover.popover-prompt { max-width: 600px; width: 600px; }
+@media (max-width: 768px) { .popover.popover-prompt { max-width: 90vw; width: 90vw; } }
+</style>
+{% endblock %}

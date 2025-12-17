@@ -334,7 +334,7 @@ class Migration(migrations.Migration):
                 `server_id` bigint unsigned NOT NULL AUTO_INCREMENT,
                 `hostname` varchar(253) NOT NULL,
                 `label` varchar(100) DEFAULT NULL,
-                `provider` varchar(100) DEFAULT NULL,
+                `provider` varchar(100) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
                 `region` varchar(100) DEFAULT NULL,
                 `location` varchar(100) DEFAULT NULL,
                 `server_code` varchar(100) DEFAULT NULL,
@@ -345,8 +345,8 @@ class Migration(migrations.Migration):
                 `arch` enum('x86_64','arm64','i386','armhf') DEFAULT NULL,
                 `vcpu_count` smallint unsigned NOT NULL,
                 `memory_gb` int unsigned NOT NULL,
-                `swap_mb` int unsigned DEFAULT NULL,
-                `disk_gb` decimal(10,2) unsigned NOT NULL,
+                `swap_mb` int unsigned DEFAULT '0',
+                `disk_gb` decimal(10,2) unsigned DEFAULT NULL,
                 `disk_type` enum('HDD','SSD','NVMe') DEFAULT NULL,
                 `bandwidth_tb` decimal(10,2) DEFAULT NULL,
                 `network_speed_mbps` int unsigned DEFAULT NULL,
@@ -360,20 +360,22 @@ class Migration(migrations.Migration):
                 `ssh_keys` json DEFAULT NULL,
                 `ssh_pass` varchar(100) DEFAULT NULL,
                 `cost_monthly` decimal(10,2) DEFAULT NULL,
-                `currency` enum('IDR','USD','EUR') NOT NULL DEFAULT 'IDR',
+                `currency` enum('IDR','USD','EUR') CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT 'IDR',
                 `currency_conversion_idr` decimal(10,2) DEFAULT NULL,
                 `purchased_at` datetime DEFAULT NULL,
                 `expires_at` datetime DEFAULT NULL,
                 `notes` text,
+                `email` varchar(100) DEFAULT NULL,
+                `pass` varchar(100) DEFAULT NULL,
                 `mdd` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 `mdb` varchar(36) DEFAULT NULL,
-                `mdb_name` varchar(50) DEFAULT NULL,
+                `mdb_name` varchar(100) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
                 PRIMARY KEY (`server_id`),
                 KEY `idx_hostname` (`hostname`),
                 KEY `idx_status` (`server_status`),
                 KEY `idx_expires_at` (`expires_at`),
-                KEY `provider_id` (`povider`)
-                ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;
+                KEY `provider_id` (`provider`)
+                ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=latin1
             """,
             # reverse_sql="DROP TABLE IF EXISTS `data_servers`;"
         ),
@@ -422,8 +424,22 @@ class Migration(migrations.Migration):
                 `subdomain` varchar(100) DEFAULT NULL,
                 `domain_id` bigint unsigned DEFAULT NULL,
                 `website_id` bigint unsigned DEFAULT NULL,
+                `niece_id` bigint unsigned DEFAULT NULL,
                 `cloudflare` varchar(100) DEFAULT NULL,
                 `public_ipv4` varchar(45) DEFAULT NULL,
+                `tracker` text CHARACTER SET latin1 COLLATE latin1_swedish_ci,
+                `tracker_params` text CHARACTER SET latin1 COLLATE latin1_swedish_ci,
+                `plugin_setup` varchar(100) DEFAULT NULL,
+                `plugin_lp` varchar(255) DEFAULT NULL,
+                `plugin_params` varchar(255) DEFAULT NULL,
+                `fb_ads_id_1` varchar(36) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+                `fb_ads_id_2` varchar(36) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+                `fb_fanpage` varchar(255) DEFAULT NULL,
+                `fb_interest` varchar(255) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+                `fb_country` text CHARACTER SET latin1 COLLATE latin1_swedish_ci,
+                `fb_daily_budget` bigint DEFAULT NULL,
+                `fb_avg_cpc` bigint DEFAULT NULL,
+                `db_ads_status` varchar(10) DEFAULT 'off',
                 `mdb` varchar(36) DEFAULT NULL,
                 `mdb_name` varchar(50) DEFAULT NULL,
                 `mdd` datetime DEFAULT CURRENT_TIMESTAMP,
@@ -431,9 +447,11 @@ class Migration(migrations.Migration):
                 KEY `subdomain` (`subdomain`),
                 KEY `domain_id` (`domain_id`),
                 KEY `website_id` (`website_id`),
+                KEY `niece_id` (`niece_id`),
                 CONSTRAINT `data_subdomain_ibfk_1` FOREIGN KEY (`domain_id`) REFERENCES `data_domains` (`domain_id`) ON DELETE CASCADE ON UPDATE CASCADE,
-                CONSTRAINT `data_subdomain_ibfk_2` FOREIGN KEY (`website_id`) REFERENCES `data_website` (`website_id`) ON UPDATE CASCADE
-                ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+                CONSTRAINT `data_subdomain_ibfk_2` FOREIGN KEY (`website_id`) REFERENCES `data_website` (`website_id`) ON UPDATE CASCADE,
+                CONSTRAINT `data_subdomain_ibfk_3` FOREIGN KEY (`niece_id`) REFERENCES `data_niece` (`niece_id`) ON UPDATE CASCADE
+                ) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=latin1
             """,
             # reverse_sql="DROP TABLE IF EXISTS `data_media_partner_domain`;"
         ),
@@ -536,5 +554,61 @@ class Migration(migrations.Migration):
                 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
             """,
             # reverse_sql="DROP TABLE IF EXISTS `data_media_process`;"
+        ),
+
+        # create data niece table
+        migrations.RunSQL(
+            sql="""
+                CREATE TABLE `data_niece` (
+                `niece_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                `niece` varchar(100) DEFAULT NULL,
+                `focuses` text,
+                `tier` json DEFAULT NULL,
+                `country_list` text,
+                `keyword_cpc` decimal(10,0) DEFAULT NULL,
+                `status` enum('pending','done') NOT NULL DEFAULT 'pending',
+                `keywords` text CHARACTER SET latin1 COLLATE latin1_swedish_ci,
+                `file` text,
+                `mdb` varchar(36) DEFAULT NULL,
+                `mdb_name` varchar(50) DEFAULT NULL,
+                `mdd` datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`niece_id`),
+                KEY `status` (`status`)
+                ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=latin1
+            """,
+            # reverse_sql="DROP TABLE IF EXISTS `data_niece`;"
+        ),
+
+        # create data keywords table
+        migrations.RunSQL(
+            sql="""
+                CREATE TABLE `data_keywords` (
+                `keyword_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                `niece_id` bigint unsigned DEFAULT NULL,
+                `keyword` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+                `mdb` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+                `mdb_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+                `mdd` datetime DEFAULT NULL,
+                PRIMARY KEY (`keyword_id`),
+                KEY `niece_id` (`niece_id`),
+                KEY `keyword` (`keyword`),
+                CONSTRAINT `data_keywords_ibfk_3` FOREIGN KEY (`niece_id`) REFERENCES `data_niece` (`niece_id`) ON UPDATE CASCADE
+                ) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=latin1
+            """,
+            # reverse_sql="DROP TABLE IF EXISTS `data_keywrods`;"
+        ),
+        # create data prompts table
+        migrations.RunSQL(
+            sql="""
+                CREATE TABLE `data_prompts` (
+                `prompt_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                `prompt` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+                `mdb` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+                `mdb_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+                `mdd` datetime DEFAULT NULL,
+                PRIMARY KEY (`prompt_id`)
+                ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=latin1
+            """,
+            # reverse_sql="DROP TABLE IF EXISTS `data_keywrods`;"
         ),
     ]

@@ -202,6 +202,14 @@ $(function(){
       todayHighlight: true
     });
   }
+  (function(){
+    var $r = $('input[name="registration_date"]');
+    var $e = $('input[name="expiration_date"]');
+    function fmt(d){ var y=d.getFullYear(); var m=('0'+(d.getMonth()+1)).slice(-2); var dd=('0'+d.getDate()).slice(-2); return y+'-'+m+'-'+dd; }
+    function addYear(str){ var parts=(str||'').split('-'); if (parts.length<3) return ''; var y=parseInt(parts[0],10); var m=parseInt(parts[1],10)-1; var d=parseInt(parts[2],10); var dt=new Date(y, m, d); if (isNaN(dt.getTime())) return ''; dt.setFullYear(dt.getFullYear()+1); return fmt(dt); }
+    function updateExp(){ var v=$r.val(); if (!v) return; var nx=addYear(v); if (!nx) return; $e.val(nx); if ($e.data('datepicker')) { $e.datepicker('update', nx); } }
+    $r.on('changeDate change', function(){ updateExp(); });
+  })();
   function initIPv4Select($el){
     if (window.jQuery && $.fn.select2) {
       var opts = [];

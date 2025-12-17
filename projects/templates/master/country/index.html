@@ -1,0 +1,207 @@
+{% extends 'admin_base.html' %}
+
+{% block page_title %}Data Negara{% endblock %}
+{% block page_heading %}Data Negara{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item">Projects</li>
+<li class="breadcrumb-item active"><a href="/projects/master/country">Data Negara</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Daftar Negara</h3>
+        <div class="card-tools">
+          <button type="button" class="btn btn-sm btn-primary" data-toggle="modal" data-target="#modalCreateCountry"><i class="bi bi-plus-circle"></i> Tambah Negara</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped" id="countryTable">
+            <thead>
+              <tr>
+                <th width="10%">Kode</th>
+                <th width="50%">Nama Negara</th>
+                <th width="20%">Tier</th>
+                <th width="20%">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for c in countries %}
+              <tr data-kd="{{ c.negara_kd|default:'' }}">
+                <td class="align-middle">{{ c.negara_kd|default:'' }}</td>
+                <td class="align-middle">{{ c.negara_nm }}</td>
+                <td class="align-middle">{{ c.tier }}</td>
+                <td class="align-middle">
+                  <button type="button" class="btn btn-sm btn-warning btn-edit-country" data-kd="{{ c.negara_kd|default:'' }}" data-nm="{{ c.negara_nm }}" data-tier="{{ c.tier }}"><i class="bi bi-pencil"></i></button>
+                  <form action="{% url 'projects_master_country_delete' c.negara_kd %}" method="post" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Hapus negara ini?')"><i class="bi bi-trash"></i></button>
+                  </form>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="4" class="text-center text-muted">Belum ada data negara.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalCreateCountry" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Tambah Negara</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <form id="formCreateCountry" method="post" action="{% url 'projects_master_country_create' %}">
+        <div class="modal-body">
+          {% csrf_token %}
+          <div class="form-group">
+            <label>Kode Negara</label>
+            <input type="text" name="negara_kd" class="form-control" placeholder="Kode (opsional)">
+          </div>
+          <div class="form-group">
+            <label>Nama Negara</label>
+            <input type="text" name="negara_nm" class="form-control" placeholder="Nama negara" required>
+          </div>
+          <div class="form-group">
+            <label>Tier</label>
+            <select name="tier" class="form-control">
+              {% for t in tiers %}
+                <option value="{{ t }}">{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-primary">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalEditCountry" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Negara</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <form id="formEditCountry" method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" name="negara_kd" id="edit_negara_kd">
+          <div class="form-group">
+            <label>Kode Negara</label>
+            <input type="text" id="edit_negara_kd_display" class="form-control" readonly>
+          </div>
+          <div class="form-group">
+            <label>Nama Negara</label>
+            <input type="text" name="negara_nm" id="edit_negara_nm" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Tier</label>
+            <select name="tier" id="edit_tier" class="form-control">
+              {% for t in tiers %}
+                <option value="{{ t }}">{{ t }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-primary">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script>
+$(function(){
+  $('#formCreateCountry').on('submit', function(e){
+    e.preventDefault();
+    var $form = $(this);
+    var $btn = $form.find('button[type=submit]');
+    $btn.prop('disabled', true);
+    $.ajax({
+      url: $form.attr('action'),
+      method: 'POST',
+      data: $form.serialize(),
+      dataType: 'json',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      success: function(resp){
+        var ok = resp && (resp.status === true || resp.status === 'True');
+        if (ok) {
+          if (window.Swal) { Swal.fire({icon:'success', title:'Berhasil', text:'Negara ditambahkan', timer:900, showConfirmButton:false}).then(function(){ window.location.reload(); }); } else { window.location.reload(); }
+        } else {
+          var emsg = (resp && resp.message) ? resp.message : 'Gagal menambahkan negara';
+          if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: emsg}); } else { alert(emsg); }
+        }
+      },
+      error: function(xhr){
+        var emsg = (xhr && xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Terjadi kesalahan';
+        if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: emsg}); } else { alert(emsg); }
+      },
+      complete: function(){ $btn.prop('disabled', false); }
+    });
+  });
+
+  $('.btn-edit-country').on('click', function(e){
+    e.preventDefault();
+    var kd = $(this).data('kd') || '';
+    var nm = $(this).data('nm') || '';
+    var tier = String($(this).data('tier') || '');
+    $('#edit_negara_kd').val(kd);
+    $('#edit_negara_kd_display').val(kd);
+    $('#edit_negara_nm').val(nm);
+    $('#edit_tier').val(tier);
+    $('#modalEditCountry').modal('show');
+  });
+
+  $('#formEditCountry').on('submit', function(e){
+    e.preventDefault();
+    var kd = $('#edit_negara_kd').val();
+    var action = '/projects/master/country/' + encodeURIComponent(kd) + '/update';
+    var $form = $(this);
+    var $btn = $form.find('button[type=submit]');
+    $btn.prop('disabled', true);
+    $.ajax({
+      url: action,
+      method: 'POST',
+      data: $form.serialize(),
+      dataType: 'json',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      success: function(resp){
+        var ok = resp && (resp.status === true || resp.status === 'True');
+        if (ok) {
+          if (window.Swal) { Swal.fire({icon:'success', title:'Berhasil', text:'Negara diperbarui', timer:900, showConfirmButton:false}).then(function(){ window.location.reload(); }); } else { window.location.reload(); }
+        } else {
+          var emsg = (resp && resp.message) ? resp.message : 'Gagal memperbarui negara';
+          if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: emsg}); } else { alert(emsg); }
+        }
+      },
+      error: function(xhr){
+        var emsg = (xhr && xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Terjadi kesalahan';
+        if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: emsg}); } else { alert(emsg); }
+      },
+      complete: function(){ $btn.prop('disabled', false); }
+    });
+  });
+});
+</script>
+{% endblock %}

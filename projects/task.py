@@ -9,6 +9,7 @@ from datetime import datetime
 from hris.mail import send_mail, Mail
 import re
 import random
+import requests
 
 class DraftIndexView(View):
     def get(self, request):
@@ -363,6 +364,7 @@ class MonitoringIndexView(View):
                 ) t ON t.partner_id = p.partner_id AND COALESCE(p.mdd, '0000-00-00 00:00:00') = t.max_mdd
                 WHERE p.process_st = 'waiting'
             ) latest ON latest.partner_id = mp.partner_id
+            WHERE mp.status = 'waiting'
             LEFT JOIN data_flow df ON df.flow_id = latest.flow_id
             ORDER BY COALESCE(mp.mdd, mp.request_date) DESC
         """
@@ -470,13 +472,25 @@ class TechnicalIndexView(View):
             rows = subs_by_partner.get(pid, [])
             # attach
             try:
-                p['subrows'] = rows
+                valid_rows = []
+                for rr in rows:
+                    sid = None
+                    try:
+                        sid = rr.get('subdomain_id')
+                    except AttributeError:
+                        try:
+                            sid = rr[5]
+                        except Exception:
+                            sid = None
+                    if sid and str(sid).strip().lower() not in ('none', ''):
+                        valid_rows.append(rr)
+                p['subrows'] = valid_rows
                 if rows:
-                    # set a representative domain
                     dname = rows[0].get('domain') if hasattr(rows[0], 'get') else None
                     p['domain'] = dname
+                else:
+                    p['domain'] = None
             except TypeError:
-                # p might be a tuple; skip attaching in that case
                 pass
         statuses = ['draft','waiting','canceled','rejected','completed']
         providers = []
@@ -599,6 +613,1083 @@ class TechnicalSendView(View):
             return JsonResponse({'status': False, 'message': 'Gagal mengirim data ke proses berikutnya.'}, status=500)
         db.commit()
         return JsonResponse({'status': True, 'process_id': process_id})
+
+class PublisherIndexView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        active_portal_id = request.session.get('active_portal_id', '12')
+        db = data_mysql()
+        sql = """
+            SELECT mp.partner_id,
+                   pr.process_id,
+                   s.subdomain_id,
+                   CONCAT(s.subdomain, '.', d.domain) AS subdomain_name,
+                   MAX(n.niece) AS niece,
+                   (
+                     SELECT COUNT(*)
+                     FROM data_website_niece w2
+                     WHERE w2.niece_id = MAX(wn.niece_id)
+                   ) AS keyword_total
+            FROM data_media_partner mp
+            INNER JOIN (
+                SELECT p.process_id, p.partner_id, p.flow_id, COALESCE(p.mdd, '0000-00-00 00:00:00') AS mdd
+                FROM data_media_process p
+                WHERE p.flow_id = %s AND p.process_st = 'waiting'
+            ) pr ON pr.partner_id = mp.partner_id
+            INNER JOIN data_flow df ON df.flow_id = pr.flow_id
+            INNER JOIN data_media_partner_domain pd ON pd.partner_id = mp.partner_id
+            INNER JOIN data_domains d ON d.domain_id = pd.domain_id
+            LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
+            LEFT JOIN data_website_niece wn ON wn.subdomain_id = s.subdomain_id
+            LEFT JOIN data_niece n ON n.niece_id = wn.niece_id
+            WHERE mp.status = 'waiting'
+              AND pr.mdd = (
+                  SELECT MAX(COALESCE(mdd, '0000-00-00 00:00:00'))
+                  FROM data_media_process
+                  WHERE partner_id = mp.partner_id AND flow_id = %s AND process_st = 'waiting'
+              )
+              AND s.subdomain_id IS NOT NULL
+            GROUP BY mp.partner_id, pr.process_id, s.subdomain_id, s.subdomain, d.domain
+            ORDER BY d.domain ASC, COALESCE(s.mdd, '0000-00-00 00:00:00') DESC
+        """
+        rows = []
+        if db.execute_query(sql, ('1002', '1002')):
+            rows = db.cur_hris.fetchall() or []
+        groups_by_partner = {}
+        for r in rows:
+            pid = None
+            proc = None
+            try:
+                pid = r.get('partner_id')
+                proc = r.get('process_id')
+            except AttributeError:
+                try:
+                    pid = r[0]
+                    proc = r[1]
+                except Exception:
+                    pid = None
+                    proc = None
+            if not pid:
+                continue
+            g = groups_by_partner.get(pid)
+            if not g:
+                g = {'partner_id': pid, 'process_id': proc, 'rows': []}
+                groups_by_partner[pid] = g
+            g['rows'].append(r)
+        groups = []
+        for pid, g in groups_by_partner.items():
+            g['rowspan'] = len(g['rows'])
+            groups.append(g)
+        nieces = []
+        q_niece = """
+            SELECT niece_id, niece
+            FROM data_niece
+            ORDER BY niece ASC
+        """
+        if db.execute_query(q_niece):
+            nieces = db.cur_hris.fetchall() or []
+        prompts = []
+        q_prompts = """
+            SELECT prompt_id, prompt
+            FROM data_prompts
+            ORDER BY COALESCE(mdd, '0000-00-00 00:00:00') DESC, prompt_id ASC
+        """
+        if db.execute_query(q_prompts):
+            prompts = db.cur_hris.fetchall() or []
+        context = {
+            'user': admin,
+            'active_portal_id': active_portal_id,
+            'groups': groups,
+            'nieces': nieces,
+            'prompts': prompts,
+        }
+        return render(request, 'task/publisher/index.html', context)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PublisherKeywordsSaveView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        admin = request.session.get('hris_admin', {})
+        db = data_mysql()
+        subdomain_id_raw = (request.POST.get('subdomain_id') or '').strip()
+        niece_id_raw = (request.POST.get('niece_id') or '').strip()
+        action = (request.POST.get('action') or '').strip().lower()
+        status_list = request.POST.getlist('status[]') or []
+        try:
+            subdomain_id = int(subdomain_id_raw)
+        except Exception:
+            subdomain_id = None
+        try:
+            niece_id = int(niece_id_raw) if niece_id_raw else None
+        except Exception:
+            niece_id = None
+        keywords = request.POST.getlist('keyword[]') or request.POST.getlist('keyword') or []
+        prompt_ids_raw = request.POST.getlist('prompt_id[]') or request.POST.getlist('prompt_id') or []
+        prompt_ids = []
+        for v in prompt_ids_raw:
+            try:
+                prompt_ids.append(int(v))
+            except Exception:
+                prompt_ids.append(None)
+        
+        if not subdomain_id:
+            return JsonResponse({'status': False, 'message': 'Subdomain wajib diisi.'}, status=400)
+        if not niece_id:
+            return JsonResponse({'status': False, 'message': 'Niece wajib dipilih.'}, status=400)
+        if not keywords:
+            return JsonResponse({'status': False, 'message': 'Keyword wajib diisi.'}, status=400)
+        domain_id = None
+        if db.execute_query("SELECT domain_id FROM data_subdomain WHERE subdomain_id = %s LIMIT 1", (subdomain_id,)):
+            rr = db.cur_hris.fetchone() or {}
+            try:
+                domain_id = rr.get('domain_id')
+            except AttributeError:
+                try:
+                    domain_id = rr[0]
+                except Exception:
+                    domain_id = None
+        prompt_map = {}
+        if prompt_ids:
+            placeholders = ",".join(["%s"] * len([pid for pid in prompt_ids if pid]))
+            if placeholders:
+                sqlp = f"SELECT prompt_id, prompt FROM data_prompts WHERE prompt_id IN ({placeholders})"
+                if db.execute_query(sqlp, tuple([pid for pid in prompt_ids if pid])):
+                    for row in db.cur_hris.fetchall() or []:
+                        pid = row.get('prompt_id') if isinstance(row, dict) else row[0]
+                        txt = row.get('prompt') if isinstance(row, dict) else row[1]
+                        prompt_map[pid] = txt
+        mdb = str(admin.get('user_id', ''))[:36]
+        mdb_name = admin.get('user_alias', '')
+        inserted = 0
+        updated = 0
+        final_keywords = [(str(k or '').strip()) for k in keywords if (str(k or '').strip())]
+        dup_payload = []
+        seen_kw = set()
+        for fk in final_keywords:
+            if fk in seen_kw:
+                dup_payload.append(fk)
+            else:
+                seen_kw.add(fk)
+        dup_db = []
+        if final_keywords and action != 'update':
+            uniq_list = list(set(final_keywords))
+            placeholders = ",".join(["%s"] * len(uniq_list))
+            sql_dup = f"SELECT keyword, COUNT(*) AS cnt FROM data_website_niece WHERE subdomain_id=%s AND niece_id=%s AND keyword IN ({placeholders}) GROUP BY keyword"
+            params_dup = tuple([subdomain_id, niece_id] + uniq_list)
+            if db.execute_query(sql_dup, params_dup):
+                rows_dup = db.cur_hris.fetchall() or []
+                for rd in rows_dup:
+                    try:
+                        kwd = rd.get('keyword') if isinstance(rd, dict) else rd[0]
+                        cntv = rd.get('cnt') if isinstance(rd, dict) else rd[1]
+                    except Exception:
+                        kwd = None
+                        cntv = 0
+                    if not kwd:
+                        continue
+                    if cntv and cntv >= 1:
+                        dup_db.append(kwd)
+        dup_all = list(set(dup_payload + dup_db))
+        if dup_all:
+            msg = 'Keyword duplikat untuk subdomain dan niece: ' + ", ".join(dup_all)
+            return JsonResponse({'status': False, 'message': msg, 'duplicates': dup_all}, status=400)
+        if action == 'update':
+            db.execute_query(
+                "DELETE FROM data_website_niece WHERE subdomain_id=%s AND niece_id=%s",
+                (subdomain_id, niece_id)
+            )
+        for idx, kw in enumerate(keywords):
+            kw_text = (kw or '').strip()
+            if not kw_text:
+                continue
+            pid = prompt_ids[idx] if idx < len(prompt_ids) else None
+            ptxt = prompt_map.get(pid) if pid else None
+            if ptxt:
+                try:
+                    ptxt = ptxt.replace('{keyword}', kw_text)
+                except Exception:
+                    pass
+            sv = status_list[idx] if idx < len(status_list) and (status_list[idx] or '').strip() else 'posted'
+            ok = db.execute_query(
+                """
+                INSERT INTO data_website_niece
+                (domain_id, subdomain_id, niece_id, keyword, prompt, status, mdb, mdb_name, mdd)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                """,
+                (domain_id, subdomain_id, niece_id, kw_text, ptxt, sv, mdb, mdb_name)
+            )
+            if ok:
+                if action == 'update':
+                    updated += 1
+                else:
+                    inserted += 1
+        db.commit()
+        return JsonResponse({'status': True, 'inserted': inserted, 'updated': updated})
+
+class PublisherKeywordsLoadView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        subdomain_id_raw = (request.GET.get('subdomain_id') or '').strip()
+        try:
+            subdomain_id = int(subdomain_id_raw)
+        except Exception:
+            subdomain_id = None
+        if not subdomain_id:
+            return JsonResponse({'status': False, 'message': 'Subdomain wajib diisi.'}, status=400)
+        sql = """
+            SELECT k.keyword,
+                   k.status,
+                   k.niece_id,
+                   k.prompt AS prompt_text
+            FROM data_website_niece k
+            WHERE k.subdomain_id = %s
+            ORDER BY COALESCE(k.mdd, '0000-00-00 00:00:00') DESC
+        """
+        items = []
+        niece_id = None
+        if db.execute_query(sql, (subdomain_id,)):
+            rows = db.cur_hris.fetchall() or []
+            # Load all prompts to attempt reverse-matching
+            prompts = []
+            if db.execute_query("SELECT prompt_id, prompt FROM data_prompts"):
+                prompts = db.cur_hris.fetchall() or []
+            for r in rows:
+                kw = r.get('keyword') if isinstance(r, dict) else r[0]
+                st = r.get('status') if isinstance(r, dict) else r[1]
+                nid = r.get('niece_id') if isinstance(r, dict) else r[2]
+                ptxt = r.get('prompt_text') if isinstance(r, dict) else r[3]
+                if not niece_id and nid:
+                    niece_id = nid
+                matched_pid = None
+                # Try to find the template whose replacement equals stored prompt text
+                for pr in prompts:
+                    try:
+                        pid = pr.get('prompt_id') if isinstance(pr, dict) else pr[0]
+                        base = pr.get('prompt') if isinstance(pr, dict) else pr[1]
+                    except Exception:
+                        pid = None
+                        base = None
+                    if not base:
+                        continue
+                    candidate = None
+                    try:
+                        candidate = str(base).replace('{keyword}', str(kw or ''))
+                    except Exception:
+                        candidate = base
+                    if str(candidate or '').strip() == str(ptxt or '').strip():
+                        matched_pid = pid
+                        break
+                items.append({'keyword': kw, 'status': st, 'niece_id': nid, 'prompt_id': matched_pid, 'prompt_text': ptxt})
+        return JsonResponse({'status': True, 'niece_id': niece_id, 'items': items})
+
+class PublisherKeywordsByNieceView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        niece_id_raw = (request.GET.get('niece_id') or '').strip()
+        try:
+            niece_id = int(niece_id_raw) if niece_id_raw else None
+        except Exception:
+            niece_id = None
+        if not niece_id:
+            return JsonResponse({'status': True, 'items': []})
+        sql = """
+            SELECT keyword_id, keyword
+            FROM data_keywords
+            WHERE niece_id = %s
+            ORDER BY COALESCE(mdd, '0000-00-00 00:00:00') DESC, keyword_id ASC
+        """
+        items = []
+        if db.execute_query(sql, (niece_id,)):
+            for r in (db.cur_hris.fetchall() or []):
+                try:
+                    kid = r.get('keyword_id')
+                    kw = r.get('keyword')
+                except AttributeError:
+                    try:
+                        kid = r[0]
+                        kw = r[1]
+                    except Exception:
+                        kid = None
+                        kw = None
+                items.append({'keyword_id': kid, 'keyword': kw})
+        return JsonResponse({'status': True, 'items': items})
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PublisherKeywordsDeleteView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        subdomain_id_raw = (request.POST.get('subdomain_id') or '').strip()
+        try:
+            subdomain_id = int(subdomain_id_raw) if subdomain_id_raw else None
+        except Exception:
+            subdomain_id = None
+        if not subdomain_id:
+            return JsonResponse({'status': False, 'message': 'Subdomain wajib diisi.'}, status=400)
+        ok = db.execute_query(
+            "DELETE FROM data_website_niece WHERE subdomain_id=%s",
+            (subdomain_id,)
+        )
+        if not ok:
+            return JsonResponse({'status': False, 'message': 'Gagal menghapus data.'}, status=500)
+        db.commit()
+        return JsonResponse({'status': True, 'deleted': True})
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PublisherSendView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        admin = request.session.get('hris_admin', {})
+        partner_id = (request.POST.get('partner_id') or '').strip()
+        process_id_cur = (request.POST.get('process_id') or '').strip()
+        if not partner_id:
+            return JsonResponse({'status': False, 'message': 'Partner wajib diisi.'}, status=400)
+        if not process_id_cur:
+            return JsonResponse({'status': False, 'message': 'Process ID wajib diisi.'}, status=400)
+        # cek proses saat ini
+        if not db.execute_query("SELECT process_id FROM data_media_process WHERE process_id = %s LIMIT 1", (process_id_cur,)):
+            return JsonResponse({'status': False, 'message': 'Proses saat ini tidak ditemukan.'}, status=404)
+        row = db.cur_hris.fetchone() or {}
+        try:
+            existing_pid = row.get('process_id')
+        except AttributeError:
+            try:
+                existing_pid = row[0]
+            except Exception:
+                existing_pid = None
+        if not existing_pid:
+            return JsonResponse({'status': False, 'message': 'Proses saat ini tidak valid.'}, status=400)
+        # validasi keywords: semua subdomain partner harus punya minimal 1 keyword
+        sql_chk = """
+            SELECT s.subdomain_id,
+                   CONCAT(s.subdomain, '.', d.domain) AS subdomain_name,
+                   COUNT(k.keyword) AS kw_count
+            FROM data_media_partner_domain pd
+            JOIN data_domains d ON d.domain_id = pd.domain_id
+            LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
+            LEFT JOIN data_website_niece k ON k.subdomain_id = s.subdomain_id
+            WHERE pd.partner_id = %s AND s.subdomain_id IS NOT NULL
+            GROUP BY s.subdomain_id, s.subdomain, d.domain
+        """
+        missing = []
+        if db.execute_query(sql_chk, (partner_id,)):
+            for rr in (db.cur_hris.fetchall() or []):
+                nm = rr.get('subdomain_name') if isinstance(rr, dict) else rr[1]
+                cnt = rr.get('kw_count') if isinstance(rr, dict) else rr[2]
+                if (cnt or 0) <= 0 and nm:
+                    missing.append(nm)
+        if missing:
+            return JsonResponse({'status': False, 'message': 'Keyword belum diisi untuk subdomain', 'missing': missing}, status=400)
+        # update proses saat ini menjadi selesai
+        admin_id = str(admin.get('user_id', ''))[:10]
+        admin_alias = admin.get('user_alias', '')
+        ok_upd = db.execute_query(
+            """
+            UPDATE data_media_process SET process_st=%s, action_st=%s, mdb=%s, mdb_finish=%s, mdd_finish=NOW()
+            WHERE process_id=%s
+            """,
+            ('approve', 'done', admin_id, admin_alias, process_id_cur)
+        )
+        if not ok_upd:
+            return JsonResponse({'status': False, 'message': 'Gagal memperbarui proses saat ini.'}, status=500)
+        db.commit()
+        # buat proses berikutnya (flow 1003)
+        from datetime import datetime
+        import random
+        now = datetime.now()
+        base = now.strftime('%Y%m%d%H%M%S')
+        rnd = f"{random.randint(0, 9999):04d}"
+        process_id = f"PR{base}{rnd}"[:20]
+        sql_proc = """
+            INSERT INTO data_media_process
+            (process_id, partner_id, flow_id, flow_revisi_id, process_st, action_st, catatan, mdb, mdb_name, mdd)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        """
+        params_proc = (
+            process_id,
+            partner_id,
+            '1003',
+            None,
+            'waiting',
+            'process',
+            None,
+            admin_id,
+            admin_alias,
+        )
+        if not db.execute_query(sql_proc, params_proc):
+            return JsonResponse({'status': False, 'message': 'Gagal mengirim data ke proses berikutnya.'}, status=500)
+        db.commit()
+        return JsonResponse({'status': True, 'process_id': process_id})
+
+class TrackerIndexView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        active_portal_id = request.session.get('active_portal_id', '12')
+        db = data_mysql()
+        sql = """
+            SELECT mp.partner_id,
+                   pr.process_id,
+                   s.subdomain_id,
+                   CONCAT(s.subdomain, '.', d.domain) AS subdomain_name,
+                   s.tracker,
+                   s.tracker_params,
+                   s.plugin_lp,
+                   s.plugin_params
+            FROM data_media_partner mp
+            INNER JOIN (
+                SELECT p.process_id, p.partner_id, p.flow_id, COALESCE(p.mdd, '0000-00-00 00:00:00') AS mdd
+                FROM data_media_process p
+                WHERE p.flow_id = %s AND p.process_st = 'waiting'
+            ) pr ON pr.partner_id = mp.partner_id
+            INNER JOIN data_flow df ON df.flow_id = pr.flow_id
+            INNER JOIN data_media_partner_domain pd ON pd.partner_id = mp.partner_id
+            INNER JOIN data_domains d ON d.domain_id = pd.domain_id
+            LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
+            WHERE mp.status = 'waiting'
+              AND pr.mdd = (
+                  SELECT MAX(COALESCE(mdd, '0000-00-00 00:00:00'))
+                  FROM data_media_process
+                  WHERE partner_id = mp.partner_id AND flow_id = %s AND process_st = 'waiting'
+              )
+              AND s.subdomain_id IS NOT NULL
+            GROUP BY mp.partner_id, pr.process_id, s.subdomain_id, s.subdomain, d.domain, s.tracker, s.tracker_params, s.plugin_lp, s.plugin_params
+            ORDER BY d.domain ASC, COALESCE(s.mdd, '0000-00-00 00:00:00') DESC
+        """
+        rows = []
+        if db.execute_query(sql, ('1004', '1004')):
+            rows = db.cur_hris.fetchall() or []
+        groups_by_partner = {}
+        for r in rows:
+            pid = None
+            proc = None
+            try:
+                pid = r.get('partner_id')
+                proc = r.get('process_id')
+            except AttributeError:
+                try:
+                    pid = r[0]
+                    proc = r[1]
+                except Exception:
+                    pid = None
+                    proc = None
+            if not pid:
+                continue
+            g = groups_by_partner.get(pid)
+            if not g:
+                g = {'partner_id': pid, 'process_id': proc, 'rows': []}
+                groups_by_partner[pid] = g
+            g['rows'].append(r)
+        groups = []
+        for pid, g in groups_by_partner.items():
+            g['rowspan'] = len(g['rows'])
+            groups.append(g)
+        context = {
+            'user': admin,
+            'active_portal_id': active_portal_id,
+            'groups': groups,
+        }
+        return render(request, 'task/tracker/index.html', context)
+
+class SelesaiIndexView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        active_portal_id = request.session.get('active_portal_id', '12')
+        db = data_mysql()
+        sql = """
+            SELECT
+                w.website_id AS website_id,
+                s.*, MAX(dmp.pic) AS pic, MAX(dmp.partner_name) AS partner_name, MAX(dmp.request_date) AS request_date, MAX(dmp.partner_contact) AS partner_contact,
+                CONCAT(s.subdomain, '.', d.domain) AS website_name,
+                s.public_ipv4, MAX(ds.hostname) AS hostname, MAX(ds.provider) AS provider, 
+                MAX(ds.vcpu_count) AS vcpu, MAX(ds.memory_gb) AS memory_gb,
+                w.website_user AS website_user,
+                w.website_pass AS website_pass,
+                (SELECT COUNT(*) FROM data_website_niece k WHERE k.subdomain_id = s.subdomain_id) AS keyword_count,
+                MAX(a.account_name) AS fb_account,
+                CONCAT_WS(', ',
+                    CASE WHEN EXISTS (
+                        SELECT 1 FROM master_negara mn
+                        WHERE FIND_IN_SET(mn.negara_nm, s.fb_country)
+                          AND REPLACE(CAST(mn.tier AS CHAR), 'Tier ', '') = '1'
+                    ) THEN 'Tier 1' END,
+                    CASE WHEN EXISTS (
+                        SELECT 1 FROM master_negara mn2
+                        WHERE FIND_IN_SET(mn2.negara_nm, s.fb_country)
+                          AND REPLACE(CAST(mn2.tier AS CHAR), 'Tier ', '') = '2'
+                    ) THEN 'Tier 2' END
+                ) AS country_tier,
+                MAX(n.niece) AS niece
+            FROM data_website w
+            INNER JOIN data_subdomain s ON s.website_id = w.website_id
+            INNER JOIN data_domains d ON d.domain_id = s.domain_id
+            INNER JOIN data_media_partner_domain dmpd ON d.domain_id = dmpd.domain_id
+            INNER JOIN data_media_partner dmp ON dmpd.partner_id = dmp.partner_id
+            LEFT JOIN data_website_niece wn ON wn.subdomain_id = s.subdomain_id
+            LEFT JOIN data_niece n ON n.niece_id = wn.niece_id
+            LEFT JOIN master_account_ads a ON a.account_ads_id = COALESCE(NULLIF(s.fb_ads_id_2, ''), s.fb_ads_id_1)
+            LEFT JOIN data_servers ds ON s.public_ipv4 = ds.public_ipv4
+            WHERE s.subdomain_id IS NOT NULL AND dmp.status = 'completed'
+            GROUP BY s.subdomain_id
+            ORDER BY s.subdomain ASC, COALESCE(w.mdd, '0000-00-00 00:00:00') DESC
+        """
+        rows = []
+        if db.execute_query(sql):
+            rows = db.cur_hris.fetchall() or []
+        context = {
+            'user': admin,
+            'active_portal_id': active_portal_id,
+            'websites': rows,
+        }
+        return render(request, 'task/selesai/index.html', context)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class TrackerUpdateView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        subdomain_id_raw = (request.POST.get('subdomain_id') or '').strip()
+        tracker = (request.POST.get('tracker') or '').strip()
+        tracker_params = (request.POST.get('tracker_params') or '').strip()
+        try:
+            subdomain_id = int(subdomain_id_raw)
+        except Exception:
+            subdomain_id = None
+        if not subdomain_id:
+            return JsonResponse({'status': False, 'message': 'Subdomain wajib diisi.'}, status=400)
+        ok = db.execute_query(
+            """
+            UPDATE data_subdomain SET tracker=%s, tracker_params=%s, mdd=NOW()
+            WHERE subdomain_id=%s
+            """,
+            (tracker, tracker_params, subdomain_id)
+        )
+        if not ok:
+            return JsonResponse({'status': False, 'message': 'Gagal memperbarui tracker.'}, status=500)
+        db.commit()
+        return JsonResponse({'status': True})
+
+@method_decorator(csrf_exempt, name='dispatch')
+class TrackerSendView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        admin = request.session.get('hris_admin', {})
+        partner_id = (request.POST.get('partner_id') or '').strip()
+        process_id_cur = (request.POST.get('process_id') or '').strip()
+        if not partner_id:
+            return JsonResponse({'status': False, 'message': 'Partner wajib diisi.'}, status=400)
+        if not process_id_cur:
+            return JsonResponse({'status': False, 'message': 'Process ID wajib diisi.'}, status=400)
+        if not db.execute_query("SELECT process_id FROM data_media_process WHERE process_id = %s LIMIT 1", (process_id_cur,)):
+            return JsonResponse({'status': False, 'message': 'Proses saat ini tidak ditemukan.'}, status=404)
+        row = db.cur_hris.fetchone() or {}
+        try:
+            existing_pid = row.get('process_id')
+        except AttributeError:
+            try:
+                existing_pid = row[0]
+            except Exception:
+                existing_pid = None
+        if not existing_pid:
+            return JsonResponse({'status': False, 'message': 'Proses saat ini tidak valid.'}, status=400)
+        admin_id = str(admin.get('user_id', ''))[:10]
+        admin_alias = admin.get('user_alias', '')
+        ok_upd = db.execute_query(
+            """
+            UPDATE data_media_process SET process_st=%s, action_st=%s, mdb=%s, mdb_finish=%s, mdd_finish=NOW()
+            WHERE process_id=%s
+            """,
+            ('approve', 'done', admin_id, admin_alias, process_id_cur)
+        )
+        if not ok_upd:
+            return JsonResponse({'status': False, 'message': 'Gagal memperbarui proses saat ini.'}, status=500)
+        db.commit()
+        from datetime import datetime
+        import random
+        now = datetime.now()
+        base = now.strftime('%Y%m%d%H%M%S')
+        rnd = f"{random.randint(0, 9999):04d}"
+        process_id = f"PR{base}{rnd}"[:20]
+        sql_proc = """
+            INSERT INTO data_media_process
+            (process_id, partner_id, flow_id, flow_revisi_id, process_st, action_st, catatan, mdb, mdb_name, mdd)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        """
+        params_proc = (
+            process_id,
+            partner_id,
+            '1005',
+            None,
+            'waiting',
+            'process',
+            None,
+            admin_id,
+            admin_alias,
+        )
+        if not db.execute_query(sql_proc, params_proc):
+            return JsonResponse({'status': False, 'message': 'Gagal mengirim data ke proses berikutnya.'}, status=500)
+        db.commit()
+        return JsonResponse({'status': True, 'process_id': process_id})
+
+class PluginIndexView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        active_portal_id = request.session.get('active_portal_id', '12')
+        db = data_mysql()
+        sql = """
+            SELECT mp.partner_id,
+                   pr.process_id,
+                   s.subdomain_id,
+                   CONCAT(s.subdomain, '.', d.domain) AS subdomain_name,
+                   s.plugin_setup,
+                   s.plugin_lp,
+                   s.plugin_params
+            FROM data_media_partner mp
+            INNER JOIN (
+                SELECT p.process_id, p.partner_id, p.flow_id, COALESCE(p.mdd, '0000-00-00 00:00:00') AS mdd
+                FROM data_media_process p
+                WHERE p.flow_id = %s AND p.process_st = 'waiting'
+            ) pr ON pr.partner_id = mp.partner_id
+            INNER JOIN data_flow df ON df.flow_id = pr.flow_id
+            INNER JOIN data_media_partner_domain pd ON pd.partner_id = mp.partner_id
+            INNER JOIN data_domains d ON d.domain_id = pd.domain_id
+            LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
+            WHERE mp.status = 'waiting'
+              AND pr.mdd = (
+                  SELECT MAX(COALESCE(mdd, '0000-00-00 00:00:00'))
+                  FROM data_media_process
+                  WHERE partner_id = mp.partner_id AND flow_id = %s AND process_st = 'waiting'
+              )
+              AND s.subdomain_id IS NOT NULL
+            GROUP BY mp.partner_id, pr.process_id, s.subdomain_id, s.subdomain, d.domain, s.plugin_setup, s.plugin_lp, s.plugin_params
+            ORDER BY d.domain ASC, COALESCE(s.mdd, '0000-00-00 00:00:00') DESC
+        """
+        rows = []
+        if db.execute_query(sql, ('1003', '1003')):
+            rows = db.cur_hris.fetchall() or []
+        groups_by_partner = {}
+        for r in rows:
+            pid = None
+            proc = None
+            try:
+                pid = r.get('partner_id')
+                proc = r.get('process_id')
+            except AttributeError:
+                try:
+                    pid = r[0]
+                    proc = r[1]
+                except Exception:
+                    pid = None
+                    proc = None
+            if not pid:
+                continue
+            g = groups_by_partner.get(pid)
+            if not g:
+                g = {'partner_id': pid, 'process_id': proc, 'rows': []}
+                groups_by_partner[pid] = g
+            g['rows'].append(r)
+        groups = []
+        for pid, g in groups_by_partner.items():
+            g['rowspan'] = len(g['rows'])
+            groups.append(g)
+        context = {
+            'user': admin,
+            'active_portal_id': active_portal_id,
+            'groups': groups,
+        }
+        return render(request, 'task/plugin/index.html', context)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PluginUpdateView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        subdomain_id_raw = (request.POST.get('subdomain_id') or '').strip()
+        plugin_setup = (request.POST.get('plugin_setup') or '').strip()
+        plugin_lp = (request.POST.get('plugin_lp') or '').strip()
+        plugin_params = (request.POST.get('plugin_params') or '').strip()
+        try:
+            subdomain_id = int(subdomain_id_raw)
+        except Exception:
+            subdomain_id = None
+        if not subdomain_id:
+            return JsonResponse({'status': False, 'message': 'Subdomain wajib diisi.'}, status=400)
+        ok = db.execute_query(
+            """
+            UPDATE data_subdomain SET plugin_setup=%s, plugin_lp=%s, plugin_params=%s, mdd=NOW()
+            WHERE subdomain_id=%s
+            """,
+            (plugin_setup, plugin_lp, plugin_params, subdomain_id)
+        )
+        if not ok:
+            return JsonResponse({'status': False, 'message': 'Gagal memperbarui plugin.'}, status=500)
+        db.commit()
+        return JsonResponse({'status': True})
+
+@method_decorator(csrf_exempt, name='dispatch')
+class PluginSendView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        admin = request.session.get('hris_admin', {})
+        partner_id = (request.POST.get('partner_id') or '').strip()
+        process_id_cur = (request.POST.get('process_id') or '').strip()
+        if not partner_id:
+            return JsonResponse({'status': False, 'message': 'Partner wajib diisi.'}, status=400)
+        if not process_id_cur:
+            return JsonResponse({'status': False, 'message': 'Process ID wajib diisi.'}, status=400)
+        if not db.execute_query("SELECT process_id FROM data_media_process WHERE process_id = %s LIMIT 1", (process_id_cur,)):
+            return JsonResponse({'status': False, 'message': 'Proses saat ini tidak ditemukan.'}, status=404)
+        row = db.cur_hris.fetchone() or {}
+        try:
+            existing_pid = row.get('process_id')
+        except AttributeError:
+            try:
+                existing_pid = row[0]
+            except Exception:
+                existing_pid = None
+        if not existing_pid:
+            return JsonResponse({'status': False, 'message': 'Proses saat ini tidak valid.'}, status=400)
+        admin_id = str(admin.get('user_id', ''))[:10]
+        admin_alias = admin.get('user_alias', '')
+        ok_upd = db.execute_query(
+            """
+            UPDATE data_media_process SET process_st=%s, action_st=%s, mdb=%s, mdb_finish=%s, mdd_finish=NOW()
+            WHERE process_id=%s
+            """,
+            ('approve', 'done', admin_id, admin_alias, process_id_cur)
+        )
+        if not ok_upd:
+            return JsonResponse({'status': False, 'message': 'Gagal memperbarui proses saat ini.'}, status=500)
+        db.commit()
+        from datetime import datetime
+        import random
+        now = datetime.now()
+        base = now.strftime('%Y%m%d%H%M%S')
+        rnd = f"{random.randint(0, 9999):04d}"
+        process_id = f"PR{base}{rnd}"[:20]
+        sql_proc = """
+            INSERT INTO data_media_process
+            (process_id, partner_id, flow_id, flow_revisi_id, process_st, action_st, catatan, mdb, mdb_name, mdd)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+        """
+        params_proc = (
+            process_id,
+            partner_id,
+            '1004',
+            None,
+            'waiting',
+            'process',
+            None,
+            admin_id,
+            admin_alias,
+        )
+        if not db.execute_query(sql_proc, params_proc):
+            return JsonResponse({'status': False, 'message': 'Gagal mengirim data ke proses berikutnya.'}, status=500)
+        db.commit()
+        return JsonResponse({'status': True, 'process_id': process_id})
+
+class AdsIndexView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        active_portal_id = request.session.get('active_portal_id', '12')
+        db = data_mysql()
+        sql = """
+            SELECT mp.partner_id,
+                   pr.process_id,
+                   s.subdomain_id,
+                   CONCAT(s.subdomain, '.', d.domain) AS subdomain_name,
+                   s.fb_ads_id_1,
+                   s.fb_fanpage,
+                   s.fb_interest,
+                   s.fb_country,
+                   s.fb_daily_budget,
+                   s.fb_avg_cpc,
+                   s.tracker,
+                   s.tracker_params
+            FROM data_media_partner mp
+            INNER JOIN (
+                SELECT p.process_id, p.partner_id, p.flow_id, COALESCE(p.mdd, '0000-00-00 00:00:00') AS mdd
+                FROM data_media_process p
+                WHERE p.flow_id = %s AND p.process_st = 'waiting'
+            ) pr ON pr.partner_id = mp.partner_id
+            INNER JOIN data_flow df ON df.flow_id = pr.flow_id
+            INNER JOIN data_media_partner_domain pd ON pd.partner_id = mp.partner_id
+            INNER JOIN data_domains d ON d.domain_id = pd.domain_id
+            LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
+            WHERE mp.status = 'waiting'
+              AND pr.mdd = (
+                  SELECT MAX(COALESCE(mdd, '0000-00-00 00:00:00'))
+                  FROM data_media_process
+                  WHERE partner_id = mp.partner_id AND flow_id = %s AND process_st = 'waiting'
+              )
+              AND s.subdomain_id IS NOT NULL
+            GROUP BY mp.partner_id, pr.process_id, s.subdomain_id, s.subdomain, d.domain, s.fb_ads_id_1, s.fb_fanpage, s.fb_interest, s.fb_country, s.fb_daily_budget, s.fb_avg_cpc, s.tracker, s.tracker_params
+            ORDER BY d.domain ASC
+        """
+        rows = []
+        if db.execute_query(sql, ('1005', '1005')):
+            rows = db.cur_hris.fetchall() or []
+        groups_by_partner = {}
+        for r in rows:
+            pid = None
+            proc = None
+            try:
+                pid = r.get('partner_id')
+                proc = r.get('process_id')
+            except AttributeError:
+                try:
+                    pid = r[0]
+                    proc = r[1]
+                except Exception:
+                    pid = None
+                    proc = None
+            if not pid:
+                continue
+            g = groups_by_partner.get(pid)
+            if not g:
+                g = {'partner_id': pid, 'process_id': proc, 'rows': []}
+                groups_by_partner[pid] = g
+            g['rows'].append(r)
+        groups = []
+        for pid, g in groups_by_partner.items():
+            g['rowspan'] = len(g['rows'])
+            groups.append(g)
+        accounts = []
+        if db.execute_query("SELECT account_ads_id, account_name FROM master_account_ads ORDER BY account_name ASC"):
+            accounts = db.cur_hris.fetchall() or []
+        countries = []
+        if db.execute_query("SELECT negara_kd, negara_nm, tier FROM master_negara ORDER BY negara_nm ASC"):
+            countries = db.cur_hris.fetchall() or []
+        context = {
+            'user': admin,
+            'active_portal_id': active_portal_id,
+            'groups': groups,
+            'accounts': accounts,
+            'countries': countries,
+        }
+        return render(request, 'task/ads/index.html', context)
+
+class AdsPagesView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        account_ads_id = (request.GET.get('account_ads_id') or request.POST.get('account_ads_id') or '').strip()
+        if not account_ads_id:
+            return JsonResponse({'status': False, 'message': 'Account wajib diisi', 'pages': []}, status=400)
+        token = None
+        acc_id = None
+        sql = """
+            SELECT access_token, account_id
+            FROM master_account_ads
+            WHERE account_ads_id = %s
+            LIMIT 1
+        """
+        if db.execute_query(sql, (account_ads_id,)):
+            row = db.cur_hris.fetchone() or {}
+            try:
+                token = row.get('access_token')
+                acc_id = row.get('account_id')
+            except AttributeError:
+                try:
+                    token = row[0]
+                    acc_id = row[1]
+                except Exception:
+                    token = None
+                    acc_id = None
+        if not token:
+            return JsonResponse({'status': False, 'message': 'Token tidak ditemukan', 'pages': []}, status=404)
+        try:
+            url = 'https://graph.facebook.com/v17.0/me/accounts'
+            params = {'access_token': token, 'limit': 200}
+            r = requests.get(url, params=params, timeout=15)
+            if r.status_code != 200:
+                return JsonResponse({'status': False, 'message': 'Gagal memuat fanpage', 'pages': []}, status=502)
+            data = {}
+            try:
+                data = r.json() or {}
+            except Exception:
+                data = {}
+            items = data.get('data') or []
+            pages = []
+            for p in items:
+                pid = str(p.get('id') or '')
+                nm = str(p.get('name') or pid)
+                if pid:
+                    pages.append({'id': pid, 'name': nm})
+            return JsonResponse({'status': True, 'pages': pages})
+        except Exception:
+            return JsonResponse({'status': False, 'message': 'Terjadi kesalahan memuat fanpage', 'pages': []}, status=500)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AdsUpdateView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        subdomain_id_raw = (request.POST.get('subdomain_id') or '').strip()
+        fb_ads_id_1 = (request.POST.get('fb_ads_id_1') or '').strip()
+        fb_fanpage = (request.POST.get('fb_fanpage') or '').strip()
+        fb_interest = (request.POST.get('fb_interest') or '').strip()
+        fb_country_vals = request.POST.getlist('fb_country[]') or request.POST.getlist('fb_country') or []
+        fb_daily_budget_raw = (request.POST.get('fb_daily_budget') or '').strip()
+        fb_avg_cpc_raw = (request.POST.get('fb_avg_cpc') or '').strip()
+        try:
+            subdomain_id = int(subdomain_id_raw)
+        except Exception:
+            subdomain_id = None
+        try:
+            fb_daily_budget = float(fb_daily_budget_raw) if fb_daily_budget_raw else None
+        except Exception:
+            fb_daily_budget = None
+        try:
+            fb_avg_cpc = float(fb_avg_cpc_raw) if fb_avg_cpc_raw else None
+        except Exception:
+            fb_avg_cpc = None
+        if not subdomain_id:
+            return JsonResponse({'status': False, 'message': 'Subdomain wajib diisi.'}, status=400)
+        countries_text = None
+        if fb_country_vals:
+            items = [str(v).strip() for v in fb_country_vals if str(v).strip()]
+            countries_text = ",".join(items) if items else None
+        dup_name = None
+        if fb_fanpage:
+            sql_dup = """
+            SELECT CONCAT(s.subdomain, '.', d.domain) AS subdomain_name
+            FROM data_subdomain s
+            INNER JOIN data_domains d ON d.domain_id = s.domain_id
+            WHERE s.fb_fanpage = %s AND s.subdomain_id <> %s
+            LIMIT 1
+            """
+            if db.execute_query(sql_dup, (fb_fanpage, subdomain_id)):
+                rr = db.cur_hris.fetchone() or {}
+                try:
+                    dup_name = rr.get('subdomain_name')
+                except AttributeError:
+                    try:
+                        dup_name = rr[0]
+                    except Exception:
+                        dup_name = None
+        if dup_name:
+            return JsonResponse({'status': False, 'message': 'Fanpage telah digunakan untuk subdomain ' + str(dup_name or '')}, status=400)
+        ok = db.execute_query(
+            """
+            UPDATE data_subdomain
+            SET fb_ads_id_1=%s, fb_fanpage=%s, fb_interest=%s, fb_country=%s, fb_daily_budget=%s, fb_avg_cpc=%s, mdd=NOW()
+            WHERE subdomain_id=%s
+            """,
+            (fb_ads_id_1 or None, fb_fanpage or None, fb_interest or None, countries_text, fb_daily_budget, fb_avg_cpc, subdomain_id)
+        )
+        if not ok:
+            return JsonResponse({'status': False, 'message': 'Gagal memperbarui Ads.'}, status=500)
+        db.commit()
+        return JsonResponse({'status': True})
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AdsSendView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        admin = request.session.get('hris_admin', {})
+        partner_id = (request.POST.get('partner_id') or '').strip()
+        process_id_cur = (request.POST.get('process_id') or '').strip()
+        if not partner_id:
+            return JsonResponse({'status': False, 'message': 'Partner wajib diisi.'}, status=400)
+        if not process_id_cur:
+            return JsonResponse({'status': False, 'message': 'Process ID wajib diisi.'}, status=400)
+        if not db.execute_query("SELECT process_id FROM data_media_process WHERE process_id = %s LIMIT 1", (process_id_cur,)):
+            return JsonResponse({'status': False, 'message': 'Proses saat ini tidak ditemukan.'}, status=404)
+        row = db.cur_hris.fetchone() or {}
+        try:
+            existing_pid = row.get('process_id')
+        except AttributeError:
+            try:
+                existing_pid = row[0]
+            except Exception:
+                existing_pid = None
+        if not existing_pid:
+            return JsonResponse({'status': False, 'message': 'Proses saat ini tidak valid.'}, status=400)
+        admin_id = str(admin.get('user_id', ''))[:10]
+        admin_alias = admin.get('user_alias', '')
+        # Validate required fields for all subdomains under this partner
+        sql_chk = """
+            SELECT CONCAT(s.subdomain, '.', d.domain) AS subdomain_name,
+                   s.fb_ads_id_1,
+                   s.fb_interest,
+                   s.fb_country,
+                   s.fb_daily_budget
+            FROM data_media_partner mp
+            INNER JOIN data_media_partner_domain pd ON pd.partner_id = mp.partner_id
+            INNER JOIN data_domains d ON d.domain_id = pd.domain_id
+            LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
+            WHERE mp.partner_id = %s AND s.subdomain_id IS NOT NULL
+            ORDER BY d.domain ASC
+        """
+        problems = []
+        if db.execute_query(sql_chk, (partner_id,)):
+            for r in (db.cur_hris.fetchall() or []):
+                try:
+                    nm = r.get('subdomain_name') if isinstance(r, dict) else r[0]
+                    acc = r.get('fb_ads_id_1') if isinstance(r, dict) else r[1]
+                    intr = r.get('fb_interest') if isinstance(r, dict) else r[2]
+                    ctr = r.get('fb_country') if isinstance(r, dict) else r[3]
+                    bud = r.get('fb_daily_budget') if isinstance(r, dict) else r[4]
+                except Exception:
+                    nm = None; acc = None; intr = None; ctr = None; bud = None
+                missing = []
+                if not (acc or '').strip(): missing.append('FB Account')
+                if not (intr or '').strip(): missing.append('Interest')
+                if not (ctr or '').strip(): missing.append('Countries')
+                if bud is None or str(bud).strip() == '': missing.append('Daily Budget')
+                if missing:
+                    problems.append(f"{nm or '-'} ({', '.join(missing)})")
+        if problems:
+            return JsonResponse({'status': False, 'message': 'Lengkapi semua field sebelum kirim (Avg CPC opsional)', 'missing': problems}, status=400)
+        ok_upd = db.execute_query(
+            """
+            UPDATE data_media_process SET process_st=%s, action_st=%s, mdb=%s, mdb_finish=%s, mdd_finish=NOW()
+            WHERE process_id=%s
+            """,
+            ('approve', 'done', admin_id, admin_alias, process_id_cur)
+        )
+        if not ok_upd:
+            return JsonResponse({'status': False, 'message': 'Gagal memperbarui proses saat ini.'}, status=500)
+        db.commit()
+        ok_partner = db.execute_query(
+            """
+            UPDATE data_media_partner SET status=%s, mdb=%s, mdb_name=%s, mdd=NOW()
+            WHERE partner_id=%s
+            """,
+            ('completed', admin_id, admin_alias, partner_id)
+        )
+        if not ok_partner:
+            return JsonResponse({'status': False, 'message': 'Gagal memperbarui status partner.'}, status=500)
+        db.commit()
+        return JsonResponse({'status': True})
 
 class TechnicalServerLookupView(View):
     def get(self, request):

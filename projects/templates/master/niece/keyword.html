@@ -1,0 +1,250 @@
+{% extends 'admin_base.html' %}
+
+{% block page_title %}Master Keyword{% endblock %}
+{% block page_heading %}Master Keyword{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item">Projects</li>
+<li class="breadcrumb-item"><a href="{% url 'projects_master_niece' %}">Master Niece</a></li>
+<li class="breadcrumb-item active"><a href="{% url 'projects_master_keyword' %}">Keyword</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Daftar Keyword</h3>
+        <div class="card-tools">
+          <a href="#" class="btn btn-sm btn-primary" data-toggle="modal" data-target="#modalCreateKeyword">
+            <i class="bi bi-plus-circle"></i> Tambah Keyword
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+        <ul class="nav nav-tabs mb-3">
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'projects_master_niece' %}">Niece</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="{% url 'projects_master_keyword' %}">Keyword</a>
+          </li>
+        </ul>
+        <div class="table-responsive">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th width="5%">No</th>
+                <th width="15%">Niece</th>
+                <th width="35%">Keyword</th>
+                <th width="20%">Updated By</th>
+                <th width="20%">Updated At</th>
+                <th width="5%">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for k in keywords %}
+              <tr>
+                <td class="align-middle">{{ forloop.counter }}</td>
+                <td class="align-middle">{% if k.niece %}{{ k.niece }}{% else %}-{% endif %}</td>
+                <td class="align-middle">{{ k.keyword }}</td>
+                <td class="align-middle">{{ k.mdb_name|default:'-' }}</td>
+                <td class="align-middle">{% if k.mdd %}{{ k.mdd|date:'Y-m-d H:i' }}{% else %}-{% endif %}</td>
+                <td class="align-middle">
+                  <a href="#" class="btn btn-sm btn-warning btn-edit-keyword" data-id="{{ k.keyword_id }}" data-niece-id="{{ k.niece_id }}" data-keyword="{{ k.keyword }}"><i class="bi bi-pencil"></i></a>
+                  <a href="#" class="btn btn-sm btn-danger btn-del-keyword" data-id="{{ k.keyword_id }}"><i class="bi bi-trash"></i></a>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="6" class="text-center text-muted">Belum ada data.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalCreateKeyword" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Tambah Keyword</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <form id="formCreateKeyword" method="post" action="{% url 'projects_master_keyword_create' %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Niece</label>
+            <select name="niece_id" class="form-control">
+              <option value=""></option>
+              {% for n in nieces %}
+                <option value="{{ n.niece_id }}">{{ n.niece }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Keyword</label>
+            <input type="text" name="keyword" class="form-control" required>
+          </div>
+          
+          
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btn_submit_keyword">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalEditKeyword" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Keyword</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <form id="formEditKeyword" method="post">
+        {% csrf_token %}
+        <div class="modal-body">
+          <input type="hidden" id="ek_keyword_id">
+          <div class="form-group">
+            <label>Niece</label>
+            <select name="niece_id" id="ek_niece_id" class="form-control">
+              <option value=""></option>
+              {% for n in nieces %}
+                <option value="{{ n.niece_id }}">{{ n.niece }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Keyword</label>
+            <input type="text" name="keyword" id="ek_keyword" class="form-control" required>
+          </div>
+          
+          
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btn_update_keyword">Update</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script>
+$(function(){
+  $('#formCreateKeyword').on('submit', function(e){
+    e.preventDefault();
+    var $btn = $('#btn_submit_keyword');
+    $btn.prop('disabled', true);
+    var formData = $(this).serialize();
+    $.ajax({
+      url: $(this).attr('action'),
+      method: 'POST',
+      data: formData,
+      dataType: 'json',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      success: function(resp){
+        var ok = resp && (resp.status === true || resp.status === 'True');
+        if (ok) {
+          if (window.Swal) {
+            Swal.fire({icon: 'success', title: 'Berhasil', text: 'Keyword ditambahkan', timer: 1000, showConfirmButton: false}).then(function(){ window.location.reload(); });
+          } else {
+            window.location.reload();
+          }
+        } else {
+          var emsg = (resp && resp.message) ? resp.message : 'Gagal menyimpan';
+          if (window.Swal) { Swal.fire({icon: 'error', title: 'Gagal', text: emsg}); } else { alert(emsg); }
+          $btn.prop('disabled', false);
+        }
+      },
+      error: function(xhr){
+        var emsg = (xhr && xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Terjadi kesalahan saat menyimpan';
+        if (window.Swal) { Swal.fire({icon: 'error', title: 'Gagal', text: emsg}); } else { alert(emsg); }
+        $btn.prop('disabled', false);
+      },
+      complete: function(){ $btn.prop('disabled', false); }
+    });
+  });
+  $('.btn-edit-keyword').on('click', function(e){
+    e.preventDefault();
+    var id = $(this).data('id');
+    $('#ek_keyword_id').val(id);
+    $('#ek_niece_id').val($(this).data('niece-id'));
+    $('#ek_keyword').val($(this).data('keyword'));
+    
+    
+    $('#modalEditKeyword').modal('show');
+  });
+  $('#formEditKeyword').on('submit', function(e){
+    e.preventDefault();
+    var id = $('#ek_keyword_id').val();
+    var $btn = $('#btn_update_keyword');
+    $btn.prop('disabled', true);
+    var formData = $(this).serialize();
+    $.ajax({
+      url: '/projects/master/niece/keyword/' + id + '/update',
+      method: 'POST',
+      data: formData,
+      dataType: 'json',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      success: function(resp){
+        var ok = resp && (resp.status === true || resp.status === 'True');
+        if (ok) {
+          if (window.Swal) { Swal.fire({icon: 'success', title: 'Berhasil', text: 'Keyword diperbarui', timer: 1000, showConfirmButton: false}).then(function(){ window.location.reload(); }); } else { window.location.reload(); }
+        } else {
+          var emsg = (resp && resp.message) ? resp.message : 'Gagal memperbarui';
+          if (window.Swal) { Swal.fire({icon: 'error', title: 'Gagal', text: emsg}); } else { alert(emsg); }
+          $btn.prop('disabled', false);
+        }
+      },
+      error: function(){
+        if (window.Swal) { Swal.fire({icon: 'error', title: 'Gagal', text: 'Terjadi kesalahan saat memperbarui'}); } else { alert('Terjadi kesalahan saat memperbarui'); }
+        $btn.prop('disabled', false);
+      },
+      complete: function(){ $btn.prop('disabled', false); }
+    });
+  });
+  $('.btn-del-keyword').on('click', function(e){
+    e.preventDefault();
+    var id = $(this).data('id');
+    var doDel = function(go){
+      if (!go) return;
+      var tokenEl = document.querySelector('input[name=csrfmiddlewaretoken]');
+      var csrf = tokenEl ? tokenEl.value : '';
+      $.ajax({
+        url: '/projects/master/niece/keyword/' + id + '/delete',
+        method: 'POST',
+        dataType: 'json',
+        data: csrf ? { 'csrfmiddlewaretoken': csrf } : {},
+        headers: csrf ? { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' } : { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(resp){
+          var ok = resp && (resp.status === true || resp.status === 'True');
+          if (ok){
+            if (window.Swal){ Swal.fire({icon:'success', title:'Berhasil', text:'Keyword dihapus', timer:1000, showConfirmButton:false}).then(function(){ window.location.reload(); }); } else { window.location.reload(); }
+          } else {
+            var emsg = (resp && resp.message) ? resp.message : 'Gagal menghapus';
+            if (window.Swal){ Swal.fire({icon:'error', title:'Gagal', text: emsg}); } else { alert(emsg); }
+          }
+        },
+        error: function(){
+          if (window.Swal){ Swal.fire({icon:'error', title:'Gagal', text:'Terjadi kesalahan saat menghapus'}); } else { alert('Terjadi kesalahan saat menghapus'); }
+        }
+      });
+    };
+    if (window.Swal){ Swal.fire({icon:'question', title:'Hapus?', text:'Hapus keyword ini?', showCancelButton:true, confirmButtonText:'Ya, hapus', cancelButtonText:'Batal'}).then(function(res){ doDel(res && res.isConfirmed); }); } else { var ok = confirm('Hapus keyword ini?'); doDel(ok); }
+  });
+  if (window.jQuery) { $('[data-toggle="popover"]').popover(); }
+});
+</script>
+{% endblock %}
