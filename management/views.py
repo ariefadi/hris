@@ -1242,6 +1242,7 @@ class UpdateAccountFacebookAds(View):
         
         return JsonResponse(hasil)
 
+@method_decorator(csrf_exempt, name='dispatch') 
 class update_daily_budget_per_campaign(View):
     def post(self, req):
         account_id = req.POST.get('account_id')
@@ -1268,13 +1269,13 @@ class update_daily_budget_per_campaign(View):
         }
         return JsonResponse(hasil)
     
+@method_decorator(csrf_exempt, name='dispatch')    
 class update_switch_campaign(View):
     def post(self, req):
         try:
             account_id = req.POST.get('account_id')
             campaign_id = req.POST.get('campaign_id')
             status = req.POST.get('switch_campaign')
-            
             # Validasi input
             if not campaign_id:
                 return JsonResponse({
@@ -1291,7 +1292,6 @@ class update_switch_campaign(View):
             # Jika account_id kosong atau '%', coba semua account
             if not account_id or account_id == '%':
                 all_accounts = data_mysql().master_account_ads()['data']
-                
                 for account_data in all_accounts:
                     try:
                         data = fetch_status_per_campaign(
@@ -1468,6 +1468,36 @@ class bulk_update_campaign_status(View):
                 'message': f'Terjadi kesalahan: {str(e)}'
             })
     
+class AdsCampaignListView(View):
+    """AJAX endpoint untuk mengambil daftar situs dari Facebook Ads Manager"""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+    def get(self, req):
+        selected_accounts = req.GET.get('selected_accounts')
+        if selected_accounts:
+            ads_id = selected_accounts
+        else:
+            ads_id = req.session.get('hris_admin', {}).get('ads_id')
+        try:
+            # Ambil daftar campaign dari Facebook Ads Manager jika cache miss
+            result = data_mysql().fetch_ads_campaign_list(
+                ads_id
+            )
+            # Simpan ke cache untuk permintaan berikutnya
+            try:
+                # Cache selama 6 jam; daftar situs jarang berubah
+                set_cached_data(cache_key, result['hasil'], timeout=6 * 60 * 60)
+            except Exception as _cache_set_err:
+                print(f"[WARNING] failed to cache ads_sites_list: {_cache_set_err}")
+            return JsonResponse(result['hasil'], safe=False)
+        except Exception as e:
+            return JsonResponse({
+                'status': False,
+                'error': str(e)
+            })
+
 class AdsSitesListView(View):
     """AJAX endpoint untuk mengambil daftar situs dari Facebook Ads Manager"""
     def dispatch(self, request, *args, **kwargs):
@@ -4278,29 +4308,32 @@ class RoiMonitoringDomainDataView(View):
                     country_code = str(adx_item.get('country_code', ''))
                     key = f"{date_key}_{base_subdomain}_{country_code}"
                     fb_data = facebook_map.get(key)
+                    account_ads = str((fb_data or {}).get('account_name', ''))
                     spend = float((fb_data or {}).get('spend', 0))
                     revenue = float(adx_item.get('revenue', 0))
                     # Simpan baris mentah
                     raw_rows_all.append({
                         'site_name': subdomain,
                         'date': date_key,
+                        'account_ads': account_ads,
                         'country_code': country_code,
                         'spend': spend,
                         'revenue': revenue
                     })
                     # Agregasi: semua kontribusi
                     if subdomain not in grouped_all:
-                        grouped_all[subdomain] = {'site_name': subdomain, 'spend': 0.0, 'revenue': 0.0}
+                        grouped_all[subdomain] = {'site_name': subdomain, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
+                    grouped_all[subdomain]['account_ads'] = account_ads
                     grouped_all[subdomain]['spend'] += spend
                     grouped_all[subdomain]['revenue'] += revenue
 
                     # Agregasi: hanya spend > 0
                     if spend > 0:
                         if subdomain not in grouped_filtered:
-                            grouped_filtered[subdomain] = {'site_name': subdomain, 'spend': 0.0, 'revenue': 0.0}
+                            grouped_filtered[subdomain] = {'site_name': subdomain, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
+                        grouped_filtered[subdomain]['account_ads'] = account_ads
                         grouped_filtered[subdomain]['spend'] += spend
                         grouped_filtered[subdomain]['revenue'] += revenue
-
                 # Bentuk output agregasi + ROI
                 combined_data_all = []
                 total_spend = 0
@@ -4311,6 +4344,7 @@ class RoiMonitoringDomainDataView(View):
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
                     combined_data_all.append({
                         'site_name': item['site_name'],
+                        'account_ads': item['account_ads'],
                         'spend': spend_val,
                         'revenue': revenue_val,
                         'roi': roi
@@ -4325,10 +4359,13 @@ class RoiMonitoringDomainDataView(View):
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
                     combined_data_filtered.append({
                         'site_name': item['site_name'],
+                        'account_ads': item['account_ads'],
                         'spend': spend_val,
                         'revenue': revenue_val,
                         'roi': roi
                     })
+            print(f"[DEBUG ROI] combined_data_all: {combined_data_all}")
+            print(f"[DEBUG ROI] combined_data_filtered: {combined_data_filtered}")
             roi_nett_summary = ((total_revenue - total_spend) / total_spend * 100) if total_spend > 0 else 0
             result = {
                 'status': True,

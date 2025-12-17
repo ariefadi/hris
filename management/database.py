@@ -2394,6 +2394,33 @@ class data_mysql:
     #             'error': f'Database error: {str(e)}'
     #         }
 
+    def fetch_ads_campaign_list(self, ads_id):
+        try:
+            base_sql = [
+                "SELECT",
+                "\tDISTINCT data_ads_domain AS 'site_name'",
+                "FROM",
+                "\tdata_ads_campaign",
+                "WHERE account_ads_id = %s",
+            ]
+            params = [ads_id]
+            if not self.execute_query("\n".join(base_sql), tuple(params)):
+                raise pymysql.Error("Failed to get ads sites list by params")
+            data_rows = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get ads sites list by params")
+            hasil = {
+                "status": True,
+                "message": "Data ads traffic campaign berhasil diambil",
+                "data": [row['site_name'] for row in data_rows]
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                "error": f"Terjadi error {e!r}, error nya {e.args[0]}"
+            }
+        return {'hasil': hasil}
+
     def fetch_ads_sites_list(self, ads_id):
         try:
             base_sql = [

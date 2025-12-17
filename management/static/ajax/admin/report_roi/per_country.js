@@ -77,7 +77,7 @@ $(document).ready(function () {
                 selected_accounts: selected_account
             },
             headers: {
-                'X-CSRFToken': csrftoken
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
             },
             success: function (response) {
                 if (response && response.status) {

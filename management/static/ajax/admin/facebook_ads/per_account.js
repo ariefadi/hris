@@ -35,7 +35,7 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     })
-    $('#select_sub_domain').select2({
+    $('#select_campaign').select2({
         placeholder: '-- Pilih Domain --',
         allowClear: true,
         width: '100%',
@@ -47,7 +47,7 @@ $().ready(function () {
         var tanggal = $("#tanggal").val();
         var selected_account = $("#select_account").val() || '%';
         var data_account = selected_account ? selected_account : '%';
-        var selected_sub_domain = $('#select_sub_domain').val() || '%';
+        var selected_sub_domain = $('#select_campaign').val() || '%';
         var data_sub_domain = selected_sub_domain ? selected_sub_domain : '%';
         if(tanggal && tanggal !== '' && data_account!="") {
             loadSitesList();
@@ -60,7 +60,7 @@ $().ready(function () {
 function loadSitesList() {
     var selectedAccounts = $("#select_account").val() || "";
     // Simpan pilihan domain yang sudah dipilih sebelumnya
-    var previouslySelected = $("#select_sub_domain").val() || [];
+    var previouslySelected = $("#select_campaign").val() || [];
     $.ajax({
         url: '/management/admin/ads_sites_list',
         type: 'GET',
@@ -70,11 +70,11 @@ function loadSitesList() {
         },
         headers: {
             'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            'X-CSRFToken': csrftoken
         },
         success: function (response) {
             if (response.status) {
-                var select_site = $("#select_sub_domain");
+                var select_site = $("#select_campaign");
                 select_site.empty();
                 // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
                 var validPreviousSelections = [];
@@ -204,7 +204,9 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                             success: function (data) {
                                 $(`#autosave-status_${value.campaign_id}`).text('Daily Budget Diubah');
                                 setTimeout(function () {
-                                    table_data_per_account_facebook(data_account);
+                                    var tanggal = $("#tanggal").val();
+                                    var data_sub_domain = $("#select_campaign:selected").val() || '%';
+                                    table_data_per_account_facebook(tanggal, data_account, data_sub_domain);
                                 }, 1000);;
                             }
                         });    
@@ -259,8 +261,9 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                                     
                                     setTimeout(function () {
                                         var tanggal = $("#tanggal").val();
-                                        var data_sub_domain = $("#select_sub_domain option:selected").val();
-                                        table_data_per_account_facebook(data_account, tanggal, data_sub_domain);
+                                        var data_account = $("#select_account option:selected").val() || '%';
+                                        var data_sub_domain = $("#select_campaign:selected").val() || '%';
+                                        table_data_per_account_facebook(tanggal, data_account, data_sub_domain);
                                         // Update header switch after individual switch update
                                         updateHeaderSwitch();
                                     }, 1000);
@@ -472,14 +475,12 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                 if (confirm(`Apakah Anda yakin ingin ${action} semua campaign yang ditampilkan?`)) {
                     const campaignIds = [];
                     const targetStatus = isChecked ? 'ACTIVE' : 'PAUSED';
-                    
                     // Get all campaign IDs from the form-switch elements
                     $('input[id^="switch_campaign_"]').each(function() {
                         const switchId = $(this).attr('id');
                         const campaignId = switchId.replace('switch_campaign_', '');
                         campaignIds.push(campaignId);
                     });
-                    
                     if (campaignIds.length > 0) {
                         bulkUpdateCampaignStatus(campaignIds, targetStatus);
                     } else {
@@ -572,7 +573,7 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                         'account_id': accountId,
                         'campaign_ids': JSON.stringify(campaignIds),
                         'status': status,
-                        'csrfmiddlewaretoken': csrftoken
+                        "X-CSRFToken": csrftoken 
                     },
                     success: function(response) {
                         // Sembunyikan loading indicator
@@ -591,8 +592,9 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                             // Refresh the table
                             setTimeout(function() {
                                 var tanggal = $("#tanggal").val();
-                                var data_sub_domain = $("#select_sub_domain option:selected").val();
-                                table_data_per_account_facebook(data_account, tanggal, data_sub_domain);
+                                var data_account = $("#select_account option:selected").val() || '%';
+                                var data_sub_domain = $("#select_campaign:selected").val() || '%';
+                                table_data_per_account_facebook(tanggal, data_account, data_sub_domain);
                                 // Update header switch after bulk update
                                 updateHeaderSwitch();
                             }, 1000);
@@ -642,12 +644,11 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
 }
 
 function getCookie(name) {
-    var cookieValue = null;
+    let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
-        var cookies = document.cookie.split(';');
-        for (var i = 0; i < cookies.length; i++) {
-            var cookie = cookies[i].trim();
-            // Does this cookie string begin with the name we want?
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
             if (cookie.substring(0, name.length + 1) === (name + '=')) {
                 cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                 break;
@@ -656,6 +657,7 @@ function getCookie(name) {
     }
     return cookieValue;
 }
+
 const csrftoken = getCookie('csrftoken');
 
 function destroy_table_data_per_account_facebook(){
