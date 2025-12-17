@@ -48,6 +48,7 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     });
+    let allDomainOptions = $('#domain_filter').html();  
     $('#select_account').select2({
         placeholder: '-- Pilih Account --',
         allowClear: true,
@@ -78,14 +79,23 @@ $().ready(function () {
             // Reset status fetch sebelum mulai menarik data
             window.fetchStatus = { summary: false, country: false };
             $('#overlay').show();
-            if (selected_account != "") {
-                adx_site_list();
-            }
             load_country_options(selected_account, selected_domain);
             load_ROI_traffic_country_data(tanggal_dari, tanggal_sampai);
             load_ROI_summary_data(tanggal_dari, tanggal_sampai);
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
+        }
+    });
+    $('#account_filter').on('change', function () {
+        let account = $(this).val();
+        if (account) {
+            adx_site_list(); // filter domain by account
+        } else {
+            // restore semua domain dari template
+            $('#domain_filter')
+                .html(allDomainOptions)
+                .val(null)
+                .trigger('change.select2');
         }
     });
     function adx_site_list() {
@@ -101,9 +111,19 @@ $().ready(function () {
             },
             success: function (response) {
                 if (response && response.status) {
-                    $('#domain_filter')
-                        .val(response.data)
-                        .trigger('change');
+                    let $domain = $('#domain_filter');
+
+                    // 1. Kosongkan option lama
+                    $domain.empty();
+
+                    // 2. Tambahkan option baru (TIDAK selected)
+                    response.data.forEach(function (domain) {
+                        let option = new Option(domain, domain, false, false);
+                        $domain.append(option);
+                    });
+
+                    // 3. Refresh select2
+                    $domain.trigger('change.select2');
                 }
             },
             error: function (xhr, status, error) {

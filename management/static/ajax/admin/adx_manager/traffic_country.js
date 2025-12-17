@@ -26,6 +26,7 @@ $(document).ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     });
+    let allDomainOptions = $('#domain_filter').html(); 
     // Inisialisasi Select2 untuk country filter
     $('#country_filter').select2({
         placeholder: '-- Pilih Negara --',
@@ -53,6 +54,18 @@ $(document).ready(function () {
             alert('Silakan pilih tanggal dari dan sampai');
         }
     });
+    $('#account_filter').on('change', function () {
+        let account = $(this).val();
+        if (account) {
+            adx_site_list(); // filter domain by account
+        } else {
+            // restore semua domain dari template
+            $('#domain_filter')
+                .html(allDomainOptions)
+                .val(null)
+                .trigger('change.select2');
+        }
+    });
     function adx_site_list() {
         var selected_account = $("#account_filter").val();
         return $.ajax({
@@ -66,9 +79,19 @@ $(document).ready(function () {
             },
             success: function (response) {
                 if (response && response.status) {
-                    $('#domain_filter')
-                        .val(response.data)
-                        .trigger('change');
+                    let $domain = $('#domain_filter');
+
+                    // 1. Kosongkan option lama
+                    $domain.empty();
+
+                    // 2. Tambahkan option baru (TIDAK selected)
+                    response.data.forEach(function (domain) {
+                        let option = new Option(domain, domain, false, false);
+                        $domain.append(option);
+                    });
+
+                    // 3. Refresh select2
+                    $domain.trigger('change.select2');
                 }
             },
             error: function (xhr, status, error) {
