@@ -74,6 +74,7 @@ urlpatterns = [
     path('adx-traffic-account/', views.AdxTrafficPerAccountView.as_view(), name='adx_traffic_account_alias'),
     path('admin/page_adx_traffic_account', views.AdxTrafficPerAccountDataView.as_view()),
     path('admin/adx_sites_list', views.AdxSitesListView.as_view(), name='adx_sites_list'),
+    path('admin/adx_accounts_list', views.AdxAccountListView.as_view(), name='adx_accounts_list'),
     # Menu AdX Traffic Per Campaign
     path('admin/adx_traffic_campaign', views.AdxTrafficPerCampaignView.as_view(), name='adx_traffic_campaign'),
     path('admin/adx_traffic_campaign_data', views.AdxTrafficPerCampaignDataView.as_view(), name='adx_traffic_campaign_data'),

@@ -338,8 +338,14 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                 const totalFrequency = frequency.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                 // CPR
                 let data_cpr = value.total_cpr;
-                let cpr_number = parseFloat(data_cpr)
-                let totalCpr = cpr_number.toFixed(0).replace(',', '.');
+                let cpr_number = parseFloat(data_cpr);
+
+                // Hitung rata-rata berdasarkan jumlah data yang ada
+                if (data_per_account.data_per_account && data_per_account.data_per_account.length > 0) {
+                    cpr_number = cpr_number / data_per_account.data_per_account.length;
+                }
+
+                let totalCpr = cpr_number.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                 $('#total_budget').text(totalBudget);
                 $('#total_spend').text(totalSpend);
                 $('#total_impressions').text(totalImpressions);

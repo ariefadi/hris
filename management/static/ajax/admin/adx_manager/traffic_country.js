@@ -18,6 +18,7 @@ $(document).ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     });
+    let allAccountOptions = $('#account_filter').html();  
     // Initialize Select2 for domain
     $('#domain_filter').select2({
         placeholder: '-- Pilih Domain Terdaftar --',
@@ -54,20 +55,28 @@ $(document).ready(function () {
             alert('Silakan pilih tanggal dari dan sampai');
         }
     });
+    // Flag untuk mencegah infinite loop saat update filter
+    var isUpdating = false;
     $('#account_filter').on('change', function () {
+        if (isUpdating) return;
         let account = $(this).val();
-        if (account) {
+        if (account && account.length > 0) {
             adx_site_list(); // filter domain by account
         } else {
             // restore semua domain dari template
+            isUpdating = true;
             $('#domain_filter')
                 .html(allDomainOptions)
                 .val(null)
                 .trigger('change.select2');
+            isUpdating = false;
         }
     });
     function adx_site_list() {
         var selected_account = $("#account_filter").val();
+        if (selected_account) {
+            selected_account = selected_account.join(',');
+        }
         return $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
@@ -80,18 +89,78 @@ $(document).ready(function () {
             success: function (response) {
                 if (response && response.status) {
                     let $domain = $('#domain_filter');
+                    let currentSelected = $domain.val(); // Simpan pilihan saat ini
 
+                    isUpdating = true;
                     // 1. Kosongkan option lama
                     $domain.empty();
 
-                    // 2. Tambahkan option baru (TIDAK selected)
+                    // 2. Tambahkan option baru
                     response.data.forEach(function (domain) {
-                        let option = new Option(domain, domain, false, false);
+                        let isSelected = currentSelected && currentSelected.includes(domain);
+                        let option = new Option(domain, domain, isSelected, isSelected);
                         $domain.append(option);
                     });
 
                     // 3. Refresh select2
                     $domain.trigger('change.select2');
+                    isUpdating = false;
+                }
+            },
+            error: function (xhr, status, error) {
+                report_eror(xhr, error);
+            }
+        });
+    }
+    $('#domain_filter').on('change', function () {
+        if (isUpdating) return;
+        let domain = $(this).val();
+        if (domain && domain.length > 0) {
+            adx_account_list(); // filter account by domain
+        } else {
+            // restore semua account dari template
+            isUpdating = true;
+            $('#account_filter')
+                .html(allAccountOptions)
+                .val(null)
+                .trigger('change.select2');
+            isUpdating = false;
+        }
+    });
+    function adx_account_list() {
+        var selected_domain = $("#domain_filter").val();
+        if (selected_domain) {
+            selected_domain = selected_domain.join(',');
+        }
+        return $.ajax({
+            url: '/management/admin/adx_accounts_list',
+            type: 'GET',
+            data: {
+                selected_domains: selected_domain
+            },
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function (response) {
+                if (response && response.status) {
+                    let $account = $('#account_filter');
+                    let currentSelected = $account.val(); // Simpan pilihan saat ini
+
+                    isUpdating = true;
+                    // 1. Kosongkan option lama
+                    $account.empty();
+                    // 2. Tambahkan option baru
+                    response.data.forEach(function (account) {
+                        let text = account.account_name || account.account_id;
+                        // Konversi ke string untuk perbandingan yang aman
+                        let accIdStr = String(account.account_id);
+                        let isSelected = currentSelected && currentSelected.includes(accIdStr);
+                        let option = new Option(text, accIdStr, isSelected, isSelected);
+                        $account.append(option);
+                    });
+                    // 3. Refresh select2
+                    $account.trigger('change.select2');
+                    isUpdating = false;
                 }
             },
             error: function (xhr, status, error) {
@@ -176,6 +245,11 @@ $(document).ready(function () {
             return;
         }
         // Convert array to comma-separated string for backend
+        var accountFilter = '';
+        if (selected_account && selected_account.length > 0) {
+            accountFilter = selected_account.join(',');
+        }
+        // Convert array to comma-separated string for backend
         var domainFilter = '';
         if (selectedDomains && selectedDomains.length > 0) {
             domainFilter = selectedDomains.join(',');
@@ -200,7 +274,7 @@ $(document).ready(function () {
             data: {
                 start_date: startDate,
                 end_date: endDate,
-                selected_account: selected_account,
+                selected_account: accountFilter,
                 selected_domains: domainFilter,
                 selected_countries: countryFilter
             },

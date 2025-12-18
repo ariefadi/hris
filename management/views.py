@@ -1853,6 +1853,9 @@ class AdxSummaryDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_account = req.GET.get('selected_account', '')
+        account_list = []
+        if selected_account:
+            account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
         selected_domain = req.GET.get('selected_domain')
         selected_domain_list = []
         if selected_domain:
@@ -1863,7 +1866,7 @@ class AdxSummaryDataView(View):
                 'error': 'Start date and end date are required'
             })
         try:
-            result = data_mysql().get_all_adx_traffic_account_by_params(start_date, end_date, selected_account, selected_domain_list)
+            result = data_mysql().get_all_adx_traffic_account_by_params(start_date, end_date, account_list, selected_domain_list)
             # Unwrap format lama { 'hasil': ... } dan siapkan data
             payload = result['hasil'] if isinstance(result, dict) and 'hasil' in result else result
             data_rows = payload.get('data') if isinstance(payload, dict) else []
@@ -2766,6 +2769,9 @@ class AdxTrafficPerAccountDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_account = req.GET.get('selected_account')
+        selected_account_list = []
+        if selected_account:
+            selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
         selected_domains = req.GET.get('selected_domains')
         selected_domain_list = []
         if selected_domains:
@@ -2780,7 +2786,7 @@ class AdxTrafficPerAccountDataView(View):
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
             end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')  
             # Gunakan fungsi baru yang mengambil data berdasarkan kredensial user
-            rs_result = data_mysql().get_all_adx_traffic_account_by_params(start_date_formatted, end_date_formatted, selected_account, selected_domain_list)
+            rs_result = data_mysql().get_all_adx_traffic_account_by_params(start_date_formatted, end_date_formatted, selected_account_list, selected_domain_list)
             rows_map = {}
             if rs_result and rs_result['hasil']['data']:
                 for rs in rs_result['hasil']['data']:
@@ -2850,9 +2856,12 @@ class AdxSitesListView(View):
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
         selected_accounts = req.GET.get('selected_accounts')
-        print(f"[DEBUG] AdxSitesListView - selected_accounts: {selected_accounts}")
+        selected_account_list = []
         if selected_accounts:
-            user_mail = data_mysql().get_user_mail_by_account(selected_accounts)
+            selected_account_list = [str(s).strip() for s in selected_accounts.split(',') if s.strip()]
+        print(f"[DEBUG] AdxSitesListView - selected_account_list: {selected_account_list}")
+        if selected_account_list:
+            user_mail = data_mysql().fetch_user_mail_by_account(selected_account_list)    
         else:
             user_mail = req.session.get('hris_admin', {}).get('user_mail')
         try:
@@ -2875,13 +2884,57 @@ class AdxSitesListView(View):
                 start_date.strftime('%Y-%m-%d'), 
                 end_date.strftime('%Y-%m-%d')
             )
-            print(f"[DEBUG] AdxSitesListView - result: {result}")
             # Simpan ke cache untuk permintaan berikutnya
             try:
                 # Cache selama 6 jam; daftar situs jarang berubah
                 set_cached_data(cache_key, result['hasil'], timeout=6 * 60 * 60)
             except Exception as _cache_set_err:
                 print(f"[WARNING] failed to cache ads_sites_list: {_cache_set_err}")
+            return JsonResponse(result['hasil'], safe=False)
+        except Exception as e:
+            return JsonResponse({
+                'status': False,
+                'error': str(e)
+            })
+
+class AdxAccountListView(View):
+    """AJAX endpoint untuk mengambil daftar akun dari Ad Manager"""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+    def get(self, req):
+        selected_domains = req.GET.get('selected_domains')
+        selected_domain_list = []
+        if selected_domains:
+            selected_domain_list = [str(s).strip() for s in selected_domains.split(',') if s.strip()]
+        try:
+            # Cek cache terlebih dahulu untuk mempercepat respons
+            try:
+                cache_key = generate_cache_key('adx_accounts_list', str(selected_domains or ''))
+                cached_accounts = get_cached_data(cache_key)
+                if cached_accounts is not None:
+                    return JsonResponse(cached_accounts, safe=False)
+            except Exception as _cache_err:
+                # Lanjutkan tanpa memblokir jika cache gagal
+                print(f"[WARNING] adx_account_list cache unavailable: {_cache_err}")
+
+            # Ambil daftar situs dari Ad Manager jika cache miss
+            # result = fetch_user_sites_list(user_mail)
+            end_date = date.today()
+            start_date = end_date - timedelta(days=7)
+            result = data_mysql().fetch_account_list_by_domain(
+                selected_domain_list, 
+                start_date.strftime('%Y-%m-%d'), 
+                end_date.strftime('%Y-%m-%d')
+            )
+            print(f"[DEBUG] AdxAccountListView - result: {result}")
+            # Simpan ke cache untuk permintaan berikutnya
+            try:
+                # Cache selama 6 jam; daftar akun jarang berubah
+                set_cached_data(cache_key, result['hasil'], timeout=6 * 60 * 60)
+            except Exception as _cache_set_err:
+                print(f"[WARNING] failed to cache adx_account_list: {_cache_set_err}")
             return JsonResponse(result['hasil'], safe=False)
         except Exception as e:
             return JsonResponse({
@@ -3008,8 +3061,10 @@ class AdxTrafficPerCountryDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_account = req.GET.get('selected_account', '')
+        selected_account_list = []
+        if selected_account:
+            selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
         selected_domains = req.GET.get('selected_domains')
-        print(f"selected_account: {selected_account}")
         selected_domain_list = []
         if selected_domains:
             selected_domain_list = [str(s).strip() for s in selected_domains.split(',') if s.strip()]
@@ -3025,7 +3080,7 @@ class AdxTrafficPerCountryDataView(View):
             else:
                 print("[DEBUG] No countries selected, will fetch all countries")
             # result = fetch_adx_traffic_per_country(start_date_formatted, end_date_formatted, user_mail, selected_sites, countries_list)    
-            result = data_mysql().get_all_adx_traffic_country_by_params(start_date_formatted, end_date_formatted, selected_account, selected_domain_list, countries_list)
+            result = data_mysql().get_all_adx_traffic_country_by_params(start_date_formatted, end_date_formatted, selected_account_list, selected_domain_list, countries_list)
             if isinstance(result, dict):
                 if 'data' in result:
                     if result['data']:
