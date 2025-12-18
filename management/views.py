@@ -1507,14 +1507,46 @@ class AdsSitesListView(View):
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
         selected_accounts = req.GET.get('selected_accounts')
+        selected_account_list = []
         if selected_accounts:
-            ads_id = selected_accounts
+            selected_account_list = [str(s).strip() for s in selected_accounts.split(',') if s.strip()]
+        if selected_account_list:
+            ads_id = selected_account_list  
         else:
             ads_id = req.session.get('hris_admin', {}).get('ads_id')
         try:
             # Ambil daftar situs dari Facebook Ads Manager jika cache miss
             result = data_mysql().fetch_ads_sites_list(
                 ads_id
+            )
+            # Simpan ke cache untuk permintaan berikutnya
+            try:
+                # Cache selama 6 jam; daftar situs jarang berubah
+                set_cached_data(cache_key, result['hasil'], timeout=6 * 60 * 60)
+            except Exception as _cache_set_err:
+                print(f"[WARNING] failed to cache ads_sites_list: {_cache_set_err}")
+            return JsonResponse(result['hasil'], safe=False)
+        except Exception as e:
+            return JsonResponse({
+                'status': False,
+                'error': str(e)
+            })
+
+class AdsAccountListView(View):
+    """AJAX endpoint untuk mengambil daftar situs dari Facebook Ads Manager"""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+    def get(self, req):
+        selected_domains = req.GET.get('selected_domains')
+        selected_domain_list = []
+        if selected_domains:
+            selected_domain_list = [str(s).strip() for s in selected_domains.split(',') if s.strip()]
+        try:
+            # Ambil daftar account dari Facebook Ads Manager jika cache miss
+            result = data_mysql().fetch_ads_account_list(
+                selected_domain_list
             )
             # Simpan ke cache untuk permintaan berikutnya
             try:
@@ -1555,10 +1587,11 @@ class page_per_campaign_facebook(View):
     def get(self, req):
         tanggal_dari = req.GET.get('tanggal_dari')
         tanggal_sampai = req.GET.get('tanggal_sampai')
-        data_account = req.GET.get('data_account', '')
-        print(f"data_account: {data_account}")
+        data_account = req.GET.get('data_account')
+        selected_account_list = []
+        if data_account:
+            selected_account_list = [str(s).strip() for s in data_account.split(',') if s.strip()]
         data_domain = req.GET.get('data_domain')
-        print(f"data_domain: {data_domain}")
         selected_domain_list = []
         if data_domain:
             selected_domain_list = [str(s).strip() for s in data_domain.split(',') if s.strip()]
@@ -1576,7 +1609,7 @@ class page_per_campaign_facebook(View):
         db_result = data_mysql().get_all_ads_traffic_campaign_by_params(
             tanggal_dari,
             tanggal_sampai,
-            data_account,
+            selected_account_list,
             selected_domain_list,
         )
         print(f"db_result: {db_result}")
@@ -1674,6 +1707,9 @@ class page_per_country_facebook(View):
         tanggal_dari = req.POST.get('tanggal_dari') 
         tanggal_sampai = req.POST.get('tanggal_sampai')
         data_account = req.POST.get('data_account')
+        selected_account_list = []
+        if data_account:
+            selected_account_list = [str(s).strip() for s in data_account.split(',') if s.strip()]
         data_domain = req.POST.get('data_domain')
         selected_domain_list = []
         if data_domain:
@@ -1683,15 +1719,13 @@ class page_per_country_facebook(View):
             selected_countries = json.loads(selected_countries_json)
         except:
             selected_countries = []
-        print(f"[DEBUG] selected_countries: {selected_countries}")
         db_resp = data_mysql().get_all_ads_traffic_country_by_params(
             tanggal_dari,
             tanggal_sampai,
-            data_account,
+            selected_account_list,
             selected_domain_list,
             selected_countries
         )
-        print(f"[DEBUG] db_resp: {db_resp}")
         data_rows = db_resp.get('data') if isinstance(db_resp, dict) else []
         # Normalisasi rows ke format yang diharapkan JS
         normalized = []

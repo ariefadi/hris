@@ -50,6 +50,7 @@ urlpatterns = [
     # Cache Management
     path('admin/cache_stats', views.CacheStatsView.as_view(), name='cache_stats'),
     path('admin/ads_sites_list', views.AdsSitesListView.as_view(), name='ads_sites_list'),
+    path('admin/ads_account_list', views.AdsAccountListView.as_view(), name='ads_account_list'),
     path('admin/ads_campaign_list', views.AdsCampaignListView.as_view(), name='ads_campaign_list'),
 
 
