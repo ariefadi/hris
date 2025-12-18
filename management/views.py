@@ -2,6 +2,7 @@ from collections import defaultdict
 import os
 import csv
 from io import StringIO
+import re
 import site
 from traceback import print_tb
 from typing import Any
@@ -3060,7 +3061,7 @@ class AdxTrafficPerCountryDataView(View):
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
-        selected_account = req.GET.get('selected_account', '')
+        selected_account = req.GET.get('selected_account')
         selected_account_list = []
         if selected_account:
             selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
@@ -3205,7 +3206,10 @@ class RoiTrafficPerCountryDataView(View):
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
-        selected_account = req.GET.get('selected_account')
+        selected_account = req.GET.get('selected_account_adx')
+        selected_account_list = []
+        if selected_account:
+            selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
         selected_domain = req.GET.get('selected_domains')
         selected_domain_list = []
         if selected_domain:
@@ -3231,14 +3235,13 @@ class RoiTrafficPerCountryDataView(View):
                 try:
                     # Ambil list sites dari database
                     sites_result = data_mysql().fetch_user_sites_id_list(
-                        start_date, end_date, selected_account or '%'
+                        start_date, end_date, selected_account_list
                     )
                     if sites_result['hasil']['data']:
                         # Ambil data sites
                         sites_for_fb = sites_result['hasil']['data']
                         # Hapus semua 'Unknown'
                         sites_for_fb = [site for site in sites_for_fb if site != 'Unknown']
-                        print(f"[DEBUG ROI] Sites for FB filter: {sites_for_fb}")
                     else:
                         print(f"[DEBUG ROI] No sites derived for FB filter: {sites_result['hasil']['data']}")
                 except Exception as _sites_err:
@@ -3248,8 +3251,8 @@ class RoiTrafficPerCountryDataView(View):
                 'roi_country_response',
                 start_date,
                 end_date,
-                selected_account or '',
-                selected_domain_list or '',
+                selected_account_list,
+                selected_domain_list,
                 selected_account_ads or '',
                 ','.join(countries_list) if countries_list else ''
             )
@@ -3264,7 +3267,7 @@ class RoiTrafficPerCountryDataView(View):
                         data_mysql().get_all_adx_roi_country_detail_by_params,
                         start_date,
                         end_date,
-                        selected_account or '',
+                        selected_account_list,
                         selected_domain_list,
                         countries_list
                     )
@@ -3306,7 +3309,7 @@ class RoiTrafficPerCountryDataView(View):
                 data_adx = data_mysql().get_all_adx_roi_country_detail_by_params(
                     start_date, 
                     end_date, 
-                    selected_account, 
+                    selected_account_list, 
                     selected_domain_list, 
                     countries_list
                 )
@@ -3773,8 +3776,9 @@ class RoiTrafficPerDomainDataView(View):
         try:
             start_date = req.GET.get('start_date')
             end_date = req.GET.get('end_date')
-            selected_accounts = req.GET.get('selected_account')
+            selected_accounts = req.GET.get('selected_account_adx')
             selected_domains = req.GET.get('selected_domains')
+            selected_account_ads = req.GET.get('selected_account_ads')
             # --- 1. Parse tanggal aman
             def parse_date(d):
                 try:
@@ -3784,6 +3788,9 @@ class RoiTrafficPerDomainDataView(View):
             start_date_formatted = parse_date(start_date)
             end_date_formatted = parse_date(end_date)
             # --- 2. Normalisasi selected_sites_list
+            selected_account_list = []
+            if selected_accounts:
+                selected_account_list = [str(s).strip() for s in selected_accounts.split(',') if s.strip()]
             selected_domain_list = []
             if selected_domains:
                 selected_domain_list = [str(s).strip() for s in selected_domains.split(',') if s.strip()]
@@ -3791,7 +3798,7 @@ class RoiTrafficPerDomainDataView(View):
             adx_result = data_mysql().get_all_adx_traffic_account_by_params(
                 start_date_formatted,
                 end_date_formatted,
-                selected_accounts,
+                selected_account_list,
                 selected_domain_list
             )
             # --- 4. Proses Facebook data
@@ -4281,7 +4288,7 @@ class RoiMonitoringDomainDataView(View):
         try:
             start_date = req.GET.get('start_date')
             end_date = req.GET.get('end_date')
-            selected_accounts = req.GET.get('selected_account')
+            selected_accounts = req.GET.get('selected_account_adx')
             selected_domains = req.GET.get('selected_domains')
             # --- 1. Parse tanggal aman
             def parse_date(d):
@@ -4292,6 +4299,9 @@ class RoiMonitoringDomainDataView(View):
             start_date_formatted = parse_date(start_date)
             end_date_formatted = parse_date(end_date)
             # --- 2. Normalisasi selected_sites_list
+            selected_account_list = []
+            if selected_accounts:
+                selected_account_list = [str(s).strip() for s in selected_accounts.split(',') if s.strip()]
             selected_domain_list = []
             if selected_domains:
                 selected_domain_list = [str(s).strip() for s in selected_domains.split(',') if s.strip()]
@@ -4299,7 +4309,7 @@ class RoiMonitoringDomainDataView(View):
             adx_result = data_mysql().get_all_adx_monitoring_account_by_params(
                 start_date_formatted,
                 end_date_formatted,
-                selected_accounts,
+                selected_account_list,
                 selected_domain_list
             )
             # --- 4. Proses Facebook data
@@ -4492,8 +4502,11 @@ class RoiMonitoringCountryDataView(View):
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
-        selected_account = req.GET.get('selected_account', '')
-        selected_domain = req.GET.get('selected_domains')
+        selected_account = req.GET.get('selected_account_adx', '')
+        selected_domain = req.GET.get('selected_domains', '')
+        selected_account_list = []
+        if selected_account:
+            selected_account_list = [str(a).strip() for a in selected_account.split(',') if a.strip()]
         selected_domain_list = []
         if selected_domain:
             selected_domain_list = [str(s).strip() for s in selected_domain.split(',') if s.strip()]
@@ -4543,14 +4556,13 @@ class RoiMonitoringCountryDataView(View):
                 return JsonResponse(cached_response, safe=False)
             data_facebook = None
             # Jalankan paralel jika selected_domain sudah ada (menghindari fetch FB yang terlalu lebar)
-            print(f"[DEBUG ROI] selected_domain_list: {selected_domain_list}")
             if selected_domain_list:
                 with ThreadPoolExecutor(max_workers=2) as executor:
                     adx_future = executor.submit(
                         data_mysql().get_all_adx_country_detail_by_params,
                         start_date,
                         end_date,
-                        selected_account or '',
+                        selected_account_list,
                         selected_domain_list,
                         countries_list
                     )
@@ -4587,7 +4599,7 @@ class RoiMonitoringCountryDataView(View):
                 data_adx = data_mysql().get_all_adx_country_detail_by_params(
                     start_date,
                     end_date,
-                    selected_account,
+                    selected_account_list,
                     selected_domain_list,
                     countries_list
                 )

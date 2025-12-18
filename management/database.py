@@ -2089,8 +2089,18 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def get_all_adx_monitoring_account_by_params(self, start_date, end_date, selected_account = None, selected_domain_list = None):
+    def get_all_adx_monitoring_account_by_params(self, start_date, end_date, selected_account_list = None, selected_domain_list = None):
         try:
+            # --- 0. Pastikan selected_account_list adalah list string
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
+            like_conditions_account = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
+            like_params_account = [f"{account}%" for account in data_account_list] 
             # --- 1. Pastikan selected_domain_list adalah list string
             if isinstance(selected_domain_list, str):
                 selected_domain_list = [selected_domain_list.strip()]
@@ -2100,8 +2110,8 @@ class data_mysql:
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
             # --- 2. Buat kondisi LIKE untuk setiap domain
-            like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
-            like_params = [f"%{domain}%" for domain in data_domain_list] 
+            like_conditions_domain = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_params_domain = [f"%{domain}%" for domain in data_domain_list] 
             base_sql = [
                 "SELECT",
                 "\tb.data_adx_country_domain AS 'site_name',",
@@ -2115,13 +2125,14 @@ class data_mysql:
             base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
             params.extend([start_date, end_date])
             # Normalize selected_account and apply account filter
-            if selected_account:
-                base_sql.append(f"\tAND a.account_id LIKE %s")
-                params.append(f"{selected_account}%")
+            if data_account_list:
+                base_sql.append(f"\tAND ({like_conditions_account})")
+                params.extend(like_params_account)
             # Normalize selected_sites (CSV string or list) and apply domain filter
             if data_domain_list:
-                base_sql.append(f"\tAND ({like_conditions})")
-                params.extend(like_params)
+                base_sql.append(f"\tAND ({like_conditions_domain})")
+                params.extend(like_params_domain)
+            
             base_sql.append("GROUP BY b.data_adx_country_domain, b.data_adx_country_cd")
             base_sql.append("ORDER BY b.data_adx_country_domain ASC")
             sql = "\n".join(base_sql)
@@ -2836,8 +2847,18 @@ class data_mysql:
             user_mail = None
         return user_mail
 
-    def fetch_user_sites_id_list(self, tanggal_dari, tanggal_sampai, account_id):   
+    def fetch_user_sites_id_list(self, tanggal_dari, tanggal_sampai, selected_account_list):   
         try:
+            if isinstance(selected_account_list, str):
+                selected_account_list = [s.strip() for s in selected_account_list.split(",") if s.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            if not selected_account_list:
+                raise ValueError("selected_account_list is required and cannot be empty")
+            like_conditions = " OR ".join(["a.account_id LIKE %s"] * len(selected_account_list))
+            like_params = [f"%{d}%" for d in selected_account_list]
             base_sql = [
                 "SELECT",
                 "\tb.data_adx_domain AS 'site_name'",
@@ -2845,10 +2866,10 @@ class data_mysql:
                 "\tapp_credentials a",
                 "INNER JOIN data_adx_domain b ON a.account_id = b.account_id",
                 "WHERE b.data_adx_domain_tanggal BETWEEN %s AND %s",
-                "AND a.account_id LIKE %s",
+                f"\tAND ({like_conditions})",
                 "GROUP BY b.data_adx_domain",
             ]
-            params = [tanggal_dari, tanggal_sampai, account_id]
+            params = [tanggal_dari, tanggal_sampai] + like_params
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all adx traffic account by params")
@@ -3274,9 +3295,18 @@ class data_mysql:
             }
         return {"hasil": hasil}
 
-    def get_all_adx_roi_country_detail_by_params(self, start_date, end_date, selected_account = None, selected_domain_list = None, countries_list = None):
+    def get_all_adx_roi_country_detail_by_params(self, start_date, end_date, selected_account_list = None, selected_domain_list = None, countries_list = None):
         # ... existing code ...
         try:
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
+            like_conditions_account = " OR ".join(["b.account_id LIKE %s"] * len(data_account_list))
+            like_params_account = [f"%{account}%" for account in data_account_list]
             if isinstance(selected_domain_list, str):
                 selected_domain_list = [selected_domain_list.strip()]
             elif selected_domain_list is None:
@@ -3284,9 +3314,8 @@ class data_mysql:
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
-
-            like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
-            like_params = [f"%{domain}%" for domain in data_domain_list]
+            like_conditions_domain = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_params_domain = [f"%{domain}%" for domain in data_domain_list]
 
             base_sql = [
                 "SELECT",
@@ -3314,13 +3343,13 @@ class data_mysql:
             base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
             params.extend([start_date, end_date])
 
-            if selected_account:
-                base_sql.append("\tAND a.account_id LIKE %s")
-                params.append(f"{selected_account}%")
+            if data_account_list:
+                base_sql.append(f"\tAND ({like_conditions_account})")
+                params.extend(like_params_account)
 
             if data_domain_list:
-                base_sql.append(f"\tAND ({like_conditions})")
-                params.extend(like_params)
+                base_sql.append(f"\tAND ({like_conditions_domain})")
+                params.extend(like_params_domain)
 
             country_codes = []
             if countries_list:
@@ -3410,9 +3439,20 @@ class data_mysql:
         return {"hasil": hasil}
 
 
-    def get_all_adx_country_detail_by_params(self, start_date, end_date, selected_account = None, selected_domain_list = None, countries_list = None):
+    def get_all_adx_country_detail_by_params(self, start_date, end_date, selected_account_list = None, selected_domain_list = None, countries_list = None):
         # ... existing code ...
         try:
+             # --- 0. Pastikan selected_account_list adalah list string
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
+            like_conditions_account = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
+            like_params_account = [f"%{account}%" for account in data_account_list] 
+
             if isinstance(selected_domain_list, str):
                 selected_domain_list = [selected_domain_list.strip()]
             elif selected_domain_list is None:
@@ -3420,9 +3460,8 @@ class data_mysql:
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
-
-            like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
-            like_params = [f"%{domain}%" for domain in data_domain_list]
+            like_conditions_domain = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_params_domain = [f"%{domain}%" for domain in data_domain_list]
 
             base_sql = [
                 "SELECT",
@@ -3439,13 +3478,13 @@ class data_mysql:
             base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
             params.extend([start_date, end_date])
 
-            if selected_account:
-                base_sql.append("\tAND a.account_id LIKE %s")
-                params.append(f"{selected_account}%")
+            if data_account_list:
+                base_sql.append(f"\tAND ({like_conditions_account})")
+                params.extend(like_params_account)
 
             if data_domain_list:
-                base_sql.append(f"\tAND ({like_conditions})")
-                params.extend(like_params)
+                base_sql.append(f"\tAND ({like_conditions_domain})")
+                params.extend(like_params_domain)
 
             country_codes = []
             if countries_list:
