@@ -4755,4 +4755,64 @@ class RoiRekapitulasiView(View):
             'data_domain_adx': data_domain_adx['data'],
             'last_update': last_update
         }
-        return render(req, 'admin/report_roi/rekapitulasi/index.html', data)
+        return render(req, 'admin/report_roi/rekapitulasi_roi/index.html', data)
+
+class RoiRekapitulasiDataView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+    def get(self, req):
+        try:
+            start_date = req.GET.get('start_date')
+            end_date = req.GET.get('end_date')
+            if not start_date or not end_date:
+                raise ValueError("start_date dan end_date harus diisi")
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+            if start_date > end_date:
+                raise ValueError("start_date > end_date")
+            total_days = (end_date - start_date).days + 1
+            past_end_date = start_date - timedelta(days=1)
+            past_start_date = past_end_date - timedelta(days=total_days - 1)
+            MONTH_ID = {
+                1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr",
+                5: "Mei", 6: "Jun", 7: "Jul", 8: "Agu",
+                9: "Sep", 10: "Okt", 11: "Nov", 12: "Des"
+            }
+            def format_tanggal_id(dt):
+                return f"{dt.day} {MONTH_ID[dt.month]} {dt.year}"
+            periode_now = (
+                f"Periode <br> "
+                f"{format_tanggal_id(start_date)} s/d {format_tanggal_id(end_date)}"
+            )
+            periode_past = (
+                f"Periode <br> "
+                f"{format_tanggal_id(past_start_date)} s/d {format_tanggal_id(past_end_date)}"
+            )
+            selected_account_list = []
+            if req.GET.get('selected_account_adx'):
+                selected_account_list = [
+                    s.strip() for s in req.GET.get('selected_account_adx').split(',') if s.strip()
+                ]
+            selected_domain_list = []
+            if req.GET.get('selected_domains'):
+                selected_domain_list = [
+                    s.strip() for s in req.GET.get('selected_domains').split(',') if s.strip()
+                ]
+            adx_result = data_mysql().get_all_rekapitulasi_adx_monitoring_account_by_params(
+                start_date,
+                end_date,
+                past_start_date,
+                past_end_date,
+                selected_account_list,
+                selected_domain_list
+            )
+            return JsonResponse({
+                'status': True,
+                'periode_now': periode_now,
+                'periode_past': periode_past,
+                'data': adx_result['hasil']['data'],
+            })
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
