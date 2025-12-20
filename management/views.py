@@ -2855,7 +2855,7 @@ class AdxTrafficPerAccountDataView(View):
                 total_revenue += rev
                 result_rows.append({
                     'date': item['date'],
-                    'site_name': item['site_name'],
+                    'site_name': item['site_name'] + '.com',
                     'clicks_adx': clk,
                     'cpc_adx': round(cpc_adx, 2),
                     'ecpm': round(ecpm, 2),
@@ -3354,14 +3354,23 @@ class RoiTrafficPerCountryDataView(View):
                             unique_sites = set(site.strip() for site in sites_for_fb if site.strip() and site.strip() != 'Unknown')
                             extracted_names = []
                             for site in unique_sites:
-                                if "." in site:
-                                    parts = site.split(".")       # pisah berdasarkan titik
-                                    if len(parts) >= 2:
-                                        main_domain = ".".join(parts[:2])
-                                    else:
-                                        main_domain = site
+                                main_domain = extract_base_subdomain(site.strip())
+                                if main_domain and main_domain != 'Unknown':
                                     extracted_names.append(main_domain)
                             unique_name_site = list(set(extracted_names))
+
+                        if not unique_name_site:
+                            adx_payload_tmp = data_adx.get('hasil') if isinstance(data_adx, dict) and data_adx.get('hasil') else data_adx
+                            adx_items_tmp = adx_payload_tmp.get('data') if isinstance(adx_payload_tmp, dict) else []
+                            if adx_items_tmp:
+                                extracted_names = []
+                                for adx_item in (adx_items_tmp or []):
+                                    site_name = str(adx_item.get('site_name', '') or '')
+                                    main_domain = extract_base_subdomain(site_name.strip())
+                                    if main_domain and main_domain != 'Unknown':
+                                        extracted_names.append(main_domain)
+                                unique_name_site = list(set(extracted_names))
+
                         if unique_name_site:
                             fb_future = executor.submit(
                                 data_mysql().get_all_ads_roi_country_detail_by_params,
@@ -3618,19 +3627,27 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
         total_spend_filtered = sum(d['spend'] for d in combined_data_filtered) if combined_data_filtered else 0.0
         total_revenue_filtered = sum(d['revenue'] for d in combined_data_filtered) if combined_data_filtered else 0.0
 
+        count_all = len(combined_data_all)
+        count_filtered = len(combined_data_filtered)
+
+        cpr_values_all = [float(d.get('cpr', 0) or 0) for d in combined_data_all if float(d.get('cpr', 0) or 0) > 0]
+        cpr_values_filtered = [float(d.get('cpr', 0) or 0) for d in combined_data_filtered if float(d.get('cpr', 0) or 0) > 0]
+        rata_cpr_all = round(sum(cpr_values_all) / len(cpr_values_all), 2) if cpr_values_all else 0
+        rata_cpr_filtered = round(sum(cpr_values_filtered) / len(cpr_values_filtered), 2) if cpr_values_filtered else 0
+
         return {
             'status': True,
             'data': combined_data_all,
             'data_filtered': combined_data_filtered,
-            'total_records': len(combined_data_all),
-            'total_records_filtered': len(combined_data_filtered),
+            'total_records': count_all,
+            'total_records_filtered': count_filtered,
             'summary_all': {
                 'total_spend': round(total_spend_all, 2),
                 'total_clicks_fb': sum(d['clicks_fb'] for d in combined_data_all),
                 'total_clicks_adx': sum(d['clicks_adx'] for d in combined_data_all),
                 'total_ctr_fb': sum(d['ctr_fb'] for d in combined_data_all),
                 'total_ctr_adx': sum(d['ctr_adx'] for d in combined_data_all),
-                'rata_cpr': round(sum(d['cpr'] for d in combined_data_all) / len(combined_data_all), 2),
+                'rata_cpr': rata_cpr_all,
                 'total_revenue': round(total_revenue_all, 2),
                 'total_roi': round(((total_revenue_all - total_spend_all) / total_spend_all * 100) if total_spend_all > 0 else 0, 2)
             },
@@ -3640,7 +3657,7 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                 'total_clicks_adx': sum(d['clicks_adx'] for d in combined_data_filtered),
                 'total_ctr_fb': sum(d['ctr_fb'] for d in combined_data_filtered),
                 'total_ctr_adx': sum(d['ctr_adx'] for d in combined_data_filtered),
-                'rata_cpr': round(sum(d['cpr'] for d in combined_data_filtered) / len(combined_data_filtered), 2),
+                'rata_cpr': rata_cpr_filtered,
                 'total_revenue': round(total_revenue_filtered, 2),
                 'total_roi': round(((total_revenue_filtered - total_spend_filtered) / total_spend_filtered * 100) if total_spend_filtered > 0 else 0, 2)
             }
@@ -3983,7 +4000,7 @@ class RoiTrafficPerDomainDataView(View):
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
                     combined_data_all.append({
-                        'site_name': item['site_name'],
+                        'site_name': item['site_name'] + '.com',
                         'date': item['date'],
                         'spend': spend_val,
                         'clicks_fb': clicks_fb_val,
@@ -4022,7 +4039,7 @@ class RoiTrafficPerDomainDataView(View):
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
                     combined_data_filtered.append({
-                        'site_name': item['site_name'],
+                        'site_name': item['site_name'] + '.com',
                         'date': item['date'],
                         'spend': spend_val,
                         'clicks_fb': clicks_fb_val,
@@ -4442,7 +4459,7 @@ class RoiMonitoringDomainDataView(View):
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
                     combined_data_all.append({
-                        'site_name': item['site_name'],
+                        'site_name': item['site_name'] + '.com',
                         'account_ads': item['account_ads'],
                         'spend': spend_val,
                         'revenue': revenue_val,
@@ -4457,7 +4474,7 @@ class RoiMonitoringDomainDataView(View):
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
                     combined_data_filtered.append({
-                        'site_name': item['site_name'],
+                        'site_name': item['site_name'] + '.com',
                         'account_ads': item['account_ads'],
                         'spend': spend_val,
                         'revenue': revenue_val,

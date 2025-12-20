@@ -187,7 +187,7 @@ $(document).ready(function () {
             },
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+                'X-CSRFToken': csrftoken
             },
             success: function (response) {
                 if (response.status) {
@@ -279,7 +279,7 @@ $(document).ready(function () {
                 selected_countries: countryFilter
             },
             headers: {
-                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+                'X-CSRFToken': csrftoken
             },
             success: function (response) {
                 if (response && response.status) {

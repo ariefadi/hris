@@ -182,12 +182,111 @@ $().ready(function () {
             }
         });
     }
+});
+function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_account, selectedDomains) {
+    // Convert array to comma-separated string for backend
+    var accountFilter = '';
+    if (selected_account && selected_account.length > 0) {
+        accountFilter = selected_account.join(',');
+    }
+    var domainFilter = '';
+    if (selectedDomains && selectedDomains.length > 0) {
+        domainFilter = selectedDomains.join(',');
+    }
+    $("#overlay").show();
     // Destroy existing DataTable if exists
+    if ($.fn.DataTable.isDataTable('#table_traffic_country')) {
+        $('#table_traffic_account').DataTable().destroy();
+    }
+    // AJAX Request
+    $.ajax({
+        url: '/management/admin/page_adx_traffic_account',
+        type: 'GET',
+        data: {
+            'start_date': tanggal_dari,
+            'end_date': tanggal_sampai,
+            'selected_account': accountFilter,
+            'selected_domains': domainFilter
+        },
+        headers: {
+            'X-CSRFToken': csrftoken
+        },
+        success: function (response) {
+            if (response && response.status) {
+                // Update summary boxes
+                updateSummaryBoxes(response.summary);
+                $('#summary_boxes').show();
+                // Initialize DataTable
+                initializeDataTable(response.data);
+                // Generate charts if data available
+                create_revenue_line_chart(response.data);
+                $('#charts_section').show();
+                $('#revenue_chart_row').show();
+                $('#overlay').hide();
+            } else {
+                var errorMsg = response.error || 'Terjadi kesalahan yang tidak diketahui';
+                console.error('[DEBUG] Response error:', errorMsg);
+                alert('Error: ' + errorMsg);
+            }
+        },
+        error: function (xhr, status, error) {
+            console.error('[DEBUG] AJAX Error:', {
+                xhr: xhr,
+                status: status,
+                error: error
+            });
+            $('#overlay').hide();
+            report_eror('Terjadi kesalahan saat memuat data: ' + error);
+        }
+    });
+}
+// Fungsi untuk update summary boxes
+function updateSummaryBoxes(data) {
+    var totalClicks = Number(data.total_clicks || 0);
+    var avgCpc = Number(data.avg_cpc || 0);
+    var avgCtr = Number(data.avg_ctr || 0);
+    var totalRevenue = parseFloat(data.total_revenue || 0) || 0;
+    $("#total_clicks").text(formatNumber(totalClicks || 0));
+    $("#avg_cpc").text(formatCurrencyIDR(avgCpc || 0));
+    $("#avg_ctr").text(formatNumber(avgCtr || 0, 2) + '%');
+    $("#total_revenue").text(formatCurrencyIDR(totalRevenue || 0));
+}
+
+function initializeDataTable(data) {
+    var tableData = [];
+    if (data && Array.isArray(data)) {
+        data.forEach(function (row) {
+            // Format tanggal ke format Indonesia
+            var formattedDate = row.date || '-';
+            if (row.date && row.date.match(/\d{4}-\d{2}-\d{2}/)) {
+                var months = [
+                    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+                    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+                ];
+                var date = new Date(row.date + 'T00:00:00');
+                var day = date.getDate();
+                var month = months[date.getMonth()];
+                var year = date.getFullYear();
+                formattedDate = day + ' ' + month + ' ' + year;
+            }
+            var cellDate = '<span data-order="' + (row.date || '-') + '">' + formattedDate + '</span>';
+            tableData.push([
+                cellDate,
+                row.site_name || '-',
+                formatNumber(row.clicks_adx || 0),
+                formatCurrencyIDR(row.cpc_adx || 0),
+                formatCurrencyIDR(row.ecpm || 0),
+                formatNumber(row.ctr || 0, 2) + ' %',
+                formatCurrencyIDR(row.revenue || 0)
+            ]);
+        });
+    }
+    // Destroy existing DataTable if it exists
     if ($.fn.DataTable.isDataTable('#table_traffic_account')) {
         $('#table_traffic_account').DataTable().destroy();
     }
     // Initialize DataTable
-    var table = $('#table_traffic_country').DataTable({
+    var table = $('#table_traffic_account').DataTable({
         data: tableData,
         responsive: true,
         paging: true,
@@ -361,136 +460,9 @@ $().ready(function () {
             }
         ]
     });
-});
-function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_account, selectedDomains) {
-    // Convert array to comma-separated string for backend
-    var accountFilter = '';
-    if (selected_account && selected_account.length > 0) {
-        accountFilter = selected_account.join(',');
-    }
-    var domainFilter = '';
-    if (selectedDomains && selectedDomains.length > 0) {
-        domainFilter = selectedDomains.join(',');
-    }
-    $("#overlay").show();
-    $.ajax({
-        url: '/management/admin/page_adx_traffic_account',
-        type: 'GET',
-        data: {
-            'start_date': tanggal_dari,
-            'end_date': tanggal_sampai,
-            'selected_account': accountFilter,
-            'selected_domains': domainFilter
-        },
-        headers: {
-            'X-CSRFToken': csrftoken
-        },
-        success: function (response) {
-            if (response && response.status) {
-                // Update summary boxes
-                if (response.summary) {
-                    $("#total_clicks").text(formatNumber(response.summary.total_clicks || 0));
-                    $("#avg_cpc").text(formatCurrencyIDR(response.summary.avg_cpc || 0));
-                    $("#avg_ecpm").text(formatCurrencyIDR(response.summary.avg_ecpm || 0));
-                    $("#avg_ctr").text(formatNumber(response.summary.avg_ctr || 0, 2) + '%');
-                    $("#total_revenue").text(formatCurrencyIDR(response.summary.total_revenue || 0));
-                    // Show summary boxes
-                    $('#summary_boxes').show();
-                    // Show revenue chart row
-                    $('#revenue_chart_row').show();
-                }
-                // Update DataTable
-                var table = $('#table_traffic_account').DataTable();
-                table.clear();
-                if (response.data && response.data.length > 0) {
-                    response.data.forEach(function(item) {
-                        // Format tanggal ke format Indonesia
-                        var formattedDate = item.date || '-';
-                        if (item.date && item.date.match(/\d{4}-\d{2}-\d{2}/)) {
-                            var months = [
-                                'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-                                'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-                            ];
-                            var date = new Date(item.date + 'T00:00:00');
-                            var day = date.getDate();
-                            var month = months[date.getMonth()];
-                            var year = date.getFullYear();
-                            formattedDate = day + ' ' + month + ' ' + year;
-                        }
-                        var cellDate = '<span data-order="' + (item.date || '-') + '">' + formattedDate + '</span>';
-                        table.row.add([
-                            cellDate,
-                            item.site_name || '-',
-                            formatNumber(item.clicks_adx || 0),
-                            formatCurrencyIDR(item.cpc_adx || 0),
-                            formatCurrencyIDR(item.ecpm || 0),
-                            formatNumber(item.ctr || 0, 2) + ' %',
-                            formatCurrencyIDR(item.revenue || 0)
-                        ]);
-                    });
-                    // Create daily revenue line chart
-                    create_revenue_line_chart(response.data);
-                }
-                table.draw();
-                showSuccessMessage('Traffic data loaded successfully!');
-                $("#overlay").hide();
-            } else {
-                alert('Error: ' + (response && response.error ? response.error : 'Unknown error occurred'));
-            }
-        },
-        error: function (jqXHR, textStatus, errorThrown) {
-            report_eror(jqXHR, textStatus);
-            $("#overlay").hide();
-        }
-    });
+    // Paksa urutan setelah inisialisasi untuk memastikan tidak tertimpa
+    table.order([0, 'desc']).draw();
 }
-function formatNumber(num, decimals = 0) {
-    if (num === null || num === undefined) return '0';
-    return parseFloat(num).toLocaleString('en-US', {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals
-    });
-}
-// Fungsi untuk format mata uang IDR
-function formatCurrencyIDR(value) {
-    // Convert to number, round to remove decimals, then format with Rp
-    let numValue = parseFloat(value.toString().replace(/[$,]/g, ''));
-    if (isNaN(numValue)) return value;
-    
-    // Round to remove decimals and format with Indonesian number format
-    return 'Rp. ' + Math.round(numValue).toLocaleString('id-ID');
-}
-function showSuccessMessage(message) {
-    var alertHtml = '<div class="alert alert-success alert-dismissible fade show" role="alert">';
-    alertHtml += '<i class="bi bi-check-circle"></i> ' + message;
-    alertHtml += '<button type="button" class="close" data-dismiss="alert" aria-label="Close">';
-    alertHtml += '<span aria-hidden="true">&times;</span>';
-    alertHtml += '</button>';
-    alertHtml += '</div>';
-    
-    $('.card-body').first().prepend(alertHtml);
-    
-    setTimeout(function() {
-        $('.alert-success').fadeOut('slow', function() {
-            $(this).remove();
-        });
-    }, 3000);
-}
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
-const csrftoken = getCookie('csrftoken');
 
 // Function to create revenue line chart (matching adx_summary style)
 function create_revenue_line_chart(data) {
@@ -601,3 +573,51 @@ function formatDateForDisplay(dateString) {
         return dateString;
     }
 }
+
+function formatNumber(num, decimals = 0) {
+    if (num === null || num === undefined) return '0';
+    return parseFloat(num).toLocaleString('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+    });
+}
+// Fungsi untuk format mata uang IDR
+function formatCurrencyIDR(value) {
+    // Convert to number, round to remove decimals, then format with Rp
+    let numValue = parseFloat(value.toString().replace(/[$,]/g, ''));
+    if (isNaN(numValue)) return value;
+    
+    // Round to remove decimals and format with Indonesian number format
+    return 'Rp. ' + Math.round(numValue).toLocaleString('id-ID');
+}
+function showSuccessMessage(message) {
+    var alertHtml = '<div class="alert alert-success alert-dismissible fade show" role="alert">';
+    alertHtml += '<i class="bi bi-check-circle"></i> ' + message;
+    alertHtml += '<button type="button" class="close" data-dismiss="alert" aria-label="Close">';
+    alertHtml += '<span aria-hidden="true">&times;</span>';
+    alertHtml += '</button>';
+    alertHtml += '</div>';
+    
+    $('.card-body').first().prepend(alertHtml);
+    
+    setTimeout(function() {
+        $('.alert-success').fadeOut('slow', function() {
+            $(this).remove();
+        });
+    }, 3000);
+}
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
