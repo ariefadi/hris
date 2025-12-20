@@ -1113,12 +1113,13 @@ class PerAccountFacebookAds(View):
         return super(PerAccountFacebookAds, self).dispatch(request, *args, **kwargs)
     def get(self, req):
         data_account = data_mysql().master_account_ads()['data']
+        data_domain = data_mysql().master_domain_ads()['data']
         today = datetime.now().strftime('%Y-%m-%d')
         data = {
             'title': 'Data Traffic Per Account Facebook Ads',
             'user': req.session['hris_admin'],
         }
-        return render(req, 'admin/facebook_ads/per_account/index.html', {'data_account': data_account, 'data': data, 'today': today})
+        return render(req, 'admin/facebook_ads/per_account/index.html', {'data_account': data_account, 'data_domain': data_domain, 'data': data, 'today': today})
     
 class page_per_account_facebook(View):
     def dispatch(self, request, *args, **kwargs):
@@ -1130,23 +1131,23 @@ class page_per_account_facebook(View):
     def get(self, req):
         tanggal = req.GET.get('tanggal')
         data_account = req.GET.get('data_account')
-        data_sub_domain = req.GET.get('data_sub_domain')
+        data_domain = req.GET.get('data_domain')
         # Jika tanggal kosong atau '%', gunakan tanggal hari ini
         if not tanggal or tanggal == '%':
             tanggal = datetime.now().strftime('%Y-%m-%d')
-        # Normalisasi data_sub_domain
-        if not data_sub_domain or data_sub_domain == '':
-            data_sub_domain = '%'
+        # Normalisasi data_domain
+        if not data_domain or data_domain == '':
+            data_domain = '%'
         # Jika data_account kosong atau '%', gunakan semua account untuk filter sub domain
         if not data_account or data_account == '%':
             rs_account = data_mysql().master_account_ads()['data']
-            data = fetch_data_insights_all_accounts_by_subdomain(str(tanggal), rs_account, str(data_sub_domain))
+            data = fetch_data_insights_all_accounts_by_domain(str(tanggal), rs_account, str(data_domain))
         else:
             # Gunakan account spesifik seperti sebelumnya
             rs_data_account = data_mysql().master_account_ads_by_id({
                 'data_account': data_account,
             })['data']
-            data = fetch_data_insights_account(str(tanggal), str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(data_sub_domain), str(rs_data_account['account_name']))
+            data = fetch_data_insights_account(str(tanggal), str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(data_domain), str(rs_data_account['account_name']))
         
         hasil = {
             'hasil': "Data Traffic Per Account",
