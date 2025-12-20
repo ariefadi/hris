@@ -79,8 +79,7 @@
             </div>
             <div class="col-md-2">
                 <label>Filter Adx Account</label>
-                <select class="form-control select2" id="account_filter">
-                    <option value="">-- Pilih Akun Terdaftar --</option>
+                <select class="form-control select2-multiple" id="account_filter" multiple>
                     {% for account in data_account_adx %}
                     <option value="{{ account.account_id }}">{{ account.account_name }}</option>
                     {% endfor %}
@@ -99,7 +98,7 @@
                 <select class="form-control select2" id="select_account">
                     <option value=""></option>
                     {% for data_account in data_account %}
-                    <option value="{{data_account.account_ads_id}}">{{data_account.account_name|upper}}</option>
+                    <option value="{{data_account.account_ads_id}}">{{data_account.account_name}}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -300,12 +299,12 @@
                         <th rowspan="2" class="text-center">Pendapatan</th>
                     </tr>
                     <tr>
-                        <th class="text-center">Fb Ads</th>
-                        <th class="text-center">Adx</th>
-                        <th class="text-center">Fb Ads</th>
-                        <th class="text-center">Adx</th>
-                        <th class="text-center">Fb Ads</th>
-                        <th class="text-center">Adx</th>
+                        <th class="text-center">Klik Ads</th>
+                        <th class="text-center">Klik Adx</th>
+                        <th class="text-center">CTR Ads</th>
+                        <th class="text-center">CTR Adx</th>
+                        <th class="text-center">CPC Ads</th>
+                        <th class="text-center">CPC Adx</th>
                     </tr>
                 </thead>
                 <tbody>

@@ -39,8 +39,7 @@
             </div>
             <div class="col-md-3">
                 <label>Filter Account</label>
-                <select class="form-control select2" id="account_filter">
-                    <option value="">-- Pilih Account Terdaftar --</option>
+                <select class="form-control select2-multiple" id="account_filter" multiple>
                     {% for account in data_account_adx %}
                     <option value="{{ account.account_id }}">{{ account.account_name }}</option>  
                     {% endfor %}
@@ -49,7 +48,6 @@
             <div class="col-md-3">
                 <label>Filter Domain</label>
                 <select class="form-control select2-multiple" id="domain_filter" multiple>
-                    <option value="">-- Pilih Domain Terdaftar --</option>
                     {% for domain in data_domain_adx %}
                     <option value="{{ domain.data_adx_domain }}">{{ domain.data_adx_domain }}</option>
                     {% endfor %}
@@ -133,7 +131,7 @@
             </div>
         </div>
         <!-- Line Chart untuk Pergerakan Pendapatan Harian -->
-        <div class="row mt-3">
+        <div class="row mt-3" id="revenue_chart_row" style="display: none;">
             <div class="col-12">
                 <div class="card">
                     <div class="card-body">

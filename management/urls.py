@@ -50,6 +50,7 @@ urlpatterns = [
     # Cache Management
     path('admin/cache_stats', views.CacheStatsView.as_view(), name='cache_stats'),
     path('admin/ads_sites_list', views.AdsSitesListView.as_view(), name='ads_sites_list'),
+    path('admin/ads_account_list', views.AdsAccountListView.as_view(), name='ads_account_list'),
     path('admin/ads_campaign_list', views.AdsCampaignListView.as_view(), name='ads_campaign_list'),
 
 
@@ -74,6 +75,7 @@ urlpatterns = [
     path('adx-traffic-account/', views.AdxTrafficPerAccountView.as_view(), name='adx_traffic_account_alias'),
     path('admin/page_adx_traffic_account', views.AdxTrafficPerAccountDataView.as_view()),
     path('admin/adx_sites_list', views.AdxSitesListView.as_view(), name='adx_sites_list'),
+    path('admin/adx_accounts_list', views.AdxAccountListView.as_view(), name='adx_accounts_list'),
     # Menu AdX Traffic Per Campaign
     path('admin/adx_traffic_campaign', views.AdxTrafficPerCampaignView.as_view(), name='adx_traffic_campaign'),
     path('admin/adx_traffic_campaign_data', views.AdxTrafficPerCampaignDataView.as_view(), name='adx_traffic_campaign_data'),
@@ -122,8 +124,8 @@ urlpatterns = [
     path('admin/monitoring_country', views.RoiMonitoringCountryView.as_view(), name='roi_monitoring_country'),
     path('admin/page_monitoring_country', views.RoiMonitoringCountryDataView.as_view()),
     # Menu ROI Rekapitulasi
-    path('admin/rekapitulasi', views.RoiRekapitulasiView.as_view(), name='roi_rekapitulasi'),
-    # path('admin/page_rekapitulasi', views.RoiRekapitulasiDataView.as_view()),
+    path('admin/rekapitulasi_earning', views.RoiRekapitulasiView.as_view(), name='roi_rekapitulasi'),
+    path('admin/page_rekapitulasi_earning', views.RoiRekapitulasiDataView.as_view()),
 
     # test
     path('admin/fetch_report', views.fetch_report, name='fetch_report'),

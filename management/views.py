@@ -2,6 +2,7 @@ from collections import defaultdict
 import os
 import csv
 from io import StringIO
+import re
 import site
 from traceback import print_tb
 from typing import Any
@@ -1112,12 +1113,13 @@ class PerAccountFacebookAds(View):
         return super(PerAccountFacebookAds, self).dispatch(request, *args, **kwargs)
     def get(self, req):
         data_account = data_mysql().master_account_ads()['data']
+        data_domain = data_mysql().master_domain_ads()['data']
         today = datetime.now().strftime('%Y-%m-%d')
         data = {
             'title': 'Data Traffic Per Account Facebook Ads',
             'user': req.session['hris_admin'],
         }
-        return render(req, 'admin/facebook_ads/per_account/index.html', {'data_account': data_account, 'data': data, 'today': today})
+        return render(req, 'admin/facebook_ads/per_account/index.html', {'data_account': data_account, 'data_domain': data_domain, 'data': data, 'today': today})
     
 class page_per_account_facebook(View):
     def dispatch(self, request, *args, **kwargs):
@@ -1129,23 +1131,23 @@ class page_per_account_facebook(View):
     def get(self, req):
         tanggal = req.GET.get('tanggal')
         data_account = req.GET.get('data_account')
-        data_sub_domain = req.GET.get('data_sub_domain')
+        data_domain = req.GET.get('data_domain')
         # Jika tanggal kosong atau '%', gunakan tanggal hari ini
         if not tanggal or tanggal == '%':
             tanggal = datetime.now().strftime('%Y-%m-%d')
-        # Normalisasi data_sub_domain
-        if not data_sub_domain or data_sub_domain == '':
-            data_sub_domain = '%'
+        # Normalisasi data_domain
+        if not data_domain or data_domain == '':
+            data_domain = '%'
         # Jika data_account kosong atau '%', gunakan semua account untuk filter sub domain
         if not data_account or data_account == '%':
             rs_account = data_mysql().master_account_ads()['data']
-            data = fetch_data_insights_all_accounts_by_subdomain(str(tanggal), rs_account, str(data_sub_domain))
+            data = fetch_data_insights_all_accounts_by_domain(str(tanggal), rs_account, str(data_domain))
         else:
             # Gunakan account spesifik seperti sebelumnya
             rs_data_account = data_mysql().master_account_ads_by_id({
                 'data_account': data_account,
             })['data']
-            data = fetch_data_insights_account(str(tanggal), str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(data_sub_domain), str(rs_data_account['account_name']))
+            data = fetch_data_insights_account(str(tanggal), str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(data_domain), str(rs_data_account['account_name']))
         
         hasil = {
             'hasil': "Data Traffic Per Account",
@@ -1506,14 +1508,46 @@ class AdsSitesListView(View):
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
         selected_accounts = req.GET.get('selected_accounts')
+        selected_account_list = []
         if selected_accounts:
-            ads_id = selected_accounts
+            selected_account_list = [str(s).strip() for s in selected_accounts.split(',') if s.strip()]
+        if selected_account_list:
+            ads_id = selected_account_list  
         else:
             ads_id = req.session.get('hris_admin', {}).get('ads_id')
         try:
             # Ambil daftar situs dari Facebook Ads Manager jika cache miss
             result = data_mysql().fetch_ads_sites_list(
                 ads_id
+            )
+            # Simpan ke cache untuk permintaan berikutnya
+            try:
+                # Cache selama 6 jam; daftar situs jarang berubah
+                set_cached_data(cache_key, result['hasil'], timeout=6 * 60 * 60)
+            except Exception as _cache_set_err:
+                print(f"[WARNING] failed to cache ads_sites_list: {_cache_set_err}")
+            return JsonResponse(result['hasil'], safe=False)
+        except Exception as e:
+            return JsonResponse({
+                'status': False,
+                'error': str(e)
+            })
+
+class AdsAccountListView(View):
+    """AJAX endpoint untuk mengambil daftar situs dari Facebook Ads Manager"""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+    def get(self, req):
+        selected_domains = req.GET.get('selected_domains')
+        selected_domain_list = []
+        if selected_domains:
+            selected_domain_list = [str(s).strip() for s in selected_domains.split(',') if s.strip()]
+        try:
+            # Ambil daftar account dari Facebook Ads Manager jika cache miss
+            result = data_mysql().fetch_ads_account_list(
+                selected_domain_list
             )
             # Simpan ke cache untuk permintaan berikutnya
             try:
@@ -1554,10 +1588,11 @@ class page_per_campaign_facebook(View):
     def get(self, req):
         tanggal_dari = req.GET.get('tanggal_dari')
         tanggal_sampai = req.GET.get('tanggal_sampai')
-        data_account = req.GET.get('data_account', '')
-        print(f"data_account: {data_account}")
+        data_account = req.GET.get('data_account')
+        selected_account_list = []
+        if data_account:
+            selected_account_list = [str(s).strip() for s in data_account.split(',') if s.strip()]
         data_domain = req.GET.get('data_domain')
-        print(f"data_domain: {data_domain}")
         selected_domain_list = []
         if data_domain:
             selected_domain_list = [str(s).strip() for s in data_domain.split(',') if s.strip()]
@@ -1575,7 +1610,7 @@ class page_per_campaign_facebook(View):
         db_result = data_mysql().get_all_ads_traffic_campaign_by_params(
             tanggal_dari,
             tanggal_sampai,
-            data_account,
+            selected_account_list,
             selected_domain_list,
         )
         print(f"db_result: {db_result}")
@@ -1673,6 +1708,9 @@ class page_per_country_facebook(View):
         tanggal_dari = req.POST.get('tanggal_dari') 
         tanggal_sampai = req.POST.get('tanggal_sampai')
         data_account = req.POST.get('data_account')
+        selected_account_list = []
+        if data_account:
+            selected_account_list = [str(s).strip() for s in data_account.split(',') if s.strip()]
         data_domain = req.POST.get('data_domain')
         selected_domain_list = []
         if data_domain:
@@ -1682,15 +1720,13 @@ class page_per_country_facebook(View):
             selected_countries = json.loads(selected_countries_json)
         except:
             selected_countries = []
-        print(f"[DEBUG] selected_countries: {selected_countries}")
         db_resp = data_mysql().get_all_ads_traffic_country_by_params(
             tanggal_dari,
             tanggal_sampai,
-            data_account,
+            selected_account_list,
             selected_domain_list,
             selected_countries
         )
-        print(f"[DEBUG] db_resp: {db_resp}")
         data_rows = db_resp.get('data') if isinstance(db_resp, dict) else []
         # Normalisasi rows ke format yang diharapkan JS
         normalized = []
@@ -1853,6 +1889,9 @@ class AdxSummaryDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_account = req.GET.get('selected_account', '')
+        account_list = []
+        if selected_account:
+            account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
         selected_domain = req.GET.get('selected_domain')
         selected_domain_list = []
         if selected_domain:
@@ -1863,7 +1902,7 @@ class AdxSummaryDataView(View):
                 'error': 'Start date and end date are required'
             })
         try:
-            result = data_mysql().get_all_adx_traffic_account_by_params(start_date, end_date, selected_account, selected_domain_list)
+            result = data_mysql().get_all_adx_traffic_account_by_params(start_date, end_date, account_list, selected_domain_list)
             # Unwrap format lama { 'hasil': ... } dan siapkan data
             payload = result['hasil'] if isinstance(result, dict) and 'hasil' in result else result
             data_rows = payload.get('data') if isinstance(payload, dict) else []
@@ -2766,6 +2805,9 @@ class AdxTrafficPerAccountDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_account = req.GET.get('selected_account')
+        selected_account_list = []
+        if selected_account:
+            selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
         selected_domains = req.GET.get('selected_domains')
         selected_domain_list = []
         if selected_domains:
@@ -2780,7 +2822,7 @@ class AdxTrafficPerAccountDataView(View):
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
             end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')  
             # Gunakan fungsi baru yang mengambil data berdasarkan kredensial user
-            rs_result = data_mysql().get_all_adx_traffic_account_by_params(start_date_formatted, end_date_formatted, selected_account, selected_domain_list)
+            rs_result = data_mysql().get_all_adx_traffic_account_by_params(start_date_formatted, end_date_formatted, selected_account_list, selected_domain_list)
             rows_map = {}
             if rs_result and rs_result['hasil']['data']:
                 for rs in rs_result['hasil']['data']:
@@ -2814,7 +2856,7 @@ class AdxTrafficPerAccountDataView(View):
                 total_revenue += rev
                 result_rows.append({
                     'date': item['date'],
-                    'site_name': item['site_name'],
+                    'site_name': item['site_name'] + '.com',
                     'clicks_adx': clk,
                     'cpc_adx': round(cpc_adx, 2),
                     'ecpm': round(ecpm, 2),
@@ -2850,9 +2892,12 @@ class AdxSitesListView(View):
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
         selected_accounts = req.GET.get('selected_accounts')
-        print(f"[DEBUG] AdxSitesListView - selected_accounts: {selected_accounts}")
+        selected_account_list = []
         if selected_accounts:
-            user_mail = data_mysql().get_user_mail_by_account(selected_accounts)
+            selected_account_list = [str(s).strip() for s in selected_accounts.split(',') if s.strip()]
+        print(f"[DEBUG] AdxSitesListView - selected_account_list: {selected_account_list}")
+        if selected_account_list:
+            user_mail = data_mysql().fetch_user_mail_by_account(selected_account_list)    
         else:
             user_mail = req.session.get('hris_admin', {}).get('user_mail')
         try:
@@ -2875,13 +2920,57 @@ class AdxSitesListView(View):
                 start_date.strftime('%Y-%m-%d'), 
                 end_date.strftime('%Y-%m-%d')
             )
-            print(f"[DEBUG] AdxSitesListView - result: {result}")
             # Simpan ke cache untuk permintaan berikutnya
             try:
                 # Cache selama 6 jam; daftar situs jarang berubah
                 set_cached_data(cache_key, result['hasil'], timeout=6 * 60 * 60)
             except Exception as _cache_set_err:
                 print(f"[WARNING] failed to cache ads_sites_list: {_cache_set_err}")
+            return JsonResponse(result['hasil'], safe=False)
+        except Exception as e:
+            return JsonResponse({
+                'status': False,
+                'error': str(e)
+            })
+
+class AdxAccountListView(View):
+    """AJAX endpoint untuk mengambil daftar akun dari Ad Manager"""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+    def get(self, req):
+        selected_domains = req.GET.get('selected_domains')
+        selected_domain_list = []
+        if selected_domains:
+            selected_domain_list = [str(s).strip() for s in selected_domains.split(',') if s.strip()]
+        try:
+            # Cek cache terlebih dahulu untuk mempercepat respons
+            try:
+                cache_key = generate_cache_key('adx_accounts_list', str(selected_domains or ''))
+                cached_accounts = get_cached_data(cache_key)
+                if cached_accounts is not None:
+                    return JsonResponse(cached_accounts, safe=False)
+            except Exception as _cache_err:
+                # Lanjutkan tanpa memblokir jika cache gagal
+                print(f"[WARNING] adx_account_list cache unavailable: {_cache_err}")
+
+            # Ambil daftar situs dari Ad Manager jika cache miss
+            # result = fetch_user_sites_list(user_mail)
+            end_date = date.today()
+            start_date = end_date - timedelta(days=7)
+            result = data_mysql().fetch_account_list_by_domain(
+                selected_domain_list, 
+                start_date.strftime('%Y-%m-%d'), 
+                end_date.strftime('%Y-%m-%d')
+            )
+            print(f"[DEBUG] AdxAccountListView - result: {result}")
+            # Simpan ke cache untuk permintaan berikutnya
+            try:
+                # Cache selama 6 jam; daftar akun jarang berubah
+                set_cached_data(cache_key, result['hasil'], timeout=6 * 60 * 60)
+            except Exception as _cache_set_err:
+                print(f"[WARNING] failed to cache adx_account_list: {_cache_set_err}")
             return JsonResponse(result['hasil'], safe=False)
         except Exception as e:
             return JsonResponse({
@@ -3007,9 +3096,11 @@ class AdxTrafficPerCountryDataView(View):
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
-        selected_account = req.GET.get('selected_account', '')
+        selected_account = req.GET.get('selected_account')
+        selected_account_list = []
+        if selected_account:
+            selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
         selected_domains = req.GET.get('selected_domains')
-        print(f"selected_account: {selected_account}")
         selected_domain_list = []
         if selected_domains:
             selected_domain_list = [str(s).strip() for s in selected_domains.split(',') if s.strip()]
@@ -3025,7 +3116,7 @@ class AdxTrafficPerCountryDataView(View):
             else:
                 print("[DEBUG] No countries selected, will fetch all countries")
             # result = fetch_adx_traffic_per_country(start_date_formatted, end_date_formatted, user_mail, selected_sites, countries_list)    
-            result = data_mysql().get_all_adx_traffic_country_by_params(start_date_formatted, end_date_formatted, selected_account, selected_domain_list, countries_list)
+            result = data_mysql().get_all_adx_traffic_country_by_params(start_date_formatted, end_date_formatted, selected_account_list, selected_domain_list, countries_list)
             if isinstance(result, dict):
                 if 'data' in result:
                     if result['data']:
@@ -3150,7 +3241,10 @@ class RoiTrafficPerCountryDataView(View):
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
-        selected_account = req.GET.get('selected_account')
+        selected_account = req.GET.get('selected_account_adx')
+        selected_account_list = []
+        if selected_account:
+            selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
         selected_domain = req.GET.get('selected_domains')
         selected_domain_list = []
         if selected_domain:
@@ -3176,14 +3270,13 @@ class RoiTrafficPerCountryDataView(View):
                 try:
                     # Ambil list sites dari database
                     sites_result = data_mysql().fetch_user_sites_id_list(
-                        start_date, end_date, selected_account or '%'
+                        start_date, end_date, selected_account_list
                     )
                     if sites_result['hasil']['data']:
                         # Ambil data sites
                         sites_for_fb = sites_result['hasil']['data']
                         # Hapus semua 'Unknown'
                         sites_for_fb = [site for site in sites_for_fb if site != 'Unknown']
-                        print(f"[DEBUG ROI] Sites for FB filter: {sites_for_fb}")
                     else:
                         print(f"[DEBUG ROI] No sites derived for FB filter: {sites_result['hasil']['data']}")
                 except Exception as _sites_err:
@@ -3193,8 +3286,8 @@ class RoiTrafficPerCountryDataView(View):
                 'roi_country_response',
                 start_date,
                 end_date,
-                selected_account or '',
-                selected_domain_list or '',
+                selected_account_list,
+                selected_domain_list,
                 selected_account_ads or '',
                 ','.join(countries_list) if countries_list else ''
             )
@@ -3209,7 +3302,7 @@ class RoiTrafficPerCountryDataView(View):
                         data_mysql().get_all_adx_roi_country_detail_by_params,
                         start_date,
                         end_date,
-                        selected_account or '',
+                        selected_account_list,
                         selected_domain_list,
                         countries_list
                     )
@@ -3251,7 +3344,7 @@ class RoiTrafficPerCountryDataView(View):
                 data_adx = data_mysql().get_all_adx_roi_country_detail_by_params(
                     start_date, 
                     end_date, 
-                    selected_account, 
+                    selected_account_list, 
                     selected_domain_list, 
                     countries_list
                 )
@@ -3262,14 +3355,23 @@ class RoiTrafficPerCountryDataView(View):
                             unique_sites = set(site.strip() for site in sites_for_fb if site.strip() and site.strip() != 'Unknown')
                             extracted_names = []
                             for site in unique_sites:
-                                if "." in site:
-                                    parts = site.split(".")       # pisah berdasarkan titik
-                                    if len(parts) >= 2:
-                                        main_domain = ".".join(parts[:2])
-                                    else:
-                                        main_domain = site
+                                main_domain = extract_base_subdomain(site.strip())
+                                if main_domain and main_domain != 'Unknown':
                                     extracted_names.append(main_domain)
                             unique_name_site = list(set(extracted_names))
+
+                        if not unique_name_site:
+                            adx_payload_tmp = data_adx.get('hasil') if isinstance(data_adx, dict) and data_adx.get('hasil') else data_adx
+                            adx_items_tmp = adx_payload_tmp.get('data') if isinstance(adx_payload_tmp, dict) else []
+                            if adx_items_tmp:
+                                extracted_names = []
+                                for adx_item in (adx_items_tmp or []):
+                                    site_name = str(adx_item.get('site_name', '') or '')
+                                    main_domain = extract_base_subdomain(site_name.strip())
+                                    if main_domain and main_domain != 'Unknown':
+                                        extracted_names.append(main_domain)
+                                unique_name_site = list(set(extracted_names))
+
                         if unique_name_site:
                             fb_future = executor.submit(
                                 data_mysql().get_all_ads_roi_country_detail_by_params,
@@ -3526,19 +3628,27 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
         total_spend_filtered = sum(d['spend'] for d in combined_data_filtered) if combined_data_filtered else 0.0
         total_revenue_filtered = sum(d['revenue'] for d in combined_data_filtered) if combined_data_filtered else 0.0
 
+        count_all = len(combined_data_all)
+        count_filtered = len(combined_data_filtered)
+
+        cpr_values_all = [float(d.get('cpr', 0) or 0) for d in combined_data_all if float(d.get('cpr', 0) or 0) > 0]
+        cpr_values_filtered = [float(d.get('cpr', 0) or 0) for d in combined_data_filtered if float(d.get('cpr', 0) or 0) > 0]
+        rata_cpr_all = round(sum(cpr_values_all) / len(cpr_values_all), 2) if cpr_values_all else 0
+        rata_cpr_filtered = round(sum(cpr_values_filtered) / len(cpr_values_filtered), 2) if cpr_values_filtered else 0
+
         return {
             'status': True,
             'data': combined_data_all,
             'data_filtered': combined_data_filtered,
-            'total_records': len(combined_data_all),
-            'total_records_filtered': len(combined_data_filtered),
+            'total_records': count_all,
+            'total_records_filtered': count_filtered,
             'summary_all': {
                 'total_spend': round(total_spend_all, 2),
                 'total_clicks_fb': sum(d['clicks_fb'] for d in combined_data_all),
                 'total_clicks_adx': sum(d['clicks_adx'] for d in combined_data_all),
                 'total_ctr_fb': sum(d['ctr_fb'] for d in combined_data_all),
                 'total_ctr_adx': sum(d['ctr_adx'] for d in combined_data_all),
-                'rata_cpr': round(sum(d['cpr'] for d in combined_data_all) / len(combined_data_all), 2),
+                'rata_cpr': rata_cpr_all,
                 'total_revenue': round(total_revenue_all, 2),
                 'total_roi': round(((total_revenue_all - total_spend_all) / total_spend_all * 100) if total_spend_all > 0 else 0, 2)
             },
@@ -3548,7 +3658,7 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                 'total_clicks_adx': sum(d['clicks_adx'] for d in combined_data_filtered),
                 'total_ctr_fb': sum(d['ctr_fb'] for d in combined_data_filtered),
                 'total_ctr_adx': sum(d['ctr_adx'] for d in combined_data_filtered),
-                'rata_cpr': round(sum(d['cpr'] for d in combined_data_filtered) / len(combined_data_filtered), 2),
+                'rata_cpr': rata_cpr_filtered,
                 'total_revenue': round(total_revenue_filtered, 2),
                 'total_roi': round(((total_revenue_filtered - total_spend_filtered) / total_spend_filtered * 100) if total_spend_filtered > 0 else 0, 2)
             }
@@ -3718,8 +3828,9 @@ class RoiTrafficPerDomainDataView(View):
         try:
             start_date = req.GET.get('start_date')
             end_date = req.GET.get('end_date')
-            selected_accounts = req.GET.get('selected_account')
+            selected_accounts = req.GET.get('selected_account_adx')
             selected_domains = req.GET.get('selected_domains')
+            selected_account_ads = req.GET.get('selected_account_ads')
             # --- 1. Parse tanggal aman
             def parse_date(d):
                 try:
@@ -3729,6 +3840,9 @@ class RoiTrafficPerDomainDataView(View):
             start_date_formatted = parse_date(start_date)
             end_date_formatted = parse_date(end_date)
             # --- 2. Normalisasi selected_sites_list
+            selected_account_list = []
+            if selected_accounts:
+                selected_account_list = [str(s).strip() for s in selected_accounts.split(',') if s.strip()]
             selected_domain_list = []
             if selected_domains:
                 selected_domain_list = [str(s).strip() for s in selected_domains.split(',') if s.strip()]
@@ -3736,7 +3850,7 @@ class RoiTrafficPerDomainDataView(View):
             adx_result = data_mysql().get_all_adx_traffic_account_by_params(
                 start_date_formatted,
                 end_date_formatted,
-                selected_accounts,
+                selected_account_list,
                 selected_domain_list
             )
             # --- 4. Proses Facebook data
@@ -3887,7 +4001,7 @@ class RoiTrafficPerDomainDataView(View):
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
                     combined_data_all.append({
-                        'site_name': item['site_name'],
+                        'site_name': item['site_name'] + '.com',
                         'date': item['date'],
                         'spend': spend_val,
                         'clicks_fb': clicks_fb_val,
@@ -3926,7 +4040,7 @@ class RoiTrafficPerDomainDataView(View):
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
                     combined_data_filtered.append({
-                        'site_name': item['site_name'],
+                        'site_name': item['site_name'] + '.com',
                         'date': item['date'],
                         'spend': spend_val,
                         'clicks_fb': clicks_fb_val,
@@ -4226,7 +4340,7 @@ class RoiMonitoringDomainDataView(View):
         try:
             start_date = req.GET.get('start_date')
             end_date = req.GET.get('end_date')
-            selected_accounts = req.GET.get('selected_account')
+            selected_accounts = req.GET.get('selected_account_adx')
             selected_domains = req.GET.get('selected_domains')
             # --- 1. Parse tanggal aman
             def parse_date(d):
@@ -4237,6 +4351,9 @@ class RoiMonitoringDomainDataView(View):
             start_date_formatted = parse_date(start_date)
             end_date_formatted = parse_date(end_date)
             # --- 2. Normalisasi selected_sites_list
+            selected_account_list = []
+            if selected_accounts:
+                selected_account_list = [str(s).strip() for s in selected_accounts.split(',') if s.strip()]
             selected_domain_list = []
             if selected_domains:
                 selected_domain_list = [str(s).strip() for s in selected_domains.split(',') if s.strip()]
@@ -4244,7 +4361,7 @@ class RoiMonitoringDomainDataView(View):
             adx_result = data_mysql().get_all_adx_monitoring_account_by_params(
                 start_date_formatted,
                 end_date_formatted,
-                selected_accounts,
+                selected_account_list,
                 selected_domain_list
             )
             # --- 4. Proses Facebook data
@@ -4343,7 +4460,7 @@ class RoiMonitoringDomainDataView(View):
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
                     combined_data_all.append({
-                        'site_name': item['site_name'],
+                        'site_name': item['site_name'] + '.com',
                         'account_ads': item['account_ads'],
                         'spend': spend_val,
                         'revenue': revenue_val,
@@ -4358,7 +4475,7 @@ class RoiMonitoringDomainDataView(View):
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
                     combined_data_filtered.append({
-                        'site_name': item['site_name'],
+                        'site_name': item['site_name'] + '.com',
                         'account_ads': item['account_ads'],
                         'spend': spend_val,
                         'revenue': revenue_val,
@@ -4437,8 +4554,11 @@ class RoiMonitoringCountryDataView(View):
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
-        selected_account = req.GET.get('selected_account', '')
-        selected_domain = req.GET.get('selected_domains')
+        selected_account = req.GET.get('selected_account_adx', '')
+        selected_domain = req.GET.get('selected_domains', '')
+        selected_account_list = []
+        if selected_account:
+            selected_account_list = [str(a).strip() for a in selected_account.split(',') if a.strip()]
         selected_domain_list = []
         if selected_domain:
             selected_domain_list = [str(s).strip() for s in selected_domain.split(',') if s.strip()]
@@ -4488,14 +4608,13 @@ class RoiMonitoringCountryDataView(View):
                 return JsonResponse(cached_response, safe=False)
             data_facebook = None
             # Jalankan paralel jika selected_domain sudah ada (menghindari fetch FB yang terlalu lebar)
-            print(f"[DEBUG ROI] selected_domain_list: {selected_domain_list}")
             if selected_domain_list:
                 with ThreadPoolExecutor(max_workers=2) as executor:
                     adx_future = executor.submit(
                         data_mysql().get_all_adx_country_detail_by_params,
                         start_date,
                         end_date,
-                        selected_account or '',
+                        selected_account_list,
                         selected_domain_list,
                         countries_list
                     )
@@ -4532,7 +4651,7 @@ class RoiMonitoringCountryDataView(View):
                 data_adx = data_mysql().get_all_adx_country_detail_by_params(
                     start_date,
                     end_date,
-                    selected_account,
+                    selected_account_list,
                     selected_domain_list,
                     countries_list
                 )
@@ -4654,4 +4773,64 @@ class RoiRekapitulasiView(View):
             'data_domain_adx': data_domain_adx['data'],
             'last_update': last_update
         }
-        return render(req, 'admin/report_roi/rekapitulasi/index.html', data)
+        return render(req, 'admin/report_roi/rekapitulasi_roi/index.html', data)
+
+class RoiRekapitulasiDataView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+    def get(self, req):
+        try:
+            start_date = req.GET.get('start_date')
+            end_date = req.GET.get('end_date')
+            if not start_date or not end_date:
+                raise ValueError("start_date dan end_date harus diisi")
+            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+            if start_date > end_date:
+                raise ValueError("start_date > end_date")
+            total_days = (end_date - start_date).days + 1
+            past_end_date = start_date - timedelta(days=1)
+            past_start_date = past_end_date - timedelta(days=total_days - 1)
+            MONTH_ID = {
+                1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr",
+                5: "Mei", 6: "Jun", 7: "Jul", 8: "Agu",
+                9: "Sep", 10: "Okt", 11: "Nov", 12: "Des"
+            }
+            def format_tanggal_id(dt):
+                return f"{dt.day} {MONTH_ID[dt.month]} {dt.year}"
+            periode_now = (
+                f"Periode <br> "
+                f"{format_tanggal_id(start_date)} s/d {format_tanggal_id(end_date)}"
+            )
+            periode_past = (
+                f"Periode <br> "
+                f"{format_tanggal_id(past_start_date)} s/d {format_tanggal_id(past_end_date)}"
+            )
+            selected_account_list = []
+            if req.GET.get('selected_account_adx'):
+                selected_account_list = [
+                    s.strip() for s in req.GET.get('selected_account_adx').split(',') if s.strip()
+                ]
+            selected_domain_list = []
+            if req.GET.get('selected_domains'):
+                selected_domain_list = [
+                    s.strip() for s in req.GET.get('selected_domains').split(',') if s.strip()
+                ]
+            adx_result = data_mysql().get_all_rekapitulasi_adx_monitoring_account_by_params(
+                start_date,
+                end_date,
+                past_start_date,
+                past_end_date,
+                selected_account_list,
+                selected_domain_list
+            )
+            return JsonResponse({
+                'status': True,
+                'periode_now': periode_now,
+                'periode_past': periode_past,
+                'data': adx_result['hasil']['data'],
+            })
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})

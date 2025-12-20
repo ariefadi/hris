@@ -35,72 +35,140 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     })
-    $('#select_campaign').select2({
+    let allAccountOptions = $('#select_account').html();  
+    $('#select_domain').select2({
         placeholder: '-- Pilih Domain --',
         allowClear: true,
         width: '100%',
         height: '100%',
         theme: 'bootstrap4'
     })
+    let allDomainOptions = $('#select_domain').html();  
+    // Flag untuk mencegah infinite loop saat update filter
+    var isUpdating = false;
     $('#btn_load_data').click(function (e) {
         e.preventDefault();
         var tanggal = $("#tanggal").val();
         var selected_account = $("#select_account").val() || '%';
         var data_account = selected_account ? selected_account : '%';
-        var selected_sub_domain = $('#select_campaign').val() || '%';
-        var data_sub_domain = selected_sub_domain ? selected_sub_domain : '%';
+        var selected_domain = $('#select_domain').val() || '%';
+        var data_domain = selected_domain ? selected_domain : '%';
         if(tanggal && tanggal !== '' && data_account!="") {
-            loadSitesList();
             destroy_table_data_per_account_facebook()
-            table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
+            table_data_per_account_facebook(tanggal, data_account, data_domain)
         }    
     });
-});
-
-function loadSitesList() {
-    var selectedAccounts = $("#select_account").val() || "";
-    // Simpan pilihan domain yang sudah dipilih sebelumnya
-    var previouslySelected = $("#select_campaign").val() || [];
-    $.ajax({
-        url: '/management/admin/ads_sites_list',
-        type: 'GET',
-        dataType: 'json',
-        data: {
-            'selected_accounts': selectedAccounts
-        },
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-CSRFToken': csrftoken
-        },
-        success: function (response) {
-            if (response.status) {
-                var select_site = $("#select_campaign");
-                select_site.empty();
-                // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
-                var validPreviousSelections = [];
-                $.each(response.data, function (index, site) {
-                    var isSelected = previouslySelected.includes(site);
-                    if (isSelected) {
-                        validPreviousSelections.push(site);
-                    }
-                    select_site.append(new Option(site, site, false, isSelected));
-                });
-                // Set nilai yang dipilih kembali
-                if (validPreviousSelections.length > 0) {
-                    select_site.val(validPreviousSelections);
-                }
-                select_site.trigger('change');
-            }
-        },
-        error: function (xhr, status, error) {
-            report_eror(xhr, status);
+    $('#select_account').on('change', function () {
+        if (isUpdating) return;
+        let account = $(this).val();
+        if (account && account.length > 0) {
+            ads_site_list(); // filter domain by account
+        } else {
+            // restore semua domain dari template
+            isUpdating = true;
+            $('#select_domain')
+                .html(allDomainOptions)
+                .val(null)
+                .trigger('change.select2');
+            isUpdating = false;
         }
     });
-}
+    function ads_site_list() {
+        var selected_account = $("#select_account").val();
+        return $.ajax({
+            url: '/management/admin/ads_sites_list',
+            type: 'GET',
+            data: {
+                selected_accounts: selected_account
+            },
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function (response) {
+                if (response && response.status) {
+                    let $domain = $('#select_domain');
+                    let currentSelected = $domain.val(); // Simpan pilihan saat ini
+                    isUpdating = true;
+                    // 1. Kosongkan option lama
+                    $domain.empty();
+                    // 2. Tambahkan option baru
+                    response.data.forEach(function (domain) {
+                        let isSelected = currentSelected && currentSelected.includes(domain);
+                        let option = new Option(domain, domain, isSelected, isSelected);
+                        $domain.append(option);
+                    });
+                    // 3. Refresh select2
+                    $domain.trigger('change.select2');
+                    isUpdating = false;
+                }
+            },
+            error: function (xhr, status, error) {
+                report_eror(xhr, error);
+            }
+        });
+    }
+    $('#select_domain').on('change', function () {
+        if (isUpdating) return;
+        let domain = $(this).val();
+        if (domain && domain.length > 0) {
+            ads_account_list(); // filter account by domain
+        } else {
+            // restore semua account dari template
+            isUpdating = true;
+            $('#select_account')
+                .html(allAccountOptions)
+                .val(null)
+                .trigger('change.select2');
+            isUpdating = false;
+        }
+    });
+    function ads_account_list() {
+        var selected_domain = $("#select_domain").val();
+        if (selected_domain) {
+            selected_domain = selected_domain.join(',');
+        }
+        return $.ajax({
+            url: '/management/admin/ads_account_list',
+            type: 'GET',
+            data: {
+                selected_domains: selected_domain
+            },
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function (response) {
+                if (response && response.status) {
+                    let $account = $('#select_account');
+                    let currentSelected = $account.val(); // Simpan pilihan saat ini
+                    isUpdating = true;
+                    // 1. Kosongkan option lama
+                    $account.empty();
+                    // 2. Tambahkan option baru
+                    response.data.forEach(function (account) {
+                        let text = account.account_name || account.account_id;
+                        // Konversi ke string untuk perbandingan yang aman
+                        let accIdStr = String(account.account_id);
+                        // let isSelected = currentSelected && currentSelected.includes(accIdStr);
+                        // let option = new Option(text, accIdStr, isSelected, isSelected);
+                        let isSelected = true;
+                        let option = new Option(text, accIdStr, isSelected, isSelected);
+                        $account.append(option);
+                    });
+                    // 3. Refresh select2
+                    $account.trigger('change.select2');
+                    isUpdating = false;
+                }
+            },
+            error: function (xhr, status, error) {
+                report_eror(xhr, error);
+            }
+        });
+    }
+});
 
-function table_data_per_account_facebook(tanggal, data_account, data_sub_domain) {
+function table_data_per_account_facebook(tanggal, data_account, data_domain) {
     $.ajax({
-        url: '/management/admin/page_per_account_facebook?tanggal='+tanggal+'&data_account='+data_account+'&data_sub_domain='+data_sub_domain,
+        url: '/management/admin/page_per_account_facebook?tanggal='+tanggal+'&data_account='+data_account+'&data_domain='+data_domain,
         method: 'GET',
         dataType: 'json',
         beforeSend: function () {
@@ -338,8 +406,14 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                 const totalFrequency = frequency.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                 // CPR
                 let data_cpr = value.total_cpr;
-                let cpr_number = parseFloat(data_cpr)
-                let totalCpr = cpr_number.toFixed(0).replace(',', '.');
+                let cpr_number = parseFloat(data_cpr);
+
+                // Hitung rata-rata berdasarkan jumlah data yang ada
+                if (data_per_account.data_per_account && data_per_account.data_per_account.length > 0) {
+                    cpr_number = cpr_number / data_per_account.data_per_account.length;
+                }
+
+                let totalCpr = cpr_number.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                 $('#total_budget').text(totalBudget);
                 $('#total_spend').text(totalSpend);
                 $('#total_impressions').text(totalImpressions);

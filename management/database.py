@@ -1030,11 +1030,25 @@ class data_mysql:
 
     def master_domain_ads(self):
         sql = '''
-            SELECT a.account_ads_id AS 'account_id', a.data_ads_domain
-            FROM data_ads_campaign a
-            LEFT JOIN master_account_ads b ON a.account_ads_id = b.account_id
-            LEFT JOIN app_users c ON b.account_owner = c.user_id
-            GROUP BY a.data_ads_domain
+            SELECT 
+            rs.account_id, 
+            CASE WHEN rs.data_ads_domain = ''
+            THEN 'Draft'
+            ELSE 
+            rs.data_ads_domain
+            END AS data_ads_domain
+            FROM(
+                SELECT a.account_ads_id AS 'account_id', 
+                REGEXP_SUBSTR(
+                    LOWER(a.data_ads_domain),
+                    '^[a-z0-9]+\\.[a-z0-9]+'
+                ) AS data_ads_domain
+                FROM data_ads_campaign a
+                LEFT JOIN master_account_ads b ON a.account_ads_id = b.account_id
+                LEFT JOIN app_users c ON b.account_owner = c.user_id
+                GROUP BY a.data_ads_domain
+            )rs
+            GROUP BY rs.data_ads_domain 
         '''
         try:
             self.cur_hris.execute(sql)
@@ -2019,9 +2033,20 @@ class data_mysql:
             }
         return {'hasil': hasil}
         
-    def get_all_adx_traffic_account_by_params(self, start_date, end_date, selected_account = None, selected_domain_list = None):
+    def get_all_adx_traffic_account_by_params(self, start_date, end_date, account_list = None, selected_domain_list = None):
         try:
-            # --- 1. Pastikan selected_domain_list adalah list string
+            # --- 1. Pastikan account_list adalah list string
+            if isinstance(account_list, str):
+                account_list = [account_list.strip()]
+            elif account_list is None:
+                account_list = []
+            elif isinstance(account_list, (set, tuple)):
+                account_list = list(account_list)
+            data_account_list = [str(a).strip() for a in account_list if str(a).strip()]
+            # --- 2. Buat kondisi LIKE untuk setiap domain
+            like_conditions_account = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
+            like_params_account = [f"%{account}%" for account in data_account_list] 
+            # --- 2. Pastikan selected_domain_list adalah list string
             if isinstance(selected_domain_list, str):
                 selected_domain_list = [selected_domain_list.strip()]
             elif selected_domain_list is None:
@@ -2030,32 +2055,8 @@ class data_mysql:
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
             # --- 2. Buat kondisi LIKE untuk setiap domain
-            like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
-            like_params = [f"%{domain}%" for domain in data_domain_list] 
-            # base_sql = [
-            #     "SELECT",
-            #     "\trs.date AS 'date',",
-            #     "\trs.site_name AS 'site_name',"
-            #     "\tSUM(rs.impressions) AS 'impressions',",
-            #     "\tSUM(rs.clicks) AS 'clicks',",
-            #     "\tSUM(rs.cpc) AS 'cpc',",
-            #     "\tSUM(rs.ctr) AS 'ctr',",
-            #     "\tSUM(rs.cpm) AS 'cpm',",
-            #     "\tSUM(rs.revenue) AS 'revenue'",
-            #     "FROM (",
-            #         "\tSELECT",
-            #         "\t\ta.data_adx_domain AS 'site_name',",
-            #         "\t\ta.data_adx_domain_tanggal AS 'date',",
-            #         "\t\ta.data_adx_domain_impresi AS 'impressions',",
-            #         "\t\ta.data_adx_domain_click AS 'clicks',",
-            #         "\t\ta.data_adx_domain_cpc AS 'cpc',",
-            #         "\t\ta.data_adx_domain_ctr AS 'ctr',",
-            #         "\t\ta.data_adx_domain_cpm AS 'cpm',",
-            #         "\t\ta.data_adx_domain_revenue AS 'revenue'",
-            #         "\tFROM data_adx_domain a",
-            #         "\tWHERE",
-            # ]
-
+            like_conditions_domain = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_params_domain = [f"%{domain}%" for domain in data_domain_list] 
             base_sql = [
                 "SELECT",
                 "\ta.account_id, a.account_name, a.user_mail,",
@@ -2075,13 +2076,13 @@ class data_mysql:
             base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
             params.extend([start_date, end_date])
             # Normalize selected_account and apply account filter
-            if selected_account:
-                base_sql.append(f"\tAND a.account_id LIKE %s")
-                params.append(f"{selected_account}%")
+            if data_account_list:
+                base_sql.append(f"\tAND ({like_conditions_account})")
+                params.extend(like_params_account)
             # Normalize selected_sites (CSV string or list) and apply domain filter
             if data_domain_list:
-                base_sql.append(f"\tAND ({like_conditions})")
-                params.extend(like_params)
+                base_sql.append(f"\tAND ({like_conditions_domain})")
+                params.extend(like_params_domain)
             base_sql.append("GROUP BY b.data_adx_country_tanggal, b.data_adx_country_domain, b.data_adx_country_cd")
             base_sql.append("ORDER BY b.data_adx_country_tanggal ASC")
             sql = "\n".join(base_sql)
@@ -2102,8 +2103,18 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def get_all_adx_monitoring_account_by_params(self, start_date, end_date, selected_account = None, selected_domain_list = None):
+    def get_all_adx_monitoring_account_by_params(self, start_date, end_date, selected_account_list = None, selected_domain_list = None):
         try:
+            # --- 0. Pastikan selected_account_list adalah list string
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
+            like_conditions_account = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
+            like_params_account = [f"{account}%" for account in data_account_list] 
             # --- 1. Pastikan selected_domain_list adalah list string
             if isinstance(selected_domain_list, str):
                 selected_domain_list = [selected_domain_list.strip()]
@@ -2113,8 +2124,8 @@ class data_mysql:
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
             # --- 2. Buat kondisi LIKE untuk setiap domain
-            like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
-            like_params = [f"%{domain}%" for domain in data_domain_list] 
+            like_conditions_domain = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_params_domain = [f"%{domain}%" for domain in data_domain_list] 
             base_sql = [
                 "SELECT",
                 "\tb.data_adx_country_domain AS 'site_name',",
@@ -2128,13 +2139,14 @@ class data_mysql:
             base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
             params.extend([start_date, end_date])
             # Normalize selected_account and apply account filter
-            if selected_account:
-                base_sql.append(f"\tAND a.account_id LIKE %s")
-                params.append(f"{selected_account}%")
+            if data_account_list:
+                base_sql.append(f"\tAND ({like_conditions_account})")
+                params.extend(like_params_account)
             # Normalize selected_sites (CSV string or list) and apply domain filter
             if data_domain_list:
-                base_sql.append(f"\tAND ({like_conditions})")
-                params.extend(like_params)
+                base_sql.append(f"\tAND ({like_conditions_domain})")
+                params.extend(like_params_domain)
+            
             base_sql.append("GROUP BY b.data_adx_country_domain, b.data_adx_country_cd")
             base_sql.append("ORDER BY b.data_adx_country_domain ASC")
             sql = "\n".join(base_sql)
@@ -2156,8 +2168,18 @@ class data_mysql:
         return {'hasil': hasil}
 
 
-    def get_all_adx_traffic_country_by_params(self, start_date, end_date, selected_account = None, selected_domain_list = None, countries_list = None):
+    def get_all_adx_traffic_country_by_params(self, start_date, end_date, selected_account_list = None, selected_domain_list = None, countries_list = None):
         try:
+            # --- 0. Pastikan selected_account_list adalah list string
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
+            like_conditions_account = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
+            like_params_account = [f"%{account}%" for account in data_account_list] 
             # --- 1. Pastikan selected_domain_list adalah list string
             if isinstance(selected_domain_list, str):
                 selected_domain_list = [selected_domain_list.strip()]
@@ -2167,8 +2189,8 @@ class data_mysql:
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
             # --- 2. Buat kondisi LIKE untuk setiap domain
-            like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
-            like_params = [f"%{domain}%" for domain in data_domain_list] 
+            like_conditions_domain = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_params_domain = [f"%{domain}%" for domain in data_domain_list] 
             base_sql = [
                 "SELECT",
                 "\ta.account_id, a.account_name, a.user_mail,",
@@ -2194,14 +2216,14 @@ class data_mysql:
             # Date range
             base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
             params.extend([start_date, end_date])
-            # Normalize selected_account and apply account filter
-            if selected_account:
-                base_sql.append(f"\tAND a.account_id LIKE %s")
-                params.append(f"{selected_account}%")
+            # Normalize selected_account_list and apply account filter
+            if data_account_list:
+                base_sql.append(f"\tAND ({like_conditions_account})")
+                params.extend(like_params_account)
             # Normalize selected_sites (CSV string or list) and apply domain filter
             if data_domain_list:
-                base_sql.append(f"\tAND ({like_conditions})")
-                params.extend(like_params)
+                base_sql.append(f"\tAND ({like_conditions_domain})")
+                params.extend(like_params_domain)
             # Normalize countries_list and apply country code filter
             country_codes = []
             if countries_list:
@@ -2314,86 +2336,6 @@ class data_mysql:
                 "error": f"Terjadi error {e!r}, error nya {e.args[0]}"
             }
 
-    # def get_all_adx_traffic_country_by_params(self, user_mail, start_date, end_date, user_mail_last, start_date_last, end_date_last):
-    #     """
-    #     Perbandingan ROI per country now & last
-    #     """
-    #     sql = '''
-    #         SELECT 
-    #         now.account_id, now.account_name, now.user_mail,
-    #         now.country_name, now.country_code, now.impressions,
-    #         now.clicks, now.ctr, now.ecpm, now.cpc, 
-    #         COALESCE(now.revenue, 0) AS revenue,
-    #         COALESCE(last.revenue, 0) AS revenue_last,
-    #         CASE WHEN COALESCE(now.revenue, 0) > COALESCE(last.revenue, 0) 
-    #         THEN 'naik'
-    #         ELSE 'turun'
-    #         END 'kesimpulan',
-    #         COALESCE(now.revenue, 0) - COALESCE(last.revenue, 0) AS 'hasil'
-    #         FROM (
-    #             SELECT 
-    #             a.account_id, a.account_name, a.user_mail,
-    #             b.data_adx_country_nm AS country_name,
-    #             b.data_adx_country_cd AS country_code,
-    #             SUM(b.data_adx_country_impresi) AS impressions,
-    #             SUM(b.data_adx_country_click) AS clicks,
-    #             CASE WHEN SUM(b.data_adx_country_impresi) > 0
-    #             THEN ROUND((SUM(b.data_adx_country_click) / SUM(b.data_adx_country_impresi)) * 100, 2)
-    #             ELSE 0 END AS ctr,
-    #             CASE WHEN SUM(b.data_adx_country_impresi) > 0
-    #             THEN ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000)
-    #             ELSE 0 END AS ecpm,
-    #             CASE WHEN SUM(b.data_adx_country_click) > 0
-    #             THEN ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 0)
-    #             ELSE 0 END AS cpc,
-    #             SUM(b.data_adx_country_revenue) AS revenue
-    #             FROM app_credentials a
-    #             INNER JOIN data_adx_country b ON a.account_id = b.account_id
-    #             WHERE a.user_mail = %s
-    #             AND b.data_adx_country_tanggal BETWEEN %s AND %s
-    #             GROUP BY b.data_adx_country_cd, b.data_adx_country_nm
-    #             ORDER BY revenue DESC
-    #         )now
-    #         LEFT JOIN (
-    #             SELECT 
-    #             a.account_id, a.account_name, a.user_mail,
-    #             b.data_adx_country_nm AS country_name,
-    #             b.data_adx_country_cd AS country_code,
-    #             SUM(b.data_adx_country_impresi) AS impressions,
-    #             SUM(b.data_adx_country_click) AS clicks,
-    #             CASE WHEN SUM(b.data_adx_country_impresi) > 0
-    #             THEN ROUND((SUM(b.data_adx_country_click) / SUM(b.data_adx_country_impresi)) * 100, 2)
-    #             ELSE 0 END AS ctr,
-    #             CASE WHEN SUM(b.data_adx_country_impresi) > 0
-    #             THEN ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000)
-    #             ELSE 0 END AS ecpm,
-    #             CASE WHEN SUM(b.data_adx_country_click) > 0
-    #             THEN ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 0)
-    #             ELSE 0 END AS cpc,
-    #             SUM(b.data_adx_country_revenue) AS revenue
-    #             FROM app_credentials a
-    #             INNER JOIN data_adx_country b ON a.account_id = b.account_id
-    #             WHERE a.user_mail = %s
-    #             AND b.data_adx_country_tanggal BETWEEN %s AND %s
-    #             GROUP BY b.data_adx_country_cd, b.data_adx_country_nm
-    #             ORDER BY revenue DESC
-    #         ) last ON now.country_code = last.country_code
-    #     '''
-    #     try:
-    #         params = [user_mail, start_date, end_date, user_mail_last, start_date_last, end_date_last]
-    #         if not self.execute_query(sql, tuple(params)):  
-    #             raise pymysql.Error("Failed to fetch app_credentials data")
-    #         results = self.cur_hris.fetchall()
-    #         return {
-    #             'status': True,
-    #             'data': results if results else []
-    #         }
-    #     except pymysql.Error as e:
-    #         return {
-    #             'status': False,
-    #             'error': f'Database error: {str(e)}'
-    #         }
-
     def fetch_ads_campaign_list(self, ads_id):
         try:
             base_sql = [
@@ -2423,14 +2365,37 @@ class data_mysql:
 
     def fetch_ads_sites_list(self, ads_id):
         try:
+            if isinstance(ads_id, str):
+                ads_id = [s.strip() for s in ads_id.split(",") if s.strip()]
+            elif ads_id is None:
+                ads_id = []
+            elif isinstance(ads_id, (set, tuple)):
+                ads_id = list(ads_id)
+            if not ads_id:
+                raise ValueError("ads_id is required and cannot be empty")
+            like_conditions = " OR ".join(["a.account_ads_id LIKE %s"] * len(ads_id))
+            like_params = [f"%{d}%" for d in ads_id]
             base_sql = [
                 "SELECT",
-                "\tDISTINCT data_ads_domain AS 'site_name'",
-                "FROM",
-                "\tdata_ads_campaign",
-                "WHERE account_ads_id = %s",
+                "\trs.account_id,",
+                "\tCASE",
+                "\t\tWHEN rs.data_ads_domain = ''",
+                "\t\tTHEN 'Draft'",
+                "\t\tELSE rs.data_ads_domain",
+                "\tEND AS site_name",
+                "FROM (",
+                "\tSELECT",
+                "\t\ta.account_ads_id AS 'account_id',",
+                "\t\tREGEXP_SUBSTR(LOWER(a.data_ads_domain), '^[a-z0-9]+\\.[a-z0-9]+') AS data_ads_domain",
+                "\tFROM data_ads_campaign a",
+                "\tLEFT JOIN master_account_ads b ON a.account_ads_id = b.account_id",
+                "\tLEFT JOIN app_users c ON b.account_owner = c.user_id",
+                f"WHERE {like_conditions}",
+                "\tGROUP BY a.data_ads_domain",
+                ") rs",
+                "GROUP BY site_name"
             ]
-            params = [ads_id]
+            params = like_params
             if not self.execute_query("\n".join(base_sql), tuple(params)):
                 raise pymysql.Error("Failed to get ads sites list by params")
             data_rows = self.fetch_all()
@@ -2440,6 +2405,57 @@ class data_mysql:
                 "status": True,
                 "message": "Data ads traffic campaign berhasil diambil",
                 "data": [row['site_name'] for row in data_rows]
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                "error": f"Terjadi error {e!r}, error nya {e.args[0]}"
+            }
+        return {'hasil': hasil}
+
+    def fetch_ads_account_list(self, selected_domain_list):
+        try:
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [s.strip() for s in selected_domain_list.split(",") if s.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            if not selected_domain_list:
+                raise ValueError("selected_domain_list is required and cannot be empty")
+            like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(selected_domain_list))
+            like_params = [f"%{d}%" for d in selected_domain_list]
+            base_sql = [
+                "SELECT",
+                "\trs.account_id,",
+                "\trs.account_name,",
+                "\tCASE",
+                "\t\tWHEN rs.site_name = ''",
+                "\t\tTHEN 'Draft'",
+                "\t\tELSE rs.site_name",
+                "\tEND AS site_name",
+                "FROM (",
+                "\tSELECT DISTINCT",
+                "\t\ta.account_id AS 'account_id',",
+                "\t\ta.account_name AS 'account_name',",
+                "\t\tREGEXP_SUBSTR(LOWER(b.data_ads_domain), '^[a-z0-9]+\\.[a-z0-9]+') AS site_name",
+                "\tFROM master_account_ads a",
+                "\tINNER JOIN data_ads_campaign b ON a.account_id = b.account_ads_id",
+                f"WHERE {like_conditions}",
+                "\tGROUP BY account_id, site_name",
+                ") rs",
+                "GROUP BY rs.account_id, rs.site_name"
+            ]
+            params = like_params
+            if not self.execute_query("\n".join(base_sql), tuple(params)):
+                raise pymysql.Error("Failed to get ads sites list by params")
+            data_rows = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get ads account list by params")
+            hasil = {
+                "status": True,
+                "message": "Data ads account campaign berhasil diambil",
+                "data": [row for row in data_rows]
             }
         except pymysql.Error as e:
             hasil = {
@@ -2568,9 +2584,19 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def get_all_ads_traffic_campaign_by_params(self, tanggal_dari, tanggal_sampai, data_account, selected_domain_list = None):   
+    def get_all_ads_traffic_campaign_by_params(self, tanggal_dari, tanggal_sampai, selected_account_list = None, selected_domain_list = None):   
         try:
-            # --- 1. Pastikan selected_domain_list adalah list string
+            # --- 1. Pastikan selected_account_list adalah list string
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            selected_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
+            like_conditions_account = " OR ".join(["b.account_ads_id LIKE %s"] * len(selected_account_list))
+            like_params_account = [f"%{account}%" for account in selected_account_list] 
+            # --- 2. Pastikan selected_domain_list adalah list string
             if isinstance(selected_domain_list, str):
                 selected_domain_list = [selected_domain_list.strip()]
             elif selected_domain_list is None:
@@ -2578,9 +2604,9 @@ class data_mysql:
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
             selected_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
-            # --- 2. Buat kondisi LIKE untuk setiap domain
-            like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(selected_domain_list))
-            like_params = [f"%{domain}%" for domain in selected_domain_list] 
+            # --- 3. Buat kondisi LIKE untuk setiap domain
+            like_conditions_domain = " OR ".join(["b.data_ads_domain LIKE %s"] * len(selected_domain_list))
+            like_params_domain = [f"%{domain}%" for domain in selected_domain_list] 
             base_sql = [
                 "SELECT",
                 "\trs.account_id, rs.account_name, rs.account_email,",
@@ -2609,12 +2635,12 @@ class data_mysql:
             params = []
             base_sql.append("b.data_ads_tanggal BETWEEN %s AND %s")
             params.extend([tanggal_dari, tanggal_sampai])
-            if data_account:
-                base_sql.append(f"\tAND a.account_id LIKE %s")
-                params.extend([f"%{data_account}%"])
+            if selected_account_list:
+                base_sql.append(f"\tAND ({like_conditions_account})")
+                params.extend(like_params_account)
             if selected_domain_list:
-                base_sql.append(f"\tAND ({like_conditions})")
-                params.extend(like_params)
+                base_sql.append(f"\tAND ({like_conditions_domain})")
+                params.extend(like_params_domain)
             base_sql.append(") rs")
             base_sql.append("GROUP BY rs.account_name, rs.date, rs.domain")
             base_sql.append("ORDER BY rs.date, rs.domain, rs.campaign")
@@ -2636,9 +2662,19 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def get_all_ads_traffic_country_by_params(self, tanggal_dari, tanggal_sampai, data_account, selected_domain_list, countries_list = None):
+    def get_all_ads_traffic_country_by_params(self, tanggal_dari, tanggal_sampai, selected_account_list, selected_domain_list, countries_list = None):
         try:
-            # --- 1. Pastikan selected_domain_list adalah list string
+            # --- 1. Pastikan selected_account_list adalah list string
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            selected_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
+            like_conditions_account = " OR ".join(["b.account_ads_id LIKE %s"] * len(selected_account_list))
+            like_params_account = [f"%{account}%" for account in selected_account_list] 
+            # --- 2. Pastikan selected_domain_list adalah list string
             if isinstance(selected_domain_list, str):
                 selected_domain_list = [selected_domain_list.strip()]
             elif selected_domain_list is None:
@@ -2646,9 +2682,8 @@ class data_mysql:
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
-            # --- 2. Buat kondisi LIKE untuk setiap domain
-            like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_domain_list))
-            like_params = [f"%{domain}%" for domain in data_domain_list] 
+            like_conditions_domain = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_domain_list))
+            like_params_domain = [f"%{domain}%" for domain in data_domain_list] 
             base_sql = [
                 "SELECT",
                 "\trs.account_id, rs.account_name, rs.account_email,",
@@ -2679,12 +2714,12 @@ class data_mysql:
             params = []
             base_sql.append("b.data_ads_country_tanggal BETWEEN %s AND %s")
             params.extend([tanggal_dari, tanggal_sampai])
-            if data_account:
-                base_sql.append(f"\tAND a.account_id LIKE %s")
-                params.extend([f"%{data_account}%"])
+            if selected_account_list:
+                base_sql.append(f"\tAND ({like_conditions_account})")
+                params.extend(like_params_account)
             if selected_domain_list:
-                base_sql.append(f"\tAND ({like_conditions})")
-                params.extend(like_params)
+                base_sql.append(f"\tAND ({like_conditions_domain})")
+                params.extend(like_params_domain)
             # Normalize countries_list and apply country code filter
             country_codes = []
             if countries_list:
@@ -2727,17 +2762,27 @@ class data_mysql:
 
     def fetch_user_sites_list(self, user_mail, tanggal_dari, tanggal_sampai):   
         try:
+            if isinstance(user_mail, str):
+                user_mail = [s.strip() for s in user_mail.split(",") if s.strip()]
+            elif user_mail is None:
+                user_mail = []
+            elif isinstance(user_mail, (set, tuple)):
+                user_mail = list(user_mail)
+            if not user_mail:
+                raise ValueError("user_mail is required and cannot be empty")
+            like_conditions = " OR ".join(["a.user_mail LIKE %s"] * len(user_mail))
+            like_params = [f"%{d}%" for d in user_mail]
             base_sql = [
                 "SELECT",
                 "\tb.data_adx_domain AS 'site_name'",
                 "FROM",
                 "\tapp_credentials a",
                 "INNER JOIN data_adx_domain b ON a.account_id = b.account_id",
-                "WHERE a.user_mail = %s",
-                "AND b.data_adx_domain_tanggal BETWEEN %s AND %s",
-                "GROUP BY b.data_adx_domain",
+                "WHERE b.data_adx_domain_tanggal BETWEEN %s AND %s",
+                f"\tAND ({like_conditions})",
             ]
-            params = [user_mail, tanggal_dari, tanggal_sampai]
+            params = [tanggal_dari, tanggal_sampai] + like_params 
+            base_sql.append("GROUP BY b.data_adx_domain")
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all adx traffic account by params")
@@ -2756,29 +2801,91 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def get_user_mail_by_account(self, account_id):
+    def fetch_account_list_by_domain(self, selected_domain_list, tanggal_dari, tanggal_sampai):   
         try:
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [s.strip() for s in selected_domain_list.split(",") if s.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            if not selected_domain_list:
+                raise ValueError("selected_domain_list is required and cannot be empty")
+            like_conditions = " OR ".join(["b.data_adx_domain LIKE %s"] * len(selected_domain_list))
+            like_params = [f"%{d}%" for d in selected_domain_list]
+            base_sql = [
+                "SELECT",
+                "\tb.account_id AS 'account_id', a.account_name AS 'account_name'",
+                "FROM",
+                "\tapp_credentials a",
+                "INNER JOIN data_adx_domain b ON a.account_id = b.account_id",
+                "WHERE b.data_adx_domain_tanggal BETWEEN %s AND %s",
+                f"\tAND ({like_conditions})",
+            ]
+            params = [tanggal_dari, tanggal_sampai] + like_params 
+            base_sql.append("GROUP BY b.account_id")
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get all adx traffic account by params")
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get all adx traffic account by params")
+            hasil = {
+                "status": True,
+                "message": "Data ads traffic account berhasil diambil",
+                "data": [{'account_id': row['account_id'], 'account_name': row['account_name']} for row in data]
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+
+    def fetch_user_mail_by_account(self, account_id_list):
+        try:
+            if isinstance(account_id_list, str):
+                account_id_list = [s.strip() for s in account_id_list.split(",") if s.strip()]
+            elif account_id_list is None:
+                account_id_list = []
+            elif isinstance(account_id_list, (set, tuple)):
+                account_id_list = list(account_id_list)
+            if not account_id_list:
+                raise ValueError("account_id_list is required and cannot be empty")
+
+            like_conditions = " OR ".join(["a.account_id LIKE %s"] * len(account_id_list))
+            like_params = [f"%{d}%" for d in account_id_list]
             base_sql = [
                 "SELECT",
                 "\ta.user_mail",
                 "FROM",
                 "\tapp_credentials a",
-                "WHERE a.account_id = %s",
+                f"\tWHERE ({like_conditions})",
             ]
-            params = [account_id]
+            params = like_params
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get user mail by account id")
-            data = self.cur_hris.fetchone()
+            data = self.fetch_all()
             if not self.commit():
                 raise pymysql.Error("Failed to commit get user mail by account id")
-            user_mail = data.get('user_mail') if data else None
+            user_mail = [row['user_mail'] for row in data] if data else None
         except pymysql.Error as e:
             user_mail = None
         return user_mail
 
-    def fetch_user_sites_id_list(self, tanggal_dari, tanggal_sampai, account_id):   
+    def fetch_user_sites_id_list(self, tanggal_dari, tanggal_sampai, selected_account_list):   
         try:
+            if isinstance(selected_account_list, str):
+                selected_account_list = [s.strip() for s in selected_account_list.split(",") if s.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            if not selected_account_list:
+                raise ValueError("selected_account_list is required and cannot be empty")
+            like_conditions = " OR ".join(["a.account_id LIKE %s"] * len(selected_account_list))
+            like_params = [f"%{d}%" for d in selected_account_list]
             base_sql = [
                 "SELECT",
                 "\tb.data_adx_domain AS 'site_name'",
@@ -2786,10 +2893,10 @@ class data_mysql:
                 "\tapp_credentials a",
                 "INNER JOIN data_adx_domain b ON a.account_id = b.account_id",
                 "WHERE b.data_adx_domain_tanggal BETWEEN %s AND %s",
-                "AND a.account_id LIKE %s",
+                f"\tAND ({like_conditions})",
                 "GROUP BY b.data_adx_domain",
             ]
-            params = [tanggal_dari, tanggal_sampai, account_id]
+            params = [tanggal_dari, tanggal_sampai] + like_params
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all adx traffic account by params")
@@ -2943,79 +3050,6 @@ class data_mysql:
             }
 
         return {"hasil": hasil}
-
-    # def get_all_ads_roi_traffic_country_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None, countries_list=None):
-    #     try:
-    #         # --- 1. Siapkan data_sub_domain sebagai list
-    #         if isinstance(data_sub_domain, str):
-    #             data_sub_domain = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
-    #         elif data_sub_domain is None:
-    #             data_sub_domain = []
-    #         elif isinstance(data_sub_domain, (set, tuple)):
-    #             data_sub_domain = list(data_sub_domain)
-    #         if not data_sub_domain:
-    #             raise ValueError("data_sub_domain is required and cannot be empty")
-    #         # --- 2. Buat kondisi LIKE untuk tiap domain
-    #         like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
-    #         like_params = [f"{d}%" for d in data_sub_domain]  # tambahkan % supaya match '.com'
-    #         sql_parts = [
-    #             "SELECT",
-    #             "\trs.account_id, rs.account_name, rs.account_email,",
-    #             "\trs.country_name, rs.country_code, rs.domain, rs.campaign,",
-    #             "\tSUM(rs.spend) AS 'spend',",
-    #             "\tSUM(rs.clicks) AS 'clicks',",
-    #             "\tSUM(rs.impressions) AS 'impressions',",
-    #             "\tSUM(rs.reach) AS 'reach'",
-    #             "FROM (",
-    #             "\tSELECT",
-    #             "\t\ta.account_id, a.account_name, a.account_email,",
-    #             "\t\tb.data_ads_country_tanggal AS 'date',",
-    #             "\t\tb.data_ads_country_cd AS 'country_code',",
-    #             "\t\tb.data_ads_country_nm AS 'country_name',",
-    #             "\t\tb.data_ads_domain AS 'domain',",
-    #             "\t\tb.data_ads_campaign_nm AS 'campaign',",
-    #             "\t\tb.data_ads_country_spend AS 'spend',",
-    #             "\t\tb.data_ads_country_impresi AS 'impressions',",
-    #             "\t\tb.data_ads_country_click AS 'clicks',",
-    #             "\t\tb.data_ads_country_reach AS 'reach'",
-    #             "\tFROM master_account_ads a",
-    #             "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
-    #             "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
-    #             f"\tAND ({like_conditions})",
-    #         ]
-    #         params = [start_date_formatted, end_date_formatted] + like_params
-    #         # --- 3. Filter countries jika ada
-    #         country_codes = []
-    #         if countries_list:
-    #             if isinstance(countries_list, str):
-    #                 country_codes = [c.strip() for c in countries_list.split(',') if c.strip()]
-    #             elif isinstance(countries_list, (list, tuple)):
-    #                 country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
-    #         if country_codes:
-    #             placeholders = ','.join(['%s'] * len(country_codes))
-    #             sql_parts.append(f"AND b.data_ads_country_cd IN ({placeholders})")
-    #             params.extend(country_codes)
-    #         sql_parts.append(") rs")
-    #         sql_parts.append("GROUP BY rs.country_code")
-    #         sql_parts.append("ORDER BY rs.country_name ASC")
-    #         sql = "\n".join(sql_parts)
-    #         # --- 4. Eksekusi query
-    #         if not self.execute_query(sql, tuple(params)):
-    #             raise pymysql.Error("Failed to get all ads roi traffic campaign by params")
-    #         data = self.fetch_all()
-    #         if not self.commit():
-    #             raise pymysql.Error("Failed to commit get all ads roi traffic campaign by params")
-    #         hasil = {
-    #             "status": True,
-    #             "message": "Data ads traffic campaign berhasil diambil",
-    #             "data": data
-    #         }
-    #     except Exception as e:
-    #         hasil = {
-    #             "status": False,
-    #             "data": f"Terjadi error {e!r}"
-    #         }
-    #     return {"hasil": hasil}
 
     def get_all_ads_roi_traffic_country_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None, countries_list=None):
         try:
@@ -3215,9 +3249,18 @@ class data_mysql:
             }
         return {"hasil": hasil}
 
-    def get_all_adx_roi_country_detail_by_params(self, start_date, end_date, selected_account = None, selected_domain_list = None, countries_list = None):
+    def get_all_adx_roi_country_detail_by_params(self, start_date, end_date, selected_account_list = None, selected_domain_list = None, countries_list = None):
         # ... existing code ...
         try:
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
+            like_conditions_account = " OR ".join(["b.account_id LIKE %s"] * len(data_account_list))
+            like_params_account = [f"%{account}%" for account in data_account_list]
             if isinstance(selected_domain_list, str):
                 selected_domain_list = [selected_domain_list.strip()]
             elif selected_domain_list is None:
@@ -3225,9 +3268,8 @@ class data_mysql:
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
-
-            like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
-            like_params = [f"%{domain}%" for domain in data_domain_list]
+            like_conditions_domain = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_params_domain = [f"%{domain}%" for domain in data_domain_list]
 
             base_sql = [
                 "SELECT",
@@ -3255,13 +3297,13 @@ class data_mysql:
             base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
             params.extend([start_date, end_date])
 
-            if selected_account:
-                base_sql.append("\tAND a.account_id LIKE %s")
-                params.append(f"{selected_account}%")
+            if data_account_list:
+                base_sql.append(f"\tAND ({like_conditions_account})")
+                params.extend(like_params_account)
 
             if data_domain_list:
-                base_sql.append(f"\tAND ({like_conditions})")
-                params.extend(like_params)
+                base_sql.append(f"\tAND ({like_conditions_domain})")
+                params.extend(like_params_domain)
 
             country_codes = []
             if countries_list:
@@ -3351,9 +3393,20 @@ class data_mysql:
         return {"hasil": hasil}
 
 
-    def get_all_adx_country_detail_by_params(self, start_date, end_date, selected_account = None, selected_domain_list = None, countries_list = None):
+    def get_all_adx_country_detail_by_params(self, start_date, end_date, selected_account_list = None, selected_domain_list = None, countries_list = None):
         # ... existing code ...
         try:
+             # --- 0. Pastikan selected_account_list adalah list string
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
+            like_conditions_account = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
+            like_params_account = [f"%{account}%" for account in data_account_list] 
+
             if isinstance(selected_domain_list, str):
                 selected_domain_list = [selected_domain_list.strip()]
             elif selected_domain_list is None:
@@ -3361,9 +3414,8 @@ class data_mysql:
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
-
-            like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
-            like_params = [f"%{domain}%" for domain in data_domain_list]
+            like_conditions_domain = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_params_domain = [f"%{domain}%" for domain in data_domain_list]
 
             base_sql = [
                 "SELECT",
@@ -3380,13 +3432,13 @@ class data_mysql:
             base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
             params.extend([start_date, end_date])
 
-            if selected_account:
-                base_sql.append("\tAND a.account_id LIKE %s")
-                params.append(f"{selected_account}%")
+            if data_account_list:
+                base_sql.append(f"\tAND ({like_conditions_account})")
+                params.extend(like_params_account)
 
             if data_domain_list:
-                base_sql.append(f"\tAND ({like_conditions})")
-                params.extend(like_params)
+                base_sql.append(f"\tAND ({like_conditions_domain})")
+                params.extend(like_params_domain)
 
             country_codes = []
             if countries_list:
@@ -3475,4 +3527,112 @@ class data_mysql:
             hasil = {"status": False, "data": f"Terjadi error {e!r}"}
         return {"hasil": hasil}
 
+    def get_all_rekapitulasi_adx_monitoring_account_by_params(self, start_date, end_date, past_start_date, past_end_date, selected_account_list = None, selected_domain_list = None):
+        try:
+            # --- 0. Pastikan selected_account_list adalah list string
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
+            like_conditions_account_now = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
+            like_params_account_now = [f"{account}%" for account in data_account_list] 
+            like_conditions_account_last = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
+            like_params_account_last = [f"{account}%" for account in data_account_list] 
+            # --- 1. Pastikan selected_domain_list adalah list string
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+            # --- 2. Buat kondisi LIKE untuk setiap domain
+            like_conditions_domain_now = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_params_domain_now = [f"%{domain}%" for domain in data_domain_list] 
+            like_conditions_domain_last = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_params_domain_last = [f"%{domain}%" for domain in data_domain_list] 
+            base_sql = [
+                "SELECT",
+                "\tnow.account_id,",
+                "\tnow.account_name,",
+                "\tCOALESCE(last.pendapatan, 0) AS pendapatan_last,",
+                "\tnow.pendapatan AS pendapatan_now,",
+                "\tROUND(now.pendapatan - COALESCE(last.pendapatan, 0)) AS pendapatan_selisih,",
+                "\tROUND(("
+                "\t\t(now.pendapatan - COALESCE(last.pendapatan, 0))"
+                "\t\t/ NULLIF(now.pendapatan, 0)"
+                "\t) * 100, 2) AS pendapatan_persen",
+                "FROM (",
+                "\tSELECT rs.account_id, rs.account_name, SUM(rs.revenue) AS pendapatan",
+                "\tFROM (",
+                "\t\tSELECT",
+                "\t\t\ta.account_id, a.account_name,",
+                "\t\t\tb.data_adx_country_domain,",
+                "\t\t\tb.data_adx_country_cd,",
+                "\t\t\tSUM(b.data_adx_country_revenue) AS revenue",
+                "\t\tFROM app_credentials a",
+                "\t\tINNER JOIN data_adx_country b ON a.account_id = b.account_id",
+                "\t\tWHERE b.data_adx_country_tanggal BETWEEN %s AND %s",
+            ]
+            params = [start_date, end_date]
+            # filter account NOW
+            if data_account_list:
+                base_sql.append(f"\t\tAND ({like_conditions_account_now})")
+                params.extend(like_params_account_now)
+            # filter domain NOW
+            if data_domain_list:
+                base_sql.append(f"\t\tAND ({like_conditions_domain_now})")
+                params.extend(like_params_domain_now)
+            base_sql.extend([
+                "\t\tGROUP BY a.account_id, a.account_name, b.data_adx_country_domain, b.data_adx_country_cd",
+                "\t) rs",
+                "\tGROUP BY rs.account_id, rs.account_name",
+                ") now",
+                "LEFT JOIN (",
+                "\tSELECT rs.account_id, rs.account_name, SUM(rs.revenue) AS pendapatan",
+                "\tFROM (",
+                "\t\tSELECT",
+                "\t\t\ta.account_id, a.account_name,",
+                "\t\t\tb.data_adx_country_domain,",
+                "\t\t\tb.data_adx_country_cd,",
+                "\t\t\tSUM(b.data_adx_country_revenue) AS revenue",
+                "\t\tFROM app_credentials a",
+                "\t\tINNER JOIN data_adx_country b ON a.account_id = b.account_id",
+                "\t\tWHERE b.data_adx_country_tanggal BETWEEN %s AND %s",
+            ])
+            params.extend([past_start_date, past_end_date])
+            # filter account LAST
+            if data_account_list:
+                base_sql.append(f"\t\tAND ({like_conditions_account_last})")
+                params.extend(like_params_account_last)
+            # filter domain LAST
+            if data_domain_list:
+                base_sql.append(f"\t\tAND ({like_conditions_domain_last})")
+                params.extend(like_params_domain_last)
+            base_sql.extend([
+                "\t\tGROUP BY a.account_id, a.account_name, b.data_adx_country_domain, b.data_adx_country_cd",
+                "\t) rs",
+                "\tGROUP BY rs.account_id, rs.account_name",
+                ") last ON now.account_id = last.account_id",
+            ])
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get all adx monitoring account by params")  
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get all adx monitoring account by params")
+            hasil = {
+                "status": True,
+                "message": "Data adx monitoring account berhasil diambil",
+                "data": data
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
 

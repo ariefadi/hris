@@ -43,6 +43,7 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     });
+    let allAccountOptions = $('#account_filter').html();  
     // Initialize Select2 for domain filter
     $('#domain_filter').select2({
         placeholder: '-- Pilih Domain Terdaftar --',
@@ -51,6 +52,7 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     });
+    let allDomainOptions = $('#domain_filter').html();  
     // Load sites list on page load
     $('#btn_load_data').click(function (e) {
         var tanggal_dari = $("#tanggal_dari").val();
@@ -60,16 +62,33 @@ $().ready(function () {
         if (tanggal_dari != "" && tanggal_sampai != "") {
             e.preventDefault();
             $("#overlay").show();
-            if (selected_account != "") {
-                adx_site_list();
-            }
             load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain);
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
         }
     });
+    // Flag untuk mencegah infinite loop saat update filter
+    var isUpdating = false;
+    $('#account_filter').on('change', function () {
+        if (isUpdating) return;
+        let account = $(this).val();
+        if (account && account.length > 0) {
+            adx_site_list(); // filter domain by account
+        } else {
+            // restore semua domain dari template
+            isUpdating = true;
+            $('#domain_filter')
+                .html(allDomainOptions)
+                .val(null)
+                .trigger('change.select2');
+            isUpdating = false;
+        }
+    });
     function adx_site_list() {
         var selected_account = $("#account_filter").val();
+        if (selected_account) {
+            selected_account = selected_account.join(',');
+        }
         return $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
@@ -81,9 +100,23 @@ $().ready(function () {
             },
             success: function (response) {
                 if (response && response.status) {
-                    $('#domain_filter')
-                        .val(response.data)
-                        .trigger('change');
+                    let $domain = $('#domain_filter');
+                    let currentSelected = $domain.val(); // Simpan pilihan saat ini
+
+                    isUpdating = true;
+                    // 1. Kosongkan option lama
+                    $domain.empty();
+
+                    // 2. Tambahkan option baru
+                    response.data.forEach(function (domain) {
+                        let isSelected = currentSelected && currentSelected.includes(domain);
+                        let option = new Option(domain, domain, isSelected, isSelected);
+                        $domain.append(option);
+                    });
+
+                    // 3. Refresh select2
+                    $domain.trigger('change.select2');
+                    isUpdating = false;
                 }
             },
             error: function (xhr, status, error) {
@@ -91,8 +124,170 @@ $().ready(function () {
             }
         });
     }
+    $('#domain_filter').on('change', function () {
+        if (isUpdating) return;
+        let domain = $(this).val();
+        if (domain && domain.length > 0) {
+            adx_account_list(); // filter account by domain
+        } else {
+            // restore semua account dari template
+            isUpdating = true;
+            $('#account_filter')
+                .html(allAccountOptions)
+                .val(null)
+                .trigger('change.select2');
+            isUpdating = false;
+        }
+    });
+    function adx_account_list() {
+        var selected_domain = $("#domain_filter").val();
+        if (selected_domain) {
+            selected_domain = selected_domain.join(',');
+        }
+        return $.ajax({
+            url: '/management/admin/adx_accounts_list',
+            type: 'GET',
+            data: {
+                selected_domains: selected_domain
+            },
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function (response) {
+                if (response && response.status) {
+                    let $account = $('#account_filter');
+                    let currentSelected = $account.val(); // Simpan pilihan saat ini
+
+                    isUpdating = true;
+                    // 1. Kosongkan option lama
+                    $account.empty();
+                    // 2. Tambahkan option baru
+                    response.data.forEach(function (account) {
+                        let text = account.account_name || account.account_id;
+                        // Konversi ke string untuk perbandingan yang aman
+                        let accIdStr = String(account.account_id);
+                        // let isSelected = currentSelected && currentSelected.includes(accIdStr);
+                        // let option = new Option(text, accIdStr, isSelected, isSelected);
+                        let isSelected = true;
+                        let option = new Option(text, accIdStr, isSelected, isSelected);
+                        $account.append(option);
+                    });
+                    // 3. Refresh select2
+                    $account.trigger('change.select2');
+                    isUpdating = false;
+                }
+            },
+            error: function (xhr, status, error) {
+                report_eror(xhr, error);
+            }
+        });
+    }
+});
+function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_account, selectedDomains) {
+    // Convert array to comma-separated string for backend
+    var accountFilter = '';
+    if (selected_account && selected_account.length > 0) {
+        accountFilter = selected_account.join(',');
+    }
+    var domainFilter = '';
+    if (selectedDomains && selectedDomains.length > 0) {
+        domainFilter = selectedDomains.join(',');
+    }
+    $("#overlay").show();
+    // Destroy existing DataTable if exists
+    if ($.fn.DataTable.isDataTable('#table_traffic_country')) {
+        $('#table_traffic_account').DataTable().destroy();
+    }
+    // AJAX Request
+    $.ajax({
+        url: '/management/admin/page_adx_traffic_account',
+        type: 'GET',
+        data: {
+            'start_date': tanggal_dari,
+            'end_date': tanggal_sampai,
+            'selected_account': accountFilter,
+            'selected_domains': domainFilter
+        },
+        headers: {
+            'X-CSRFToken': csrftoken
+        },
+        success: function (response) {
+            if (response && response.status) {
+                // Update summary boxes
+                updateSummaryBoxes(response.summary);
+                $('#summary_boxes').show();
+                // Initialize DataTable
+                initializeDataTable(response.data);
+                // Generate charts if data available
+                create_revenue_line_chart(response.data);
+                $('#charts_section').show();
+                $('#revenue_chart_row').show();
+                $('#overlay').hide();
+            } else {
+                var errorMsg = response.error || 'Terjadi kesalahan yang tidak diketahui';
+                console.error('[DEBUG] Response error:', errorMsg);
+                alert('Error: ' + errorMsg);
+            }
+        },
+        error: function (xhr, status, error) {
+            console.error('[DEBUG] AJAX Error:', {
+                xhr: xhr,
+                status: status,
+                error: error
+            });
+            $('#overlay').hide();
+            report_eror('Terjadi kesalahan saat memuat data: ' + error);
+        }
+    });
+}
+// Fungsi untuk update summary boxes
+function updateSummaryBoxes(data) {
+    var totalClicks = Number(data.total_clicks || 0);
+    var avgCpc = Number(data.avg_cpc || 0);
+    var avgCtr = Number(data.avg_ctr || 0);
+    var totalRevenue = parseFloat(data.total_revenue || 0) || 0;
+    $("#total_clicks").text(formatNumber(totalClicks || 0));
+    $("#avg_cpc").text(formatCurrencyIDR(avgCpc || 0));
+    $("#avg_ctr").text(formatNumber(avgCtr || 0, 2) + '%');
+    $("#total_revenue").text(formatCurrencyIDR(totalRevenue || 0));
+}
+
+function initializeDataTable(data) {
+    var tableData = [];
+    if (data && Array.isArray(data)) {
+        data.forEach(function (row) {
+            // Format tanggal ke format Indonesia
+            var formattedDate = row.date || '-';
+            if (row.date && row.date.match(/\d{4}-\d{2}-\d{2}/)) {
+                var months = [
+                    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+                    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+                ];
+                var date = new Date(row.date + 'T00:00:00');
+                var day = date.getDate();
+                var month = months[date.getMonth()];
+                var year = date.getFullYear();
+                formattedDate = day + ' ' + month + ' ' + year;
+            }
+            var cellDate = '<span data-order="' + (row.date || '-') + '">' + formattedDate + '</span>';
+            tableData.push([
+                cellDate,
+                row.site_name || '-',
+                formatNumber(row.clicks_adx || 0),
+                formatCurrencyIDR(row.cpc_adx || 0),
+                formatCurrencyIDR(row.ecpm || 0),
+                formatNumber(row.ctr || 0, 2) + ' %',
+                formatCurrencyIDR(row.revenue || 0)
+            ]);
+        });
+    }
+    // Destroy existing DataTable if it exists
+    if ($.fn.DataTable.isDataTable('#table_traffic_account')) {
+        $('#table_traffic_account').DataTable().destroy();
+    }
     // Initialize DataTable
-    $('#table_traffic_account').DataTable({
+    var table = $('#table_traffic_account').DataTable({
+        data: tableData,
         responsive: true,
         paging: true,
         pageLength: 25,
@@ -124,32 +319,90 @@ $().ready(function () {
             {
                 extend: 'excel',
                 text: 'Export Excel',
-                className: 'btn btn-success'
+                className: 'btn btn-success',
+                exportOptions: { columns: ':visible' },
+                title: function () { return 'Traffic AdX Per Account'; },
+                customize: function (xlsx) {
+                    var start = $('#tanggal_dari').val();
+                    var end = $('#tanggal_sampai').val();
+                    var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+                    function fmt(d) { if (!d) return '-'; try { var date = new Date(d + 'T00:00:00'); return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear(); } catch(e) { return d; } }
+                    var titleText = 'Traffic AdX Per Account';
+                    var periodText = 'Periode ' + fmt(start) + ' s/d ' + fmt(end);
+                    var sheet = xlsx.xl.worksheets['sheet1.xml'];
+                    var numrows = 2;
+                    $('row', sheet).each(function () { var r = parseInt($(this).attr('r')); $(this).attr('r', r + numrows); });
+                    $('row c', sheet).each(function () { var attr = $(this).attr('r'); var col = attr.replace(/[0-9]/g, ''); var row = parseInt(attr.replace(/[A-Z]/g, '')); $(this).attr('r', col + (row + numrows)); });
+                    var row1 = '<row r="1"><c t="inlineStr" r="A1" s="51"><is><t>' + titleText + '</t></is></c></row>';
+                    var row2 = '<row r="2"><c t="inlineStr" r="A2" s="51"><is><t>' + periodText + '</t></is></c></row>';
+                    $('sheetData', sheet).prepend(row2);
+                    $('sheetData', sheet).prepend(row1);
+                    var merges = $('mergeCells', sheet);
+                    if (merges.length === 0) {
+                        $('worksheet', sheet).append('<mergeCells count="2"><mergeCell ref="A1:G1"/><mergeCell ref="A2:G2"/></mergeCells>');
+                    } else {
+                        var c = parseInt(merges.attr('count') || '0');
+                        merges.attr('count', c + 2);
+                        merges.append('<mergeCell ref="A1:G1"/>');
+                        merges.append('<mergeCell ref="A2:G2"/>');
+                    }
+                }
             },
             {
                 extend: 'pdf',
                 text: 'Export PDF',
-                className: 'btn btn-danger'
+                className: 'btn btn-danger',
+                exportOptions: { columns: ':visible' },
+                title: function () { return 'Traffic AdX Per Account'; },
+                customize: function (doc) {
+                    var start = $('#tanggal_dari').val();
+                    var end = $('#tanggal_sampai').val();
+                    var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+                    function fmt(d) { if (!d) return '-'; try { var date = new Date(d + 'T00:00:00'); return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear(); } catch(e) { return d; } }
+                    var header = 'Periode ' + fmt(start) + ' s/d ' + fmt(end);
+                    doc.content.splice(1, 0, { text: header, style: 'header', alignment: 'center', margin: [0, 0, 0, 12] });
+                }
             },
             {
                 extend: 'copy',
                 text: 'Copy',
-                className: 'btn btn-info'
+                className: 'btn btn-info',
+                exportOptions: { columns: ':visible' }
             },
             {
                 extend: 'csv',
                 text: 'Export CSV',
-                className: 'btn btn-primary'
+                className: 'btn btn-primary',
+                exportOptions: { columns: ':visible' },
+                customize: function (csv) {
+                    var start = $('#tanggal_dari').val();
+                    var end = $('#tanggal_sampai').val();
+                    var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+                    function fmt(d) { if (!d) return '-'; try { var date = new Date(d + 'T00:00:00'); return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear(); } catch(e) { return d; } }
+                    var header = 'Periode ' + fmt(start) + ' s/d ' + fmt(end);
+                    var titleText = 'Traffic AdX Per Account';
+                    return titleText + '\n' + header + '\n\n' + csv;
+                }
             },
             {
                 extend: 'print',
                 text: 'Print',
-                className: 'btn btn-warning'
+                className: 'btn btn-warning',
+                exportOptions: { columns: ':visible' },
+                title: function () { return '<h3 style="text-align:center;margin:0">Traffic AdX Per Account</h3>'; },
+                messageTop: function () {
+                    var start = $('#tanggal_dari').val();
+                    var end = $('#tanggal_sampai').val();
+                    var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+                    function fmt(d) { if (!d) return '-'; try { var date = new Date(d + 'T00:00:00'); return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear(); } catch(e) { return d; } }
+                    return '<div style="text-align:center;margin-bottom:8px">Periode ' + fmt(start) + ' s/d ' + fmt(end) + '</div>';
+                }
             },
             {
                 extend: 'colvis',
                 text: 'Column Visibility',
-                className: 'btn btn-default'
+                className: 'btn btn-default',
+                exportOptions: { columns: ':visible' }
             }
         ],
         columnDefs: [
@@ -207,130 +460,9 @@ $().ready(function () {
             }
         ]
     });
-});
-function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_account, selectedDomains) {
-    // Convert array to comma-separated string for backend
-    var domainFilter = '';
-    if (selectedDomains && selectedDomains.length > 0) {
-        domainFilter = selectedDomains.join(',');
-    }
-    $("#overlay").show();
-    $.ajax({
-        url: '/management/admin/page_adx_traffic_account',
-        type: 'GET',
-        data: {
-            'start_date': tanggal_dari,
-            'end_date': tanggal_sampai,
-            'selected_account': selected_account,
-            'selected_domains': domainFilter
-        },
-        headers: {
-            'X-CSRFToken': csrftoken
-        },
-        success: function (response) {
-            if (response && response.status) {
-                // Update summary boxes
-                if (response.summary) {
-                    $("#total_clicks").text(formatNumber(response.summary.total_clicks || 0));
-                    $("#avg_cpc").text(formatCurrencyIDR(response.summary.avg_cpc || 0));
-                    $("#avg_ecpm").text(formatCurrencyIDR(response.summary.avg_ecpm || 0));
-                    $("#avg_ctr").text(formatNumber(response.summary.avg_ctr || 0, 2) + '%');
-                    $("#total_revenue").text(formatCurrencyIDR(response.summary.total_revenue || 0));
-                    // Show summary boxes
-                    $('#summary_boxes').show();
-                }
-                // Update DataTable
-                var table = $('#table_traffic_account').DataTable();
-                table.clear();
-                if (response.data && response.data.length > 0) {
-                    response.data.forEach(function(item) {
-                        // Format tanggal ke format Indonesia
-                        var formattedDate = item.date || '-';
-                        if (item.date && item.date.match(/\d{4}-\d{2}-\d{2}/)) {
-                            var months = [
-                                'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-                                'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-                            ];
-                            var date = new Date(item.date + 'T00:00:00');
-                            var day = date.getDate();
-                            var month = months[date.getMonth()];
-                            var year = date.getFullYear();
-                            formattedDate = day + ' ' + month + ' ' + year;
-                        }
-                        var cellDate = '<span data-order="' + (item.date || '-') + '">' + formattedDate + '</span>';
-                        table.row.add([
-                            cellDate,
-                            item.site_name || '-',
-                            formatNumber(item.clicks_adx || 0),
-                            formatCurrencyIDR(item.cpc_adx || 0),
-                            formatCurrencyIDR(item.ecpm || 0),
-                            formatNumber(item.ctr || 0, 2) + ' %',
-                            formatCurrencyIDR(item.revenue || 0)
-                        ]);
-                    });
-                    // Create daily revenue line chart
-                    create_revenue_line_chart(response.data);
-                }
-                table.draw();
-                showSuccessMessage('Traffic data loaded successfully!');
-                $("#overlay").hide();
-            } else {
-                alert('Error: ' + (response && response.error ? response.error : 'Unknown error occurred'));
-            }
-        },
-        error: function (jqXHR, textStatus, errorThrown) {
-            report_eror(jqXHR, textStatus);
-            $("#overlay").hide();
-        }
-    });
+    // Paksa urutan setelah inisialisasi untuk memastikan tidak tertimpa
+    table.order([0, 'desc']).draw();
 }
-function formatNumber(num, decimals = 0) {
-    if (num === null || num === undefined) return '0';
-    return parseFloat(num).toLocaleString('en-US', {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals
-    });
-}
-// Fungsi untuk format mata uang IDR
-function formatCurrencyIDR(value) {
-    // Convert to number, round to remove decimals, then format with Rp
-    let numValue = parseFloat(value.toString().replace(/[$,]/g, ''));
-    if (isNaN(numValue)) return value;
-    
-    // Round to remove decimals and format with Indonesian number format
-    return 'Rp. ' + Math.round(numValue).toLocaleString('id-ID');
-}
-function showSuccessMessage(message) {
-    var alertHtml = '<div class="alert alert-success alert-dismissible fade show" role="alert">';
-    alertHtml += '<i class="bi bi-check-circle"></i> ' + message;
-    alertHtml += '<button type="button" class="close" data-dismiss="alert" aria-label="Close">';
-    alertHtml += '<span aria-hidden="true">&times;</span>';
-    alertHtml += '</button>';
-    alertHtml += '</div>';
-    
-    $('.card-body').first().prepend(alertHtml);
-    
-    setTimeout(function() {
-        $('.alert-success').fadeOut('slow', function() {
-            $(this).remove();
-        });
-    }, 3000);
-}
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
-const csrftoken = getCookie('csrftoken');
 
 // Function to create revenue line chart (matching adx_summary style)
 function create_revenue_line_chart(data) {
@@ -441,3 +573,51 @@ function formatDateForDisplay(dateString) {
         return dateString;
     }
 }
+
+function formatNumber(num, decimals = 0) {
+    if (num === null || num === undefined) return '0';
+    return parseFloat(num).toLocaleString('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+    });
+}
+// Fungsi untuk format mata uang IDR
+function formatCurrencyIDR(value) {
+    // Convert to number, round to remove decimals, then format with Rp
+    let numValue = parseFloat(value.toString().replace(/[$,]/g, ''));
+    if (isNaN(numValue)) return value;
+    
+    // Round to remove decimals and format with Indonesian number format
+    return 'Rp. ' + Math.round(numValue).toLocaleString('id-ID');
+}
+function showSuccessMessage(message) {
+    var alertHtml = '<div class="alert alert-success alert-dismissible fade show" role="alert">';
+    alertHtml += '<i class="bi bi-check-circle"></i> ' + message;
+    alertHtml += '<button type="button" class="close" data-dismiss="alert" aria-label="Close">';
+    alertHtml += '<span aria-hidden="true">&times;</span>';
+    alertHtml += '</button>';
+    alertHtml += '</div>';
+    
+    $('.card-body').first().prepend(alertHtml);
+    
+    setTimeout(function() {
+        $('.alert-success').fadeOut('slow', function() {
+            $(this).remove();
+        });
+    }, 3000);
+}
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
