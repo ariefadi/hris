@@ -39,7 +39,7 @@
                 <select class="form-control select2" id="select_account">
                     <option value=""></option>
                     {% for data_account in data_account %}
-                    <option value="{{data_account.account_id}}">{{data_account.account_name|upper}}</option>
+                    <option value="{{data_account.account_id}}">{{data_account.account_name}}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -74,75 +74,76 @@
             <i class="fas fa fa-sync-alt fa-spin"></i> Menyiapkan Data ... 
         </div>
         <!-- Info boxes -->
-            <div class="row">
-                <div class="col-12 col-sm-6 col-md-3">
-                    <div class="info-box">
-                        <span class="info-box-icon text-bg-primary shadow-sm">
-                            <i class="bi bi-calculator-fill""></i>
-                        </span>
-                        <div class="info-box-content">
-                            <span class="info-box-text">Spend</span>
-                            <span class="info-box-number" id="spend">Rp. 0 </span>
-                        </div>
-                        <!-- /.info-box-content -->
+        <div class="row">
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="info-box">
+                    <span class="info-box-icon text-bg-primary shadow-sm">
+                        <i class="bi bi-calculator-fill""></i>
+                    </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Spend</span>
+                        <span class="info-box-number" id="spend">Rp. 0 </span>
                     </div>
-                    <!-- /.info-box -->
+                    <!-- /.info-box-content -->
                 </div>
-                <!-- /.col -->
-                <!-- fix for small devices only -->
-                <!-- <div class="clearfix hidden-md-up"></div> -->
-                <div class="col-12 col-sm-6 col-md-3">
-                    <div class="info-box">
-                        <span class="info-box-icon text-bg-success shadow-sm">
-                            <i class="bi bi-badge-ad""></i>
-                        </span>
-                        <div class="info-box-content">
-                            <span class="info-box-text">Click</span>
-                            <span class="info-box-number" id="clicks">0</span>
-                        </div>
-                        <!-- /.info-box-content -->
-                    </div>
-                    <!-- /.info-box -->
-                </div>
-                <!-- /.col -->
-                <div class="col-12 col-sm-6 col-md-3">
-                    <div class="info-box">
-                        <span class="info-box-icon text-bg-danger shadow-sm">
-                            <i class="bi bi-box-arrow-in-up"></i>
-                        </span>
-                        <div class="info-box-content">
-                            <span class="info-box-text">CPR</span>
-                            <span class="info-box-number" id="cpr">Rp. 0</span>
-                        </div>
-                        <!-- /.info-box-content -->
-                    </div>
-                    <!-- /.info-box -->
-                </div>
-                <!-- /.col -->
-                <div class="col-12 col-sm-6 col-md-3">
-                    <div class="info-box">
-                        <span class="info-box-icon text-bg-warning shadow-sm">
-                            <i class="bi bi-box-arrow-in-down"></i>
-                        </span>
-                        <div class="info-box-content">
-                            <span class="info-box-text">CPC</span>
-                            <span class="info-box-number" id="cpc">Rp. 0</span>
-                        </div>
-                        <!-- /.info-box-content -->
-                    </div>
-                    <!-- /.info-box -->
-                </div>
-                <!-- /.col -->
+                <!-- /.info-box -->
             </div>
+            <!-- /.col -->
+            <!-- fix for small devices only -->
+            <!-- <div class="clearfix hidden-md-up"></div> -->
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="info-box">
+                    <span class="info-box-icon text-bg-success shadow-sm">
+                        <i class="bi bi-badge-ad""></i>
+                    </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">Click</span>
+                        <span class="info-box-number" id="clicks">0</span>
+                    </div>
+                    <!-- /.info-box-content -->
+                </div>
+                <!-- /.info-box -->
+            </div>
+            <!-- /.col -->
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="info-box">
+                    <span class="info-box-icon text-bg-danger shadow-sm">
+                        <i class="bi bi-box-arrow-in-up"></i>
+                    </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">CPR</span>
+                        <span class="info-box-number" id="cpr">Rp. 0</span>
+                    </div>
+                    <!-- /.info-box-content -->
+                </div>
+                <!-- /.info-box -->
+            </div>
+            <!-- /.col -->
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="info-box">
+                    <span class="info-box-icon text-bg-warning shadow-sm">
+                        <i class="bi bi-box-arrow-in-down"></i>
+                    </span>
+                    <div class="info-box-content">
+                        <span class="info-box-text">CPC</span>
+                        <span class="info-box-number" id="cpc">Rp. 0</span>
+                    </div>
+                    <!-- /.info-box-content -->
+                </div>
+                <!-- /.info-box -->
+            </div>
+            <!-- /.col -->
+        </div>
         <div id="container-activity"></div>
         <br>
-        <div id="container"></div>
+        <div id="container" style="height: 100%;"></div>
     </div>
 </div>
 {% endblock %}
 {% block more_scripts %}
 <script src="https://code.highcharts.com/highcharts.js"></script>
 <script src="https://code.highcharts.com/modules/treemap.js"></script>
+<script src="https://code.highcharts.com/modules/sunburst.js"></script>
 <script src="https://code.highcharts.com/modules/treegraph.js"></script>
 <script src="https://code.highcharts.com/modules/exporting.js"></script>
 <script src="https://code.highcharts.com/modules/accessibility.js"></script>

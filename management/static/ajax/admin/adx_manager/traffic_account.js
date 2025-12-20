@@ -166,7 +166,9 @@ $().ready(function () {
                         let text = account.account_name || account.account_id;
                         // Konversi ke string untuk perbandingan yang aman
                         let accIdStr = String(account.account_id);
-                        let isSelected = currentSelected && currentSelected.includes(accIdStr);
+                        // let isSelected = currentSelected && currentSelected.includes(accIdStr);
+                        // let option = new Option(text, accIdStr, isSelected, isSelected);
+                        let isSelected = true;
                         let option = new Option(text, accIdStr, isSelected, isSelected);
                         $account.append(option);
                     });
@@ -180,8 +182,13 @@ $().ready(function () {
             }
         });
     }
+    // Destroy existing DataTable if exists
+    if ($.fn.DataTable.isDataTable('#table_traffic_account')) {
+        $('#table_traffic_account').DataTable().destroy();
+    }
     // Initialize DataTable
-    $('#table_traffic_account').DataTable({
+    var table = $('#table_traffic_country').DataTable({
+        data: tableData,
         responsive: true,
         paging: true,
         pageLength: 25,
@@ -389,6 +396,8 @@ function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_ac
                     $("#total_revenue").text(formatCurrencyIDR(response.summary.total_revenue || 0));
                     // Show summary boxes
                     $('#summary_boxes').show();
+                    // Show revenue chart row
+                    $('#revenue_chart_row').show();
                 }
                 // Update DataTable
                 var table = $('#table_traffic_account').DataTable();

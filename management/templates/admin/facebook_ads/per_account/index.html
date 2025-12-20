@@ -31,7 +31,7 @@
                 <select class="form-control select2" id="select_account" required="required">
                     <option value=""></option>
                     {% for data_account in data_account %}
-                    <option value="{{data_account.account_id}}">{{data_account.account_name|upper}}</option>
+                    <option value="{{data_account.account_id}}">{{data_account.account_name}}</option>
                     {% endfor %}
                 </select>
             </div>

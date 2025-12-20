@@ -170,7 +170,9 @@ $().ready(function () {
                         let text = account.account_name || account.account_id;
                         // Konversi ke string untuk perbandingan yang aman
                         let accIdStr = String(account.account_id);
-                        let isSelected = currentSelected && currentSelected.includes(accIdStr);
+                        // let isSelected = currentSelected && currentSelected.includes(accIdStr);
+                        // let option = new Option(text, accIdStr, isSelected, isSelected);
+                        let isSelected = true;
                         let option = new Option(text, accIdStr, isSelected, isSelected);
                         $account.append(option);
                     });
@@ -268,6 +270,8 @@ function load_adx_summary_data(tanggal_dari, tanggal_sampai, selected_account, s
             if (response && response.status) {
                 // Show summary boxes
                 $("#summary_boxes").show();
+                // Show revenue chart row
+                $("#revenue_chart_row").show();
                 // Update summary boxes
                 $("#total_clicks").text(formatNumber(response.summary.total_clicks));
                 $("#total_revenue").text('Rp ' + formatNumber(response.summary.total_revenue, 0));

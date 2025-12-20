@@ -154,7 +154,9 @@ $(document).ready(function () {
                         let text = account.account_name || account.account_id;
                         // Konversi ke string untuk perbandingan yang aman
                         let accIdStr = String(account.account_id);
-                        let isSelected = currentSelected && currentSelected.includes(accIdStr);
+                        // let isSelected = currentSelected && currentSelected.includes(accIdStr);
+                        // let option = new Option(text, accIdStr, isSelected, isSelected);
+                        let isSelected = true;
                         let option = new Option(text, accIdStr, isSelected, isSelected);
                         $account.append(option);
                     });
@@ -265,8 +267,6 @@ $(document).ready(function () {
         if ($.fn.DataTable.isDataTable('#table_traffic_country')) {
             $('#table_traffic_country').DataTable().destroy();
         }
-        // Tampilkan overlay loading
-        $('#overlay').show();
         // AJAX request
         $.ajax({
             url: '/management/admin/page_adx_traffic_country',

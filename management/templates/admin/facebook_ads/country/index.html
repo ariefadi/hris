@@ -33,7 +33,7 @@
                 <label>Filter Account</label>
                 <select class="form-control select2-multiple" id="select_account" multiple>
                     {% for data_account in data_account %}
-                    <option value="{{data_account.account_id}}">{{data_account.account_name|upper}}</option>
+                    <option value="{{data_account.account_id}}">{{data_account.account_name}}</option>
                     {% endfor %}
                 </select>
             </div>

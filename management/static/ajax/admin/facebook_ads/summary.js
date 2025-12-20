@@ -91,44 +91,52 @@ function table_chart_summary_facebook(tanggal_dari, tanggal_sampai, data_account
                 $('#cpc').text('Rp. 0');
                 console.warn("Data total kosong, tidak ada data untuk ditampilkan.");
             }
+            // Transform data for sunburst to ensure 'value' exists
+            // Sunburst requires a value to determine the size of the slices
+            const chartData = data.map(d => {
+                return {
+                    id: d.id,
+                    parent: d.parent,
+                    name: d.name,
+                    budget: d.budget,
+                    custom: d.custom,
+                    value: 1 // Default value to ensure rendering
+                };
+            });
+
             Highcharts.chart('container', {
+                chart: {
+                    height: '800px'
+                },
                 title: {
                     text: 'Data Detail Account Facebook Ads'
                 },
                 series: [
                     {
-                        type: 'treegraph',
-                        data,
-                        tooltip: {
-                            pointFormatter: function () {
-                                const name = this.name || '-';
-                                const budget = this.budget ? 'Rp ' + Number(this.budget).toLocaleString('id-ID') : '-';
-                                const spend = this.custom?.spend ? 'Rp ' + Number(this.custom.spend).toLocaleString('id-ID') : '-';
-                                return `
-                                    <b>${name}</b><br/>
-                                    Spend: ${spend}<br/>
-                                    Budget: ${budget}
-                                `;
-                            }
-                        },
-                        marker: {
-                            symbol: 'rect',
-                            width: 225,
-                            height: 25
-                        },
-                        borderRadius: 2,
+                        type: 'sunburst',
+                        data: chartData,
+                        allowDrillToNode: true,
+                        cursor: 'pointer',
                         dataLabels: {
-                            pointFormat: '{point.name}',
-                            style: {
-                                fontSize: '8px',
-                                fontWeight: 'bold',
-                                color: '#FFFFFF'
-                            }
+                            format: '{point.name}',
+                            filter: {
+                                property: 'innerArcLength',
+                                operator: '>',
+                                value: 16
+                            },
+                            rotationMode: 'circular'
                         },
                         levels: [
                             {
                                 level: 1,
-                                levelIsConstant: false
+                                levelIsConstant: false,
+                                dataLabels: {
+                                    filter: {
+                                        property: 'outerArcLength',
+                                        operator: '>',
+                                        value: 64
+                                    }
+                                }
                             },
                             {
                                 level: 2,
@@ -148,7 +156,19 @@ function table_chart_summary_facebook(tanggal_dari, tanggal_sampai, data_account
                                     to: 1
                                 }
                             }
-                        ]
+                        ],
+                        tooltip: {
+                            pointFormatter: function () {
+                                const name = this.name || '-';
+                                const budget = this.budget ? 'Rp ' + Number(this.budget).toLocaleString('id-ID') : '-';
+                                const spend = this.custom?.spend ? 'Rp ' + Number(this.custom.spend).toLocaleString('id-ID') : '-';
+                                return `
+                                    <b>${name}</b><br/>
+                                    Spend: ${spend}<br/>
+                                    Budget: ${budget}
+                                `;
+                            }
+                        }
                     }
                 ]
             });
