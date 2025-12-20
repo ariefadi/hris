@@ -78,7 +78,7 @@
     btn.addEventListener('click', function(e){
       e.preventDefault();
       var sid = this.getAttribute('data-subdomain-id');
-      var setup = document.querySelector('textarea.input-setup[data-subdomain-id="'+sid+'"]');
+      var setup = document.querySelector('input.input-setup[data-subdomain-id="'+sid+'"]');
       var lp = document.querySelector('textarea.input-lp[data-subdomain-id="'+sid+'"]');
       var params = document.querySelector('textarea.input-params[data-subdomain-id="'+sid+'"]');
       var form = new FormData();

@@ -432,14 +432,6 @@ class Migration(migrations.Migration):
                 `plugin_setup` varchar(100) DEFAULT NULL,
                 `plugin_lp` varchar(255) DEFAULT NULL,
                 `plugin_params` varchar(255) DEFAULT NULL,
-                `fb_ads_id_1` varchar(36) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
-                `fb_ads_id_2` varchar(36) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
-                `fb_fanpage` varchar(255) DEFAULT NULL,
-                `fb_interest` varchar(255) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
-                `fb_country` text CHARACTER SET latin1 COLLATE latin1_swedish_ci,
-                `fb_daily_budget` bigint DEFAULT NULL,
-                `fb_avg_cpc` bigint DEFAULT NULL,
-                `db_ads_status` varchar(10) DEFAULT 'off',
                 `mdb` varchar(36) DEFAULT NULL,
                 `mdb_name` varchar(50) DEFAULT NULL,
                 `mdd` datetime DEFAULT CURRENT_TIMESTAMP,
@@ -537,6 +529,62 @@ class Migration(migrations.Migration):
                 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
             """,
             # reverse_sql="DROP TABLE IF EXISTS `data_media_process`;"
+        ),
+
+        # create data fb ads table
+        migrations.RunSQL(
+            sql="""
+                CREATE TABLE `data_media_fb_ads` (
+                `ads_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                `domain_id` bigint unsigned DEFAULT NULL,
+                `subdomain_id` bigint unsigned DEFAULT NULL,
+                `account_ads_id_1` varchar(36) DEFAULT NULL,
+                `account_ads_id_2` varchar(36) DEFAULT NULL,
+                `fanpage` varchar(255) DEFAULT NULL,
+                `interest` varchar(255) DEFAULT NULL,
+                `country` text,
+                `daily_budget` bigint DEFAULT NULL,
+                `status` varchar(10) DEFAULT 'on',
+                `mdb` varchar(36) DEFAULT NULL,
+                `mdb_name` varchar(50) DEFAULT NULL,
+                `mdd` datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`ads_id`),
+                KEY `domain_id` (`domain_id`),
+                KEY `subdomain_id` (`subdomain_id`),
+                CONSTRAINT `data_media_fb_ads_ibfk_1` FOREIGN KEY (`domain_id`) REFERENCES `data_domains` (`domain_id`) ON UPDATE CASCADE,
+                CONSTRAINT `data_media_fb_ads_ibfk_2` FOREIGN KEY (`subdomain_id`) REFERENCES `data_subdomain` (`subdomain_id`) ON UPDATE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+
+            """,
+            # reverse_sql="DROP TABLE IF EXISTS `data_media_fb_ads`;"
+        ),
+
+        # create data website niece table
+        migrations.RunSQL(
+            sql="""
+                CREATE TABLE `data_website_niece` (
+                `web_niece_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                `domain_id` bigint unsigned DEFAULT NULL,
+                `subdomain_id` bigint unsigned DEFAULT NULL,
+                `niece_id` bigint unsigned DEFAULT NULL,
+                `keyword` varchar(255) DEFAULT NULL,
+                `prompt` text,
+                `link` varchar(255) DEFAULT NULL,
+                `deadline` datetime DEFAULT NULL,
+                `status` varchar(10) DEFAULT 'draft',
+                `mdb` varchar(36) DEFAULT NULL,
+                `mdb_name` varchar(50) DEFAULT NULL,
+                `mdd` datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`web_niece_id`),
+                KEY `domain_id` (`domain_id`),
+                KEY `subdomain_id` (`subdomain_id`),
+                KEY `niece_id` (`niece_id`),
+                CONSTRAINT `data_website_niece_ibfk_1` FOREIGN KEY (`domain_id`) REFERENCES `data_domains` (`domain_id`) ON UPDATE CASCADE,
+                CONSTRAINT `data_website_niece_ibfk_2` FOREIGN KEY (`subdomain_id`) REFERENCES `data_subdomain` (`subdomain_id`) ON UPDATE CASCADE,
+                CONSTRAINT `data_website_niece_ibfk_3` FOREIGN KEY (`niece_id`) REFERENCES `data_niece` (`niece_id`) ON UPDATE CASCADE
+                ) ENGINE=InnoDB AUTO_INCREMENT=49 DEFAULT CHARSET=latin1
+            """,
+            # reverse_sql="DROP TABLE IF EXISTS `data_website_niece`;"
         ),
 
         # create data negara table

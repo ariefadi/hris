@@ -32,7 +32,7 @@
               {% for g in groups %}
                 {% for r in g.rows %}
                 <tr>
-                  <td class="align-middle">{{ forloop.counter }}</td>
+                  <td class="align-middle">{{ g.offset|add:forloop.counter }}</td>
                   <td class="align-middle">{{ r.subdomain_name }}</td>
                   <td class="align-middle">
                     <div><b>Niece:</b> {{ r.niece }}</div>
@@ -251,8 +251,9 @@ $(function(){
     e.preventDefault();
     var pid = this.getAttribute('data-partner-id');
     var prc = this.getAttribute('data-process-id');
-    var confirmFn = function(doSend){
-      if (!doSend) return;
+    if (!window.Swal) {
+      var ok = confirm('Kirim data ke proses berikutnya?');
+      if (!ok) return;
       var form = new FormData();
       form.append('partner_id', pid);
       form.append('process_id', prc);
@@ -265,22 +266,103 @@ $(function(){
         .then(function(r){ return r.json(); })
         .then(function(resp){
           var ok = resp && (resp.status === true || resp.status === 'True');
-          if (ok) {
-            if (window.Swal) { Swal.fire({icon:'success', title:'Berhasil', text:'Data dikirim ke proses berikutnya', timer:1000, showConfirmButton:false}).then(function(){ window.location.reload(); }); } else { window.location.reload(); }
-          } else {
-            var list = (resp && resp.missing) ? resp.missing.join(', ') : '';
-            var emsg = (resp && resp.message) ? resp.message : 'Gagal mengirim data';
-            if (list) { emsg = emsg + ': ' + list; }
-            if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: emsg}); } else { alert(emsg); }
+          if (ok) { window.location.reload(); } else { alert((resp && resp.message) || 'Gagal mengirim data'); }
+        });
+      return;
+    }
+    var html = ''+
+      '<div class="text-left">'+
+        '<label>Kirim Notifikasi ke:</label>'+ 
+        '<select id="swal_recipients" multiple class="form-control select2" style="width:100%"></select>'+
+        '<div class="form-check mt-3">'+
+          '<input class="form-check-input" type="checkbox" id="swal_notify_email" checked>'+ 
+          '<label class="form-check-label" for="swal_notify_email">Send Email Notification</label>'+ 
+        '</div>'+ 
+        '<div class="form-check mt-2">'+
+          '<input class="form-check-input" type="checkbox" id="swal_notify_wa" checked>'+ 
+          '<label class="form-check-label" for="swal_notify_wa">Send WhatsApp Notification</label>'+ 
+        '</div>'+ 
+      '</div>';
+    Swal.fire({
+      title: 'Kirim Data',
+      html: html,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: 'Send',
+      cancelButtonText: 'Batal',
+      showLoaderOnConfirm: true,
+      allowOutsideClick: function(){ return !Swal.isLoading(); },
+      didOpen: function(){
+        var sel = $('#swal_recipients');
+        $.ajax({
+          url: '/settings/users/data/page',
+          method: 'GET',
+          success: function(resp){
+            var items = (resp && resp.data_user) ? resp.data_user : [];
+            items.forEach(function(u){
+              var mail = (u.user_mail || '').trim();
+              var alias = (u.user_alias || '').trim();
+              if (!mail) return;
+              var opt = $('<option>').attr('value', mail);
+              opt.text(alias ? (alias) : mail);
+              sel.append(opt);
+            });
+            sel.select2({ theme: 'bootstrap4', width: '100%', allowClear: true, placeholder: 'Pilih penerima' });
+            var def = '{{ user.user_mail|default:"" }}'.trim();
+            if (def) { sel.val([def]).trigger('change'); }
           }
         });
-    };
-    if (window.Swal) {
-      Swal.fire({icon:'question', title:'Kirim?', text:'Kirim data ke proses berikutnya?', showCancelButton:true, confirmButtonText:'Ya, kirim', cancelButtonText:'Batal'}).then(function(res){ confirmFn(res && res.isConfirmed); });
-    } else {
-      var ok = confirm('Kirim data ke proses berikutnya?');
-      confirmFn(ok);
-    }
+      },
+      preConfirm: function(){
+        var sendEmail = $('#swal_notify_email').is(':checked');
+        var sendWa = $('#swal_notify_wa').is(':checked');
+        var rec = $('#swal_recipients').val() || [];
+        if (sendEmail && rec.length === 0) {
+          Swal.showValidationMessage('Pilih minimal satu penerima untuk email');
+          return false;
+        }
+        var form = new FormData();
+        form.append('partner_id', pid);
+        form.append('process_id', prc);
+        (rec || []).forEach(function(v){ form.append('recipients[]', v); });
+        form.append('notify_email', sendEmail ? '1' : '0');
+        form.append('notify_whatsapp', sendWa ? '1' : '0');
+        var tokenEl = document.querySelector('input[name=csrfmiddlewaretoken]');
+        var csrf = tokenEl ? tokenEl.value : '';
+        if (csrf) { form.append('csrfmiddlewaretoken', csrf); }
+        var headers = { 'X-Requested-With': 'XMLHttpRequest' };
+        if (csrf) { headers['X-CSRFToken'] = csrf; }
+        return fetch('{% url "projects_task_publisher_send" %}', { method: 'POST', headers: headers, credentials: 'same-origin', body: form })
+          .then(function(r){ return r.json(); })
+          .then(function(resp){
+            var ok = resp && (resp.status === true || resp.status === 'True');
+            if (!ok) {
+              var list = (resp && resp.missing) ? resp.missing.join(', ') : '';
+              var emsg = (resp && resp.message) ? resp.message : 'Gagal mengirim data';
+              if (list) { emsg = emsg + ': ' + list; }
+              Swal.showValidationMessage(emsg);
+              throw new Error(emsg);
+            }
+            return resp;
+          })
+          .catch(function(){
+            Swal.showValidationMessage('Terjadi kesalahan jaringan');
+            throw new Error('network');
+          });
+      }
+    }).then(function(result){
+      if (!result.isConfirmed) return;
+      var resp = result.value || {};
+      var ok = resp && (resp.status === true || resp.status === 'True');
+      if (ok) {
+        Swal.fire({icon:'success', title:'Berhasil', text:'Data dikirim ke proses berikutnya', timer:1200, showConfirmButton:false}).then(function(){ window.location.reload(); });
+      } else {
+        var list = (resp && resp.missing) ? resp.missing.join(', ') : '';
+        var emsg = (resp && resp.message) ? resp.message : 'Gagal mengirim data';
+        if (list) { emsg = emsg + ': ' + list; }
+        Swal.fire({icon:'error', title:'Gagal', text: emsg});
+      }
+    });
   });
   $(document).on('click', '.btn-add-group', function(e){
     e.preventDefault();

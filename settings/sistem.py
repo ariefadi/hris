@@ -8,6 +8,12 @@ from settings.database import data_mysql
 from datetime import datetime
 from hris.mail import send_mail, Mail
 import re
+import os
+try:
+    from dotenv import load_dotenv, find_dotenv
+except Exception:
+    load_dotenv = None
+    find_dotenv = None
 
 class Overview(View):
     def get(self, request):
@@ -19,7 +25,7 @@ class Overview(View):
             'user': admin,
             'active_portal_id': active_portal_id,
         }
-        return render(request, 'overview.html', context)
+        return render(request, 'settings/overview.html', context)
 
 # Helpers
 
@@ -1151,7 +1157,6 @@ class MailIndexView(View):
             'user': admin,
         }
         return render(request, 'sistem/mail/index.html', context)
-
     def post(self, request):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
@@ -1226,3 +1231,22 @@ class MailIndexView(View):
             messages.error(request, f'Gagal mengirim email: {e}')
 
         return redirect('/settings/sistem/mail')
+
+class WagatewayIndexView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        try:
+            if find_dotenv and load_dotenv:
+                env_path = find_dotenv(usecwd=True)
+                if env_path:
+                    load_dotenv(env_path, override=False)
+        except Exception:
+            pass
+        wa_gateway_url = os.getenv('WHATSAPP_GATEWAY_URL') or os.getenv('WA_GATEWAY_URL') or 'http://localhost:3000'
+        context = {
+            'user': admin,
+            'wa_gateway_url': wa_gateway_url,
+        }
+        return render(request, 'sistem/wagateway/index.html', context)

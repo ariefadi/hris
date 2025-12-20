@@ -183,6 +183,122 @@ $(function(){
     var val = $(this).val() || 'draft';
     $('#update_action').val(val);
   });
+  // SweetAlert modal with loading for Send to next process
+  $(document).on('click', 'button[type=submit][name=update][value=send]', function(e){
+    e.preventDefault();
+    $('#update_action').val('send');
+    var $form = $('#formEditProject');
+    var actionUrl = $form.attr('action');
+    if (!window.Swal) {
+      var ok = confirm('Kirim data ke proses berikutnya?');
+      if (!ok) return;
+      var data = $form.serializeArray();
+      data.push({name:'update', value:'send'});
+      $.ajax({
+        url: actionUrl,
+        method: 'POST',
+        data: data,
+        dataType: 'json',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(resp){
+          var ok = resp && (resp.status === true || resp.status === 'True');
+          if (ok) { window.location.href = '{% url "projects_task_draft" %}'; } else { alert((resp && resp.message) || 'Gagal mengirim data'); }
+        }
+      });
+      return;
+    }
+    var html = ''+
+      '<div class="text-left">'+
+        '<label>Kirim Notifikasi ke:</label>'+
+        '<select id="swal_recipients" multiple class="form-control select2" style="width:100%"></select>'+
+        '<div class="form-check mt-3">'+
+          '<input class="form-check-input" type="checkbox" id="swal_notify_email" checked>'+
+          '<label class="form-check-label" for="swal_notify_email">Send Email Notification</label>'+
+        '</div>'+
+        '<div class="form-check mt-2">'+
+          '<input class="form-check-input" type="checkbox" id="swal_notify_wa" checked>'+
+          '<label class="form-check-label" for="swal_notify_wa">Send WhatsApp Notification</label>'+
+        '</div>'+
+      '</div>';
+    Swal.fire({
+      title: 'Kirim Data',
+      html: html,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: 'Send',
+      cancelButtonText: 'Batal',
+      showLoaderOnConfirm: true,
+      allowOutsideClick: function(){ return !Swal.isLoading(); },
+      didOpen: function(){
+        var sel = $('#swal_recipients');
+        $.ajax({
+          url: '/settings/users/data/page',
+          method: 'GET',
+          success: function(resp){
+            var items = (resp && resp.data_user) ? resp.data_user : [];
+            items.forEach(function(u){
+              var mail = (u.user_mail || '').trim();
+              var alias = (u.user_alias || '').trim();
+              if (!mail) return;
+              var opt = $('<option>').attr('value', mail);
+              opt.text(alias ? (alias) : mail);
+              sel.append(opt);
+            });
+            sel.select2({ theme: 'bootstrap4', width: '100%', allowClear: true, placeholder: 'Pilih penerima' });
+            var def = '{{ user.user_mail|default:"" }}'.trim();
+            if (def) { sel.val([def]).trigger('change'); }
+          }
+        });
+      },
+      preConfirm: function(){
+        var sendEmail = $('#swal_notify_email').is(':checked');
+        var sendWa = $('#swal_notify_wa').is(':checked');
+        var rec = $('#swal_recipients').val() || [];
+        if (sendEmail && rec.length === 0) {
+          Swal.showValidationMessage('Pilih minimal satu penerima untuk email');
+          return false;
+        }
+        var data = $form.serializeArray();
+        data.push({name:'update', value:'send'});
+        (rec || []).forEach(function(v){ data.push({name:'recipients[]', value:v}); });
+        data.push({name:'notify_email', value: sendEmail ? '1' : '0'});
+        data.push({name:'notify_whatsapp', value: sendWa ? '1' : '0'});
+        return new Promise(function(resolve, reject){
+          $.ajax({
+            url: actionUrl,
+            method: 'POST',
+            data: data,
+            dataType: 'json',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(resp){
+              var ok = resp && (resp.status === true || resp.status === 'True');
+              if (!ok) {
+                var emsg = (resp && resp.message) ? resp.message : 'Gagal mengirim data';
+                Swal.showValidationMessage(emsg);
+                reject(new Error(emsg));
+              } else {
+                resolve(resp);
+              }
+            },
+            error: function(){
+              Swal.showValidationMessage('Terjadi kesalahan jaringan');
+              reject(new Error('network'));
+            }
+          });
+        });
+      }
+    }).then(function(result){
+      if (!result.isConfirmed) return;
+      var resp = result.value || {};
+      var ok = resp && (resp.status === true || resp.status === 'True');
+      if (ok) {
+        Swal.fire({icon:'success', title:'Berhasil', text: (resp && resp.message) ? resp.message : 'Data dikirim', timer:1200, showConfirmButton:false}).then(function(){ window.location.href = '{% url "projects_task_draft" %}'; });
+      } else {
+        var emsg = (resp && resp.message) ? resp.message : 'Gagal mengirim data';
+        Swal.fire({icon:'error', title:'Gagal', text: emsg});
+      }
+    });
+  });
   // When submitting via Enter key, keep hidden value default 'draft'
 })
 </script>

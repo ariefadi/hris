@@ -1,0 +1,120 @@
+{% extends 'admin_base.html' %}
+
+{% block page_title %}Projects Overview{% endblock %}
+{% block page_heading %}Projects Overview{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item">Projects</li>
+<li class="breadcrumb-item active"><a href="/projects/overview">Overview</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Current Context</h3>
+      </div>
+      <div class="card-body">
+        <p><strong>Active Portal ID:</strong> {{ active_portal_id }}</p>
+        <p><strong>User:</strong> {{ user.user_alias }}</p>
+        <p class="text-muted mb-0">Menus adapt by active portal and your role.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Quick Actions</h3>
+      </div>
+      <div class="card-body">
+        <ul class="list-unstyled">
+          <li><i class="bi bi-columns-gap mr-1"></i> Switch portal using the navbar dropdown</li>
+          <li><i class="bi bi-list-ul mr-1"></i> Explore menus in the sidebar</li>
+          <li><i class="bi bi-person mr-1"></i> Review your role default page via portal switch</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row mt-3">
+  <div class="col-lg-3 col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Media Partners</h3>
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span>Completed</span>
+          <span class="badge badge-success">{{ mp_completed }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+          <span>Waiting</span>
+          <span class="badge badge-warning">{{ mp_waiting }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Servers</h3>
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span>Active</span>
+          <span class="badge badge-success">{{ server_active }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span>Stopped</span>
+          <span class="badge badge-secondary">{{ server_stopped }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span>Suspended</span>
+          <span class="badge badge-danger">{{ server_suspended }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+          <span>Terminated</span>
+          <span class="badge badge-dark">{{ server_terminated }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Domains</h3>
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span>Total Domains</span>
+          <span class="badge badge-primary">{{ total_domains }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+          <span>Total Subdomains</span>
+          <span class="badge badge-info">{{ total_subdomains }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-3 col-md-6">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Content</h3>
+      </div>
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span>Total Nieces</span>
+          <span class="badge badge-success">{{ total_nieces }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center">
+          <span>Total Keywords</span>
+          <span class="badge badge-warning">{{ total_keywords }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

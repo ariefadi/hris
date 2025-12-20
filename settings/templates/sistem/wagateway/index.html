@@ -1,0 +1,478 @@
+{% extends 'admin_base.html' %}
+
+{% block page_title %}WA Gateway{% endblock %}
+{% block page_heading %}WA Gateway{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="/settings/overview">Settings</a></li>
+<li class="breadcrumb-item active">WhatsApp Gateway</li>
+{% endblock %}
+
+{% load static %}
+
+{% block content %}
+<div class="container-fluid"> 
+  <div class="card mb-4">
+    <div class="card-header">
+        <h3 class="card-title">WA Gateway</h3>
+        <div class="card-tools">
+            <a href="{{ wa_gateway_url|default:'#' }}?trend=tgh" target="_blank" class="btn btn-sm btn-primary">
+                <i class="bi bi-whatsapp"></i> Buka Aplikasi WA Gateway
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+      <div id="waOverlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background: rgba(0,0,0,0.35); z-index:1060; align-items:center; justify-content:center;">
+        <div class="text-center text-white">
+          <div class="spinner-border" role="status" aria-hidden="true"></div>
+          <div class="mt-2">Processing...</div>
+        </div>
+      </div>
+      <div class="mt-2">
+        <div id="device-list"></div>
+      </div>
+      <div class="mt-3">
+        <button type="button" class="btn btn-outline-primary" id="btnLogin">Login</button>
+        <button type="button" class="btn btn-outline-secondary" id="btnReconnect">Reconnect</button>
+        <button type="button" class="btn btn-outline-danger" id="btnLogout">Logout</button>
+        <button type="button" class="btn btn-outline-info" id="btnDevices">Devices</button>
+      </div>
+      <div class="mt-3">
+        <button type="button" class="btn btn-outline-primary" id="btnSendText">Kirim Text</button>
+        <button type="button" class="btn btn-outline-secondary" id="btnSendLink">Kirim Link</button>
+        <button type="button" class="btn btn-outline-danger" id="btnSendImage">Kirim Gambar</button>
+        <button type="button" class="btn btn-outline-info" id="btnSendFile">Kirim File</button>
+      </div>
+      <div class="modal fade" id="qrModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Scan QR WhatsApp</h5>
+              <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body">
+              <div id="qrStatus" class="mb-2"></div>
+              <div class="text-center">
+                <img id="qrImage" src="" alt="QR Code" style="max-width:100%;height:auto;display:none">
+              </div>
+              <div class="mt-2 small text-muted" id="qrCountdownWrap" style="display:none">
+                Kadaluarsa dalam <span id="qrCountdown">0</span> detik
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" id="btnResetQr">Reset QR Code</button>
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal fade" id="textModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Kirim Text</h5>
+              <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-2">
+                <label class="form-label">Nomor (satu per baris)</label>
+                <textarea class="form-control" id="txtPhonesModal" rows="4" placeholder="628XXXXXXXXXX"></textarea>
+              </div>
+              <div class="mb-2">
+                <label class="form-label">Pesan</label>
+                <textarea class="form-control" id="txtMessageModal" rows="4" placeholder="Tulis pesan"></textarea>
+              </div>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="txtForwardedModal">
+                <label class="form-check-label" for="txtForwardedModal">Forwarded</label>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-primary" id="btnModalSendText">Kirim</button>
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal fade" id="linkModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Kirim Link</h5>
+              <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-2">
+                <label class="form-label">Nomor (satu per baris)</label>
+                <textarea class="form-control" id="lnkPhonesModal" rows="4" placeholder="628XXXXXXXXXX"></textarea>
+              </div>
+              <div class="mb-2">
+                <label class="form-label">Link</label>
+                <input type="url" class="form-control" id="lnkUrlModal" placeholder="https://">
+              </div>
+              <div class="mb-2">
+                <label class="form-label">Caption</label>
+                <textarea class="form-control" id="lnkCaptionModal" rows="3" placeholder="Caption"></textarea>
+              </div>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="lnkForwardedModal">
+                <label class="form-check-label" for="lnkForwardedModal">Forwarded</label>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-primary" id="btnModalSendLink">Kirim</button>
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal fade" id="imageModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Kirim Gambar</h5>
+              <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-2">
+                <label class="form-label">Nomor (satu per baris)</label>
+                <textarea class="form-control" id="imgPhonesModal" rows="4" placeholder="628XXXXXXXXXX"></textarea>
+              </div>
+              <div class="mb-2">
+                <label class="form-label">Caption</label>
+                <textarea class="form-control" id="imgCaptionModal" rows="3" placeholder="Caption"></textarea>
+              </div>
+              <div class="mb-2">
+                <label class="form-label">Image URL (opsional)</label>
+                <input type="url" class="form-control" id="imgUrlModal" placeholder="https://">
+              </div>
+              <div class="mb-2">
+                <input type="file" class="form-control" id="imgFileModal" accept="image/*">
+              </div>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="imgViewOnceModal">
+                <label class="form-check-label" for="imgViewOnceModal">View Once</label>
+              </div>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="imgCompressModal">
+                <label class="form-check-label" for="imgCompressModal">Compress</label>
+              </div>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="imgForwardedModal">
+                <label class="form-check-label" for="imgForwardedModal">Forwarded</label>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-primary" id="btnModalSendImage">Kirim</button>
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal fade" id="fileModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title">Kirim File</h5>
+              <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <span aria-hidden="true">&times;</span>
+              </button>
+            </div>
+            <div class="modal-body">
+              <div class="mb-2">
+                <label class="form-label">Nomor (satu per baris)</label>
+                <textarea class="form-control" id="filPhonesModal" rows="4" placeholder="628XXXXXXXXXX"></textarea>
+              </div>
+              <div class="mb-2">
+                <label class="form-label">Caption</label>
+                <textarea class="form-control" id="filCaptionModal" rows="3" placeholder="Caption"></textarea>
+              </div>
+              <div class="mb-2">
+                <input type="file" class="form-control" id="filFileModal">
+              </div>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="filForwardedModal">
+                <label class="form-check-label" for="filForwardedModal">Forwarded</label>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-primary" id="btnModalSendFile">Kirim</button>
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr>
+      <div class="mt-2">
+        <label class="form-label">Response</label>
+        <pre id="waResponse" class="bg-light p-2" style="min-height:160px; overflow:auto"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script>
+(function(){
+  var base = '{{ wa_gateway_url|default:"" }}'.trim();
+  function jid(num){ var n = String(num||'').trim(); if (!n) return ''; if (/@s\.whatsapp\.net$/.test(n)) return n; return n + '@s.whatsapp.net'; }
+  function parsePhones(val){ return String(val||'').split(/\r?\n/).map(function(s){ return s.trim(); }).filter(function(s){ return s.length>0; }); }
+  function randomDelayMs(){ return (Math.floor(Math.random()*5)+1)*1000; }
+  function sleep(ms){ return new Promise(function(resolve){ setTimeout(resolve, ms); }); }
+  function showToast(icon, title, text, timer){
+    if (window.Swal) {
+      Swal.fire({ toast: true, position: 'top-end', icon: icon, title: title || '', text: text || '', timer: timer || 2000, showConfirmButton: false });
+    } else {
+      alert((title ? (title + ': ') : '') + (text || ''));
+    }
+  }
+  function show(obj, context){
+    try { document.getElementById('waResponse').textContent = JSON.stringify(obj,null,2); } catch(e) { document.getElementById('waResponse').textContent = String(obj); }
+    var code = obj && obj.code;
+    var ok = (obj && obj.ok) === true;
+    var msg = (obj && obj.message) || (obj && obj.body) || '';
+    if (code === 'SUCCESS' || ok) {
+      var title = (context ? (context + ' berhasil') : 'Berhasil');
+      showToast('success', title, (typeof msg === 'string' ? msg : ''), 1800);
+    } else {
+      var titleE = (context ? (context + ' gagal') : 'Gagal');
+      showToast('error', titleE, (typeof msg === 'string' ? msg : ''), 2200);
+    }
+  }
+  function call(method, path, payload, isMultipart){
+    var url = (base || '') + path;
+    if (url.indexOf('?') >= 0) { url += '&trend=tgh'; } else { url += '?trend=tgh'; }
+    var opts = { method: method, headers: {} };
+    if (isMultipart) {
+      opts.body = payload;
+    } else if (payload) {
+      opts.headers['Content-Type'] = 'application/json';
+      opts.body = JSON.stringify(payload);
+    }
+    setLoading(true);
+    return fetch(url, opts).then(function(r){
+      var ct = r.headers.get('content-type') || '';
+      if (ct.indexOf('application/json') >= 0) { return r.json(); }
+      return r.text().then(function(t){ return { status: r.status, ok: r.ok, body: t }; });
+    }).finally(function(){ setLoading(false); });
+  }
+  function wsUrl(path){
+    var b = base || '';
+    var w = b.replace(/^https:\/\//i,'wss://').replace(/^http:\/\//i,'ws://');
+    var u = w + path;
+    if (u.indexOf('?') >= 0) { u += '&trend=tgh'; } else { u += '?trend=tgh'; }
+    return u;
+  }
+  var loadingN = 0;
+  function setLoading(on){
+    var el = document.getElementById('waOverlay');
+    if (!el) return;
+    loadingN = Math.max(0, loadingN + (on ? 1 : -1));
+    el.style.display = loadingN > 0 ? 'flex' : 'none';
+  }
+  var qrTimer = null;
+  var qrExpiresAt = 0;
+  function stopCountdown(){
+    if (qrTimer){ try{ clearInterval(qrTimer); }catch(e){} qrTimer=null; }
+    qrExpiresAt = 0;
+  }
+  function startCountdown(seconds){
+    qrExpiresAt = Date.now() + (Math.max(0, parseInt(seconds||'0',10)) * 1000);
+    document.getElementById('qrCountdownWrap').style.display = 'block';
+    document.getElementById('qrCountdown').textContent = Math.max(0, Math.round((qrExpiresAt - Date.now())/1000));
+    if (qrTimer){ try{ clearInterval(qrTimer); }catch(e){} }
+    qrTimer = setInterval(function(){
+      var left = Math.max(0, Math.round((qrExpiresAt - Date.now())/1000));
+      document.getElementById('qrCountdown').textContent = left;
+      if (left <= 0){
+        stopCountdown();
+        refreshQr();
+      }
+    }, 500);
+  }
+  function renderQr(qr_link, qr_duration){
+    var img = document.getElementById('qrImage');
+    var stat = document.getElementById('qrStatus');
+    if (qr_link){
+      img.style.display = 'block';
+      img.src = qr_link;
+      stat.textContent = 'Silakan scan QR menggunakan WhatsApp pada ponsel.';
+      startCountdown(qr_duration);
+    } else {
+      img.style.display = 'none';
+      img.src = '';
+      document.getElementById('qrCountdownWrap').style.display = 'none';
+      stat.textContent = 'Sudah login atau QR tidak tersedia.';
+      stopCountdown();
+    }
+  }
+  function refreshQr(){
+    call('GET','/app/login').then(function(resp){
+      var results = (resp && resp.results) ? resp.results : {};
+      renderQr(results.qr_link, results.qr_duration);
+      var m = (resp && resp.message) || '';
+      if (results.qr_link) {
+        showToast('info', 'QR diperbarui', (typeof m === 'string' ? m : ''), 1500);
+      } else {
+        show(resp, 'Login');
+      }
+    }).catch(function(err){
+      showToast('error', 'Login gagal', String(err));
+    });
+  }
+  function renderDeviceList(payload){
+    var el = document.getElementById('device-list');
+    if (!el) return;
+    var arr = (payload && Array.isArray(payload.result)) ? payload.result : (Array.isArray(payload && payload.results) ? payload.results : []);
+    if (!Array.isArray(arr) || arr.length === 0) { el.innerHTML = '<div class="text-muted">No devices</div>'; return; }
+    var html = '<div class="list-group">';
+    for (var i=0;i<arr.length;i++){ var it = arr[i] || {}; var name = String(it.name || 'Device'); var dev = String(it.device || ''); html += '<div class="list-group-item"><div class="text-success"><i class="bi bi-check2"></i> Connected Device</div><div class="fw-bold">'+name+'</div><div class="small text-muted">'+dev+'</div></div>'; }
+    html += '</div>';
+    el.innerHTML = html;
+  }
+  document.getElementById('btnLogin').addEventListener('click', function(e){
+    e.preventDefault();
+    $('#qrModal').modal('show');
+    refreshQr();
+  });
+  document.getElementById('btnResetQr').addEventListener('click', function(e){
+    e.preventDefault();
+    refreshQr();
+  });
+  var ws = null;
+  function connectWs(){
+    try { if (ws) { ws.close(); ws = null; } } catch(e){}
+    var u = wsUrl('/ws');
+    ws = new WebSocket(u);
+    ws.onopen = function(){};
+    ws.onmessage = function(ev){
+      var d = null;
+      try { d = JSON.parse(ev.data); } catch(e) { d = { body: String(ev.data||'') }; }
+      var t = String((d && (d.event || d.type || d.code)) || '').toUpperCase();
+      if (t === 'LOGIN_SUCCESS'){
+        showToast('success','Login berhasil','');
+        $('#qrModal').modal('hide');
+        stopCountdown();
+      }
+      if (t === 'LIST_DEVICES' || d.devices || (d.results && d.results.devices)){
+        renderDeviceList(d);
+      }
+    };
+    ws.onerror = function(){};
+    ws.onclose = function(){ ws = null; };
+  }
+  function disconnectWs(){
+    if (ws){ try { ws.close(); }catch(e){} ws = null; }
+  }
+  $('#qrModal').on('shown.bs.modal', function(){ connectWs(); });
+  $('#qrModal').on('hidden.bs.modal', function(){ stopCountdown(); });
+  document.getElementById('btnReconnect').addEventListener('click', function(e){ e.preventDefault(); call('GET','/app/reconnect').then(function(r){ show(r, 'Reconnect'); }).catch(function(err){ showToast('error', 'Reconnect gagal', String(err)); }); });
+  document.getElementById('btnLogout').addEventListener('click', function(e){ e.preventDefault(); call('GET','/app/logout').then(function(r){ show(r, 'Logout'); }).catch(function(err){ showToast('error', 'Logout gagal', String(err)); }); });
+  document.getElementById('btnDevices').addEventListener('click', function(e){ e.preventDefault(); call('GET','/app/devices').then(function(r){ show(r, 'Devices'); renderDeviceList(r); }).catch(function(err){ showToast('error', 'Devices gagal', String(err)); }); });
+  document.getElementById('btnSendText').addEventListener('click', function(e){ e.preventDefault(); $('#textModal').modal('show'); });
+  document.getElementById('btnSendLink').addEventListener('click', function(e){ e.preventDefault(); $('#linkModal').modal('show'); });
+  document.getElementById('btnSendImage').addEventListener('click', function(e){ e.preventDefault(); $('#imageModal').modal('show'); });
+  document.getElementById('btnSendFile').addEventListener('click', function(e){ e.preventDefault(); $('#fileModal').modal('show'); });
+  document.getElementById('btnModalSendText').addEventListener('click', function(e){
+    e.preventDefault();
+    var phones = parsePhones(document.getElementById('txtPhonesModal').value).map(function(p){ return jid(p); });
+    var msg = document.getElementById('txtMessageModal').value;
+    var fwd = document.getElementById('txtForwardedModal').checked;
+    if (!phones.length){ showToast('error','No number',''); return; }
+    var seq = Promise.resolve();
+    phones.forEach(function(ph){
+      var ms = phones.length > 1 ? randomDelayMs() : 0;
+      seq = seq.then(function(){
+        if (ms > 0){ showToast('info','Menunggu', String(ms/1000)+' detik', 900); return sleep(ms); }
+      }).then(function(){
+        return call('POST','/send/message',{ phone: ph, message: msg, is_forwarded: !!fwd }).then(function(r){ show(r,'Kirim pesan'); });
+      });
+    });
+    seq.catch(function(err){ showToast('error','Kirim pesan gagal',String(err)); });
+  });
+  document.getElementById('btnModalSendLink').addEventListener('click', function(e){
+    e.preventDefault();
+    var phones = parsePhones(document.getElementById('lnkPhonesModal').value).map(function(p){ return jid(p); });
+    var url = document.getElementById('lnkUrlModal').value;
+    var cap = document.getElementById('lnkCaptionModal').value;
+    var fwd = document.getElementById('lnkForwardedModal').checked;
+    if (!phones.length){ showToast('error','No number',''); return; }
+    var seq = Promise.resolve();
+    phones.forEach(function(ph){
+      var ms = phones.length > 1 ? randomDelayMs() : 0;
+      seq = seq.then(function(){
+        if (ms > 0){ showToast('info','Menunggu', String(ms/1000)+' detik', 900); return sleep(ms); }
+      }).then(function(){
+        return call('POST','/send/link',{ phone: ph, link: url, caption: cap, is_forwarded: !!fwd }).then(function(r){ show(r,'Kirim link'); });
+      });
+    });
+    seq.catch(function(err){ showToast('error','Kirim link gagal',String(err)); });
+  });
+  document.getElementById('btnModalSendImage').addEventListener('click', function(e){
+    e.preventDefault();
+    var phones = parsePhones(document.getElementById('imgPhonesModal').value).map(function(p){ return jid(p); });
+    var cap = document.getElementById('imgCaptionModal').value;
+    var url = (document.getElementById('imgUrlModal').value || '').trim();
+    var fwd = document.getElementById('imgForwardedModal').checked;
+    var vo = document.getElementById('imgViewOnceModal').checked;
+    var cp = document.getElementById('imgCompressModal').checked;
+    var fileEl = document.getElementById('imgFileModal');
+    var file = (fileEl && fileEl.files && fileEl.files[0]) ? fileEl.files[0] : null;
+    if (!phones.length){ showToast('error','No number',''); return; }
+    if (!file && !url){ showToast('error','No image or URL',''); return; }
+    var seq = Promise.resolve();
+    phones.forEach(function(ph){
+      var ms = phones.length > 1 ? randomDelayMs() : 0;
+      seq = seq.then(function(){
+        if (ms > 0){ showToast('info','Menunggu', String(ms/1000)+' detik', 900); return sleep(ms); }
+      }).then(function(){
+        var fd = new FormData();
+        fd.append('phone', ph);
+        fd.append('view_once', vo ? 'true' : 'false');
+        fd.append('compress', cp ? 'true' : 'false');
+        fd.append('caption', cap || '');
+        fd.append('is_forwarded', fwd ? 'true' : 'false');
+        if (url) { fd.append('image_url', url); }
+        if (file) { fd.append('image', file, file.name || 'image'); }
+        return call('POST','/send/image', fd, true).then(function(r){ show(r,'Kirim gambar'); });
+      });
+    });
+    seq.catch(function(err){ showToast('error','Kirim gambar gagal',String(err)); });
+  });
+  document.getElementById('btnModalSendFile').addEventListener('click', function(e){
+    e.preventDefault();
+    var phones = parsePhones(document.getElementById('filPhonesModal').value).map(function(p){ return jid(p); });
+    var cap = document.getElementById('filCaptionModal').value;
+    var fwd = document.getElementById('filForwardedModal').checked;
+    var fileEl = document.getElementById('filFileModal');
+    var file = (fileEl && fileEl.files && fileEl.files[0]) ? fileEl.files[0] : null;
+    if (!phones.length){ showToast('error','No number',''); return; }
+    var seq = Promise.resolve();
+    phones.forEach(function(ph){
+      var ms = phones.length > 1 ? randomDelayMs() : 0;
+      seq = seq.then(function(){
+        if (ms > 0){ showToast('info','Menunggu', String(ms/1000)+' detik', 900); return sleep(ms); }
+      }).then(function(){
+        var fd = new FormData();
+        fd.append('phone', ph);
+        fd.append('caption', cap || '');
+        fd.append('is_forwarded', fwd ? 'true' : 'false');
+        if (file) { fd.append('file', file, file.name || 'file'); }
+        return call('POST','/send/file', fd, true).then(function(r){ show(r,'Kirim file'); });
+      });
+    });
+    seq.catch(function(err){ showToast('error','Kirim file gagal',String(err)); });
+  });
+  call('GET','/app/devices').then(function(r){ renderDeviceList(r); }).catch(function(err){ showToast('error', 'Devices gagal', String(err)); });
+})();
+</script>
+{% endblock %}

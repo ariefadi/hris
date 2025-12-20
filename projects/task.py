@@ -7,9 +7,69 @@ from django.views.decorators.csrf import csrf_exempt
 from projects.database import data_mysql
 from datetime import datetime
 from hris.mail import send_mail, Mail
+from hris.wa import send_whatsapp_message
 import re
 import random
 import requests
+
+def send_mail_notification(to, subject, body=None):
+    try:
+        if not to:
+            return False
+        return bool(send_mail(to=to, subject=subject, template='emails/simple.html', body=body, context={'body': body, 'subject': subject, 'brand_name': 'Trend Horizone'}))
+    except Exception:
+        return False
+
+def send_whatsapp_notification(recipients, message):
+    try:
+        if not recipients:
+            return False
+        emails = [str(v or '').strip().lower() for v in recipients if v]
+        emails = list(dict.fromkeys(emails))
+        if not emails:
+            return False
+        db = data_mysql()
+        placeholders = ','.join(['%s'] * len(emails))
+        sql = f"SELECT user_mail, user_telp FROM app_users WHERE LOWER(user_mail) IN ({placeholders})"
+        if not db.execute_query(sql, tuple(emails)):
+            return False
+        rows = db.cur_hris.fetchall() or []
+        phones = []
+        for r in rows:
+            try:
+                telp = r.get('user_telp')
+            except AttributeError:
+                try:
+                    telp = r[1]
+                except Exception:
+                    telp = None
+            s = str(telp or '').strip()
+            if not s:
+                continue
+            s = re.sub(r'\D+', '', s)
+            if not s:
+                continue
+            if s.startswith('0'):
+                s = '62' + s[1:]
+            elif s.startswith('62'):
+                s = s
+            elif s.startswith('8'):
+                s = '62' + s
+            elif s.startswith('620'):
+                s = '62' + s[3:]
+            phones.append(s)
+        phones = list(dict.fromkeys([p for p in phones if p]))
+        if not phones:
+            return False
+        msg = str(message or '')
+        msg = re.sub(r'(?i)<br\s*/?>', '\n', msg)
+        msg = re.sub(r'<[^>]+>', '', msg)
+        msg = msg.strip()
+        if not msg:
+            return False
+        return bool(send_whatsapp_message(to=phones, message=msg, is_forwarded=False, delay_min_ms=1000, delay_max_ms=5000))
+    except Exception:
+        return False
 
 class DraftIndexView(View):
     def get(self, request):
@@ -109,10 +169,6 @@ class DraftCreateView(View):
             admin.get('user_id', ''),
             admin.get('user_alias', ''),
         )
-        # if not domain_ids:
-        #     if is_ajax:
-        #         return JsonResponse({'status': False, 'message': 'Domain wajib dipilih.'}, status=400)
-        #     return redirect('/projects/task/draft')
 
         if db.execute_query(sql, params):
             db.commit()
@@ -298,6 +354,9 @@ class DraftEditView(View):
                     (process_id, partner_id, flow_id, flow_revisi_id, process_st, action_st, catatan, mdb, mdb_name, mdd)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
                 """
+                recipients = request.POST.getlist('recipients[]') or request.POST.getlist('recipients') or []
+                catatan_text = ", ".join([v for v in recipients if v]) if recipients else ""
+                catatan_val = f"Assigned to: {catatan_text}" if catatan_text else None
                 params_proc = (
                     process_id,
                     partner_id,
@@ -305,12 +364,52 @@ class DraftEditView(View):
                     None,
                     'waiting',
                     'process',
-                    None,
+                    catatan_val,
                     admin_id,
                     admin_alias,
                 )
                 db.execute_query(sql_proc, params_proc)
                 db.commit()
+                notify_email_raw = (request.POST.get('notify_email') or '').strip().lower()
+                notify_whatsapp_raw = (request.POST.get('notify_whatsapp') or '').strip().lower()
+                notify_email = notify_email_raw in ['1', 'true', 'yes', 'on', 'checked', 'y']
+                notify_whatsapp = notify_whatsapp_raw in ['1', 'true', 'yes', 'on', 'checked', 'y']
+                subdomains = []
+                try:
+                    sql_sub = """
+                        SELECT DISTINCT CONCAT(s.subdomain, '.', d.domain) AS website_name
+                        FROM data_media_partner_domain pd
+                        JOIN data_domains d ON d.domain_id = pd.domain_id
+                        LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
+                        WHERE pd.partner_id = %s AND s.subdomain_id IS NOT NULL
+                    """
+                    if db.execute_query(sql_sub, (partner_id,)):
+                        for rr in (db.cur_hris.fetchall() or []):
+                            try:
+                                nm = rr.get('website_name')
+                            except AttributeError:
+                                nm = rr[0]
+                            if nm:
+                                subdomains.append(str(nm))
+                except Exception:
+                    subdomains = []
+                sub_text = "<br>".join(subdomains) if subdomains else "-"
+                subject = "Task untuk setting server"
+                body = f"Task untuk setting server: <br>{sub_text}<p>Tolong setting untuk server, Cloudflare, dan WordPress beserta plugin-nya.</p>"
+                if notify_email and recipients:
+                    try:
+                        send_mail_notification(
+                            list(dict.fromkeys([v for v in recipients if v])),
+                            subject,
+                            body
+                        )
+                    except Exception:
+                        pass
+                if notify_whatsapp and recipients:
+                    try:
+                        send_whatsapp_notification(list(dict.fromkeys([v for v in recipients if v])), body)
+                    except Exception:
+                        pass
             if is_ajax:
                 if update_action == 'send':
                     res = {'status': True, 'message': 'Berhasil diupdate dan dikirim.'}
@@ -352,10 +451,11 @@ class MonitoringIndexView(View):
                    mp.partner_contact,
                    mp.request_date,
                    mp.pic,
-                   df.task_name
+                   df.task_name,
+                   latest.catatan
             FROM data_media_partner mp
             LEFT JOIN (
-                SELECT p.partner_id, p.flow_id, p.mdd
+                SELECT p.partner_id, p.flow_id, p.mdd, p.catatan
                 FROM data_media_process p
                 JOIN (
                     SELECT partner_id, MAX(COALESCE(mdd, '0000-00-00 00:00:00')) AS max_mdd
@@ -364,8 +464,8 @@ class MonitoringIndexView(View):
                 ) t ON t.partner_id = p.partner_id AND COALESCE(p.mdd, '0000-00-00 00:00:00') = t.max_mdd
                 WHERE p.process_st = 'waiting'
             ) latest ON latest.partner_id = mp.partner_id
-            WHERE mp.status = 'waiting'
             LEFT JOIN data_flow df ON df.flow_id = latest.flow_id
+            WHERE mp.status = 'waiting'
             ORDER BY COALESCE(mp.mdd, mp.request_date) DESC
         """
         items = []
@@ -559,6 +659,11 @@ class TechnicalSendView(View):
         admin = request.session.get('hris_admin', {})
         partner_id = (request.POST.get('partner_id') or '').strip()
         process_id_cur = (request.POST.get('process_id') or '').strip()
+        recipients = request.POST.getlist('recipients[]') or request.POST.getlist('recipients') or []
+        notify_email_raw = (request.POST.get('notify_email') or '').strip().lower()
+        notify_whatsapp_raw = (request.POST.get('notify_whatsapp') or '').strip().lower()
+        notify_email = notify_email_raw in ['1', 'true', 'yes', 'on', 'checked', 'y']
+        notify_whatsapp = notify_whatsapp_raw in ['1', 'true', 'yes', 'on', 'checked', 'y']
         if not partner_id:
             return JsonResponse({'status': False, 'message': 'Partner wajib diisi.'}, status=400)
         if not process_id_cur:
@@ -598,6 +703,8 @@ class TechnicalSendView(View):
             (process_id, partner_id, flow_id, flow_revisi_id, process_st, action_st, catatan, mdb, mdb_name, mdd)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
         """
+        catatan_text = ", ".join([v for v in recipients if v]) if recipients else ""
+        catatan_val = f"Assigned to: {catatan_text}" if catatan_text else None
         params_proc = (
             process_id,
             partner_id,
@@ -605,13 +712,107 @@ class TechnicalSendView(View):
             None,
             'waiting',
             'process',
-            None,
+            catatan_val,
             admin_id,
             admin_alias,
         )
         if not db.execute_query(sql_proc, params_proc):
             return JsonResponse({'status': False, 'message': 'Gagal mengirim data ke proses berikutnya.'}, status=500)
         db.commit()
+        domains = []
+        try:
+            sql_dom = """
+                SELECT DISTINCT d.domain
+                FROM data_media_partner_domain pd
+                JOIN data_domains d ON d.domain_id = pd.domain_id
+                WHERE pd.partner_id = %s
+                ORDER BY d.domain ASC
+            """
+            if db.execute_query(sql_dom, (partner_id,)):
+                for rr in (db.cur_hris.fetchall() or []):
+                    try:
+                        nm = rr.get('domain')
+                    except AttributeError:
+                        nm = rr[0]
+                    if nm:
+                        domains.append(str(nm))
+        except Exception:
+            domains = []
+        websites = []
+        try:
+            sql_web = """
+                SELECT DISTINCT w.website, w.website_user, w.website_pass
+                FROM data_media_partner_domain pd
+                JOIN data_domains d ON d.domain_id = pd.domain_id
+                LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
+                LEFT JOIN data_website w ON w.website_id = s.website_id
+                WHERE pd.partner_id = %s AND s.subdomain_id IS NOT NULL
+            """
+            if db.execute_query(sql_web, (partner_id,)):
+                for rr in (db.cur_hris.fetchall() or []):
+                    if isinstance(rr, dict):
+                        wsite = rr.get('website') or ''
+                        wuser = rr.get('website_user') or ''
+                        wpass = rr.get('website_pass') or ''
+                    else:
+                        wsite = rr[0] or ''
+                        wuser = rr[1] or ''
+                        wpass = rr[2] or ''
+                    if wsite or wuser or wpass:
+                        websites.append({'website': str(wsite), 'user': str(wuser), 'pass': str(wpass)})
+        except Exception:
+            websites = []
+        deadline_text = '-'
+        try:
+            sql_dead = """
+                SELECT wn.deadline
+                FROM data_media_partner_domain pd
+                JOIN data_domains d ON d.domain_id = pd.domain_id
+                LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
+                LEFT JOIN data_website_niece wn ON wn.subdomain_id = s.subdomain_id
+                WHERE pd.partner_id = %s AND s.subdomain_id IS NOT NULL AND wn.deadline IS NOT NULL
+                ORDER BY wn.deadline ASC
+                LIMIT 1
+            """
+            if db.execute_query(sql_dead, (partner_id,)):
+                rr = db.cur_hris.fetchone() or {}
+                try:
+                    dd = rr.get('deadline')
+                except AttributeError:
+                    dd = rr[0] if isinstance(rr, (list, tuple)) and len(rr) > 0 else None
+                if dd:
+                    try:
+                        deadline_text = dd.strftime('%Y-%m-%d %H:%M:%S')
+                    except Exception:
+                        deadline_text = str(dd)
+        except Exception:
+            deadline_text = '-'
+        dom_text = ", ".join(domains) if domains else "-"
+        login_lines = []
+        for w in websites:
+            line = f"{w.get('website','')}"
+            if w.get('user'):
+                line += f", user:  {w.get('user')}"
+            if w.get('pass'):
+                line += f", pass: {w.get('pass')}"
+            login_lines.append(line.strip())
+        login_text = "<br>".join(login_lines) if login_lines else "-"
+        subject = "Task untuk update artikel"
+        body = f"Task untuk update artikel: {dom_text}<br>Login URL: <br>{login_text}<br>Keyword Link: <a href=\"\">Keyword</a><br>Deadline: {deadline_text}"
+        if notify_email and recipients:
+            try:
+                send_mail_notification(
+                    list(dict.fromkeys([v for v in recipients if v])),
+                    subject,
+                    body
+                )
+            except Exception:
+                pass
+        if notify_whatsapp and recipients:
+            try:
+                send_whatsapp_notification(list(dict.fromkeys([v for v in recipients if v])), body)
+            except Exception:
+                pass
         return JsonResponse({'status': True, 'process_id': process_id})
 
 class PublisherIndexView(View):
@@ -628,9 +829,9 @@ class PublisherIndexView(View):
                    CONCAT(s.subdomain, '.', d.domain) AS subdomain_name,
                    MAX(n.niece) AS niece,
                    (
-                     SELECT COUNT(*)
+                     SELECT COUNT(DISTINCT web_niece_id)
                      FROM data_website_niece w2
-                     WHERE w2.niece_id = MAX(wn.niece_id)
+                     WHERE w2.subdomain_id = MAX(s.subdomain_id)
                    ) AS keyword_total
             FROM data_media_partner mp
             INNER JOIN (
@@ -679,9 +880,12 @@ class PublisherIndexView(View):
                 groups_by_partner[pid] = g
             g['rows'].append(r)
         groups = []
+        cum = 0
         for pid, g in groups_by_partner.items():
             g['rowspan'] = len(g['rows'])
+            g['offset'] = cum
             groups.append(g)
+            cum += len(g['rows'])
         nieces = []
         q_niece = """
             SELECT niece_id, niece
@@ -952,6 +1156,11 @@ class PublisherSendView(View):
         admin = request.session.get('hris_admin', {})
         partner_id = (request.POST.get('partner_id') or '').strip()
         process_id_cur = (request.POST.get('process_id') or '').strip()
+        recipients = request.POST.getlist('recipients[]') or request.POST.getlist('recipients') or []
+        notify_email_raw = (request.POST.get('notify_email') or '').strip().lower()
+        notify_whatsapp_raw = (request.POST.get('notify_whatsapp') or '').strip().lower()
+        notify_email = notify_email_raw in ['1', 'true', 'yes', 'on', 'checked', 'y']
+        notify_whatsapp = notify_whatsapp_raw in ['1', 'true', 'yes', 'on', 'checked', 'y']
         if not partner_id:
             return JsonResponse({'status': False, 'message': 'Partner wajib diisi.'}, status=400)
         if not process_id_cur:
@@ -1015,6 +1224,8 @@ class PublisherSendView(View):
             (process_id, partner_id, flow_id, flow_revisi_id, process_st, action_st, catatan, mdb, mdb_name, mdd)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
         """
+        catatan_text = ", ".join([v for v in recipients if v]) if recipients else ""
+        catatan_val = f"Assigned to: {catatan_text}" if catatan_text else None
         params_proc = (
             process_id,
             partner_id,
@@ -1022,13 +1233,50 @@ class PublisherSendView(View):
             None,
             'waiting',
             'process',
-            None,
+            catatan_val,
             admin_id,
             admin_alias,
         )
         if not db.execute_query(sql_proc, params_proc):
             return JsonResponse({'status': False, 'message': 'Gagal mengirim data ke proses berikutnya.'}, status=500)
         db.commit()
+        subdomains = []
+        try:
+            sql_sub = """
+                SELECT DISTINCT CONCAT(s.subdomain, '.', d.domain) AS website_name
+                FROM data_media_partner_domain pd
+                JOIN data_domains d ON d.domain_id = pd.domain_id
+                LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
+                WHERE pd.partner_id = %s AND s.subdomain_id IS NOT NULL
+            """
+            if db.execute_query(sql_sub, (partner_id,)):
+                for rr in (db.cur_hris.fetchall() or []):
+                    try:
+                        nm = rr.get('website_name')
+                    except AttributeError:
+                        nm = rr[0]
+                    if nm:
+                        subdomains.append(str(nm))
+        except Exception:
+            subdomains = []
+        sub_text = "<br>".join(subdomains) if subdomains else "-"
+        subject = "Task untuk setting cloacking"
+        body = f"Task untuk setting cloacking: <br>{sub_text},<p>Tolong setting untuk cloacking dan assign ke Ads Team.</p>"
+
+        if notify_email and recipients:
+            try:
+                send_mail_notification(
+                    list(dict.fromkeys([v for v in recipients if v])),
+                    subject,
+                    body
+                )
+            except Exception:
+                pass
+        if notify_whatsapp and recipients:
+            try:
+                send_whatsapp_notification(list(dict.fromkeys([v for v in recipients if v])), body)
+            except Exception:
+                pass
         return JsonResponse({'status': True, 'process_id': process_id})
 
 class TrackerIndexView(View):
@@ -1120,15 +1368,17 @@ class SelesaiIndexView(View):
                 w.website_pass AS website_pass,
                 (SELECT COUNT(*) FROM data_website_niece k WHERE k.subdomain_id = s.subdomain_id) AS keyword_count,
                 MAX(a.account_name) AS fb_account,
+                MAX(b.fanpage) AS fb_fanpage,
+                MAX(b.daily_budget) AS fb_daily_budget,
                 CONCAT_WS(', ',
                     CASE WHEN EXISTS (
                         SELECT 1 FROM master_negara mn
-                        WHERE FIND_IN_SET(mn.negara_nm, s.fb_country)
+                        WHERE FIND_IN_SET(mn.negara_nm, MAX(b.country))
                           AND REPLACE(CAST(mn.tier AS CHAR), 'Tier ', '') = '1'
                     ) THEN 'Tier 1' END,
                     CASE WHEN EXISTS (
                         SELECT 1 FROM master_negara mn2
-                        WHERE FIND_IN_SET(mn2.negara_nm, s.fb_country)
+                        WHERE FIND_IN_SET(mn2.negara_nm, MAX(b.country))
                           AND REPLACE(CAST(mn2.tier AS CHAR), 'Tier ', '') = '2'
                     ) THEN 'Tier 2' END
                 ) AS country_tier,
@@ -1140,7 +1390,8 @@ class SelesaiIndexView(View):
             INNER JOIN data_media_partner dmp ON dmpd.partner_id = dmp.partner_id
             LEFT JOIN data_website_niece wn ON wn.subdomain_id = s.subdomain_id
             LEFT JOIN data_niece n ON n.niece_id = wn.niece_id
-            LEFT JOIN master_account_ads a ON a.account_ads_id = COALESCE(NULLIF(s.fb_ads_id_2, ''), s.fb_ads_id_1)
+            LEFT JOIN data_media_fb_ads b ON b.subdomain_id = s.subdomain_id
+            LEFT JOIN master_account_ads a ON a.account_ads_id = COALESCE(NULLIF(b.account_ads_id_2, ''), b.account_ads_id_1)
             LEFT JOIN data_servers ds ON s.public_ipv4 = ds.public_ipv4
             WHERE s.subdomain_id IS NOT NULL AND dmp.status = 'completed'
             GROUP BY s.subdomain_id
@@ -1192,6 +1443,11 @@ class TrackerSendView(View):
         admin = request.session.get('hris_admin', {})
         partner_id = (request.POST.get('partner_id') or '').strip()
         process_id_cur = (request.POST.get('process_id') or '').strip()
+        recipients = request.POST.getlist('recipients[]') or request.POST.getlist('recipients') or []
+        notify_email_raw = (request.POST.get('notify_email') or '').strip().lower()
+        notify_whatsapp_raw = (request.POST.get('notify_whatsapp') or '').strip().lower()
+        notify_email = notify_email_raw in ['1', 'true', 'yes', 'on', 'checked', 'y']
+        notify_whatsapp = notify_whatsapp_raw in ['1', 'true', 'yes', 'on', 'checked', 'y']
         if not partner_id:
             return JsonResponse({'status': False, 'message': 'Partner wajib diisi.'}, status=400)
         if not process_id_cur:
@@ -1231,6 +1487,8 @@ class TrackerSendView(View):
             (process_id, partner_id, flow_id, flow_revisi_id, process_st, action_st, catatan, mdb, mdb_name, mdd)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
         """
+        catatan_text = ", ".join([v for v in recipients if v]) if recipients else ""
+        catatan_val = f"Assigned to: {catatan_text}" if catatan_text else None
         params_proc = (
             process_id,
             partner_id,
@@ -1238,13 +1496,61 @@ class TrackerSendView(View):
             None,
             'waiting',
             'process',
-            None,
+            catatan_val,
             admin_id,
             admin_alias,
         )
         if not db.execute_query(sql_proc, params_proc):
             return JsonResponse({'status': False, 'message': 'Gagal mengirim data ke proses berikutnya.'}, status=500)
         db.commit()
+        subdomains = []
+        trackers = []
+        params_list = []
+        try:
+            sql_info = """
+                SELECT CONCAT(s.subdomain, '.', d.domain) AS website_name, s.tracker, s.tracker_params
+                FROM data_media_partner_domain pd
+                JOIN data_domains d ON d.domain_id = pd.domain_id
+                LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
+                WHERE pd.partner_id = %s AND s.subdomain_id IS NOT NULL
+            """
+            if db.execute_query(sql_info, (partner_id,)):
+                for rr in (db.cur_hris.fetchall() or []):
+                    if isinstance(rr, dict):
+                        nm = rr.get('website_name')
+                        tr = rr.get('tracker')
+                        tp = rr.get('tracker_params')
+                    else:
+                        nm = rr[0]
+                        tr = rr[1]
+                        tp = rr[2]
+                    if nm:
+                        subdomains.append(str(nm))
+                    if tr:
+                        trackers.append(str(tr))
+                    if tp:
+                        params_list.append(str(tp))
+        except Exception:
+            pass
+        subs_text = "<br>".join(subdomains) if subdomains else "-"
+        trackers_text = "<br>".join(trackers) if trackers else "-"
+        params_text = "<br>".join(params_list) if params_list else "-"
+        subject = "Task iklan untuk domain"
+        body = f"Task iklan untuk domain:<br>{subs_text}<p>Domain berikut sudah siap untuk diiklankan, silahkan diproses.<p>URL Iklan: <br>{trackers_text}<br>Parameter: <br>{params_text}"
+        if notify_email and recipients:
+            try:
+                send_mail_notification(
+                    list(dict.fromkeys([v for v in recipients if v])),
+                    subject,
+                    body
+                )
+            except Exception:
+                pass
+        if notify_whatsapp and recipients:
+            try:
+                send_whatsapp_notification(list(dict.fromkeys([v for v in recipients if v])), body)
+            except Exception:
+                pass
         return JsonResponse({'status': True, 'process_id': process_id})
 
 class PluginIndexView(View):
@@ -1421,12 +1727,11 @@ class AdsIndexView(View):
                    pr.process_id,
                    s.subdomain_id,
                    CONCAT(s.subdomain, '.', d.domain) AS subdomain_name,
-                   s.fb_ads_id_1,
-                   s.fb_fanpage,
-                   s.fb_interest,
-                   s.fb_country,
-                   s.fb_daily_budget,
-                   s.fb_avg_cpc,
+                   b.account_ads_id_1,
+                   b.fanpage,
+                   b.interest,
+                   b.country,
+                   b.daily_budget,
                    s.tracker,
                    s.tracker_params
             FROM data_media_partner mp
@@ -1439,6 +1744,7 @@ class AdsIndexView(View):
             INNER JOIN data_media_partner_domain pd ON pd.partner_id = mp.partner_id
             INNER JOIN data_domains d ON d.domain_id = pd.domain_id
             LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
+            LEFT JOIN data_media_fb_ads b ON b.subdomain_id = s.subdomain_id
             WHERE mp.status = 'waiting'
               AND pr.mdd = (
                   SELECT MAX(COALESCE(mdd, '0000-00-00 00:00:00'))
@@ -1446,7 +1752,7 @@ class AdsIndexView(View):
                   WHERE partner_id = mp.partner_id AND flow_id = %s AND process_st = 'waiting'
               )
               AND s.subdomain_id IS NOT NULL
-            GROUP BY mp.partner_id, pr.process_id, s.subdomain_id, s.subdomain, d.domain, s.fb_ads_id_1, s.fb_fanpage, s.fb_interest, s.fb_country, s.fb_daily_budget, s.fb_avg_cpc, s.tracker, s.tracker_params
+            GROUP BY mp.partner_id, pr.process_id, s.subdomain_id, s.subdomain, d.domain, b.account_ads_id_1, b.fanpage, b.interest, b.country, b.daily_budget, s.tracker, s.tracker_params
             ORDER BY d.domain ASC
         """
         rows = []
@@ -1474,9 +1780,12 @@ class AdsIndexView(View):
                 groups_by_partner[pid] = g
             g['rows'].append(r)
         groups = []
+        cum = 0
         for pid, g in groups_by_partner.items():
             g['rowspan'] = len(g['rows'])
+            g['offset'] = cum
             groups.append(g)
+            cum += len(g['rows'])
         accounts = []
         if db.execute_query("SELECT account_ads_id, account_name FROM master_account_ads ORDER BY account_name ASC"):
             accounts = db.cur_hris.fetchall() or []
@@ -1550,41 +1859,40 @@ class AdsUpdateView(View):
         if 'hris_admin' not in request.session:
             return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
         db = data_mysql()
+        admin = request.session.get('hris_admin', {})
         subdomain_id_raw = (request.POST.get('subdomain_id') or '').strip()
-        fb_ads_id_1 = (request.POST.get('fb_ads_id_1') or '').strip()
-        fb_fanpage = (request.POST.get('fb_fanpage') or '').strip()
-        fb_interest = (request.POST.get('fb_interest') or '').strip()
-        fb_country_vals = request.POST.getlist('fb_country[]') or request.POST.getlist('fb_country') or []
-        fb_daily_budget_raw = (request.POST.get('fb_daily_budget') or '').strip()
-        fb_avg_cpc_raw = (request.POST.get('fb_avg_cpc') or '').strip()
+        account_ads_id_1 = (request.POST.get('account_ads_id_1') or '').strip()
+        fanpage = (request.POST.get('fanpage') or '').strip()
+        interest = (request.POST.get('interest') or '').strip()
+        country_vals = request.POST.getlist('country[]') or request.POST.getlist('country') or []
+        daily_budget_raw = (request.POST.get('daily_budget') or '').strip()
+        mdb = str(admin.get('user_id', ''))[:36]
+        mdb_name = admin.get('user_alias', '')
         try:
             subdomain_id = int(subdomain_id_raw)
         except Exception:
             subdomain_id = None
         try:
-            fb_daily_budget = float(fb_daily_budget_raw) if fb_daily_budget_raw else None
+            daily_budget = float(daily_budget_raw) if daily_budget_raw else None
         except Exception:
-            fb_daily_budget = None
-        try:
-            fb_avg_cpc = float(fb_avg_cpc_raw) if fb_avg_cpc_raw else None
-        except Exception:
-            fb_avg_cpc = None
+            daily_budget = None
         if not subdomain_id:
             return JsonResponse({'status': False, 'message': 'Subdomain wajib diisi.'}, status=400)
         countries_text = None
-        if fb_country_vals:
-            items = [str(v).strip() for v in fb_country_vals if str(v).strip()]
+        if country_vals:
+            items = [str(v).strip() for v in country_vals if str(v).strip()]
             countries_text = ",".join(items) if items else None
         dup_name = None
-        if fb_fanpage:
+        if fanpage:
             sql_dup = """
             SELECT CONCAT(s.subdomain, '.', d.domain) AS subdomain_name
-            FROM data_subdomain s
+            FROM data_media_fb_ads b
+            INNER JOIN data_subdomain s ON s.subdomain_id = b.subdomain_id
             INNER JOIN data_domains d ON d.domain_id = s.domain_id
-            WHERE s.fb_fanpage = %s AND s.subdomain_id <> %s
+            WHERE b.fanpage = %s AND b.subdomain_id <> %s
             LIMIT 1
             """
-            if db.execute_query(sql_dup, (fb_fanpage, subdomain_id)):
+            if db.execute_query(sql_dup, (fanpage, subdomain_id)):
                 rr = db.cur_hris.fetchone() or {}
                 try:
                     dup_name = rr.get('subdomain_name')
@@ -1595,14 +1903,45 @@ class AdsUpdateView(View):
                         dup_name = None
         if dup_name:
             return JsonResponse({'status': False, 'message': 'Fanpage telah digunakan untuk subdomain ' + str(dup_name or '')}, status=400)
-        ok = db.execute_query(
-            """
-            UPDATE data_subdomain
-            SET fb_ads_id_1=%s, fb_fanpage=%s, fb_interest=%s, fb_country=%s, fb_daily_budget=%s, fb_avg_cpc=%s, mdd=NOW()
-            WHERE subdomain_id=%s
-            """,
-            (fb_ads_id_1 or None, fb_fanpage or None, fb_interest or None, countries_text, fb_daily_budget, fb_avg_cpc, subdomain_id)
-        )
+        exists = False
+        if db.execute_query("SELECT ads_id FROM data_media_fb_ads WHERE subdomain_id=%s LIMIT 1", (subdomain_id,)):
+            row = db.cur_hris.fetchone() or {}
+            try:
+                exists = bool(row.get('ads_id'))
+            except AttributeError:
+                try:
+                    exists = row[0] is not None
+                except Exception:
+                    exists = False
+        ok = False
+        if exists:
+            ok = db.execute_query(
+                """
+                UPDATE data_media_fb_ads
+                SET account_ads_id_1=%s, fanpage=%s, interest=%s, country=%s, daily_budget=%s, mdb=%s, mdb_name=%s, mdd=NOW()
+                WHERE subdomain_id=%s
+                """,
+                (account_ads_id_1 or None, fanpage or None, interest or None, countries_text, daily_budget, mdb, mdb_name, subdomain_id)
+            )
+        else:
+            domain_id = None
+            if db.execute_query("SELECT domain_id FROM data_subdomain WHERE subdomain_id=%s LIMIT 1", (subdomain_id,)):
+                rr = db.cur_hris.fetchone() or {}
+                try:
+                    domain_id = rr.get('domain_id')
+                except AttributeError:
+                    try:
+                        domain_id = rr[0]
+                    except Exception:
+                        domain_id = None
+            ok = db.execute_query(
+                """
+                INSERT INTO data_media_fb_ads
+                (domain_id, subdomain_id, account_ads_id_1, fanpage, interest, country, daily_budget, mdb, mdb_name, mdd)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                """,
+                (domain_id, subdomain_id, account_ads_id_1 or None, fanpage or None, interest or None, countries_text, daily_budget, mdb, mdb_name)
+            )
         if not ok:
             return JsonResponse({'status': False, 'message': 'Gagal memperbarui Ads.'}, status=500)
         db.commit()
@@ -1617,6 +1956,11 @@ class AdsSendView(View):
         admin = request.session.get('hris_admin', {})
         partner_id = (request.POST.get('partner_id') or '').strip()
         process_id_cur = (request.POST.get('process_id') or '').strip()
+        recipients = request.POST.getlist('recipients[]') or request.POST.getlist('recipients') or []
+        notify_email_raw = (request.POST.get('notify_email') or '').strip().lower()
+        notify_email = notify_email_raw in ['1', 'true', 'yes', 'on', 'checked', 'y']
+        notify_whatsapp_raw = (request.POST.get('notify_whatsapp') or '').strip().lower()
+        notify_whatsapp = notify_whatsapp_raw in ['1', 'true', 'yes', 'on', 'checked', 'y']
         if not partner_id:
             return JsonResponse({'status': False, 'message': 'Partner wajib diisi.'}, status=400)
         if not process_id_cur:
@@ -1638,14 +1982,15 @@ class AdsSendView(View):
         # Validate required fields for all subdomains under this partner
         sql_chk = """
             SELECT CONCAT(s.subdomain, '.', d.domain) AS subdomain_name,
-                   s.fb_ads_id_1,
-                   s.fb_interest,
-                   s.fb_country,
-                   s.fb_daily_budget
+                   b.account_ads_id_1,
+                   b.interest,
+                   b.country,
+                   b.daily_budget
             FROM data_media_partner mp
             INNER JOIN data_media_partner_domain pd ON pd.partner_id = mp.partner_id
             INNER JOIN data_domains d ON d.domain_id = pd.domain_id
             LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
+            LEFT JOIN data_media_fb_ads b ON b.subdomain_id = s.subdomain_id
             WHERE mp.partner_id = %s AND s.subdomain_id IS NOT NULL
             ORDER BY d.domain ASC
         """
@@ -1654,10 +1999,10 @@ class AdsSendView(View):
             for r in (db.cur_hris.fetchall() or []):
                 try:
                     nm = r.get('subdomain_name') if isinstance(r, dict) else r[0]
-                    acc = r.get('fb_ads_id_1') if isinstance(r, dict) else r[1]
-                    intr = r.get('fb_interest') if isinstance(r, dict) else r[2]
-                    ctr = r.get('fb_country') if isinstance(r, dict) else r[3]
-                    bud = r.get('fb_daily_budget') if isinstance(r, dict) else r[4]
+                    acc = r.get('account_ads_id_1') if isinstance(r, dict) else r[1]
+                    intr = r.get('interest') if isinstance(r, dict) else r[2]
+                    ctr = r.get('country') if isinstance(r, dict) else r[3]
+                    bud = r.get('daily_budget') if isinstance(r, dict) else r[4]
                 except Exception:
                     nm = None; acc = None; intr = None; ctr = None; bud = None
                 missing = []
@@ -1689,6 +2034,70 @@ class AdsSendView(View):
         if not ok_partner:
             return JsonResponse({'status': False, 'message': 'Gagal memperbarui status partner.'}, status=500)
         db.commit()
+        try:
+            def fmt_idr(v):
+                try:
+                    n = float(v)
+                except Exception:
+                    return str(v or '')
+                s = '{:,.0f}'.format(n).replace(',', '.')
+                return 'Rp ' + s
+            sql_info = """
+                SELECT CONCAT(s.subdomain, '.', d.domain) AS subdomain_name,
+                       b.country,
+                       b.daily_budget,
+                       b.account_ads_id_1,
+                       m.account_name,
+                       b.fanpage
+                FROM data_media_partner mp
+                INNER JOIN data_media_partner_domain pd ON pd.partner_id = mp.partner_id
+                INNER JOIN data_domains d ON d.domain_id = pd.domain_id
+                LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
+                LEFT JOIN data_media_fb_ads b ON b.subdomain_id = s.subdomain_id
+                LEFT JOIN master_account_ads m ON m.account_ads_id = b.account_ads_id_1
+                WHERE mp.partner_id = %s AND s.subdomain_id IS NOT NULL
+                ORDER BY d.domain ASC
+            """
+            subdomains = []
+            blocks = []
+            if db.execute_query(sql_info, (partner_id,)):
+                for r in (db.cur_hris.fetchall() or []):
+                    try:
+                        nm = r.get('subdomain_name') if isinstance(r, dict) else r[0]
+                        ctr = r.get('country') if isinstance(r, dict) else r[1]
+                        bud = r.get('daily_budget') if isinstance(r, dict) else r[2]
+                        acc_name = r.get('account_name') if isinstance(r, dict) else (r[4] if len(r) > 4 else None)
+                        fanpage = r.get('fanpage') if isinstance(r, dict) else (r[5] if len(r) > 5 else None)
+                    except Exception:
+                        nm = None; ctr = None; bud = None; acc_name = None; fanpage = None
+                    if nm: subdomains.append(str(nm))
+                    var_nm = str(nm or '-')
+                    var_bud = fmt_idr(bud)
+                    var_ctr = str(ctr or '')
+                    var_acc = str(acc_name or '')
+                    var_fp = str(fanpage or '')
+                    blocks.append(
+                        var_nm + "<br>" +
+                        "Budget: " + var_bud + "<br>" +
+                        "Target Negara: " + var_ctr + "<br>" +
+                        "Akun FB: " + var_acc + "<br>" +
+                        "Fanpage: " + var_fp
+                    )
+            subj_domains = ", ".join(subdomains) if subdomains else ""
+            subject = ("Domain " + subj_domains + " iklan sudah ditayangkan") if subj_domains else "Iklan sudah ditayangkan"
+            body = "Iklan sudah ditayangkan untuk domain berikut: <br>" + (("<br><br>".join(blocks)) if blocks else "-")
+            if notify_email and recipients:
+                try:
+                    send_mail_notification(list(dict.fromkeys([v for v in recipients if v])), subject, body)
+                except Exception:
+                    pass
+            if notify_whatsapp and recipients:
+                try:
+                    send_whatsapp_notification(list(dict.fromkeys([v for v in recipients if v])), body)
+                except Exception:
+                    pass
+        except Exception:
+            pass
         return JsonResponse({'status': True})
 
 class TechnicalServerLookupView(View):

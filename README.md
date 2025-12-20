@@ -220,3 +220,104 @@ Konfigurasi diambil otomatis dari `.env` (atau `settings`) menggunakan `python-d
 - `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`
 
 Jika menggunakan template, pastikan direktori template telah diset di `hris/settings.py` sesuai panduan `TEMPLATE_SETTINGS_UPDATE.md`.
+
+## WA Gateway Utility
+
+Kirim pesan WhatsApp via gateway dengan antarmuka yang sederhana.
+
+### Konfigurasi di `.env`
+```env
+# WA Gateway base URL
+WHATSAPP_GATEWAY_URL=http://localhost:3000
+# Alternatif key yang juga didukung
+WA_GATEWAY_URL=http://localhost:3000
+```
+
+### Quick Helpers
+```python
+from hris.wa import (
+    send_whatsapp_message,
+    send_whatsapp_link,
+    send_whatsapp_image,
+    send_whatsapp_file,
+)
+
+# Kirim pesan teks ke banyak nomor, dengan delay acak 1–5 detik
+send_whatsapp_message(
+    to=["62812XXXXXXX", "62813YYYYYYY"],
+    message="Selamat datang di HRIS",
+    is_forwarded=True,
+    delay_min_ms=1000,
+    delay_max_ms=5000,
+)
+
+# Kirim link dengan caption
+send_whatsapp_link(
+    to="62812XXXXXXX",
+    url="https://example.com",
+    caption="Cek informasi berikut",
+    is_forwarded=False,
+)
+
+# Kirim gambar via URL
+send_whatsapp_image(
+    to="62812XXXXXXX",
+    image_url="https://example.com/image.png",
+    caption="Gambar produk",
+    view_once=False,
+    compress=False,
+)
+
+# Kirim gambar via file lokal
+send_whatsapp_image(
+    to="62812XXXXXXX",
+    image_path="/path/to/image.png",
+    caption="Logo perusahaan",
+    view_once=True,
+)
+
+# Kirim file dokumen
+send_whatsapp_file(
+    to="62812XXXXXXX",
+    file_path="/path/to/document.pdf",
+    caption="Dokumen terbaru",
+)
+```
+
+### Fluent Builder
+```python
+from hris.wa import WhatsApp
+
+# Pesan teks
+WhatsApp() \
+    .to(["62812XXXXXXX", "62813YYYYYYY"]) \
+    .forwarded(True) \
+    .message("Selamat datang di HRIS") \
+    .delay(1000, 5000) \
+    .send()
+
+# Link dengan caption
+WhatsApp() \
+    .to("62812XXXXXXX") \
+    .link("https://example.com", caption="Cek informasi berikut") \
+    .send()
+
+# Gambar via URL
+WhatsApp() \
+    .to("62812XXXXXXX") \
+    .image(url="https://example.com/image.png", caption="Produk terbaru", view_once=False, compress=False) \
+    .send()
+
+# Gambar via file lokal
+WhatsApp() \
+    .to("62812XXXXXXX") \
+    .image(file_path="/path/to/image.png", caption="Logo") \
+    .forwarded(True) \
+    .send()
+
+# File dokumen
+WhatsApp() \
+    .to("62812XXXXXXX") \
+    .file("/path/to/manual.pdf", caption="Manual") \
+    .send()
+```

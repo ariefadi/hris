@@ -22,9 +22,9 @@
               <tr>
                 <th width="5%">No</th>
                 <th width="20%">Nama</th>
-                <th width="15%">Kontak</th>
                 <th width="15%">Tanggal Request</th>
                 <th width="15%">PIC</th>
+                <th width="30%">Catatan</th>
                 <th width="30%">Posisi</th>
               </tr>
             </thead>
@@ -32,10 +32,10 @@
               {% for r in items %}
               <tr>
                 <td class="align-middle">{{ forloop.counter }}</td>
-                <td class="align-middle">{{ r.partner_name }}</td>
-                <td class="align-middle">{{ r.partner_contact }}</td>
+                <td class="align-middle"><u>{{ r.partner_name }}</u><br>Kontak: {{ r.partner_contact }}</td>
                 <td class="align-middle">{% if r.request_date %}{{ r.request_date|date:'Y-m-d' }}{% endif %}</td>
                 <td class="align-middle">{{ r.pic }}</td>
+                <td class="align-middle">{{ r.catatan }}</td>
                 <td class="align-middle">{{ r.task_name|default:'-' }}</td>
               </tr>
               {% empty %}

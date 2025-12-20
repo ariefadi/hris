@@ -1,8 +1,10 @@
 from django.urls import path
 from . import task
 from . import master
+from . import overview
 
 urlpatterns = [
+    path('overview', overview.OverviewView.as_view(), name='projects_overview'),
     path('task/draft', task.DraftIndexView.as_view(), name='projects_task_draft'),
     path('task/draft/create', task.DraftCreateView.as_view(), name='projects_task_draft_create'),
     path('task/draft/<str:partner_id>/edit', task.DraftEditView.as_view(), name='projects_task_draft_edit'),

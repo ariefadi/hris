@@ -35,7 +35,7 @@
               {% for g in groups %}
                 {% for r in g.rows %}
                 <tr>
-                  <td class="align-middle">{{ forloop.counter }}</td>
+                  <td class="align-middle">{{ g.offset|add:forloop.counter }}</td>
                   <td class="align-middle">{{ r.subdomain_name }}</td>
                   <td class="align-middle">
                     <button type="button" class="btn btn-xs btn-info btn-show-links" data-popover-id="popover-links-{{ r.subdomain_id }}"><i class="bi bi-eye"></i> Lihat Link</button>
@@ -50,19 +50,19 @@
                     <select class="form-control select2 sel-account" data-subdomain-id="{{ r.subdomain_id }}" data-placeholder="Pilih Account">
                       <option value=""></option>
                       {% for a in accounts %}
-                        <option value="{{ a.account_ads_id }}" {% if r.fb_ads_id_1 and r.fb_ads_id_1 == a.account_ads_id %}selected="selected"{% endif %}>{{ a.account_name }}</option>
+                        <option value="{{ a.account_ads_id }}" {% if r.account_ads_id_1 and r.account_ads_id_1 == a.account_ads_id %}selected="selected"{% endif %}>{{ a.account_name }}</option>
                       {% endfor %}
                     </select>
                     <br>
-                    <select class="form-control select2 sel-page mt-1" data-subdomain-id="{{ r.subdomain_id }}" data-placeholder="Pilih Fanpage" data-saved-fanpage="{{ r.fb_fanpage|default:'' }}">
+                    <select class="form-control select2 sel-page mt-1" data-subdomain-id="{{ r.subdomain_id }}" data-placeholder="Pilih Fanpage" data-saved-fanpage="{{ r.fanpage|default:'' }}">
                       <option value=""></option>
                     </select>
                     <div class="small text-muted sel-page-info"></div>
                     <br>
-                    <textarea class="form-control input-interest" data-subdomain-id="{{ r.subdomain_id }}" placeholder="Interest" rows="3">{{ r.fb_interest|default:'' }}</textarea>
+                    <textarea class="form-control input-interest" data-subdomain-id="{{ r.subdomain_id }}" placeholder="Interest" rows="3">{{ r.interest|default:'' }}</textarea>
                   </td>
                   <td class="align-middle">
-                    <input type="number" class="form-control input-budget" value="{{ r.fb_daily_budget|default:'' }}" data-subdomain-id="{{ r.subdomain_id }}" placeholder="Daily Budget">
+                    <input type="number" class="form-control input-budget" value="{{ r.daily_budget|default:'' }}" data-subdomain-id="{{ r.subdomain_id }}" placeholder="Daily Budget">
                     <br>
                     <div class="mb-1">
                       <button class="btn btn-xs btn-outline-primary btn-tier" data-tier="1">Tier 1</button>
@@ -71,7 +71,7 @@
                     </div>
                     <select class="form-control select2 sel-country" data-subdomain-id="{{ r.subdomain_id }}" multiple data-placeholder="Pilih Negara">
                       {% for c in countries %}
-                        <option value="{{ c.negara_nm }}" data-tier="{{ c.tier }}" {% if r.fb_country and c.negara_nm in r.fb_country %}selected="selected"{% endif %}>{{ c.negara_nm }}</option>
+                        <option value="{{ c.negara_nm }}" data-tier="{{ c.tier }}" {% if r.country and c.negara_nm in r.country %}selected="selected"{% endif %}>{{ c.negara_nm }}</option>
                       {% endfor %}
                     </select>
                   </td>
@@ -297,21 +297,19 @@
       var interest = document.querySelector('textarea.input-interest[data-subdomain-id="'+sid+'"]');
       var countriesSel = document.querySelector('select.sel-country[data-subdomain-id="'+sid+'"]');
       var budget = document.querySelector('input.input-budget[data-subdomain-id="'+sid+'"]');
-      var cpc = document.querySelector('input.input-cpc[data-subdomain-id="'+sid+'"]');
       var form = new FormData();
       form.append('subdomain_id', sid);
-      form.append('fb_ads_id_1', acc ? acc.value : '');
+      form.append('account_ads_id_1', acc ? acc.value : '');
       var fp = '';
       if (pageSel && pageSel.selectedIndex >= 0) {
         var opt = pageSel.options[pageSel.selectedIndex];
         fp = (opt && opt.text) ? opt.text.trim() : '';
       }
-      form.append('fb_fanpage', fp);
-      form.append('fb_interest', interest ? interest.value : '');
+      form.append('fanpage', fp);
+      form.append('interest', interest ? interest.value : '');
       var vals = $(countriesSel).val() || [];
-      vals.forEach(function(v){ form.append('fb_country[]', v); });
-      form.append('fb_daily_budget', budget ? budget.value : '');
-      form.append('fb_avg_cpc', cpc ? cpc.value : '');
+      vals.forEach(function(v){ form.append('country[]', v); });
+      form.append('daily_budget', budget ? budget.value : '');
       var tokenEl = document.querySelector('input[name=csrfmiddlewaretoken]');
       var csrf = tokenEl ? tokenEl.value : '';
       if (csrf) { form.append('csrfmiddlewaretoken', csrf); }
@@ -371,13 +369,124 @@
         if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: em}); } else { alert(em); }
         return;
       }
-      var confirmFn = function(doSend){ if (!doSend) return; var form = new FormData(); form.append('partner_id', pid); form.append('process_id', prc); var tokenEl = document.querySelector('input[name=csrfmiddlewaretoken]'); var csrf = tokenEl ? tokenEl.value : ''; if (csrf) { form.append('csrfmiddlewaretoken', csrf); } var headers = { 'X-Requested-With': 'XMLHttpRequest' }; if (csrf) { headers['X-CSRFToken'] = csrf; } fetch('{% url "projects_task_ads_send" %}', { method: 'POST', headers: headers, credentials: 'same-origin', body: form }).then(function(r){ return r.json(); }).then(function(resp){ var ok = resp && (resp.status === true || resp.status === 'True'); if (ok) { if (window.Swal) { Swal.fire({icon: 'success', title: 'Berhasil', text: 'Data dikirim, status partner completed', timer: 1000, showConfirmButton: false}).then(function(){ window.location.reload(); }); } else { window.location.reload(); } } else { var emsg = (resp && resp.message) ? resp.message : 'Gagal mengirim data'; var list = (resp && resp.missing) ? resp.missing.join('; ') : ''; if (list) { emsg = emsg + ': ' + list; } if (window.Swal) { Swal.fire({icon: 'error', title: 'Gagal', text: emsg}); } else { alert(emsg); } } }); };
-      if (window.Swal) {
-        Swal.fire({icon: 'question', title: 'Kirim?', text: 'Kirim data ke proses berikutnya?', showCancelButton: true, confirmButtonText: 'Ya, kirim', cancelButtonText: 'Batal'}).then(function(res){ confirmFn(res && res.isConfirmed); });
-      } else {
+      if (!window.Swal) {
         var ok = confirm('Kirim data ke proses berikutnya?');
-        confirmFn(ok);
+        if (!ok) return;
+        var form = new FormData();
+        form.append('partner_id', pid);
+        form.append('process_id', prc);
+        var tokenEl = document.querySelector('input[name=csrfmiddlewaretoken]');
+        var csrf = tokenEl ? tokenEl.value : '';
+        if (csrf) { form.append('csrfmiddlewaretoken', csrf); }
+        var headers = { 'X-Requested-With': 'XMLHttpRequest' };
+        if (csrf) { headers['X-CSRFToken'] = csrf; }
+        fetch('{% url "projects_task_ads_send" %}', { method: 'POST', headers: headers, credentials: 'same-origin', body: form })
+          .then(function(r){ return r.json(); })
+          .then(function(resp){
+            var ok = resp && (resp.status === true || resp.status === 'True');
+            if (ok) {
+              window.location.reload();
+            } else {
+              var emsg = (resp && resp.message) ? resp.message : 'Gagal mengirim data';
+              var list = (resp && resp.missing) ? resp.missing.join('; ') : '';
+              if (list) { emsg = emsg + ': ' + list; }
+              alert(emsg);
+            }
+          });
+        return;
       }
+      var html = ''+
+        '<div class="text-left">'+
+          '<label>Kirim Notifikasi Email ke:</label>'+
+          '<select id="swal_recipients" multiple class="form-control select2" style="width:100%"></select>'+
+          '<div class="form-check mt-3">'+
+            '<input class="form-check-input" type="checkbox" id="swal_notify_email" checked>'+
+            '<label class="form-check-label" for="swal_notify_email">Send Email Notification</label>'+
+          '</div>'+
+          '<div class="form-check mt-2">'+
+            '<input class="form-check-input" type="checkbox" id="swal_notify_wa" checked>'+
+            '<label class="form-check-label" for="swal_notify_wa">Send WhatsApp Notification</label>'+
+          '</div>'+
+        '</div>';
+      Swal.fire({
+        title: 'Kirim Data',
+        html: html,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Send',
+        cancelButtonText: 'Batal',
+        showLoaderOnConfirm: true,
+        allowOutsideClick: function(){ return !Swal.isLoading(); },
+        didOpen: function(){
+          var sel = $('#swal_recipients');
+          var defaults = ['triosptr@trendhorizone.id','gen@trendhorizone.id','ayiikrnwn@trendhorizone.id'];
+          defaults.forEach(function(mail){
+            var opt = $('<option>').attr('value', mail).text(mail);
+            sel.append(opt);
+          });
+          $.ajax({
+            url: '/settings/users/data/page',
+            method: 'GET',
+            success: function(resp){
+              var items = (resp && resp.data_user) ? resp.data_user : [];
+              items.forEach(function(u){
+                var mail = (u.user_mail || '').trim();
+                var alias = (u.user_alias || '').trim();
+                if (!mail) return;
+                if (defaults.indexOf(mail) >= 0) return;
+                var opt = $('<option>').attr('value', mail);
+                opt.text(alias ? (alias) : mail);
+                sel.append(opt);
+              });
+              sel.select2({ theme: 'bootstrap4', width: '100%', allowClear: true, placeholder: 'Pilih penerima', tags: true });
+              sel.val(defaults).trigger('change');
+            },
+            error: function(){
+              sel.select2({ theme: 'bootstrap4', width: '100%', allowClear: true, placeholder: 'Pilih penerima', tags: true });
+              sel.val(defaults).trigger('change');
+            }
+          });
+        },
+        preConfirm: function(){
+          var sendEmail = $('#swal_notify_email').is(':checked');
+          var sendWa = $('#swal_notify_wa').is(':checked');
+          var rec = $('#swal_recipients').val() || [];
+          if (sendEmail && rec.length === 0) {
+            Swal.showValidationMessage('Pilih minimal satu penerima untuk email');
+            return false;
+          }
+          var form = new FormData();
+          form.append('partner_id', pid);
+          form.append('process_id', prc);
+          (rec || []).forEach(function(v){ form.append('recipients[]', v); });
+          form.append('notify_email', sendEmail ? '1' : '0');
+          form.append('notify_whatsapp', sendWa ? '1' : '0');
+          var tokenEl = document.querySelector('input[name=csrfmiddlewaretoken]');
+          var csrf = tokenEl ? tokenEl.value : '';
+          if (csrf) { form.append('csrfmiddlewaretoken', csrf); }
+          var headers = { 'X-Requested-With': 'XMLHttpRequest' };
+          if (csrf) { headers['X-CSRFToken'] = csrf; }
+          return fetch('{% url "projects_task_ads_send" %}', { method: 'POST', headers: headers, credentials: 'same-origin', body: form })
+            .then(function(r){ return r.json(); })
+            .then(function(resp){
+              var ok = resp && (resp.status === true || resp.status === 'True');
+              if (!ok) {
+                var emsg = (resp && resp.message) ? resp.message : 'Gagal mengirim data';
+                var list = (resp && resp.missing) ? resp.missing.join('; ') : '';
+                if (list) { emsg = emsg + ': ' + list; }
+                throw new Error(emsg);
+              }
+            })
+            .catch(function(err){
+              Swal.showValidationMessage(err && err.message ? err.message : 'Gagal mengirim data');
+            });
+        }
+      }).then(function(res){
+        if (res && res.isConfirmed) {
+          Swal.fire({icon: 'success', title: 'Berhasil', text: 'Data dikirim, status partner completed', timer: 1000, showConfirmButton: false})
+            .then(function(){ window.location.reload(); });
+        }
+      });
     });
   });
 })();

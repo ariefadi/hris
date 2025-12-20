@@ -33,6 +33,7 @@ urlpatterns = [
     path('sistem/menu/<str:portal_id>/nav/<str:nav_id>/delete', sistem.MenuItemDeleteView.as_view(), name='menu_item_delete'),
     # Sistem / Mail Utility
     path('sistem/mail', sistem.MailIndexView.as_view(), name='sistem_mail'),
+    path('sistem/wagateway', sistem.WagatewayIndexView.as_view(), name='sistem_wagateway'),
     # Users / Data
     path('users/data', users.UsersDataView.as_view(), name='users_data'),
     path('users/data/page', users.UsersDataListView.as_view(), name='users_data_page'),
