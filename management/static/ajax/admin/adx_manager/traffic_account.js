@@ -252,7 +252,7 @@ function updateSummaryBoxes(data) {
     $("#total_revenue").text(formatCurrencyIDR(totalRevenue || 0));
 }
 
-function getSelectedTextList(selector) {
+function getSelectedTextList(selector) { 
     var $el = $(selector);
     var items = [];
     try {

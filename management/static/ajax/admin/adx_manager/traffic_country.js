@@ -310,7 +310,7 @@ $(document).ready(function () {
         });
     }
 
-    function getSelectedTextList(selector) {
+    function getSelectedTextList(selector) { 
         var $el = $(selector);
         var items = [];
         try {

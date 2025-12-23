@@ -230,7 +230,7 @@ $(document).ready(function () {
         var day = String(date.getDate()).padStart(2, '0');
         return year + '-' + month + '-' + day;
     }
-    function getSelectedTextList(selector) {
+    function getSelectedTextList(selector) { 
         var $el = $(selector);
         var items = [];
         try {
