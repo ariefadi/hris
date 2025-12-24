@@ -138,9 +138,8 @@ $().ready(function () {
         if (isUpdating) return;
         let domain = $(this).val();
         if (domain && domain.length > 0) {
-            adx_account_list(); // filter account by domain
+            adx_account_list();
         } else {
-            // restore semua account dari template
             isUpdating = true;
             $('#account_filter')
                 .html(allAccountOptions)
@@ -166,24 +165,10 @@ $().ready(function () {
             success: function (response) {
                 if (response && response.status) {
                     let $account = $('#account_filter');
-                    let currentSelected = $account.val(); // Simpan pilihan saat ini
-
+                    let suggested = (response.data || []).map(function (a) { return String(a.account_id); });
                     isUpdating = true;
-                    // 1. Kosongkan option lama
-                    $account.empty();
-                    // 2. Tambahkan option baru
-                    response.data.forEach(function (account) {
-                        let text = account.account_name || account.account_id;
-                        // Konversi ke string untuk perbandingan yang aman
-                        let accIdStr = String(account.account_id);
-                        // let isSelected = currentSelected && currentSelected.includes(accIdStr);
-                        // let option = new Option(text, accIdStr, isSelected, isSelected);
-                        let isSelected = true;
-                        let option = new Option(text, accIdStr, isSelected, isSelected);
-                        $account.append(option);
-                    });
-                    // 3. Refresh select2
-                    $account.trigger('change.select2');
+                    $account.html(allAccountOptions);
+                    $account.val(suggested).trigger('change.select2');
                     isUpdating = false;
                 }
             },
@@ -192,7 +177,6 @@ $().ready(function () {
             }
         });
     }
-
     function getSelectedTextList(selector) { 
         var $el = $(selector);
         var items = [];
@@ -300,7 +284,14 @@ $().ready(function () {
                 text: 'Export Excel',
                 className: 'btn btn-success',
                 exportOptions: { columns: ':visible' },
-                title: function () { return 'ROI Traffic Per Domain'; },
+                title: function () { 
+                    var meta = getExportMetaRoiDomain();
+                    let title = 'ROI Traffic Per Domain';
+                    if (meta.periodText) title += ' ' + meta.periodText;
+                    if (meta.accountText) title += ' ' + meta.accountText;
+                    if (meta.domainText) title += ' ' + meta.domainText;
+                    return title;
+                },
                 customize: function (xlsx) {
                     var meta = getExportMetaRoiDomain();
                     var headerRows = [meta.titleText, meta.periodText];
@@ -358,7 +349,14 @@ $().ready(function () {
                 className: 'btn btn-danger',
                 orientation: 'landscape',
                 exportOptions: { columns: ':visible' },
-                title: function () { return 'ROI Traffic Per Domain'; },
+                title: function () { 
+                    var meta = getExportMetaRoiDomain();
+                    let title = 'ROI Traffic Per Domain';
+                    if (meta.periodText) title += ' ' + meta.periodText;
+                    if (meta.accountText) title += ' ' + meta.accountText;
+                    if (meta.domainText) title += ' ' + meta.domainText;
+                    return title;
+                },
                 customize: function (doc) {
                     var meta = getExportMetaRoiDomain();
                     var inserts = [];
@@ -407,7 +405,14 @@ $().ready(function () {
                 text: 'Export CSV',
                 className: 'btn btn-primary',
                 exportOptions: { columns: ':visible' },
-                title: function () { return 'ROI Traffic Per Domain'; },
+                title: function () { 
+                    var meta = getExportMetaRoiDomain();
+                    let title = 'ROI Traffic Per Domain';
+                    if (meta.periodText) title += ' ' + meta.periodText;
+                    if (meta.accountText) title += ' ' + meta.accountText;
+                    if (meta.domainText) title += ' ' + meta.domainText;
+                    return title;
+                },
                 customize: function (csv) {
                     var meta = getExportMetaRoiDomain();
                     var out = meta.titleText + '\n' + meta.periodText;
@@ -421,7 +426,14 @@ $().ready(function () {
                 text: 'Print',
                 className: 'btn btn-warning',
                 exportOptions: { columns: ':visible' },
-                title: function () { return '<h3 style="text-align:center;margin:0">ROI Traffic Per Domain</h3>'; },
+                title: function () { 
+                    var meta = getExportMetaRoiDomain();
+                    let title = 'ROI Traffic Per Domain';
+                    if (meta.periodText) title += ' ' + meta.periodText;
+                    if (meta.accountText) title += ' ' + meta.accountText;
+                    if (meta.domainText) title += ' ' + meta.domainText;
+                    return '<h3 style="text-align:center;margin:0">' + title + '</h3>';
+                },
                 messageTop: function () {
                     var meta = getExportMetaRoiDomain();
                     var html = '<div style="text-align:center;margin-bottom:8px">' + escapeHtml(meta.periodText) + '</div>';

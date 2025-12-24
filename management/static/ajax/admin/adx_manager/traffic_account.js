@@ -128,9 +128,8 @@ $().ready(function () {
         if (isUpdating) return;
         let domain = $(this).val();
         if (domain && domain.length > 0) {
-            adx_account_list(); // filter account by domain
+            adx_account_list();
         } else {
-            // restore semua account dari template
             isUpdating = true;
             $('#account_filter')
                 .html(allAccountOptions)
@@ -156,24 +155,10 @@ $().ready(function () {
             success: function (response) {
                 if (response && response.status) {
                     let $account = $('#account_filter');
-                    let currentSelected = $account.val(); // Simpan pilihan saat ini
-
+                    let suggested = (response.data || []).map(function (a) { return String(a.account_id); });
                     isUpdating = true;
-                    // 1. Kosongkan option lama
-                    $account.empty();
-                    // 2. Tambahkan option baru
-                    response.data.forEach(function (account) {
-                        let text = account.account_name || account.account_id;
-                        // Konversi ke string untuk perbandingan yang aman
-                        let accIdStr = String(account.account_id);
-                        // let isSelected = currentSelected && currentSelected.includes(accIdStr);
-                        // let option = new Option(text, accIdStr, isSelected, isSelected);
-                        let isSelected = true;
-                        let option = new Option(text, accIdStr, isSelected, isSelected);
-                        $account.append(option);
-                    });
-                    // 3. Refresh select2
-                    $account.trigger('change.select2');
+                    $account.html(allAccountOptions);
+                    $account.val(suggested).trigger('change.select2');
                     isUpdating = false;
                 }
             },
@@ -394,7 +379,14 @@ function initializeDataTable(data) {
                 text: 'Export Excel',
                 className: 'btn btn-success',
                 exportOptions: { columns: ':visible' },
-                title: function () { return 'Traffic AdX Per Account'; },
+                title: function () { 
+                    var meta = getExportMetaTrafficAccount();
+                    let title = 'Traffic AdX Per Account';
+                    if (meta.periodText) title += ' ' + meta.periodText;
+                    if (meta.accountText) title += ' ' + meta.accountText;
+                    if (meta.domainText) title += ' ' + meta.domainText;
+                    return title;
+                },
                 customize: function (xlsx) {
                     var meta = getExportMetaTrafficAccount();
                     var headerRows = [meta.titleText, meta.periodText];
@@ -440,7 +432,14 @@ function initializeDataTable(data) {
                 text: 'Export PDF',
                 className: 'btn btn-danger',
                 exportOptions: { columns: ':visible' },
-                title: function () { return 'Traffic AdX Per Account'; },
+                title: function () { 
+                    var meta = getExportMetaTrafficAccount();
+                    let title = 'Traffic AdX Per Account';
+                    if (meta.periodText) title += ' ' + meta.periodText;
+                    if (meta.accountText) title += ' ' + meta.accountText;
+                    if (meta.domainText) title += ' ' + meta.domainText;
+                    return title;
+                },
                 customize: function (doc) {
                     var meta = getExportMetaTrafficAccount();
                     var inserts = [];
@@ -482,7 +481,14 @@ function initializeDataTable(data) {
                 text: 'Print',
                 className: 'btn btn-warning',
                 exportOptions: { columns: ':visible' },
-                title: function () { return '<h3 style="text-align:center;margin:0">Traffic AdX Per Account</h3>'; },
+                title: function () { 
+                    var meta = getExportMetaTrafficAccount();
+                    let title = '<h3 style="text-align:center;margin:0">Traffic AdX Per Account</h3>';
+                    if (meta.periodText) title += ' ' + meta.periodText;
+                    if (meta.accountText) title += ' ' + meta.accountText;
+                    if (meta.domainText) title += ' ' + meta.domainText;
+                    return title;
+                },
                 messageTop: function () {
                     var meta = getExportMetaTrafficAccount();
                     var html = '<div style="text-align:center;margin-bottom:8px">' + escapeHtml(meta.periodText) + '</div>';

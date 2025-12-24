@@ -139,23 +139,10 @@ $().ready(function () {
             success: function (response) {
                 if (response && response.status) {
                     let $account = $('#select_account');
-                    let currentSelected = $account.val(); // Simpan pilihan saat ini
+                    let suggested = (response.data || []).map(function (a) { return String(a.account_id); });
                     isUpdating = true;
-                    // 1. Kosongkan option lama
-                    $account.empty();
-                    // 2. Tambahkan option baru
-                    response.data.forEach(function (account) {
-                        let text = account.account_name || account.account_id;
-                        // Konversi ke string untuk perbandingan yang aman
-                        let accIdStr = String(account.account_id);
-                        // let isSelected = currentSelected && currentSelected.includes(accIdStr);
-                        // let option = new Option(text, accIdStr, isSelected, isSelected);
-                        let isSelected = true;
-                        let option = new Option(text, accIdStr, isSelected, isSelected);
-                        $account.append(option);
-                    });
-                    // 3. Refresh select2
-                    $account.trigger('change.select2');
+                    $account.html(allAccountOptions);
+                    $account.val(suggested).trigger('change.select2');
                     isUpdating = false;
                 }
             },
@@ -273,7 +260,8 @@ function table_data_per_account_facebook(tanggal, data_account, data_domain) {
                                 $(`#autosave-status_${value.campaign_id}`).text('Daily Budget Diubah');
                                 setTimeout(function () {
                                     var tanggal = $("#tanggal").val();
-                                    var data_sub_domain = $("#select_campaign:selected").val() || '%';
+                                    var data_sub_domain = $("#select_domain option:selected").val() || '%';
+                                    console.log(data_sub_domain);
                                     table_data_per_account_facebook(tanggal, data_account, data_sub_domain);
                                 }, 1000);;
                             }
@@ -330,7 +318,7 @@ function table_data_per_account_facebook(tanggal, data_account, data_domain) {
                                     setTimeout(function () {
                                         var tanggal = $("#tanggal").val();
                                         var data_account = $("#select_account option:selected").val() || '%';
-                                        var data_sub_domain = $("#select_campaign:selected").val() || '%';
+                                        var data_sub_domain = $("#select_domain option:selected").val() || '%';
                                         table_data_per_account_facebook(tanggal, data_account, data_sub_domain);
                                         // Update header switch after individual switch update
                                         updateHeaderSwitch();
@@ -667,7 +655,7 @@ function table_data_per_account_facebook(tanggal, data_account, data_domain) {
                             setTimeout(function() {
                                 var tanggal = $("#tanggal").val();
                                 var data_account = $("#select_account option:selected").val() || '%';
-                                var data_sub_domain = $("#select_campaign:selected").val() || '%';
+                                var data_sub_domain = $("#select_domain option:selected").val() || '%';
                                 table_data_per_account_facebook(tanggal, data_account, data_sub_domain);
                                 // Update header switch after bulk update
                                 updateHeaderSwitch();

@@ -106,18 +106,15 @@ $().ready(function () {
                 if (response && response.status) {
                     let $domain = $('#domain_filter');
                     let currentSelected = $domain.val(); // Simpan pilihan saat ini
-
                     isUpdating = true;
                     // 1. Kosongkan option lama
                     $domain.empty();
-
                     // 2. Tambahkan option baru
                     response.data.forEach(function (domain) {
                         let isSelected = currentSelected && currentSelected.includes(domain);
                         let option = new Option(domain, domain, isSelected, isSelected);
                         $domain.append(option);
                     });
-
                     // 3. Refresh select2
                     $domain.trigger('change.select2');
                     isUpdating = false;
@@ -132,9 +129,8 @@ $().ready(function () {
         if (isUpdating) return;
         let domain = $(this).val();
         if (domain && domain.length > 0) {
-            adx_account_list(); // filter account by domain
+            adx_account_list();
         } else {
-            // restore semua account dari template
             isUpdating = true;
             $('#account_filter')
                 .html(allAccountOptions)
@@ -160,24 +156,10 @@ $().ready(function () {
             success: function (response) {
                 if (response && response.status) {
                     let $account = $('#account_filter');
-                    let currentSelected = $account.val(); // Simpan pilihan saat ini
-
+                    let suggested = (response.data || []).map(function (a) { return String(a.account_id); });
                     isUpdating = true;
-                    // 1. Kosongkan option lama
-                    $account.empty();
-                    // 2. Tambahkan option baru
-                    response.data.forEach(function (account) {
-                        let text = account.account_name || account.account_id;
-                        // Konversi ke string untuk perbandingan yang aman
-                        let accIdStr = String(account.account_id);
-                        // let isSelected = currentSelected && currentSelected.includes(accIdStr);
-                        // let option = new Option(text, accIdStr, isSelected, isSelected);
-                        let isSelected = true;
-                        let option = new Option(text, accIdStr, isSelected, isSelected);
-                        $account.append(option);
-                    });
-                    // 3. Refresh select2
-                    $account.trigger('change.select2');
+                    $account.html(allAccountOptions);
+                    $account.val(suggested).trigger('change.select2');
                     isUpdating = false;
                 }
             },
@@ -243,7 +225,6 @@ $().ready(function () {
         });
     }
 });
-
 function load_adx_summary_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain) {
     // Convert array to comma-separated string for backend
     var accountFilter = '';
