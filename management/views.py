@@ -3645,7 +3645,9 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
             'summary_all': {
                 'total_spend': round(total_spend_all, 2),
                 'total_clicks_fb': sum(d['clicks_fb'] for d in combined_data_all),
+                'total_impressions_fb': sum(d['impressions_fb'] for d in combined_data_all),
                 'total_clicks_adx': sum(d['clicks_adx'] for d in combined_data_all),
+                'total_impressions_adx': sum(d['impressions_adx'] for d in combined_data_all),
                 'total_ctr_fb': sum(d['ctr_fb'] for d in combined_data_all),
                 'total_ctr_adx': sum(d['ctr_adx'] for d in combined_data_all),
                 'rata_cpr': rata_cpr_all,
@@ -3655,7 +3657,9 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
             'summary_filtered': {
                 'total_spend': round(total_spend_filtered, 2),
                 'total_clicks_fb': sum(d['clicks_fb'] for d in combined_data_filtered),
+                'total_impressions_fb': sum(d['impressions_fb'] for d in combined_data_filtered),
                 'total_clicks_adx': sum(d['clicks_adx'] for d in combined_data_filtered),
+                'total_impressions_adx': sum(d['impressions_adx'] for d in combined_data_filtered),
                 'total_ctr_fb': sum(d['ctr_fb'] for d in combined_data_filtered),
                 'total_ctr_adx': sum(d['ctr_adx'] for d in combined_data_filtered),
                 'rata_cpr': rata_cpr_filtered,
@@ -3887,22 +3891,22 @@ class RoiTrafficPerDomainDataView(View):
                     end_date_formatted,
                     unique_name_site
                 )
-                print(f"[DEBUG ROI] facebook_data: {facebook_data}")
             # --- 5. Gabungkan data AdX dan Facebook
             raw_rows_all = []
             combined_data_all = []
             combined_data_filtered = []
-            total_spend = 0
-            total_clicks_fb = 0
-            total_clicks_adx = 0
-            total_cpr = 0
-            total_ctr_fb = 0
-            total_cpc_fb = 0
-            total_cpc_fb = 0
-            total_ctr_adx = 0
-            total_cpc_adx = 0
-            total_cpm = 0
-            total_revenue = 0
+            total_spend = 0.0
+            total_impressions_fb = 0.0
+            total_clicks_fb = 0.0
+            total_impressions_adx = 0.0
+            total_clicks_adx = 0.0
+            total_cpr = 0.0
+            total_ctr_fb = 0.0
+            total_cpc_fb = 0.0
+            total_cpc_adx = 0.0
+            total_ctr_adx = 0.0
+            total_cpm = 0.0
+            total_revenue = 0.0 
             facebook_map = {}
             if facebook_data and facebook_data['hasil']['data']:
                 for fb_item in facebook_data['hasil']['data']:
@@ -3918,7 +3922,7 @@ class RoiTrafficPerDomainDataView(View):
                 for adx_item in adx_result['hasil']['data']:
                     date_key = str(adx_item.get('date', ''))
                     subdomain = str(adx_item.get('site_name', ''))
-                    impressions_adx = int(adx_item.get('impressions_adx', 0))
+                    impressions_adx = float(adx_item.get('impressions_adx', 0))
                     base_subdomain = extract_base_subdomain(subdomain)
                     country_code = str(adx_item.get('country_code', ''))
                     fb_key = f"{date_key}_{base_subdomain}_{country_code}"
@@ -3928,7 +3932,7 @@ class RoiTrafficPerDomainDataView(View):
                     clicks_fb = float(fb_data.get('clicks_fb') or 0) if fb_data else 0
                     clicks_adx = float(adx_item.get('clicks_adx') or 0)
                     cpr = float(fb_data.get('cpr') or 0) if fb_data else 0
-                    cpc = float(fb_data.get('cpc') or 0) if fb_data else 0
+                    cpc = float(fb_data.get('cpc_fb') or 0) if fb_data else 0
                     revenue = float(adx_item.get('revenue', 0))
                     ctr_fb = ((clicks_fb / impressions_fb) * 100) if impressions_fb > 0 else 0
                     cpc_fb = cpc
@@ -3940,7 +3944,9 @@ class RoiTrafficPerDomainDataView(View):
                         'date': date_key,
                         'country_code': country_code,
                         'spend': spend,
+                        'impressions_fb': impressions_fb,
                         'clicks_fb': clicks_fb,
+                        'impressions_adx': impressions_adx,
                         'clicks_adx': clicks_adx,
                         'cpr': cpr,
                         'ctr_fb': ctr_fb,
@@ -3950,46 +3956,54 @@ class RoiTrafficPerDomainDataView(View):
                         'cpm': cpm,
                         'revenue': revenue
                     })
+                    print(f"[DEBUG ROI] raw_rows_all: {raw_rows_all[-1]}")
                     key = f"{date_key}|{base_subdomain or subdomain}"
-                    entry = grouped_all.get(key) or {'site_name': base_subdomain or subdomain, 'date': date_key, 'spend': 0.0, 'revenue': 0.0, 'clicks_fb': 0.0, 'clicks_adx': 0.0, 'cpr': 0.0, 'ctr_fb': 0.0, 'cpc_fb': 0.0, 'ctr_adx': 0.0, 'cpc_adx': 0.0, 'cpm': 0.0}
+                    entry = grouped_all.get(key) or {'site_name': base_subdomain or subdomain, 'date': date_key, 'spend': 0.0, 'revenue': 0.0, 'impressions_fb': 0.0, 'impressions_adx': 0.0, 'clicks_fb': 0.0, 'clicks_adx': 0.0, 'cpr': 0.0, 'ctr_fb': 0.0, 'cpc_fb': 0.0, 'ctr_adx': 0.0, 'cpc_adx': 0.0, 'cpm': 0.0}
                     entry['spend'] += spend
+                    entry['impressions_fb'] += impressions_fb
                     entry['clicks_fb'] += clicks_fb
+                    entry['impressions_adx'] += impressions_adx
                     entry['clicks_adx'] += clicks_adx
                     entry['cpr'] += cpr
-                    entry['ctr_fb'] += ctr_fb
-                    entry['cpc_fb'] += cpc_fb
-                    entry['ctr_adx'] += ctr_adx
-                    entry['cpc_adx'] += cpc_adx
-                    entry['cpm'] += cpm
                     entry['revenue'] += revenue
+                    entry['ctr_fb'] = ((entry['clicks_fb'] / entry['impressions_fb']) * 100) if entry['impressions_fb'] > 0 else 0
+                    entry['cpc_fb'] += cpc_fb
+                    entry['ctr_adx'] = ((entry['clicks_adx'] / entry['impressions_adx']) * 100) if entry['impressions_adx'] > 0 else 0
+                    entry['cpc_adx'] = (entry['revenue'] / entry['clicks_adx']) if entry['clicks_adx'] > 0 else 0
+                    entry['cpm'] += cpm
                     grouped_all[key] = entry
                     if spend > 0:
-                        f_entry = grouped_filtered.get(key) or {'site_name': base_subdomain or subdomain, 'date': date_key, 'spend': 0.0, 'revenue': 0.0, 'clicks_fb': 0.0, 'clicks_adx': 0.0, 'cpr': 0.0, 'ctr_fb': 0.0, 'cpc_fb': 0.0, 'ctr_adx': 0.0, 'cpc_adx': 0.0, 'cpm': 0.0}
+                        f_entry = grouped_filtered.get(key) or {'site_name': base_subdomain or subdomain, 'date': date_key, 'spend': 0.0, 'revenue': 0.0, 'impressions_fb': 0.0, 'impressions_adx': 0.0, 'clicks_fb': 0.0, 'clicks_adx': 0.0, 'cpr': 0.0, 'ctr_fb': 0.0, 'cpc_fb': 0.0, 'ctr_adx': 0.0, 'cpc_adx': 0.0, 'cpm': 0.0}
                         f_entry['spend'] += spend
+                        f_entry['impressions_fb'] += impressions_fb
                         f_entry['clicks_fb'] += clicks_fb
+                        f_entry['impressions_adx'] += impressions_adx
                         f_entry['clicks_adx'] += clicks_adx
                         f_entry['cpr'] += cpr
-                        f_entry['ctr_fb'] += ctr_fb
-                        f_entry['cpc_fb'] += cpc_fb
-                        f_entry['ctr_adx'] += ctr_adx
-                        f_entry['cpc_adx'] += cpc_adx
-                        f_entry['cpm'] += cpm
                         f_entry['revenue'] += revenue
+                        f_entry['ctr_fb'] = ((f_entry['clicks_fb'] / f_entry['impressions_fb']) * 100) if f_entry['impressions_fb'] > 0 else 0
+                        f_entry['cpc_fb'] += cpc_fb
+                        f_entry['ctr_adx'] = ((f_entry['clicks_adx'] / f_entry['impressions_adx']) * 100) if f_entry['impressions_adx'] > 0 else 0
+                        f_entry['cpc_adx'] = (f_entry['revenue'] / f_entry['clicks_adx']) if f_entry['clicks_adx'] > 0 else 0
+                        f_entry['cpm'] += cpm
                         grouped_filtered[key] = f_entry
-
                 combined_data_all = []
-                total_spend = 0
-                total_clicks_fb = 0
-                total_clicks_adx = 0
-                total_cpr = 0
-                total_ctr_fb = 0
-                total_cpc_fb = 0
-                total_ctr_adx = 0
-                total_cpc_adx = 0
-                total_cpm = 0
-                total_revenue = 0
+                total_spend = 0.0
+                total_impressions_fb = 0.0
+                total_clicks_fb = 0.0
+                total_impressions_adx = 0.0
+                total_clicks_adx = 0.0
+                total_cpr = 0.0
+                total_ctr_fb = 0.0
+                total_cpc_fb = 0.0
+                total_ctr_adx = 0.0
+                total_cpc_adx = 0.0
+                total_cpm = 0.0
+                total_revenue = 0.0
                 for _, item in sorted(grouped_all.items(), key=lambda kv: (kv[1]['date'], kv[1]['site_name'])):
                     spend_val = item['spend']
+                    impressions_fb_val = item['impressions_fb']
+                    impressions_adx_val = item['impressions_adx']
                     clicks_fb_val = item['clicks_fb']
                     clicks_adx_val = item['clicks_adx']
                     cpr_val = item['cpr']
@@ -4004,7 +4018,9 @@ class RoiTrafficPerDomainDataView(View):
                         'site_name': item['site_name'] + '.com',
                         'date': item['date'],
                         'spend': spend_val,
+                        'impressions_fb': impressions_fb_val,
                         'clicks_fb': clicks_fb_val,
+                        'impressions_adx': impressions_adx_val,
                         'clicks_adx': clicks_adx_val,
                         'cpr': cpr_val,
                         'ctr_fb': ctr_fb_val,
@@ -4016,7 +4032,9 @@ class RoiTrafficPerDomainDataView(View):
                         'roi': roi
                     })
                     total_spend += spend_val
+                    total_impressions_fb += impressions_fb_val
                     total_clicks_fb += clicks_fb_val
+                    total_impressions_adx += impressions_adx_val
                     total_clicks_adx += clicks_adx_val
                     total_cpr += cpr_val
                     total_ctr_fb += ctr_fb_val
@@ -4029,6 +4047,8 @@ class RoiTrafficPerDomainDataView(View):
                 combined_data_filtered = []
                 for _, item in sorted(grouped_filtered.items(), key=lambda kv: (kv[1]['date'], kv[1]['site_name'])):
                     spend_val = item['spend']
+                    impressions_fb_val = item['impressions_fb']
+                    impressions_adx_val = item['impressions_adx']
                     clicks_fb_val = item['clicks_fb']
                     clicks_adx_val = item['clicks_adx']
                     cpr_val = item['cpr']
@@ -4043,7 +4063,9 @@ class RoiTrafficPerDomainDataView(View):
                         'site_name': item['site_name'] + '.com',
                         'date': item['date'],
                         'spend': spend_val,
+                        'impressions_fb': impressions_fb_val,
                         'clicks_fb': clicks_fb_val,
+                        'impressions_adx': impressions_adx_val,
                         'clicks_adx': clicks_adx_val,
                         'cpr': cpr_val,
                         'ctr_fb': ctr_fb_val,
@@ -4460,7 +4482,7 @@ class RoiMonitoringDomainDataView(View):
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
                     combined_data_all.append({
-                        'site_name': item['site_name'] + '.com',
+                        'site_name': item['site_name'],
                         'account_ads': item['account_ads'],
                         'spend': spend_val,
                         'revenue': revenue_val,
@@ -4475,14 +4497,12 @@ class RoiMonitoringDomainDataView(View):
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
                     combined_data_filtered.append({
-                        'site_name': item['site_name'] + '.com',
+                        'site_name': item['site_name'],
                         'account_ads': item['account_ads'],
                         'spend': spend_val,
                         'revenue': revenue_val,
                         'roi': roi
                     })
-            print(f"[DEBUG ROI] combined_data_all: {combined_data_all}")
-            print(f"[DEBUG ROI] combined_data_filtered: {combined_data_filtered}")
             roi_nett_summary = ((total_revenue - total_spend) / total_spend * 100) if total_spend > 0 else 0
             result = {
                 'status': True,
@@ -4782,32 +4802,87 @@ class RoiRekapitulasiDataView(View):
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
         try:
-            start_date = req.GET.get('start_date')
-            end_date = req.GET.get('end_date')
-            if not start_date or not end_date:
-                raise ValueError("start_date dan end_date harus diisi")
-            start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-            end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-            if start_date > end_date:
-                raise ValueError("start_date > end_date")
-            total_days = (end_date - start_date).days + 1
-            past_end_date = start_date - timedelta(days=1)
-            past_start_date = past_end_date - timedelta(days=total_days - 1)
+            periode_mode = (req.GET.get('periode_mode') or 'harian').strip().lower()
+
             MONTH_ID = {
                 1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr",
                 5: "Mei", 6: "Jun", 7: "Jul", 8: "Agu",
                 9: "Sep", 10: "Okt", 11: "Nov", 12: "Des"
             }
+
             def format_tanggal_id(dt):
                 return f"{dt.day} {MONTH_ID[dt.month]} {dt.year}"
-            periode_now = (
-                f"Periode <br> "
-                f"{format_tanggal_id(start_date)} s/d {format_tanggal_id(end_date)}"
-            )
-            periode_past = (
-                f"Periode <br> "
-                f"{format_tanggal_id(past_start_date)} s/d {format_tanggal_id(past_end_date)}"
-            )
+
+            def parse_month(ym):
+                s = (ym or '').strip()
+                parts = s.split('-')
+                if len(parts) != 2:
+                    raise ValueError(f"Format bulan tidak valid: {ym}")
+                y = int(parts[0])
+                m = int(parts[1])
+                if m < 1 or m > 12:
+                    raise ValueError(f"Bulan tidak valid: {ym}")
+                return y, m
+
+            def add_months(y, m, delta):
+                idx = (y * 12 + (m - 1)) + int(delta)
+                ny = idx // 12
+                nm = (idx % 12) + 1
+                return ny, nm
+
+            if periode_mode == 'bulanan':
+                import calendar
+
+                month_from = req.GET.get('month_from')
+                month_to = req.GET.get('month_to')
+                if not month_from or not month_to:
+                    raise ValueError("month_from dan month_to harus diisi untuk mode bulanan")
+
+                y1, m1 = parse_month(month_from)
+                y2, m2 = parse_month(month_to)
+                months_count = (y2 - y1) * 12 + (m2 - m1) + 1
+                if months_count <= 0:
+                    raise ValueError("month_from > month_to")
+
+                start_date = datetime(y1, m1, 1).date()
+                end_date = datetime(y2, m2, calendar.monthrange(y2, m2)[1]).date()
+
+                py2, pm2 = add_months(y1, m1, -1)
+                py1, pm1 = add_months(py2, pm2, -(months_count - 1))
+
+                past_start_date = datetime(py1, pm1, 1).date()
+                past_end_date = datetime(py2, pm2, calendar.monthrange(py2, pm2)[1]).date()
+
+                periode_now = (
+                    f"Periode <br> "
+                    f"{format_tanggal_id(start_date)} s/d {format_tanggal_id(end_date)}"
+                )
+                periode_past = (
+                    f"Periode <br> "
+                    f"{format_tanggal_id(past_start_date)} s/d {format_tanggal_id(past_end_date)}"
+                )
+            else:
+                start_date = req.GET.get('start_date')
+                end_date = req.GET.get('end_date')
+                if not start_date or not end_date:
+                    raise ValueError("start_date dan end_date harus diisi")
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+                if start_date > end_date:
+                    raise ValueError("start_date > end_date")
+
+                total_days = (end_date - start_date).days + 1
+                past_end_date = start_date - timedelta(days=1)
+                past_start_date = past_end_date - timedelta(days=total_days - 1)
+
+                periode_now = (
+                    f"Periode <br> "
+                    f"{format_tanggal_id(start_date)} s/d {format_tanggal_id(end_date)}"
+                )
+                periode_past = (
+                    f"Periode <br> "
+                    f"{format_tanggal_id(past_start_date)} s/d {format_tanggal_id(past_end_date)}"
+                )
             selected_account_list = []
             if req.GET.get('selected_account_adx'):
                 selected_account_list = [

@@ -116,9 +116,8 @@ $(document).ready(function () {
         if (isUpdating) return;
         let domain = $(this).val();
         if (domain && domain.length > 0) {
-            adx_account_list(); // filter account by domain
+            adx_account_list();
         } else {
-            // restore semua account dari template
             isUpdating = true;
             $('#account_filter')
                 .html(allAccountOptions)
@@ -144,24 +143,10 @@ $(document).ready(function () {
             success: function (response) {
                 if (response && response.status) {
                     let $account = $('#account_filter');
-                    let currentSelected = $account.val(); // Simpan pilihan saat ini
-
+                    let suggested = (response.data || []).map(function (a) { return String(a.account_id); });
                     isUpdating = true;
-                    // 1. Kosongkan option lama
-                    $account.empty();
-                    // 2. Tambahkan option baru
-                    response.data.forEach(function (account) {
-                        let text = account.account_name || account.account_id;
-                        // Konversi ke string untuk perbandingan yang aman
-                        let accIdStr = String(account.account_id);
-                        // let isSelected = currentSelected && currentSelected.includes(accIdStr);
-                        // let option = new Option(text, accIdStr, isSelected, isSelected);
-                        let isSelected = true;
-                        let option = new Option(text, accIdStr, isSelected, isSelected);
-                        $account.append(option);
-                    });
-                    // 3. Refresh select2
-                    $account.trigger('change.select2');
+                    $account.html(allAccountOptions);
+                    $account.val(suggested).trigger('change.select2');
                     isUpdating = false;
                 }
             },
@@ -310,6 +295,79 @@ $(document).ready(function () {
         });
     }
 
+    function getSelectedTextList(selector) { 
+        var $el = $(selector);
+        var items = [];
+        try {
+            var s2 = $el.select2('data');
+            if (Array.isArray(s2) && s2.length) {
+                items = s2.map(function (d) {
+                    return d && d.text ? String(d.text) : '';
+                });
+            }
+        } catch (e) {
+            items = [];
+        }
+        if (!items || items.length === 0) {
+            try {
+                items = $el.find('option:selected').map(function () {
+                    return $(this).text();
+                }).get();
+            } catch (e) {
+                items = [];
+            }
+        }
+        return (items || []).map(function (t) {
+            return String(t || '').trim();
+        }).filter(function (t) {
+            return t;
+        });
+    }
+
+    function escapeHtml(text) {
+        return String(text || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function escapeXmlText(text) {
+        return String(text || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    function formatDateID(d) {
+        if (!d) return '-';
+        var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        try {
+            var date = new Date(d + 'T00:00:00');
+            return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear();
+        } catch (e) {
+            return d;
+        }
+    }
+
+    function getExportMetaTrafficCountry() {
+        var start = $('#tanggal_dari').val();
+        var end = $('#tanggal_sampai').val();
+        var titleText = 'Traffic AdX Per Negara';
+        var periodText = 'Periode ' + formatDateID(start) + ' s/d ' + formatDateID(end);
+
+        var accounts = getSelectedTextList('#account_filter');
+        var domains = getSelectedTextList('#domain_filter');
+
+        return {
+            titleText: titleText,
+            periodText: periodText,
+            accountText: accounts.length ? ('Account: ' + accounts.join(', ')) : '',
+            domainText: domains.length ? ('Domain: ' + domains.join(', ')) : ''
+        };
+    }
+
     // Fungsi untuk update summary boxes
     function updateSummaryBoxes(data) {
         var totalImpressions = Number(data.total_impressions || 0);
@@ -385,30 +443,51 @@ $(document).ready(function () {
                     text: 'Export Excel',
                     className: 'btn btn-success',
                     exportOptions: { columns: ':visible' },
-                    title: function () { return 'Traffic AdX Per Negara'; },
+                    title: function () { 
+                        var meta = getExportMetaTrafficCountry();
+                        let title = 'Traffic AdX Per Negara';
+                        if (meta.periodText) title += ' ' + meta.periodText;
+                        if (meta.accountText) title += ' ' + meta.accountText;
+                        if (meta.domainText) title += ' ' + meta.domainText;
+                        return title;
+                    },
                     customize: function (xlsx) {
-                        var start = $('#tanggal_dari').val();
-                        var end = $('#tanggal_sampai').val();
-                        var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-                        function fmt(d) { if (!d) return '-'; try { var date = new Date(d + 'T00:00:00'); return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear(); } catch(e) { return d; } }
-                        var titleText = 'Traffic AdX Per Negara';
-                        var periodText = 'Periode ' + fmt(start) + ' s/d ' + fmt(end);
+                        var meta = getExportMetaTrafficCountry();
+                        var headerRows = [meta.titleText, meta.periodText];
+                        if (meta.accountText) headerRows.push(meta.accountText);
+                        if (meta.domainText) headerRows.push(meta.domainText);
+
                         var sheet = xlsx.xl.worksheets['sheet1.xml'];
-                        var numrows = 2;
-                        $('row', sheet).each(function () { var r = parseInt($(this).attr('r')); $(this).attr('r', r + numrows); });
-                        $('row c', sheet).each(function () { var attr = $(this).attr('r'); var col = attr.replace(/[0-9]/g, ''); var row = parseInt(attr.replace(/[A-Z]/g, '')); $(this).attr('r', col + (row + numrows)); });
-                        var row1 = '<row r="1"><c t="inlineStr" r="A1" s="51"><is><t>' + titleText + '</t></is></c></row>';
-                        var row2 = '<row r="2"><c t="inlineStr" r="A2" s="51"><is><t>' + periodText + '</t></is></c></row>';
-                        $('sheetData', sheet).prepend(row2);
-                        $('sheetData', sheet).prepend(row1);
+                        var numrows = headerRows.length;
+
+                        $('row', sheet).each(function () {
+                            var r = parseInt($(this).attr('r'));
+                            $(this).attr('r', r + numrows);
+                        });
+                        $('row c', sheet).each(function () {
+                            var attr = $(this).attr('r');
+                            var col = attr.replace(/[0-9]/g, '');
+                            var row = parseInt(attr.replace(/[A-Z]/g, ''));
+                            $(this).attr('r', col + (row + numrows));
+                        });
+
+                        for (var i = headerRows.length; i >= 1; i--) {
+                            var txt = escapeXmlText(headerRows[i - 1]);
+                            var rowXml = '<row r="' + i + '"><c t="inlineStr" r="A' + i + '" s="51"><is><t>' + txt + '</t></is></c></row>';
+                            $('sheetData', sheet).prepend(rowXml);
+                        }
+
                         var merges = $('mergeCells', sheet);
+                        var mergeXml = '';
+                        for (var m = 1; m <= headerRows.length; m++) {
+                            mergeXml += '<mergeCell ref="A' + m + ':H' + m + '"/>';
+                        }
                         if (merges.length === 0) {
-                            $('worksheet', sheet).append('<mergeCells count="2"><mergeCell ref="A1:H1"/><mergeCell ref="A2:H2"/></mergeCells>');
+                            $('worksheet', sheet).append('<mergeCells count="' + headerRows.length + '">' + mergeXml + '</mergeCells>');
                         } else {
                             var c = parseInt(merges.attr('count') || '0');
-                            merges.attr('count', c + 2);
-                            merges.append('<mergeCell ref="A1:H1"/>');
-                            merges.append('<mergeCell ref="A2:H2"/>');
+                            merges.attr('count', c + headerRows.length);
+                            merges.append(mergeXml);
                         }
                     }
                 },
@@ -417,21 +496,36 @@ $(document).ready(function () {
                     text: 'Export PDF',
                     className: 'btn btn-danger',
                     exportOptions: { columns: ':visible' },
-                    title: function () { return 'Traffic AdX Per Negara'; },
+                    title: function () { 
+                        var meta = getExportMetaTrafficCountry();
+                        let title = 'Traffic AdX Per Negara';
+                        if (meta.periodText) title += ' ' + meta.periodText;
+                        if (meta.accountText) title += ' ' + meta.accountText;
+                        if (meta.domainText) title += ' ' + meta.domainText;
+                        return title;
+                    },
                     customize: function (doc) {
-                        var start = $('#tanggal_dari').val();
-                        var end = $('#tanggal_sampai').val();
-                        var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-                        function fmt(d) { if (!d) return '-'; try { var date = new Date(d + 'T00:00:00'); return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear(); } catch(e) { return d; } }
-                        var header = 'Periode ' + fmt(start) + ' s/d ' + fmt(end);
-                        doc.content.splice(1, 0, { text: header, style: 'header', alignment: 'center', margin: [0, 0, 0, 12] });
+                        var meta = getExportMetaTrafficCountry();
+                        var inserts = [];
+                        inserts.push({ text: meta.periodText, style: 'header', alignment: 'center', margin: [0, 0, 0, 6] });
+                        if (meta.accountText) inserts.push({ text: meta.accountText, alignment: 'center', margin: [0, 0, 0, 4] });
+                        if (meta.domainText) inserts.push({ text: meta.domainText, alignment: 'center', margin: [0, 0, 0, 8] });
+                        doc.content.splice(1, 0, ...inserts);
                     }
                 },
                 {
                     extend: 'copy',
                     text: 'Copy',
                     className: 'btn btn-info',
-                    exportOptions: { columns: ':visible' }
+                    exportOptions: { columns: ':visible' },
+                    customize: function (txt) {
+                        var meta = getExportMetaTrafficCountry();
+                        var header = meta.titleText + '\n' + meta.periodText;
+                        if (meta.accountText) header += '\n' + meta.accountText;
+                        if (meta.domainText) header += '\n' + meta.domainText;
+                        header += '\n\n';
+                        return header + txt;
+                    }
                 },
                 {
                     extend: 'csv',
@@ -439,13 +533,11 @@ $(document).ready(function () {
                     className: 'btn btn-primary',
                     exportOptions: { columns: ':visible' },
                     customize: function (csv) {
-                        var start = $('#tanggal_dari').val();
-                        var end = $('#tanggal_sampai').val();
-                        var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-                        function fmt(d) { if (!d) return '-'; try { var date = new Date(d + 'T00:00:00'); return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear(); } catch(e) { return d; } }
-                        var header = 'Periode ' + fmt(start) + ' s/d ' + fmt(end);
-                        var titleText = 'Traffic AdX Per Negara';
-                        return titleText + '\n' + header + '\n\n' + csv;
+                        var meta = getExportMetaTrafficCountry();
+                        var out = meta.titleText + '\n' + meta.periodText;
+                        if (meta.accountText) out += '\n' + meta.accountText;
+                        if (meta.domainText) out += '\n' + meta.domainText;
+                        return out + '\n\n' + csv;
                     }
                 },
                 {
@@ -453,13 +545,20 @@ $(document).ready(function () {
                     text: 'Print',
                     className: 'btn btn-warning',
                     exportOptions: { columns: ':visible' },
-                    title: function () { return '<h3 style="text-align:center;margin:0">Traffic AdX Per Negara</h3>'; },
+                    title: function () { 
+                        var meta = getExportMetaTrafficCountry();
+                        let title = '<h3 style="text-align:center;margin:0">Traffic AdX Per Negara</h3>';
+                        if (meta.periodText) title += ' ' + meta.periodText;
+                        if (meta.accountText) title += ' ' + meta.accountText;
+                        if (meta.domainText) title += ' ' + meta.domainText;
+                        return title;
+                    },
                     messageTop: function () {
-                        var start = $('#tanggal_dari').val();
-                        var end = $('#tanggal_sampai').val();
-                        var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-                        function fmt(d) { if (!d) return '-'; try { var date = new Date(d + 'T00:00:00'); return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear(); } catch(e) { return d; } }
-                        return '<div style="text-align:center;margin-bottom:8px">Periode ' + fmt(start) + ' s/d ' + fmt(end) + '</div>';
+                        var meta = getExportMetaTrafficCountry();
+                        var html = '<div style="text-align:center;margin-bottom:8px">' + escapeHtml(meta.periodText) + '</div>';
+                        if (meta.accountText) html += '<div style="text-align:center;margin-bottom:4px">' + escapeHtml(meta.accountText) + '</div>';
+                        if (meta.domainText) html += '<div style="text-align:center;margin-bottom:8px">' + escapeHtml(meta.domainText) + '</div>';
+                        return html;
                     }
                 },
                 {

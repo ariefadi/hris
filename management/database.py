@@ -1967,22 +1967,22 @@ class data_mysql:
     def insert_data_adsense_country(self, data):
         try:
             sql_insert = """
-                        INSERT INTO data_adsense
+                        INSERT INTO data_adsense_country
                         (
-                            data_adsense.account_id,
-                            data_adsense.data_adsense_tanggal,
-                            data_adsense.data_adsense_country_cd,
-                            data_adsense.data_adsense_country_nm,
-                            data_adsense.data_adsense_domain,
-                            data_adsense.data_adsense_impresi,
-                            data_adsense.data_adsense_click,
-                            data_adsense.data_adsense_ctr,
-                            data_adsense.data_adsense_cpc,
-                            data_adsense.data_adsense_cpm,
-                            data_adsense.data_adsense_revenue,
-                            data_adsense.mdb,
-                            data_adsense.mdb_name,
-                            data_adsense.mdd
+                            data_adsense_country.account_id,
+                            data_adsense_country.data_adsense_country_tanggal,
+                            data_adsense_country.data_adsense_country_cd,
+                            data_adsense_country.data_adsense_country_nm,
+                            data_adsense_country.data_adsense_country_domain,
+                            data_adsense_country.data_adsense_country_impresi,
+                            data_adsense_country.data_adsense_country_click,
+                            data_adsense_country.data_adsense_country_ctr,
+                            data_adsense_country.data_adsense_country_cpc,
+                            data_adsense_country.data_adsense_country_cpm,
+                            data_adsense_country.data_adsense_country_revenue,
+                            data_adsense_country.mdb,
+                            data_adsense_country.mdb_name,
+                            data_adsense_country.mdd
                         )
                     VALUES
                         (
@@ -2004,16 +2004,16 @@ class data_mysql:
                 """
             if not self.execute_query(sql_insert, (
                 data['account_id'],
-                data['data_adsense_tanggal'],
+                data['data_adsense_country_tanggal'],
                 data['data_adsense_country_cd'],
                 data['data_adsense_country_nm'],
-                data['data_adsense_domain'],
-                data['data_adsense_impresi'],
-                data['data_adsense_click'],
-                data['data_adsense_ctr'],
-                data['data_adsense_cpc'],
-                data['data_adsense_cpm'],
-                data['data_adsense_revenue'],
+                data['data_adsense_country_domain'],
+                data['data_adsense_country_impresi'],
+                data['data_adsense_country_click'],
+                data['data_adsense_country_ctr'],
+                data['data_adsense_country_cpc'],
+                data['data_adsense_country_cpm'],
+                data['data_adsense_country_revenue'],
                 data['mdb'],
                 data['mdb_name'],
                 data['mdd']

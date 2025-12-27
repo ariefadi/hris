@@ -68,12 +68,21 @@
     <div class="card-body">
         <div class="form-row">
             <div class="col-md-2">
+                <label>Mode Periode</label>
+                <select class="form-control select2" id="periode_mode">
+                    <option value="harian" selected>Harian</option>
+                    <option value="bulanan">Bulanan</option>
+                </select>
+            </div>
+            <div class="col-md-2">
                 <label>Dari</label>
                 <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" data-date-orientation="bottom auto" placeholder="Tanggal Dari"/>
+                <input class="form-control datepicker-input" type="text" id="bulan_dari" size="7" value="" data-mask="9999-99" data-date-orientation="bottom auto" placeholder="Bulan Dari" style="display:none"/>
             </div>
             <div class="col-md-2">
                 <label>Sampai</label>
-                 <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" data-date-orientation="bottom auto" placeholder="Tanggal Sampai"/>
+                <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" data-date-orientation="bottom auto" placeholder="Tanggal Sampai"/>
+                <input class="form-control datepicker-input" type="text" id="bulan_sampai" size="7" value="" data-mask="9999-99" data-date-orientation="bottom auto" placeholder="Bulan Sampai" style="display:none"/>
             </div>
             <div class="col-md-3">
                 <label>Filter Adx Account</label>
@@ -83,7 +92,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-2">
                 <label>Filter Domain</label>
                 <select class="form-control select2 select2-multiple" id="domain_filter" multiple>
                     {% for domain in data_domain_adx %}
