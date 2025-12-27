@@ -22,7 +22,7 @@
               <tr>
                 <th width="5%">No</th>
                 <th width="25%">Website</th>
-                <th width="15%">Niece</th>
+                <th width="15%">Niche</th>
                 <th width="20%">Keyword</th>
                 <th width="10%">User</th>
                 <th width="10%">Pass</th>
@@ -34,7 +34,7 @@
               <tr>
                 <td class="align-middle">{{ forloop.counter }}</td>
                 <td class="align-middle">{{ w.website_name }}</td>
-                <td class="align-middle">{% if w.niece == None %}<span class="text-muted">-</span>{% else %}{{ w.niece }}{% endif %}</td>
+                <td class="align-middle">{% if w.niche == None %}<span class="text-muted">-</span>{% else %}{{ w.niche }}{% endif %}</td>
                 <td class="align-middle">
                   <span class="badge badge-info btn-show-keywords" style="cursor:pointer;"
                         data-subdomain="{{ w.subdomain_id }}"
@@ -113,7 +113,7 @@
           <table class="table table-striped" id="keywordListTable">
             <thead>
               <tr>
-                <th width="25%">Niece</th>
+                <th width="25%">Niche</th>
                 <th width="35%">Keyword</th>
                 <th width="40%">Prompt</th>
               </tr>
@@ -204,12 +204,12 @@ $(function(){
           } else {
             for (var i=0;i<items.length;i++){
               var it = items[i] || {};
-              var niece = safeHtml(it.niece || '-');
+              var niche = safeHtml(it.niche || '-');
               var kw = safeHtml(it.keyword || '-');
               var prompt = String(it.prompt_text || '');
               var short = prompt.length > 50 ? prompt.slice(0,50) + '...' : prompt;
               var pop = '<span class="prompt-pop" data-toggle="popover" data-placement="bottom" data-container="#modalKeywordList" data-trigger="click" data-content="' + safeAttr(prompt) + '">' + safeHtml(short) + '</span>';
-              html += '<tr><td class="align-middle">' + niece + '</td><td class="align-middle">' + kw + '</td><td class="align-middle">' + pop + '</td></tr>';
+              html += '<tr><td class="align-middle">' + niche + '</td><td class="align-middle">' + kw + '</td><td class="align-middle">' + pop + '</td></tr>';
             }
           }
           $('#keywordListTable tbody').html(html);

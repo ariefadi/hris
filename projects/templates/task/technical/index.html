@@ -22,48 +22,59 @@
             <thead>
               <tr>
                 <th width="5%">No</th>
-                <th width="12%">Nama</th>
-                <th width="12%">PIC</th>
-                <th width="10%">Domain</th>
-                <th width="50%" class="text-center">Data Server & Website</th>
-                <th width="10%">Aksi</th>
+                <th width="15%">Partner</th>
+                <th width="70%" class="text-center">Data Server & Website</th>
+                <th width="5%">Aksi</th>
               </tr>
             </thead>
             <tbody>
               {% for p in partners %}
               <tr>
                   <td class="align-middle">{{ forloop.counter }}</td>
-                  <td class="align-middle"><u>{{ p.partner_name }}</u>{% if p.request_date %}<br>Tgl Request: {{ p.request_date|date:'Y-m-d' }}{% endif %}</td>
-                  <td class="align-middle">{{ p.pic }}</td>
-                  <td class="align-middle">{{ p.domain }}</td>
                   <td class="align-middle">
-                    <table class="table table-sm">
+                    <u>{{ p.partner_name }}</u>{% if p.request_date %}<br>Tgl Request: {{ p.request_date|date:'Y-m-d' }}{% endif %}<br>
+                    PIC: {{ p.pic }}{% if p.domain %}<br>Domain: {{ p.domain }}{% endif %}
+                  </td>
+                  <td class="align-middle">
+                    <table class="table table-sm" id="table-website-subdomain" style="table-layout: fixed; width: 100%;">
                       <thead>
                         <tr>
-                          <th  class="text-center">Server IP</th>
-                          <th  class="text-center">Cloudflare</th>
-                          <th  class="text-center">Website Login</th>
-                          <th  class="text-center"></th>
+                          <th width="12%" class="text-center">Server IP</th>
+                          <th width="15%" class="text-center">Cloudflare</th>
+                          <th width="30%" class="text-center">Website Login</th>
+                          <th width="8%" class="text-center"></th>
+                          <th width="15%" class="text-center">Niche & Keywords</th>
+                          <th width="8%" class="text-center"></th>
                         </tr>
                       </thead>
                       <tbody>
                         {% for s in p.subrows %}
                         <tr>
-                          <td class="align-middle text-center">{{ s.public_ipv4 }}</td>
-                          <td class="align-middle text-center">{{ s.cloudflare }}</td>
-                          <td class="align-middle text-left">
+                          <td class="align-middle text-center" style="word-break: break-word;">{{ s.public_ipv4 }}</td>
+                          <td class="align-middle text-center" style="word-break: break-word;">{{ s.cloudflare }}</td>
+                          <td class="align-middle text-left" style="word-break: break-word;">
                             {{ s.website }}<br>
                             User: {{ s.website_user }} <br>
                             Pass: {{ s.website_pass }}
                           </td>
-                          <td class="align-middle text-center">
+                          <td>
                             <a href="#" class="btn btn-xs btn-warning btn-edit-subrow" data-partner-id="{{ p.partner_id }}" data-subdomain-id="{{ s.subdomain_id }}" title="Edit"><i class="bi bi-pencil"></i></a>
                             <a href="#" class="btn btn-xs btn-danger btn-delete-subrow" data-partner-id="{{ p.partner_id }}" data-subdomain-id="{{ s.subdomain_id }}" title="Delete"><i class="bi bi-trash"></i></a>
+                          </td>
+                          <td class="align-middle text-left" style="word-break: break-word;" data-niche-cell="1" data-subdomain-id="{{ s.subdomain_id }}">
+                            <div><b>Niche:</b> <span class="nk-niche-name">-</span></div>
+                            <div><b>Keywords:</b> <span class="nk-keyword-total">-</span></div>
+                            <div><b>Deadline:</b> <input type="date" class="form-control" name="article_deadline"></div>
+                          </td>
+                          <td class="align-middle text-center">
+                            <a href="#" class="btn btn-xs btn-primary btn-add-nk" data-subdomain-id="{{ s.subdomain_id }}"><i class="bi bi-plus"></i></a>
+                            <a href="#" class="btn btn-xs btn-warning btn-edit-nk" data-subdomain-id="{{ s.subdomain_id }}"><i class="bi bi-pencil"></i></a>
+                            <a href="#" class="btn btn-xs btn-danger btn-delete-nk" data-subdomain-id="{{ s.subdomain_id }}"><i class="bi bi-trash"></i></a>
                           </td>
                         </tr>
                         {% empty %}
                         <tr>
-                          <td colspan="4" class="text-center text-muted">Belum ada subdomain.</td>
+                          <td colspan="5" class="text-center text-muted">Belum ada subdomain.</td>
                         </tr>
                         {% endfor %}
                       </tbody>
@@ -87,9 +98,67 @@
         </div>
       </div>
     </div>
-  </div>
+ </div>
 </div>
 
+<div class="modal fade" id="modalAddNicheKeyword" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Tambah / Edit Niche & Keyword</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="modal_subdomain_id" value="">
+        <input type="hidden" id="modal_action" value="">
+        {% csrf_token %}
+        <div class="form-group">
+          <label>Niche</label>
+          <select id="modal_niche_id" class="form-control select2" data-placeholder="-- Pilih Niche --">
+            <option value=""></option>
+            {% for n in niches %}
+              <option value="{{ n.niche_id }}">{{ n.niche }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <template id="nk_group_template">
+          <div class="nk-group border p-3">
+            <div class="form-group">
+              <label>Keyword</label>
+              <select class="form-control select2 keyword-select" name="keyword[]" multiple data-placeholder="-- Pilih Keyword --"></select>
+            </div>
+            <div class="form-group">
+              <label>Prompt</label>
+              <select class="form-control select2" name="prompt_id[]" data-placeholder="-- Pilih Prompt --">
+                <option value=""></option>
+                {% for p in prompts %}
+                  <option value="{{ p.prompt_id }}">{{ p.prompt }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <select class="form-control select2" name="status[]" data-placeholder="-- Pilih Status --">
+                <option value="draft">draft</option>
+                <option value="posted">posted</option>
+                <option value="indexed">indexed</option>
+              </select>
+            </div>
+            <button type="button" class="btn btn-sm btn-danger btn-del-group"><i class="bi bi-trash"></i> Hapus</button>
+          </div>
+        </template>
+        <div id="nk_groups"></div>
+        <div class="mt-2">
+          <button type="button" class="btn btn-sm btn-secondary btn-add-group"><i class="bi bi-plus"></i> Tambah Keyword</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+        <button type="button" class="btn btn-primary btn-save-nk">Simpan</button>
+      </div>
+    </div>
+  </div>
+</div>
 <div class="modal fade" id="modalAddEditServer" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog modal-xl" role="document">
     <div class="modal-content">
@@ -619,14 +688,12 @@
                 if (!mail) return;
                 var opt = $('<option>').attr('value', mail);
                 opt.text(alias ? (alias) : mail);
-                sel.append(opt);
-              });
-              sel.select2({ theme: 'bootstrap4', width: '100%', allowClear: true, placeholder: 'Pilih penerima' });
-              var def = '{{ user.user_mail|default:"" }}'.trim();
-              if (def) { sel.val([def]).trigger('change'); }
-            }
-          });
-        },
+              sel.append(opt);
+            });
+            sel.select2({ theme: 'bootstrap4', width: '100%', allowClear: true, placeholder: 'Pilih penerima' });
+          }
+        });
+      },
         preConfirm: function(){
           var sendEmail = $('#swal_notify_email').is(':checked');
           var sendWa = $('#swal_notify_wa').is(':checked');
@@ -677,6 +744,311 @@
   });
 })();
 </script>
-
 {% endblock %}
-<!-- scripts consolidated above -->
+{% block more_scripts %}
+<script>
+$(function(){
+  function initSelect2(ctx){
+    $(ctx).find('select.select2:visible').each(function(){
+      if (!$(this).data('select2')) {
+        $(this).select2({
+            theme: 'bootstrap4',
+            allowClear: true
+        });
+      }
+    });
+  }
+  function loadKeywordsOptions(nid, target){
+    nid = nid || '';
+    var dfd = $.Deferred();
+    if (!nid) {
+      var scope = target ? target : $('#nk_groups .keyword-select');
+      scope.each(function(){ $(this).empty(); });
+      return dfd.resolve().promise();
+    }
+    $.ajax({
+      url: '/projects/task/publisher/keywords-by-niche',
+      method: 'GET',
+      data: { niche_id: nid },
+      success: function(resp){
+        var items = (resp && resp.items) ? resp.items : [];
+        var scope = target ? target : $('#nk_groups .keyword-select');
+        scope.each(function(){
+          var sel = $(this);
+          var prev = sel.val() || [];
+          sel.empty();
+          items.forEach(function(it){
+            var opt = $('<option>').attr('value', (it.keyword || ''));
+            opt.text(it.keyword || '');
+            sel.append(opt);
+          });
+          if (prev && prev.length) {
+            sel.val(prev).trigger('change');
+          } else {
+            sel.trigger('change');
+          }
+        });
+        dfd.resolve();
+      },
+      error: function(){ dfd.resolve(); }
+    });
+    return dfd.promise();
+  }
+  function addGroup(){
+    var html = $('#nk_group_template').html();
+    var el = $(html);
+    $('#nk_groups').append(el);
+    initSelect2(el);
+  }
+  $(document).on('click', '.btn-add-nk', function(e){
+    e.preventDefault();
+    var sid = $(this).data('subdomain-id') || '';
+    $('#modal_subdomain_id').val(sid);
+    $('#modal_action').val('');
+    $('#modal_niche_id').prop('disabled', false).val('').trigger('change');
+    $('#nk_groups').empty();
+    addGroup();
+    $('#modalAddNicheKeyword').modal('show');
+  });
+  $(document).on('click', '.btn-edit-nk', function(e){
+    e.preventDefault();
+    var sid = $(this).data('subdomain-id') || '';
+    $('#modal_subdomain_id').val(sid);
+    $('#modal_action').val('update');
+    $('#nk_groups').empty();
+    $.ajax({
+      url: '/projects/task/publisher/keywords-load',
+      method: 'GET',
+      data: { subdomain_id: sid },
+      success: function(resp){
+        if (resp && resp.status === true) {
+          var nid = resp.niche_id || '';
+          if (nid) {
+            $('#modal_niche_id').val(nid).trigger('change').prop('disabled', true);
+          }
+          var items = resp.items || [];
+          if (!items.length) {
+            addGroup();
+          } else {
+            items.forEach(function(it){
+              addGroup();
+              var g = $('#nk_groups .nk-group').last();
+              var sel = g.find('select.keyword-select');
+              sel.prop('multiple', false);
+              try { sel.select2('destroy'); } catch(e){}
+              sel.select2({ theme: 'bootstrap4', allowClear: true });
+              loadKeywordsOptions(nid, sel).done(function(){
+                if (it.keyword) { sel.val(it.keyword).trigger('change'); }
+              });
+              if (it.prompt_id) {
+                g.find('select[name="prompt_id[]"]').val(String(it.prompt_id)).trigger('change');
+              }
+              g.find('select[name="status[]"]').val(it.status || 'posted').trigger('change');
+            });
+          }
+          $('#modalAddNicheKeyword').modal('show');
+        } else {
+          var emsg = (resp && resp.message) ? resp.message : 'Gagal memuat data';
+          if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: emsg}); } else { alert(emsg); }
+        }
+      },
+      error: function(xhr){
+        var msg = 'Gagal memuat data';
+        try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e){}
+        if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: msg}); } else { alert(msg); }
+      }
+    });
+  });
+  $(document).on('click', '.btn-add-group', function(e){
+    e.preventDefault();
+    addGroup();
+    var nid = $('#modal_niche_id').val() || '';
+    var g = $('#nk_groups .nk-group').last();
+    var sel = g.find('select.keyword-select');
+    var act = ($('#modal_action').val() || '').toLowerCase();
+    if (act === 'update') {
+      sel.prop('multiple', false);
+      try { sel.select2('destroy'); } catch(e){}
+      sel.select2({ theme: 'bootstrap4', allowClear: true });
+    }
+    if (nid) {
+      loadKeywordsOptions(nid, sel);
+    }
+  });
+  $(document).on('click', '.btn-delete-nk', function(e){
+    e.preventDefault();
+    var sid = $(this).data('subdomain-id') || '';
+    var doDelete = function(ok){
+      if (!ok) return;
+      var tokenEl = document.querySelector('input[name=csrfmiddlewaretoken]');
+      var csrf = tokenEl ? tokenEl.value : '';
+      $.ajax({
+        url: '/projects/task/publisher/keywords-delete',
+        method: 'POST',
+        data: { subdomain_id: sid },
+        headers: csrf ? { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' } : { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(resp){
+          var ok = resp && (resp.status === true || resp.status === 'True');
+          if (ok) {
+            if (window.Swal) { Swal.fire({icon:'success', title:'Berhasil', text:'Semua keyword telah dihapus', timer:1000, showConfirmButton:false}).then(function(){ window.location.reload(); }); } else { window.location.reload(); }
+          } else {
+            var emsg = (resp && resp.message) ? resp.message : 'Gagal menghapus data';
+            if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: emsg}); } else { alert(emsg); }
+          }
+        },
+        error: function(xhr){
+          var msg = 'Gagal menghapus data';
+          try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e){}
+          if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: msg}); } else { alert(msg); }
+        }
+      });
+    };
+    if (window.Swal) {
+      Swal.fire({icon:'question', title:'Hapus?', text:'Hapus semua keyword untuk subdomain ini?', showCancelButton:true, confirmButtonText:'Ya, hapus', cancelButtonText:'Batal'}).then(function(res){ doDelete(res && res.isConfirmed); });
+    } else {
+      var ok = confirm('Hapus semua keyword untuk subdomain ini?');
+      doDelete(ok);
+    }
+  });
+  $(document).on('click', '.btn-del-group', function(e){
+    e.preventDefault();
+    var g = $(this).closest('.nk-group');
+    g.remove();
+  });
+  $('#modalAddNicheKeyword').on('shown.bs.modal', function(){
+    initSelect2(this);
+  });
+  $('#modal_niche_id').on('change', function(){
+    var nid = $(this).val();
+    loadKeywordsOptions(nid);
+  });
+  $(document).on('click', '.btn-save-nk', function(e){
+    e.preventDefault();
+    var sid = $('#modal_subdomain_id').val();
+    var nicheId = $('#modal_niche_id').val();
+    var keywords = [];
+    var promptIds = [];
+    var statuses = [];
+    $('#nk_groups .nk-group').each(function(){
+      var pid = $(this).find('select[name="prompt_id[]"]').val() || '';
+      var st = $(this).find('select[name="status[]"]').val() || 'posted';
+      var sel = $(this).find('select.keyword-select');
+      if (sel.length) {
+        var isMulti = sel.prop('multiple');
+        if (isMulti) {
+          var arr = sel.val() || [];
+          arr.forEach(function(kw){
+            keywords.push(kw || '');
+            promptIds.push(pid);
+            statuses.push(st);
+          });
+        } else {
+          var v = sel.val() || '';
+          if (v) {
+            keywords.push(v);
+            promptIds.push(pid);
+            statuses.push(st);
+          }
+        }
+      }
+    });
+    $.ajax({
+      url: '/projects/task/publisher/keywords-save',
+      method: 'POST',
+      data: {
+        subdomain_id: sid,
+        niche_id: nicheId,
+        action: ($('#modal_action').val() || ''),
+        'keyword[]': keywords,
+        'prompt_id[]': promptIds,
+        'status[]': statuses
+      },
+      success: function(resp){
+        var ok = resp && (resp.status === true || resp.status === 'True');
+        if (ok) {
+          if (window.Swal) { Swal.fire({icon:'success', title:'Berhasil', text:'Data berhasil disimpan', timer: 1000, showConfirmButton: false}).then(function(){ window.location.reload(); }); } else { window.location.reload(); }
+        } else {
+          var emsg = (resp && resp.message) ? resp.message : 'Gagal menyimpan data';
+          if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: emsg}); } else { alert(emsg); }
+        }
+      },
+      error: function(xhr){
+        var msg = 'Gagal menyimpan data';
+        try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e){}
+        if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: msg}); } else { alert(msg); }
+      }
+    });
+  });
+  $('[data-niche-cell="1"]').each(function(){ 
+    var cell = $(this);
+    var sid = cell.data('subdomain-id') || '';
+    if (!sid) return;
+    $.ajax({
+      url: '/projects/task/publisher/keywords-load',
+      method: 'GET',
+      data: { subdomain_id: sid },
+      success: function(resp){
+        if (resp && resp.status === true) {
+          var nid = resp.niche_id || '';
+          var items = resp.items || [];
+          var cnt = items.length || 0;
+          var name = '';
+          if (nid) {
+            name = $('#modal_niche_id option[value="'+ String(nid) +'"]').text() || '';
+          }
+          cell.find('.nk-niche-name').text((name || '').trim() ? name : '-');
+          cell.find('.nk-keyword-total').text(cnt > 0 ? cnt : '-');
+        }
+      }
+    });
+    var dl = cell.find('input[name="article_deadline"]');
+    if (dl && dl.length) {
+      $.ajax({
+        url: '{% url "projects_task_technical_subrow_lookup" %}',
+        method: 'GET',
+        data: { subdomain_id: sid },
+        success: function(resp){
+          var date = (resp && resp.website && resp.website.article_deadline) ? resp.website.article_deadline : '';
+          if (date) {
+            try { date = String(date).substr(0, 10); } catch(e){}
+          }
+          dl.val(date || '');
+        }
+      });
+      dl.on('change', function(){
+        var v = $(this).val() || '';
+        var spinner = $('<span class="spinner-border spinner-border-sm ml-2 deadline-spinner" role="status" aria-hidden="true"></span>');
+        $(this).after(spinner);
+        $(this).prop('disabled', true);
+        var tokenEl = document.querySelector('input[name=csrfmiddlewaretoken]');
+        var csrf = tokenEl ? tokenEl.value : '';
+        $.ajax({
+          url: '{% url "projects_task_technical_website_deadline_update" %}',
+          method: 'POST',
+          data: { subdomain_id: sid, article_deadline: v },
+          headers: csrf ? { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' } : { 'X-Requested-With': 'XMLHttpRequest' },
+          success: function(resp){
+            var ok = resp && (resp.status === true || resp.status === 'True');
+            if (ok) {
+              if (window.Swal) { Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Deadline updated', timer: 1200, showConfirmButton: false}); }
+            } else {
+              var emsg = (resp && resp.message) ? resp.message : 'Gagal memperbarui deadline';
+              if (window.Swal) { Swal.fire({toast: true, position: 'top-end', icon: 'error', title: emsg}); } else { alert(emsg); }
+            }
+          },
+          error: function(xhr){
+            var msg = 'Gagal memperbarui deadline';
+            try { msg = JSON.parse(xhr.responseText).message || msg; } catch(e){}
+            if (window.Swal) { Swal.fire({toast: true, position: 'top-end', icon: 'error', title: msg}); } else { alert(msg); }
+          },
+          complete: function(){
+            spinner.remove();
+            dl.prop('disabled', false);
+          }
+        });
+      });
+    }
+  });
+});
+</script>
+{% endblock %}

@@ -22,7 +22,7 @@
               <tr>
                 <th width="5%">No</th>
                 <th width="15%">Website</th>
-                <th width="10%" class="text-center">Niece & Keyword</th>
+                <th width="10%" class="text-center">Niche & Keyword</th>
                 <th width="20%">Ads</th>
                 <th width="20%">Server</th>
                 <th width="10%">User / Pass</th>
@@ -39,11 +39,11 @@
                         <br>
                         <small class="text-primary" data-bs-toggle="tooltip" title="Nama Pertner"><b>{{ w.partner_name }} ( {{ w.partner_contact }} )</b></small>
                         <br>
-                        <small class="text-primary" data-bs-toggle="tooltip" title="Tgl Request"><b>{{ w.request_date|date:"d-m-Y" }}</b></small>
+                        <small class="text-primary" data-bs-toggle="tooltip" title="Tgl Request"><b>Req: {{ w.request_date|date:"d M Y" }}</b></small>
                     </div>
                 </td>
                 <td class="align-middle text-center">
-                    {{ w.niece }}
+                    {{ w.niche }}
                     <br>
                     <span class="badge badge-info btn-show-keywords" style="cursor:pointer;"
                         data-subdomain="{{ w.subdomain_id }}"
@@ -126,7 +126,7 @@
           <table class="table table-striped" id="keywordListTable">
             <thead>
               <tr>
-                <th width="25%">Niece</th>
+                <th width="25%">Niche</th>
                 <th width="35%">Keyword</th>
                 <th width="40%">Prompt</th>
               </tr>
@@ -185,12 +185,12 @@ $(function(){
           } else {
             for (var i=0;i<items.length;i++){
               var it = items[i] || {};
-              var niece = safeHtml(it.niece || '-');
+              var niche = safeHtml(it.niche || '-');
               var kw = safeHtml(it.keyword || '-');
               var prompt = String(it.prompt_text || '');
               var short = prompt.length > 50 ? prompt.slice(0,50) + '...' : prompt;
               var pop = '<span class="prompt-pop" style="cursor:pointer;" data-toggle="popover" data-placement="bottom" data-container="#modalKeywordList" data-trigger="click" data-content="' + safeAttr(prompt) + '">' + safeHtml(short) + '</span>';
-              html += '<tr><td class="align-middle">' + niece + '</td><td class="align-middle">' + kw + '</td><td class="align-middle">' + pop + '</td></tr>';
+              html += '<tr><td class="align-middle">' + niche + '</td><td class="align-middle">' + kw + '</td><td class="align-middle">' + pop + '</td></tr>';
             }
           }
           $('#keywordListTable tbody').html(html);

@@ -5,7 +5,7 @@
 
 {% block breadcrumbs %}
 <li class="breadcrumb-item">Projects</li>
-<li class="breadcrumb-item"><a href="{% url 'projects_master_niece' %}">Master Niece</a></li>
+<li class="breadcrumb-item"><a href="{% url 'projects_master_niche' %}">Master Niche</a></li>
 <li class="breadcrumb-item active"><a href="{% url 'projects_master_keyword' %}">Keyword</a></li>
 {% endblock %}
 
@@ -24,7 +24,7 @@
       <div class="card-body">
         <ul class="nav nav-tabs mb-3">
           <li class="nav-item">
-            <a class="nav-link" href="{% url 'projects_master_niece' %}">Niece</a>
+            <a class="nav-link" href="{% url 'projects_master_niche' %}">Niche</a>
           </li>
           <li class="nav-item">
             <a class="nav-link active" href="{% url 'projects_master_keyword' %}">Keyword</a>
@@ -35,7 +35,7 @@
             <thead>
               <tr>
                 <th width="5%">No</th>
-                <th width="15%">Niece</th>
+                <th width="15%">Niche</th>
                 <th width="35%">Keyword</th>
                 <th width="20%">Updated By</th>
                 <th width="20%">Updated At</th>
@@ -46,12 +46,12 @@
               {% for k in keywords %}
               <tr>
                 <td class="align-middle">{{ forloop.counter }}</td>
-                <td class="align-middle">{% if k.niece %}{{ k.niece }}{% else %}-{% endif %}</td>
+                <td class="align-middle">{% if k.niche %}{{ k.niche }}{% else %}-{% endif %}</td>
                 <td class="align-middle">{{ k.keyword }}</td>
                 <td class="align-middle">{{ k.mdb_name|default:'-' }}</td>
                 <td class="align-middle">{% if k.mdd %}{{ k.mdd|date:'Y-m-d H:i' }}{% else %}-{% endif %}</td>
                 <td class="align-middle">
-                  <a href="#" class="btn btn-sm btn-warning btn-edit-keyword" data-id="{{ k.keyword_id }}" data-niece-id="{{ k.niece_id }}" data-keyword="{{ k.keyword }}"><i class="bi bi-pencil"></i></a>
+                  <a href="#" class="btn btn-sm btn-warning btn-edit-keyword" data-id="{{ k.keyword_id }}" data-niche-id="{{ k.niche_id }}" data-keyword="{{ k.keyword }}"><i class="bi bi-pencil"></i></a>
                   <a href="#" class="btn btn-sm btn-danger btn-del-keyword" data-id="{{ k.keyword_id }}"><i class="bi bi-trash"></i></a>
                 </td>
               </tr>
@@ -79,11 +79,11 @@
         {% csrf_token %}
         <div class="modal-body">
           <div class="form-group">
-            <label>Niece</label>
-            <select name="niece_id" class="form-control">
+            <label>Niche</label>
+            <select name="niche_id" class="form-control">
               <option value=""></option>
-              {% for n in nieces %}
-                <option value="{{ n.niece_id }}">{{ n.niece }}</option>
+              {% for n in niches %}
+                <option value="{{ n.niche_id }}">{{ n.niche }}</option>
               {% endfor %}
             </select>
           </div>
@@ -115,11 +115,11 @@
         <div class="modal-body">
           <input type="hidden" id="ek_keyword_id">
           <div class="form-group">
-            <label>Niece</label>
-            <select name="niece_id" id="ek_niece_id" class="form-control">
+            <label>Niche</label>
+            <select name="niche_id" id="ek_niche_id" class="form-control">
               <option value=""></option>
-              {% for n in nieces %}
-                <option value="{{ n.niece_id }}">{{ n.niece }}</option>
+              {% for n in niches %}
+                <option value="{{ n.niche_id }}">{{ n.niche }}</option>
               {% endfor %}
             </select>
           </div>
@@ -180,7 +180,7 @@ $(function(){
     e.preventDefault();
     var id = $(this).data('id');
     $('#ek_keyword_id').val(id);
-    $('#ek_niece_id').val($(this).data('niece-id'));
+    $('#ek_niche_id').val($(this).data('niche-id'));
     $('#ek_keyword').val($(this).data('keyword'));
     
     
@@ -193,7 +193,7 @@ $(function(){
     $btn.prop('disabled', true);
     var formData = $(this).serialize();
     $.ajax({
-      url: '/projects/master/niece/keyword/' + id + '/update',
+      url: '/projects/master/niche/keyword/' + id + '/update',
       method: 'POST',
       data: formData,
       dataType: 'json',
@@ -223,7 +223,7 @@ $(function(){
       var tokenEl = document.querySelector('input[name=csrfmiddlewaretoken]');
       var csrf = tokenEl ? tokenEl.value : '';
       $.ajax({
-        url: '/projects/master/niece/keyword/' + id + '/delete',
+        url: '/projects/master/niche/keyword/' + id + '/delete',
         method: 'POST',
         dataType: 'json',
         data: csrf ? { 'csrfmiddlewaretoken': csrf } : {},

@@ -36,7 +36,13 @@
                 {% for r in g.rows %}
                 <tr>
                   <td class="align-middle">{{ g.offset|add:forloop.counter }}</td>
-                  <td class="align-middle">{{ r.subdomain_name }}</td>
+                  <td class="align-middle">
+                    <u>{{ r.subdomain_name }}</u>
+                    <br>
+                    <b>Niche:</b> {{ r.niche|default:'' }}
+                    <br>
+                    <b>Keyword:</b> {{ r.keyword_total|default:'' }}
+                  </td>
                   <td class="align-middle">
                     <button type="button" class="btn btn-xs btn-info btn-show-links" data-popover-id="popover-links-{{ r.subdomain_id }}"><i class="bi bi-eye"></i> Lihat Link</button>
                     <div id="popover-links-{{ r.subdomain_id }}" class="d-none">

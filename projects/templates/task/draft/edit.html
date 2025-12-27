@@ -245,8 +245,6 @@ $(function(){
               sel.append(opt);
             });
             sel.select2({ theme: 'bootstrap4', width: '100%', allowClear: true, placeholder: 'Pilih penerima' });
-            var def = '{{ user.user_mail|default:"" }}'.trim();
-            if (def) { sel.val([def]).trigger('change'); }
           }
         });
       },

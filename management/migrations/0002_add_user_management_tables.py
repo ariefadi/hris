@@ -421,10 +421,9 @@ class Migration(migrations.Migration):
             sql="""
                 CREATE TABLE `data_subdomain` (
                 `subdomain_id` bigint unsigned NOT NULL AUTO_INCREMENT,
-                `subdomain` varchar(100) DEFAULT NULL,
-                `domain_id` bigint unsigned DEFAULT NULL,
+                `subdomain` varchar(100) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
+                `domain_id` bigint unsigned NOT NULL,
                 `website_id` bigint unsigned DEFAULT NULL,
-                `niece_id` bigint unsigned DEFAULT NULL,
                 `cloudflare` varchar(100) DEFAULT NULL,
                 `public_ipv4` varchar(45) DEFAULT NULL,
                 `tracker` text CHARACTER SET latin1 COLLATE latin1_swedish_ci,
@@ -438,12 +437,10 @@ class Migration(migrations.Migration):
                 PRIMARY KEY (`subdomain_id`),
                 KEY `subdomain` (`subdomain`),
                 KEY `domain_id` (`domain_id`),
-                KEY `website_id` (`website_id`),
-                KEY `niece_id` (`niece_id`),
+                KEY `data_subdomain_ibfk_2` (`website_id`),
                 CONSTRAINT `data_subdomain_ibfk_1` FOREIGN KEY (`domain_id`) REFERENCES `data_domains` (`domain_id`) ON DELETE CASCADE ON UPDATE CASCADE,
-                CONSTRAINT `data_subdomain_ibfk_2` FOREIGN KEY (`website_id`) REFERENCES `data_website` (`website_id`) ON UPDATE CASCADE,
-                CONSTRAINT `data_subdomain_ibfk_3` FOREIGN KEY (`niece_id`) REFERENCES `data_niece` (`niece_id`) ON UPDATE CASCADE
-                ) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=latin1
+                CONSTRAINT `data_subdomain_ibfk_2` FOREIGN KEY (`website_id`) REFERENCES `data_website` (`website_id`) ON DELETE CASCADE ON UPDATE CASCADE
+                ) ENGINE=InnoDB AUTO_INCREMENT=24 DEFAULT CHARSET=latin1
             """,
             # reverse_sql="DROP TABLE IF EXISTS `data_media_partner_domain`;"
         ),
@@ -559,14 +556,36 @@ class Migration(migrations.Migration):
             # reverse_sql="DROP TABLE IF EXISTS `data_media_fb_ads`;"
         ),
 
-        # create data website niece table
+        # create data website table
         migrations.RunSQL(
             sql="""
-                CREATE TABLE `data_website_niece` (
-                `web_niece_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                CREATE TABLE `data_website` (
+                `website_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                `domain` varchar(100) DEFAULT NULL,
+                `website` varchar(253) DEFAULT NULL,
+                `website_user` varchar(253) DEFAULT NULL,
+                `website_pass` varchar(253) DEFAULT NULL,
+                `article_status` varchar(10) DEFAULT 'waiting',
+                `article_deadline` datetime DEFAULT NULL,
+                `mdb` varchar(36) DEFAULT NULL,
+                `mdb_name` varchar(50) DEFAULT NULL,
+                `mdd` datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`website_id`),
+                KEY `domain` (`domain`),
+                KEY `website` (`website`)
+                ) ENGINE=InnoDB AUTO_INCREMENT=18 DEFAULT CHARSET=latin1
+            """,
+            # reverse_sql="DROP TABLE IF EXISTS `data_website`;"
+        ),
+
+        # create data website niche table
+        migrations.RunSQL(
+            sql="""
+                CREATE TABLE `data_website_niche` (
+                `web_niche_id` bigint unsigned NOT NULL AUTO_INCREMENT,
                 `domain_id` bigint unsigned DEFAULT NULL,
                 `subdomain_id` bigint unsigned DEFAULT NULL,
-                `niece_id` bigint unsigned DEFAULT NULL,
+                `niche_id` bigint unsigned DEFAULT NULL,
                 `keyword` varchar(255) DEFAULT NULL,
                 `prompt` text,
                 `link` varchar(255) DEFAULT NULL,
@@ -575,16 +594,16 @@ class Migration(migrations.Migration):
                 `mdb` varchar(36) DEFAULT NULL,
                 `mdb_name` varchar(50) DEFAULT NULL,
                 `mdd` datetime DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (`web_niece_id`),
+                PRIMARY KEY (`web_niche_id`),
                 KEY `domain_id` (`domain_id`),
                 KEY `subdomain_id` (`subdomain_id`),
-                KEY `niece_id` (`niece_id`),
-                CONSTRAINT `data_website_niece_ibfk_1` FOREIGN KEY (`domain_id`) REFERENCES `data_domains` (`domain_id`) ON UPDATE CASCADE,
-                CONSTRAINT `data_website_niece_ibfk_2` FOREIGN KEY (`subdomain_id`) REFERENCES `data_subdomain` (`subdomain_id`) ON UPDATE CASCADE,
-                CONSTRAINT `data_website_niece_ibfk_3` FOREIGN KEY (`niece_id`) REFERENCES `data_niece` (`niece_id`) ON UPDATE CASCADE
+                KEY `niche_id` (`niche_id`),
+                CONSTRAINT `data_website_niche_ibfk_1` FOREIGN KEY (`domain_id`) REFERENCES `data_domains` (`domain_id`) ON UPDATE CASCADE,
+                CONSTRAINT `data_website_niche_ibfk_2` FOREIGN KEY (`subdomain_id`) REFERENCES `data_subdomain` (`subdomain_id`) ON UPDATE CASCADE,
+                CONSTRAINT `data_website_niche_ibfk_3` FOREIGN KEY (`niche_id`) REFERENCES `data_niche` (`niche_id`) ON UPDATE CASCADE
                 ) ENGINE=InnoDB AUTO_INCREMENT=49 DEFAULT CHARSET=latin1
             """,
-            # reverse_sql="DROP TABLE IF EXISTS `data_website_niece`;"
+            # reverse_sql="DROP TABLE IF EXISTS `data_website_niche`;"
         ),
 
         # create data negara table
@@ -604,12 +623,12 @@ class Migration(migrations.Migration):
             # reverse_sql="DROP TABLE IF EXISTS `data_media_process`;"
         ),
 
-        # create data niece table
+        # create data niche table
         migrations.RunSQL(
             sql="""
-                CREATE TABLE `data_niece` (
-                `niece_id` bigint unsigned NOT NULL AUTO_INCREMENT,
-                `niece` varchar(100) DEFAULT NULL,
+                CREATE TABLE `data_niche` (
+                `niche_id` bigint unsigned NOT NULL AUTO_INCREMENT,
+                `niche` varchar(100) DEFAULT NULL,
                 `focuses` text,
                 `tier` json DEFAULT NULL,
                 `country_list` text,
@@ -620,11 +639,11 @@ class Migration(migrations.Migration):
                 `mdb` varchar(36) DEFAULT NULL,
                 `mdb_name` varchar(50) DEFAULT NULL,
                 `mdd` datetime DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (`niece_id`),
+                PRIMARY KEY (`niche_id`),
                 KEY `status` (`status`)
                 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=latin1
             """,
-            # reverse_sql="DROP TABLE IF EXISTS `data_niece`;"
+            # reverse_sql="DROP TABLE IF EXISTS `data_niche`;"
         ),
 
         # create data keywords table
@@ -632,15 +651,15 @@ class Migration(migrations.Migration):
             sql="""
                 CREATE TABLE `data_keywords` (
                 `keyword_id` bigint unsigned NOT NULL AUTO_INCREMENT,
-                `niece_id` bigint unsigned DEFAULT NULL,
+                `niche_id` bigint unsigned DEFAULT NULL,
                 `keyword` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
                 `mdb` varchar(36) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
                 `mdb_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
                 `mdd` datetime DEFAULT NULL,
                 PRIMARY KEY (`keyword_id`),
-                KEY `niece_id` (`niece_id`),
+                KEY `niche_id` (`niche_id`),
                 KEY `keyword` (`keyword`),
-                CONSTRAINT `data_keywords_ibfk_3` FOREIGN KEY (`niece_id`) REFERENCES `data_niece` (`niece_id`) ON UPDATE CASCADE
+                CONSTRAINT `data_keywords_ibfk_3` FOREIGN KEY (`niche_id`) REFERENCES `data_niche` (`niche_id`) ON UPDATE CASCADE
                 ) ENGINE=InnoDB AUTO_INCREMENT=20 DEFAULT CHARSET=latin1
             """,
             # reverse_sql="DROP TABLE IF EXISTS `data_keywrods`;"

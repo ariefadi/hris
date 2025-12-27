@@ -21,20 +21,24 @@
             <thead>
               <tr>
                 <th width="5%">No</th>
-                <th width="20%">Nama</th>
+                <th width="20%">Nama Media</th>
                 <th width="15%">Tanggal Request</th>
-                <th width="15%">PIC</th>
-                <th width="30%">Catatan</th>
-                <th width="30%">Posisi</th>
+                <th width="20%">Subdomain</th>
+                <th width="25%">Catatan</th>
+                <th width="15%">Posisi</th>
               </tr>
             </thead>
             <tbody>
               {% for r in items %}
               <tr>
                 <td class="align-middle">{{ forloop.counter }}</td>
-                <td class="align-middle"><u>{{ r.partner_name }}</u><br>Kontak: {{ r.partner_contact }}</td>
-                <td class="align-middle">{% if r.request_date %}{{ r.request_date|date:'Y-m-d' }}{% endif %}</td>
-                <td class="align-middle">{{ r.pic }}</td>
+                <td class="align-middle">
+                  <div class="mb-1">{{ r.partner_name }}</div>
+                  <div class="badge badge-primary mb-1"><i class="bi bi-phone"></i> {{ r.partner_contact }}</div>
+                  <div class="badge badge-warning mb-1">PIC: {{ r.pic }}</div>
+                </td>
+                <td class="align-middle">{% if r.request_date %}{{ r.request_date|date:'d M Y' }}{% endif %}</td>
+                <td class="align-middle">{{ r.subdomain_list }}</td>
                 <td class="align-middle">{{ r.catatan }}</td>
                 <td class="align-middle">{{ r.task_name|default:'-' }}</td>
               </tr>

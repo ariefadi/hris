@@ -1,11 +1,11 @@
 {% extends 'admin_base.html' %}
 
-{% block page_title %}Edit Niece{% endblock %}
-{% block page_heading %}Edit Niece{% endblock %}
+{% block page_title %}Edit Niche{% endblock %}
+{% block page_heading %}Edit Niche{% endblock %}
 
 {% block breadcrumbs %}
 <li class="breadcrumb-item">Projects</li>
-<li class="breadcrumb-item"><a href="/projects/master/niece">Master Niece</a></li>
+<li class="breadcrumb-item"><a href="/projects/master/niche">Master Niche</a></li>
 <li class="breadcrumb-item active">Edit</li>
 {% endblock %}
 
@@ -14,23 +14,23 @@
   <div class="col-12">
     <div class="card">
       <div class="card-header">
-        <h3 class="card-title">Edit Niece</h3>
+        <h3 class="card-title">Edit Niche</h3>
       </div>
       <div class="card-body">
-        <form id="formEditNiece" method="post" action="{% url 'projects_master_niece_update' niece.niece_id %}">
+        <form id="formEditNiche" method="post" action="{% url 'projects_master_niche_update' niche.niche_id %}">
           {% csrf_token %}
           <div class="form-row">
             <div class="form-group col-md-6">
-              <label>Niece</label>
-              <input type="text" name="niece" class="form-control" value="{{ niece.niece }}" required>
+              <label>Niche</label>
+              <input type="text" name="niche" class="form-control" value="{{ niche.niche }}" required>
             </div>
             <div class="form-group col-md-6">
               <label>Keyword CPC</label>
-              <input type="number" name="keyword_cpc" class="form-control" min="0" value="{{ niece.keyword_cpc }}">
+              <input type="number" name="keyword_cpc" class="form-control" min="0" value="{{ niche.keyword_cpc }}">
             </div>
             <div class="form-group col-md-12">
               <label>Focuses</label>
-              <textarea name="focuses" class="form-control" rows="2">{{ niece.focuses }}</textarea>
+              <textarea name="focuses" class="form-control" rows="2">{{ niche.focuses }}</textarea>
             </div>
             <div class="form-group col-md-12">
               <label>Country List</label>
@@ -42,20 +42,20 @@
             </div>
             <div class="form-group col-md-12">
               <label>Keywords</label>
-              <textarea name="keywords" class="form-control" rows="3">{{ niece.keywords }}</textarea>
+              <textarea name="keywords" class="form-control" rows="3">{{ niche.keywords }}</textarea>
             </div>
             <div class="form-group col-md-4">
               <label>Status</label>
               <select name="status" class="form-control">
                 {% for st in statuses %}
-                  <option value="{{ st }}" {% if niece.status == st %}selected{% endif %}>{{ st|title }}</option>
+                  <option value="{{ st }}" {% if niche.status == st %}selected{% endif %}>{{ st|title }}</option>
                 {% endfor %}
               </select>
             </div>
           </div>
           <div class="mt-3">
-            <button type="submit" class="btn btn-primary" id="btn_submit_niece">Simpan</button>
-            <a href="{% url 'projects_master_niece' %}" class="btn btn-secondary">Batal</a>
+            <button type="submit" class="btn btn-primary" id="btn_submit_niche">Simpan</button>
+            <a href="{% url 'projects_master_niche' %}" class="btn btn-secondary">Batal</a>
           </div>
         </form>
       </div>
@@ -102,9 +102,9 @@ $(function(){
       $sel.val(combined).trigger('change');
     });
   });
-  $('#formEditNiece').on('submit', function(e){
+  $('#formEditniche').on('submit', function(e){
     e.preventDefault();
-    var $btn = $('#btn_submit_niece');
+    var $btn = $('#btn_submit_niche');
     $btn.prop('disabled', true);
     var formData = $(this).serialize();
     $.ajax({
@@ -117,9 +117,9 @@ $(function(){
         var ok = resp && (resp.status === true || resp.status === 'True');
         if (ok) {
           if (window.Swal) {
-            Swal.fire({icon: 'success', title: 'Berhasil', text: 'Niece diperbarui', timer: 1000, showConfirmButton: false}).then(function(){ window.location.href = '{% url 'projects_master_niece' %}'; });
+            Swal.fire({icon: 'success', title: 'Berhasil', text: 'Niche diperbarui', timer: 1000, showConfirmButton: false}).then(function(){ window.location.href = '{% url 'projects_master_niche' %}'; });
           } else {
-            window.location.href = '{% url 'projects_master_niece' %}';
+            window.location.href = '{% url 'projects_master_niche' %}';
           }
         } else {
           var emsg = (resp && resp.message) ? resp.message : 'Gagal menyimpan';

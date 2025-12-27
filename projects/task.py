@@ -63,7 +63,10 @@ def send_whatsapp_notification(recipients, message):
             return False
         msg = str(message or '')
         msg = re.sub(r'(?i)<br\s*/?>', '\n', msg)
+        msg = re.sub(r'(?i)</p\s*>', '\n\n', msg)
+        msg = re.sub(r'(?i)<p\s*>', '', msg)
         msg = re.sub(r'<[^>]+>', '', msg)
+        msg = re.sub(r'\n{3,}', '\n\n', msg)
         msg = msg.strip()
         if not msg:
             return False
@@ -395,7 +398,7 @@ class DraftEditView(View):
                     subdomains = []
                 sub_text = "<br>".join(subdomains) if subdomains else "-"
                 subject = "Task untuk setting server"
-                body = f"Task untuk setting server: <br>{sub_text}<p>Tolong setting untuk server, Cloudflare, dan WordPress beserta plugin-nya.</p>"
+                body = f"Task untuk setting server: <br>{sub_text}<br><br>Tolong setting untuk server, Cloudflare, dan WordPress beserta plugin-nya."
                 if notify_email and recipients:
                     try:
                         send_mail_notification(
@@ -452,7 +455,14 @@ class MonitoringIndexView(View):
                    mp.request_date,
                    mp.pic,
                    df.task_name,
-                   latest.catatan
+                   latest.catatan,
+                   (
+                     SELECT GROUP_CONCAT(DISTINCT CONCAT(s.subdomain, '.', d.domain) ORDER BY d.domain ASC, s.subdomain ASC SEPARATOR ', ')
+                     FROM data_media_partner_domain pd
+                     JOIN data_domains d ON d.domain_id = pd.domain_id
+                     LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
+                     WHERE pd.partner_id = mp.partner_id AND s.subdomain_id IS NOT NULL
+                   ) AS subdomain_list
             FROM data_media_partner mp
             LEFT JOIN (
                 SELECT p.partner_id, p.flow_id, p.mdd, p.catatan
@@ -601,13 +611,30 @@ class TechnicalIndexView(View):
         """
         if db.execute_query(q_providers):
             providers = db.cur_hris.fetchall() or []
-        # partner domains fetch endpoint will provide domains per partner
+        niches = []
+        q_niche = """
+            SELECT niche_id, niche
+            FROM data_niche
+            ORDER BY niche ASC
+        """
+        if db.execute_query(q_niche):
+            niches = db.cur_hris.fetchall() or []
+        prompts = []
+        q_prompts = """
+            SELECT prompt_id, prompt
+            FROM data_prompts
+            ORDER BY COALESCE(mdd, '0000-00-00 00:00:00') DESC, prompt_id ASC
+        """
+        if db.execute_query(q_prompts):
+            prompts = db.cur_hris.fetchall() or []
         context = {
             'user': admin,
             'active_portal_id': active_portal_id,
             'partners': partners,
             'statuses': statuses,
             'providers': providers,
+            'niches': niches,
+            'prompts': prompts,
         }
         return render(request, 'task/technical/index.html', context)
 
@@ -769,7 +796,7 @@ class TechnicalSendView(View):
                 FROM data_media_partner_domain pd
                 JOIN data_domains d ON d.domain_id = pd.domain_id
                 LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
-                LEFT JOIN data_website_niece wn ON wn.subdomain_id = s.subdomain_id
+                LEFT JOIN data_website_niche wn ON wn.subdomain_id = s.subdomain_id
                 WHERE pd.partner_id = %s AND s.subdomain_id IS NOT NULL AND wn.deadline IS NOT NULL
                 ORDER BY wn.deadline ASC
                 LIMIT 1
@@ -827,12 +854,23 @@ class PublisherIndexView(View):
                    pr.process_id,
                    s.subdomain_id,
                    CONCAT(s.subdomain, '.', d.domain) AS subdomain_name,
-                   MAX(n.niece) AS niece,
+                   MAX(n.niche) AS niche,
                    (
-                     SELECT COUNT(DISTINCT web_niece_id)
-                     FROM data_website_niece w2
+                     SELECT COUNT(DISTINCT web_niche_id)
+                     FROM data_website_niche w2
                      WHERE w2.subdomain_id = MAX(s.subdomain_id)
-                   ) AS keyword_total
+                   ) AS keyword_total,
+                   (
+                     SELECT COUNT(DISTINCT web_niche_id)
+                     FROM data_website_niche w2
+                     WHERE w2.subdomain_id = MAX(s.subdomain_id) AND w2.status = 'draft'
+                   ) AS draft_total,
+                   (
+                     SELECT COUNT(DISTINCT web_niche_id)
+                     FROM data_website_niche w2
+                     WHERE w2.subdomain_id = MAX(s.subdomain_id) AND w2.status = 'posted'
+                   ) AS posted_total,
+                   MAX(dw.article_deadline) AS article_deadline
             FROM data_media_partner mp
             INNER JOIN (
                 SELECT p.process_id, p.partner_id, p.flow_id, COALESCE(p.mdd, '0000-00-00 00:00:00') AS mdd
@@ -843,8 +881,9 @@ class PublisherIndexView(View):
             INNER JOIN data_media_partner_domain pd ON pd.partner_id = mp.partner_id
             INNER JOIN data_domains d ON d.domain_id = pd.domain_id
             LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
-            LEFT JOIN data_website_niece wn ON wn.subdomain_id = s.subdomain_id
-            LEFT JOIN data_niece n ON n.niece_id = wn.niece_id
+            LEFT JOIN data_website dw ON s.website_id = dw.website_id
+            LEFT JOIN data_website_niche wn ON wn.subdomain_id = s.subdomain_id
+            LEFT JOIN data_niche n ON n.niche_id = wn.niche_id
             WHERE mp.status = 'waiting'
               AND pr.mdd = (
                   SELECT MAX(COALESCE(mdd, '0000-00-00 00:00:00'))
@@ -886,14 +925,14 @@ class PublisherIndexView(View):
             g['offset'] = cum
             groups.append(g)
             cum += len(g['rows'])
-        nieces = []
-        q_niece = """
-            SELECT niece_id, niece
-            FROM data_niece
-            ORDER BY niece ASC
+        niches = []
+        q_niche = """
+            SELECT niche_id, niche
+            FROM data_niche
+            ORDER BY niche ASC
         """
-        if db.execute_query(q_niece):
-            nieces = db.cur_hris.fetchall() or []
+        if db.execute_query(q_niche):
+            niches = db.cur_hris.fetchall() or []
         prompts = []
         q_prompts = """
             SELECT prompt_id, prompt
@@ -906,7 +945,7 @@ class PublisherIndexView(View):
             'user': admin,
             'active_portal_id': active_portal_id,
             'groups': groups,
-            'nieces': nieces,
+            'niches': niches,
             'prompts': prompts,
         }
         return render(request, 'task/publisher/index.html', context)
@@ -919,7 +958,7 @@ class PublisherKeywordsSaveView(View):
         admin = request.session.get('hris_admin', {})
         db = data_mysql()
         subdomain_id_raw = (request.POST.get('subdomain_id') or '').strip()
-        niece_id_raw = (request.POST.get('niece_id') or '').strip()
+        niche_id_raw = (request.POST.get('niche_id') or '').strip()
         action = (request.POST.get('action') or '').strip().lower()
         status_list = request.POST.getlist('status[]') or []
         try:
@@ -927,9 +966,9 @@ class PublisherKeywordsSaveView(View):
         except Exception:
             subdomain_id = None
         try:
-            niece_id = int(niece_id_raw) if niece_id_raw else None
+            niche_id = int(niche_id_raw) if niche_id_raw else None
         except Exception:
-            niece_id = None
+            niche_id = None
         keywords = request.POST.getlist('keyword[]') or request.POST.getlist('keyword') or []
         prompt_ids_raw = request.POST.getlist('prompt_id[]') or request.POST.getlist('prompt_id') or []
         prompt_ids = []
@@ -941,8 +980,8 @@ class PublisherKeywordsSaveView(View):
         
         if not subdomain_id:
             return JsonResponse({'status': False, 'message': 'Subdomain wajib diisi.'}, status=400)
-        if not niece_id:
-            return JsonResponse({'status': False, 'message': 'Niece wajib dipilih.'}, status=400)
+        if not niche_id:
+            return JsonResponse({'status': False, 'message': 'Niche wajib dipilih.'}, status=400)
         if not keywords:
             return JsonResponse({'status': False, 'message': 'Keyword wajib diisi.'}, status=400)
         domain_id = None
@@ -981,8 +1020,8 @@ class PublisherKeywordsSaveView(View):
         if final_keywords and action != 'update':
             uniq_list = list(set(final_keywords))
             placeholders = ",".join(["%s"] * len(uniq_list))
-            sql_dup = f"SELECT keyword, COUNT(*) AS cnt FROM data_website_niece WHERE subdomain_id=%s AND niece_id=%s AND keyword IN ({placeholders}) GROUP BY keyword"
-            params_dup = tuple([subdomain_id, niece_id] + uniq_list)
+            sql_dup = f"SELECT keyword, COUNT(*) AS cnt FROM data_website_niche WHERE subdomain_id=%s AND niche_id=%s AND keyword IN ({placeholders}) GROUP BY keyword"
+            params_dup = tuple([subdomain_id, niche_id] + uniq_list)
             if db.execute_query(sql_dup, params_dup):
                 rows_dup = db.cur_hris.fetchall() or []
                 for rd in rows_dup:
@@ -998,12 +1037,12 @@ class PublisherKeywordsSaveView(View):
                         dup_db.append(kwd)
         dup_all = list(set(dup_payload + dup_db))
         if dup_all:
-            msg = 'Keyword duplikat untuk subdomain dan niece: ' + ", ".join(dup_all)
+            msg = 'Keyword duplikat untuk subdomain dan niche: ' + ", ".join(dup_all)
             return JsonResponse({'status': False, 'message': msg, 'duplicates': dup_all}, status=400)
         if action == 'update':
             db.execute_query(
-                "DELETE FROM data_website_niece WHERE subdomain_id=%s AND niece_id=%s",
-                (subdomain_id, niece_id)
+                "DELETE FROM data_website_niche WHERE subdomain_id=%s AND niche_id=%s",
+                (subdomain_id, niche_id)
             )
         for idx, kw in enumerate(keywords):
             kw_text = (kw or '').strip()
@@ -1019,11 +1058,11 @@ class PublisherKeywordsSaveView(View):
             sv = status_list[idx] if idx < len(status_list) and (status_list[idx] or '').strip() else 'posted'
             ok = db.execute_query(
                 """
-                INSERT INTO data_website_niece
-                (domain_id, subdomain_id, niece_id, keyword, prompt, status, mdb, mdb_name, mdd)
+                INSERT INTO data_website_niche
+                (domain_id, subdomain_id, niche_id, keyword, prompt, status, mdb, mdb_name, mdd)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
                 """,
-                (domain_id, subdomain_id, niece_id, kw_text, ptxt, sv, mdb, mdb_name)
+                (domain_id, subdomain_id, niche_id, kw_text, ptxt, sv, mdb, mdb_name)
             )
             if ok:
                 if action == 'update':
@@ -1048,14 +1087,14 @@ class PublisherKeywordsLoadView(View):
         sql = """
             SELECT k.keyword,
                    k.status,
-                   k.niece_id,
+                   k.niche_id,
                    k.prompt AS prompt_text
-            FROM data_website_niece k
+            FROM data_website_niche k
             WHERE k.subdomain_id = %s
             ORDER BY COALESCE(k.mdd, '0000-00-00 00:00:00') DESC
         """
         items = []
-        niece_id = None
+        niche_id = None
         if db.execute_query(sql, (subdomain_id,)):
             rows = db.cur_hris.fetchall() or []
             # Load all prompts to attempt reverse-matching
@@ -1065,10 +1104,10 @@ class PublisherKeywordsLoadView(View):
             for r in rows:
                 kw = r.get('keyword') if isinstance(r, dict) else r[0]
                 st = r.get('status') if isinstance(r, dict) else r[1]
-                nid = r.get('niece_id') if isinstance(r, dict) else r[2]
+                nid = r.get('niche_id') if isinstance(r, dict) else r[2]
                 ptxt = r.get('prompt_text') if isinstance(r, dict) else r[3]
-                if not niece_id and nid:
-                    niece_id = nid
+                if not niche_id and nid:
+                    niche_id = nid
                 matched_pid = None
                 # Try to find the template whose replacement equals stored prompt text
                 for pr in prompts:
@@ -1088,29 +1127,29 @@ class PublisherKeywordsLoadView(View):
                     if str(candidate or '').strip() == str(ptxt or '').strip():
                         matched_pid = pid
                         break
-                items.append({'keyword': kw, 'status': st, 'niece_id': nid, 'prompt_id': matched_pid, 'prompt_text': ptxt})
-        return JsonResponse({'status': True, 'niece_id': niece_id, 'items': items})
+                items.append({'keyword': kw, 'status': st, 'niche_id': nid, 'prompt_id': matched_pid, 'prompt_text': ptxt})
+        return JsonResponse({'status': True, 'niche_id': niche_id, 'items': items})
 
-class PublisherKeywordsByNieceView(View):
+class PublisherKeywordsByNicheView(View):
     def get(self, request):
         if 'hris_admin' not in request.session:
             return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
         db = data_mysql()
-        niece_id_raw = (request.GET.get('niece_id') or '').strip()
+        niche_id_raw = (request.GET.get('niche_id') or '').strip()
         try:
-            niece_id = int(niece_id_raw) if niece_id_raw else None
+            niche_id = int(niche_id_raw) if niche_id_raw else None
         except Exception:
-            niece_id = None
-        if not niece_id:
+            niche_id = None
+        if not niche_id:
             return JsonResponse({'status': True, 'items': []})
         sql = """
             SELECT keyword_id, keyword
             FROM data_keywords
-            WHERE niece_id = %s
+            WHERE niche_id = %s
             ORDER BY COALESCE(mdd, '0000-00-00 00:00:00') DESC, keyword_id ASC
         """
         items = []
-        if db.execute_query(sql, (niece_id,)):
+        if db.execute_query(sql, (niche_id,)):
             for r in (db.cur_hris.fetchall() or []):
                 try:
                     kid = r.get('keyword_id')
@@ -1139,7 +1178,7 @@ class PublisherKeywordsDeleteView(View):
         if not subdomain_id:
             return JsonResponse({'status': False, 'message': 'Subdomain wajib diisi.'}, status=400)
         ok = db.execute_query(
-            "DELETE FROM data_website_niece WHERE subdomain_id=%s",
+            "DELETE FROM data_website_niche WHERE subdomain_id=%s",
             (subdomain_id,)
         )
         if not ok:
@@ -1186,7 +1225,7 @@ class PublisherSendView(View):
             FROM data_media_partner_domain pd
             JOIN data_domains d ON d.domain_id = pd.domain_id
             LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
-            LEFT JOIN data_website_niece k ON k.subdomain_id = s.subdomain_id
+            LEFT JOIN data_website_niche k ON k.subdomain_id = s.subdomain_id
             WHERE pd.partner_id = %s AND s.subdomain_id IS NOT NULL
             GROUP BY s.subdomain_id, s.subdomain, d.domain
         """
@@ -1261,7 +1300,7 @@ class PublisherSendView(View):
             subdomains = []
         sub_text = "<br>".join(subdomains) if subdomains else "-"
         subject = "Task untuk setting cloacking"
-        body = f"Task untuk setting cloacking: <br>{sub_text},<p>Tolong setting untuk cloacking dan assign ke Ads Team.</p>"
+        body = f"Task untuk setting cloacking: <br>{sub_text},<br><br>Tolong setting untuk cloacking dan assign ke Ads Team."
 
         if notify_email and recipients:
             try:
@@ -1366,7 +1405,7 @@ class SelesaiIndexView(View):
                 MAX(ds.vcpu_count) AS vcpu, MAX(ds.memory_gb) AS memory_gb,
                 w.website_user AS website_user,
                 w.website_pass AS website_pass,
-                (SELECT COUNT(*) FROM data_website_niece k WHERE k.subdomain_id = s.subdomain_id) AS keyword_count,
+                (SELECT COUNT(*) FROM data_website_niche k WHERE k.subdomain_id = s.subdomain_id) AS keyword_count,
                 MAX(a.account_name) AS fb_account,
                 MAX(b.fanpage) AS fb_fanpage,
                 MAX(b.daily_budget) AS fb_daily_budget,
@@ -1382,14 +1421,14 @@ class SelesaiIndexView(View):
                           AND REPLACE(CAST(mn2.tier AS CHAR), 'Tier ', '') = '2'
                     ) THEN 'Tier 2' END
                 ) AS country_tier,
-                MAX(n.niece) AS niece
+                MAX(n.niche) AS niche
             FROM data_website w
             INNER JOIN data_subdomain s ON s.website_id = w.website_id
             INNER JOIN data_domains d ON d.domain_id = s.domain_id
             INNER JOIN data_media_partner_domain dmpd ON d.domain_id = dmpd.domain_id
             INNER JOIN data_media_partner dmp ON dmpd.partner_id = dmp.partner_id
-            LEFT JOIN data_website_niece wn ON wn.subdomain_id = s.subdomain_id
-            LEFT JOIN data_niece n ON n.niece_id = wn.niece_id
+            LEFT JOIN data_website_niche wn ON wn.subdomain_id = s.subdomain_id
+            LEFT JOIN data_niche n ON n.niche_id = wn.niche_id
             LEFT JOIN data_media_fb_ads b ON b.subdomain_id = s.subdomain_id
             LEFT JOIN master_account_ads a ON a.account_ads_id = COALESCE(NULLIF(b.account_ads_id_2, ''), b.account_ads_id_1)
             LEFT JOIN data_servers ds ON s.public_ipv4 = ds.public_ipv4
@@ -1536,7 +1575,7 @@ class TrackerSendView(View):
         trackers_text = "<br>".join(trackers) if trackers else "-"
         params_text = "<br>".join(params_list) if params_list else "-"
         subject = "Task iklan untuk domain"
-        body = f"Task iklan untuk domain:<br>{subs_text}<p>Domain berikut sudah siap untuk diiklankan, silahkan diproses.<p>URL Iklan: <br>{trackers_text}<br>Parameter: <br>{params_text}"
+        body = f"Task iklan untuk domain:<br>{subs_text}<br><br>Domain berikut sudah siap untuk diiklankan, silahkan diproses.<br>URL Iklan: <br>{trackers_text}<br>Parameter: <br>{params_text}"
         if notify_email and recipients:
             try:
                 send_mail_notification(
@@ -1733,7 +1772,9 @@ class AdsIndexView(View):
                    b.country,
                    b.daily_budget,
                    s.tracker,
-                   s.tracker_params
+                   s.tracker_params,
+                   MAX(dn.niche) AS niche,
+                   COUNT(dwn.web_niche_id) AS keyword_total
             FROM data_media_partner mp
             INNER JOIN (
                 SELECT p.process_id, p.partner_id, p.flow_id, COALESCE(p.mdd, '0000-00-00 00:00:00') AS mdd
@@ -1745,6 +1786,8 @@ class AdsIndexView(View):
             INNER JOIN data_domains d ON d.domain_id = pd.domain_id
             LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
             LEFT JOIN data_media_fb_ads b ON b.subdomain_id = s.subdomain_id
+            LEFT JOIN data_website_niche dwn ON s.subdomain_id = dwn.subdomain_id
+            LEFT JOIN data_niche dn ON dwn.niche_id = dn.niche_id
             WHERE mp.status = 'waiting'
               AND pr.mdd = (
                   SELECT MAX(COALESCE(mdd, '0000-00-00 00:00:00'))
@@ -2013,7 +2056,7 @@ class AdsSendView(View):
                 if missing:
                     problems.append(f"{nm or '-'} ({', '.join(missing)})")
         if problems:
-            return JsonResponse({'status': False, 'message': 'Lengkapi semua field sebelum kirim (Avg CPC opsional)', 'missing': problems}, status=400)
+            return JsonResponse({'status': False, 'message': 'Lengkapi semua field sebelum kirim', 'missing': problems}, status=400)
         ok_upd = db.execute_query(
             """
             UPDATE data_media_process SET process_st=%s, action_st=%s, mdb=%s, mdb_finish=%s, mdd_finish=NOW()
@@ -2391,7 +2434,7 @@ class TechnicalSubrowLookupView(View):
                 subrow = db.cur_hris.fetchone() or None
             if subrow:
                 if subrow.get('website_id'):
-                    if db.execute_query("SELECT website, website_user, website_pass FROM data_website WHERE website_id = %s LIMIT 1", (subrow.get('website_id'),)):
+                    if db.execute_query("SELECT website, website_user, website_pass, article_deadline FROM data_website WHERE website_id = %s LIMIT 1", (subrow.get('website_id'),)):
                         website = db.cur_hris.fetchone() or None
                 if subrow.get('public_ipv4'):
                     q = """
@@ -2540,8 +2583,9 @@ class TechnicalSubrowDeleteView(View):
         except Exception:
             return JsonResponse({'status': False, 'message': 'Subdomain tidak valid'}, status=400)
         wid = None
+        did = None
         sql = """
-            SELECT website_id
+            SELECT website_id, domain_id
             FROM data_subdomain
             WHERE subdomain_id = %s
             LIMIT 1
@@ -2550,14 +2594,72 @@ class TechnicalSubrowDeleteView(View):
             r = db.cur_hris.fetchone() or {}
             try:
                 wid = r.get('website_id')
+                did = r.get('domain_id')
+            except AttributeError:
+                try:
+                    wid = r[0]
+                    did = r[1] if len(r) > 1 else None
+                except Exception:
+                    wid = None
+                    did = None
+        db.execute_query("DELETE FROM data_website_niche WHERE subdomain_id = %s", (subdomain_id,))
+        db.commit()
+        if wid:
+            if did:
+                try:
+                    if db.execute_query("SELECT website_id FROM data_domains WHERE domain_id = %s LIMIT 1", (did,)):
+                        dr = db.cur_hris.fetchone() or {}
+                        curr_wid = None
+                        try:
+                            curr_wid = dr.get('website_id')
+                        except AttributeError:
+                            try:
+                                curr_wid = dr[0]
+                            except Exception:
+                                curr_wid = None
+                        if curr_wid and str(curr_wid) == str(wid):
+                            db.execute_query("UPDATE data_domains SET website_id = NULL WHERE domain_id = %s", (did,))
+                            db.commit()
+                except Exception:
+                    pass
+            db.execute_query("UPDATE data_subdomain SET website_id = NULL WHERE subdomain_id = %s", (subdomain_id,))
+            db.commit()
+            db.execute_query("DELETE FROM data_website WHERE website_id = %s", (wid,))
+            db.commit()
+        ok = db.execute_query("DELETE FROM data_subdomain WHERE subdomain_id = %s", (subdomain_id,))
+        if not ok:
+            return JsonResponse({'status': False, 'message': 'Gagal menghapus subdomain'}, status=500)
+        db.commit()
+        return JsonResponse({'status': True})
+class TechnicalWebsiteDeadlineUpdateView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        admin = request.session.get('hris_admin', {})
+        db = data_mysql()
+        subdomain_id_raw = (request.POST.get('subdomain_id') or '').strip()
+        deadline = (request.POST.get('article_deadline') or '').strip()
+        try:
+            subdomain_id = int(subdomain_id_raw)
+        except Exception:
+            return JsonResponse({'status': False, 'message': 'Subdomain tidak valid'}, status=400)
+        wid = None
+        if db.execute_query("SELECT website_id FROM data_subdomain WHERE subdomain_id = %s LIMIT 1", (subdomain_id,)):
+            r = db.cur_hris.fetchone() or {}
+            try:
+                wid = r.get('website_id')
             except AttributeError:
                 try:
                     wid = r[0]
                 except Exception:
                     wid = None
-        db.execute_query("DELETE FROM data_subdomain WHERE subdomain_id = %s", (subdomain_id,))
+        if not wid:
+            return JsonResponse({'status': False, 'message': 'Website tidak tersedia untuk subdomain ini'}, status=400)
+        ok = db.execute_query(
+            "UPDATE data_website SET article_deadline=%s, mdb=%s, mdb_name=%s, mdd=NOW() WHERE website_id=%s",
+            (deadline if deadline else None, admin.get('user_id',''), admin.get('user_alias',''), wid)
+        )
+        if not ok:
+            return JsonResponse({'status': False, 'message': 'Gagal memperbarui deadline'}, status=500)
         db.commit()
-        if wid:
-            db.execute_query("DELETE FROM data_website WHERE website_id = %s", (wid,))
-            db.commit()
-        return JsonResponse({'status': True})
+        return JsonResponse({'status': True, 'website_id': wid})

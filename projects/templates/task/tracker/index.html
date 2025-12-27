@@ -191,14 +191,12 @@
                 if (!mail) return;
                 var opt = $('<option>').attr('value', mail);
                 opt.text(alias ? (alias) : mail);
-                sel.append(opt);
-              });
-              sel.select2({ theme: 'bootstrap4', width: '100%', allowClear: true, placeholder: 'Pilih penerima' });
-              var def = '{{ user.user_mail|default:"" }}'.trim();
-              if (def) { sel.val([def]).trigger('change'); }
-            }
-          });
-        },
+              sel.append(opt);
+            });
+            sel.select2({ theme: 'bootstrap4', width: '100%', allowClear: true, placeholder: 'Pilih penerima' });
+          }
+        });
+      },
         preConfirm: function(){
           var sendEmail = $('#swal_notify_email').is(':checked');
           var sendWa = $('#swal_notify_wa').is(':checked');

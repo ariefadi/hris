@@ -1,11 +1,11 @@
 {% extends 'admin_base.html' %}
 
-{% block page_title %}Master Niece{% endblock %}
-{% block page_heading %}Master Niece{% endblock %}
+{% block page_title %}Master Niche{% endblock %}
+{% block page_heading %}Master Niche{% endblock %}
 
 {% block breadcrumbs %}
 <li class="breadcrumb-item">Projects</li>
-<li class="breadcrumb-item active"><a href="/projects/master/niece">Master Niece</a></li>
+<li class="breadcrumb-item active"><a href="/projects/master/niche">Master Niche</a></li>
 {% endblock %}
 
 {% block content %}
@@ -13,17 +13,17 @@
   <div class="col-12">
     <div class="card">
       <div class="card-header">
-        <h3 class="card-title">Daftar Niece</h3>
+        <h3 class="card-title">Daftar Niche</h3>
         <div class="card-tools">
-          <a href="#" class="btn btn-sm btn-primary" data-toggle="modal" data-target="#modalCreateNiece">
-            <i class="bi bi-plus-circle"></i> Tambah Niece
+          <a href="#" class="btn btn-sm btn-primary" data-toggle="modal" data-target="#modalCreateNiche">
+            <i class="bi bi-plus-circle"></i> Tambah Niche
           </a>
         </div>
       </div>
       <div class="card-body">
         <ul class="nav nav-tabs mb-3">
           <li class="nav-item">
-            <a class="nav-link active" href="{% url 'projects_master_niece' %}">Niece</a>
+            <a class="nav-link active" href="{% url 'projects_master_niche' %}">Niche</a>
           </li>
           <li class="nav-item">
             <a class="nav-link" href="{% url 'projects_master_keyword' %}">Keyword</a>
@@ -34,7 +34,7 @@
             <thead>
               <tr>
                 <th width="5%">No</th>
-                <th width="20%">Niece</th>
+                <th width="20%">Niche</th>
                 <th width="25%">Focuses</th>
                 <th width="20%">Country Tiers</th>
                 <th width="10%">Keyword CPC</th>
@@ -43,10 +43,10 @@
               </tr>
             </thead>
             <tbody>
-              {% for n in nieces %}
+              {% for n in niches %}
               <tr>
                 <td class="align-middle">{{ forloop.counter }}</td>
-                <td class="align-middle">{{ n.niece }}</td>
+                <td class="align-middle">{{ n.niche }}</td>
                 <td class="align-middle">
                   {% if n.focuses %}
                   <span class="focuses-pop" data-toggle="popover" data-placement="right" data-container="body" data-trigger="hover" data-content="{{ n.focuses|escape }}">{{ n.focuses_short }}</span>
@@ -62,8 +62,8 @@
                 <td class="align-middle">{{ n.keyword_cpc }}</td>
                 <td class="align-middle">{{ n.status|title }}</td>
                 <td class="align-middle">
-                  <a href="{% url 'projects_master_niece_edit' n.niece_id %}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
-                  <a href="#" class="btn btn-sm btn-danger btn-del-niece" data-id="{{ n.niece_id }}"><i class="bi bi-trash"></i></a>
+                  <a href="{% url 'projects_master_niche_edit' n.niche_id %}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
+                <a href="#" class="btn btn-sm btn-danger btn-del-niche" data-id="{{ n.niche_id }}"><i class="bi bi-trash"></i></a>
                 </td>
               </tr>
               {% empty %}
@@ -79,20 +79,20 @@
   </div>
 </div>
 
-<div class="modal fade" id="modalCreateNiece" tabindex="-1" role="dialog" aria-hidden="true">
+<div class="modal fade" id="modalCreateNiche" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Tambah Niece</h5>
+        <h5 class="modal-title">Tambah Niche</h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
       </div>
-      <form id="formCreateNiece" method="post" action="{% url 'projects_master_niece_create' %}">
+      <form id="formCreateNiche" method="post" action="{% url 'projects_master_niche_create' %}">
         {% csrf_token %}
         <div class="modal-body">
           <div class="row">
             <div class="form-group col-md-6">
-              <label>Niece</label>
-              <input type="text" name="niece" class="form-control" required>
+              <label>Niche</label>
+              <input type="text" name="niche" class="form-control" required>
             </div>
             <div class="form-group col-md-6">
               <label>Keyword CPC</label>
@@ -131,7 +131,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
-          <button type="submit" class="btn btn-primary" id="btn_submit_niece">Simpan</button>
+          <button type="submit" class="btn btn-primary" id="btn_submit_niche">Simpan</button>
         </div>
       </form>
     </div>
@@ -146,7 +146,7 @@ $(function(){
     $('#country_list_create').select2({
       theme: 'bootstrap4',
       tags: true,
-      dropdownParent: $('#modalCreateNiece')
+      dropdownParent: $('#modalCreateNiche')
     });
   }
   $(document).on('select2:open', function(e){
@@ -192,9 +192,9 @@ $(function(){
     var combined = Array.from(new Set(existing.concat(values)));
     $('#country_list_create').val(combined).trigger('change');
   });
-  $('#formCreateNiece').on('submit', function(e){
+  $('#formCreateNiche').on('submit', function(e){
     e.preventDefault();
-    var $btn = $('#btn_submit_niece');
+    var $btn = $('#btn_submit_niche');
     $btn.prop('disabled', true);
     var formData = $(this).serialize();
     $.ajax({
@@ -207,7 +207,7 @@ $(function(){
         var ok = resp && (resp.status === true || resp.status === 'True');
         if (ok) {
           if (window.Swal) {
-            Swal.fire({icon: 'success', title: 'Berhasil', text: 'Niece ditambahkan', timer: 1000, showConfirmButton: false}).then(function(){ window.location.reload(); });
+            Swal.fire({icon: 'success', title: 'Berhasil', text: 'Niche ditambahkan', timer: 1000, showConfirmButton: false}).then(function(){ window.location.reload(); });
           } else {
             window.location.reload();
           }
@@ -235,11 +235,11 @@ $(function(){
       }
     });
   });
-  $('.btn-del-niece').on('click', function(e){
+  $('.btn-del-niche').on('click', function(e){
     e.preventDefault();
     var id = $(this).data('id');
-    var doDel = function(go){ if (!go) return; $.ajax({ url: '/projects/master/niece/' + id + '/delete', method: 'POST', dataType: 'json', headers: { 'X-Requested-With': 'XMLHttpRequest' }, success: function(resp){ var ok = resp && (resp.status === true || resp.status === 'True'); if (ok){ if (window.Swal){ Swal.fire({icon:'success', title:'Berhasil', text:'Niece dihapus', timer:1000, showConfirmButton:false}).then(function(){ window.location.reload(); }); } else { window.location.reload(); } } else { var emsg = (resp && resp.message) ? resp.message : 'Gagal menghapus'; if (window.Swal){ Swal.fire({icon:'error', title:'Gagal', text: emsg}); } else { alert(emsg); } } }, error: function(){ if (window.Swal){ Swal.fire({icon:'error', title:'Gagal', text:'Terjadi kesalahan saat menghapus'}); } else { alert('Terjadi kesalahan saat menghapus'); } } }); };
-    if (window.Swal){ Swal.fire({icon:'question', title:'Hapus?', text:'Hapus niece ini?', showCancelButton:true, confirmButtonText:'Ya, hapus', cancelButtonText:'Batal'}).then(function(res){ doDel(res && res.isConfirmed); }); } else { var ok = confirm('Hapus niece ini?'); doDel(ok); }
+    var doDel = function(go){ if (!go) return; $.ajax({ url: '/projects/master/niche/' + id + '/delete', method: 'POST', dataType: 'json', headers: { 'X-Requested-With': 'XMLHttpRequest' }, success: function(resp){ var ok = resp && (resp.status === true || resp.status === 'True'); if (ok){ if (window.Swal){ Swal.fire({icon:'success', title:'Berhasil', text:'Niche dihapus', timer:1000, showConfirmButton:false}).then(function(){ window.location.reload(); }); } else { window.location.reload(); } } else { var emsg = (resp && resp.message) ? resp.message : 'Gagal menghapus'; if (window.Swal){ Swal.fire({icon:'error', title:'Gagal', text: emsg}); } else { alert(emsg); } } }, error: function(){ if (window.Swal){ Swal.fire({icon:'error', title:'Gagal', text:'Terjadi kesalahan saat menghapus'}); } else { alert('Terjadi kesalahan saat menghapus'); } } }); };
+    if (window.Swal){ Swal.fire({icon:'question', title:'Hapus?', text:'Hapus niche ini?', showCancelButton:true, confirmButtonText:'Ya, hapus', cancelButtonText:'Batal'}).then(function(res){ doDel(res && res.isConfirmed); }); } else { var ok = confirm('Hapus niche ini?'); doDel(ok); }
   });
   if (window.jQuery) {
     $('[data-toggle="popover"]').popover();

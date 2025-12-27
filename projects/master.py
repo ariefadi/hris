@@ -305,7 +305,7 @@ class DomainEditView(View):
         }
         return render(request, 'master/domain/edit.html', context)
 
-class NieceIndexView(View):
+class NicheIndexView(View):
     def get(self, request):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
@@ -313,8 +313,8 @@ class NieceIndexView(View):
         active_portal_id = request.session.get('active_portal_id', '12')
         db = data_mysql()
         sql = """
-            SELECT niece_id, niece, focuses, tier, country_list, keyword_cpc, status, keywords, file, mdd
-            FROM data_niece
+            SELECT niche_id, niche, focuses, tier, country_list, keyword_cpc, status, keywords, file, mdd
+            FROM data_niche
             ORDER BY COALESCE(mdd, NOW()) DESC
         """
         rows = []
@@ -371,30 +371,30 @@ class NieceIndexView(View):
         context = {
             'user': admin,
             'active_portal_id': active_portal_id,
-            'nieces': rows,
+            'niches': rows,
             'statuses': statuses,
             'countries': countries,
         }
-        return render(request, 'master/niece/index.html', context)
+        return render(request, 'master/niche/index.html', context)
 
-class NieceCreateView(View):
+class NicheCreateView(View):
     def post(self, request):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
         admin = request.session.get('hris_admin', {})
         db = data_mysql()
-        niece = request.POST.get('niece', '').strip()
+        niche = request.POST.get('niche', '').strip()
         focuses = request.POST.get('focuses', '').strip()
         country_list_vals = request.POST.getlist('country_list')
         keyword_cpc_raw = request.POST.get('keyword_cpc', '').strip()
         status = request.POST.get('status', '').strip() or 'pending'
         keywords = request.POST.get('keywords', '').strip()
         is_ajax = (request.headers.get('x-requested-with') == 'XMLHttpRequest') or (request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest')
-        if not niece:
+        if not niche:
             if is_ajax:
-                return JsonResponse({'status': False, 'message': 'Niece wajib diisi.'}, status=400)
-            messages.error(request, 'Niece wajib diisi.')
-            return redirect('/projects/master/niece')
+                return JsonResponse({'status': False, 'message': 'Niche wajib diisi.'}, status=400)
+            messages.error(request, 'Niche wajib diisi.')
+            return redirect('/projects/master/niche')
         try:
             keyword_cpc = int(keyword_cpc_raw) if keyword_cpc_raw else None
         except Exception:
@@ -403,36 +403,36 @@ class NieceCreateView(View):
         if country_list_vals:
             countries_text = ",".join([v.strip() for v in country_list_vals if v.strip()])
         sql = """
-            INSERT INTO data_niece (niece, focuses, country_list, keyword_cpc, status, keywords, mdb, mdb_name, mdd)
+            INSERT INTO data_niche (niche, focuses, country_list, keyword_cpc, status, keywords, mdb, mdb_name, mdd)
             VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
         """
-        params = (niece or None, focuses or None, countries_text, keyword_cpc, status, keywords or None, admin.get('user_id',''), admin.get('user_alias',''))
+        params = (niche or None, focuses or None, countries_text, keyword_cpc, status, keywords or None, admin.get('user_id',''), admin.get('user_alias',''))
         if db.execute_query(sql, params):
             db.commit()
             if is_ajax:
                 return JsonResponse({'status': True})
-            messages.success(request, 'Niece berhasil ditambahkan.')
+            messages.success(request, 'Niche berhasil ditambahkan.')
         else:
             if is_ajax:
-                return JsonResponse({'status': False, 'message': 'Gagal menambahkan niece.'}, status=500)
-            messages.error(request, 'Gagal menambahkan niece.')
-        return redirect('/projects/master/niece')
+                return JsonResponse({'status': False, 'message': 'Gagal menambahkan niche.'}, status=500)
+            messages.error(request, 'Gagal menambahkan niche.')
+        return redirect('/projects/master/niche')
 
-class NieceEditView(View):
-    def get(self, request, niece_id):
+class NicheEditView(View):
+    def get(self, request, niche_id):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
         admin = request.session.get('hris_admin', {})
         active_portal_id = request.session.get('active_portal_id', '12')
         db = data_mysql()
         sql = """
-            SELECT niece_id, niece, focuses, country_list, keyword_cpc, status, keywords
-            FROM data_niece
-            WHERE niece_id = %s
+            SELECT niche_id, niche, focuses, country_list, keyword_cpc, status, keywords
+            FROM data_niche
+            WHERE niche_id = %s
             LIMIT 1
         """
         row = None
-        if db.execute_query(sql, (niece_id,)):
+        if db.execute_query(sql, (niche_id,)):
             row = db.cur_hris.fetchone() or {}
         def _to_list(val):
             if val is None:
@@ -465,31 +465,31 @@ class NieceEditView(View):
         context = {
             'user': admin,
             'active_portal_id': active_portal_id,
-            'niece': row,
+            'niche': row,
             'countries': countries,
             'selected_countries': selected_countries,
             'statuses': statuses,
         }
-        return render(request, 'master/niece/edit.html', context)
+        return render(request, 'master/niche/edit.html', context)
 
-class NieceUpdateView(View):
-    def post(self, request, niece_id):
+class NicheUpdateView(View):
+    def post(self, request, niche_id):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
         admin = request.session.get('hris_admin', {})
         db = data_mysql()
-        niece = request.POST.get('niece', '').strip()
+        niche = request.POST.get('niche', '').strip()
         focuses = request.POST.get('focuses', '').strip()
         country_list_vals = request.POST.getlist('country_list')
         keyword_cpc_raw = request.POST.get('keyword_cpc', '').strip()
         status = request.POST.get('status', '').strip() or 'pending'
         keywords = request.POST.get('keywords', '').strip()
         is_ajax = (request.headers.get('x-requested-with') == 'XMLHttpRequest') or (request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest')
-        if not niece:
+        if not niche:
             if is_ajax:
-                return JsonResponse({'status': False, 'message': 'Niece wajib diisi.'}, status=400)
-            messages.error(request, 'Niece wajib diisi.')
-            return redirect('/projects/master/niece')
+                return JsonResponse({'status': False, 'message': 'Niche wajib diisi.'}, status=400)
+            messages.error(request, 'Niche wajib diisi.')
+            return redirect('/projects/master/niche')
         try:
             keyword_cpc = int(keyword_cpc_raw) if keyword_cpc_raw else None
         except Exception:
@@ -498,31 +498,31 @@ class NieceUpdateView(View):
         if country_list_vals:
             countries_text = ",".join([v.strip() for v in country_list_vals if v.strip()])
         sql = """
-            UPDATE data_niece SET niece=%s, focuses=%s, country_list=%s, keyword_cpc=%s, status=%s, keywords=%s,
+            UPDATE data_niche SET niche=%s, focuses=%s, country_list=%s, keyword_cpc=%s, status=%s, keywords=%s,
                 mdb=%s, mdb_name=%s, mdd=NOW()
-            WHERE niece_id=%s
+            WHERE niche_id=%s
         """
-        params = (niece or None, focuses or None, countries_text, keyword_cpc, status, keywords or None, admin.get('user_id',''), admin.get('user_alias',''), niece_id)
+        params = (niche or None, focuses or None, countries_text, keyword_cpc, status, keywords or None, admin.get('user_id',''), admin.get('user_alias',''), niche_id)
         if db.execute_query(sql, params):
             db.commit()
             if is_ajax:
                 return JsonResponse({'status': True})
-            messages.success(request, 'Niece berhasil diperbarui.')
+            messages.success(request, 'Niche berhasil diperbarui.')
         else:
             if is_ajax:
-                return JsonResponse({'status': False, 'message': 'Gagal memperbarui niece.'}, status=500)
-            messages.error(request, 'Gagal memperbarui niece.')
-        return redirect('/projects/master/niece')
+                return JsonResponse({'status': False, 'message': 'Gagal memperbarui niche.'}, status=500)
+            messages.error(request, 'Gagal memperbarui niche.')
+        return redirect('/projects/master/niche')
 
-class NieceDeleteView(View):
-    def post(self, request, niece_id):
+class NicheDeleteView(View):
+    def post(self, request, niche_id):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
         db = data_mysql()
-        if db.execute_query("DELETE FROM data_niece WHERE niece_id=%s", (niece_id,)):
+        if db.execute_query("DELETE FROM data_niche WHERE niche_id=%s", (niche_id,)):
             db.commit()
             return JsonResponse({'status': True})
-        return JsonResponse({'status': False, 'message': 'Gagal menghapus niece.'}, status=500)
+        return JsonResponse({'status': False, 'message': 'Gagal menghapus niche.'}, status=500)
 
 class KeywordIndexView(View):
     def get(self, request):
@@ -533,28 +533,28 @@ class KeywordIndexView(View):
         db = data_mysql()
         sql = """
             SELECT k.keyword_id,
-                   k.niece_id,
+                   k.niche_id,
                    k.keyword,
                    k.mdb_name,
                    k.mdd,
-                   n.niece
+                   n.niche
             FROM data_keywords k
-            LEFT JOIN data_niece n ON n.niece_id = k.niece_id
+            LEFT JOIN data_niche n ON n.niche_id = k.niche_id
             ORDER BY COALESCE(k.mdd, NOW()) DESC, k.keyword_id ASC
         """
         rows = []
         if db.execute_query(sql):
             rows = db.cur_hris.fetchall() or []
-        nieces = []
-        if db.execute_query("SELECT niece_id, niece FROM data_niece ORDER BY niece ASC"):
-            nieces = db.cur_hris.fetchall() or []
+        niches = []
+        if db.execute_query("SELECT niche_id, niche FROM data_niche ORDER BY niche ASC"):
+            niches = db.cur_hris.fetchall() or []
         context = {
             'user': admin,
             'active_portal_id': active_portal_id,
             'keywords': rows,
-            'nieces': nieces,
+            'niches': niches,
         }
-        return render(request, 'master/niece/keyword.html', context)
+        return render(request, 'master/niche/keyword.html', context)
 
 class KeywordCreateView(View):
     def post(self, request):
@@ -562,26 +562,26 @@ class KeywordCreateView(View):
             return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
         admin = request.session.get('hris_admin', {})
         db = data_mysql()
-        niece_id_raw = (request.POST.get('niece_id') or '').strip()
+        niche_id_raw = (request.POST.get('niche_id') or '').strip()
         keyword = (request.POST.get('keyword') or '').strip()
         
         
         is_ajax = (request.headers.get('x-requested-with') == 'XMLHttpRequest') or (request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest')
         try:
-            niece_id = int(niece_id_raw) if niece_id_raw else None
+            niche_id = int(niche_id_raw) if niche_id_raw else None
         except Exception:
-            niece_id = None
+            niche_id = None
         if not keyword:
             if is_ajax:
                 return JsonResponse({'status': False, 'message': 'Keyword wajib diisi.'}, status=400)
             messages.error(request, 'Keyword wajib diisi.')
-            return redirect('/projects/master/niece/keyword')
+            return redirect('/projects/master/niche/keyword')
         ok = db.execute_query(
             """
-            INSERT INTO data_keywords (niece_id, keyword, mdb, mdb_name, mdd)
+            INSERT INTO data_keywords (niche_id, keyword, mdb, mdb_name, mdd)
             VALUES (%s, %s, %s, %s, NOW())
             """,
-            (niece_id, keyword or None, admin.get('user_id',''), admin.get('user_alias',''))
+            (niche_id, keyword or None, admin.get('user_id',''), admin.get('user_alias',''))
         )
         if ok:
             db.commit()
@@ -592,7 +592,7 @@ class KeywordCreateView(View):
             if is_ajax:
                 return JsonResponse({'status': False, 'message': 'Gagal menambahkan keyword.'}, status=500)
             messages.error(request, 'Gagal menambahkan keyword.')
-        return redirect('/projects/master/niece/keyword')
+        return redirect('/projects/master/niche/keyword')
 
 class KeywordUpdateView(View):
     def post(self, request, keyword_id):
@@ -600,27 +600,27 @@ class KeywordUpdateView(View):
             return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
         admin = request.session.get('hris_admin', {})
         db = data_mysql()
-        niece_id_raw = (request.POST.get('niece_id') or '').strip()
+        niche_id_raw = (request.POST.get('niche_id') or '').strip()
         keyword = (request.POST.get('keyword') or '').strip()
         
         
         is_ajax = (request.headers.get('x-requested-with') == 'XMLHttpRequest') or (request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest')
         try:
-            niece_id = int(niece_id_raw) if niece_id_raw else None
+            niche_id = int(niche_id_raw) if niche_id_raw else None
         except Exception:
-            niece_id = None
+            niche_id = None
         if not keyword:
             if is_ajax:
                 return JsonResponse({'status': False, 'message': 'Keyword wajib diisi.'}, status=400)
             messages.error(request, 'Keyword wajib diisi.')
-            return redirect('/projects/master/niece/keyword')
+            return redirect('/projects/master/niche/keyword')
         ok = db.execute_query(
             """
             UPDATE data_keywords
-            SET niece_id=%s, keyword=%s, mdb=%s, mdb_name=%s, mdd=NOW()
+            SET niche_id=%s, keyword=%s, mdb=%s, mdb_name=%s, mdd=NOW()
             WHERE keyword_id=%s
             """,
-            (niece_id, keyword or None, admin.get('user_id',''), admin.get('user_alias',''), keyword_id)
+            (niche_id, keyword or None, admin.get('user_id',''), admin.get('user_alias',''), keyword_id)
         )
         if ok:
             db.commit()
@@ -631,7 +631,7 @@ class KeywordUpdateView(View):
             if is_ajax:
                 return JsonResponse({'status': False, 'message': 'Gagal memperbarui keyword.'}, status=500)
             messages.error(request, 'Gagal memperbarui keyword.')
-        return redirect('/projects/master/niece/keyword')
+        return redirect('/projects/master/niche/keyword')
 
 class KeywordDeleteView(View):
     def post(self, request, keyword_id):
@@ -1265,13 +1265,13 @@ class WebsiteIndexView(View):
                 CONCAT(s.subdomain, '.', d.domain) AS website_name,
                 w.website_user AS website_user,
                 w.website_pass AS website_pass,
-                (SELECT COUNT(*) FROM data_website_niece k WHERE k.subdomain_id = s.subdomain_id) AS keyword_count,
-                MAX(n.niece) AS niece
+                (SELECT COUNT(*) FROM data_website_niche k WHERE k.subdomain_id = s.subdomain_id) AS keyword_count,
+                MAX(n.niche) AS niche
             FROM data_website w
             INNER JOIN data_subdomain s ON s.website_id = w.website_id
             LEFT JOIN data_domains d ON d.domain_id = s.domain_id
-            LEFT JOIN data_website_niece wn ON wn.subdomain_id = s.subdomain_id
-            LEFT JOIN data_niece n ON n.niece_id = wn.niece_id
+            LEFT JOIN data_website_niche wn ON wn.subdomain_id = s.subdomain_id
+            LEFT JOIN data_niche n ON n.niche_id = wn.niche_id
             WHERE s.subdomain_id IS NOT NULL
             GROUP BY s.subdomain_id
             ORDER BY s.subdomain ASC, COALESCE(w.mdd, '0000-00-00 00:00:00') DESC
@@ -1300,10 +1300,10 @@ class WebsiteKeywordsView(View):
             return JsonResponse({'status': False, 'message': 'Subdomain wajib diisi.'}, status=400)
         sql = """
             SELECT k.keyword,
-                   n.niece,
+                   n.niche,
                    k.prompt AS prompt_text
-            FROM data_website_niece k
-            LEFT JOIN data_niece n ON n.niece_id = k.niece_id
+            FROM data_website_niche k
+            LEFT JOIN data_niche n ON n.niche_id = k.niche_id
             WHERE k.subdomain_id = %s
             ORDER BY COALESCE(k.mdd, '0000-00-00 00:00:00') DESC
         """
