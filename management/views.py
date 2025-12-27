@@ -100,6 +100,10 @@ from .utils import (
     fetch_adx_account_data,
     fetch_data_insights_all_accounts_by_subdomain,
     fetch_adx_traffic_per_country,
+    fetch_campaign_meta,
+    get_telegram_chat_id_for_user,
+    send_telegram_message_aiogram,
+    _format_idr_number,
     # cache helpers
     generate_cache_key,
     get_cached_data,
@@ -1256,20 +1260,83 @@ class update_daily_budget_per_campaign(View):
         cleaned = raw.replace("Rp", "").replace(".", "").replace(",", "").strip()
         try:
             daily_budget = int(cleaned)
-            # daily_budget_in_cents = daily_budget * 100
-        except ValueError:
-            print(f"Invalid daily budget input: {raw}")
-        data = fetch_daily_budget_per_campaign(str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(campaign_id), daily_budget)
-        
-        # Invalidate cache after budget update
-        if data.get('daily_budget'):
+        except Exception:
+            daily_budget = 0
+
+        before_budget = None
+        campaign_name = ''
+        try:
+            meta = fetch_campaign_meta(str(rs_data_account['access_token']), str(campaign_id))
+            mdata = meta.get('data') if isinstance(meta, dict) else None
+            if isinstance(meta, dict) and meta.get('status') and mdata is not None:
+                getter = getattr(mdata, 'get', None)
+                if callable(getter):
+                    campaign_name = getter('name') or ''
+                    try:
+                        before_budget = int(getter('daily_budget') or 0)
+                    except Exception:
+                        before_budget = None
+        except Exception:
+            before_budget = None
+
+        data = fetch_daily_budget_per_campaign(
+            str(rs_data_account['access_token']),
+            str(rs_data_account['account_id']),
+            str(campaign_id),
+            daily_budget
+        )
+
+        try:
+            after_budget = int((data or {}).get('daily_budget') or 0)
+        except Exception:
+            after_budget = None
+
+        try:
+            changed = (before_budget is None) or (after_budget is None) or (before_budget != after_budget)
+            if changed:
+                admin = req.session.get('hris_admin', {})
+                user_id = admin.get('user_id')
+                chat_id = ''
+                try:
+                    uresp = data_mysql().get_user_by_id(user_id)
+                    urow = (uresp or {}).get('data') if isinstance(uresp, dict) else None
+                    chat_id = get_telegram_chat_id_for_user(urow)
+                except Exception:
+                    chat_id = ''
+                if not chat_id:
+                    chat_id = (os.getenv('TELEGRAM_DEFAULT_CHAT_ID') or '').strip()
+                if chat_id:
+                    actor = admin.get('user_alias') or admin.get('user_name') or admin.get('user_mail') or '-'
+                    nm = campaign_name or str(campaign_id)
+                    acc_name = ''
+                    try:
+                        if isinstance(rs_data_account, dict):
+                            acc_name = rs_data_account.get('account_name') or ''
+                    except Exception:
+                        acc_name = ''
+                    if not acc_name:
+                        acc_name = str(account_id or '-')
+                    changed_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    before_txt = _format_idr_number(before_budget).replace('Rp ', 'Rp. ') if before_budget is not None else '-'
+                    after_txt = _format_idr_number(after_budget).replace('Rp ', 'Rp. ') if after_budget is not None else '-'
+                    msg = (
+                        "Daily budget campaign berubah\n"
+                        f"Campaign: {nm}\n"
+                        f"Account: {acc_name}\n"
+                        f"Sebelum: {before_txt}\n"
+                        f"Sesudah: {after_txt}\n"
+                        f"Oleh: {actor}\n"
+                        f"Waktu: {changed_at}"
+                    )
+                    send_telegram_message_aiogram(chat_id, msg)
+        except Exception:
+            pass
+
+        if (data or {}).get('daily_budget') is not None:
             from .utils import invalidate_cache_on_data_update
             invalidate_cache_on_data_update(rs_data_account['account_id'], campaign_id, 'budget_update')
-        
-        hasil = {
-            'daily_budget': data['daily_budget']
-        }
-        return JsonResponse(hasil)
+
+        return JsonResponse({'daily_budget': (data or {}).get('daily_budget')})
     
 @method_decorator(csrf_exempt, name='dispatch')    
 class update_switch_campaign(View):
@@ -1296,12 +1363,55 @@ class update_switch_campaign(View):
                 all_accounts = data_mysql().master_account_ads()['data']
                 for account_data in all_accounts:
                     try:
+                        before_status = None
+                        campaign_name = ''
+                        try:
+                            meta = fetch_campaign_meta(str(account_data.get('access_token')), str(campaign_id))
+                            mdata = meta.get('data') if isinstance(meta, dict) else None
+                            getter = getattr(mdata, 'get', None)
+                            if isinstance(meta, dict) and meta.get('status') and callable(getter):
+                                campaign_name = getter('name') or ''
+                                before_status = getter('status')
+                        except Exception:
+                            before_status = None
+
                         data = fetch_status_per_campaign(
-                            str(account_data['access_token']), 
-                            str(campaign_id), 
+                            str(account_data['access_token']),
+                            str(campaign_id),
                             str(status)
                         )
                         if 'error' not in data:
+                            try:
+                                admin = req.session.get('hris_admin', {})
+                                user_id = admin.get('user_id')
+                                chat_id = ''
+                                try:
+                                    uresp = data_mysql().get_user_by_id(user_id)
+                                    urow = (uresp or {}).get('data') if isinstance(uresp, dict) else None
+                                    chat_id = get_telegram_chat_id_for_user(urow)
+                                except Exception:
+                                    chat_id = ''
+                                if not chat_id:
+                                    chat_id = (os.getenv('TELEGRAM_DEFAULT_CHAT_ID') or '').strip()
+                                if chat_id:
+                                    actor = admin.get('user_alias') or admin.get('user_name') or admin.get('user_mail') or '-'
+                                    changed_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                                    nm = (data.get('name') or campaign_name or str(campaign_id))
+                                    acc_name = str(account_data.get('account_name') or account_data.get('account_id') or '-')
+                                    after_status = data.get('status')
+                                    msg = (
+                                        "Status campaign berubah\n"
+                                        f"Campaign: {nm}\n"
+                                        f"Account: {acc_name}\n"
+                                        f"Sebelum: {before_status if before_status is not None else '-'}\n"
+                                        f"Sesudah: {after_status if after_status is not None else '-'}\n"
+                                        f"Oleh: {actor}\n"
+                                        f"Waktu: {changed_at}"
+                                    )
+                                    send_telegram_message_aiogram(chat_id, msg)
+                            except Exception:
+                                pass
+
                             return JsonResponse({
                                 'success': True,
                                 'status': data['status'],
@@ -1309,7 +1419,7 @@ class update_switch_campaign(View):
                             })
                     except Exception:
                         continue  # Coba account berikutnya
-                
+
                 return JsonResponse({
                     'success': False,
                     'message': 'Campaign tidak ditemukan di semua account yang tersedia'
@@ -1319,21 +1429,64 @@ class update_switch_campaign(View):
                 rs_data_account = data_mysql().master_account_ads_by_id({
                     'data_account': account_id,
                 })['data']
-                
+
                 if not rs_data_account:
                     return JsonResponse({
                         'success': False,
                         'message': 'Account tidak ditemukan'
                     })
-                
+
+                before_status = None
+                campaign_name = ''
+                try:
+                    meta = fetch_campaign_meta(str(rs_data_account.get('access_token')), str(campaign_id))
+                    mdata = meta.get('data') if isinstance(meta, dict) else None
+                    getter = getattr(mdata, 'get', None)
+                    if isinstance(meta, dict) and meta.get('status') and callable(getter):
+                        campaign_name = getter('name') or ''
+                        before_status = getter('status')
+                except Exception:
+                    before_status = None
+
                 data = fetch_status_per_campaign(str(rs_data_account['access_token']), str(campaign_id), str(status))
-                
+
                 if 'error' in data:
                     return JsonResponse({
                         'success': False,
                         'message': f'Gagal mengupdate campaign: {data["error"]}'
                     })
-                
+
+                try:
+                    admin = req.session.get('hris_admin', {})
+                    user_id = admin.get('user_id')
+                    chat_id = ''
+                    try:
+                        uresp = data_mysql().get_user_by_id(user_id)
+                        urow = (uresp or {}).get('data') if isinstance(uresp, dict) else None
+                        chat_id = get_telegram_chat_id_for_user(urow)
+                    except Exception:
+                        chat_id = ''
+                    if not chat_id:
+                        chat_id = (os.getenv('TELEGRAM_DEFAULT_CHAT_ID') or '').strip()
+                    if chat_id:
+                        actor = admin.get('user_alias') or admin.get('user_name') or admin.get('user_mail') or '-'
+                        changed_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        nm = (data.get('name') or campaign_name or str(campaign_id))
+                        acc_name = str(rs_data_account.get('account_name') or account_id or '-')
+                        after_status = data.get('status')
+                        msg = (
+                            "Status campaign berubah\n"
+                            f"Campaign: {nm}\n"
+                            f"Account: {acc_name}\n"
+                            f"Sebelum: {before_status if before_status is not None else '-'}\n"
+                            f"Sesudah: {after_status if after_status is not None else '-'}\n"
+                            f"Oleh: {actor}\n"
+                            f"Waktu: {changed_at}"
+                        )
+                        send_telegram_message_aiogram(chat_id, msg)
+                except Exception:
+                    pass
+
                 return JsonResponse({
                     'success': True,
                     'status': data['status'],

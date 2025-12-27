@@ -74,8 +74,123 @@ from django.core.cache import cache
 from django.conf import settings
 import os
 from string import Template
+import asyncio
+import threading
 
 import googleads.common
+
+def _format_idr_number(v):
+    try:
+        n = int(float(v))
+    except Exception:
+        n = 0
+    s = f"{n:,}".replace(',', '.')
+    return f"Rp {s}"
+
+def get_telegram_chat_id_for_user(user_row):
+    if not isinstance(user_row, dict):
+        return ''
+    chat_id = (
+        user_row.get('telegram_chat_id')
+        or user_row.get('user_telegram_chat_id')
+        or user_row.get('tg_chat_id')
+    )
+    s = str(chat_id or '').strip()
+    if not s:
+        return ''
+    if s.startswith('@'):
+        return s
+    if s.startswith('-'):
+        return s if s[1:].isdigit() else ''
+    return s if s.isdigit() else ''
+
+def _run_async_safely(coro):
+    try:
+        loop = asyncio.get_running_loop()
+    except Exception:
+        loop = None
+    if loop and getattr(loop, 'is_running', lambda: False)():
+        err = {'exc': None}
+        def _runner():
+            try:
+                asyncio.run(coro)
+            except Exception as e:
+                err['exc'] = e
+        t = threading.Thread(target=_runner, daemon=True)
+        t.start()
+        t.join(timeout=15)
+        if err['exc'] is not None:
+            raise err['exc']
+        return True
+    asyncio.run(coro)
+    return True
+
+def send_telegram_message_aiogram(chat_id, text):
+    token = (os.getenv('TELEGRAM_BOT_TOKEN') or '').strip()
+    chat_id = str(chat_id or '').strip()
+    if not token or not chat_id or not text:
+        return False
+    try:
+        from aiogram import Bot
+    except Exception:
+        return False
+    async def _send():
+        bot = Bot(token=token)
+        try:
+            await bot.send_message(chat_id=chat_id, text=str(text), disable_web_page_preview=True)
+        finally:
+            try:
+                await bot.session.close()
+            except Exception:
+                pass
+    try:
+        _run_async_safely(_send())
+        return True
+    except Exception:
+        return False
+
+def send_telegram_document_aiogram(chat_id, file_bytes, filename, caption=None):
+    token = (os.getenv('TELEGRAM_BOT_TOKEN') or '').strip()
+    chat_id = str(chat_id or '').strip()
+    if not token or not chat_id or not file_bytes or not filename:
+        return False
+    try:
+        from aiogram import Bot
+        from aiogram.types import BufferedInputFile
+    except Exception:
+        return False
+    async def _send():
+        bot = Bot(token=token)
+        try:
+            doc = BufferedInputFile(file=file_bytes, filename=str(filename))
+            if caption is None:
+                await bot.send_document(chat_id=chat_id, document=doc)
+            else:
+                await bot.send_document(chat_id=chat_id, document=doc, caption=str(caption))
+        finally:
+            try:
+                await bot.session.close()
+            except Exception:
+                pass
+    try:
+        _run_async_safely(_send())
+        return True
+    except Exception:
+        return False
+
+def fetch_campaign_meta(access_token, campaign_id):
+    try:
+        FacebookAdsApi.init(access_token=access_token)
+        campaign = Campaign(str(campaign_id))
+        data = campaign.api_get(fields=[
+            Campaign.Field.id,
+            Campaign.Field.name,
+            Campaign.Field.status,
+            Campaign.Field.daily_budget,
+        ])
+        return {'status': True, 'data': data}
+    except Exception as e:
+        return {'status': False, 'error': str(e), 'data': {}}
 
 # googleads.common.MakeSoapRequest = patched_make_soap_request  # Disabled - not compatible
 
