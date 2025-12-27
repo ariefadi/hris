@@ -133,7 +133,18 @@ def send_telegram_message_aiogram(chat_id, text):
     try:
         from aiogram import Bot
     except Exception:
-        return False
+        try:
+            url = f"https://api.telegram.org/bot{token}/sendMessage"
+            resp = requests.post(url, data={"chat_id": chat_id, "text": str(text), "disable_web_page_preview": True}, timeout=10)
+            ct = resp.headers.get("Content-Type", "")
+            if "application/json" in ct:
+                try:
+                    return bool(resp.json().get("ok"))
+                except Exception:
+                    return resp.status_code == 200
+            return resp.status_code == 200
+        except Exception:
+            return False
     async def _send():
         bot = Bot(token=token)
         try:
@@ -147,7 +158,18 @@ def send_telegram_message_aiogram(chat_id, text):
         _run_async_safely(_send())
         return True
     except Exception:
-        return False
+        try:
+            url = f"https://api.telegram.org/bot{token}/sendMessage"
+            resp = requests.post(url, data={"chat_id": chat_id, "text": str(text), "disable_web_page_preview": True}, timeout=10)
+            ct = resp.headers.get("Content-Type", "")
+            if "application/json" in ct:
+                try:
+                    return bool(resp.json().get("ok"))
+                except Exception:
+                    return resp.status_code == 200
+            return resp.status_code == 200
+        except Exception:
+            return False
 
 def send_telegram_document_aiogram(chat_id, file_bytes, filename, caption=None):
     token = (os.getenv('TELEGRAM_BOT_TOKEN') or '').strip()
@@ -158,7 +180,22 @@ def send_telegram_document_aiogram(chat_id, file_bytes, filename, caption=None):
         from aiogram import Bot
         from aiogram.types import BufferedInputFile
     except Exception:
-        return False
+        try:
+            url = f"https://api.telegram.org/bot{token}/sendDocument"
+            files = {'document': (str(filename), file_bytes)}
+            data = {'chat_id': chat_id}
+            if caption is not None:
+                data['caption'] = str(caption)
+            resp = requests.post(url, data=data, files=files, timeout=20)
+            ct = resp.headers.get("Content-Type", "")
+            if "application/json" in ct:
+                try:
+                    return bool(resp.json().get("ok"))
+                except Exception:
+                    return resp.status_code == 200
+            return resp.status_code == 200
+        except Exception:
+            return False
     async def _send():
         bot = Bot(token=token)
         try:
@@ -176,7 +213,22 @@ def send_telegram_document_aiogram(chat_id, file_bytes, filename, caption=None):
         _run_async_safely(_send())
         return True
     except Exception:
-        return False
+        try:
+            url = f"https://api.telegram.org/bot{token}/sendDocument"
+            files = {'document': (str(filename), file_bytes)}
+            data = {'chat_id': chat_id}
+            if caption is not None:
+                data['caption'] = str(caption)
+            resp = requests.post(url, data=data, files=files, timeout=20)
+            ct = resp.headers.get("Content-Type", "")
+            if "application/json" in ct:
+                try:
+                    return bool(resp.json().get("ok"))
+                except Exception:
+                    return resp.status_code == 200
+            return resp.status_code == 200
+        except Exception:
+            return False
 
 def fetch_campaign_meta(access_token, campaign_id):
     try:

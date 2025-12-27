@@ -32,6 +32,12 @@ DJANGO_MANAGE="$VENV $APPDIR/manage.py"
 # Ads Country: setiap 6 jam
 0 */6 * * * cd $APPDIR && flock -n /var/run/hris_ads_country.lock -c "$DJANGO_MANAGE cron_ads_country >> /var/log/hris/cron_ads_country.log 2>&1"
 
+# ROI Rekapitulasi Earning (harian): setiap 3 jam
+0 */3 * * * cd $APPDIR && flock -n /var/run/hris_roi_rekapitulasi_earning.lock -c "$DJANGO_MANAGE cron_roi_rekapitulasi_earning_telegram >> /var/log/hris/cron_roi_rekapitulasi_earning_telegram.log 2>&1"
+
+
+
+
 
 
 
