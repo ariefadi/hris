@@ -1,5 +1,255 @@
 {% extends 'admin_base.html' %}
 
+{% block page_title %}Master Niece{% endblock %}
+{% block page_heading %}Master Niece{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item">Projects</li>
+<li class="breadcrumb-item active"><a href="/projects/master/niece">Master Niece</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Daftar Niece</h3>
+        <div class="card-tools">
+          <a href="#" class="btn btn-sm btn-primary" data-toggle="modal" data-target="#modalCreateNiece">
+            <i class="bi bi-plus-circle"></i> Tambah Niece
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+        <ul class="nav nav-tabs mb-3">
+          <li class="nav-item">
+            <a class="nav-link active" href="{% url 'projects_master_niece' %}">Niece</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'projects_master_keyword' %}">Keyword</a>
+          </li>
+        </ul>
+        <div class="table-responsive">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th width="5%">No</th>
+                <th width="20%">Niece</th>
+                <th width="25%">Focuses</th>
+                <th width="20%">Country Tiers</th>
+                <th width="10%">Keyword CPC</th>
+                <th width="10%">Status</th>
+                <th width="10%">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for n in nieces %}
+              <tr>
+                <td class="align-middle">{{ forloop.counter }}</td>
+                <td class="align-middle">{{ n.niece }}</td>
+                <td class="align-middle">
+                  {% if n.focuses %}
+                  <span class="focuses-pop" data-toggle="popover" data-placement="right" data-container="body" data-trigger="hover" data-content="{{ n.focuses|escape }}">{{ n.focuses_short }}</span>
+                  {% else %}-{% endif %}
+                </td>
+                <td class="align-middle">
+                  {% if n.tier_groups %}
+                    {% for g in n.tier_groups %}
+                      <span class="badge badge-info mr-1" data-toggle="popover" data-placement="right" data-container="body" data-trigger="hover" data-html="true" title="{{ g.label }}" data-content="{{ g.countries|escape }}">{{ g.label }}</span>
+                    {% endfor %}
+                  {% else %}-{% endif %}
+                </td>
+                <td class="align-middle">{{ n.keyword_cpc }}</td>
+                <td class="align-middle">{{ n.status|title }}</td>
+                <td class="align-middle">
+                  <a href="{% url 'projects_master_niece_edit' n.niece_id %}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
+                  <a href="#" class="btn btn-sm btn-danger btn-del-niece" data-id="{{ n.niece_id }}"><i class="bi bi-trash"></i></a>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="6" class="text-center text-muted">Belum ada data.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalCreateNiece" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Tambah Niece</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <form id="formCreateNiece" method="post" action="{% url 'projects_master_niece_create' %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="row">
+            <div class="form-group col-md-6">
+              <label>Niece</label>
+              <input type="text" name="niece" class="form-control" required>
+            </div>
+            <div class="form-group col-md-6">
+              <label>Keyword CPC</label>
+              <input type="number" name="keyword_cpc" class="form-control" min="0">
+            </div>
+            <div class="form-group col-md-12">
+              <label>Focuses</label>
+              <textarea name="focuses" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="form-group col-md-12">
+              <label>Country List</label>
+              <div class="mb-1">
+                <button type="button" class="btn btn-xs btn-outline-primary btn-country-tier" data-tier="1">Tier 1</button>
+                <button type="button" class="btn btn-xs btn-outline-secondary btn-country-tier" data-tier="2">Tier 2</button>
+                <button type="button" class="btn btn-xs btn-outline-warning btn-country-tier" data-tier="3">Tier 3</button>
+              </div>
+              <select name="country_list" id="country_list_create" class="form-control select2-countries" multiple>
+                {% for c in countries %}
+                  <option value="{{ c.negara_nm }}" data-tier="{{ c.tier }}">{{ c.negara_nm }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group col-md-12">
+              <label>Keywords</label>
+              <textarea name="keywords" class="form-control" rows="3"></textarea>
+            </div>
+            <div class="form-group col-md-4">
+              <label>Status</label>
+              <select name="status" class="form-control">
+                {% for st in statuses %}
+                  <option value="{{ st }}">{{ st|title }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btn_submit_niece">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script>
+$(function(){
+  if (window.jQuery && $.fn.select2) {
+    $('#country_list_create').select2({
+      theme: 'bootstrap4',
+      tags: true,
+      dropdownParent: $('#modalCreateNiece')
+    });
+  }
+  $(document).on('select2:open', function(e){
+    var $sel = $(e.target);
+    if (!$sel.is('select.select2-countries')) return;
+    var field = document.querySelector('.select2-container--open .select2-search__field');
+    if (!field) return;
+    if (field._pasteBound) return;
+    field._pasteBound = true;
+    field.addEventListener('paste', function(ev){
+      var txt = '';
+      try { txt = (ev.clipboardData && ev.clipboardData.getData('text')) || ''; } catch(x){}
+      if (!txt && window.clipboardData) { try { txt = window.clipboardData.getData('Text') || ''; } catch(e){} }
+      if (!txt) return;
+      ev.preventDefault();
+      var parts = txt.split(/[\s]*,[\s]*|\n|;+/).map(function(s){ return (s||'').trim(); }).filter(function(s){ return !!s; });
+      if (!parts.length) return;
+      var matches = [];
+      $sel.find('option').each(function(){
+        var val = (this.value||'').trim().toLowerCase();
+        var txt2 = ($(this).text()||'').trim().toLowerCase();
+        for (var i=0;i<parts.length;i++){
+          var p = parts[i].toLowerCase();
+          if (val === p || txt2 === p) { matches.push(this.value); break; }
+        }
+      });
+      var existing = $sel.val() || [];
+      var combined = Array.from(new Set(existing.concat(matches)));
+      $sel.val(combined).trigger('change');
+    });
+  });
+  $(document).on('click', '.btn-country-tier', function(e){
+    e.preventDefault();
+    var tier = String($(this).data('tier'));
+    var sel = document.getElementById('country_list_create');
+    if (!sel) return;
+    var values = [];
+    $(sel).find('option').each(function(){
+      var t = (String($(this).attr('data-tier')) || '').replace(/\s+/g,'').replace('Tier','');
+      if (t === tier) { values.push(this.value); }
+    });
+    var existing = $('#country_list_create').val() || [];
+    var combined = Array.from(new Set(existing.concat(values)));
+    $('#country_list_create').val(combined).trigger('change');
+  });
+  $('#formCreateNiece').on('submit', function(e){
+    e.preventDefault();
+    var $btn = $('#btn_submit_niece');
+    $btn.prop('disabled', true);
+    var formData = $(this).serialize();
+    $.ajax({
+      url: $(this).attr('action'),
+      method: 'POST',
+      data: formData,
+      dataType: 'json',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      success: function(resp){
+        var ok = resp && (resp.status === true || resp.status === 'True');
+        if (ok) {
+          if (window.Swal) {
+            Swal.fire({icon: 'success', title: 'Berhasil', text: 'Niece ditambahkan', timer: 1000, showConfirmButton: false}).then(function(){ window.location.reload(); });
+          } else {
+            window.location.reload();
+          }
+        } else {
+          var emsg = (resp && resp.message) ? resp.message : 'Gagal menyimpan';
+          if (window.Swal) {
+            Swal.fire({icon: 'error', title: 'Gagal', text: emsg});
+          } else {
+            alert(emsg);
+          }
+          $btn.prop('disabled', false);
+        }
+      },
+      error: function(xhr){
+        var emsg = (xhr && xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Terjadi kesalahan saat menyimpan';
+        if (window.Swal) {
+          Swal.fire({icon: 'error', title: 'Gagal', text: emsg});
+        } else {
+          alert(emsg);
+        }
+        $btn.prop('disabled', false);
+      },
+      complete: function(){
+        $btn.prop('disabled', false);
+      }
+    });
+  });
+  $('.btn-del-niece').on('click', function(e){
+    e.preventDefault();
+    var id = $(this).data('id');
+    var doDel = function(go){ if (!go) return; $.ajax({ url: '/projects/master/niece/' + id + '/delete', method: 'POST', dataType: 'json', headers: { 'X-Requested-With': 'XMLHttpRequest' }, success: function(resp){ var ok = resp && (resp.status === true || resp.status === 'True'); if (ok){ if (window.Swal){ Swal.fire({icon:'success', title:'Berhasil', text:'Niece dihapus', timer:1000, showConfirmButton:false}).then(function(){ window.location.reload(); }); } else { window.location.reload(); } } else { var emsg = (resp && resp.message) ? resp.message : 'Gagal menghapus'; if (window.Swal){ Swal.fire({icon:'error', title:'Gagal', text: emsg}); } else { alert(emsg); } } }, error: function(){ if (window.Swal){ Swal.fire({icon:'error', title:'Gagal', text:'Terjadi kesalahan saat menghapus'}); } else { alert('Terjadi kesalahan saat menghapus'); } } }); };
+    if (window.Swal){ Swal.fire({icon:'question', title:'Hapus?', text:'Hapus niece ini?', showCancelButton:true, confirmButtonText:'Ya, hapus', cancelButtonText:'Batal'}).then(function(res){ doDel(res && res.isConfirmed); }); } else { var ok = confirm('Hapus niece ini?'); doDel(ok); }
+  });
+  if (window.jQuery) {
+    $('[data-toggle="popover"]').popover();
+  }
+});
+</script>
+{% endblock %}
+
+{% extends 'admin_base.html' %}
+
 {% block page_title %}Master Niche{% endblock %}
 {% block page_heading %}Master Niche{% endblock %}
 
