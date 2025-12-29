@@ -38,8 +38,8 @@ DJANGO_MANAGE="$VENV $APPDIR/manage.py"
 # ROI Monitoring Country: setiap 59 menit
 59 * * * * cd $APPDIR && flock -n /var/run/hris_roi_monitoring_country.lock -c "$DJANGO_MANAGE cron_roi_monitoring_country_telegram >> /var/log/hris/cron_roi_monitoring_country_telegram.log 2>&1"
 
-# ROI Monitoring Domain: setiap 1 jam 59 menit
-59 */2 * * * cd $APPDIR && flock -n /var/run/hris_roi_monitoring_domain.lock -c "$DJANGO_MANAGE cron_roi_monitoring_domain_telegram >> /var/log/hris/cron_roi_monitoring_domain_telegram.log 2>&1"
+# ROI Monitoring Domain: setiap 2 jam 59 menit
+59 * * * * cd $APPDIR && flock -n /var/run/hris_roi_monitoring_domain.lock -c "$DJANGO_MANAGE cron_roi_monitoring_domain_telegram >> /var/log/hris/cron_roi_monitoring_domain_telegram.log 2>&1"
 
 
 
