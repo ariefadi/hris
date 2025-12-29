@@ -35,14 +35,14 @@ class data_mysql:
             # Use the same port as Django (3306, not 3306)
             raw_port = os.getenv('HRIS_DB_PORT', '').strip()
             if not raw_port:
-                raw_port = '3306'
+                raw_port = '3307'
             try:
                 port = int(raw_port)
             except (ValueError, TypeError):
-                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
-                port = 3306
+                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3307")
+                port = 3307
             user = os.getenv('HRIS_DB_USER', 'root')
-            password = os.getenv('HRIS_DB_PASSWORD', 'hris123456')
+            password = os.getenv('HRIS_DB_PASSWORD', '')
             database = os.getenv('HRIS_DB_NAME', 'hris_trendHorizone')
 
             self.db_hris = pymysql.connect(

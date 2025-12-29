@@ -69,7 +69,8 @@ def _combine_roi_country(adx_rows, fb_rows):
         key = f"{date_key}_{base_dom}_{cc}"
         fb_map[key] = (fb_map.get(key, 0.0) + spend)
 
-    agg = {}
+    agg_all = {}
+    agg_filtered = {}
     for key in set(list(adx_map.keys()) + list(fb_map.keys())):
         try:
             cc = key.split('_')[-1]
@@ -79,34 +80,52 @@ def _combine_roi_country(adx_rows, fb_rows):
             continue
         revenue = _safe_float(adx_map.get(key), 0.0)
         spend = _safe_float(fb_map.get(key), 0.0)
-        cur = agg.get(cc)
-        if not cur:
-            agg[cc] = {
-                'country_code': cc,
-                'country': country_name_by_code.get(cc, '') or cc,
-                'spend': 0.0,
-                'revenue': 0.0,
-            }
-            cur = agg[cc]
-        cur['spend'] += spend
-        cur['revenue'] += revenue
+        name = country_name_by_code.get(cc, '') or cc
+
+        cur_all = agg_all.get(cc)
+        if not cur_all:
+            agg_all[cc] = {'country': name, 'country_code': cc, 'spend': 0.0, 'revenue': 0.0}
+            cur_all = agg_all[cc]
+        cur_all['spend'] += spend
+        cur_all['revenue'] += revenue
+
+        if spend > 0:
+            cur_f = agg_filtered.get(cc)
+            if not cur_f:
+                agg_filtered[cc] = {'country': name, 'country_code': cc, 'spend': 0.0, 'revenue': 0.0}
+                cur_f = agg_filtered[cc]
+            cur_f['spend'] += spend
+            cur_f['revenue'] += revenue
 
     items_all = []
-    items_filtered = []
-    for cc, v in agg.items():
+    for cc, v in agg_all.items():
         spend = _safe_float(v.get('spend'), 0.0)
         revenue = _safe_float(v.get('revenue'), 0.0)
         roi = ((revenue - spend) / spend * 100) if spend > 0 else 0.0
-        row = {
-            'country': v.get('country') or cc,
-            'country_code': cc,
-            'spend': round(spend, 2),
-            'revenue': round(revenue, 2),
-            'roi': round(roi, 2),
-        }
-        items_all.append(row)
-        if spend > 0:
-            items_filtered.append(row)
+        items_all.append(
+            {
+                'country': v.get('country') or cc,
+                'country_code': cc,
+                'spend': round(spend, 2),
+                'revenue': round(revenue, 2),
+                'roi': round(roi, 2),
+            }
+        )
+
+    items_filtered = []
+    for cc, v in agg_filtered.items():
+        spend = _safe_float(v.get('spend'), 0.0)
+        revenue = _safe_float(v.get('revenue'), 0.0)
+        roi = ((revenue - spend) / spend * 100) if spend > 0 else 0.0
+        items_filtered.append(
+            {
+                'country': v.get('country') or cc,
+                'country_code': cc,
+                'spend': round(spend, 2),
+                'revenue': round(revenue, 2),
+                'roi': round(roi, 2),
+            }
+        )
 
     items_all.sort(key=lambda x: float(x.get('roi') or 0), reverse=True)
     items_filtered.sort(key=lambda x: float(x.get('roi') or 0), reverse=True)
