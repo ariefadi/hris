@@ -83,3 +83,4 @@ staticfiles_backup_*.tgz
 # If switching to collectstatic, uncomment STATIC_ROOT and keep this ignore
 # Current deployment serves from management/static via Nginx
 hris.code-workspace
+roi_compare.md

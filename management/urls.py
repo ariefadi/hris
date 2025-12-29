@@ -117,6 +117,8 @@ urlpatterns = [
     # Menu ROI Per Country
     path('admin/roi_traffic_country', views.RoiTrafficPerCountryView.as_view(), name='roi_traffic_country'),
     path('admin/page_roi_traffic_country', views.RoiTrafficPerCountryDataView.as_view()),
+    path('admin/page_roi_country_hourly', views.RoiCountryHourlyDataView.as_view()),
+    path('admin/roi_hourly_adx_filter', views.RoiHourlyAdxFilterView.as_view(), name='roi_hourly_adx_filter'),
     # Menu ROI Monitoring Domain
     path('admin/monitoring_domain', views.RoiMonitoringDomainView.as_view(), name='roi_monitoring_domain'),
     path('admin/page_monitoring_domain', views.RoiMonitoringDomainDataView.as_view()),

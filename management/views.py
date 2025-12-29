@@ -4257,6 +4257,158 @@ def extract_base_subdomain(full_string):
     # jika tidak ada titik, kembalikan string asli
     return main_domain
 
+class RoiCountryHourlyDataView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            is_ajax = False
+            try:
+                is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            except Exception:
+                pass
+            if not is_ajax:
+                is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+            if is_ajax:
+                return JsonResponse({'status': False, 'error': 'Sesi berakhir atau tidak valid. Silakan login ulang.'})
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+    def get(self, req):
+        try:
+            target_date = req.GET.get('date')
+            if not target_date or not isinstance(target_date, str) or len(target_date) != 10:
+                target_date = datetime.now().strftime('%Y-%m-%d')
+            selected_account = req.GET.get('selected_account_adx', '')
+            selected_account_list = []
+            if selected_account:
+                selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
+            selected_domain = req.GET.get('selected_domains', '')
+            selected_domain_list = []
+            if selected_domain:
+                selected_domain_list = [str(s).strip() for s in selected_domain.split(',') if s.strip()]
+            selected_countries = req.GET.get('selected_countries', '')
+            countries_list = []
+            if selected_countries:
+                countries_list = [c.strip() for c in selected_countries.split(',') if c.strip()]
+            cache_key = generate_cache_key(
+                'roi_country_hourly_v2',
+                target_date,
+                selected_account_list,
+                selected_domain_list,
+                countries_list
+            )
+            cached = get_cached_data(cache_key)
+            if cached is not None:
+                return JsonResponse(cached, safe=False)
+            adx_resp = data_mysql().get_all_adx_roi_country_hourly_logs_by_params(
+                target_date,
+                selected_account_list,
+                selected_domain_list,
+                countries_list
+            )
+            adx_rows = adx_resp.get('data') if isinstance(adx_resp, dict) else []
+            ads_resp = data_mysql().get_all_ads_roi_country_hourly_logs_by_params(
+                target_date,
+                selected_domain_list,
+                countries_list
+            )
+            ads_rows = (ads_resp.get('hasil') or {}).get('data') if isinstance(ads_resp, dict) else []
+            by_country = {}
+            hours_present = set()
+            for row in adx_rows or []:
+                code = str(row.get('country_code', '') or '').upper()
+                name = row.get('country_name', '') or code
+                hour = int(row.get('hour', 0) or 0)
+                hkey = f"{hour:02d}"
+                if code not in by_country:
+                    by_country[code] = {'country_code': code, 'country': name, 'revenue': {}, 'spend': {}}
+                by_country[code]['revenue'][hkey] = by_country[code]['revenue'].get(hkey, 0.0) + float(row.get('revenue', 0) or 0)
+                hours_present.add(hkey)
+            for row in ads_rows or []:
+                code = str(row.get('country_code', '') or '').upper()
+                name = row.get('country_name', '') or code
+                hour = int(row.get('hour', 0) or 0)
+                hkey = f"{hour:02d}"
+                if code not in by_country:
+                    by_country[code] = {'country_code': code, 'country': name, 'revenue': {}, 'spend': {}}
+                by_country[code]['spend'][hkey] = by_country[code]['spend'].get(hkey, 0.0) + float(row.get('spend', 0) or 0)
+                hours_present.add(hkey)
+            hours = sorted(list(hours_present), key=lambda x: int(x)) if hours_present else [f"{h:02d}" for h in range(24)]
+            countries_series = []
+            total_revenue = 0.0
+            total_spend = 0.0
+            for code, item in by_country.items():
+                series = []
+                rev_series = []
+                spend_series = []
+                for h in hours:
+                    r = float(item['revenue'].get(h, 0.0))
+                    s = float(item['spend'].get(h, 0.0))
+                    roi = ((r - s) / s * 100) if s > 0 else 0.0
+                    series.append(round(roi, 2))
+                    rev_series.append(round(r, 2))
+                    spend_series.append(round(s, 2))
+                    total_revenue += r
+                    total_spend += s
+                countries_series.append({
+                    'country_code': code,
+                    'country': item.get('country', code),
+                    'roi': series,
+                    'revenue': rev_series,
+                    'spend': spend_series
+                })
+            countries_series.sort(key=lambda x: sum(x['roi']), reverse=True)
+            result = {
+                'status': True,
+                'date': target_date,
+                'hours': hours,
+                'countries': countries_series,
+                'summary': {
+                    'total_revenue': round(total_revenue, 2),
+                    'total_spend': round(total_spend, 2),
+                    'roi_nett': round(((total_revenue - total_spend) / total_spend * 100) if total_spend > 0 else 0, 2),
+                    'total_countries': len(countries_series)
+                }
+            }
+            set_cached_data(cache_key, result, timeout=600)
+            return JsonResponse(result, safe=False)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
+
+class RoiHourlyAdxFilterView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+    def get(self, req):
+        try:
+            admin = req.session.get('hris_admin', {})
+            user_id = admin.get('user_id')
+            super_st = admin.get('super_st')
+            try:
+                cache_key = generate_cache_key('roi_hourly_adx_filter', str(user_id or ''), str(super_st or ''))
+                cached = get_cached_data(cache_key)
+                if cached is not None:
+                    return JsonResponse(cached, safe=False)
+            except Exception:
+                pass
+            if super_st == '0' and user_id:
+                rs = data_mysql().get_all_app_credentials_user(user_id)
+            else:
+                rs = data_mysql().get_all_app_credentials()
+            data_list = []
+            if isinstance(rs, dict) and rs.get('status'):
+                for row in rs.get('data') or []:
+                    data_list.append({
+                        'user_mail': row.get('user_mail') or '',
+                        'account_name': row.get('account_name') or (row.get('user_mail') or '')
+                    })
+            try:
+                set_cached_data(cache_key, data_list, timeout=6 * 60 * 60)
+            except Exception:
+                pass
+            return JsonResponse(data_list, safe=False)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
+
 class RoiSummaryView(View):
     """View untuk ROI Summary - menampilkan ringkasan data ROI"""
     def dispatch(self, request, *args, **kwargs):

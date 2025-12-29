@@ -1509,15 +1509,26 @@ class data_mysql:
         Mengambil semua data dari tabel app_credentials
         """
         sql = '''
-            SELECT a.account_id, a.account_name, a.user_mail, a.client_id, a.client_secret, b.assigned_users,
-            a.refresh_token, a.network_code, a.developer_token, a.is_active, a.mdb, a.mdb_name, a.mdd
+            SELECT 
+                a.account_id,
+                a.account_name,
+                a.user_mail,
+                a.client_id,
+                a.client_secret,
+                (
+                    SELECT GROUP_CONCAT(u.user_alias SEPARATOR '<br>')
+                    FROM app_credentials_assign ca
+                    LEFT JOIN app_users u ON ca.user_id = u.user_id
+                    WHERE ca.account_id = a.account_id
+                ) AS assigned_users,
+                a.refresh_token,
+                a.network_code,
+                a.developer_token,
+                a.is_active,
+                a.mdb,
+                a.mdb_name,
+                a.mdd
             FROM app_credentials a
-            LEFT JOIN (
-                SELECT account_id, GROUP_CONCAT(b.user_alias SEPARATOR '<br>') AS assigned_users
-                FROM app_credentials_assign a
-                LEFT JOIN app_users b ON a.user_id = b.user_id
-                GROUP BY account_id
-            ) b ON a.account_id = b.account_id
             ORDER BY a.mdd DESC
         '''
         try:
@@ -1539,27 +1550,41 @@ class data_mysql:
         Mengambil semua data dari tabel app_credentials untuk user tertentu     
         """
         sql = '''
-            SELECT a.account_id, b.user_id, a.account_name, a.user_mail, a.client_id, a.client_secret, b.assigned_users,
-            a.refresh_token, a.network_code, a.developer_token, a.is_active, a.mdb, a.mdb_name, a.mdd
+            SELECT 
+                a.account_id,
+                x.user_id,
+                a.account_name,
+                a.user_mail,
+                a.client_id,
+                a.client_secret,
+                (
+                    SELECT GROUP_CONCAT(u.user_alias SEPARATOR '<br>')
+                    FROM app_credentials_assign ca
+                    LEFT JOIN app_users u ON ca.user_id = u.user_id
+                    WHERE ca.account_id = a.account_id
+                ) AS assigned_users,
+                a.refresh_token,
+                a.network_code,
+                a.developer_token,
+                a.is_active,
+                a.mdb,
+                a.mdb_name,
+                a.mdd
             FROM app_credentials a
-            INNER JOIN (
-                SELECT a.account_id, a.user_id, GROUP_CONCAT(b.user_alias SEPARATOR '<br>') AS assigned_users
-                FROM app_credentials_assign a
-                LEFT JOIN app_users b ON a.user_id = b.user_id
-                GROUP BY account_id, user_id
-            ) b ON a.account_id = b.account_id
-            WHERE b.user_id = %s
+            INNER JOIN app_credentials_assign x ON a.account_id = x.account_id
+            WHERE x.user_id = %s
             ORDER BY a.mdd DESC
         '''
         try:
-            if not self.execute_query(sql, (user_id)): 
+            if not self.execute_query(sql, (user_id,)): 
                 raise pymysql.Error("Failed to fetch app_credentials data")
             results = self.cur_hris.fetchall()
             return {
                 'status': True,
                 'data': results if results else []
             }
-        except pymysql.Error as e:            return {
+        except pymysql.Error as e:
+            return {
                 'status': False,
                 'error': f'Database error: {str(e)}'
             }
@@ -2703,6 +2728,135 @@ class data_mysql:
                 "error": str(e)
             }
 
+        return {"hasil": hasil}
+
+    def get_all_adx_roi_country_hourly_logs_by_params(self, target_date, selected_account_list=None, selected_domain_list=None, countries_list=None):
+        try:
+            # Normalize account list
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
+            like_conditions_account_id = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
+            like_conditions_user_mail = " OR ".join(["a.user_mail LIKE %s"] * len(data_account_list))
+            like_params_account_id = [f"%{account}%" for account in data_account_list]
+            like_params_user_mail = [f"%{account}%" for account in data_account_list]
+            # Normalize domain list (optional)
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+            like_conditions_domain = " OR ".join(["b.log_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_params_domain = [f"%{domain}%" for domain in data_domain_list]
+            # Normalize country codes (optional)
+            country_codes = []
+            if countries_list:
+                if isinstance(countries_list, str):
+                    country_codes = [c.strip() for c in countries_list.split(',') if c.strip()]
+                elif isinstance(countries_list, (list, tuple, set)):
+                    country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
+            base_sql = [
+                "SELECT",
+                "\tDATE(b.log_adx_country_tanggal) AS 'date',",
+                "\tHOUR(b.mdd) AS 'hour',",
+                "\tb.log_adx_country_cd AS 'country_code',",
+                "\tb.log_adx_country_nm AS 'country_name',",
+                "\tSUM(b.log_adx_country_impresi) AS impressions,",
+                "\tSUM(b.log_adx_country_click) AS clicks,",
+                "\tSUM(b.log_adx_country_revenue) AS revenue",
+                "FROM app_credentials a",
+                "INNER JOIN log_adx_country b ON a.account_id = b.account_id",
+                "WHERE DATE(b.log_adx_country_tanggal) = %s",
+            ]
+            params = [target_date]
+            if data_account_list:
+                base_sql.append(f"\tAND (({like_conditions_account_id}) OR ({like_conditions_user_mail}))")
+                params.extend(like_params_account_id + like_params_user_mail)
+            if data_domain_list:
+                base_sql.append(f"\tAND ({like_conditions_domain})")
+                params.extend(like_params_domain)
+            if country_codes:
+                placeholders = ','.join(['%s'] * len(country_codes))
+                base_sql.append(f"\tAND b.log_adx_country_cd IN ({placeholders})")
+                params.extend(country_codes)
+            base_sql.append("GROUP BY DATE(b.log_adx_country_tanggal), HOUR(b.mdd), b.log_adx_country_cd, b.log_adx_country_nm")
+            base_sql.append("ORDER BY HOUR(b.mdd) ASC")
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get hourly AdX country logs by params")
+            data_rows = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit hourly AdX country logs by params")
+            return {
+                "status": True,
+                "message": "Hourly AdX country logs berhasil diambil",
+                "data": data_rows
+            }
+        except pymysql.Error as e:
+            return {"status": False, "error": f"Terjadi error {e!r}, error nya {e.args[0]}"}
+        except Exception as e:
+            return {"status": False, "error": str(e)}
+
+    def get_all_ads_roi_country_hourly_logs_by_params(self, target_date, data_sub_domain=None, countries_list=None):
+        try:
+            # Normalize domain list
+            if isinstance(data_sub_domain, str):
+                data_sub_domain = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
+            elif data_sub_domain is None:
+                data_sub_domain = []
+            elif isinstance(data_sub_domain, (set, tuple)):
+                data_sub_domain = list(data_sub_domain)
+            like_clause = ""
+            like_params = []
+            if data_sub_domain:
+                like_conditions = " OR ".join(["b.log_ads_domain LIKE %s"] * len(data_sub_domain))
+                like_clause = f"\tAND ({like_conditions})"
+                like_params = [f"%{d}%" for d in data_sub_domain]
+            # Normalize country codes (optional)
+            country_codes = []
+            if countries_list:
+                if isinstance(countries_list, str):
+                    country_codes = [c.strip() for c in countries_list.split(',') if c.strip()]
+                elif isinstance(countries_list, (list, tuple, set)):
+                    country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
+            base_sql = [
+                "SELECT",
+                "\tDATE(b.log_ads_country_tanggal) AS 'date',",
+                "\tHOUR(b.mdd) AS 'hour',",
+                "\tb.log_ads_country_cd AS 'country_code',",
+                "\tb.log_ads_country_nm AS 'country_name',",
+                "\tSUM(b.log_ads_country_spend) AS 'spend',",
+                "\tSUM(b.log_ads_country_impresi) AS 'impressions',",
+                "\tSUM(b.log_ads_country_click) AS 'clicks',",
+                "\tROUND(AVG(b.log_ads_country_cpr), 0) AS 'cpr'",
+                "FROM master_account_ads a",
+                "INNER JOIN log_ads_country b ON a.account_id = b.account_ads_id",
+                "WHERE DATE(b.log_ads_country_tanggal) = %s",
+            ]
+            params = [target_date] + like_params
+            if like_clause:
+                base_sql.append(like_clause)
+            if country_codes:
+                placeholders = ','.join(['%s'] * len(country_codes))
+                base_sql.append(f"\tAND b.log_ads_country_cd IN ({placeholders})")
+                params.extend(country_codes)
+            base_sql.append("GROUP BY DATE(b.log_ads_country_tanggal), HOUR(b.mdd), b.log_ads_country_cd, b.log_ads_country_nm")
+            base_sql.append("ORDER BY HOUR(b.mdd) ASC")
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get hourly Ads country logs by params")
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit hourly Ads country logs by params")
+            hasil = {"status": True, "message": "Hourly Ads country logs berhasil diambil", "data": data}
+        except Exception as e:
+            hasil = {"status": False, "data": f"Terjadi error {e!r}"}
         return {"hasil": hasil}
 
 
