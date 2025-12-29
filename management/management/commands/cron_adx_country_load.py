@@ -113,8 +113,45 @@ class Command(BaseCommand):
                                 'mdb_name': 'Cron Job',
                                 'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                             }
-                            # Bersihkan data existing untuk range agar idempotent
+                            # Insert data sebelum di hapus ke log adx_country_log
+                            result_log_res = db.get_data_adx_country_to_insert_log(
+                                cred.get('account_id'), 
+                                day_str, 
+                                record.get('data_adx_country_cd'), 
+                                record.get('data_adx_country_domain')
+                            )
+                            result_log_data = (result_log_res or {}).get('hasil', {}).get('data')
+                            if (result_log_res or {}).get('hasil', {}).get('status') and isinstance(result_log_data, dict):
+                                params_log = {
+                                    'account_id': result_log_data.get('account_id'),
+                                    'log_adx_country_tanggal': result_log_data.get('data_adx_country_tanggal'),
+                                    'log_adx_country_cd': result_log_data.get('data_adx_country_cd'),
+                                    'log_adx_country_nm': result_log_data.get('data_adx_country_nm'),
+                                    'log_adx_country_domain': result_log_data.get('data_adx_country_domain'),
+                                    'log_adx_country_impresi': result_log_data.get('data_adx_country_impresi'),
+                                    'log_adx_country_click': result_log_data.get('data_adx_country_click'),
+                                    'log_adx_country_cpc': result_log_data.get('data_adx_country_cpc'),
+                                    'log_adx_country_ctr': result_log_data.get('data_adx_country_ctr'),
+                                    'log_adx_country_cpm': result_log_data.get('data_adx_country_cpm'),
+                                    'log_adx_country_revenue': result_log_data.get('data_adx_country_revenue'),
+                                    'mdb': '0',
+                                    'mdb_name': 'Log Insert',
+                                    'mdd': result_log_data.get('mdd'),
+                                }
+                                try:
+                                    insert_log = db.insert_log_adx_country_log(params_log)
+                                    if insert_log.get('hasil', {}).get('status'):
+                                        self.stdout.write(self.style.SUCCESS(
+                                            f"Log AdX per negara berhasil disimpan: {params_log}"
+                                        ))
+                                    else:
+                                        self.stdout.write(self.style.ERROR(
+                                            f"Gagal menyimpan log AdX per negara: {insert_log.get('hasil', {}).get('data')}"
+                                        ))
+                                except Exception as e:
+                                    self.stdout.write(self.style.ERROR(f"Error saat menyimpan log AdX per negara: {e}"))
                             try:
+                                # Bersihkan data existing untuk range agar idempotent
                                 del_res = db.delete_data_adx_country_by_date(cred.get('account_id'), day_str, record.get('data_adx_country_cd'), record.get('data_adx_country_domain'))
                                 if del_res.get('hasil', {}).get('status'):
                                     affected = del_res.get('hasil', {}).get('affected', 0)

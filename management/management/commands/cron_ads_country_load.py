@@ -128,8 +128,49 @@ class Command(BaseCommand):
                             'mdb_name': 'Cron Job',
                             'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                         }
-                        # Hapus data existing pada rentang tanggal agar ditimpa data baru
+                        # Insert data sebelum di hapus ke log ads_country_log
+                        result_log_res = data_mysql().get_data_ads_country_to_insert_log(
+                            account_data['account_id'],
+                            country_code_val,
+                            domain_value,
+                            campaign_name,
+                            f"{tanggal_row}%",
+                        )
+                        result_log_data = (result_log_res or {}).get('hasil', {}).get('data')
+                        if (result_log_res or {}).get('hasil', {}).get('status') and isinstance(result_log_data, dict):
+                            params_log = {
+                                'account_ads_id': result_log_data.get('account_ads_id'),
+                                'log_ads_country_cd': result_log_data.get('data_ads_country_cd'),
+                                'log_ads_country_nm': result_log_data.get('data_ads_country_nm'),
+                                'log_ads_domain': result_log_data.get('data_ads_domain'),
+                                'log_ads_campaign_nm': result_log_data.get('data_ads_campaign_nm'),
+                                'log_ads_country_tanggal': result_log_data.get('data_ads_country_tanggal'),
+                                'log_ads_country_spend': round(float(result_log_data.get('data_ads_country_spend') or 0), 2),
+                                'log_ads_country_impresi': int(result_log_data.get('data_ads_country_impresi') or 0),
+                                'log_ads_country_click': int(result_log_data.get('data_ads_country_click') or 0),
+                                'log_ads_country_reach': int(result_log_data.get('data_ads_country_reach') or 0),
+                                'log_ads_country_cpr': round(float(result_log_data.get('data_ads_country_cpr') or 0), 2),
+                                'log_ads_country_cpc': float(result_log_data.get('data_ads_country_cpc') or 0),
+                                'mdb': '0',
+                                'mdb_name': 'Log Insert',
+                                'mdd': result_log_data.get('mdd'),
+                            }
+                            try:
+                                insert_log = data_mysql().insert_log_ads_country_log(params_log)
+                                if insert_log.get('hasil', {}).get('status'):
+                                    self.stdout.write(self.style.SUCCESS(
+                                        f"Log Ads per negara berhasil disimpan: {params_log}"
+                                    ))
+                                else:
+                                    self.stdout.write(self.style.ERROR(
+                                        f"Gagal menyimpan log Ads per negara: {params_log}"
+                                    ))
+                            except Exception as e:
+                                self.stdout.write(self.style.ERROR(
+                                    f"Gagal menyimpan log Ads per negara: {e}"
+                                ))
                         try:
+                            # Hapus data existing pada rentang tanggal agar ditimpa data baru
                             del_res = data_mysql().delete_data_ads_country_by_date_account(account_data['account_id'], country_code_val, domain_value, campaign_name, tanggal_row)
                             if del_res.get('hasil', {}).get('status'):
                                 affected = del_res.get('hasil', {}).get('affected', 0)

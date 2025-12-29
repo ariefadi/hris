@@ -919,6 +919,92 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
+    def get_data_ads_country_to_insert_log(self, account, country, domain, campaign, tanggal):
+        try:
+            sql_select = (
+                "SELECT * FROM data_ads_country WHERE account_ads_id = %s AND data_ads_country_cd LIKE %s AND data_ads_domain = %s AND data_ads_campaign_nm LIKE %s AND data_ads_country_tanggal LIKE %s"
+            )
+            if not self.execute_query(sql_select, (account, country, domain, campaign, tanggal)):
+                raise pymysql.Error("Failed to select data ads country by date range")
+            data = self.cur_hris.fetchone()
+            if not data:
+                return {'hasil': {'status': False, 'message': 'Data ads country tidak ditemukan'}}
+            return {'hasil': {'status': True, 'data': data}}
+        except pymysql.Error as e:
+            return {'hasil': {'status': False, 'message': f"Terjadi error {e}"}}
+
+    def insert_log_ads_country_log(self, data):
+        try:
+            sql_insert = """
+                        INSERT INTO log_ads_country
+                        (
+                            log_ads_country.account_ads_id,
+                            log_ads_country.log_ads_country_cd,
+                            log_ads_country.log_ads_country_nm,
+                            log_ads_country.log_ads_domain,
+                            log_ads_country.log_ads_campaign_nm,
+                            log_ads_country.log_ads_country_tanggal,
+                            log_ads_country.log_ads_country_spend,
+                            log_ads_country.log_ads_country_impresi,
+                            log_ads_country.log_ads_country_click,
+                            log_ads_country.log_ads_country_reach,
+                            log_ads_country.log_ads_country_cpr,
+                            log_ads_country.log_ads_country_cpc,
+                            log_ads_country.mdb,
+                            log_ads_country.mdb_name,
+                            log_ads_country.mdd
+                        )
+                    VALUES
+                        (
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s
+                        )
+                """
+            if not self.execute_query(sql_insert, (
+                data['account_ads_id'],
+                data['log_ads_country_cd'],
+                data['log_ads_country_nm'],
+                data['log_ads_domain'],
+                data['log_ads_campaign_nm'],
+                data['log_ads_country_tanggal'],
+                data['log_ads_country_spend'],
+                data['log_ads_country_impresi'],
+                data['log_ads_country_click'],
+                data['log_ads_country_reach'],
+                data['log_ads_country_cpr'],    
+                data['log_ads_country_cpc'],
+                data['mdb'],
+                data['mdb_name'],
+                data['mdd']
+            )):
+                raise pymysql.Error("Failed to insert data ads country log")
+            if not self.commit():
+                raise pymysql.Error("Failed to commit data ads country log insert")
+            
+            hasil = {
+                "status": True,
+                "message": "Data ads country log berhasil ditambahkan"
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil} 
+
     def delete_data_ads_country_by_date_account(self, account, country, domain, campaign, tanggal):
         try:
             sql_delete = """
@@ -1766,6 +1852,90 @@ class data_mysql:
                 'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
         return {'hasil': hasil}
+
+    def get_data_adx_country_to_insert_log(self, account_id, tanggal, code_negara, site_name):
+        try:
+            sql_select = (
+                "SELECT * FROM data_adx_country WHERE account_id = %s AND data_adx_country_tanggal LIKE %s AND data_adx_country_cd = %s AND data_adx_country_domain LIKE %s"
+            )
+            if not self.execute_query(sql_select, (account_id, f"{tanggal}%", code_negara, site_name)):
+                raise pymysql.Error("Failed to select data adx country by date range")
+            data = self.cur_hris.fetchone()
+            if not data:
+                return {'hasil': {'status': False, 'message': 'Data adx country tidak ditemukan'}}
+            return {'hasil': {'status': True, 'data': data}}
+        except pymysql.Error as e:
+            return {'hasil': {'status': False, 'message': f"Terjadi error {e}"}}
+
+    def insert_log_adx_country_log(self, data):
+        try:
+            sql_insert = """
+                        INSERT INTO log_adx_country
+                        (
+                            log_adx_country.account_id,
+                            log_adx_country.log_adx_country_tanggal,
+                            log_adx_country.log_adx_country_cd,
+                            log_adx_country.log_adx_country_nm,
+                            log_adx_country.log_adx_country_domain,
+                            log_adx_country.log_adx_country_impresi,
+                            log_adx_country.log_adx_country_click,
+                            log_adx_country.log_adx_country_cpc,
+                            log_adx_country.log_adx_country_ctr,
+                            log_adx_country.log_adx_country_cpm,
+                            log_adx_country.log_adx_country_revenue,
+                            log_adx_country.mdb,
+                            log_adx_country.mdb_name,
+                            log_adx_country.mdd
+                        )
+                    VALUES
+                        (
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s
+                        )
+                """
+            if not self.execute_query(sql_insert, (
+                data['account_id'],
+                data['log_adx_country_tanggal'],
+                data['log_adx_country_cd'],
+                data['log_adx_country_nm'],
+                data['log_adx_country_domain'],
+                data['log_adx_country_impresi'],
+                data['log_adx_country_click'],
+                data['log_adx_country_cpc'],
+                data['log_adx_country_ctr'],
+                data['log_adx_country_cpm'],
+                data['log_adx_country_revenue'],
+                data['mdb'],
+                data['mdb_name'],
+                data['mdd']
+            )):
+                raise pymysql.Error("Failed to insert data adx country log")
+            if not self.commit():
+                raise pymysql.Error("Failed to commit data adx country log insert")
+            
+            hasil = {
+                "status": True,
+                "message": "Data adx country log berhasil ditambahkan"
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}                        
+
 
     def delete_data_adx_country_by_date(self, account_id, tanggal, code_negara, site_name):
         try:
