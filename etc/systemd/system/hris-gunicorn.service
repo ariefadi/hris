@@ -1,0 +1,17 @@
+[Unit]
+Description=HRIS Gunicorn App (with config)
+After=network.target
+
+[Service]
+Environment=DJANGO_DEBUG=true
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/html/hris
+Environment="PATH=/var/www/html/hris/hris_env/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="DJANGO_SETTINGS_MODULE=hris.settings"
+ExecStart=/var/www/html/hris/hris_env/bin/python -m gunicorn -c /var/www/html/hris/gunicorn_config.py hris.wsgi:application
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
