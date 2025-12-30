@@ -868,7 +868,6 @@ def fetch_data_all_insights_data_all(rs_account, start_date, end_date):
 def fetch_data_all_insights_total(access_token, account_id, start_date, end_date):
     FacebookAdsApi.init(access_token=access_token)
     account = AdAccount(account_id)
-    
     # Ambil data di level campaign untuk konsistensi dengan fungsi _all
     fields = [
         AdsInsights.Field.campaign_id,
@@ -888,22 +887,20 @@ def fetch_data_all_insights_total(access_token, account_id, start_date, end_date
     except (FacebookRequestError, requests.exceptions.RequestException, urllib3.exceptions.HTTPError, Exception) as e:
         print(f"[ERROR] Gagal mengambil insights Facebook: {e}")
         insights = []
-    
     # Aggregate semua data campaign dalam account ini
     total_summary = {
         'spend': 0.0,
         'clicks': 0,
         'impressions': 0,
         'reach': 0,
-        'total_cpr': 0.0,
-        'total_cpc': 0.0,
+        'results_count': 0,
+        'rata_rata_cpr': 0.0,
+        'rata_rata_cpc': 0.0,
     }
-    
     for item in insights:
         spend = float(item.get('spend', 0))
         impressions = int(item.get('impressions', 0))
         reach = int(item.get('reach', 0))
-        
         # Ambil clicks dan results dari actions dengan action_type 'link_click'
         clicks = 0
         results_count = 0
@@ -913,24 +910,26 @@ def fetch_data_all_insights_total(access_token, account_id, start_date, end_date
                 action_value = int(action.get('value', 0))
                 clicks += action_value
                 results_count += action_value
-        
+                
         # Hitung CPR dan CPC untuk campaign ini
-        campaign_cpr = 0.0
-        campaign_cpc = 0.0
         
-        if results_count > 0:
-            campaign_cpr = spend / results_count
+        # campaign_cpr = 0.0
+        # campaign_cpc = 0.0
         
-        if clicks > 0:
-            campaign_cpc = spend / clicks
+        # if results_count > 0:
+        #     campaign_cpr = spend / results_count
         
+        # if clicks > 0:
+        #     campaign_cpc = spend / clicks
+
         # Tambahkan ke total
         total_summary['spend'] += spend
         total_summary['clicks'] += clicks
+        total_summary['results_count'] += results_count
         total_summary['impressions'] += impressions
         total_summary['reach'] += reach
-        total_summary['total_cpr'] += campaign_cpr
-        total_summary['total_cpc'] += campaign_cpc
+        total_summary['rata_rata_cpr'] = total_summary['spend'] / total_summary['results_count'] if total_summary['results_count'] > 0 else 0
+        total_summary['rata_rata_cpc'] = total_summary['spend'] / total_summary['clicks'] if total_summary['clicks'] > 0 else 0
     
     # Ambil account name dari account info
     account_info = account.api_get(fields=['name'])
@@ -942,8 +941,8 @@ def fetch_data_all_insights_total(access_token, account_id, start_date, end_date
         'clicks': total_summary['clicks'],
         'impressions': total_summary['impressions'],
         'reach': total_summary['reach'],
-        'cpr': total_summary['total_cpr'],
-        'cpc': total_summary['total_cpc']
+        'cpr': total_summary['rata_rata_cpr'],
+        'cpc': total_summary['rata_rata_cpc']
     }]
     
     return result
@@ -955,8 +954,9 @@ def fetch_data_all_insights_total_all(rs_account, start_date, end_date):
         'clicks': 0,
         'impressions': 0,
         'reach': 0,
-        'total_cpr': 0.0,  # Total CPR dari semua campaign
-        'total_cpc': 0.0,  # Total CPC dari semua campaign
+        'results_count': 0,
+        'rata_rata_cpr': 0.0,  # Total CPR dari semua campaign
+        'rata_rata_cpc': 0.0,  # Total CPC dari semua campaign
     }
     
     for data in rs_account:
@@ -998,22 +998,23 @@ def fetch_data_all_insights_total_all(rs_account, start_date, end_date):
                         results_count += action_value
                 
                 # Hitung CPR dan CPC untuk campaign ini
-                campaign_cpr = 0.0
-                campaign_cpc = 0.0
+                # campaign_cpr = 0.0
+                # campaign_cpc = 0.0
                 
-                if results_count > 0:
-                    campaign_cpr = spend / results_count
+                # if results_count > 0:
+                #     campaign_cpr = spend / results_count
                 
-                if clicks > 0:
-                    campaign_cpc = spend / clicks
+                # if clicks > 0:
+                #     campaign_cpc = spend / clicks
                 
                 # Tambahkan ke total
                 total_summary['spend'] += spend
                 total_summary['clicks'] += clicks
+                total_summary['results_count'] += results_count
                 total_summary['impressions'] += impressions
                 total_summary['reach'] += reach
-                total_summary['total_cpr'] += campaign_cpr
-                total_summary['total_cpc'] += campaign_cpc
+                total_summary['rata_rata_cpr'] = total_summary['spend'] / total_summary['results_count'] if total_summary['results_count'] > 0 else 0
+                total_summary['rata_rata_cpc'] = total_summary['spend'] / total_summary['clicks'] if total_summary['clicks'] > 0 else 0
                 
         except Exception as e:
             continue
@@ -1023,8 +1024,8 @@ def fetch_data_all_insights_total_all(rs_account, start_date, end_date):
         'clicks': total_summary['clicks'],
         'impressions': total_summary['impressions'],
         'reach': total_summary['reach'],
-        'cpr': total_summary['total_cpr'],
-        'cpc': total_summary['total_cpc']
+        'cpr': total_summary['rata_rata_cpr'],
+        'cpc': total_summary['rata_rata_cpc']
     }]
     
     return result
