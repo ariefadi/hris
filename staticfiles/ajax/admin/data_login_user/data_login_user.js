@@ -27,7 +27,7 @@ $().ready(function () {
 });
 function table_data_login_user() {
     $.ajax({
-        url: '/management/admin/page_login_user',
+        url: '/settings/users/page_login_user',
         method: 'GET',
         dataType: 'json',
         beforeSend: function () {

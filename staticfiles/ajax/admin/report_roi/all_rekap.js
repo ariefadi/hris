@@ -35,20 +35,21 @@ $().ready(function () {
         todayHighlight: true
     }).datepicker('setDate', today);
     $('#account_filter').select2({
-        placeholder: '-- Pilih Akun Terdaftar --',
+        placeholder: '-- Pilih Account --',
         allowClear: true,
         width: '100%',
         height: '100%',
         theme: 'bootstrap4'
     });
-    // Initialize Select2 for site filter
-    $('#site_filter').select2({
+    let allAccountOptions = $('#account_filter').html();  
+    $('#domain_filter').select2({
         placeholder: '-- Pilih Domain --',
         allowClear: true,
         width: '100%',
         height: '100%',
         theme: 'bootstrap4'
     });
+    let allDomainOptions = $('#domain_filter').html();  
     $('#select_account').select2({
         placeholder: '-- Pilih Account --',
         allowClear: true,
@@ -73,86 +74,142 @@ $().ready(function () {
     $('#btn_load_data').click(function (e) {
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
-        var selected_account_adx = $("#account_filter").val() || "";
+        var selected_account = $("#account_filter").val() || "";
+        var selected_domain = $("#domain_filter").val() || "";
         if (tanggal_dari != "" && tanggal_sampai != "") {
             // Reset status fetch sebelum mulai menarik data
             window.fetchStatus = { summary: false, country: false };
             $('#overlay').show();
-            load_ROI_traffic_country_data();
-            load_ROI_summary_data(tanggal_dari, tanggal_sampai, selected_account_adx);
-            loadSitesList();
-            load_country_options();
+            load_country_options(selected_account, selected_domain);
+            load_ROI_traffic_country_data(tanggal_dari, tanggal_sampai);
+            load_ROI_summary_data(tanggal_dari, tanggal_sampai);
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
         }
     });
-    // Load data situs untuk select2
-    function loadSitesList() {
-        var selectedAccounts = $("#account_filter").val() || "";
-        // Simpan pilihan domain yang sudah dipilih sebelumnya
-        var previouslySelected = $("#site_filter").val() || [];
-        
-        $.ajax({
+    // Flag untuk mencegah infinite loop saat update filter
+    var isUpdating = false;
+    $('#account_filter').on('change', function () {
+        if (isUpdating) return;
+        let account = $(this).val();
+        if (account && account.length > 0) {
+            adx_site_list(); // filter domain by account
+        } else {
+            // restore semua domain dari template
+            isUpdating = true;
+            $('#domain_filter')
+                .html(allDomainOptions)
+                .val(null)
+                .trigger('change.select2');
+            isUpdating = false;
+        }
+    });
+    function adx_site_list() {
+        var selected_account = $("#account_filter").val();
+        if (selected_account) {
+            selected_account = selected_account.join(',');
+        }
+        return $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
-            dataType: 'json',
             data: {
-                'selected_accounts': selectedAccounts
+                selected_accounts: selected_account
             },
             headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+                'X-CSRFToken': csrftoken
             },
             success: function (response) {
-                if (response.status) {
-                    var select_site = $("#site_filter");
-                    select_site.empty();
-                    
-                    // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
-                    var validPreviousSelections = [];
-                    $.each(response.data, function (index, site) {
-                        var isSelected = previouslySelected.includes(site);
-                        if (isSelected) {
-                            validPreviousSelections.push(site);
-                        }
-                        select_site.append(new Option(site, site, false, isSelected));
+                if (response && response.status) {
+                    let $domain = $('#domain_filter');
+                    let currentSelected = $domain.val(); // Simpan pilihan saat ini
+
+                    isUpdating = true;
+                    // 1. Kosongkan option lama
+                    $domain.empty();
+
+                    // 2. Tambahkan option baru
+                    response.data.forEach(function (domain) {
+                        let isSelected = currentSelected && currentSelected.includes(domain);
+                        let option = new Option(domain, domain, isSelected, isSelected);
+                        $domain.append(option);
                     });
-                    
-                    // Set nilai yang dipilih kembali
-                    if (validPreviousSelections.length > 0) {
-                        select_site.val(validPreviousSelections);
-                    }
-                    
-                    select_site.trigger('change');
+
+                    // 3. Refresh select2
+                    $domain.trigger('change.select2');
+                    isUpdating = false;
                 }
             },
             error: function (xhr, status, error) {
-                report_eror(xhr, status);
+                report_eror(xhr, error);
+            }
+        });
+    }
+    $('#domain_filter').on('change', function () {
+        if (isUpdating) return;
+        let domain = $(this).val();
+        if (domain && domain.length > 0) {
+            adx_account_list();
+        } else {
+            isUpdating = true;
+            $('#account_filter')
+                .html(allAccountOptions)
+                .val(null)
+                .trigger('change.select2');
+            isUpdating = false;
+        }
+    });
+    function adx_account_list() {
+        var selected_domain = $("#domain_filter").val();
+        if (selected_domain) {
+            selected_domain = selected_domain.join(',');
+        }
+        return $.ajax({
+            url: '/management/admin/adx_accounts_list',
+            type: 'GET',
+            data: {
+                selected_domains: selected_domain
+            },
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function (response) {
+                if (response && response.status) {
+                    let $account = $('#account_filter');
+                    let suggested = (response.data || []).map(function (a) { return String(a.account_id); });
+                    isUpdating = true;
+                    $account.html(allAccountOptions);
+                    $account.val(suggested).trigger('change.select2');
+                    isUpdating = false;
+                }
+            },
+            error: function (xhr, status, error) {
+                report_eror(xhr, error);
             }
         });
     }
     // Load data saat halaman pertama kali dibuka
-    function load_country_options() {
-        var selectedAccounts = $("#account_filter").val() || "";
+    function load_country_options(selected_account, selected_domain) {
+        if (selected_domain) {
+            selected_domain = selected_domain.join(',');
+        }
         // Simpan pilihan country yang sudah dipilih sebelumnya
         var previouslySelected = $("#country_filter").val() || [];
-        
         $.ajax({
             url: '/management/admin/get_countries_adx',
             type: 'GET',
             dataType: 'json',
             data: {
-                'selected_accounts': selectedAccounts
+                'selected_account': selected_account,
+                'selected_domains': selected_domain
             },
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+                'X-CSRFToken': csrftoken
             },
             success: function (response) {
                 if (response.status) {
                     var select_country = $('#country_filter');
                     select_country.empty();
-                    
                     // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
                     var validPreviousSelections = [];
                     $.each(response.countries, function (index, country) {
@@ -162,12 +219,10 @@ $().ready(function () {
                         }
                         select_country.append(new Option(country.name, country.code, false, isSelected));
                     });
-                    
                     // Set nilai yang dipilih kembali
                     if (validPreviousSelections.length > 0) {
                         select_country.val(validPreviousSelections);
                     }
-                    
                     select_country.trigger('change');
                 }
             },
@@ -177,29 +232,34 @@ $().ready(function () {
         });
     }
     // Fungsi untuk load data traffic per country
-    function load_ROI_traffic_country_data() {
-        var startDate = $('#tanggal_dari').val();
-        var endDate = $('#tanggal_sampai').val();
-        var selectedAccountAdx = $('#account_filter').val();
-        var selectedSites = $('#site_filter').val();
-        var selectedAccountAds = $('#select_account').val();
+    function load_ROI_traffic_country_data(tanggal_dari, tanggal_sampai) {
+        var selected_account = $("#account_filter").val() || "";
+        var accountFilter = '';
+        if (selected_account && selected_account.length > 0) {
+            accountFilter = selected_account.join(',');
+        }
+        var selected_domain = $("#domain_filter").val() || "";
+        var domainFilter = '';
+        if (selected_domain && selected_domain.length > 0) {
+            domainFilter = selected_domain.join(',');
+        }
+        var selectedAccountads = $('#select_account').val();
         var selectedCountries = $('#country_filter').val();
         var selectedCountriesStr = Array.isArray(selectedCountries) ? selectedCountries.join(',') : (selectedCountries || '');
-        var selectedSitesStr = Array.isArray(selectedSites) ? selectedSites.join(',') : (selectedSites || '');
         // AJAX request
         $.ajax({
             url: '/management/admin/page_roi_traffic_country',
             type: 'GET',
             data: {
-                start_date: startDate,
-                end_date: endDate,
-                selected_account_adx: selectedAccountAdx,
-                selected_sites: selectedSitesStr,
-                selected_account: selectedAccountAds,
+                start_date: tanggal_dari,
+                end_date: tanggal_sampai,
+                selected_account_adx: accountFilter,
+                selected_domains: domainFilter,
+                selected_account_ads: selectedAccountads,
                 selected_countries: selectedCountriesStr
             },
             headers: {
-                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+                'X-CSRFToken': csrftoken
             },
             success: function (response) {
                 // Tandai selesai tarik data country
@@ -241,7 +301,6 @@ function updateSummaryBoxes(data) {
         totalSpend += item.spend || 0;
         totalClicks += item.clicks || 0;
         totalRevenue += item.revenue || 0;
-
         if (item.roi && item.roi !== 0) {
             totalROI += item.roi;
             validROICount++;
@@ -251,16 +310,9 @@ function updateSummaryBoxes(data) {
     var averageROI = validROICount > 0 ? (totalROI / validROICount) : 0;
     $('#total_impressions').text(totalImpressions.toLocaleString('id-ID'));
     $('#total_spend').text(formatCurrencyIDR(totalSpend));
-    // Jika belum memilih domain, set Total Klik & Total Pendapatan ke 0
-    var selectedSites = $('#site_filter').val();
-    var noSiteSelected = !selectedSites || selectedSites.length === 0;
-    if (noSiteSelected) {
-        $('#total_clicks').text(formatNumber(0));
-        $('#total_revenue').text(formatCurrencyIDR(0));
-    } else {
-        $('#total_clicks').text(totalClicks.toLocaleString('id-ID'));
-        $('#total_revenue').text(formatCurrencyIDR(totalRevenue));
-    }
+    // Jika AdX Account sudah dipilih, tampilkan data meskipun domain belum dipilih
+    $('#total_clicks').text(totalClicks.toLocaleString('id-ID'));
+    $('#total_revenue').text(formatCurrencyIDR(totalRevenue));
     // Isi ROI Nett sesuai elemen template
     $('#roi_nett').text(averageROI.toFixed(2) + '%');
     // Elemen total_ctr mungkin tidak ada di template; abaikan jika tidak ada
@@ -271,190 +323,186 @@ function updateSummaryBoxes(data) {
 
 // Fungsi untuk format mata uang IDR
 function formatCurrencyIDR(value) {
-    // Convert to number, round to remove decimals, then format with Rp
-    let numValue = parseFloat(value.toString().replace(/[$,]/g, ''));
-    if (isNaN(numValue)) return value;
+    // Handle null, undefined, or non-numeric values
+    if (value === null || value === undefined || value === '') {
+        return 'Rp. 0';
+    }
+    // Handle set objects or other complex objects
+    if (typeof value === 'object' && value !== null) {
+        // If it's a set-like object, try to get the first value or return 0
+        if (value.constructor && value.constructor.name === 'Set') {
+            return 'Rp. 0';
+        }
+        // For other objects, try to convert to string first
+        value = String(value);
+    }
+    // Convert to string and remove currency symbols and commas
+    let stringValue = String(value);
+    let numValue = parseFloat(stringValue.replace(/[$,]/g, ''));
+    if (isNaN(numValue)) return 'Rp. 0';
     // Round to remove decimals and format with Indonesian number format
     return 'Rp. ' + Math.round(numValue).toLocaleString('id-ID');
 }
 
 function create_roi_daily_chart(data) {
-    // Check if Chart.js is available
+    // Pastikan Chart.js ready
     if (typeof Chart === 'undefined') {
         console.error('Chart.js is not loaded!');
         return;
     }
-    // Check if canvas element exists
     var canvas = document.getElementById('chart_roi_daily');
     if (!canvas) {
         console.error('Canvas element chart_roi_daily not found!');
         return;
     }
-    // Destroy existing chart if it exists
+    // Hancurkan chart sebelumnya
     if (window.dailyRoiChart && typeof window.dailyRoiChart.destroy === 'function') {
         window.dailyRoiChart.destroy();
     }
 
-    // Group data by date and calculate ROI
-    var dailyData = {};
-    data.forEach(function (item) {
-        var date = item.date;
+    // Kumpulkan tanggal & domain unik, serta agregasi metrik per (domain, tanggal)
+    var dateSet = new Set();
+    var domainSet = new Set();
+    var metricsMap = {}; // { domain: { date: { revenue, spend, other_costs } } }
+
+    (data || []).forEach(function (item) {
+        var date = normalizeDateStr(item.date);
+        var domain = (item.site_name || 'Unknown').trim();
         var revenue = parseFloat(item.revenue || 0);
         var spend = parseFloat(item.spend || 0);
         var other_costs = parseFloat(item.other_costs || 0);
-        var total_costs = spend + other_costs;
 
-        // Calculate ROI: ((revenue - total_costs) / total_costs) * 100
-        var roi = 0;
-        if (total_costs > 0) {
-            roi = ((revenue - total_costs) / total_costs) * 100;
-        }
+        if (!date) return;
 
-        if (!date) {
-            console.warn('No date found in item:', item);
-            return;
-        }
+        dateSet.add(date);
+        domainSet.add(domain);
 
-        if (!dailyData[date]) {
-            dailyData[date] = {
-                roi_values: [],
-                revenue: 0,
-                spend: 0,
-                other_costs: 0
-            };
-        }
+        if (!metricsMap[domain]) metricsMap[domain] = {};
+        if (!metricsMap[domain][date]) metricsMap[domain][date] = { revenue: 0, spend: 0, other_costs: 0 };
 
-        dailyData[date].roi_values.push(roi);
-        dailyData[date].revenue += revenue;
-        dailyData[date].spend += spend;
-        dailyData[date].other_costs += other_costs;
+        metricsMap[domain][date].revenue += revenue;
+        metricsMap[domain][date].spend += spend;
+        metricsMap[domain][date].other_costs += other_costs;
     });
 
-    // Convert to arrays and calculate average ROI per date
-    var dates = Object.keys(dailyData).sort();
-    var roiData = [];
-    var revenueData = [];
-    var spendData = [];
-
-    dates.forEach(function (date) {
-        var dayData = dailyData[date];
-        // Calculate average ROI for the day
-        var avgROI = 0;
-        if (dayData.roi_values.length > 0) {
-            avgROI = dayData.roi_values.reduce(function (sum, roi) { return sum + roi; }, 0) / dayData.roi_values.length;
-        }
-
-        roiData.push(avgROI.toFixed(2));
-        revenueData.push(dayData.revenue);
-        spendData.push(dayData.spend + dayData.other_costs);
-    });
-    // Format dates for display
-    var formattedDates = dates.map(function (date) {
-        var d = new Date(date + 'T00:00:00');
-        return d.toLocaleDateString('id-ID', {
-            day: 'numeric',
-            month: 'short'
-        });
-    });
-    // Destroy existing chart if it exists
-    var existingChart = Chart.getChart('chart_roi_daily');
-    if (existingChart) {
-        existingChart.destroy();
+    var dates = Array.from(dateSet).sort();
+    if (dates.length === 0 || domainSet.size === 0) {
+        console.warn('No data to render ROI daily chart');
+        return;
     }
 
-    // Create Chart.js line chart
+    // Format label tanggal
+    var formattedDates = dates.map(function (date) {
+        var d = new Date(date + 'T00:00:00');
+        return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+    });
+
+    // Palet warna untuk beberapa domain
+    var palette = [
+        'rgba(255, 99, 132, 1)',
+        'rgba(54, 162, 235, 1)',
+        'rgba(255, 206, 86, 1)',
+        'rgba(75, 192, 192, 1)',
+        'rgba(153, 102, 255, 1)',
+        'rgba(255, 159, 64, 1)',
+        'rgba(201, 203, 207, 1)',
+        'rgba(0, 200, 120, 1)',
+        'rgba(99, 255, 132, 1)',
+        'rgba(255, 99, 255, 1)'
+    ];
+
+    // Siapkan dataset per domain dan map untuk tooltip
+    var datasets = [];
+    var revenueByDomain = {}; // { domain: [revenue per tanggal] }
+    var spendByDomain = {};   // { domain: [total_costs per tanggal] }
+
+    var domains = Array.from(domainSet).sort();
+    domains.forEach(function (domain, idx) {
+        var color = palette[idx % palette.length];
+        var roiSeries = [];
+        var revenueSeries = [];
+        var spendSeries = [];
+
+        dates.forEach(function (date) {
+            var m = (metricsMap[domain] && metricsMap[domain][date]) ? metricsMap[domain][date] : { revenue: 0, spend: 0, other_costs: 0 };
+            var totalCosts = m.spend + m.other_costs;
+            var roi = totalCosts > 0 ? ((m.revenue - totalCosts) / totalCosts) * 100 : 0;
+
+            roiSeries.push(parseFloat(roi.toFixed(2)));
+            revenueSeries.push(m.revenue);
+            spendSeries.push(totalCosts);
+        });
+
+        revenueByDomain[domain] = revenueSeries;
+        spendByDomain[domain] = spendSeries;
+
+        datasets.push({
+            label: domain,
+            data: roiSeries,
+            borderColor: color,
+            backgroundColor: 'transparent',
+            borderWidth: 2,
+            fill: false,
+            tension: 0.3,
+            pointBackgroundColor: color,
+            pointBorderColor: '#fff',
+            pointBorderWidth: 2,
+            pointRadius: 4
+        });
+    });
+
+    // Render Chart.js
     var ctx = document.getElementById('chart_roi_daily').getContext('2d');
     window.dailyRoiChart = new Chart(ctx, {
         type: 'line',
         data: {
             labels: formattedDates,
-            datasets: [{
-                label: 'ROI (%)',
-                data: roiData,
-                borderColor: 'rgb(75, 192, 192)',
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4,
-                pointBackgroundColor: 'rgb(75, 192, 192)',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointRadius: 6
-            }]
+            datasets: datasets
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            interaction: {
-                mode: 'index',
-                intersect: false,
-            },
+            interaction: { mode: 'index', intersect: false },
             scales: {
                 x: {
                     display: true,
-                    title: {
-                        display: true,
-                        text: 'Tanggal',
-                        font: {
-                            weight: 'bold'
-                        }
-                    },
-                    grid: {
-                        display: true,
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    }
+                    title: { display: true, text: 'Tanggal', font: { weight: 'bold' } },
+                    grid: { display: true, color: 'rgba(0, 0, 0, 0.1)' }
                 },
                 y: {
                     display: true,
-                    title: {
-                        display: true,
-                        text: 'ROI (%)',
-                        font: {
-                            weight: 'bold'
-                        }
-                    },
+                    title: { display: true, text: 'ROI (%)', font: { weight: 'bold' } },
                     ticks: {
-                        callback: function (value) {
-                            return value.toFixed(1) + '%';
-                        }
+                        callback: function (value) { return Number(value).toFixed(1) + '%'; }
                     },
-                    grid: {
-                        display: true,
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    }
+                    grid: { display: true, color: 'rgba(0, 0, 0, 0.1)' }
                 }
             },
             plugins: {
                 title: {
                     display: true,
-                    text: 'Tren ROI Harian',
-                    font: {
-                        size: 16,
-                        weight: 'bold'
-                    }
+                    text: 'Tren ROI Harian per Domain',
+                    font: { size: 16, weight: 'bold' }
                 },
                 tooltip: {
                     mode: 'index',
                     intersect: false,
                     callbacks: {
                         label: function (context) {
-                            var dataIndex = context.dataIndex;
-                            var roi = context.parsed.y;
-                            var revenue = revenueData[dataIndex];
-                            var spend = spendData[dataIndex];
-
+                            var domainLabel = context.dataset.label;
+                            var i = context.dataIndex;
+                            var roiVal = Number(context.parsed.y || 0).toFixed(2);
+                            var revenue = (revenueByDomain[domainLabel] || [])[i] || 0;
+                            var spend = (spendByDomain[domainLabel] || [])[i] || 0;
                             return [
-                                'ROI: ' + roi + '%',
+                                domainLabel + ': ' + roiVal + '%',
                                 'Revenue: ' + formatCurrencyIDR(revenue),
                                 'Spend: ' + formatCurrencyIDR(spend)
                             ];
                         }
                     }
                 },
-                legend: {
-                    display: true,
-                    position: 'top'
-                }
+                legend: { display: true, position: 'top' }
             }
         }
     });
@@ -612,61 +660,44 @@ function generateTrafficCountryCharts(data) {
         }
     }
 }
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
-
-const csrftoken = getCookie('csrftoken');
-
 // Memuat data ROI Summary (ringkasan & grafik ROI harian)
-function load_ROI_summary_data(startDate, endDate, selectedAccountAdx) {
-    var selectedSites = $('#site_filter').val();
-    var selectedAccount = $('#select_account').val();
-    var siteFilter = '';
-    if (selectedSites && selectedSites.length > 0) {
-        siteFilter = selectedSites.join(',');
+function load_ROI_summary_data(tanggal_dari, tanggal_sampai) {
+    var selected_account = $("#account_filter").val() || "";
+    var accountFilter = '';
+    if (selected_account && selected_account.length > 0) {
+        accountFilter = selected_account.join(',');
     }
+    var selected_domain = $("#domain_filter").val() || "";
+    var domainFilter = '';
+    if (selected_domain && selected_domain.length > 0) {
+        domainFilter = selected_domain.join(',');
+    }
+    var selectedAccount = $('#select_account').val() || '';
     $.ajax({
         url: '/management/admin/page_roi_traffic_domain',
         type: 'GET',
         data: {
-            start_date: startDate,
-            end_date: endDate,
-            selected_account_adx: selectedAccountAdx,
-            selected_sites: siteFilter,
-            selected_account: selectedAccount
+            start_date: tanggal_dari,
+            end_date: tanggal_sampai,
+            selected_account_adx: accountFilter,
+            selected_domains: domainFilter,
+            selected_account_ads: selectedAccount
         },
         headers: {
-            'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+            'X-CSRFToken': csrftoken
         },
         success: function (response) {
+            console.log(response)
             // Tandai selesai tarik data summary
             window.fetchStatus = window.fetchStatus || { summary: false, country: false };
             window.fetchStatus.summary = true;
             if (response && response.status) {
                 // Perbarui summary jika tersedia
                 if (response.summary) {
-                    if (siteFilter) {
-                        $('#total_clicks').text(formatNumber(response.summary.total_clicks || 0));
-                        $('#total_spend').text(formatCurrencyIDR(response.summary.total_spend || 0));
-                        $('#roi_nett').text(formatNumber(response.summary.roi_nett || 0, 2) + '%');
-                        $('#total_revenue').text(formatCurrencyIDR(response.summary.total_revenue || 0));
-                    } else {
-                        // Jika belum memilih domain, set Total Klik & Total Pendapatan ke 0
-                        $('#total_clicks').text(formatNumber(0));
-                        $('#total_revenue').text(formatCurrencyIDR(0));
-                    }
+                    // Jika AdX Account sudah dipilih, tampilkan data meskipun domain belum dipilih
+                    $('#total_spend').text(formatCurrencyIDR(response.summary.total_spend || 0));
+                    $('#roi_nett').text(formatNumber(response.summary.roi_nett || 0, 2) + '%');
+                    $('#total_revenue').text(formatCurrencyIDR(response.summary.total_revenue || 0));
                     $('#summary_boxes').show();
                 }
                 // Tampilkan chart ROI harian jika ada data
@@ -674,7 +705,7 @@ function load_ROI_summary_data(startDate, endDate, selectedAccountAdx) {
                     $('#charts_section').show();
                     create_roi_daily_chart(response.data);
                     // Tentukan tanggal yang akan digunakan untuk "Hari Ini": gunakan endDate yang dipilih, fallback ke hari terakhir di dataset
-                    var targetDayStr = endDate || new Date().toISOString().split('T')[0];
+                    var targetDayStr = tanggal_sampai || new Date().toISOString().split('T')[0];
                     targetDayStr = normalizeDateStr(targetDayStr);
                     var normalizedData = response.data.map(function (item) {
                         return {
@@ -702,14 +733,11 @@ function load_ROI_summary_data(startDate, endDate, selectedAccountAdx) {
                         });
                         var todayTotalCosts = todaySpend + todayOtherCosts;
                         var todayRoi = todayTotalCosts > 0 ? ((todayRevenue - todayTotalCosts) / todayTotalCosts) * 100 : 0;
-                        // Jika filter domain belum dipilih, nol-kan Klik Hari Ini & Pendapatan Hari Ini
-                        var siteSelected = !!siteFilter;
-                        var displayClicks = siteSelected ? todayClicks : 0;
-                        var displayRevenue = siteSelected ? todayRevenue : 0;
+                        // Jika AdX Account sudah dipilih, tampilkan data meskipun domain belum dipilih
                         $('#today_spend').text(formatCurrencyIDR(todaySpend));
-                        $('#today_clicks').text(formatNumber(displayClicks));
+                        $('#today_clicks').text(formatNumber(todayClicks));
                         $('#today_roi').text(todayRoi.toFixed(2) + '%');
-                        $('#today_revenue').text(formatCurrencyIDR(displayRevenue));
+                        $('#today_revenue').text(formatCurrencyIDR(todayRevenue));
                         $('#today_traffic').show();
                         $('#overlay').hide();
                     } else {
@@ -736,3 +764,19 @@ function load_ROI_summary_data(startDate, endDate, selectedAccountAdx) {
         }
     });
 }
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+const csrftoken = getCookie('csrftoken');

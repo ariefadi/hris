@@ -22,65 +22,66 @@ $().ready(function () {
         }
         alert(msg);
     };
-    
-    // Initialize date pickers
+    // Initialize date pickers using Flatpickr like Summary page
+    var toISO = function(d) {
+        var pad = function(x) { return String(x).padStart(2, '0'); };
+        return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+    };
     var today = new Date();
-    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+    var start = new Date(today);
+    start.setDate(today.getDate() - 6);
     
-    $('#tanggal_dari').datepicker({
-        format: 'yyyy-mm-dd',
-        autoclose: true,
-        todayHighlight: true
-    }).datepicker('setDate', lastWeek);
+    if (typeof flatpickr !== 'undefined') {
+        flatpickr('#tanggal_dari', { dateFormat: 'Y-m-d' });
+        flatpickr('#tanggal_sampai', { dateFormat: 'Y-m-d' });
+        // Set default dates and sync with flatpickr instances if present
+        var dariEl = document.getElementById('tanggal_dari');
+        var sampaiEl = document.getElementById('tanggal_sampai');
+        dariEl.value = toISO(start);
+        sampaiEl.value = toISO(today);
+        if (dariEl._flatpickr) dariEl._flatpickr.setDate(dariEl.value, true);
+        if (sampaiEl._flatpickr) sampaiEl._flatpickr.setDate(sampaiEl.value, true);
+    } else {
+        // Fallback: set plain input values
+        $('#tanggal_dari').val(toISO(start));
+        $('#tanggal_sampai').val(toISO(today));
+    }
     
-    $('#tanggal_sampai').datepicker({
-        format: 'yyyy-mm-dd',
-        autoclose: true,
-        todayHighlight: true
-    }).datepicker('setDate', today);
-    
-    // Initialize Select2 for domain filter
-    $('#site_filter').select2({
-        placeholder: 'Pilih Domain (Opsional)',
+    // Initialize Select2 for account filter
+    $('#account_filter').select2({
+        placeholder: 'Pilih Akun',
         allowClear: true,
         width: '100%',
         height: '100%',
         theme: 'bootstrap4'
     });
 
-    // Auto load data on page load
-    var tanggal_dari = $("#tanggal_dari").val();
-    var tanggal_sampai = $("#tanggal_sampai").val();
-    if (tanggal_dari != "" && tanggal_sampai != "") {
-        load_adsense_traffic_account_data(tanggal_dari, tanggal_sampai);
-    }
-    
-    // Load domains list on page load
-    loadDomainsList();
-    
-    function loadDomainsList() {
+    // Auto load accounts list on page load after date defaults set
+    loadAccountsList();
+    // Load accounts list on page load
+    function loadAccountsList() {
         $.ajax({
-            url: '/management/admin/adsense_sites_list',
+            url: '/management/admin/adsense_credentials_list',
             type: 'GET',
             dataType: 'json',
             success: function(response) {
                 if (response.status) {
-                    // Clear existing options except the first one
-                    $('#site_filter').empty().append('<option value="">Semua Domain</option>');
-                    
-                    // Add domains to dropdown
-                    response.data.forEach(function(domain) {
-                        $('#site_filter').append('<option value="' + domain + '">' + domain + '</option>');
+                    // Clear existing options and set default
+                    $('#account_filter').empty().append('<option value="">Semua Akun</option>');
+
+                    // Add accounts to dropdown (value: user_mail, text: account_name)
+                    response.data.forEach(function(account) {
+                        $('#account_filter').append('<option value="' + account.user_mail + '">' + (account.account_name || account.user_mail) + '</option>');
                     });
-                    
+
                     // Refresh Select2
-                    $('#site_filter').trigger('change');
+                    $('#account_filter').trigger('change');
                 } else {
-                    console.error('Failed to load domains:', response.error);
+                    console.error('Failed to load accounts:', response.error);
                 }
             },
             error: function(xhr, status, error) {
-                console.error('Error loading domains:', error);
+                console.error('Error loading accounts:', error);
             }
         });
     }
@@ -132,10 +133,15 @@ $().ready(function () {
 function load_adsense_traffic_account_data() {
     var start_date = $('#tanggal_dari').val();
     var end_date = $('#tanggal_sampai').val();
-    var site_filter = $('#site_filter').val();
+    var account_filter = $('#account_filter').val();
     
     if (!start_date || !end_date) {
         alert('Please select both start and end dates.');
+        return;
+    }
+    // Validasi: wajib pilih akun terlebih dahulu
+    if (!account_filter) {
+        alert('Filter Account harus dipilih terlebih dahulu');
         return;
     }
     
@@ -147,7 +153,7 @@ function load_adsense_traffic_account_data() {
         data: {
             'start_date': start_date,
             'end_date': end_date,
-            'site_filter': site_filter
+            'account_filter': account_filter
         },
         headers: {
             'X-CSRFToken': csrftoken
@@ -156,6 +162,8 @@ function load_adsense_traffic_account_data() {
             $("#overlay").hide();
             
             if (response && response.status) {
+                // Tampilkan section chart
+                $('#charts_section').show();
                 // Update summary boxes
                 if (response.summary) {
                     $("#total_impressions").text(formatNumber(response.summary.total_impressions || 0));
@@ -222,8 +230,152 @@ function load_adsense_traffic_account_data() {
                 
                 table.draw();
                 
-                // Reinitialize DataTable after data is loaded
-                initializeDataTable();
+                // Render line chart untuk pendapatan harian
+                try {
+                    // Pastikan Highcharts ter-load, jika belum, tunggu sebentar
+                    if (typeof Highcharts === 'undefined') {
+                        console.warn('Highcharts belum tersedia, menunggu 300ms...');
+                        setTimeout(function(){
+                            load_adsense_traffic_account_data();
+                        }, 300);
+                        return;
+                    }
+                    // Helper: peta nama bulan Indonesia -> index (0-11)
+                    var monthMap = {
+                        'januari': 0, 'jan': 0,
+                        'februari': 1, 'feb': 1,
+                        'maret': 2, 'mar': 2,
+                        'april': 3, 'apr': 3,
+                        'mei': 4,
+                        'juni': 5, 'jun': 5,
+                        'juli': 6, 'jul': 6,
+                        'agustus': 7, 'agu': 7,
+                        'september': 8, 'sep': 8,
+                        'oktober': 9, 'okt': 9,
+                        'november': 10, 'nov': 10,
+                        'desember': 11, 'des': 11
+                    };
+                    function parseIndoDateToISO(text, yearHint) {
+                        if (!text) return null;
+                        var m = text.trim().match(/(\d{1,2})\s+([A-Za-zÀ-ÿ]+)\s*(\d{4})?/i);
+                        if (!m) return null;
+                        var day = parseInt(m[1], 10);
+                        var monthName = (m[2] || '').toLowerCase();
+                        var monthIdx = monthMap.hasOwnProperty(monthName) ? monthMap[monthName] : null;
+                        if (monthIdx === null) return null;
+                        var year = m[3] ? parseInt(m[3], 10) : (yearHint || (new Date()).getFullYear());
+                        var yyyy = String(year).padStart(4, '0');
+                        var mm = String(monthIdx + 1).padStart(2, '0');
+                        var dd = String(day).padStart(2, '0');
+                        return yyyy + '-' + mm + '-' + dd;
+                    }
+
+                    var dailyMap = {};
+                    var apiIsoSet = new Set();
+                    var apiYears = [];
+                    // Ambil dari response API
+                    if (response.data && response.data.length > 0) {
+                        response.data.forEach(function(item) {
+                            var d = item.date;
+                            var rev = parseFloat(item.revenue || 0) || 0;
+                            if (d) {
+                                // Pastikan key dalam ISO yyyy-mm-dd
+                                var isoKey = d.match(/\d{4}-\d{2}-\d{2}/) ? d : null;
+                                if (isoKey) {
+                                    dailyMap[isoKey] = (dailyMap[isoKey] || 0) + rev;
+                                    apiIsoSet.add(isoKey);
+                                    try { apiYears.push(new Date(isoKey + 'T00:00:00').getFullYear()); } catch(e) {}
+                                }
+                            }
+                        });
+                    }
+                    var yearHint = apiYears.length ? apiYears[0] : null;
+                    // Gabungkan dari tabel (fallback + pelengkap)
+                    $('#table_traffic_account tbody tr').each(function() {
+                        var dateText = $(this).find('td:nth-child(2)').text().trim();
+                        var revenueText = $(this).find('td:nth-child(9)').text().trim();
+                        if (dateText) {
+                            var rv = parseInt((revenueText || '').replace(/[^0-9]/g, '')) || 0;
+                            if (rv > 0) {
+                                var isoFromTable = parseIndoDateToISO(dateText, yearHint);
+                                // Hindari duplikasi jika API sudah menyediakan tanggal tsb
+                                if (isoFromTable) {
+                                    if (!apiIsoSet.has(isoFromTable)) {
+                                        dailyMap[isoFromTable] = (dailyMap[isoFromTable] || 0) + rv;
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    // Jika summary memiliki daily breakdown di masa depan
+                    if (response.daily && response.daily.length > 0) {
+                        response.daily.forEach(function(day) {
+                            var d = day.date || day.day || day.date_str;
+                            var rev = parseFloat(day.revenue || day.total_revenue || 0) || 0;
+                            if (d) {
+                                var isoFromDaily = d.match(/\d{4}-\d{2}-\d{2}/) ? d : parseIndoDateToISO(d, yearHint);
+                                if (isoFromDaily) {
+                                    dailyMap[isoFromDaily] = (dailyMap[isoFromDaily] || 0) + rev;
+                                }
+                            }
+                        });
+                    }
+                    // Bangun titik data [timestamp, value] dan urutkan naik
+                    var seriesData = Object.keys(dailyMap).map(function(iso) {
+                        var dt = new Date(iso + 'T00:00:00');
+                        var ts = Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate());
+                        return [ts, Math.round(dailyMap[iso])];
+                    }).sort(function(a, b){ return a[0] - b[0]; });
+                    // Jika tetap tidak ada data, tampilkan pesan di dalam container
+                    if (seriesData.length === 0) {
+                        var container = document.getElementById('chart_daily_revenue');
+                        if (container) {
+                            container.innerHTML = '<div class="alert alert-info">Tidak ada data pendapatan harian untuk periode ini.</div>';
+                        }
+                    }
+                    // Render dengan sedikit delay untuk memastikan container sudah terlihat
+                    setTimeout(function() {
+                        Highcharts.chart('chart_daily_revenue', {
+                            chart: { type: 'line', backgroundColor: 'transparent' },
+                            title: { text: 'Pendapatan Harian' },
+                            xAxis: {
+                                type: 'datetime',
+                                tickPixelInterval: 50,
+                                dateTimeLabelFormats: {
+                                    day: '%e %b %Y',
+                                    week: '%e %b %Y',
+                                    month: '%b %Y'
+                                }
+                            },
+                            yAxis: {
+                                title: { text: 'Pendapatan (Rp)' },
+                                labels: {
+                                    formatter: function() {
+                                        return 'Rp ' + (this.value || 0).toLocaleString('id-ID');
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                backgroundColor: 'rgba(0,0,0,0.85)',
+                                borderColor: '#333',
+                                style: { color: '#fff' },
+                                xDateFormat: '%e %b %Y',
+                                formatter: function() {
+                                    var val = Math.round(this.point.y || 0);
+                                    var dateLabel = Highcharts.dateFormat('%e %b %Y', this.x);
+                                    return '<b>' + dateLabel + '</b><br/>Pendapatan: <b>Rp ' + val.toLocaleString('id-ID') + '</b>';
+                                }
+                            },
+                            legend: { enabled: false },
+                            series: [{ name: 'Pendapatan', data: seriesData, color: '#1f77b4' }],
+                            credits: { enabled: false }
+                        });
+                        // Paksa reflow agar chart menyesuaikan ukuran container
+                        try { window.dispatchEvent(new Event('resize')); } catch(e) {}
+                    }, 500);
+                } catch (e) {
+                    console.error('Failed to render daily revenue chart:', e);
+                }
                 
                 showSuccessMessage('Traffic data loaded successfully!');
             } else {

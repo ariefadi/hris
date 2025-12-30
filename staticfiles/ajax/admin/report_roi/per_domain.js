@@ -21,6 +21,11 @@ $().ready(function () {
         }
         alert(msg);
     };
+    // Pulihkan preferensi toggle dari localStorage (default: off)
+    var savedHideZero = localStorage.getItem('roi_hide_zero_spend');
+    if (savedHideZero !== null) {
+        $('#toggle_hide_zero_spend').prop('checked', savedHideZero === '1');
+    }
     // Initialize date pickers
     var today = new Date();
     var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -41,14 +46,16 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     });
+    let allAccountOptions = $('#account_filter').html();  
     // Initialize Select2 for site filter
-    $('#site_filter').select2({
+    $('#domain_filter').select2({   
         placeholder: '-- Pilih Domain --',
         allowClear: true,
         width: '100%',
         height: '100%',
         theme: 'bootstrap4'
     });
+    let allDomainOptions = $('#domain_filter').html();  
     $('#select_account').select2({
         placeholder: '-- Pilih Account --',
         allowClear: true,
@@ -57,89 +64,586 @@ $().ready(function () {
         theme: 'bootstrap4'
     })
     $('#btn_load_data').click(function (e) {
-        var selected_account_adx = $("#account_filter").val();
         $('#overlay').show();
-        loadSitesList(selected_account_adx);
-        load_adx_traffic_account_data();
+        var tanggal_dari = $("#tanggal_dari").val();
+        var tanggal_sampai = $("#tanggal_sampai").val();
+        var selected_account = $("#account_filter").val();
+        var selected_domain = $("#domain_filter").val();
+        if (tanggal_dari != "" && tanggal_sampai != "") {
+            e.preventDefault();
+            $("#overlay").show();
+            load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain);
+        } else {
+            alert('Silakan pilih tanggal dari dan sampai');
+        }
     });
-    // Load sites list on page load
-    function loadSitesList(selected_account_adx) {
-        var selectedAccounts = selected_account_adx;
-        // Simpan pilihan domain yang sudah dipilih sebelumnya
-        var previouslySelected = $("#site_filter").val() || [];
-        
-        $.ajax({
+    // Flag untuk mencegah infinite loop saat update filter
+    var isUpdating = false;
+    $('#account_filter').on('change', function () {
+        if (isUpdating) return;
+        let account = $(this).val();
+        if (account && account.length > 0) {
+            adx_site_list(); // filter domain by account
+        } else {
+            // restore semua domain dari template
+            isUpdating = true;
+            $('#domain_filter')
+                .html(allDomainOptions)
+                .val(null)
+                .trigger('change.select2');
+            isUpdating = false;
+        }
+    });
+    function adx_site_list() {
+        var selected_account = $("#account_filter").val();
+        if (selected_account) {
+            selected_account = selected_account.join(',');
+        }
+        return $.ajax({
             url: '/management/admin/adx_sites_list',
             type: 'GET',
-            dataType: 'json',
             data: {
-                'selected_accounts': selectedAccounts
+                selected_accounts: selected_account
             },
             headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val()
+                'X-CSRFToken': csrftoken
             },
             success: function (response) {
-                if (response.status) {
-                    var select_site = $("#site_filter");
-                    select_site.empty();
-                    
-                    // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
-                    var validPreviousSelections = [];
-                    $.each(response.data, function (index, site) {
-                        var isSelected = previouslySelected.includes(site);
-                        if (isSelected) {
-                            validPreviousSelections.push(site);
-                        }
-                        select_site.append(new Option(site, site, false, isSelected));
+                if (response && response.status) {
+                    let $domain = $('#domain_filter');
+                    let currentSelected = $domain.val(); // Simpan pilihan saat ini
+
+                    isUpdating = true;
+                    // 1. Kosongkan option lama
+                    $domain.empty();
+
+                    // 2. Tambahkan option baru
+                    response.data.forEach(function (domain) {
+                        let isSelected = currentSelected && currentSelected.includes(domain);
+                        let option = new Option(domain, domain, isSelected, isSelected);
+                        $domain.append(option);
                     });
-                    
-                    // Set nilai yang dipilih kembali
-                    if (validPreviousSelections.length > 0) {
-                        select_site.val(validPreviousSelections);
-                    }
-                    
-                    // Jangan trigger change di sini untuk menghindari loop
-                    select_site.trigger('change');
+
+                    // 3. Refresh select2
+                    $domain.trigger('change.select2');
+                    isUpdating = false;
                 }
             },
             error: function (xhr, status, error) {
-                console.error('Error loading sites:', error);
-                console.error('Status:', status);
-                console.error('Response:', xhr.responseText);
+                report_eror(xhr, error);
             }
         });
     }
+    $('#domain_filter').on('change', function () {
+        if (isUpdating) return;
+        let domain = $(this).val();
+        if (domain && domain.length > 0) {
+            adx_account_list();
+        } else {
+            isUpdating = true;
+            $('#account_filter')
+                .html(allAccountOptions)
+                .val(null)
+                .trigger('change.select2');
+            isUpdating = false;
+        }
+    });
+    function adx_account_list() {
+        var selected_domain = $("#domain_filter").val();
+        if (selected_domain) {
+            selected_domain = selected_domain.join(',');
+        }
+        return $.ajax({
+            url: '/management/admin/adx_accounts_list',
+            type: 'GET',
+            data: {
+                selected_domains: selected_domain
+            },
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function (response) {
+                if (response && response.status) {
+                    let $account = $('#account_filter');
+                    let suggested = (response.data || []).map(function (a) { return String(a.account_id); });
+                    isUpdating = true;
+                    $account.html(allAccountOptions);
+                    $account.val(suggested).trigger('change.select2');
+                    isUpdating = false;
+                }
+            },
+            error: function (xhr, status, error) {
+                report_eror(xhr, error);
+            }
+        });
+    }
+    function getSelectedTextList(selector) { 
+        var $el = $(selector);
+        var items = [];
+        try {
+            var s2 = $el.select2('data');
+            if (Array.isArray(s2) && s2.length) {
+                items = s2.map(function (d) {
+                    return d && d.text ? String(d.text) : '';
+                });
+            }
+        } catch (e) {
+            items = [];
+        }
+        if (!items || items.length === 0) {
+            try {
+                items = $el.find('option:selected').map(function () {
+                    return $(this).text();
+                }).get();
+            } catch (e) {
+                items = [];
+            }
+        }
+        return (items || []).map(function (t) {
+            return String(t || '').trim();
+        }).filter(function (t) {
+            return t;
+        });
+    }
+
+    function escapeHtml(text) {
+        return String(text || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function escapeXmlText(text) {
+        return String(text || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    function formatDateID(d) {
+        if (!d) return '-';
+        var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        try {
+            var date = new Date(d + 'T00:00:00');
+            return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear();
+        } catch (e) {
+            return d;
+        }
+    }
+
+    function getExportMetaRoiDomain() {
+        var start = $('#tanggal_dari').val();
+        var end = $('#tanggal_sampai').val();
+        var titleText = 'ROI Traffic Per Domain';
+        var periodText = 'Periode ' + formatDateID(start) + ' s/d ' + formatDateID(end);
+
+        var accounts = getSelectedTextList('#account_filter');
+        var domains = getSelectedTextList('#domain_filter');
+
+        return {
+            titleText: titleText,
+            periodText: periodText,
+            accountText: accounts.length ? ('Account: ' + accounts.join(', ')) : '',
+            domainText: domains.length ? ('Domain: ' + domains.join(', ')) : ''
+        };
+    }
+
     // Initialize DataTable
     $('#table_traffic_account').DataTable({
-        "paging": true,
-        "pageLength": 25,
-        "lengthChange": true,
-        "searching": true,
-        "ordering": true,
-        "columnDefs": [
-            {
-                "targets": [2, 3, 4, 5, 6, 7, 8], // Numeric columns
-                "className": "text-right"
+        responsive: true,
+        paging: true,
+        pageLength: 25,
+        lengthChange: true,
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Semua"]],
+        searching: true,
+        ordering: true,
+        language: {
+            "decimal": ",",
+            "thousands": ".",
+            "info": "Menampilkan _START_ sampai _END_ dari _TOTAL_ entri",
+            "infoEmpty": "Menampilkan 0 sampai 0 dari 0 entri",
+            "infoFiltered": "(disaring dari _MAX_ total entri)",
+            "lengthMenu": "Tampilkan _MENU_ entri",
+            "loadingRecords": "Memuat...",
+            "processing": "Memproses...",
+            "search": "Cari:",
+            "zeroRecords": "Tidak ada data yang cocok",
+            "paginate": {
+                "first": "Pertama",
+                "last": "Terakhir",
+                "next": "Selanjutnya",
+                "previous": "Sebelumnya"
             }
-        ]
+        },
+        dom: 'Blfrtip',
+        buttons: [
+            {
+                extend: 'excel',
+                text: 'Export Excel',
+                className: 'btn btn-success',
+                exportOptions: { columns: ':visible' },
+                title: function () { 
+                    var meta = getExportMetaRoiDomain();
+                    let title = 'ROI Traffic Per Domain';
+                    if (meta.periodText) title += ' ' + meta.periodText;
+                    if (meta.accountText) title += ' ' + meta.accountText;
+                    if (meta.domainText) title += ' ' + meta.domainText;
+                    return title;
+                },
+                customize: function (xlsx) {
+                    var meta = getExportMetaRoiDomain();
+                    var headerRows = [meta.titleText, meta.periodText];
+                    if (meta.accountText) headerRows.push(meta.accountText);
+                    if (meta.domainText) headerRows.push(meta.domainText);
+
+                    var sheet = xlsx.xl.worksheets['sheet1.xml'];
+                    var numrows = headerRows.length;
+
+                    $('row', sheet).each(function () {
+                        var r = parseInt($(this).attr('r'));
+                        $(this).attr('r', r + numrows);
+                    });
+                    $('row c', sheet).each(function () {
+                        var attr = $(this).attr('r');
+                        var col = attr.replace(/[0-9]/g, '');
+                        var row = parseInt(attr.replace(/[A-Z]/g, ''));
+                        $(this).attr('r', col + (row + numrows));
+                    });
+
+                    var dim = $('dimension', sheet).attr('ref');
+                    var lastCol = 'A';
+                    if (dim) {
+                        var parts = dim.split(':');
+                        if (parts[1]) {
+                            lastCol = parts[1].replace(/[0-9]/g, '') || 'A';
+                            var lastRowNum = parseInt(parts[1].replace(/[A-Z]/g, '')) || 0;
+                            $('dimension', sheet).attr('ref', parts[0] + ':' + lastCol + (lastRowNum + numrows));
+                        }
+                    }
+
+                    for (var i = headerRows.length; i >= 1; i--) {
+                        var txt = escapeXmlText(headerRows[i - 1]);
+                        var rowXml = '<row r="' + i + '"><c t="inlineStr" r="A' + i + '"><is><t>' + txt + '</t></is></c></row>';
+                        $('sheetData', sheet).prepend(rowXml);
+                    }
+
+                    var merges = $('mergeCells', sheet);
+                    var mergeXml = '';
+                    for (var m = 1; m <= headerRows.length; m++) {
+                        mergeXml += '<mergeCell ref="A' + m + ':' + lastCol + m + '"/>';
+                    }
+                    if (merges.length === 0) {
+                        $('worksheet', sheet).append('<mergeCells count="' + headerRows.length + '">' + mergeXml + '</mergeCells>');
+                    } else {
+                        var c = parseInt(merges.attr('count') || '0');
+                        merges.attr('count', c + headerRows.length);
+                        merges.append(mergeXml);
+                    }
+                }
+            },
+            {
+                extend: 'pdf',
+                text: 'Export PDF',
+                className: 'btn btn-danger',
+                orientation: 'landscape',
+                exportOptions: { columns: ':visible' },
+                title: function () { 
+                    var meta = getExportMetaRoiDomain();
+                    let title = 'ROI Traffic Per Domain';
+                    if (meta.periodText) title += ' ' + meta.periodText;
+                    if (meta.accountText) title += ' ' + meta.accountText;
+                    if (meta.domainText) title += ' ' + meta.domainText;
+                    return title;
+                },
+                customize: function (doc) {
+                    var meta = getExportMetaRoiDomain();
+                    var inserts = [];
+                    inserts.push({ text: meta.periodText, alignment: 'center', margin: [0, 0, 0, 6] });
+                    if (meta.accountText) inserts.push({ text: meta.accountText, alignment: 'center', margin: [0, 0, 0, 4] });
+                    if (meta.domainText) inserts.push({ text: meta.domainText, alignment: 'center', margin: [0, 0, 0, 8] });
+                    doc.content.splice(1, 0, ...inserts);
+                }
+            },
+            {
+                text: 'Copy',
+                className: 'btn btn-info',
+                action: function (e, dt) {
+                    var meta = getExportMetaRoiDomain();
+                    var data = dt.buttons.exportData({ columns: ':visible' });
+                    var lines = [];
+                    lines.push(meta.titleText);
+                    lines.push(meta.periodText);
+                    if (meta.accountText) lines.push(meta.accountText);
+                    if (meta.domainText) lines.push(meta.domainText);
+                    lines.push('');
+                    lines.push((data.header || []).join('\t'));
+                    (data.body || []).forEach(function (row) { lines.push(row.join('\t')); });
+                    var text = lines.join('\n');
+                    function fallbackCopy(str) {
+                        var ta = document.createElement('textarea');
+                        ta.value = str;
+                        ta.style.position = 'fixed';
+                        ta.style.top = '-1000px';
+                        document.body.appendChild(ta);
+                        ta.focus();
+                        ta.select();
+                        try { document.execCommand('copy'); } catch(e) {}
+                        document.body.removeChild(ta);
+                    }
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(text).catch(function(){ fallbackCopy(text); });
+                    } else {
+                        fallbackCopy(text);
+                    }
+                },
+                exportOptions: { columns: ':visible' } 
+            },
+            {
+                extend: 'csv',
+                text: 'Export CSV',
+                className: 'btn btn-primary',
+                exportOptions: { columns: ':visible' },
+                title: function () { 
+                    var meta = getExportMetaRoiDomain();
+                    let title = 'ROI Traffic Per Domain';
+                    if (meta.periodText) title += ' ' + meta.periodText;
+                    if (meta.accountText) title += ' ' + meta.accountText;
+                    if (meta.domainText) title += ' ' + meta.domainText;
+                    return title;
+                },
+                customize: function (csv) {
+                    var meta = getExportMetaRoiDomain();
+                    var out = meta.titleText + '\n' + meta.periodText;
+                    if (meta.accountText) out += '\n' + meta.accountText;
+                    if (meta.domainText) out += '\n' + meta.domainText;
+                    return out + '\n\n' + csv;
+                }
+            },
+            {
+                extend: 'print',
+                text: 'Print',
+                className: 'btn btn-warning',
+                exportOptions: { columns: ':visible' },
+                title: function () { 
+                    var meta = getExportMetaRoiDomain();
+                    let title = 'ROI Traffic Per Domain';
+                    if (meta.periodText) title += ' ' + meta.periodText;
+                    if (meta.accountText) title += ' ' + meta.accountText;
+                    if (meta.domainText) title += ' ' + meta.domainText;
+                    return '<h3 style="text-align:center;margin:0">' + title + '</h3>';
+                },
+                messageTop: function () {
+                    var meta = getExportMetaRoiDomain();
+                    var html = '<div style="text-align:center;margin-bottom:8px">' + escapeHtml(meta.periodText) + '</div>';
+                    if (meta.accountText) html += '<div style="text-align:center;margin-bottom:4px">' + escapeHtml(meta.accountText) + '</div>';
+                    if (meta.domainText) html += '<div style="text-align:center;margin-bottom:8px">' + escapeHtml(meta.domainText) + '</div>';
+                    return html;
+                }
+            },
+            {
+                extend: 'colvis',
+                text: 'Column Visibility',
+                className: 'btn btn-default',
+                exportOptions: { columns: ':visible' } 
+            }
+        ],
+        columnDefs: [
+            {
+                targets: [2, 3, 4, 5, 6, 10, 11, 12],
+                className: "text-right"
+            },
+            // Spend (kolom 2) — tampil Rupiah, sort numerik
+            {
+                targets: 2,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                }
+            },
+            // Klik Fb (kolom 3) — tampil ribuan, sort numerik
+            {
+                targets: 3,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val);
+                }
+            },
+            // Klik Adx (kolom 4) — tampil ribuan, sort numerik
+            {
+                targets: 4,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val);
+                }
+            },
+            // CPR Fb (kolom 5) — tampil Rupiah, sort numerik
+            {
+                targets: 5,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                }
+            },
+            // CTR Fb (kolom 6) — tampil persen, sort numerik
+            {
+                targets: 6,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val, 2) + ' %';
+                }
+            },
+            // CTR Adx (kolom 7) — tampil persen, sort numerik
+            {
+                targets: 7,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val, 2) + ' %';
+                }
+            },
+            // CPC Fb (kolom 8) — tampil Rupiah bulat, sort numerik
+            {
+                targets: 8,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                }
+            },
+            // CPC Adx (kolom 9) — tampil Rupiah bulat, sort numerik
+            {
+                targets: 9,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                }
+            },
+            // eCPM Fb (kolom 10) — tampil Rupiah bulat, sort numerik
+            {
+                targets: 10,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                }
+            },
+            // ROI Fb (kolom 11) — tampil persen, sort numerik
+            {
+                targets: 11,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val, 2) + ' %';
+                }
+            },
+            // Pendapatan Fb (kolom 12) — tampil Rupiah bulat, sort numerik
+            {
+                targets: 12,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                }
+            }
+        ],
+        order: [[11, 'desc']]
+    });
+    // Terapkan filter berdasar toggle hide zero spend
+    // Global helper: filter data spend > 0
+    window.applyZeroSpendFilter = function (data) {
+        var hideZero = $('#toggle_hide_zero_spend').is(':checked');
+        var arr = data || [];
+        if (!hideZero) return arr;
+        return arr.filter(function (item) {
+            var spendVal = parseFloat(item.spend || 0);
+            return spendVal > 0;
+        });
+    };
+    // Tambahkan helper: pilih dataset sesuai toggle, prioritaskan data_filtered dari backend
+    window.applyZeroSpendFilterDataset = function () {
+        var hideZero = $('#toggle_hide_zero_spend').is(':checked');
+        if (hideZero) {
+            if (Array.isArray(window.lastRoiDataFiltered) && window.lastRoiDataFiltered.length > 0) {
+                return window.lastRoiDataFiltered;
+            }
+            var base = Array.isArray(window.lastRoiDataAll) ? window.lastRoiDataAll : (window.lastRoiData || []);
+            return (base || []).filter(function (item) { return Number(item.spend || 0) > 0; });
+        }
+        return Array.isArray(window.lastRoiDataAll) ? window.lastRoiDataAll : (window.lastRoiData || []);
+    };
+
+    // Re-render saat toggle hide zero spend berubah
+    $('#toggle_hide_zero_spend').on('change', function () {
+        var checked = $(this).is(':checked');
+        localStorage.setItem('roi_hide_zero_spend', checked ? '1' : '0');
+
+        // Gunakan dataset sesuai toggle (prioritas backend data_filtered)
+        var displayData = window.applyZeroSpendFilterDataset();
+
+        // Update summary box sesuai data yang ditampilkan
+        window.updateSummaryBoxes(displayData);
+
+        // Re-render chart dari data hasil filter
+        if (displayData.length > 0) {
+            $('#charts_section').show();
+            createROIDailyChart(displayData);
+        } else {
+            if (roiChart) { roiChart.destroy(); roiChart = null; }
+            $('#charts_section').hide();
+        }
+
+        // Re-render DataTable dari data hasil filter
+        var table = $('#table_traffic_account').DataTable();
+        table.clear();
+        displayData.forEach(function (item) {
+            var formattedDate = item.date || '-';
+            if (item.date && item.date.match(/\d{4}-\d{2}-\d{2}/)) {
+                var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+                var date = new Date(item.date + 'T00:00:00');
+                formattedDate = date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear();
+            }
+            table.row.add([
+                item.site_name || '-',
+                formattedDate,
+                Number(item.spend || 0),
+                Number(item.clicks_fb || 0),
+                Number(item.clicks_adx || 0),
+                Number(item.cpr || 0),
+                Number(item.ctr_fb || 0),
+                Number(item.ctr_adx || 0),
+                Number(item.cpc_fb || 0),
+                Number(item.cpc_adx || 0),
+                Number(item.cpm || 0),
+                Number(item.roi || 0),
+                Number(item.revenue || 0)
+            ]);
+        });
+        table.draw();
     });
 });
 
-function load_adx_traffic_account_data() {
-    var tanggal_dari = $('#tanggal_dari').val();
-    var tanggal_sampai = $('#tanggal_sampai').val();
-    var selectedAccounts = $('#account_filter').val();
-    var selectedSites = $('#site_filter').val();
+function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain) {
     var selectedAccount = $('#select_account').val();
     if (!tanggal_dari || !tanggal_sampai) {
         alert('Silakan pilih tanggal dari dan sampai.');
         return;
     }
+    var accountFilter = '';
+    if (selected_account && selected_account.length > 0) {
+        accountFilter = selected_account.join(',');
+    }
     // Convert array to comma-separated string for backend
-    var siteFilter = '';
-    if (selectedSites && selectedSites.length > 0) {
-        siteFilter = selectedSites.join(',');
+    var domainFilter = '';
+    if (selected_domain && selected_domain.length > 0) {
+        domainFilter = selected_domain.join(',');
     }
     $.ajax({
         url: '/management/admin/page_roi_traffic_domain',
@@ -147,73 +651,102 @@ function load_adx_traffic_account_data() {
         data: {
             start_date: tanggal_dari,
             end_date: tanggal_sampai,
-            selected_account_adx: selectedAccounts,
-            selected_sites: siteFilter,
-            selected_account: selectedAccount,
+            selected_account_adx: accountFilter,
+            selected_domains: domainFilter,
+            selected_account_ads: selectedAccount,
         },
         headers: {
             'X-CSRFToken': csrftoken
         },
         success: function (response) {
             if (response && response.status) {
-                // Update summary boxes
-                if (response.summary) {
-                    $("#total_clicks").text(formatNumber(response.summary.total_clicks || 0));
-                    $("#total_spend").text(formatCurrencyIDR(response.summary.total_spend || 0));
-                    $("#roi_nett").text(formatNumber(response.summary.roi_nett || 0, 2) + '%');
-                    $("#total_revenue").text(formatCurrencyIDR(response.summary.total_revenue || 0));
-                    // Show summary boxes
+                // Hapus pengisian summary lama berbasis response.summary
+                // Global helper: hitung ulang summary dari dataset yang sedang ditampilkan
+                window.updateSummaryBoxes = function (data) {
+                    var totalClicksFb = 0;
+                    var totalClicksAdx = 0;
+                    var totalSpend = 0;
+                    var totalRevenue = 0;
+                
+                    (data || []).forEach(function (item) {
+                        totalClicksFb += Number(item.clicks_fb || 0);
+                        totalClicksAdx += Number(item.clicks_adx || 0);
+                        totalSpend += Number(item.spend || 0);
+                        totalRevenue += Number(item.revenue || 0);
+                    });
+                
+                    var roiNett = totalSpend > 0 ? ((totalRevenue - totalSpend) / totalSpend) * 100 : 0;
+                
+                    $('#total_clicks_fb').text(formatNumber(totalClicksFb));
+                    $('#total_clicks_adx').text(formatNumber(totalClicksAdx));
+                    $('#total_spend').text(formatCurrencyIDR(totalSpend));
+                    $('#roi_nett').text(formatNumber(roiNett, 2) + '%');
+                    $('#total_revenue').text(formatCurrencyIDR(totalRevenue));
+                
+                    // pastikan summary terlihat
                     $('#summary_boxes').show();
-                }
+                };
                 // Create ROI Daily Chart
-                if (response.data && response.data.length > 0) {
-                    // Pastikan section chart terlihat sebelum inisialisasi chart
+                // Simpan dataset agregasi (all vs filtered)
+                window.lastRoiDataAll = Array.isArray(response.data) ? response.data : [];
+                window.lastRoiDataFiltered = Array.isArray(response.data_filtered)
+                    ? response.data_filtered
+                    : (window.lastRoiDataAll || []).filter(function (i) {
+                        return Number(i.spend || 0) > 0;
+                    });
+                // Pertahankan kompatibilitas lama
+                window.lastRoiData = window.lastRoiDataAll;
+
+                // Gunakan dataset sesuai toggle (prioritas backend data_filtered)
+                var displayData = window.applyZeroSpendFilterDataset();
+
+                // UPDATE SUMMARY BOX dari data hasil filter
+                window.updateSummaryBoxes(displayData);
+
+                // Chart: gunakan data hasil filter
+                if (displayData && displayData.length > 0) {
                     $('#charts_section').show();
-                    createROIDailyChart(response.data);
-                    // Resize chart setelah dibuat untuk memastikan tampil dengan benar
-                    if (roiChart && typeof roiChart.resize === 'function') {
-                        roiChart.resize();
-                    }
+                    createROIDailyChart(displayData);
+                    if (roiChart && typeof roiChart.resize === 'function') { roiChart.resize(); }
                 } else {
-                    // Jika tidak ada data, hancurkan chart sebelumnya dan sembunyikan bagian chart
-                    if (roiChart) {
-                        roiChart.destroy();
-                        roiChart = null;
-                    }
+                    if (roiChart) { roiChart.destroy(); roiChart = null; }
                     $('#charts_section').hide();
                 }
-                // Update DataTable
+                
+                // Update DataTable menggunakan data hasil filter
                 var table = $('#table_traffic_account').DataTable();
                 table.clear();
-                if (response.data && response.data.length > 0) {
-                    response.data.forEach(function (item) {
-                        // Format tanggal ke format Indonesia
-                        var formattedDate = item.date || '-';
-                        if (item.date && item.date.match(/\d{4}-\d{2}-\d{2}/)) {
-                            var months = [
-                                'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-                                'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-                            ];
-                            var date = new Date(item.date + 'T00:00:00');
-                            var day = date.getDate();
-                            var month = months[date.getMonth()];
-                            var year = date.getFullYear();
-                            formattedDate = day + ' ' + month + ' ' + year;
-                        }
-
-                        table.row.add([
-                            item.site_name || '-',
-                            formattedDate,
-                            formatCurrencyIDR(item.spend || 0),
-                            formatNumber(item.clicks || 0),
-                            formatNumber(item.ctr || 0, 2) + ' %',
-                            formatCurrencyIDR(item.cpc || 0),
-                            formatCurrencyIDR(item.ecpm || 0),
-                            formatNumber(item.roi || 0, 2) + ' %',
-                            formatCurrencyIDR(item.revenue || 0)
-                        ]);
-                    });
-                }
+                
+                displayData.forEach(function (item) {
+                    var formattedDate = item.date || '-';
+                    if (item.date && item.date.match(/\d{4}-\d{2}-\d{2}/)) {
+                        var months = [
+                            'Januari','Februari','Maret','April','Mei','Juni',
+                            'Juli','Agustus','September','Oktober','November','Desember'
+                        ];
+                        var date = new Date(item.date + 'T00:00:00');
+                        var day = date.getDate();
+                        var month = months[date.getMonth()];
+                        var year = date.getFullYear();
+                        formattedDate = day + ' ' + month + ' ' + year;
+                    }
+                    table.row.add([
+                        item.site_name || '-',
+                        formattedDate,
+                        Number(item.spend || 0),
+                        Number(item.clicks_fb || 0),
+                        Number(item.clicks_adx || 0),
+                        Number(item.cpr || 0),
+                        Number(item.ctr_fb || 0),
+                        Number(item.ctr_adx || 0),
+                        Number(item.cpc_fb || 0),
+                        Number(item.cpc_adx || 0),
+                        Number(item.cpm || 0),
+                        Number(item.roi || 0),
+                        Number(item.revenue || 0)
+                    ]);
+                });
+                
                 table.draw();
                 showSuccessMessage('Traffic data loaded successfully!');
                 $("#overlay").hide();
@@ -237,9 +770,26 @@ function formatNumber(num, decimals = 0) {
 }
 // Fungsi untuk format mata uang IDR
 function formatCurrencyIDR(value) {
-    // Convert to number, round to remove decimals, then format with Rp
-    let numValue = parseFloat(value.toString().replace(/[$,]/g, ''));
-    if (isNaN(numValue)) return value;
+    // Handle null, undefined, or non-numeric values
+    if (value === null || value === undefined || value === '') {
+        return 'Rp. 0';
+    }
+    
+    // Handle set objects or other complex objects
+    if (typeof value === 'object' && value !== null) {
+        // If it's a set-like object, try to get the first value or return 0
+        if (value.constructor && value.constructor.name === 'Set') {
+            return 'Rp. 0';
+        }
+        // For other objects, try to convert to string first
+        value = String(value);
+    }
+    
+    // Convert to string and remove currency symbols and commas
+    let stringValue = String(value);
+    let numValue = parseFloat(stringValue.replace(/[$,]/g, ''));
+    
+    if (isNaN(numValue)) return 'Rp. 0';
 
     // Round to remove decimals and format with Indonesian number format
     return 'Rp. ' + Math.round(numValue).toLocaleString('id-ID');

@@ -43,11 +43,20 @@ $().ready(function () {
         placeholder: '-- Pilih Akun Terdaftar --',
         allowClear: true,
         width: '100%',
-        height: '100%',
         theme: 'bootstrap4'
     });
+
     $('#btn_load_data').click(function (e) {
         load_adx_account_data();
+    });
+});
+$('#assignAccountModal').on('shown.bs.modal', function () {
+    $('#user_akun').select2({
+        placeholder: '-- Pilih Akun User --',
+        allowClear: true,
+        width: '100%',
+        theme: 'bootstrap4',
+        dropdownParent: $('#assignAccountModal')
     });
 });
 function load_adx_account_data() {
@@ -247,20 +256,26 @@ $(document).ready(function() {
         }
         return cookieValue;
     }
+
+    // Handle Assign Account Name buttons
+    $(document).on('click', '.assign-account-data', function() {
+        console.log('Assign button clicked');
+        var account_adx = $(this).data('account-id');
+        // Set the hidden input value
+        $('#assign_account_adx').val(account_adx);
+        // Show the modal (Bootstrap 4 syntax)
+        $('#assignAccountModal').modal('show');
+    });
     
     // Handle Edit Account Name buttons
     $(document).on('click', '.edit-account-name', function() {
         console.log('Edit button clicked');
-        
         var email = $(this).data('email');
         var accountName = $(this).data('account-name');
-        
         console.log('Data:', email, accountName);
-        
         // Populate modal fields
         $('#edit_user_mail').val(email);
         $('#edit_account_name').val(accountName);
-        
         // Show the modal (Bootstrap 4 syntax)
         $('#editAccountNameModal').modal('show');
         console.log('Modal show called');
@@ -287,6 +302,66 @@ $(document).ready(function() {
             $('.alert').fadeOut();
         }, 5000);
     }
+
+    // Handle Save Assign Account button
+    $('#btn_save_assign_account').click(function() {
+        var account_adx = $('#assign_account_adx').val();
+        console.log('Account ADX:', account_adx);
+        var userAkun = $('#user_akun').val();
+        if (!userAkun) {
+            showAlert('User akun tidak boleh kosong!', 'error');
+            return;
+        }
+        // Show loading state
+        $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Saving...');
+        // AJAX request to update account name
+        $.ajax({
+            url: '/management/admin/assign_account_user',
+            type: 'POST',
+            data: {
+                'account_id': account_adx,
+                'user_akun[]': userAkun,
+                'csrfmiddlewaretoken': getCookie('csrftoken')
+            },
+            success: function(response) {
+                console.log('AJAX Success Response:', response);
+                $('#btn_save_assign_account').prop('disabled', false).text('Save Changes');
+                
+                if (response.status) {
+                    showAlert('success', response.message);
+                    $('#assignAccountModal').modal('hide');
+                    // Refresh the page to show updated data
+                    location.reload();
+                } else {
+                    showAlert('error', response.message || 'Gagal assign account user');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX Error:', {
+                    status: xhr.status,
+                    statusText: xhr.statusText,
+                    responseText: xhr.responseText,
+                    error: error
+                });
+                $('#btn_save_account_name').prop('disabled', false).text('Save Changes');
+                
+                let errorMessage = 'Terjadi kesalahan saat menyimpan';
+                if (xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                } else if (xhr.status === 403) {
+                    errorMessage = 'CSRF verification failed. Silakan refresh halaman dan coba lagi.';
+                } else if (xhr.status === 500) {
+                    errorMessage = 'Server error. Silakan coba lagi.';
+                }
+                
+                showAlert('error', errorMessage);
+            },
+            complete: function() {
+                // Reset button state
+                $('#btn_save_account_name').prop('disabled', false).html('<i class="bi bi-check"></i> Save Changes');
+            }
+        });
+    });
 
     // Handle Save Account Name button
     $('#btn_save_account_name').click(function() {

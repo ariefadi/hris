@@ -35,30 +35,127 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     })
-    $('#select_sub_domain').select2({
+    let allAccountOptions = $('#select_account').html();  
+    $('#select_domain').select2({
         placeholder: '-- Pilih Domain --',
         allowClear: true,
         width: '100%',
         height: '100%',
         theme: 'bootstrap4'
     })
+    let allDomainOptions = $('#select_domain').html();  
+    // Flag untuk mencegah infinite loop saat update filter
+    var isUpdating = false;
     $('#btn_load_data').click(function (e) {
         e.preventDefault();
         var tanggal = $("#tanggal").val();
         var selected_account = $("#select_account").val() || '%';
         var data_account = selected_account ? selected_account : '%';
-        var selected_sub_domain = $('#select_sub_domain').val() || '%';
-        var data_sub_domain = selected_sub_domain ? selected_sub_domain : '%';
-        if(tanggal && tanggal !== '' && data_account!="" && data_sub_domain!="")
-        {
+        var selected_domain = $('#select_domain').val() || '%';
+        var data_domain = selected_domain ? selected_domain : '%';
+        if(tanggal && tanggal !== '' && data_account!="") {
             destroy_table_data_per_account_facebook()
-            table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
+            table_data_per_account_facebook(tanggal, data_account, data_domain)
         }    
     });
+    $('#select_account').on('change', function () {
+        if (isUpdating) return;
+        let account = $(this).val();
+        if (account && account.length > 0) {
+            ads_site_list(); // filter domain by account
+        } else {
+            // restore semua domain dari template
+            isUpdating = true;
+            $('#select_domain')
+                .html(allDomainOptions)
+                .val(null)
+                .trigger('change.select2');
+            isUpdating = false;
+        }
+    });
+    function ads_site_list() {
+        var selected_account = $("#select_account").val();
+        return $.ajax({
+            url: '/management/admin/ads_sites_list',
+            type: 'GET',
+            data: {
+                selected_accounts: selected_account
+            },
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function (response) {
+                if (response && response.status) {
+                    let $domain = $('#select_domain');
+                    let currentSelected = $domain.val(); // Simpan pilihan saat ini
+                    isUpdating = true;
+                    // 1. Kosongkan option lama
+                    $domain.empty();
+                    // 2. Tambahkan option baru
+                    response.data.forEach(function (domain) {
+                        let isSelected = currentSelected && currentSelected.includes(domain);
+                        let option = new Option(domain, domain, isSelected, isSelected);
+                        $domain.append(option);
+                    });
+                    // 3. Refresh select2
+                    $domain.trigger('change.select2');
+                    isUpdating = false;
+                }
+            },
+            error: function (xhr, status, error) {
+                report_eror(xhr, error);
+            }
+        });
+    }
+    $('#select_domain').on('change', function () {
+        if (isUpdating) return;
+        let domain = $(this).val();
+        if (domain && domain.length > 0) {
+            ads_account_list(); // filter account by domain
+        } else {
+            // restore semua account dari template
+            isUpdating = true;
+            $('#select_account')
+                .html(allAccountOptions)
+                .val(null)
+                .trigger('change.select2');
+            isUpdating = false;
+        }
+    });
+    function ads_account_list() {
+        var selected_domain = $("#select_domain").val();
+        if (selected_domain) {
+            selected_domain = selected_domain.join(',');
+        }
+        return $.ajax({
+            url: '/management/admin/ads_account_list',
+            type: 'GET',
+            data: {
+                selected_domains: selected_domain
+            },
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function (response) {
+                if (response && response.status) {
+                    let $account = $('#select_account');
+                    let suggested = (response.data || []).map(function (a) { return String(a.account_id); });
+                    isUpdating = true;
+                    $account.html(allAccountOptions);
+                    $account.val(suggested).trigger('change.select2');
+                    isUpdating = false;
+                }
+            },
+            error: function (xhr, status, error) {
+                report_eror(xhr, error);
+            }
+        });
+    }
 });
-function table_data_per_account_facebook(tanggal, data_account, data_sub_domain) {
+
+function table_data_per_account_facebook(tanggal, data_account, data_domain) {
     $.ajax({
-        url: '/management/admin/page_per_account_facebook?tanggal='+tanggal+'&data_account='+data_account+'&data_sub_domain='+data_sub_domain,
+        url: '/management/admin/page_per_account_facebook?tanggal='+tanggal+'&data_account='+data_account+'&data_domain='+data_domain,
         method: 'GET',
         dataType: 'json',
         beforeSend: function () {
@@ -97,7 +194,7 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                 const formattedReach = reach.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                 // Frequency
                 const frequency = Number(value?.frequency) || 0;
-                const formattedFrequency = frequency.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                const formattedFrequency = frequency.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
                 // Clicks
                 const clicks = Number(value?.clicks) || 0;
                 const formattedClicks = clicks.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
@@ -128,7 +225,7 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                 event_data += ' <td class="text-right" style="font-size: 12px;">' + formattedImpressions +  '</td>';
                 event_data += ' <td class="text-right" style="font-size: 12px;">' + formattedReach +  '</td>';
                 event_data += ' <td class="text-right" style="font-size: 12px;">' + formattedClicks + '</td>';
-                event_data += ' <td class="text-right" style="font-size: 12px;">' + formattedFrequency + ' %</td>';
+                event_data += ' <td class="text-right" style="font-size: 12px;">' + formattedFrequency + '</td>';
                 event_data += ' <td class="text-right" style="font-size: 12px;">' + cpr + '</td>';
                 event_data += '<td class="text-center">' +
                                     '<div class="form-check form-switch">' +
@@ -162,7 +259,10 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                             success: function (data) {
                                 $(`#autosave-status_${value.campaign_id}`).text('Daily Budget Diubah');
                                 setTimeout(function () {
-                                    table_data_per_account_facebook(data_account);
+                                    var tanggal = $("#tanggal").val();
+                                    var data_sub_domain = $("#select_domain option:selected").val() || '%';
+                                    console.log(data_sub_domain);
+                                    table_data_per_account_facebook(tanggal, data_account, data_sub_domain);
                                 }, 1000);;
                             }
                         });    
@@ -217,8 +317,9 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                                     
                                     setTimeout(function () {
                                         var tanggal = $("#tanggal").val();
-                                        var data_sub_domain = $("#select_sub_domain option:selected").val();
-                                        table_data_per_account_facebook(data_account, tanggal, data_sub_domain);
+                                        var data_account = $("#select_account option:selected").val() || '%';
+                                        var data_sub_domain = $("#select_domain option:selected").val() || '%';
+                                        table_data_per_account_facebook(tanggal, data_account, data_sub_domain);
                                         // Update header switch after individual switch update
                                         updateHeaderSwitch();
                                     }, 1000);
@@ -290,11 +391,17 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                 const totalClicks = clicks.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                 // Frequency
                 const frequency = Number(value?.total_frequency) || 0;
-                const totalFrequency = frequency.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + ' %';
+                const totalFrequency = frequency.toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                 // CPR
                 let data_cpr = value.total_cpr;
-                let cpr_number = parseFloat(data_cpr)
-                let totalCpr = cpr_number.toFixed(0).replace(',', '.');
+                let cpr_number = parseFloat(data_cpr);
+
+                // Hitung rata-rata berdasarkan jumlah data yang ada
+                if (data_per_account.data_per_account && data_per_account.data_per_account.length > 0) {
+                    cpr_number = cpr_number / data_per_account.data_per_account.length;
+                }
+
+                let totalCpr = cpr_number.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
                 $('#total_budget').text(totalBudget);
                 $('#total_spend').text(totalSpend);
                 $('#total_impressions').text(totalImpressions);
@@ -307,6 +414,7 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                 "paging": true,
                 "pageLength": 50,
                 "lengthChange": true,
+                "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Semua"]],
                 "searching": true,
                 "ordering": true,
                 responsive: false,
@@ -429,14 +537,12 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                 if (confirm(`Apakah Anda yakin ingin ${action} semua campaign yang ditampilkan?`)) {
                     const campaignIds = [];
                     const targetStatus = isChecked ? 'ACTIVE' : 'PAUSED';
-                    
                     // Get all campaign IDs from the form-switch elements
                     $('input[id^="switch_campaign_"]').each(function() {
                         const switchId = $(this).attr('id');
                         const campaignId = switchId.replace('switch_campaign_', '');
                         campaignIds.push(campaignId);
                     });
-                    
                     if (campaignIds.length > 0) {
                         bulkUpdateCampaignStatus(campaignIds, targetStatus);
                     } else {
@@ -529,7 +635,7 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                         'account_id': accountId,
                         'campaign_ids': JSON.stringify(campaignIds),
                         'status': status,
-                        'csrfmiddlewaretoken': csrftoken
+                        "X-CSRFToken": csrftoken 
                     },
                     success: function(response) {
                         // Sembunyikan loading indicator
@@ -548,8 +654,9 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
                             // Refresh the table
                             setTimeout(function() {
                                 var tanggal = $("#tanggal").val();
-                                var data_sub_domain = $("#select_sub_domain option:selected").val();
-                                table_data_per_account_facebook(data_account, tanggal, data_sub_domain);
+                                var data_account = $("#select_account option:selected").val() || '%';
+                                var data_sub_domain = $("#select_domain option:selected").val() || '%';
+                                table_data_per_account_facebook(tanggal, data_account, data_sub_domain);
                                 // Update header switch after bulk update
                                 updateHeaderSwitch();
                             }, 1000);
@@ -599,12 +706,11 @@ function table_data_per_account_facebook(tanggal, data_account, data_sub_domain)
 }
 
 function getCookie(name) {
-    var cookieValue = null;
+    let cookieValue = null;
     if (document.cookie && document.cookie !== '') {
-        var cookies = document.cookie.split(';');
-        for (var i = 0; i < cookies.length; i++) {
-            var cookie = cookies[i].trim();
-            // Does this cookie string begin with the name we want?
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
             if (cookie.substring(0, name.length + 1) === (name + '=')) {
                 cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
                 break;
@@ -613,6 +719,7 @@ function getCookie(name) {
     }
     return cookieValue;
 }
+
 const csrftoken = getCookie('csrftoken');
 
 function destroy_table_data_per_account_facebook(){

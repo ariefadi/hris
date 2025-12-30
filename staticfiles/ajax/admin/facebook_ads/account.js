@@ -51,10 +51,18 @@ function table_data_account_ads() {
                 var event_data = '<tr>';
                 event_data += '<td class="text-center">' + (index + 1) + '</td>';
                 event_data += '<td class="text-left">' + value.account_name + '</td>';
-                event_data += '<td class="text-center">' + value.account_email + '</td>';
+                event_data += '<td class="text-left">' + value.account_email + '</td>';
                 event_data += '<td class="text-center">' + value.account_id + '</td>';
                 event_data += '<td class="text-center">' + value.app_id + '</td>';
-                event_data += '<td class="text-center">' + value.pemilik_account + '</td>';
+                event_data += '<td class="text-left">' + value.pemilik_account + '</td>';
+                event_data += `
+                                    <td class="text-center">
+                                        ${value.total_data > 0 
+                                            ? '<i class="bi bi-check-circle-fill"></i>' 
+                                            : '<i class="bi bi-exclamation-octagon"></i>'}
+                                    </td>
+                                `;
+
                 event_data += '<td class="text-center">' + '<a href='+url_detail+' type="button" id="btnEdit" class="btn btn-success btn-xs"><i class="bi bi-pencil"></i></a>'  + '</td>';
                 event_data += '</tr>';  
                 $("#table_data_account tbody").append(event_data);    
