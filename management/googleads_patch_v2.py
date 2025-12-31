@@ -1,15 +1,24 @@
 """Comprehensive patch for GoogleAds library compatibility issues"""
 
-import googleads.common
-from googleads import ad_manager
-import tempfile
-import yaml
 import os
+import tempfile
+
+try:
+    import googleads
+    import googleads.common
+    from googleads import ad_manager
+except Exception:
+    googleads = None
+    ad_manager = None
+
+import yaml
 from django.conf import settings
 from .database import data_mysql  # Mengubah import path
 
 # Store original methods
-_original_load_from_storage = googleads.common.LoadFromStorage
+_original_load_from_storage = (
+    getattr(getattr(googleads, "common", None), "LoadFromStorage", None) if googleads else None
+)
 _original_make_soap_request = None
 
 def get_user_credentials(user_mail):
@@ -194,8 +203,12 @@ def patched_load_from_storage(*args, **kwargs):
         
     except Exception as e:
         print(f"[PATCH] LoadFromStorage patch failed: {e}")
-        # Fallback to original method
-        return _original_load_from_storage(*args, **kwargs)
+        if _original_load_from_storage is None:
+            raise
+        try:
+            return _original_load_from_storage(*args, **kwargs)
+        except Exception:
+            raise e
 
 def patched_get_current_network(self):
     """Patched getCurrentNetwork to handle TypeError"""
@@ -529,20 +542,21 @@ def apply_all_patches(client):
     patch_user_service(client)
     patch_inventory_service(client)
 
-def apply_googleads_patches():
+def apply_googleads_patches(create_test_client=False):
     """Apply all GoogleAds library patches"""
+    if googleads is None or ad_manager is None or _original_load_from_storage is None:
+        return False
+
     try:
         # Replace original LoadFromStorage with patched version
         googleads.common.LoadFromStorage = patched_load_from_storage
         print("[PATCH] Applied LoadFromStorage patch")
-        
-        # Create a test client to apply other patches
-        client = ad_manager.AdManagerClient.LoadFromStorage()
-        
-        # Apply all patches to the client
-        apply_all_patches(client)
-        print("[PATCH] Applied all AdManagerClient patches")
-        
+
+        if create_test_client:
+            client = ad_manager.AdManagerClient.LoadFromStorage()
+            apply_all_patches(client)
+            print("[PATCH] Applied all AdManagerClient patches")
+
         return True
     except Exception as e:
         print(f"[PATCH] Failed to apply GoogleAds patches: {e}")

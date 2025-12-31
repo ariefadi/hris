@@ -73,7 +73,12 @@ import logging
 logger = logging.getLogger(__name__)
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
-from googleads import ad_manager
+
+try:
+    from googleads import ad_manager
+except Exception:
+    ad_manager = None
+
 from google_auth_oauthlib.flow import Flow
 import os
 from django.urls import reverse

@@ -8,9 +8,19 @@ from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.ad import Ad
 from facebook_business.exceptions import FacebookRequestError
 from collections import defaultdict
-from googleads import ad_manager
-from google.ads.googleads.client import GoogleAdsClient
-from google.ads.googleads.errors import GoogleAdsException
+
+try:
+    from googleads import ad_manager
+except Exception:
+    ad_manager = None
+
+try:
+    from google.ads.googleads.client import GoogleAdsClient
+    from google.ads.googleads.errors import GoogleAdsException
+except Exception:
+    GoogleAdsClient = None
+    GoogleAdsException = Exception
+
 # Pandas may fail to import if numpy binary is incompatible; avoid crashing at module import
 try:
     import pandas as pd
@@ -21,13 +31,19 @@ except Exception as _pandas_err:
         _logging.getLogger(__name__).warning("Pandas import failed in utils; disabling pandas-dependent features: %s", _pandas_err)
     except Exception:
         pass
-from .database import data_mysql
-from management.googleads_patch_v2 import apply_googleads_patches
-from functools import wraps
-from management.googleads_patch_v2 import apply_all_patches
 
-# Apply GoogleAds patches for DownloadReportToString fix
-apply_googleads_patches()
+from .database import data_mysql
+
+try:
+    from management.googleads_patch_v2 import apply_all_patches, apply_googleads_patches
+except Exception:
+    apply_all_patches = None
+    apply_googleads_patches = None
+
+from functools import wraps
+
+if apply_googleads_patches:
+    apply_googleads_patches()
 
 def with_user_credentials(view_func):
     """
