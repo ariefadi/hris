@@ -24,8 +24,8 @@
   .switch-toggle input:checked + .slider:before { transform: translateX(24px); }
   @media (max-width: 576px) { .switch-toggle { font-size: 12px; } }
   /* Presisi dan centering checkbox header & baris */
-  #table_traffic_country th.checkbox-cell,
-  #table_traffic_country td.checkbox-cell {
+  #table_traffic_account th.checkbox-cell,
+  #table_traffic_account td.checkbox-cell {
       vertical-align: middle !important;
       width: 44px;
   }
@@ -57,7 +57,7 @@
       border-color: #0d6efd;
       box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
   }
-  #table_traffic_country tbody tr.selected-row {
+  #table_traffic_account tbody tr.selected-row {
       background-color: rgba(13, 110, 253, 0.08) !important;
   }
 </style>
@@ -179,6 +179,11 @@
             <table id="table_traffic_account" class="table table-bordered table-striped" style="width:100%">
                 <thead>
                     <tr>
+                        <th class="text-center checkbox-cell no-export">
+                            <div class="checkbox-center">
+                                <input type="checkbox" id="select_all_rows" aria-label="Pilih semua baris" />
+                            </div>
+                        </th>
                         <th class="text-center">Subdomain</th>
                         <th class="text-center">Account Ads</th>
                         <th class="text-center">Spend (Rp)</th>

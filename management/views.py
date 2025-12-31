@@ -3666,10 +3666,16 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
         # Agregasi per country_code
         agg_all = {}
         agg_filtered = {}
+        daily_all = {}
+        daily_filtered = {}
         union_keys = set(list(adx_map.keys()) + list(fb_map.keys()))
         for key in union_keys:
             try:
-                country_code = key.split('_')[-1]
+                parts = key.split('_')
+                if len(parts) < 3:
+                    continue
+                date_key = parts[0]
+                country_code = parts[-1]
             except Exception:
                 continue
             adx_entry = adx_map.get(key) or {'revenue': 0.0, 'impressions_adx': 0, 'clicks_adx': 0}
@@ -3692,6 +3698,19 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
             agg_all[country_code]['cpr_sum'] += fb_entry.get('cpr_sum', 0.0)
             agg_all[country_code]['cpr_count'] += fb_entry.get('cpr_count', 0)
 
+            per_day_map = daily_all.get(country_code)
+            if not per_day_map:
+                daily_all[country_code] = {}
+                per_day_map = daily_all[country_code]
+            day_entry = per_day_map.get(date_key)
+            if not day_entry:
+                per_day_map[date_key] = {'spend': 0.0, 'clicks_fb': 0, 'revenue': 0.0, 'impressions_adx': 0}
+                day_entry = per_day_map[date_key]
+            day_entry['spend'] += spend
+            day_entry['clicks_fb'] += clicks_fb
+            day_entry['revenue'] += revenue
+            day_entry['impressions_adx'] += impressions_adx
+
             if spend > 0:
                 if country_code not in agg_filtered:
                     agg_filtered[country_code] = {'country': name, 'country_code': country_code, 'impressions_fb': 0, 'impressions_adx': 0, 'spend': 0.0, 'clicks_fb': 0, 'clicks_adx': 0, 'revenue': 0.0, 'cpr_sum': 0.0, 'cpr_count': 0}
@@ -3703,7 +3722,19 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
                 agg_filtered[country_code]['clicks_adx'] += clicks_adx
                 agg_filtered[country_code]['cpr_sum'] += fb_entry.get('cpr_sum', 0.0)
                 agg_filtered[country_code]['cpr_count'] += fb_entry.get('cpr_count', 0)
-                
+
+                per_day_map_f = daily_filtered.get(country_code)
+                if not per_day_map_f:
+                    daily_filtered[country_code] = {}
+                    per_day_map_f = daily_filtered[country_code]
+                day_entry_f = per_day_map_f.get(date_key)
+                if not day_entry_f:
+                    per_day_map_f[date_key] = {'spend': 0.0, 'clicks_fb': 0, 'revenue': 0.0, 'impressions_adx': 0}
+                    day_entry_f = per_day_map_f[date_key]
+                day_entry_f['spend'] += spend
+                day_entry_f['clicks_fb'] += clicks_fb
+                day_entry_f['revenue'] += revenue
+                day_entry_f['impressions_adx'] += impressions_adx
 
         combined_data_all = []
         for code, item in agg_all.items():
@@ -3717,13 +3748,11 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
             ctr_adx = ((clk_adx / imp_adx) * 100) if imp_adx > 0 else 0
             cpc_fb = (s / clk_fb) if clk_fb > 0 else 0
             cpc_adx = (r / clk_adx) if clk_adx > 0 else 0
-            ecpm = ((r / imp_adx) * 1000) if imp_adx > 0 else 0
             roi = ((r - s) / s * 100) if s > 0 else 0
-            cpr = 0.0
-            if item.get('cpr_count', 0) > 0:
-                cpr = float(item.get('cpr_sum', 0.0)) / int(item.get('cpr_count', 0))
-            elif clk_fb > 0:
-                cpr = s / clk_fb
+
+            cpr = (s / clk_fb) if clk_fb > 0 else 0.0
+            ecpm = ((r / imp_adx) * 1000) if imp_adx > 0 else 0.0
+
             combined_data_all.append({
                 'country': item['country'],
                 'country_code': code,
@@ -3754,13 +3783,11 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
             ctr_adx = ((clk_adx / imp_adx) * 100) if imp_adx > 0 else 0
             cpc_fb = (s / clk_fb) if clk_fb > 0 else 0
             cpc_adx = (r / clk_adx) if clk_adx > 0 else 0
-            ecpm = ((r / imp_adx) * 1000) if imp_adx > 0 else 0
             roi = ((r - s) / s * 100) if s > 0 else 0
-            cpr = 0.0
-            if item.get('cpr_count', 0) > 0:
-                cpr = float(item.get('cpr_sum', 0.0)) / int(item.get('cpr_count', 0))
-            elif clk_fb > 0:
-                cpr = s / clk_fb
+
+            cpr = (s / clk_fb) if clk_fb > 0 else 0.0
+            ecpm = ((r / imp_adx) * 1000) if imp_adx > 0 else 0.0
+
             combined_data_filtered.append({
                 'country': item['country'],
                 'country_code': code,
@@ -4116,34 +4143,94 @@ class RoiTrafficPerDomainDataView(View):
                     })
                     print(f"[DEBUG ROI] raw_rows_all: {raw_rows_all[-1]}")
                     key = f"{date_key}|{base_subdomain or subdomain}"
-                    entry = grouped_all.get(key) or {'site_name': base_subdomain or subdomain, 'date': date_key, 'spend': 0.0, 'revenue': 0.0, 'impressions_fb': 0.0, 'impressions_adx': 0.0, 'clicks_fb': 0.0, 'clicks_adx': 0.0, 'cpr': 0.0, 'ctr_fb': 0.0, 'cpc_fb': 0.0, 'ctr_adx': 0.0, 'cpc_adx': 0.0, 'cpm': 0.0}
+                    entry = grouped_all.get(key) or {
+                        'site_name': base_subdomain or subdomain,
+                        'date': date_key,
+                        'spend': 0.0,
+                        'revenue': 0.0,
+                        'impressions_fb': 0.0,
+                        'impressions_adx': 0.0,
+                        'clicks_fb': 0.0,
+                        'clicks_adx': 0.0,
+                        # avg fields
+                        'cpr_sum': 0.0,
+                        'cpr_cnt': 0,
+                        'cpr': 0.0,
+                        'ctr_fb': 0.0,
+                        'cpc_fb': 0.0,
+                        'ctr_adx': 0.0,
+                        'cpc_adx': 0.0,
+                        'cpm_sum': 0.0,
+                        'cpm_cnt': 0,
+                        'cpm': 0.0,
+                    }
                     entry['spend'] += spend
                     entry['impressions_fb'] += impressions_fb
                     entry['clicks_fb'] += clicks_fb
                     entry['impressions_adx'] += impressions_adx
                     entry['clicks_adx'] += clicks_adx
-                    entry['cpr'] += cpr
                     entry['revenue'] += revenue
+
+                    # CPR avg per (date|domain)
+                    entry['cpr_sum'] += cpr
+                    entry['cpr_cnt'] += 1
+                    entry['cpr'] = (entry['cpr_sum'] / entry['cpr_cnt']) if entry['cpr_cnt'] > 0 else 0
+
                     entry['ctr_fb'] = ((entry['clicks_fb'] / entry['impressions_fb']) * 100) if entry['impressions_fb'] > 0 else 0
-                    entry['cpc_fb'] += cpc_fb
+                    entry['cpc_fb'] = (entry['revenue'] / entry['clicks_fb']) if entry['clicks_fb'] > 0 else 0
                     entry['ctr_adx'] = ((entry['clicks_adx'] / entry['impressions_adx']) * 100) if entry['impressions_adx'] > 0 else 0
                     entry['cpc_adx'] = (entry['revenue'] / entry['clicks_adx']) if entry['clicks_adx'] > 0 else 0
-                    entry['cpm'] += cpm
+
+                    # eCPM avg per (date|domain)
+                    entry['cpm_sum'] += cpm
+                    entry['cpm_cnt'] += 1
+                    entry['cpm'] = (entry['cpm_sum'] / entry['cpm_cnt']) if entry['cpm_cnt'] > 0 else 0
+
                     grouped_all[key] = entry
                     if spend > 0:
-                        f_entry = grouped_filtered.get(key) or {'site_name': base_subdomain or subdomain, 'date': date_key, 'spend': 0.0, 'revenue': 0.0, 'impressions_fb': 0.0, 'impressions_adx': 0.0, 'clicks_fb': 0.0, 'clicks_adx': 0.0, 'cpr': 0.0, 'ctr_fb': 0.0, 'cpc_fb': 0.0, 'ctr_adx': 0.0, 'cpc_adx': 0.0, 'cpm': 0.0}
+                        f_entry = grouped_filtered.get(key) or {
+                            'site_name': base_subdomain or subdomain,
+                            'date': date_key,
+                            'spend': 0.0,
+                            'revenue': 0.0,
+                            'impressions_fb': 0.0,
+                            'impressions_adx': 0.0,
+                            'clicks_fb': 0.0,
+                            'clicks_adx': 0.0,
+                            # avg fields
+                            'cpr_sum': 0.0,
+                            'cpr_cnt': 0,
+                            'cpr': 0.0,
+                            'ctr_fb': 0.0,
+                            'cpc_fb': 0.0,
+                            'ctr_adx': 0.0,
+                            'cpc_adx': 0.0,
+                            'cpm_sum': 0.0,
+                            'cpm_cnt': 0,
+                            'cpm': 0.0,
+                        }
                         f_entry['spend'] += spend
                         f_entry['impressions_fb'] += impressions_fb
                         f_entry['clicks_fb'] += clicks_fb
                         f_entry['impressions_adx'] += impressions_adx
                         f_entry['clicks_adx'] += clicks_adx
-                        f_entry['cpr'] += cpr
                         f_entry['revenue'] += revenue
+
+                        # CPR avg per (date|domain)
+                        f_entry['cpr_sum'] += cpr
+                        f_entry['cpr_cnt'] += 1
+                        f_entry['cpr'] = (f_entry['cpr_sum'] / f_entry['cpr_cnt']) if f_entry['cpr_cnt'] > 0 else 0
+
                         f_entry['ctr_fb'] = ((f_entry['clicks_fb'] / f_entry['impressions_fb']) * 100) if f_entry['impressions_fb'] > 0 else 0
-                        f_entry['cpc_fb'] += cpc_fb
+                        f_entry['cpc_fb'] = (f_entry['revenue'] / f_entry['clicks_fb']) if f_entry['clicks_fb'] > 0 else 0
                         f_entry['ctr_adx'] = ((f_entry['clicks_adx'] / f_entry['impressions_adx']) * 100) if f_entry['impressions_adx'] > 0 else 0
                         f_entry['cpc_adx'] = (f_entry['revenue'] / f_entry['clicks_adx']) if f_entry['clicks_adx'] > 0 else 0
-                        f_entry['cpm'] += cpm
+
+                        # eCPM avg per (date|domain)
+                        f_entry['cpm_sum'] += cpm
+                        f_entry['cpm_cnt'] += 1
+                        f_entry['cpm'] = (f_entry['cpm_sum'] / f_entry['cpm_cnt']) if f_entry['cpm_cnt'] > 0 else 0
+
                         grouped_filtered[key] = f_entry
                 combined_data_all = []
                 total_spend = 0.0
