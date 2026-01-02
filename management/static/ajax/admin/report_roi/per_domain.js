@@ -303,7 +303,6 @@ $().ready(function () {
         searching: true,
         ordering: true,
         fontSize: '10px',
-        fontStyle: 'normal',
         language: {
             "decimal": ",",
             "thousands": ".",
@@ -662,8 +661,6 @@ $().ready(function () {
         order: [[2, 'asc']]
     });
 
-    var table = $('#table_traffic_account').DataTable();
-
     $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
         try {
             if (!settings || !settings.nTable || settings.nTable.id !== 'table_traffic_account') return true;
@@ -783,7 +780,10 @@ $().ready(function () {
             table.row.add([
                 '',
                 item.site_name || '-',
-                formattedDate,
+                {
+                    display: formattedDate,
+                    sort: item.date || '' // YYYY-MM-DD
+                },
                 Number(item.spend || 0),
                 Number(item.clicks_fb || 0),
                 Number(item.clicks_adx || 0),
