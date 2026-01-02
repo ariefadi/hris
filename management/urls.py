@@ -98,8 +98,8 @@ urlpatterns = [
     # # Menu Adsense Traffic Country
     path('admin/adsense_traffic_country', views_adsense.AdsenseTrafficPerCountryView.as_view(), name='adsense_traffic_country'),
     path('admin/adsense_traffic_country_data', views_adsense.AdsenseTrafficPerCountryDataView.as_view(), name='adsense_traffic_country_data'),
-    path('admin/page_adsense_traffic_country', views_adsense.AdsenseTrafficPerCountryDataView.as_view()),
-    
+    path('admin/get_countries_adsense', views_adsense.get_countries_adsense, name='get_countries_adsense'),
+
     # OAuth Management - menggunakan oauth_views_package untuk konsistensi
     path('admin/oauth/management/', oauth_management_dashboard, name='oauth_management_dashboard'),
     path('admin/oauth/status/', oauth_status_api, name='oauth_status_api'),

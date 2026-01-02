@@ -8,6 +8,7 @@ except Exception:
 from django.shortcuts import redirect, render
 from django.http import JsonResponse
 from django.views import View
+from datetime import datetime, date, timedelta
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from google_auth_oauthlib.flow import Flow
@@ -17,14 +18,20 @@ try:
 except Exception:
     build = None
 from google.oauth2.credentials import Credentials
+try:
+    from .database import data_mysql
+except Exception:
+    try:
+        from management.database import data_mysql
+    except Exception:
+        from settings.database import data_mysql
 from .utils_adsense import (
     fetch_adsense_traffic_account_data,
     fetch_adsense_summary_data,
     fetch_adsense_traffic_per_country,
     fetch_adsense_account_info_and_units,
+    set_cached_data,
 )
-
-# OAuth functions removed - using standardized OAuth flow from oauth_views_package
 
 def get_adsense_data(request):
     if 'credentials' not in request.session:
@@ -143,7 +150,6 @@ class AdsenseSitesListView(View):
     def get(self, request):
         try:
             # Ambil semua account_name dari app_credentials yang aktif
-            from .database import data_mysql
             db = data_mysql()
             sql = """
                 SELECT DISTINCT account_name, user_mail 
@@ -189,6 +195,120 @@ class AdsenseSitesListView(View):
                 ]
             })
 
+@csrf_exempt
+def get_countries_adsense(request):
+    """Endpoint untuk mendapatkan daftar negara yang tersedia"""
+    if 'hris_admin' not in request.session:
+        return redirect('admin_login')
+    try:
+        # Ambil data negara dari AdX untuk periode 30 hari terakhir
+        end_date = datetime.now().date()
+        start_date = end_date - timedelta(days=7)
+        selected_account = request.GET.get('selected_accounts')
+        # Gunakan cache untuk menghindari pemanggilan API berulang
+        print(f"[DEBUG] Request params: start_date={start_date}, end_date={end_date}, selected_account={selected_account}")
+        try:
+            cache_key = generate_cache_key(
+                'countries_adsense',
+                start_date.strftime('%Y-%m-%d'),
+                end_date.strftime('%Y-%m-%d'),
+                selected_account or '',
+            )
+            cached_countries = get_cached_data(cache_key)
+            if cached_countries is not None:
+                return JsonResponse({
+                    'status': 'success',
+                    'countries': cached_countries
+                })
+        except Exception as _cache_err:
+            # Jika cache bermasalah, lanjutkan tanpa memblokir proses
+            print(f"[WARNING] countries_adsense cache unavailable: {_cache_err}")
+        result = data_mysql().fetch_country_list_adsense(
+            start_date.strftime('%Y-%m-%d'),
+            end_date.strftime('%Y-%m-%d'),
+            selected_account,
+        )
+        print(f"[DEBUG] Raw adsense countries result: {result}")
+        # Validasi struktur result
+        if not result['hasil']['data']:
+            print("[WARNING] Adsense countries result is None or empty")
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Tidak ada data adsense country yang tersedia.',
+                'countries': []
+            })
+        
+        if not isinstance(result['hasil'], dict):
+            print(f"[WARNING] Adsense countries result['hasil'] is not a dict: {type(result['hasil'])}")
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Format data adsense country tidak valid.',
+                'countries': []
+            })
+        
+        # Periksa apakah ada key 'data' dalam result['hasil']
+        if 'data' not in result['hasil']:
+            print(f"[WARNING] Adsense countries result['hasil'] has no 'data' key. Available keys: {list(result['hasil'].keys())}")
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Data adsense country tidak tersedia.',
+                'countries': []
+            })
+        
+        # Periksa apakah data adalah list
+        if not isinstance(result['hasil']['data'], list):
+            print(f"[WARNING] Adsense countries result['hasil']['data'] is not a list: {type(result['hasil']['data'])}")
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Format data adsense country tidak valid.',
+                'countries': []
+            })
+        
+        # Ekstrak daftar negara dari data yang tersedia dan hilangkan duplikasi
+        countries = []
+        seen = set()
+        for country_data in result['hasil']['data']:
+            if not isinstance(country_data, dict):
+                print(f"[WARNING] Adsense countries result['hasil']['data'] country data is not a dict: {type(country_data)}")
+                continue
+            country_name = (country_data.get('country_name') or '').strip()
+            country_code = (country_data.get('country_code') or '').strip().upper()
+            if not country_name:
+                continue
+            # Gunakan code jika ada, jika tidak gunakan nama sebagai key dedup
+            key = country_code or country_name.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            country_label = f"{country_name} ({country_code})" if country_code else country_name
+            countries.append({
+                'code': country_code,
+                'name': country_label
+            })
+            
+        # Sort berdasarkan nama negara
+        countries.sort(key=lambda x: x['name'])
+        # Simpan hasil ke cache agar panggilan berikutnya cepat
+        try:
+            set_cached_data(cache_key, countries, timeout=6 * 60 * 60)  # 6 jam
+        except Exception as _cache_set_err:
+            print(f"[WARNING] Adsense countries failed to cache countries_adsense: {_cache_set_err}")
+        return JsonResponse({
+            'status': 'success',
+            'countries': countries
+        })
+        
+    except Exception as e:
+        print(f"[ERROR] Adsense countries failed to fetch countries_adsense: {e}")
+        import traceback
+        print(f"[ERROR] Traceback: {traceback.format_exc()}")
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Gagal mengambil data adsense country.',
+            'error': str(e),
+            'countries': []
+        }, status=500)
+
 class AdsenseSummaryView(View):
     """View untuk halaman Summary AdSense"""
     def dispatch(self, request, *args, **kwargs):
@@ -210,7 +330,6 @@ class AdsenseSummaryDataView(View):
             print(f"[DEBUG] AdsenseSummaryDataView called with params: {request.GET}")
             
             # Ambil user_mail dari app_credentials yang aktif
-            from .database import data_mysql
             db = data_mysql()
             sql = """
                 SELECT user_mail 
@@ -284,8 +403,27 @@ class AdsenseTrafficPerCountryView(View):
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
 
-    def get(self, request):
-        return render(request, 'admin/adsense_manager/traffic_country/index.html')
+    def get(self, req):
+        admin = req.session.get('hris_admin', {})
+        if admin.get('super_st') == '0':
+            data_account_adx = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+            data_domain_adx = data_mysql().get_all_adx_domain_data_user(admin.get('user_id'))
+        else:
+            data_account_adx = data_mysql().get_all_adx_account_data()
+            data_domain_adx = data_mysql().get_all_adx_domain_data()
+        if not data_domain_adx['status']:
+            return JsonResponse({
+                'status': False,
+                'error': data_domain_adx['data']
+            })
+        last_update = data_mysql().get_last_update_adx_traffic_country()['data']['last_update']
+        data = {
+            'title': 'AdSense Traffic Per Country',
+            'user': req.session['hris_admin'],
+            'data_account_adx': data_account_adx['data'],
+            'last_update': last_update,
+        }
+        return render(req, 'admin/adsense_manager/traffic_country/index.html', data)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class AdsenseTrafficPerCountryDataView(View):
@@ -294,87 +432,35 @@ class AdsenseTrafficPerCountryDataView(View):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
-
-    def post(self, request):
+    def get(self, request):
         try:
-            # Prioritaskan user_mail dari filter akun jika disediakan
-            account_filter = request.POST.get('account_filter')
-            if account_filter:
-                user_mail = account_filter
-            else:
-                # Validasi baru: wajib pilih akun terlebih dahulu
-                return JsonResponse({
-                    'status': False,
-                    'error': 'Filter Account harus dipilih terlebih dahulu'
-                })
             # Get form data (same as Traffic Account)
-            start_date = request.POST.get('start_date')
-            end_date = request.POST.get('end_date')
-            site_filter = request.POST.get('site_filter', '%')
-            country_filter = request.POST.get('country_filter', '')
+            start_date = request.GET.get('start_date')
+            end_date = request.GET.get('end_date')
             if not start_date or not end_date:
                 return JsonResponse({
                     'error': 'Start date dan end date wajib diisi'
                 }, status=400)
-
+            selected_account = request.GET.get('selected_account')
+            selected_account_list = []
+            if selected_account:
+                selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
+            print(f"[DEBUG] selected_account_list: {selected_account_list}")
+            country_filter = request.GET.get('selected_countries', '')
             # Parse countries list
             countries_list = []
             if country_filter and country_filter.strip():
                 countries_list = [c.strip() for c in country_filter.split(',') if c.strip()]
-
             # Fetch AdSense traffic data per country
-            result = fetch_adsense_traffic_per_country(user_mail, start_date, end_date, site_filter, countries_list)
-            
-            if result.get('status'):
-                countries_data = result.get('data', [])
-                
-                # Calculate summary data
-                total_impressions = sum(country.get('impressions', 0) for country in countries_data)
-                total_clicks = sum(country.get('clicks', 0) for country in countries_data)
-                total_revenue = sum(country.get('revenue', 0) for country in countries_data)
-                
-                avg_ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0
-                avg_cpc = (total_revenue / total_clicks) if total_clicks > 0 else 0
-                avg_cpm = (total_revenue / total_impressions * 1000) if total_impressions > 0 else 0
-                
-                summary = {
-                    'total_impressions': total_impressions,
-                    'total_clicks': total_clicks,
-                    'total_revenue': total_revenue,
-                    'avg_ctr': avg_ctr,
-                    'avg_cpc': avg_cpc,
-                    'avg_cpm': avg_cpm
-                }
-                
-                # Return data with summary
-                return JsonResponse({
-                    'status': True,
-                    'data': countries_data,
-                    'summary': summary
-                })
-            else:
-                # Jika akun tidak memiliki AdSense, kembalikan status sukses dengan pesan informatif
-                err = result.get('error', '')
-                if 'No AdSense accounts found' in err or 'no adsense' in err.lower():
-                    return JsonResponse({
-                        'status': True,
-                        'data': [],
-                        'summary': {
-                            'total_impressions': 0,
-                            'total_clicks': 0,
-                            'total_revenue': 0,
-                            'avg_ctr': 0,
-                            'avg_cpc': 0,
-                            'avg_cpm': 0
-                        },
-                        'message': 'Akun tidak memiliki AdSense'
-                    })
-                # Selain itu, beri status False agar frontend bisa tampilkan info tanpa error 500
-                return JsonResponse({
-                    'status': False,
-                    'error': result.get('error', 'Failed to fetch AdSense country data')
-                })
-                
+            result = data_mysql().get_all_adsense_traffic_country_by_params(start_date, end_date, selected_account_list, countries_list)
+            print(f"[DEBUG] get_all_adsense_traffic_country_by_params result: {result}")
+            if isinstance(result, dict):
+                if 'data' in result:
+                    if result['data']:
+                        print(f"[DEBUG] First data item: {result['data'][0]}")
+                if 'summary' in result:
+                    print(f"[DEBUG] Summary: {result['summary']}")
+            return JsonResponse(result, safe=False)
         except Exception as e:
             print(f"[ERROR] Exception in AdsenseTrafficPerCountryDataView: {str(e)}")
             import traceback
@@ -399,7 +485,6 @@ class AdsenseAccountDataView(View):
             # Ambil kredensial yang dipilih (user_mail). Jika tidak ada, gunakan kredensial aktif terbaru
             selected_user_mail = request.GET.get('user_mail')
             if not selected_user_mail:
-                from .database import data_mysql
                 db = data_mysql()
                 sql = """
                     SELECT user_mail
@@ -433,7 +518,6 @@ class AdsenseCredentialsListView(View):
     """AJAX endpoint: daftar kredensial AdSense aktif untuk dipilih di UI."""
     def get(self, request):
         try:
-            from .database import data_mysql
             db = data_mysql()
             sql = """
                 SELECT account_name, user_mail 

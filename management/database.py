@@ -32,17 +32,17 @@ class data_mysql:
         try:
             # Use the same environment variables as Django settings for consistency
             host = os.getenv('DB_HOST', '127.0.0.1')
-            # Use the same port as Django (3306, not 3306)
+            # Use the same port as Django (3307, not 3307)
             raw_port = os.getenv('HRIS_DB_PORT', '').strip()
             if not raw_port:
-                raw_port = '3306'
+                raw_port = '3307'
             try:
                 port = int(raw_port)
             except (ValueError, TypeError):
-                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
-                port = 3306
+                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3307")
+                port = 3307
             user = os.getenv('HRIS_DB_USER', 'root')
-            password = os.getenv('HRIS_DB_PASSWORD', 'hris123456')
+            password = os.getenv('HRIS_DB_PASSWORD', '')
             database = os.getenv('HRIS_DB_NAME', 'hris_trendHorizone')
 
             self.db_hris = pymysql.connect(
@@ -124,7 +124,7 @@ class data_mysql:
                 LIMIT 1
               """
         try:
-            _log_debug(f"[LOGIN_DEBUG] Attempting login for username={data.get('username')} from DB host={os.getenv('DB_HOST','127.0.0.1')} port={os.getenv('HRIS_DB_PORT','3306')} db={os.getenv('HRIS_DB_NAME','hris_trendHorizone')}")
+            _log_debug(f"[LOGIN_DEBUG] Attempting login for username={data.get('username')} from DB host={os.getenv('DB_HOST','127.0.0.1')} port={os.getenv('HRIS_DB_PORT','3307')} db={os.getenv('HRIS_DB_NAME','hris_trendHorizone')}")
             if not self.execute_query(sql, (data['username'],)):
                 raise pymysql.Error("Failed to execute login query")
             row = self.cur_hris.fetchone()
@@ -2227,6 +2227,152 @@ class data_mysql:
                 'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
         return {'hasil': hasil}
+
+    def get_all_adsense_traffic_country_by_params(self, start_date, end_date, selected_account_list = None, countries_list = None):
+        try:
+            # --- 0. Pastikan selected_account_list adalah list string
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
+            like_conditions_account = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
+            like_params_account = [f"%{account}%" for account in data_account_list] 
+            base_sql = [
+                "SELECT",
+                "\ta.account_id, a.account_name, a.user_mail,",
+                "\tb.data_adsense_country_nm AS country_name,",
+                "\tb.data_adsense_country_cd AS country_code,",
+                "\tSUM(b.data_adsense_country_impresi) AS impressions,",
+                "\tSUM(b.data_adsense_country_click) AS clicks,",
+                "\tCASE WHEN SUM(b.data_adsense_country_impresi) > 0",
+                "\t\tTHEN ROUND((SUM(b.data_adsense_country_click) / SUM(b.data_adsense_country_impresi)) * 100, 2)",
+                "\t\tELSE 0 END AS ctr,",
+                "\tCASE WHEN SUM(b.data_adsense_country_impresi) > 0",
+                "\t\tTHEN ROUND((SUM(b.data_adsense_country_revenue) / SUM(b.data_adsense_country_impresi)) * 1000)",
+                "\t\tELSE 0 END AS ecpm,",
+                "\tCASE WHEN SUM(b.data_adsense_country_click) > 0",
+                "\t\tTHEN ROUND(SUM(b.data_adsense_country_revenue) / SUM(b.data_adsense_country_click), 0)",
+                "\t\tELSE 0 END AS cpc,",
+                "\tSUM(b.data_adsense_country_revenue) AS revenue",
+                "FROM app_credentials a",
+                "INNER JOIN data_adsense_country b ON a.account_id = b.account_id",
+                "WHERE",
+            ]
+            params = []
+            # Date range
+            base_sql.append("b.data_adsense_country_tanggal BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+            # Normalize selected_account_list and apply account filter
+            if data_account_list:
+                base_sql.append(f"\tAND ({like_conditions_account})")
+                params.extend(like_params_account)
+            # Normalize countries_list and apply country code filter
+            country_codes = []
+            if countries_list:
+                if isinstance(countries_list, str):
+                    country_codes = [c.strip() for c in countries_list.split(',') if c.strip()]
+                elif isinstance(countries_list, (list, tuple)):
+                    country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
+            if country_codes:
+                placeholders = ','.join(['%s'] * len(country_codes))
+                base_sql.append(f"AND b.data_adsense_country_cd IN ({placeholders})")
+                params.extend(country_codes)
+            base_sql.append("GROUP BY b.data_adsense_country_cd, b.data_adsense_country_nm")
+            base_sql.append("ORDER BY revenue DESC")
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get all adsense traffic country by params")
+            data_rows = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get all adsense traffic country by params")
+            # Build summary
+            total_impressions = sum((row.get('impressions') or 0) for row in data_rows) if data_rows else 0
+            total_clicks = sum((row.get('clicks') or 0) for row in data_rows) if data_rows else 0
+            total_revenue = sum((row.get('revenue') or 0) for row in data_rows) if data_rows else 0.0
+            total_ctr_ratio = (float(total_clicks) / float(total_impressions)) if total_impressions else 0.0
+            return {
+                "status": True,
+                "message": "Data adsense traffic country berhasil diambil",
+                "data": data_rows,
+                "summary": {
+                    "total_impressions": total_impressions,
+                    "total_clicks": total_clicks,
+                    "total_revenue": total_revenue,
+                    "total_ctr": total_ctr_ratio
+                }
+            }
+        except pymysql.Error as e:
+            return {
+                "status": False,
+                "error": f"Terjadi error {e!r}, error nya {e.args[0]}"
+            }
+
+
+    def insert_data_adsense_domain(self, data):
+        try:
+            sql_insert = """
+                        INSERT INTO data_adsense_domain
+                        (
+                            account_id,
+                            data_adsense_tanggal,
+                            data_adsense_domain,
+                            data_adsense_impresi,
+                            data_adsense_click,
+                            data_adsense_ctr,
+                            data_adsense_cpc,
+                            data_adsense_cpm,
+                            data_adsense_revenue,
+                            mdb,
+                            mdb_name,
+                            mdd
+                        )
+                    VALUES
+                        (
+                            %s, 
+                            %s, 
+                            %s, 
+                            %s, 
+                            %s, 
+                            %s, 
+                            %s, 
+                            %s, 
+                            %s, 
+                            %s, 
+                            %s, 
+                            %s
+                        )   
+                """
+            if not self.execute_query(sql_insert, (
+                data['account_id'],
+                data['data_adsense_tanggal'],
+                data['data_adsense_domain'],
+                data['data_adsense_impresi'],
+                data['data_adsense_click'],
+                data['data_adsense_ctr'],
+                data['data_adsense_cpc'],
+                data['data_adsense_cpm'],
+                data['data_adsense_revenue'],
+                data['mdb'],
+                data['mdb_name'],
+                data['mdd']
+            )):
+                raise pymysql.Error("Failed to insert data adsense domain")
+            if not self.commit():
+                raise pymysql.Error("Failed to commit data adsense domain insert")
+
+            hasil = {
+                "status": True,
+                "message": "Data adsense domain berhasil ditambahkan"
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
         
     def get_all_adx_traffic_account_by_params(self, start_date, end_date, account_list = None, selected_domain_list = None):
         try:
@@ -3558,6 +3704,49 @@ class data_mysql:
             hasil = {
                 "status": True,
                 "message": "Data country list berhasil diambil",
+                "data": data
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                "data": f"Terjadi error {e!r}, error nya {e.args[0]}"
+            }
+        except Exception as e:
+            hasil = {
+                "status": "error",
+                "message": "Gagal mengambil data negara.",
+                "error": str(e)
+            }
+        return {"hasil": hasil}
+
+    def fetch_country_list_adsense(self, start_date, end_date, selected_account=None):
+        try:
+            base_sql = [
+                "SELECT",
+                "\tb.data_adsense_country_cd AS 'country_code',",
+                "\tb.data_adsense_country_nm AS 'country_name'",
+                "FROM",
+                "\tapp_credentials a",
+                "INNER JOIN data_adsense_country b ON a.account_id = b.account_id",
+                "\tWHERE",
+            ]
+            params = []
+            base_sql.append("b.data_adsense_country_tanggal BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+            if selected_account:
+                base_sql.append(f"\tAND b.account_id LIKE %s")
+                params.append(f"{selected_account}%")
+            base_sql.append("GROUP BY b.data_adsense_country_cd, b.data_adsense_country_nm")
+            base_sql.append("ORDER BY b.data_adsense_country_cd ASC")
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get all adsense country list by params")
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get all adsense country list by params")
+            hasil = {
+                "status": True,
+                "message": "Data adsense country list berhasil diambil",
                 "data": data
             }
         except pymysql.Error as e:

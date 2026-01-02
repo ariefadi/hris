@@ -1,8 +1,7 @@
 /**
  * Reference Ajax AdSense Traffic Per Country
  */
-
-$().ready(function () {
+$(document).ready(function () {
     report_eror = function (jqXHR, exception) {
         var msg = '';
         if (jqXHR.status === 0) {
@@ -22,11 +21,9 @@ $().ready(function () {
         }
         alert(msg);
     };
-    
     // Initialize date pickers (Flatpickr first, fallback ke jQuery datepicker)
     var today = new Date();
     var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-
     if (typeof flatpickr !== 'undefined') {
         flatpickr('#tanggal_dari', {
             dateFormat: 'Y-m-d',
@@ -43,23 +40,21 @@ $().ready(function () {
             autoclose: true,
             todayHighlight: true
         }).datepicker('setDate', lastWeek);
-
         $('#tanggal_sampai').datepicker({
             format: 'yyyy-mm-dd',
             autoclose: true,
             todayHighlight: true
         }).datepicker('setDate', today);
     }
-    
     // Initialize Select2 for account filter
     $('#account_filter').select2({
-        placeholder: 'Pilih Akun (Opsional)',
+        placeholder: '-- Pilih Account Terdaftar --',
         allowClear: true,
         width: '100%',
         height: '100%',
         theme: 'bootstrap4'
     });
-
+    let allAccountOptions = $('#account_filter').html();  
     // Initialize Select2 for country filter (multi-select with tags)
     $('#country_filter').select2({
         placeholder: 'Pilih Negara (Opsional)',
@@ -71,457 +66,668 @@ $().ready(function () {
         tokenSeparators: [','],
         closeOnSelect: false
     });
-
-    // Populate country options based on selected account and date range
-    function populateCountryOptions() {
-        var start_date = $('#tanggal_dari').val();
-        var end_date = $('#tanggal_sampai').val();
-        var account_filter = $('#account_filter').val();
-
-        if (!start_date || !end_date) {
-            return; // need dates to query countries
+    $('#btn_load_data').click(function (e) {
+        var tanggal_dari = $("#tanggal_dari").val();
+        var tanggal_sampai = $("#tanggal_sampai").val();
+        var selected_account = $("#account_filter").val();
+        if (tanggal_dari != "" && tanggal_sampai != "") {
+            e.preventDefault();
+            $("#overlay").show();
+            load_country_options(selected_account);
+            load_adsense_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account);
+        } else {
+            alert('Silakan pilih tanggal dari dan sampai');
         }
+    });
+    // Fungsi untuk memuat opsi negara ke select2
+    function load_country_options(selected_account) {
+        // Simpan pilihan country yang sudah dipilih sebelumnya
+        var previouslySelected = $("#country_filter").val() || [];
+        $.ajax({
+            url: '/management/admin/get_countries_adsense',
+            type: 'GET',
+            dataType: 'json',
+            data: {
+                'selected_account': selected_account
+            },
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': csrftoken
+            },
+            success: function (response) {
+                if (response.status) {
+                    var select_country = $('#country_filter');
+                    select_country.empty();
 
-        // Require account selection before loading countries to avoid backend errors
-        if (!account_filter) {
-            $('#country_filter').prop('disabled', true);
-            $('#country_filter').empty().append('<option value="">Pilih akun terlebih dahulu</option>');
-            $('#country_filter').trigger('change');
+                    // Tambahkan opsi baru dan pertahankan pilihan sebelumnya jika masih tersedia
+                    var validPreviousSelections = [];
+                    $.each(response.countries, function (index, country) {
+                        var isSelected = previouslySelected.includes(country.code);
+                        if (isSelected) {
+                            validPreviousSelections.push(country.code);
+                        }
+                        select_country.append(new Option(country.name, country.code, false, isSelected));
+                    });
+                    // Set nilai yang dipilih kembali
+                    if (validPreviousSelections.length > 0) {
+                        select_country.val(validPreviousSelections);
+                    }
+                    select_country.trigger('change');
+                }
+            },
+            error: function (xhr, status, error) {
+                report_eror(xhr, status);
+            }
+        });
+    }
+    
+    // Fungsi untuk format tanggal ke format input (YYYY-MM-DD)
+    function formatDateForInput(date) {
+        var year = date.getFullYear();
+        var month = String(date.getMonth() + 1).padStart(2, '0');
+        var day = String(date.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+    }
+
+    // Fungsi untuk format mata uang IDR
+    function formatCurrencyIDR(value) {
+        // Convert to number, round to remove decimals, then format with Rp
+        let numValue = parseFloat(value.toString().replace(/[$,]/g, ''));
+        if (isNaN(numValue)) return value;
+        // Round to remove decimals and format with Indonesian number format
+        return 'Rp ' + Math.round(numValue).toLocaleString('id-ID');
+    }
+
+    // Fungsi untuk load data traffic per country
+    function load_adsense_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account) {
+        var startDate = tanggal_dari;
+        var endDate = tanggal_sampai;
+        var selected_account = selected_account;
+        var selectedCountries = $('#country_filter').val();
+        if (!startDate || !endDate) {
+            alert('Silakan pilih rentang tanggal');
+            return;
+        }
+        // Convert array to comma-separated string for backend
+        var accountFilter = '';
+        if (selected_account && selected_account.length > 0) {
+            accountFilter = selected_account.join(',');
+        }
+        // Convert array to comma-separated string for backend
+        var countryFilter = '';
+        if (selectedCountries && selectedCountries.length > 0) {
+            countryFilter = selectedCountries.join(',');
+        }
+        // Tampilkan overlay loading
+        $('#overlay').show();
+        // Destroy existing DataTable if exists
+        if ($.fn.DataTable.isDataTable('#table_traffic_country')) {
+            $('#table_traffic_country').DataTable().destroy();
+        }
+        // AJAX request
+        $.ajax({
+            url: '/management/admin/adsense_traffic_country_data',
+            type: 'GET',
+            data: {
+                start_date: startDate,
+                end_date: endDate,
+                selected_account: accountFilter,
+                selected_countries: countryFilter
+            },
+            headers: {
+                'X-CSRFToken': csrftoken
+            },
+            success: function (response) {
+                if (response && response.status) {
+                    // Update summary boxes
+                    updateSummaryBoxes(response.summary);
+                    $('#summary_boxes').show();
+                    // Initialize DataTable
+                    initializeDataTable(response.data);
+                    // Generate charts if data available
+                    createCountryMap(response.data);
+                    $('#charts_section').show();
+                    $('#overlay').hide();
+                } else {
+                    var errorMsg = response.error || 'Terjadi kesalahan yang tidak diketahui';
+                    console.error('[DEBUG] Response error:', errorMsg);
+                    alert('Error: ' + errorMsg);
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error('[DEBUG] AJAX Error:', {
+                    xhr: xhr,
+                    status: status,
+                    error: error
+                });
+                $('#overlay').hide();
+                report_eror('Terjadi kesalahan saat memuat data: ' + error);
+            }
+        });
+    }
+
+    function getSelectedTextList(selector) { 
+        var $el = $(selector);
+        var items = [];
+        try {
+            var s2 = $el.select2('data');
+            if (Array.isArray(s2) && s2.length) {
+                items = s2.map(function (d) {
+                    return d && d.text ? String(d.text) : '';
+                });
+            }
+        } catch (e) {
+            items = [];
+        }
+        if (!items || items.length === 0) {
+            try {
+                items = $el.find('option:selected').map(function () {
+                    return $(this).text();
+                }).get();
+            } catch (e) {
+                items = [];
+            }
+        }
+        return (items || []).map(function (t) {
+            return String(t || '').trim();
+        }).filter(function (t) {
+            return t;
+        });
+    }
+
+    function escapeHtml(text) {
+        return String(text || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/\"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function escapeXmlText(text) {
+        return String(text || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    function formatDateID(d) {
+        if (!d) return '-';
+        var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        try {
+            var date = new Date(d + 'T00:00:00');
+            return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear();
+        } catch (e) {
+            return d;
+        }
+    }
+
+    function getExportMetaTrafficCountry() {
+        var start = $('#tanggal_dari').val();
+        var end = $('#tanggal_sampai').val();
+        var titleText = 'Traffic AdX Per Negara';
+        var periodText = 'Periode ' + formatDateID(start) + ' s/d ' + formatDateID(end);
+
+        var accounts = getSelectedTextList('#account_filter');
+        var domains = getSelectedTextList('#domain_filter');
+
+        return {
+            titleText: titleText,
+            periodText: periodText,
+            accountText: accounts.length ? ('Account: ' + accounts.join(', ')) : '',
+            domainText: domains.length ? ('Domain: ' + domains.join(', ')) : ''
+        };
+    }
+
+    // Fungsi untuk update summary boxes
+    function updateSummaryBoxes(data) {
+        var totalImpressions = Number(data.total_impressions || 0);
+        var totalClicks = Number(data.total_clicks || 0);
+        var totalRevenue = parseFloat(data.total_revenue || 0) || 0;
+        var totalCtrRatio = parseFloat(data.total_ctr || 0) || 0;
+        $('#total_impressions').text(totalImpressions.toLocaleString('id-ID'));
+        $('#total_clicks').text(totalClicks.toLocaleString('id-ID'));
+        $('#total_ctr').text(totalCtrRatio > 0 ? (totalCtrRatio * 100).toFixed(2) + '%' : '0%');
+        $('#total_revenue').text(formatCurrencyIDR(totalRevenue));
+    }
+
+    // Fungsi untuk inisialisasi DataTable
+    function initializeDataTable(data) {
+        var tableData = [];
+        if (data && Array.isArray(data)) {
+            data.forEach(function (row) {
+                var countryFlag = '';
+                if (row.country_code) {
+                    countryFlag = '<img src="https://flagcdn.com/16x12/' + String(row.country_code).toLowerCase() + '.png" alt="' + row.country_code + '" style="margin-right: 5px;"> ';
+                }
+                var impressionsNum = Number(row.impressions || 0);
+                var clicksNum = Number(row.clicks || 0);
+                var ctrNum = parseFloat(row.ctr);
+                if (isNaN(ctrNum)) ctrNum = 0;
+                var cpcNum = parseFloat(row.cpc || 0) || 0;
+                var ecpmNum = parseFloat(row.ecpm || 0) || 0;
+                var revenueNum = parseFloat(row.revenue || 0) || 0;
+
+                tableData.push([
+                    countryFlag + (row.country_name || ''),
+                    row.country_code || '',
+                    impressionsNum.toLocaleString('id-ID'),
+                    clicksNum.toLocaleString('id-ID'),
+                    ctrNum.toFixed(2) + '%',
+                    formatCurrencyIDR(cpcNum),
+                    formatCurrencyIDR(ecpmNum),
+                    revenueNum
+                ]);
+            });
+        }
+        // Destroy existing DataTable if it exists
+        if ($.fn.DataTable.isDataTable('#table_traffic_country')) {
+            $('#table_traffic_country').DataTable().destroy();
+        }
+        var table = $('#table_traffic_country').DataTable({
+            data: tableData,
+            responsive: true,
+            pageLength: 25,
+            lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Semua"]],
+            language: {
+                "decimal": ",",
+                "thousands": ".",
+                "info": "Menampilkan _START_ sampai _END_ dari _TOTAL_ entri",
+                "infoEmpty": "Menampilkan 0 sampai 0 dari 0 entri",
+                "infoFiltered": "(disaring dari _MAX_ total entri)",
+                "lengthMenu": "Tampilkan _MENU_ entri",
+                "loadingRecords": "Memuat...",
+                "processing": "Memproses...",
+                "search": "Cari:",
+                "zeroRecords": "Tidak ada data yang cocok",
+                "paginate": {
+                    "first": "Pertama",
+                    "last": "Terakhir",
+                    "next": "Selanjutnya",
+                    "previous": "Sebelumnya"
+                }
+            },
+            dom: 'Blfrtip',
+            buttons: [
+                {
+                    extend: 'excel',
+                    text: 'Export Excel',
+                    className: 'btn btn-success',
+                    exportOptions: { columns: ':visible' },
+                    title: function () { 
+                        var meta = getExportMetaTrafficCountry();
+                        let title = 'Traffic AdX Per Negara';
+                        if (meta.periodText) title += ' ' + meta.periodText;
+                        if (meta.accountText) title += ' ' + meta.accountText;
+                        if (meta.domainText) title += ' ' + meta.domainText;
+                        return title;
+                    },
+                    customize: function (xlsx) {
+                        var meta = getExportMetaTrafficCountry();
+                        var headerRows = [meta.titleText, meta.periodText];
+                        if (meta.accountText) headerRows.push(meta.accountText);
+                        if (meta.domainText) headerRows.push(meta.domainText);
+
+                        var sheet = xlsx.xl.worksheets['sheet1.xml'];
+                        var numrows = headerRows.length;
+
+                        $('row', sheet).each(function () {
+                            var r = parseInt($(this).attr('r'));
+                            $(this).attr('r', r + numrows);
+                        });
+                        $('row c', sheet).each(function () {
+                            var attr = $(this).attr('r');
+                            var col = attr.replace(/[0-9]/g, '');
+                            var row = parseInt(attr.replace(/[A-Z]/g, ''));
+                            $(this).attr('r', col + (row + numrows));
+                        });
+
+                        for (var i = headerRows.length; i >= 1; i--) {
+                            var txt = escapeXmlText(headerRows[i - 1]);
+                            var rowXml = '<row r="' + i + '"><c t="inlineStr" r="A' + i + '" s="51"><is><t>' + txt + '</t></is></c></row>';
+                            $('sheetData', sheet).prepend(rowXml);
+                        }
+
+                        var merges = $('mergeCells', sheet);
+                        var mergeXml = '';
+                        for (var m = 1; m <= headerRows.length; m++) {
+                            mergeXml += '<mergeCell ref="A' + m + ':H' + m + '"/>';
+                        }
+                        if (merges.length === 0) {
+                            $('worksheet', sheet).append('<mergeCells count="' + headerRows.length + '">' + mergeXml + '</mergeCells>');
+                        } else {
+                            var c = parseInt(merges.attr('count') || '0');
+                            merges.attr('count', c + headerRows.length);
+                            merges.append(mergeXml);
+                        }
+                    }
+                },
+                {
+                    extend: 'pdf',
+                    text: 'Export PDF',
+                    className: 'btn btn-danger',
+                    exportOptions: { columns: ':visible' },
+                    title: function () { 
+                        var meta = getExportMetaTrafficCountry();
+                        let title = 'Traffic AdX Per Negara';
+                        if (meta.periodText) title += ' ' + meta.periodText;
+                        if (meta.accountText) title += ' ' + meta.accountText;
+                        if (meta.domainText) title += ' ' + meta.domainText;
+                        return title;
+                    },
+                    customize: function (doc) {
+                        var meta = getExportMetaTrafficCountry();
+                        var inserts = [];
+                        inserts.push({ text: meta.periodText, style: 'header', alignment: 'center', margin: [0, 0, 0, 6] });
+                        if (meta.accountText) inserts.push({ text: meta.accountText, alignment: 'center', margin: [0, 0, 0, 4] });
+                        if (meta.domainText) inserts.push({ text: meta.domainText, alignment: 'center', margin: [0, 0, 0, 8] });
+                        doc.content.splice(1, 0, ...inserts);
+                    }
+                },
+                {
+                    extend: 'copy',
+                    text: 'Copy',
+                    className: 'btn btn-info',
+                    exportOptions: { columns: ':visible' },
+                    customize: function (txt) {
+                        var meta = getExportMetaTrafficCountry();
+                        var header = meta.titleText + '\n' + meta.periodText;
+                        if (meta.accountText) header += '\n' + meta.accountText;
+                        if (meta.domainText) header += '\n' + meta.domainText;
+                        header += '\n\n';
+                        return header + txt;
+                    }
+                },
+                {
+                    extend: 'csv',
+                    text: 'Export CSV',
+                    className: 'btn btn-primary',
+                    exportOptions: { columns: ':visible' },
+                    customize: function (csv) {
+                        var meta = getExportMetaTrafficCountry();
+                        var out = meta.titleText + '\n' + meta.periodText;
+                        if (meta.accountText) out += '\n' + meta.accountText;
+                        if (meta.domainText) out += '\n' + meta.domainText;
+                        return out + '\n\n' + csv;
+                    }
+                },
+                {
+                    extend: 'print',
+                    text: 'Print',
+                    className: 'btn btn-warning',
+                    exportOptions: { columns: ':visible' },
+                    title: function () { 
+                        var meta = getExportMetaTrafficCountry();
+                        let title = '<h3 style="text-align:center;margin:0">Traffic AdX Per Negara</h3>';
+                        if (meta.periodText) title += ' ' + meta.periodText;
+                        if (meta.accountText) title += ' ' + meta.accountText;
+                        if (meta.domainText) title += ' ' + meta.domainText;
+                        return title;
+                    },
+                    messageTop: function () {
+                        var meta = getExportMetaTrafficCountry();
+                        var html = '<div style="text-align:center;margin-bottom:8px">' + escapeHtml(meta.periodText) + '</div>';
+                        if (meta.accountText) html += '<div style="text-align:center;margin-bottom:4px">' + escapeHtml(meta.accountText) + '</div>';
+                        if (meta.domainText) html += '<div style="text-align:center;margin-bottom:8px">' + escapeHtml(meta.domainText) + '</div>';
+                        return html;
+                    }
+                },
+                {
+                    extend: 'colvis',
+                    text: 'Column Visibility',
+                    className: 'btn btn-default',
+                    exportOptions: { columns: ':visible' }
+                }
+            ],
+            columnDefs: [
+                {
+                    targets: 7,
+                    type: 'num',
+                    render: function (data, type, row) {
+                        if (type === 'display') {
+                            return formatCurrencyIDR(data || 0);
+                        }
+                        return data; // gunakan nilai numerik untuk sort/filter
+                    }
+                }
+            ]
+        });
+
+        // Paksa urutan setelah inisialisasi untuk memastikan tidak tertimpa
+        table.order([7, 'desc']).draw();
+    }
+
+    // Fungsi untuk membuat chart dengan Highcharts Maps
+    function createCountryMap(data) {
+        console.log('[DEBUG] createCountryMap called with data length:', data ? data.length : 0);
+
+        // Jika tidak ada data, pastikan charts dibersihkan dan section disembunyikan
+        if (!data || data.length === 0) {
+            if (window.countryMapInstance) {
+                try { window.countryMapInstance.destroy(); } catch (e) { console.warn('Failed to destroy world map:', e); }
+                window.countryMapInstance = null;
+            }
+            $('#charts_section').hide();
             return;
         }
 
-        // Disable while loading and show temporary message
-        $('#country_filter').prop('disabled', true);
-        $('#country_filter').empty().append('<option value="">Memuat daftar negara...</option>');
-        $('#country_filter').trigger('change');
+        // Prepare data for Highcharts Maps
+        var mapData = [];
+        var maxRevenue = 0;
+        var minRevenue = Infinity;
 
-        $.ajax({
-            url: '/management/admin/adsense_traffic_country_data',
-            type: 'POST',
-            data: {
-                'start_date': start_date,
-                'end_date': end_date,
-                'account_filter': account_filter || '',
-                'country_filter': '' // request all, server supports filtering later
-            },
-            success: function (response) {
-                var countriesSet = new Set();
-                var countries = [];
-
-                if (response && response.status && Array.isArray(response.data)) {
-                    response.data.forEach(function(item) {
-                        var name = (item.country || '').trim();
-                        if (name && !countriesSet.has(name)) {
-                            countriesSet.add(name);
-                            countries.push(name);
-                        }
-                    });
+        // Process data and find max revenue for color scaling
+        data.forEach(function (item) {
+            var revenue = parseFloat(item.revenue) || 0;
+            if (revenue > 0) {
+                if (revenue > maxRevenue) {
+                    maxRevenue = revenue;
+                }
+                if (revenue < minRevenue) {
+                    minRevenue = revenue;
                 }
 
-                // Sort alphabetically
-                countries.sort(function(a, b){return a.localeCompare(b);});
-
-                // Rebuild options
-                $('#country_filter').empty();
-                // Keep a default empty option for clear
-                $('#country_filter').append('<option value="">Semua Negara</option>');
-                countries.forEach(function(name){
-                    $('#country_filter').append('<option value="' + name + '">' + name + '</option>');
-                });
-            },
-            error: function () {
-                // On error, clear options gracefully
-                $('#country_filter').empty().append('<option value="">Semua Negara</option>');
-            },
-            complete: function () {
-                $('#country_filter').prop('disabled', false).trigger('change');
-            }
-        });
-    }
-
-    // Auto load data on page load
-    var tanggal_dari = $("#tanggal_dari").val();
-    var tanggal_sampai = $("#tanggal_sampai").val();
-    if (tanggal_dari != "" && tanggal_sampai != "") {
-        loadAccountsList();
-        // Populate countries once dates are set
-        populateCountryOptions();
-    }
-
-    // Re-populate country options when account or dates change
-    $('#account_filter').on('change', function(){
-        populateCountryOptions();
-    });
-    $('#tanggal_dari, #tanggal_sampai').on('change', function(){
-        populateCountryOptions();
-    });
-    
-    // Load accounts list on page load
-    function loadAccountsList() {
-        $.ajax({
-            url: '/management/admin/adsense_credentials_list',
-            type: 'GET',
-            dataType: 'json',
-            success: function(response) {
-                if (response.status) {
-                    // Clear existing options except the first one
-                    $('#account_filter').empty().append('<option value="">Semua Akun</option>');
-                    
-                    // Add accounts to dropdown (value: user_mail, text: account_name)
-                    response.data.forEach(function(account) {
-                        $('#account_filter').append('<option value="' + account.user_mail + '">' + (account.account_name || account.user_mail) + '</option>');
+                // Map country codes to Highcharts format
+                var countryCode = item.country_code;
+                if (countryCode) {
+                    mapData.push({
+                        'hc-key': countryCode.toLowerCase(),
+                        code: countryCode,
+                        name: item.country_name || 'Unknown',
+                        value: revenue,
+                        impressions: item.impressions || 0,
+                        clicks: item.clicks || 0,
+                        ctr: item.ctr || 0,
+                        cpc: item.cpc || 0,
+                        ecpm: item.ecpm || 0
                     });
-                    
-                    // Refresh Select2
-                    $('#account_filter').trigger('change');
-
-                    // Populate countries based on newly loaded accounts
-                    populateCountryOptions();
-                } else {
-                    console.error('Failed to load accounts:', response.error);
                 }
-            },
-            error: function(xhr, status, error) {
-                console.error('Error loading accounts:', error);
             }
         });
-    }
-    
-    $('#btn_load_data').click(function (e) {
-        load_adsense_traffic_country_data();
-    });
-    
-    // Initialize DataTable on page load
-    initializeDataTable();
-});
-
-// Initialize DataTable with error handling - Global function
-var dataTable;
-function initializeDataTable() {
-    if ($.fn.DataTable.isDataTable('#table_traffic_country')) {
-        $('#table_traffic_country').DataTable().destroy();
-    }
-    
-    dataTable = $('#table_traffic_country').DataTable({
-        "responsive": true,
-        "lengthChange": false,
-        "autoWidth": false,
-        "buttons": ["copy", "csv", "excel", "pdf", "print", "colvis"],
-        "columnDefs": [
-            {
-                "targets": [2, 3, 4, 5, 6, 7], // Numeric columns (Klik, Tayangan, CTR, CPM, CPC, Pendapatan)
-                "className": "text-right"
-            }
-        ],
-        "language": {
-            "emptyTable": "Tidak ada data yang tersedia",
-            "info": "Menampilkan _START_ sampai _END_ dari _TOTAL_ entri",
-            "infoEmpty": "Menampilkan 0 sampai 0 dari 0 entri",
-            "infoFiltered": "(disaring dari _MAX_ total entri)",
-            "lengthMenu": "Tampilkan _MENU_ entri",
-            "loadingRecords": "Memuat...",
-            "processing": "Sedang memproses...",
-            "search": "Cari:",
-            "zeroRecords": "Tidak ditemukan data yang sesuai"
+        // Create fixed color ranges with more vibrant colors and informative labels
+        var ranges = [
+            { from: null, to: null, color: '#E6E7E8', name: 'Tidak ada data' },
+            { from: 0, to: 50000, color: '#E6F2FF', name: 'Rp.0 - Rp.50.000' },
+            { from: 50000, to: 100000, color: '#CDE7FF', name: 'Lebih dari Rp.50.000 - Rp.100.000' },
+            { from: 100000, to: 500000, color: '#9FD0FF', name: 'Lebih dari Rp.100.000 - Rp.500.000' },
+            { from: 500000, to: 1000000, color: '#6FB8FF', name: 'Lebih dari Rp.500.000 - Rp.1.000.000' },
+            { from: 1000000, to: 5000000, color: '#3FA0FF', name: 'Lebih dari Rp.1.000.000 - Rp.5.000.000' },
+            { from: 5000000, to: 10000000, color: '#0077CC', name: 'Lebih dari Rp.5.000.000 - Rp.10.000.000' },
+            { from: 10000000, to: Infinity, color: '#004080', name: '> Rp.10.000.000' }
+        ];
+        // Destroy existing chart if any
+        if (window.countryMapInstance) {
+            try { window.countryMapInstance.destroy(); } catch (e) { console.warn('Failed to destroy world map:', e); }
+            window.countryMapInstance = null;
         }
-    });
-    
-    if (dataTable && dataTable.buttons) {
-        dataTable.buttons().container().appendTo('#table_traffic_country_wrapper .col-md-6:eq(0)');
-    }
-}
-
-function load_adsense_traffic_country_data() {
-    var start_date = $('#tanggal_dari').val();
-    var end_date = $('#tanggal_sampai').val();
-    var account_filter = $('#account_filter').val();
-    var country_filter = $('#country_filter').val();
-    // If multiple selected values (array), send as comma-separated string
-    if (Array.isArray(country_filter)) {
-        country_filter = country_filter.join(',');
-    }
-    
-    if (!start_date || !end_date) {
-        alert('Please select both start and end dates.');
-        return;
-    }
-
-    // Require account selection to minimize server errors
-    if (!account_filter) {
-        // Tampilkan peringatan yang jelas dan fokuskan ke filter akun
-        alert('Filter Account harus dipilih terlebih dahulu.');
-        $('#account_filter').select2('open');
-        return;
-    }
-    
-    $("#overlay").show();
-    
-    $.ajax({
-        url: '/management/admin/adsense_traffic_country_data',
-        type: 'POST',
-        data: {
-            'start_date': start_date,
-            'end_date': end_date,
-            'account_filter': account_filter,
-            'country_filter': country_filter
-        },
-        success: function (response) {
-            $("#overlay").hide();
-            
-            if (response && response.status) {
-                // Update summary boxes
-                if (response.summary) {
-                    $("#total_impressions").text(formatNumber(response.summary.total_impressions || 0));
-                    $("#total_clicks").text(formatNumber(response.summary.total_clicks || 0));
-                    $("#total_revenue").text(formatCurrencyIDR(response.summary.total_revenue || 0));
-                    $("#avg_ctr").text(formatNumber(response.summary.avg_ctr || 0, 2) + '%');
-                    $("#average_cpc").text(formatCurrencyIDR(response.summary.avg_cpc || 0));
-                    $("#avg_cpm").text(formatCurrencyIDR(response.summary.avg_cpm || 0));
-                    
-                    // Show summary boxes
-                    $('#summary_boxes').show();
-                    $('#summary_boxes_2').show();
-                }
-                
-                // Update DataTable
-                var table = $('#table_traffic_country').DataTable();
-                table.clear();
-                
-                // Check if there's a message (no data scenario)
-                if (response.message) {
-                    // Show informative message for no data
-                    table.row.add([
-                        '',
-                        '',
-                        '<div class="alert alert-info" style="margin: 20px; text-align: left;"><h5><i class="fas fa-info-circle"></i> Tidak Ada Data AdSense</h5><p>' + response.message + '</p><hr><small><strong>Saran:</strong><br>• Periksa <a href="https://www.google.com/adsense/" target="_blank">Google AdSense Dashboard</a> untuk memverifikasi data<br>• Pastikan kode iklan AdSense sudah terpasang dengan benar di website<br>• Coba periode tanggal yang berbeda jika akun baru saja aktif</small></div>',
-                        '', '', '', '', '', ''
-                    ]);
-                }
-                // Populate table with data
-                else if (response.data && response.data.length > 0) {
-                    var rowNumber = 1;
-                    response.data.forEach(function(item) {
-                        table.row.add([
-                            rowNumber++,
-                            item.country || '-',
-                            formatNumber(item.clicks || 0),
-                            formatNumber(item.impressions || 0),
-                            formatNumber(item.ctr || 0, 2) + '%',
-                            formatCurrencyIDR(item.cpm || 0),
-                            formatCurrencyIDR(item.cpc || 0),
-                            formatCurrencyIDR(item.revenue || 0)
-                        ]);
-                    });
-                } else {
-                    table.row.add([
-                        '', '', 'Tidak ada data tersedia untuk periode ini',
-                        '', '', '', '', '', ''
-                    ]);
-                }
-                
-                table.draw();
-                
-                // Reinitialize DataTable after data is loaded
-                initializeDataTable();
-
-                // Render world map based on impressions per country
-                try {
-                    var mapData = Array.isArray(response.data) ? response.data : [];
-                    renderWorldMap(mapData);
-                } catch (e) {
-                    console.error('Failed to render world map:', e);
-                }
-                
-                showSuccessMessage('Traffic data loaded successfully!');
-            } else {
-                // Tampilkan error yang lebih informatif bila akun tidak memiliki AdSense
-                var errMsg = (response && response.error ? response.error : 'Unknown error occurred');
-                alert('Info: ' + errMsg);
+        // Create Highcharts Map
+        try {
+            // Check if Highcharts is available
+            if (typeof Highcharts === 'undefined' || !Highcharts.mapChart) {
+                throw new Error('Highcharts Maps library not loaded');
             }
-        },
-        error: function (jqXHR, textStatus, errorThrown) {
-            $("#overlay").hide();
-            report_eror(jqXHR, textStatus);
-        }
-    });
-}
-
-// Render Highcharts world map with impressions as value
-function renderWorldMap(countries) {
-    if (typeof Highcharts === 'undefined' || !Highcharts.mapChart) {
-        console.warn('Highcharts Maps is not loaded. Skipping map rendering.');
-        return;
-    }
-
-    if (!Highcharts.maps || !Highcharts.maps['custom/world']) {
-        console.warn('World map data not available. Ensure world.js is loaded.');
-        return;
-    }
-
-    // Prepare data similar to AdX: use revenue, join by hc-key
-    var mapData = [];
-    (countries || []).forEach(function(item) {
-        var code = (item.country_code || '').toLowerCase();
-        var revenue = parseFloat(item.revenue || 0) || 0;
-        if (!code) return; // skip if no code
-        mapData.push({
-            'hc-key': code,
-            code: item.country_code || '',
-            name: item.country || 'Unknown',
-            value: revenue,
-            impressions: item.impressions || 0,
-            clicks: item.clicks || 0,
-            ctr: item.ctr || 0,
-            cpm: item.cpm || 0,
-            cpc: item.cpc || 0
-        });
-    });
-
-    // Define fixed ranges identical to AdX
-    var ranges = [
-        { from: null, to: null, color: '#E6E7E8', name: 'Tidak ada data' },
-        { from: 0, to: 50000, color: '#E6F2FF', name: 'Rp.0 - Rp.50.000' },
-        { from: 50000, to: 100000, color: '#CDE7FF', name: 'Lebih dari Rp.50.000 - Rp.100.000' },
-        { from: 100000, to: 500000, color: '#9FD0FF', name: 'Lebih dari Rp.100.000 - Rp.500.000' },
-        { from: 500000, to: 1000000, color: '#6FB8FF', name: 'Lebih dari Rp.500.000 - Rp.1.000.000' },
-        { from: 1000000, to: 5000000, color: '#3FA0FF', name: 'Lebih dari Rp.1.000.000 - Rp.5.000.000' },
-        { from: 5000000, to: 10000000, color: '#0077CC', name: 'Lebih dari Rp.5.000.000 - Rp.10.000.000' },
-        { from: 10000000, to: Infinity, color: '#004080', name: '> Rp.10.000.000' }
-    ];
-
-    try {
-        window.adsenseMapInstance && window.adsenseMapInstance.destroy && window.adsenseMapInstance.destroy();
-    } catch (e) { console.warn('Failed to destroy previous map:', e); }
-    window.adsenseMapInstance = null;
-
-    try {
-        window.adsenseMapInstance = Highcharts.mapChart('worldMapAdsense', {
-            chart: {
-                map: 'custom/world',
-                backgroundColor: 'transparent',
-                style: { fontFamily: 'Arial, sans-serif' }
-            },
-            title: {
-                text: 'Pendapatan AdSense Per Negara',
-                style: { fontSize: '16px', fontWeight: '600', color: '#333' }
-            },
-            subtitle: {
-                text: 'Berdasarkan data traffic dan revenue',
-                style: { fontSize: '12px', color: '#666' }
-            },
-            mapNavigation: {
-                enabled: true,
-                buttonOptions: {
-                    verticalAlign: 'bottom',
-                    theme: {
-                        fill: 'white',
-                        'stroke-width': 1,
-                        stroke: 'silver',
-                        r: 0,
-                        states: {
-                            hover: { fill: '#a4edba' },
-                            select: { stroke: '#039', fill: '#a4edba' }
-                        }
+            // Ensure map container is visible and has proper dimensions
+            $('#worldMapAdsense').css({
+                'height': '500px',
+                'width': '100%',
+                'display': 'block',
+                'visibility': 'visible'
+            });
+            // Check if we have data to display
+            if (mapData.length === 0) {
+                $('#worldMapAdsense').html('<div style="text-align: center; padding: 100px; color: #666; font-size: 16px;">Tidak ada data untuk ditampilkan.<br>Silakan pilih tanggal dan akun, lalu klik Load Data.</div>');
+                return;
+            }
+            window.countryMapInstance = Highcharts.mapChart('worldMapAdsense', {
+                chart: {
+                    map: 'custom/world',
+                    backgroundColor: 'transparent',
+                    style: {
+                        fontFamily: 'Arial, sans-serif'
                     }
-                }
-            },
-            colorAxis: {
-                min: 0,
-                minColor: '#E6F2FF',
-                maxColor: '#004080',
-                dataClasses: ranges.map(function(range){
-                    return { from: range.from, to: range.to, color: range.color, name: range.name };
-                })
-            },
-            legend: {
-                title: { text: 'Tingkat Pendapatan', style: { color: '#333', fontSize: '12px' } },
-                align: 'left',
-                verticalAlign: 'bottom',
-                floating: true,
-                layout: 'vertical',
-                valueDecimals: 0,
-                backgroundColor: 'rgba(255,255,255,0.9)',
-                symbolRadius: 0,
-                symbolHeight: 14
-            },
-            series: [{
-                name: 'Negara',
-                data: mapData,
-                joinBy: ['hc-key', 'hc-key'],
-                nullColor: '#E6E7E8',
-                tooltip: {
-                    backgroundColor: 'rgba(0,0,0,0.85)',
-                    style: { color: 'white' },
-                    pointFormatter: function() {
-                        var formattedValue = 'Rp ' + Math.round(this.value).toLocaleString('id-ID');
-                        return '<b>' + this.name + '</b><br>' +
-                               'Kode: ' + (this.code || '-') + '<br>' +
-                               'Pendapatan: <b>' + formattedValue + '</b><br>';
-                    },
-                    nullFormat: '<b>{point.name}</b><br>Tidak ada data traffic'
                 },
-                borderColor: '#606060',
-                borderWidth: 0.5,
-                states: { hover: { color: '#FFD700' } },
-                allAreas: true
-            }],
-            exporting: {
-                enabled: true,
-                buttons: {
-                    contextButton: {
+                title: {
+                    text: 'Pendapatan AdX Per Negara',
+                    style: {
+                        fontSize: '16px',
+                        fontWeight: '600',
+                        color: '#333'
+                    }
+                },
+                subtitle: {
+                    text: 'Berdasarkan data traffic dan revenue',
+                    style: {
+                        fontSize: '12px',
+                        color: '#666'
+                    }
+                },
+                mapNavigation: {
+                    enabled: false,
+                    buttonOptions: {
+                        verticalAlign: 'bottom',
                         theme: {
                             fill: 'white',
                             'stroke-width': 1,
                             stroke: 'silver',
                             r: 0,
-                            states: { hover: { fill: '#a4edba' } }
+                            states: {
+                                hover: {
+                                    fill: '#a4edba'
+                                },
+                                select: {
+                                    stroke: '#039',
+                                    fill: '#a4edba'
+                                }
+                            }
+                        }
+                    }
+                },
+                colorAxis: {
+                    min: 0,
+                    minColor: '#FFF2CC', // Warna kuning muda untuk pendapatan terendah
+                    maxColor: '#A4161A', // Warna merah tua untuk pendapatan tertinggi
+                    dataClasses: ranges.map(function (range) {
+                        return {
+                            from: range.from,
+                            to: range.to,
+                            color: range.color,
+                            name: range.name
+                        };
+                    })
+                },
+                legend: {
+                    title: {
+                        text: 'Tingkat Pendapatan',
+                        style: {
+                            color: '#333',
+                            fontSize: '12px'
+                        }
+                    },
+                    align: 'left',
+                    verticalAlign: 'bottom',
+                    floating: true,
+                    layout: 'vertical',
+                    valueDecimals: 0,
+                    backgroundColor: 'rgba(255,255,255,0.9)',
+                    symbolRadius: 0,
+                    symbolHeight: 14
+                },
+                series: [{
+                    name: 'Negara',
+                    data: mapData,
+                    joinBy: ['hc-key', 'hc-key'],
+                    nullColor: '#E6E7E8', // Warna abu-abu untuk negara tanpa data
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.85)',
+                        style: {
+                            color: 'white'
                         },
-                        menuItems: ['viewFullscreen', 'separator', 'downloadPNG', 'downloadJPEG', 'downloadPDF', 'downloadSVG']
+                        pointFormat: '<b>{point.name}</b><br>' +
+                            'Kode: {point.code}<br>' +
+                            'Pendapatan: <b>Rp {point.value:,.0f}</b><br>',
+                        pointFormatter: function () {
+                            var formattedValue = 'Rp ' + Math.round(this.value).toLocaleString('id-ID');
+                            return '<b>' + this.name + '</b><br>' +
+                                'Kode: ' + this.code + '<br>' +
+                                'Pendapatan: <b>' + formattedValue + '</b><br>';
+                        },
+                        nullFormat: '<b>{point.name}</b><br>Tidak ada data traffic'
+                    },
+                    borderColor: '#606060',
+                    borderWidth: 0.5,
+                    states: {
+                        hover: {
+                            color: '#FFD700' // Warna emas untuk hover yang lebih sesuai dengan skema warna baru
+                        }
+                    },
+                    allAreas: true // Tampilkan semua negara, termasuk yang tidak ada data
+                }],
+                exporting: {
+                    enabled: true,
+                    buttons: {
+                        contextButton: {
+                            theme: {
+                                fill: 'white',
+                                'stroke-width': 1,
+                                stroke: 'silver',
+                                r: 0,
+                                states: {
+                                    hover: {
+                                        fill: '#a4edba'
+                                    }
+                                }
+                            },
+                            menuItems: ['viewFullscreen', 'separator', 'downloadPNG', 'downloadJPEG', 'downloadPDF', 'downloadSVG']
+                        }
                     }
                 }
-            },
-            credits: { enabled: false }
-        });
-    } catch (error) {
-        console.error('[ERROR] Failed to create AdSense map:', error);
-        alert('Error creating map: ' + error.message);
-        $('#worldMapAdsense').html('<div style="text-align: center; padding: 50px; color: #666;">Error loading map: ' + error.message + '</div>');
+            });
+            console.log('[DEBUG] Map created successfully');
+        } catch (error) {
+            console.error('[ERROR] Failed to create map:', error);
+            alert('Error creating map: ' + error.message);
+            // Fallback: show a message in the map container
+            $('#worldMapAdsense').html('<div style="text-align: center; padding: 50px; color: #666;">Error loading map: ' + error.message + '</div>');
+        }
     }
+    // Fungsi untuk report error (jika ada)
+    function report_eror(message) {
+        console.error('Error:', message);
+        alert(message);
+    }
+});
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
 }
-
-function formatNumber(num, decimals = 0) {
-    if (num === null || num === undefined || isNaN(num)) return '0';
-    return parseFloat(num).toLocaleString('id-ID', {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals
-    });
-}
-
-function formatCurrencyIDR(value) {
-    if (value === null || value === undefined || isNaN(value)) return 'Rp 0';
-    return 'Rp ' + Math.round(parseFloat(value)).toLocaleString('id-ID');
-}
-
-function showSuccessMessage(message) {
-    // Create success message element
-    var successDiv = $('<div class="alert alert-success alert-dismissible fade show" role="alert">' +
-        '<i class="fas fa-check-circle"></i> ' + message +
-        '<button type="button" class="close" data-dismiss="alert" aria-label="Close">' +
-        '<span aria-hidden="true">&times;</span>' +
-        '</button>' +
-        '</div>');
-    
-    // Remove any existing success messages
-    $('.alert-success').remove();
-    
-    // Add to top of content
-    $('.content-wrapper .content-header').after(successDiv);
-    
-    // Auto hide after 3 seconds
-    setTimeout(function() {
-        successDiv.fadeOut();
-    }, 3000);
-}
-
-// CSRF token handling is now done in the template
-// This file no longer needs to handle CSRF token directly
+const csrftoken = getCookie('csrftoken');

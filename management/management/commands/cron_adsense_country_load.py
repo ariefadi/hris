@@ -7,7 +7,7 @@ from management.utils_adsense import get_user_adsense_client, extract_domain_fro
 
 def convert_to_idr(amount, currency_code):
     try:
-        code = (currency_code or 'IDR').upper()
+        code = (currency_code or 'IDR').strip().upper()
         base = float(amount or 0.0)
         if code == 'IDR':
             return base
@@ -33,20 +33,16 @@ def fetch_adsense_traffic_per_country_domain(user_mail, start_date, end_date, si
         client_result = get_user_adsense_client(user_mail)
         if not client_result.get('status'):
             return client_result
-
         service = client_result['service']
         accounts = service.accounts().list().execute()
         accounts_list = accounts.get('accounts', []) or []
         if not accounts_list:
             return {'status': False, 'error': 'No AdSense accounts found'}
-
         acc0 = accounts_list[0]
         account_name = acc0.get('name') or ''
-        currency_code = acc0.get('currencyCode') or acc0.get('currency_code') or 'USD'
-
+        currency_code = acc0.get('currencyCode') or acc0.get('currency_code') or ''
         start_parts = start_date.split('-')
         end_parts = end_date.split('-')
-
         report_request = service.accounts().reports().generate(
             account=account_name,
             dateRange='CUSTOM',
@@ -59,14 +55,22 @@ def fetch_adsense_traffic_per_country_domain(user_mail, start_date, end_date, si
             dimensions=['COUNTRY_NAME', 'COUNTRY_CODE', 'AD_UNIT_NAME'],
             metrics=['IMPRESSIONS', 'CLICKS', 'ESTIMATED_EARNINGS', 'AD_REQUESTS'],
         )
-
         if site_filter and site_filter != '%':
             try:
                 report_request = report_request.filter(f'AD_UNIT_NAME=~"{site_filter}"')
             except Exception:
                 pass
-
         report = report_request.execute()
+        try:
+            report_currency = report.get('currencyCode') or report.get('currency_code')
+            if not report_currency:
+                meta = report.get('metadata') or {}
+                report_currency = meta.get('currencyCode') or meta.get('currency_code')
+            if report_currency:
+                currency_code = report_currency
+        except Exception:
+            pass
+        currency_code = (currency_code or '').strip().upper()
 
         agg = {}
         for row in report.get('rows', []) or []:
@@ -77,7 +81,6 @@ def fetch_adsense_traffic_per_country_domain(user_mail, start_date, end_date, si
             impressions = int(float(cells[3].get('value'))) if len(cells) > 3 else 0
             clicks = int(float(cells[4].get('value'))) if len(cells) > 4 else 0
             earnings = float(cells[5].get('value')) if len(cells) > 5 else 0.0
-
             domain = extract_domain_from_ad_unit(ad_unit_name) or '-'
             key = ((country_code or '').upper(), country_name or '', domain)
 
@@ -169,13 +172,14 @@ class Command(BaseCommand):
                     user_mail = cred.get('user_mail')
                     account_id = cred.get('account_id')
                     account_name = cred.get('account_name')
-
                     if not user_mail or not account_id:
                         continue
                     acct_info = fetch_user_adx_account_data(user_mail)
                     currency_code = 'IDR'
                     if isinstance(acct_info, dict) and acct_info.get('status'):
                         currency_code = (acct_info.get('data', {}) or {}).get('currency_code') or 'IDR'
+                    currency_code = (currency_code or 'IDR').strip().upper()
+
                     res = fetch_adsense_traffic_per_country_domain(user_mail, day_str, day_str, site_filter='%')
                     if not res or not res.get('status'):
                         total_error += 1
@@ -189,9 +193,9 @@ class Command(BaseCommand):
                             )
                         )
                         continue
-
-                    currency_code = res.get('currency_code') or 'USD'
-
+                    res_currency = (res.get('currency_code') or '').strip().upper()
+                    if res_currency:
+                        currency_code = res_currency
                     for item in res.get('data', []) or []:
                         try:
                             country_cd = (item.get('country_code') or '').upper()
@@ -205,7 +209,7 @@ class Command(BaseCommand):
                             revenue_idr = convert_to_idr(revenue, currency_code)
                             ctr = (clicks / impressions * 100) if impressions > 0 else 0.0
                             cpc = (revenue_idr / clicks) if clicks > 0 else 0.0
-                            cpm = (revenue_idr / impressions * 1000) if impressions > 0 else 0.0
+                            cpm = ((revenue_idr / impressions) * 1000) if impressions > 0 else 0.0
 
                             record = {
                                 'account_id': account_id,
@@ -223,7 +227,6 @@ class Command(BaseCommand):
                                 'mdb_name': 'Cron Job',
                                 'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                             }
-
                             try:
                                 sql_del = (
                                     "DELETE FROM data_adsense_country "
@@ -268,5 +271,4 @@ class Command(BaseCommand):
                             f"Gagal memproses kredensial {cred.get('user_mail','Unknown')}: {e}"
                         )
                     )
-
         self.stdout.write(self.style.SUCCESS(f"Selesai. Berhasil insert: {total_insert}, gagal: {total_error}."))

@@ -5,6 +5,44 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 # Guard googleapiclient import to avoid module-level crash when not installed
 from .database import data_mysql
+import hashlib
+
+def set_cached_data(cache_key, data, timeout=None):
+    """
+    Store data in cache with optional timeout
+    """
+    try:
+        if timeout is None:
+            # Default timeout of 1 hour
+            timeout = 3600
+        
+        cache.set(cache_key, data, timeout)
+        return True
+    except Exception as e:
+        print(f"Cache storage error for key {cache_key}: {e}")
+        return False
+
+def generate_cache_key(prefix, *args, **kwargs):
+    """
+    Generate a consistent cache key from prefix and arguments
+    """
+    # Convert all arguments to strings and sort kwargs for consistency
+    key_parts = [str(prefix)]
+    
+    # Add positional arguments
+    for arg in args:
+        if isinstance(arg, (list, tuple)):
+            key_parts.extend([str(item) for item in arg])
+        else:
+            key_parts.append(str(arg))
+    
+    # Add keyword arguments (sorted for consistency)
+    for key, value in sorted(kwargs.items()):
+        key_parts.append(f"{key}:{value}")
+    
+    # Create hash of the key parts to ensure consistent length
+    key_string = "|".join(key_parts)
+    return hashlib.md5(key_string.encode()).hexdigest()
 
 def extract_domain_from_ad_unit(ad_unit_name):
     """
@@ -552,7 +590,6 @@ def fetch_adsense_traffic_per_country(user_mail, start_date, end_date, site_filt
         client_result = get_user_adsense_client(user_mail)
         if not client_result['status']:
             return client_result
-
         service = client_result['service']
         accounts = service.accounts().list().execute()
         if not accounts.get('accounts'):
@@ -560,13 +597,11 @@ def fetch_adsense_traffic_per_country(user_mail, start_date, end_date, site_filt
                 'status': False,
                 'error': 'No AdSense accounts found'
             }
-
         account_id = accounts['accounts'][0]['name']
-
+        print(f"[DEBUG] Using account_id: {account_id}")
         # Parse dates
         start_parts = start_date.split('-')
         end_parts = end_date.split('-')
-
         # Build report request grouped by country
         report_request = service.accounts().reports().generate(
             account=account_id,

@@ -1,9 +1,7 @@
 {% extends "admin_base.html" %}
 {% load static %}
 {% block page_title %}Adsense Manager{% endblock %}
-
 {% block page_heading %}Adsense Manager{% endblock %}
-
 {% block breadcrumbs %}
     <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
     <li class="breadcrumb-item active">Adsense Manager</li>
@@ -12,7 +10,6 @@
 <!-- Flatpickr CSS untuk datepicker yang konsisten -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 {% endblock %}
-
 {% block content %}
 <style>
   .dt-buttons {
@@ -35,9 +32,10 @@
             </div>
             <div class="col-md-3">
                 <label>Filter Account</label>
-                <select class="form-control" id="account_filter">
-                    <option value="">Semua Akun</option>
-                    <!-- Options akan diisi secara dinamis oleh JavaScript -->
+                <select class="form-control select2-multiple" id="account_filter" multiple>
+                    {% for account in data_account_adx %}
+                    <option value="{{ account.account_id }}">{{ account.account_name }}</option>
+                    {% endfor %}
                 </select>
             </div>
             <div class="col-md-3">
@@ -74,9 +72,8 @@
                 color: white;
                 font-size: 2rem;
                 padding-top: 20%;">
-            <i class="fas fa fa-sync-alt fa-spin"></i> Memuat Data Traffic ... 
+            <i class="fas fa fa-sync-alt fa-spin"></i> Memuat Data Traffic Adsense ... 
         </div>
-        
         <!-- Summary Info boxes -->
         <div class="row" id="summary_boxes" style="display: none;">
             <div class="col-12 col-sm-6 col-md-3">
@@ -85,7 +82,7 @@
                         <i class="bi bi-eye-fill"></i>
                     </span>
                     <div class="info-box-content">
-                        <span class="info-box-text">Total Tayangan</span>
+                        <span class="info-box-text">Total Impresi</span>
                         <span class="info-box-number" id="total_impressions">0</span>
                     </div>
                 </div>
@@ -103,17 +100,6 @@
             </div>
             <div class="col-12 col-sm-6 col-md-3">
                 <div class="info-box">
-                    <span class="info-box-icon text-bg-info shadow-sm">
-                        <i class="bi bi-currency-dollar"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Total Pendapatan</span>
-                        <span class="info-box-number" id="total_revenue">Rp 0</span>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
                     <span class="info-box-icon text-bg-warning shadow-sm">
                         <i class="bi bi-graph-up-arrow"></i>
                     </span>
@@ -123,33 +109,18 @@
                     </div>
                 </div>
             </div>
-        </div>
-
-        <div class="row" id="summary_boxes_2" style="display: none;">
             <div class="col-12 col-sm-6 col-md-3">
                 <div class="info-box">
-                    <span class="info-box-icon text-bg-danger shadow-sm">
-                        <i class="bi bi-cash-coin"></i>
+                    <span class="info-box-icon text-bg-info shadow-sm">
+                        <i class="bi bi-currency-dollar"></i>
                     </span>
                     <div class="info-box-content">
-                        <span class="info-box-text">Rata-rata CPC</span>
-                        <span class="info-box-number" id="average_cpc">Rp 0</span>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-success shadow-sm">
-                        <i class="bi bi-graph-up"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Rata-rata CPM</span>
-                        <span class="info-box-number" id="avg_cpm">Rp 0</span>
+                        <span class="info-box-text">Total Pendapatan</span>
+                        <span class="info-box-number" id="total_revenue">Rp 0</span>
                     </div>
                 </div>
             </div>
         </div>
-
         <!-- Map Chart -->
         <div class="row mt-3">
             <div class="col-12">
@@ -172,11 +143,11 @@
                     <tr>
                         <th>No</th>
                         <th>Country</th>
+                        <th>Impresi</th>
                         <th>Klik</th>
-                        <th>Tayangan</th>
                         <th>CTR (%)</th>
-                        <th>CPM (Rp)</th>
                         <th>CPC (Rp)</th>
+                        <th>eCPM (Rp)</th>
                         <th>Pendapatan (Rp)</th>
                     </tr>
                 </thead>
@@ -187,76 +158,40 @@
     </div>
 </div>
 {% endblock %}
-
 {% block more_scripts %}
 <!-- Flatpickr JS -->
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-<!-- Highcharts Maps (mengikuti pola AdX) -->
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highmaps.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
-<!-- World Map Data -->
+<!-- World Map Data dari CDN alternatif -->
 <script src="https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.1.0/custom/world.js"></script>
 <script>
-// Setup CSRF token for AJAX requests
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
+    // Jika data world map tidak berhasil dimuat dari CDN, siapkan fallback minimal
+    (function ensureWorldMap() {
+        if (typeof Highcharts !== 'undefined') {
+            if (!Highcharts.maps || !Highcharts.maps['custom/world']) {
+                Highcharts.maps = Highcharts.maps || {};
+                Highcharts.maps['custom/world'] = {
+                    "title": "World (Fallback)",
+                    "type": "FeatureCollection",
+                    "features": [
+                        {"type": "Feature", "id": "ID", "properties": {"hc-key": "id", "name": "Indonesia"}},
+                        {"type": "Feature", "id": "US", "properties": {"hc-key": "us", "name": "United States"}},
+                        {"type": "Feature", "id": "GB", "properties": {"hc-key": "gb", "name": "United Kingdom"}},
+                        {"type": "Feature", "id": "DE", "properties": {"hc-key": "de", "name": "Germany"}},
+                        {"type": "Feature", "id": "FR", "properties": {"hc-key": "fr", "name": "France"}},
+                        {"type": "Feature", "id": "JP", "properties": {"hc-key": "jp", "name": "Japan"}},
+                        {"type": "Feature", "id": "CN", "properties": {"hc-key": "cn", "name": "China"}},
+                        {"type": "Feature", "id": "IN", "properties": {"hc-key": "in", "name": "India"}},
+                        {"type": "Feature", "id": "BR", "properties": {"hc-key": "br", "name": "Brazil"}},
+                        {"type": "Feature", "id": "AU", "properties": {"hc-key": "au", "name": "Australia"}}
+                    ]
+                };
+                console.log('Fallback world map data loaded');
             }
         }
-    }
-    return cookieValue;
-}
-
-const csrftoken = getCookie('csrftoken');
-
-// Setup AJAX to include CSRF token
-$.ajaxSetup({
-    beforeSend: function(xhr, settings) {
-        if (!(/^http:.*/.test(settings.url) || /^https:.*/.test(settings.url))) {
-            // Only send the token to relative URLs i.e. locally.
-            xhr.setRequestHeader("X-CSRFToken", csrftoken);
-        }
-    }
-});
+    })();
 </script>
+<!-- Muat script halaman secara langsung agar tombol dan tabel bekerja meski Highcharts belum siap -->
 <script src="{% static 'ajax/admin/adsense_manager/traffic_country.js'%}?v={%now 'u'%}"></script>
-<script>
-$(document).ready(function() {
-    // Format semua elemen mata uang yang mungkin sudah ada di halaman
-    setTimeout(function() {
-        // Format summary boxes yang mungkin sudah memiliki data
-         $('.card-body h4').each(function() {
-             var text = $(this).text();
-             if (text && text.includes('$')) {
-                 // Convert to number, round to remove decimals, then format with Rp
-                 var numValue = parseFloat(text.replace(/[$,]/g, ''));
-                 if (!isNaN(numValue)) {
-                     $(this).text('Rp' + Math.round(numValue).toLocaleString('id-ID'));
-                 }
-             }
-         });
-        
-        // Format table cells yang mungkin sudah memiliki data dollar
-        $('#table_traffic_country tbody tr').each(function() {
-            // Format columns 5, 6, 7 (CPM, CPC, Pendapatan) from $ to Rp
-            $(this).find('td:nth-child(6), td:nth-child(7), td:nth-child(8)').each(function() {
-                var text = $(this).text();
-                if (text && text.includes('$')) {
-                    var numValue = parseFloat(text.replace(/[$,]/g, ''));
-                    if (!isNaN(numValue)) {
-                        $(this).text('Rp' + Math.round(numValue).toLocaleString('id-ID'));
-                    }
-                }
-            });
-        });
-    }, 500);
-});
-</script>
 {% endblock %}

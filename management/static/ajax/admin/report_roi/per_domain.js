@@ -302,6 +302,8 @@ $().ready(function () {
         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Semua"]],
         searching: true,
         ordering: true,
+        fontSize: '10px',
+        fontStyle: 'normal',
         language: {
             "decimal": ",",
             "thousands": ".",
@@ -556,6 +558,15 @@ $().ready(function () {
                 }
             },
             {
+                targets: 2, // INDEX kolom Tanggal (mulai dari 0)
+                render: function (data, type) {
+                    if (type === 'sort' || type === 'type') {
+                        return data.sort;     // YYYY-MM-DD
+                    }
+                    return data.display;      // "30 November 2025"
+                }
+            },
+            {
                 targets: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
                 className: "text-right"
             },
@@ -648,7 +659,7 @@ $().ready(function () {
                 }
             }
         ],
-        order: [[12, 'desc']]
+        order: [[2, 'asc']]
     });
 
     var table = $('#table_traffic_account').DataTable();
@@ -893,7 +904,10 @@ function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_ac
                     table.row.add([
                         '',
                         item.site_name || '-',
-                        formattedDate,
+                        {
+                            display: formattedDate,
+                            sort: item.date || '' // YYYY-MM-DD
+                        },
                         Number(item.spend || 0),
                         Number(item.clicks_fb || 0),
                         Number(item.clicks_adx || 0),
