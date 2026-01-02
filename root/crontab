@@ -14,6 +14,12 @@ DJANGO_MANAGE="$VENV $APPDIR/manage.py"
 # AdX Country Load: setiap 10 menit
 */10 * * * * cd $APPDIR && flock -n /var/run/hris_adx_country_load.lock -c "$DJANGO_MANAGE cron_adx_country_load >> /var/log/hris/cron_adx_country_load.log 2>&1"
 
+# Adsense Domain Load: setiap 10 menit
+*/10 * * * * cd $APPDIR && flock -n /var/run/hris_adsense_domain_load.lock -c "$DJANGO_MANAGE cron_adsense_domain_load >> /var/log/hris/cron_adsense_domain_load.log 2>&1"
+
+# Adsense Country Load: setiap 10 menit
+*/10 * * * * cd $APPDIR && flock -n /var/run/hris_adsense_country_load.lock -c "$DJANGO_MANAGE cron_adsense_country_load >> /var/log/hris/cron_adsense_country_load.log 2>&1"
+
 # Ads Campaign Load: setiap 10 menit
 */10 * * * * cd $APPDIR && flock -n /var/run/hris_ads_campaign_load.lock -c "$DJANGO_MANAGE cron_ads_campaign_load >> /var/log/hris/cron_ads_campaign_load.log 2>&1"
 
@@ -25,6 +31,12 @@ DJANGO_MANAGE="$VENV $APPDIR/manage.py"
 
 # AdX Country: setiap 6 jam
 0 */6 * * * cd $APPDIR && flock -n /var/run/hris_adx_country.lock -c "$DJANGO_MANAGE cron_adx_country >> /var/log/hris/cron_adx_country.log 2>&1"
+
+# Adsense Domain: setiap 6 jam
+0 */6 * * * cd $APPDIR && flock -n /var/run/hris_adsense_domain.lock -c "$DJANGO_MANAGE cron_adsense_domain >> /var/log/hris/cron_adsense_domain.log 2>&1"
+
+# Adsense Country: setiap 6 jam
+0 */6 * * * cd $APPDIR && flock -n /var/run/hris_adsense_country.lock -c "$DJANGO_MANAGE cron_adsense_country >> /var/log/hris/cron_adsense_country.log 2>&1"
 
 # Ads Campaign: setiap 6 jam
 0 */6 * * * cd $APPDIR && flock -n /var/run/hris_ads_campaign.lock -c "$DJANGO_MANAGE cron_ads_campaign >> /var/log/hris/cron_ads_campaign.log 2>&1"
@@ -38,7 +50,7 @@ DJANGO_MANAGE="$VENV $APPDIR/manage.py"
 # ROI Monitoring Country: setiap 59 menit
 59 * * * * cd $APPDIR && flock -n /var/run/hris_roi_monitoring_country.lock -c "$DJANGO_MANAGE cron_roi_monitoring_country_telegram >> /var/log/hris/cron_roi_monitoring_country_telegram.log 2>&1"
 
-# ROI Monitoring Domain: setiap 2 jam 59 menit
+# ROI Monitoring Domain: setiap 59 menit
 59 * * * * cd $APPDIR && flock -n /var/run/hris_roi_monitoring_domain.lock -c "$DJANGO_MANAGE cron_roi_monitoring_domain_telegram >> /var/log/hris/cron_roi_monitoring_domain_telegram.log 2>&1"
 
 
