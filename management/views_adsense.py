@@ -51,8 +51,23 @@ class AdsenseTrafficAccountView(View):
             return redirect('/management/admin/login')
         return super().dispatch(request, *args, **kwargs)
     
-    def get(self, request):
-        return render(request, 'admin/adsense_manager/traffic_account/index.html')
+    def get(self, req):
+        admin = req.session.get('hris_admin', {})
+        if admin.get('super_st') == '0':
+            data_account_adx = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+        else:
+            data_account_adx = data_mysql().get_all_adx_account_data()
+        if not data_account_adx['status']:
+            return JsonResponse({
+                'status': False,
+                'error': data_account_adx['data']
+            })
+        data = {
+            'title': 'AdSense Traffic Per Account',
+            'user': req.session['hris_admin'],
+            'data_account_adx': data_account_adx['data']
+        }
+        return render(req, 'admin/adsense_manager/traffic_account/index.html', data)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class AdsenseTrafficAccountDataView(View):
@@ -62,86 +77,96 @@ class AdsenseTrafficAccountDataView(View):
         if 'hris_admin' not in request.session:
             return JsonResponse({'error': 'Unauthorized'}, status=401)
         return super().dispatch(request, *args, **kwargs)
-    def post(self, request):
-        try:
-            # Validasi: wajib pilih akun terlebih dahulu
-            account_filter = request.POST.get('account_filter')
-            if account_filter:
-                user_mail = account_filter
-            else:
-                return JsonResponse({
-                    'status': False,
-                    'error': 'Filter Account harus dipilih terlebih dahulu'
-                })
-            # Get form data
-            start_date = request.POST.get('start_date')
-            end_date = request.POST.get('end_date')
-            site_filter = request.POST.get('site_filter', '%')
-            # Validate required fields
-            if not start_date or not end_date:
-                return JsonResponse({
-                    'error': 'Start date and end date are required'
-                }, status=400)
-            # Call the AdSense API function
-            result = fetch_adsense_traffic_account_data(user_mail, start_date, end_date, site_filter)
-            print(f"Raw result: {result}")
-            if result.get('status'):
-                data = result.get('data', {})
-                
-                if not data.get('sites', []):
-                    return JsonResponse({
-                        'status': True,
-                        'data': [],  # Empty data array when no real AdSense data available
-                        'message': 'Tidak ada data AdSense untuk periode ini. Pastikan: 1) Website sudah menggunakan iklan AdSense, 2) Ada traffic/tayangan iklan selama periode ini, 3) Akun AdSense sudah dikonfigurasi dengan benar.'
-                    })
-                else:
-                    # Calculate summary data from sites
-                    sites_data = data.get('sites', [])
-                    total_impressions = sum(site.get('impressions', 0) for site in sites_data)
-                    total_clicks = sum(site.get('clicks', 0) for site in sites_data)
-                    total_revenue = sum(site.get('revenue', 0) for site in sites_data)
-                    
-                    # Calculate averages
-                    avg_ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0
-                    avg_cpc = (total_revenue / total_clicks) if total_clicks > 0 else 0
-                    avg_cpm = (total_revenue / total_impressions * 1000) if total_impressions > 0 else 0
-                    
-                    summary = {
-                        'total_impressions': total_impressions,
-                        'total_clicks': total_clicks,
-                        'total_revenue': total_revenue,
-                        'avg_ctr': avg_ctr,
-                        'avg_cpc': avg_cpc,
-                        'avg_cpm': avg_cpm
-                    }
-                    
-                    # Return data with summary
-                    return JsonResponse({
-                        'status': True,
-                        'data': sites_data,
-                        'summary': summary
-                    })
-            else:
-                # Jika akun tidak memiliki AdSense, kembalikan pesan informatif tanpa error 500
-                error_msg = result.get('error', 'Failed to fetch AdSense data')
-                if 'No AdSense accounts found' in error_msg:
-                    return JsonResponse({
-                        'status': True,
-                        'data': [],
-                        'message': 'Akun tidak memiliki AdSense'
-                    })
-                return JsonResponse({
-                    'status': False,
-                    'error': error_msg
-                })
-                
-        except Exception as e:
-            print(f"[ERROR] Exception in AdsenseTrafficAccountDataView: {str(e)}")
-            import traceback
-            traceback.print_exc()
+
+    def get(self, req):
+        start_date = req.GET.get('start_date')
+        end_date = req.GET.get('end_date')
+        selected_account = req.GET.get('selected_account')
+        selected_account_list = []
+        if selected_account:
+            selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
+        if not start_date or not end_date:      
             return JsonResponse({
-                'error': f'Server error: {str(e)}'
-            }, status=500)
+                'status': False,
+                'error': 'Start date and end date are required'
+            })
+        try:
+            # Format tanggal untuk AdManager API
+            start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
+            end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')  
+            # Gunakan fungsi baru yang mengambil data berdasarkan kredensial user
+            rs_result = data_mysql().get_all_adsense_traffic_account_by_params(start_date_formatted, end_date_formatted, selected_account_list)
+            rows_map = {}
+            if rs_result and rs_result['hasil']['data']:
+                for rs in rs_result['hasil']['data']:
+                    date_key = str(rs.get('date', '') or '')
+                    raw_site = str(rs.get('site_name', '') or '')
+                    base_subdomain = extract_base_subdomain(raw_site) if raw_site else ''
+                    if not base_subdomain:
+                        base_subdomain = raw_site
+                    impressions = int(rs.get('impressions_adsense', 0) or 0)
+                    clicks = int(rs.get('clicks_adsense', 0) or 0)
+                    revenue = float(rs.get('revenue', 0.0) or 0.0)
+                    key = f"{date_key}|{base_subdomain}"
+                    entry = rows_map.get(key) or {'date': date_key, 'site_name': base_subdomain, 'impressions_adsense': 0, 'clicks_adsense': 0, 'revenue': 0.0}
+                    entry['impressions_adsense'] += impressions
+                    entry['clicks_adsense'] += clicks
+                    entry['revenue'] += revenue
+                    rows_map[key] = entry
+            result_rows = []
+            total_impressions = 0
+            total_clicks = 0
+            total_revenue = 0.0
+            for _, item in rows_map.items():
+                imp = int(item.get('impressions_adsense') or 0)
+                clk = int(item.get('clicks_adsense') or 0)
+                rev = float(item.get('revenue') or 0.0)
+                cpc_adsense = (rev / clk) if clk > 0 else 0.0
+                ctr = ((clk / imp) * 100) if imp > 0 else 0.0
+                ecpm = ((rev / imp) * 1000) if imp > 0 else 0.0
+                total_impressions += imp
+                total_clicks += clk
+                total_revenue += rev
+                result_rows.append({
+                    'date': item['date'],
+                    'site_name': item['site_name'] + '.com',
+                    'impressions_adsense': item['impressions_adsense'],
+                    'clicks_adsense': item['clicks_adsense'],
+                    'cpc_adsense': round(cpc_adsense, 2),
+                    'ecpm': round(ecpm, 2),
+                    'ctr': round(ctr, 2),
+                    'revenue': round(rev, 2)
+                })
+            result_rows.sort(key=lambda x: (x['date'] or '', x['site_name'] or ''))
+            summary = {
+                'total_clicks': total_clicks,
+                'total_impressions': total_impressions,
+                'total_revenue': round(total_revenue, 2),
+                'avg_cpc': round((total_revenue / total_clicks), 2) if total_clicks > 0 else 0.0,
+                'avg_ecpm': round(((total_revenue / total_impressions) * 1000), 2) if total_impressions > 0 else 0.0,
+                'avg_ctr': round(((total_clicks / total_impressions) * 100), 2) if total_impressions > 0 else 0.0
+            }
+            return JsonResponse({
+                'status': True,
+                'message': 'Data adsense traffic account berhasil diambil',
+                'summary': summary,
+                'data': result_rows
+            }, safe=False)
+        except Exception as e:
+            return JsonResponse({
+                'status': False,
+                'error': str(e)
+            })
+
+def extract_base_subdomain(full_string):
+    parts = full_string.split('.')
+    # jika ada minimal 2 bagian (1 titik), ambil dua bagian pertama
+    if len(parts) >= 2:
+        main_domain = ".".join(parts[:2])
+    else:
+        main_domain = full_string
+    # jika tidak ada titik, kembalikan string asli
+    return main_domain
 
 class AdsenseSitesListView(View):
     """AJAX endpoint untuk mengambil daftar account_name dari app_credentials.
@@ -407,14 +432,12 @@ class AdsenseTrafficPerCountryView(View):
         admin = req.session.get('hris_admin', {})
         if admin.get('super_st') == '0':
             data_account_adx = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
-            data_domain_adx = data_mysql().get_all_adx_domain_data_user(admin.get('user_id'))
         else:
             data_account_adx = data_mysql().get_all_adx_account_data()
-            data_domain_adx = data_mysql().get_all_adx_domain_data()
-        if not data_domain_adx['status']:
+        if not data_account_adx['status']:
             return JsonResponse({
                 'status': False,
-                'error': data_domain_adx['data']
+                'error': data_account_adx['data']
             })
         last_update = data_mysql().get_last_update_adx_traffic_country()['data']['last_update']
         data = {

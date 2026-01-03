@@ -2228,6 +2228,62 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
+    def get_all_adsense_traffic_account_by_params(self, start_date, end_date, account_list = None):
+        try:
+            # --- 1. Pastikan account_list adalah list string
+            if isinstance(account_list, str):
+                account_list = [account_list.strip()]
+            elif account_list is None:
+                account_list = []
+            elif isinstance(account_list, (set, tuple)):
+                account_list = list(account_list)
+            data_account_list = [str(a).strip() for a in account_list if str(a).strip()]
+            # --- 2. Buat kondisi LIKE untuk setiap domain
+            like_conditions_account = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
+            like_params_account = [f"%{account}%" for account in data_account_list] 
+            base_sql = [
+                "SELECT",
+                "\ta.account_id, a.account_name, a.user_mail,",
+                "\tb.data_adsense_country_tanggal AS 'date',",
+                "\tb.data_adsense_country_domain AS 'site_name',",
+                "\tb.data_adsense_country_cd AS 'country_code',",
+                "\tSUM(b.data_adsense_country_impresi) AS 'impressions_adsense',",
+                "\tSUM(b.data_adsense_country_click) AS 'clicks_adsense',",
+                "\tCASE WHEN SUM(b.data_adsense_country_click) > 0 THEN ROUND(SUM(b.data_adsense_country_revenue) / SUM(b.data_adsense_country_click), 0) ELSE 0 END AS 'cpc_adsense',",
+                "\tCASE WHEN SUM(b.data_adsense_country_impresi) > 0 THEN ROUND((SUM(b.data_adsense_country_revenue) / SUM(b.data_adsense_country_impresi)) * 1000) ELSE 0 END AS 'ecpm',",
+                "\tSUM(b.data_adsense_country_revenue) AS 'revenue'",
+                "FROM app_credentials a",
+                "INNER JOIN data_adsense_country b ON a.account_id = b.account_id",
+                "WHERE",
+            ]    
+            params = []
+            base_sql.append("b.data_adsense_country_tanggal BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+            # Normalize selected_account and apply account filter
+            if data_account_list:
+                base_sql.append(f"\tAND ({like_conditions_account})")
+                params.extend(like_params_account)
+            # Normalize selected_sites (CSV string or list) and apply domain filter
+            base_sql.append("GROUP BY b.data_adsense_country_tanggal, b.data_adsense_country_domain, b.data_adsense_country_cd")
+            base_sql.append("ORDER BY b.data_adsense_country_tanggal ASC")
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get all adsense traffic account by params")  
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get all adsense traffic account by params")
+            hasil = {
+                "status": True,
+                "message": "Data adsense traffic account berhasil diambil",
+                "data": data
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+
     def get_all_adsense_traffic_country_by_params(self, start_date, end_date, selected_account_list = None, countries_list = None):
         try:
             # --- 0. Pastikan selected_account_list adalah list string

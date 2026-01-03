@@ -120,23 +120,6 @@ $(document).ready(function () {
             }
         });
     }
-    
-    // Fungsi untuk format tanggal ke format input (YYYY-MM-DD)
-    function formatDateForInput(date) {
-        var year = date.getFullYear();
-        var month = String(date.getMonth() + 1).padStart(2, '0');
-        var day = String(date.getDate()).padStart(2, '0');
-        return year + '-' + month + '-' + day;
-    }
-
-    // Fungsi untuk format mata uang IDR
-    function formatCurrencyIDR(value) {
-        // Convert to number, round to remove decimals, then format with Rp
-        let numValue = parseFloat(value.toString().replace(/[$,]/g, ''));
-        if (isNaN(numValue)) return value;
-        // Round to remove decimals and format with Indonesian number format
-        return 'Rp ' + Math.round(numValue).toLocaleString('id-ID');
-    }
 
     // Fungsi untuk load data traffic per country
     function load_adsense_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account) {
@@ -495,6 +478,15 @@ $(document).ready(function () {
 
         // Paksa urutan setelah inisialisasi untuk memastikan tidak tertimpa
         table.order([7, 'desc']).draw();
+    }
+
+    // Fungsi untuk format mata uang IDR
+    function formatCurrencyIDR(value) {
+        // Convert to number, round to remove decimals, then format with Rp
+        let numValue = parseFloat(value.toString().replace(/[$,]/g, ''));
+        if (isNaN(numValue)) return value;
+        // Round to remove decimals and format with Indonesian number format
+        return 'Rp. ' + Math.round(numValue).toLocaleString('id-ID');
     }
 
     // Fungsi untuk membuat chart dengan Highcharts Maps
