@@ -48,7 +48,8 @@ function table_data_account_ads() {
             judul = "Rekapitulasi Account Facebook Ads"
             $.each(data_account_ads.data_account_ads, function (index, value) {
                 var url_detail = '/management/admin/edit_account_facebook/'+value.account_ads_id;
-                var event_data = '<tr>';
+                var isWarning = !(Number(value.total_data || 0) > 0);
+                var event_data = `<tr${isWarning ? ' class="table-warning"' : ''}>`;
                 event_data += '<td class="text-center">' + (index + 1) + '</td>';
                 event_data += '<td class="text-left">' + value.account_name + '</td>';
                 event_data += '<td class="text-left">' + value.account_email + '</td>';
@@ -57,8 +58,8 @@ function table_data_account_ads() {
                 event_data += '<td class="text-left">' + value.pemilik_account + '</td>';
                 event_data += `
                                     <td class="text-center">
-                                        ${value.total_data > 0 
-                                            ? '<i class="bi bi-check-circle-fill"></i>' 
+                                        ${!isWarning
+                                            ? '<i class="bi bi-check-circle-fill"></i>'
                                             : '<i class="bi bi-exclamation-octagon"></i>'}
                                     </td>
                                 `;
