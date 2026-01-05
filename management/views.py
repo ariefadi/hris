@@ -15,7 +15,7 @@ from django.utils.decorators import method_decorator
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.conf import settings
 from django import template
-from calendar import month, monthrange
+from calendar import Day, month, monthrange
 from datetime import datetime, date, timedelta
 from django.http import HttpResponse, JsonResponse, QueryDict
 try:
@@ -1064,7 +1064,8 @@ class page_account_facebook(View):
             return redirect('user_login')
         return super(page_account_facebook, self).dispatch(request, *args, **kwargs)
     def get(self, req):
-        data_account_ads = data_mysql().data_account_ads_by_params()['data']
+        now = datetime.now().strftime('%Y-%m-%d %H:%M:%S') - timedelta(days=3)
+        data_account_ads = data_mysql().data_account_ads_by_params(now)['data']
         hasil = {
             'hasil': "Data Account Facebook Ads",
             'data_account_ads': data_account_ads

@@ -833,21 +833,22 @@ class data_mysql:
                     }
                 }
 
-    def data_account_ads_by_params(self):
+    def data_account_ads_by_params(self, now):
         sql='''
             SELECT a.account_ads_id, a.account_name, c.total_data, a.account_email, a.account_id, 
-            a.app_id, a.app_secret, a.access_token, b.user_alias AS 'pemilik_account', a.mdd
+            a.app_id, a.app_secret, a.access_token, b.user_alias AS 'pemilik_account', c.total_data AS 'total_data_adsense', a.mdd
             FROM `master_account_ads` a
             LEFT JOIN app_users b ON a.account_owner = b.user_id
             LEFT JOIN (
             	SELECT account_ads_id, COUNT(*) AS 'total_data' 
             	FROM master_ads
+                WHERE DATE(mdd) >= %s
             	GROUP BY account_ads_id
             )c ON a.account_id = c.account_ads_id
             ORDER BY a.account_name ASC
         '''
         try:
-            if not self.execute_query(sql):
+            if not self.execute_query(sql, (now,)):
                 raise pymysql.Error("Failed to fetch account ads data")
             datanya = self.cur_hris.fetchall()
             hasil = {
