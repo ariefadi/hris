@@ -85,30 +85,44 @@ class AdsenseTrafficAccountDataView(View):
         selected_account_list = []
         if selected_account:
             selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
-        if not start_date or not end_date:      
+
+        selected_countries = req.GET.get('selected_countries', '')
+        countries_list = []
+        if selected_countries and selected_countries.strip():
+            countries_list = [c.strip().upper() for c in selected_countries.split(',') if c.strip()]
+
+        if not start_date or not end_date:
             return JsonResponse({
                 'status': False,
                 'error': 'Start date and end date are required'
             })
         try:
-            # Format tanggal untuk AdManager API
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
-            end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')  
-            # Gunakan fungsi baru yang mengambil data berdasarkan kredensial user
+            end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
+
             rs_result = data_mysql().get_all_adsense_traffic_account_by_params(start_date_formatted, end_date_formatted, selected_account_list)
+            raw_rows = []
+            if rs_result and isinstance(rs_result, dict):
+                raw_rows = (rs_result.get('hasil') or {}).get('data') or []
+
+            if countries_list:
+                raw_rows = [r for r in raw_rows if str((r or {}).get('country_code') or '').strip().upper() in countries_list]
+
             rows_map = {}
-            if rs_result and rs_result['hasil']['data']:
-                for rs in rs_result['hasil']['data']:
+            if raw_rows:
+                for rs in raw_rows:
                     date_key = str(rs.get('date', '') or '')
                     raw_site = str(rs.get('site_name', '') or '')
                     base_subdomain = extract_base_subdomain(raw_site) if raw_site else ''
                     if not base_subdomain:
                         base_subdomain = raw_site
+                    account_name = str(rs.get('account_name', '') or '')
                     impressions = int(rs.get('impressions_adsense', 0) or 0)
                     clicks = int(rs.get('clicks_adsense', 0) or 0)
                     revenue = float(rs.get('revenue', 0.0) or 0.0)
                     key = f"{date_key}|{base_subdomain}"
-                    entry = rows_map.get(key) or {'date': date_key, 'site_name': base_subdomain, 'impressions_adsense': 0, 'clicks_adsense': 0, 'revenue': 0.0}
+                    entry = rows_map.get(key) or {'date': date_key, 'account_name': account_name, 'site_name': base_subdomain, 'impressions_adsense': 0, 'clicks_adsense': 0, 'revenue': 0.0}
+                    entry['account_name'] = account_name
                     entry['impressions_adsense'] += impressions
                     entry['clicks_adsense'] += clicks
                     entry['revenue'] += revenue
@@ -129,6 +143,7 @@ class AdsenseTrafficAccountDataView(View):
                 total_revenue += rev
                 result_rows.append({
                     'date': item['date'],
+                    'account_name': item['account_name'],
                     'site_name': item['site_name'] + '.com',
                     'impressions_adsense': item['impressions_adsense'],
                     'clicks_adsense': item['clicks_adsense'],
@@ -341,8 +356,25 @@ class AdsenseSummaryView(View):
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
 
-    def get(self, request):
-        return render(request, 'admin/adsense_manager/summary/index.html')
+    def get(self, req):
+        admin = req.session.get('hris_admin', {})
+        if admin.get('super_st') == '0':
+            data_account_adx = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+        else:
+            data_account_adx = data_mysql().get_all_adx_account_data()
+
+        if not data_account_adx.get('status'):
+            return JsonResponse({
+                'status': False,
+                'error': data_account_adx.get('data')
+            })
+
+        data = {
+            'title': 'AdSense Summary Dashboard',
+            'user': req.session['hris_admin'],
+            'data_account_adx': data_account_adx.get('data', [])
+        }
+        return render(req, 'admin/adsense_manager/summary/index.html', data)
 
 class AdsenseSummaryDataView(View):
     """AJAX endpoint untuk data Summary AdSense (dibuka untuk preview)."""

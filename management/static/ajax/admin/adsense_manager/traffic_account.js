@@ -216,6 +216,7 @@ function initializeDataTable(data) {
             var cellDate = '<span data-order="' + (row.date || '-') + '">' + formattedDate + '</span>';
             tableData.push([
                 cellDate,
+                row.account_name || '-',
                 row.site_name || '-',
                 formatNumber(row.clicks_adsense || 0),
                 formatCurrencyIDR(row.cpc_adsense || 0),
@@ -392,7 +393,7 @@ function initializeDataTable(data) {
         ],
         columnDefs: [
             {
-                targets: [2, 3, 4, 5], // Kolom numerik ditata kanan
+                targets: [3, 4, 5, 6, 7], // Kolom numerik ditata kanan
                 className: "text-right"
             },
             {

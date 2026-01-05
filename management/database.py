@@ -2264,7 +2264,7 @@ class data_mysql:
                 base_sql.append(f"\tAND ({like_conditions_account})")
                 params.extend(like_params_account)
             # Normalize selected_sites (CSV string or list) and apply domain filter
-            base_sql.append("GROUP BY b.data_adsense_country_tanggal, b.data_adsense_country_domain, b.data_adsense_country_cd")
+            base_sql.append("GROUP BY b.data_adsense_country_tanggal, a.account_id, b.data_adsense_country_domain, b.data_adsense_country_cd")
             base_sql.append("ORDER BY b.data_adsense_country_tanggal ASC")
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):

@@ -48,17 +48,25 @@
           <i class="fas fa fa-sync-alt fa-spin"></i> Memuat Data Summary AdSense ...
       </div>
       <div class="row g-3 align-items-end">
-        <div class="col-md-3">
+        <div class="col-md-2">
           <label for="start_date" class="form-label">Range Dari</label>
           <input type="text" id="start_date" class="form-control datepicker-input" placeholder="YYYY-MM-DD" />
         </div>
-        <div class="col-md-3">
+        <div class="col-md-2">
           <label for="end_date" class="form-label">Range Sampai</label>
           <input type="text" id="end_date" class="form-control datepicker-input" placeholder="YYYY-MM-DD" />
         </div>
-        <div class="col-md-4">
+        <div class="col-md-3">
           <label for="account_filter" class="form-label">Filter Account</label>
-          <select id="account_filter" class="form-control select2"></select>
+          <select id="account_filter" class="form-control select2-multiple" multiple>
+            {% for account in data_account_adx %}
+            <option value="{{ account.account_id }}">{{ account.account_name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="country_filter" class="form-label">Filter Country</label>
+          <select id="country_filter" class="form-control select2-multiple" multiple></select>
         </div>
         <div class="col-md-2">
           <button id="btn_load_summary" class="btn btn-primary w-100">Load Data</button>
@@ -122,14 +130,37 @@
   <!-- Info message -->
   <div class="alert alert-info mt-3" id="summary_info" style="display:none"></div>
 
-  <!-- Placeholder for future charts -->
+  <!-- Charts -->
   <div class="card mt-3">
     <div class="card-body">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div class="text-muted">Grafik Pendapatan Harian</div>
-        <small class="text-muted">Sumber: AdSense Reports</small>
+        <small class="text-muted">Sumber: data_adsense_country (per domain)</small>
       </div>
       <canvas id="chart_revenue_daily"></canvas>
+    </div>
+  </div>
+
+  <div class="row mt-3" id="charts_section" style="display:none;">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Top 10 Country - Total Impressions</h3>
+        </div>
+        <div class="card-body">
+          <canvas id="impressionsChart" width="400" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">Top 10 Country - Total Revenue</h3>
+        </div>
+        <div class="card-body">
+          <canvas id="revenueChart" width="400" height="200"></canvas>
+        </div>
+      </div>
     </div>
   </div>
 </div>
