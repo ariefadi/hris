@@ -76,52 +76,82 @@
   </div>
 
   <!-- Summary boxes -->
-  <div class="row g-3" id="summary_boxes">
-    <div class="col-sm-6 col-lg-2">
-      <div class="card text-center">
-        <div class="card-body">
-          <div class="text-muted">Impressions</div>
-          <div id="sum_impressions" class="fs-5 fw-semibold">0</div>
+  <div class="row" id="summary_boxes">
+    <div class="col-12 col-sm-6 col-lg-2">
+      <div class="metric-card impressions">
+        <div class="metric-card-inner">
+          <div>
+            <div class="metric-label">Impressions</div>
+            <div id="sum_impressions" class="metric-value">0</div>
+          </div>
+          <div class="metric-card-icon" aria-hidden="true">
+            <i class="bi bi-eye-fill"></i>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-sm-6 col-lg-2">
-      <div class="card text-center">
-        <div class="card-body">
-          <div class="text-muted">Clicks</div>
-          <div id="sum_clicks" class="fs-5 fw-semibold">0</div>
+    <div class="col-12 col-sm-6 col-lg-2">
+      <div class="metric-card clicks">
+        <div class="metric-card-inner">
+          <div>
+            <div class="metric-label">Clicks</div>
+            <div id="sum_clicks" class="metric-value">0</div>
+          </div>
+          <div class="metric-card-icon" aria-hidden="true">
+            <i class="bi bi-cursor-fill"></i>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-sm-6 col-lg-2">
-      <div class="card text-center">
-        <div class="card-body">
-          <div class="text-muted">CTR</div>
-          <div id="sum_ctr" class="fs-5 fw-semibold">0%</div>
+    <div class="col-12 col-sm-6 col-lg-2">
+      <div class="metric-card ctr">
+        <div class="metric-card-inner">
+          <div>
+            <div class="metric-label">CTR</div>
+            <div id="sum_ctr" class="metric-value">0%</div>
+          </div>
+          <div class="metric-card-icon" aria-hidden="true">
+            <i class="bi bi-graph-up-arrow"></i>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-sm-6 col-lg-2">
-      <div class="card text-center">
-        <div class="card-body">
-          <div class="text-muted">CPC</div>
-          <div id="sum_cpc" class="fs-5 fw-semibold">Rp.0</div>
+    <div class="col-12 col-sm-6 col-lg-2">
+      <div class="metric-card cpc">
+        <div class="metric-card-inner">
+          <div>
+            <div class="metric-label">CPC</div>
+            <div id="sum_cpc" class="metric-value">Rp.0</div>
+          </div>
+          <div class="metric-card-icon" aria-hidden="true">
+            <i class="bi bi-cash-coin"></i>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-sm-6 col-lg-2">
-      <div class="card text-center">
-        <div class="card-body">
-          <div class="text-muted">eCPM</div>
-          <div id="sum_ecpm" class="fs-5 fw-semibold">Rp.0</div>
+    <div class="col-12 col-sm-6 col-lg-2">
+      <div class="metric-card ecpm">
+        <div class="metric-card-inner">
+          <div>
+            <div class="metric-label">eCPM</div>
+            <div id="sum_ecpm" class="metric-value">Rp.0</div>
+          </div>
+          <div class="metric-card-icon" aria-hidden="true">
+            <i class="bi bi-bar-chart-fill"></i>
+          </div>
         </div>
       </div>
     </div>
-    <div class="col-sm-6 col-lg-2">
-      <div class="card text-center">
-        <div class="card-body">
-          <div class="text-muted">Revenue</div>
-          <div id="sum_revenue" class="fs-5 fw-semibold">Rp.0</div>
+    <div class="col-12 col-sm-6 col-lg-2">
+      <div class="metric-card revenue">
+        <div class="metric-card-inner">
+          <div>
+            <div class="metric-label">Revenue</div>
+            <div id="sum_revenue" class="metric-value">Rp.0</div>
+          </div>
+          <div class="metric-card-icon" aria-hidden="true">
+            <i class="bi bi-currency-dollar"></i>
+          </div>
         </div>
       </div>
     </div>

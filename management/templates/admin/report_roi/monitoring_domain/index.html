@@ -125,38 +125,43 @@
                 padding-top: 20%;">
             <i class="fas fa fa-sync-alt fa-spin"></i> Memuat Data Traffic ... 
         </div>
-        <!-- Summary Info boxes -->
         <div class="row" id="summary_boxes" style="display: none;">
             <div class="col-12 col-sm-6 col-md-4">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-primary shadow-sm">
-                        <i class="bi bi-cash-stack"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Total Spend</span>
-                        <span class="info-box-number" id="total_spend">$0</span>
+                <div class="metric-card spend">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Spend</div>
+                            <div class="metric-value" id="total_spend">$0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-cash-stack"></i>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-md-4">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-danger shadow-sm">
-                        <i class="bi bi-graph-up-arrow"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">ROI Nett</span>
-                        <span class="info-box-number" id="roi_nett">0%</span>
+                <div class="metric-card roi">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">ROI Nett</div>
+                            <div class="metric-value" id="roi_nett">0%</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-md-4">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-warning shadow-sm">
-                        <i class="bi bi-currency-dollar"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Total Pendapatan</span>
-                        <span class="info-box-number" id="total_revenue">$0</span>
+                <div class="metric-card revenue">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Pendapatan</div>
+                            <div class="metric-value" id="total_revenue">$0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-currency-dollar"></i>
+                        </div>
                     </div>
                 </div>
             </div>

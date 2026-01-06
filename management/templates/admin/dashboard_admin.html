@@ -18,11 +18,62 @@
 }
 
 .metric-card {
+    position: relative;
+    overflow: hidden;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    border-radius: 15px;
-    padding: 20px;
+    color: #fff;
+    border-radius: 16px;
+    padding: 18px 18px;
     margin-bottom: 20px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.18);
+}
+
+.metric-card::after {
+    content: "";
+    position: absolute;
+    right: -40px;
+    top: -40px;
+    width: 140px;
+    height: 140px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    filter: blur(0px);
+}
+
+.metric-card-inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.metric-card-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.18);
+}
+
+.metric-card-icon i {
+    font-size: 1.6rem;
+    color: #fff;
+}
+
+@media (max-width: 576px) {
+    .metric-value {
+        font-size: 2rem;
+    }
 }
 
 .metric-card.users {
@@ -35,6 +86,14 @@
 
 .metric-card.activity {
     background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.metric-card.ads-accounts {
+    background: linear-gradient(135deg, #ff4b1f 0%, #ff9068 100%);
+}
+
+.metric-card.adx-accounts {
+    background: linear-gradient(135deg, #7f00ff 0%, #e100ff 100%);
 }
 
 .metric-value {
@@ -123,102 +182,131 @@
             </div>
             <!-- Dashboard Content -->
             <div id="dashboard-content" style="display: none;">
-                <div class="row">
+                <div class="row" id="metric-cards">
                     <div class="col-12 col-sm-6 col-md-4">
-                        <div class="info-box">
-                            <span class="info-box-icon text-bg-success shadow-sm">
-                                <i class="bi bi-people-fill me-2"></i>
-                            </span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Total Users</span>
-                                <div class="metric-value" id="total-users">0</div>
+                        <div class="metric-card users">
+                            <div class="metric-card-inner">
+                                <div>
+                                    <div class="metric-label">Total Users</div>
+                                    <div class="metric-value" id="total-users">0</div>
+                                </div>
+                                <div class="metric-card-icon" aria-hidden="true">
+                                    <i class="bi bi-people-fill"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
                     <div class="col-12 col-sm-6 col-md-4">
-                        <div class="info-box">
-                            <span class="info-box-icon text-bg-success shadow-sm">
-                                <i class="bi bi-person-check-fill me-2"></i>
-                            </span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Active Users (7 days)</span>
-                                <div class="metric-value" id="active-users">0</div>
+                        <div class="metric-card logins">
+                            <div class="metric-card-inner">
+                                <div>
+                                    <div class="metric-label">Active Users (7 days)</div>
+                                    <div class="metric-value" id="active-users">0</div>
+                                </div>
+                                <div class="metric-card-icon" aria-hidden="true">
+                                    <i class="bi bi-person-check-fill"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
                     <div class="col-12 col-sm-6 col-md-4">
-                        <div class="info-box">
-                            <span class="info-box-icon text-bg-success shadow-sm">
-                                <i class="bi bi-graph-up me-2"></i>
-                            </span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Activity Rate</span>
-                                <div class="metric-value" id="activity-rate">0%</div>
+                        <div class="metric-card activity">
+                            <div class="metric-card-inner">
+                                <div>
+                                    <div class="metric-label">Activity Rate</div>
+                                    <div class="metric-value" id="activity-rate">0%</div>
+                                </div>
+                                <div class="metric-card-icon" aria-hidden="true">
+                                    <i class="bi bi-graph-up"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <!-- Metrik Akun Ads & AdX -->
-                <div class="row mt-2">
+                <!-- Metrik Akun Ads & Adx -->
+                <div class="row mt-2" id="ads-adx-cards">
                     <div class="col-12 col-sm-6 col-md-6">
-                        <div class="info-box">
-                            <span class="info-box-icon text-bg-success shadow-sm">
-                                <i class="bi bi-facebook me-2"></i>
-                            </span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">Ads Accounts</span>
-                                <div class="metric-value" id="ads-accounts-count">0</div>
+                        <div class="metric-card ads-accounts">
+                            <div class="metric-card-inner">
+                                <div>
+                                    <div class="metric-label">Ads Accounts</div>
+                                    <div class="metric-value" id="ads-accounts-count">0</div>
+                                </div>
+                                <div class="metric-card-icon" aria-hidden="true">
+                                    <i class="bi bi-facebook"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
                     <div class="col-12 col-sm-6 col-md-6">
-                        <div class="info-box">
-                            <span class="info-box-icon text-bg-success shadow-sm">
-                                <i class="bi bi-badge-ad-fill me-2"></i>
-                            </span>
-                            <div class="info-box-content">
-                                <span class="info-box-text">AdX Accounts</span>
-                                <div class="metric-value" id="adx-accounts-count">0</div>
+                        <div class="metric-card adx-accounts">
+                            <div class="metric-card-inner">
+                                <div>
+                                    <div class="metric-label">Adx Accounts</div>
+                                    <div class="metric-value" id="adx-accounts-count">0</div>
+                                </div>
+                                <div class="metric-card-icon" aria-hidden="true">
+                                    <i class="bi bi-badge-ad-fill"></i>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-                <!-- Filter Akun AdX -->
-                <div class="row mt-3">
+                <div class="row mt-3" id="roi-kpi-cards">
+                    <div class="col-md-8">
+                        <div class="card dashboard-card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="bi bi-bullseye me-2"></i> ROI & Pendapatan (Hari Ini)
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="roiBulletChart" style="height: 300px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card dashboard-card">
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="bi bi-clock me-2"></i> Jam
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="roiClockGauge" style="height: 300px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Earnings Comparison -->
+                <div class="row mt-3" id="earnings-comparison">
                     <div class="col-md-12">
                         <div class="card dashboard-card">
-                            <div class="card-header d-flex align-items-center justify-content-between">
-                                <div class="row w-100">
-                                    <!-- Kolom kiri -->
-                                    <div class="col-md-6 d-flex align-items-center">
-                                        <h5 class="card-title mb-0">
-                                            <i class="bi bi-filter me-2"></i> ROI Filters
-                                        </h5>
-                                    </div>
-                                    <!-- Kolom kanan -->
-                                    <div class="col-md-6 d-flex align-items-center justify-content-md-end gap-3 equal-group">
-                                        <label for="account-filter" class="mb-0">AdX Account:</label>
-                                        <select id="account-filter" class="form-select"></select>
-                                        <small class="text-muted">&nbsp;&nbsp; Range: last 7 days</small>
-                                    </div>
+                            <div class="card-header">
+                                <h5 class="card-title">
+                                    <i class="bi bi-cash-stack me-2"></i> Earning Comparison (7 Days)
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container" style="height: 380px;">
+                                    <canvas id="earningsComparisonChart" style="height: 360px;"></canvas>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <!-- ROI Charts -->
-                <div class="row">
+                <div class="row mt-3" id="roi-charts">
                     <div class="col-md-6">
                         <div class="card dashboard-card">
                             <div class="card-header">
                                 <h5 class="card-title">
-                                    <i class="bi bi-activity me-2"></i> ROI per Domain (Line)
+                                    <i class="bi bi-activity me-2"></i> ROI per Domain (Bar)
                                 </h5>
                             </div>
                             <div class="card-body">
                                 <div class="chart-container">
-                                    <!-- Tinggi diseragamkan -->
-                                    <canvas id="roiDomainChart" style="height: 400px;"></canvas>
+                                    <div id="roiDomainChart" style="height: 400px;"></div>
                                 </div>
                             </div>
                         </div>
@@ -227,7 +315,7 @@
                         <div class="card dashboard-card">
                             <div class="card-header">
                                 <h5 class="card-title">
-                                    <i class="bi bi-map me-2"></i> ROI per Country (Map)
+                                    <i class="bi bi-file-word-fill"></i> ROI per Country (Wordcloud)
                                 </h5>
                             </div>
                             <div class="card-body">
@@ -249,7 +337,7 @@
                                         </h5>
                                     </div>
                                     <div class="col-md-6 d-flex align-items-center justify-content-md-end gap-3 equal-group">
-                                        <label for="roi-hourly-account-filter" class="mb-0">Subdomain:</label>
+                                        <label for="roi-hourly-account-filter" class="mb-0">AdX Account:</label>
                                         <select id="roi-hourly-account-filter" class="form-select"></select>
                                         <label for="roi-hourly-date" class="mb-0">Date:</label>
                                         <input id="roi-hourly-date" type="date" class="form-control" />
@@ -282,11 +370,15 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <!-- Highcharts Maps (samakan dengan roi_traffic_country) -->
 <script src="https://cdn.jsdelivr.net/npm/proj4@2.9.0/dist/proj4.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highmaps.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highmaps.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highcharts-more.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/solid-gauge.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/bullet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/wordcloud.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.1.0/custom/world.js"></script>
-<!-- Select2 (untuk AdX Account) -->
+<!-- Select2 (untuk Adx Account) -->
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@1.5.2/dist/select2-bootstrap4.min.css" rel="stylesheet">
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -294,6 +386,20 @@
 <script>
 let loginChart, userChart;
 let roiDomainChart;
+let earningsComparisonChart;
+
+function showError(message) {
+    const loading = document.getElementById('loading');
+    const content = document.getElementById('dashboard-content');
+    const box = document.getElementById('error-message');
+    const text = document.getElementById('error-text');
+
+    if (loading) loading.style.display = 'none';
+    if (content) content.style.display = 'none';
+    if (box) box.style.display = 'block';
+    if (text) text.textContent = message || 'Unknown error';
+}
+
 // Fetch dashboard data
 async function fetchDashboardData() {
     try {
@@ -310,21 +416,21 @@ async function fetchDashboardData() {
             showError(result.error || 'Failed to load dashboard data');
         }
     } catch (error) {
-
+        console.error('fetchDashboardData error:', error);
+        showError('Failed to load dashboard data');
     }
 }
 // Update dashboard with data
 function updateDashboard(data) {
-    // Hide loading, show content
     document.getElementById('loading').style.display = 'none';
     document.getElementById('dashboard-content').style.display = 'block';
-    // Update metric cards
-    if (data.user_stats) {
+
+    try {
+        if (data.user_stats) {
         document.getElementById('total-users').textContent = data.user_stats.total_users;
         document.getElementById('active-users').textContent = data.user_stats.active_users;
         document.getElementById('activity-rate').textContent = data.user_stats.activity_rate + '%';
     }
-    // Update Ads/AdX account stats
     if (data.account_stats) {
         document.getElementById('ads-accounts-count').textContent = data.account_stats.ads_accounts_count ?? 0;
         document.getElementById('adx-accounts-count').textContent = data.account_stats.adx_accounts_count ?? 0;
@@ -333,17 +439,36 @@ function updateDashboard(data) {
         populateAccountFilter(accounts, defaultMail);
         populateHourlyAccountFilter(accounts, defaultMail);
     }
-    // Update charts (existing login charts if present)
-    if (data.charts && data.charts.login_activity) {
-        updateLoginChart(data.charts.login_activity);
-        updateUserChart(data.user_stats);
+    if (data.charts && data.charts.earnings_comparison) {
+        updateEarningsComparisonChart(data.charts.earnings_comparison);
     }
-    // Update recent logins
-    if (data.recent_logins) {
-        updateRecentLogins(data.recent_logins);
+    if (data.charts && data.charts.login_activity) {
+        if (typeof updateLoginChart === 'function') {
+            updateLoginChart(data.charts.login_activity);
+        }
+        if (typeof updateUserChart === 'function') {
+            updateUserChart(data.user_stats);
+        }
+    }
+        if (data.recent_logins) {
+            if (typeof updateRecentLogins === 'function') {
+                updateRecentLogins(data.recent_logins);
+            }
+        }
+    } finally {
+        try {
+            renderClockGauge();
+        } catch (e) {
+            console.error('renderClockGauge error:', e);
+        }
+        try {
+            loadRoiKpiBullet();
+        } catch (e) {
+            console.error('loadRoiKpiBullet error:', e);
+        }
     }
 }
-// Populate AdX account filter and trigger ROI load
+// Populate Adx account filter and trigger ROI load
 function populateAccountFilter(accounts, defaultMail) {
     const sel = document.getElementById('account-filter');
     if (!sel) return;
@@ -355,42 +480,57 @@ function populateAccountFilter(accounts, defaultMail) {
     sel.innerHTML = '';
     accounts.forEach(acc => {
         const opt = document.createElement('option');
-        opt.value = acc.user_mail || '';
+        opt.value = acc.account_id || acc.user_mail || '';
         opt.textContent = acc.account_name || acc.user_mail || '(unknown)';
         sel.appendChild(opt);
     });
     // Inisialisasi Select2
     if (window.jQuery) {
         jQuery(sel).select2({
-            placeholder: '-- Pilih AdX Account --',
+            placeholder: '-- Pilih Adx Account --',
             theme: 'bootstrap4',
             width: '100%',
                     allowClear: true
                 });
             }
     // Select default
-    if (defaultMail) sel.value = defaultMail;
-    const selectedMail = sel.value || defaultMail || (accounts[0]?.user_mail || '');
-    if (selectedMail) {
-        loadRoiData(selectedMail);
+    if (defaultMail) {
+        sel.value = defaultMail;
+        if (!sel.value) {
+            const mapped = (accounts || []).find(a => String(a.user_mail || '') === String(defaultMail || '') && String(a.account_id || ''));
+            if (mapped) sel.value = mapped.account_id;
+        }
+    }
+    const selectedAccountId = sel.value || (accounts[0]?.account_id || '') || (accounts[0]?.user_mail || '');
+    if (selectedAccountId) {
+        loadRoiData(selectedAccountId);
     }
     sel.onchange = () => loadRoiData(sel.value);
 }
 // Fetch and render ROI per Domain (line) and per Country (map)
 async function loadRoiData(selectedAccountMail) {
-    const { startDate, endDate } = getLast7DaysRange();
-    // ROI per Domain
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+    const startDate = todayStr;
+    const endDate = todayStr;
+    // ROI per Domain (referensi menu monitoring_domain, semua akun, Tanpa Spends aktif, data hari ini)
     const qsDomain = new URLSearchParams({
         start_date: startDate,
         end_date: endDate,
-        selected_account_adx: selectedAccountMail,
-        selected_sites: '' // all domains
+        selected_account_adx: '',
+        selected_domains: ''
     });
     try {
-        const resp = await fetch('/management/admin/page_roi_traffic_domain?' + qsDomain.toString());
+        const resp = await fetch('/management/admin/page_monitoring_domain?' + qsDomain.toString());
         const json = await resp.json();
-        if (json.status && Array.isArray(json.data)) {
-            renderRoiDomainChart(json.data);
+        if (json.status) {
+            const base = Array.isArray(json.data_filtered)
+                ? json.data_filtered
+                : (Array.isArray(json.data) ? json.data : []).filter(it => Number((it || {}).spend || 0) > 0);
+            renderRoiDomainChart(base);
         } else {
             renderRoiDomainChart([]); // clear
         }
@@ -398,19 +538,22 @@ async function loadRoiData(selectedAccountMail) {
         renderRoiDomainChart([]);
         console.warn('ROI Domain fetch error:', e);
     }
-    // ROI per Country
+    // ROI per Country (referensi dari menu monitoring_country, data hari ini)
     const qsCountry = new URLSearchParams({
-        start_date: startDate,
-        end_date: endDate,
-        selected_account_adx: selectedAccountMail,
-        selected_countries: '',
-        selected_sites: '' // all domains
+        start_date: todayStr,
+        end_date: todayStr,
+        selected_account_adx: '',
+        selected_domains: '',
+        selected_countries: ''
     });
     try {
-        const resp = await fetch('/management/admin/page_roi_traffic_country?' + qsCountry.toString());
+        const resp = await fetch('/management/admin/page_monitoring_country?' + qsCountry.toString());
         const json = await resp.json();
-        if (json.status && Array.isArray(json.data)) {
-            renderRoiCountryMap(json.data);
+        if (json.status) {
+            const base = Array.isArray(json.data_filtered)
+                ? json.data_filtered
+                : (Array.isArray(json.data) ? json.data : []).filter(it => Number((it || {}).spend || 0) > 0);
+            renderRoiCountryMap(base);
         } else {
             renderRoiCountryMap([]); // clear
         }
@@ -427,30 +570,22 @@ async function populateHourlyAccountFilter() {
         jQuery(sel).select2('destroy');
     }
     sel.innerHTML = '';
-    let domains = [];
-    try {
-        const resp = await fetch('/management/admin/roi_hourly_domain_filter');
-        domains = await resp.json();
-    } catch(e) {
-        domains = [];
-    }
-    if (Array.isArray(domains)) {
-        domains.forEach(d => {
-            const opt = document.createElement('option');
-            opt.value = d.domain || d.log_adx_country_domain || '';
-            opt.textContent = d.domain || d.log_adx_country_domain || '';
-            sel.appendChild(opt);
-        });
-    }
+    accounts.forEach(acc => {
+        const opt = document.createElement('option');
+        opt.value = acc.user_mail || '';
+        opt.textContent = acc.account_name || acc.user_mail || '';
+        sel.appendChild(opt);
+    });
     if (window.jQuery) {
         jQuery(sel).select2({
-            placeholder: '-- Pilih Subdomain --',
+            placeholder: '-- Pilih AdX Account --',
             theme: 'bootstrap4',
             width: '100%',
             allowClear: true
         });
     }
-    const chosen = sel.value || (domains[0]?.domain || domains[0]?.log_adx_country_domain || '');
+    if (defaultMail) sel.value = defaultMail;
+    const chosen = sel.value || defaultMail || (accounts[0]?.user_mail || '');
     const dateInput = document.getElementById('roi-hourly-date');
     if (dateInput && !dateInput.value) {
         const today = new Date();
@@ -459,18 +594,23 @@ async function populateHourlyAccountFilter() {
         const dd = String(today.getDate()).padStart(2, '0');
         dateInput.value = `${yyyy}-${mm}-${dd}`;
     }
+    if (chosen) {
+        loadRoiData(chosen);
+    }
     if (chosen && dateInput && dateInput.value) {
         loadRoiHourlyData(chosen, dateInput.value);
     }
     sel.onchange = () => {
         const v = sel.value;
         const d = (document.getElementById('roi-hourly-date') || {}).value;
+        if (v) loadRoiData(v);
         if (v && d) loadRoiHourlyData(v, d);
     };
     if (dateInput) {
         dateInput.addEventListener('change', () => {
             const v = sel.value || chosen;
             const d = dateInput.value;
+            if (v) loadRoiData(v);
             if (v && d) loadRoiHourlyData(v, d);
         });
     }
@@ -501,176 +641,543 @@ function getLast7DaysRange() {
     const fmt = d => d.toISOString().slice(0,10);
     return { startDate: fmt(start), endDate: fmt(end) };
 }
-// Render ROI per Domain (Chart.js line)
-function renderRoiDomainChart(items) {
-    const canvas = document.getElementById('roiDomainChart');
-    if (!canvas) return;
-    // Group by domain and date
-    const byDomain = new Map();
-    const dateSet = new Set();
-    items.forEach(it => {
-        const dom = String(it.site_name || '').trim();
-        const dt = String(it.date || '').trim();
-        if (!dom || !dt) return;
-        dateSet.add(dt);
-        if (!byDomain.has(dom)) byDomain.set(dom, new Map());
-        byDomain.get(dom).set(dt, Number(it.roi || 0));
-    });
-    // Sort dates ascending and format labels
-    const dates = Array.from(dateSet).sort();
-    const labels = dates.map(d => {
-        const [y,m,dd] = d.split('-');
-        return `${dd}/${m}/${y}`; // tampilkan tanggal lengkap
-    });
-    // Compute top 5 domains by revenue (fallback to random if not available)
-    const revenueByDomain = new Map();
-    items.forEach(it => {
-        const dom = String(it.site_name || '').trim();
-        const rev = Number(it.revenue || 0);
-        revenueByDomain.set(dom, (revenueByDomain.get(dom) || 0) + rev);
-    });
-    const topDomains = Array.from(revenueByDomain.entries())
-        .sort((a,b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([dom]) => dom);
-    // Build datasets
-    const palette = ['#4facfe','#43e97b','#fa709a','#764ba2','#ff9800','#009688'];
-    const datasets = topDomains.map((dom, i) => {
-        const map = byDomain.get(dom) || new Map();
-        const series = dates.map(d => map.get(d) ?? 0);
-        return {
-            label: dom,
-            data: series,
-            borderColor: palette[i % palette.length],
+function formatIdr(value) {
+    const num = Number(value || 0);
+    return num.toLocaleString('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 });
+}
+function formatYmdLocal(d) {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+async function loadRoiKpiBullet() {
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    const todayStr = formatYmdLocal(today);
+    const yestStr = formatYmdLocal(yesterday);
+
+    const buildUrl = (dt) => {
+        const qs = new URLSearchParams({
+            start_date: dt,
+            end_date: dt,
+            selected_account_adx: '',
+            selected_domains: '',
+            selected_countries: ''
+        });
+        return '/management/admin/page_monitoring_country?' + qs.toString();
+    };
+
+    try {
+        const [r1, r2] = await Promise.all([fetch(buildUrl(todayStr)), fetch(buildUrl(yestStr))]);
+        const [j1, j2] = await Promise.all([r1.json(), r2.json()]);
+
+        const s1 = (j1 && j1.status && j1.summary_filtered) ? j1.summary_filtered : null;
+        const s2 = (j2 && j2.status && j2.summary_filtered) ? j2.summary_filtered : null;
+
+        const revToday = Number((s1 || {}).total_revenue || 0);
+        const roiToday = Number((s1 || {}).roi_nett || 0);
+        const revYest = Number((s2 || {}).total_revenue || 0);
+        const roiYest = Number((s2 || {}).roi_nett || 0);
+
+        renderRoiBulletChart({
+            todayStr,
+            yestStr,
+            revToday,
+            roiToday,
+            revYest,
+            roiYest
+        });
+    } catch (e) {
+        renderRoiBulletChart(null);
+    }
+}
+function renderRoiBulletChart(m) {
+    if (!window.Highcharts || !Highcharts.chart) return;
+
+    const el = document.getElementById('roiBulletChart');
+    if (!el) return;
+
+    if (!Highcharts.seriesTypes || !Highcharts.seriesTypes.bullet) {
+        el.innerHTML = 'Highcharts bullet module is not loaded';
+        return;
+    }
+
+    if (!m) {
+        el.innerHTML = '';
+        return;
+    }
+
+    const revToday = Number(m.revToday || 0);
+    const revYest = Number(m.revYest || 0);
+    const roiToday = Number(m.roiToday || 0);
+    const roiYest = Number(m.roiYest || 0);
+
+
+    const revMaxVal = Math.max(revToday, revYest);
+    const revAxisMax = revMaxVal > 0 ? Math.ceil(revMaxVal * 1.15) : 1;
+
+    const roiMinVal = Math.min(roiToday, roiYest);
+    const roiMaxVal = Math.max(roiToday, roiYest);
+    const roiSpan = Math.abs(roiMaxVal - roiMinVal);
+    const roiPad = Math.max(2, roiSpan * 0.2);
+    const roiAxisMin = Math.floor(roiMinVal - roiPad);
+    const roiAxisMax = Math.ceil(roiMaxVal + roiPad);
+
+
+    const bands = (min, max) => {
+        const a = Number(min || 0);
+        const b = Number(max || 0);
+        const lo = Math.min(a, b);
+        const hi = Math.max(a, b);
+        const span = Math.max(1, hi - lo);
+        return [
+            { from: lo, to: lo + span * 0.6, color: 'rgba(0,0,0,0.04)' },
+            { from: lo + span * 0.6, to: lo + span * 0.85, color: 'rgba(0,0,0,0.08)' },
+            { from: lo + span * 0.85, to: hi, color: 'rgba(0,0,0,0.12)' }
+        ];
+    };
+
+    if (window.roiKpiBulletChart && typeof window.roiKpiBulletChart.destroy === 'function') {
+        window.roiKpiBulletChart.destroy();
+    }
+
+    window.roiKpiBulletChart = Highcharts.chart('roiBulletChart', {
+        chart: {
+            inverted: true,
+            type: 'bullet',
             backgroundColor: 'transparent',
-            borderWidth: 2,
-            tension: 0.3
-        };
+            height: 300,
+            marginLeft: 125,
+            marginRight: 35,
+            spacingTop: 10,
+            spacingBottom: 10
+        },
+        title: { text: null },
+        credits: { enabled: false },
+        legend: { enabled: false },
+        xAxis: [
+            {
+                categories: ['Pendapatan'],
+                top: '0%',
+                height: '50%',
+                lineWidth: 0,
+                tickLength: 0,
+                labels: {
+                    align: 'center',
+                    x: -8,
+                    style: { fontSize: '12px', fontWeight: '700' }
+                }
+            },
+            {
+                categories: ['Hasil ROI'],
+                top: '50%',
+                height: '50%',
+                lineWidth: 0,
+                tickLength: 0,
+                labels: {
+                    align: 'left',
+                    x: -1,
+                    style: { fontSize: '12px', fontWeight: '700' }
+                }
+            }
+        ],
+        yAxis: [
+            {
+                min: 0,
+                max: revAxisMax,
+                plotBands: bands(0, revAxisMax),
+                labels: {
+                    style: { fontSize: '10px' },
+                    formatter: function () {
+                        return Number(this.value || 0).toLocaleString('id-ID');
+                    }
+                },
+                title: { text: null },
+                gridLineWidth: 0,
+                lineWidth: 0,
+                tickLength: 6,
+                tickWidth: 1,
+                tickColor: 'rgba(0,0,0,0.18)',
+                top: '0%',
+                height: '50%'
+            },
+            {
+                min: roiAxisMin,
+                max: roiAxisMax,
+                plotBands: bands(roiAxisMin, roiAxisMax),
+                labels: {
+                    style: { fontSize: '10px' },
+                    formatter: function () {
+                        return `${Number(this.value || 0).toFixed(0)}%`;
+                    }
+                },
+                title: { text: null },
+                gridLineWidth: 0,
+                lineWidth: 0,
+                tickLength: 6,
+                tickWidth: 1,
+                tickColor: 'rgba(0,0,0,0.18)',
+                top: '50%',
+                height: '50%'
+            }
+        ],
+        tooltip: {
+            useHTML: true,
+            formatter: function () {
+                const s = this.series || {};
+                const p = this.point || {};
+                if (s.name === 'Pendapatan') {
+                    return `Pendapatan<br/>Hari ini: <b>${formatIdr(p.y || 0)}</b><br/>Kemarin: <b>${formatIdr(p.target || 0)}</b>`;
+                }
+                if (s.name === 'ROI') {
+                    return `ROI<br/>Hari ini: <b>${Number(p.y || 0).toFixed(2)}%</b><br/>Kemarin: <b>${Number(p.target || 0).toFixed(2)}%</b>`;
+                }
+                return '';
+            }
+        },
+        plotOptions: {
+            series: {
+                pointPadding: 0.18,
+                borderWidth: 0,
+                targetOptions: { width: '200%' },
+                dataLabels: {
+                    enabled: true,
+                    inside: false,
+                    align: 'left',
+                    x: 10,
+                    style: { fontWeight: '600' }
+                }
+            }
+        },
+        series: [
+            {
+                name: 'Pendapatan',
+                xAxis: 0,
+                yAxis: 0,
+                color: '#4facfe',
+                targetOptions: { color: '#2b90ff' },
+                data: [{
+                    y: revToday,
+                    target: revYest,
+                    dataLabels: { format: `Hari ini: ${formatIdr(revToday)}` }
+                }]
+            },
+            {
+                name: 'ROI',
+                xAxis: 1,
+                yAxis: 1,
+                color: '#7f00ff',
+                targetOptions: { color: '#7f00ff' },
+                data: [{
+                    y: roiToday,
+                    target: roiYest,
+                    dataLabels: { format: `Hari ini: ${roiToday.toFixed(2)}%` }
+                }]
+            }
+        ]
     });
-    if (roiDomainChart) roiDomainChart.destroy();
+}
+function renderClockGauge() {
+    if (!window.Highcharts || !Highcharts.chart) return;
+
+    const el = document.getElementById('roiClockGauge');
+    if (!el) return;
+
+    if (!Highcharts.seriesTypes || !Highcharts.seriesTypes.gauge) {
+        el.innerHTML = 'Highcharts gauge is not available (highcharts-more not loaded)';
+        return;
+    }
+
+    if (window.roiClockGaugeChart && typeof window.roiClockGaugeChart.destroy === 'function') {
+        window.roiClockGaugeChart.destroy();
+    }
+
+    try {
+        window.roiClockGaugeChart = Highcharts.chart('roiClockGauge', {
+        chart: { type: 'gauge', backgroundColor: 'transparent' },
+        title: { text: null },
+        credits: { enabled: false },
+        pane: {
+            startAngle: 0,
+            endAngle: 360,
+            background: [{
+                outerRadius: '100%',
+                innerRadius: '60%',
+                backgroundColor: 'rgba(0,0,0,0.03)',
+                borderWidth: 0
+            }]
+        },
+        yAxis: {
+            min: 0,
+            max: 12,
+            tickInterval: 1,
+            minorTickInterval: 0.5,
+            labels: { distance: 18 },
+            lineWidth: 0,
+            tickLength: 8,
+            minorTickLength: 4
+        },
+        tooltip: { enabled: false },
+        series: [{
+            name: 'Hour',
+            data: [0],
+            dial: {
+                radius: '55%',
+                baseLength: '0%',
+                baseWidth: 6,
+                rearLength: '0%'
+            },
+            pivot: { radius: 4 },
+            dataLabels: { enabled: false }
+        }, {
+            name: 'Minute',
+            data: [0],
+            dial: {
+                radius: '80%',
+                baseLength: '0%',
+                baseWidth: 4,
+                rearLength: '0%'
+            },
+            pivot: { radius: 0 },
+            dataLabels: { enabled: false }
+        }, {
+            name: 'Second',
+            data: [0],
+            dial: {
+                radius: '90%',
+                baseLength: '0%',
+                baseWidth: 2,
+                rearLength: '0%',
+                backgroundColor: '#dc3545',
+                borderColor: '#dc3545'
+            },
+            pivot: { radius: 0 },
+            dataLabels: { enabled: false }
+        }]
+    });
+
+    const update = () => {
+        const now = new Date();
+        let h = now.getHours() % 12;
+        const m = now.getMinutes();
+        const s = now.getSeconds();
+        const hourVal = h + (m / 60);
+        const minVal = (m / 60) * 12;
+        const secVal = (s / 60) * 12;
+        const c = window.roiClockGaugeChart;
+        if (!c || !c.series || c.series.length < 3) return;
+        c.series[0].points[0].update(hourVal, false);
+        c.series[1].points[0].update(minVal, false);
+        c.series[2].points[0].update(secVal, false);
+        c.redraw();
+    };
+
+    update();
+    if (window.roiClockGaugeTimer) {
+        clearInterval(window.roiClockGaugeTimer);
+    }
+        window.roiClockGaugeTimer = setInterval(update, 1000);
+    } catch (e) {
+        console.error('roiClockGauge error:', e);
+        el.innerHTML = String((e && e.message) ? e.message : e);
+    }
+}
+function updateEarningsComparisonChart(payload) {
+    const canvas = document.getElementById('earningsComparisonChart');
+    if (!canvas) return;
+
+    const labels = Array.isArray(payload?.labels) ? payload.labels : [];
+    const adx = Array.isArray(payload?.adx_earnings) ? payload.adx_earnings : [];
+    const adsense = Array.isArray(payload?.adsense_earnings) ? payload.adsense_earnings : [];
+
     const ctx = canvas.getContext('2d');
-    roiDomainChart = new Chart(ctx, {
+    if (earningsComparisonChart) earningsComparisonChart.destroy();
+
+    earningsComparisonChart = new Chart(ctx, {
         type: 'line',
-        data: { labels, datasets },
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: ' Pendapatan Adx ',
+                    data: adx,
+                    borderColor: 'rgba(127, 0, 255, 1)',
+                    backgroundColor: 'rgba(127, 0, 255, 0.18)',
+                    pointBackgroundColor: 'rgba(127, 0, 255, 1)',
+                    pointBorderColor: '#fff',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.35
+                },
+                {
+                    label: ' Pendapatan AdSense ',
+                    data: adsense,
+                    borderColor: 'rgba(0, 212, 255, 1)',
+                    backgroundColor: 'rgba(0, 212, 255, 0.14)',
+                    pointBackgroundColor: 'rgba(0, 212, 255, 1)',
+                    pointBorderColor: '#fff',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.35
+                }
+            ]
+        },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { position: 'top' }, title: { display: false } },
+            plugins: {
+                legend: { position: 'top' },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const v = context.parsed?.y ?? 0;
+                            return `${context.dataset.label}: ${formatIdr(v)}`;
+                        }
+                    }
+                }
+            },
             scales: {
-                x: { ticks: { autoSkip: true, maxRotation: 0 } }, // rapikan label
-                y: { beginAtZero: true }
+                x: { ticks: { maxRotation: 0, autoSkip: true } },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            const num = Number(value || 0);
+                            return num.toLocaleString('id-ID');
+                        }
+                    }
+                }
             }
         }
     });
 }
-// Render ROI per Country (Highcharts map)
-function renderRoiCountryMap(items) {
-    const raw = Array.isArray(items) ? items : [];
-    // Bentuk data seperti di roi_traffic_country (pakai hc-key objek)
-    const data = raw.map(it => {
-        const code = String(it.country_code || '').toLowerCase();
-        return {
-            'hc-key': code,
-            code: code.toUpperCase(),
-            name: it.country || code.toUpperCase(),
-            value: Number(it.roi || 0),
-            impressions: Number(it.impressions || 0),
-            clicks: Number(it.clicks || 0),
-            spend: Number(it.spend || 0),
-            revenue: Number(it.revenue || 0)
-        };
-    });
-    // Pastikan world map ter-load; bila belum, jangan render
-    if (!Highcharts || !Highcharts.mapChart) {
-        console.error('Highcharts Maps belum ter-load');
-        return;
-    }
-    if (!Highcharts.maps || !Highcharts.maps['custom/world']) {
-        console.error('World map data tidak ter-load');
-        return;
-    }
-    // Buat rentang warna (dataClasses) seperti halaman ROI
-    let maxROI = 0;
-    data.forEach(d => { if (d.value > maxROI) maxROI = d.value; });
+// Render ROI per Domain (Highcharts stacked bar)
+function renderRoiDomainChart(items) {
+    const el = document.getElementById('roiDomainChart');
+    if (!el) return;
 
-    let ranges;
-    if (maxROI <= 100) {
-        ranges = [
-            { from: 0, to: 20, color: '#FFF2CC', name: '0% - 20%' },
-            { from: 20, to: 40, color: '#FFE066', name: '20% - 40%' },
-            { from: 40, to: 60, color: '#FFCC02', name: '40% - 60%' },
-            { from: 60, to: 80, color: '#FF9500', name: '60% - 80%' },
-            { from: 80, to: 100, color: '#FF6B35', name: '80% - 100%' }
-        ];
-    } else if (maxROI <= 500) {
-        ranges = [
-            { from: 0, to: 50, color: '#FFF2CC', name: '0% - 50%' },
-            { from: 50, to: 100, color: '#FFE066', name: '50% - 100%' },
-            { from: 100, to: 200, color: '#FFCC02', name: '100% - 200%' },
-            { from: 200, to: 350, color: '#FF9500', name: '200% - 350%' },
-            { from: 350, to: 500, color: '#FF6B35', name: '350% - 500%' }
-        ];
-    } else if (maxROI <= 1000) {
-        ranges = [
-            { from: 0, to: 50, color: '#FFF2CC', name: '0% - 50%' },
-            { from: 50, to: 100, color: '#FFE066', name: '50% - 100%' },
-            { from: 100, to: 200, color: '#FFCC02', name: '100% - 200%' },
-            { from: 200, to: 500, color: '#FF9500', name: '200% - 500%' },
-            { from: 500, to: 1000, color: '#FF6B35', name: '500% - 1000%' }
-        ];
-    } else {
-        ranges = [
-            { from: 0, to: 50, color: '#FFF2CC', name: '0% - 50%' },
-            { from: 50, to: 100, color: '#FFE066', name: '50% - 100%' },
-            { from: 100, to: 200, color: '#FFCC02', name: '100% - 200%' },
-            { from: 200, to: 500, color: '#FF9500', name: '200% - 500%' },
-            { from: 500, to: 1000, color: '#FF6B35', name: '500% - 1000%' },
-            { from: 1000, to: 2000, color: '#E63946', name: '1000% - 2000%' },
-            { from: 2000, to: Infinity, color: '#A4161A', name: '> 2000%' }
-        ];
+    if (!window.Highcharts || !Highcharts.chart) {
+        console.error('Highcharts belum ter-load');
+        return;
     }
-    Highcharts.mapChart('roiCountryMap', {
-        chart: {
-            map: 'custom/world',
-            backgroundColor: 'transparent'
+
+    const raw = Array.isArray(items) ? items : [];
+
+    const agg = new Map();
+    raw.forEach(it => {
+        const name = String((it || {}).site_name || '').trim();
+        if (!name) return;
+        const spend = Number((it || {}).spend || 0);
+        const revenue = Number((it || {}).revenue || 0);
+        const cur = agg.get(name) || { spend: 0, revenue: 0 };
+        cur.spend += spend;
+        cur.revenue += revenue;
+        agg.set(name, cur);
+    });
+
+    const rows = Array.from(agg.entries()).map(([name, v]) => {
+        const spend = Number(v.spend || 0);
+        const revenue = Number(v.revenue || 0);
+        const roi = spend > 0 ? ((revenue - spend) / spend * 100) : 0;
+        return { name, spend, revenue, net: revenue - spend, roi };
+    });
+
+    rows.sort((a, b) => (b.roi || 0) - (a.roi || 0));
+    const top = rows.slice(0, 12);
+
+    const categories = top.map(r => r.name);
+    const spendSeries = top.map(r => Math.round(r.spend || 0));
+    const netSeries = top.map(r => Math.round(r.net || 0));
+
+    if (roiDomainChart && typeof roiDomainChart.destroy === 'function') {
+        roiDomainChart.destroy();
+    }
+
+    roiDomainChart = Highcharts.chart('roiDomainChart', {
+        chart: { type: 'bar', backgroundColor: 'transparent' },
+        title: { text: 'ROI per Domain (Hari Ini)' },
+        subtitle: { text: 'Top 12 domain berdasarkan ROI (semua akun, Tanpa Spends aktif)' },
+        credits: { enabled: false },
+        xAxis: {
+            categories,
+            title: { text: null },
+            labels: { style: { fontSize: '11px' } }
         },
-        title: { text: 'ROI Per Negara' },
-        subtitle: { text: 'Berdasarkan data traffic dan revenue' },
-        mapNavigation: { enabled: true },
-        colorAxis: {
-            min: 0,
-            dataClasses: ranges.map(r => ({
-                from: r.from, to: r.to, color: r.color, name: r.name
-            }))
-        },
-        legend: {
-            title: { text: 'Tingkat ROI' },
-            align: 'left',
-            verticalAlign: 'bottom',
-            floating: true,
-            layout: 'vertical',
-            backgroundColor: 'rgba(255,255,255,0.9)',
-            symbolRadius: 0,
-            symbolHeight: 14
-        },
-        series: [{
-            name: 'Negara',
-            data,
-            joinBy: ['hc-key', 'hc-key'],
-            nullColor: '#E6E7E8',
-            borderColor: '#606060',
-            borderWidth: 0.5,
-            tooltip: {
-                pointFormatter: function () {
-                    return '<b>' + (this.name || this.code) + '</b><br>' +
-                           'Kode: ' + (this.code || '').toUpperCase() + '<br>' +
-                           'ROI: <b>' + (this.value || 0).toFixed(2) + '%</b><br>' +
-                           'Impressions: <b>' + (this.impressions || 0).toLocaleString('id-ID') + '</b><br>' +
-                           'Clicks: <b>' + (this.clicks || 0).toLocaleString('id-ID') + '</b><br>' +
-                           'Spend: <b>Rp ' + Math.round(this.spend || 0).toLocaleString('id-ID') + '</b><br>' +
-                           'Revenue: <b>Rp ' + Math.round(this.revenue || 0).toLocaleString('id-ID') + '</b><br>';
+        yAxis: {
+            title: { text: null },
+            labels: {
+                formatter: function () {
+                    const v = Number(this.value || 0);
+                    return v.toLocaleString('id-ID');
                 }
             }
+        },
+        legend: { reversed: true },
+        tooltip: {
+            useHTML: true,
+            formatter: function () {
+                const idx = this.point && typeof this.point.index === 'number' ? this.point.index : 0;
+                const r = top[idx] || {};
+                return `<b>${r.name || ''}</b><br/>Spend: <b>${formatIdr(r.spend || 0)}</b><br/>Pendapatan: <b>${formatIdr(r.revenue || 0)}</b><br/>ROI: <b>${Number(r.roi || 0).toFixed(2)}%</b>`;
+            }
+        },
+        plotOptions: {
+            series: {
+                stacking: 'normal',
+                borderWidth: 0
+            }
+        },
+        series: [
+            { name: 'Net (Revenue - Spend)', data: netSeries, color: '#43a047' },
+            { name: 'Spend', data: spendSeries, color: '#ef5350' }
+        ]
+    });
+}
+// Render ROI per Country (Highcharts wordcloud)
+function renderRoiCountryMap(items) {
+    const raw = Array.isArray(items) ? items : [];
+
+    if (!window.Highcharts || !Highcharts.chart) {
+        console.error('Highcharts belum ter-load');
+        return;
+    }
+
+    const points = raw
+        .filter(it => Number(it.spend || 0) > 0)
+        .map(it => {
+            const name = String(it.country || it.country_code || '').trim();
+            const revenue = Number(it.revenue || 0);
+            const roi = Number(it.roi || 0);
+            const spend = Number(it.spend || 0);
+            const weight = Math.max(1, Math.sqrt(Math.max(0, revenue)));
+            return { name, weight, revenue, roi, spend };
+        })
+        .filter(p => p.name);
+
+    Highcharts.chart('roiCountryMap', {
+        chart: { backgroundColor: 'transparent' },
+        title: { text: 'ROI Per Negara (Hari Ini)' },
+        subtitle: { text: 'Arahkan kursor ke nama negara untuk melihat detail' },
+        credits: { enabled: false },
+        tooltip: {
+            useHTML: true,
+            formatter: function() {
+                const p = this.point || {};
+                const rev = Number(p.revenue || 0);
+                const roiVal = Number(p.roi || 0);
+                return `<b>${p.name || ''}</b><br/>Pendapatan: <b>${formatIdr(rev)}</b><br/>ROI: <b>${roiVal.toFixed(2)}%</b>`;
+            }
+        },
+        series: [{
+            type: 'wordcloud',
+            data: points,
+            name: 'Negara',
+            rotation: { from: 0, to: 0 },
+            minFontSize: 10,
+            maxFontSize: 60
         }]
     });
 }
@@ -900,6 +1407,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check if Chart.js is loaded
     if (typeof Chart === 'undefined') {
         showError('Chart.js library is not loaded. Please refresh the page.');
+        return;
+    }
+    // Check if Highcharts is loaded
+    if (typeof Highcharts === 'undefined') {
+        showError('Highcharts library is not loaded. Please refresh the page.');
         return;
     }
     fetchDashboardData();

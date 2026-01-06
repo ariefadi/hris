@@ -119,5 +119,13 @@
 {% endblock %}
 {% block more_scripts %}
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+html[data-theme="dark"] #table_data_campaign_facebook,
+html[data-theme="dark"] #table_data_campaign_facebook > :not(caption) > * > * {
+    background-color: #1e1e1e !important;
+    color: #e9ecef !important;
+    border-color: #2b2b2b !important;
+}
+</style>
 <script src="{% static 'ajax/admin/facebook_ads/campaign.js'%}?v={%now 'u'%}"></script>
 {% endblock %}

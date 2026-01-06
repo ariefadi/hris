@@ -9,6 +9,72 @@
     <li class="breadcrumb-item active">Adx Manager</li>
 {% endblock %}
 {% block more_stylesheet %}
+<style>
+.metric-card {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff;
+    border-radius: 16px;
+    padding: 18px 18px;
+    margin-bottom: 20px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.metric-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.18);
+}
+.metric-card::after {
+    content: "";
+    position: absolute;
+    right: -40px;
+    top: -40px;
+    width: 140px;
+    height: 140px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+}
+.metric-card-inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+.metric-card-icon {
+    width: 54px;
+    height: 54px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.18);
+}
+.metric-card-icon i {
+    font-size: 1.6rem;
+    color: #fff;
+}
+.metric-value {
+    font-size: 2.1rem;
+    font-weight: 700;
+    margin-bottom: 4px;
+}
+.metric-label {
+    font-size: 0.95rem;
+    opacity: 0.9;
+}
+.metric-card.impressions { background: linear-gradient(135deg, #1d2b64 0%, #f8cdda 100%); }
+.metric-card.clicks { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.metric-card.cpc { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+.metric-card.ctr { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+.metric-card.revenue { background: linear-gradient(135deg, #7f00ff 0%, #e100ff 100%); }
+
+@media (max-width: 576px) {
+    .metric-value { font-size: 1.6rem; }
+}
+</style>
 {% endblock %}
 {% block content %}  
 {% csrf_token %}
@@ -86,46 +152,54 @@
         <!-- Summary Info boxes -->
         <div class="row" id="summary_boxes" style="display: none;">
             <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-success shadow-sm">
-                        <i class="bi bi-cursor-fill"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Total Klik</span>
-                        <span class="info-box-number" id="total_clicks">0</span>
+                <div class="metric-card clicks">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Klik</div>
+                            <div class="metric-value" id="total_clicks">0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-cursor-fill"></i>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-info shadow-sm">
-                        <i class="bi bi-cash-coin"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Rata-rata CPC</span>
-                        <span class="info-box-number" id="avg_cpc">$0</span>
+                <div class="metric-card cpc">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Rata-rata CPC</div>
+                            <div class="metric-value" id="avg_cpc">$0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-cash-coin"></i>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-danger shadow-sm">
-                        <i class="bi bi-graph-up-arrow"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Rata-rata CTR</span>
-                        <span class="info-box-number" id="avg_ctr">0%</span>
+                <div class="metric-card ctr">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Rata-rata CTR</div>
+                            <div class="metric-value" id="avg_ctr">0%</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-warning shadow-sm">
-                        <i class="bi bi-currency-dollar"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Total Pendapatan</span>
-                        <span class="info-box-number" id="total_revenue">$0</span>
+                <div class="metric-card revenue">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Pendapatan</div>
+                            <div class="metric-value" id="total_revenue">$0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-currency-dollar"></i>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -175,46 +249,54 @@
                     <div class="card-body">
                         <div class="row">
                             <div class="col-12 col-sm-6 col-md-3">
-                                <div class="info-box">
-                                    <span class="info-box-icon text-bg-primary shadow-sm">
-                                        <i class="bi bi-eye-fill"></i>
-                                    </span>
-                                    <div class="info-box-content">
-                                        <span class="info-box-text">Impresi Hari Ini</span>
-                                        <span class="info-box-number" id="today_impressions">0</span>
+                                <div class="metric-card impressions">
+                                    <div class="metric-card-inner">
+                                        <div>
+                                            <div class="metric-label">Impresi Hari Ini</div>
+                                            <div class="metric-value" id="today_impressions">0</div>
+                                        </div>
+                                        <div class="metric-card-icon" aria-hidden="true">
+                                            <i class="bi bi-eye-fill"></i>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-12 col-sm-6 col-md-3">
-                                <div class="info-box">
-                                    <span class="info-box-icon text-bg-success shadow-sm">
-                                        <i class="bi bi-cursor-fill"></i>
-                                    </span>
-                                    <div class="info-box-content">
-                                        <span class="info-box-text">Klik Hari Ini</span>
-                                        <span class="info-box-number" id="today_clicks">0</span>
+                                <div class="metric-card clicks">
+                                    <div class="metric-card-inner">
+                                        <div>
+                                            <div class="metric-label">Klik Hari Ini</div>
+                                            <div class="metric-value" id="today_clicks">0</div>
+                                        </div>
+                                        <div class="metric-card-icon" aria-hidden="true">
+                                            <i class="bi bi-cursor-fill"></i>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-12 col-sm-6 col-md-3">
-                                <div class="info-box">
-                                    <span class="info-box-icon text-bg-info shadow-sm">
-                                        <i class="bi bi-percent"></i>
-                                    </span>
-                                    <div class="info-box-content">
-                                        <span class="info-box-text">CTR Hari Ini</span>
-                                        <span class="info-box-number" id="today_ctr">0%</span>
+                                <div class="metric-card ctr">
+                                    <div class="metric-card-inner">
+                                        <div>
+                                            <div class="metric-label">CTR Hari Ini</div>
+                                            <div class="metric-value" id="today_ctr">0%</div>
+                                        </div>
+                                        <div class="metric-card-icon" aria-hidden="true">
+                                            <i class="bi bi-percent"></i>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-12 col-sm-6 col-md-3">
-                                <div class="info-box">
-                                    <span class="info-box-icon text-bg-warning shadow-sm">
-                                        <i class="bi bi-currency-dollar"></i>
-                                    </span>
-                                    <div class="info-box-content">
-                                        <span class="info-box-text">Pendapatan Hari Ini</span>
-                                        <span class="info-box-number" id="today_revenue">Rp 0</span>
+                                <div class="metric-card revenue">
+                                    <div class="metric-card-inner">
+                                        <div>
+                                            <div class="metric-label">Pendapatan Hari Ini</div>
+                                            <div class="metric-value" id="today_revenue">Rp 0</div>
+                                        </div>
+                                        <div class="metric-card-icon" aria-hidden="true">
+                                            <i class="bi bi-currency-dollar"></i>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
