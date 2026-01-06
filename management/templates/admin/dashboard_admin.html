@@ -563,7 +563,7 @@ async function loadRoiData(selectedAccountMail) {
     }
     return;
 }
-async function populateHourlyAccountFilter() {
+async function populateHourlyAccountFilter(accounts = [], defaultMail = '') {
     const sel = document.getElementById('roi-hourly-account-filter');
     if (!sel) return;
     if (window.jQuery && jQuery(sel).data('select2')) {
