@@ -667,6 +667,20 @@ $(document).ready(function () {
                 $('#worldMap').html('<div style="text-align: center; padding: 100px; color: #666; font-size: 16px;">Tidak ada data untuk ditampilkan.<br>Silakan pilih tanggal dan akun, lalu klik Load Data.</div>');
                 return;
             }
+            var rootEl = document.documentElement || document.body;
+            var isDark = rootEl && rootEl.getAttribute('data-theme') === 'dark';
+            var textColor = isDark ? '#e9ecef' : '#333333';
+            var subtitleColor = isDark ? 'rgba(233,236,239,0.75)' : '#666666';
+            var legendBg = isDark ? 'rgba(0,0,0,0.75)' : 'rgba(255,255,255,0.9)';
+            var legendTitleColor = textColor;
+            var legendItemColor = textColor;
+            var nullAreaColor = isDark ? '#444444' : '#E6E7E8';
+            var borderColor = isDark ? '#999999' : '#606060';
+            var contextFill = isDark ? '#1e1e1e' : 'white';
+            var contextStroke = isDark ? '#555555' : 'silver';
+            var tooltipBg = isDark ? 'rgba(0,0,0,0.90)' : 'rgba(255,255,255,0.96)';
+            var tooltipText = isDark ? '#ffffff' : '#212529';
+
             window.countryMapInstance = Highcharts.mapChart('worldMap', {
                 chart: {
                     map: 'custom/world',
@@ -680,14 +694,14 @@ $(document).ready(function () {
                     style: {
                         fontSize: '16px',
                         fontWeight: '600',
-                        color: '#333'
+                        color: textColor
                     }
                 },
                 subtitle: {
                     text: 'Berdasarkan data traffic dan revenue',
                     style: {
                         fontSize: '12px',
-                        color: '#666'
+                        color: subtitleColor
                     }
                 },
                 mapNavigation: {
@@ -695,9 +709,9 @@ $(document).ready(function () {
                     buttonOptions: {
                         verticalAlign: 'bottom',
                         theme: {
-                            fill: 'white',
+                            fill: contextFill,
                             'stroke-width': 1,
-                            stroke: 'silver',
+                            stroke: contextStroke,
                             r: 0,
                             states: {
                                 hover: {
@@ -728,7 +742,7 @@ $(document).ready(function () {
                     title: {
                         text: 'Tingkat Pendapatan',
                         style: {
-                            color: '#333',
+                            color: legendTitleColor,
                             fontSize: '12px'
                         }
                     },
@@ -737,7 +751,10 @@ $(document).ready(function () {
                     floating: true,
                     layout: 'vertical',
                     valueDecimals: 0,
-                    backgroundColor: 'rgba(255,255,255,0.9)',
+                    backgroundColor: legendBg,
+                    itemStyle: {
+                        color: legendItemColor
+                    },
                     symbolRadius: 0,
                     symbolHeight: 14
                 },
@@ -745,11 +762,11 @@ $(document).ready(function () {
                     name: 'Negara',
                     data: mapData,
                     joinBy: ['hc-key', 'hc-key'],
-                    nullColor: '#E6E7E8', // Warna abu-abu untuk negara tanpa data
+                    nullColor: nullAreaColor, // Warna untuk negara tanpa data
                     tooltip: {
-                        backgroundColor: 'rgba(0,0,0,0.85)',
+                        backgroundColor: tooltipBg,
                         style: {
-                            color: 'white'
+                            color: tooltipText
                         },
                         pointFormat: '<b>{point.name}</b><br>' +
                             'Kode: {point.code}<br>' +
@@ -762,7 +779,7 @@ $(document).ready(function () {
                         },
                         nullFormat: '<b>{point.name}</b><br>Tidak ada data traffic'
                     },
-                    borderColor: '#606060',
+                    borderColor: borderColor,
                     borderWidth: 0.5,
                     states: {
                         hover: {
@@ -776,9 +793,9 @@ $(document).ready(function () {
                     buttons: {
                         contextButton: {
                             theme: {
-                                fill: 'white',
+                                fill: contextFill,
                                 'stroke-width': 1,
-                                stroke: 'silver',
+                                stroke: contextStroke,
                                 r: 0,
                                 states: {
                                     hover: {

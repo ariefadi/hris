@@ -961,6 +961,7 @@ class DashboardData(View):
                 if rs_adx_credentials.get('status'):
                     for row in rs_adx_credentials['data']:
                         adx_accounts_list.append({
+                            'account_id': row.get('account_id') or '',
                             'user_mail': row.get('user_mail') or row.get('account_email') or '',
                             'account_name': row.get('account_name') or (row.get('user_mail') or '')
                         })
@@ -970,10 +971,15 @@ class DashboardData(View):
                 adx_accounts_count = 0
                 adx_accounts_list = []
 
-            default_selected_account = (
-                req.session.get('hris_admin', {}).get('user_mail')
-                or (adx_accounts_list[0]['user_mail'] if adx_accounts_list else '')
-            )
+            session_mail = req.session.get('hris_admin', {}).get('user_mail')
+            default_selected_account = ''
+            if session_mail and adx_accounts_list:
+                for acc in adx_accounts_list:
+                    if (acc.get('user_mail') or '') == session_mail and (acc.get('account_id') or ''):
+                        default_selected_account = acc.get('account_id') or ''
+                        break
+            if not default_selected_account:
+                default_selected_account = (adx_accounts_list[0].get('account_id') or '') if adx_accounts_list else ''
 
             dashboard_data['account_stats'] = {
                 'ads_accounts_count': ads_accounts_count,
@@ -981,6 +987,50 @@ class DashboardData(View):
                 'adx_accounts': adx_accounts_list,
                 'default_selected_account': default_selected_account
             }
+
+            try:
+                end_dt = datetime.now().date()
+                start_dt = end_dt - timedelta(days=6)
+                start_date_7 = start_dt.strftime('%Y-%m-%d')
+                end_date_7 = end_dt.strftime('%Y-%m-%d')
+
+                rs_adx = data_mysql().get_all_adx_traffic_account_by_params(start_date_7, end_date_7, None, None)
+                adx_rows = []
+                if rs_adx and isinstance(rs_adx, dict):
+                    adx_rows = (rs_adx.get('hasil') or {}).get('data') or []
+
+                rs_adsense = data_mysql().get_all_adsense_traffic_account_by_params(start_date_7, end_date_7, None)
+                adsense_rows = []
+                if rs_adsense and isinstance(rs_adsense, dict):
+                    adsense_rows = (rs_adsense.get('hasil') or {}).get('data') or []
+
+                rev_adx_by_date = defaultdict(float)
+                for row in adx_rows:
+                    dt_key = str((row or {}).get('date') or '')[:10]
+                    rev_adx_by_date[dt_key] += float((row or {}).get('revenue') or 0)
+
+                rev_adsense_by_date = defaultdict(float)
+                for row in adsense_rows:
+                    dt_key = str((row or {}).get('date') or '')[:10]
+                    rev_adsense_by_date[dt_key] += float((row or {}).get('revenue') or 0)
+
+                chart_dates = [(end_dt - timedelta(days=6 - i)) for i in range(7)]
+                labels = [f"{d.day} {data_bulan.get(d.month, str(d.month))} {d.year}" for d in chart_dates]
+                date_keys = [d.strftime('%Y-%m-%d') for d in chart_dates]
+
+                dashboard_data.setdefault('charts', {})
+                dashboard_data['charts']['earnings_comparison'] = {
+                    'labels': labels,
+                    'adx_earnings': [round(rev_adx_by_date.get(k, 0.0), 2) for k in date_keys],
+                    'adsense_earnings': [round(rev_adsense_by_date.get(k, 0.0), 2) for k in date_keys]
+                }
+            except Exception:
+                dashboard_data.setdefault('charts', {})
+                dashboard_data['charts']['earnings_comparison'] = {
+                    'labels': [],
+                    'adx_earnings': [],
+                    'adsense_earnings': []
+                }
 
             return JsonResponse({
                 'status': True,
@@ -4369,18 +4419,27 @@ class RoiCountryHourlyDataView(View):
             target_date = req.GET.get('date')
             if not target_date or not isinstance(target_date, str) or len(target_date) != 10:
                 target_date = datetime.now().strftime('%Y-%m-%d')
+            selected_accounts = req.GET.get('selected_accounts', '')
+            accounts_list = []
+            if selected_accounts:
+                accounts_list = [a.strip() for a in selected_accounts.split(',') if a.strip()]
+            accounts_key = ','.join(accounts_list)
+
             selected_domain = req.GET.get('selected_domains', '')
             selected_domain_str = ''
             if selected_domain:
                 # gunakan domain pertama jika ada multiple, fokus single domain
                 selected_domain_str = str(selected_domain.split(',')[0]).strip()
+
             selected_countries = req.GET.get('selected_countries', '')
             countries_list = []
             if selected_countries:
                 countries_list = [c.strip() for c in selected_countries.split(',') if c.strip()]
+
             cache_key = generate_cache_key(
-                'roi_country_hourly_v2',
+                'roi_country_hourly_v3',
                 target_date,
+                accounts_key,
                 selected_domain_str,
                 countries_list
             )
@@ -4389,16 +4448,18 @@ class RoiCountryHourlyDataView(View):
                 return JsonResponse(cached, safe=False)
             adx_resp = data_mysql().get_all_adx_roi_country_hourly_logs_by_params(
                 target_date,
-                None,
+                accounts_list,
                 selected_domain_str,
                 countries_list
             )
+            print(f"adx_resp: {adx_resp}")
             adx_rows = adx_resp.get('data') if isinstance(adx_resp, dict) else []
             ads_resp = data_mysql().get_all_ads_roi_country_hourly_logs_by_params(
                 target_date,
                 selected_domain_str,
                 countries_list
             )
+            print(f"ads_resp: {ads_resp}")
             ads_rows = (ads_resp.get('hasil') or {}).get('data') if isinstance(ads_resp, dict) else []
             by_country = {}
             hours_present = set()

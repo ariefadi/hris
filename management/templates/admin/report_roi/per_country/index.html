@@ -152,93 +152,108 @@
                 padding-top: 20%;">
             <i class="fas fa fa-sync-alt fa-spin"></i> Memuat Data Negara ... 
         </div>
-        <!-- Summary Info boxes -->
         <div class="row" id="summary_boxes" style="display: none;">
             <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-info shadow-sm">
-                        <i class="bi bi-cash-stack"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Total Spend</span>
-                        <span class="info-box-number" id="total_spend">Rp 0</span>
+                <div class="metric-card spend">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Spend</div>
+                            <div class="metric-value" id="total_spend">Rp 0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-cash-stack"></i>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-success shadow-sm">
-                        <i class="bi bi-cursor-fill"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Total Klik (FB)</span>
-                        <span class="info-box-number" id="total_clicks_fb">0</span>
+                <div class="metric-card clicks">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Klik (FB)</div>
+                            <div class="metric-value" id="total_clicks_fb">0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-cursor-fill"></i>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-success shadow-sm">
-                        <i class="bi bi-cursor-fill"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Total Klik (ADX)</span>
-                        <span class="info-box-number" id="total_clicks_adx">0</span>
+                <div class="metric-card clicks">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Klik (ADX)</div>
+                            <div class="metric-value" id="total_clicks_adx">0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-cursor-fill"></i>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-danger shadow-sm">
-                        <i class="bi bi-graph-up-arrow"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">CTR (FB)</span>
-                        <span class="info-box-number" id="total_ctr_fb">0%</span>
+                <div class="metric-card ctr">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">CTR (FB)</div>
+                            <div class="metric-value" id="total_ctr_fb">0%</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-danger shadow-sm">
-                        <i class="bi bi-graph-up-arrow"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">CTR (ADX)</span>
-                        <span class="info-box-number" id="total_ctr_adx">0%</span>
+                <div class="metric-card ctr">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">CTR (ADX)</div>
+                            <div class="metric-value" id="total_ctr_adx">0%</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-secondary shadow-sm">
-                        <i class="bi bi-currency-dollar"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Rata-Rata CPR</span>
-                        <span class="info-box-number" id="rata_cpr">Rp 0</span>
+                <div class="metric-card cpr">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Rata-Rata CPR</div>
+                            <div class="metric-value" id="rata_cpr">Rp 0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-currency-dollar"></i>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-secondary shadow-sm">
-                        <i class="bi bi-percent"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">ROI Total</span>
-                        <span class="info-box-number" id="total_roi">0%</span>
+                <div class="metric-card roi">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">ROI Total</div>
+                            <div class="metric-value" id="total_roi">0%</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-percent"></i>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-md-3">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-warning shadow-sm">
-                        <i class="bi bi-currency-dollar"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Total Pendapatan</span>
-                        <span class="info-box-number" id="total_revenue">Rp 0</span>
+                <div class="metric-card revenue">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Pendapatan</div>
+                            <div class="metric-value" id="total_revenue">Rp 0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-currency-dollar"></i>
+                        </div>
                     </div>
                 </div>
             </div>

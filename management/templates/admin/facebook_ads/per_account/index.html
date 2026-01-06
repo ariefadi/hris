@@ -124,115 +124,135 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" type="text/css" href="{% static 'css/datatable-responsive.css' %}">
 <style>
-        /* Custom CSS untuk freeze columns */
         #table_data_per_account_facebook th,
         #table_data_per_account_facebook td {
             white-space: nowrap;
             vertical-align: middle;
             text-align: center;
         }
-        
-        /* Freeze columns styling untuk FixedColumns 4.x */
+
         .dt-scroll-head {
             z-index: 1001 !important;
         }
-        
+
         .dt-scroll-head th {
             background-color: #ffffff !important;
             border-bottom: 2px solid #dee2e6 !important;
         }
-        
+
         .dtfc-fixed-left {
             background-color: #f8f9fa !important;
             border-right: 2px solid #dee2e6 !important;
             z-index: 1000 !important;
             box-shadow: 2px 0 5px rgba(0,0,0,0.1) !important;
         }
-        
+
         .dtfc-fixed-left th,
         .dtfc-fixed-left td {
             background-color: #f8f9fa !important;
             border-right: 1px solid #dee2e6 !important;
         }
-        
-        /* FixedColumns 4.x class names */
+
         .dt-fixedcolumns-left {
             background-color: #f8f9fa !important;
             border-right: 2px solid #dee2e6 !important;
             z-index: 1000 !important;
             box-shadow: 2px 0 5px rgba(0,0,0,0.1) !important;
         }
-        
+
         .dt-fixedcolumns-left th,
         .dt-fixedcolumns-left td {
             background-color: #f8f9fa !important;
             border-right: 1px solid #dee2e6 !important;
         }
-        
-        /* Memastikan container dan tabel menggunakan width 100% */
+
+        html[data-theme="dark"] #table_data_per_account_facebook,
+        html[data-theme="dark"] #table_data_per_account_facebook > :not(caption) > * > * {
+            background-color: #1e1e1e !important;
+            color: #e9ecef !important;
+            border-color: #2b2b2b !important;
+        }
+
+        html[data-theme="dark"] .dt-scroll-head th {
+            background-color: #1e1e1e !important;
+            color: #e9ecef !important;
+            border-bottom-color: #2b2b2b !important;
+        }
+
+        html[data-theme="dark"] .dtfc-fixed-left,
+        html[data-theme="dark"] .dtfc-fixed-left th,
+        html[data-theme="dark"] .dtfc-fixed-left td,
+        html[data-theme="dark"] .dt-fixedcolumns-left,
+        html[data-theme="dark"] .dt-fixedcolumns-left th,
+        html[data-theme="dark"] .dt-fixedcolumns-left td {
+            background-color: #1e1e1e !important;
+            color: #e9ecef !important;
+            border-color: #2b2b2b !important;
+        }
+
+        html[data-theme="dark"] .dtfc-fixed-left,
+        html[data-theme="dark"] .dt-fixedcolumns-left {
+            border-right-color: #2b2b2b !important;
+            box-shadow: 2px 0 6px rgba(0,0,0,0.45) !important;
+        }
+
         .card-body {
             width: 100% !important;
             overflow-x: auto;
         }
-        
+
         .dt-responsive-table {
             width: 100% !important;
         }
-        
+
         #table_data_per_account_facebook {
             width: 100% !important;
             table-layout: auto;
         }
-        
+
         .dataTables_wrapper {
             width: 100% !important;
             overflow: visible !important;
         }
-        
-        /* Perbaikan untuk header freeze */
+
         .dataTables_scrollBody {
             border-top: none !important;
         }
-        
+
         .dataTables_scrollHeadInner {
             width: 100% !important;
         }
-        
+
         .dataTables_scrollHeadInner table {
             width: 100% !important;
         }
-        
-        /* Sinkronisasi lebar kolom */
+
         .dtfc-fixed-left table {
             border-collapse: separate !important;
             border-spacing: 0 !important;
         }
-        
-        /* Mengatasi masalah overlap */
+
         .dtfc-fixed-left {
             box-shadow: 2px 0 5px rgba(0,0,0,0.1) !important;
         }
-        
-        /* Konsistensi ukuran switch button */
+
         .form-check-input {
             width: 2em !important;
             height: 1em !important;
             transform: scale(0.8) !important;
         }
-        
+
         .form-switch .form-check-input {
             width: 2em !important;
             height: 1em !important;
         }
-        
-        /* Ukuran khusus untuk switch di header */
+
         #headerSwitch {
             width: 2.8em !important;
             height: 1.5em !important;
             transform: scale(0.8) !important;
         }
-        
-        /* Ukuran khusus untuk switch di row data */
+
         td .form-switch .form-check-input {
             width: 2em !important;
             height: 1em !important;

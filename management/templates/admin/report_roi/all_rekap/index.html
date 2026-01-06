@@ -103,7 +103,6 @@
                 padding-top: 20%;">
             <i class="fas fa fa-sync-alt fa-spin"></i> Menyiapkan Data ... 
         </div>
-        <!-- Summary Info boxes -->
         <div class="row" id="summary_boxes" style="display: none;">
             <!-- <div class="col-12 col-sm-6 col-md-3">
                 <div class="info-box">
@@ -117,35 +116,41 @@
                 </div>
             </div> -->
             <div class="col-12 col-sm-6 col-md-4">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-danger shadow-sm">
-                        <i class="bi bi-credit-card"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Total Spend</span>
-                        <span class="info-box-number" id="total_spend">Rp 0</span>
+                <div class="metric-card spend">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Spend</div>
+                            <div class="metric-value" id="total_spend">Rp 0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-credit-card"></i>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-md-4">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-primary shadow-sm">
-                        <i class="bi bi-percent"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">ROI Nett</span>
-                        <span class="info-box-number" id="roi_nett">0%</span>
+                <div class="metric-card roi">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">ROI Nett</div>
+                            <div class="metric-value" id="roi_nett">0%</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-percent"></i>
+                        </div>
                     </div>
                 </div>
             </div>
             <div class="col-12 col-sm-6 col-md-4">
-                <div class="info-box">
-                    <span class="info-box-icon text-bg-warning shadow-sm">
-                        <i class="bi bi-currency-dollar"></i>
-                    </span>
-                    <div class="info-box-content">
-                        <span class="info-box-text">Total Pendapatan</span>
-                        <span class="info-box-number" id="total_revenue">$0</span>
+                <div class="metric-card revenue">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Pendapatan</div>
+                            <div class="metric-value" id="total_revenue">$0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-currency-dollar"></i>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -183,13 +188,15 @@
                     <div class="card-body">
                         <div class="row">
                             <div class="col-12 col-sm-6 col-md-4">
-                                <div class="info-box">
-                                    <span class="info-box-icon text-bg-primary shadow-sm">
-                                        <i class="bi bi-eye-fill"></i>
-                                    </span>
-                                    <div class="info-box-content">
-                                        <span class="info-box-text">Spend Hari Ini</span>
-                                        <span class="info-box-number" id="today_spend">0</span>
+                                <div class="metric-card spend">
+                                    <div class="metric-card-inner">
+                                        <div>
+                                            <div class="metric-label">Spend Hari Ini</div>
+                                            <div class="metric-value" id="today_spend">0</div>
+                                        </div>
+                                        <div class="metric-card-icon" aria-hidden="true">
+                                            <i class="bi bi-eye-fill"></i>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -205,24 +212,28 @@
                                 </div>
                             </div> -->
                             <div class="col-12 col-sm-6 col-md-4">
-                                <div class="info-box">
-                                    <span class="info-box-icon text-bg-info shadow-sm">
-                                        <i class="bi bi-graph-up-arrow"></i>
-                                    </span>
-                                    <div class="info-box-content">
-                                        <span class="info-box-text">ROI Hari Ini</span>
-                                        <span class="info-box-number" id="today_roi">0%</span>
+                                <div class="metric-card roi">
+                                    <div class="metric-card-inner">
+                                        <div>
+                                            <div class="metric-label">ROI Hari Ini</div>
+                                            <div class="metric-value" id="today_roi">0%</div>
+                                        </div>
+                                        <div class="metric-card-icon" aria-hidden="true">
+                                            <i class="bi bi-graph-up-arrow"></i>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                             <div class="col-12 col-sm-6 col-md-4">
-                                <div class="info-box">
-                                    <span class="info-box-icon text-bg-warning shadow-sm">
-                                        <i class="bi bi-currency-dollar"></i>
-                                    </span>
-                                    <div class="info-box-content">
-                                        <span class="info-box-text">Pendapatan Hari Ini</span>
-                                        <span class="info-box-number" id="today_revenue">Rp 0</span>
+                                <div class="metric-card revenue">
+                                    <div class="metric-card-inner">
+                                        <div>
+                                            <div class="metric-label">Pendapatan Hari Ini</div>
+                                            <div class="metric-value" id="today_revenue">Rp 0</div>
+                                        </div>
+                                        <div class="metric-card-icon" aria-hidden="true">
+                                            <i class="bi bi-currency-dollar"></i>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
