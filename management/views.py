@@ -4419,18 +4419,27 @@ class RoiCountryHourlyDataView(View):
             target_date = req.GET.get('date')
             if not target_date or not isinstance(target_date, str) or len(target_date) != 10:
                 target_date = datetime.now().strftime('%Y-%m-%d')
+            selected_accounts = req.GET.get('selected_accounts', '')
+            accounts_list = []
+            if selected_accounts:
+                accounts_list = [a.strip() for a in selected_accounts.split(',') if a.strip()]
+            accounts_key = ','.join(accounts_list)
+
             selected_domain = req.GET.get('selected_domains', '')
             selected_domain_str = ''
             if selected_domain:
                 # gunakan domain pertama jika ada multiple, fokus single domain
                 selected_domain_str = str(selected_domain.split(',')[0]).strip()
+
             selected_countries = req.GET.get('selected_countries', '')
             countries_list = []
             if selected_countries:
                 countries_list = [c.strip() for c in selected_countries.split(',') if c.strip()]
+
             cache_key = generate_cache_key(
-                'roi_country_hourly_v2',
+                'roi_country_hourly_v3',
                 target_date,
+                accounts_key,
                 selected_domain_str,
                 countries_list
             )
@@ -4439,16 +4448,18 @@ class RoiCountryHourlyDataView(View):
                 return JsonResponse(cached, safe=False)
             adx_resp = data_mysql().get_all_adx_roi_country_hourly_logs_by_params(
                 target_date,
-                None,
+                accounts_list,
                 selected_domain_str,
                 countries_list
             )
+            print(f"adx_resp: {adx_resp}")
             adx_rows = adx_resp.get('data') if isinstance(adx_resp, dict) else []
             ads_resp = data_mysql().get_all_ads_roi_country_hourly_logs_by_params(
                 target_date,
                 selected_domain_str,
                 countries_list
             )
+            print(f"ads_resp: {ads_resp}")
             ads_rows = (ads_resp.get('hasil') or {}).get('data') if isinstance(ads_resp, dict) else []
             by_country = {}
             hours_present = set()

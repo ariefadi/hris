@@ -164,6 +164,15 @@
 .equal-group > * {
     flex: 1;
 }
+
+html[data-theme="dark"] #roiHourlyDetailModal > div {
+    color: #212529 !important;
+}
+html[data-theme="dark"] #roiHourlyDetailModal th,
+html[data-theme="dark"] #roiHourlyDetailModal td,
+html[data-theme="dark"] #roiHourlyDetailModal #roiHourlyDetailTitle {
+    color: #212529 !important;
+}
 </style>
 {% endblock %}
 
@@ -572,8 +581,8 @@ async function populateHourlyAccountFilter(accounts = [], defaultMail = '') {
     sel.innerHTML = '';
     accounts.forEach(acc => {
         const opt = document.createElement('option');
-        opt.value = acc.user_mail || '';
-        opt.textContent = acc.account_name || acc.user_mail || '';
+        opt.value = acc.account_id || acc.user_mail || '';
+        opt.textContent = acc.account_name || acc.user_mail || '(unknown)';
         sel.appendChild(opt);
     });
     if (window.jQuery) {
@@ -585,7 +594,7 @@ async function populateHourlyAccountFilter(accounts = [], defaultMail = '') {
         });
     }
     if (defaultMail) sel.value = defaultMail;
-    const chosen = sel.value || defaultMail || (accounts[0]?.user_mail || '');
+    const chosen = sel.value || defaultMail || (accounts[0]?.account_id || '') || (accounts[0]?.user_mail || '');
     const dateInput = document.getElementById('roi-hourly-date');
     if (dateInput && !dateInput.value) {
         const today = new Date();
@@ -615,10 +624,11 @@ async function populateHourlyAccountFilter(accounts = [], defaultMail = '') {
         });
     }
 }
-async function loadRoiHourlyData(selectedDomain, dateStr) {
+async function loadRoiHourlyData(selectedAccount, dateStr) {
     const qs = new URLSearchParams({
         date: dateStr,
-        selected_domains: selectedDomain || ''
+        selected_accounts: selectedAccount || '',
+        selected_domains: ''
     });
     try {
         const resp = await fetch('/management/admin/page_roi_country_hourly?' + qs.toString());
@@ -1418,7 +1428,6 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-refresh every 5 minutes
     setInterval(fetchDashboardData, 5 * 60 * 1000);
     initRoiHourlyModal();
-    populateHourlyAccountFilter();
 });
 </script>
 {% endblock %}
