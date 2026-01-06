@@ -611,23 +611,18 @@ async function populateHourlyAccountFilter() {
         const dd = String(today.getDate()).padStart(2, '0');
         dateInput.value = `${yyyy}-${mm}-${dd}`;
     }
-    if (chosen) {
-        loadRoiData(chosen);
-    }
     if (chosen && dateInput && dateInput.value) {
         loadRoiHourlyData(chosen, dateInput.value);
     }
     sel.onchange = () => {
         const v = sel.value;
         const d = (document.getElementById('roi-hourly-date') || {}).value;
-        if (v) loadRoiData(v);
         if (v && d) loadRoiHourlyData(v, d);
     };
     if (dateInput) {
         dateInput.addEventListener('change', () => {
             const v = sel.value || chosen;
             const d = dateInput.value;
-            if (v) loadRoiData(v);
             if (v && d) loadRoiHourlyData(v, d);
         });
     }
