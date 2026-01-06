@@ -1,11 +1,11 @@
 {% extends 'admin_base.html' %}
 
-{% block page_title %}Monitoring Detail{% endblock %}
-{% block page_heading %}Monitoring Detail{% endblock %}
+{% block page_title %}Selesai Detail{% endblock %}
+{% block page_heading %}Selesai Detail{% endblock %}
 
 {% block breadcrumbs %}
 <li class="breadcrumb-item">Task</li>
-<li class="breadcrumb-item"><a href="/projects/task/monitoring">Monitoring</a></li>
+<li class="breadcrumb-item"><a href="/projects/task/selesai">Selesai</a></li>
 <li class="breadcrumb-item active">Detail</li>
 {% endblock %}
 
@@ -16,7 +16,7 @@
       <div class="card-header">
         <h3 class="card-title">Owner</h3>
          <div class="card-tools">
-          <a href="/projects/task/monitoring" class="btn btn-sm btn-secondary">Back</a>
+          <a href="/projects/task/selesai" class="btn btn-sm btn-secondary">Back</a>
         </div>
       </div>
       <div class="card-body">
@@ -233,9 +233,10 @@
             <thead>
               <tr>
                 <th width="5%">No</th>
-                <th width="15%">Task</th>
+                <th width="20%">Task</th>
                 <th width="10%">Process</th>
-                <th width="20%">Catatan</th>
+                <th width="10%">Action</th>
+                <th width="25%">Catatan</th>
                 <th width="10%">Dibuat Oleh</th>
                 <th width="10%">Dibuat Pada</th>
                 <th width="10%">Selesai Oleh</th>
@@ -252,7 +253,12 @@
                     {{ p.process_st|default_if_none:"-" }}
                   </span>
                 </td>
-                <td class="align-middle"><small>{{ p.catatan|default_if_none:"-" }}</small></td>
+                <td class="align-middle">
+                  <span class="badge {% if p.action_st == 'done' %}badge-success{% elif p.action_st == 'process' %}badge-info{% else %}badge-secondary{% endif %}">
+                    {{ p.action_st|default_if_none:"-" }}
+                  </span>
+                </td>
+                <td class="align-middle">{{ p.catatan|default_if_none:"-" }}</td>
                 <td class="align-middle">{{ p.mdb_name|default_if_none:"-" }}</td>
                 <td class="align-middle">{% if p.mdd %}{{ p.mdd|date:'d M Y H:i' }}{% else %}-{% endif %}</td>
                 <td class="align-middle">{{ p.mdb_finish_name|default_if_none:"-" }}</td>

@@ -33,6 +33,7 @@ urlpatterns = [
     path('task/tracker/update', task.TrackerUpdateView.as_view(), name='projects_task_tracker_update'),
     path('task/tracker/send', task.TrackerSendView.as_view(), name='projects_task_tracker_send'),
     path('task/selesai', task.SelesaiIndexView.as_view(), name='projects_task_selesai'),
+    path('task/selesai/<str:partner_id>/detail', task.SelesaiDetailView.as_view(), name='projects_task_selesai_detail'),
     path('task/plugin', task.PluginIndexView.as_view(), name='projects_task_plugin'),
     path('task/plugin/update', task.PluginUpdateView.as_view(), name='projects_task_plugin_update'),
     path('task/plugin/send', task.PluginSendView.as_view(), name='projects_task_plugin_send'),

@@ -26,6 +26,7 @@
                 <th width="20%">Ads</th>
                 <th width="20%">Server</th>
                 <th width="10%">User / Pass</th>
+                <th width="5%"></th>
               </tr>
             </thead>
             <tbody>
@@ -74,18 +75,6 @@
                   <div class="mb-1">
                     <span class="badge badge-dark" data-bs-toggle="tooltip" title="Keitaro"><i class="bi bi-link"></i> {{ w.tracker|default:"-" }}?{{ w.tracker_params|default:"-" }}</span>
                   </div>
-                  <div>
-                    <button type="button" class="btn btn-xs btn-success btn-show-ads-detail"
-                            data-id="{{ w.subdomain_id }}"
-                            data-amount="{{ w.fb_daily_budget|default:'0' }}"
-                            data-account="{{ w.fb_account|default:'' }}"
-                            data-fanpage="{{ w.fb_fanpage|default:'' }}"
-                            data-country="{{ w.fb_country|default:'' }}"
-                            data-tier="{{ w.country_tier|default:'' }}"
-                            data-interest="{{ w.fb_interest|default:'' }}">
-                      <i class="bi bi-list"></i> Detail
-                    </button>
-                  </div>
                 </td>
                 <td class="align-middle">
                     <div class="mb-1">
@@ -99,6 +88,7 @@
                     </div>
                 </td>
                 <td class="align-middle">{{ w.website_user }}<br>{{ w.website_pass }}</td>
+                <td class="align-middle"><a href="{% url 'projects_task_selesai_detail' w.partner_id %}" class="btn btn-sm btn-primary">Detail</a></td>
               </tr>
               {% empty %}
               <tr>

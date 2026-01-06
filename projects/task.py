@@ -530,11 +530,97 @@ class MonitoringDetailView(View):
         """
         if db.execute_query(sql_domains, (partner_id,)):
             domains = db.cur_hris.fetchall() or []
+        subdomains = []
+        sql_subdomains = """
+            SELECT
+                s.subdomain_id,
+                s.subdomain,
+                d.domain AS domain,
+                s.cloudflare,
+                s.public_ipv4,
+                ds.hostname,
+                ds.label,
+                w.domain AS w_domain,
+                w.website,
+                w.website_user,
+                w.website_pass,
+                w.article_status,
+                w.article_deadline,
+                s.tracker,
+                s.tracker_params,
+                s.plugin_setup,
+                s.plugin_lp,
+                s.plugin_params
+            FROM data_media_partner_domain pd
+            JOIN data_domains d ON d.domain_id = pd.domain_id
+            LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
+            LEFT JOIN data_website w ON w.website_id = s.website_id
+            LEFT JOIN data_servers ds ON ds.public_ipv4 = s.public_ipv4
+            WHERE pd.partner_id = %s
+            ORDER BY s.subdomain ASC
+        """
+        if db.execute_query(sql_subdomains, (partner_id,)):
+            subdomains = db.cur_hris.fetchall() or []
+        fb_ads = []
+        sql_fb_ads = """
+            SELECT
+                f.ads_id,
+                f.domain_id,
+                f.subdomain_id,
+                COALESCE(ma1.account_name, ma2.account_name) AS account_name,
+                f.fanpage,
+                f.interest,
+                f.country,
+                f.daily_budget,
+                f.status,
+                d.domain AS domain,
+                CONCAT(s.subdomain, '.', d2.domain) AS subdomain_name
+            FROM data_media_fb_ads f
+            LEFT JOIN data_domains d ON d.domain_id = f.domain_id
+            LEFT JOIN data_subdomain s ON s.subdomain_id = f.subdomain_id
+            LEFT JOIN data_domains d2 ON d2.domain_id = s.domain_id
+            LEFT JOIN master_account_ads ma1 ON ma1.account_ads_id = f.account_ads_id_1
+            LEFT JOIN master_account_ads ma2 ON ma2.account_ads_id = f.account_ads_id_2
+            WHERE f.domain_id IN (
+                SELECT domain_id FROM data_media_partner_domain WHERE partner_id = %s
+            )
+            OR f.subdomain_id IN (
+                SELECT s2.subdomain_id
+                FROM data_subdomain s2
+                JOIN data_media_partner_domain pd2 ON pd2.domain_id = s2.domain_id
+                WHERE pd2.partner_id = %s
+            )
+            ORDER BY COALESCE(f.mdd, '0000-00-00 00:00:00') DESC
+        """
+        if db.execute_query(sql_fb_ads, (partner_id, partner_id)):
+            fb_ads = db.cur_hris.fetchall() or []
+        processes = []
+        sql_processes = """
+            SELECT
+                p.flow_id,
+                df.task_name,
+                p.process_st,
+                p.action_st,
+                p.catatan,
+                p.mdb_name,
+                p.mdd,
+                p.mdb_finish_name,
+                p.mdd_finish
+            FROM data_media_process p
+            LEFT JOIN data_flow df ON df.flow_id = p.flow_id
+            WHERE p.partner_id = %s
+            ORDER BY COALESCE(p.mdd, '0000-00-00 00:00:00') ASC
+        """
+        if db.execute_query(sql_processes, (partner_id,)):
+            processes = db.cur_hris.fetchall() or []
         context = {
             'user': admin,
             'active_portal_id': active_portal_id,
             'partner': partner,
             'domains': domains,
+            'subdomains': subdomains,
+            'fb_ads': fb_ads,
+            'processes': processes,
         }
         return render(request, 'task/monitoring/detail.html', context)
 
@@ -881,7 +967,7 @@ class TechnicalSendView(View):
         # update proses saat ini menjadi selesai
         ok_upd = db.execute_query(
             """
-            UPDATE data_media_process SET process_st=%s, action_st=%s, mdb=%s, mdb_finish=%s, mdd_finish=NOW()
+            UPDATE data_media_process SET process_st=%s, action_st=%s, mdb_finish=%s, mdb_finish_name=%s, mdd_finish=NOW()
             WHERE process_id=%s
             """,
             ('approve', 'done', str(admin.get('user_id', ''))[:10], admin.get('user_alias', ''), process_id_cur)
@@ -1413,7 +1499,7 @@ class PublisherSendView(View):
         admin_alias = admin.get('user_alias', '')
         ok_upd = db.execute_query(
             """
-            UPDATE data_media_process SET process_st=%s, action_st=%s, mdb=%s, mdb_finish=%s, mdd_finish=NOW()
+            UPDATE data_media_process SET process_st=%s, action_st=%s, mdb_finish=%s, mdb_finish_name=%s, mdd_finish=NOW()
             WHERE process_id=%s
             """,
             ('approve', 'done', admin_id, admin_alias, process_id_cur)
@@ -1570,6 +1656,7 @@ class SelesaiIndexView(View):
             SELECT
                 w.website_id AS website_id,
                 s.*, MAX(dmp.pic) AS pic, MAX(dmp.partner_name) AS partner_name, MAX(dmp.request_date) AS request_date, MAX(dmp.partner_contact) AS partner_contact,
+                MAX(dmp.partner_id) AS partner_id,
                 CONCAT(s.subdomain, '.', d.domain) AS website_name,
                 s.public_ipv4, MAX(ds.hostname) AS hostname, MAX(ds.provider) AS provider, 
                 MAX(ds.vcpu_count) AS vcpu, MAX(ds.memory_gb) AS memory_gb,
@@ -1615,6 +1702,142 @@ class SelesaiIndexView(View):
             'websites': rows,
         }
         return render(request, 'task/selesai/index.html', context)
+
+class SelesaiDetailView(View):
+    def get(self, request, partner_id):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        active_portal_id = request.session.get('active_portal_id', '12')
+        db = data_mysql()
+        partner = None
+        sql_partner = """
+            SELECT partner_id, partner_name, partner_contact, partner_region, request_date, pic
+            FROM data_media_partner
+            WHERE partner_id = %s
+            LIMIT 1
+        """
+        if db.execute_query(sql_partner, (partner_id,)):
+            partner = db.cur_hris.fetchone()
+        domains = []
+        sql_domains = """
+            SELECT
+                d.domain_id,
+                d.domain,
+                ds.hostname,
+                ds.label,
+                COALESCE(prv1.provider, d.provider) AS provider_name,
+                COALESCE(prv2.provider, d.registrar) AS registrar_name,
+                w.domain AS w_domain,
+                w.website,
+                w.website_user,
+                w.website_pass,
+                w.article_status,
+                w.article_deadline
+            FROM data_media_partner_domain pd
+            JOIN data_domains d ON d.domain_id = pd.domain_id
+            LEFT JOIN data_servers ds ON ds.server_id = d.server_id
+            LEFT JOIN data_website w ON w.website_id = d.website_id
+            LEFT JOIN data_server_registrar_provider prv1 ON prv1.provider = d.provider
+            LEFT JOIN data_server_registrar_provider prv2 ON prv2.provider = d.registrar
+            WHERE pd.partner_id = %s
+            ORDER BY d.domain ASC
+        """
+        if db.execute_query(sql_domains, (partner_id,)):
+            domains = db.cur_hris.fetchall() or []
+        subdomains = []
+        sql_subdomains = """
+            SELECT
+                s.subdomain_id,
+                s.subdomain,
+                d.domain AS domain,
+                s.cloudflare,
+                s.public_ipv4,
+                ds.hostname,
+                ds.label,
+                w.domain AS w_domain,
+                w.website,
+                w.website_user,
+                w.website_pass,
+                w.article_status,
+                w.article_deadline,
+                s.tracker,
+                s.tracker_params,
+                s.plugin_setup,
+                s.plugin_lp,
+                s.plugin_params
+            FROM data_media_partner_domain pd
+            JOIN data_domains d ON d.domain_id = pd.domain_id
+            LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
+            LEFT JOIN data_website w ON w.website_id = s.website_id
+            LEFT JOIN data_servers ds ON ds.public_ipv4 = s.public_ipv4
+            WHERE pd.partner_id = %s
+            ORDER BY s.subdomain ASC
+        """
+        if db.execute_query(sql_subdomains, (partner_id,)):
+            subdomains = db.cur_hris.fetchall() or []
+        fb_ads = []
+        sql_fb_ads = """
+            SELECT
+                f.ads_id,
+                f.domain_id,
+                f.subdomain_id,
+                COALESCE(ma1.account_name, ma2.account_name) AS account_name,
+                f.fanpage,
+                f.interest,
+                f.country,
+                f.daily_budget,
+                f.status,
+                d.domain AS domain,
+                CONCAT(s.subdomain, '.', d2.domain) AS subdomain_name
+            FROM data_media_fb_ads f
+            LEFT JOIN data_domains d ON d.domain_id = f.domain_id
+            LEFT JOIN data_subdomain s ON s.subdomain_id = f.subdomain_id
+            LEFT JOIN data_domains d2 ON d2.domain_id = s.domain_id
+            LEFT JOIN master_account_ads ma1 ON ma1.account_ads_id = f.account_ads_id_1
+            LEFT JOIN master_account_ads ma2 ON ma2.account_ads_id = f.account_ads_id_2
+            WHERE f.domain_id IN (
+                SELECT domain_id FROM data_media_partner_domain WHERE partner_id = %s
+            )
+            OR f.subdomain_id IN (
+                SELECT s2.subdomain_id
+                FROM data_subdomain s2
+                JOIN data_media_partner_domain pd2 ON pd2.domain_id = s2.domain_id
+                WHERE pd2.partner_id = %s
+            )
+            ORDER BY COALESCE(f.mdd, '0000-00-00 00:00:00') DESC
+        """
+        if db.execute_query(sql_fb_ads, (partner_id, partner_id)):
+            fb_ads = db.cur_hris.fetchall() or []
+        processes = []
+        sql_processes = """
+            SELECT
+                p.flow_id,
+                df.task_name,
+                p.process_st,
+                p.action_st,
+                p.catatan,
+                p.mdb_name,
+                p.mdd,
+                p.mdb_finish_name,
+                p.mdd_finish
+            FROM data_media_process p
+            LEFT JOIN data_flow df ON df.flow_id = p.flow_id
+            WHERE p.partner_id = %s
+            ORDER BY COALESCE(p.mdd, '0000-00-00 00:00:00') DESC
+        """
+        if db.execute_query(sql_processes, (partner_id,)):
+            processes = db.cur_hris.fetchall() or []
+        context = {
+            'user': admin,
+            'active_portal_id': active_portal_id,
+            'partner': partner,
+            'domains': domains,
+            'subdomains': subdomains,
+            'fb_ads': fb_ads,
+            'processes': processes,
+        }
+        return render(request, 'task/selesai/detail.html', context)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class TrackerUpdateView(View):
@@ -1677,7 +1900,7 @@ class TrackerSendView(View):
         admin_alias = admin.get('user_alias', '')
         ok_upd = db.execute_query(
             """
-            UPDATE data_media_process SET process_st=%s, action_st=%s, mdb=%s, mdb_finish=%s, mdd_finish=NOW()
+            UPDATE data_media_process SET process_st=%s, action_st=%s, mdb_finish=%s, mdb_finish_name=%s, mdd_finish=NOW()
             WHERE process_id=%s
             """,
             ('approve', 'done', admin_id, admin_alias, process_id_cur)
@@ -1889,7 +2112,7 @@ class PluginSendView(View):
         admin_alias = admin.get('user_alias', '')
         ok_upd = db.execute_query(
             """
-            UPDATE data_media_process SET process_st=%s, action_st=%s, mdb=%s, mdb_finish=%s, mdd_finish=NOW()
+            UPDATE data_media_process SET process_st=%s, action_st=%s, mdb_finish=%s, mdb_finish_name=%s, mdd_finish=NOW()
             WHERE process_id=%s
             """,
             ('approve', 'done', admin_id, admin_alias, process_id_cur)
@@ -2229,7 +2452,7 @@ class AdsSendView(View):
             return JsonResponse({'status': False, 'message': 'Lengkapi semua field sebelum kirim', 'missing': problems}, status=400)
         ok_upd = db.execute_query(
             """
-            UPDATE data_media_process SET process_st=%s, action_st=%s, mdb=%s, mdb_finish=%s, mdd_finish=NOW()
+            UPDATE data_media_process SET process_st=%s, action_st=%s, mdb_finish=%s, mdb_finish_name=%s, mdd_finish=NOW()
             WHERE process_id=%s
             """,
             ('approve', 'done', admin_id, admin_alias, process_id_cur)
