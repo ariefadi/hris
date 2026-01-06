@@ -346,7 +346,7 @@ html[data-theme="dark"] #roiHourlyDetailModal #roiHourlyDetailTitle {
                                         </h5>
                                     </div>
                                     <div class="col-md-6 d-flex align-items-center justify-content-md-end gap-3 equal-group">
-                                        <label for="roi-hourly-account-filter" class="mb-0">AdX Account:</label>
+                                        <label for="roi-hourly-account-filter" class="mb-0">Subdomain:</label>
                                         <select id="roi-hourly-account-filter" class="form-select"></select>
                                         <label for="roi-hourly-date" class="mb-0">Date:</label>
                                         <input id="roi-hourly-date" type="date" class="form-control" />
@@ -446,7 +446,7 @@ function updateDashboard(data) {
         const accounts = data.account_stats.adx_accounts || [];
         const defaultMail = data.account_stats.default_selected_account || '';
         populateAccountFilter(accounts, defaultMail);
-        populateHourlyAccountFilter(accounts, defaultMail);
+        populateHourlyAccountFilter();
     }
     if (data.charts && data.charts.earnings_comparison) {
         updateEarningsComparisonChart(data.charts.earnings_comparison);
@@ -572,29 +572,37 @@ async function loadRoiData(selectedAccountMail) {
     }
     return;
 }
-async function populateHourlyAccountFilter(accounts = [], defaultMail = '') {
+async function populateHourlyAccountFilter() {
     const sel = document.getElementById('roi-hourly-account-filter');
     if (!sel) return;
     if (window.jQuery && jQuery(sel).data('select2')) {
         jQuery(sel).select2('destroy');
     }
     sel.innerHTML = '';
-    accounts.forEach(acc => {
-        const opt = document.createElement('option');
-        opt.value = acc.account_id || acc.user_mail || '';
-        opt.textContent = acc.account_name || acc.user_mail || '(unknown)';
-        sel.appendChild(opt);
-    });
+    let domains = [];
+    try {
+        const resp = await fetch('/management/admin/roi_hourly_domain_filter');
+        domains = await resp.json();
+    } catch(e) {
+        domains = [];
+    }
+    if (Array.isArray(domains)) {
+        domains.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.domain || d.log_adx_country_domain || '';
+            opt.textContent = d.domain || d.log_adx_country_domain || '';
+            sel.appendChild(opt);
+        });
+    }
     if (window.jQuery) {
         jQuery(sel).select2({
-            placeholder: '-- Pilih AdX Account --',
+            placeholder: '-- Pilih Subdomain --',
             theme: 'bootstrap4',
             width: '100%',
             allowClear: true
         });
     }
-    if (defaultMail) sel.value = defaultMail;
-    const chosen = sel.value || defaultMail || (accounts[0]?.account_id || '') || (accounts[0]?.user_mail || '');
+    const chosen = sel.value || (domains[0]?.domain || domains[0]?.log_adx_country_domain || '');
     const dateInput = document.getElementById('roi-hourly-date');
     if (dateInput && !dateInput.value) {
         const today = new Date();
@@ -624,11 +632,10 @@ async function populateHourlyAccountFilter(accounts = [], defaultMail = '') {
         });
     }
 }
-async function loadRoiHourlyData(selectedAccount, dateStr) {
+async function loadRoiHourlyData(selectedDomain, dateStr) {
     const qs = new URLSearchParams({
         date: dateStr,
-        selected_accounts: selectedAccount || '',
-        selected_domains: ''
+        selected_domains: selectedDomain || ''
     });
     try {
         const resp = await fetch('/management/admin/page_roi_country_hourly?' + qs.toString());
