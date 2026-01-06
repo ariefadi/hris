@@ -1,0 +1,457 @@
+{% extends 'admin_base.html' %}
+
+{% block page_title %}Edit Ads{% endblock %}
+{% block page_heading %}Edit Ads{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item">Task</li>
+<li class="breadcrumb-item"><a href="/projects/task/active">Active</a></li>
+<li class="breadcrumb-item active">Edit</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="card-title">Subdomain: {{ subdomain_name }}</h3>
+      </div>
+      <div class="card-body">
+        {% csrf_token %}
+        <div class="table-responsive">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th width="5%">No</th>
+                <th width="15%">Account</th>
+                <th width="15%">Fanpage</th>
+                <th width="20%">Interest</th>
+                <th width="10%">Budget</th>
+                <th width="20%">Countries</th>
+                <th width="5%">Status</th>
+                <th width="10%">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in ads_list %}
+              <tr>
+                <td class="align-middle">{{ forloop.counter }}</td>
+                <td class="align-middle">
+                  <select class="form-control select2 sel-account" data-ads-id="{{ r.ads_id }}">
+                    <option value=""></option>
+                    {% for a in accounts %}
+                      <option value="{{ a.account_ads_id }}" {% if r.account_ads_id_1 and r.account_ads_id_1 == a.account_ads_id %}selected="selected"{% endif %}>{{ a.account_name }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td class="align-middle">
+                  <select class="form-control select2 sel-page mt-1" data-placeholder="Pilih Fanpage" data-saved-fanpage="{{ r.fanpage|default:'' }}">
+                    <option value=""></option>
+                  </select>
+                  <div class="small text-muted sel-page-info"></div>
+                </td>
+                <td class="align-middle">
+                  <textarea class="form-control input-interest" rows="3" data-ads-id="{{ r.ads_id }}" placeholder="Interest">{{ r.interest|default:'' }}</textarea>
+                </td>
+                <td class="align-middle">
+                  <input type="number" class="form-control input-budget" value="{{ r.daily_budget|default:'' }}" data-ads-id="{{ r.ads_id }}" placeholder="Daily Budget">
+                </td>
+                <td class="align-middle">
+                  <select class="form-control select2 sel-country" data-ads-id="{{ r.ads_id }}" multiple data-placeholder="Pilih Negara">
+                    {% for c in countries %}
+                      <option value="{{ c.negara_nm }}" data-tier="{{ c.tier }}" {% if r.country and c.negara_nm in r.country %}selected="selected"{% endif %}>{{ c.negara_nm }}</option>
+                    {% endfor %}
+                  </select>
+                </td>
+                <td class="align-middle">
+                  <span class="badge {% if r.status == 'on' %}badge-success{% else %}badge-secondary{% endif %} ads-status" data-ads-id="{{ r.ads_id }}" style="cursor: pointer;">{{ r.status|default:'off' }}</span>
+                </td>
+                <td class="align-middle">
+                  <button class="btn btn-xs btn-outline-primary btn-update-ads" data-ads-id="{{ r.ads_id }}"><i class="bi bi-save"></i> Update</button>
+                  <button class="btn btn-xs btn-outline-danger btn-delete-ads" data-ads-id="{{ r.ads_id }}">Delete</button>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="8" class="text-center text-muted">Belum ada data.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <hr>
+        <h5>Tambah Baru</h5>
+        <div class="row">
+          <div class="col-md-3">
+            <label>Account</label>
+            <select id="new_account" class="form-control select2">
+              <option value=""></option>
+              {% for a in accounts %}
+                <option value="{{ a.account_ads_id }}">{{ a.account_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label>Fanpage</label>
+            <select id="new_page_select" class="form-control select2 mt-1" data-placeholder="Pilih Fanpage">
+              <option value=""></option>
+            </select>
+            <div class="small text-muted" id="new_page_info"></div>
+          </div>
+          <div class="col-md-3">
+            <label>Daily Budget</label>
+            <input id="new_budget" type="number" class="form-control" placeholder="Daily Budget">
+          </div>
+          <div class="col-md-3">
+            <label>Status</label>
+            <select id="new_status" class="form-control">
+              <option value="off">off</option>
+              <option value="on">on</option>
+            </select>
+          </div>
+          <div class="col-md-6 mt-2">
+            <label>Interest</label>
+            <textarea id="new_interest" class="form-control" rows="3" placeholder="Interest"></textarea>
+          </div>
+          <div class="col-md-6 mt-2">
+            <label>Countries</label>
+            <select id="new_countries" class="form-control select2" multiple>
+              {% for c in countries %}
+                <option value="{{ c.negara_nm }}">{{ c.negara_nm }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-12 mt-3">
+            <button id="btn_create_ads" class="btn btn-sm btn-success"><i class="bi bi-plus"></i> Tambah</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script>
+$(function(){
+  $('.select2').each(function(){ if (!$(this).data('select2')) { $(this).select2({ theme: 'bootstrap4', allowClear: true }); } });
+  function initSelect2(ctx){
+    $(ctx).find('select.select2').each(function(){
+      if (!$(this).data('select2')) {
+        $(this).select2({ theme: 'bootstrap4', allowClear: true });
+      }
+    });
+  }
+  initSelect2(document);
+  $(document).on('select2:open', function(e){
+    var $sel = $(e.target);
+    if (!$sel.is('#new_countries')) return;
+    var field = document.querySelector('.select2-container--open .select2-search__field');
+    if (!field) return;
+    if (field._pasteBound) return;
+    field._pasteBound = true;
+    field.addEventListener('paste', function(ev){
+      var txt = '';
+      try { txt = (ev.clipboardData && ev.clipboardData.getData('text')) || ''; } catch(x){}
+      if (!txt && window.clipboardData) { try { txt = window.clipboardData.getData('Text') || ''; } catch(e){} }
+      if (!txt) return;
+      ev.preventDefault();
+      var parts = txt.split(/[\s]*,[\s]*|\n|;+/).map(function(s){ return (s||'').trim(); }).filter(function(s){ return !!s; });
+      if (!parts.length) return;
+      var matches = [];
+      $sel.find('option').each(function(){
+        var val = (this.value||'').trim().toLowerCase();
+        var txt2 = ($(this).text()||'').trim().toLowerCase();
+        for (var i=0;i<parts.length;i++){
+          var p = parts[i].toLowerCase();
+          if (val === p || txt2 === p) { matches.push(this.value); break; }
+        }
+      });
+      var existing = $sel.val() || [];
+      var combined = Array.from(new Set(existing.concat(matches)));
+      $sel.val(combined).trigger('change');
+    });
+  });
+  $(document).on('change', 'select.sel-account', function(){
+    var $acc = $(this);
+    var accId = ($acc.val() || '').trim();
+    var $row = $acc.closest('tr');
+    var $page = $row.find('select.sel-page');
+    var $info = $row.find('.sel-page-info');
+    if (!$page.length) return;
+    function setLoading(){
+      $page.prop('disabled', true);
+      $page.html('<option value="">Memuat fanpage...</option>');
+      $page.val(null).trigger('change');
+      if ($info.length) { $info.text('Sedang mengambil data fanpage.'); }
+    }
+    function setReady(){
+      $page.prop('disabled', false);
+    }
+    if (!accId) {
+      $page.html('<option value=""></option>');
+      $page.val(null).trigger('change');
+      if ($info.length) { $info.text(''); }
+      return;
+    }
+    var cacheKey = 'ads_pages_' + accId;
+    var cached = null;
+    try { cached = localStorage.getItem(cacheKey); } catch(e) {}
+    var useCache = false;
+    var pages = [];
+    if (cached) {
+      try {
+        var obj = JSON.parse(cached) || {};
+        var exp = parseInt(obj.expiresAt || '0', 10);
+        if (exp && exp > Date.now() && Array.isArray(obj.pages)) {
+          pages = obj.pages;
+          useCache = true;
+        }
+      } catch(e) {}
+    }
+    if (useCache) {
+      var html = '<option value=""></option>';
+      for (var i=0;i<pages.length;i++){
+        var p = pages[i] || {};
+        var id = String(p.id || '');
+        var name = String(p.name || id);
+        html += '<option value="'+id.replace(/"/g,'&quot;')+'">'+name.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</option>';
+      }
+      $page.html(html);
+      setReady();
+      var saved = String(($page.attr('data-saved-fanpage') || '').trim());
+      if (saved) {
+        var matchVal = '';
+        $page.find('option').each(function(){
+          var t = ($(this).text() || '').trim();
+          if (t === saved) { matchVal = this.value; return false; }
+        });
+        if (matchVal) {
+          $page.val(matchVal).trigger('change');
+        } else {
+          $page.val(null).trigger('change');
+        }
+      } else {
+        $page.val(null).trigger('change');
+      }
+      if ($info.length) { $info.text(pages.length + ' data fanpage ditemukan'); }
+    } else {
+      setLoading();
+      fetch('{% url "projects_task_ads_pages" %}?account_ads_id=' + encodeURIComponent(accId), { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+        .then(function(r){ return r.json(); })
+        .then(function(resp){
+          var ok = resp && (resp.status === true || resp.status === 'True');
+          pages = ok ? (resp.pages || []) : [];
+          var html = '<option value=""></option>';
+          for (var i=0;i<pages.length;i++){
+            var p = pages[i] || {};
+            var id = String(p.id || '');
+            var name = String(p.name || id);
+            html += '<option value="'+id.replace(/"/g,'&quot;')+'">'+name.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</option>';
+          }
+          $page.html(html);
+          setReady();
+          var saved = String(($page.attr('data-saved-fanpage') || '').trim());
+          if (saved) {
+            var matchVal = '';
+            $page.find('option').each(function(){
+              var t = ($(this).text() || '').trim();
+              if (t === saved) { matchVal = this.value; return false; }
+            });
+            if (matchVal) {
+              $page.val(matchVal).trigger('change');
+            } else {
+              $page.val(null).trigger('change');
+            }
+          } else {
+            $page.val(null).trigger('change');
+          }
+          if ($info.length) { $info.text(pages.length + ' data fanpage ditemukan'); }
+          try { localStorage.setItem(cacheKey, JSON.stringify({ pages: pages, expiresAt: Date.now() + 86400000 })); } catch(e) {}
+        })
+        .catch(function(){
+          $page.html('<option value="">Gagal memuat fanpage</option>');
+          $page.val(null).trigger('change');
+          if ($info.length) { $info.text('Error: gagal mendapatkan data fanpage'); }
+        });
+    }
+  });
+  // Preload saved per row
+  $('select.sel-account').each(function(){
+    var v = ($(this).val() || '').trim();
+    if (v) { $(this).trigger('change'); }
+  });
+  // New entry: load fanpages into select, and reflect into input
+  $('#new_account').on('change', function(){
+    var accId = ($(this).val() || '').trim();
+    var $pageSel = $('#new_page_select');
+    var $info = $('#new_page_info');
+    function setLoading(){
+      $pageSel.prop('disabled', true);
+      $pageSel.html('<option value="">Memuat fanpage...</option>');
+      $pageSel.val(null).trigger('change');
+      $info.text('Sedang mengambil data fanpage.');
+    }
+    function setReady(){ $pageSel.prop('disabled', false); }
+    if (!accId) {
+      $pageSel.html('<option value=""></option>');
+      $pageSel.val(null).trigger('change');
+      $info.text('');
+      $('#new_fanpage').val('');
+      return;
+    }
+    var cacheKey = 'ads_pages_' + accId;
+    var cached = null;
+    try { cached = localStorage.getItem(cacheKey); } catch(e) {}
+    var useCache = false;
+    var pages = [];
+    if (cached) {
+      try {
+        var obj = JSON.parse(cached) || {};
+        var exp = parseInt(obj.expiresAt || '0', 10);
+        if (exp && exp > Date.now() && Array.isArray(obj.pages)) {
+          pages = obj.pages;
+          useCache = true;
+        }
+      } catch(e) {}
+    }
+    function fillPages(){
+      var html = '<option value=""></option>';
+      for (var i=0;i<pages.length;i++){
+        var p = pages[i] || {};
+        var id = String(p.id || '');
+        var name = String(p.name || id);
+        html += '<option value="'+id.replace(/"/g,'&quot;')+'">'+name.replace(/</g,'&lt;').replace(/>/g,'&gt;')+'</option>';
+      }
+      $pageSel.html(html);
+      setReady();
+      $info.text(pages.length + ' data fanpage ditemukan');
+      $pageSel.val(null).trigger('change');
+    }
+    if (useCache) {
+      fillPages();
+    } else {
+      setLoading();
+      fetch('{% url "projects_task_ads_pages" %}?account_ads_id=' + encodeURIComponent(accId), { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+        .then(function(r){ return r.json(); })
+        .then(function(resp){
+          var ok = resp && (resp.status === true || resp.status === 'True');
+          pages = ok ? (resp.pages || []) : [];
+          fillPages();
+          try { localStorage.setItem(cacheKey, JSON.stringify({ pages: pages, expiresAt: Date.now() + 86400000 })); } catch(e) {}
+        })
+        .catch(function(){
+          $pageSel.html('<option value="">Gagal memuat fanpage</option>');
+          $pageSel.val(null).trigger('change');
+          $info.text('Error: gagal mendapatkan data fanpage');
+        });
+    }
+  });
+  $('#new_page_select').on('change', function(){
+    var opt = this.options[this.selectedIndex];
+    var name = opt ? (opt.text || '').trim() : '';
+    $('#new_fanpage').val(name);
+  });
+  $(document).on('click', '.ads-status', function(e){
+    e.preventDefault();
+    var id = $(this).data('ads-id');
+    var cur = ($(this).text() || 'off').trim().toLowerCase();
+    var next = cur === 'on' ? 'off' : 'on';
+    var tokenEl = $('input[name=csrfmiddlewaretoken]');
+    var csrf = tokenEl.length ? tokenEl.val() : '';
+    var headers = { 'X-Requested-With': 'XMLHttpRequest' };
+    if (csrf) headers['X-CSRFToken'] = csrf;
+    var form = new FormData();
+    form.append('ads_id', id);
+    form.append('status', next);
+    if (csrf) form.append('csrfmiddlewaretoken', csrf);
+    fetch('{% url "projects_task_active_edit_status" %}', { method: 'POST', headers: headers, credentials: 'same-origin', body: form })
+      .then(function(r){ return r.json(); })
+      .then(function(resp){
+        if (resp && resp.status === true) { window.location.reload(); } else { alert((resp && resp.message) || 'Gagal update status'); }
+      });
+  });
+  $(document).on('click', '.btn-update-ads', function(e){
+    e.preventDefault();
+    var id = $(this).data('ads-id');
+    var $row = $(this).closest('tr');
+    var acc = ($row.find('select.sel-account').val() || '').trim();
+    var pageSel = $row.find('select.sel-page')[0];
+    var fp = '';
+    if (pageSel && pageSel.selectedIndex >= 0) {
+      var opt = pageSel.options[pageSel.selectedIndex];
+      fp = (opt && opt.text) ? opt.text.trim() : '';
+    }
+    var intr = ($row.find('textarea.input-interest').val() || '').trim();
+    var bud = ($row.find('input.input-budget').val() || '').trim();
+    var ctrs = $row.find('select.sel-country').val() || [];
+    var tokenEl = $('input[name=csrfmiddlewaretoken]');
+    var csrf = tokenEl.length ? tokenEl.val() : '';
+    var headers = { 'X-Requested-With': 'XMLHttpRequest' };
+    if (csrf) headers['X-CSRFToken'] = csrf;
+    var form = new FormData();
+    form.append('ads_id', id);
+    form.append('account_ads_id_1', acc);
+    form.append('fanpage', fp);
+    form.append('interest', intr);
+    form.append('daily_budget', bud);
+    ctrs.forEach(function(v){ form.append('country[]', v); });
+    if (csrf) form.append('csrfmiddlewaretoken', csrf);
+    fetch('{% url "projects_task_active_edit_update" %}', { method: 'POST', headers: headers, credentials: 'same-origin', body: form })
+      .then(function(r){ return r.json(); })
+      .then(function(resp){
+        if (resp && resp.status === true) {
+          if (window.Swal) { Swal.fire({icon:'success', title:'Berhasil', text:'Ads diperbarui', timer:800, showConfirmButton:false}); } else { alert('Ads diperbarui'); }
+        } else {
+          var emsg = (resp && resp.message) ? resp.message : 'Gagal memperbarui Ads';
+          if (window.Swal) { Swal.fire({icon:'error', title:'Gagal', text: emsg}); } else { alert(emsg); }
+        }
+      });
+  });
+  $(document).on('click', '.btn-delete-ads', function(e){
+    e.preventDefault();
+    if (!confirm('Hapus item ini?')) return;
+    var id = $(this).data('ads-id');
+    var tokenEl = $('input[name=csrfmiddlewaretoken]');
+    var csrf = tokenEl.length ? tokenEl.val() : '';
+    var headers = { 'X-Requested-With': 'XMLHttpRequest' };
+    if (csrf) headers['X-CSRFToken'] = csrf;
+    var form = new FormData();
+    form.append('ads_id', id);
+    if (csrf) form.append('csrfmiddlewaretoken', csrf);
+    fetch('{% url "projects_task_active_edit_delete" %}', { method: 'POST', headers: headers, credentials: 'same-origin', body: form })
+      .then(function(r){ return r.json(); })
+      .then(function(resp){
+        if (resp && resp.status === true) { window.location.reload(); } else { alert((resp && resp.message) || 'Gagal menghapus'); }
+      });
+  });
+  $('#btn_create_ads').on('click', function(e){
+    e.preventDefault();
+    var acc = ($('#new_account').val() || '').trim();
+    var fp = ($('#new_fanpage').val() || '').trim();
+    var bud = ($('#new_budget').val() || '').trim();
+    var st = ($('#new_status').val() || 'off').trim();
+    var intr = ($('#new_interest').val() || '').trim();
+    var ctrs = $('#new_countries').val() || [];
+    var tokenEl = $('input[name=csrfmiddlewaretoken]');
+    var csrf = tokenEl.length ? tokenEl.val() : '';
+    var headers = { 'X-Requested-With': 'XMLHttpRequest' };
+    if (csrf) headers['X-CSRFToken'] = csrf;
+    var form = new FormData();
+    form.append('subdomain_id', '{{ subdomain_id }}');
+    form.append('account_ads_id_1', acc);
+    form.append('fanpage', fp);
+    form.append('daily_budget', bud);
+    form.append('status', st);
+    form.append('interest', intr);
+    ctrs.forEach(function(v){ form.append('country[]', v); });
+    if (csrf) form.append('csrfmiddlewaretoken', csrf);
+    fetch('{% url "projects_task_active_edit_create" %}', { method: 'POST', headers: headers, credentials: 'same-origin', body: form })
+      .then(function(r){ return r.json(); })
+      .then(function(resp){
+        if (resp && resp.status === true) { window.location.reload(); } else { alert((resp && resp.message) || 'Gagal menambah'); }
+      });
+  });
+});
+</script>
+{% endblock %}

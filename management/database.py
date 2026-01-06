@@ -2948,15 +2948,15 @@ class data_mysql:
             like_params_account_id = [f"%{account}%" for account in data_account_list]
             like_params_user_mail = [f"%{account}%" for account in data_account_list]
             # Normalize domain list (optional)
-            if isinstance(selected_domain_list, str):
-                selected_domain_list = [selected_domain_list.strip()]
-            elif selected_domain_list is None:
-                selected_domain_list = []
-            elif isinstance(selected_domain_list, (set, tuple)):
-                selected_domain_list = list(selected_domain_list)
-            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+            if isinstance(selected_domain_list, (list, set, tuple)):
+                data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+            elif isinstance(selected_domain_list, str):
+                data_domain_list = [selected_domain_list.strip()] if selected_domain_list.strip() else []
+            else:
+                data_domain_list = []
+            # Gunakan LIKE tanpa wildcard jika domain sama persis dengan TLD (AdX)
             like_conditions_domain = " OR ".join(["b.log_adx_country_domain LIKE %s"] * len(data_domain_list))
-            like_params_domain = [f"%{domain}%" for domain in data_domain_list]
+            like_params_domain = [domain for domain in data_domain_list]
             # Normalize country codes (optional)
             country_codes = []
             if countries_list:
@@ -3009,18 +3009,29 @@ class data_mysql:
     def get_all_ads_roi_country_hourly_logs_by_params(self, target_date, data_sub_domain=None, countries_list=None):
         try:
             # Normalize domain list
-            if isinstance(data_sub_domain, str):
-                data_sub_domain = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
-            elif data_sub_domain is None:
-                data_sub_domain = []
-            elif isinstance(data_sub_domain, (set, tuple)):
-                data_sub_domain = list(data_sub_domain)
+            if isinstance(data_sub_domain, (list, set, tuple)):
+                domain_list = [str(s).strip() for s in data_sub_domain if str(s).strip()]
+            elif isinstance(data_sub_domain, str):
+                domain_list = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
+            else:
+                domain_list = []
             like_clause = ""
             like_params = []
-            if data_sub_domain:
-                like_conditions = " OR ".join(["b.log_ads_domain LIKE %s"] * len(data_sub_domain))
+            if domain_list:
+                # log_ads_domain menyimpan 'you.example.xxx' (tanpa TLD asli),
+                # maka gunakan pola LIKE berbasis domain tanpa TLD: 'you.example.%'
+                patterns = []
+                for d in domain_list:
+                    parts = d.split('.')
+                    # buang segmen TLD terakhir jika ada
+                    if len(parts) >= 2:
+                        base = ".".join(parts[:-1]) + "."
+                    else:
+                        base = d + "."
+                    patterns.append(base + "%")
+                like_conditions = " OR ".join(["b.log_ads_domain LIKE %s"] * len(patterns))
                 like_clause = f"\tAND ({like_conditions})"
-                like_params = [f"%{d}%" for d in data_sub_domain]
+                like_params = patterns
             # Normalize country codes (optional)
             country_codes = []
             if countries_list:

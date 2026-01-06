@@ -1,0 +1,77 @@
+{% extends 'admin_base.html' %}
+
+{% block page_title %}Monitoring Detail{% endblock %}
+{% block page_heading %}Monitoring Detail{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item">Task</li>
+<li class="breadcrumb-item"><a href="/projects/task/monitoring">Monitoring</a></li>
+<li class="breadcrumb-item active">Detail</li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="card-title">Owner</h3>
+        <a href="/projects/task/monitoring" class="btn btn-sm btn-secondary">Back</a>
+      </div>
+      <div class="card-body">
+        {% if partner %}
+        <div class="mb-3">
+          <div class="h5 mb-2">{{ partner.partner_name }}</div>
+          <div class="badge badge-primary mr-2"><i class="bi bi-phone"></i> {{ partner.partner_contact }}</div>
+          {% if partner.partner_region %}<div class="badge badge-info mr-2">{{ partner.partner_region }}</div>{% endif %}
+          {% if partner.request_date %}<div class="badge badge-warning mr-2">Request: {{ partner.request_date|date:'d M Y' }}</div>{% endif %}
+          {% if partner.pic %}<div class="badge badge-secondary">PIC: {{ partner.pic }}</div>{% endif %}
+        </div>
+        {% endif %}
+        <div class="table-responsive">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th width="5%">No</th>
+                <th width="25%">Domain</th>
+                <th width="20%">Server</th>
+                <th width="25%">Website</th>
+                <th width="25%">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in domains %}
+              <tr>
+                <td class="align-middle">{{ forloop.counter }}</td>
+                <td class="align-middle">
+                  <div>{{ d.domain }}</div>
+                  <div>Provider: {{ d.provider_name|default_if_none:"-" }}</div>
+                  <div>Registrar: {{ d.registrar_name|default_if_none:"-" }}</div>
+                </td>
+                <td class="align-middle">
+                  <div>{{ d.hostname|default_if_none:"-" }}</div>
+                  <div>{{ d.label|default_if_none:"-" }}</div>
+                </td>
+                <td class="align-middle">
+                  <div>{{ d.w_domain|default_if_none:"-" }}</div>
+                  <div>{{ d.website|default_if_none:"-" }}</div>
+                  <div>User: {{ d.website_user|default_if_none:"-" }}</div>
+                  <div>Pass: {{ d.website_pass|default_if_none:"-" }}</div>
+                </td>
+                <td class="align-middle">
+                  <div>{{ d.article_status|default_if_none:"-" }}</div>
+                  {% if d.article_deadline %}<div>Deadline: {{ d.article_deadline|date:'Y-m-d' }}</div>{% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="5" class="text-center text-muted">Belum ada domain terkait.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -488,6 +488,176 @@ class MonitoringIndexView(View):
         }
         return render(request, 'task/monitoring/index.html', context)
 
+class MonitoringDetailView(View):
+    def get(self, request, partner_id):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        active_portal_id = request.session.get('active_portal_id', '12')
+        db = data_mysql()
+        partner = None
+        sql_partner = """
+            SELECT partner_id, partner_name, partner_contact, partner_region, request_date, pic
+            FROM data_media_partner
+            WHERE partner_id = %s
+            LIMIT 1
+        """
+        if db.execute_query(sql_partner, (partner_id,)):
+            partner = db.cur_hris.fetchone()
+        domains = []
+        sql_domains = """
+            SELECT
+                d.domain_id,
+                d.domain,
+                ds.hostname,
+                ds.label,
+                COALESCE(prv1.provider, d.provider) AS provider_name,
+                COALESCE(prv2.provider, d.registrar) AS registrar_name,
+                w.domain AS w_domain,
+                w.website,
+                w.website_user,
+                w.website_pass,
+                w.article_status,
+                w.article_deadline
+            FROM data_media_partner_domain pd
+            JOIN data_domains d ON d.domain_id = pd.domain_id
+            LEFT JOIN data_servers ds ON ds.server_id = d.server_id
+            LEFT JOIN data_website w ON w.website_id = d.website_id
+            LEFT JOIN data_server_registrar_provider prv1 ON prv1.provider = d.provider
+            LEFT JOIN data_server_registrar_provider prv2 ON prv2.provider = d.registrar
+            WHERE pd.partner_id = %s
+            ORDER BY d.domain ASC
+        """
+        if db.execute_query(sql_domains, (partner_id,)):
+            domains = db.cur_hris.fetchall() or []
+        context = {
+            'user': admin,
+            'active_portal_id': active_portal_id,
+            'partner': partner,
+            'domains': domains,
+        }
+        return render(request, 'task/monitoring/detail.html', context)
+
+class ActiveIndexView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        active_portal_id = request.session.get('active_portal_id', '12')
+        db = data_mysql()
+        sql = """
+            SELECT
+                w.website_id AS website_id,
+                s.*, MAX(dmp.pic) AS pic, MAX(dmp.partner_name) AS partner_name, MAX(dmp.request_date) AS request_date, MAX(dmp.partner_contact) AS partner_contact,
+                MAX(dmp.partner_id) AS partner_id,
+                MAX(dmp.status) AS status,
+                CONCAT(s.subdomain, '.', d.domain) AS website_name,
+                s.public_ipv4, MAX(ds.hostname) AS hostname, MAX(ds.provider) AS provider, 
+                MAX(ds.vcpu_count) AS vcpu, MAX(ds.memory_gb) AS memory_gb,
+                w.website_user AS website_user,
+                w.website_pass AS website_pass,
+                (SELECT COUNT(*) FROM data_website_niche k WHERE k.subdomain_id = s.subdomain_id) AS keyword_count,
+                MAX(a.account_name) AS fb_account,
+                MAX(b.fanpage) AS fb_fanpage,
+                MAX(b.daily_budget) AS fb_daily_budget,
+                MAX(b.country) AS fb_country,
+                MAX(b.interest) AS fb_interest,
+                CONCAT_WS(', ',
+                    CASE WHEN EXISTS (
+                        SELECT 1 FROM master_negara mn
+                        WHERE FIND_IN_SET(mn.negara_nm, MAX(b.country))
+                          AND REPLACE(CAST(mn.tier AS CHAR), 'Tier ', '') = '1'
+                    ) THEN 'Tier 1' END,
+                    CASE WHEN EXISTS (
+                        SELECT 1 FROM master_negara mn2
+                        WHERE FIND_IN_SET(mn2.negara_nm, MAX(b.country))
+                          AND REPLACE(CAST(mn2.tier AS CHAR), 'Tier ', '') = '2'
+                    ) THEN 'Tier 2' END
+                ) AS country_tier,
+                MAX(n.niche) AS niche
+            FROM data_website w
+            INNER JOIN data_subdomain s ON s.website_id = w.website_id
+            INNER JOIN data_domains d ON d.domain_id = s.domain_id
+            INNER JOIN data_media_partner_domain dmpd ON d.domain_id = dmpd.domain_id
+            INNER JOIN data_media_partner dmp ON dmpd.partner_id = dmp.partner_id
+            LEFT JOIN data_website_niche wn ON wn.subdomain_id = s.subdomain_id
+            LEFT JOIN data_niche n ON n.niche_id = wn.niche_id
+            LEFT JOIN data_media_fb_ads b ON b.subdomain_id = s.subdomain_id
+            LEFT JOIN master_account_ads a ON a.account_ads_id = COALESCE(NULLIF(b.account_ads_id_2, ''), b.account_ads_id_1)
+            LEFT JOIN data_servers ds ON s.public_ipv4 = ds.public_ipv4
+            WHERE s.subdomain_id IS NOT NULL AND dmp.status = 'completed'
+            GROUP BY s.subdomain_id
+            ORDER BY s.subdomain ASC, COALESCE(w.mdd, '0000-00-00 00:00:00') DESC
+        """
+        rows = []
+        if db.execute_query(sql):
+            rows = db.cur_hris.fetchall() or []
+        context = {
+            'user': admin,
+            'active_portal_id': active_portal_id,
+            'websites': rows,
+        }
+        return render(request, 'task/active/index.html', context)
+class NonactiveIndexView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        active_portal_id = request.session.get('active_portal_id', '12')
+        db = data_mysql()
+        sql = """
+            SELECT
+                w.website_id AS website_id,
+                s.*, MAX(dmp.pic) AS pic, MAX(dmp.partner_name) AS partner_name, MAX(dmp.request_date) AS request_date, MAX(dmp.partner_contact) AS partner_contact,
+                MAX(dmp.partner_id) AS partner_id,
+                MAX(dmp.status) AS status,
+                CONCAT(s.subdomain, '.', d.domain) AS website_name,
+                s.public_ipv4, MAX(ds.hostname) AS hostname, MAX(ds.provider) AS provider, 
+                MAX(ds.vcpu_count) AS vcpu, MAX(ds.memory_gb) AS memory_gb,
+                w.website_user AS website_user,
+                w.website_pass AS website_pass,
+                (SELECT COUNT(*) FROM data_website_niche k WHERE k.subdomain_id = s.subdomain_id) AS keyword_count,
+                MAX(a.account_name) AS fb_account,
+                MAX(b.fanpage) AS fb_fanpage,
+                MAX(b.daily_budget) AS fb_daily_budget,
+                MAX(b.country) AS fb_country,
+                MAX(b.interest) AS fb_interest,
+                CONCAT_WS(', ',
+                    CASE WHEN EXISTS (
+                        SELECT 1 FROM master_negara mn
+                        WHERE FIND_IN_SET(mn.negara_nm, MAX(b.country))
+                          AND REPLACE(CAST(mn.tier AS CHAR), 'Tier ', '') = '1'
+                    ) THEN 'Tier 1' END,
+                    CASE WHEN EXISTS (
+                        SELECT 1 FROM master_negara mn2
+                        WHERE FIND_IN_SET(mn2.negara_nm, MAX(b.country))
+                          AND REPLACE(CAST(mn2.tier AS CHAR), 'Tier ', '') = '2'
+                    ) THEN 'Tier 2' END
+                ) AS country_tier,
+                MAX(n.niche) AS niche
+            FROM data_website w
+            INNER JOIN data_subdomain s ON s.website_id = w.website_id
+            INNER JOIN data_domains d ON d.domain_id = s.domain_id
+            INNER JOIN data_media_partner_domain dmpd ON d.domain_id = dmpd.domain_id
+            INNER JOIN data_media_partner dmp ON dmpd.partner_id = dmp.partner_id
+            LEFT JOIN data_website_niche wn ON wn.subdomain_id = s.subdomain_id
+            LEFT JOIN data_niche n ON n.niche_id = wn.niche_id
+            LEFT JOIN data_media_fb_ads b ON b.subdomain_id = s.subdomain_id
+            LEFT JOIN master_account_ads a ON a.account_ads_id = COALESCE(NULLIF(b.account_ads_id_2, ''), b.account_ads_id_1)
+            LEFT JOIN data_servers ds ON s.public_ipv4 = ds.public_ipv4
+            WHERE s.subdomain_id IS NOT NULL AND dmp.status = 'off'
+            GROUP BY s.subdomain_id
+            ORDER BY s.subdomain ASC, COALESCE(w.mdd, '0000-00-00 00:00:00') DESC
+        """
+        rows = []
+        if db.execute_query(sql):
+            rows = db.cur_hris.fetchall() or []
+        context = {
+            'user': admin,
+            'active_portal_id': active_portal_id,
+            'websites': rows,
+        }
+        return render(request, 'task/nonactive/index.html', context)
 class TechnicalIndexView(View):
     def get(self, request):
         if 'hris_admin' not in request.session:
@@ -1932,7 +2102,7 @@ class AdsUpdateView(View):
             FROM data_media_fb_ads b
             INNER JOIN data_subdomain s ON s.subdomain_id = b.subdomain_id
             INNER JOIN data_domains d ON d.domain_id = s.domain_id
-            WHERE b.fanpage = %s AND b.subdomain_id <> %s
+            WHERE b.fanpage = %s AND b.subdomain_id <> %s AND b.status = 'on'
             LIMIT 1
             """
             if db.execute_query(sql_dup, (fanpage, subdomain_id)):
@@ -2141,6 +2311,274 @@ class AdsSendView(View):
                     pass
         except Exception:
             pass
+        return JsonResponse({'status': True})
+
+class ActiveAdsEditView(View):
+    def get(self, request, subdomain_id):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        active_portal_id = request.session.get('active_portal_id', '12')
+        db = data_mysql()
+        subdomain_name = None
+        sql_sd = """
+            SELECT CONCAT(s.subdomain, '.', d.domain) AS subdomain_name
+            FROM data_subdomain s
+            INNER JOIN data_domains d ON d.domain_id = s.domain_id
+            WHERE s.subdomain_id = %s
+            LIMIT 1
+        """
+        if db.execute_query(sql_sd, (subdomain_id,)):
+            row = db.cur_hris.fetchone() or {}
+            try:
+                subdomain_name = row.get('subdomain_name')
+            except AttributeError:
+                try:
+                    subdomain_name = row[0]
+                except Exception:
+                    subdomain_name = None
+        ads_list = []
+        sql_ads = """
+            SELECT ads_id, account_ads_id_1, fanpage, interest, country, daily_budget, status
+            FROM data_media_fb_ads
+            WHERE subdomain_id = %s
+            ORDER BY ads_id DESC
+        """
+        if db.execute_query(sql_ads, (subdomain_id,)):
+            ads_list = db.cur_hris.fetchall() or []
+        accounts = []
+        if db.execute_query("SELECT account_ads_id, account_name FROM master_account_ads ORDER BY account_name ASC"):
+            accounts = db.cur_hris.fetchall() or []
+        countries = []
+        if db.execute_query("SELECT negara_kd, negara_nm, tier FROM master_negara ORDER BY negara_nm ASC"):
+            countries = db.cur_hris.fetchall() or []
+        context = {
+            'user': admin,
+            'active_portal_id': active_portal_id,
+            'subdomain_id': subdomain_id,
+            'subdomain_name': subdomain_name,
+            'ads_list': ads_list,
+            'accounts': accounts,
+            'countries': countries,
+        }
+        return render(request, 'task/active/edit.html', context)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ActiveAdsEditStatusView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        ads_id_raw = (request.POST.get('ads_id') or '').strip()
+        status = (request.POST.get('status') or '').strip().lower()
+        try:
+            ads_id = int(ads_id_raw)
+        except Exception:
+            ads_id = None
+        if not ads_id:
+            return JsonResponse({'status': False, 'message': 'Ads ID wajib diisi.'}, status=400)
+        if status not in ['on', 'off']:
+            return JsonResponse({'status': False, 'message': 'Status tidak valid.'}, status=400)
+        ok = db.execute_query(
+            "UPDATE data_media_fb_ads SET status=%s, mdd=NOW() WHERE ads_id=%s",
+            (status, ads_id)
+        )
+        if not ok:
+            return JsonResponse({'status': False, 'message': 'Gagal memperbarui status.'}, status=500)
+        db.commit()
+        return JsonResponse({'status': True})
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ActiveAdsEditDeleteView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        ads_id_raw = (request.POST.get('ads_id') or '').strip()
+        try:
+            ads_id = int(ads_id_raw)
+        except Exception:
+            ads_id = None
+        if not ads_id:
+            return JsonResponse({'status': False, 'message': 'Ads ID wajib diisi.'}, status=400)
+        ok = db.execute_query("DELETE FROM data_media_fb_ads WHERE ads_id=%s", (ads_id,))
+        if not ok:
+            return JsonResponse({'status': False, 'message': 'Gagal menghapus Ads.'}, status=500)
+        db.commit()
+        return JsonResponse({'status': True})
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ActiveAdsEditCreateView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        admin = request.session.get('hris_admin', {})
+        subdomain_id_raw = (request.POST.get('subdomain_id') or '').strip()
+        account_ads_id_1 = (request.POST.get('account_ads_id_1') or '').strip()
+        fanpage = (request.POST.get('fanpage') or '').strip()
+        interest = (request.POST.get('interest') or '').strip()
+        country_vals = request.POST.getlist('country[]') or request.POST.getlist('country') or []
+        daily_budget_raw = (request.POST.get('daily_budget') or '').strip()
+        status = (request.POST.get('status') or '').strip().lower()
+        mdb = str(admin.get('user_id', ''))[:36]
+        mdb_name = admin.get('user_alias', '')
+        try:
+            subdomain_id = int(subdomain_id_raw)
+        except Exception:
+            subdomain_id = None
+        try:
+            daily_budget = float(daily_budget_raw) if daily_budget_raw else None
+        except Exception:
+            daily_budget = None
+        if not subdomain_id:
+            return JsonResponse({'status': False, 'message': 'Subdomain wajib diisi.'}, status=400)
+        if status not in ['on', 'off', '']:
+            return JsonResponse({'status': False, 'message': 'Status tidak valid.'}, status=400)
+        countries_text = None
+        if country_vals:
+            items = [str(v).strip() for v in country_vals if str(v).strip()]
+            countries_text = ",".join(items) if items else None
+        dup_name = None
+        if fanpage:
+            sql_dup = """
+            SELECT CONCAT(s.subdomain, '.', d.domain) AS subdomain_name
+            FROM data_media_fb_ads b
+            INNER JOIN data_subdomain s ON s.subdomain_id = b.subdomain_id
+            INNER JOIN data_domains d ON d.domain_id = s.domain_id
+            WHERE b.fanpage = %s AND b.subdomain_id <> %s AND b.status = 'on'
+            LIMIT 1
+            """
+            if db.execute_query(sql_dup, (fanpage, subdomain_id)):
+                rr = db.cur_hris.fetchone() or {}
+                try:
+                    dup_name = rr.get('subdomain_name')
+                except AttributeError:
+                    try:
+                        dup_name = rr[0]
+                    except Exception:
+                        dup_name = None
+        if dup_name:
+            return JsonResponse({'status': False, 'message': 'Fanpage telah digunakan untuk subdomain ' + str(dup_name or '')}, status=400)
+        domain_id = None
+        if db.execute_query("SELECT domain_id FROM data_subdomain WHERE subdomain_id=%s LIMIT 1", (subdomain_id,)):
+            rr = db.cur_hris.fetchone() or {}
+            try:
+                domain_id = rr.get('domain_id')
+            except AttributeError:
+                try:
+                    domain_id = rr[0]
+                except Exception:
+                    domain_id = None
+        ok = db.execute_query(
+            """
+            INSERT INTO data_media_fb_ads
+            (domain_id, subdomain_id, account_ads_id_1, fanpage, interest, country, daily_budget, status, mdb, mdb_name, mdd)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            """,
+            (domain_id, subdomain_id, account_ads_id_1 or None, fanpage or None, interest or None, countries_text, daily_budget, status or None, mdb, mdb_name)
+        )
+        if not ok:
+            return JsonResponse({'status': False, 'message': 'Gagal menambah Ads.'}, status=500)
+        db.commit()
+        return JsonResponse({'status': True})
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ActiveAdsEditUpdateView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        admin = request.session.get('hris_admin', {})
+        ads_id_raw = (request.POST.get('ads_id') or '').strip()
+        account_ads_id_1 = (request.POST.get('account_ads_id_1') or '').strip()
+        fanpage = (request.POST.get('fanpage') or '').strip()
+        interest = (request.POST.get('interest') or '').strip()
+        country_vals = request.POST.getlist('country[]') or request.POST.getlist('country') or []
+        daily_budget_raw = (request.POST.get('daily_budget') or '').strip()
+        try:
+            ads_id = int(ads_id_raw)
+        except Exception:
+            ads_id = None
+        try:
+            daily_budget = float(daily_budget_raw) if daily_budget_raw else None
+        except Exception:
+            daily_budget = None
+        if not ads_id:
+            return JsonResponse({'status': False, 'message': 'Ads ID wajib diisi.'}, status=400)
+        countries_text = None
+        if country_vals:
+            items = [str(v).strip() for v in country_vals if str(v).strip()]
+            countries_text = ",".join(items) if items else None
+        dup_name = None
+        if fanpage:
+            sql_dup = """
+            SELECT CONCAT(s.subdomain, '.', d.domain) AS subdomain_name
+            FROM data_media_fb_ads b
+            INNER JOIN data_subdomain s ON s.subdomain_id = b.subdomain_id
+            INNER JOIN data_domains d ON d.domain_id = s.domain_id
+            WHERE b.fanpage = %s AND b.ads_id <> %s AND b.status = 'on'
+            LIMIT 1
+            """
+            if db.execute_query(sql_dup, (fanpage, ads_id)):
+                rr = db.cur_hris.fetchone() or {}
+                try:
+                    dup_name = rr.get('subdomain_name')
+                except AttributeError:
+                    try:
+                        dup_name = rr[0]
+                    except Exception:
+                        dup_name = None
+        if dup_name:
+            return JsonResponse({'status': False, 'message': 'Fanpage telah digunakan untuk subdomain ' + str(dup_name or '')}, status=400)
+        mdb = str(admin.get('user_id', ''))[:36]
+        mdb_name = admin.get('user_alias', '')
+        ok = db.execute_query(
+            """
+            UPDATE data_media_fb_ads
+            SET account_ads_id_1=%s, fanpage=%s, interest=%s, country=%s, daily_budget=%s, mdb=%s, mdb_name=%s, mdd=NOW()
+            WHERE ads_id=%s
+            """,
+            (account_ads_id_1 or None, fanpage or None, interest or None, countries_text, daily_budget, mdb, mdb_name, ads_id)
+        )
+        if not ok:
+            return JsonResponse({'status': False, 'message': 'Gagal memperbarui Ads.'}, status=500)
+        db.commit()
+        return JsonResponse({'status': True})
+
+@method_decorator(csrf_exempt, name='dispatch')
+class ActiveProjectStatusUpdateView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        partner_id = (request.POST.get('partner_id') or '').strip()
+        if not partner_id:
+            return JsonResponse({'status': False, 'message': 'Partner ID wajib diisi.'}, status=400)
+        ok = db.execute_query(
+            "UPDATE data_media_partner SET status=%s, mdd=NOW() WHERE partner_id=%s",
+            ('off', partner_id)
+        )
+        if not ok:
+            return JsonResponse({'status': False, 'message': 'Gagal memperbarui status project.'}, status=500)
+        db.commit()
+        return JsonResponse({'status': True})
+@method_decorator(csrf_exempt, name='dispatch')
+class NonactiveProjectStatusUpdateView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        partner_id = (request.POST.get('partner_id') or '').strip()
+        if not partner_id:
+            return JsonResponse({'status': False, 'message': 'Partner ID wajib diisi.'}, status=400)
+        ok = db.execute_query(
+            "UPDATE data_media_partner SET status=%s, mdd=NOW() WHERE partner_id=%s",
+            ('completed', partner_id)
+        )
+        if not ok:
+            return JsonResponse({'status': False, 'message': 'Gagal memperbarui status project.'}, status=500)
+        db.commit()
         return JsonResponse({'status': True})
 
 class TechnicalServerLookupView(View):

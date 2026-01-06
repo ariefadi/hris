@@ -26,6 +26,7 @@
                 <th width="20%">Subdomain</th>
                 <th width="25%">Catatan</th>
                 <th width="15%">Posisi</th>
+                <th width="8%"></th>
               </tr>
             </thead>
             <tbody>
@@ -41,6 +42,7 @@
                 <td class="align-middle">{{ r.subdomain_list }}</td>
                 <td class="align-middle">{{ r.catatan }}</td>
                 <td class="align-middle">{{ r.task_name|default:'-' }}</td>
+                <td class="align-middle"><a href="{% url 'projects_task_monitoring_detail' r.partner_id %}" class="btn btn-sm btn-primary">Detail</a></td>
               </tr>
               {% empty %}
               <tr>

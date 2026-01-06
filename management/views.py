@@ -4369,14 +4369,11 @@ class RoiCountryHourlyDataView(View):
             target_date = req.GET.get('date')
             if not target_date or not isinstance(target_date, str) or len(target_date) != 10:
                 target_date = datetime.now().strftime('%Y-%m-%d')
-            selected_account = req.GET.get('selected_account_adx', '')
-            selected_account_list = []
-            if selected_account:
-                selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
             selected_domain = req.GET.get('selected_domains', '')
-            selected_domain_list = []
+            selected_domain_str = ''
             if selected_domain:
-                selected_domain_list = [str(s).strip() for s in selected_domain.split(',') if s.strip()]
+                # gunakan domain pertama jika ada multiple, fokus single domain
+                selected_domain_str = str(selected_domain.split(',')[0]).strip()
             selected_countries = req.GET.get('selected_countries', '')
             countries_list = []
             if selected_countries:
@@ -4384,8 +4381,7 @@ class RoiCountryHourlyDataView(View):
             cache_key = generate_cache_key(
                 'roi_country_hourly_v2',
                 target_date,
-                selected_account_list,
-                selected_domain_list,
+                selected_domain_str,
                 countries_list
             )
             cached = get_cached_data(cache_key)
@@ -4393,14 +4389,14 @@ class RoiCountryHourlyDataView(View):
                 return JsonResponse(cached, safe=False)
             adx_resp = data_mysql().get_all_adx_roi_country_hourly_logs_by_params(
                 target_date,
-                selected_account_list,
-                selected_domain_list,
+                None,
+                selected_domain_str,
                 countries_list
             )
             adx_rows = adx_resp.get('data') if isinstance(adx_resp, dict) else []
             ads_resp = data_mysql().get_all_ads_roi_country_hourly_logs_by_params(
                 target_date,
-                selected_domain_list,
+                selected_domain_str,
                 countries_list
             )
             ads_rows = (ads_resp.get('hasil') or {}).get('data') if isinstance(ads_resp, dict) else []
@@ -4501,6 +4497,28 @@ class RoiHourlyAdxFilterView(View):
             return JsonResponse(data_list, safe=False)
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
+
+class RoiHourlyDomainFilterView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+    def get(self, req):
+        try:
+            db = data_mysql()
+            sql = """
+                SELECT DISTINCT log_adx_country_domain AS domain
+                FROM log_adx_country
+                WHERE log_adx_country_domain IS NOT NULL AND log_adx_country_domain <> ''
+                ORDER BY log_adx_country_domain ASC
+            """
+            if not db.execute_query(sql):
+                return JsonResponse([], safe=False)
+            rows = db.fetch_all() or []
+            # Return as simple list of {domain}
+            return JsonResponse(rows, safe=False)
+        except Exception as e:
+            return JsonResponse([], safe=False)
 
 class RoiSummaryView(View):
     """View untuk ROI Summary - menampilkan ringkasan data ROI"""

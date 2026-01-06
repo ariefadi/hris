@@ -249,7 +249,7 @@
                                         </h5>
                                     </div>
                                     <div class="col-md-6 d-flex align-items-center justify-content-md-end gap-3 equal-group">
-                                        <label for="roi-hourly-account-filter" class="mb-0">AdX Account:</label>
+                                        <label for="roi-hourly-account-filter" class="mb-0">Subdomain:</label>
                                         <select id="roi-hourly-account-filter" class="form-select"></select>
                                         <label for="roi-hourly-date" class="mb-0">Date:</label>
                                         <input id="roi-hourly-date" type="date" class="form-control" />
@@ -420,29 +420,37 @@ async function loadRoiData(selectedAccountMail) {
     }
     return;
 }
-function populateHourlyAccountFilter(accounts, defaultMail) {
+async function populateHourlyAccountFilter() {
     const sel = document.getElementById('roi-hourly-account-filter');
     if (!sel) return;
     if (window.jQuery && jQuery(sel).data('select2')) {
         jQuery(sel).select2('destroy');
     }
     sel.innerHTML = '';
-    accounts.forEach(acc => {
-        const opt = document.createElement('option');
-        opt.value = acc.user_mail || '';
-        opt.textContent = acc.account_name || acc.user_mail || '';
-        sel.appendChild(opt);
-    });
+    let domains = [];
+    try {
+        const resp = await fetch('/management/admin/roi_hourly_domain_filter');
+        domains = await resp.json();
+    } catch(e) {
+        domains = [];
+    }
+    if (Array.isArray(domains)) {
+        domains.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.domain || d.log_adx_country_domain || '';
+            opt.textContent = d.domain || d.log_adx_country_domain || '';
+            sel.appendChild(opt);
+        });
+    }
     if (window.jQuery) {
         jQuery(sel).select2({
-            placeholder: '-- Pilih AdX Account --',
+            placeholder: '-- Pilih Subdomain --',
             theme: 'bootstrap4',
             width: '100%',
             allowClear: true
         });
     }
-    if (defaultMail) sel.value = defaultMail;
-    const chosen = sel.value || defaultMail || (accounts[0]?.user_mail || '');
+    const chosen = sel.value || (domains[0]?.domain || domains[0]?.log_adx_country_domain || '');
     const dateInput = document.getElementById('roi-hourly-date');
     if (dateInput && !dateInput.value) {
         const today = new Date();
@@ -467,10 +475,10 @@ function populateHourlyAccountFilter(accounts, defaultMail) {
         });
     }
 }
-async function loadRoiHourlyData(selectedAccountMail, dateStr) {
+async function loadRoiHourlyData(selectedDomain, dateStr) {
     const qs = new URLSearchParams({
         date: dateStr,
-        selected_account_adx: selectedAccountMail || ''
+        selected_domains: selectedDomain || ''
     });
     try {
         const resp = await fetch('/management/admin/page_roi_country_hourly?' + qs.toString());
@@ -746,15 +754,10 @@ function renderRoiHourlyChart(payload) {
             const s = Number((c.spend || [])[idx] ?? 0);
             const roi = s > 0 ? ((r - s) / s * 100) : 0;
             return { name: c.country || c.country_code, code: c.country_code, roi, r, s };
-        }).sort((a,b) => b.roi - a.roi);
-        const tableHead = '<table style="width:100%;border-collapse:collapse;"><thead><tr><th style="text-align:left;padding:8px;border-bottom:1px solid #eee;">Country</th><th style="text-align:right;padding:8px;border-bottom:1px solid #eee;">ROI (%)</th><th style="text-align:right;padding:8px;border-bottom:1px solid #eee;">Revenue</th><th style="text-align:right;padding:8px;border-bottom:1px solid #eee;">Spend</th></tr></thead>';
-        const tableBody = '<tbody>' + rows.map(r => {
-            const roiStr = (Number(r.roi) || 0).toFixed(2);
-            const revStr = Math.round(Number(r.r) || 0).toLocaleString('id-ID');
-            const spendStr = Math.round(Number(r.s) || 0).toLocaleString('id-ID');
-            return `<tr><td style="padding:8px;border-bottom:1px solid #f5f5f5;">${r.name}</td><td style="padding:8px;text-align:right;border-bottom:1px solid #f5f5f5;">${roiStr}</td><td style="padding:8px;text-align:right;border-bottom:1px solid #f5f5f5;">Rp ${revStr}</td><td style="padding:8px;text-align:right;border-bottom:1px solid #f5f5f5;">Rp ${spendStr}</td></tr>`;
-        }).join('') + '</tbody></table>';
-        openRoiHourlyDetailModal(`Countries at ${hourLabel}:00`, tableHead + tableBody);
+        });
+        window.roiHourlyDetailRows = rows;
+        const controlsHtml = '<div id="roiHourlyDetailTableWrapper"></div>';
+        openRoiHourlyDetailModal(`Countries at ${hourLabel}:00`, controlsHtml);
     };
     const listEl = document.getElementById('roiHourlyCountryList');
     if (listEl) {
@@ -770,9 +773,96 @@ function openRoiHourlyDetailModal(title, html) {
     const body = document.getElementById('roiHourlyDetailBody');
     const ttl = document.getElementById('roiHourlyDetailTitle');
     if (!modal || !body || !ttl) return;
+    if (modal.parentNode !== document.body) {
+        document.body.appendChild(modal);
+    }
+    modal.style.position = 'fixed';
+    modal.style.top = '0';
+    modal.style.left = '0';
+    modal.style.right = '0';
+    modal.style.bottom = '0';
+    modal.style.width = '100%';
+    modal.style.height = '100%';
+    modal.style.zIndex = '2000';
     ttl.textContent = title || 'Detail';
     body.innerHTML = html || '';
     modal.style.display = 'flex';
+    const wrap = document.getElementById('roiHourlyDetailTableWrapper');
+    window.roiDetailSort = window.roiDetailSort || { key: 'rev', dir: 'desc', lastKey: null };
+    function sortArrow(key) {
+        return (window.roiDetailSort && window.roiDetailSort.key === key)
+            ? (window.roiDetailSort.dir === 'asc' ? ' ▲' : ' ▼')
+            : '';
+    }
+    function renderRoiHourlyDetail() {
+        const rows = Array.isArray(window.roiHourlyDetailRows) ? window.roiHourlyDetailRows.slice() : [];
+        let filtered = rows;
+        const ss = window.roiDetailSort || { key: 'rev', dir: 'desc', lastKey: null };
+        const dir = ss.dir === 'asc' ? 1 : -1;
+        function cmp(a,b,key,dir) {
+            function num(v){ return Number(v) || 0; }
+            if (key === 'rev') {
+                const posA = num(a.roi) >= 0 ? 1 : 0;
+                const posB = num(b.roi) >= 0 ? 1 : 0;
+                if (posA !== posB) return (posB - posA);
+                const primary = (num(a.r) - num(b.r));
+                if (primary !== 0) return primary * dir;
+                const secondary = (num(a.roi) - num(b.roi));
+                if (secondary !== 0) return secondary * -1;
+                const tertiary = (num(a.s) - num(b.s));
+                if (tertiary !== 0) return tertiary * 1;
+                return String(a.name||a.code).localeCompare(String(b.name||b.code)) * dir;
+            } else if (key === 'roi') {
+                const primary = (num(a.roi) - num(b.roi));
+                if (primary !== 0) return primary * dir;
+                const secondary = (num(a.r) - num(b.r));
+                if (secondary !== 0) return secondary * -1;
+                const tertiary = (num(a.s) - num(b.s));
+                if (tertiary !== 0) return tertiary * 1;
+                return String(a.name||a.code).localeCompare(String(b.name||b.code)) * dir;
+            } else if (key === 'spend') {
+                const secondary = (num(a.r) - num(b.r));
+                if (secondary !== 0) return secondary * -1;
+                return String(a.name||a.code).localeCompare(String(b.name||b.code)) * dir;
+            }
+            return String(a.name||a.code).localeCompare(String(b.name||b.code)) * dir;
+        }
+        filtered.sort((a,b) => cmp(a,b,ss.key,dir));
+        const head = ''
+            + '<table style="width:100%;border-collapse:collapse;">'
+            + '<thead><tr>'
+            + '<th class="sortable" data-col="country" style="text-align:left;padding:8px;border-bottom:1px solid #eee;cursor:pointer;">Country' + sortArrow('country') + '</th>'
+            + '<th class="sortable" data-col="roi" style="text-align:right;padding:8px;border-bottom:1px solid #eee;cursor:pointer;">ROI (%)' + sortArrow('roi') + '</th>'
+            + '<th class="sortable" data-col="rev" style="text-align:right;padding:8px;border-bottom:1px solid #eee;cursor:pointer;">Revenue' + sortArrow('rev') + '</th>'
+            + '<th class="sortable" data-col="spend" style="text-align:right;padding:8px;border-bottom:1px solid #eee;cursor:pointer;">Spend' + sortArrow('spend') + '</th>'
+            + '</tr></thead>';
+        const bodyRows = '<tbody>' + filtered.map(r => {
+            const roiStr = (Number(r.roi) || 0).toFixed(2);
+            const revStr = Math.round(Number(r.r) || 0).toLocaleString('id-ID');
+            const spendStr = Math.round(Number(r.s) || 0).toLocaleString('id-ID');
+            return '<tr><td style="padding:8px;border-bottom:1px solid #f5f5f5;">' + (r.name || r.code) + '</td><td style="padding:8px;text-align:right;border-bottom:1px solid #f5f5f5;">' + roiStr + '</td><td style="padding:8px;text-align:right;border-bottom:1px solid #f5f5f5;">Rp ' + revStr + '</td><td style="padding:8px;text-align:right;border-bottom:1px solid #f5f5f5;">Rp ' + spendStr + '</td></tr>';
+        }).join('') + '</tbody></table>';
+        if (wrap) wrap.innerHTML = head + bodyRows;
+    }
+    if (wrap && !wrap.dataset.boundSort) {
+        wrap.addEventListener('click', function(e) {
+            const th = e.target && e.target.closest && e.target.closest('th.sortable');
+            if (!th) return;
+            const key = th.getAttribute('data-col') || 'roi';
+            const cur = window.roiDetailSort || { key: 'rev', dir: 'desc', lastKey: null };
+            if (key === 'roi' && cur.lastKey !== 'roi') {
+                window.roiDetailSort = { key: 'roi', dir: 'desc', lastKey: 'roi' };
+            } else if (cur.key === key) {
+                window.roiDetailSort = { key, dir: cur.dir === 'desc' ? 'asc' : 'desc', lastKey: key };
+            } else {
+                const defaultDir = (key === 'country') ? 'asc' : 'desc';
+                window.roiDetailSort = { key, dir: defaultDir, lastKey: key };
+            }
+            renderRoiHourlyDetail();
+        });
+        wrap.dataset.boundSort = '1';
+    }
+    renderRoiHourlyDetail();
 }
 function closeRoiHourlyDetailModal() {
     const modal = document.getElementById('roiHourlyDetailModal');
@@ -784,6 +874,17 @@ function initRoiHourlyModal() {
     const btn = document.getElementById('roiHourlyDetailClose');
     if (btn) btn.onclick = closeRoiHourlyDetailModal;
     if (modal) {
+        if (modal.parentNode !== document.body) {
+            document.body.appendChild(modal);
+        }
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.right = '0';
+        modal.style.bottom = '0';
+        modal.style.width = '100%';
+        modal.style.height = '100%';
+        modal.style.zIndex = '2000';
         modal.addEventListener('click', function(e) {
             if (e.target && e.target.id === 'roiHourlyDetailModal') {
                 closeRoiHourlyDetailModal();
@@ -805,6 +906,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-refresh every 5 minutes
     setInterval(fetchDashboardData, 5 * 60 * 1000);
     initRoiHourlyModal();
+    populateHourlyAccountFilter();
 });
 </script>
 {% endblock %}

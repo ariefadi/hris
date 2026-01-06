@@ -10,6 +10,8 @@ urlpatterns = [
     path('task/draft/<str:partner_id>/edit', task.DraftEditView.as_view(), name='projects_task_draft_edit'),
     path('task/draft/<str:partner_id>/delete', task.DraftDeleteView.as_view(), name='projects_task_draft_delete'),
     path('task/monitoring', task.MonitoringIndexView.as_view(), name='projects_task_monitoring'),
+    path('task/monitoring/<str:partner_id>/detail', task.MonitoringDetailView.as_view(), name='projects_task_monitoring_detail'),
+    path('task/active', task.ActiveIndexView.as_view(), name='projects_task_active'),
     path('task/technical', task.TechnicalIndexView.as_view(), name='projects_task_technical'),
     path('task/technical/server-lookup', task.TechnicalServerLookupView.as_view(), name='projects_task_technical_server_lookup'),
     path('task/technical/server-save', task.TechnicalServerSaveView.as_view(), name='projects_task_technical_server_save'),
@@ -38,6 +40,15 @@ urlpatterns = [
     path('task/ads/pages', task.AdsPagesView.as_view(), name='projects_task_ads_pages'),
     path('task/ads/update', task.AdsUpdateView.as_view(), name='projects_task_ads_update'),
     path('task/ads/send', task.AdsSendView.as_view(), name='projects_task_ads_send'),
+    
+    path('task/active/edit/<int:subdomain_id>', task.ActiveAdsEditView.as_view(), name='projects_task_active_edit'),
+    path('task/active/edit/status', task.ActiveAdsEditStatusView.as_view(), name='projects_task_active_edit_status'),
+    path('task/active/edit/delete', task.ActiveAdsEditDeleteView.as_view(), name='projects_task_active_edit_delete'),
+    path('task/active/edit/create', task.ActiveAdsEditCreateView.as_view(), name='projects_task_active_edit_create'),
+    path('task/active/edit/update', task.ActiveAdsEditUpdateView.as_view(), name='projects_task_active_edit_update'),
+    path('task/active/project-status', task.ActiveProjectStatusUpdateView.as_view(), name='projects_task_active_project_status'),
+    path('task/nonactive', task.NonactiveIndexView.as_view(), name='projects_task_nonactive'),
+    path('task/nonactive/project-status', task.NonactiveProjectStatusUpdateView.as_view(), name='projects_task_nonactive_project_status'),
 
     # MASTER
     
