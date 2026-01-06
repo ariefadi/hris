@@ -355,6 +355,9 @@ html[data-theme="dark"] #roiHourlyDetailModal #roiHourlyDetailTitle {
                             </div>
                             <div class="card-body">
                                 <div class="chart-container" style="height: 420px;">
+                                    <div id="roiHourlyLoading" class="align-items-center justify-content-center" style="position:absolute;top:0;left:0;width:100%;height:100%;display:none;background:rgba(255,255,255,0.35);z-index:10;">
+                                        <div class="spinner-border text-primary" role="status"></div>
+                                    </div>
                                     <canvas id="roiHourlyChart" style="height: 400px;"></canvas>
                                 </div>
                                 <div id="roiHourlyCountryList" class="mt-2"></div>
@@ -628,21 +631,24 @@ async function populateHourlyAccountFilter() {
     }
 }
 async function loadRoiHourlyData(selectedDomain, dateStr) {
-    const qs = new URLSearchParams({
-        date: dateStr,
-        selected_domains: selectedDomain || ''
-    });
+    const qs = new URLSearchParams({ date: dateStr, selected_domains: selectedDomain || '' });
+    const spinner = document.getElementById('roiHourlyLoading');
+    spinner.style.display = 'flex';
+    
     try {
+        
         const resp = await fetch('/management/admin/page_roi_country_hourly?' + qs.toString());
         const json = await resp.json();
         if (json.status) {
+            
             renderRoiHourlyChart(json);
         } else {
             renderRoiHourlyChart(null);
         }
     } catch (e) {
-        console.warn('ROI Country Hourly fetch error:', e);
         renderRoiHourlyChart(null);
+    } finally {
+        spinner.style.display = 'none';
     }
 }
 // Build last 7 days date range (YYYY-MM-DD)
