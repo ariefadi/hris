@@ -504,11 +504,19 @@ $(document).ready(function () {
         }
 
         var table = $('#table_traffic_country').DataTable({
-            stateSave: false,
             data: tableData,
-            responsive: true,
+            responsive: false,
+            scrollX: true,
+            scrollXInner: '100%',
+            scrollCollapse: true,
+            autoWidth: false,
+            paging: true,
             pageLength: 25,
+            lengthChange: true,
             lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Semua"]],
+            searching: true,
+            ordering: true,
+            order: [[0, 'asc']],
             language: {
                 "decimal": ",",
                 "thousands": ".",
@@ -728,6 +736,14 @@ $(document).ready(function () {
                 }
             ],
             columnDefs: [
+                {
+                    targets: [0, 2, 7, 8, 12],
+                    className: "text-center"
+                },
+                {
+                    targets: [3, 4, 5, 6, 9, 10, 11, 13],
+                    className: "text-right"
+                },
                 // Kolom 0: checkbox per-baris
                 {
                     targets: 0,

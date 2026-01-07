@@ -233,7 +233,11 @@ function initializeDataTable(data) {
     // Initialize DataTable
     var table = $('#table_traffic_account').DataTable({
         data: tableData,
-        responsive: true,
+        responsive: false,
+        scrollX: true,
+        scrollXInner: '100%',
+        scrollCollapse: true,
+        autoWidth: false,
         paging: true,
         pageLength: 25,
         lengthChange: true,
@@ -392,8 +396,12 @@ function initializeDataTable(data) {
             }
         ],
         columnDefs: [
+            { 
+                targets: [0, 6], 
+                className: 'text-center'
+            },
             {
-                targets: [3, 4, 5, 6, 7], // Kolom numerik ditata kanan
+                targets: [3, 4, 5, 7], // Kolom numerik ditata kanan
                 className: "text-right"
             },
             {

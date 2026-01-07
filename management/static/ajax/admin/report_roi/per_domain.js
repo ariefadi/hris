@@ -295,14 +295,19 @@ $().ready(function () {
 
     // Initialize DataTable
     var table = $('#table_traffic_account').DataTable({
-        responsive: true,
+        responsive: false,
+        scrollX: true,
+        scrollXInner: '100%',
+        scrollCollapse: true,
+        autoWidth: false,
         paging: true,
         pageLength: 25,
         lengthChange: true,
         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "Semua"]],
         searching: true,
         ordering: true,
-        fontSize: '10px',
+        fontsize: '10px',
+        order: [[0, 'asc']],
         language: {
             "decimal": ",",
             "thousands": ".",
@@ -566,7 +571,11 @@ $().ready(function () {
                 }
             },
             {
-                targets: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+                targets: [0, 2, 7, 8, 12],
+                className: "text-center"
+            },
+            {
+                targets: [3, 4, 5, 6, 9, 10, 11, 13],
                 className: "text-right"
             },
             {

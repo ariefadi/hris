@@ -346,7 +346,11 @@ function initializeDataTable(data) {
     // Initialize DataTable
     var table = $('#table_traffic_account').DataTable({
         data: tableData,
-        responsive: true,
+        responsive: false,
+        scrollX: true,
+        scrollXInner: '100%',
+        scrollCollapse: true,
+        autoWidth: false,
         paging: true,
         pageLength: 25,
         lengthChange: true,
@@ -505,8 +509,12 @@ function initializeDataTable(data) {
             }
         ],
         columnDefs: [
+            { 
+                targets: [0, 5], 
+                className: 'text-center'
+            },
             {
-                targets: [2, 3, 4, 5], // Kolom numerik ditata kanan
+                targets: [2, 3, 4, 6], // Kolom numerik ditata kanan
                 className: "text-right"
             },
             {
@@ -561,6 +569,10 @@ function initializeDataTable(data) {
     });
     // Paksa urutan setelah inisialisasi untuk memastikan tidak tertimpa
     table.order([0, 'desc']).draw();
+
+    try {
+        table.columns.adjust();
+    } catch (e) {}
 }
 
 // Function to create revenue line chart (matching adx_summary style)
