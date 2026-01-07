@@ -122,6 +122,20 @@
         html[data-theme="dark"] .datepicker table tr td {
             color: #e9ecef !important;
         }
+        html[data-theme="dark"] .datepicker-dropdown:before {
+            border-bottom-color: #2b2b2b !important;
+        }
+        html[data-theme="dark"] .datepicker-dropdown:after {
+            border-bottom-color: #1e1e1e !important;
+        }        
+        html[data-theme="dark"] .datepicker table tr td span {
+            color: #e9ecef !important;
+        }
+        html[data-theme="dark"] .datepicker table tr td span:hover,
+        html[data-theme="dark"] .datepicker table tr td span.focused {
+            background-color: #2b2b2b !important;
+            color: #ffffff !important;
+        }
         html[data-theme="dark"] .datepicker table tr td.day:hover,
         html[data-theme="dark"] .datepicker table tr td.focused {
             background-color: #2b2b2b !important;
@@ -131,8 +145,17 @@
         html[data-theme="dark"] .datepicker table tr td.new {
             color: rgba(233,236,239,0.45) !important;
         }
+        html[data-theme="dark"] .datepicker table tr td span.old,
+        html[data-theme="dark"] .datepicker table tr td span.new {
+            color: rgba(233,236,239,0.45) !important;
+        }
         html[data-theme="dark"] .datepicker table tr td.disabled,
         html[data-theme="dark"] .datepicker table tr td.disabled:hover {
+            color: rgba(233,236,239,0.35) !important;
+            background-color: transparent !important;
+        }
+        html[data-theme="dark"] .datepicker table tr td span.disabled,
+        html[data-theme="dark"] .datepicker table tr td span.disabled:hover {
             color: rgba(233,236,239,0.35) !important;
             background-color: transparent !important;
         }
@@ -149,11 +172,25 @@
             color: #ffffff !important;
             text-shadow: none !important;
         }
+        html[data-theme="dark"] .datepicker table tr td span.active,
+        html[data-theme="dark"] .datepicker table tr td span.active:hover,
+        html[data-theme="dark"] .datepicker table tr td span.active.disabled,
+        html[data-theme="dark"] .datepicker table tr td span.active.disabled:hover {
+            background-color: #0d6efd !important;
+            color: #ffffff !important;
+            text-shadow: none !important;
+        }
         html[data-theme="dark"] .datepicker table tr th.prev:hover,
         html[data-theme="dark"] .datepicker table tr th.next:hover,
         html[data-theme="dark"] .datepicker table tr th.datepicker-switch:hover {
             background-color: #2b2b2b !important;
             color: #ffffff !important;
+        }
+        html[data-theme="dark"] .datepicker-dropdown:before {
+            border-bottom-color: #2b2b2b !important;
+        }
+        html[data-theme="dark"] .datepicker-dropdown:after {
+            border-bottom-color: #1e1e1e !important;
         }
 
         html[data-theme="dark"] .select2-container--bootstrap4 .select2-selection {

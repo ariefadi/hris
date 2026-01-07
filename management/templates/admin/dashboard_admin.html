@@ -478,34 +478,41 @@ function updateDashboard(data) {
         } catch (e) {
             console.error('loadRoiKpiBullet error:', e);
         }
+        try {
+            if (!window.__roiLoaded) {
+                window.__roiLoaded = true;
+                loadRoiData('');
+            }
+        } catch (e) {
+            console.error('loadRoiData error:', e);
+        }
     }
 }
 // Populate Adx account filter and trigger ROI load
 function populateAccountFilter(accounts, defaultMail) {
     const sel = document.getElementById('account-filter');
-    if (!sel) return;
-    // Hancurkan Select2 sebelumnya bila ada
+    if (!sel) {
+        loadRoiData('');
+        return;
+    }
     if (window.jQuery && jQuery(sel).data('select2')) {
         jQuery(sel).select2('destroy');
     }
-    // Bangun opsi
     sel.innerHTML = '';
-    accounts.forEach(acc => {
+    (accounts || []).forEach(acc => {
         const opt = document.createElement('option');
         opt.value = acc.account_id || acc.user_mail || '';
         opt.textContent = acc.account_name || acc.user_mail || '(unknown)';
         sel.appendChild(opt);
     });
-    // Inisialisasi Select2
     if (window.jQuery) {
         jQuery(sel).select2({
             placeholder: '-- Pilih Adx Account --',
             theme: 'bootstrap4',
             width: '100%',
-                    allowClear: true
-                });
-            }
-    // Select default
+            allowClear: true
+        });
+    }
     if (defaultMail) {
         sel.value = defaultMail;
         if (!sel.value) {
@@ -513,66 +520,100 @@ function populateAccountFilter(accounts, defaultMail) {
             if (mapped) sel.value = mapped.account_id;
         }
     }
-    const selectedAccountId = sel.value || (accounts[0]?.account_id || '') || (accounts[0]?.user_mail || '');
-    if (selectedAccountId) {
-        loadRoiData(selectedAccountId);
-    }
-    sel.onchange = () => loadRoiData(sel.value);
+    loadRoiData('');
+    sel.onchange = () => loadRoiData('');
 }
 // Fetch and render ROI per Domain (line) and per Country (map)
 async function loadRoiData(selectedAccountMail) {
+    function toYmd(d) {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${yyyy}-${mm}-${dd}`;
+    }
+
+    const hideZero = (function () {
+        try {
+            return String(localStorage.getItem('roi_hide_zero_spend') || '') === '1';
+        } catch (e) {
+            return false;
+        }
+    })();
+
+    async function fetchRoi(url, params) {
+        const qs = new URLSearchParams(params);
+        const resp = await fetch(url + '?' + qs.toString());
+        const json = await resp.json();
+        if (!json || !json.status) return { all: [], filtered: [] };
+        const all = Array.isArray(json.data) ? json.data : [];
+        const filtered = Array.isArray(json.data_filtered)
+            ? json.data_filtered
+            : all.filter(it => Number((it || {}).spend || 0) > 0);
+        return { all, filtered };
+    }
+
+    function pickData(payload) {
+        const chosen = hideZero ? (payload.filtered || []) : (payload.all || []);
+        if (chosen.length) return chosen;
+        const alt = hideZero ? (payload.all || []) : (payload.filtered || []);
+        return alt;
+    }
+
     const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    const todayStr = `${yyyy}-${mm}-${dd}`;
-    const startDate = todayStr;
-    const endDate = todayStr;
-    // ROI per Domain (referensi menu monitoring_domain, semua akun, Tanpa Spends aktif, data hari ini)
-    const qsDomain = new URLSearchParams({
-        start_date: startDate,
-        end_date: endDate,
-        selected_account_adx: '',
-        selected_domains: ''
-    });
+    const todayStr = toYmd(today);
+
+    const end7 = new Date(today);
+    const start7 = new Date(today);
+    start7.setDate(end7.getDate() - 6);
+    const start7Str = toYmd(start7);
+    const end7Str = toYmd(end7);
+
+    const accountParam = selectedAccountMail ? String(selectedAccountMail || '') : '';
+
+    let domainPayload = { all: [], filtered: [] };
     try {
-        const resp = await fetch('/management/admin/page_monitoring_domain?' + qsDomain.toString());
-        const json = await resp.json();
-        if (json.status) {
-            const base = Array.isArray(json.data_filtered)
-                ? json.data_filtered
-                : (Array.isArray(json.data) ? json.data : []).filter(it => Number((it || {}).spend || 0) > 0);
-            renderRoiDomainChart(base);
-        } else {
-            renderRoiDomainChart([]); // clear
+        domainPayload = await fetchRoi('/management/admin/page_monitoring_domain', {
+            start_date: todayStr,
+            end_date: todayStr,
+            selected_account_adx: accountParam,
+            selected_domains: ''
+        });
+        if (!domainPayload.all.length && !domainPayload.filtered.length) {
+            domainPayload = await fetchRoi('/management/admin/page_monitoring_domain', {
+                start_date: start7Str,
+                end_date: end7Str,
+                selected_account_adx: accountParam,
+                selected_domains: ''
+            });
         }
     } catch (e) {
-        renderRoiDomainChart([]);
-        console.warn('ROI Domain fetch error:', e);
+        domainPayload = { all: [], filtered: [] };
     }
-    // ROI per Country (referensi dari menu monitoring_country, data hari ini)
-    const qsCountry = new URLSearchParams({
-        start_date: todayStr,
-        end_date: todayStr,
-        selected_account_adx: '',
-        selected_domains: '',
-        selected_countries: ''
-    });
+    renderRoiDomainChart(pickData(domainPayload));
+
+    let countryPayload = { all: [], filtered: [] };
     try {
-        const resp = await fetch('/management/admin/page_monitoring_country?' + qsCountry.toString());
-        const json = await resp.json();
-        if (json.status) {
-            const base = Array.isArray(json.data_filtered)
-                ? json.data_filtered
-                : (Array.isArray(json.data) ? json.data : []).filter(it => Number((it || {}).spend || 0) > 0);
-            renderRoiCountryMap(base);
-        } else {
-            renderRoiCountryMap([]); // clear
+        countryPayload = await fetchRoi('/management/admin/page_monitoring_country', {
+            start_date: todayStr,
+            end_date: todayStr,
+            selected_account_adx: accountParam,
+            selected_domains: '',
+            selected_countries: ''
+        });
+        if (!countryPayload.all.length && !countryPayload.filtered.length) {
+            countryPayload = await fetchRoi('/management/admin/page_monitoring_country', {
+                start_date: start7Str,
+                end_date: end7Str,
+                selected_account_adx: accountParam,
+                selected_domains: '',
+                selected_countries: ''
+            });
         }
     } catch (e) {
-        renderRoiCountryMap([]);
-        console.warn('ROI Country fetch error:', e);
+        countryPayload = { all: [], filtered: [] };
     }
+    renderRoiCountryMap(pickData(countryPayload));
+
     return;
 }
 async function populateHourlyAccountFilter() {
@@ -1104,7 +1145,11 @@ function renderRoiDomainChart(items) {
         return { name, spend, revenue, net: revenue - spend, roi };
     });
 
-    rows.sort((a, b) => (b.roi || 0) - (a.roi || 0));
+    rows.sort((a, b) => {
+        const rev = (b.revenue || 0) - (a.revenue || 0);
+        if (rev !== 0) return rev;
+        return (b.roi || 0) - (a.roi || 0);
+    });
     const top = rows.slice(0, 12);
 
     const categories = top.map(r => r.name);
@@ -1118,7 +1163,7 @@ function renderRoiDomainChart(items) {
     roiDomainChart = Highcharts.chart('roiDomainChart', {
         chart: { type: 'bar', backgroundColor: 'transparent' },
         title: { text: 'ROI per Domain (Hari Ini)' },
-        subtitle: { text: 'Top 12 domain berdasarkan ROI (semua akun, Tanpa Spends aktif)' },
+        subtitle: { text: 'Top 12 domain berdasarkan pendapatan (revenue) (semua akun)' },
         credits: { enabled: false },
         xAxis: {
             categories,
@@ -1164,8 +1209,19 @@ function renderRoiCountryMap(items) {
         return;
     }
 
+    const hideZero = (function () {
+        try {
+            return String(localStorage.getItem('roi_hide_zero_spend') || '') === '1';
+        } catch (e) {
+            return false;
+        }
+    })();
+
     const points = raw
-        .filter(it => Number(it.spend || 0) > 0)
+        .filter(it => {
+            if (hideZero) return Number(it.spend || 0) > 0;
+            return Number(it.revenue || 0) > 0 || Number(it.spend || 0) > 0;
+        })
         .map(it => {
             const name = String(it.country || it.country_code || '').trim();
             const revenue = Number(it.revenue || 0);
