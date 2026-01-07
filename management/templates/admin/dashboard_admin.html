@@ -630,11 +630,12 @@ async function populateHourlyAccountFilter() {
         });
     }
 }
-async function loadRoiHourlyData(selectedDomain, dateStr) {
-    const qs = new URLSearchParams({ date: dateStr, selected_domains: selectedDomain || '' });
-    const spinner = document.getElementById('roiHourlyLoading');
-    spinner.style.display = 'flex';
-    
+async function loadRoiHourlyData(selectedAccount, dateStr) {
+    const qs = new URLSearchParams({
+        date: dateStr,
+        selected_accounts: selectedAccount || '',
+        selected_domains: ''
+    });
     try {
         
         const resp = await fetch('/management/admin/page_roi_country_hourly?' + qs.toString());
