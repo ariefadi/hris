@@ -161,8 +161,28 @@
     border-radius: 10px;
     margin: 20px 0;
 }
-.equal-group > * {
-    flex: 1;
+.equal-group {
+    flex-wrap: wrap;
+}
+
+.equal-group label {
+    flex: 0 0 auto;
+    white-space: nowrap;
+}
+
+.equal-group .roi-hourly-select {
+    flex: 1 1 280px;
+    min-width: 220px;
+    max-width: 380px;
+}
+
+.equal-group .roi-hourly-select .select2-container {
+    width: 100% !important;
+}
+
+.equal-group .roi-hourly-date {
+    flex: 0 0 170px;
+    min-width: 170px;
 }
 
 html[data-theme="dark"] #roiHourlyDetailModal > div {
@@ -345,11 +365,13 @@ html[data-theme="dark"] #roiHourlyDetailModal #roiHourlyDetailTitle {
                                             <i class="bi bi-graph-up-arrow me-2"></i> ROI per Hour (Daily)
                                         </h5>
                                     </div>
-                                    <div class="col-md-6 d-flex align-items-center justify-content-md-end gap-3 equal-group">
+                                    <div class="col-md-6 d-flex align-items-center justify-content-md-end gap-2 equal-group">
                                         <label for="roi-hourly-account-filter" class="mb-0">Subdomain:</label>
-                                        <select id="roi-hourly-account-filter" class="form-select"></select>
+                                        <div class="roi-hourly-select">
+                                            <select id="roi-hourly-account-filter" class="form-select"></select>
+                                        </div>
                                         <label for="roi-hourly-date" class="mb-0">Date:</label>
-                                        <input id="roi-hourly-date" type="date" class="form-control" />
+                                        <input id="roi-hourly-date" type="date" class="form-control roi-hourly-date" />
                                     </div>
                                 </div>
                             </div>
