@@ -538,6 +538,8 @@ def get_countries_facebook_ads(request):
                 continue
             country_name = (country_data.get('country_name') or '').strip()
             country_code = (country_data.get('country_code') or '').strip().upper()
+            if country_code == 'TU':
+                country_code = 'TR'
             if not country_name:
                 continue
             # Gunakan code jika ada, jika tidak gunakan nama sebagai key dedup
@@ -658,6 +660,8 @@ def get_countries_adx(request):
                 continue
             country_name = (country_data.get('country_name') or '').strip()
             country_code = (country_data.get('country_code') or '').strip().upper()
+            if country_code == 'TU':
+                country_code = 'TR'
             if not country_name:
                 continue
             # Gunakan code jika ada, jika tidak gunakan nama sebagai key dedup
@@ -3468,11 +3472,46 @@ class RoiTrafficPerCountryDataView(View):
                     'error': 'Parameter tanggal tidak lengkap'
                 })
             # Parse selected countries dari string yang dipisah koma
-            countries_list = []
+            raw_countries_list = []
             if selected_countries and selected_countries.strip():
-                countries_list = [country.strip() for country in selected_countries.split(',') if country.strip()]
+                raw_countries_list = [country.strip() for country in selected_countries.split(',') if country.strip()]
             else:
                 print("[DEBUG] No countries selected, will fetch all countries")
+
+            def normalize_country_code(cc):
+                c = (str(cc or '').strip().upper())
+                if not c:
+                    return ''
+                alias = {
+                    'TU': 'TR'
+                }
+                return alias.get(c, c)
+
+            countries_list = []
+            for c in (raw_countries_list or []):
+                cc = normalize_country_code(c)
+                if cc and cc not in countries_list:
+                    countries_list.append(cc)
+
+            def expand_country_codes_filter(items):
+                out = []
+                for it in (items or []):
+                    s = normalize_country_code(it)
+                    if not s:
+                        continue
+                    out.append(s)
+                    if s == 'TR':
+                        out.append('TU')
+                seen = set()
+                uniq = []
+                for x in out:
+                    if x and x not in seen:
+                        seen.add(x)
+                        uniq.append(x)
+                return uniq
+
+            countries_list_query = expand_country_codes_filter(countries_list)
+
             # agar FB mengikuti domain yang ada di akun AdX terpilih
             sites_for_fb = None
             if not selected_domain or not selected_domain.strip():
@@ -3492,13 +3531,13 @@ class RoiTrafficPerCountryDataView(View):
                     print(f"[DEBUG ROI] Unable to derive sites_for_fb: {_sites_err}")
             # ===== Response-level cache (meng-cache hasil akhir penggabungan) =====
             response_cache_key = generate_cache_key(
-                'roi_country_response',
+                'roi_traffic_country_response_v2',
                 start_date,
                 end_date,
                 selected_account_list,
                 selected_domain_list,
                 selected_account_ads or '',
-                ','.join(countries_list) if countries_list else ''
+                ','.join(countries_list_query) if countries_list_query else ''
             )
             cached_response = get_cached_data(response_cache_key)
             if cached_response is not None:
@@ -3513,7 +3552,7 @@ class RoiTrafficPerCountryDataView(View):
                         end_date,
                         selected_account_list,
                         selected_domain_list,
-                        countries_list
+                        countries_list_query
                     )
                     # Pastikan selected_sites adalah list
                     if isinstance(selected_domain_list, str):
@@ -3540,7 +3579,7 @@ class RoiTrafficPerCountryDataView(View):
                         start_date,
                         end_date,
                         unique_name_site,
-                        countries_list
+                        countries_list_query
                     )
                     data_adx = adx_future.result()
                     try:
@@ -3555,7 +3594,7 @@ class RoiTrafficPerCountryDataView(View):
                     end_date, 
                     selected_account_list, 
                     selected_domain_list, 
-                    countries_list
+                    countries_list_query
                 )
                 try:
                     unique_name_site = []
@@ -3584,7 +3623,7 @@ class RoiTrafficPerCountryDataView(View):
                         if unique_name_site:
                             fb_future = executor.submit(
                                 data_mysql().get_all_ads_roi_country_detail_by_params,
-                                start_date, end_date, unique_name_site, countries_list
+                                start_date, end_date, unique_name_site, countries_list_query
                             )
                             data_facebook = fb_future.result()
                         else:
@@ -3665,13 +3704,22 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
         adx_map = {}
         fb_map = {}
         country_name_by_code = {}
+
+        def normalize_country_code(cc):
+            c = (str(cc or '').strip().upper())
+            if not c:
+                return ''
+            if c == 'TU':
+                return 'TR'
+            return c
+
         # Normalisasi AdX: date + base_subdomain + country_code
         adx_items = data_adx.get('data') if isinstance(data_adx, dict) else []
         for adx_item in (adx_items or []):
             date_key = str(adx_item.get('date', '') or '')
             site_name = str(adx_item.get('site_name', '') or '')
             base_subdomain = extract_base_subdomain(site_name)
-            country_code = (adx_item.get('country_code', '') or '').upper()
+            country_code = normalize_country_code(adx_item.get('country_code', '') or '')
             country_name = adx_item.get('country_name', '') or ''
             impressions_adx = int(adx_item.get('impressions', 0) or 0)
             clicks_adx = int(adx_item.get('clicks', 0) or 0)
@@ -3694,7 +3742,7 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
             date_key = str(fb_item.get('date', '') or '')
             domain = str(fb_item.get('domain', '') or '')
             base_subdomain = extract_base_subdomain(domain)
-            country_code = (fb_item.get('country_code', '') or '').upper()
+            country_code = normalize_country_code(fb_item.get('country_code', '') or '')
             country_name = fb_item.get('country_name', '') or ''
             spend = float(fb_item.get('spend', 0) or 0)
             clicks_fb = int(fb_item.get('clicks', 0) or 0)
@@ -3919,13 +3967,22 @@ def process_roi_monitoring_country_data(data_adx, data_facebook):
         fb_map = {}
         country_name_by_code = {}
 
+        def normalize_country_code(cc):
+            c = (str(cc or '').strip().upper())
+            if not c:
+                return ''
+            alias = {
+                'TU': 'TR'
+            }
+            return alias.get(c, c)
+
         # Normalisasi AdX: date + base_subdomain + country_code
         adx_items = data_adx.get('data') if isinstance(data_adx, dict) else []
         for adx_item in (adx_items or []):
             date_key = str(adx_item.get('date', '') or '')
             site_name = str(adx_item.get('site_name', '') or '')
             base_subdomain = extract_base_subdomain(site_name)
-            country_code = (adx_item.get('country_code', '') or '').upper()
+            country_code = normalize_country_code(adx_item.get('country_code', '') or '')
             country_name = adx_item.get('country_name', '') or ''
             revenue = float(adx_item.get('revenue', 0) or 0)
             if not date_key or not base_subdomain or not country_code:
@@ -3941,7 +3998,7 @@ def process_roi_monitoring_country_data(data_adx, data_facebook):
             date_key = str(fb_item.get('date', '') or '')
             domain = str(fb_item.get('domain', '') or '')
             base_subdomain = extract_base_subdomain(domain)
-            country_code = (fb_item.get('country_code', '') or '').upper()
+            country_code = normalize_country_code(fb_item.get('country_code', '') or '')
             country_name = fb_item.get('country_name', '') or ''
             spend = float(fb_item.get('spend', 0) or 0)
             if not date_key or not base_subdomain or not country_code:
@@ -4143,25 +4200,36 @@ class RoiTrafficPerDomainDataView(View):
             total_ctr_adx = 0.0
             total_cpm = 0.0
             total_revenue = 0.0 
+
+            def normalize_country_code(cc):
+                c = (str(cc or '').strip().upper())
+                if not c:
+                    return ''
+                if c == 'TU':
+                    return 'TR'
+                return c
+
             facebook_map = {}
             if facebook_data and facebook_data['hasil']['data']:
                 for fb_item in facebook_data['hasil']['data']:
                     date_key = str(fb_item.get('date', ''))
                     subdomain = str(fb_item.get('domain', ''))
-                    country_code = str(fb_item.get('country_code', ''))
+                    country_code = normalize_country_code(fb_item.get('country_code', ''))
                     key = f"{date_key}_{extract_base_subdomain(subdomain)}_{country_code}"
                     facebook_map[key] = fb_item
             if adx_result and adx_result['hasil']['data']:
                  # --- NEW: siapkan raw_rows + dua grup agregasi (per date+domain)
                 grouped_all = {}
                 grouped_filtered = {}
+                seen_fb_keys = set()
                 for adx_item in adx_result['hasil']['data']:
                     date_key = str(adx_item.get('date', ''))
                     subdomain = str(adx_item.get('site_name', ''))
                     impressions_adx = float(adx_item.get('impressions_adx', 0))
                     base_subdomain = extract_base_subdomain(subdomain)
-                    country_code = str(adx_item.get('country_code', ''))
+                    country_code = normalize_country_code(adx_item.get('country_code', ''))
                     fb_key = f"{date_key}_{base_subdomain}_{country_code}"
+                    seen_fb_keys.add(fb_key)
                     fb_data = facebook_map.get(fb_key)
                     spend = float(fb_data.get('spend') or 0) if fb_data else 0
                     impressions_fb = float(fb_data.get('impressions_fb') or 0) if fb_data else 0
@@ -4283,6 +4351,104 @@ class RoiTrafficPerDomainDataView(View):
                         f_entry['cpm'] = (f_entry['cpm_sum'] / f_entry['cpm_cnt']) if f_entry['cpm_cnt'] > 0 else 0
 
                         grouped_filtered[key] = f_entry
+
+                # Tambahkan baris FB yang tidak punya pasangan AdX (supaya total spend konsisten)
+                for fb_key, fb_item in (facebook_map or {}).items():
+                    if fb_key in seen_fb_keys:
+                        continue
+                    date_key = str(fb_item.get('date', ''))
+                    subdomain = str(fb_item.get('domain', ''))
+                    base_subdomain = extract_base_subdomain(subdomain)
+                    country_code = normalize_country_code(fb_item.get('country_code', ''))
+                    spend = float(fb_item.get('spend') or 0)
+                    impressions_fb = float(fb_item.get('impressions_fb') or 0)
+                    clicks_fb = float(fb_item.get('clicks_fb') or 0)
+                    cpr = float(fb_item.get('cpr') or 0)
+                    cpc_fb = float(fb_item.get('cpc_fb') or 0)
+
+                    raw_rows_all.append({
+                        'site_name': base_subdomain or subdomain,
+                        'date': date_key,
+                        'country_code': country_code,
+                        'spend': spend,
+                        'impressions_fb': impressions_fb,
+                        'clicks_fb': clicks_fb,
+                        'impressions_adx': 0.0,
+                        'clicks_adx': 0.0,
+                        'cpr': cpr,
+                        'ctr_fb': ((clicks_fb / impressions_fb) * 100) if impressions_fb > 0 else 0,
+                        'cpc_fb': cpc_fb,
+                        'ctr_adx': 0.0,
+                        'cpc_adx': 0.0,
+                        'cpm': 0.0,
+                        'revenue': 0.0
+                    })
+
+                    key = f"{date_key}|{base_subdomain or subdomain}"
+                    entry = grouped_all.get(key) or {
+                        'site_name': base_subdomain or subdomain,
+                        'date': date_key,
+                        'spend': 0.0,
+                        'revenue': 0.0,
+                        'impressions_fb': 0.0,
+                        'impressions_adx': 0.0,
+                        'clicks_fb': 0.0,
+                        'clicks_adx': 0.0,
+                        'cpr_sum': 0.0,
+                        'cpr_cnt': 0,
+                        'cpr': 0.0,
+                        'ctr_fb': 0.0,
+                        'cpc_fb': 0.0,
+                        'ctr_adx': 0.0,
+                        'cpc_adx': 0.0,
+                        'cpm_sum': 0.0,
+                        'cpm_cnt': 0,
+                        'cpm': 0.0,
+                    }
+
+                    entry['spend'] += spend
+                    entry['impressions_fb'] += impressions_fb
+                    entry['clicks_fb'] += clicks_fb
+                    entry['revenue'] += 0.0
+                    entry['cpr_sum'] += cpr
+                    entry['cpr_cnt'] += 1
+                    entry['cpr'] = (entry['cpr_sum'] / entry['cpr_cnt']) if entry['cpr_cnt'] > 0 else 0
+                    entry['ctr_fb'] = ((entry['clicks_fb'] / entry['impressions_fb']) * 100) if entry['impressions_fb'] > 0 else 0
+                    entry['cpc_fb'] = (entry['revenue'] / entry['clicks_fb']) if entry['clicks_fb'] > 0 else 0
+                    grouped_all[key] = entry
+
+                    if spend > 0:
+                        f_entry = grouped_filtered.get(key) or {
+                            'site_name': base_subdomain or subdomain,
+                            'date': date_key,
+                            'spend': 0.0,
+                            'revenue': 0.0,
+                            'impressions_fb': 0.0,
+                            'impressions_adx': 0.0,
+                            'clicks_fb': 0.0,
+                            'clicks_adx': 0.0,
+                            'cpr_sum': 0.0,
+                            'cpr_cnt': 0,
+                            'cpr': 0.0,
+                            'ctr_fb': 0.0,
+                            'cpc_fb': 0.0,
+                            'ctr_adx': 0.0,
+                            'cpc_adx': 0.0,
+                            'cpm_sum': 0.0,
+                            'cpm_cnt': 0,
+                            'cpm': 0.0,
+                        }
+                        f_entry['spend'] += spend
+                        f_entry['impressions_fb'] += impressions_fb
+                        f_entry['clicks_fb'] += clicks_fb
+                        f_entry['revenue'] += 0.0
+                        f_entry['cpr_sum'] += cpr
+                        f_entry['cpr_cnt'] += 1
+                        f_entry['cpr'] = (f_entry['cpr_sum'] / f_entry['cpr_cnt']) if f_entry['cpr_cnt'] > 0 else 0
+                        f_entry['ctr_fb'] = ((f_entry['clicks_fb'] / f_entry['impressions_fb']) * 100) if f_entry['impressions_fb'] > 0 else 0
+                        f_entry['cpc_fb'] = (f_entry['revenue'] / f_entry['clicks_fb']) if f_entry['clicks_fb'] > 0 else 0
+                        grouped_filtered[key] = f_entry
+
                 combined_data_all = []
                 total_spend = 0.0
                 total_impressions_fb = 0.0
@@ -4905,24 +5071,35 @@ class RoiMonitoringDomainDataView(View):
             combined_data_filtered = []
             total_spend = 0
             total_revenue = 0
+
+            def normalize_country_code(cc):
+                c = (str(cc or '').strip().upper())
+                if not c:
+                    return ''
+                if c == 'TU':
+                    return 'TR'
+                return c
+
             facebook_map = {}
             if facebook_data and facebook_data['hasil']['data']:
                 for fb_item in facebook_data['hasil']['data']:
                     date_key = str(fb_item.get('date', ''))
                     subdomain = str(fb_item.get('domain', ''))
-                    country_code = str(fb_item.get('country_code', ''))
+                    country_code = normalize_country_code(fb_item.get('country_code', ''))
                     key = f"{date_key}_{extract_base_subdomain(subdomain)}_{country_code}"
                     facebook_map[key] = fb_item
             if adx_result and adx_result['hasil']['data']:
                 # --- NEW: siapkan raw_rows + dua grup agregasi
                 grouped_all = {}
                 grouped_filtered = {}
+                seen_fb_keys = set()
                 for adx_item in adx_result['hasil']['data']:
                     date_key = str(adx_item.get('date', ''))
                     subdomain = str(adx_item.get('site_name', ''))
                     base_subdomain = extract_base_subdomain(subdomain)
-                    country_code = str(adx_item.get('country_code', ''))
+                    country_code = normalize_country_code(adx_item.get('country_code', ''))
                     key = f"{date_key}_{base_subdomain}_{country_code}"
+                    seen_fb_keys.add(key)
                     fb_data = facebook_map.get(key)
                     account_ads = str((fb_data or {}).get('account_name', ''))
                     spend = float((fb_data or {}).get('spend', 0))
@@ -4950,6 +5127,35 @@ class RoiMonitoringDomainDataView(View):
                         grouped_filtered[subdomain]['account_ads'] = account_ads
                         grouped_filtered[subdomain]['spend'] += spend
                         grouped_filtered[subdomain]['revenue'] += revenue
+
+                # Tambahkan baris FB yang tidak punya pasangan AdX (supaya total spend konsisten)
+                for fb_key, fb_item in (facebook_map or {}).items():
+                    if fb_key in seen_fb_keys:
+                        continue
+                    subdomain = str(fb_item.get('domain', ''))
+                    account_ads = str(fb_item.get('account_name', ''))
+                    spend = float(fb_item.get('spend', 0) or 0)
+
+                    raw_rows_all.append({
+                        'site_name': subdomain,
+                        'date': str(fb_item.get('date', '')),
+                        'account_ads': account_ads,
+                        'country_code': normalize_country_code(fb_item.get('country_code', '')),
+                        'spend': spend,
+                        'revenue': 0.0
+                    })
+
+                    if subdomain not in grouped_all:
+                        grouped_all[subdomain] = {'site_name': subdomain, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
+                    grouped_all[subdomain]['account_ads'] = account_ads
+                    grouped_all[subdomain]['spend'] += spend
+
+                    if spend > 0:
+                        if subdomain not in grouped_filtered:
+                            grouped_filtered[subdomain] = {'site_name': subdomain, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
+                        grouped_filtered[subdomain]['account_ads'] = account_ads
+                        grouped_filtered[subdomain]['spend'] += spend
+
                 # Bentuk output agregasi + ROI
                 combined_data_all = []
                 total_spend = 0
@@ -5068,11 +5274,45 @@ class RoiMonitoringCountryDataView(View):
                     'error': 'Parameter tanggal tidak lengkap'
                 })
             # Parse selected countries dari string yang dipisah koma
-            countries_list = []
+            raw_countries_list = []
             if selected_countries and selected_countries.strip():
-                countries_list = [country.strip() for country in selected_countries.split(',') if country.strip()]
+                raw_countries_list = [country.strip() for country in selected_countries.split(',') if country.strip()]
             else:
                 print("[DEBUG] No countries selected, will fetch all countries")
+
+            def normalize_country_code(cc):
+                c = (str(cc or '').strip().upper())
+                if not c:
+                    return ''
+                if c == 'TU':
+                    return 'TR'
+                return c
+
+            countries_list = []
+            for c in (raw_countries_list or []):
+                cc = normalize_country_code(c)
+                if cc and cc not in countries_list:
+                    countries_list.append(cc)
+
+            def expand_country_codes_filter(items):
+                out = []
+                for it in (items or []):
+                    s = normalize_country_code(it)
+                    if not s:
+                        continue
+                    out.append(s)
+                    if s == 'TR':
+                        out.append('TU')
+                seen = set()
+                uniq = []
+                for x in out:
+                    if x and x not in seen:
+                        seen.add(x)
+                        uniq.append(x)
+                return uniq
+
+            countries_list_query = expand_country_codes_filter(countries_list)
+
             # agar FB mengikuti domain yang ada di akun AdX terpilih
             sites_for_fb = None
             if not selected_domain or not selected_domain.strip():
@@ -5093,12 +5333,12 @@ class RoiMonitoringCountryDataView(View):
                     print(f"[DEBUG ROI] Unable to derive sites_for_fb: {_sites_err}")
             # ===== Response-level cache (meng-cache hasil akhir penggabungan) =====
             response_cache_key = generate_cache_key(
-                'roi_country_response',
+                'roi_country_response_v2',
                 start_date,
                 end_date,
                 selected_account or '',
                 selected_domain_list or '',
-                ','.join(countries_list) if countries_list else ''
+                ','.join(countries_list_query) if countries_list_query else ''
             )
             cached_response = get_cached_data(response_cache_key)
             if cached_response is not None:
@@ -5113,7 +5353,7 @@ class RoiMonitoringCountryDataView(View):
                         end_date,
                         selected_account_list,
                         selected_domain_list,
-                        countries_list
+                        countries_list_query
                     )
                     # Normalisasi domain FB
                     if isinstance(selected_domain_list, str):
@@ -5137,7 +5377,7 @@ class RoiMonitoringCountryDataView(View):
                         start_date,
                         end_date,
                         unique_name_site,
-                        countries_list
+                        countries_list_query
                     )
                     data_adx = adx_future.result()
                     try:
