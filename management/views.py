@@ -5097,6 +5097,7 @@ class RoiMonitoringDomainDataView(View):
                     date_key = str(adx_item.get('date', ''))
                     subdomain = str(adx_item.get('site_name', ''))
                     base_subdomain = extract_base_subdomain(subdomain)
+                    site_key = base_subdomain or subdomain
                     country_code = normalize_country_code(adx_item.get('country_code', ''))
                     key = f"{date_key}_{base_subdomain}_{country_code}"
                     seen_fb_keys.add(key)
@@ -5104,40 +5105,39 @@ class RoiMonitoringDomainDataView(View):
                     account_ads = str((fb_data or {}).get('account_name', ''))
                     spend = float((fb_data or {}).get('spend', 0))
                     revenue = float(adx_item.get('revenue', 0))
-                    # Simpan baris mentah
                     raw_rows_all.append({
-                        'site_name': subdomain,
+                        'site_name': site_key,
                         'date': date_key,
                         'account_ads': account_ads,
                         'country_code': country_code,
                         'spend': spend,
                         'revenue': revenue
                     })
-                    # Agregasi: semua kontribusi
-                    if subdomain not in grouped_all:
-                        grouped_all[subdomain] = {'site_name': subdomain, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
-                    grouped_all[subdomain]['account_ads'] = account_ads
-                    grouped_all[subdomain]['spend'] += spend
-                    grouped_all[subdomain]['revenue'] += revenue
+                    if site_key not in grouped_all:
+                        grouped_all[site_key] = {'site_name': site_key, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
+                    grouped_all[site_key]['account_ads'] = account_ads
+                    grouped_all[site_key]['spend'] += spend
+                    grouped_all[site_key]['revenue'] += revenue
 
-                    # Agregasi: hanya spend > 0
                     if spend > 0:
-                        if subdomain not in grouped_filtered:
-                            grouped_filtered[subdomain] = {'site_name': subdomain, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
-                        grouped_filtered[subdomain]['account_ads'] = account_ads
-                        grouped_filtered[subdomain]['spend'] += spend
-                        grouped_filtered[subdomain]['revenue'] += revenue
+                        if site_key not in grouped_filtered:
+                            grouped_filtered[site_key] = {'site_name': site_key, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
+                        grouped_filtered[site_key]['account_ads'] = account_ads
+                        grouped_filtered[site_key]['spend'] += spend
+                        grouped_filtered[site_key]['revenue'] += revenue
 
                 # Tambahkan baris FB yang tidak punya pasangan AdX (supaya total spend konsisten)
                 for fb_key, fb_item in (facebook_map or {}).items():
                     if fb_key in seen_fb_keys:
                         continue
                     subdomain = str(fb_item.get('domain', ''))
+                    base_subdomain = extract_base_subdomain(subdomain)
+                    site_key = base_subdomain or subdomain
                     account_ads = str(fb_item.get('account_name', ''))
                     spend = float(fb_item.get('spend', 0) or 0)
 
                     raw_rows_all.append({
-                        'site_name': subdomain,
+                        'site_name': site_key,
                         'date': str(fb_item.get('date', '')),
                         'account_ads': account_ads,
                         'country_code': normalize_country_code(fb_item.get('country_code', '')),
@@ -5145,16 +5145,16 @@ class RoiMonitoringDomainDataView(View):
                         'revenue': 0.0
                     })
 
-                    if subdomain not in grouped_all:
-                        grouped_all[subdomain] = {'site_name': subdomain, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
-                    grouped_all[subdomain]['account_ads'] = account_ads
-                    grouped_all[subdomain]['spend'] += spend
+                    if site_key not in grouped_all:
+                        grouped_all[site_key] = {'site_name': site_key, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
+                    grouped_all[site_key]['account_ads'] = account_ads
+                    grouped_all[site_key]['spend'] += spend
 
                     if spend > 0:
-                        if subdomain not in grouped_filtered:
-                            grouped_filtered[subdomain] = {'site_name': subdomain, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
-                        grouped_filtered[subdomain]['account_ads'] = account_ads
-                        grouped_filtered[subdomain]['spend'] += spend
+                        if site_key not in grouped_filtered:
+                            grouped_filtered[site_key] = {'site_name': site_key, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
+                        grouped_filtered[site_key]['account_ads'] = account_ads
+                        grouped_filtered[site_key]['spend'] += spend
 
                 # Bentuk output agregasi + ROI
                 combined_data_all = []
@@ -5390,7 +5390,7 @@ class RoiMonitoringCountryDataView(View):
                     end_date,
                     selected_account_list,
                     selected_domain_list,
-                    countries_list
+                    countries_list_query
                 )
                 try:
                     unique_name_site = []
@@ -5406,7 +5406,7 @@ class RoiMonitoringCountryDataView(View):
                             start_date,
                             end_date,
                             unique_name_site,
-                            countries_list
+                            countries_list_query
                         )
                     else:
                         data_facebook = None
