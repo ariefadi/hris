@@ -2933,20 +2933,8 @@ class data_mysql:
 
         return {"hasil": hasil}
 
-    def get_all_adx_roi_country_hourly_logs_by_params(self, target_date, selected_account_list=None, selected_domain_list=None, countries_list=None):
+    def get_all_adx_roi_country_hourly_logs_by_params(self, target_date, selected_domain_list=None):
         try:
-            # Normalize account list
-            if isinstance(selected_account_list, str):
-                selected_account_list = [selected_account_list.strip()]
-            elif selected_account_list is None:
-                selected_account_list = []
-            elif isinstance(selected_account_list, (set, tuple)):
-                selected_account_list = list(selected_account_list)
-            data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
-            like_conditions_account_id = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
-            like_conditions_user_mail = " OR ".join(["a.user_mail LIKE %s"] * len(data_account_list))
-            like_params_account_id = [f"%{account}%" for account in data_account_list]
-            like_params_user_mail = [f"%{account}%" for account in data_account_list]
             # Normalize domain list (optional)
             if isinstance(selected_domain_list, (list, set, tuple)):
                 data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
@@ -2955,41 +2943,26 @@ class data_mysql:
             else:
                 data_domain_list = []
             # Gunakan LIKE tanpa wildcard jika domain sama persis dengan TLD (AdX)
-            like_conditions_domain = " OR ".join(["b.log_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_conditions_domain = " OR ".join(["log_adx_country_domain LIKE %s"] * len(data_domain_list))
             like_params_domain = [domain for domain in data_domain_list]
-            # Normalize country codes (optional)
-            country_codes = []
-            if countries_list:
-                if isinstance(countries_list, str):
-                    country_codes = [c.strip() for c in countries_list.split(',') if c.strip()]
-                elif isinstance(countries_list, (list, tuple, set)):
-                    country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
             base_sql = [
                 "SELECT",
-                "\tDATE(b.log_adx_country_tanggal) AS 'date',",
-                "\tHOUR(b.mdd) AS 'hour',",
-                "\tb.log_adx_country_cd AS 'country_code',",
-                "\tb.log_adx_country_nm AS 'country_name',",
-                "\tSUM(b.log_adx_country_impresi) AS impressions,",
-                "\tSUM(b.log_adx_country_click) AS clicks,",
-                "\tSUM(b.log_adx_country_revenue) AS revenue",
-                "FROM app_credentials a",
-                "INNER JOIN log_adx_country b ON a.account_id = b.account_id",
-                "WHERE DATE(b.log_adx_country_tanggal) = %s",
+                "\tDATE(log_adx_country_tanggal) AS date,",
+                "\tHOUR(mdd) AS hour,",
+                "\tlog_adx_country_cd AS country_code,",
+                "\tlog_adx_country_nm AS country_name,",
+                "\tSUM(log_adx_country_impresi) AS impressions,",
+                "\tSUM(log_adx_country_click) AS clicks,",
+                "\tSUM(log_adx_country_revenue) AS revenue",
+                "FROM log_adx_country a",
+                "WHERE log_adx_country_tanggal = %s",
             ]
             params = [target_date]
-            if data_account_list:
-                base_sql.append(f"\tAND (({like_conditions_account_id}) OR ({like_conditions_user_mail}))")
-                params.extend(like_params_account_id + like_params_user_mail)
             if data_domain_list:
                 base_sql.append(f"\tAND ({like_conditions_domain})")
                 params.extend(like_params_domain)
-            if country_codes:
-                placeholders = ','.join(['%s'] * len(country_codes))
-                base_sql.append(f"\tAND b.log_adx_country_cd IN ({placeholders})")
-                params.extend(country_codes)
-            base_sql.append("GROUP BY DATE(b.log_adx_country_tanggal), HOUR(b.mdd), b.log_adx_country_cd, b.log_adx_country_nm")
-            base_sql.append("ORDER BY HOUR(b.mdd) ASC")
+            base_sql.append("GROUP BY date, hour, log_adx_country_cd, log_adx_country_nm")
+            base_sql.append("ORDER BY hour ASC, country_name ASC")
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get hourly AdX country logs by params")
@@ -3006,7 +2979,7 @@ class data_mysql:
         except Exception as e:
             return {"status": False, "error": str(e)}
 
-    def get_all_ads_roi_country_hourly_logs_by_params(self, target_date, data_sub_domain=None, countries_list=None):
+    def get_all_ads_roi_country_hourly_logs_by_params(self, target_date, data_sub_domain=None):
         try:
             # Normalize domain list
             if isinstance(data_sub_domain, (list, set, tuple)):
@@ -3029,39 +3002,27 @@ class data_mysql:
                     else:
                         base = d + "."
                     patterns.append(base + "%")
-                like_conditions = " OR ".join(["b.log_ads_domain LIKE %s"] * len(patterns))
+                like_conditions = " OR ".join(["log_ads_domain LIKE %s"] * len(patterns))
                 like_clause = f"\tAND ({like_conditions})"
                 like_params = patterns
-            # Normalize country codes (optional)
-            country_codes = []
-            if countries_list:
-                if isinstance(countries_list, str):
-                    country_codes = [c.strip() for c in countries_list.split(',') if c.strip()]
-                elif isinstance(countries_list, (list, tuple, set)):
-                    country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
             base_sql = [
                 "SELECT",
-                "\tDATE(b.log_ads_country_tanggal) AS 'date',",
-                "\tHOUR(b.mdd) AS 'hour',",
-                "\tb.log_ads_country_cd AS 'country_code',",
-                "\tb.log_ads_country_nm AS 'country_name',",
-                "\tSUM(b.log_ads_country_spend) AS 'spend',",
-                "\tSUM(b.log_ads_country_impresi) AS 'impressions',",
-                "\tSUM(b.log_ads_country_click) AS 'clicks',",
-                "\tROUND(AVG(b.log_ads_country_cpr), 0) AS 'cpr'",
-                "FROM master_account_ads a",
-                "INNER JOIN log_ads_country b ON a.account_id = b.account_ads_id",
-                "WHERE DATE(b.log_ads_country_tanggal) = %s",
+                "\tDATE(log_ads_country_tanggal) AS 'date',",
+                "\tHOUR(mdd) AS 'hour',",
+                "\tlog_ads_country_cd AS 'country_code',",
+                "\tlog_ads_country_nm AS 'country_name',",
+                "\tSUM(log_ads_country_spend) AS 'spend',",
+                "\tSUM(log_ads_country_impresi) AS 'impressions',",
+                "\tSUM(log_ads_country_click) AS 'clicks',",
+                "\tROUND(AVG(log_ads_country_cpr), 0) AS 'cpr'",
+                "FROM log_ads_country",
+                "WHERE log_ads_country_tanggal = %s",
             ]
             params = [target_date] + like_params
             if like_clause:
                 base_sql.append(like_clause)
-            if country_codes:
-                placeholders = ','.join(['%s'] * len(country_codes))
-                base_sql.append(f"\tAND b.log_ads_country_cd IN ({placeholders})")
-                params.extend(country_codes)
-            base_sql.append("GROUP BY DATE(b.log_ads_country_tanggal), HOUR(b.mdd), b.log_ads_country_cd, b.log_ads_country_nm")
-            base_sql.append("ORDER BY HOUR(b.mdd) ASC")
+            base_sql.append("GROUP BY date, hour, log_ads_country_cd, log_ads_country_nm")
+            base_sql.append("ORDER BY hour ASC, country_name ASC")
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get hourly Ads country logs by params")
