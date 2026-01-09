@@ -1,5 +1,6 @@
 import os
 import json
+import calendar
 # Guard pandas import to avoid crash when numpy binaries are incompatible
 try:
     import pandas as pd
@@ -587,3 +588,137 @@ class AdsenseCredentialsListView(View):
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
 
+# ===== Rekapitulasi AdSense =====
+
+class AdsenseRekapitulasiView(View):
+    """View untuk AdSense Rekapitulasi - menampilkan ringkasan data AdSense"""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+    def get(self, req):
+        admin = req.session.get('hris_admin', {})
+        data_account = data_mysql().master_account_ads()['data']
+        last_update = data_mysql().get_last_update_adx_traffic_per_domain()['data']['last_update']
+        if admin.get('super_st') == '0':
+            data_account_adsense = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+            data_domain_adsense = data_mysql().get_all_adx_domain_data_user(admin.get('user_id'))
+        else:
+            data_account_adsense = data_mysql().get_all_adx_account_data()
+            data_domain_adsense = data_mysql().get_all_adx_domain_data()
+        if not data_domain_adsense['status']:
+            return JsonResponse({
+                'status': False,
+                'error': data_domain_adsense['data']
+            })
+        data = {
+            'title': 'AdSense Rekapitulasi Dashboard',
+            'user': req.session['hris_admin'],
+            'data_account': data_account,
+            'data_account_adsense': data_account_adsense['data'],
+            'data_domain_adsense': data_domain_adsense['data'],
+            'last_update': last_update
+        }
+        return render(req, 'admin/report_adsense/rekapitulasi_adsense/index.html', data)
+
+class AdsenseRekapitulasiDataView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+    def get(self, req):
+        try:
+            periode_mode = (req.GET.get('periode_mode') or 'harian').strip().lower()
+            MONTH_ID = {
+                1: "Jan", 2: "Feb", 3: "Mar", 4: "Apr",
+                5: "Mei", 6: "Jun", 7: "Jul", 8: "Agu",
+                9: "Sep", 10: "Okt", 11: "Nov", 12: "Des"
+            }
+            def format_tanggal_id(dt):
+                return f"{dt.day} {MONTH_ID[dt.month]} {dt.year}"
+            def parse_month(ym):
+                s = (ym or '').strip()
+                parts = s.split('-')
+                if len(parts) != 2:
+                    raise ValueError(f"Format bulan tidak valid: {ym}")
+                y = int(parts[0])
+                m = int(parts[1])
+                if m < 1 or m > 12:
+                    raise ValueError(f"Bulan tidak valid: {ym}")
+                return y, m
+            def add_months(y, m, delta):
+                idx = (y * 12 + (m - 1)) + int(delta)
+                ny = idx // 12
+                nm = (idx % 12) + 1
+                return ny, nm
+            if periode_mode == 'bulanan':
+                month_from = req.GET.get('month_from')
+                month_to = req.GET.get('month_to')
+                if not month_from or not month_to:
+                    raise ValueError("month_from dan month_to harus diisi untuk mode bulanan")
+
+                y1, m1 = parse_month(month_from)
+                y2, m2 = parse_month(month_to)
+                months_count = (y2 - y1) * 12 + (m2 - m1) + 1
+                if months_count <= 0:
+                    raise ValueError("month_from > month_to")
+                start_date = datetime(y1, m1, 1).date()
+                end_date = datetime(y2, m2, calendar.monthrange(y2, m2)[1]).date()
+                py2, pm2 = add_months(y1, m1, -1)
+                py1, pm1 = add_months(py2, pm2, -(months_count - 1))
+                past_start_date = datetime(py1, pm1, 1).date()
+                past_end_date = datetime(py2, pm2, calendar.monthrange(py2, pm2)[1]).date()
+                periode_now = (
+                    f"Periode <br> "
+                    f"{format_tanggal_id(start_date)} s/d {format_tanggal_id(end_date)}"
+                )
+                periode_past = (
+                    f"Periode <br> "
+                    f"{format_tanggal_id(past_start_date)} s/d {format_tanggal_id(past_end_date)}"
+                )
+            else:
+                start_date = req.GET.get('start_date')
+                end_date = req.GET.get('end_date')
+                if not start_date or not end_date:
+                    raise ValueError("start_date dan end_date harus diisi")
+                start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+                end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
+                if start_date > end_date:
+                    raise ValueError("start_date > end_date")
+                total_days = (end_date - start_date).days + 1
+                past_end_date = start_date - timedelta(days=1)
+                past_start_date = past_end_date - timedelta(days=total_days - 1)
+                periode_now = (
+                    f"Periode <br> "
+                    f"{format_tanggal_id(start_date)} s/d {format_tanggal_id(end_date)}"
+                )
+                periode_past = (
+                    f"Periode <br> "
+                    f"{format_tanggal_id(past_start_date)} s/d {format_tanggal_id(past_end_date)}"
+                )
+            selected_account_list = []
+            if req.GET.get('selected_account_adx'):
+                selected_account_list = [
+                    s.strip() for s in req.GET.get('selected_account_adx').split(',') if s.strip()
+                ]
+            selected_domain_list = []
+            if req.GET.get('selected_domains'):
+                selected_domain_list = [
+                    s.strip() for s in req.GET.get('selected_domains').split(',') if s.strip()
+                ]
+            adsense_result = data_mysql().get_all_rekapitulasi_adsense_monitoring_account_by_params(
+                start_date,
+                end_date,
+                past_start_date,
+                past_end_date,
+                selected_account_list,
+                selected_domain_list
+            )
+            return JsonResponse({
+                'status': True,
+                'periode_now': periode_now,
+                'periode_past': periode_past,
+                'data': adsense_result['hasil']['data'],
+            })
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})

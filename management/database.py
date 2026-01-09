@@ -32,17 +32,17 @@ class data_mysql:
         try:
             # Use the same environment variables as Django settings for consistency
             host = os.getenv('DB_HOST', '127.0.0.1')
-            # Use the same port as Django (3306, not 3306)
+            # Use the same port as Django (3307, not 3307)
             raw_port = os.getenv('HRIS_DB_PORT', '').strip()
             if not raw_port:
-                raw_port = '3306'
+                raw_port = '3307'
             try:
                 port = int(raw_port)
             except (ValueError, TypeError):
-                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
-                port = 3306
+                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3307")
+                port = 3307
             user = os.getenv('HRIS_DB_USER', 'root')
-            password = os.getenv('HRIS_DB_PASSWORD', 'hris123456')
+            password = os.getenv('HRIS_DB_PASSWORD', '')
             database = os.getenv('HRIS_DB_NAME', 'hris_trendHorizone')
 
             self.db_hris = pymysql.connect(
@@ -124,7 +124,7 @@ class data_mysql:
                 LIMIT 1
               """
         try:
-            _log_debug(f"[LOGIN_DEBUG] Attempting login for username={data.get('username')} from DB host={os.getenv('DB_HOST','127.0.0.1')} port={os.getenv('HRIS_DB_PORT','3306')} db={os.getenv('HRIS_DB_NAME','hris_trendHorizone')}")
+            _log_debug(f"[LOGIN_DEBUG] Attempting login for username={data.get('username')} from DB host={os.getenv('DB_HOST','127.0.0.1')} port={os.getenv('HRIS_DB_PORT','3307')} db={os.getenv('HRIS_DB_NAME','hris_trendHorizone')}")
             if not self.execute_query(sql, (data['username'],)):
                 raise pymysql.Error("Failed to execute login query")
             row = self.cur_hris.fetchone()
@@ -4201,6 +4201,116 @@ class data_mysql:
             hasil = {
                 "status": True,
                 "message": "Data adx monitoring account berhasil diambil",
+                "data": data
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+
+    def get_all_rekapitulasi_adsense_monitoring_account_by_params(self, start_date, end_date, past_start_date, past_end_date, selected_account_list = None, selected_domain_list = None):
+        try:
+            # --- 0. Pastikan selected_account_list adalah list string
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
+            like_conditions_account_now = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
+            like_params_account_now = [f"{account}%" for account in data_account_list] 
+            like_conditions_account_last = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
+            like_params_account_last = [f"{account}%" for account in data_account_list] 
+            # --- 1. Pastikan selected_domain_list adalah list string
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+            # --- 2. Buat kondisi LIKE untuk setiap domain NOW
+            like_conditions_domain_now = " OR ".join(["b.data_adsense_country_domain LIKE %s"] * len(data_domain_list))
+            like_params_domain_now = [f"%{domain}%" for domain in data_domain_list] 
+            # --- 2. Buat kondisi LIKE untuk setiap domain LAST
+            like_conditions_domain_last = " OR ".join(["b.data_adsense_country_domain LIKE %s"] * len(data_domain_list))
+            like_params_domain_last = [f"%{domain}%" for domain in data_domain_list] 
+            base_sql = [
+                "SELECT",
+                "\tnow.account_id,",
+                "\tnow.account_name,",
+                "\tCOALESCE(last.pendapatan, 0) AS pendapatan_last,",
+                "\tnow.pendapatan AS pendapatan_now,",
+                "\tROUND(now.pendapatan - COALESCE(last.pendapatan, 0)) AS pendapatan_selisih,",
+                "\tROUND(("
+                "\t\t(now.pendapatan - COALESCE(last.pendapatan, 0))"
+                "\t\t/ NULLIF(now.pendapatan, 0)"
+                "\t) * 100, 2) AS pendapatan_persen",
+                "FROM (",
+                "\tSELECT rs.account_id, rs.account_name, SUM(rs.revenue) AS pendapatan",
+                "\tFROM (",
+                "\t\tSELECT",
+                "\t\t\ta.account_id, a.account_name,",
+                "\t\t\tb.data_adsense_country_domain,",
+                "\t\t\tb.data_adsense_country_cd,",
+                "\t\t\tSUM(b.data_adsense_country_revenue) AS revenue",
+                "\t\tFROM app_credentials a",
+                "\t\tINNER JOIN data_adsense_country b ON a.account_id = b.account_id",
+                "\t\tWHERE b.data_adsense_country_tanggal BETWEEN %s AND %s",
+            ]
+            params = [start_date, end_date]
+            # filter account NOW
+            if data_account_list:
+                base_sql.append(f"\t\tAND ({like_conditions_account_now})")
+                params.extend(like_params_account_now)
+            # filter domain NOW
+            if data_domain_list:
+                base_sql.append(f"\t\tAND ({like_conditions_domain_now})")
+                params.extend(like_params_domain_now)
+            base_sql.extend([
+                "\t\tGROUP BY a.account_id, a.account_name, b.data_adsense_country_domain, b.data_adsense_country_cd",
+                "\t) rs",
+                "\tGROUP BY rs.account_id, rs.account_name",
+                ") now",
+                "LEFT JOIN (",
+                "\tSELECT rs.account_id, rs.account_name, SUM(rs.revenue) AS pendapatan",
+                "\tFROM (",
+                "\t\tSELECT",
+                "\t\t\ta.account_id, a.account_name,",
+                "\t\t\tb.data_adsense_country_domain,",
+                "\t\t\tb.data_adsense_country_cd,",
+                "\t\t\tSUM(b.data_adsense_country_revenue) AS revenue",
+                "\t\tFROM app_credentials a",
+                "\t\tINNER JOIN data_adsense_country b ON a.account_id = b.account_id",
+                "\t\tWHERE b.data_adsense_country_tanggal BETWEEN %s AND %s",
+            ])
+            params.extend([past_start_date, past_end_date])
+            # filter account LAST
+            if data_account_list:
+                base_sql.append(f"\t\tAND ({like_conditions_account_last})")
+                params.extend(like_params_account_last)
+            # filter domain LAST
+            if data_domain_list:
+                base_sql.append(f"\t\tAND ({like_conditions_domain_last})")
+                params.extend(like_params_domain_last)
+            base_sql.extend([
+                "\t\tGROUP BY a.account_id, a.account_name, b.data_adsense_country_domain, b.data_adsense_country_cd",
+                "\t) rs",
+                "\tGROUP BY rs.account_id, rs.account_name",
+                ") last ON now.account_id = last.account_id",
+            ])
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get all adsense monitoring account by params")  
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get all adsense monitoring account by params")
+            hasil = {
+                "status": True,
+                "message": "Data adsense monitoring account berhasil diambil",
                 "data": data
             }
         except pymysql.Error as e:

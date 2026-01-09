@@ -131,6 +131,11 @@ urlpatterns = [
     path('admin/rekapitulasi_earning', views.RoiRekapitulasiView.as_view(), name='roi_rekapitulasi'),
     path('admin/page_rekapitulasi_earning', views.RoiRekapitulasiDataView.as_view()),
 
+    # Menu Report Adsense
+    # Menu Report Adsense Rekapitulasi
+    path('admin/earning_adsense', views_adsense.AdsenseRekapitulasiView.as_view(), name='rekapitulasi_adsense'),
+    path('admin/page_earning_adsense', views_adsense.AdsenseRekapitulasiDataView.as_view()),
+
     # test
     path('admin/fetch_report', views.fetch_report, name='fetch_report'),
 
