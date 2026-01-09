@@ -22,7 +22,7 @@ def set_cached_data(cache_key, data, timeout=None):
         print(f"Cache storage error for key {cache_key}: {e}")
         return False
 
-def generate_cache_key(prefix, *args, **kwargs):
+def generate_cache_key_adsense(prefix, *args, **kwargs):
     """
     Generate a consistent cache key from prefix and arguments
     """
@@ -43,6 +43,31 @@ def generate_cache_key(prefix, *args, **kwargs):
     # Create hash of the key parts to ensure consistent length
     key_string = "|".join(key_parts)
     return hashlib.md5(key_string.encode()).hexdigest()
+
+def get_cached_data_adsense(cache_key):
+    """
+    Retrieve data from cache
+    """
+    try:
+        return cache.get(cache_key)
+    except Exception as e:
+        print(f"Cache retrieval error for key {cache_key}: {e}")
+        return None
+
+def set_cached_data_adsense(cache_key, data, timeout=None):
+    """
+    Store data in cache with optional timeout
+    """
+    try:
+        if timeout is None:
+            # Default timeout of 1 hour
+            timeout = 3600
+        
+        cache.set(cache_key, data, timeout)
+        return True
+    except Exception as e:
+        print(f"Cache storage error for key {cache_key}: {e}")
+        return False
 
 def extract_domain_from_ad_unit(ad_unit_name):
     """

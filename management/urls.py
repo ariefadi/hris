@@ -96,6 +96,7 @@ urlpatterns = [
     path('admin/adsense_traffic_account', views_adsense.AdsenseTrafficAccountView.as_view(), name='adsense_traffic_account'),
     path('admin/adsense_traffic_account_data', views_adsense.AdsenseTrafficAccountDataView.as_view(), name='adsense_traffic_account_data'),
     path('admin/adsense_sites_list', views_adsense.AdsenseSitesListView.as_view(), name='adsense_sites_list'),
+    path('admin/adsense_accounts_list', views_adsense.AdsenseAccountListView.as_view(), name='adsense_accounts_list'),
     # # Menu Adsense Traffic Country
     path('admin/adsense_traffic_country', views_adsense.AdsenseTrafficPerCountryView.as_view(), name='adsense_traffic_country'),
     path('admin/adsense_traffic_country_data', views_adsense.AdsenseTrafficPerCountryDataView.as_view(), name='adsense_traffic_country_data'),
@@ -107,8 +108,6 @@ urlpatterns = [
     path('admin/oauth/generate-url/', generate_oauth_url_api, name='generate_oauth_url_api'),
     path('admin/oauth/callback/', oauth_callback_api, name='oauth_callback_api'),
     
-    # OAuth endpoints lama telah dihapus - gunakan oauth_views_package di atas
-
     # MENU REPORT
     # Menu Report ROI
     path('admin/roi_summary', views.RoiSummaryView.as_view(), name='roi_summary'),
@@ -132,6 +131,9 @@ urlpatterns = [
     path('admin/page_rekapitulasi_earning', views.RoiRekapitulasiDataView.as_view()),
 
     # Menu Report Adsense
+    # Menu ROI Monitoring Country Adsense
+    path('admin/monitor_country_adsense', views_adsense.RoiMonitoringCountryAdsenseView.as_view(), name='roi_monitoring_country_adsense'),
+    path('admin/page_monitoring_country_adsense', views_adsense.RoiMonitoringCountryAdsenseDataView.as_view()),
     # Menu Report Adsense Rekapitulasi
     path('admin/earning_adsense', views_adsense.AdsenseRekapitulasiView.as_view(), name='rekapitulasi_adsense'),
     path('admin/page_earning_adsense', views_adsense.AdsenseRekapitulasiDataView.as_view()),
