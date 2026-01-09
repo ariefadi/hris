@@ -44,25 +44,11 @@ DJANGO_MANAGE="$VENV $APPDIR/manage.py"
 # Ads Country: setiap 6 jam
 0 */6 * * * cd $APPDIR && flock -n /var/run/hris_ads_country.lock -c "$DJANGO_MANAGE cron_ads_country >> /var/log/hris/cron_ads_country.log 2>&1"
 
-# ROI Rekapitulasi Earning (harian): setiap 59 menit
-59 * * * * cd $APPDIR && flock -n /var/run/hris_roi_rekapitulasi_earning.lock -c "$DJANGO_MANAGE cron_roi_rekapitulasi_earning_telegram >> /var/log/hris/cron_roi_rekapitulasi_earning_telegram.log 2>&1"
+# ROI Rekapitulasi Earning: jam 02,05,08,11,14,17,20,23 menit 59
+59 2-23/3 * * * cd $APPDIR && flock -n /var/run/hris_roi_rekapitulasi_earning.lock -c "$DJANGO_MANAGE cron_roi_rekapitulasi_earning_telegram >> /var/log/hris/cron_roi_rekapitulasi_earning_telegram.log 2>&1"
 
-# ROI Monitoring Country: setiap 59 menit
-59 * * * * cd $APPDIR && flock -n /var/run/hris_roi_monitoring_country.lock -c "$DJANGO_MANAGE cron_roi_monitoring_country_telegram >> /var/log/hris/cron_roi_monitoring_country_telegram.log 2>&1"
+# ROI Monitoring Country: jam 02,05,08,11,14,17,20,23 menit 59
+59 2-23/3 * * * cd $APPDIR && flock -n /var/run/hris_roi_monitoring_country.lock -c "$DJANGO_MANAGE cron_roi_monitoring_country_telegram >> /var/log/hris/cron_roi_monitoring_country_telegram.log 2>&1"
 
-# ROI Monitoring Domain: setiap 59 menit
-59 * * * * cd $APPDIR && flock -n /var/run/hris_roi_monitoring_domain.lock -c "$DJANGO_MANAGE cron_roi_monitoring_domain_telegram >> /var/log/hris/cron_roi_monitoring_domain_telegram.log 2>&1"
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# ROI Monitoring Domain: jam 02,05,08,11,14,17,20,23 menit 59
+59 2-23/3 * * * cd $APPDIR && flock -n /var/run/hris_roi_monitoring_domain.lock -c "$DJANGO_MANAGE cron_roi_monitoring_domain_telegram >> /var/log/hris/cron_roi_monitoring_domain_telegram.log 2>&1"
