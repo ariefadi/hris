@@ -1680,6 +1680,38 @@ class data_mysql:
                 'message': f'Database error: {str(e)}'
             }
 
+
+    def delete_adx_account_credentials(self, user_mail, mdb=None, mdb_name=None):
+        try:
+            sql_get = "SELECT account_id FROM app_credentials WHERE user_mail = %s"
+            if not self.execute_query(sql_get, (user_mail,)):
+                return {'status': False, 'message': 'Database error saat mengambil account_id'}
+
+            row = self.cur_hris.fetchone()
+            if not row:
+                return {'status': False, 'message': 'Kredensial tidak ditemukan'}
+
+            account_id = row.get('account_id') if isinstance(row, dict) else row[0]
+
+            sql_del_assign = "DELETE FROM app_credentials_assign WHERE account_id = %s"
+            if not self.execute_query(sql_del_assign, (account_id,)):
+                return {'status': False, 'message': 'Database error saat menghapus assignment'}
+
+            sql_del_cred = "DELETE FROM app_credentials WHERE user_mail = %s"
+            if not self.execute_query(sql_del_cred, (user_mail,)):
+                return {'status': False, 'message': 'Database error saat menghapus kredensial'}
+
+            if not self.commit():
+                return {'status': False, 'message': 'Gagal menyimpan perubahan'}
+
+            if getattr(self.cur_hris, 'rowcount', 0) <= 0:
+                return {'status': False, 'message': 'Tidak ada data yang dihapus'}
+
+            return {'status': True, 'message': 'Kredensial berhasil dihapus'}
+
+        except pymysql.Error as e:
+            return {'status': False, 'message': f'Database error: {str(e)}'}
+
     # CRON JOB
     def insert_data_master_ads(self, data):
         try:

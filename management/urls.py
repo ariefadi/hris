@@ -68,6 +68,7 @@ urlpatterns = [
     path('admin/page_adx_user_account', views.AdxUserAccountDataView.as_view()),
     path('admin/assign_account_user', views.AssignAccountUserView.as_view(), name='assign_account_user'),
     path('admin/update_account_name', views.UpdateAccountNameView.as_view(), name='update_account_name'),
+    path('admin/delete_adx_account_credentials', views.DeleteAdxAccountCredentialsView.as_view(), name='delete_adx_account_credentials'),
     path('admin/generate_refresh_token', views.GenerateRefreshTokenView.as_view(), name='generate_refresh_token'),
     path('admin/save_oauth_credentials', views.SaveOAuthCredentialsView.as_view(), name='save_oauth_credentials'),
     # AdX Traffic Account

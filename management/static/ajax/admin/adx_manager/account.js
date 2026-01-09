@@ -267,6 +267,43 @@ $(document).ready(function() {
         $('#assignAccountModal').modal('show');
     });
     
+    $(document).on('click', '.delete-account-credentials', function() {
+        var userMail = $(this).data('email');
+        var accountName = $(this).data('account-name');
+
+        var label = accountName ? (accountName + ' (' + userMail + ')') : userMail;
+        var confirmed = confirm('Yakin hapus kredensial: ' + label + ' ?');
+        if (!confirmed) {
+            return;
+        }
+
+        $.ajax({
+            url: '/management/admin/delete_adx_account_credentials',
+            type: 'POST',
+            data: {
+                'user_mail': userMail,
+                'csrfmiddlewaretoken': getCookie('csrftoken')
+            },
+            success: function(response) {
+                if (response && response.status) {
+                    showAlert('success', response.message || 'Kredensial berhasil dihapus');
+                    location.reload();
+                } else {
+                    showAlert('error', (response && response.message) ? response.message : 'Gagal menghapus kredensial');
+                }
+            },
+            error: function(xhr) {
+                var errorMessage = 'Terjadi kesalahan saat menghapus';
+                if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+                    errorMessage = xhr.responseJSON.message;
+                } else if (xhr && xhr.status === 403) {
+                    errorMessage = 'Unauthorized';
+                }
+                window.showAlert('error', errorMessage);
+            }
+        });
+    });
+
     // Handle Edit Account Name buttons
     $(document).on('click', '.edit-account-name', function() {
         console.log('Edit button clicked');
@@ -328,12 +365,12 @@ $(document).ready(function() {
                 $('#btn_save_assign_account').prop('disabled', false).text('Save Changes');
                 
                 if (response.status) {
-                    showAlert('success', response.message);
+                    window.showAlert('success', response.message);
                     $('#assignAccountModal').modal('hide');
                     // Refresh the page to show updated data
                     location.reload();
                 } else {
-                    showAlert('error', response.message || 'Gagal assign account user');
+                    window.showAlert('error', response.message || 'Gagal assign account user');
                 }
             },
             error: function(xhr, status, error) {
@@ -390,12 +427,12 @@ $(document).ready(function() {
                 $('#btn_save_account_name').prop('disabled', false).text('Save Changes');
                 
                 if (response.status) {
-                    showAlert('success', response.message);
+                    window.showAlert('success', response.message);
                     $('#editAccountNameModal').modal('hide');
                     // Refresh the page to show updated data
                     location.reload();
                 } else {
-                    showAlert('error', response.message || 'Gagal mengupdate account name');
+                    window.showAlert('error', response.message || 'Gagal mengupdate account name');
                 }
             },
             error: function(xhr, status, error) {

@@ -345,6 +345,12 @@
                                             title="Edit Account Name">
                                         <i class="bi bi-pencil"></i> 
                                     </button>
+                                    <button class="btn btn-sm btn-danger delete-account-credentials" 
+                                            data-email="{{ credential.user_mail }}"
+                                            data-account-name="{{ credential.account_name }}"
+                                            title="Hapus Kredensial">
+                                        <i class="bi bi-trash"></i> 
+                                    </button>
                                     {% endif %}
                                 </td>
                             </tr>

@@ -4922,7 +4922,6 @@ class UpdateAccountNameView(View):
                     'status': False,
                     'message': 'User mail dan account name harus diisi'
                 }, status=400)
-                
             # Update account name in database
             db = data_mysql()
             result = db.update_account_name(user_mail, new_account_name)
@@ -4944,6 +4943,32 @@ class UpdateAccountNameView(View):
                 'message': f'Error: {str(e)}'
             }, status=500)
 
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DeleteAdxAccountCredentialsView(View):
+    def post(self, request):
+        try:
+            admin = request.session.get('hris_admin')
+            if not admin:
+                return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+
+            is_superadmin = (admin.get('super_st') == '1') or (admin.get('user_name') == 'superadmin')
+            if not is_superadmin:
+                return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=403)
+
+            user_mail = (request.POST.get('user_mail') or '').strip()
+            if not user_mail:
+                return JsonResponse({'status': False, 'message': 'user_mail harus diisi'}, status=400)
+
+            db = data_mysql()
+            result = db.delete_adx_account_credentials(user_mail, admin.get('user_id'), admin.get('user_alias') or admin.get('user_name'))
+            if result.get('status'):
+                return JsonResponse({'status': True, 'message': result.get('message', 'Kredensial berhasil dihapus')})
+
+            return JsonResponse({'status': False, 'message': result.get('message', 'Gagal menghapus kredensial')}, status=500)
+
+        except Exception as e:
+            return JsonResponse({'status': False, 'message': f'Error: {str(e)}'}, status=500)
 
 # ===== ROI Monitoring Domain =====
 
