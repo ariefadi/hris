@@ -53,7 +53,6 @@ urlpatterns = [
     path('admin/ads_account_list', views.AdsAccountListView.as_view(), name='ads_account_list'),
     path('admin/ads_campaign_list', views.AdsCampaignListView.as_view(), name='ads_campaign_list'),
 
-
     # MENU ADX MANAGER
     # Menu AdX Summary
     path('admin/adx_summary', views.AdxSummaryView.as_view(), name='adx_summary'),
@@ -131,8 +130,19 @@ urlpatterns = [
     path('admin/page_rekapitulasi_earning', views.RoiRekapitulasiDataView.as_view()),
 
     # Menu Report Adsense
-    # Menu ROI Monitoring Country Adsense
-    path('admin/monitor_country_adsense', views_adsense.RoiMonitoringCountryAdsenseView.as_view(), name='roi_monitoring_country_adsense'),
+    # Menu Report Summary Adsense
+    path('admin/rekap_summary_adsense', views_adsense.RekapAdsenseSummaryView.as_view(), name='rekap_summary_adsense'),
+    # Menu Rekap Adsense Per Domain
+    path('admin/rekap_traffic_domain_adsense', views_adsense.RekapTrafficPerDomainView.as_view(), name='rekap_traffic_domain_adsense'),
+    path('admin/page_rekap_traffic_domain_adsense', views_adsense.RekapTrafficPerDomainDataView.as_view()),
+    # Menu Rekap Adsense Per Country
+    path('admin/rekap_traffic_country_adsense', views_adsense.RekapTrafficPerCountryAdsenseView.as_view(), name='rekap_traffic_country_adsense'),
+    path('admin/page_traffic_country_adsense', views_adsense.RekapTrafficPerCountryAdsenseDataView.as_view()),
+    # Menu Rekap Monitoring Domain Adsense
+    path('admin/monitor_domain_adsense', views_adsense.RoiMonitoringDomainAdsenseView.as_view(), name='monitor_domain_adsense'),
+    path('admin/page_monitoring_domain_adsense', views_adsense.RoiMonitoringDomainAdsenseDataView.as_view()),
+    # Menu Rekap Monitoring Country Adsense
+    path('admin/monitor_country_adsense', views_adsense.RoiMonitoringCountryAdsenseView.as_view(), name='monitor_country_adsense'),
     path('admin/page_monitoring_country_adsense', views_adsense.RoiMonitoringCountryAdsenseDataView.as_view()),
     # Menu Report Adsense Rekapitulasi
     path('admin/earning_adsense', views_adsense.AdsenseRekapitulasiView.as_view(), name='rekapitulasi_adsense'),
@@ -140,7 +150,6 @@ urlpatterns = [
 
     # test
     path('admin/fetch_report', views.fetch_report, name='fetch_report'),
-
     # Utility: Import OAuth client dari environment ke app_credentials
     path('admin/app_credentials/import_env', views.ImportEnvAppCredentialsView.as_view(), name='app_credentials_import_env'),
 

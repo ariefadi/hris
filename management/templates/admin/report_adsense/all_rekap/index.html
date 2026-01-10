@@ -1,0 +1,243 @@
+{% extends "admin_base.html" %}
+{% load static %}
+{% block page_title %}Report Adsense{% endblock %}
+
+{% block page_heading %}Report Adsense{% endblock %}
+
+{% block breadcrumbs %}
+    <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Report Adsense</li>
+{% endblock %}
+{% block more_stylesheet %}
+{% endblock %}
+{% block content %}  
+{% csrf_token %}  
+<style>
+  .dt-buttons {
+      margin-bottom: 20px;
+  }
+  #container {
+    min-width: 100%;
+    margin: 0 auto;
+    width: 1000px;
+    height: 600px;
+ }
+</style>
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">ROI Summary Dashboard</h3>
+    </div> <!-- /.card-header -->
+    <div class="card-body">
+        <div class="form-row">
+            <div class="col-md-1">
+                <label>Dari</label>
+                <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" data-date-orientation="bottom auto" placeholder="Tanggal Dari"/>
+            </div>
+            <div class="col-md-1">
+                <label>Sampai</label>
+                 <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" data-date-orientation="bottom auto" placeholder="Tanggal Sampai"/>
+            </div>
+            <div class="col-md-2">
+                <label>Filter Account</label>
+                <select class="form-control select2-multiple" id="account_filter" multiple>
+                    {% for account in data_account_adsense %}
+                    <option value="{{account.account_id}}">{{account.account_name|upper}}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label>Filter Ads Account</label>
+                <select class="form-control select2" id="select_account">
+                    <option value=""></option>
+                    {% for account in data_account %}
+                    <option value="{{account.account_ads_id}}">{{account.account_name}}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label>Filter Negara</label>
+                <select class="form-control select2-multiple" id="country_filter" multiple="multiple">
+                    <!-- Options akan dimuat secara dinamis -->
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label>&nbsp;</label>
+                <button type="button" class="btn btn-primary form-control" id="btn_load_data">
+                    <i class="fas fa-search"></i> Muat Data
+                </button>
+            </div>
+        </div>
+    </div><!-- /.card-body -->
+</div>
+<div class="card">
+    <div class="card-header">
+        <div class="row">
+            <div class="col-6">
+                <h3 class="card-title"><b><i class="bi bi-graph-up"></i> ROI Summary Data</b></h3>
+            </div>
+            <div class="col-6 d-flex justify-content-end">
+                <span><i class="bi bi-clock-history"></i> Data Diupdate Terakhir <b>Tanggal {{ last_update|date:"d F Y" }} Jam {{ last_update|date:"H:i:s" }}</b></span>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="overlay" 
+            style="
+                display: none;
+                position: fixed;
+                top: 0; left: 0;
+                width: 100%; height: 100%;
+                background: rgba(0,0,0,0.5);
+                z-index: 9999;
+                text-align: center;
+                color: white;
+                font-size: 2rem;
+                padding-top: 20%;">
+            <i class="fas fa fa-sync-alt fa-spin"></i> Menyiapkan Data ... 
+        </div>
+        <div class="row" id="summary_boxes" style="display: none;">
+            <div class="col-12 col-sm-6 col-md-4">
+                <div class="metric-card spend">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Spend</div>
+                            <div class="metric-value" id="total_spend">Rp 0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-credit-card"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-4">
+                <div class="metric-card roi">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">ROI Nett</div>
+                            <div class="metric-value" id="roi_nett">0%</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-percent"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-4">
+                <div class="metric-card revenue">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Pendapatan</div>
+                            <div class="metric-value" id="total_revenue">$0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-currency-dollar"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Chart Traffic ROI Harian -->
+        <div class="row mt-3" id="charts_section" style="display: none;">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="bi bi-bar-chart"></i> Traffic ROI Harian</h3>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chart_roi_daily" style="height: 400px;"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 mt-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h3 class="card-title"><i class="bi bi-bar-chart"></i> ROI per Negara (Top 10)</h3>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="roiChart" style="max-height: 400px;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Data Traffic Hari Ini -->
+        <div class="row mt-3" id="today_traffic" style="display: none;">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="card-title"><i class="bi bi-calendar-day"></i> Data Traffic ROI Hari Ini</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-12 col-sm-6 col-md-4">
+                                <div class="metric-card spend">
+                                    <div class="metric-card-inner">
+                                        <div>
+                                            <div class="metric-label">Spend Hari Ini</div>
+                                            <div class="metric-value" id="today_spend">0</div>
+                                        </div>
+                                        <div class="metric-card-icon" aria-hidden="true">
+                                            <i class="bi bi-eye-fill"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-4">
+                                <div class="metric-card roi">
+                                    <div class="metric-card-inner">
+                                        <div>
+                                            <div class="metric-label">ROI Hari Ini</div>
+                                            <div class="metric-value" id="today_roi">0%</div>
+                                        </div>
+                                        <div class="metric-card-icon" aria-hidden="true">
+                                            <i class="bi bi-graph-up-arrow"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-4">
+                                <div class="metric-card revenue">
+                                    <div class="metric-card-inner">
+                                        <div>
+                                            <div class="metric-label">Pendapatan Hari Ini</div>
+                                            <div class="metric-value" id="today_revenue">Rp 0</div>
+                                        </div>
+                                        <div class="metric-card-icon" aria-hidden="true">
+                                            <i class="bi bi-currency-dollar"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block more_scripts %}
+<!-- Chart.js for country charts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Highcharts for revenue line chart -->
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highcharts.min.js" onload="console.log('Highcharts loaded successfully')" onerror="console.error('Failed to load Highcharts')"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/treemap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/treegraph.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
+<script>
+    // Ensure both Chart.js and Highcharts are loaded before loading our custom script
+    function loadSummaryScript() {
+        if (typeof Chart !== 'undefined' && typeof Highcharts !== 'undefined') {
+            console.log('Chart.js and Highcharts loaded successfully');
+            var script = document.createElement('script');
+            script.src = '{% static "ajax/admin/report_adsense/all_rekap.js" %}?v={%now "u"%}';
+            document.head.appendChild(script);
+        } else {
+            console.log('Waiting for Chart.js and Highcharts to load...');
+            setTimeout(loadSummaryScript, 100);
+        }
+    }
+    loadSummaryScript();
+</script>
+{% endblock %}

@@ -93,14 +93,6 @@
                 </select>
             </div>
             <div class="col-md-2">
-                <label>Filter Domain</label>
-                <select class="form-control select2 select2-multiple" id="domain_filter" multiple>
-                    {% for domain in data_domain_adsense %}
-                    <option value="{{ domain.data_adsense_domain }}">{{ domain.data_adsense_domain }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-1">
                 <label>&nbsp;</label>
                 <button type="button" class="btn btn-primary form-control" id="btn_load_data">
                     <i class="fas fa-search"></i> Muat Data

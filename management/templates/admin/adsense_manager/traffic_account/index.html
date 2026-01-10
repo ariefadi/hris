@@ -33,7 +33,7 @@
             <div class="col-md-4">
                 <label>Filter Account</label>
                 <select class="form-control select2-multiple" id="account_filter" multiple>
-                    {% for account in data_account_adx %}
+                    {% for account in data_account_adsense %}
                     <option value="{{ account.account_id }}">{{ account.account_name }}</option>
                     {% endfor %}
                 </select>

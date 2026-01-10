@@ -1,102 +1,14 @@
 {% extends "admin_base.html" %}
 {% load static %}
-{% block page_title %}Report Adsense - Monitoring Negara{% endblock %}
-{% block page_heading %}Report Adsense - Monitoring Negara{% endblock %}
+{% block page_title %}Report Adsense{% endblock %}
+
+{% block page_heading %}Report Adsense{% endblock %}
+
 {% block breadcrumbs %}
     <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
-    <li class="breadcrumb-item active">Report Adsense - Monitoring Negara</li>
+    <li class="breadcrumb-item active">Report Adsense</li>
 {% endblock %}
 {% block more_stylesheet %}
-<style>
-  /* Kolom header checklist */
-  th.checkbox-cell {
-    width: 44px;
-  }
-
-  /* Pusatkan konten checkbox */
-  .checkbox-center {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* Naikkan posisi checkbox sedikit lagi */
-  #select_all_rows,
-  .form-check-input.row-select,
-  .form-check-input.align-top {
-    transform: translateY(-4px);
-    margin-top: -2px;
-  }
-
-  #select_all_rows,
-  .form-check-input.row-select {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-    border: 2px solid #ADB5BD;
-    border-radius: 4px;
-    transition: all .15s ease-in-out;
-    appearance: none;
-    -webkit-appearance: none;
-    background-color: #fff;
-    outline: none;
-  }
-  #select_all_rows:checked,
-  .form-check-input.row-select:checked {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-    box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
-  }
-  #select_all_rows:focus,
-  .form-check-input.row-select:focus {
-    box-shadow: 0 0 0 0.16rem rgba(13,110,253,.15);
-  }
-
-  /* Highlight baris saat dicentang */
-  #table_traffic_country tbody tr.selected-row {
-    background-color: rgba(13, 110, 253, 0.08) !important;
-  }
-  /* Nudge checkbox sedikit ke atas agar presisi */
-  #select_all_rows,
-  .form-check-input.row-select,
-  .form-check-input.align-top {
-      transform: translateY(-2px);
-      margin-top: -1px;
-  }
-  /* Lebar kolom header checkbox tetap */
-  th.checkbox-cell { width: 44px; }
-  /* Wrapper untuk memposisikan checkbox */
-  .checkbox-center {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-  }
-  /* Highlight baris terpilih tetap */
-  #table_traffic_country tbody tr.selected-row {
-      background-color: rgba(13, 110, 253, 0.08) !important;
-  }
-  /* Pastikan sel kolom checkbox rata tengah secara vertikal */
-  #table_traffic_country th.checkbox-cell,
-  #table_traffic_country td.checkbox-cell {
-      vertical-align: middle !important;
-  }
-  
-  /* Wrapper checkbox: benar-benar center */
-  .checkbox-center {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-  }
-  
-  /* Hilangkan nudge; posisikan input tepat di tengah */
-  #select_all_rows,
-  .form-check-input.row-select,
-  .form-check-input.align-top {
-      transform: none !important;
-      margin-top: 0 !important;
-  }
-</style>
 {% endblock %}
 {% block content %}
 {% csrf_token %}  
@@ -114,8 +26,8 @@
   .switch-toggle input:checked + .slider:before { transform: translateX(24px); }
   @media (max-width: 576px) { .switch-toggle { font-size: 12px; } }
   /* Presisi dan centering checkbox header & baris */
-  #table_traffic_country th.checkbox-cell,
-  #table_traffic_country td.checkbox-cell {
+  #table_traffic_account th.checkbox-cell,
+  #table_traffic_account td.checkbox-cell {
       vertical-align: middle !important;
       width: 44px;
   }
@@ -147,21 +59,21 @@
       border-color: #0d6efd;
       box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
   }
-  #table_traffic_country tbody tr.selected-row {
+  #table_traffic_account tbody tr.selected-row {
       background-color: rgba(13, 110, 253, 0.08) !important;
   }
 </style>
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title">Monitoring Country Adsense</h3>
+        <h3 class="card-title">Rekap Per Domain</h3>
     </div>
     <div class="card-body">
         <div class="form-row">
-            <div class="col-md-1">
+            <div class="col-md-2">
                 <label>Dari</label>
                 <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" data-date-orientation="bottom auto" placeholder="Tanggal Dari"/>
             </div>
-            <div class="col-md-1">
+            <div class="col-md-2">
                 <label>Sampai</label>
                  <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" data-date-orientation="bottom auto" placeholder="Tanggal Sampai"/>
             </div>
@@ -173,9 +85,13 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
-                <label>Filter Negara</label>
-                <select class="form-control select2-multiple" id="country_filter" multiple="multiple">
+            <div class="col-md-2">
+                <label>Filter Ads Account</label>
+                <select class="form-control select2" id="select_account">
+                    <option value=""></option>
+                    {% for data_account in data_account %}
+                    <option value="{{data_account.account_ads_id}}">{{data_account.account_name}}</option>
+                    {% endfor %}
                 </select>
             </div>
             <div class="col-md-1">
@@ -200,7 +116,7 @@
     <div class="card-header">
         <div class="row">
             <div class="col-6">
-                <h3 class="card-title"><b><i class="bi bi-bar-chart"></i> Data Monitoring Country Adsense</b></h3>
+                <h3 class="card-title"><b><i class="bi bi-bar-chart"></i> Data Rekap Per Akun</b></h3>
             </div>
             <div class="col-6 d-flex justify-content-end">
                 <span><i class="bi bi-clock-history"></i> Data Diupdate Terakhir <b>Tanggal {{ last_update|date:"d F Y" }} Jam {{ last_update|date:"H:i:s" }}</b></span>
@@ -223,7 +139,20 @@
             <i class="fas fa fa-sync-alt fa-spin"></i> Memuat Data Traffic ... 
         </div>
         <div class="row" id="summary_boxes" style="display: none;">
-            <div class="col-12 col-sm-6 col-md-4">
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="metric-card clicks">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Klik</div>
+                            <div class="metric-value" id="total_clicks_fb">0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-cursor-fill"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
                 <div class="metric-card spend">
                     <div class="metric-card-inner">
                         <div>
@@ -236,12 +165,12 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-md-4">
+            <div class="col-12 col-sm-6 col-md-3">
                 <div class="metric-card roi">
                     <div class="metric-card-inner">
                         <div>
                             <div class="metric-label">ROI Nett</div>
-                            <div class="metric-value" id="total_roi">0%</div>
+                            <div class="metric-value" id="roi_nett">0%</div>
                         </div>
                         <div class="metric-card-icon" aria-hidden="true">
                             <i class="bi bi-graph-up-arrow"></i>
@@ -249,11 +178,11 @@
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-md-4">
+            <div class="col-12 col-sm-6 col-md-3">
                 <div class="metric-card revenue">
                     <div class="metric-card-inner">
                         <div>
-                            <div class="metric-label">Total Pendapatan Adsense</div>
+                            <div class="metric-label">Total Pendapatan</div>
                             <div class="metric-value" id="total_revenue">$0</div>
                         </div>
                         <div class="metric-card-icon" aria-hidden="true">
@@ -263,23 +192,47 @@
                 </div>
             </div>
         </div>
+        <!-- Charts Section -->
+        <div class="row mt-3" id="charts_section" style="display: none;">
+            <div class="col-12 col-md-12 mx-auto">
+                <div class="card">
+                    <div class="card-header">
+                        <h4 class="card-title"><i class="bi bi-bar-chart"></i> Traffic ROI Harian</h4>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="chart_roi_daily" width="400" height="60" style="max-height: 300px;"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
         <!-- Data Table -->
         <div class="dt-responsive-table mt-3 table-responsive">
-            <table id="table_traffic_country" class="table table-bordered table-striped" style="width:100%">
+            <table id="table_traffic_account" class="table table-bordered table-striped" style="width:100%">
                 <thead>
                     <tr>
-                        <th class="text-center checkbox-cell" style="width: 5%;">
-                            <div class="form-check checkbox-center m-0">
-                                <input type="checkbox" class="form-check-input" id="select_all_rows" />
-                                <label class="form-check-label" for="select_all_rows" title="Pilih semua"></label>
+                        <th rowspan="2" style="width: 2%;" class="text-center checkbox-cell no-export">
+                            <div class="checkbox-center">
+                                <input type="checkbox" id="select_all_rows" aria-label="Pilih semua baris" />
                             </div>
                         </th>
-                        <!-- Kolom baru untuk checklist -->
-                        <th class="text-center" style="width: 20%;">Nama Negara</th>
-                        <th class="text-center" style="width: 10%;">Kode Negara</th>
-                        <th class="text-center" style="width: 20%;">Spend (Rp)</th>
-                        <th class="text-center" style="width: 20%;">Pendapatan (Rp)</th>
-                        <th class="text-center" style="width: 20%;">ROI (%)</th>
+                        <th rowspan="2" style="width: 10%;" class="text-center">Subdomain</th>
+                        <th rowspan="2" style="width: 8%;" class="text-center">Tanggal</th>
+                        <th rowspan="2" style="width: 8%;" class="text-center">Spend (Rp)</th>
+                        <th colspan="2" style="width: 12%;" class="text-center">Klik</th>
+                        <th rowspan="2" style="width: 12%;" class="text-center">Avg <br> CPR</th>
+                        <th colspan="2" style="width: 12%;" class="text-center">Avg <br> CTR (%)</th>
+                        <th colspan="2" style="width: 12%;" class="text-center">Avg <br> CPC (Rp)</th>
+                        <th rowspan="2" style="width: 8%;" class="text-center">Avg <br> eCPM (Rp)</th>
+                        <th rowspan="2" style="width: 8%;" class="text-center">ROI (%)</th>
+                        <th rowspan="2" style="width: 8%;" class="text-center">Pendapatan (Rp)</th>
+                    </tr>
+                    <tr>
+                        <th class="text-center">Klik Ads</th>
+                        <th class="text-center">Klik Adsense</th>
+                        <th class="text-center">CTR Ads</th>
+                        <th class="text-center">CTR Adsense</th>
+                        <th class="text-center">CPC Ads</th>
+                        <th class="text-center">CPC Adsense</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -291,5 +244,5 @@
 {% endblock %}
 {% block more_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{% static 'ajax/admin/report_adsense/monitoring_country.js'%}?v={%now 'u'%}"></script> 
-{% endblock %}  
+<script src="{% static 'ajax/admin/report_adsense/per_domain.js'%}?v={%now 'u'%}"></script>
+{% endblock %}
