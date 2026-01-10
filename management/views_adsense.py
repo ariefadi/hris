@@ -665,7 +665,7 @@ class RekapTrafficPerDomainView(View):
         if admin.get('super_st') == '0':
             data_account_adsense = data_mysql().get_all_adsense_account_data_user(admin.get('user_id'))['data']
         else:
-            data_account_adsense = data_mysql().get_all_adsense_account_data()
+            data_account_adsense = data_mysql().get_all_adsense_account_data()['data']
         data_account = data_mysql().master_account_ads()['data']
         last_update = data_mysql().get_last_update_adsense_traffic_per_domain()['data']['last_update']
         data = {
