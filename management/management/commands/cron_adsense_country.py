@@ -56,13 +56,13 @@ def fetch_adsense_traffic_per_country_domain(user_mail, start_date, end_date, si
             endDate_year=int(end_parts[0]),
             endDate_month=int(end_parts[1]),
             endDate_day=int(end_parts[2]),
-            dimensions=['COUNTRY_NAME', 'COUNTRY_CODE', 'AD_UNIT_NAME'],
+            dimensions=['COUNTRY_NAME', 'COUNTRY_CODE', 'OWNED_SITE_DOMAIN_NAME'],
             metrics=['IMPRESSIONS', 'CLICKS', 'ESTIMATED_EARNINGS', 'AD_REQUESTS'],
         )
 
         if site_filter and site_filter != '%':
             try:
-                report_request = report_request.filter(f'AD_UNIT_NAME=~"{site_filter}"')
+                report_request = report_request.filter(f'OWNED_SITE_DOMAIN_NAME=~"{site_filter}"')
             except Exception:
                 pass
 

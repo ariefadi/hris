@@ -1,12 +1,12 @@
 {% extends "admin_base.html" %}
 {% load static %}
-{% block page_title %}Report Adsense{% endblock %}
+{% block page_title %}Report Adsense Roi{% endblock %}
 
-{% block page_heading %}Report Adsense{% endblock %}
+{% block page_heading %}Report Adsense Roi{% endblock %}
 
 {% block breadcrumbs %}
     <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
-    <li class="breadcrumb-item active">Report Adsense</li>
+    <li class="breadcrumb-item active">Report Adsense Roi</li>
 {% endblock %}
 {% block more_stylesheet %}
 {% endblock %}
@@ -86,6 +86,14 @@
                 </select>
             </div>
             <div class="col-md-2">
+                <label>Filter Adsense Domain</label>
+                <select class="form-control select2-multiple" id="domain_filter" multiple>
+                    {% for domain in data_domain_adsense %}
+                    <option value="{{ domain.data_adsense_domain }}">{{ domain.data_adsense_domain }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
                 <label>Filter Ads Account</label>
                 <select class="form-control select2" id="select_account">
                     <option value=""></option>
@@ -94,7 +102,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label>Filter Negara</label>
                 <select class="form-control select2-multiple" id="country_filter" multiple="multiple">
                     <!-- Options akan dimuat secara dinamis -->
@@ -109,7 +117,7 @@
                     </label>
                 </div>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <label>&nbsp;</label>
                 <button type="button" class="btn btn-primary form-control" id="btn_load_data">
                     <i class="fas fa-search"></i> Muat Data
@@ -175,7 +183,7 @@
                 <div class="metric-card clicks">
                     <div class="metric-card-inner">
                         <div>
-                            <div class="metric-label">Total Klik (ADSENSE)</div>
+                            <div class="metric-label">Total Klik (AdSense)</div>
                             <div class="metric-value" id="total_clicks_adsense">0</div>
                         </div>
                         <div class="metric-card-icon" aria-hidden="true">
@@ -201,7 +209,7 @@
                 <div class="metric-card ctr">
                     <div class="metric-card-inner">
                         <div>
-                            <div class="metric-label">CTR (ADSENSE)</div>
+                            <div class="metric-label">CTR (AdSense)</div>
                             <div class="metric-value" id="total_ctr_adsense">0%</div>
                         </div>
                         <div class="metric-card-icon" aria-hidden="true">

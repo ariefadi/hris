@@ -1,10 +1,10 @@
 {% extends "admin_base.html" %}
 {% load static %}
-{% block page_title %}Report Roi - Monitoring Sub Domain{% endblock %}
-{% block page_heading %}Report Roi - Monitoring Sub Domain{% endblock %}
+{% block page_title %}Report Roi - Monitoring Domain AdSense{% endblock %}
+{% block page_heading %}Report Roi - Monitoring Domain AdSense{% endblock %}
 {% block breadcrumbs %}
     <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
-    <li class="breadcrumb-item active">Report Roi - Monitoring Sub Domain</li>
+    <li class="breadcrumb-item active">Report Roi - Monitoring Domain AdSense</li>
 {% endblock %}
 {% block more_stylesheet %}
 {% endblock %}
@@ -63,23 +63,31 @@
 </style>
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title">Monitoring Sub Domain</h3>
+        <h3 class="card-title">Monitoring Domain AdSense</h3>
     </div>
     <div class="card-body">
         <div class="form-row">
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <label>Dari</label>
                 <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" data-date-orientation="bottom auto" placeholder="Tanggal Dari"/>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <label>Sampai</label>
                  <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" data-date-orientation="bottom auto" placeholder="Tanggal Sampai"/>
             </div>
             <div class="col-md-3">
-                <label>Filter Adx Account</label>
+                <label>Filter AdSense Account</label>
                 <select class="form-control select2-multiple" id="account_filter" multiple>
                     {% for account in data_account_adsense %}
                     <option value="{{ account.account_id }}">{{ account.account_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label>Filter Domain AdSense</label>
+                <select class="form-control select2 select2-multiple" id="domain_filter" multiple>
+                    {% for domain in data_domain_adsense %}
+                    <option value="{{ domain.data_adsense_domain }}">{{ domain.data_adsense_domain }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -102,6 +110,16 @@
     </div><!-- /.card-body -->
 </div>
 <div class="card">
+    <div class="card-header">
+        <div class="row">
+            <div class="col-6">
+                <h3 class="card-title"><b><i class="bi bi-bar-chart"></i> Data Monitoring Domain Adsense</b></h3>
+            </div>
+            <div class="col-6 d-flex justify-content-end">
+                <span><i class="bi bi-clock-history"></i> Data Diupdate Terakhir <b>Tanggal {{ last_update|date:"d F Y" }} Jam {{ last_update|date:"H:i:s" }}</b></span>
+            </div>
+        </div>
+    </div>
     <div class="card-body">
         <div id="overlay" 
             style="
@@ -181,8 +199,8 @@
                                 <input type="checkbox" id="select_all_rows" aria-label="Pilih semua baris" />
                             </div>
                         </th>
-                        <th class="text-center" style="width: 20%;">Account Adsense</th>
-                        <th class="text-center" style="width: 20%;">Account Facebook</th>
+                        <th class="text-center" style="width: 20%;">Subdomain</th>
+                        <th class="text-center" style="width: 20%;">Account Ads</th>
                         <th class="text-center" style="width: 20%;">Spend (Rp)</th>
                         <th class="text-center" style="width: 20%;">Pendapatan (Rp)</th>
                         <th class="text-center" style="width: 15%;">ROI (%)</th>

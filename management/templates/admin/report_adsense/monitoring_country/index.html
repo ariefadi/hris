@@ -153,7 +153,7 @@
 </style>
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title">Monitoring Country Adsense</h3>
+        <h3 class="card-title">Monitoring Negara</h3>
     </div>
     <div class="card-body">
         <div class="form-row">
@@ -165,11 +165,19 @@
                 <label>Sampai</label>
                  <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" data-date-orientation="bottom auto" placeholder="Tanggal Sampai"/>
             </div>
-            <div class="col-md-3">
-                <label>Filter Adsense Account</label>
+            <div class="col-md-2">
+                <label>Filter Adx Account</label>
                 <select class="form-control select2-multiple" id="account_filter" multiple>
                     {% for account in data_account_adsense %}
                     <option value="{{ account.account_id }}">{{ account.account_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label>Filter Domain</label>
+                <select class="form-control select2-multiple" id="domain_filter" multiple>
+                    {% for domain in data_domain_adsense %}
+                    <option value="{{ domain.data_adsense_domain }}">{{ domain.data_adsense_domain }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -187,7 +195,7 @@
                     </label>
                 </div>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <label>&nbsp;</label>
                 <button type="button" class="btn btn-primary form-control" id="btn_load_data">
                     <i class="fas fa-search"></i> Muat Data
@@ -200,7 +208,7 @@
     <div class="card-header">
         <div class="row">
             <div class="col-6">
-                <h3 class="card-title"><b><i class="bi bi-bar-chart"></i> Data Monitoring Country Adsense</b></h3>
+                <h3 class="card-title"><b><i class="bi bi-bar-chart"></i> Data Monitoring Negara</b></h3>
             </div>
             <div class="col-6 d-flex justify-content-end">
                 <span><i class="bi bi-clock-history"></i> Data Diupdate Terakhir <b>Tanggal {{ last_update|date:"d F Y" }} Jam {{ last_update|date:"H:i:s" }}</b></span>
@@ -253,7 +261,7 @@
                 <div class="metric-card revenue">
                     <div class="metric-card-inner">
                         <div>
-                            <div class="metric-label">Total Pendapatan Adsense</div>
+                            <div class="metric-label">Total Pendapatan</div>
                             <div class="metric-value" id="total_revenue">$0</div>
                         </div>
                         <div class="metric-card-icon" aria-hidden="true">
@@ -291,5 +299,5 @@
 {% endblock %}
 {% block more_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="{% static 'ajax/admin/report_adsense/monitoring_country.js'%}?v={%now 'u'%}"></script> 
-{% endblock %}  
+<script src="{% static 'ajax/admin/report_adsense/monitoring_country.js'%}?v={%now 'u'%}"></script>
+{% endblock %}

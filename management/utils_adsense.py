@@ -7,6 +7,22 @@ from googleapiclient.discovery import build
 from .database import data_mysql
 import hashlib
 
+try:
+    from django.core.cache import cache
+except Exception:
+    class _LocalCache:
+        def __init__(self):
+            self._store = {}
+
+        def get(self, key, default=None):
+            return self._store.get(key, default)
+
+        def set(self, key, value, timeout=None):
+            self._store[key] = value
+            return True
+
+    cache = _LocalCache()
+
 def set_cached_data(cache_key, data, timeout=None):
     """
     Store data in cache with optional timeout
