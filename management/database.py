@@ -3850,7 +3850,7 @@ class data_mysql:
             if not data_sub_domain:
                 raise ValueError("data_sub_domain is required and cannot be empty")
             # --- 2. Buat kondisi LIKE untuk tiap domain
-            like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
+            like_conditions = " OR ".join(["CONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') LIKE %s"] * len(data_sub_domain))
             like_params = [f"%{d}%" for d in data_sub_domain]  # tambahkan % supaya match '.com'
             # --- 3. Susun query
             base_sql = [
@@ -3868,7 +3868,6 @@ class data_mysql:
                     "\t\tb.data_ads_country_tanggal AS 'date',",
                     "\t\tb.data_ads_country_cd AS 'country_code',",
                     "\t\tb.data_ads_country_nm AS 'country_name',",
-                    "\t\tb.data_ads_domain AS 'domain_raw',",
                     "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS domain,",
                     "\t\tb.data_ads_campaign_nm AS 'campaign',",
                     "\t\tb.data_ads_country_spend AS 'spend',",
@@ -4506,15 +4505,25 @@ class data_mysql:
             hasil = {"status": False, "data": f"Terjadi error {e!r}"}
         return {"hasil": hasil}
 
-    def get_all_ads_roi_country_detail_adsense_by_params(self, start_date_formatted, end_date_formatted, countries_list=None):
+    def get_all_ads_roi_country_detail_adsense_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None, countries_list=None):
         # ... existing code ...
         try:
+            if isinstance(data_sub_domain, str):
+                data_sub_domain = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
+            elif data_sub_domain is None:
+                data_sub_domain = []
+            elif isinstance(data_sub_domain, (set, tuple)):
+                data_sub_domain = list(data_sub_domain)
+            if not data_sub_domain:
+                raise ValueError("data_sub_domain is required and cannot be empty")
+            like_conditions = " OR ".join(["CONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') LIKE %s"] * len(data_sub_domain))
+            like_params = [f"%{d}%" for d in data_sub_domain]
             sql_parts = [
                 "SELECT",
                 "\tb.data_ads_country_tanggal AS 'date',",
                 "\tb.data_ads_country_cd AS 'country_code',",
                 "\tb.data_ads_country_nm AS 'country_name',",
-                "\tb.data_ads_domain AS 'domain',",
+                "\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS 'domain',",
                 "\tSUM(b.data_ads_country_spend) AS 'spend',",
                 "\tSUM(b.data_ads_country_click) AS 'clicks',",
                 "\tSUM(b.data_ads_country_impresi) AS 'impressions',",
@@ -4522,8 +4531,9 @@ class data_mysql:
                 "FROM master_account_ads a",
                 "INNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
                 "WHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
+                f"\tAND ({like_conditions})",
             ]
-            params = [start_date_formatted, end_date_formatted]
+            params = [start_date_formatted, end_date_formatted] + like_params
             country_codes = []
             if countries_list:
                 if isinstance(countries_list, str):
@@ -4534,7 +4544,7 @@ class data_mysql:
                 placeholders = ','.join(['%s'] * len(country_codes))
                 sql_parts.append(f"AND b.data_ads_country_cd IN ({placeholders})")
                 params.extend(country_codes)
-            sql_parts.append("GROUP BY b.data_ads_country_tanggal, b.data_ads_country_cd, b.data_ads_country_nm")
+            sql_parts.append("GROUP BY b.data_ads_country_tanggal, b.data_ads_country_cd, b.data_ads_country_nm, CONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com')")
             sql_parts.append("ORDER BY b.data_ads_country_tanggal ASC")
             sql = "\n".join(sql_parts)
             if not self.execute_query(sql, tuple(params)):
@@ -4752,62 +4762,98 @@ class data_mysql:
         except Exception as e:
             hasil = {"status": False, "data": f"Terjadi error {e!r}"}
         return {"hasil": hasil}
-
     def get_all_ads_adsense_country_detail_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None, countries_list=None):
-        # ... existing code ...
         try:
+            # -----------------------------
+            # Normalize domain filter
+            # -----------------------------
             if isinstance(data_sub_domain, str):
                 data_sub_domain = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
-            elif data_sub_domain is None:
-                data_sub_domain = []
             elif isinstance(data_sub_domain, (set, tuple)):
                 data_sub_domain = list(data_sub_domain)
+            elif data_sub_domain is None:
+                data_sub_domain = []
             if not data_sub_domain:
                 raise ValueError("data_sub_domain is required and cannot be empty")
-            like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
+            like_conditions = " OR ".join( ["CONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') LIKE %s"] * len(data_sub_domain))
             like_params = [f"%{d}%" for d in data_sub_domain]
-            sql_parts = [
-                "SELECT",
-                "\tb.data_ads_country_tanggal AS 'date',",
-                "\tb.data_ads_country_cd AS 'country_code',",
-                "\tb.data_ads_country_nm AS 'country_name',",
-                "\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS 'domain',",
-                "\tSUM(b.data_ads_country_spend) AS 'spend',",
-                "\tSUM(b.data_ads_country_click) AS 'clicks',",
-                "\tSUM(b.data_ads_country_impresi) AS 'impressions',",
-                "\tROUND(AVG(b.data_ads_country_cpr), 0) AS 'cpr'",
-                "FROM master_account_ads a",
-                "INNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
-                "WHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
-                f"\tAND ({like_conditions})",
-            ]
-            params = [start_date_formatted, end_date_formatted] + like_params
-
+            # -----------------------------
+            # Normalize country filter
+            # -----------------------------
             country_codes = []
             if countries_list:
                 if isinstance(countries_list, str):
                     country_codes = [c.strip() for c in countries_list.split(',') if c.strip()]
                 elif isinstance(countries_list, (list, tuple)):
                     country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
+            country_sql = ""
+            country_params = []
             if country_codes:
-                placeholders = ','.join(['%s'] * len(country_codes))
-                sql_parts.append(f"AND b.data_ads_country_cd IN ({placeholders})")
-                params.extend(country_codes)
-
-            sql_parts.append("GROUP BY b.data_ads_country_tanggal, b.data_ads_country_cd, b.data_ads_country_nm, CONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com')")
-            sql_parts.append("ORDER BY b.data_ads_country_tanggal ASC")
+                placeholders = ",".join(["%s"] * len(country_codes))
+                country_sql = f" AND b.data_ads_country_cd IN ({placeholders})"
+                country_params = country_codes
+            # -----------------------------
+            # SQL Query
+            # -----------------------------
+            sql_parts = [
+                "SELECT",
+                "\trs.date,",
+                "\trs.country_code,",
+                "\trs.country_name,",
+                "\tSUBSTRING_INDEX(rs.domain, '.', -2) AS domain,",
+                "\tSUM(rs.spend) AS spend,",
+                "\tSUM(rs.clicks) AS clicks,",
+                "\tSUM(rs.impressions) AS impressions,",
+                "\tROUND(AVG(rs.cpr), 0) AS cpr",
+                "FROM (",
+                    "\tSELECT",
+                    "\t\tb.data_ads_country_tanggal AS date,",
+                    "\t\tb.data_ads_country_cd AS country_code,",
+                    "\t\tb.data_ads_country_nm AS country_name,",
+                    "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS domain,",
+                    "\t\tSUM(b.data_ads_country_spend) AS spend,",
+                    "\t\tSUM(b.data_ads_country_click) AS clicks,",
+                    "\t\tSUM(b.data_ads_country_impresi) AS impressions,",
+                    "\t\tROUND(AVG(b.data_ads_country_cpr), 0) AS cpr",
+                    "\tFROM master_account_ads a",
+                    "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
+                    "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
+                    f"\t\tAND ({like_conditions})",
+                    f"\t\t{country_sql}",
+                    "\tGROUP BY",
+                    "\t\tb.data_ads_country_tanggal,",
+                    "\t\tb.data_ads_country_cd,",
+                    "\t\tb.data_ads_country_nm,",
+                    "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com')",
+                ") rs",
+                "GROUP BY",
+                "\trs.date,",
+                "\trs.country_code,",
+                "\trs.country_name,",
+                "\tSUBSTRING_INDEX(rs.domain, '.', -2)",
+                "ORDER BY rs.date ASC"
+            ]
             sql = "\n".join(sql_parts)
-
+            params = ( [start_date_formatted, end_date_formatted] + like_params + country_params)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get adsense country detail by params")
             data = self.fetch_all()
             if not self.commit():
                 raise pymysql.Error("Failed to commit adsense country detail by params")
-
-            hasil = {"status": True, "message": "Detail Adsense country berhasil diambil", "data": data}
+            return {
+                "hasil": {
+                    "status": True,
+                    "message": "Detail Adsense country berhasil diambil",
+                    "data": data
+                }
+            }
         except Exception as e:
-            hasil = {"status": False, "data": f"Terjadi error {e!r}"}
-        return {"hasil": hasil}
+            return {
+                "hasil": {
+                    "status": False,
+                    "data": f"Terjadi error {e!r}"
+                }
+            }
 
     def get_all_rekapitulasi_adx_monitoring_account_by_params(self, start_date, end_date, past_start_date, past_end_date, selected_account_list = None, selected_domain_list = None):
         try:

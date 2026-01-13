@@ -1,6 +1,7 @@
 import os
 import json
 import calendar
+from typing import Any
 # Guard pandas import to avoid crash when numpy binaries are incompatible
 try:
     import pandas as pd
@@ -14,6 +15,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from google_auth_oauthlib.flow import Flow
 from django.core.cache import cache
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 # Guard googleapiclient import to prevent module-level crash when not installed
 try:
     from googleapiclient.discovery import build
@@ -179,8 +181,8 @@ class AdsenseTrafficAccountDataView(View):
 def extract_base_subdomain(full_string):
     parts = full_string.split('.')
     # jika ada minimal 2 bagian (1 titik), ambil dua bagian pertama
-    if len(parts) >= 1:
-        main_domain = ".".join(parts[:1])
+    if len(parts) >= 2:
+        main_domain = ".".join(parts[:2])
     else:
         main_domain = full_string
     # jika tidak ada titik, kembalikan string asli
@@ -216,13 +218,12 @@ class AdsenseSitesListView(View):
             # Ambil daftar situs dari Ad Manager jika cache miss
             # result = fetch_user_sites_list(user_mail)
             end_date = date.today()
-            start_date = end_date - timedelta(days=3650)
+            start_date = end_date - timedelta(days=7)
             result = data_mysql().fetch_user_adsense_sites_list(
                 start_date.strftime('%Y-%m-%d'),
                 end_date.strftime('%Y-%m-%d'),
                 selected_account_list,
             )
-            print(f"[DEBUG] AdsenseSitesListView - result: {result}")
             # Simpan ke cache untuk permintaan berikutnya
             try:
                 # Cache selama 6 jam; daftar situs jarang berubah
@@ -259,8 +260,8 @@ class AdsenseAccountListView(View):
                 print(f"[WARNING] adsense_account_list cache unavailable: {_cache_err}")
             # Ambil daftar situs dari Ad Manager jika cache miss
             # result = fetch_user_sites_list(user_mail)
-            start_date = date.today()
-            end_date = start_date
+            end_date = date.today()
+            start_date = end_date - timedelta(days=7)
             result = data_mysql().fetch_adsense_account_list_by_domain(
                 selected_domain_list,
                 start_date,
@@ -715,6 +716,7 @@ class RekapTrafficPerDomainDataView(View):
                 selected_account_list,
                 selected_domain_list
             )
+            print(f"[DEBUG ROI] Adsense result: {adsense_result}")
             # --- 4. Proses Facebook data
             facebook_data = None
             unique_name_site = []
@@ -923,14 +925,14 @@ class RekapTrafficPerDomainDataView(View):
                         continue
                     date_key = str(fb_item.get('date', ''))
                     subdomain = str(fb_item.get('domain', ''))
-                    base_subdomain = extract_base_subdomain(subdomain)
+                    base_subdomain = extract_base_subdomain_fb_adsense(subdomain)
+                    print(f"[DEBUG ROI] Base subdomain fb_adsense: {base_subdomain}")
                     country_code = normalize_country_code(fb_item.get('country_code', ''))
                     spend = float(fb_item.get('spend') or 0)
                     impressions_fb = float(fb_item.get('impressions_fb') or 0)
                     clicks_fb = float(fb_item.get('clicks_fb') or 0)
                     cpr = float(fb_item.get('cpr') or 0)
                     cpc_fb = float(fb_item.get('cpc_fb') or 0)
-
                     raw_rows_all.append({
                         'site_name': base_subdomain or subdomain,
                         'date': date_key,
@@ -948,7 +950,6 @@ class RekapTrafficPerDomainDataView(View):
                         'cpm': 0.0,
                         'revenue': 0.0
                     })
-
                     key = f"{date_key}|{base_subdomain or subdomain}"
                     entry = grouped_all.get(key) or {
                         'site_name': base_subdomain or subdomain,
@@ -970,7 +971,6 @@ class RekapTrafficPerDomainDataView(View):
                         'cpm_cnt': 0,
                         'cpm': 0.0,
                     }
-
                     entry['spend'] += spend
                     entry['impressions_fb'] += impressions_fb
                     entry['clicks_fb'] += clicks_fb
@@ -981,7 +981,6 @@ class RekapTrafficPerDomainDataView(View):
                     entry['ctr_fb'] = ((entry['clicks_fb'] / entry['impressions_fb']) * 100) if entry['impressions_fb'] > 0 else 0
                     entry['cpc_fb'] = (entry['revenue'] / entry['clicks_fb']) if entry['clicks_fb'] > 0 else 0
                     grouped_all[key] = entry
-
                     if spend > 0:
                         f_entry = grouped_filtered.get(key) or {
                             'site_name': base_subdomain or subdomain,
@@ -1013,7 +1012,6 @@ class RekapTrafficPerDomainDataView(View):
                         f_entry['ctr_fb'] = ((f_entry['clicks_fb'] / f_entry['impressions_fb']) * 100) if f_entry['impressions_fb'] > 0 else 0
                         f_entry['cpc_fb'] = (f_entry['revenue'] / f_entry['clicks_fb']) if f_entry['clicks_fb'] > 0 else 0
                         grouped_filtered[key] = f_entry
-
                 combined_data_all = []
                 total_spend = 0.0
                 total_impressions_fb = 0.0
@@ -1121,15 +1119,11 @@ class RekapTrafficPerDomainDataView(View):
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
 
-def extract_base_subdomain(full_string):
+def extract_base_subdomain_fb_adsense(full_string):
     parts = full_string.split('.')
-    # jika ada minimal 2 bagian (1 titik), ambil dua bagian pertama
     if len(parts) >= 2:
-        main_domain = ".".join(parts[:2])
-    else:
-        main_domain = full_string
-    # jika tidak ada titik, kembalikan string asli
-    return main_domain
+        return ".".join(parts[-2:])
+    return full_string
 
 # ===== Rekap Adsense Per Country =====
 class RekapTrafficPerCountryAdsenseView(View):
@@ -1206,7 +1200,6 @@ class RekapTrafficPerCountryAdsenseDataView(View):
                 raw_countries_list = [country.strip() for country in selected_countries.split(',') if country.strip()]
             else:
                 print("[DEBUG] No countries selected, will fetch all countries")
-
             def normalize_country_code(cc):
                 c = (str(cc or '').strip().upper())
                 if not c:
@@ -1215,13 +1208,11 @@ class RekapTrafficPerCountryAdsenseDataView(View):
                     'TU': 'TR'
                 }
                 return alias.get(c, c)
-
             countries_list = []
             for c in (raw_countries_list or []):
                 cc = normalize_country_code(c)
                 if cc and cc not in countries_list:
                     countries_list.append(cc)
-
             def expand_country_codes_filter(items):
                 out = []
                 for it in (items or []):
@@ -1238,16 +1229,14 @@ class RekapTrafficPerCountryAdsenseDataView(View):
                         seen.add(x)
                         uniq.append(x)
                 return uniq
-
             countries_list_query = expand_country_codes_filter(countries_list)
-
             # agar FB mengikuti domain yang ada di akun AdX terpilih
             sites_for_fb = None
             if not selected_domain or not selected_domain.strip():
                 try:
                     # Ambil list sites dari database
                     sites_result = data_mysql().fetch_user_sites_adsense_id_list(
-                        start_date, end_date, selected_account_list
+                        start_date, end_date, selected_account or '%'
                     )
                     if sites_result['hasil']['data']:
                         # Ambil data sites
@@ -1310,6 +1299,7 @@ class RekapTrafficPerCountryAdsenseDataView(View):
                         unique_name_site,
                         countries_list_query
                     )
+                    print(f"[DEBUG ROI] Facebook future: {fb_future}")
                     data_adsense = adsense_future.result()
                     try:
                         # Hapus timeout: tunggu hingga FB selesai agar data lengkap
@@ -1327,7 +1317,7 @@ class RekapTrafficPerCountryAdsenseDataView(View):
                 )
                 try:
                     unique_name_site = []
-                    with ThreadPoolExecutor(max_workers=1) as executor:
+                    with ThreadPoolExecutor(max_workers=2) as executor:
                         if sites_for_fb:
                             unique_sites = set(site.strip() for site in sites_for_fb if site.strip() and site.strip() != 'Unknown')
                             extracted_names = []
@@ -1336,7 +1326,6 @@ class RekapTrafficPerCountryAdsenseDataView(View):
                                 if main_domain and main_domain != 'Unknown':
                                     extracted_names.append(main_domain)
                             unique_name_site = list(set(extracted_names))
-
                         if not unique_name_site:
                             adsense_payload_tmp = data_adsense.get('hasil') if isinstance(data_adsense, dict) and data_adsense.get('hasil') else None
                             adsense_items_tmp = adsense_payload_tmp.get('data') if isinstance(adsense_payload_tmp, dict) else []
@@ -1348,11 +1337,14 @@ class RekapTrafficPerCountryAdsenseDataView(View):
                                     if main_domain and main_domain != 'Unknown':
                                         extracted_names.append(main_domain)
                                 unique_name_site = list(set(extracted_names))
-
+                        print(f"[DEBUG ROI] Unique name site (from AdSense): {unique_name_site}")
                         if unique_name_site:
                             fb_future = executor.submit(
                                 data_mysql().get_all_ads_roi_country_detail_adsense_by_params,
-                                start_date, end_date, unique_name_site, countries_list_query
+                                start_date, 
+                                end_date, 
+                                unique_name_site, 
+                                countries_list_query
                             )
                             data_facebook = fb_future.result()
                         else:
@@ -1382,6 +1374,7 @@ class RekapTrafficPerCountryAdsenseDataView(View):
             # Pastikan bentuk payload sesuai: gunakan 'hasil' untuk AdSense dan FB jika tersedia
             adsense_payload = data_adsense.get('hasil') if isinstance(data_adsense, dict) and data_adsense.get('hasil') else data_adsense
             fb_payload = (data_facebook.get('hasil') if isinstance(data_facebook, dict) and data_facebook.get('hasil') else {'status': True, 'data': []})
+            print(f"[DEBUG ROI] Facebook payload: {fb_payload}")
             result = process_roi_traffic_country_data(adsense_payload, fb_payload)
             # Filter hasil berdasarkan negara yang dipilih jika ada
             if countries_list and result.get('status') and result.get('data'):
@@ -1416,7 +1409,7 @@ class RekapTrafficPerCountryAdsenseDataView(View):
                 result['total_records'] = len(filtered_data)
             # Simpan hasil akhir ke cache dengan TTL 15 menit
             try:
-                set_cached_data(response_cache_key, result, timeout=900)
+                set_cached_data_adsense(response_cache_key, result, timeout=900)
             except Exception as _cache_err:
                 print(f"[DEBUG] Failed to cache ROI Country final response: {_cache_err}")
             return JsonResponse(result, safe=False)
@@ -1433,7 +1426,6 @@ def process_roi_traffic_country_data(data_adsense, data_facebook):
         adsense_map = {}
         fb_map = {}
         country_name_by_code = {}
-
         def normalize_country_code(cc):
             c = (str(cc or '').strip().upper())
             if not c:
@@ -1441,13 +1433,12 @@ def process_roi_traffic_country_data(data_adsense, data_facebook):
             if c == 'TU':
                 return 'TR'
             return c
-
         # Normalisasi AdSense: date + base_subdomain + country_code
         adsense_items = data_adsense.get('data') if isinstance(data_adsense, dict) else []
         for adsense_item in (adsense_items or []):
             date_key = str(adsense_item.get('date', '') or '')
             site_name = str(adsense_item.get('site_name', '') or '')
-            base_subdomain = extract_base_subdomain(site_name)
+            base_subdomain = site_name
             country_code = normalize_country_code(adsense_item.get('country_code', '') or '')
             country_name = adsense_item.get('country_name', '') or ''
             impressions_adsense = int(adsense_item.get('impressions', 0) or 0)
@@ -1463,14 +1454,13 @@ def process_roi_traffic_country_data(data_adsense, data_facebook):
             entry['impressions_adsense'] += impressions_adsense
             entry['clicks_adsense'] += clicks_adsense
             adsense_map[var_key] = entry
-
         # Normalisasi FB: date + base_subdomain + country_code
         fb_payload = data_facebook if isinstance(data_facebook, dict) else {'status': True, 'data': []}
         fb_items = fb_payload.get('data') or []
         for fb_item in fb_items:
             date_key = str(fb_item.get('date', '') or '')
             domain = str(fb_item.get('domain', '') or '')
-            base_subdomain = extract_base_subdomain(domain)
+            base_subdomain = extract_base_subdomain_fb_adsense(domain)
             country_code = normalize_country_code(fb_item.get('country_code', '') or '')
             country_name = fb_item.get('country_name', '') or ''
             spend = float(fb_item.get('spend', 0) or 0)
@@ -1490,7 +1480,6 @@ def process_roi_traffic_country_data(data_adsense, data_facebook):
                 entry['cpr_sum'] += cpr
                 entry['cpr_count'] += 1
             fb_map[var_key] = entry
-
         # Agregasi per country_code
         agg_all = {}
         agg_filtered = {}
@@ -1525,7 +1514,6 @@ def process_roi_traffic_country_data(data_adsense, data_facebook):
             agg_all[country_code]['clicks_adsense'] += clicks_adsense
             agg_all[country_code]['cpr_sum'] += fb_entry.get('cpr_sum', 0.0)
             agg_all[country_code]['cpr_count'] += fb_entry.get('cpr_count', 0)
-
             per_day_map = daily_all.get(country_code)
             if not per_day_map:
                 daily_all[country_code] = {}
@@ -1538,7 +1526,6 @@ def process_roi_traffic_country_data(data_adsense, data_facebook):
             day_entry['clicks_fb'] += clicks_fb
             day_entry['revenue'] += revenue
             day_entry['impressions_adsense'] += impressions_adsense
-
             if spend > 0:
                 if country_code not in agg_filtered:
                     agg_filtered[country_code] = {'country': name, 'country_code': country_code, 'impressions_fb': 0, 'impressions_adsense': 0, 'spend': 0.0, 'clicks_fb': 0, 'clicks_adsense': 0, 'revenue': 0.0, 'cpr_sum': 0.0, 'cpr_count': 0}
@@ -1550,7 +1537,6 @@ def process_roi_traffic_country_data(data_adsense, data_facebook):
                 agg_filtered[country_code]['clicks_adsense'] += clicks_adsense
                 agg_filtered[country_code]['cpr_sum'] += fb_entry.get('cpr_sum', 0.0)
                 agg_filtered[country_code]['cpr_count'] += fb_entry.get('cpr_count', 0)
-
                 per_day_map_f = daily_filtered.get(country_code)
                 if not per_day_map_f:
                     daily_filtered[country_code] = {}
@@ -1563,7 +1549,6 @@ def process_roi_traffic_country_data(data_adsense, data_facebook):
                 day_entry_f['clicks_fb'] += clicks_fb
                 day_entry_f['revenue'] += revenue
                 day_entry_f['impressions_adsense'] += impressions_adsense
-
         combined_data_all = []
         for code, item in agg_all.items():
             s = float(item['spend'])
@@ -1577,10 +1562,8 @@ def process_roi_traffic_country_data(data_adsense, data_facebook):
             cpc_fb = (s / clk_fb) if clk_fb > 0 else 0
             cpc_adsense = (r / clk_adsense) if clk_adsense > 0 else 0
             roi = ((r - s) / s * 100) if s > 0 else 0
-
             cpr = (s / clk_fb) if clk_fb > 0 else 0.0
             ecpm = ((r / imp_adsense) * 1000) if imp_adsense > 0 else 0.0
-
             combined_data_all.append({
                 'country': item['country'],
                 'country_code': code,
@@ -1598,7 +1581,6 @@ def process_roi_traffic_country_data(data_adsense, data_facebook):
                 'revenue': round(r, 2),
                 'roi': round(roi, 2)
             })
-
         combined_data_filtered = []
         for code, item in agg_filtered.items():
             s = float(item['spend'])
@@ -1612,10 +1594,8 @@ def process_roi_traffic_country_data(data_adsense, data_facebook):
             cpc_fb = (s / clk_fb) if clk_fb > 0 else 0
             cpc_adsense = (r / clk_adsense) if clk_adsense > 0 else 0
             roi = ((r - s) / s * 100) if s > 0 else 0
-
             cpr = (s / clk_fb) if clk_fb > 0 else 0.0
             ecpm = ((r / imp_adsense) * 1000) if imp_adsense > 0 else 0.0
-
             combined_data_filtered.append({
                 'country': item['country'],
                 'country_code': code,
@@ -1633,22 +1613,18 @@ def process_roi_traffic_country_data(data_adsense, data_facebook):
                 'revenue': round(r, 2),
                 'roi': round(roi, 2)
             })
-
         combined_data_all.sort(key=lambda x: x['roi'], reverse=True)
         combined_data_filtered.sort(key=lambda x: x['roi'], reverse=True)
         total_spend_all = sum(d['spend'] for d in combined_data_all) if combined_data_all else 0.0
         total_revenue_all = sum(d['revenue'] for d in combined_data_all) if combined_data_all else 0.0
         total_spend_filtered = sum(d['spend'] for d in combined_data_filtered) if combined_data_filtered else 0.0
         total_revenue_filtered = sum(d['revenue'] for d in combined_data_filtered) if combined_data_filtered else 0.0
-
         count_all = len(combined_data_all)
         count_filtered = len(combined_data_filtered)
-
         cpr_values_all = [float(d.get('cpr', 0) or 0) for d in combined_data_all if float(d.get('cpr', 0) or 0) > 0]
         cpr_values_filtered = [float(d.get('cpr', 0) or 0) for d in combined_data_filtered if float(d.get('cpr', 0) or 0) > 0]
         rata_cpr_all = round(sum(cpr_values_all) / len(cpr_values_all), 2) if cpr_values_all else 0
         rata_cpr_filtered = round(sum(cpr_values_filtered) / len(cpr_values_filtered), 2) if cpr_values_filtered else 0
-
         return {
             'status': True,
             'data': combined_data_all,
@@ -1678,122 +1654,6 @@ def process_roi_traffic_country_data(data_adsense, data_facebook):
                 'rata_cpr': rata_cpr_filtered,
                 'total_revenue': round(total_revenue_filtered, 2),
                 'total_roi': round(((total_revenue_filtered - total_spend_filtered) / total_spend_filtered * 100) if total_spend_filtered > 0 else 0, 2)
-            }
-        }
-        
-    except Exception as e:
-        return {
-            'status': False,
-            'error': f'Error processing ROI traffic country data: {str(e)}',
-            'data': []
-        }
-
-def process_roi_monitoring_country_data(data_adsense, data_facebook):
-    """Fungsi untuk menggabungkan data AdSense dan Facebook berdasarkan date + subdomain + country_code,
-    lalu agregasi per negara dan menghitung ROI"""
-    try:
-        adsense_map = {}
-        fb_map = {}
-        country_name_by_code = {}
-        def normalize_country_code(cc):
-            c = (str(cc or '').strip().upper())
-            if not c:
-                return ''
-            alias = {
-                'TU': 'TR'
-            }
-            return alias.get(c, c)
-        # Normalisasi AdSense: date + base_subdomain + country_code     
-        adsense_items = data_adsense.get('data') if isinstance(data_adsense, dict) else []
-        for adsense_item in (adsense_items or []):
-            date_key = str(adsense_item.get('date', '') or '')
-            country_code = normalize_country_code(adsense_item.get('country_code', '') or '')
-            country_name = adsense_item.get('country_name', '') or ''
-            revenue = float(adsense_item.get('revenue', 0) or 0)
-            if not date_key or not country_code:
-                continue
-            country_name_by_code[country_code] = country_name or country_name_by_code.get(country_code, '')
-            key = f"{date_key}_{country_code}"
-            adsense_map[key] = (adsense_map.get(key, 0.0) + revenue)
-        # Normalisasi FB: date + base_subdomain + country_code
-        fb_payload = data_facebook if isinstance(data_facebook, dict) else {'status': True, 'data': []}
-        fb_items = fb_payload.get('data') or []
-        for fb_item in fb_items:
-            date_key = str(fb_item.get('date', '') or '')
-            country_code = normalize_country_code(fb_item.get('country_code', '') or '')
-            country_name = fb_item.get('country_name', '') or ''
-            spend = float(fb_item.get('spend', 0) or 0)
-            if not date_key or not country_code:
-                continue
-            country_name_by_code[country_code] = country_name or country_name_by_code.get(country_code, '')
-            key = f"{date_key}_{country_code}"
-            fb_map[key] = (fb_map.get(key, 0.0) + spend)
-        # Agregasi per country_code
-        agg_all = {}
-        agg_filtered = {}
-        union_keys = set(list(adsense_map.keys()) + list(fb_map.keys()))
-        for key in union_keys:
-            try:
-                country_code = key.split('_')[-1]
-            except Exception:
-                continue
-            revenue = float(adsense_map.get(key, 0.0) or 0.0)
-            spend = float(fb_map.get(key, 0.0) or 0.0)
-            name = country_name_by_code.get(country_code, '')
-            if country_code not in agg_all:
-                agg_all[country_code] = {'country': name, 'country_code': country_code, 'spend': 0.0, 'revenue': 0.0}
-            agg_all[country_code]['spend'] += spend
-            agg_all[country_code]['revenue'] += revenue
-            if spend > 0:
-                if country_code not in agg_filtered:
-                    agg_filtered[country_code] = {'country': name, 'country_code': country_code, 'spend': 0.0, 'revenue': 0.0}
-                agg_filtered[country_code]['spend'] += spend
-                agg_filtered[country_code]['revenue'] += revenue
-        combined_data_all = []
-        for code, item in agg_all.items():
-            s = item['spend']
-            r = item['revenue']
-            roi = ((r - s) / s * 100) if s > 0 else 0
-            combined_data_all.append({
-                'country': item['country'],
-                'country_code': code,
-                'spend': round(s, 2),
-                'revenue': round(r, 2),
-                'roi': round(roi, 2)
-            })
-        combined_data_filtered = []
-        for code, item in agg_filtered.items():
-            s = item['spend']
-            r = item['revenue']
-            roi = ((r - s) / s * 100) if s > 0 else 0
-            combined_data_filtered.append({
-                'country': item['country'],
-                'country_code': code,
-                'spend': round(s, 2),
-                'revenue': round(r, 2),
-                'roi': round(roi, 2)
-            })
-        combined_data_all.sort(key=lambda x: x['roi'], reverse=True)
-        combined_data_filtered.sort(key=lambda x: x['roi'], reverse=True)
-        total_spend_all = sum(d['spend'] for d in combined_data_all) if combined_data_all else 0.0
-        total_revenue_all = sum(d['revenue'] for d in combined_data_all) if combined_data_all else 0.0
-        total_spend_filtered = sum(d['spend'] for d in combined_data_filtered) if combined_data_filtered else 0.0
-        total_revenue_filtered = sum(d['revenue'] for d in combined_data_filtered) if combined_data_filtered else 0.0
-        return {
-            'status': True,
-            'data': combined_data_all,
-            'data_filtered': combined_data_filtered,
-            'total_records': len(combined_data_all),
-            'total_records_filtered': len(combined_data_filtered),
-            'summary_all': {
-                'total_spend': round(total_spend_all, 2),
-                'total_revenue': round(total_revenue_all, 2),
-                'roi_nett': round(((total_revenue_all - total_spend_all) / total_spend_all * 100) if total_spend_all > 0 else 0, 2)
-            },
-            'summary_filtered': {
-                'total_spend': round(total_spend_filtered, 2),
-                'total_revenue': round(total_revenue_filtered, 2),
-                'roi_nett': round(((total_revenue_filtered - total_spend_filtered) / total_spend_filtered * 100) if total_spend_filtered > 0 else 0, 2)
             }
         }
     except Exception as e:
@@ -2074,7 +1934,6 @@ class RoiMonitoringCountryAdsenseDataView(View):
                 })
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
-    
     def get(self, req):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
@@ -2226,7 +2085,7 @@ class RoiMonitoringCountryAdsenseDataView(View):
                     else:
                         data_facebook = None
                 except Exception as e:
-                    print(f"[DEBUG] Facebook fetch (all domains) failed: {e}; continue without FB data")
+                    print(f"[DEBUG ROI] Facebook fetch (all domains) failed: {e}; continue without FB data")
                     data_facebook = None
             # Ringkas data Facebook untuk diagnosa
             try:
@@ -2284,7 +2143,7 @@ class RoiMonitoringCountryAdsenseDataView(View):
                 result['total_records'] = len(filtered_data)
             # Simpan hasil akhir ke cache dengan TTL 15 menit
             try:
-                set_cached_data(response_cache_key, result, timeout=900)
+                set_cached_data_adsense(response_cache_key, result, timeout=900)
             except Exception as _cache_err:
                 print(f"[DEBUG] Failed to cache ROI Country final response: {_cache_err}")
             return JsonResponse(result, safe=False)
@@ -2314,7 +2173,7 @@ def process_roi_monitoring_country_data(data_adsense, data_facebook):
         for adsense_item in (adsense_items or []):
             date_key = str(adsense_item.get('date', '') or '')
             site_name = str(adsense_item.get('site_name', '') or '')
-            base_subdomain = extract_base_subdomain(site_name)
+            base_subdomain = site_name
             country_code = normalize_country_code(adsense_item.get('country_code', '') or '')
             country_name = adsense_item.get('country_name', '') or ''
             revenue = float(adsense_item.get('revenue', 0) or 0)
@@ -2330,7 +2189,7 @@ def process_roi_monitoring_country_data(data_adsense, data_facebook):
         for fb_item in fb_items:
             date_key = str(fb_item.get('date', '') or '')
             domain = str(fb_item.get('domain', '') or '')
-            base_subdomain = extract_base_subdomain(domain)
+            base_subdomain = extract_base_subdomain_fb_adsense(domain)
             country_code = normalize_country_code(fb_item.get('country_code', '') or '')
             country_name = fb_item.get('country_name', '') or ''
             spend = float(fb_item.get('spend', 0) or 0)
@@ -2343,7 +2202,7 @@ def process_roi_monitoring_country_data(data_adsense, data_facebook):
         # Agregasi per country_code
         agg_all = {}
         agg_filtered = {}
-        union_keys = set(list(adsense_map.keys()) + list(fb_map.keys()))
+        union_keys = set(list[Any](adsense_map.keys()) + list(fb_map.keys()))
         for key in union_keys:
             try:
                 country_code = key.split('_')[-1]

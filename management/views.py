@@ -3982,6 +3982,7 @@ def process_roi_monitoring_country_data(data_adx, data_facebook):
             date_key = str(adx_item.get('date', '') or '')
             site_name = str(adx_item.get('site_name', '') or '')
             base_subdomain = extract_base_subdomain(site_name)
+            print(f"[DEBUG ROI] Base subdomain adx: {base_subdomain}")
             country_code = normalize_country_code(adx_item.get('country_code', '') or '')
             country_name = adx_item.get('country_name', '') or ''
             revenue = float(adx_item.get('revenue', 0) or 0)
@@ -3998,6 +3999,7 @@ def process_roi_monitoring_country_data(data_adx, data_facebook):
             date_key = str(fb_item.get('date', '') or '')
             domain = str(fb_item.get('domain', '') or '')
             base_subdomain = extract_base_subdomain(domain)
+            print(f"[DEBUG ROI] Base subdomain fb_adx: {base_subdomain}")
             country_code = normalize_country_code(fb_item.get('country_code', '') or '')
             country_name = fb_item.get('country_name', '') or ''
             spend = float(fb_item.get('spend', 0) or 0)
@@ -5409,6 +5411,7 @@ class RoiMonitoringCountryDataView(View):
                             main_domain = ".".join(site.split(".")[:2]) if "." in site else site
                             extracted_names.append(main_domain)
                         unique_name_site = list(set(extracted_names))
+                    print(f"[DEBUG ROI] Unique name site adx: {unique_name_site}")
                     if unique_name_site:
                         data_facebook = data_mysql().get_all_ads_country_detail_by_params(
                             start_date,
