@@ -3856,7 +3856,7 @@ class data_mysql:
             base_sql = [
                 "SELECT",
                 "\trs.account_id, rs.account_name, rs.account_email,",
-                "\trs.date, rs.domain, rs.campaign, rs.country_code,",
+                "\trs.date, SUBSTRING_INDEX(rs.domain, '.', -2) AS 'domain', rs.country_code,",
                 "\tSUM(rs.spend) AS 'spend',",
                 "\tSUM(rs.clicks_fb) AS 'clicks_fb',",
                 "\tSUM(rs.impressions_fb) AS 'impressions_fb',",
@@ -3869,7 +3869,6 @@ class data_mysql:
                     "\t\tb.data_ads_country_cd AS 'country_code',",
                     "\t\tb.data_ads_country_nm AS 'country_name',",
                     "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS domain,",
-                    "\t\tb.data_ads_campaign_nm AS 'campaign',",
                     "\t\tb.data_ads_country_spend AS 'spend',",
                     "\t\tb.data_ads_country_impresi AS 'impressions_fb',",
                     "\t\tb.data_ads_country_click AS 'clicks_fb',",
@@ -3879,7 +3878,7 @@ class data_mysql:
                     "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
                     f"\tAND ({like_conditions})",
                 ") rs",
-                "GROUP BY rs.date, rs.domain, rs.country_code",
+                "GROUP BY rs.date, rs.country_code, SUBSTRING_INDEX(rs.domain, '.', -2)",
                 "ORDER BY rs.account_id, rs.date",
             ]
             # --- 4. Gabungkan parameter
