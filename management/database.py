@@ -3856,6 +3856,78 @@ class data_mysql:
             base_sql = [
                 "SELECT",
                 "\trs.account_id, rs.account_name, rs.account_email,",
+                "\trs.date, rs.domain, rs.campaign, rs.country_code,",
+                "\tSUM(rs.spend) AS 'spend',",
+                "\tSUM(rs.clicks_fb) AS 'clicks_fb',",
+                "\tSUM(rs.impressions_fb) AS 'impressions_fb',",
+                "\tROUND(AVG(rs.cpr), 0) AS 'cpr',",
+                "\tROUND((SUM(rs.spend)/SUM(rs.clicks_fb)), 0) AS 'cpc_fb'",
+                "FROM (",
+                    "\tSELECT",
+                    "\t\ta.account_id, a.account_name, a.account_email,",
+                    "\t\tb.data_ads_country_tanggal AS 'date',",
+                    "\t\tb.data_ads_country_cd AS 'country_code',",
+                    "\t\tb.data_ads_country_nm AS 'country_name',",
+                    "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS domain,",
+                    "\t\tb.data_ads_campaign_nm AS 'campaign',",
+                    "\t\tb.data_ads_country_spend AS 'spend',",
+                    "\t\tb.data_ads_country_impresi AS 'impressions_fb',",
+                    "\t\tb.data_ads_country_click AS 'clicks_fb',",
+                    "\t\tb.data_ads_country_cpr AS 'cpr'",
+                    "\tFROM master_account_ads a",
+                    "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
+                    "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
+                    f"\tAND ({like_conditions})",
+                ") rs",
+                "GROUP BY rs.date, rs.domain, rs.country_code",
+                "ORDER BY rs.account_id, rs.date",
+            ]
+            # --- 4. Gabungkan parameter
+            params = [start_date_formatted, end_date_formatted] + like_params
+            # --- 5. Eksekusi query
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get all ads roi traffic campaign by params")
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit get all ads roi traffic campaign by params")
+            hasil = {
+                "status": True,
+                "message": "Data ads traffic campaign berhasil diambil",
+                "data": data
+            }
+
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                "data": f"Terjadi error {e!r}, error nya {e.args[0]}"
+            }
+        except Exception as e:
+            hasil = {
+                "status": False,
+                "data": f"Terjadi error {e}"
+            }
+
+        return {"hasil": hasil}
+
+    def get_all_ads_adsense_roi_traffic_campaign_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None):
+        try:
+            # --- 1. Pastikan data_sub_domain adalah list string
+            if isinstance(data_sub_domain, str):
+                data_sub_domain = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
+            elif data_sub_domain is None:
+                data_sub_domain = []
+            elif isinstance(data_sub_domain, (set, tuple)):
+                data_sub_domain = list(data_sub_domain)
+            if not data_sub_domain:
+                raise ValueError("data_sub_domain is required and cannot be empty")
+            # --- 2. Buat kondisi LIKE untuk tiap domain
+            like_conditions = " OR ".join(["CONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') LIKE %s"] * len(data_sub_domain))
+            like_params = [f"%{d}%" for d in data_sub_domain]  # tambahkan % supaya match '.com'
+            # --- 3. Susun query
+            base_sql = [
+                "SELECT",
+                "\trs.account_id, rs.account_name, rs.account_email,",
                 "\trs.date, SUBSTRING_INDEX(rs.domain, '.', -2) AS 'domain', rs.country_code,",
                 "\tSUM(rs.spend) AS 'spend',",
                 "\tSUM(rs.clicks_fb) AS 'clicks_fb',",

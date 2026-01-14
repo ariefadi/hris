@@ -748,7 +748,7 @@ class RekapTrafficPerDomainDataView(View):
                     unique_name_site.append(main_domain)
             unique_name_site = list(set(unique_name_site))
             if unique_name_site:
-                facebook_data = data_mysql().get_all_ads_roi_traffic_campaign_by_params(
+                facebook_data = data_mysql().get_all_ads_adsense_roi_traffic_campaign_by_params(
                     start_date_formatted,
                     end_date_formatted,
                     unique_name_site
