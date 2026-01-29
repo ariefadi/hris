@@ -233,9 +233,8 @@
             <thead>
               <tr>
                 <th width="5%">No</th>
-                <th width="20%">Task</th>
+                <th width="15%">Task</th>
                 <th width="10%">Process</th>
-                <th width="10%">Action</th>
                 <th width="25%">Catatan</th>
                 <th width="10%">Dibuat Oleh</th>
                 <th width="10%">Dibuat Pada</th>
@@ -251,11 +250,6 @@
                 <td class="align-middle">
                   <span class="badge {% if p.process_st == 'waiting' %}badge-warning{% elif p.process_st == 'approve' %}badge-success{% elif p.process_st == 'reject' %}badge-danger{% else %}badge-secondary{% endif %}">
                     {{ p.process_st|default_if_none:"-" }}
-                  </span>
-                </td>
-                <td class="align-middle">
-                  <span class="badge {% if p.action_st == 'done' %}badge-success{% elif p.action_st == 'process' %}badge-info{% else %}badge-secondary{% endif %}">
-                    {{ p.action_st|default_if_none:"-" }}
                   </span>
                 </td>
                 <td class="align-middle">{{ p.catatan|default_if_none:"-" }}</td>

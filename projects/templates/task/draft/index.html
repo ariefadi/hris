@@ -5,7 +5,7 @@
 
 {% block breadcrumbs %}
 <li class="breadcrumb-item">Task</li>
-<li class="breadcrumb-item active"><a href="/projects/task/draft">Create</a></li>
+<li class="breadcrumb-item active"><a href="/projects/task/draft">Projects</a></li>
 {% endblock %}
 
 {% block content %}
@@ -22,45 +22,85 @@
         </div>
       </div>
       <div class="card-body">
-        <div class="table-responsive">
-          <table class="table table-striped">
-            <thead>
-              <tr>
-                <th width="5%">No</th>
-                <th width="15%">Nama</th>
-                <th width="15%">Region</th>
-                <th width="10%">Tanggal Request</th>
-                <th width="15%">Ad Network</th>
-                <th width="15%">PIC</th>
-                <th width="10%">Status</th>
-                <th width="10%">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for p in partners %}
-              <tr>
-                  <td class="align-middle">{{ forloop.counter }}</td>
-                  <td class="align-middle"><u>{{ p.partner_name }}</u><br>Kontak: {{ p.partner_contact }}</td>
-                  <td class="align-middle">{{ p.partner_region }}</td>
-                  <td class="align-middle">{% if p.request_date %}{{ p.request_date|date:'Y-m-d' }}{% endif %}</td>
-                  <td class="align-middle">{{ p.adnetwork }}</td>
-                  <td class="align-middle">{{ p.pic }}</td>
-                  <td class="align-middle">{{ p.status|title }}</td>
-                  <td class="align-middle">
-                    <a href="{% url 'projects_task_draft_edit' p.partner_id %}" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
-                    <form action="{% url 'projects_task_draft_delete' p.partner_id %}" method="post" style="display:inline-block;margin-left:6px;">
-                      {% csrf_token %}
-                      <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Hapus draft ini?')"><i class="bi bi-trash"></i></button>
-                    </form>
-                  </td>
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="9" class="text-center text-muted">Belum ada data draft.</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <div class="row">
+          {% for p in partners %}
+          <div class="col-12 col-md-6 col-xl-4">
+            <div class="card card-widget widget-user shadow-sm border">
+              <div class="widget-user-header bg-info" style="height: unset;">
+                <h3 class="widget-user-username">{{ p.partner_name }}</h3>
+                <h5 class="widget-user-desc">
+                  <i class="bi bi-telephone"></i> {{ p.partner_contact|default:"-" }}{% if p.request_date %}{% endif %}
+                </h5>
+              </div>
+              <div class="card-footer" style="padding-top: unset;">
+                <div class="row">
+                  <div class="col-sm-4 border-right">
+                    <div class="description-block">
+                      <h6 class="description-header">REGION</h6>
+                      <small class="description-text">{{ p.partner_region|default:"-" }}</small>
+                    </div>
+                  </div>
+                  <div class="col-sm-4 border-right">
+                    <div class="description-block">
+                      <h6 class="description-header">PIC</h6>
+                      <small class="description-text">{{ p.pic|default:"-" }}</small>
+                    </div>
+                  </div>
+                  <div class="col-sm-4">
+                    <div class="description-block">
+                      <h6 class="description-header">DOMAIN</h6>
+                      <span class="description-text">
+                        {% if p.domains and p.domains|length > 0 %}
+                        <div>
+                          {% for d in p.domains %}
+                            <small class="badge badge-light border mr-1 mb-1">{{ d }}</small>
+                          {% endfor %}
+                        </div>
+                        {% else %}
+                          <div class="text-muted">-</div>
+                        {% endif %}
+                      </span>
+                    </div>
+                  </div>
+                  <div class="col-sm-4 border-right">
+                    <div class="description-block">
+                      <h6 class="description-header">REQUEST</h6>
+                      <small class="description-text">
+                        {{ p.request_date|date:'Y-m-d' }}
+                      </small>
+                    </div>
+                  </div>
+                  <div class="col-sm-4 border-right">
+                    <div class="description-block">
+                      <h6 class="description-header">STATUS</h6>
+                      <span class="description-text">
+                        <small class="badge {% if p.status == 'draft' %}badge-warning{% elif p.status == 'waiting' %}badge-info{% elif p.status == 'completed' %}badge-success{% elif p.status == 'reject' %}badge-danger{% else %}badge-secondary{% endif %}">
+                          {{ p.status|title|default:"-" }}
+                        </small>
+                      </span>
+                    </div>
+                  </div>
+                  <div class="col-sm-4">
+                    <div class="description-block">
+                      <span class="description-text">
+                        <a href="{% url 'projects_task_draft_edit' p.partner_id %}" class="btn btn-xs btn-warning"><i class="bi bi-pencil"></i> Edit</a>
+                        <br>
+                        <form action="{% url 'projects_task_draft_delete' p.partner_id %}" method="post" style="display:inline-block;margin-left:6px;">
+                          {% csrf_token %}
+                          <button type="submit" class="btn btn-xs btn-danger" onclick="return confirm('Hapus draft ini?')"><i class="bi bi-trash"></i> Hapus</button>
+                        </form>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% empty %}
+          <div class="col-12">
+            <div class="text-center text-muted py-4">Belum ada data draft.</div>
+          </div>
+          {% endfor %}
         </div>
       </div>
     </div>

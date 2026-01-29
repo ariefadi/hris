@@ -4600,17 +4600,16 @@ class RoiCountryHourlyDataView(View):
             cached = get_cached_data(cache_key)
             if cached is not None:
                 return JsonResponse(cached, safe=False)
-            adx_resp = data_mysql().get_all_adx_roi_country_hourly_logs_by_params(
+            db = data_mysql()
+            adx_resp = db.get_all_adx_roi_country_hourly_logs_by_params(
                 target_date,
                 selected_domain_str,
             )
-            print(f"adx_resp: {adx_resp}")
             adx_rows = adx_resp.get('data') if isinstance(adx_resp, dict) else []
-            ads_resp = data_mysql().get_all_ads_roi_country_hourly_logs_by_params(
+            ads_resp = db.get_all_ads_roi_country_hourly_logs_by_params(
                 target_date,
                 selected_domain_str,
             )
-            print(f"ads_resp: {ads_resp}")
             ads_rows = (ads_resp.get('hasil') or {}).get('data') if isinstance(ads_resp, dict) else []
             by_country = {}
             hours_present = set()
@@ -4669,7 +4668,7 @@ class RoiCountryHourlyDataView(View):
                     'total_countries': len(countries_series)
                 }
             }
-            set_cached_data(cache_key, result, timeout=600)
+            set_cached_data(cache_key, result, timeout=1800)
             return JsonResponse(result, safe=False)
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})

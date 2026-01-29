@@ -90,12 +90,55 @@ class DraftIndexView(View):
         partners = []
         if db.execute_query(sql):
             partners = db.cur_hris.fetchall() or []
+        try:
+            pids = []
+            for r in partners:
+                try:
+                    pid = r.get('partner_id')
+                except AttributeError:
+                    pid = None
+                if pid:
+                    pids.append(str(pid))
+            dom_map = {}
+            if pids:
+                placeholders = ",".join(["%s"] * len(pids))
+                q_domrels = f"""
+                    SELECT pd.partner_id, d.domain
+                    FROM data_media_partner_domain pd
+                    JOIN data_domains d ON d.domain_id = pd.domain_id
+                    WHERE pd.partner_id IN ({placeholders})
+                    ORDER BY d.domain ASC
+                """
+                if db.execute_query(q_domrels, tuple(pids)):
+                    for rr in (db.cur_hris.fetchall() or []):
+                        try:
+                            pid = rr.get('partner_id')
+                            dom = rr.get('domain')
+                        except AttributeError:
+                            pid = rr[0]
+                            dom = rr[1]
+                        if not pid:
+                            continue
+                        lst = dom_map.get(pid)
+                        if not lst:
+                            lst = []
+                            dom_map[pid] = lst
+                        if dom:
+                            lst.append(str(dom))
+            for r in partners:
+                try:
+                    pid = r.get('partner_id')
+                    r['domains'] = dom_map.get(pid) or []
+                    r['domain_count'] = len(r['domains'])
+                except AttributeError:
+                    pass
+        except Exception:
+            pass
 
         users = []
         q_users = """
             SELECT user_alias
             FROM app_users
-            WHERE user_st = '1'
             ORDER BY user_alias ASC
         """
         if db.execute_query(q_users):

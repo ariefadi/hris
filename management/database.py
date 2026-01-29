@@ -3268,8 +3268,6 @@ class data_mysql:
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get hourly AdX country logs by params")
             data_rows = self.fetch_all()
-            if not self.commit():
-                raise pymysql.Error("Failed to commit hourly AdX country logs by params")
             return {
                 "status": True,
                 "message": "Hourly AdX country logs berhasil diambil",
@@ -3328,8 +3326,6 @@ class data_mysql:
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get hourly Ads country logs by params")
             data = self.fetch_all()
-            if not self.commit():
-                raise pymysql.Error("Failed to commit hourly Ads country logs by params")
             hasil = {"status": True, "message": "Hourly Ads country logs berhasil diambil", "data": data}
         except Exception as e:
             hasil = {"status": False, "data": f"Terjadi error {e!r}"}
