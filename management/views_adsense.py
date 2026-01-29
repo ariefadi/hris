@@ -87,10 +87,16 @@ class AdsenseTrafficAccountDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_account = req.GET.get('selected_account')
+        admin = req.session.get('hris_admin', {})
+        if selected_account == '':
+            rs_account = data_mysql().get_all_adsense_account_data_user(admin.get('user_id'))
+            account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
+            selected_account = ",".join(account_ids)
+        else:
+            selected_account = req.GET.get('selected_account', '')
         selected_account_list = []
         if selected_account:
             selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
-
         selected_countries = req.GET.get('selected_countries', '')
         countries_list = []
         if selected_countries and selected_countries.strip():
@@ -408,13 +414,11 @@ class AdsenseSummaryView(View):
             data_account_adsense = data_mysql().get_all_adsense_account_data_user(admin.get('user_id'))
         else:
             data_account_adsense = data_mysql().get_all_adsense_account_data()
-
         if not data_account_adsense.get('status'):
             return JsonResponse({
                 'status': False,
                 'error': data_account_adsense.get('data')
             })
-
         data = {
             'title': 'AdSense Summary Dashboard',
             'user': req.session['hris_admin'],
@@ -427,11 +431,8 @@ class AdsenseSummaryDataView(View):
     def dispatch(self, request, *args, **kwargs):
         # Izinkan akses untuk preview/API; otentikasi akan ditangani di dalam get()
         return super().dispatch(request, *args, **kwargs)
-
     def get(self, request):
         try:
-            print(f"[DEBUG] AdsenseSummaryDataView called with params: {request.GET}")
-            
             # Ambil user_mail dari app_credentials yang aktif
             db = data_mysql()
             sql = """
@@ -443,39 +444,28 @@ class AdsenseSummaryDataView(View):
             """
             db.cur_hris.execute(sql)
             credential_data = db.cur_hris.fetchone()
-            
-            print(f"[DEBUG] Credential data found: {credential_data}")
-            
             # Gunakan account_filter jika tersedia, fallback ke kredensial aktif
             account_filter = request.GET.get('account_filter')
+            admin = request.session.get('hris_admin', {})
+            if account_filter == '':
+                rs_account = data_mysql().get_all_adsense_account_data_user(admin.get('user_id'))
+                account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
+                account_filter = ",".join(account_ids)
+            else:
+                account_filter = request.GET.get('account_filter', '')
             if not credential_data and not account_filter:
-                print("[DEBUG] No active credentials found and no account_filter provided")
                 return JsonResponse({'status': False, 'error': 'Tidak ada kredensial aktif yang ditemukan'})
-            
             user_mail = account_filter if account_filter else credential_data['user_mail']
-            print(f"[DEBUG] Using user_mail: {user_mail} (from {'account_filter' if account_filter else 'active credential'})")
-
             # Ambil parameter
             start_date = request.GET.get('start_date')
             end_date = request.GET.get('end_date')
             site_filter = request.GET.get('selected_sites') or '%'
-            
-            print(f"[DEBUG] Parameters - start_date: {start_date}, end_date: {end_date}, site_filter: {site_filter}")
-
             if not start_date or not end_date:
-                print("[DEBUG] Missing start_date or end_date")
                 return JsonResponse({'status': False, 'error': 'Start date dan end date wajib diisi'})
-
             # Ambil data summary
-            print(f"[DEBUG] Calling fetch_adsense_summary_data with user_mail: {user_mail}")
             result = fetch_adsense_summary_data(user_mail, start_date, end_date, site_filter)
-            
-            print(f"[DEBUG] fetch_adsense_summary_data result: {result}")
-            
             if not result.get('status'):
-                print(f"[DEBUG] fetch_adsense_summary_data failed: {result.get('error')}")
                 return JsonResponse({'status': False, 'error': result.get('error', 'Gagal mengambil data summary')})
-
             response_data = {
                 'status': True,
                 'summary': {
@@ -489,8 +479,6 @@ class AdsenseSummaryDataView(View):
                 'daily': result['data'].get('daily', []),
                 'currency': result['data'].get('currency', 'USD')
             }
-            
-            print(f"[DEBUG] Returning response: {response_data}")
             return JsonResponse(response_data)
 
         except Exception as e:
@@ -543,6 +531,13 @@ class AdsenseTrafficPerCountryDataView(View):
                     'error': 'Start date dan end date wajib diisi'
                 }, status=400)
             selected_account = request.GET.get('selected_account')
+            admin = request.session.get('hris_admin', {})
+            if selected_account == '':
+                rs_account = data_mysql().get_all_adsense_account_data_user(admin.get('user_id'))
+                account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
+                selected_account = ",".join(account_ids)
+            else:
+                selected_account = request.GET.get('selected_account', '')
             selected_account_list = []
             if selected_account:
                 selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
@@ -696,6 +691,13 @@ class RekapTrafficPerDomainDataView(View):
             start_date = req.GET.get('start_date')
             end_date = req.GET.get('end_date')
             selected_accounts = req.GET.get('selected_account_adsense')
+            admin = req.session.get('hris_admin', {})
+            if selected_accounts == '':
+                rs_account = data_mysql().get_all_adsense_account_data_user(admin.get('user_id'))
+                account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
+                selected_accounts = ",".join(account_ids)
+            else:
+                selected_accounts = req.GET.get('selected_account_adsense', '')
             selected_domains = req.GET.get('selected_domains')
             # --- 1. Parse tanggal aman
             def parse_date(d):
@@ -1166,6 +1168,13 @@ class RekapTrafficPerCountryAdsenseDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_account = req.GET.get('selected_account_adsense')
+        admin = req.session.get('hris_admin', {})
+        if selected_account == '':
+            rs_account = data_mysql().get_all_adsense_account_data_user(admin.get('user_id'))
+            account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
+            selected_account = ",".join(account_ids)
+        else:
+            selected_account = req.GET.get('selected_account_adsense', '')
         selected_account_list = []
         if selected_account:
             selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
@@ -1689,6 +1698,13 @@ class RoiMonitoringDomainAdsenseDataView(View):
             start_date = req.GET.get('start_date')
             end_date = req.GET.get('end_date')
             selected_accounts = req.GET.get('selected_account_adsense')
+            admin = req.session.get('hris_admin', {})
+            if selected_accounts == '':
+                rs_account = data_mysql().get_all_adsense_account_data_user(admin.get('user_id'))
+                account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
+                selected_accounts = ",".join(account_ids)
+            else:
+                selected_accounts = req.GET.get('selected_account_adsense', '')
             selected_domains = req.GET.get('selected_domains')
             # --- 1. Parse tanggal aman
             def parse_date(d):
@@ -1926,6 +1942,13 @@ class RoiMonitoringCountryAdsenseDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_account = req.GET.get('selected_account_adsense', '')
+        admin = req.session.get('hris_admin', {})
+        if selected_account == '':
+            rs_account = data_mysql().get_all_adsense_account_data_user(admin.get('user_id'))
+            account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
+            selected_account = ",".join(account_ids)
+        else:
+            selected_account = req.GET.get('selected_account_adsense', '')
         selected_domain = req.GET.get('selected_domains', '')
         selected_account_list = []
         if selected_account:
@@ -2376,10 +2399,18 @@ class AdsenseRekapitulasiDataView(View):
                     f"Periode <br> "
                     f"{format_tanggal_id(past_start_date)} s/d {format_tanggal_id(past_end_date)}"
                 )
+            selected_account = req.GET.get('selected_account_adsense')
+            admin = req.session.get('hris_admin', {})
+            if selected_account == '':
+                rs_account = data_mysql().get_all_adsense_account_data_user(admin.get('user_id'))
+                account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
+                selected_account = ",".join(account_ids)
+            else:
+                selected_account = req.GET.get('selected_account_adsense', '')
             selected_account_list = []
-            if req.GET.get('selected_account_adsense'):
+            if selected_account:
                 selected_account_list = [
-                    s.strip() for s in req.GET.get('selected_account_adsense').split(',') if s.strip()
+                    s.strip() for s in selected_account.split(',') if s.strip()
                 ]
             adsense_result = data_mysql().get_all_rekapitulasi_adsense_monitoring_account_by_params(
                 start_date,

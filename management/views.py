@@ -2102,6 +2102,13 @@ class AdxSummaryDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_account = req.GET.get('selected_account', '')
+        admin = req.session.get('hris_admin', {})
+        if selected_account == '':
+            rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+            account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
+            selected_account = ",".join(account_ids)
+        else:
+            selected_account = req.GET.get('selected_account', '')
         account_list = []
         if selected_account:
             account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
@@ -3018,6 +3025,13 @@ class AdxTrafficPerAccountDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_account = req.GET.get('selected_account')
+        admin = req.session.get('hris_admin', {})
+        if selected_account == '':
+            rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+            account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
+            selected_account = ",".join(account_ids)
+        else:
+            selected_account = req.GET.get('selected_account', '')
         selected_account_list = []
         if selected_account:
             selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
@@ -3310,6 +3324,13 @@ class AdxTrafficPerCountryDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_account = req.GET.get('selected_account')
+        admin = req.session.get('hris_admin', {})
+        if selected_account == '':
+            rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+            account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
+            selected_account = ",".join(account_ids)
+        else:
+            selected_account = req.GET.get('selected_account', '')
         selected_account_list = []
         if selected_account:
             selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
@@ -3455,6 +3476,13 @@ class RoiTrafficPerCountryDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_account = req.GET.get('selected_account_adx')
+        admin = req.session.get('hris_admin', {})
+        if selected_account == '':
+            rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+            account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
+            selected_account = ",".join(account_ids)
+        else:
+            selected_account = req.GET.get('selected_account_adx', '')
         selected_account_list = []
         if selected_account:
             selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
@@ -4100,7 +4128,7 @@ class RoiTrafficPerDomainView(View):
     def get(self, req):
         admin = req.session.get('hris_admin', {})
         if admin.get('super_st') == '0':
-            data_account_adx = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))['data']
+            data_account_adx = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
             data_domain_adx = data_mysql().get_all_adx_domain_data_user(admin.get('user_id'))
         else:
             data_account_adx = data_mysql().get_all_adx_account_data()
@@ -4128,6 +4156,13 @@ class RoiTrafficPerDomainDataView(View):
             start_date = req.GET.get('start_date')
             end_date = req.GET.get('end_date')
             selected_accounts = req.GET.get('selected_account_adx')
+            admin = req.session.get('hris_admin', {})
+            if selected_accounts == '':
+                rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+                account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
+                selected_accounts = ",".join(account_ids)
+            else:
+                selected_accounts = req.GET.get('selected_account_adx', '')
             selected_domains = req.GET.get('selected_domains')
             selected_account_ads = req.GET.get('selected_account_ads')
             # --- 1. Parse tanggal aman
@@ -4876,15 +4911,12 @@ class AssignAccountUserView(View):
             admin = request.session.get('hris_admin', {})
             account_id = request.POST.get('account_id')
             user_akun = request.POST.getlist('user_akun[]') # FIXED
-
             if not user_akun:
                 return JsonResponse({
                     'status': False,
                     'message': 'Tidak ada user dipilih'
                 })
-
             db = data_mysql()
-
             for user in user_akun:
                 params = {
                     'account_id': account_id,
@@ -4898,18 +4930,15 @@ class AssignAccountUserView(View):
                         'status': False,
                         'message': result.get('message', 'Gagal assign account user')
                     }, status=500)
-
             return JsonResponse({
                 'status': True,
                 'message': 'Account user berhasil diassign'
             })
-
         except Exception as e:
             return JsonResponse({
                 'status': False,
                 'message': f'Error: {str(e)}'
             }, status=500)
-
 
 @method_decorator(csrf_exempt, name='dispatch')
 class UpdateAccountNameView(View):
@@ -5015,6 +5044,13 @@ class RoiMonitoringDomainDataView(View):
             start_date = req.GET.get('start_date')
             end_date = req.GET.get('end_date')
             selected_accounts = req.GET.get('selected_account_adx')
+            admin = req.session.get('hris_admin', {})
+            if selected_accounts == '':
+                rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+                account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
+                selected_accounts = ",".join(account_ids)
+            else:
+                selected_accounts = req.GET.get('selected_account_adx', '')
             selected_domains = req.GET.get('selected_domains')
             # --- 1. Parse tanggal aman
             def parse_date(d):
@@ -5267,6 +5303,13 @@ class RoiMonitoringCountryDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         selected_account = req.GET.get('selected_account_adx', '')
+        admin = req.session.get('hris_admin', {})
+        if selected_account == '':
+            rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+            account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
+            selected_account = ",".join(account_ids)
+        else:
+            selected_account = req.GET.get('selected_account_adx', '')
         selected_domain = req.GET.get('selected_domains', '')
         selected_account_list = []
         if selected_account:
@@ -5610,15 +5653,24 @@ class RoiRekapitulasiDataView(View):
                     f"Periode <br> "
                     f"{format_tanggal_id(past_start_date)} s/d {format_tanggal_id(past_end_date)}"
                 )
+            selected_account = req.GET.get('selected_account_adx')
+            admin = req.session.get('hris_admin', {})
+            if selected_account == '':
+                rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+                account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
+                selected_account = ",".join(account_ids)
+            else:
+                selected_account = req.GET.get('selected_account_adx', '')
             selected_account_list = []
-            if req.GET.get('selected_account_adx'):
+            if selected_account:
                 selected_account_list = [
-                    s.strip() for s in req.GET.get('selected_account_adx').split(',') if s.strip()
+                    s.strip() for s in selected_account.split(',') if s.strip()
                 ]
+            selected_domain = req.GET.get('selected_domains')
             selected_domain_list = []
-            if req.GET.get('selected_domains'):
+            if selected_domain:
                 selected_domain_list = [
-                    s.strip() for s in req.GET.get('selected_domains').split(',') if s.strip()
+                    s.strip() for s in selected_domain.split(',') if s.strip()  
                 ]
             adx_result = data_mysql().get_all_rekapitulasi_adx_monitoring_account_by_params(
                 start_date,

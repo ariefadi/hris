@@ -135,6 +135,61 @@
                 padding-top: 20%;">
             <i class="fas fa fa-sync-alt fa-spin"></i> Memuat Data Traffic ... 
         </div>
+        <!-- Summary Info boxes -->
+        <div class="row mt-3" id="summary_boxes" style="display: none;">
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="metric-card revenue">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Earning Periode Lalu</div>
+                            <div class="metric-value" id="total_earning_past">Rp 0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-arrow-left-circle"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="metric-card revenue">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Earning Periode Sekarang</div>
+                            <div class="metric-value" id="total_earning_now">Rp 0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-arrow-right-circle"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="metric-card spend">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Selisih Pendapatan</div>
+                            <div class="metric-value" id="total_earning_diff">Rp 0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="metric-card roi">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Selisih Prosentase</div>
+                            <div class="metric-value" id="total_earning_diff_percent">0%</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-percent"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <!-- Data Table -->
         <div class="dt-responsive-table mt-3 table-responsive">
             <table id="table_traffic_account" class="table table-bordered table-striped" style="width:100%">
