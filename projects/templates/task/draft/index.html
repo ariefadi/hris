@@ -29,7 +29,7 @@
               <div class="widget-user-header bg-info" style="height: unset;">
                 <h3 class="widget-user-username">{{ p.partner_name }}</h3>
                 <h5 class="widget-user-desc">
-                  <i class="bi bi-telephone"></i> {{ p.partner_contact|default:"-" }}{% if p.request_date %}{% endif %}
+                  <i class="bi bi-telephone"></i> {{ p.partner_contact|default:"-" }}
                 </h5>
               </div>
               <div class="card-footer" style="padding-top: unset;">
@@ -66,7 +66,7 @@
                     <div class="description-block">
                       <h6 class="description-header">REQUEST</h6>
                       <small class="description-text">
-                        {{ p.request_date|date:'Y-m-d' }}
+                        {{ p.request_date|date:'d M Y' }}
                       </small>
                     </div>
                   </div>

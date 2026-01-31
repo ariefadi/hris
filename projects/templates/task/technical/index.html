@@ -3,6 +3,27 @@
 {% block page_title %}Technical{% endblock %}
 {% block page_heading %}Technical{% endblock %}
 
+{% block more_stylesheet %}
+<style>
+.technical-page .card { border-radius: 14px; }
+.technical-page .partner-card { border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
+.technical-page .partner-card .card-header { background: linear-gradient(135deg, rgba(23,162,184,0.12), rgba(23,162,184,0.02)); border-bottom: 1px solid rgba(0,0,0,0.06); }
+.technical-page .partner-title { font-weight: 700; }
+.technical-page .partner-meta { display: flex; flex-wrap: wrap; gap: 8px; }
+.technical-page .meta-badge { background: #f8f9fa; border: 1px solid rgba(0,0,0,0.06); color: #495057; padding: 4px 8px; border-radius: 999px; font-size: 0.75rem; }
+.technical-page .subdomain-card { border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 6px 16px rgba(0,0,0,0.05); }
+.technical-page .subdomain-card .card-body { padding: 16px; }
+.technical-page .section-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: #6c757d; }
+.technical-page .info-pill { background: #eef6ff; color: #1f4b88; border-radius: 8px; padding: 6px 10px; font-weight: 600; }
+.technical-page .info-muted { color: #6c757d; }
+.technical-page .action-group .btn { margin-left: 4px; }
+.technical-page .action-group .btn:first-child { margin-left: 0; }
+@media (max-width: 991px) {
+  .technical-page .partner-header-actions { margin-top: 10px; }
+}
+</style>
+{% endblock %}
+
 {% block breadcrumbs %}
 <li class="breadcrumb-item">Task</li>
 <li class="breadcrumb-item active"><a href="/projects/task/technical">Technical</a></li>
@@ -10,94 +31,92 @@
 
 {% block content %}
 
-<div class="row">
+<div class="row technical-page">
   <div class="col-12">
-    <div class="card">
-      <div class="card-header">
-        <h3 class="card-title">Technical</h3>
-      </div>
-      <div class="card-body">
-        <div class="table-responsive">
-          <table class="table table-striped">
-            <thead>
-              <tr>
-                <th width="5%">No</th>
-                <th width="15%">Partner</th>
-                <th width="70%" class="text-center">Data Server & Website</th>
-                <th width="5%">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for p in partners %}
-              <tr>
-                  <td class="align-middle">{{ forloop.counter }}</td>
-                  <td class="align-middle">
-                    <u>{{ p.partner_name }}</u>{% if p.request_date %}<br>Tgl Request: {{ p.request_date|date:'Y-m-d' }}{% endif %}<br>
-                    PIC: {{ p.pic }}{% if p.domain %}<br>Domain: {{ p.domain }}{% endif %}
-                  </td>
-                  <td class="align-middle">
-                    <table class="table table-sm" id="table-website-subdomain" style="table-layout: fixed; width: 100%;">
-                      <thead>
-                        <tr>
-                          <th width="12%" class="text-center">Server IP</th>
-                          <th width="15%" class="text-center">Cloudflare</th>
-                          <th width="30%" class="text-center">Website Login</th>
-                          <th width="8%" class="text-center"></th>
-                          <th width="15%" class="text-center">Niche & Keywords</th>
-                          <th width="8%" class="text-center"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {% for s in p.subrows %}
-                        <tr>
-                          <td class="align-middle text-center" style="word-break: break-word;">{{ s.public_ipv4 }}</td>
-                          <td class="align-middle text-center" style="word-break: break-word;">{{ s.cloudflare }}</td>
-                          <td class="align-middle text-left" style="word-break: break-word;">
-                            {{ s.website }}<br>
-                            User: {{ s.website_user }} <br>
-                            Pass: {{ s.website_pass }}
-                          </td>
-                          <td>
-                            <a href="#" class="btn btn-xs btn-warning btn-edit-subrow" data-partner-id="{{ p.partner_id }}" data-subdomain-id="{{ s.subdomain_id }}" title="Edit"><i class="bi bi-pencil"></i></a>
-                            <a href="#" class="btn btn-xs btn-danger btn-delete-subrow" data-partner-id="{{ p.partner_id }}" data-subdomain-id="{{ s.subdomain_id }}" title="Delete"><i class="bi bi-trash"></i></a>
-                          </td>
-                          <td class="align-middle text-left" style="word-break: break-word;" data-niche-cell="1" data-subdomain-id="{{ s.subdomain_id }}">
-                            <div><b>Niche:</b> <span class="nk-niche-name">-</span></div>
-                            <div><b>Keywords:</b> <span class="nk-keyword-total">-</span></div>
-                            <div><b>Deadline:</b> <input type="date" class="form-control" name="article_deadline"></div>
-                          </td>
-                          <td class="align-middle text-center">
-                            <a href="#" class="btn btn-xs btn-primary btn-add-nk" data-subdomain-id="{{ s.subdomain_id }}"><i class="bi bi-plus"></i></a>
-                            <a href="#" class="btn btn-xs btn-warning btn-edit-nk" data-subdomain-id="{{ s.subdomain_id }}"><i class="bi bi-pencil"></i></a>
-                            <a href="#" class="btn btn-xs btn-danger btn-delete-nk" data-subdomain-id="{{ s.subdomain_id }}"><i class="bi bi-trash"></i></a>
-                          </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                          <td colspan="5" class="text-center text-muted">Belum ada subdomain.</td>
-                        </tr>
-                        {% endfor %}
-                      </tbody>
-                    </table>
-                    <br>
-                    <div class="text-center">
-                      <button class="btn btn-sm btn-primary" id="add_edit_server_{{ p.partner_id }}"><i class="bi bi-plus"></i> Tambah / Pilih Data Server</button>
+    
+    {% for p in partners %}
+    <div class="col-12">
+      <div class="card partner-card card-outline card-info">
+        <div class="card-header">
+          <div class="d-flex align-items-center justify-content-between">
+            <div>
+              <div class="h5 mb-2 partner-title">{{ p.partner_name }}</div>
+              <div class="partner-meta">
+                {% if p.request_date %}<span class="meta-badge">Request {{ p.request_date|date:'d M Y' }}</span>{% endif %}
+                <span class="meta-badge">PIC {{ p.pic|default:"-" }}</span>
+                {% if p.domain %}<span class="meta-badge">{{ p.domain }}</span>{% endif %}
+              </div>
+            </div>
+            <div class="partner-header-actions">
+              <a href="#" class="btn btn-sm btn-success btn-send" data-partner-id="{{ p.partner_id }}" data-process-id="{{ p.process_id }}" title="Kirim"><i class="bi bi-send"></i> Kirim</a>
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            {% for s in p.subrows %}
+            <div class="col-12 col-lg-6">
+              <div class="card subdomain-card h-100">
+                <div class="card-body">
+                  <div class="d-flex align-items-center justify-content-between mb-3">
+                    <div class="info-pill" style="word-break: break-word;">Server: {{ s.public_ipv4|default:"-" }}</div>
+                    <div class="text-right">
+                      <div class="section-title">Cloudflare</div>
+                      <div class="info-muted" style="word-break: break-word;">{{ s.cloudflare|default:"-" }}</div>
                     </div>
-                  </td>
-                  <td class="align-middle">
-                    <a href="#" class="btn btn-sm btn-success btn-send" data-partner-id="{{ p.partner_id }}" data-process-id="{{ p.process_id }}" title="Kirim"><i class="bi bi-send"></i></a>
-                  </td>
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="9" class="text-center text-muted">Belum ada data waiting.</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+                  </div>
+                  <div class="row">
+                    <div class="col-md-6">
+                      <div class="section-title">Website Login</div>
+                      <div class="info-muted mb-2" style="word-break: break-word;">
+                        {{ s.website|default:"-" }}<br>
+                        User: {{ s.website_user|default:"-" }}<br>
+                        Pass: {{ s.website_pass|default:"-" }}
+                      </div>
+                      <div class="action-group">
+                        <a href="#" class="btn btn-xs btn-soft btn-warning btn-edit-subrow" data-partner-id="{{ p.partner_id }}" data-subdomain-id="{{ s.subdomain_id }}" title="Edit Server"><i class="bi bi-pencil"></i> Edit Server</a>
+                        <a href="#" class="btn btn-xs btn-soft btn-danger btn-delete-subrow" data-partner-id="{{ p.partner_id }}" data-subdomain-id="{{ s.subdomain_id }}" title="Hapus Server"><i class="bi bi-trash"></i> Hapus Server</a>
+                      </div>
+                    </div>
+                    <div class="col-md-6 text-right" data-niche-cell="1" data-subdomain-id="{{ s.subdomain_id }}">
+                      <div class="section-title">Niche & Keywords</div>
+                      <div class="info-muted mb-2">
+                        <div><b>Niche:</b> <span class="nk-niche-name">-</span></div>
+                        <div><b>Keywords:</b> <span class="nk-keyword-total">-</span></div>
+                      </div>
+                      <div class="section-title">Deadline</div>
+                      <input type="date" class="form-control mb-2" name="article_deadline">
+                      <div class="action-group">
+                        <a href="#" class="btn btn-xs btn-primary btn-add-nk" data-subdomain-id="{{ s.subdomain_id }}"><i class="bi bi-plus"></i> Tambah Niche</a>
+                        <a href="#" class="btn btn-xs btn-warning btn-edit-nk" data-subdomain-id="{{ s.subdomain_id }}"><i class="bi bi-pencil"></i> Edit Niche</a>
+                        <a href="#" class="btn btn-xs btn-danger btn-delete-nk" data-subdomain-id="{{ s.subdomain_id }}"><i class="bi bi-trash"></i> Hapus Niche</a>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% empty %}
+            <div class="col-12">
+              <div class="text-center text-muted py-3">Belum ada subdomain.</div>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="text-center mt-3">
+            <button class="btn btn-sm btn-primary" id="add_edit_server_{{ p.partner_id }}"><i class="bi bi-plus"></i> Tambah / Pilih Data Server</button>
+          </div>
         </div>
       </div>
     </div>
+    {% empty %}
+    <div class="col-12">
+      <div class="card">
+        <div class="card-body">
+          <div class="text-center text-muted py-4">Belum ada data waiting.</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
  </div>
 </div>
 
