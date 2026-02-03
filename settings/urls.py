@@ -34,6 +34,9 @@ urlpatterns = [
     # Sistem / Mail Utility
     path('sistem/mail', sistem.MailIndexView.as_view(), name='sistem_mail'),
     path('sistem/wagateway', sistem.WagatewayIndexView.as_view(), name='sistem_wagateway'),
+    # Users / Profile
+    path('users/profile', users.UserProfileEditPageView.as_view(), name='user_profile'),
+    path('users/profile/update', users.UserProfileUpdateView.as_view(), name='user_profile_update'),
     # Users / Data
     path('users/data', users.UsersDataView.as_view(), name='users_data'),
     path('users/data/page', users.UsersDataListView.as_view(), name='users_data_page'),

@@ -1,20 +1,41 @@
 {% extends "admin_base.html" %}
 {% load static %}
 
-{% block page_title %}Edit User{% endblock %}
-{% block page_heading %}Edit User{% endblock %}
+{% block page_title %}{% if is_profile %}Profile{% else %}Edit User{% endif %}{% endblock %}
+{% block page_heading %}{% if is_profile %}Profile{% else %}Edit User{% endif %}{% endblock %}
 {% block breadcrumbs %}
     <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+    {% if is_profile %}
+    <li class="breadcrumb-item active">Profile</li>
+    {% else %}
     <li class="breadcrumb-item"><a href="{% url 'users_data' %}">Users</a></li>
     <li class="breadcrumb-item active">Edit</li>
+    {% endif %}
 {% endblock %}
 
 {% block content %}
+<style>
+  .profile-cover {
+    background: linear-gradient(135deg, rgba(13,110,253,.18), rgba(32,201,151,.12));
+    border-radius: .5rem;
+    padding: 1.25rem;
+  }
+  .profile-avatar {
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+    border-radius: 999px;
+    border: 3px solid rgba(255,255,255,.9);
+    box-shadow: 0 6px 18px rgba(0,0,0,.08);
+  }
+  .profile-meta .text-muted { font-size: .875rem; }
+  .form-section-title { font-weight: 600; }
+</style>
 <div class="card">
   <div class="card-header">
-    <h3 class="card-title"><b><i class="bi bi-pencil-square"></i> Form Edit User</b></h3>
+    <h3 class="card-title"><b><i class="bi bi-pencil-square"></i> {% if is_profile %}Form Profile{% else %}Form Edit User{% endif %}</b></h3>
     <div class="card-tools">
-      <a href="{% url 'users_data' %}" class="btn btn-sm btn-secondary">
+      <a href="{% if is_profile %}{{ back_url }}{% else %}{% url 'users_data' %}{% endif %}" class="btn btn-sm btn-secondary">
         <i class="bi bi-arrow-left"></i> Kembali
       </a>
     </div>
@@ -24,56 +45,163 @@
       <li class="nav-item">
         <a class="nav-link active" data-toggle="tab" href="#tab-user-detail" role="tab">User Detail</a>
       </li>
+      {% if not is_profile %}
       <li class="nav-item">
         <a class="nav-link" data-toggle="tab" href="#tab-set-roles" role="tab">Set Roles</a>
       </li>
+      {% endif %}
     </ul>
     <div class="tab-content pt-3">
       <!-- Tab: User Detail -->
       <div class="tab-pane fade show active" id="tab-user-detail" role="tabpanel">
-        <form method="post" action="{% url 'users_data_update' %}">
+        <form method="post" enctype="multipart/form-data" action="{% if is_profile %}{% url 'user_profile_update' %}{% else %}{% url 'users_data_update' %}{% endif %}">
           {% csrf_token %}
           <input type="hidden" name="user_id" id="user_id_edit" value="{{ user_id|default:'' }}">
-          <div class="form-group">
-            <label>Nama User</label>
-            <input type="text" class="form-control" name="user_alias" id="user_alias_edit" placeholder="Masukkan Nama User" value="{{ user_data.user_alias|default:'' }}" required>
-          </div>
-          <div class="form-group">
-            <label>User Name</label>
-            <input type="text" class="form-control" name="user_name" id="user_name_edit" placeholder="Masukkan User Name" value="{{ user_data.user_name|default:'' }}" required>
-          </div>
-          <div class="form-group">
-            <label>User Password</label>
-            <input type="password" class="form-control" name="user_pass" id="user_pass_edit" placeholder="Kosongkan jika tidak ingin mengubah password" value="" />
-            <small class="form-text text-muted">Biarkan kosong jika tidak ingin mengubah password. Jika diisi, password baru akan di-hash secara aman.</small>
-          </div>
-          <div class="form-group">
-            <label>User Email</label>
-            <input type="email" class="form-control" name="user_mail" id="user_mail_edit" placeholder="Masukkan User Email" value="{{ user_data.user_mail|default:'' }}" required>
-          </div>
-          <div class="form-group">
-            <label>User Telepon</label>
-            <input type="text" class="form-control" name="user_telp" id="user_telp_edit" placeholder="Masukkan User Telepon" value="{{ user_data.user_telp|default:'' }}">
-          </div>
-          <div class="form-group">
-            <label>User Alamat</label>
-            <textarea class="form-control" name="user_alamat" id="user_alamat_edit" rows="3" placeholder="Masukkan User Alamat">{{ user_data.user_alamat|default:'' }}</textarea>
-          </div>
-          <div class="form-group">
-            <label>User Status</label>
-            <select class="form-control" name="user_st" id="select_user_st_edit" required>
-              <option value="">-- Pilih Status --</option>
-              <option value="1" {% if user_data.user_st|stringformat:'s' == '1' %}selected{% endif %}>Aktif</option>
-              <option value="0" {% if user_data.user_st|stringformat:'s' == '0' %}selected{% endif %}>Tidak Aktif</option>
-            </select>
-          </div>
-          <div class="mt-3">
-            <button type="submit" class="btn btn-success"><i class="bi bi-floppy2-fill"></i> Update Data</button>
-            <a href="{% url 'users_data' %}" class="btn btn-secondary"><i class="bi bi-x-circle"></i> Batal</a>
+
+          <div class="row">
+            <div class="col-lg-4">
+              <div class="profile-cover mb-3">
+                <div class="d-flex align-items-center">
+                  <img id="user_foto_preview" src="{% if user_data.user_foto %}{{ user_data.user_foto }}{% else %}{% static 'dist/assets/img/user2-160x160.jpg' %}{% endif %}" class="profile-avatar" alt="User Image">
+                  <div class="ml-3 profile-meta">
+                    <div class="h5 mb-1">{{ user_data.user_alias|default:'-' }}</div>
+                    <div class="text-muted mb-2">@{{ user_data.user_name|default:'-' }}</div>
+                    {% if not is_profile %}
+                      {% if user_data.user_st|stringformat:'s' == '1' %}
+                        <span class="badge badge-success">Aktif</span>
+                      {% else %}
+                        <span class="badge badge-danger">Tidak Aktif</span>
+                      {% endif %}
+                    {% else %}
+                      <span class="badge badge-primary">My Account</span>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="mt-3">
+                  <label class="form-section-title mb-2"><i class="bi bi-camera mr-1"></i> Foto Profile</label>
+                  <div class="custom-file">
+                    <input type="file" class="custom-file-input" name="user_foto" id="user_foto_input" accept="image/*">
+                    <label class="custom-file-label" for="user_foto_input">Pilih foto...</label>
+                  </div>
+                  <small class="form-text text-muted mb-0">JPG/JPEG/PNG/WEBP. Maks 2MB.</small>
+                </div>
+              </div>
+
+              <div class="card card-outline card-secondary">
+                <div class="card-body">
+                  <div class="text-muted mb-1"><i class="bi bi-envelope mr-1"></i> {{ user_data.user_mail|default:'-' }}</div>
+                  <div class="text-muted mb-1"><i class="bi bi-telephone mr-1"></i> {{ user_data.user_telp|default:'-' }}</div>
+                  <div class="text-muted"><i class="bi bi-geo-alt mr-1"></i> {{ user_data.user_alamat|default:'-' }}</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-lg-8">
+              <div class="card card-outline card-primary">
+                <div class="card-body">
+                  <div class="row">
+                    <div class="col-md-6">
+                      <div class="form-group">
+                        <label><i class="bi bi-person-badge mr-1"></i> Nama User</label>
+                        <input type="text" class="form-control" name="user_alias" id="user_alias_edit" placeholder="Masukkan Nama User" value="{{ user_data.user_alias|default:'' }}" required>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-group">
+                        <label><i class="bi bi-person mr-1"></i> User Name</label>
+                        <input type="text" class="form-control" name="user_name" id="user_name_edit" placeholder="Masukkan User Name" value="{{ user_data.user_name|default:'' }}" required>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label><i class="bi bi-shield-lock mr-1"></i> User Password</label>
+                    <div class="input-group">
+                      <input type="password" class="form-control" name="user_pass" id="user_pass_edit" placeholder="Kosongkan jika tidak ingin mengubah password" value="" autocomplete="new-password" />
+                      <div class="input-group-append">
+                        <button class="btn btn-outline-secondary" type="button" id="togglePasswordBtn">
+                          <i class="bi bi-eye" id="togglePasswordIcon"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <small class="form-text text-muted">Biarkan kosong jika tidak ingin mengubah password. Jika diisi, password baru akan di-hash secara aman.</small>
+                  </div>
+
+                  <div class="row">
+                    <div class="col-md-6">
+                      <div class="form-group">
+                        <label><i class="bi bi-envelope mr-1"></i> User Email</label>
+                        <input type="email" class="form-control" name="user_mail" id="user_mail_edit" placeholder="Masukkan User Email" value="{{ user_data.user_mail|default:'' }}" required>
+                      </div>
+                    </div>
+                    <div class="col-md-6">
+                      <div class="form-group">
+                        <label><i class="bi bi-telephone mr-1"></i> User Telepon</label>
+                        <input type="text" class="form-control" name="user_telp" id="user_telp_edit" placeholder="Masukkan User Telepon" value="{{ user_data.user_telp|default:'' }}">
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label><i class="bi bi-geo-alt mr-1"></i> User Alamat</label>
+                    <textarea class="form-control" name="user_alamat" id="user_alamat_edit" rows="3" placeholder="Masukkan User Alamat">{{ user_data.user_alamat|default:'' }}</textarea>
+                  </div>
+
+                  {% if not is_profile %}
+                  <div class="form-group">
+                    <label><i class="bi bi-toggle2-on mr-1"></i> User Status</label>
+                    <select class="form-control" name="user_st" id="select_user_st_edit" required>
+                      <option value="">-- Pilih Status --</option>
+                      <option value="1" {% if user_data.user_st|stringformat:'s' == '1' %}selected{% endif %}>Aktif</option>
+                      <option value="0" {% if user_data.user_st|stringformat:'s' == '0' %}selected{% endif %}>Tidak Aktif</option>
+                    </select>
+                  </div>
+                  {% endif %}
+
+                  <div class="d-flex justify-content-end mt-3">
+                    <button type="submit" class="btn btn-success mr-2"><i class="bi bi-floppy2-fill"></i> Update Data</button>
+                    <a href="{% if is_profile %}{{ back_url }}{% else %}{% url 'users_data' %}{% endif %}" class="btn btn-outline-secondary"><i class="bi bi-x-circle"></i> Batal</a>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </form>
+
+        <script>
+          (function(){
+            var fileInput = document.getElementById('user_foto_input');
+            var fileLabel = document.querySelector('label.custom-file-label[for="user_foto_input"]');
+            var img = document.getElementById('user_foto_preview');
+            if (fileInput) {
+              fileInput.addEventListener('change', function(){
+                var f = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+                if (fileLabel) { fileLabel.textContent = f ? f.name : 'Pilih foto...'; }
+                if (f && img) {
+                  var reader = new FileReader();
+                  reader.onload = function(e){ img.src = e.target.result; };
+                  reader.readAsDataURL(f);
+                }
+              });
+            }
+
+            var btn = document.getElementById('togglePasswordBtn');
+            var pw = document.getElementById('user_pass_edit');
+            var icon = document.getElementById('togglePasswordIcon');
+            if (btn && pw) {
+              btn.addEventListener('click', function(){
+                var isPw = pw.type === 'password';
+                pw.type = isPw ? 'text' : 'password';
+                if (icon) {
+                  icon.className = isPw ? 'bi bi-eye-slash' : 'bi bi-eye';
+                }
+              });
+            }
+          })();
+        </script>
       </div>
 
+      {% if not is_profile %}
       <!-- Tab: Set Roles -->
       <div class="tab-pane fade" id="tab-set-roles" role="tabpanel">
         <form method="post" action="{% url 'users_roles_update' %}">
@@ -134,6 +262,7 @@
           }
         </script>
       </div>
+      {% endif %}
     </div>
   </div>
 </div>
