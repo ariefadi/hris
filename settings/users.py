@@ -5,7 +5,166 @@ from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from settings.database import data_mysql
-from datetime import datetime
+from datetime import datetime, date, time
+from django.conf import settings as django_settings
+from django.urls import reverse
+from urllib.parse import urlparse
+import os
+import uuid
+
+
+def _get_media_root():
+    media_root = getattr(django_settings, 'MEDIA_ROOT', None)
+    if media_root:
+        return str(media_root)
+    try:
+        return str(django_settings.BASE_DIR / 'media')
+    except Exception:
+        return os.path.abspath('media')
+
+
+def _save_user_photo(uploaded_file, user_id):
+    try:
+        content_type = getattr(uploaded_file, 'content_type', '') or ''
+        if not content_type.startswith('image/'):
+            return (False, None, 'File harus berupa gambar')
+
+        size = int(getattr(uploaded_file, 'size', 0) or 0)
+        if size <= 0:
+            return (False, None, 'File tidak valid')
+        if size > 2 * 1024 * 1024:
+            return (False, None, 'Ukuran file maksimal 2MB')
+
+        original_name = getattr(uploaded_file, 'name', '') or ''
+        _, ext = os.path.splitext(original_name)
+        ext = (ext or '').lower()
+        allowed_ext = {'.jpg', '.jpeg', '.png', '.webp'}
+        if ext not in allowed_ext:
+            ext = '.jpg'
+
+        media_root = _get_media_root()
+        rel_dir = os.path.join('users', str(user_id))
+        abs_dir = os.path.join(media_root, rel_dir)
+        os.makedirs(abs_dir, exist_ok=True)
+
+        filename = f"{uuid.uuid4().hex}{ext}"
+        abs_path = os.path.join(abs_dir, filename)
+
+        with open(abs_path, 'wb') as f:
+            for chunk in uploaded_file.chunks():
+                f.write(chunk)
+
+        url_path = f"/media/{rel_dir}/{filename}".replace('\\\\', '/')
+        return (True, url_path, None)
+    except Exception:
+        return (False, None, 'Gagal menyimpan foto')
+
+
+def _is_safe_internal_url(url):
+    if not url:
+        return False
+    try:
+        parsed = urlparse(str(url))
+    except Exception:
+        return False
+    if parsed.scheme or parsed.netloc:
+        return False
+    path = parsed.path or ''
+    return path.startswith('/')
+
+
+def _normalize_back_url(request, candidate):
+    if not candidate or not _is_safe_internal_url(candidate):
+        return None
+    try:
+        cand_path = urlparse(str(candidate)).path or ''
+        if cand_path == request.path:
+            return None
+    except Exception:
+        return None
+    return str(candidate)
+
+
+def _get_profile_back_url(request):
+    fallback = reverse('dashboard_admin')
+
+    candidates = [
+        request.GET.get('next'),
+        request.session.get('profile_back_url'),
+        request.META.get('HTTP_REFERER'),
+    ]
+
+    for c in candidates:
+        resolved = _normalize_back_url(request, c)
+        if resolved:
+            try:
+                request.session['profile_back_url'] = resolved
+            except Exception:
+                pass
+            return resolved
+
+    return fallback
+
+
+def _json_safe(value):
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        try:
+            return value.isoformat(sep=' ', timespec='seconds')
+        except Exception:
+            return str(value)
+
+    if isinstance(value, date):
+        try:
+            return value.isoformat()
+        except Exception:
+            return str(value)
+
+    if isinstance(value, time):
+        try:
+            return value.isoformat(timespec='seconds')
+        except Exception:
+            return str(value)
+
+    if isinstance(value, (bytes, bytearray)):
+        try:
+            return value.decode('utf-8')
+        except Exception:
+            return str(value)
+
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+
+    if isinstance(value, (list, tuple, set)):
+        return [_json_safe(v) for v in value]
+
+    return value
+
+
+def _set_hris_admin_session(request, user_data):
+    try:
+        current = request.session.get('hris_admin') or {}
+        src = user_data if isinstance(user_data, dict) else {}
+
+        # Simpan subset field yang dibutuhkan UI (hindari user_pass dan field datetime)
+        allowed_keys = [
+            'user_id',
+            'user_name',
+            'user_alias',
+            'user_mail',
+            'user_telp',
+            'user_alamat',
+            'user_st',
+            'user_foto',
+        ]
+        safe_payload = {k: src.get(k) for k in allowed_keys if k in src}
+
+        request.session['hris_admin'] = {**current, **_json_safe(safe_payload)}
+        request.session.modified = True
+    except Exception:
+        pass
 
 
 class DataLoginUser(View):
@@ -312,6 +471,16 @@ class UsersDataUpdateView(View):
         if not all([user_id, user_alias, user_name, user_mail, user_st]):
             messages.error(request, 'Field bertanda wajib tidak boleh kosong!')
             return redirect('users_data_edit', user_id=user_id)
+
+        user_foto_url = None
+        user_foto_file = request.FILES.get('user_foto')
+        if user_foto_file:
+            ok, url, err = _save_user_photo(user_foto_file, user_id)
+            if not ok:
+                messages.error(request, err or 'Gagal upload foto')
+                return redirect('users_data_edit', user_id=user_id)
+            user_foto_url = url
+
         data_update = {
             'user_id': user_id,
             'user_name': user_name,
@@ -325,12 +494,137 @@ class UsersDataUpdateView(View):
             'mdb_name': request.session['hris_admin']['user_alias'],
             'mdd': datetime.now().strftime('%y-%m-%d %H:%M:%S'),
         }
+        if user_foto_url:
+            data_update['user_foto'] = user_foto_url
+
         data = data_mysql().update_user(data_update)
         if data.get('hasil', {}).get('status'):
             messages.success(request, data.get('hasil', {}).get('message', 'Data Berhasil Diupdate'))
+            try:
+                current = request.session.get('hris_admin', {})
+                if current and str(current.get('user_id')) == str(user_id):
+                    refreshed = data_mysql().get_user_by_id(user_id)
+                    if isinstance(refreshed, dict) and refreshed.get('status') and refreshed.get('data'):
+                        _set_hris_admin_session(request, refreshed.get('data'))
+            except Exception:
+                pass
         else:
             messages.error(request, data.get('hasil', {}).get('message', 'Gagal mengupdate data'))
         return redirect('users_data_edit', user_id=user_id)
+
+
+class UserProfileEditPageView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        admin = request.session.get('hris_admin', {})
+        user_id = admin.get('user_id')
+        if not user_id:
+            return redirect('admin_login')
+
+        resp = data_mysql().get_user_by_id(user_id)
+        user_data = None
+        try:
+            if isinstance(resp, dict) and resp.get('status') and resp.get('data'):
+                user_data = resp.get('data')
+        except Exception:
+            user_data = None
+
+        if not user_data:
+            messages.error(request, 'User tidak ditemukan atau data tidak tersedia.')
+            return redirect('dashboard_admin')
+
+        back_url = _get_profile_back_url(request)
+        _set_hris_admin_session(request, user_data)
+        admin = request.session.get('hris_admin', {})
+
+        context = {
+            'title': 'Profile',
+            'user': admin,
+            'user_id': user_id,
+            'user_data': user_data,
+            'is_profile': True,
+            'back_url': back_url,
+        }
+        return render(request, 'users/data/edit.html', context)
+
+
+class UserProfileUpdateView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request):
+        admin = request.session.get('hris_admin', {})
+        user_id = admin.get('user_id')
+        if not user_id:
+            return redirect('admin_login')
+
+        resp = data_mysql().get_user_by_id(user_id)
+        user_data = None
+        try:
+            if isinstance(resp, dict) and resp.get('status') and resp.get('data'):
+                user_data = resp.get('data')
+        except Exception:
+            user_data = None
+
+        if not user_data:
+            messages.error(request, 'User tidak ditemukan atau data tidak tersedia.')
+            return redirect('dashboard_admin')
+
+        user_alias = request.POST.get('user_alias')
+        user_name = request.POST.get('user_name')
+        user_pass = request.POST.get('user_pass')
+        user_mail = request.POST.get('user_mail')
+        user_telp = request.POST.get('user_telp')
+        user_alamat = request.POST.get('user_alamat')
+        user_st = user_data.get('user_st')
+
+        if not all([user_id, user_alias, user_name, user_mail, user_st is not None]):
+            messages.error(request, 'Field bertanda wajib tidak boleh kosong!')
+            return redirect('user_profile')
+
+        user_foto_url = None
+        user_foto_file = request.FILES.get('user_foto')
+        if user_foto_file:
+            ok, url, err = _save_user_photo(user_foto_file, user_id)
+            if not ok:
+                messages.error(request, err or 'Gagal upload foto')
+                return redirect('user_profile')
+            user_foto_url = url
+
+        data_update = {
+            'user_id': user_id,
+            'user_name': user_name,
+            'user_pass': user_pass,
+            'user_alias': user_alias,
+            'user_mail': user_mail,
+            'user_telp': user_telp,
+            'user_alamat': user_alamat,
+            'user_st': user_st,
+            'mdb': admin.get('user_id', ''),
+            'mdb_name': admin.get('user_alias', ''),
+            'mdd': datetime.now().strftime('%y-%m-%d %H:%M:%S'),
+        }
+        if user_foto_url:
+            data_update['user_foto'] = user_foto_url
+
+        data = data_mysql().update_user(data_update)
+        if data.get('hasil', {}).get('status'):
+            messages.success(request, data.get('hasil', {}).get('message', 'Profile berhasil diupdate'))
+            try:
+                refreshed = data_mysql().get_user_by_id(user_id)
+                if isinstance(refreshed, dict) and refreshed.get('status') and refreshed.get('data'):
+                    _set_hris_admin_session(request, refreshed.get('data'))
+            except Exception:
+                pass
+        else:
+            messages.error(request, data.get('hasil', {}).get('message', 'Gagal mengupdate profile'))
+        return redirect('user_profile')
 
 
 @method_decorator(csrf_exempt, name='dispatch')

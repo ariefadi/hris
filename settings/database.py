@@ -317,6 +317,12 @@ class SettingsDB(ManagementDB):
                 hashed_pw = ph.hash(str(pw))
                 update_fields.insert(1, 'user_pass = %s')
                 params.insert(1, hashed_pw)
+
+            foto = data.get('user_foto')
+            if foto is not None and str(foto).strip() != '':
+                update_fields.insert(6, 'user_foto = %s')
+                params.insert(6, str(foto).strip())
+
             sql_update = f"""
                         UPDATE app_users SET
                             {', '.join(update_fields)}

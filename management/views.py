@@ -1055,16 +1055,19 @@ class SummaryFacebookAds(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
-        return super(SummaryFacebookAds, self).dispatch(request, *args, **kwargs)
+        return super().dispatch(request, *args, **kwargs)
     def get(self, req):
         data_account = data_mysql().master_account_ads()['data']
         today = datetime.now().strftime('%Y-%m-%d')
         seven_days_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
         data = {
             'title': 'Data Summaryt Facebook Ads',
+            'data_account': data_account,
+            'today': today,
+            'seven_days_ago': seven_days_ago,
             'user': req.session['hris_admin'],
         }
-        return render(req, 'admin/facebook_ads/summary/index.html', {'data_account': data_account, 'data': data, 'today': today, 'seven_days_ago': seven_days_ago})
+        return render(req, 'admin/facebook_ads/summary/index.html', data)
     
 class page_summary_facebook(View):
     def dispatch(self, request, *args, **kwargs):
@@ -1182,8 +1185,11 @@ class PerAccountFacebookAds(View):
         data = {
             'title': 'Data Traffic Per Account Facebook Ads',
             'user': req.session['hris_admin'],
+            'data_account': data_account,
+            'data_domain': data_domain,
+            'today': today,
         }
-        return render(req, 'admin/facebook_ads/per_account/index.html', {'data_account': data_account, 'data_domain': data_domain, 'data': data, 'today': today})
+        return render(req, 'admin/facebook_ads/per_account/index.html', data)
     
 class page_per_account_facebook(View):
     def dispatch(self, request, *args, **kwargs):
@@ -1788,8 +1794,10 @@ class PerCampaignFacebookAds(View):
             'title': 'Data Traffic Per Campaign Facebook Ads',
             'user': req.session['hris_admin'],  
             'last_update': last_update,
+            'data_account': data_account,
+            'data_domain': data_domain,
         }
-        return render(req, 'admin/facebook_ads/campaign/index.html', {'data_account': data_account, 'data_domain': data_domain, 'data': data})
+        return render(req, 'admin/facebook_ads/campaign/index.html', data)
 
 class page_per_campaign_facebook(View):
     def dispatch(self, request, *args, **kwargs):
@@ -1907,8 +1915,10 @@ class PerCountryFacebookAds(View):
             'title': 'Data Traffic Per Country Facebook Ads',
             'user': req.session['hris_admin'],
             'last_update': last_update,
+            'data_account': data_account,
+            'data_domain': data_domain,
         }
-        return render(req, 'admin/facebook_ads/country/index.html', {'data_account': data_account, 'data_domain': data_domain, 'data': data})
+        return render(req, 'admin/facebook_ads/country/index.html', data)
     
 class page_per_country_facebook(View):
     def dispatch(self, request, *args, **kwargs):
