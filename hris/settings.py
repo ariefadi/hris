@@ -102,6 +102,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'social_django.middleware.SocialAuthExceptionMiddleware',
     'management.middleware.AuthMiddleware',
+    'management.middleware.PermissionMiddleware',
     'management.middleware.RequestMiddleware',
     'management.middleware.OAuthCredentialsMiddleware',
 ]

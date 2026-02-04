@@ -27,7 +27,6 @@ urlpatterns = [
     path('task/publisher/keywords-load', task.PublisherKeywordsLoadView.as_view(), name='projects_task_publisher_keywords_load'),
     path('task/publisher/keywords-delete', task.PublisherKeywordsDeleteView.as_view(), name='projects_task_publisher_keywords_delete'),
     path('task/publisher/keywords-by-niche', task.PublisherKeywordsByNicheView.as_view(), name='projects_task_publisher_keywords_by_niche'),
-    # path('task/publisher/keywords-check', task.PublisherKeywordsCheckView.as_view(), name='projects_task_publisher_keywords_check'),
     path('task/publisher/send', task.PublisherSendView.as_view(), name='projects_task_publisher_send'),
     path('task/tracker', task.TrackerIndexView.as_view(), name='projects_task_tracker'),
     path('task/tracker/update', task.TrackerUpdateView.as_view(), name='projects_task_tracker_update'),

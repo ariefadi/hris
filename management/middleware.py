@@ -23,6 +23,45 @@ def get_current_user_mail():
         pass
     return None
 
+def find_menu_by_path(path):
+    result = {
+        'nav_id': None,
+        'nav_url': '',
+    }
+    try:
+        from .database import data_mysql
+        db = data_mysql()
+        q = """
+            SELECT nav_id, nav_url
+            FROM app_menu
+            WHERE nav_url IS NOT NULL AND nav_url <> ''
+            ORDER BY LENGTH(nav_url) DESC
+        """
+        rows = []
+        if db.execute_query(q):
+            rows = db.cur_hris.fetchall() or []
+        path_norm = '/' + (str(path or '').split('?')[0].lstrip('/').rstrip('/') or '')
+        path_lower = path_norm.lower()
+        for r in rows:
+            try:
+                url = r.get('nav_url') or ''
+                nid = r.get('nav_id') or ''
+            except AttributeError:
+                url = r[1]
+                nid = r[0]
+            url = str(url or '').split('?')[0].strip()
+            if url and not url.startswith('/'):
+                url = '/' + url
+            url_norm = (url.rstrip('/') or '/')
+            url_lower = url_norm.lower()
+            if url_lower and (path_lower == url_lower or path_lower.startswith(url_lower + '/')):
+                result['nav_id'] = nid
+                result['nav_url'] = url_norm
+                break
+    except Exception:
+        pass
+    return result
+
 class AuthMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
@@ -174,3 +213,119 @@ class OAuthCredentialsMiddleware:
 
         response = self.get_response(request)
         return response
+
+class PermissionMiddleware:
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        path = request.path or ''
+        
+        if path.startswith('/static/') or path.startswith('/media/') or path == '/favicon.ico':
+            return self.get_response(request)
+        admin = request.session.get('hris_admin') or {}
+        user_id = admin.get('user_id')
+        user_mail = str(admin.get('user_mail') or '')
+        
+        try:
+            req_user = getattr(request, 'user', None)
+            if req_user and getattr(req_user, 'is_authenticated', False):
+                if not user_mail:
+                    user_mail = str(getattr(req_user, 'email', '') or '')
+        except Exception:
+            pass
+        if not user_id and user_mail:
+            try:
+                from .database import data_mysql
+                db = data_mysql()
+                q_user = "SELECT user_id FROM app_users WHERE user_mail = %s LIMIT 1"
+                if db.execute_query(q_user, (user_mail,)):
+                    row = db.cur_hris.fetchone()
+                    if row:
+                        try:
+                            user_id = row.get('user_id')
+                        except AttributeError:
+                            user_id = row[0]
+            except Exception:
+                pass
+        if not user_id:
+            return self.get_response(request)
+        try:
+            from .database import data_mysql
+            db = data_mysql()
+            nav_info = find_menu_by_path(path)
+            nav_id = nav_info.get('nav_id')
+            if not nav_id:
+                request.menu_permissions = {'C': False, 'R': True, 'U': False, 'D': False, 'role_tp': '0000'}
+                return self.get_response(request)
+            roles = []
+            if db.execute_query("SELECT role_id FROM app_user_role WHERE user_id=%s AND role_display='1'", (user_id,)):
+                for rr in (db.cur_hris.fetchall() or []):
+                    try:
+                        roles.append(rr.get('role_id'))
+                    except AttributeError:
+                        roles.append(rr[0])
+            role_tp = "0000"
+            if roles:
+                placeholders = ",".join(["%s"] * len(roles))
+                sql = f"SELECT role_tp FROM app_menu_role WHERE nav_id=%s AND role_id IN ({placeholders})"
+                params = (nav_id, *roles)
+                if db.execute_query(sql, params):
+                    rows = db.cur_hris.fetchall() or []
+                    bits = [list(role_tp)]
+                    for rr in rows:
+                        try:
+                            tp = (rr.get('role_tp') or '0000')
+                        except AttributeError:
+                            tp = rr[0] or '0000'
+                        tp = (str(tp) + '0000')[:4]  # ensure length 4
+                        bits.append(list(tp))
+                    agg = ['0','0','0','0']
+                    for b in bits:
+                        for i in range(4):
+                            agg[i] = '1' if (agg[i] == '1' or (b[i] == '1')) else '0'
+                    role_tp = ''.join(agg)
+            flags = {
+                'C': role_tp[0] == '1',
+                'R': role_tp[1] == '1',
+                'U': role_tp[2] == '1',
+                'D': role_tp[3] == '1',
+                'role_tp': role_tp,
+                'nav_id': nav_id
+            }
+            print(f"[PERM DEBUG] path={path} nav_id={nav_id} rle={role_tp}")
+            request.menu_permissions = flags
+            method = request.method.upper()
+            need = 'R'
+            if method in ['GET', 'HEAD', 'OPTIONS']:
+                need = 'R'
+            elif method == 'DELETE':
+                need = 'D'
+            elif method in ['PUT', 'PATCH']:
+                need = 'U'
+            else:
+                pth = (path or '').lower()
+                if 'delete' in pth or 'remove' in pth:
+                    need = 'D'
+                elif 'edit' in pth or 'update' in pth:
+                    need = 'U'
+                elif 'create' in pth or 'add' in pth or 'new' in pth:
+                    need = 'C'
+                else:
+                    need = 'C'
+            allowed = flags.get(need, False)
+            print(f"[PERM DEBUG] path={path} nav_id={nav_id} rle={role_tp}")
+            if not allowed:
+                is_ajax = False
+                try:
+                    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+                except Exception:
+                    pass
+                if is_ajax:
+                    from django.http import JsonResponse
+                    return JsonResponse({'status': False, 'error': 'Akses ditolak. Anda tidak memiliki izin untuk tindakan ini.'}, status=403)
+                from django.http import HttpResponse
+                return HttpResponse('Akses ditolak. Anda tidak memiliki izin untuk halaman ini.', status=403)
+        except Exception:
+            pass
+        return self.get_response(request)

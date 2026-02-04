@@ -3,103 +3,104 @@
 {% block page_title %}Task Selesai{% endblock %}
 {% block page_heading %}Task Selesai{% endblock %}
 
+{% block more_stylesheet %}
+<style>
+.selesai-list .card { border-radius: 14px; border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 8px 22px rgba(0,0,0,0.06); }
+.selesai-list .card-header { background: linear-gradient(135deg, rgba(13,110,253,0.10), rgba(13,110,253,0.02)); border-bottom: 1px solid rgba(0,0,0,0.06); }
+.selesai-list .meta { display: flex; flex-wrap: wrap; gap: 8px; }
+.selesai-list .meta-badge { background: #f8f9fa; border: 1px solid rgba(0,0,0,0.06); color: #495057; padding: 4px 8px; border-radius: 999px; font-size: 0.75rem; }
+.selesai-list .section-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: #6c757d; }
+.selesai-list .muted { color: #6c757d; }
+.selesai-list .pill { background: #eef2ff; color: #1e40af; border-radius: 8px; padding: 6px 10px; font-weight: 600; }
+.selesai-list .keyword-btn { background: #f8f9fa; border: 1px solid rgba(0,0,0,0.06); }
+</style>
+{% endblock %}
+
 {% block breadcrumbs %}
 <li class="breadcrumb-item">Task</li>
 <li class="breadcrumb-item active"><a href="/projects/task/selesai">Selesai</a></li>
 {% endblock %}
 
 {% block content %}
-<div class="row">
-  <div class="col-12">
-    <div class="card">
+
+<div class="row selesai-list">
+  {% for w in websites %}
+  <div class="col-12 col-md-6 col-xl-4">
+    <div class="card h-100">
       <div class="card-header">
-        <h3 class="card-title">Daftar Website</h3>
+        <div class="d-flex align-items-center justify-content-between">
+          <div>
+            <div class="h5 mb-1">{{ w.website_name }}</div>
+            <div class="meta">
+              <span class="meta-badge">{{ w.partner_name|default:"-" }} ({{ w.partner_contact|default:"-" }})</span>
+              {% if w.request_date %}<span class="meta-badge">Req {{ w.request_date|date:"d M Y" }}</span>{% endif %}
+            </div>
+          </div>
+        
+          <div>
+            <a href="{% url 'projects_task_selesai_detail' w.partner_id %}" class="btn btn-sm btn-primary">Detail</a>
+          </div>
+        </div>
       </div>
       <div class="card-body">
-        <div class="table-responsive">
-          <table class="table table-striped">
-            <thead>
-              <tr>
-                <th width="5%">No</th>
-                <th width="15%">Website</th>
-                <th width="10%" class="text-center">Niche & Keyword</th>
-                <th width="20%">Ads</th>
-                <th width="20%">Server</th>
-                <th width="10%">User / Pass</th>
-                <th width="5%"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for w in websites %}
-              <tr>
-                <td class="align-middle">{{ forloop.counter }}</td>
-                <td class="align-middle">
-                    {{ w.website_name }}
-                    <div class="border p-2 mt-1 rounded shadow">
-                        <small class="text-muted">Owner</small>
-                        <br>
-                        <small class="text-primary" data-bs-toggle="tooltip" title="Nama Pertner"><b>{{ w.partner_name }} ( {{ w.partner_contact }} )</b></small>
-                        <br>
-                        <small class="text-primary" data-bs-toggle="tooltip" title="Tgl Request"><b>Req: {{ w.request_date|date:"d M Y" }}</b></small>
-                    </div>
-                </td>
-                <td class="align-middle text-center">
-                    {{ w.niche }}
-                    <br>
-                    <span class="badge badge-info btn-show-keywords" style="cursor:pointer;"
-                        data-subdomain="{{ w.subdomain_id }}"
-                        data-name="{{ w.website_name }}">
-                    {{ w.keyword_count|default:"0" }} Keyword <i class="bi bi-list"></i>
-                  </span>
-                </td>
-                <td class="align-middle">
-                  <div class="mb-1">
-                    <span class="badge badge-primary badge-pill" data-bs-toggle="tooltip" title="Daily Budget"><i class="bi bi-wallet2"></i> <span class="fmt-idr" data-amount="{{ w.fb_daily_budget|default:'0' }}"></span></span>
-                  </div>
-                  <div class="mb-1">
-                    <span class="badge badge-secondary" data-bs-toggle="tooltip" title="Facebook Account"><i class="bi bi-person-badge"></i> {{ w.fb_account|default:"-" }}</span>
-                    <span class="badge badge-info" data-bs-toggle="tooltip" title="Fanpage"><i class="bi bi-collection"></i> {{ w.fb_fanpage|default:"-" }}</span>
-                  </div>
-                  <div class="mb-1" data-bs-toggle="tooltip" title="Country">
-                    {% if w.country_tier %}
-                      {% if 'Tier 1' in w.country_tier %}<span class="badge badge-warning">Tier 1</span>{% endif %}
-                      {% if 'Tier 2' in w.country_tier %}<span class="badge badge-warning">Tier 2</span>{% endif %}
-                      {% if 'Tier 3' in w.country_tier %}<span class="badge badge-warning">Tier 3</span>{% endif %}
-                    {% else %}
-                      <span class="text-muted">-</span>
-                    {% endif %}
-                  </div>
-                  <div class="mb-1">
-                    <span class="badge badge-dark" data-bs-toggle="tooltip" title="LP"><i class="bi bi-link"></i> {{ w.plugin_lp|default:"-" }}?{{ w.plugin_params|default:"-" }}</span>
-                  </div>
-                  <div class="mb-1">
-                    <span class="badge badge-dark" data-bs-toggle="tooltip" title="Keitaro"><i class="bi bi-link"></i> {{ w.tracker|default:"-" }}?{{ w.tracker_params|default:"-" }}</span>
-                  </div>
-                </td>
-                <td class="align-middle">
-                    <div class="mb-1">
-                        <span class="badge badge-primary">{{ w.provider }}</span>
-                    </div>
-                    <div class="mb-1">
-                        <span class="badge badge-info">{{ w.hostname }} ( {{ w.public_ipv4 }} )</span>
-                    </div>
-                    <div class="mb-1">
-                        <span class="badge badge-warning">{{ w.vcpu }} vCPU, {{ w.memory_gb }} GB RAM</span>
-                    </div>
-                </td>
-                <td class="align-middle">{{ w.website_user }}<br>{{ w.website_pass }}</td>
-                <td class="align-middle"><a href="{% url 'projects_task_selesai_detail' w.partner_id %}" class="btn btn-sm btn-primary">Detail</a></td>
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="7" class="text-center text-muted">Belum ada data website.</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+        <div class="mb-3">
+          <div class="section-title">Niche & Keyword</div>
+          <div class="d-flex align-items-center">
+            <div class="muted pr-2 border-right"><i>{{ w.niche|default:"-" }}</i></div>
+            <button type="button" class="btn btn-xs keyword-btn btn-show-keywords ml-2" data-subdomain="{{ w.subdomain_id }}" data-name="{{ w.website_name }}">
+              {{ w.keyword_count|default:"0" }} Keyword <i class="bi bi-list"></i>
+            </button>
+          </div>
+        </div>
+        <div class="mb-3">
+          <div class="section-title">Ads</div>
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="pill" data-bs-toggle="tooltip" title="Daily Budget"><i class="bi bi-wallet2"></i> <span class="fmt-idr" data-amount="{{ w.fb_daily_budget|default:'0' }}"></span></span>
+          </div>
+          <div class="mb-1">
+            <span class="badge badge-secondary" data-bs-toggle="tooltip" title="Facebook Account"><i class="bi bi-person-badge"></i> {{ w.fb_account|default:"-" }}</span>
+            <span class="badge badge-info" data-bs-toggle="tooltip" title="Fanpage"><i class="bi bi-collection"></i> {{ w.fb_fanpage|default:"-" }}</span>
+          </div>
+          <div class="mb-1" data-bs-toggle="tooltip" title="Country">
+            {% if w.country_tier %}
+              {% if 'Tier 1' in w.country_tier %}<span class="badge badge-warning">Tier 1</span>{% endif %}
+              {% if 'Tier 2' in w.country_tier %}<span class="badge badge-warning">Tier 2</span>{% endif %}
+              {% if 'Tier 3' in w.country_tier %}<span class="badge badge-warning">Tier 3</span>{% endif %}
+            {% else %}
+              <span class="text-muted">-</span>
+            {% endif %}
+          </div>
+          <div class="mb-1">
+            <span class="badge badge-dark" data-bs-toggle="tooltip" title="LP"><i class="bi bi-link"></i> {{ w.plugin_lp|default:"-" }}?{{ w.plugin_params|default:"-" }}</span>
+          </div>
+          <div class="mb-1">
+            <span class="badge badge-dark" data-bs-toggle="tooltip" title="Keitaro"><i class="bi bi-link"></i> {{ w.tracker|default:"-" }}?{{ w.tracker_params|default:"-" }}</span>
+          </div>
+        </div>
+        <div class="mb-3">
+          <div class="section-title">Server</div>
+          <div class="mb-1">
+            <span class="badge badge-primary">{{ w.provider|default:"-" }}</span>
+          </div>
+          <div class="mb-1">
+            <span class="badge badge-info">{{ w.hostname|default:"-" }} ( {{ w.public_ipv4|default:"-" }} )</span>
+          </div>
+          <div class="mb-1">
+            <span class="badge badge-warning">{{ w.vcpu|default:"-" }} vCPU, {{ w.memory_gb|default:"-" }} GB RAM</span>
+          </div>
+        </div>
+        <div>
+          <div class="section-title">User / Pass</div>
+          <div class="muted">{{ w.website_user|default:"-" }} / {{ w.website_pass|default:"-" }}</div>
         </div>
       </div>
     </div>
+  </div>
+  {% empty %}
+  <div class="col-12">
+    <div class="text-center text-muted py-4">Belum ada data website.</div>
+  </div>
+  {% endfor %}
 </div>
   
 <!-- Modal Keyword List -->
