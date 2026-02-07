@@ -457,6 +457,94 @@ class LoginProcess(View):
         return JsonResponse(hasil)
 
     
+class RegisterAccountAdmin(View):
+    def post(self, req):
+        username = (req.POST.get('reg_username') or '').strip()
+        alias = (req.POST.get('reg_alias') or '').strip()
+        email = (req.POST.get('reg_email') or '').strip()
+        telp = (req.POST.get('reg_telp') or '').strip()
+        alamat = (req.POST.get('reg_alamat') or '').strip()
+        password = (req.POST.get('reg_password') or '')
+        password2 = (req.POST.get('reg_password2') or '')
+
+        if not username or not alias or not email or not password or not password2:
+            return JsonResponse({
+                'status': False,
+                'message': 'Username, Nama/Alias, Email, dan Password wajib diisi.'
+            })
+
+        if password != password2:
+            return JsonResponse({
+                'status': False,
+                'message': 'Password dan Confirm Password tidak sama.'
+            })
+
+        if len(password) < 6:
+            return JsonResponse({
+                'status': False,
+                'message': 'Password minimal 6 karakter.'
+            })
+
+        if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', email):
+            return JsonResponse({
+                'status': False,
+                'message': 'Format email tidak valid.'
+            })
+
+        db = data_mysql()
+        try:
+            q_check = "SELECT user_id FROM app_users WHERE user_name = %s OR user_mail = %s LIMIT 1"
+            if db.execute_query(q_check, (username, email)):
+                row = db.cur_hris.fetchone()
+                if row:
+                    return JsonResponse({
+                        'status': False,
+                        'message': 'Username atau email sudah terdaftar.'
+                    })
+        except Exception:
+            logger.exception('RegisterAccountAdmin duplicate check failed')
+            return JsonResponse({
+                'status': False,
+                'message': 'Terjadi error saat memvalidasi account.'
+            })
+
+        admin = req.session.get('hris_admin', {})
+        if not isinstance(admin, dict):
+            admin = {}
+
+        data_insert = {
+            'user_name': username,
+            'user_pass': password,
+            'user_alias': alias,
+            'user_mail': email,
+            'user_telp': telp,
+            'user_alamat': alamat,
+            'user_st': '1',
+            'user_foto': 'default_avatar.png',
+            'mdb': admin.get('user_id'),
+            'mdb_name': admin.get('user_alias') or admin.get('user_name') or 'Self Register',
+            'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        }
+
+        try:
+            result = db.insert_user(data_insert)
+            hasil = (result or {}).get('hasil', {})
+            if hasil.get('status'):
+                return JsonResponse({
+                    'status': True,
+                    'message': 'Account berhasil dibuat. Silakan login.'
+                })
+            return JsonResponse({
+                'status': False,
+                'message': hasil.get('message') or 'Gagal menyimpan data user.'
+            })
+        except Exception:
+            logger.exception('RegisterAccountAdmin insert failed')
+            return JsonResponse({
+                'status': False,
+                'message': 'Terjadi error saat membuat account.'
+            })
+
 @csrf_exempt
 def get_countries_facebook_ads(request):
     """Endpoint untuk mendapatkan daftar negara yang tersedia"""

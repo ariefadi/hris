@@ -188,6 +188,88 @@ class data_mysql:
                 'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
     
+    def insert_user(self, data):
+        user_name = data.get('user_name')
+        user_pass = data.get('user_pass')
+        user_alias = data.get('user_alias')
+        user_mail = data.get('user_mail')
+        user_st = data.get('user_st')
+
+        if not user_name or not user_pass or not user_alias or not user_mail or user_st is None:
+            return {
+                'hasil': {
+                    'status': False,
+                    'message': 'Field user_name, user_pass, user_alias, user_mail, dan user_st wajib diisi'
+                }
+            }
+
+        try:
+            sql_insert = """
+                        INSERT INTO app_users
+                        (
+                            app_users.user_id,
+                            app_users.user_name,
+                            app_users.user_pass,
+                            app_users.user_alias,
+                            app_users.user_mail,
+                            app_users.user_telp,
+                            app_users.user_alamat,
+                            app_users.user_st,
+                            app_users.user_foto,
+                            app_users.mdb,
+                            app_users.mdb_name,
+                            app_users.mdd
+                        )
+                    VALUES
+                        (
+                            UUID(),
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s
+                        )
+                """
+
+            ph = PasswordHasher()
+            hashed_pass = ph.hash(user_pass)
+
+            if not self.execute_query(sql_insert, (
+                user_name,
+                hashed_pass,
+                user_alias,
+                user_mail,
+                data.get('user_telp'),
+                data.get('user_alamat'),
+                str(user_st),
+                data.get('user_foto') or '',
+                data.get('mdb'),
+                data.get('mdb_name') or '',
+                data.get('mdd') or datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            )):
+                raise pymysql.Error('Failed to insert user data')
+
+            if not self.commit():
+                raise pymysql.Error('Failed to commit user data')
+
+            hasil = {
+                'status': True,
+                'message': 'Data Berhasil Disimpan'
+            }
+        except pymysql.Error as e:
+            hasil = {
+                'status': False,
+                'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0] if e.args else e)
+            }
+
+        return {'hasil': hasil}
+
     def update_account_ads(self, data):
         try:
             sql_update = """
