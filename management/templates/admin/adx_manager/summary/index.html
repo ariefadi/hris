@@ -9,6 +9,8 @@
     <li class="breadcrumb-item active">Adx Manager</li>
 {% endblock %}
 {% block more_stylesheet %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" referrerpolicy="no-referrer">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css">
 <style>
 .metric-card {
     position: relative;
@@ -74,6 +76,148 @@
 @media (max-width: 576px) {
     .metric-value { font-size: 1.6rem; }
 }
+
+:root {
+    --tour-bg: rgba(241, 245, 249, 0.92);
+    --tour-fg: #0f172a;
+    --tour-muted: #475569;
+    --tour-border: rgba(15, 23, 42, 0.14);
+    --tour-shadow: 0 18px 40px rgba(2, 6, 23, 0.16);
+    --tour-overlay: rgba(15, 23, 42, 0.62);
+    --tour-ring: rgba(37, 99, 235, 0.32);
+    --tour-next-grad: linear-gradient(135deg, #2563eb, #7c3aed);
+}
+
+html[data-theme="dark"] {
+    --tour-bg: rgba(30, 41, 59, 0.88);
+    --tour-fg: #e5e7eb;
+    --tour-muted: #cbd5e1;
+    --tour-border: rgba(255, 255, 255, 0.12);
+    --tour-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
+    --tour-overlay: rgba(0, 0, 0, 0.74);
+    --tour-ring: rgba(34, 211, 238, 0.28);
+    --tour-next-grad: linear-gradient(135deg, #22c55e, #06b6d4);
+}
+
+.adx-summary-tour-btn {
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-weight: 700;
+    border: 0 !important;
+    color: #fff !important;
+    background: var(--tour-next-grad) !important;
+}
+
+.introjs-overlay {
+    background: var(--tour-overlay) !important;
+    opacity: 1 !important;
+}
+
+.introjs-tooltip.hris-tour-tooltip {
+    width: min(900px, calc(100vw - 48px));
+    max-width: min(900px, calc(100vw - 48px)) !important;
+    min-width: 560px;
+    overflow: hidden;
+    background: var(--tour-bg) !important;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    color: var(--tour-fg) !important;
+    border: 1px solid var(--tour-border) !important;
+    border-radius: 16px !important;
+    box-shadow: var(--tour-shadow) !important;
+}
+
+@media (max-width: 640px) {
+    .introjs-tooltip.hris-tour-tooltip {
+        width: calc(100vw - 24px) !important;
+        max-width: calc(100vw - 24px) !important;
+        min-width: 0;
+    }
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-skipbutton {
+    display: none !important;
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-tooltipbuttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-button {
+    float: none !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+    border-radius: 12px !important;
+    padding: 10px 14px !important;
+    line-height: 1 !important;
+    font: inherit !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.2px;
+    border: 1px solid var(--tour-border) !important;
+    background: rgba(148, 163, 184, 0.14) !important;
+    color: var(--tour-fg) !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+    transition: transform 0.12s ease, filter 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+
+html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button {
+    background: rgba(15, 23, 42, 0.35) !important;
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-button:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.02);
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-button:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 4px var(--tour-ring) !important;
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-prevbutton {
+    background: transparent !important;
+    color: var(--tour-fg) !important;
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-prevbutton:hover {
+    background: rgba(148, 163, 184, 0.12) !important;
+}
+
+html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-prevbutton:hover {
+    background: rgba(15, 23, 42, 0.55) !important;
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-nextbutton,
+.introjs-tooltip.hris-tour-tooltip .introjs-donebutton {
+    border-color: transparent !important;
+    background: var(--tour-next-grad) !important;
+    color: #ffffff !important;
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-nextbutton:hover,
+.introjs-tooltip.hris-tour-tooltip .introjs-donebutton:hover {
+    filter: brightness(1.05);
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-disabled,
+.introjs-tooltip.hris-tour-tooltip .introjs-disabled:hover {
+    opacity: 0.45 !important;
+    transform: none !important;
+    cursor: not-allowed !important;
+}
+
+.introjs-helperLayer.hris-tour-highlight {
+    background: transparent !important;
+    border-radius: 16px !important;
+    box-shadow: 0 0 0 6px var(--tour-ring) !important;
+}
 </style>
 {% endblock %}
 {% block content %}  
@@ -91,10 +235,15 @@
 </style>
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title">AdX Summary Dashboard</h3>
+        <div class="d-flex align-items-center justify-content-between w-100">
+            <h3 class="card-title mb-0">AdX Summary Dashboard</h3>
+            <button type="button" class="btn btn-sm adx-summary-tour-btn" id="btnAdxSummaryTour">
+                <i class="far fa-question-circle" aria-hidden="true"></i> User Manual
+            </button>
+        </div>
     </div> <!-- /.card-header -->
     <div class="card-body">
-        <div class="form-row">
+        <div class="form-row" id="adxSummaryFilters" data-intro="Pilih range tanggal dan filter Account/Domain, lalu klik Muat Data untuk menampilkan ringkasan dan grafik." data-title="Filter">
             <div class="col-md-2">
                 <label>Range Dari</label>
                 <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Dari"/>
@@ -150,7 +299,7 @@
             <i class="fas fa fa-sync-alt fa-spin"></i> Menyiapkan Data ... 
         </div>
         <!-- Summary Info boxes -->
-        <div class="row" id="summary_boxes" style="display: none;">
+        <div class="row" id="summary_boxes" style="display: none;" data-intro="Ringkasan metrik utama berdasarkan filter yang dipilih." data-title="Ringkasan">
             <div class="col-12 col-sm-6 col-md-3">
                 <div class="metric-card clicks">
                     <div class="metric-card-inner">
@@ -205,7 +354,7 @@
             </div>
         </div>
         <!-- Line Chart untuk Pergerakan Pendapatan Harian -->
-        <div class="row mt-3" id="revenue_chart_row" style="display: none;">
+        <div class="row mt-3" id="revenue_chart_row" style="display: none;" data-intro="Grafik pergerakan pendapatan harian untuk periode yang dipilih." data-title="Pendapatan Harian">
             <div class="col-12">
                 <div class="card">
                     <div class="card-body">
@@ -215,7 +364,7 @@
             </div>
         </div>
         <!-- Charts Section -->
-        <div class="row mt-3" id="charts_section" style="display: none;">
+        <div class="row mt-3" id="charts_section" style="display: none;" data-intro="Top 10 negara berdasarkan impresi dan pendapatan." data-title="Top Country">
             <!-- Card: Total Impresi -->
             <div class="col-md-6">
                 <div class="card">
@@ -240,7 +389,7 @@
             </div>
         </div>
         <!-- Data Traffic Hari Ini -->
-        <div class="row mt-3" id="today_traffic" style="display: none;">
+        <div class="row mt-3" id="today_traffic" style="display: none;" data-intro="Ringkasan traffic hari ini berdasarkan data terbaru." data-title="Hari Ini">
             <div class="col-12">
                 <div class="card">
                     <div class="card-header">
@@ -318,7 +467,6 @@
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
 <script>
-    // Ensure Highcharts is loaded before loading our custom script
     function loadSummaryScript() {
         if (typeof Highcharts !== 'undefined') {
             var script = document.createElement('script');
@@ -329,5 +477,91 @@
         }
     }
     loadSummaryScript();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
+<script>
+(function() {
+    function decorateTourButtons() {
+        const root = document.querySelector('.introjs-tooltip');
+        if (!root) return;
+
+        const prev = root.querySelector('.introjs-prevbutton');
+        if (prev && !prev.dataset.iconized) {
+            prev.dataset.iconized = '1';
+            prev.insertAdjacentHTML('afterbegin', '<i class="fas fa-arrow-left" aria-hidden="true"></i>');
+        }
+
+        const next = root.querySelector('.introjs-nextbutton');
+        if (next && !next.dataset.iconized) {
+            next.dataset.iconized = '1';
+            next.insertAdjacentHTML('beforeend', '<i class="fas fa-arrow-right" aria-hidden="true"></i>');
+        }
+
+        const done = root.querySelector('.introjs-donebutton');
+        if (done && !done.dataset.iconized) {
+            done.dataset.iconized = '1';
+            done.insertAdjacentHTML('afterbegin', '<i class="fas fa-check-circle" aria-hidden="true"></i>');
+        }
+    }
+
+    function startAdxSummaryTour() {
+        if (typeof introJs !== 'function') return;
+
+        const steps = [{
+            intro: 'Ini panduan singkat penggunaan AdX Summary. Klik “Lanjut” untuk mengikuti langkah-langkahnya.'
+        }];
+
+        const nodes = [
+            ['#adxSummaryFilters', 'Filter'],
+            ['#btn_load_data', 'Muat Data'],
+            ['#summary_boxes', 'Ringkasan'],
+            ['#revenue_chart_row', 'Pendapatan Harian'],
+            ['#charts_section', 'Top Country'],
+            ['#today_traffic', 'Hari Ini']
+        ];
+
+        nodes.forEach(function(item) {
+            const el = document.querySelector(item[0]);
+            if (!el) return;
+            steps.push({
+                element: el,
+                title: el.getAttribute('data-title') || item[1],
+                intro: el.getAttribute('data-intro') || ''
+            });
+        });
+
+        steps.push({ intro: 'Selesai. Kamu bisa jalankan ulang petunjuk ini dari tombol “User Manual”.' });
+
+        const tour = introJs();
+        tour.setOptions({
+            steps: steps,
+            tooltipClass: 'hris-tour-tooltip',
+            highlightClass: 'hris-tour-highlight',
+            nextLabel: 'Lanjut',
+            prevLabel: 'Kembali',
+            doneLabel: 'Selesai',
+            showSkipButton: false,
+            showProgress: true,
+            showBullets: false,
+            exitOnOverlayClick: true,
+            scrollToElement: true
+        });
+
+        tour.onstart(decorateTourButtons);
+        tour.onafterchange(decorateTourButtons);
+        tour.onchange(decorateTourButtons);
+
+        tour.start();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const btn = document.getElementById('btnAdxSummaryTour');
+        if (btn) {
+            btn.addEventListener('click', function() {
+                startAdxSummaryTour();
+            });
+        }
+    });
+})();
 </script>
 {% endblock %}

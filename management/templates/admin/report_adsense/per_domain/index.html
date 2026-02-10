@@ -9,6 +9,72 @@
     <li class="breadcrumb-item active">Report Adsense Roi</li>
 {% endblock %}
 {% block more_stylesheet %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" referrerpolicy="no-referrer">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css">
+<style>
+:root {
+    --tour-bg: rgba(241, 245, 249, 0.92);
+    --tour-fg: #0f172a;
+    --tour-border: rgba(15, 23, 42, 0.14);
+    --tour-shadow: 0 18px 40px rgba(2, 6, 23, 0.16);
+    --tour-overlay: rgba(15, 23, 42, 0.62);
+    --tour-ring: rgba(37, 99, 235, 0.32);
+    --tour-next-grad: linear-gradient(135deg, #2563eb, #7c3aed);
+}
+html[data-theme="dark"] {
+    --tour-bg: rgba(30, 41, 59, 0.88);
+    --tour-fg: #e5e7eb;
+    --tour-border: rgba(255, 255, 255, 0.12);
+    --tour-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
+    --tour-overlay: rgba(0, 0, 0, 0.74);
+    --tour-ring: rgba(34, 211, 238, 0.28);
+    --tour-next-grad: linear-gradient(135deg, #22c55e, #06b6d4);
+}
+.hris-tour-launch-btn {
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-weight: 700;
+    border: 0 !important;
+    color: #fff !important;
+    background: var(--tour-next-grad) !important;
+}
+.introjs-overlay { background: var(--tour-overlay) !important; opacity: 1 !important; }
+.introjs-tooltip.hris-tour-tooltip {
+    width: min(900px, calc(100vw - 48px));
+    max-width: min(900px, calc(100vw - 48px)) !important;
+    background: var(--tour-bg) !important;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    color: var(--tour-fg) !important;
+    border: 1px solid var(--tour-border) !important;
+    border-radius: 16px !important;
+    box-shadow: var(--tour-shadow) !important;
+}
+.introjs-tooltip.hris-tour-tooltip .introjs-skipbutton { display: none !important; }
+.introjs-tooltip.hris-tour-tooltip .introjs-tooltipbuttons { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.introjs-tooltip.hris-tour-tooltip .introjs-button {
+    float: none !important;
+    border-radius: 12px !important;
+    padding: 10px 14px !important;
+    line-height: 1 !important;
+    font: inherit !important;
+    font-weight: 800 !important;
+    border: 1px solid var(--tour-border) !important;
+    background: rgba(148, 163, 184, 0.14) !important;
+    color: var(--tour-fg) !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { background: rgba(15, 23, 42, 0.35) !important; }
+.introjs-tooltip.hris-tour-tooltip .introjs-nextbutton,
+.introjs-tooltip.hris-tour-tooltip .introjs-donebutton { border-color: transparent !important; background: var(--tour-next-grad) !important; color: #fff !important; }
+.introjs-tooltip.hris-tour-tooltip .introjs-disabled,
+.introjs-tooltip.hris-tour-tooltip .introjs-disabled:hover { opacity: 0.45 !important; cursor: not-allowed !important; }
+.introjs-helperLayer.hris-tour-highlight { background: transparent !important; border-radius: 16px !important; box-shadow: 0 0 0 6px var(--tour-ring) !important; }
+</style>
 {% endblock %}
 {% block content %}
 {% csrf_token %}  
@@ -65,10 +131,15 @@
 </style>
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title">ROI Per Domain</h3>
+        <div class="d-flex align-items-center justify-content-between w-100">
+            <h3 class="card-title mb-0">ROI Per Domain</h3>
+            <button type="button" class="btn btn-sm hris-tour-launch-btn" id="btnAdsenseRekapDomainTour">
+                <i class="far fa-question-circle" aria-hidden="true"></i> User Manual
+            </button>
+        </div>
     </div>
     <div class="card-body">
-        <div class="form-row">
+        <div class="form-row" id="adsenseRekapDomainFilters" data-title="Filter" data-intro="Pilih rentang tanggal, filter Adsense Account/Domain, Ads Account, dan opsi Tanpa Spends. Klik Muat Data untuk menampilkan ringkasan, grafik, dan tabel.">
             <div class="col-md-1">
                 <label>Dari</label>
                 <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" data-date-orientation="bottom auto" placeholder="Tanggal Dari"/>
@@ -104,7 +175,7 @@
             </div>
             <div class="col-md-1">
                 <label>Tanpa Spends</label>
-                <div class="switch-toggle" title="Sembunyikan negara tanpa spend FB">
+                <div class="switch-toggle" title="Sembunyikan negara tanpa spend FB" id="adsenseRekapDomainToggle" data-title="Tanpa Spends" data-intro="Aktifkan untuk menyembunyikan baris dengan spend FB = 0 agar analisis lebih fokus.">
                     <label class="switch">
                         <input type="checkbox" id="toggle_hide_zero_spend" aria-label="Sembunyikan negara tanpa spend FB">
                         <span class="slider"></span>
@@ -113,7 +184,7 @@
             </div>
             <div class="col-md-1">
                 <label>&nbsp;</label>
-                <button type="button" class="btn btn-primary form-control" id="btn_load_data">
+                <button type="button" class="btn btn-primary form-control" id="btn_load_data" data-title="Muat Data" data-intro="Mengambil data ROI per domain sesuai filter, lalu menampilkan ringkasan, grafik harian, dan tabel.">
                     <i class="fas fa-search"></i> Muat Data
                 </button>
             </div>
@@ -127,7 +198,7 @@
                 <h3 class="card-title"><b><i class="bi bi-bar-chart"></i> Data ROI Per Akun</b></h3>
             </div>
             <div class="col-6 d-flex justify-content-end">
-                <span><i class="bi bi-clock-history"></i> Data Diupdate Terakhir <b>Tanggal {{ last_update|date:"d F Y" }} Jam {{ last_update|date:"H:i:s" }}</b></span>
+                <span id="adsenseRekapDomainLastUpdate" data-title="Last Update" data-intro="Informasi kapan data terakhir kali diperbarui."><i class="bi bi-clock-history"></i> Data Diupdate Terakhir <b>Tanggal {{ last_update|date:"d F Y" }} Jam {{ last_update|date:"H:i:s" }}</b></span>
             </div>
         </div>
     </div>
@@ -146,7 +217,7 @@
                 padding-top: 20%;">
             <i class="fas fa fa-sync-alt fa-spin"></i> Memuat Data Traffic ... 
         </div>
-        <div class="row" id="summary_boxes" style="display: none;">
+        <div class="row" id="summary_boxes" style="display: none;" data-title="Ringkasan" data-intro="Ringkasan metrik utama (klik, spend, ROI, pendapatan). Akan muncul setelah data dimuat.">
             <div class="col-12 col-sm-6 col-md-3">
                 <div class="metric-card clicks">
                     <div class="metric-card-inner">
@@ -201,7 +272,7 @@
             </div>
         </div>
         <!-- Charts Section -->
-        <div class="row mt-3" id="charts_section" style="display: none;">
+        <div class="row mt-3" id="charts_section" style="display: none;" data-title="Grafik" data-intro="Grafik Traffic ROI Harian berdasarkan hasil filter. Akan muncul setelah data dimuat.">
             <div class="col-12 col-md-12 mx-auto">
                 <div class="card">
                     <div class="card-header">
@@ -214,7 +285,7 @@
             </div>
         </div>
         <!-- Data Table -->
-        <div class="dt-responsive-table mt-3 table-responsive">
+        <div class="dt-responsive-table mt-3 table-responsive" id="adsenseRekapDomainTable" data-title="Tabel" data-intro="Tabel detail ROI per domain dan tanggal. Gunakan search/sort/export DataTables (jika tersedia) untuk analisis.">
             <table id="table_traffic_account" class="table table-bordered table-striped" style="width:100%">
                 <thead>
                     <tr>
@@ -251,6 +322,101 @@
 </div>
 {% endblock %}
 {% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="{% static 'ajax/admin/report_adsense/per_domain.js'%}?v={%now 'u'%}"></script>
+<script>
+(function() {
+    function decorateTourButtons() {
+        const root = document.querySelector('.introjs-tooltip');
+        if (!root) return;
+
+        const prev = root.querySelector('.introjs-prevbutton');
+        if (prev && !prev.dataset.iconized) {
+            prev.dataset.iconized = '1';
+            prev.insertAdjacentHTML('afterbegin', '<i class="fas fa-arrow-left" aria-hidden="true"></i>');
+        }
+
+        const next = root.querySelector('.introjs-nextbutton');
+        if (next && !next.dataset.iconized) {
+            next.dataset.iconized = '1';
+            next.insertAdjacentHTML('beforeend', '<i class="fas fa-arrow-right" aria-hidden="true"></i>');
+        }
+
+        const done = root.querySelector('.introjs-donebutton');
+        if (done && !done.dataset.iconized) {
+            done.dataset.iconized = '1';
+            done.insertAdjacentHTML('afterbegin', '<i class="fas fa-check-circle" aria-hidden="true"></i>');
+        }
+    }
+
+    function isVisible(el) {
+        if (!el) return false;
+        if (el.getClientRects().length === 0) return false;
+        const style = window.getComputedStyle(el);
+        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+        return true;
+    }
+
+    function startAdsenseRekapDomainTour() {
+        if (typeof introJs !== 'function') return;
+
+        const steps = [{
+            intro: 'Ini panduan singkat halaman Rekap Traffic AdSense Per Domain. Klik “Lanjut” untuk mengikuti langkah-langkahnya.'
+        }];
+
+        const selectors = [
+            '#adsenseRekapDomainFilters',
+            '#adsenseRekapDomainToggle',
+            '#btn_load_data',
+            '#adsenseRekapDomainLastUpdate',
+            '#summary_boxes',
+            '#charts_section',
+            '#adsenseRekapDomainTable'
+        ];
+
+        selectors.forEach(function(sel) {
+            const el = document.querySelector(sel);
+            if (!el) return;
+            if (!isVisible(el) && (sel === '#summary_boxes' || sel === '#charts_section')) return;
+            steps.push({
+                element: el,
+                title: el.getAttribute('data-title') || undefined,
+                intro: el.getAttribute('data-intro') || ''
+            });
+        });
+
+        steps.push({ intro: 'Selesai. Kamu bisa jalankan ulang petunjuk ini dari tombol “User Manual”.' });
+
+        const tour = introJs();
+        tour.setOptions({
+            steps: steps,
+            tooltipClass: 'hris-tour-tooltip',
+            highlightClass: 'hris-tour-highlight',
+            nextLabel: 'Lanjut',
+            prevLabel: 'Kembali',
+            doneLabel: 'Selesai',
+            showSkipButton: false,
+            showProgress: true,
+            showBullets: false,
+            exitOnOverlayClick: true,
+            scrollToElement: true
+        });
+
+        tour.onstart(decorateTourButtons);
+        tour.onafterchange(decorateTourButtons);
+        tour.onchange(decorateTourButtons);
+
+        tour.start();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const btn = document.getElementById('btnAdsenseRekapDomainTour');
+        if (!btn) return;
+        btn.addEventListener('click', function() {
+            startAdsenseRekapDomainTour();
+        });
+    });
+})();
+</script>
 {% endblock %}

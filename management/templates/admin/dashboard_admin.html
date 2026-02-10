@@ -3,6 +3,7 @@
 {% block page_title %}Dashboard{% endblock %}
 {% block page_heading %}Dashboard{% endblock %}
 {% block more_stylesheet %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css">
 <!-- Custom Dashboard CSS -->
 <style>
 .dashboard-card {
@@ -193,6 +194,156 @@ html[data-theme="dark"] #roiHourlyDetailModal td,
 html[data-theme="dark"] #roiHourlyDetailModal #roiHourlyDetailTitle {
     color: #212529 !important;
 }
+
+:root {
+    --tour-bg: rgba(241, 245, 249, 0.92);
+    --tour-fg: #0f172a;
+    --tour-muted: #475569;
+    --tour-border: rgba(15, 23, 42, 0.14);
+    --tour-shadow: 0 18px 40px rgba(2, 6, 23, 0.16);
+    --tour-overlay: rgba(15, 23, 42, 0.62);
+    --tour-ring: rgba(37, 99, 235, 0.32);
+    --tour-next-grad: linear-gradient(135deg, #2563eb, #7c3aed);
+}
+html[data-theme="dark"] {
+    --tour-bg: rgba(30, 41, 59, 0.88);
+    --tour-fg: #e5e7eb;
+    --tour-muted: #cbd5e1;
+    --tour-border: rgba(255, 255, 255, 0.12);
+    --tour-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
+    --tour-overlay: rgba(0, 0, 0, 0.74);
+    --tour-ring: rgba(34, 211, 238, 0.28);
+    --tour-next-grad: linear-gradient(135deg, #22c55e, #06b6d4);
+}
+#dashboard-tour-trigger { position: sticky; top: 10px; z-index: 5; }
+.dashboard-tour-btn {
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-weight: 700;
+    border: 0 !important;
+    color: #fff !important;
+    background: var(--tour-next-grad) !important;
+}
+.introjs-overlay { background: var(--tour-overlay) !important; opacity: 1 !important; }
+.introjs-tooltip.hris-tour-tooltip {
+    width: min(500px, calc(100vw - 48px));
+    max-width: min(500px, calc(100vw - 48px)) !important;
+    min-width: 560px;
+    overflow: hidden;
+    background: var(--tour-bg) !important;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    color: var(--tour-fg) !important;
+    border: 1px solid var(--tour-border) !important;
+    border-radius: 16px !important;
+    box-shadow: var(--tour-shadow) !important;
+}
+
+@media (max-width: 640px) {
+    .introjs-tooltip.hris-tour-tooltip {
+        width: calc(100vw - 24px) !important;
+        max-width: calc(100vw - 24px) !important;
+        min-width: 0;
+    }
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-tooltip-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-tooltip-title {
+    padding-right: 0;
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-skipbutton {
+    display: none !important;
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-tooltipbuttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-button {
+    float: none !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+    border-radius: 12px !important;
+    padding: 10px 14px !important;
+    line-height: 1 !important;
+    font: inherit !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.2px;
+    border: 1px solid var(--tour-border) !important;
+    background: rgba(148, 163, 184, 0.14) !important;
+    color: var(--tour-fg) !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+    transition: transform 0.12s ease, filter 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-button i {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button {
+    background: rgba(15, 23, 42, 0.35) !important;
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-button:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.02);
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-button:focus {
+    outline: none !important;
+    box-shadow: 0 0 0 4px var(--tour-ring) !important;
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-prevbutton {
+    background: transparent !important;
+    color: var(--tour-fg) !important;
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-prevbutton:hover {
+    background: rgba(148, 163, 184, 0.12) !important;
+}
+
+html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-prevbutton:hover {
+    background: rgba(15, 23, 42, 0.55) !important;
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-nextbutton {
+    border-color: transparent !important;
+    background: var(--tour-next-grad) !important;
+    color: #ffffff !important;
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-nextbutton:hover {
+    filter: brightness(1.05);
+}
+
+.introjs-tooltip.hris-tour-tooltip .introjs-disabled,
+.introjs-tooltip.hris-tour-tooltip .introjs-disabled:hover {
+    opacity: 0.45 !important;
+    transform: none !important;
+    cursor: not-allowed !important;
+}
+
+.introjs-helperLayer.hris-tour-highlight {
+    background: transparent !important;
+    border-radius: 16px !important;
+    box-shadow: 0 0 0 6px var(--tour-ring) !important;
+}
 </style>
 {% endblock %}
 
@@ -211,7 +362,12 @@ html[data-theme="dark"] #roiHourlyDetailModal #roiHourlyDetailTitle {
             </div>
             <!-- Dashboard Content -->
             <div id="dashboard-content" style="display: none;">
-                <div class="row" id="metric-cards">
+                <div class="d-flex justify-content-end mb-2" id="dashboard-tour-trigger">
+                    <button type="button" class="btn btn-sm btn-outline-primary dashboard-tour-btn" id="btnDashboardTour">
+                        <i class="bi bi-question-circle me-1" aria-hidden="true"></i> User Manual
+                    </button>
+                </div>
+                <div class="row" id="metric-cards" data-title="User Management" data-intro="Summary user management yang mana menjelaskan : Total User Terdaftar, User Aktif (7 hari) Terakhir dan Tingkat Aktivitas User Hari Ini.">
                     <div class="col-12 col-sm-6 col-md-4">
                         <div class="metric-card users">
                             <div class="metric-card-inner">
@@ -253,7 +409,7 @@ html[data-theme="dark"] #roiHourlyDetailModal #roiHourlyDetailTitle {
                     </div>
                 </div>
                 <!-- Metrik Akun Ads & Adx -->
-                <div class="row mt-2" id="ads-adx-cards">
+                <div class="row mt-2" id="ads-adx-cards" data-title="Akun Ads & AdX" data-intro="Ringkasan Jumlah Akun Ads dan AdX yang terdaftar di dalam sistem.">
                     <div class="col-12 col-sm-6 col-md-6">
                         <div class="metric-card ads-accounts">
                             <div class="metric-card-inner">
@@ -281,7 +437,7 @@ html[data-theme="dark"] #roiHourlyDetailModal #roiHourlyDetailTitle {
                         </div>
                     </div>
                 </div>
-                <div class="row mt-3" id="roi-kpi-cards">
+                <div class="row mt-3" id="roi-kpi-cards" data-title="ROI & Pendapatan" data-intro="Grafik Total ROI dan Pendapatan hari ini dan Grafik Jam berjalan saat ini.">
                     <div class="col-md-8">
                         <div class="card dashboard-card">
                             <div class="card-header">
@@ -308,7 +464,7 @@ html[data-theme="dark"] #roiHourlyDetailModal #roiHourlyDetailTitle {
                     </div>
                 </div>
                 <!-- Earnings Comparison -->
-                <div class="row mt-3" id="earnings-comparison">
+                <div class="row mt-3" id="earnings-comparison" data-title="Komparasi Pendapatan" data-intro="Komparasi Pendapatan Adx dan Adsense pada kurun waktu 7 hari terakhir.">
                     <div class="col-md-12">
                         <div class="card dashboard-card">
                             <div class="card-header">
@@ -325,7 +481,7 @@ html[data-theme="dark"] #roiHourlyDetailModal #roiHourlyDetailTitle {
                     </div>
                 </div>
                 <!-- ROI Charts -->
-                <div class="row mt-3" id="roi-charts">
+                <div class="row mt-3" id="roi-charts" data-title="ROI Charts" data-intro="Visualisasi ROI Per Domain dan Per Negara dimana dibuat bentuk grafik yang lebih mudah dipahami.">
                     <div class="col-md-6">
                         <div class="card dashboard-card">
                             <div class="card-header">
@@ -355,7 +511,7 @@ html[data-theme="dark"] #roiHourlyDetailModal #roiHourlyDetailTitle {
                     </div>
                 </div>
                 <!-- ROI Chart per hour daily -->
-                <div class="row mt-3">
+                <div class="row mt-3" id="roi-hourly-section" data-title="ROI per Hour" data-intro="Pantauan ROI per jam. Gunakan filter Subdomain dan Tanggal untuk melihat detail per periode nya.">
                     <div class="col-md-12">
                         <div class="card dashboard-card">
                             <div class="card-header d-flex align-items-center justify-content-between">
@@ -417,6 +573,7 @@ html[data-theme="dark"] #roiHourlyDetailModal #roiHourlyDetailTitle {
 <link href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@1.5.2/dist/select2-bootstrap4.min.css" rel="stylesheet">
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
 <script>
 let loginChart, userChart;
 let roiDomainChart;
@@ -1498,8 +1655,86 @@ function initRoiHourlyModal() {
         if (e.key === 'Escape') closeRoiHourlyDetailModal();
     });
 }
+function startDashboardTour() {
+    if (typeof introJs !== 'function') return;
+
+    const steps = [{
+        intro: 'Ini adalah panduan singkat pada halaman <b> Dashboard </b>. Klik tombol “ Lanjut ” untuk mengikuti langkah-langkahnya.'
+    }];
+
+    const sections = [
+        ['#metric-cards', 'User Management'],
+        ['#ads-adx-cards', 'Akun Ads & AdX'],
+        ['#roi-kpi-cards', 'ROI & Pendapatan'],
+        ['#earnings-comparison', 'Komparasi Pendapatan'],
+        ['#roi-charts', 'ROI Charts'],
+        ['#roi-hourly-section', 'ROI per Hour']
+    ];
+
+    sections.forEach(function(item) {
+        const el = document.querySelector(item[0]);
+        if (!el) return;
+        steps.push({
+            element: el,
+            title: item[1],
+            intro: el.getAttribute('data-intro') || ''
+        });
+    });
+
+    steps.push({ intro: 'Selesai. Kamu bisa jalankan ulang petunjuk ini dari tombol “User Manual”.' });
+
+    function decorateTourButtons() {
+        const root = document.querySelector('.introjs-tooltip');
+        if (!root) return;
+
+        const prev = root.querySelector('.introjs-prevbutton');
+        if (prev && !prev.dataset.iconized) {
+            prev.dataset.iconized = '1';
+            prev.insertAdjacentHTML('afterbegin', '<i class="fa fa-arrow-left" aria-hidden="true"></i>');
+        }
+
+        const next = root.querySelector('.introjs-nextbutton');
+        if (next && !next.dataset.iconized) {
+            next.dataset.iconized = '1';
+            next.insertAdjacentHTML('beforeend', '<i class="fa fa-arrow-right" aria-hidden="true"></i>');
+        }
+
+        const done = root.querySelector('.introjs-donebutton');
+        if (done && !done.dataset.iconized) {
+            done.dataset.iconized = '1';
+            done.insertAdjacentHTML('afterbegin', '<i class="fa fa-check-circle" aria-hidden="true"></i>');
+        }
+    }
+
+    const tour = introJs();
+    tour.setOptions({
+        steps: steps,
+        tooltipClass: 'hris-tour-tooltip',
+        highlightClass: 'hris-tour-highlight',
+        nextLabel: 'Lanjut',
+        prevLabel: 'Kembali',
+        doneLabel: 'Selesai',
+        showSkipButton: false,
+        showProgress: true,
+        showBullets: false,
+        exitOnOverlayClick: true,
+        scrollToElement: true
+    });
+
+    tour.onstart(decorateTourButtons);
+    tour.onafterchange(decorateTourButtons);
+    tour.onchange(decorateTourButtons);
+
+    tour.start();
+}
 // Initialize dashboard
 document.addEventListener('DOMContentLoaded', function() {
+    const tourBtn = document.getElementById('btnDashboardTour');
+    if (tourBtn) {
+        tourBtn.addEventListener('click', function() {
+            startDashboardTour();
+        });
+    }
     // Check if Chart.js is loaded
     if (typeof Chart === 'undefined') {
         showError('Chart.js library is not loaded. Please refresh the page.');

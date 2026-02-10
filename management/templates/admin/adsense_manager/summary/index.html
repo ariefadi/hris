@@ -9,9 +9,83 @@
     <li class="breadcrumb-item active">Adsense Manager</li>
 {% endblock %}
 
+{% block more_stylesheet %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" referrerpolicy="no-referrer">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css">
+<style>
+:root {
+  --tour-bg: rgba(241, 245, 249, 0.92);
+  --tour-fg: #0f172a;
+  --tour-border: rgba(15, 23, 42, 0.14);
+  --tour-shadow: 0 18px 40px rgba(2, 6, 23, 0.16);
+  --tour-overlay: rgba(15, 23, 42, 0.62);
+  --tour-ring: rgba(37, 99, 235, 0.32);
+  --tour-next-grad: linear-gradient(135deg, #2563eb, #7c3aed);
+}
+html[data-theme="dark"] {
+  --tour-bg: rgba(30, 41, 59, 0.88);
+  --tour-fg: #e5e7eb;
+  --tour-border: rgba(255, 255, 255, 0.12);
+  --tour-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
+  --tour-overlay: rgba(0, 0, 0, 0.74);
+  --tour-ring: rgba(34, 211, 238, 0.28);
+  --tour-next-grad: linear-gradient(135deg, #22c55e, #06b6d4);
+}
+.hris-tour-launch-btn {
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-weight: 700;
+  border: 0 !important;
+  color: #fff !important;
+  background: var(--tour-next-grad) !important;
+}
+.introjs-overlay { background: var(--tour-overlay) !important; opacity: 1 !important; }
+.introjs-tooltip.hris-tour-tooltip {
+  width: min(900px, calc(100vw - 48px));
+  max-width: min(900px, calc(100vw - 48px)) !important;
+  background: var(--tour-bg) !important;
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  color: var(--tour-fg) !important;
+  border: 1px solid var(--tour-border) !important;
+  border-radius: 16px !important;
+  box-shadow: var(--tour-shadow) !important;
+}
+.introjs-tooltip.hris-tour-tooltip .introjs-skipbutton { display: none !important; }
+.introjs-tooltip.hris-tour-tooltip .introjs-tooltipbuttons { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.introjs-tooltip.hris-tour-tooltip .introjs-button {
+  float: none !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  line-height: 1 !important;
+  font: inherit !important;
+  font-weight: 800 !important;
+  border: 1px solid var(--tour-border) !important;
+  background: rgba(148, 163, 184, 0.14) !important;
+  color: var(--tour-fg) !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { background: rgba(15, 23, 42, 0.35) !important; }
+.introjs-tooltip.hris-tour-tooltip .introjs-nextbutton,
+.introjs-tooltip.hris-tour-tooltip .introjs-donebutton { border-color: transparent !important; background: var(--tour-next-grad) !important; color: #fff !important; }
+.introjs-tooltip.hris-tour-tooltip .introjs-disabled,
+.introjs-tooltip.hris-tour-tooltip .introjs-disabled:hover { opacity: 0.45 !important; cursor: not-allowed !important; }
+.introjs-helperLayer.hris-tour-highlight { background: transparent !important; border-radius: 16px !important; box-shadow: 0 0 0 6px var(--tour-ring) !important; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid py-3">
-  <h4 class="mb-3">AdSense Summary</h4>
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <h4 class="mb-0">AdSense Summary</h4>
+    <button type="button" class="btn btn-sm hris-tour-launch-btn" id="btnAdsenseSummaryTour">
+      <i class="far fa-question-circle" aria-hidden="true"></i> User Manual
+    </button>
+  </div>
   <style>
     /* Tinggi grafik responsif dengan batas maksimum agar lebih proporsional */
     #chart_revenue_daily {
@@ -47,7 +121,7 @@
                padding-top: 20%;">
           <i class="fas fa fa-sync-alt fa-spin"></i> Memuat Data Summary AdSense ...
       </div>
-      <div class="row g-3 align-items-end">
+      <div class="row g-3 align-items-end" id="adsenseSummaryFilters" data-title="Filter" data-intro="Pilih range tanggal dan filter Account/Country, lalu klik Load Data untuk menampilkan ringkasan dan grafik.">
         <div class="col-md-2">
           <label for="start_date" class="form-label">Range Dari</label>
           <input type="text" id="start_date" class="form-control datepicker-input" placeholder="YYYY-MM-DD" />
@@ -69,14 +143,14 @@
           <select id="country_filter" class="form-control select2-multiple" multiple></select>
         </div>
         <div class="col-md-2">
-          <button id="btn_load_summary" class="btn btn-primary w-100">Load Data</button>
+          <button id="btn_load_summary" class="btn btn-primary w-100" data-title="Load Data" data-intro="Mengambil data sesuai filter yang dipilih dan memperbarui ringkasan serta grafik.">Load Data</button>
         </div>
       </div>
     </div>
   </div>
 
   <!-- Summary boxes -->
-  <div class="row" id="summary_boxes">
+  <div class="row" id="summary_boxes" data-title="Ringkasan" data-intro="Ringkasan metrik utama: Impressions, Clicks, CTR, CPC, eCPM, dan Revenue.">
     <div class="col-12 col-sm-6 col-lg-2">
       <div class="metric-card impressions">
         <div class="metric-card-inner">
@@ -158,10 +232,10 @@
   </div>
 
   <!-- Info message -->
-  <div class="alert alert-info mt-3" id="summary_info" style="display:none"></div>
+  <div class="alert alert-info mt-3" id="summary_info" style="display:none" data-title="Info" data-intro="Info tambahan terkait data/validasi filter akan ditampilkan di sini."></div>
 
   <!-- Charts -->
-  <div class="card mt-3">
+  <div class="card mt-3" id="adsenseRevenueDaily" data-title="Grafik Harian" data-intro="Grafik pendapatan harian berdasarkan range tanggal yang dipilih.">
     <div class="card-body">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <div class="text-muted">Grafik Pendapatan Harian</div>
@@ -171,7 +245,7 @@
     </div>
   </div>
 
-  <div class="row mt-3" id="charts_section" style="display:none;">
+  <div class="row mt-3" id="charts_section" style="display:none;" data-title="Top Country" data-intro="Grafik Top 10 Country untuk Impressions dan Revenue.">
     <div class="col-md-6">
       <div class="card">
         <div class="card-header">
@@ -199,4 +273,95 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="{% static 'ajax/admin/adsense_manager/summary.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
+<script>
+(function() {
+  function decorateTourButtons() {
+    const root = document.querySelector('.introjs-tooltip');
+    if (!root) return;
+
+    const prev = root.querySelector('.introjs-prevbutton');
+    if (prev && !prev.dataset.iconized) {
+      prev.dataset.iconized = '1';
+      prev.insertAdjacentHTML('afterbegin', '<i class="fas fa-arrow-left" aria-hidden="true"></i>');
+    }
+
+    const next = root.querySelector('.introjs-nextbutton');
+    if (next && !next.dataset.iconized) {
+      next.dataset.iconized = '1';
+      next.insertAdjacentHTML('beforeend', '<i class="fas fa-arrow-right" aria-hidden="true"></i>');
+    }
+
+    const done = root.querySelector('.introjs-donebutton');
+    if (done && !done.dataset.iconized) {
+      done.dataset.iconized = '1';
+      done.insertAdjacentHTML('afterbegin', '<i class="fas fa-check-circle" aria-hidden="true"></i>');
+    }
+  }
+
+  function isVisible(el) {
+    if (!el) return false;
+    return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
+  }
+
+  function startAdsenseSummaryTour() {
+    if (typeof introJs !== 'function') return;
+
+    const steps = [{
+      intro: 'Ini panduan singkat penggunaan AdSense Summary. Klik “Lanjut” untuk mengikuti langkah-langkahnya.'
+    }];
+
+    const selectors = [
+      '#adsenseSummaryFilters',
+      '#btn_load_summary',
+      '#summary_boxes',
+      '#summary_info',
+      '#adsenseRevenueDaily',
+      '#charts_section'
+    ];
+
+    selectors.forEach(function(sel) {
+      const el = document.querySelector(sel);
+      if (!el) return;
+      if (!isVisible(el) && (sel === '#summary_info' || sel === '#charts_section')) return;
+      steps.push({
+        element: el,
+        title: el.getAttribute('data-title') || undefined,
+        intro: el.getAttribute('data-intro') || ''
+      });
+    });
+
+    steps.push({ intro: 'Selesai. Kamu bisa jalankan ulang petunjuk ini dari tombol “User Manual”.' });
+
+    const tour = introJs();
+    tour.setOptions({
+      steps: steps,
+      tooltipClass: 'hris-tour-tooltip',
+      highlightClass: 'hris-tour-highlight',
+      nextLabel: 'Lanjut',
+      prevLabel: 'Kembali',
+      doneLabel: 'Selesai',
+      showSkipButton: false,
+      showProgress: true,
+      showBullets: false,
+      exitOnOverlayClick: true,
+      scrollToElement: true
+    });
+
+    tour.onstart(decorateTourButtons);
+    tour.onafterchange(decorateTourButtons);
+    tour.onchange(decorateTourButtons);
+
+    tour.start();
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    const btn = document.getElementById('btnAdsenseSummaryTour');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+      startAdsenseSummaryTour();
+    });
+  });
+})();
+</script>
 {% endblock %}

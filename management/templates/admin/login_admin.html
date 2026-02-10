@@ -38,6 +38,7 @@
         integrity="sha256-9kPW/n5nn53j4WMRYAxe9c1rCY96Oogo/MKSVdKzPmI="
         crossorigin="anonymous"
         />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css">
         <style>
             body.login-page {
                 min-height: 100vh;
@@ -124,6 +125,90 @@
                 border-color: rgba(37, 99, 235, .55);
                 box-shadow: 0 0 0 .2rem rgba(37, 99, 235, .18);
             }
+
+            :root {
+                --tour-bg: rgba(255, 255, 255, 0.92);
+                --tour-fg: #0f172a;
+                --tour-border: rgba(15, 23, 42, 0.14);
+                --tour-shadow: 0 18px 40px rgba(2, 6, 23, 0.20);
+                --tour-overlay: rgba(2, 6, 23, 0.66);
+                --tour-ring: rgba(37, 99, 235, 0.32);
+                --tour-next-grad: linear-gradient(135deg, #2563eb, #06b6d4);
+            }
+
+            .hris-tour-launch-btn {
+                border-radius: 999px;
+                padding: 6px 12px;
+                font-weight: 800;
+                border: 0 !important;
+                color: #fff !important;
+                background: var(--tour-next-grad) !important;
+                box-shadow: 0 10px 24px rgba(2, 6, 23, .18);
+            }
+
+            .introjs-overlay {
+                background: var(--tour-overlay) !important;
+                opacity: 1 !important;
+            }
+
+            .introjs-tooltip.hris-tour-tooltip {
+                width: min(720px, calc(100vw - 48px));
+                max-width: min(720px, calc(100vw - 48px)) !important;
+                background: var(--tour-bg) !important;
+                -webkit-backdrop-filter: blur(10px);
+                backdrop-filter: blur(10px);
+                color: var(--tour-fg) !important;
+                border: 1px solid var(--tour-border) !important;
+                border-radius: 16px !important;
+                box-shadow: var(--tour-shadow) !important;
+            }
+
+            .introjs-tooltip.hris-tour-tooltip .introjs-skipbutton {
+                display: none !important;
+            }
+
+            .introjs-tooltip.hris-tour-tooltip .introjs-tooltipbuttons {
+                display: flex;
+                gap: 10px;
+                flex-wrap: wrap;
+                justify-content: flex-end;
+            }
+
+            .introjs-tooltip.hris-tour-tooltip .introjs-button {
+                float: none !important;
+                border-radius: 12px !important;
+                padding: 10px 14px !important;
+                line-height: 1 !important;
+                font: inherit !important;
+                font-weight: 900 !important;
+                border: 1px solid var(--tour-border) !important;
+                background: rgba(148, 163, 184, 0.18) !important;
+                color: var(--tour-fg) !important;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                white-space: nowrap;
+            }
+
+            .introjs-tooltip.hris-tour-tooltip .introjs-nextbutton,
+            .introjs-tooltip.hris-tour-tooltip .introjs-donebutton {
+                border-color: transparent !important;
+                background: var(--tour-next-grad) !important;
+                color: #fff !important;
+            }
+
+            .introjs-tooltip.hris-tour-tooltip .introjs-disabled,
+            .introjs-tooltip.hris-tour-tooltip .introjs-disabled:hover {
+                opacity: 0.45 !important;
+                cursor: not-allowed !important;
+            }
+
+            .introjs-helperLayer.hris-tour-highlight {
+                background: transparent !important;
+                border-radius: 16px !important;
+                box-shadow: 0 0 0 6px var(--tour-ring) !important;
+            }
         </style>
     </head>
     <body class="login-page bg-body-secondary">
@@ -147,8 +232,13 @@
             </div>
             <!-- /.login-logo -->
             <div class="card">
-                <div class="card-body login-card-body">
-                <p class="login-box-msg" style="font-size: 1.25rem;"><b><u>Login Portal</u></b></p>
+                <div class="card-body login-card-body" id="authCard" data-title="Portal" data-intro="Halaman ini untuk masuk (Login) atau membuat akun baru (Register). Klik “User Manual” untuk melihat panduan.">
+                <div class="d-flex align-items-center justify-content-between mb-2" id="loginHeader">
+                    <p class="login-box-msg mb-0" style="font-size: 1.25rem;"><b><u>Login Portal</u></b></p>
+                    <button type="button" class="btn btn-sm hris-tour-launch-btn" id="btnAdminLoginTour">
+                        <i class="far fa-question-circle" aria-hidden="true"></i> User Manual
+                    </button>
+                </div>
                 {% if messages %}
                     {% for message in messages %}
                     <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show" role="alert">
@@ -168,14 +258,14 @@
                 {% endif %}
                 
                 <div class="mb-3">
-                    <ul class="nav nav-pills nav-justified" id="authTabs" role="tablist">
+                    <ul class="nav nav-pills nav-justified" id="authTabs" role="tablist" data-title="Tab Login / Register" data-intro="Pilih Login untuk masuk. Pilih Register untuk membuat akun baru.">
                         <li class="nav-item" role="presentation">
                             <a class="nav-link active" id="tab-login" data-toggle="pill" href="#pane-login" role="tab" aria-controls="pane-login" aria-selected="true">
                                 <b><i class="bi bi-box-arrow-in-right"></i> Login</b>
                             </a>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <a class="nav-link" id="tab-register" data-toggle="pill" href="#pane-register" role="tab" aria-controls="pane-register" aria-selected="false">
+                            <a class="nav-link" id="tab-register" data-toggle="pill" href="#pane-register" role="tab" aria-controls="pane-register" aria-selected="false" data-title="Tab Register" data-intro="Klik untuk membuka form pendaftaran akun baru.">
                                 <b><i class="bi bi-person-plus"></i> Register</b>
                             </a>
                         </li>
@@ -184,26 +274,26 @@
 
                 <div class="tab-content" id="authTabsContent">
                     <div class="tab-pane fade show active" id="pane-login" role="tabpanel" aria-labelledby="tab-login">
-                        <form id="loginForm" action="{% url 'admin_login_process' %}" method="POST" onsubmit="return false;">
+                        <form id="loginForm" action="{% url 'admin_login_process' %}" method="POST" onsubmit="return false;" data-title="Form Login" data-intro="Isi username dan password, lalu klik Sign-In.">
                             {% csrf_token %}
                             <div class="input-group mb-3">
-                                <input class="form-control" type="text" placeholder="Username" name="username" id="username" autocomplete="username" required>
+                                <input class="form-control" type="text" placeholder="Username" name="username" id="username" autocomplete="username" required data-title="Username" data-intro="Masukkan username akun kamu.">
                                 <div class="input-group-text"><span class="bi bi-envelope"></span></div>
                             </div>
                             <div class="input-group mb-3">
-                                <input class="form-control" type="password" placeholder="Password" name="password" id="password" autocomplete="current-password" required>
+                                <input class="form-control" type="password" placeholder="Password" name="password" id="password" autocomplete="current-password" required data-title="Password" data-intro="Masukkan password akun kamu.">
                                 <div class="input-group-text"><span class="bi bi-lock-fill"></span></div>
                             </div>
-                            <button type="submit" id="loginButton" class="btn btn-primary btn-block mb-2">
+                            <button type="submit" id="loginButton" class="btn btn-primary btn-block mb-2" data-title="Sign-In" data-intro="Klik untuk proses login.">
                                 <i class="bi bi-box-arrow-in-right"></i> Sign-In
                             </button>
-                            <a href="/accounts/login/google-oauth2/?next=/management/admin/oauth_redirect" class="btn btn-outline-danger btn-block">
+                            <a href="/accounts/login/google-oauth2/?next=/management/admin/oauth_redirect" class="btn btn-outline-danger btn-block" id="btnGoogleLogin" data-title="Login Google" data-intro="Alternatif login menggunakan akun Google (OAuth).">
                                 <i class="bi bi-google"></i> Login dengan Google
                             </a>
                         </form>
 
                         <div class="mt-3 text-center">
-                            <a href="{% url 'forgot_password' %}">Forgot password?</a>
+                            <a href="{% url 'forgot_password' %}" id="linkForgotPassword" data-title="Forgot Password" data-intro="Klik jika lupa password untuk reset / pemulihan akun.">Forgot password?</a>
                         </div>
                     </div>
 
@@ -212,38 +302,38 @@
                         <form id="registerForm" action="/management/admin/register_account" method="POST" onsubmit="return false;">
                             {% csrf_token %}
                             <div class="input-group mb-3">
-                                <input class="form-control" type="text" placeholder="Username" name="reg_username" id="reg_username" autocomplete="username" required>
+                                <input class="form-control" type="text" placeholder="Username" name="reg_username" id="reg_username" autocomplete="username" required data-title="Username (Register)" data-intro="Buat username untuk akun baru.">
                                 <div class="input-group-text"><span class="bi bi-person"></span></div>
                             </div>
                             <div class="input-group mb-3">
-                                <input class="form-control" type="text" placeholder="Nama / Alias" name="reg_alias" id="reg_alias" required>
+                                <input class="form-control" type="text" placeholder="Nama / Alias" name="reg_alias" id="reg_alias" required data-title="Nama / Alias" data-intro="Isi nama atau alias yang akan ditampilkan.">
                                 <div class="input-group-text"><span class="bi bi-card-text"></span></div>
                             </div>
                             <div class="input-group mb-3">
-                                <input class="form-control" type="email" placeholder="Email" name="reg_email" id="reg_email" autocomplete="email" required>
+                                <input class="form-control" type="email" placeholder="Email" name="reg_email" id="reg_email" autocomplete="email" required data-title="Email" data-intro="Masukkan email aktif untuk verifikasi/komunikasi.">
                                 <div class="input-group-text"><span class="bi bi-envelope"></span></div>
                             </div>
                             <div class="input-group mb-3">
-                                <input class="form-control" type="text" placeholder="No. Telepon" name="reg_telp" id="reg_telp" autocomplete="tel">
+                                <input class="form-control" type="text" placeholder="No. Telepon" name="reg_telp" id="reg_telp" autocomplete="tel" data-title="No. Telepon" data-intro="Opsional: nomor telepon yang bisa dihubungi.">
                                 <div class="input-group-text"><span class="bi bi-telephone"></span></div>
                             </div>
                             <div class="input-group mb-3">
-                                <input class="form-control" type="text" placeholder="Alamat" name="reg_alamat" id="reg_alamat" autocomplete="street-address">
+                                <input class="form-control" type="text" placeholder="Alamat" name="reg_alamat" id="reg_alamat" autocomplete="street-address" data-title="Alamat" data-intro="Opsional: alamat domisili.">
                                 <div class="input-group-text"><span class="bi bi-geo-alt"></span></div>
                             </div>
                             <div class="input-group mb-3">
-                                <input class="form-control" type="password" placeholder="Password" name="reg_password" id="reg_password" autocomplete="new-password" required>
+                                <input class="form-control" type="password" placeholder="Password" name="reg_password" id="reg_password" autocomplete="new-password" required data-title="Password (Register)" data-intro="Buat password untuk akun baru.">
                                 <div class="input-group-text"><span class="bi bi-lock-fill"></span></div>
                             </div>
                             <div class="input-group mb-3">
-                                <input class="form-control" type="password" placeholder="Confirm Password" name="reg_password2" id="reg_password2" autocomplete="new-password" required>
+                                <input class="form-control" type="password" placeholder="Confirm Password" name="reg_password2" id="reg_password2" autocomplete="new-password" required data-title="Konfirmasi Password" data-intro="Ulangi password untuk memastikan tidak ada salah ketik.">
                                 <div class="input-group-text"><span class="bi bi-lock"></span></div>
                             </div>
 
-                            <button type="submit" id="registerButton" class="btn btn-success btn-block mb-2">
+                            <button type="submit" id="registerButton" class="btn btn-success btn-block mb-2" data-title="Create Account" data-intro="Klik untuk mengirim pendaftaran akun baru.">
                                 <i class="bi bi-check2-circle"></i> Create Account
                             </button>
-                            <button type="button" class="btn btn-outline-secondary btn-block" id="btn_cancel_register">
+                            <button type="button" class="btn btn-outline-secondary btn-block" id="btn_cancel_register" data-title="Kembali" data-intro="Kembali ke tab Login.">
                                 <i class="bi bi-arrow-left"></i> Back to Login
                             </button>
                         </form>
@@ -259,7 +349,147 @@
         <script src="{% static 'plugins/sweetalert2/sweetalert2.min.js' %}"></script>
         <!-- AdminLTE App -->
         <script src="{% static 'dist/js/adminlte.min.js' %}"></script>
+        <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
         <!-- untuk login -->
         <script src="{% static 'ajax/login.js'%}"></script>
+        <script>
+        (function() {
+            function decorateTourButtons() {
+                const root = document.querySelector('.introjs-tooltip');
+                if (!root) return;
+
+                const prev = root.querySelector('.introjs-prevbutton');
+                if (prev && !prev.dataset.iconized) {
+                    prev.dataset.iconized = '1';
+                    prev.insertAdjacentHTML('afterbegin', '<i class="fas fa-arrow-left" aria-hidden="true"></i>');
+                }
+
+                const next = root.querySelector('.introjs-nextbutton');
+                if (next && !next.dataset.iconized) {
+                    next.dataset.iconized = '1';
+                    next.insertAdjacentHTML('beforeend', '<i class="fas fa-arrow-right" aria-hidden="true"></i>');
+                }
+
+                const done = root.querySelector('.introjs-donebutton');
+                if (done && !done.dataset.iconized) {
+                    done.dataset.iconized = '1';
+                    done.insertAdjacentHTML('afterbegin', '<i class="fas fa-check-circle" aria-hidden="true"></i>');
+                }
+            }
+
+            function showAuthTab(tabId) {
+                const tab = document.getElementById(tabId);
+                if (!tab) return false;
+                if (tab.classList.contains('active')) return false;
+
+                if (window.jQuery && typeof window.jQuery.fn.tab === 'function') {
+                    window.jQuery('#' + tabId).tab('show');
+                } else {
+                    tab.click();
+                }
+
+                return true;
+            }
+
+            function showAuthTabForElement(el) {
+                if (!el) return false;
+                const pane = el.closest('.tab-pane');
+                if (!pane) return false;
+
+                const paneId = pane.getAttribute('id');
+                if (paneId === 'pane-register') return showAuthTab('tab-register');
+                if (paneId === 'pane-login') return showAuthTab('tab-login');
+                return false;
+            }
+
+            function refreshTour(tour) {
+                if (!tour) return;
+                if (typeof tour.refresh === 'function') tour.refresh();
+            }
+
+            function startAdminLoginTour() {
+                if (typeof introJs !== 'function') return;
+
+                const steps = [{
+                    intro: 'Ini panduan singkat halaman Login Admin. Klik “Lanjut” untuk mengikuti langkah-langkahnya.'
+                }];
+
+                const selectors = [
+                    '#authTabs',
+                    '#username',
+                    '#password',
+                    '#loginButton',
+                    '#btnGoogleLogin',
+                    '#linkForgotPassword',
+                    '#tab-register',
+                    '#reg_username',
+                    '#reg_alias',
+                    '#reg_email',
+                    '#reg_telp',
+                    '#reg_alamat',
+                    '#reg_password',
+                    '#reg_password2',
+                    '#registerButton',
+                    '#btn_cancel_register'
+                ];
+
+                selectors.forEach(function(sel) {
+                    const el = document.querySelector(sel);
+                    if (!el) return;
+                    steps.push({
+                        element: el,
+                        title: el.getAttribute('data-title') || undefined,
+                        intro: el.getAttribute('data-intro') || ''
+                    });
+                });
+
+                steps.push({ intro: 'Selesai. Kamu bisa jalankan ulang petunjuk ini dari tombol “User Manual”.' });
+
+                const tour = introJs();
+                tour.setOptions({
+                    steps: steps,
+                    tooltipClass: 'hris-tour-tooltip',
+                    highlightClass: 'hris-tour-highlight',
+                    nextLabel: 'Lanjut',
+                    prevLabel: 'Kembali',
+                    doneLabel: 'Selesai',
+                    showSkipButton: false,
+                    showProgress: true,
+                    showBullets: false,
+                    exitOnOverlayClick: true,
+                    scrollToElement: true
+                });
+
+                tour.onbeforechange(function(targetEl) {
+                    const switched = showAuthTabForElement(targetEl);
+                    if (switched) {
+                        setTimeout(function() {
+                            refreshTour(tour);
+                        }, 250);
+                    }
+                });
+
+                tour.onstart(decorateTourButtons);
+                tour.onafterchange(function(targetEl) {
+                    const switched = showAuthTabForElement(targetEl);
+                    setTimeout(function() {
+                        refreshTour(tour);
+                    }, switched ? 250 : 0);
+                    decorateTourButtons();
+                });
+                tour.onchange(decorateTourButtons);
+
+                tour.start();
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+                const btn = document.getElementById('btnAdminLoginTour');
+                if (!btn) return;
+                btn.addEventListener('click', function() {
+                    startAdminLoginTour();
+                });
+            });
+        })();
+        </script>
     </body>
 </html>

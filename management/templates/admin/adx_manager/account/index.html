@@ -9,6 +9,72 @@
     <li class="breadcrumb-item active">Adx Manager</li>
 {% endblock %}
 {% block more_stylesheet %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" referrerpolicy="no-referrer">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css">
+<style>
+:root {
+    --tour-bg: rgba(241, 245, 249, 0.92);
+    --tour-fg: #0f172a;
+    --tour-border: rgba(15, 23, 42, 0.14);
+    --tour-shadow: 0 18px 40px rgba(2, 6, 23, 0.16);
+    --tour-overlay: rgba(15, 23, 42, 0.62);
+    --tour-ring: rgba(37, 99, 235, 0.32);
+    --tour-next-grad: linear-gradient(135deg, #2563eb, #7c3aed);
+}
+html[data-theme="dark"] {
+    --tour-bg: rgba(30, 41, 59, 0.88);
+    --tour-fg: #e5e7eb;
+    --tour-border: rgba(255, 255, 255, 0.12);
+    --tour-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
+    --tour-overlay: rgba(0, 0, 0, 0.74);
+    --tour-ring: rgba(34, 211, 238, 0.28);
+    --tour-next-grad: linear-gradient(135deg, #22c55e, #06b6d4);
+}
+.hris-tour-launch-btn {
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-weight: 700;
+    border: 0 !important;
+    color: #fff !important;
+    background: var(--tour-next-grad) !important;
+}
+.introjs-overlay { background: var(--tour-overlay) !important; opacity: 1 !important; }
+.introjs-tooltip.hris-tour-tooltip {
+    width: min(900px, calc(100vw - 48px));
+    max-width: min(900px, calc(100vw - 48px)) !important;
+    background: var(--tour-bg) !important;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    color: var(--tour-fg) !important;
+    border: 1px solid var(--tour-border) !important;
+    border-radius: 16px !important;
+    box-shadow: var(--tour-shadow) !important;
+}
+.introjs-tooltip.hris-tour-tooltip .introjs-skipbutton { display: none !important; }
+.introjs-tooltip.hris-tour-tooltip .introjs-tooltipbuttons { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+.introjs-tooltip.hris-tour-tooltip .introjs-button {
+    float: none !important;
+    border-radius: 12px !important;
+    padding: 10px 14px !important;
+    line-height: 1 !important;
+    font: inherit !important;
+    font-weight: 800 !important;
+    border: 1px solid var(--tour-border) !important;
+    background: rgba(148, 163, 184, 0.14) !important;
+    color: var(--tour-fg) !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { background: rgba(15, 23, 42, 0.35) !important; }
+.introjs-tooltip.hris-tour-tooltip .introjs-nextbutton,
+.introjs-tooltip.hris-tour-tooltip .introjs-donebutton { border-color: transparent !important; background: var(--tour-next-grad) !important; color: #fff !important; }
+.introjs-tooltip.hris-tour-tooltip .introjs-disabled,
+.introjs-tooltip.hris-tour-tooltip .introjs-disabled:hover { opacity: 0.45 !important; cursor: not-allowed !important; }
+.introjs-helperLayer.hris-tour-highlight { background: transparent !important; border-radius: 16px !important; box-shadow: 0 0 0 6px var(--tour-ring) !important; }
+</style>
 {% endblock %}
 {% block content %}
 {% csrf_token %}
@@ -123,10 +189,15 @@
 
 <div class="card">
     <div class="card-header">
-        <h3 class="card-title">AdX Account Data</h3>
+        <div class="d-flex align-items-center justify-content-between w-100">
+            <h3 class="card-title mb-0">AdX Account Data</h3>
+            <button type="button" class="btn btn-sm hris-tour-launch-btn" id="btnAdxAccountTour">
+                <i class="far fa-question-circle" aria-hidden="true"></i> User Manual
+            </button>
+        </div>
     </div> <!-- /.card-header -->
     <div class="card-body">
-        <div class="form-row">
+        <div class="form-row" id="adxAccountFilters" data-intro="Pilih akun, lalu gunakan tombol-tombol aksi untuk memuat data atau melakukan setup OAuth." data-title="Filter">
             <div class="col-md-4">
                 <label>Filter Account</label>
                 <select class="form-control select2" id="account_filter">
@@ -138,14 +209,14 @@
             </div>
             <div class="col-md-2">
                 <label>&nbsp;</label>
-                <button type="button" class="btn btn-primary form-control" id="btn_load_data">
+                <button type="button" class="btn btn-primary form-control" id="btn_load_data" data-intro="Memuat detail AdX Account Information untuk akun yang dipilih." data-title="Muat Data">
                     <i class="fas fa-search"></i> Muat Data
                 </button>
             </div>
             {% if user.super_st == '1' %}
             <div class="col-md-3">
                 <label>&nbsp;</label>
-                <button type="button" class="btn btn-success form-control" id="btn_add_credentials">
+                <button type="button" class="btn btn-success form-control" id="btn_add_credentials" data-intro="Mulai proses tambah kredensial Google OAuth (khusus super admin)." data-title="Tambah Kredensial">
                     <i class="bi bi-shield-lock"></i> Tambah Kredensial (Google OAuth)
                 </button>
             </div>
@@ -153,7 +224,7 @@
             <div class="col-md-2">
                 <label>&nbsp;</label>
                 <button type="button" class="btn btn-info form-control" id="btn_oauth_setup" data-toggle="modal"
-                    data-target="#oauthModal">
+                    data-target="#oauthModal" data-intro="Buka form untuk menyimpan OAuth credentials (Client ID/Secret/Network Code/Email)." data-title="OAuth Setup">
                     <i class="fas fa-cog"></i> OAuth Setup Credensial
                 </button>
             </div>
@@ -162,7 +233,7 @@
 </div>
 <div class="row">
     <div class="col-md-12">
-        <div class="card">
+        <div class="card" id="adxAccountInfo" data-intro="Panel ini menampilkan informasi Network, Settings, dan detail user setelah data akun dimuat." data-title="Informasi Akun">
             <div class="card-header">
                 <div class="card-title d-flex justify-content-between align-items-center w-100">
                     <h3 class="card-title"><b><i class="bi bi-building"></i> AdX Account Information</b></h3>
@@ -287,7 +358,7 @@
         </div>
     </div>
     <div class="col-md-12">
-        <div class="card">
+        <div class="card" id="adxCredentials" data-intro="Daftar kredensial yang tersimpan. Gunakan tombol aksi di tiap baris untuk Load Data, Assign, Edit, atau Hapus." data-title="Kredensial">
             <div class="card-header">
                 <h3 class="card-title"><b><i class="bi bi-list"></i> Data Kredensial Aplikasi</b></h3>
             </div>
@@ -492,6 +563,7 @@
 {% endblock %}
 {% block more_scripts %}
 <script src="{% static 'ajax/admin/adx_manager/account.js'%}?v={%now 'u'%}"></script>
+<script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         var btn = document.getElementById('btn_add_credentials');
@@ -673,5 +745,87 @@
             $('.alert-danger').fadeOut();
         }, 8000);
     }
+
+    function decorateTourButtons() {
+        const root = document.querySelector('.introjs-tooltip');
+        if (!root) return;
+
+        const prev = root.querySelector('.introjs-prevbutton');
+        if (prev && !prev.dataset.iconized) {
+            prev.dataset.iconized = '1';
+            prev.insertAdjacentHTML('afterbegin', '<i class="fas fa-arrow-left" aria-hidden="true"></i>');
+        }
+
+        const next = root.querySelector('.introjs-nextbutton');
+        if (next && !next.dataset.iconized) {
+            next.dataset.iconized = '1';
+            next.insertAdjacentHTML('beforeend', '<i class="fas fa-arrow-right" aria-hidden="true"></i>');
+        }
+
+        const done = root.querySelector('.introjs-donebutton');
+        if (done && !done.dataset.iconized) {
+            done.dataset.iconized = '1';
+            done.insertAdjacentHTML('afterbegin', '<i class="fas fa-check-circle" aria-hidden="true"></i>');
+        }
+    }
+
+    function startAdxAccountTour() {
+        if (typeof introJs !== 'function') return;
+
+        const steps = [{
+            intro: 'Ini panduan singkat penggunaan AdX Account. Klik “Lanjut” untuk mengikuti langkah-langkahnya.'
+        }];
+
+        const nodes = [
+            ['#adxAccountFilters', 'Filter'],
+            ['#btn_load_data', 'Muat Data'],
+            ['#btn_add_credentials', 'Tambah Kredensial'],
+            ['#btn_oauth_setup', 'OAuth Setup'],
+            ['#adxAccountInfo', 'Informasi Akun'],
+            ['#adxCredentials', 'Kredensial']
+        ];
+
+        nodes.forEach(function(item) {
+            const el = document.querySelector(item[0]);
+            if (!el) return;
+            steps.push({
+                element: el,
+                title: el.getAttribute('data-title') || item[1],
+                intro: el.getAttribute('data-intro') || ''
+            });
+        });
+
+        steps.push({ intro: 'Selesai. Kamu bisa jalankan ulang petunjuk ini dari tombol “User Manual”.' });
+
+        const tour = introJs();
+        tour.setOptions({
+            steps: steps,
+            tooltipClass: 'hris-tour-tooltip',
+            highlightClass: 'hris-tour-highlight',
+            nextLabel: 'Lanjut',
+            prevLabel: 'Kembali',
+            doneLabel: 'Selesai',
+            showSkipButton: false,
+            showProgress: true,
+            showBullets: false,
+            exitOnOverlayClick: true,
+            scrollToElement: true
+        });
+
+        tour.onstart(decorateTourButtons);
+        tour.onafterchange(decorateTourButtons);
+        tour.onchange(decorateTourButtons);
+
+        tour.start();
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const btn = document.getElementById('btnAdxAccountTour');
+        if (btn) {
+            btn.addEventListener('click', function() {
+                startAdxAccountTour();
+            });
+        }
+    });
 </script>
 {% endblock %}
