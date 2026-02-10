@@ -75,6 +75,7 @@ class AuthMiddleware:
         excluded_paths = [
             reverse('admin_login'),
             reverse('admin_login_process'),
+            reverse('admin_register_account'),
             reverse('forgot_password'),
             '/accounts/login/google-oauth2/',
             '/accounts/complete/google-oauth2/',

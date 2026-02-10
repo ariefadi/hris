@@ -38,8 +38,95 @@
         integrity="sha256-9kPW/n5nn53j4WMRYAxe9c1rCY96Oogo/MKSVdKzPmI="
         crossorigin="anonymous"
         />
+        <style>
+            body.login-page {
+                min-height: 100vh;
+                background:
+                    radial-gradient(900px circle at 15% 10%, rgba(99, 102, 241, .42), transparent 55%),
+                    radial-gradient(900px circle at 85% 15%, rgba(16, 185, 129, .30), transparent 55%),
+                    radial-gradient(900px circle at 50% 95%, rgba(236, 72, 153, .26), transparent 60%),
+                    radial-gradient(800px circle at 50% 40%, rgba(59, 130, 246, .18), transparent 60%),
+                    linear-gradient(135deg, #0b1020 0%, #0b2a3a 45%, #1a1030 100%);
+            }
+
+            .login-box {
+                width: 380px;
+            }
+
+            .login-logo a {
+                font-weight: 800;
+                letter-spacing: .2px;
+                text-decoration: none;
+                text-shadow: 0 12px 30px rgba(0, 0, 0, .35);
+            }
+
+            .login-logo a .brand-mark {
+                background: linear-gradient(90deg, #60a5fa, #22d3ee);
+                -webkit-background-clip: text;
+                background-clip: text;
+                color: transparent;
+            }
+
+            .login-logo a .brand-name {
+                background: linear-gradient(90deg, #ffffff, #cbd5e1);
+                -webkit-background-clip: text;
+                background-clip: text;
+                color: transparent;
+            }
+
+            .login-logo a .brand-sep {
+                color: rgba(226, 232, 240, .85);
+                font-weight: 700;
+            }
+
+            .card {
+                border: 0;
+                border-radius: 14px;
+                box-shadow: 0 18px 50px rgba(15, 23, 42, .12);
+                overflow: hidden;
+            }
+
+            .login-card-body {
+                border-top: 4px solid transparent;
+                border-image: linear-gradient(90deg, #4f46e5, #06b6d4, #22c55e) 1;
+                background: rgba(255, 255, 255, .88);
+                backdrop-filter: blur(6px);
+            }
+
+            .nav-pills .nav-link {
+                border-radius: 10px;
+            }
+
+            .nav-pills .nav-link.active {
+                background: linear-gradient(90deg, #2563eb, #06b6d4);
+                box-shadow: 0 10px 20px rgba(37, 99, 235, .18);
+            }
+
+            .btn-primary {
+                background: linear-gradient(90deg, #2563eb, #06b6d4);
+                border: 0;
+            }
+
+            .btn-primary:hover {
+                filter: brightness(0.98);
+            }
+
+            .btn-success {
+                background: linear-gradient(90deg, #16a34a, #22c55e);
+                border: 0;
+            }
+
+            .btn-success:hover {
+                filter: brightness(0.98);
+            }
+
+            .form-control:focus {
+                border-color: rgba(37, 99, 235, .55);
+                box-shadow: 0 0 0 .2rem rgba(37, 99, 235, .18);
+            }
+        </style>
     </head>
-    <body class="login-page bg-body-secondary" style="background-color:aliceblue;">
+    <body class="login-page bg-body-secondary">
         <div class="login-box">
             <div id="overlay" 
                 style="
@@ -56,13 +143,12 @@
                 <i class="fas fa fa-sync-alt fa-spin"></i> Login Process ... 
             </div>
             <div class="login-logo">
-                <a href="{% url 'admin_login' %}"><b>HRis - </b>Trend Horizone</a>
+                <a href="{% url 'admin_login' %}"><span class="brand-mark">HRis</span> <span class="brand-sep">-</span> <span class="brand-name">Trend Horizone</span></a>
             </div>
             <!-- /.login-logo -->
             <div class="card">
                 <div class="card-body login-card-body">
-                <p class="login-box-msg"><b>Login Admin</b></p>
-                
+                <p class="login-box-msg" style="font-size: 1.25rem;"><b><u>Login Portal</u></b></p>
                 {% if messages %}
                     {% for message in messages %}
                     <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} alert-dismissible fade show" role="alert">
@@ -81,35 +167,87 @@
                 </div>
                 {% endif %}
                 
-                <form id="loginForm" action="{% url 'admin_login_process' %}" method="POST" onsubmit="return false;">
-                    {% csrf_token %}
-                    <div class="input-group mb-3">
-                        <input class="form-control" type="text" placeholder="Username" name="username" id="username">
-                        <div class="input-group-text"><span class="bi bi-envelope"></span></div>
-                    </div>
-                    <div class="input-group mb-3">
-                        <input class="form-control" type="password" placeholder="password" name="password" id="password">
-                        <div class="input-group-text"><span class="bi bi-lock-fill"></span></div>
-                    </div>
-                    <!--begin::Row-->
-                    <div class="row">
-                    <div class="col-8">
-                        <a href="/accounts/login/google-oauth2/?next=/management/admin/oauth_redirect" class="btn btn-outline-danger">
-                            <i class="bi bi-google"></i> Login dengan Google
-                        </a>
-                    </div>
-                    <!-- /.col -->
-                    <div class="col-4">
-                        <div class="d-grid gap-2">
-                        <button type="submit" id="loginButton" class="btn btn-primary"><i class="bi bi-box-arrow-in-right"></i> Sign-In</button>
+                <div class="mb-3">
+                    <ul class="nav nav-pills nav-justified" id="authTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link active" id="tab-login" data-toggle="pill" href="#pane-login" role="tab" aria-controls="pane-login" aria-selected="true">
+                                <b><i class="bi bi-box-arrow-in-right"></i> Login</b>
+                            </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link" id="tab-register" data-toggle="pill" href="#pane-register" role="tab" aria-controls="pane-register" aria-selected="false">
+                                <b><i class="bi bi-person-plus"></i> Register</b>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <div class="tab-content" id="authTabsContent">
+                    <div class="tab-pane fade show active" id="pane-login" role="tabpanel" aria-labelledby="tab-login">
+                        <form id="loginForm" action="{% url 'admin_login_process' %}" method="POST" onsubmit="return false;">
+                            {% csrf_token %}
+                            <div class="input-group mb-3">
+                                <input class="form-control" type="text" placeholder="Username" name="username" id="username" autocomplete="username" required>
+                                <div class="input-group-text"><span class="bi bi-envelope"></span></div>
+                            </div>
+                            <div class="input-group mb-3">
+                                <input class="form-control" type="password" placeholder="Password" name="password" id="password" autocomplete="current-password" required>
+                                <div class="input-group-text"><span class="bi bi-lock-fill"></span></div>
+                            </div>
+                            <button type="submit" id="loginButton" class="btn btn-primary btn-block mb-2">
+                                <i class="bi bi-box-arrow-in-right"></i> Sign-In
+                            </button>
+                            <a href="/accounts/login/google-oauth2/?next=/management/admin/oauth_redirect" class="btn btn-outline-danger btn-block">
+                                <i class="bi bi-google"></i> Login dengan Google
+                            </a>
+                        </form>
+
+                        <div class="mt-3 text-center">
+                            <a href="{% url 'forgot_password' %}">Forgot password?</a>
                         </div>
                     </div>
-                    <!-- /.col -->
+
+                    <div class="tab-pane fade" id="pane-register" role="tabpanel" aria-labelledby="tab-register">
+                        <p class="login-box-msg mb-2"><b>Create Account</b></p>
+                        <form id="registerForm" action="/management/admin/register_account" method="POST" onsubmit="return false;">
+                            {% csrf_token %}
+                            <div class="input-group mb-3">
+                                <input class="form-control" type="text" placeholder="Username" name="reg_username" id="reg_username" autocomplete="username" required>
+                                <div class="input-group-text"><span class="bi bi-person"></span></div>
+                            </div>
+                            <div class="input-group mb-3">
+                                <input class="form-control" type="text" placeholder="Nama / Alias" name="reg_alias" id="reg_alias" required>
+                                <div class="input-group-text"><span class="bi bi-card-text"></span></div>
+                            </div>
+                            <div class="input-group mb-3">
+                                <input class="form-control" type="email" placeholder="Email" name="reg_email" id="reg_email" autocomplete="email" required>
+                                <div class="input-group-text"><span class="bi bi-envelope"></span></div>
+                            </div>
+                            <div class="input-group mb-3">
+                                <input class="form-control" type="text" placeholder="No. Telepon" name="reg_telp" id="reg_telp" autocomplete="tel">
+                                <div class="input-group-text"><span class="bi bi-telephone"></span></div>
+                            </div>
+                            <div class="input-group mb-3">
+                                <input class="form-control" type="text" placeholder="Alamat" name="reg_alamat" id="reg_alamat" autocomplete="street-address">
+                                <div class="input-group-text"><span class="bi bi-geo-alt"></span></div>
+                            </div>
+                            <div class="input-group mb-3">
+                                <input class="form-control" type="password" placeholder="Password" name="reg_password" id="reg_password" autocomplete="new-password" required>
+                                <div class="input-group-text"><span class="bi bi-lock-fill"></span></div>
+                            </div>
+                            <div class="input-group mb-3">
+                                <input class="form-control" type="password" placeholder="Confirm Password" name="reg_password2" id="reg_password2" autocomplete="new-password" required>
+                                <div class="input-group-text"><span class="bi bi-lock"></span></div>
+                            </div>
+
+                            <button type="submit" id="registerButton" class="btn btn-success btn-block mb-2">
+                                <i class="bi bi-check2-circle"></i> Create Account
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-block" id="btn_cancel_register">
+                                <i class="bi bi-arrow-left"></i> Back to Login
+                            </button>
+                        </form>
                     </div>
-                    <!--end::Row-->
-                </form>
-                <div class="mt-2 text-center">
-                    <a href="{% url 'forgot_password' %}">Forgot password?</a>
                 </div>
             </div>
         </div>

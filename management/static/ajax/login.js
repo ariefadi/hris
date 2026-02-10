@@ -20,14 +20,28 @@ $().ready(function () {
         alert(msg);
     };
 
-    $(document).on('submit', "form", function (e) {
+    function showLoginTab() {
+        try {
+            $('#tab-login').tab('show');
+        } catch (e) {
+        }
+    }
+
+    $(document).on('click', '#btn_cancel_register', function (e) {
         e.preventDefault();
-        form_data = new FormData(this);
-        // console.log(form_data)
+        showLoginTab();
+        try {
+            $('#registerForm')[0].reset();
+        } catch (err) {
+        }
+    });
+
+    $(document).on('submit', '#loginForm', function (e) {
+        e.preventDefault();
+        var form_data = new FormData(this);
         $.ajax({
             type: 'POST',
             url: '/management/admin/login_process',
-            // dataType: 'json',
             data: form_data,
             cache: false,
             contentType: false,
@@ -47,7 +61,6 @@ $().ready(function () {
                         timerProgressBar: true,
                         showConfirmButton: false
                     });
-                    // Redirect to admin panel after 2 seconds
                     setTimeout(() => {
                         location.reload();
                     }, 2000);
@@ -58,6 +71,47 @@ $().ready(function () {
                         text: data.message,
                     }).then(() => {
                         location.reload();
+                    });
+                }
+            }
+        });
+    });
+
+    $(document).on('submit', '#registerForm', function (e) {
+        e.preventDefault();
+        var form_data = new FormData(this);
+        $.ajax({
+            type: 'POST',
+            url: '/management/admin/register_account',
+            data: form_data,
+            cache: false,
+            contentType: false,
+            processData: false,
+            error: report_eror,
+            beforeSend: function () {
+                $('#overlay').fadeIn(500);
+            },
+            success: function (data) {
+                $('#overlay').fadeOut(500);
+                if (data && data.status === true) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil Register',
+                        text: data.message || 'Account berhasil dibuat. Silakan login.',
+                        timer: 2500,
+                        timerProgressBar: true,
+                        showConfirmButton: false
+                    });
+                    showLoginTab();
+                        try {
+                            $('#registerForm')[0].reset();
+                        } catch (err) {
+                        }
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal Register',
+                        text: (data && data.message) ? data.message : 'Gagal membuat account.',
                     });
                 }
             }
