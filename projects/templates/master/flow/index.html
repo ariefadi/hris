@@ -1,0 +1,325 @@
+{% extends 'admin_base.html' %}
+
+{% block page_title %}Data Flow{% endblock %}
+{% block page_heading %}Data Flow{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item">Projects</li>
+<li class="breadcrumb-item active"><a href="/projects/master/flow">Data Flow</a></li>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Daftar Flow</h3>
+        <div class="card-tools">
+          <a href="#" class="btn btn-sm btn-primary" data-toggle="modal" data-target="#modalCreateFlow">
+            <i class="bi bi-plus-circle"></i> Tambah Flow
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th width="5%">No</th>
+                <th width="8%">Flow ID</th>
+                <th width="10%">Group</th>
+                <th width="20%">Task Name</th>
+                <th width="25%">Task Desc</th>
+                <th width="10%">Task Link</th>
+                <th width="5%">Order</th>
+                <th width="10%">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for f in flows %}
+              <tr>
+                <td class="align-middle">{{ forloop.counter }}</td>
+                <td class="align-middle">{{ f.flow_id }}</td>
+                <td class="align-middle">{{ f.group_name|default:'-' }}</td>
+                <td class="align-middle">{{ f.task_name|default:'-' }}</td>
+                <td class="align-middle">{{ f.task_desc|default:'-' }}</td>
+                <td class="align-middle">
+                  {% if f.task_link %}
+                    <a href="{{ f.task_link }}" target="_blank">{{ f.task_link }}</a>
+                  {% else %}
+                    -
+                  {% endif %}
+                </td>
+                <td class="align-middle">{{ f.task_number|default:'-' }}</td>
+                <td class="align-middle">
+                  <button type="button" class="btn btn-sm btn-warning btn-edit-flow"
+                          data-id="{{ f.flow_id }}"
+                          data-group="{{ f.group_id|default:'' }}"
+                          data-name="{{ f.task_name|default:''|escape }}"
+                          data-desc="{{ f.task_desc|default:''|escape }}"
+                          data-link="{{ f.task_link|default:''|escape }}"
+                          data-number="{{ f.task_number|default:'' }}">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <button type="button" class="btn btn-sm btn-danger btn-del-flow" data-id="{{ f.flow_id }}">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="8" class="text-center text-muted">Belum ada data.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalCreateFlow" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Tambah Flow</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <form id="formCreateFlow" method="post" action="{% url 'projects_master_flow_create' %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="row">
+            <div class="form-group col-md-4">
+              <label>Flow ID</label>
+              <input type="text" name="flow_id" class="form-control" maxlength="5" required>
+            </div>
+            <div class="form-group col-md-8">
+              <label>Group</label>
+              <select name="group_id" class="form-control">
+                <option value="">-</option>
+                {% for g in groups %}
+                  <option value="{{ g.group_id }}">{{ g.group_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group col-md-8">
+              <label>Task Name</label>
+              <input type="text" name="task_name" class="form-control" required>
+            </div>
+            <div class="form-group col-md-4">
+              <label>Task Number</label>
+              <input type="number" name="task_number" class="form-control" min="0">
+            </div>
+            <div class="form-group col-md-12">
+              <label>Task Desc</label>
+              <textarea name="task_desc" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="form-group col-md-12">
+              <label>Task Link</label>
+              <input type="text" name="task_link" class="form-control">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btn_submit_flow_create">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalEditFlow" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Flow</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <form id="formEditFlow" method="post">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="row">
+            <div class="form-group col-md-4">
+              <label>Flow ID</label>
+              <input type="text" id="edit_flow_id" class="form-control" readonly>
+            </div>
+            <div class="form-group col-md-8">
+              <label>Group</label>
+              <select name="group_id" id="edit_group_id" class="form-control">
+                <option value="">-</option>
+                {% for g in groups %}
+                  <option value="{{ g.group_id }}">{{ g.group_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group col-md-8">
+              <label>Task Name</label>
+              <input type="text" name="task_name" id="edit_task_name" class="form-control" required>
+            </div>
+            <div class="form-group col-md-4">
+              <label>Task Number</label>
+              <input type="number" name="task_number" id="edit_task_number" class="form-control" min="0">
+            </div>
+            <div class="form-group col-md-12">
+              <label>Task Desc</label>
+              <textarea name="task_desc" id="edit_task_desc" class="form-control" rows="2"></textarea>
+            </div>
+            <div class="form-group col-md-12">
+              <label>Task Link</label>
+              <input type="text" name="task_link" id="edit_task_link" class="form-control">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btn_submit_flow_edit">Simpan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script>
+$(function(){
+  if (window.jQuery) {
+    $('.btn-edit-flow').on('click', function(e){
+      e.preventDefault();
+      var id = $(this).data('id') || '';
+      var groupId = $(this).data('group') || '';
+      var name = $(this).data('name') || '';
+      var desc = $(this).data('desc') || '';
+      var link = $(this).data('link') || '';
+      var number = $(this).data('number');
+      $('#edit_flow_id').val(id);
+      $('#edit_group_id').val(groupId);
+      $('#edit_task_name').val(name);
+      $('#edit_task_desc').val(desc);
+      $('#edit_task_link').val(link);
+      $('#edit_task_number').val(number);
+      $('#formEditFlow').attr('action', '/projects/master/flow/' + id + '/update');
+      $('#modalEditFlow').modal('show');
+    });
+
+    $('#formCreateFlow').on('submit', function(e){
+      e.preventDefault();
+      var $btn = $('#btn_submit_flow_create');
+      $btn.prop('disabled', true);
+      var action = $(this).attr('action');
+      var formData = $(this).serialize();
+      $.ajax({
+        url: action,
+        method: 'POST',
+        data: formData,
+        dataType: 'json',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(resp){
+          var ok = resp && (resp.status === true || resp.status === 'True');
+          if (ok) {
+            if (window.Swal) {
+              Swal.fire({icon: 'success', title: 'Berhasil', text: 'Flow ditambahkan', timer: 1000, showConfirmButton: false}).then(function(){ window.location.reload(); });
+            } else {
+              window.location.reload();
+            }
+          } else {
+            var emsg = (resp && resp.message) ? resp.message : 'Gagal menyimpan';
+            if (window.Swal) { Swal.fire({icon: 'error', title: 'Gagal', text: emsg}); } else { alert(emsg); }
+            $btn.prop('disabled', false);
+          }
+        },
+        error: function(xhr){
+          var emsg = (xhr && xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Terjadi kesalahan saat menyimpan';
+          if (window.Swal) { Swal.fire({icon: 'error', title: 'Gagal', text: emsg}); } else { alert(emsg); }
+          $btn.prop('disabled', false);
+        },
+        complete: function(){ $btn.prop('disabled', false); }
+      });
+    });
+
+    $('#formEditFlow').on('submit', function(e){
+      e.preventDefault();
+      var $btn = $('#btn_submit_flow_edit');
+      $btn.prop('disabled', true);
+      var action = $(this).attr('action');
+      var formData = $(this).serialize();
+      $.ajax({
+        url: action,
+        method: 'POST',
+        data: formData,
+        dataType: 'json',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(resp){
+          var ok = resp && (resp.status === true || resp.status === 'True');
+          if (ok) {
+            if (window.Swal) {
+              Swal.fire({icon: 'success', title: 'Berhasil', text: 'Flow diperbarui', timer: 1000, showConfirmButton: false}).then(function(){ window.location.reload(); });
+            } else {
+              window.location.reload();
+            }
+          } else {
+            var emsg = (resp && resp.message) ? resp.message : 'Gagal menyimpan';
+            if (window.Swal) { Swal.fire({icon: 'error', title: 'Gagal', text: emsg}); } else { alert(emsg); }
+            $btn.prop('disabled', false);
+          }
+        },
+        error: function(xhr){
+          var emsg = (xhr && xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Terjadi kesalahan saat menyimpan';
+          if (window.Swal) { Swal.fire({icon: 'error', title: 'Gagal', text: emsg}); } else { alert(emsg); }
+          $btn.prop('disabled', false);
+        },
+        complete: function(){ $btn.prop('disabled', false); }
+      });
+    });
+
+    $('.btn-del-flow').on('click', function(e){
+      e.preventDefault();
+      var id = $(this).data('id');
+      var csrf = $('input[name=csrfmiddlewaretoken]').first().val();
+      var doDelete = function(){
+        $.ajax({
+          url: '/projects/master/flow/' + id + '/delete',
+          method: 'POST',
+          data: { csrfmiddlewaretoken: csrf },
+          dataType: 'json',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          success: function(resp){
+            var ok = resp && (resp.status === true || resp.status === 'True');
+            if (ok) {
+              if (window.Swal) {
+                Swal.fire({icon: 'success', title: 'Berhasil', text: 'Flow dihapus', timer: 900, showConfirmButton: false}).then(function(){ window.location.reload(); });
+              } else {
+                window.location.reload();
+              }
+            } else {
+              var emsg = (resp && resp.message) ? resp.message : 'Gagal menghapus';
+              if (window.Swal) { Swal.fire({icon: 'error', title: 'Gagal', text: emsg}); } else { alert(emsg); }
+            }
+          },
+          error: function(xhr){
+            var emsg = (xhr && xhr.responseJSON && xhr.responseJSON.message) ? xhr.responseJSON.message : 'Terjadi kesalahan saat menghapus';
+            if (window.Swal) { Swal.fire({icon: 'error', title: 'Gagal', text: emsg}); } else { alert(emsg); }
+          }
+        });
+      };
+      if (window.Swal) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Hapus flow?',
+          text: 'Data yang dihapus tidak bisa dikembalikan.',
+          showCancelButton: true,
+          confirmButtonText: 'Hapus',
+          cancelButtonText: 'Batal'
+        }).then(function(result){
+          if (result.isConfirmed) { doDelete(); }
+        });
+      } else {
+        if (confirm('Hapus flow ini?')) { doDelete(); }
+      }
+    });
+  }
+});
+</script>
+{% endblock %}

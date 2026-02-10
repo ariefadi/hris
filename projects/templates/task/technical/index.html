@@ -5,14 +5,8 @@
 
 {% block more_stylesheet %}
 <style>
-.technical-page .card { border-radius: 14px; }
-.technical-page .partner-card { border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
-.technical-page .partner-card .card-header { background: linear-gradient(135deg, rgba(23,162,184,0.12), rgba(23,162,184,0.02)); border-bottom: 1px solid rgba(0,0,0,0.06); }
-.technical-page .partner-title { font-weight: 700; }
 .technical-page .partner-meta { display: flex; flex-wrap: wrap; gap: 8px; }
 .technical-page .meta-badge { background: #f8f9fa; border: 1px solid rgba(0,0,0,0.06); color: #495057; padding: 4px 8px; border-radius: 999px; font-size: 0.75rem; }
-.technical-page .subdomain-card { border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 6px 16px rgba(0,0,0,0.05); }
-.technical-page .subdomain-card .card-body { padding: 16px; }
 .technical-page .section-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: #6c757d; }
 .technical-page .info-pill { background: #eef6ff; color: #1f4b88; border-radius: 8px; padding: 6px 10px; font-weight: 600; }
 .technical-page .info-muted { color: #6c757d; }
@@ -56,7 +50,7 @@
           <div class="row">
             {% for s in p.subrows %}
             <div class="col-12 col-lg-6">
-              <div class="card subdomain-card h-100">
+              <div class="card subdomain-card shadow-lg">
                 <div class="card-body">
                   <div class="d-flex align-items-center justify-content-between mb-3">
                     <div class="info-pill" style="word-break: break-word;">Server: {{ s.public_ipv4|default:"-" }}</div>
@@ -110,11 +104,7 @@
     </div>
     {% empty %}
     <div class="col-12">
-      <div class="card">
-        <div class="card-body">
-          <div class="text-center text-muted py-4">Belum ada data waiting.</div>
-        </div>
-      </div>
+      <div class="text-center text-muted py-4">Belum ada data.</div>
     </div>
     {% endfor %}
  </div>

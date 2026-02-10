@@ -1,68 +1,65 @@
 {% extends 'admin_base.html' %}
 
-{% block page_title %}Master Website{% endblock %}
-{% block page_heading %}Master Website{% endblock %}
+{% block page_title %}Data Website{% endblock %}
+{% block page_heading %}Data Website{% endblock %}
+
+{% block more_stylesheet %}
+<style>
+.website-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); grid-gap: 14px; }
+.website-card { border: 1px solid rgba(0,0,0,0.06); border-radius: 12px; }
+.website-card .card-body { display: flex; flex-direction: column; gap: 10px; }
+.website-card .card-footer { background: transparent; border-top: 1px solid rgba(0,0,0,0.06); }
+.website-main { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.website-name { font-weight: 600; font-size: 1.1rem; }
+.meta-row { display: flex; justify-content: space-between; gap: 8px; font-size: 0.85rem; color: #6c757d; }
+</style>
+{% endblock %}
 
 {% block breadcrumbs %}
 <li class="breadcrumb-item">Projects</li>
-<li class="breadcrumb-item active"><a href="/projects/master/website">Master Website</a></li>
+<li class="breadcrumb-item active"><a href="/projects/master/website">Data Website</a></li>
 {% endblock %}
 
 {% block content %}
-<div class="row">
+<div class="row website-page">
   <div class="col-12">
-    <div class="card">
-      <div class="card-header">
-        <h3 class="card-title">Daftar Website</h3>
-      </div>
-      <div class="card-body">
-        <div class="table-responsive">
-          <table class="table table-striped">
-            <thead>
-              <tr>
-                <th width="5%">No</th>
-                <th width="25%">Website</th>
-                <th width="15%">Niche</th>
-                <th width="20%">Keyword</th>
-                <th width="10%">User</th>
-                <th width="10%">Pass</th>
-                <th width="10%">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for w in websites %}
-              <tr>
-                <td class="align-middle">{{ forloop.counter }}</td>
-                <td class="align-middle">{{ w.website_name }}</td>
-                <td class="align-middle">{% if w.niche == None %}<span class="text-muted">-</span>{% else %}{{ w.niche }}{% endif %}</td>
-                <td class="align-middle">
-                  <span class="badge badge-info btn-show-keywords" style="cursor:pointer;"
-                        data-subdomain="{{ w.subdomain_id }}"
-                        data-name="{{ w.website_name }}">
-                    {{ w.keyword_count|default:"0" }} Keyword <i class="bi bi-list"></i>
-                  </span>
-                </td>
-                <td class="align-middle">{{ w.website_user }}</td>
-                <td class="align-middle">{{ w.website_pass }}</td>
-                <td class="align-middle">
-                  <button type="button" class="btn btn-sm btn-warning btn-edit-website"
-                          data-id="{{ w.website_id }}"
-                          data-user="{{ w.website_user }}"
-                          data-pass="{{ w.website_pass }}"
-                          data-name="{{ w.website_name }}">
-                    <i class="bi bi-pencil"></i>
-                  </button>
-                </td>
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="7" class="text-center text-muted">Belum ada data website.</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+    
+    <div class="website-grid">
+      {% for w in websites %}
+      <div class="card website-card shadow-lg">
+        <div class="card-body">
+          <div class="website-main">
+            <div>
+              <div class="website-name">{{ w.website_name }}</div>
+              <div class="text-muted small">
+                Niche: {% if w.niche == None %}-{% else %}{{ w.niche }}{% endif %}
+              </div>
+            </div>
+            <span class="badge badge-info btn-show-keywords"
+                  style="cursor:pointer;"
+                  data-subdomain="{{ w.subdomain_id }}"
+                  data-name="{{ w.website_name }}">
+              {{ w.keyword_count|default:"0" }} Keyword <i class="bi bi-list"></i>
+            </span>
+          </div>
+          <div class="meta-row">
+            <div>User: {{ w.website_user|default:'-' }}</div>
+            <div>Pass: {{ w.website_pass|default:'-' }}</div>
+          </div>
+        </div>
+        <div class="card-footer d-flex align-items-center gap-2">
+          <button type="button" class="btn btn-sm btn-warning btn-edit-website"
+                  data-id="{{ w.website_id }}"
+                  data-user="{{ w.website_user }}"
+                  data-pass="{{ w.website_pass }}"
+                  data-name="{{ w.website_name }}">
+            <i class="bi bi-pencil"></i>
+          </button>
         </div>
       </div>
+      {% empty %}
+      <div class="text-center text-muted py-3">Belum ada data website.</div>
+      {% endfor %}
     </div>
   </div>
   

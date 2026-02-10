@@ -1,67 +1,80 @@
 {% extends 'admin_base.html' %}
 
-{% block page_title %}Master Server{% endblock %}
-{% block page_heading %}Master Server{% endblock %}
+{% block page_title %}Data Server{% endblock %}
+{% block page_heading %}Data Server{% endblock %}
+
+{% block more_stylesheet %}
+<style>
+.server-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); grid-gap: 14px; }
+.server-card { border: 1px solid rgba(0,0,0,0.06); border-radius: 12px; }
+.server-card .card-body { display: flex; flex-direction: column; gap: 10px; }
+.server-card .card-footer { background: transparent; border-top: 1px solid rgba(0,0,0,0.06); }
+.server-main { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.server-host { font-weight: 600; font-size: 1rem; }
+.meta-row { display: flex; justify-content: space-between; gap: 8px; font-size: 0.85rem; color: #6c757d; }
+.specs { display: flex; flex-wrap: wrap; gap: 8px; }
+.spec { background: #f8f9fa; border: 1px solid rgba(0,0,0,0.06); padding: 3px 8px; border-radius: 999px; font-size: 0.8rem; color: #495057; }
+.status-badge { text-transform: capitalize; }
+.server-actions { display: flex; gap: 6px; align-items: center; }
+</style>
+{% endblock %}
 
 {% block breadcrumbs %}
 <li class="breadcrumb-item">Projects</li>
-<li class="breadcrumb-item active"><a href="/projects/master/server">Master Server</a></li>
+<li class="breadcrumb-item active"><a href="/projects/master/server">Data Server</a></li>
 {% endblock %}
 
 {% block content %}
-<div class="row">
+<div class="row server-page">
   <div class="col-12">
-    <div class="card">
+    <div class="card mb-3">
       <div class="card-header">
-        <h3 class="card-title">Daftar Server</h3>
+        <h3 class="card-title">Data Server</h3>
         <div class="card-tools">
           <a href="#" class="btn btn-sm btn-primary" data-toggle="modal" data-target="#modalCreateServer">
             <i class="bi bi-plus-circle"></i> Tambah Server
           </a>
         </div>
       </div>
-      <div class="card-body">
-        <div class="table-responsive">
-          <table class="table table-striped">
-            <thead>
-              <tr>
-                <th width="5%">No</th>
-                <th width="20%">Hostname</th>
-                <th width="15%">Label</th>
-                <th width="10%">Region</th>
-                <th width="10%">Status</th>
-                <th width="15%">IPv4</th>
-                <th width="10%">Expires</th>
-                <th width="15%">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for s in servers %}
-              <tr>
-                <td class="align-middle">{{ forloop.counter }}</td>
-                <td class="align-middle">{{ s.hostname }}</td>
-                <td class="align-middle">{{ s.label }}</td>
-                <td class="align-middle">{{ s.region }}</td>
-                <td class="align-middle">{{ s.server_status|title }}</td>
-                <td class="align-middle">{{ s.public_ipv4 }}</td>
-                <td class="align-middle">{% if s.expires_at %}{{ s.expires_at|date:'Y-m-d' }}{% endif %}</td>
-                <td class="align-middle">
-                  <a href="/projects/master/server/{{ s.server_id }}/edit" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
-                  <form action="/projects/master/server/{{ s.server_id }}/delete" method="post" style="display:inline-block;margin-left:6px;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Hapus server ini?')"><i class="bi bi-trash"></i></button>
-                  </form>
-                </td>
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="8" class="text-center text-muted">Belum ada data server.</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+    </div>
+    <div class="server-grid">
+      {% for s in servers %}
+      <div class="card server-card h-100">
+        <div class="card-body">
+          <div class="server-main">
+            <div>
+              <div class="server-host">{{ s.hostname }}</div>
+              <div class="text-muted small">{{ s.label|default:'-' }}</div>
+            </div>
+            <span class="badge {% if s.server_status == 'active' %}badge-success{% else %}badge-warning{% endif %} status-badge">
+              {{ s.server_status|default:'-' }}
+            </span>
+          </div>
+          <div class="meta-row">
+            <div>Region: {{ s.region|default:'-' }}</div>
+            <div>IPv4: {{ s.public_ipv4|default:'-' }}</div>
+          </div>
+          <div class="meta-row">
+            <div>Expires: {% if s.expires_at %}{{ s.expires_at|date:'d M Y' }}{% else %}-{% endif %}</div>
+            <div>Disk: {{ s.disk_gb|default:'-' }} GB</div>
+          </div>
+          <div class="specs">
+            <span class="spec bg-warning">vCPU {{ s.vcpu_count|default:'-' }}</span>
+            <span class="spec bg-secondary">Memory {{ s.memory_gb|default:'-' }} GB</span>
+            <span class="spec bg-primary fmt-number" data-amount="{{ s.cost_monthly|default:'' }}" data-currency="{{ s.currency|default:'IDR' }}">Cost {{ s.cost_monthly|default:'-' }}</span>
+          </div>
+        </div>
+        <div class="card-footer d-flex align-items-center gap-2">
+          <a href="/projects/master/server/{{ s.server_id }}/edit" class="btn btn-sm btn-warning mr-1"><i class="bi bi-pencil"></i></a>
+          <form action="/projects/master/server/{{ s.server_id }}/delete" method="post" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Hapus server ini?')"><i class="bi bi-trash"></i></button>
+          </form>
         </div>
       </div>
+      {% empty %}
+      <div class="text-center text-muted py-3">Belum ada data server.</div>
+      {% endfor %}
     </div>
   </div>
 </div>
@@ -263,6 +276,18 @@ $(function(){
       todayHighlight: true
     });
   }
+  try {
+    $('.fmt-number').each(function(){
+      var raw = $(this).data('amount');
+      var currency = String($(this).data('currency') || 'IDR').toUpperCase();
+      if (raw === undefined || raw === null || raw === '') return;
+      var num = parseFloat(String(raw).replace(/[^0-9.-]/g,'')); 
+      if (isNaN(num)) return;
+      var formatted = num.toLocaleString('id-ID', { maximumFractionDigits: 2 });
+      var symbol = currency === 'USD' ? '$' : (currency === 'EUR' ? '€' : 'Rp');
+      $(this).text('Cost ' + symbol + ' ' + formatted);
+    });
+  } catch(e) {}
   (function(){
     var $p = $('input[name="purchased_at"]');
     var $e = $('input[name="expires_at"]');

@@ -3,15 +3,29 @@
 {% block page_title %}Master Domain{% endblock %}
 {% block page_heading %}Master Domain{% endblock %}
 
+{% block more_stylesheet %}
+<style>
+.domain-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); grid-gap: 14px; }
+.domain-card { border: 1px solid rgba(0,0,0,0.06); border-radius: 12px; }
+.domain-card .card-body { display: flex; flex-direction: column; gap: 10px; }
+.domain-card .card-footer { background: transparent; border-top: 1px solid rgba(0,0,0,0.06); }
+.domain-main { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.domain-name { font-weight: 600; font-size: 1.1rem; }
+.meta-row { display: flex; justify-content: space-between; gap: 8px; font-size: 0.85rem; color: #6c757d; }
+.status-badge { text-transform: capitalize; }
+.subdomain-badge { cursor: pointer; }
+</style>
+{% endblock %}
+
 {% block breadcrumbs %}
 <li class="breadcrumb-item">Projects</li>
 <li class="breadcrumb-item active"><a href="/projects/master/domain">Master Domain</a></li>
 {% endblock %}
 
 {% block content %}
-<div class="row">
+<div class="row domain-page">
   <div class="col-12">
-    <div class="card">
+    <div class="card mb-3">
       <div class="card-header">
         <h3 class="card-title">Daftar Domain</h3>
         <div class="card-tools">
@@ -20,44 +34,52 @@
           </a>
         </div>
       </div>
-      <div class="card-body">
-        <div class="table-responsive">
-          <table class="table table-striped">
-            <thead>
-              <tr>
-                <th width="5%">No</th>
-                <th width="25%">Domain</th>
-                <th width="15%">Status</th>
-                <th width="15%">Exp Date</th>
-                <th width="15%">Contact Email</th>
-                <th width="15%">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for d in domains %}
-              <tr>
-                <td class="align-middle">{{ forloop.counter }}</td>
-                <td class="align-middle">{{ d.domain }}</td>
-                <td class="align-middle">{{ d.domain_status|title }}</td>
-                <td class="align-middle">{% if d.expiration_date %}{{ d.expiration_date|date:'Y-m-d' }}{% endif %}</td>
-                <td class="align-middle">{{ d.contact_email }}</td>
-                <td class="align-middle">
-                  <a href="/projects/master/domain/{{ d.domain_id }}/edit" class="btn btn-sm btn-warning"><i class="bi bi-pencil"></i></a>
-                  <form action="/projects/master/domain/{{ d.domain_id }}/delete" method="post" style="display:inline-block;margin-left:6px;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Hapus domain ini?')"><i class="bi bi-trash"></i></button>
-                  </form>
-                </td>
-              </tr>
-              {% empty %}
-              <tr>
-                <td colspan="7" class="text-center text-muted">Belum ada data domain.</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+    </div>
+    <div class="domain-grid">
+      {% for d in domains %}
+      <div class="card domain-card shadow-lg">
+        <div class="card-body">
+          <div class="domain-main">
+            <div>
+              <div class="domain-name">{{ d.domain }}</div>
+              <div class="text-muted small">Hostname: {{ d.hostname|default:'-' }}</div>
+              <span class="badge badge-info subdomain-badge mt-1"
+                    data-toggle="popover"
+                    data-trigger="hover"
+                    data-placement="top"
+                    data-html="true"
+                    data-subdomains="{{ d.subdomain_list|default:''|escape }}">
+                Subdomain {{ d.subdomain_count|default:0 }}
+              </span>
+            </div>
+            <span class="badge {% if d.domain_status == 'active' %}badge-success{% else %}badge-warning{% endif %} status-badge">
+              {{ d.domain_status|default:'-'|title }}
+            </span>
+          </div>
+          <div class="meta-row">
+            <div>Provider: {{ d.provider|default:'-' }}</div>
+            <div>Registrar: {{ d.registrar|default:'-' }}</div>
+          </div>
+          <div class="meta-row">
+            <div>Status: {{ d.domain_status|default:'-'|title }}</div>
+            <div>Exp: {% if d.expiration_date %}{{ d.expiration_date|date:'d M Y' }}{% else %}-{% endif %}</div>
+          </div>
+          <div class="meta-row">
+            <div>Email: {{ d.contact_email|default:'-' }}</div>
+            <div>&nbsp;</div>
+          </div>
+        </div>
+        <div class="card-footer d-flex align-items-center gap-2">
+          <a href="/projects/master/domain/{{ d.domain_id }}/edit" class="btn btn-sm btn-warning mr-1"><i class="bi bi-pencil"></i></a>
+          <form action="/projects/master/domain/{{ d.domain_id }}/delete" method="post" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Hapus domain ini?')"><i class="bi bi-trash"></i></button>
+          </form>
         </div>
       </div>
+      {% empty %}
+      <div class="text-center text-muted py-3">Belum ada data domain.</div>
+      {% endfor %}
     </div>
   </div>
 </div>
@@ -300,6 +322,25 @@ $(function(){
       dropdownParent: $('#modalCreateDomain'),
       allowClear: true,
       placeholder: $('#domain_registrar_select').data('placeholder') || '-- Pilih Registrar --'
+    });
+  }
+  if (window.jQuery && $.fn.popover) {
+    $('.subdomain-badge').popover({
+      container: 'body',
+      content: function(){
+        var raw = String($(this).data('subdomains') || '');
+        if (!raw) {
+          return '<div class="text-muted small">Tidak ada subdomain</div>';
+        }
+        var items = raw.split('||').map(function(v){ return String(v || '').trim(); }).filter(Boolean);
+        if (!items.length) {
+          return '<div class="text-muted small">Tidak ada subdomain</div>';
+        }
+        var html = items.map(function(v){
+          return '<div class="small">' + $('<div>').text(v).html() + '</div>';
+        }).join('');
+        return html;
+      }
     });
   }
   $('#formCreateDomain').on('submit', function(e){

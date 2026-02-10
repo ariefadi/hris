@@ -79,6 +79,11 @@ urlpatterns = [
     path('master/niche/keyword/<int:keyword_id>/update', master.KeywordUpdateView.as_view(), name='projects_master_keyword_update'),
     path('master/niche/keyword/<int:keyword_id>/delete', master.KeywordDeleteView.as_view(), name='projects_master_keyword_delete'),
 
+    path('master/flow', master.FlowIndexView.as_view(), name='projects_master_flow'),
+    path('master/flow/create', master.FlowCreateView.as_view(), name='projects_master_flow_create'),
+    path('master/flow/<str:flow_id>/update', master.FlowUpdateView.as_view(), name='projects_master_flow_update'),
+    path('master/flow/<str:flow_id>/delete', master.FlowDeleteView.as_view(), name='projects_master_flow_delete'),
+
     # COUNTRY
     path('master/country', master.CountryIndexView.as_view(), name='projects_master_country'),
     path('master/country/create', master.CountryCreateView.as_view(), name='projects_master_country_create'),

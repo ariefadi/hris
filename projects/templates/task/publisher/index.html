@@ -3,6 +3,16 @@
 {% block page_title %}Publisher{% endblock %}
 {% block page_heading %}Publisher{% endblock %}
 
+{% block more_stylesheet %}
+<style>
+.publisher-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); grid-gap: 14px; }
+.publisher-card { border: 1px solid rgba(0,0,0,0.06); border-radius: 12px; }
+.publisher-main { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.publisher-name { font-weight: 600; font-size: 1.05rem; }
+.meta-row { display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.85rem; color: #6c757d; }
+</style>
+{% endblock %}
+
 {% block breadcrumbs %}
 <li class="breadcrumb-item">Task</li>
 <li class="breadcrumb-item active"><a href="/projects/task/publisher">Publisher</a></li>
@@ -10,62 +20,54 @@
 
 {% block content %}
 
-<div class="row">
+<div class="row publisher-page">
   <div class="col-12">
-    <div class="card">
-      <div class="card-header">
-        <h3 class="card-title">Publisher</h3>
-      </div>
-      <div class="card-body">
-        <div class="table-responsive">
-          <table class="table table-striped">
-            <thead>
-              <tr>
-                <th width="5%">No</th>
-                <th width="25%">Subdomain</th>
-                <th width="25%">Niche & Keywords</th>
-                <th width="15%">Deadline</th>
-                <th width="10%">Draft</th>
-                <th width="10%">Posted</th>
-                <th width="15%"></th>
-                <th width="5%"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for g in groups %}
-                {% for r in g.rows %}
-                <tr>
-                  <td class="align-middle">{{ g.offset|add:forloop.counter }}</td>
-                  <td class="align-middle">{{ r.subdomain_name }}</td>
-                  <td class="align-middle">
-                    <div><b>Niche:</b> {{ r.niche }}</div>
-                    <div><b>Keywords:</b> {% if r.keyword_total > 0 %} {{ r.keyword_total }} {% else %} - {% endif %}</div>
-                  </td>
-                  <td class="align-middle">{{ r.article_deadline|date:'d M Y' }}</td>
-                  <td class="align-middle">{{ r.draft_total }}</td>
-                  <td class="align-middle">{{ r.posted_total }}</td>
-                  <td class="align-middle">
-                    {% if r.niche and r.keyword_total %}
-                    <button class="btn btn-sm btn-warning btn-edit-nk" data-subdomain-id="{{ r.subdomain_id }}"><i class="bi bi-pencil"></i></button>
-                    {% endif %}
-                  </td>
-                  {% if forloop.first %}
-                  <td class="align-middle" rowspan="{{ g.rowspan }}">
-                    <a href="#" class="btn btn-sm btn-success btn-send" data-partner-id="{{ g.partner_id }}" data-process-id="{{ g.process_id }}" title="Kirim"><i class="bi bi-send"></i></a>
-                  </td>
-                  {% endif %}
-                </tr>
-                {% endfor %}
-              {% empty %}
-              <tr>
-                <td colspan="8" class="text-center text-muted">Belum ada data.</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+    {% if groups %}
+      {% for g in groups %}
+      <div class="card mb-3">
+        <div class="card-header">
+          <h3 class="card-title">
+            Publisher
+            <div class="text-muted small">Partner ID: {{ g.partner_id }}</div>
+          </h3>
+          <div class="card-tools">
+            <a href="#" class="btn btn-sm btn-success btn-send" data-partner-id="{{ g.partner_id }}" data-process-id="{{ g.process_id }}">
+              <i class="bi bi-send"></i> Kirim
+            </a>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="publisher-grid">
+            {% for r in g.rows %}
+            <div class="card publisher-card shadow-lg">
+              <div class="card-body">
+                <div class="publisher-main">
+                  <div>
+                    <div class="publisher-name">{{ r.subdomain_name }}</div>
+                    <div class="text-muted small">Niche: {{ r.niche|default:'-' }}</div>
+                  </div>
+                  <span class="badge badge-info">{{ r.keyword_total|default:'0' }} Keyword</span>
+                </div>
+                <div class="mt-2">
+                  <div class="badge badge-danger">Deadline: {{ r.article_deadline|date:'d M Y' }}</div>
+                  <div class="badge badge-warning">Draft: {{ r.draft_total|default:'0' }}</div>
+                  <div class="badge badge-success">Posted: {{ r.posted_total|default:'0' }}</div>
+                </div>
+              </div>
+              <div class="card-footer">
+                {% if r.niche and r.keyword_total %}
+                <button class="btn btn-sm btn-warning btn-edit-nk" data-subdomain-id="{{ r.subdomain_id }}"><i class="bi bi-pencil"></i></button>
+                {% endif %}
+              </div>
+            </div>
+            {% endfor %}
+          </div>
         </div>
       </div>
-    </div>
+      {% endfor %}
+    {% else %}
+      <div class="text-center text-muted py-3">Belum ada data.</div>
+    {% endif %}
   </div>
 </div>
 

@@ -15,10 +15,17 @@ class DomainIndexView(View):
         active_portal_id = request.session.get('active_portal_id', '12')
         db = data_mysql()
         sql = """
-            SELECT domain_id, domain, domain_status, expiration_date,
-                   primary_ip, contact_email
-            FROM data_domains
-            ORDER BY domain ASC
+            SELECT d.domain_id, d.domain, d.domain_status, d.expiration_date,
+                   d.primary_ip, d.contact_email, d.provider, d.registrar,
+                   s.hostname,
+                   COUNT(sd.subdomain_id) AS subdomain_count,
+                   GROUP_CONCAT(CONCAT(sd.subdomain, '.', d.domain) ORDER BY sd.subdomain SEPARATOR '||') AS subdomain_list
+            FROM data_domains d
+            LEFT JOIN data_servers s ON s.server_id = d.server_id
+            LEFT JOIN data_subdomain sd ON sd.domain_id = d.domain_id
+            GROUP BY d.domain_id, d.domain, d.domain_status, d.expiration_date,
+                     d.primary_ip, d.contact_email, d.provider, d.registrar, s.hostname
+            ORDER BY d.domain ASC
         """
         domains = []
         if db.execute_query(sql):
@@ -810,7 +817,8 @@ class ServerIndexView(View):
         active_portal_id = request.session.get('active_portal_id', '12')
         db = data_mysql()
         sql = """
-            SELECT server_id, hostname, label, region, server_status, public_ipv4, expires_at
+            SELECT server_id, hostname, label, region, server_status, public_ipv4, expires_at,
+                   disk_gb, memory_gb, vcpu_count, cost_monthly, currency
             FROM data_servers
             ORDER BY mdd DESC
         """
@@ -1341,6 +1349,142 @@ class WebsiteUpdateView(View):
                 return JsonResponse({'status': False, 'message': 'Gagal memperbarui website.'}, status=500)
             messages.error(request, 'Gagal memperbarui website.')
         return redirect('/projects/master/website')
+
+class FlowIndexView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        active_portal_id = request.session.get('active_portal_id', '12')
+        db = data_mysql()
+        sql = """
+            SELECT f.flow_id, f.group_id, g.group_name, f.task_name, f.task_desc, f.task_link, f.task_number
+            FROM data_flow f
+            LEFT JOIN data_flow_group g ON g.group_id = f.group_id
+            ORDER BY COALESCE(f.task_number, 999999) ASC, f.flow_id ASC
+        """
+        rows = []
+        if db.execute_query(sql):
+            rows = db.cur_hris.fetchall() or []
+        groups = []
+        if db.execute_query("SELECT group_id, group_name FROM data_flow_group ORDER BY group_name ASC"):
+            groups = db.cur_hris.fetchall() or []
+        context = {
+            'user': admin,
+            'active_portal_id': active_portal_id,
+            'flows': rows,
+            'groups': groups,
+        }
+        return render(request, 'master/flow/index.html', context)
+
+class FlowCreateView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        db = data_mysql()
+        flow_id = (request.POST.get('flow_id') or '').strip()
+        group_id = (request.POST.get('group_id') or '').strip()
+        task_name = (request.POST.get('task_name') or '').strip()
+        task_desc = (request.POST.get('task_desc') or '').strip()
+        task_link = (request.POST.get('task_link') or '').strip()
+        task_number_raw = (request.POST.get('task_number') or '').strip()
+        is_ajax = (request.headers.get('x-requested-with') == 'XMLHttpRequest') or (
+            request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+        )
+        if not flow_id:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Flow ID wajib diisi.'}, status=400)
+            messages.error(request, 'Flow ID wajib diisi.')
+            return redirect('/projects/master/flow')
+        if not task_name:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Task name wajib diisi.'}, status=400)
+            messages.error(request, 'Task name wajib diisi.')
+            return redirect('/projects/master/flow')
+        try:
+            task_number = int(task_number_raw) if task_number_raw else None
+        except Exception:
+            task_number = None
+        ok = db.execute_query(
+            """
+            INSERT INTO data_flow (flow_id, group_id, task_name, task_desc, task_link, task_number, mdb, mdb_name, mdd)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+            """,
+            (flow_id, group_id or None, task_name, task_desc or None, task_link or None, task_number, admin.get('user_id',''), admin.get('user_alias',''))
+        )
+        if ok:
+            db.commit()
+            if is_ajax:
+                return JsonResponse({'status': True})
+            messages.success(request, 'Flow berhasil ditambahkan.')
+        else:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Gagal menambahkan flow.'}, status=500)
+            messages.error(request, 'Gagal menambahkan flow.')
+        return redirect('/projects/master/flow')
+
+class FlowUpdateView(View):
+    def post(self, request, flow_id):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        admin = request.session.get('hris_admin', {})
+        db = data_mysql()
+        group_id = (request.POST.get('group_id') or '').strip()
+        task_name = (request.POST.get('task_name') or '').strip()
+        task_desc = (request.POST.get('task_desc') or '').strip()
+        task_link = (request.POST.get('task_link') or '').strip()
+        task_number_raw = (request.POST.get('task_number') or '').strip()
+        is_ajax = (request.headers.get('x-requested-with') == 'XMLHttpRequest') or (
+            request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+        )
+        if not task_name:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Task name wajib diisi.'}, status=400)
+            messages.error(request, 'Task name wajib diisi.')
+            return redirect('/projects/master/flow')
+        try:
+            task_number = int(task_number_raw) if task_number_raw else None
+        except Exception:
+            task_number = None
+        ok = db.execute_query(
+            """
+            UPDATE data_flow
+            SET group_id=%s, task_name=%s, task_desc=%s, task_link=%s, task_number=%s, mdb=%s, mdb_name=%s, mdd=NOW()
+            WHERE flow_id=%s
+            """,
+            (group_id or None, task_name, task_desc or None, task_link or None, task_number, admin.get('user_id',''), admin.get('user_alias',''), flow_id)
+        )
+        if ok:
+            db.commit()
+            if is_ajax:
+                return JsonResponse({'status': True})
+            messages.success(request, 'Flow berhasil diperbarui.')
+        else:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Gagal memperbarui flow.'}, status=500)
+            messages.error(request, 'Gagal memperbarui flow.')
+        return redirect('/projects/master/flow')
+
+class FlowDeleteView(View):
+    def post(self, request, flow_id):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        db = data_mysql()
+        is_ajax = (request.headers.get('x-requested-with') == 'XMLHttpRequest') or (
+            request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+        )
+        ok = db.execute_query("DELETE FROM data_flow WHERE flow_id=%s", (flow_id,))
+        if ok:
+            db.commit()
+            if is_ajax:
+                return JsonResponse({'status': True})
+            messages.success(request, 'Flow berhasil dihapus.')
+        else:
+            if is_ajax:
+                return JsonResponse({'status': False, 'message': 'Gagal menghapus flow.'}, status=500)
+            messages.error(request, 'Gagal menghapus flow.')
+        return redirect('/projects/master/flow')
 
 class CountryIndexView(View):
     def get(self, request):
