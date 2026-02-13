@@ -11,10 +11,11 @@ class OverviewView(View):
         db = data_mysql()
         mp_completed = 0
         mp_waiting = 0
+        mp_off = 0
         sql_mp = """
             SELECT status, COUNT(*) AS total
             FROM data_media_partner
-            WHERE status IN ('completed','waiting')
+            WHERE status IN ('completed','waiting','off')
             GROUP BY status
         """
         if db.execute_query(sql_mp):
@@ -36,6 +37,11 @@ class OverviewView(View):
                         mp_waiting = int(total or 0)
                     except Exception:
                         mp_waiting = 0
+                elif str(st) == 'off':
+                    try:
+                        mp_off = int(total or 0)
+                    except Exception:
+                        mp_off = 0
         server_counts = {'active': 0, 'stopped': 0, 'terminated': 0, 'suspended': 0}
         sql_sv = """
             SELECT server_status, COUNT(*) AS total
@@ -69,20 +75,21 @@ class OverviewView(View):
             return c
         total_domains = count_table("SELECT COUNT(*) AS total FROM data_domains")
         total_subdomains = count_table("SELECT COUNT(*) AS total FROM data_subdomain")
-        total_nieces = count_table("SELECT COUNT(*) AS total FROM data_niece")
+        total_niches = count_table("SELECT COUNT(*) AS total FROM data_niche")
         total_keywords = count_table("SELECT COUNT(*) AS total FROM data_keywords")
         context = {
             'user': admin,
             'active_portal_id': active_portal_id,
             'mp_completed': mp_completed,
             'mp_waiting': mp_waiting,
+            'mp_off': mp_off,
             'server_active': server_counts['active'],
             'server_stopped': server_counts['stopped'],
             'server_terminated': server_counts['terminated'],
             'server_suspended': server_counts['suspended'],
             'total_domains': total_domains,
             'total_subdomains': total_subdomains,
-            'total_nieces': total_nieces,
+            'total_niches': total_niches,
             'total_keywords': total_keywords,
         }
         return render(request, 'projects/overview.html', context)

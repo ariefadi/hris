@@ -9,36 +9,6 @@
 {% endblock %}
 
 {% block content %}
-<div class="row">
-  <div class="col-md-6">
-    <div class="card">
-      <div class="card-header">
-        <h3 class="card-title">Current Context</h3>
-      </div>
-      <div class="card-body">
-        <p><strong>Active Portal ID:</strong> {{ active_portal_id }}</p>
-        <p><strong>User:</strong> {{ user.user_alias }}</p>
-        <p class="text-muted mb-0">Menus adapt by active portal and your role.</p>
-      </div>
-    </div>
-  </div>
-
-  <div class="col-md-6">
-    <div class="card">
-      <div class="card-header">
-        <h3 class="card-title">Quick Actions</h3>
-      </div>
-      <div class="card-body">
-        <ul class="list-unstyled">
-          <li><i class="bi bi-columns-gap mr-1"></i> Switch portal using the navbar dropdown</li>
-          <li><i class="bi bi-list-ul mr-1"></i> Explore menus in the sidebar</li>
-          <li><i class="bi bi-person mr-1"></i> Review your role default page via portal switch</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-</div>
-
 <div class="row mt-3">
   <div class="col-lg-3 col-md-6">
     <div class="card">
@@ -49,6 +19,10 @@
         <div class="d-flex justify-content-between align-items-center mb-2">
           <span>Completed</span>
           <span class="badge badge-success">{{ mp_completed }}</span>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <span>Non-Active</span>
+          <span class="badge badge-secondary">{{ mp_off }}</span>
         </div>
         <div class="d-flex justify-content-between align-items-center">
           <span>Waiting</span>
