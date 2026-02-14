@@ -263,6 +263,52 @@ class SettingsDB(ManagementDB):
         except pymysql.Error as e:
             return { 'status': False, 'message': f'Database error: {str(e)}' }
 
+    def data_user_by_params_with_roles(self, params=None):
+        sql_where = ''
+        sql_params = None
+        if params and 'user_mail' in params:
+            sql_where = 'WHERE u.user_mail = %s'
+            sql_params = (params.get('user_mail'),)
+
+        sql = f'''
+            SELECT
+                u.user_id,
+                u.user_name,
+                u.user_alias,
+                u.user_mail,
+                u.user_telp,
+                u.user_alamat,
+                u.user_st,
+                COALESCE(GROUP_CONCAT(DISTINCT r.role_nm ORDER BY r.role_nm SEPARATOR ', '), '') AS role_names,
+                COUNT(DISTINCT ur.role_id) AS role_count
+            FROM app_users u
+            LEFT JOIN app_user_role ur ON ur.user_id = u.user_id
+            LEFT JOIN app_role r ON r.role_id = ur.role_id
+            {sql_where}
+            GROUP BY
+                u.user_id,
+                u.user_name,
+                u.user_alias,
+                u.user_mail,
+                u.user_telp,
+                u.user_alamat,
+                u.user_st
+            ORDER BY u.user_alias ASC
+        '''
+        try:
+            if not self.execute_query(sql, sql_params):
+                raise pymysql.Error("Failed to fetch user data")
+            datanya = self.cur_hris.fetchall() or []
+            return {
+                'status': True,
+                'data': datanya,
+            }
+        except pymysql.Error as e:
+            return {
+                'status': False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+
     def replace_user_roles(self, user_id, role_ids):
         """Replace all roles for a user with the provided list"""
         try:

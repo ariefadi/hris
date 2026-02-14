@@ -57,13 +57,24 @@ function table_data_user() {
             judul = "Rekapitulasi Data User"
             $.each(data_user.data_user, function (index, value) {
                 var url_detail = 'page_detail_user/'+value.user_id;
-                var event_data = '<tr>';
+
+                var rolesText = '';
+                try {
+                    rolesText = (value.role_names || '').toString();
+                } catch (e) {
+                    rolesText = '';
+                }
+                var hasRole = (rolesText || '').trim() !== '';
+                var roleHtml = hasRole ? rolesText : '<span class="badge badge-warning text-dark">Belum diset</span>';
+
+                var event_data = '<tr' + (hasRole ? '' : ' class="table-warning"') + '>';
                 event_data += '<td class="text-center">' + (index + 1) + '</td>';
                 event_data += '<td class="text-left">' + value.user_alias + '</td>';
                 event_data += '<td class="text-center">' + value.user_name + '</td>';
                 event_data += '<td class="text-center">' + value.user_mail + '</td>';
                 event_data += '<td class="text-center">' + value.user_telp + '</td>';
                 event_data += '<td class="text-left">' + value.user_alamat + '</td>';
+                event_data += '<td class="text-left">' + roleHtml + '</td>';
                 if(value.user_st == '1'){
                     event_data += '<td class="text-center"><span class="badge badge-primary" style="color: white;">Aktif</span></td>';
                 }else{
@@ -100,7 +111,7 @@ function table_data_user() {
                                     +tanggal.getFullYear(),
                         exportOptions: {
                             columns: ':visible', 
-                            columns: [0, 1, 2, 3, 4, 5, 6],      // hanya kolom yang terlihat
+                            columns: [0, 1, 2, 3, 4, 5, 6, 7],      // hanya kolom yang terlihat
                             modifier: {
                                 search: 'applied',      // sesuai filter pencarian
                                 order: 'applied'        // sesuai urutan saat itu
@@ -111,7 +122,7 @@ function table_data_user() {
                             // =========================
                             // Set column width secara manual (unit: character width)
                             // =========================
-                            const colWidths = [5, 25, 10, 15, 10, 25, 5]; // 💡 Sesuaikan berdasarkan % di HTML
+                            const colWidths = [5, 22, 10, 15, 10, 20, 18, 5]; // 💡 Sesuaikan berdasarkan % di HTML
                             const cols = $('cols', sheet);
                             cols.empty(); // Kosongkan default <col> dari DataTables
                             for (let i = 0; i < colWidths.length; i++) {
@@ -153,21 +164,21 @@ function table_data_user() {
 
                             // Loop dari baris kedua (index 1, karena index 0 adalah header)
                             for (let i = 1; i < body.length; i++) {
-                                // Center kolom ke-1 (index 0) dan kolom ke-3 (index 2)
                                 body[i][0].alignment = 'center';
                                 body[i][1].alignment = 'left';
                                 body[i][2].alignment = 'center';
                                 body[i][3].alignment = 'center';
                                 body[i][4].alignment = 'center';
                                 body[i][5].alignment = 'left';
-                                body[i][6].alignment = 'center';
+                                body[i][6].alignment = 'left';
+                                body[i][7].alignment = 'center';
                             }
 
                             // Margin
                             doc.content[1].margin = [0, 0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
 
                             // Manual width sesuai presentase kolom HTML (tanpa kolom terakhir)
-                            doc.content[1].table.widths = ['5%', '25%', '10%', '15%', '10%', '25%', '5%'];
+                            doc.content[1].table.widths = ['5%', '22%', '10%', '15%', '10%', '20%', '18%', '5%'];
                         }
                     }
                 ]

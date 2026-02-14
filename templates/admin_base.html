@@ -475,6 +475,23 @@
                     </div>
                 </li>
                 <!--end::Portal Dropdown-->
+                {% if request.path|slice:":10" == '/settings/' %}
+                <li class="nav-item dropdown" id="pendingRoleNotif">
+                    <a class="nav-link" data-toggle="dropdown" href="#" aria-expanded="false" aria-label="Notifikasi user baru">
+                        <i class="bi bi-bell"></i>
+                        <span class="badge badge-danger navbar-badge" id="pendingRoleCount" style="display:none">0</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right" style="min-width: 340px;">
+                        <span class="dropdown-item dropdown-header" id="pendingRoleHeader">User Baru (0)</span>
+                        <div class="dropdown-divider"></div>
+                        <div id="pendingRoleItems">
+                            <span class="dropdown-item text-muted">Memuat...</span>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a href="{% url 'users_data' %}" class="dropdown-item dropdown-footer">Buka Data User</a>
+                    </div>
+                </li>
+                {% endif %}
                 <li class="nav-item dropdown user-menu">
                     <a href="#" class="nav-link dropdown-toggle" data-toggle="dropdown">
                         <img src="{% if user.user_foto %}{{ user.user_foto }}{% else %}{% static 'dist/assets/img/user2-160x160.jpg' %}{% endif %}" class="user-image rounded-circle shadow" alt="User Image"/>
@@ -827,5 +844,141 @@
             });
         })();
         </script>
+        {% if request.path|slice:":10" == '/settings/' %}
+        <script>
+        (function() {
+            function setText(el, txt) {
+                if (!el) return;
+                el.textContent = txt;
+            }
+
+            function clear(el) {
+                if (!el) return;
+                while (el.firstChild) el.removeChild(el.firstChild);
+            }
+
+            function buildItem(row) {
+                var a = document.createElement('a');
+                a.className = 'dropdown-item';
+                a.href = row.edit_url || '{% url "users_data" %}';
+
+                var icon = document.createElement('i');
+                icon.className = 'bi bi-person-check mr-2';
+
+                var wrap = document.createElement('div');
+                wrap.className = 'd-inline-block align-middle';
+
+                var top = document.createElement('div');
+                var strong = document.createElement('strong');
+                strong.textContent = row.user_alias || row.user_name || row.user_mail || row.user_id;
+                top.appendChild(strong);
+
+                if (row.user_name) {
+                    var smallU = document.createElement('small');
+                    smallU.className = 'text-muted ml-1';
+                    smallU.textContent = '(' + row.user_name + ')';
+                    top.appendChild(smallU);
+                }
+
+                var meta = document.createElement('small');
+                meta.className = 'text-muted d-block';
+                meta.textContent = row.user_mail || '';
+
+                wrap.appendChild(top);
+                wrap.appendChild(meta);
+
+                a.appendChild(icon);
+                a.appendChild(wrap);
+
+                return a;
+            }
+
+            function renderEmpty(container) {
+                clear(container);
+                var span = document.createElement('span');
+                span.className = 'dropdown-item text-muted';
+                span.textContent = 'Tidak ada user baru.';
+                container.appendChild(span);
+            }
+
+            function updateUI(payload) {
+                var countEl = document.getElementById('pendingRoleCount');
+                var headerEl = document.getElementById('pendingRoleHeader');
+                var itemsEl = document.getElementById('pendingRoleItems');
+
+                if (!payload || !payload.status) {
+                    if (itemsEl) {
+                        clear(itemsEl);
+                        var err = document.createElement('span');
+                        err.className = 'dropdown-item text-muted';
+                        err.textContent = 'Gagal memuat notifikasi.';
+                        itemsEl.appendChild(err);
+                    }
+                    if (countEl) countEl.style.display = 'none';
+                    setText(headerEl, 'User Baru (0)');
+                    return;
+                }
+
+                var count = 0;
+                try { count = parseInt(payload.count, 10) || 0; } catch (e) { count = 0; }
+
+                setText(headerEl, 'User Baru (' + count + ')');
+
+                if (countEl) {
+                    if (count > 0) {
+                        countEl.style.display = '';
+                        setText(countEl, String(count));
+                    } else {
+                        countEl.style.display = 'none';
+                    }
+                }
+
+                if (!itemsEl) return;
+
+                var rows = payload.data || [];
+                if (!rows.length) {
+                    renderEmpty(itemsEl);
+                    return;
+                }
+
+                clear(itemsEl);
+                for (var i = 0; i < rows.length; i++) {
+                    itemsEl.appendChild(buildItem(rows[i]));
+                    if (i !== rows.length - 1) {
+                        var div = document.createElement('div');
+                        div.className = 'dropdown-divider';
+                        itemsEl.appendChild(div);
+                    }
+                }
+            }
+
+            function fetchPending() {
+                var url = '{% url "users_pending_role_notifications" %}?limit=8';
+                return fetch(url, {
+                    method: 'GET',
+                    credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                }).then(function(r) {
+                    return r.json();
+                }).then(function(json) {
+                    updateUI(json);
+                }).catch(function() {
+                    updateUI({ status: false });
+                });
+            }
+
+            document.addEventListener('DOMContentLoaded', function() {
+                var notif = document.getElementById('pendingRoleNotif');
+                if (!notif) return;
+
+                fetchPending();
+
+                notif.addEventListener('show.bs.dropdown', function() {
+                    fetchPending();
+                });
+            });
+        })();
+        </script>
+        {% endif %}
     </body>
 </html>

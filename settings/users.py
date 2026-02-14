@@ -368,7 +368,13 @@ class UsersDataListView(View):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, request):
-        data_user = data_mysql().data_user_by_params()['data']
+        resp = data_mysql().data_user_by_params_with_roles()
+        data_user = []
+        try:
+            if isinstance(resp, dict) and resp.get('status'):
+                data_user = resp.get('data') or []
+        except Exception:
+            data_user = []
         return JsonResponse({
             'hasil': 'Data User',
             'data_user': data_user,
@@ -734,3 +740,78 @@ class UsersRolesUpdateView(View):
         else:
             messages.error(request, resp.get('message') if isinstance(resp, dict) else 'Gagal mengupdate roles')
         return redirect('users_data_edit', user_id=user_id)
+
+
+class PendingRoleAssignmentsNotificationsView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, request):
+        admin = request.session.get('hris_admin', {})
+        if not isinstance(admin, dict) or admin.get('super_st') == '0':
+            return JsonResponse({'status': False, 'error': 'Forbidden'}, status=403)
+
+        limit = request.GET.get('limit')
+        try:
+            limit = int(limit) if limit is not None else 10
+        except Exception:
+            limit = 10
+        if limit <= 0:
+            limit = 10
+        if limit > 25:
+            limit = 25
+
+        db = data_mysql()
+
+        count = 0
+        items = []
+
+        q_count = """
+            SELECT COUNT(*) AS cnt
+            FROM app_users u
+            LEFT JOIN app_user_role ur ON ur.user_id = u.user_id
+            WHERE ur.user_id IS NULL
+        """
+
+        q_list = """
+            SELECT u.user_id, u.user_alias, u.user_name, u.user_mail, u.mdd
+            FROM app_users u
+            LEFT JOIN app_user_role ur ON ur.user_id = u.user_id
+            WHERE ur.user_id IS NULL
+            ORDER BY u.mdd DESC
+            LIMIT %s
+        """
+
+        try:
+            if db.execute_query(q_count):
+                row = db.cur_hris.fetchone() or {}
+                try:
+                    count = int(row.get('cnt') if isinstance(row, dict) else row[0])
+                except Exception:
+                    count = 0
+
+            if db.execute_query(q_list, (limit,)):
+                rows = db.cur_hris.fetchall() or []
+                for r in rows:
+                    user_id = r.get('user_id') if isinstance(r, dict) else None
+                    if not user_id:
+                        continue
+                    try:
+                        edit_url = reverse('users_data_edit', kwargs={'user_id': user_id})
+                    except Exception:
+                        edit_url = None
+
+                    items.append({
+                        'user_id': user_id,
+                        'user_alias': (r.get('user_alias') if isinstance(r, dict) else '') or '',
+                        'user_name': (r.get('user_name') if isinstance(r, dict) else '') or '',
+                        'user_mail': (r.get('user_mail') if isinstance(r, dict) else '') or '',
+                        'mdd': _json_safe(r.get('mdd') if isinstance(r, dict) else None),
+                        'edit_url': edit_url,
+                    })
+        except Exception:
+            return JsonResponse({'status': False, 'error': 'Failed to fetch notifications'}, status=500)
+
+        return JsonResponse({'status': True, 'count': count, 'data': items})
