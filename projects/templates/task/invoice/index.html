@@ -1,0 +1,464 @@
+{% extends 'admin_base.html' %}
+
+{% block page_title %}Invoice{% endblock %}
+{% block page_heading %}Invoice{% endblock %}
+
+{% block more_stylesheet %}
+<style>
+.invoice-list .card { border-radius: 14px; border: 1px solid rgba(0,0,0,0.06); box-shadow: 0 8px 22px rgba(0,0,0,0.06); }
+.invoice-list .card-header { background: linear-gradient(135deg, rgba(25, 135, 84, 0.12), rgba(13,110,253,0.02)); border-bottom: 1px solid rgba(0,0,0,0.06); }
+.invoice-list .meta { display: flex; flex-wrap: wrap; gap: 8px; }
+.invoice-list .meta-badge { background: #f8f9fa; border: 1px solid rgba(0,0,0,0.06); color: #495057; padding: 4px 8px; border-radius: 999px; font-size: 0.75rem; }
+.invoice-list .table thead th { white-space: nowrap; }
+.invoice-list .table td { vertical-align: middle; }
+.invoice-list .badge-status { text-transform: capitalize; }
+.invoice-list .editable { border-bottom: 1px dashed rgba(13, 110, 253, 0.35); }
+.datepicker-months{ display: block !important;}
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.1/bootstrap3-editable/css/bootstrap-editable.css">
+{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item">Task</li>
+<li class="breadcrumb-item active"><a href="/projects/task/invoice">Invoice</a></li>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div class="card mb-4">
+  <div class="card-body">
+    <form class="form-row align-items-end" method="get" action="{% url 'projects_task_invoice' %}">
+      <div class="col-md-3">
+        <label>Bulan</label>
+        <input type="text" class="form-control datepicker-input monthpicker" id="invoice_periode" name="periode" value="{{ selected_periode|default:'' }}" placeholder="YYYY-MM" data-mask="9999-99">
+      </div>
+      <div class="col-md-2">
+        <label>&nbsp;</label>
+        <button type="submit" class="btn btn-primary form-control">Search</button>
+      </div>
+    </form>
+  </div>
+</div>
+<div class="row invoice-list">
+  {% if partners %}
+    {% for p in partners %}
+    <div class="col-12">
+      <div class="card mb-4">
+        <div class="card-header">
+          <div class="d-flex align-items-center justify-content-between flex-wrap">
+            <div>
+              <div class="h5 mb-1">{{ p.partner_name|default:"-" }}</div>
+              <div class="meta">
+                <span class="meta-badge">{{ p.partner_contact|default:"-" }}</span>
+                <span class="meta-badge">Req: {{ p.request_date|date:"d M Y"|default:"-" }}</span>
+              </div>
+            </div>
+            <div>
+              {% if p.status == 'completed' %}<span class="meta-badge bg-success badge-status">{{ p.status }}</span>{% endif %}
+              {% if p.status == 'off' %}<span class="meta-badge bg-dark badge-status">{{ p.status }}</span>{% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th width="22%">Domain</th>
+                  <th width="10%">Adsense</th>
+                  <th width="10%">Media 20%</th>
+                  <th width="10%">Modal</th>
+                  <th width="18%">Total Expenses<br><small>Server, admin fee & tax</small></th>
+                  <th width="10%">Fix Earning</th>
+                  <th width="10%">Total</th>
+                  <th width="5%"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in p.rows %}
+                <tr>
+                  <td class="align-middle">
+                    {% if r.subdomain_name %}{{ r.subdomain_name }}{% elif r.domain %}{{ r.domain }}{% else %}-{% endif %}
+                  </td>
+                  <td class="align-middle">
+                    <a href="#" class="editable-profit" data-name="adsense_adx_earning" data-type="text"
+                       data-title="Adsense" data-value="{{ r.adsense_adx_earning|default:'0' }}"
+                       data-partner-id="{{ p.partner_id }}" data-domain-id="{{ r.domain_id|default:'' }}"
+                       data-subdomain-id="{{ r.subdomain_id|default:'' }}"></a>
+                  </td>
+                  <td class="align-middle">
+                    <span class="fmt-idr calc-media" data-amount="{{ r.media|default:'0' }}"></span>
+                  </td>
+                  <td class="align-middle">
+                    <a href="#" class="editable-profit" data-name="modal" data-type="text"
+                       data-title="Modal" data-value="{{ r.modal|default:'0' }}"
+                       data-partner-id="{{ p.partner_id }}" data-domain-id="{{ r.domain_id|default:'' }}"
+                       data-subdomain-id="{{ r.subdomain_id|default:'' }}"></a>
+                  </td>
+                  <td class="align-middle">
+                    <a href="#" class="editable-profit" data-name="total_expenses" data-type="text"
+                       data-title="Total Expenses" data-value="{{ r.total_expenses|default:'0' }}"
+                       data-partner-id="{{ p.partner_id }}" data-domain-id="{{ r.domain_id|default:'' }}"
+                       data-subdomain-id="{{ r.subdomain_id|default:'' }}"></a>
+                  </td>
+                  <td class="align-middle"><span class="fmt-idr calc-fix" data-amount="{{ r.fix_earning|default:'0' }}"></span></td>
+                  <td class="align-middle"><span class="fmt-idr calc-total" data-amount="{{ r.total|default:'0' }}"></span></td>
+                  <td class="align-middle">
+                    <button class="btn btn-xs btn-primary btn-load-data" data-domain="{{ r.subdomain_name|default:r.domain|default:'' }}" data-partner-id="{{ p.partner_id }}" data-domain-id="{{ r.domain_id|default:'' }}" data-subdomain-id="{{ r.subdomain_id|default:'' }}"><span class="bi bi-bootstrap-reboot" title="Load data"></span></button>
+                    <button class="btn btn-xs btn-warning"><span class="bi bi-eye"></span></button>
+                    <button class="btn btn-xs btn-success"><span class="bi bi-send"></span></button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="7" class="text-center text-muted">Belum ada data.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% elif items %}
+    {% regroup items by partner_id as partner_groups %}
+    {% for g in partner_groups %}
+    {% with g.list.0 as p %}
+    <div class="col-12">
+      <div class="card mb-4">
+        <div class="card-header">
+          <div class="d-flex align-items-center justify-content-between flex-wrap">
+            <div>
+              <div class="h5 mb-1">{{ p.partner_name|default:"-" }}</div>
+              <div class="meta">
+                <span class="meta-badge">{{ p.partner_contact|default:"-" }}</span>
+                {% if p.status %}<span class="meta-badge badge-status">{{ p.status }}</span>{% endif %}
+              </div>
+            </div>
+            <div>
+              {% if p.status == 'completed' %}
+                <span class="badge badge-success badge-status">completed</span>
+              {% else %}
+                <span class="badge badge-secondary badge-status">{{ p.status|default:"off" }}</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th width="22%">Domain</th>
+                  <th width="10%">Adsense</th>
+                  <th width="10%">Media 20%</th>
+                  <th width="10%">Modal</th>
+                  <th width="18%">Total Expenses (Server, admin fee & tax)</th>
+                  <th width="10%">Fix Earning</th>
+                  <th width="10%">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in g.list %}
+                <tr>
+                  <td class="align-middle">
+                    {% if r.subdomain_name %}{{ r.subdomain_name }}{% elif r.domain %}{{ r.domain }}{% else %}-{% endif %}
+                  </td>
+                  <td class="align-middle"><span class="fmt-idr" data-amount="{{ r.adsense_adx_earning|default:'0' }}"></span></td>
+                  <td class="align-middle"><span class="fmt-idr" data-amount="{{ r.media|default:'0' }}"></span></td>
+                  <td class="align-middle"><span class="fmt-idr" data-amount="{{ r.modal|default:'0' }}"></span></td>
+                  <td class="align-middle"><span class="fmt-idr" data-amount="{{ r.total_expenses|default:'0' }}"></span></td>
+                  <td class="align-middle"><span class="fmt-idr" data-amount="{{ r.fix_earning|default:'0' }}"></span></td>
+                  <td class="align-middle"><span class="fmt-idr" data-amount="{{ r.total|default:'0' }}"></span></td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="7" class="text-center text-muted">Belum ada data.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endwith %}
+    {% endfor %}
+  {% elif websites %}
+    {% regroup websites by partner_id as partner_groups %}
+    {% for g in partner_groups %}
+    {% with g.list.0 as p %}
+    <div class="col-12">
+      <div class="card mb-4">
+        <div class="card-header">
+          <div class="d-flex align-items-center justify-content-between flex-wrap">
+            <div>
+              <div class="h5 mb-1">{{ p.partner_name|default:"-" }}</div>
+              <div class="meta">
+                <span class="meta-badge">{{ p.partner_contact|default:"-" }}</span>
+                {% if p.status %}<span class="meta-badge badge-status">{{ p.status }}</span>{% endif %}
+              </div>
+            </div>
+            <div>
+              {% if p.status == 'completed' %}
+                <span class="badge badge-success badge-status">completed</span>
+              {% else %}
+                <span class="badge badge-secondary badge-status">{{ p.status|default:"off" }}</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table table-striped">
+              <thead>
+                <tr>
+                  <th width="22%">Domain</th>
+                  <th width="10%">Adsense</th>
+                  <th width="10%">Media 20%</th>
+                  <th width="10%">Modal</th>
+                  <th width="18%">Total Expenses (Server, admin fee & tax)</th>
+                  <th width="10%">Fix Earning</th>
+                  <th width="10%">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in g.list %}
+                <tr>
+                  <td class="align-middle">
+                    {% if r.subdomain_name %}{{ r.subdomain_name }}{% elif r.domain %}{{ r.domain }}{% else %}-{% endif %}
+                  </td>
+                  <td class="align-middle"><span class="fmt-idr" data-amount="{{ r.adsense_adx_earning|default:'0' }}"></span></td>
+                  <td class="align-middle"><span class="fmt-idr" data-amount="{{ r.media|default:'0' }}"></span></td>
+                  <td class="align-middle"><span class="fmt-idr" data-amount="{{ r.modal|default:'0' }}"></span></td>
+                  <td class="align-middle"><span class="fmt-idr" data-amount="{{ r.total_expenses|default:'0' }}"></span></td>
+                  <td class="align-middle"><span class="fmt-idr" data-amount="{{ r.fix_earning|default:'0' }}"></span></td>
+                  <td class="align-middle"><span class="fmt-idr" data-amount="{{ r.total|default:'0' }}"></span></td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="7" class="text-center text-muted">Belum ada data.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endwith %}
+    {% endfor %}
+  {% else %}
+  <div class="col-12">
+    <div class="text-center text-muted py-4">Belum ada data invoice.</div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/x-editable/1.5.1/bootstrap3-editable/js/bootstrap-editable.min.js"></script>
+<script>
+$(function(){
+  function formatIdr(val){
+    var num = parseFloat(String(val || '0').replace(/[^0-9.-]/g,'')) || 0;
+    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
+  }
+  function parseNum(val){
+    return parseFloat(String(val || '0').replace(/[^0-9.-]/g,'')) || 0;
+  }
+  function recalcRow($row){
+    var ads = parseNum($row.find('.editable-profit[data-name="adsense_adx_earning"]').data('value'));
+    var modal = parseNum($row.find('.editable-profit[data-name="modal"]').data('value'));
+    var expenses = parseNum($row.find('.editable-profit[data-name="total_expenses"]').data('value'));
+    var base = ads - modal;
+    var media = base * 0.2;
+    var fix = (ads - media) - modal - expenses;
+    var total = fix + modal;
+    var $media = $row.find('.calc-media');
+    var $fix = $row.find('.calc-fix');
+    var $total = $row.find('.calc-total');
+    $media.data('amount', media).text(formatIdr(media));
+    $fix.data('amount', fix).text(formatIdr(fix));
+    $total.data('amount', total).text(formatIdr(total));
+  }
+  function formatDate(d){
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + m + '-' + day;
+  }
+  function getSelectedMonthRange(){
+    var val = String($('#invoice_periode').val() || '').trim();
+    if (/^\d{4}-\d{2}$/.test(val)) {
+      var parts = val.split('-');
+      var y = parseInt(parts[0], 10);
+      var m = parseInt(parts[1], 10);
+      if (!isNaN(y) && !isNaN(m) && m >= 1 && m <= 12) {
+        var first = new Date(y, m - 1, 1);
+        var last = new Date(y, m, 0);
+        return { start: formatDate(first), end: formatDate(last) };
+      }
+    }
+    var now = new Date();
+    var firstCurrent = new Date(now.getFullYear(), now.getMonth(), 1);
+    var lastPrev = new Date(firstCurrent.getTime() - 86400000);
+    var firstPrev = new Date(lastPrev.getFullYear(), lastPrev.getMonth(), 1);
+    return { start: formatDate(firstPrev), end: formatDate(lastPrev) };
+  }
+  function saveProfitField($row, field, value){
+    return $.ajax({
+      url: "{% url 'projects_task_invoice_save' %}",
+      type: 'POST',
+      dataType: 'json',
+      headers: { 'X-CSRFToken': csrfToken },
+      data: {
+        name: field,
+        value: value,
+        partner_id: $row.find('.editable-profit').first().data('partner-id') || '',
+        domain_id: $row.find('.editable-profit').first().data('domain-id') || '',
+        subdomain_id: $row.find('.editable-profit').first().data('subdomain-id') || '',
+        csrfmiddlewaretoken: csrfToken
+      }
+    });
+  }
+  try {
+    $('.fmt-idr').each(function(){
+      $(this).text(formatIdr($(this).data('amount')));
+    });
+  } catch(e) {}
+  var csrfToken = $('input[name=csrfmiddlewaretoken]').val() || '';
+  if (window.jQuery && $.fn.datepicker) {
+    $('.monthpicker').datepicker({
+      format: 'yyyy-mm',
+      minViewMode: 1,
+      autoclose: true,
+      todayHighlight: true
+    });
+  }
+  if ($.fn.editable) {
+    $.fn.editable.defaults.mode = 'inline';
+    $.fn.editableform.buttons =
+      '<button type="submit" class="btn btn-sm btn-primary editable-submit">Simpan</button>' +
+      '<button type="button" class="btn btn-sm btn-light editable-cancel">Batal</button>';
+    $('.editable-profit').each(function(){
+      var $el = $(this);
+      $el.text(formatIdr($el.data('value')));
+    });
+    $('.editable-profit').editable({
+      url: "{% url 'projects_task_invoice_save' %}",
+      onblur: 'submit',
+      showbuttons: true,
+      send: 'always',
+      ajaxOptions: {
+        type: 'POST',
+        dataType: 'json',
+        headers: { 'X-CSRFToken': csrfToken }
+      },
+      params: function(params){
+        params.partner_id = $(this).data('partner-id') || '';
+        params.domain_id = $(this).data('domain-id') || '';
+        params.subdomain_id = $(this).data('subdomain-id') || '';
+        params.csrfmiddlewaretoken = csrfToken;
+        return params;
+      },
+      display: function(value){
+        $(this).text(formatIdr(value));
+      },
+      success: function(resp){
+        if (typeof resp === 'string') {
+          try { resp = JSON.parse(resp); } catch (e) {}
+        }
+        if (!resp || !(resp.status === true || resp.status === 'True')) {
+          return (resp && resp.message) ? resp.message : 'Gagal menyimpan';
+        }
+        if (resp && resp.value !== undefined) {
+          $(this).data('value', resp.value);
+        }
+        recalcRow($(this).closest('tr'));
+      },
+      error: function(xhr){
+        var msg = 'Gagal menyimpan';
+        try {
+          if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+            msg = xhr.responseJSON.message;
+          } else if (xhr && xhr.responseText) {
+            msg = xhr.responseText;
+          }
+        } catch (e) {}
+        return msg;
+      }
+    });
+    $('.btn-load-data').on('click', function(e){
+      e.preventDefault();
+      var $btn = $(this);
+      if ($btn.data('loading')) {
+        return;
+      }
+      var originalHtml = $btn.html();
+      var $row = $btn.closest('tr');
+      var domainName = String($btn.data('domain') || '').trim();
+      if (!domainName) {
+        return;
+      }
+      var range = getSelectedMonthRange();
+      $btn.data('loading', true).prop('disabled', true);
+      $btn.html('<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading');
+      var requestChain = $.ajax({
+        url: "{% url 'projects_task_invoice_adx_accounts' %}",
+        type: 'GET',
+        dataType: 'json',
+        data: { selected_domains: domainName }
+      }).then(function(resp){
+        if (!resp || resp.status !== true || !resp.data || !resp.data.length) {
+          return $.Deferred().reject({ message: (resp && resp.message) ? resp.message : 'Akun AdX tidak ditemukan' }).promise();
+        }
+        var accountId = resp.data[0].account_id || '';
+        if (!accountId) {
+          return $.Deferred().reject({ message: 'Akun AdX tidak valid' }).promise();
+        }
+        return $.ajax({
+          url: "{% url 'projects_task_invoice_roi_domain' %}",
+          type: 'GET',
+          dataType: 'json',
+          data: {
+            start_date: range.start,
+            end_date: range.end,
+            selected_account_adx: accountId,
+            selected_domains: domainName,
+            partner_id: $btn.data('partner-id') || '',
+            domain_id: $btn.data('domain-id') || '',
+            subdomain_id: $btn.data('subdomain-id') || ''
+          }
+        });
+      }).then(function(resp){
+        var summary = resp && resp.summary ? resp.summary : null;
+        if (!summary) {
+          return $.Deferred().reject({ message: 'Summary ROI tidak ditemukan' }).promise();
+        }
+        var totalRevenue = parseNum(summary.total_revenue);
+        var totalSpend = parseNum(summary.total_spend);
+        var $ads = $row.find('.editable-profit[data-name="adsense_adx_earning"]');
+        var $modal = $row.find('.editable-profit[data-name="modal"]');
+        $ads.data('value', totalRevenue).text(formatIdr(totalRevenue));
+        $modal.data('value', totalSpend).text(formatIdr(totalSpend));
+        recalcRow($row);
+      });
+      requestChain.fail(function(xhr){
+        var msg = 'Gagal mengambil data';
+        try {
+          var res = xhr && xhr.responseJSON ? xhr.responseJSON : (xhr && xhr.message ? xhr : null);
+          if (res && (res.message || res.error)) {
+            msg = res.message || res.error;
+          }
+        } catch (e) {}
+        alert(msg);
+      }).always(function(){
+        $btn.data('loading', false).prop('disabled', false);
+        $btn.html(originalHtml);
+      });
+    });
+  }
+});
+</script>
+{% endblock %}

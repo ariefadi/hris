@@ -50,6 +50,12 @@ urlpatterns = [
     path('task/nonactive', task.NonactiveIndexView.as_view(), name='projects_task_nonactive'),
     path('task/nonactive/project-status', task.NonactiveProjectStatusUpdateView.as_view(), name='projects_task_nonactive_project_status'),
 
+    # Invoice / Profit Sharing
+    path('task/invoice', task.ProfitSharingIndexView.as_view(), name='projects_task_invoice'),
+    path('task/invoice/save', task.ProfitSharingSaveView.as_view(), name='projects_task_invoice_save'),
+    path('task/invoice/adx-accounts', task.ProfitSharingAdxAccountListView.as_view(), name='projects_task_invoice_adx_accounts'),
+    path('task/invoice/roi-domain', task.ProfitSharingRoiTrafficDomainView.as_view(), name='projects_task_invoice_roi_domain'),
+    
     # MASTER
     
     # DOMAIN
@@ -91,4 +97,6 @@ urlpatterns = [
     path('master/country/<str:negara_kd>/update', master.CountryUpdateView.as_view(), name='projects_master_country_update'),
     path('master/country/<str:negara_kd>/delete', master.CountryDeleteView.as_view(), name='projects_master_country_delete'),
     path('master/country/get/<str:negara_kd>', master.CountryGetView.as_view(), name='projects_master_country_get'),
+
+    
 ]

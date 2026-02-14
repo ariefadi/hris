@@ -5,12 +5,15 @@ from django.contrib import messages
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from projects.database import data_mysql
-from datetime import datetime
+from datetime import datetime, timedelta
+import calendar
 from hris.mail import send_mail, Mail
 from hris.wa import send_whatsapp_message
+from management import views as management_views
 import re
 import random
 import requests
+import json
 
 def send_mail_notification(to, subject, body=None):
     try:
@@ -787,6 +790,434 @@ class NonactiveIndexView(View):
             'websites': rows,
         }
         return render(request, 'task/nonactive/index.html', context)
+
+class ProfitSharingIndexView(View):
+    def get(self, request):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        admin = request.session.get('hris_admin', {})
+        active_portal_id = request.session.get('active_portal_id', '12')
+        selected_periode = (request.GET.get('periode') or '').strip()
+        normalized_periode = ''
+        if selected_periode:
+            try:
+                parts = selected_periode.split('-')
+                if len(parts) == 2:
+                    y = int(parts[0])
+                    m = int(parts[1])
+                    if 1 <= m <= 12:
+                        normalized_periode = f"{y:04d}-{m:02d}"
+            except Exception:
+                normalized_periode = ''
+        db = data_mysql()
+        p1_filter = ""
+        p2_filter = ""
+        params = []
+        if normalized_periode:
+            p2_filter = " WHERE DATE_FORMAT(periode, '%%Y-%%m') = %s "
+            p1_filter = " AND DATE_FORMAT(p1.periode, '%%Y-%%m') = %s "
+            params.extend([normalized_periode, normalized_periode])
+        sql = f"""
+            SELECT
+                mp.partner_id,
+                mp.partner_name,
+                mp.partner_contact,
+                mp.status,
+                mp.request_date,
+                s.subdomain_id,
+                CONCAT(s.subdomain, '.', d.domain) AS subdomain_name,
+                d.domain_id AS domain_id,
+                d.domain AS domain_name,
+                sp.content,
+                sp.periode
+            FROM data_media_partner mp
+            INNER JOIN data_media_partner_domain pd ON pd.partner_id = mp.partner_id
+            INNER JOIN data_domains d ON d.domain_id = pd.domain_id
+            LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
+            LEFT JOIN (
+                SELECT p1.partner_id, p1.domain_id, p1.subdomain_id, p1.periode, p1.content, p1.mdd
+                FROM data_sharing_profit p1
+                INNER JOIN (
+                    SELECT partner_id, domain_id, subdomain_id, periode,
+                           MAX(COALESCE(mdd, '0000-00-00 00:00:00')) AS max_mdd
+                    FROM data_sharing_profit
+                    {p2_filter}
+                    GROUP BY partner_id, domain_id, subdomain_id, periode
+                ) p2 ON p1.partner_id = p2.partner_id
+                   AND p1.domain_id <=> p2.domain_id
+                   AND p1.subdomain_id <=> p2.subdomain_id
+                   AND p1.periode <=> p2.periode
+                   AND COALESCE(p1.mdd, '0000-00-00 00:00:00') = p2.max_mdd
+                {p1_filter}
+            ) sp ON sp.partner_id = mp.partner_id
+                AND (
+                    (sp.domain_id IS NOT NULL AND sp.domain_id = d.domain_id AND sp.subdomain_id IS NULL)
+                    OR (sp.subdomain_id IS NOT NULL AND sp.subdomain_id = s.subdomain_id)
+                )
+            WHERE mp.status IN ('completed','off')
+            ORDER BY mp.partner_name ASC, COALESCE(sp.periode, '0000-00-00') DESC, d.domain ASC, s.subdomain ASC
+        """
+        rows = []
+        if params:
+            ok = db.execute_query(sql, params)
+        else:
+            ok = db.execute_query(sql)
+        if ok:
+            rows = db.cur_hris.fetchall() or []
+        def as_number(val):
+            try:
+                if val is None or val == '':
+                    return 0
+                return float(val)
+            except Exception:
+                return 0
+        def pick_value(data, keys):
+            if not isinstance(data, dict):
+                return None
+            for k in keys:
+                if k in data:
+                    return data.get(k)
+            return None
+        def calc_metrics(adsense_num, modal_num, expenses_num):
+            try:
+                base = adsense_num - modal_num
+                media_calc = base * 0.2
+                fix_calc = (adsense_num - media_calc) - modal_num - expenses_num
+            except Exception:
+                media_calc = 0
+                fix_calc = 0
+            total_calc = fix_calc + modal_num
+            return media_calc, fix_calc, total_calc
+        partners_map = {}
+        for r in rows:
+            try:
+                pid = r.get('partner_id')
+                pname = r.get('partner_name')
+                pcontact = r.get('partner_contact')
+                status = r.get('status')
+                request_date = r.get('request_date')
+                subdomain_name = r.get('subdomain_name')
+                domain_id = r.get('domain_id')
+                domain_name = r.get('domain_name')
+                content_raw = r.get('content')
+                periode = r.get('periode')
+            except AttributeError:
+                pid = r[0] if len(r) > 0 else None
+                pname = r[1] if len(r) > 1 else None
+                pcontact = r[2] if len(r) > 2 else None
+                status = r[3] if len(r) > 3 else None
+                request_date = r[4] if len(r) > 4 else None
+                subdomain_name = r[6] if len(r) > 6 else None
+                domain_id = r[7] if len(r) > 7 else None
+                domain_name = r[8] if len(r) > 8 else None
+                content_raw = r[9] if len(r) > 9 else None
+                periode = r[10] if len(r) > 10 else None
+            if not pid:
+                continue
+            g = partners_map.get(pid)
+            if not g:
+                g = {
+                    'partner_id': pid,
+                    'partner_name': pname,
+                    'partner_contact': pcontact,
+                    'status': status,
+                    'request_date': request_date,
+                    'rows': [],
+                }
+                partners_map[pid] = g
+            content = {}
+            if isinstance(content_raw, dict):
+                content = content_raw
+            elif content_raw:
+                try:
+                    content = json.loads(content_raw)
+                except Exception:
+                    content = {}
+            adsense_val = pick_value(content, ['adsense_adx_earning', 'adsense', 'adsense_earning', 'earning_adsense'])
+            modal_val = pick_value(content, ['modal', 'modal_cost'])
+            expenses_val = pick_value(content, ['total_expenses', 'expenses', 'total_expense'])
+            adsense_num = as_number(adsense_val)
+            modal_num = as_number(modal_val)
+            expenses_num = as_number(expenses_val)
+            media_calc, fix_calc, total_calc = calc_metrics(adsense_num, modal_num, expenses_num)
+            g['rows'].append({
+                'subdomain_name': subdomain_name,
+                'domain': domain_name,
+                'domain_id': domain_id,
+                'subdomain_id': r.get('subdomain_id') if isinstance(r, dict) else (r[4] if len(r) > 4 else None),
+                'periode': periode,
+                'adsense_adx_earning': adsense_num,
+                'media': media_calc,
+                'modal': modal_num,
+                'total_expenses': expenses_num,
+                'fix_earning': fix_calc,
+                'total': total_calc,
+            })
+        partners = list(partners_map.values())
+        if not normalized_periode:
+            now = datetime.now()
+            first_current = datetime(now.year, now.month, 1)
+            last_prev = first_current - timedelta(days=1)
+            normalized_periode = last_prev.strftime('%Y-%m')
+        context = {
+            'user': admin,
+            'active_portal_id': active_portal_id,
+            'partners': partners,
+            'selected_periode': normalized_periode,
+        }
+        return render(request, 'task/invoice/index.html', context)
+
+class ProfitSharingSaveView(View):
+    def post(self, request):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'message': 'Unauthorized'}, status=401)
+        admin = request.session.get('hris_admin', {})
+        partner_id = (request.POST.get('partner_id') or '').strip()
+        domain_id = (request.POST.get('domain_id') or '').strip()
+        subdomain_id = (request.POST.get('subdomain_id') or '').strip()
+        field = (request.POST.get('name') or '').strip()
+        raw_value = request.POST.get('value')
+        if field not in ['adsense_adx_earning', 'modal', 'total_expenses']:
+            return JsonResponse({'status': False, 'message': 'Field tidak valid.'}, status=400)
+        if not partner_id:
+            return JsonResponse({'status': False, 'message': 'Partner tidak valid.'}, status=400)
+        if not domain_id and not subdomain_id:
+            return JsonResponse({'status': False, 'message': 'Domain/Subdomain tidak valid.'}, status=400)
+        def parse_number(val):
+            try:
+                if val is None:
+                    return 0
+                s = str(val)
+                if s == '':
+                    return 0
+                cleaned = re.sub(r'[^0-9\.\-]', '', s)
+                return float(cleaned) if cleaned not in ['', '-', '.'] else 0
+            except Exception:
+                return 0
+        value_num = parse_number(raw_value)
+        now = datetime.now()
+        first_day = datetime(now.year, now.month, 1)
+        last_month = first_day - timedelta(days=1)
+        periode = last_month.date()
+        db = data_mysql()
+        exists_id = None
+        existing_content = {}
+        if subdomain_id:
+            sql_find = """
+                SELECT id_sharing_profit, content
+                FROM data_sharing_profit
+                WHERE partner_id = %s AND subdomain_id = %s AND periode = %s
+                ORDER BY COALESCE(mdd, '0000-00-00 00:00:00') DESC
+                LIMIT 1
+            """
+            if db.execute_query(sql_find, (partner_id, subdomain_id, periode)):
+                row = db.cur_hris.fetchone() or {}
+                exists_id = row.get('id_sharing_profit') if isinstance(row, dict) else (row[0] if row else None)
+                content_raw = row.get('content') if isinstance(row, dict) else (row[1] if row else None)
+                if content_raw:
+                    try:
+                        existing_content = json.loads(content_raw) if not isinstance(content_raw, dict) else content_raw
+                    except Exception:
+                        existing_content = {}
+        else:
+            sql_find = """
+                SELECT id_sharing_profit, content
+                FROM data_sharing_profit
+                WHERE partner_id = %s AND domain_id = %s AND (subdomain_id IS NULL OR subdomain_id = 0) AND periode = %s
+                ORDER BY COALESCE(mdd, '0000-00-00 00:00:00') DESC
+                LIMIT 1
+            """
+            if db.execute_query(sql_find, (partner_id, domain_id, periode)):
+                row = db.cur_hris.fetchone() or {}
+                exists_id = row.get('id_sharing_profit') if isinstance(row, dict) else (row[0] if row else None)
+                content_raw = row.get('content') if isinstance(row, dict) else (row[1] if row else None)
+                if content_raw:
+                    try:
+                        existing_content = json.loads(content_raw) if not isinstance(content_raw, dict) else content_raw
+                    except Exception:
+                        existing_content = {}
+        existing_content = existing_content if isinstance(existing_content, dict) else {}
+        existing_content[field] = value_num
+        adsense_num = parse_number(existing_content.get('adsense_adx_earning', 0))
+        modal_num = parse_number(existing_content.get('modal', 0))
+        expenses_num = parse_number(existing_content.get('total_expenses', 0))
+        base = adsense_num - modal_num
+        media_calc = base * 0.2
+        fix_calc = (adsense_num - media_calc) - modal_num - expenses_num
+        total_calc = fix_calc + modal_num
+        existing_content['media'] = media_calc
+        existing_content['fix_earning'] = fix_calc
+        existing_content['total'] = total_calc
+        content_json = json.dumps(existing_content)
+        mdb = str(admin.get('user_id', ''))[:36]
+        mdb_name = admin.get('user_alias', '')
+        if exists_id:
+            ok = db.execute_query(
+                """
+                UPDATE data_sharing_profit
+                SET content=%s, mdb=%s, mdb_name=%s, mdd=NOW()
+                WHERE id_sharing_profit=%s
+                """,
+                (content_json, mdb, mdb_name, exists_id)
+            )
+            if not ok:
+                return JsonResponse({'status': False, 'message': 'Gagal menyimpan.'}, status=500)
+            db.commit()
+        else:
+            ok = db.execute_query(
+                """
+                INSERT INTO data_sharing_profit
+                (partner_id, domain_id, subdomain_id, content, periode, mdb, mdb_name, mdd)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                """,
+                (partner_id, domain_id or None, subdomain_id or None, content_json, periode, mdb, mdb_name)
+            )
+            if not ok:
+                return JsonResponse({'status': False, 'message': 'Gagal menyimpan.'}, status=500)
+            db.commit()
+        return JsonResponse({'status': True, 'value': value_num})
+
+class ProfitSharingAdxAccountListView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+    def get(self, request):
+        return management_views.AdxAccountListView().get(request)
+
+class ProfitSharingRoiTrafficDomainView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+    def get(self, request):
+        resp = management_views.RoiTrafficPerDomainDataView().get(request)
+        try:
+            if isinstance(resp, JsonResponse):
+                payload = json.loads(resp.content)
+                summary = (payload or {}).get('summary') or {}
+                partner_id = (request.GET.get('partner_id') or '').strip()
+                domain_id = (request.GET.get('domain_id') or '').strip()
+                subdomain_id = (request.GET.get('subdomain_id') or '').strip()
+                start_date = (request.GET.get('start_date') or '').strip()
+                end_date = (request.GET.get('end_date') or '').strip()
+                def parse_date(d):
+                    try:
+                        return datetime.strptime(d, '%Y-%m-%d').date()
+                    except Exception:
+                        return None
+                periode_date = parse_date(end_date) or parse_date(start_date)
+                if not periode_date:
+                    now = datetime.now()
+                    first_current = datetime(now.year, now.month, 1)
+                    last_prev = first_current - timedelta(days=1)
+                    periode_date = last_prev.date()
+                else:
+                    last_day = calendar.monthrange(periode_date.year, periode_date.month)[1]
+                    periode_date = datetime(periode_date.year, periode_date.month, last_day).date()
+                def parse_number(val):
+                    try:
+                        if val is None:
+                            return 0
+                        s = str(val)
+                        if s == '':
+                            return 0
+                        cleaned = re.sub(r'[^0-9\.\-]', '', s)
+                        return float(cleaned) if cleaned not in ['', '-', '.'] else 0
+                    except Exception:
+                        return 0
+                total_revenue = parse_number(summary.get('total_revenue', 0))
+                total_spend = parse_number(summary.get('total_spend', 0))
+                if partner_id and (domain_id or subdomain_id):
+                    admin = request.session.get('hris_admin', {})
+                    db = data_mysql()
+                    exists_id = None
+                    existing_content = {}
+                    if subdomain_id:
+                        sql_find = """
+                            SELECT id_sharing_profit, content
+                            FROM data_sharing_profit
+                            WHERE partner_id = %s AND subdomain_id = %s AND periode = %s
+                            ORDER BY COALESCE(mdd, '0000-00-00 00:00:00') DESC
+                            LIMIT 1
+                        """
+                        if db.execute_query(sql_find, (partner_id, subdomain_id, periode_date)):
+                            row = db.cur_hris.fetchone() or {}
+                            exists_id = row.get('id_sharing_profit') if isinstance(row, dict) else (row[0] if row else None)
+                            content_raw = row.get('content') if isinstance(row, dict) else (row[1] if row else None)
+                            if content_raw:
+                                try:
+                                    existing_content = json.loads(content_raw) if not isinstance(content_raw, dict) else content_raw
+                                except Exception:
+                                    existing_content = {}
+                    else:
+                        sql_find = """
+                            SELECT id_sharing_profit, content
+                            FROM data_sharing_profit
+                            WHERE partner_id = %s AND domain_id = %s AND (subdomain_id IS NULL OR subdomain_id = 0) AND periode = %s
+                            ORDER BY COALESCE(mdd, '0000-00-00 00:00:00') DESC
+                            LIMIT 1
+                        """
+                        if db.execute_query(sql_find, (partner_id, domain_id, periode_date)):
+                            row = db.cur_hris.fetchone() or {}
+                            exists_id = row.get('id_sharing_profit') if isinstance(row, dict) else (row[0] if row else None)
+                            content_raw = row.get('content') if isinstance(row, dict) else (row[1] if row else None)
+                            if content_raw:
+                                try:
+                                    existing_content = json.loads(content_raw) if not isinstance(content_raw, dict) else content_raw
+                                except Exception:
+                                    existing_content = {}
+                    existing_content = existing_content if isinstance(existing_content, dict) else {}
+                    existing_content['adsense_adx_earning'] = total_revenue
+                    existing_content['modal'] = total_spend
+                    adsense_num = parse_number(existing_content.get('adsense_adx_earning', 0))
+                    modal_num = parse_number(existing_content.get('modal', 0))
+                    expenses_num = parse_number(existing_content.get('total_expenses', 0))
+                    base = adsense_num - modal_num
+                    media_calc = base * 0.2
+                    fix_calc = (adsense_num - media_calc) - modal_num - expenses_num
+                    total_calc = fix_calc + modal_num
+                    existing_content['media'] = media_calc
+                    existing_content['fix_earning'] = fix_calc
+                    existing_content['total'] = total_calc
+                    content_json = json.dumps(existing_content)
+                    mdb = str(admin.get('user_id', ''))[:36]
+                    mdb_name = admin.get('user_alias', '')
+                    if exists_id:
+                        db.execute_query(
+                            """
+                            UPDATE data_sharing_profit
+                            SET content=%s, mdb=%s, mdb_name=%s, mdd=NOW()
+                            WHERE id_sharing_profit=%s
+                            """,
+                            (content_json, mdb, mdb_name, exists_id)
+                        )
+                        db.commit()
+                    else:
+                        db.execute_query(
+                            """
+                            INSERT INTO data_sharing_profit
+                            (partner_id, domain_id, subdomain_id, content, periode, mdb, mdb_name, mdd)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                            """,
+                            (partner_id, domain_id or None, subdomain_id or None, content_json, periode_date, mdb, mdb_name)
+                        )
+                        db.commit()
+                cleaned = {
+                    'total_clicks_fb': summary.get('total_clicks_fb', 0),
+                    'total_clicks_adx': summary.get('total_clicks_adx', 0),
+                    'total_spend': summary.get('total_spend', 0),
+                    'roi_nett': summary.get('roi_nett', 0),
+                    'total_revenue': summary.get('total_revenue', 0),
+                }
+                return JsonResponse({
+                    'status': payload.get('status', True),
+                    'message': payload.get('message', ''),
+                    'summary': cleaned
+                }, safe=False)
+        except Exception:
+            return resp
+        return resp
 class TechnicalIndexView(View):
     def get(self, request):
         if 'hris_admin' not in request.session:

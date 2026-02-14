@@ -678,4 +678,22 @@ class Migration(migrations.Migration):
             """,
             # reverse_sql="DROP TABLE IF EXISTS `data_keywrods`;"
         ),
+        # create data data_sharing_profit table
+        migrations.RunSQL(
+            sql="""
+                CREATE TABLE `data_sharing_profit` (
+                `id_sharing_profit` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                `partner_id` VARCHAR(20) DEFAULT NULL,
+                `domain_id` BIGINT UNSIGNED DEFAULT NULL,
+                `subdomain_id` BIGINT UNSIGNED DEFAULT NULL,
+                `content` TEXT,
+                `periode` DATE DEFAULT NULL,
+                `mdb` VARCHAR(36) DEFAULT NULL,
+                `mdb_name` VARCHAR(50) DEFAULT NULL,
+                `mdd` DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id_sharing_profit`)
+                ) ENGINE=INNODB DEFAULT CHARSET=latin1
+            """,
+            # reverse_sql="DROP TABLE IF EXISTS `data_sharing_profit`;"
+        ),
     ]
