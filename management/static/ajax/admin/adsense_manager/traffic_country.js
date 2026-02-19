@@ -66,12 +66,16 @@ $(document).ready(function () {
         tokenSeparators: [','],
         closeOnSelect: false
     });
+    $('#adsenseTrafficCountryMap').hide();
+
     $('#btn_load_data').click(function (e) {
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
         var selected_account = $("#account_filter").val();
         if (tanggal_dari != "" && tanggal_sampai != "") {
             e.preventDefault();
+            $('#adsenseTrafficCountryMap').hide();
+            $('#worldMapAdsense').empty();
             $("#overlay").show();
             load_country_options(selected_account);
             load_adsense_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account);
@@ -167,9 +171,9 @@ $(document).ready(function () {
                     $('#summary_boxes').show();
                     // Initialize DataTable
                     initializeDataTable(response.data);
-                    // Generate charts if data available
+                    // Generate map chart
                     createCountryMap(response.data);
-                    $('#charts_section').show();
+                    $('#adsenseTrafficCountryMap').show();
                     $('#overlay').hide();
                 } else {
                     var errorMsg = response.error || 'Terjadi kesalahan yang tidak diketahui';
@@ -510,13 +514,14 @@ $(document).ready(function () {
     function createCountryMap(data) {
         console.log('[DEBUG] createCountryMap called with data length:', data ? data.length : 0);
 
-        // Jika tidak ada data, pastikan charts dibersihkan dan section disembunyikan
+        // Jika tidak ada data, tetap tampilkan section peta tapi isi dengan pesan
         if (!data || data.length === 0) {
             if (window.countryMapInstance) {
                 try { window.countryMapInstance.destroy(); } catch (e) { console.warn('Failed to destroy world map:', e); }
                 window.countryMapInstance = null;
             }
-            $('#charts_section').hide();
+            $('#adsenseTrafficCountryMap').show();
+            $('#worldMapAdsense').html('<div style="text-align: center; padding: 100px; color: #666; font-size: 16px;">Tidak ada data untuk ditampilkan.<br>Silakan pilih tanggal dan akun, lalu klik Muat Data.</div>');
             return;
         }
 

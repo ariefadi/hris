@@ -3,6 +3,8 @@
  */
 
 $().ready(function () {
+    $('#summary_boxes').hide();
+
     report_eror = function (jqXHR, exception) {
         var msg = '';
         if (jqXHR.status === 0) {
@@ -41,6 +43,7 @@ $().ready(function () {
     });
     $('#btn_load_data').click(function (e) {
         e.preventDefault();
+        $('#summary_boxes').hide();
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
         var selected = $("#select_account").val() || '%';
@@ -91,6 +94,8 @@ function table_chart_summary_facebook(tanggal_dari, tanggal_sampai, data_account
                 $('#cpc').text('Rp. 0');
                 console.warn("Data total kosong, tidak ada data untuk ditampilkan.");
             }
+
+            $('#summary_boxes').show();
             // Transform data for sunburst to ensure 'value' exists
             // Sunburst requires a value to determine the size of the slices
             const chartData = data.map(d => {

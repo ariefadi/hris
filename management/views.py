@@ -5044,15 +5044,16 @@ class UpdateAccountNameView(View):
         try:
             user_mail = request.POST.get('user_mail')
             new_account_name = request.POST.get('account_name')
-            
-            if not user_mail or not new_account_name:
+            new_mcm_revenue_share = request.POST.get('mcm_revenue_share')
+
+            if not user_mail or not new_account_name or not new_mcm_revenue_share:
                 return JsonResponse({
                     'status': False,
-                    'message': 'User mail dan account name harus diisi'
+                    'message': 'User mail, account name, dan MCM Revenue Share harus diisi'
                 }, status=400)
             # Update account name in database
             db = data_mysql()
-            result = db.update_account_name(user_mail, new_account_name)
+            result = db.update_account_name(user_mail, new_account_name, new_mcm_revenue_share)
             
             if result['status']:
                 return JsonResponse({

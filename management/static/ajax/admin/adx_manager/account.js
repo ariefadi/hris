@@ -309,10 +309,13 @@ $(document).ready(function() {
         console.log('Edit button clicked');
         var email = $(this).data('email');
         var accountName = $(this).data('account-name');
-        console.log('Data:', email, accountName);
+        var mcmRevenueShare = $(this).data('mcm-revenue-share');
+        
+        console.log('Data:', email, accountName, mcmRevenueShare);
         // Populate modal fields
         $('#edit_user_mail').val(email);
         $('#edit_account_name').val(accountName);
+        $('#edit_mcm_revenue_share').val(mcmRevenueShare);
         // Show the modal (Bootstrap 4 syntax)
         $('#editAccountNameModal').modal('show');
         console.log('Modal show called');
@@ -363,7 +366,6 @@ $(document).ready(function() {
             success: function(response) {
                 console.log('AJAX Success Response:', response);
                 $('#btn_save_assign_account').prop('disabled', false).text('Save Changes');
-                
                 if (response.status) {
                     window.showAlert('success', response.message);
                     $('#assignAccountModal').modal('hide');
@@ -380,8 +382,7 @@ $(document).ready(function() {
                     responseText: xhr.responseText,
                     error: error
                 });
-                $('#btn_save_account_name').prop('disabled', false).text('Save Changes');
-                
+                $('#btn_save_account').prop('disabled', false).text('Save Changes');
                 let errorMessage = 'Terjadi kesalahan saat menyimpan';
                 if (xhr.responseJSON && xhr.responseJSON.message) {
                     errorMessage = xhr.responseJSON.message;
@@ -395,24 +396,26 @@ $(document).ready(function() {
             },
             complete: function() {
                 // Reset button state
-                $('#btn_save_account_name').prop('disabled', false).html('<i class="bi bi-check"></i> Save Changes');
+                $('#btn_save_account').prop('disabled', false).html('<i class="bi bi-check"></i> Save Changes');
             }
         });
     });
 
-    // Handle Save Account Name button
-    $('#btn_save_account_name').click(function() {
+    // Handle Save Account button
+    $('#btn_save_account').click(function() {
         var userMail = $('#edit_user_mail').val();
         var newAccountName = $('#edit_account_name').val().trim();
-        
+        var newMcmRevenueShare = $('#edit_mcm_revenue_share').val().trim();
         if (!newAccountName) {
             alert('Account name tidak boleh kosong!');
             return;
         }
-        
+        if (!newMcmRevenueShare) {
+            alert('MCM Revenue Share tidak boleh kosong!');
+            return;
+        }
         // Show loading state
         $(this).prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Saving...');
-        
         // AJAX request to update account name
         $.ajax({
             url: '/management/admin/update_account_name',
@@ -420,12 +423,12 @@ $(document).ready(function() {
             data: {
                 'user_mail': userMail,
                 'account_name': newAccountName,
+                'mcm_revenue_share': newMcmRevenueShare,
                 'csrfmiddlewaretoken': getCookie('csrftoken')
             },
             success: function(response) {
                 console.log('AJAX Success Response:', response);
-                $('#btn_save_account_name').prop('disabled', false).text('Save Changes');
-                
+                $('#btn_save_account').prop('disabled', false).text('Save Changes');
                 if (response.status) {
                     window.showAlert('success', response.message);
                     $('#editAccountNameModal').modal('hide');
@@ -442,7 +445,7 @@ $(document).ready(function() {
                     responseText: xhr.responseText,
                     error: error
                 });
-                $('#btn_save_account_name').prop('disabled', false).text('Save Changes');
+                $('#btn_save_account').prop('disabled', false).text('Save Changes');
                 
                 let errorMessage = 'Terjadi kesalahan saat menyimpan';
                 if (xhr.responseJSON && xhr.responseJSON.message) {
@@ -457,7 +460,7 @@ $(document).ready(function() {
             },
             complete: function() {
                 // Reset button state
-                $('#btn_save_account_name').prop('disabled', false).html('<i class="bi bi-check"></i> Save Changes');
+                $('#btn_save_account').prop('disabled', false).html('<i class="bi bi-check"></i> Save Changes');
             }
         });
     });

@@ -1743,6 +1743,7 @@ class data_mysql:
                 a.refresh_token,
                 a.network_code,
                 a.developer_token,
+                a.mcm_revenue_share,
                 a.is_active,
                 a.mdb,
                 a.mdb_name,
@@ -1785,6 +1786,7 @@ class data_mysql:
                 a.refresh_token,
                 a.network_code,
                 a.developer_token,
+                a.mcm_revenue_share,
                 a.is_active,
                 a.mdb,
                 a.mdb_name,
@@ -1842,12 +1844,12 @@ class data_mysql:
                 'message': f'Database error: {str(e)}'
             }
 
-    def update_account_name(self, user_mail, new_account_name):
+    def update_account_name(self, user_mail, new_account_name, new_mcm_revenue_share):
         """Update account name for a specific user"""
         try:
             # Check if user exists
             check_query = "SELECT user_mail FROM app_credentials WHERE user_mail = %s"
-            if not self.execute_query(check_query, (user_mail,)):
+            if not self.execute_query(check_query, (user_mail)):
                 return {
                     'status': False,
                     'message': 'Database error saat mengecek user'
@@ -1864,11 +1866,11 @@ class data_mysql:
             # Update account name
             update_query = """
                 UPDATE app_credentials 
-                SET account_name = %s, mdd = NOW() 
+                SET account_name = %s, mcm_revenue_share = %s, mdd = NOW() 
                 WHERE user_mail = %s
             """
             
-            if not self.execute_query(update_query, (new_account_name, user_mail)):
+            if not self.execute_query(update_query, (new_account_name, new_mcm_revenue_share, user_mail)):
                 return {
                     'status': False,
                     'message': 'Database error saat mengupdate account name'
