@@ -312,6 +312,37 @@ class data_mysql:
                 'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
         return {'hasil': hasil}
+
+    def delete_account_ads(self, account_ads_id):
+        try:
+            sql_delete = """
+                        DELETE FROM master_account_ads
+                        WHERE account_ads_id = %s
+                """
+            if not self.execute_query(sql_delete, (account_ads_id,)):
+                raise pymysql.Error("Failed to delete account ads")
+
+            affected = self.cur_hris.rowcount if self.cur_hris else 0
+
+            if not self.commit():
+                raise pymysql.Error("Failed to commit account ads delete")
+
+            if affected <= 0:
+                hasil = {
+                    "status": False,
+                    "message": "Account tidak ditemukan!"
+                }
+            else:
+                hasil = {
+                    "status": True,
+                    "message": "Account ads berhasil dihapus"
+                }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0] if e.args else e)
+            }
+        return {'hasil': hasil}
     
     def insert_login(self, data):
         try:

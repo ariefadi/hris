@@ -34,6 +34,7 @@ urlpatterns = [
     path('admin/post_account_ads', views.post_account_ads.as_view()),
     path('admin/edit_account_facebook/<str:account_ads_id>', views.EditAccountFacebookAds.as_view(), name='edit_account_facebook'),
     path('admin/update_account_facebook', views.UpdateAccountFacebookAds.as_view(), name='update_account_facebook'),
+    path('admin/delete_account_facebook', views.DeleteAccountFacebookAds.as_view(), name='delete_account_facebook'),
     # Menu Per Account Facebook Ads
     path('admin/per_account_facebook', views.PerAccountFacebookAds.as_view(), name='per_account_facebook'),
     path('admin/page_per_account_facebook', views.page_per_account_facebook.as_view()),

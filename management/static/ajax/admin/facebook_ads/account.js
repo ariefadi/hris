@@ -33,6 +33,63 @@ $().ready(function () {
     })
     // default reload data
     table_data_account_ads();
+
+    $(document).on('click', '.btn-delete-account', function (e) {
+        e.preventDefault();
+        var accountAdsId = $(this).data('accountAdsId');
+        var accountName = $(this).data('accountName') || '';
+
+        Swal.fire({
+            icon: 'warning',
+            title: 'Hapus Account?',
+            text: 'Hapus account "' + accountName + '"?',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, hapus',
+            cancelButtonText: 'Batal'
+        }).then(function (result) {
+            if (!result.isConfirmed) return;
+
+            var formData = new FormData();
+            formData.append('account_ads_id', accountAdsId);
+
+            $.ajax({
+                type: 'POST',
+                url: '/management/admin/delete_account_facebook',
+                data: formData,
+                headers: {
+                    "X-CSRFToken": csrftoken
+                },
+                processData: false,
+                contentType: false,
+                dataType: 'json',
+                beforeSend: function () {
+                    $('#overlay').fadeIn(200);
+                },
+                success: function (resp) {
+                    $('#overlay').fadeOut(200);
+                    if (resp && resp.status === true) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil',
+                            text: resp.message || 'Account berhasil dihapus'
+                        }).then(function () {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal',
+                            text: (resp && resp.message) ? resp.message : 'Gagal menghapus account'
+                        });
+                    }
+                },
+                error: function (xhr, status, error) {
+                    $('#overlay').fadeOut(200);
+                    report_eror(xhr, status);
+                }
+            });
+        });
+    });
 });
 function table_data_account_ads() {
     $.ajax({
@@ -64,7 +121,12 @@ function table_data_account_ads() {
                                     </td>
                                 `;
 
-                event_data += '<td class="text-center">' + '<a href='+url_detail+' type="button" id="btnEdit" class="btn btn-success btn-xs"><i class="bi bi-pencil"></i></a>'  + '</td>';
+                event_data += '<td class="text-center">'
+                    + '<div class="btn-group" role="group">'
+                    + '<a href="' + url_detail + '" type="button" class="btn btn-success btn-xs"><i class="bi bi-pencil"></i></a>'
+                    + '<button type="button" class="btn btn-warning btn-xs btn-delete-account" data-account-ads-id="' + value.account_ads_id + '" data-account-name="' + (value.account_name || '') + '"><i class="bi bi-trash"></i></button>'
+                    + '</div>'
+                    + '</td>';
                 event_data += '</tr>';  
                 $("#table_data_account tbody").append(event_data);    
             })

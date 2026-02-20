@@ -1402,6 +1402,49 @@ class UpdateAccountFacebookAds(View):
         
         return JsonResponse(hasil)
 
+class DeleteAccountFacebookAds(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super(DeleteAccountFacebookAds, self).dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        account_ads_id = req.POST.get('account_ads_id')
+        if not account_ads_id:
+            return JsonResponse({
+                'status': False,
+                'message': 'account_ads_id wajib diisi'
+            }, status=400)
+
+        rs_account = data_mysql().master_account_ads_by_params({
+            'data_account': account_ads_id,
+        })
+        data_list = rs_account.get('data') or []
+        existing_account = data_list[0] if data_list else None
+
+        if existing_account is None:
+            return JsonResponse({
+                'status': False,
+                'message': 'Account tidak ditemukan!'
+            }, status=404)
+
+        rs_delete = data_mysql().delete_account_ads(account_ads_id)
+        hasil = rs_delete.get('hasil') if isinstance(rs_delete, dict) else None
+        if not isinstance(hasil, dict):
+            hasil = {
+                'status': False,
+                'message': 'Gagal menghapus account'
+            }
+
+        if hasil.get('status', False):
+            try:
+                from .utils import invalidate_cache_on_data_update
+                invalidate_cache_on_data_update(existing_account.get('account_id'), event_type='account_delete')
+            except Exception:
+                pass
+
+        return JsonResponse(hasil)
+
 @method_decorator(csrf_exempt, name='dispatch') 
 class update_daily_budget_per_campaign(View):
     def post(self, req):
