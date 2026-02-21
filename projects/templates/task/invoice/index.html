@@ -65,11 +65,11 @@
               <thead>
                 <tr>
                   <th width="22%">Domain</th>
-                  <th width="10%">Parent Revenue Share</th>
+                  <th width="10%">Revenue Share<br><small>Parent Publisher %</small></th>
                   <th width="10%">Adsense</th>
                   <th width="10%">Media 20%</th>
                   <th width="10%">Modal</th>
-                  <th width="18%">Total Expenses<br><small>Server, admin fee & tax</small></th>
+                  <th width="15%">Total Expenses<br><small>Server, admin fee & tax</small></th>
                   <th width="10%">Fix Earning</th>
                   <th width="10%">Total</th>
                   <th width="5%"></th>
@@ -85,13 +85,13 @@
                     <a href="#" class="editable-profit" data-name="mcm_revenue_share" data-type="text"
                        data-title="Parent Rev Share" data-value="{{ r.mcm_revenue_share|default:'0' }}"
                        data-partner-id="{{ p.partner_id }}" data-domain-id="{{ r.domain_id|default:'' }}"
-                       data-subdomain-id="{{ r.subdomain_id|default:'' }}"></a>
+                       data-subdomain-id="{{ r.subdomain_id|default:'' }}" data-periode="{{ selected_periode|default:'' }}"></a>
                   </td>
                   <td class="align-middle">
                     <a href="#" class="editable-profit" data-name="adsense_adx_earning" data-type="text"
                        data-title="Adsense" data-value="{{ r.adsense_adx_earning|default:'0' }}"
                        data-partner-id="{{ p.partner_id }}" data-domain-id="{{ r.domain_id|default:'' }}"
-                       data-subdomain-id="{{ r.subdomain_id|default:'' }}"></a>
+                       data-subdomain-id="{{ r.subdomain_id|default:'' }}" data-periode="{{ selected_periode|default:'' }}"></a>
                   </td>
                   <td class="align-middle">
                     <span class="fmt-idr calc-media" data-amount="{{ r.media|default:'0' }}"></span>
@@ -100,13 +100,13 @@
                     <a href="#" class="editable-profit" data-name="modal" data-type="text"
                        data-title="Modal" data-value="{{ r.modal|default:'0' }}"
                        data-partner-id="{{ p.partner_id }}" data-domain-id="{{ r.domain_id|default:'' }}"
-                       data-subdomain-id="{{ r.subdomain_id|default:'' }}"></a>
+                       data-subdomain-id="{{ r.subdomain_id|default:'' }}" data-periode="{{ selected_periode|default:'' }}"></a>
                   </td>
                   <td class="align-middle">
                     <a href="#" class="editable-profit" data-name="total_expenses" data-type="text"
                        data-title="Total Expenses" data-value="{{ r.total_expenses|default:'0' }}"
                        data-partner-id="{{ p.partner_id }}" data-domain-id="{{ r.domain_id|default:'' }}"
-                       data-subdomain-id="{{ r.subdomain_id|default:'' }}"></a>
+                       data-subdomain-id="{{ r.subdomain_id|default:'' }}" data-periode="{{ selected_periode|default:'' }}"></a>
                   </td>
                   <td class="align-middle"><span class="fmt-idr calc-fix" data-amount="{{ r.fix_earning|default:'0' }}"></span></td>
                   <td class="align-middle"><span class="fmt-idr calc-total" data-amount="{{ r.total|default:'0' }}"></span></td>
@@ -355,7 +355,12 @@ $(function(){
       '<button type="button" class="btn btn-sm btn-light editable-cancel">Batal</button>';
     $('.editable-profit').each(function(){
       var $el = $(this);
-      $el.text(formatIdr($el.data('value')));
+      var field = String($el.data('name') || '');
+      if (field === 'mcm_revenue_share') {
+        $el.text($el.data('value'));
+      } else {
+        $el.text(formatIdr($el.data('value')));
+      }
     });
     $('.editable-profit').editable({
       url: "{% url 'projects_task_invoice_save' %}",
@@ -371,10 +376,16 @@ $(function(){
         params.partner_id = $(this).data('partner-id') || '';
         params.domain_id = $(this).data('domain-id') || '';
         params.subdomain_id = $(this).data('subdomain-id') || '';
+        params.periode = $(this).data('periode') || $('#invoice_periode').val() || '';
         params.csrfmiddlewaretoken = csrfToken;
         return params;
       },
       display: function(value){
+        var field = String($(this).data('name') || '');
+        if (field === 'mcm_revenue_share') {
+          $(this).text(value);
+          return;
+        }
         $(this).text(formatIdr(value));
       },
       success: function(resp){
@@ -386,6 +397,11 @@ $(function(){
         }
         if (resp && resp.value !== undefined) {
           $(this).data('value', resp.value);
+        }
+        if (resp && resp.updated_adsense_adx_earning !== undefined) {
+          var $row = $(this).closest('tr');
+          var $ads = $row.find('.editable-profit[data-name="adsense_adx_earning"]');
+          $ads.data('value', resp.updated_adsense_adx_earning).text(formatIdr(resp.updated_adsense_adx_earning));
         }
         recalcRow($(this).closest('tr'));
       },
@@ -426,6 +442,7 @@ $(function(){
           return $.Deferred().reject({ message: (resp && resp.message) ? resp.message : 'Akun AdX tidak ditemukan' }).promise();
         }
         var accountId = resp.data[0].account_id || '';
+        var mcmRevenueShare = resp.data[0].mcm_revenue_share;
         if (!accountId) {
           return $.Deferred().reject({ message: 'Akun AdX tidak valid' }).promise();
         }
@@ -440,7 +457,9 @@ $(function(){
             selected_domains: domainName,
             partner_id: $btn.data('partner-id') || '',
             domain_id: $btn.data('domain-id') || '',
-            subdomain_id: $btn.data('subdomain-id') || ''
+            subdomain_id: $btn.data('subdomain-id') || '',
+            account_id: accountId,
+            mcm_revenue_share: mcmRevenueShare
           }
         });
       }).then(function(resp){

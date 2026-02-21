@@ -835,13 +835,14 @@ class ProfitSharingIndexView(View):
                 d.domain_id AS domain_id,
                 d.domain AS domain_name,
                 sp.content,
-                sp.periode
+                sp.periode,
+                sp.mcm_revenue_share
             FROM data_media_partner mp
             INNER JOIN data_media_partner_domain pd ON pd.partner_id = mp.partner_id
             INNER JOIN data_domains d ON d.domain_id = pd.domain_id
             LEFT JOIN data_subdomain s ON s.domain_id = d.domain_id
             LEFT JOIN (
-                SELECT p1.partner_id, p1.domain_id, p1.subdomain_id, p1.periode, p1.content, p1.mdd
+                SELECT p1.partner_id, p1.domain_id, p1.subdomain_id, p1.mcm_revenue_share, p1.periode, p1.content, p1.mdd
                 FROM data_sharing_profit p1
                 INNER JOIN (
                     SELECT partner_id, domain_id, subdomain_id, periode,
@@ -907,6 +908,7 @@ class ProfitSharingIndexView(View):
                 domain_name = r.get('domain_name')
                 content_raw = r.get('content')
                 periode = r.get('periode')
+                mcm_revenue_share = r.get('mcm_revenue_share')
             except AttributeError:
                 pid = r[0] if len(r) > 0 else None
                 pname = r[1] if len(r) > 1 else None
@@ -918,6 +920,7 @@ class ProfitSharingIndexView(View):
                 domain_name = r[8] if len(r) > 8 else None
                 content_raw = r[9] if len(r) > 9 else None
                 periode = r[10] if len(r) > 10 else None
+                mcm_revenue_share = r[11] if len(r) > 11 else None
             if not pid:
                 continue
             g = partners_map.get(pid)
@@ -958,6 +961,7 @@ class ProfitSharingIndexView(View):
                 'total_expenses': expenses_num,
                 'fix_earning': fix_calc,
                 'total': total_calc,
+                'mcm_revenue_share': mcm_revenue_share,
             })
         partners = list(partners_map.values())
         context = {
@@ -978,7 +982,7 @@ class ProfitSharingSaveView(View):
         subdomain_id = (request.POST.get('subdomain_id') or '').strip()
         field = (request.POST.get('name') or '').strip()
         raw_value = request.POST.get('value')
-        if field not in ['adsense_adx_earning', 'modal', 'total_expenses']:
+        if field not in ['adsense_adx_earning', 'modal', 'total_expenses', 'mcm_revenue_share']:
             return JsonResponse({'status': False, 'message': 'Field tidak valid.'}, status=400)
         if not partner_id:
             return JsonResponse({'status': False, 'message': 'Partner tidak valid.'}, status=400)
@@ -996,10 +1000,23 @@ class ProfitSharingSaveView(View):
             except Exception:
                 return 0
         value_num = parse_number(raw_value)
-        now = datetime.now()
-        first_day = datetime(now.year, now.month, 1)
-        last_month = first_day - timedelta(days=1)
-        periode = last_month.date()
+        raw_periode = (request.POST.get('periode') or '').strip()
+        periode = None
+        if raw_periode:
+            try:
+                parts = raw_periode.split('-')
+                if len(parts) == 2:
+                    y = int(parts[0])
+                    m = int(parts[1])
+                    if 1 <= m <= 12:
+                        last_day = calendar.monthrange(y, m)[1]
+                        periode = datetime(y, m, last_day).date()
+            except Exception:
+                periode = None
+        if not periode:
+            now = datetime.now()
+            last_day = calendar.monthrange(now.year, now.month)[1]
+            periode = datetime(now.year, now.month, last_day).date()
         db = data_mysql()
         exists_id = None
         existing_content = {}
@@ -1038,7 +1055,39 @@ class ProfitSharingSaveView(View):
                     except Exception:
                         existing_content = {}
         existing_content = existing_content if isinstance(existing_content, dict) else {}
-        existing_content[field] = value_num
+        prev_mcm = parse_number(existing_content.get('mcm_revenue_share', 0))
+        base_adsense = parse_number(existing_content.get('adsense_adx_earning_raw', existing_content.get('adsense_adx_earning', 0)))
+        updated_adsense = None
+        if field == 'adsense_adx_earning':
+            base_adsense = value_num
+            existing_content['adsense_adx_earning_raw'] = base_adsense
+            existing_content['adsense_adx_earning'] = base_adsense
+            mcm_percent = parse_number(existing_content.get('mcm_revenue_share', 0))
+            if mcm_percent < 0:
+                mcm_percent = 0
+            if mcm_percent > 100:
+                mcm_percent = 100
+            if mcm_percent > 0:
+                updated_adsense = base_adsense - (base_adsense * (mcm_percent / 100))
+                existing_content['adsense_adx_earning'] = updated_adsense
+        elif field == 'mcm_revenue_share':
+            existing_content['mcm_revenue_share'] = value_num
+            if not existing_content.get('adsense_adx_earning_raw'):
+                current_adsense = parse_number(existing_content.get('adsense_adx_earning', 0))
+                if prev_mcm > 0 and prev_mcm < 100:
+                    base_adsense = current_adsense / (1 - (prev_mcm / 100))
+                else:
+                    base_adsense = current_adsense
+            existing_content['adsense_adx_earning_raw'] = base_adsense
+            mcm_percent = parse_number(value_num)
+            if mcm_percent < 0:
+                mcm_percent = 0
+            if mcm_percent > 100:
+                mcm_percent = 100
+            updated_adsense = base_adsense - (base_adsense * (mcm_percent / 100))
+            existing_content['adsense_adx_earning'] = updated_adsense
+        else:
+            existing_content[field] = value_num
         adsense_num = parse_number(existing_content.get('adsense_adx_earning', 0))
         modal_num = parse_number(existing_content.get('modal', 0))
         expenses_num = parse_number(existing_content.get('total_expenses', 0))
@@ -1053,30 +1102,46 @@ class ProfitSharingSaveView(View):
         mdb = str(admin.get('user_id', ''))[:36]
         mdb_name = admin.get('user_alias', '')
         if exists_id:
+            update_fields = ["content=%s", "mdb=%s", "mdb_name=%s", "mdd=NOW()"]
+            update_params = [content_json, mdb, mdb_name]
+            if field == 'mcm_revenue_share':
+                update_fields.append("mcm_revenue_share=%s")
+                update_params.append(value_num)
+            update_params.append(exists_id)
             ok = db.execute_query(
-                """
+                f"""
                 UPDATE data_sharing_profit
-                SET content=%s, mdb=%s, mdb_name=%s, mdd=NOW()
+                SET {', '.join(update_fields)}
                 WHERE id_sharing_profit=%s
                 """,
-                (content_json, mdb, mdb_name, exists_id)
+                tuple(update_params)
             )
             if not ok:
                 return JsonResponse({'status': False, 'message': 'Gagal menyimpan.'}, status=500)
             db.commit()
         else:
+            insert_columns = ["partner_id", "domain_id", "subdomain_id", "content", "periode", "mdb", "mdb_name"]
+            insert_values = [partner_id, domain_id or None, subdomain_id or None, content_json, periode, mdb, mdb_name]
+            insert_placeholders = ["%s"] * len(insert_columns)
+            if field == 'mcm_revenue_share':
+                insert_columns.append("mcm_revenue_share")
+                insert_values.append(value_num)
+                insert_placeholders.append("%s")
             ok = db.execute_query(
-                """
+                f"""
                 INSERT INTO data_sharing_profit
-                (partner_id, domain_id, subdomain_id, content, periode, mdb, mdb_name, mdd)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                ({', '.join(insert_columns)}, mdd)
+                VALUES ({', '.join(insert_placeholders)}, NOW())
                 """,
-                (partner_id, domain_id or None, subdomain_id or None, content_json, periode, mdb, mdb_name)
+                tuple(insert_values)
             )
             if not ok:
                 return JsonResponse({'status': False, 'message': 'Gagal menyimpan.'}, status=500)
             db.commit()
-        return JsonResponse({'status': True, 'value': value_num})
+        response_payload = {'status': True, 'value': value_num}
+        if updated_adsense is not None:
+            response_payload['updated_adsense_adx_earning'] = updated_adsense
+        return JsonResponse(response_payload)
 
 class ProfitSharingAdxAccountListView(View):
     def dispatch(self, request, *args, **kwargs):
@@ -1102,6 +1167,13 @@ class ProfitSharingRoiTrafficDomainView(View):
                 subdomain_id = (request.GET.get('subdomain_id') or '').strip()
                 start_date = (request.GET.get('start_date') or '').strip()
                 end_date = (request.GET.get('end_date') or '').strip()
+                account_id = (request.GET.get('account_id') or '').strip()
+                raw_mcm = request.GET.get('mcm_revenue_share')
+                mcm_revenue_share = None
+                if raw_mcm is not None:
+                    raw_mcm = str(raw_mcm).strip()
+                    if raw_mcm != '' and raw_mcm.lower() != 'null':
+                        mcm_revenue_share = raw_mcm
                 def parse_date(d):
                     try:
                         return datetime.strptime(d, '%Y-%m-%d').date()
@@ -1170,7 +1242,10 @@ class ProfitSharingRoiTrafficDomainView(View):
                                     existing_content = {}
                     existing_content = existing_content if isinstance(existing_content, dict) else {}
                     existing_content['adsense_adx_earning'] = total_revenue
+                    existing_content['adsense_adx_earning_raw'] = total_revenue
                     existing_content['modal'] = total_spend
+                    if mcm_revenue_share is not None:
+                        existing_content['mcm_revenue_share'] = parse_number(mcm_revenue_share)
                     adsense_num = parse_number(existing_content.get('adsense_adx_earning', 0))
                     modal_num = parse_number(existing_content.get('modal', 0))
                     expenses_num = parse_number(existing_content.get('total_expenses', 0))
@@ -1185,23 +1260,43 @@ class ProfitSharingRoiTrafficDomainView(View):
                     mdb = str(admin.get('user_id', ''))[:36]
                     mdb_name = admin.get('user_alias', '')
                     if exists_id:
+                        update_fields = ["content=%s", "mdb=%s", "mdb_name=%s", "mdd=NOW()"]
+                        update_params = [content_json, mdb, mdb_name]
+                        if account_id:
+                            update_fields.append("account_id=%s")
+                            update_params.append(account_id)
+                        if mcm_revenue_share is not None:
+                            update_fields.append("mcm_revenue_share=%s")
+                            update_params.append(mcm_revenue_share)
+                        update_params.append(exists_id)
                         db.execute_query(
-                            """
+                            f"""
                             UPDATE data_sharing_profit
-                            SET content=%s, mdb=%s, mdb_name=%s, mdd=NOW()
+                            SET {', '.join(update_fields)}
                             WHERE id_sharing_profit=%s
                             """,
-                            (content_json, mdb, mdb_name, exists_id)
+                            tuple(update_params)
                         )
                         db.commit()
                     else:
+                        insert_columns = ["partner_id", "domain_id", "subdomain_id", "content", "periode", "mdb", "mdb_name"]
+                        insert_values = [partner_id, domain_id or None, subdomain_id or None, content_json, periode_date, mdb, mdb_name]
+                        insert_placeholders = ["%s"] * len(insert_columns)
+                        if account_id:
+                            insert_columns.append("account_id")
+                            insert_values.append(account_id)
+                            insert_placeholders.append("%s")
+                        if mcm_revenue_share is not None:
+                            insert_columns.append("mcm_revenue_share")
+                            insert_values.append(mcm_revenue_share)
+                            insert_placeholders.append("%s")
                         db.execute_query(
-                            """
+                            f"""
                             INSERT INTO data_sharing_profit
-                            (partner_id, domain_id, subdomain_id, content, periode, mdb, mdb_name, mdd)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+                            ({', '.join(insert_columns)}, mdd)
+                            VALUES ({', '.join(insert_placeholders)}, NOW())
                             """,
-                            (partner_id, domain_id or None, subdomain_id or None, content_json, periode_date, mdb, mdb_name)
+                            tuple(insert_values)
                         )
                         db.commit()
                 cleaned = {

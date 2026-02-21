@@ -3767,7 +3767,7 @@ class data_mysql:
             like_params = [f"%{d}%" for d in selected_domain_list]
             base_sql = [
                 "SELECT",
-                "\tb.account_id AS 'account_id', a.account_name AS 'account_name'",
+                "\tb.account_id AS 'account_id', a.mcm_revenue_share AS 'mcm_revenue_share', a.account_name AS 'account_name'",
                 "FROM",
                 "\tapp_credentials a",
                 "INNER JOIN data_adx_domain b ON a.account_id = b.account_id",
@@ -3785,7 +3785,7 @@ class data_mysql:
             hasil = {
                 "status": True,
                 "message": "Data ads traffic account berhasil diambil",
-                "data": [{'account_id': row['account_id'], 'account_name': row['account_name']} for row in data]
+                "data": [{'account_id': row['account_id'], 'mcm_revenue_share': row['mcm_revenue_share'], 'account_name': row['account_name']} for row in data]
             }
         except pymysql.Error as e:
             hasil = {
