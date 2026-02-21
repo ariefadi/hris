@@ -65,6 +65,7 @@
               <thead>
                 <tr>
                   <th width="22%">Domain</th>
+                  <th width="10%">Parent Revenue Share</th>
                   <th width="10%">Adsense</th>
                   <th width="10%">Media 20%</th>
                   <th width="10%">Modal</th>
@@ -79,6 +80,12 @@
                 <tr>
                   <td class="align-middle">
                     {% if r.subdomain_name %}{{ r.subdomain_name }}{% elif r.domain %}{{ r.domain }}{% else %}-{% endif %}
+                  </td>
+                  <td class="align-middle">
+                    <a href="#" class="editable-profit" data-name="mcm_revenue_share" data-type="text"
+                       data-title="Parent Rev Share" data-value="{{ r.mcm_revenue_share|default:'0' }}"
+                       data-partner-id="{{ p.partner_id }}" data-domain-id="{{ r.domain_id|default:'' }}"
+                       data-subdomain-id="{{ r.subdomain_id|default:'' }}"></a>
                   </td>
                   <td class="align-middle">
                     <a href="#" class="editable-profit" data-name="adsense_adx_earning" data-type="text"
@@ -302,9 +309,8 @@ $(function(){
     }
     var now = new Date();
     var firstCurrent = new Date(now.getFullYear(), now.getMonth(), 1);
-    var lastPrev = new Date(firstCurrent.getTime() - 86400000);
-    var firstPrev = new Date(lastPrev.getFullYear(), lastPrev.getMonth(), 1);
-    return { start: formatDate(firstPrev), end: formatDate(lastPrev) };
+    var lastCurrent = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return { start: formatDate(firstCurrent), end: formatDate(lastCurrent) };
   }
   function saveProfitField($row, field, value){
     return $.ajax({
@@ -335,6 +341,12 @@ $(function(){
       autoclose: true,
       todayHighlight: true
     });
+  }
+  var $monthInput = $('#invoice_periode');
+  if (!$monthInput.val()) {
+    var now = new Date();
+    var current = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    $monthInput.val(current);
   }
   if ($.fn.editable) {
     $.fn.editable.defaults.mode = 'inline';

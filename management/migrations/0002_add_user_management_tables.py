@@ -682,17 +682,27 @@ class Migration(migrations.Migration):
         migrations.RunSQL(
             sql="""
                 CREATE TABLE `data_sharing_profit` (
-                `id_sharing_profit` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-                `partner_id` VARCHAR(20) DEFAULT NULL,
-                `domain_id` BIGINT UNSIGNED DEFAULT NULL,
-                `subdomain_id` BIGINT UNSIGNED DEFAULT NULL,
-                `content` TEXT,
-                `periode` DATE DEFAULT NULL,
-                `mdb` VARCHAR(36) DEFAULT NULL,
-                `mdb_name` VARCHAR(50) DEFAULT NULL,
-                `mdd` DATETIME DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (`id_sharing_profit`)
-                ) ENGINE=INNODB DEFAULT CHARSET=latin1
+                `id_sharing_profit` bigint unsigned NOT NULL AUTO_INCREMENT,
+                `partner_id` varchar(20) DEFAULT NULL,
+                `domain_id` bigint unsigned DEFAULT NULL,
+                `subdomain_id` bigint unsigned DEFAULT NULL,
+                `account_id` int unsigned DEFAULT NULL,
+                `mcm_revenue_share` int DEFAULT NULL,
+                `content` text,
+                `periode` date DEFAULT NULL,
+                `mdb` varchar(36) DEFAULT NULL,
+                `mdb_name` varchar(50) DEFAULT NULL,
+                `mdd` datetime DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (`id_sharing_profit`),
+                KEY `partner_id` (`partner_id`),
+                KEY `domain_id` (`domain_id`),
+                KEY `subdomain_id` (`subdomain_id`),
+                KEY `account_id` (`account_id`),
+                CONSTRAINT `data_sharing_profit_ibfk_1` FOREIGN KEY (`partner_id`) REFERENCES `data_media_partner` (`partner_id`) ON DELETE CASCADE ON UPDATE CASCADE,
+                CONSTRAINT `data_sharing_profit_ibfk_2` FOREIGN KEY (`domain_id`) REFERENCES `data_domains` (`domain_id`),
+                CONSTRAINT `data_sharing_profit_ibfk_3` FOREIGN KEY (`subdomain_id`) REFERENCES `data_subdomain` (`subdomain_id`),
+                CONSTRAINT `data_sharing_profit_ibfk_4` FOREIGN KEY (`account_id`) REFERENCES `app_credentials` (`account_id`)
+                ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=latin1
             """,
             # reverse_sql="DROP TABLE IF EXISTS `data_sharing_profit`;"
         ),

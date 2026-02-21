@@ -31,6 +31,9 @@ def send_whatsapp_notification(recipients, message):
         emails = list(dict.fromkeys(emails))
         if not emails:
             return False
+        if not normalized_periode:
+            now = datetime.now()
+            normalized_periode = now.strftime('%Y-%m')
         db = data_mysql()
         placeholders = ','.join(['%s'] * len(emails))
         sql = f"SELECT user_mail, user_telp FROM app_users WHERE LOWER(user_mail) IN ({placeholders})"
@@ -809,6 +812,9 @@ class ProfitSharingIndexView(View):
                         normalized_periode = f"{y:04d}-{m:02d}"
             except Exception:
                 normalized_periode = ''
+        if not normalized_periode:
+            now = datetime.now()
+            normalized_periode = now.strftime('%Y-%m')
         db = data_mysql()
         p1_filter = ""
         p2_filter = ""
@@ -954,11 +960,6 @@ class ProfitSharingIndexView(View):
                 'total': total_calc,
             })
         partners = list(partners_map.values())
-        if not normalized_periode:
-            now = datetime.now()
-            first_current = datetime(now.year, now.month, 1)
-            last_prev = first_current - timedelta(days=1)
-            normalized_periode = last_prev.strftime('%Y-%m')
         context = {
             'user': admin,
             'active_portal_id': active_portal_id,
