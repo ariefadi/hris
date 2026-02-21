@@ -8,8 +8,20 @@ document.addEventListener('DOMContentLoaded', () => {
   const chartCanvas = document.getElementById('chart_revenue_daily');
   const impressionsCanvas = document.getElementById('impressionsChart');
   const revenueCanvas = document.getElementById('revenueChart');
+  const summaryBoxes = document.getElementById('summary_boxes');
+  const revenueDailyCard = document.getElementById('adsenseRevenueDaily');
+  const chartsSection = document.getElementById('charts_section');
   let revenueChart = null;
   let trafficCharts = { impressions: null, revenue: null };
+
+  const setVisible = (el, visible) => {
+    if (!el) return;
+    el.style.display = visible ? '' : 'none';
+  };
+
+  setVisible(summaryBoxes, false);
+  setVisible(revenueDailyCard, false);
+  setVisible(chartsSection, false);
 
   const IDR_RATE = 1;
   let currencyCode = 'IDR';
@@ -229,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const generateTrafficCountryCharts = (data) => {
     if (!Array.isArray(data) || data.length === 0) {
-      if (typeof $ !== 'undefined') $('#charts_section').hide();
+      setVisible(chartsSection, false);
       if (trafficCharts.impressions) { trafficCharts.impressions.destroy(); trafficCharts.impressions = null; }
       if (trafficCharts.revenue) { trafficCharts.revenue.destroy(); trafficCharts.revenue = null; }
       return;
@@ -286,7 +298,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
     }
 
-    if (typeof $ !== 'undefined') $('#charts_section').show();
+    setVisible(chartsSection, true);
   };
 
   const loadSummary = async () => {
@@ -295,6 +307,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const selected_account = getSelectedAccountsCsv();
     const selected_countries = getSelectedCountriesCsv();
     infoBox.style.display = 'none';
+
+    setVisible(summaryBoxes, false);
+    setVisible(revenueDailyCard, false);
+    setVisible(chartsSection, false);
 
     try {
       if (typeof $ !== 'undefined' && $("#overlay").length) {
@@ -324,6 +340,9 @@ document.addEventListener('DOMContentLoaded', () => {
       updateSummaryBoxes(accountJson.summary || {});
       renderRevenueChart(accountJson.data || []);
       generateTrafficCountryCharts(countryJson.data || []);
+
+      setVisible(summaryBoxes, true);
+      setVisible(revenueDailyCard, Array.isArray(accountJson.data) && accountJson.data.length > 0);
 
       if (typeof $ !== 'undefined' && $("#overlay").length) {
         $("#overlay").hide();

@@ -312,6 +312,37 @@ class data_mysql:
                 'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
         return {'hasil': hasil}
+
+    def delete_account_ads(self, account_ads_id):
+        try:
+            sql_delete = """
+                        DELETE FROM master_account_ads
+                        WHERE account_ads_id = %s
+                """
+            if not self.execute_query(sql_delete, (account_ads_id,)):
+                raise pymysql.Error("Failed to delete account ads")
+
+            affected = self.cur_hris.rowcount if self.cur_hris else 0
+
+            if not self.commit():
+                raise pymysql.Error("Failed to commit account ads delete")
+
+            if affected <= 0:
+                hasil = {
+                    "status": False,
+                    "message": "Account tidak ditemukan!"
+                }
+            else:
+                hasil = {
+                    "status": True,
+                    "message": "Account ads berhasil dihapus"
+                }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'message': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0] if e.args else e)
+            }
+        return {'hasil': hasil}
     
     def insert_login(self, data):
         try:
@@ -1743,6 +1774,7 @@ class data_mysql:
                 a.refresh_token,
                 a.network_code,
                 a.developer_token,
+                a.mcm_revenue_share,
                 a.is_active,
                 a.mdb,
                 a.mdb_name,
@@ -1785,6 +1817,7 @@ class data_mysql:
                 a.refresh_token,
                 a.network_code,
                 a.developer_token,
+                a.mcm_revenue_share,
                 a.is_active,
                 a.mdb,
                 a.mdb_name,
@@ -1842,12 +1875,12 @@ class data_mysql:
                 'message': f'Database error: {str(e)}'
             }
 
-    def update_account_name(self, user_mail, new_account_name):
+    def update_account_name(self, user_mail, new_account_name, new_mcm_revenue_share):
         """Update account name for a specific user"""
         try:
             # Check if user exists
             check_query = "SELECT user_mail FROM app_credentials WHERE user_mail = %s"
-            if not self.execute_query(check_query, (user_mail,)):
+            if not self.execute_query(check_query, (user_mail)):
                 return {
                     'status': False,
                     'message': 'Database error saat mengecek user'
@@ -1864,11 +1897,11 @@ class data_mysql:
             # Update account name
             update_query = """
                 UPDATE app_credentials 
-                SET account_name = %s, mdd = NOW() 
+                SET account_name = %s, mcm_revenue_share = %s, mdd = NOW() 
                 WHERE user_mail = %s
             """
             
-            if not self.execute_query(update_query, (new_account_name, user_mail)):
+            if not self.execute_query(update_query, (new_account_name, new_mcm_revenue_share, user_mail)):
                 return {
                     'status': False,
                     'message': 'Database error saat mengupdate account name'

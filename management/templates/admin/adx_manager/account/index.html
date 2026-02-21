@@ -147,13 +147,13 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
     </div>
 </div>
 
-<!-- Edit Account Name Modal -->
+<!-- Edit Account Modal -->
 <div class="modal fade" id="editAccountNameModal" tabindex="-1" role="dialog" aria-labelledby="editAccountNameModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="editAccountNameModalLabel">
-                    <i class="bi bi-pencil"></i> Edit Account Name
+                    <i class="bi bi-pencil"></i> Edit Account
                 </h5>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
@@ -168,6 +168,11 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         <input type="hidden" id="edit_user_mail" name="user_mail">
                     </div>
                     <div class="form-group">
+                        <label for="edit_mcm_revenue_share">MCM Revenue Share:</label>
+                        <input type="number" class="form-control" id="edit_mcm_revenue_share" name="mcm_revenue_share"
+                            placeholder="Enter new MCM revenue share" required>
+                    </div>
+                    <div class="form-group">
                         <small class="text-muted">
                             <i class="bi bi-info-circle"></i> 
                             Hanya account name yang dapat diubah. Field lainnya tidak dapat diedit.
@@ -179,7 +184,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">
                     <i class="bi bi-x"></i> Cancel
                 </button>
-                <button type="button" class="btn btn-primary" id="btn_save_account_name">
+                <button type="button" class="btn btn-primary" id="btn_save_account">
                     <i class="bi bi-check"></i> Save Changes
                 </button>
             </div>
@@ -373,6 +378,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                                 <th class="text-center">Client ID</th>
                                 <th class="text-center">Network Code</th>
                                 <th class="text-center">Status</th>
+                                <th class="text-center">Prosentase <br> Share Profit</th>
                                 <th class="text-center">Assigned Users</th>
                                 <th class="text-center">#</th>
                             </tr>
@@ -382,7 +388,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                             <tr>
                                 <td class="text-center">{{ forloop.counter }}</td>
                                 <td><b><u>{{ credential.account_name|default:"-" }}</u></b> <br> <small class="text-muted">{{ credential.user_mail|default:"-" }}</small></td>
-                                <td>{{ credential.client_id|truncatechars:20|default:"-" }}</td>
+                                <td>{{ credential.client_id|truncatechars:50|default:"-" }}</td>
                                 <td class="text-center">{{ credential.network_code|default:"-" }}</td>
                                 <td class="text-center">
                                     {% if credential.is_active %}
@@ -391,6 +397,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                                         <span class="badge badge-secondary">Tidak Aktif</span>
                                     {% endif %}
                                 </td>
+                                <td class="text-center">{{ credential.mcm_revenue_share|default:"0" }}%</td>
                                 <td class="text-center">{{ credential.assigned_users|safe|default:'-' }}</td>
                                 <td class="text-center">
                                     <button class="btn btn-sm btn-primary load-account-data" 
@@ -413,7 +420,8 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                                     <button class="btn btn-sm btn-warning edit-account-name" 
                                             data-email="{{ credential.user_mail }}"
                                             data-account-name="{{ credential.account_name }}"
-                                            title="Edit Account Name">
+                                            data-mcm-revenue-share="{{ credential.mcm_revenue_share|default:'0' }}"
+                                            title="Edit Account">
                                         <i class="bi bi-pencil"></i> 
                                     </button>
                                     <button class="btn btn-sm btn-danger delete-account-credentials" 
