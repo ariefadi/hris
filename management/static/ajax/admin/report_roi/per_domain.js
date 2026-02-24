@@ -115,6 +115,9 @@ $().ready(function () {
         if (tanggal_dari != "" && tanggal_sampai != "") {
             e.preventDefault();
             $("#overlay").show();
+            window.resetRoiDomainTableToHeaderOnly();
+            $('#summary_boxes').hide();
+            $('#charts_section').hide();
             load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain);
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
@@ -293,8 +296,63 @@ $().ready(function () {
         };
     }
 
-    // Initialize DataTable
-    var table = $('#table_traffic_account').DataTable({
+    window.roiDomainTable = null;
+
+    window.resetRoiDomainTableToHeaderOnly = function () {
+        if ($.fn.DataTable && $.fn.DataTable.isDataTable && $.fn.DataTable.isDataTable('#table_traffic_account')) {
+            var existing = $('#table_traffic_account').DataTable();
+            if (existing && existing.state) { existing.state.clear(); }
+            existing.destroy();
+        }
+        $('#table_traffic_account tbody').empty();
+        $('#select_all_rows').prop('checked', false);
+        window.roiDomainTable = null;
+    };
+
+    function bindRoiDomainRowSelectionHandlers(table) {
+        if (!table) return;
+
+        $('#select_all_rows').off('change').on('change', function () {
+            var checked = $(this).is(':checked');
+            var $inputs = $('#table_traffic_account tbody input.row-select').prop('checked', checked);
+            $inputs.each(function () {
+                $(this).closest('tr').toggleClass('selected-row', checked);
+            });
+            table.draw(false);
+        });
+
+        $('#table_traffic_account tbody').off('change', 'input.row-select').on('change', 'input.row-select', function () {
+            var $tr = $(this).closest('tr');
+            $tr.toggleClass('selected-row', $(this).is(':checked'));
+
+            var all = $('#table_traffic_account tbody input.row-select').length;
+            var selected = $('#table_traffic_account tbody input.row-select:checked').length;
+            $('#select_all_rows').prop('checked', all > 0 && selected === all);
+
+            if (window.showOnlySelected) {
+                table.draw(false);
+            }
+        });
+
+        table.off('draw.roiDomain').on('draw.roiDomain', function () {
+            $('#table_traffic_account tbody input.row-select').each(function () {
+                $(this).closest('tr').toggleClass('selected-row', $(this).is(':checked'));
+            });
+            var all = $('#table_traffic_account tbody input.row-select').length;
+            var selected = $('#table_traffic_account tbody input.row-select:checked').length;
+            $('#select_all_rows').prop('checked', all > 0 && selected === all);
+        });
+    }
+
+    window.ensureRoiDomainTable = function () {
+        if ($.fn.DataTable && $.fn.DataTable.isDataTable && $.fn.DataTable.isDataTable('#table_traffic_account')) {
+            var existing = $('#table_traffic_account').DataTable();
+            window.roiDomainTable = existing;
+            bindRoiDomainRowSelectionHandlers(existing);
+            return existing;
+        }
+
+        var table = $('#table_traffic_account').DataTable({
         responsive: false,
         scrollX: true,
         scrollXInner: '100%',
@@ -670,6 +728,11 @@ $().ready(function () {
         order: [[2, 'asc']]
     });
 
+        window.roiDomainTable = table;
+        bindRoiDomainRowSelectionHandlers(table);
+        return table;
+    };
+
     $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
         try {
             if (!settings || !settings.nTable || settings.nTable.id !== 'table_traffic_account') return true;
@@ -677,40 +740,11 @@ $().ready(function () {
             return true;
         }
         if (!window.showOnlySelected) return true;
-        var rowNode = table.row(dataIndex).node();
+        var dt = window.roiDomainTable;
+        if (!dt) return true;
+        var rowNode = dt.row(dataIndex).node();
         var checked = $(rowNode).find('input.row-select').prop('checked');
         return !!checked;
-    });
-
-    $('#select_all_rows').off('change').on('change', function () {
-        var checked = $(this).is(':checked');
-        var $inputs = $('#table_traffic_account tbody input.row-select').prop('checked', checked);
-        $inputs.each(function () {
-            $(this).closest('tr').toggleClass('selected-row', checked);
-        });
-        table.draw(false);
-    });
-
-    $('#table_traffic_account tbody').off('change', 'input.row-select').on('change', 'input.row-select', function () {
-        var $tr = $(this).closest('tr');
-        $tr.toggleClass('selected-row', $(this).is(':checked'));
-
-        var all = $('#table_traffic_account tbody input.row-select').length;
-        var selected = $('#table_traffic_account tbody input.row-select:checked').length;
-        $('#select_all_rows').prop('checked', all > 0 && selected === all);
-
-        if (window.showOnlySelected) {
-            table.draw(false);
-        }
-    });
-
-    table.on('draw', function () {
-        $('#table_traffic_account tbody input.row-select').each(function () {
-            $(this).closest('tr').toggleClass('selected-row', $(this).is(':checked'));
-        });
-        var all = $('#table_traffic_account tbody input.row-select').length;
-        var selected = $('#table_traffic_account tbody input.row-select:checked').length;
-        $('#select_all_rows').prop('checked', all > 0 && selected === all);
     });
 
     function fallbackCopyText(text) {
@@ -761,6 +795,10 @@ $().ready(function () {
         var checked = $(this).is(':checked');
         localStorage.setItem('roi_hide_zero_spend', checked ? '1' : '0');
 
+        if (!Array.isArray(window.lastRoiDataAll) && !Array.isArray(window.lastRoiData)) {
+            return;
+        }
+
         // Gunakan dataset sesuai toggle (prioritas backend data_filtered)
         var displayData = window.applyZeroSpendFilterDataset();
 
@@ -777,7 +815,7 @@ $().ready(function () {
         }
 
         // Re-render DataTable dari data hasil filter
-        var table = $('#table_traffic_account').DataTable();
+        var table = window.ensureRoiDomainTable();
         table.clear();
         displayData.forEach(function (item) {
             var formattedDate = item.date || '-';
@@ -894,7 +932,7 @@ function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_ac
                 }
                 
                 // Update DataTable menggunakan data hasil filter
-                var table = $('#table_traffic_account').DataTable();
+                var table = window.ensureRoiDomainTable();
                 table.clear();
                 
                 displayData.forEach(function (item) {
