@@ -1,7 +1,7 @@
 """
 Django settings for hris project.
 """
-import os
+import os   
 from pathlib import Path
 from pickle import FALSE
 from dotenv import load_dotenv
