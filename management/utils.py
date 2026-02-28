@@ -1154,14 +1154,20 @@ def fetch_data_insights_account_range_all(rs_account, start_date, end_date):
 
     return result
 
-def fetch_data_insights_account(tanggal, access_token, account_id, data_sub_domain, account_name=None):
+def fetch_data_insights_account(tanggal, access_token, account_id, data_sub_domain, account_name=None, tanggal_sampai=None):
     FacebookAdsApi.init(access_token=access_token)
     account = AdAccount(account_id)
     if tanggal == '%':
         today = datetime.now().strftime('%Y-%m-%d')
     else:
         today = tanggal
-    start_date = end_date = today
+
+    start_date = today
+    if tanggal_sampai and str(tanggal_sampai).strip() and str(tanggal_sampai).strip() != '%':
+        end_date = str(tanggal_sampai).strip()
+    else:
+        end_date = today
+
     time_range = {
         'since': str(start_date),
         'until': str(end_date)
@@ -2226,10 +2232,7 @@ def fetch_ad_manager_inventory():
             'error': str(e)
         }
 
-def fetch_data_insights_all_accounts_by_subdomain(tanggal, rs_account, data_sub_domain):
-    """
-    Fungsi baru untuk mengambil data dari semua akun dengan filter subdomain
-    """
+def fetch_data_insights_all_accounts_by_subdomain(tanggal, rs_account, data_sub_domain, tanggal_sampai=None):
     all_data = []
     total_budget = total_spend = total_clicks = total_impressions = total_reach = total_cpr = 0.0
     
@@ -2238,13 +2241,17 @@ def fetch_data_insights_all_accounts_by_subdomain(tanggal, rs_account, data_sub_
             FacebookAdsApi.init(access_token=account_data['access_token'])
             account = AdAccount(account_data['account_id'])
             
-            # Setup tanggal
             if tanggal == '%' or not tanggal:
                 today = datetime.now().strftime('%Y-%m-%d')
             else:
                 today = tanggal
             
-            start_date = end_date = today
+            start_date = today
+            if tanggal_sampai and str(tanggal_sampai).strip() and str(tanggal_sampai).strip() != '%':
+                end_date = str(tanggal_sampai).strip()
+            else:
+                end_date = today
+
             time_range = {
                 'since': str(start_date),
                 'until': str(end_date)
