@@ -1,9 +1,10 @@
 from django.views import View
 from django.shortcuts import render, redirect
-from django.http import HttpResponseBadRequest, JsonResponse
+from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.contrib import messages
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from projects.database import data_mysql
 from datetime import datetime, timedelta
 import calendar
@@ -14,6 +15,387 @@ import re
 import random
 import requests
 import json
+import struct
+import zlib
+import html
+import os
+import tempfile
+from urllib.parse import urlparse
+from django.contrib.staticfiles import finders
+from django.templatetags.static import static
+from io import BytesIO
+
+def _escape_pdf_text(value):
+    s = str(value or '')
+    s = s.replace('\\', '\\\\').replace('(', '\\(').replace(')', '\\)')
+    return s
+
+def _format_pdf_number(value):
+    try:
+        num = float(value)
+    except Exception:
+        num = 0
+    n = int(round(num))
+    s = f"{n:,}"
+    return s.replace(',', '.')
+
+def _build_invoice_pdf_html(title, account_name, month_label, header_cells, row_cells, total_text, request=None):
+    from xhtml2pdf import pisa
+    
+    safe_title = html.escape(str(title or ''))
+    safe_account = html.escape(str(account_name or '-'))
+    safe_month = html.escape(str(month_label or '-'))
+    safe_total = html.escape(str(total_text or ''))
+    header_colors = ["#F5F5F5", "#81C784", "#EF5350", "#EF5350", "#E0E0E0", "#64B5F6", "#66BB6A"]
+    header_html = "".join(
+        (
+            f"<th style='background:{header_colors[i]};'>"
+            f"{html.escape(str(cell or ''))}"
+            f"<br><small>Server, admin fee &amp; tax</small>"
+            f"</th>"
+            if str(cell or '') == "Total Expenses"
+            else f"<th style='background:{header_colors[i]};'>{html.escape(str(cell or ''))}</th>"
+        )
+        for i, cell in enumerate(header_cells)
+    )
+    row_html = "".join(
+        f"<td>{html.escape(str(cell or ''))}</td>"
+        for cell in row_cells
+    )
+    logo_path = request.build_absolute_uri(static("dist/assets/img/adsense-logo.jpg"))
+    html_doc = f"""
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <style>
+          @page {{
+            
+            size: 297.04mm 209.9mm;
+            margin: 10mm;
+          }}
+          body {{
+            font-family: Roboto, Arial, sans-serif;
+            font-size: 11pt;
+            color: #111;
+          }}
+          h1 {{
+            text-align: center;
+            font-size: 14pt;
+            margin: 0 0 8mm 0;
+          }}
+          .meta {{
+            margin-bottom: 6mm;
+          }}
+          .meta div {{
+            margin-bottom: 2mm;
+          }}
+          table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8mm;
+            font-size: 10pt;
+          }}
+          th, td {{
+            border: 1px solid #d0d0d0;
+            padding: 6px 8px;
+          }}
+          th {{
+            text-align: center;
+            font-weight: bold;
+          }}
+          td:nth-child(n+2) {{
+            text-align: right;
+          }}
+          .total-line {{
+            margin-top: 6mm;
+          }}
+          .total-amount {{
+            color: #2E7D32;
+            font-weight: bold;
+          }}
+          .footer {{
+            margin-top: 3mm;
+          }}
+          .logo {{
+            margin-top: 6mm;
+            width: 100%;
+            text-align: center;
+          }}
+          .logo img {{
+            width: 240px;
+          }}
+        </style>
+      </head>
+      <body>
+        <h1>INVOICE ADSENSE - SHARING PROFIT</h1>
+        <div class="meta">
+            <div>
+                Adsense Account: {safe_account}
+                <br>
+                Month: {safe_month}
+            </div>
+        </div>
+        <table>
+          <thead>
+            <tr>{header_html}</tr>
+          </thead>
+          <tbody>
+            <tr>{row_html}</tr>
+          </tbody>
+        </table>
+        <div class="total-line">
+          Total yang akan di transfer adalah <span class="total-amount">{safe_total}</span>
+          <br>
+          Jika ingin penjelasan lebih lanjut, silahkan hubungi melalui WhatsApp.
+        </div>
+        <div class="logo"><img src="{logo_path}" alt="logo" /></div>
+      </body>
+    </html>
+    """
+    output = BytesIO()
+    result = pisa.CreatePDF(html_doc, dest=output)
+    if result.err:
+        return None
+    return output.getvalue()
+
+def _read_png_rgb(path):
+    try:
+        with open(path, 'rb') as f:
+            data = f.read()
+    except Exception:
+        return None
+    if data[:8] != b'\x89PNG\r\n\x1a\n':
+        return None
+    pos = 8
+    width = height = bit_depth = color_type = None
+    compression = filter_method = interlace = None
+    idat = b''
+    while pos + 8 <= len(data):
+        length = struct.unpack('>I', data[pos:pos + 4])[0]
+        pos += 4
+        ctype = data[pos:pos + 4]
+        pos += 4
+        chunk = data[pos:pos + length]
+        pos += length
+        pos += 4
+        if ctype == b'IHDR':
+            width, height, bit_depth, color_type, compression, filter_method, interlace = struct.unpack('>IIBBBBB', chunk)
+        elif ctype == b'IDAT':
+            idat += chunk
+        elif ctype == b'IEND':
+            break
+    if not idat or width is None or height is None:
+        return None
+    if bit_depth != 8 or compression != 0 or filter_method != 0 or interlace != 0:
+        return None
+    if color_type not in (2, 6):
+        return None
+    try:
+        raw = zlib.decompress(idat)
+    except Exception:
+        return None
+    bpp = 3 if color_type == 2 else 4
+    stride = width * bpp
+    out = bytearray()
+    prev = bytearray(stride)
+    offset = 0
+    def paeth(a, b, c):
+        p = a + b - c
+        pa = abs(p - a)
+        pb = abs(p - b)
+        pc = abs(p - c)
+        if pa <= pb and pa <= pc:
+            return a
+        if pb <= pc:
+            return b
+        return c
+    for _ in range(height):
+        if offset >= len(raw):
+            return None
+        filter_type = raw[offset]
+        offset += 1
+        scan = raw[offset:offset + stride]
+        offset += stride
+        row = bytearray(stride)
+        for i in range(stride):
+            x = scan[i]
+            if filter_type == 0:
+                row[i] = x
+            elif filter_type == 1:
+                left = row[i - bpp] if i >= bpp else 0
+                row[i] = (x + left) & 0xFF
+            elif filter_type == 2:
+                up = prev[i]
+                row[i] = (x + up) & 0xFF
+            elif filter_type == 3:
+                left = row[i - bpp] if i >= bpp else 0
+                up = prev[i]
+                row[i] = (x + ((left + up) // 2)) & 0xFF
+            elif filter_type == 4:
+                left = row[i - bpp] if i >= bpp else 0
+                up = prev[i]
+                up_left = prev[i - bpp] if i >= bpp else 0
+                row[i] = (x + paeth(left, up, up_left)) & 0xFF
+            else:
+                return None
+        if color_type == 6:
+            for i in range(0, len(row), 4):
+                out.extend(row[i:i + 3])
+        else:
+            out.extend(row)
+        prev = row
+    return width, height, bytes(out)
+
+def _build_pdf(content_text, page_width=612, page_height=792, image_data=None):
+    content_bytes = content_text.encode("latin-1", "replace")
+    pdf = bytearray()
+    def write(text):
+        pdf.extend(text.encode("latin-1"))
+    write("%PDF-1.4\n")
+    offsets = []
+    def write_obj(obj_num, body):
+        offsets.append(len(pdf))
+        write(f"{obj_num} 0 obj\n{body}\nendobj\n")
+    write_obj(1, "<< /Type /Catalog /Pages 2 0 R >>")
+    write_obj(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>")
+    xobject = " /XObject << /Im1 6 0 R >>" if image_data else ""
+    write_obj(3, f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {page_width} {page_height}] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >>{xobject} >> >>")
+    stream_body = f"<< /Length {len(content_bytes)} >>\nstream\n{content_text}\nendstream"
+    write_obj(4, stream_body)
+    write_obj(5, "<< /Type /Font /Subtype /Type1 /BaseFont /Roboto /Encoding /WinAnsiEncoding >>")
+    if image_data:
+        offsets.append(len(pdf))
+        write(f"6 0 obj\n")
+        header = f"<< /Type /XObject /Subtype /Image /Width {image_data['width']} /Height {image_data['height']} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /FlateDecode /Length {len(image_data['data'])} >>"
+        write(f"{header}\nstream\n")
+        pdf.extend(image_data['data'])
+        write("\nendstream\nendobj\n")
+    xref_offset = len(pdf)
+    write("xref\n")
+    write(f"0 {len(offsets) + 1}\n")
+    write("0000000000 65535 f \n")
+    for off in offsets:
+        write(f"{off:010d} 00000 n \n")
+    write("trailer\n")
+    write(f"<< /Size {len(offsets) + 1} /Root 1 0 R >>\n")
+    write("startxref\n")
+    write(f"{xref_offset}\n%%EOF\n")
+    return bytes(pdf)
+
+def _build_simple_pdf(title, lines):
+    content_lines = []
+    content_lines.append("BT")
+    content_lines.append("/F1 12 Tf")
+    content_lines.append("72 760 Td")
+    content_lines.append(f"({_escape_pdf_text(title)}) Tj")
+    content_lines.append("0 -18 Td")
+    content_lines.append("/F1 9 Tf")
+    for line in lines:
+        content_lines.append(f"({_escape_pdf_text(line)}) Tj")
+        content_lines.append("0 -14 Td")
+    content_lines.append("ET")
+    content_text = "\n".join(content_lines)
+    return _build_pdf(content_text)
+
+def _build_invoice_pdf(title, account_name, month_label, header_cells, row_cells, total_text):
+    def _hex_to_rgb(hex_color):
+        s = str(hex_color or '').lstrip('#')
+        if len(s) != 6:
+            return (0, 0, 0)
+        try:
+            r = int(s[0:2], 16) / 255
+            g = int(s[2:4], 16) / 255
+            b = int(s[4:6], 16) / 255
+            return (r, g, b)
+        except Exception:
+            return (0, 0, 0)
+    def add_rect(x, y, w, h, hex_color):
+        r, g, b = _hex_to_rgb(hex_color)
+        content_lines.append("q")
+        content_lines.append(f"{r:.3f} {g:.3f} {b:.3f} rg")
+        content_lines.append(f"{x} {y} {w} {h} re")
+        content_lines.append("f")
+        content_lines.append("Q")
+    def add_line(text, x, y, size):
+        content_lines.append(f"/F1 {size} Tf")
+        content_lines.append(f"1 0 0 1 {x} {y} Tm")
+        content_lines.append(f"({_escape_pdf_text(text)}) Tj")
+    def add_line_color(text, x, y, size, hex_color, bold=False):
+        r, g, b = _hex_to_rgb(hex_color)
+        content_lines.append(f"{r:.3f} {g:.3f} {b:.3f} rg")
+        content_lines.append(f"/F1 {size} Tf")
+        content_lines.append(f"1 0 0 1 {x} {y} Tm")
+        content_lines.append(f"({_escape_pdf_text(text)}) Tj")
+        if bold:
+            content_lines.append(f"1 0 0 1 {x + 0.5} {y} Tm")
+            content_lines.append(f"({_escape_pdf_text(text)}) Tj")
+        content_lines.append("0 0 0 rg")
+    content_lines = []
+    page_width = 842
+    page_height = 595
+    heading = "INVOICE ADSENSE - SHARING PROFIT"
+    heading_size = 14
+    heading_x = max(36, int((page_width - (len(heading) * heading_size * 0.6)) / 2))
+    left_margin = 42
+    right_margin = 42
+    header_x = [42, 220, 320, 420, 520, 630, 730]  # X start for each header column
+    row_x = header_x  # X start for each data column
+    header_colors = ["#F5F5F5", "#81C784", "#EF5350", "#EF5350", "#E0E0E0", "#64B5F6", "#66BB6A"]  # Header background colors per column
+    header_top = 490  # Top Y of header band
+    header_height = 22  # Header band height (vertical padding)
+    header_text_y = header_top - 14  # Header text baseline inside the band
+    y_row = header_top - header_height - 15  # Data row baseline under header
+    header_widths = []  # Width for each header column
+    for i in range(len(header_x) - 1):
+        header_widths.append(header_x[i + 1] - header_x[i])  # Width from this column start to next
+    header_widths.append(page_width - right_margin - header_x[-1])  # Width from last column to right margin
+    for i in range(len(header_cells)):
+        add_rect(header_x[i], header_top - header_height, header_widths[i], header_height, header_colors[i])  # Draw header background
+    logo_path = r"C:\Users\Hendrik\Documents\GitHub\hris\staticfiles\admin\img\adsense-logo.png"
+    image_data = None
+    image_cmd = None
+    logo = _read_png_rgb(logo_path)
+    if logo:
+        img_w, img_h, img_rgb = logo
+        max_w = 140
+        max_h = 40
+        scale = min(max_w / img_w, max_h / img_h, 1)
+        draw_w = img_w * scale
+        draw_h = img_h * scale
+        img_x = (page_width - draw_w) / 2
+        img_y = 20
+        image_data = {
+            'width': img_w,
+            'height': img_h,
+            'data': zlib.compress(img_rgb)
+        }
+        image_cmd = f"q {draw_w:.2f} 0 0 {draw_h:.2f} {img_x:.2f} {img_y:.2f} cm /Im1 Do Q"
+    content_lines.append("BT")
+    add_line(heading, heading_x, 560, heading_size)
+    add_line(f"Adsense Account: {account_name}", 42, 530, 10)
+    add_line(f"Month: {month_label}", 42, 515, 10)
+    header_font_size = 9
+    for i, cell in enumerate(header_cells):
+        cell_width = header_widths[i]
+        text_width = len(str(cell)) * header_font_size * 0.6
+        text_x = header_x[i] + max(0, (cell_width - text_width) / 2)
+        add_line(cell, text_x, header_text_y, header_font_size)
+    for i, cell in enumerate(row_cells):
+        add_line(cell, row_x[i], y_row, 9)
+    total_prefix = "Total yang akan di transfer adalah "
+    total_prefix_x = 42
+    total_prefix_y = 400
+    total_prefix_size = 10
+    add_line(total_prefix, total_prefix_x, total_prefix_y, total_prefix_size)
+    total_prefix_width = len(total_prefix) * total_prefix_size * 0.6
+    add_line_color(total_text, total_prefix_x + total_prefix_width, total_prefix_y, total_prefix_size, "#2E7D32", True)
+    add_line("Jika ingin penjelasan lebih lanjut, silahkan hubungi melalui WhatsApp.", 42, 385, 10)
+    content_lines.append("ET")
+    if image_cmd:
+        content_lines.append(image_cmd)
+    content_text = "\n".join(content_lines)
+    return _build_pdf(content_text, page_width=page_width, page_height=page_height, image_data=image_data)
+
 
 def send_mail_notification(to, subject, body=None):
     try:
@@ -1314,6 +1696,162 @@ class ProfitSharingRoiTrafficDomainView(View):
         except Exception:
             return resp
         return resp
+
+@method_decorator(xframe_options_sameorigin, name='dispatch')
+class ProfitSharingInvoicePdfView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+    def get(self, request):
+        partner_id = (request.GET.get('partner_id') or '').strip()
+        domain_id = (request.GET.get('domain_id') or '').strip()
+        subdomain_id = (request.GET.get('subdomain_id') or '').strip()
+        raw_periode = (request.GET.get('periode') or '').strip()
+        if not partner_id or (not domain_id and not subdomain_id):
+            return HttpResponseBadRequest('Parameter tidak lengkap.')
+        periode = None
+        if raw_periode:
+            try:
+                parts = raw_periode.split('-')
+                if len(parts) == 2:
+                    y = int(parts[0])
+                    m = int(parts[1])
+                    if 1 <= m <= 12:
+                        last_day = calendar.monthrange(y, m)[1]
+                        periode = datetime(y, m, last_day).date()
+            except Exception:
+                periode = None
+        if not periode:
+            now = datetime.now()
+            last_day = calendar.monthrange(now.year, now.month)[1]
+            periode = datetime(now.year, now.month, last_day).date()
+        def parse_number(val):
+            try:
+                if val is None:
+                    return 0
+                s = str(val)
+                if s == '':
+                    return 0
+                cleaned = re.sub(r'[^0-9\.\-]', '', s)
+                return float(cleaned) if cleaned not in ['', '-', '.'] else 0
+            except Exception:
+                return 0
+        def pick_value(data, keys):
+            if not isinstance(data, dict):
+                return None
+            for k in keys:
+                if k in data:
+                    return data.get(k)
+            return None
+        def calc_metrics(adsense_num, modal_num, expenses_num):
+            try:
+                base = adsense_num - modal_num
+                media_calc = base * 0.2
+                fix_calc = (adsense_num - media_calc) - modal_num - expenses_num
+            except Exception:
+                media_calc = 0
+                fix_calc = 0
+            total_calc = fix_calc + modal_num
+            return media_calc, fix_calc, total_calc
+        db = data_mysql()
+        row = None
+        if subdomain_id:
+            sql = """
+                SELECT sp.content, s.subdomain, d.domain, sp.account_id, ac.account_name
+                FROM data_sharing_profit sp
+                LEFT JOIN data_subdomain s ON s.subdomain_id = sp.subdomain_id
+                LEFT JOIN data_domains d ON d.domain_id = s.domain_id
+                LEFT JOIN app_credentials ac ON ac.account_id = sp.account_id
+                WHERE sp.partner_id = %s AND sp.subdomain_id = %s AND sp.periode = %s
+                ORDER BY COALESCE(sp.mdd, '0000-00-00 00:00:00') DESC
+                LIMIT 1
+            """
+            if db.execute_query(sql, (partner_id, subdomain_id, periode)):
+                row = db.cur_hris.fetchone()
+        else:
+            sql = """
+                SELECT sp.content, d.domain, sp.account_id, ac.account_name
+                FROM data_sharing_profit sp
+                LEFT JOIN data_domains d ON d.domain_id = sp.domain_id
+                LEFT JOIN app_credentials ac ON ac.account_id = sp.account_id
+                WHERE sp.partner_id = %s AND sp.domain_id = %s AND (sp.subdomain_id IS NULL OR sp.subdomain_id = 0) AND sp.periode = %s
+                ORDER BY COALESCE(sp.mdd, '0000-00-00 00:00:00') DESC
+                LIMIT 1
+            """
+            if db.execute_query(sql, (partner_id, domain_id, periode)):
+                row = db.cur_hris.fetchone()
+        if not row:
+            return HttpResponseBadRequest('Data tidak ditemukan.')
+        try:
+            if subdomain_id:
+                content_raw = row.get('content')
+                subdomain = row.get('subdomain')
+                domain = row.get('domain')
+                account_name = row.get('account_name')
+            else:
+                content_raw = row.get('content')
+                subdomain = None
+                domain = row.get('domain')
+                account_name = row.get('account_name')
+        except AttributeError:
+            if subdomain_id:
+                content_raw = row[0] if len(row) > 0 else None
+                subdomain = row[1] if len(row) > 1 else None
+                domain = row[2] if len(row) > 2 else None
+                account_name = row[4] if len(row) > 4 else None
+            else:
+                content_raw = row[0] if len(row) > 0 else None
+                subdomain = None
+                domain = row[1] if len(row) > 1 else None
+                account_name = row[3] if len(row) > 3 else None
+        display_domain = ''
+        if subdomain and domain:
+            display_domain = f"{subdomain}.{domain}"
+        elif domain:
+            display_domain = str(domain)
+        else:
+            display_domain = '-'
+        content = {}
+        if isinstance(content_raw, dict):
+            content = content_raw
+        elif content_raw:
+            try:
+                content = json.loads(content_raw)
+            except Exception:
+                content = {}
+        adsense_val = pick_value(content, ['adsense_adx_earning', 'adsense', 'adsense_earning', 'earning_adsense'])
+        modal_val = pick_value(content, ['modal', 'modal_cost'])
+        expenses_val = pick_value(content, ['total_expenses', 'expenses', 'total_expense'])
+        adsense_num = parse_number(adsense_val)
+        modal_num = parse_number(modal_val)
+        expenses_num = parse_number(expenses_val)
+        media_calc, fix_calc, total_calc = calc_metrics(adsense_num, modal_num, expenses_num)
+        title = f"Invoice {periode.strftime('%Y-%m')}"
+        account_label = str(account_name or '-')
+        month_label = periode.strftime('%B')
+        header_cells = ["Domain", "Adsense", "Media 20%", "Modal", "Total Expenses", "Fix Earning", "Total"]
+        row_cells = [
+            display_domain,
+            f"Rp. {_format_pdf_number(adsense_num)}",
+            f"Rp. {_format_pdf_number(media_calc)}",
+            f"Rp. {_format_pdf_number(modal_num)}",
+            f"Rp. {_format_pdf_number(expenses_num)}",
+            f"Rp. {_format_pdf_number(fix_calc)}",
+            f"Rp. {_format_pdf_number(total_calc)}",
+        ]
+        total_text = f"Rp. {_format_pdf_number(total_calc)}"
+        pdf_bytes = _build_invoice_pdf_html(title, account_label, month_label, header_cells, row_cells, total_text, request)
+        if not pdf_bytes:
+            pdf_bytes = _build_invoice_pdf(title, account_label, month_label, header_cells, row_cells, total_text)
+        filename_base = re.sub(r'[^A-Za-z0-9\.\-_]+', '-', display_domain).strip('-') or 'invoice'
+        filename = f"{filename_base}-{periode.strftime('%Y-%m')}.pdf"
+        response = HttpResponse(pdf_bytes, content_type='application/pdf')
+        if str(request.GET.get('download') or '').strip() in ['1', 'true', 'yes']:
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        else:
+            response['Content-Disposition'] = f'inline; filename="{filename}"'
+        return response
 class TechnicalIndexView(View):
     def get(self, request):
         if 'hris_admin' not in request.session:

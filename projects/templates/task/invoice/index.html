@@ -112,7 +112,7 @@
                   <td class="align-middle"><span class="fmt-idr calc-total" data-amount="{{ r.total|default:'0' }}"></span></td>
                   <td class="align-middle">
                     <button class="btn btn-xs btn-primary btn-load-data" data-domain="{{ r.subdomain_name|default:r.domain|default:'' }}" data-partner-id="{{ p.partner_id }}" data-domain-id="{{ r.domain_id|default:'' }}" data-subdomain-id="{{ r.subdomain_id|default:'' }}"><span class="bi bi-bootstrap-reboot" title="Load data"></span></button>
-                    <button class="btn btn-xs btn-warning"><span class="bi bi-eye"></span></button>
+                    <button class="btn btn-xs btn-warning btn-view-invoice-pdf" data-partner-id="{{ p.partner_id }}" data-domain-id="{{ r.domain_id|default:'' }}" data-subdomain-id="{{ r.subdomain_id|default:'' }}" data-periode="{{ selected_periode|default:'' }}" data-domain-label="{{ r.subdomain_name|default:r.domain|default:'' }}"><span class="bi bi-eye"></span></button>
                     <button class="btn btn-xs btn-success"><span class="bi bi-send"></span></button>
                     </td>
                 </tr>
@@ -261,6 +261,25 @@
     <div class="text-center text-muted py-4">Belum ada data invoice.</div>
   </div>
   {% endif %}
+</div>
+<div class="modal fade" id="invoicePdfModal" tabindex="-1" role="dialog" aria-labelledby="invoicePdfModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="invoicePdfModalLabel">Invoice PDF</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <iframe id="invoicePdfFrame" title="Invoice PDF" style="width:100%; height:70vh; border:0;"></iframe>
+      </div>
+      <div class="modal-footer">
+        <a id="invoicePdfDownload" class="btn btn-primary" href="#" target="_blank" rel="noopener">Download PDF</a>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
@@ -416,6 +435,25 @@ $(function(){
         } catch (e) {}
         return msg;
       }
+    });
+    var pdfBaseUrl = new URL("{% url 'projects_task_invoice_pdf' %}", window.location.origin).toString();
+    $(document).on('click', '.btn-view-invoice-pdf', function(e){
+      e.preventDefault();
+      var $btn = $(this);
+      var params = {
+        partner_id: $btn.data('partner-id') || '',
+        domain_id: $btn.data('domain-id') || '',
+        subdomain_id: $btn.data('subdomain-id') || '',
+        periode: $btn.data('periode') || $('#invoice_periode').val() || ''
+      };
+      var url = pdfBaseUrl + '?' + $.param(params);
+      $('#invoicePdfModalLabel').text('Invoice PDF - ' + String($btn.data('domain-label') || '-'));
+      $('#invoicePdfFrame').attr('src', url);
+      $('#invoicePdfDownload').attr('href', url + '&download=1');
+      $('#invoicePdfModal').modal('show');
+    });
+    $('#invoicePdfModal').on('hidden.bs.modal', function(){
+      $('#invoicePdfFrame').attr('src', '');
     });
     $('.btn-load-data').on('click', function(e){
       e.preventDefault();

@@ -55,6 +55,7 @@ urlpatterns = [
     path('task/invoice/save', task.ProfitSharingSaveView.as_view(), name='projects_task_invoice_save'),
     path('task/invoice/adx-accounts', task.ProfitSharingAdxAccountListView.as_view(), name='projects_task_invoice_adx_accounts'),
     path('task/invoice/roi-domain', task.ProfitSharingRoiTrafficDomainView.as_view(), name='projects_task_invoice_roi_domain'),
+    path('task/invoice/pdf', task.ProfitSharingInvoicePdfView.as_view(), name='projects_task_invoice_pdf'),
     
     # MASTER
     
