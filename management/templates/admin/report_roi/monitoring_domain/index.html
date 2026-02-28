@@ -126,6 +126,168 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
   #table_traffic_account tbody tr.selected-row {
       background-color: rgba(13, 110, 253, 0.08) !important;
   }
+  #table_traffic_account thead th {
+      vertical-align: middle !important;
+      white-space: nowrap;
+  }
+  #table_traffic_account tbody td {
+      vertical-align: middle !important;
+  }
+
+  #table_traffic_account td.sparkline-cell {
+      padding: 6px 8px;
+      vertical-align: middle;
+  }
+
+  #table_traffic_account td:nth-child(2),
+  #table_traffic_account td:nth-child(3) {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 240px;
+  }
+
+  #table_traffic_account th:nth-child(5),
+  #table_traffic_account td:nth-child(5),
+  #table_traffic_account th:nth-child(8),
+  #table_traffic_account td:nth-child(8),
+  #table_traffic_account th:nth-child(10),
+  #table_traffic_account td:nth-child(10) {
+      min-width: 170px;
+  }
+
+  .spark-eff,
+  .spark-earning,
+  .spark-esp {
+      width: 150px;
+      height: 54px;
+      margin: 0 auto;
+  }
+
+  @media (max-width: 768px) {
+      #table_traffic_account td:nth-child(2),
+      #table_traffic_account td:nth-child(3) {
+          max-width: 180px;
+      }
+      #table_traffic_account th:nth-child(5),
+      #table_traffic_account td:nth-child(5),
+      #table_traffic_account th:nth-child(8),
+      #table_traffic_account td:nth-child(8),
+      #table_traffic_account th:nth-child(10),
+      #table_traffic_account td:nth-child(10) {
+          min-width: 140px;
+      }
+      .spark-eff,
+      .spark-earning,
+      .spark-esp { width: 120px; }
+  }
+
+  #roiTemporalHeatmapSection .roi-heatmap-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #0f172a;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-title .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #f59e0b;
+      display: inline-block;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 12px;
+      padding: 8px 0 12px;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-cell {
+      border-radius: 14px;
+      background: #f1f5f9;
+      padding: 10px 8px;
+      text-align: center;
+      box-shadow: 0 1px 0 rgba(15,23,42,.04), 0 6px 18px rgba(15,23,42,.05);
+      user-select: none;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-hour {
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(15,23,42,.55);
+      margin-bottom: 4px;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-value {
+      font-size: 14px;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.2;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-note {
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(15,23,42,.45);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-legend {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(15,23,42,.55);
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+      display: inline-block;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-tooltip {
+      position: fixed;
+      z-index: 2100;
+      display: none;
+      background: rgba(15, 23, 42, 0.96);
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 12px;
+      box-shadow: 0 14px 40px rgba(0,0,0,.35);
+      min-width: 170px;
+      pointer-events: none;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-tooltip .tt-hour {
+      font-size: 11px;
+      opacity: .75;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-tooltip .tt-val {
+      font-size: 16px;
+      font-weight: 900;
+  }
+
+  html[data-theme="dark"] #roiTemporalHeatmapSection .roi-heatmap-title {
+      color: #e5e7eb;
+  }
+  html[data-theme="dark"] #roiTemporalHeatmapSection .roi-heatmap-note {
+      color: rgba(226, 232, 240, 0.7);
+  }
+  html[data-theme="dark"] #roiTemporalHeatmapSection .roi-heatmap-legend {
+      color: rgba(226, 232, 240, 0.8);
+  }
 </style>
 <div class="card">
     <div class="card-header">
@@ -206,8 +368,8 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 padding-top: 20%;">
             <i class="fas fa fa-sync-alt fa-spin"></i> Memuat Data Traffic ... 
         </div>
-        <div class="row" id="summary_boxes" style="display: none;" data-title="Ringkasan" data-intro="Ringkasan metrik utama: Total Spend, ROI Nett, dan Total Pendapatan. Akan muncul setelah data dimuat.">
-            <div class="col-12 col-sm-6 col-md-4">
+        <div class="row" id="summary_boxes" style="display: none;" data-title="Ringkasan" data-intro="Ringkasan metrik utama: Total Spend, Total Pendapatan, Net Profit, dan ROI Nett. Akan muncul setelah data dimuat.">
+            <div class="col-12 col-sm-6 col-md-3">
                 <div class="metric-card spend">
                     <div class="metric-card-inner">
                         <div>
@@ -220,20 +382,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-md-4">
-                <div class="metric-card roi">
-                    <div class="metric-card-inner">
-                        <div>
-                            <div class="metric-label">ROI Nett</div>
-                            <div class="metric-value" id="roi_nett">0%</div>
-                        </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-graph-up-arrow"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-4">
+            <div class="col-12 col-sm-6 col-md-3">
                 <div class="metric-card revenue">
                     <div class="metric-card-inner">
                         <div>
@@ -246,16 +395,81 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     </div>
                 </div>
             </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="metric-card revenue">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Net Profit</div>
+                            <div class="metric-value" id="net_profit">$0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-currency-exchange"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="metric-card roi">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">ROI Nett</div>
+                            <div class="metric-value" id="roi_nett">0%</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-graph-up-arrow"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
         <!-- Charts Section -->
-        <div class="row mt-3" id="charts_section" style="display: none;" data-title="Grafik" data-intro="Grafik tren ROI harian. Akan muncul setelah data dimuat.">
+        <div class="row mt-3" id="charts_section" style="display: none;" data-title="Grafik" data-intro="Grafik total (semua domain) per tanggal untuk membandingkan Spend, Earning, Net Profit, dan ROI. Akan muncul setelah data dimuat.">
             <div class="col-12 col-md-12 mx-auto">
                 <div class="card">
                     <div class="card-header">
-                        <h4 class="card-title"><i class="bi bi-bar-chart"></i> Traffic ROI Harian</h4>
+                        <h4 class="card-title"><i class="bi bi-bar-chart"></i> Perbandingan Spend, Earning, Net Profit &amp; ROI (Daily)</h4>
                     </div>
                     <div class="card-body">
-                        <canvas id="chart_roi_daily" width="400" height="60" style="max-height: 300px;"></canvas>
+                        <ul class="nav nav-tabs" id="roiMonitoringDomainChartTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link active" id="roiMonitoringDomainTabSpendEarning" data-toggle="tab" href="#roiMonitoringDomainPaneSpendEarning" role="tab" aria-controls="roiMonitoringDomainPaneSpendEarning" aria-selected="true">Spend, Earning &amp; Net Profit (Daily)</a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link" id="roiMonitoringDomainTabRoi" data-toggle="tab" href="#roiMonitoringDomainPaneRoi" role="tab" aria-controls="roiMonitoringDomainPaneRoi" aria-selected="false">ROI (Daily)</a>
+                            </li>
+                        </ul>
+                        <div class="tab-content pt-3">
+                            <div class="tab-pane fade show active" id="roiMonitoringDomainPaneSpendEarning" role="tabpanel" aria-labelledby="roiMonitoringDomainTabSpendEarning">
+                                <div id="roiMonitoringDomainSpendEarningChart" style="height: 320px;"></div>
+                            </div>
+                            <div class="tab-pane fade" id="roiMonitoringDomainPaneRoi" role="tabpanel" aria-labelledby="roiMonitoringDomainTabRoi">
+                                <div id="roiMonitoringDomainRoiChart" style="height: 320px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-3" id="roiTemporalHeatmapSection" style="display:none;">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="roi-heatmap-title">
+                            <span class="dot" aria-hidden="true"></span>
+                            <span>TEMPORAL ROI HEATMAP (PER JAM - HARI INI)</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="roiTemporalHeatmapTooltip" class="roi-heatmap-tooltip"></div>
+                        <div id="roiTemporalHeatmapGrid" class="roi-heatmap-grid"></div>
+                        <div class="roi-heatmap-foot">
+                            <div class="roi-heatmap-note">* darker nodes represent peak performance windows</div>
+                            <div class="roi-heatmap-legend">
+                                <span><span class="roi-heatmap-swatch" style="background:#e6f0ff"></span> Low</span>
+                                <span><span class="roi-heatmap-swatch" style="background:#93c5fd"></span> Target</span>
+                                <span><span class="roi-heatmap-swatch" style="background:#1d4ed8"></span> Peak</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -270,11 +484,15 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                                 <input type="checkbox" id="select_all_rows" aria-label="Pilih semua baris" />
                             </div>
                         </th>
-                        <th class="text-center" style="width: 20%;">Subdomain</th>
-                        <th class="text-center" style="width: 20%;">Account Ads</th>
-                        <th class="text-center" style="width: 20%;">Spend (Rp)</th>
-                        <th class="text-center" style="width: 20%;">Pendapatan (Rp)</th>
-                        <th class="text-center" style="width: 15%;">ROI (%)</th>
+                        <th class="text-center" style="width: 16%;">Subdomain</th>
+                        <th class="text-center" style="width: 14%;">Account Ads</th>
+                        <th class="text-center" style="width: 12%;">Spend (Rp)</th>
+                        <th class="text-center" style="width: 12%;">Pergerakan Earning</th>
+                        <th class="text-center" style="width: 12%;">Pendapatan (Rp)</th>
+                        <th class="text-center" style="width: 12%;">Net Profit (Rp)</th>
+                        <th class="text-center" style="width: 14%;">Earning/Spend/Net</th>
+                        <th class="text-center" style="width: 10%;">ROI (%)</th>
+                        <th class="text-center" style="width: 12%;">Efisiensi ROI</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -286,7 +504,9 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 {% endblock %}
 {% block more_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highcharts.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.js"></script>
 <script src="{% static 'ajax/admin/report_roi/monitoring_domain.js'%}?v={%now 'u'%}"></script>
 <script>
 (function() {

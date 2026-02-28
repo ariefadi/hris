@@ -124,6 +124,7 @@ urlpatterns = [
     # Menu ROI Monitoring Domain
     path('admin/monitoring_domain', views.RoiMonitoringDomainView.as_view(), name='roi_monitoring_domain'),
     path('admin/page_monitoring_domain', views.RoiMonitoringDomainDataView.as_view()),
+    path('admin/page_monitoring_domain_hourly_heatmap', views.RoiMonitoringDomainHourlyHeatmapView.as_view()),
     # Menu ROI Monitoring Country
     path('admin/monitoring_country', views.RoiMonitoringCountryView.as_view(), name='roi_monitoring_country'),
     path('admin/page_monitoring_country', views.RoiMonitoringCountryDataView.as_view()),

@@ -4866,6 +4866,106 @@ class RoiCountryHourlyDataView(View):
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
 
+class RoiMonitoringDomainHourlyHeatmapView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            is_ajax = False
+            try:
+                is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            except Exception:
+                pass
+            if not is_ajax:
+                is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+            if is_ajax:
+                return JsonResponse({'status': False, 'error': 'Sesi berakhir atau tidak valid. Silakan login ulang.'})
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            end_date = req.GET.get('end_date') or req.GET.get('tanggal_sampai') or req.GET.get('date')
+            target_date = ''
+            try:
+                if end_date and isinstance(end_date, str) and len(end_date) == 10:
+                    target_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
+            except Exception:
+                target_date = ''
+            if not target_date:
+                target_date = datetime.now().strftime('%Y-%m-%d')
+
+            cache_key = generate_cache_key(
+                'roi_monitoring_domain_hourly_heatmap',
+                target_date
+            )
+            cached = get_cached_data(cache_key)
+            if cached is not None:
+                return JsonResponse(cached, safe=False)
+            db = data_mysql()
+            adx_resp = db.get_all_adx_roi_country_hourly_by_params(
+                target_date
+            )
+            adx_rows = adx_resp.get('data') if isinstance(adx_resp, dict) else []
+            unique_domains = list({row["domain"] for row in adx_rows})
+            print(f"unique_domains: {unique_domains}")
+            ads_resp = db.get_all_ads_roi_country_hourly_by_params(
+                target_date,
+                unique_domains
+            )
+            print(f"ads_resp: {ads_resp}")
+            ads_rows = ((ads_resp or {}).get('hasil') or {}).get('data') or []
+            rev_by_hour = {f"{h:02d}": 0.0 for h in range(24)}
+            spend_by_hour = {f"{h:02d}": 0.0 for h in range(24)}
+            for row in adx_rows or []:
+                try:
+                    hour = int(row.get('hour', 0) or 0)
+                except Exception:
+                    hour = 0
+                if hour < 0 or hour > 23:
+                    continue
+                hkey = f"{hour:02d}"
+                rev_by_hour[hkey] = rev_by_hour.get(hkey, 0.0) + float(row.get('revenue', 0) or 0)
+            for row in ads_rows or []:
+                try:
+                    hour = int(row.get('hour', 0) or 0)
+                except Exception:
+                    hour = 0
+                if hour < 0 or hour > 23:
+                    continue
+                hkey = f"{hour:02d}"
+                spend_by_hour[hkey] = spend_by_hour.get(hkey, 0.0) + float(row.get('spend', 0) or 0)
+            hours = [f"{h:02d}" for h in range(24)]
+            revenue_series = []
+            spend_series = []
+            roi_series = []
+            total_revenue = 0.0
+            total_spend = 0.0
+            for h in hours:
+                r = float(rev_by_hour.get(h, 0.0) or 0.0)
+                s = float(spend_by_hour.get(h, 0.0) or 0.0)
+                total_revenue += r
+                total_spend += s
+                revenue_series.append(round(r, 2))
+                spend_series.append(round(s, 2))
+                roi_series.append(round((((r - s) / s) * 100) if s > 0 else 0.0, 2))
+            result = {
+                'status': True,
+                'date': target_date,
+                'hours': hours,
+                'roi': roi_series,
+                'revenue': revenue_series,
+                'spend': spend_series,
+                'summary': {
+                    'total_revenue': round(total_revenue, 2),
+                    'total_spend': round(total_spend, 2),
+                    'roi_nett': round((((total_revenue - total_spend) / total_spend) * 100) if total_spend > 0 else 0.0, 2)
+                }
+            }
+            set_cached_data(cache_key, result, timeout=300)
+            return JsonResponse(result, safe=False)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
+
+
 class RoiHourlyAdxFilterView(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
@@ -5226,6 +5326,7 @@ class RoiMonitoringDomainDataView(View):
             selected_domain_list = []
             if selected_domains:
                 selected_domain_list = [str(s).strip() for s in selected_domains.split(',') if s.strip()]
+            print(f"selected_domain_list: {selected_domain_list}")
             # --- 3. Ambil data AdX
             adx_result = data_mysql().get_all_adx_monitoring_account_by_params(
                 start_date_formatted,
@@ -5239,12 +5340,11 @@ class RoiMonitoringDomainDataView(View):
             if selected_domain_list:
                 for site in selected_domain_list:
                     site = str(site).strip()
+                    main_domain = site
                     if "." in site:
                         parts = site.split(".")       # pisah berdasarkan titik
                         if len(parts) >= 2:
                             main_domain = ".".join(parts[:2])
-                        else:
-                            main_domain = site
                     unique_name_site.append(main_domain)
             elif adx_result:
                 # Ambil unique site dari AdX
@@ -5254,12 +5354,11 @@ class RoiMonitoringDomainDataView(View):
                     if site_name and site_name != 'Unknown':
                         extracted_sites.add(site_name)
                 for site in extracted_sites:
+                    main_domain = site
                     if "." in site:
                         parts = site.split(".")       # pisah berdasarkan titik
                         if len(parts) >= 2:
                             main_domain = ".".join(parts[:2])
-                        else:
-                            main_domain = site
                     unique_name_site.append(main_domain)
             unique_name_site = list(set(unique_name_site))
             if unique_name_site:

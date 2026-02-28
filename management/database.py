@@ -2879,6 +2879,7 @@ class data_mysql:
             like_params_domain = [f"%{domain}%" for domain in data_domain_list] 
             base_sql = [
                 "SELECT",
+                "\tb.data_adx_country_tanggal AS 'date',",
                 "\tb.data_adx_country_domain AS 'site_name',",
                 "\tb.data_adx_country_cd AS 'country_code',",
                 "\tSUM(b.data_adx_country_revenue) AS 'revenue'",
@@ -2898,8 +2899,8 @@ class data_mysql:
                 base_sql.append(f"\tAND ({like_conditions_domain})")
                 params.extend(like_params_domain)
             
-            base_sql.append("GROUP BY b.data_adx_country_domain, b.data_adx_country_cd")
-            base_sql.append("ORDER BY b.data_adx_country_domain ASC")
+            base_sql.append("GROUP BY b.data_adx_country_tanggal, b.data_adx_country_domain, b.data_adx_country_cd")
+            base_sql.append("ORDER BY b.data_adx_country_tanggal ASC, b.data_adx_country_domain ASC")
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all adx monitoring account by params")  
@@ -3349,6 +3350,52 @@ class data_mysql:
 
         return {"hasil": hasil}
 
+    def get_all_adx_roi_country_hourly_by_params(self, target_date):
+        try:
+            base_sql = [
+                "SELECT",
+                "    DATE(a.log_adx_country_tanggal) AS date,",
+                "    HOUR(a.mdd) AS hour,",
+                "    a.mdd AS time,",
+                "    a.log_adx_country_cd AS country_code,",
+                "    a.log_adx_country_nm AS country_name,",
+                "    SUBSTRING_INDEX(a.log_adx_country_domain, '.', 2) AS domain,",
+                "    a.log_adx_country_impresi AS impressions,",
+                "    a.log_adx_country_click AS clicks,",
+                "    a.log_adx_country_revenue AS revenue",
+                "FROM log_adx_country a",
+                "JOIN (",
+                "    SELECT",
+                "        log_adx_country_cd,",
+                "        log_adx_country_domain,",
+                "        HOUR(mdd) AS jam,",
+                "        MAX(mdd) AS max_time",
+                "    FROM log_adx_country",
+                "    WHERE log_adx_country_tanggal = %s",
+                "    GROUP BY HOUR(mdd), log_adx_country_cd, log_adx_country_domain",
+                ") b ON a.log_adx_country_cd = b.log_adx_country_cd",
+                "   AND a.log_adx_country_domain = b.log_adx_country_domain",
+                "   AND a.mdd = b.max_time",
+                "WHERE a.log_adx_country_tanggal = %s",
+                "AND SUBSTRING_INDEX(a.log_adx_country_domain, '.', 2) NOT IN ('(Not applicable)')",
+            ]
+            params = [target_date, target_date]
+            base_sql.append("ORDER BY hour ASC, a.log_adx_country_nm ASC")
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get hourly AdX country logs by params")
+            data_rows = self.fetch_all()
+            return {
+                "status": True,
+                "message": "Hourly AdX country logs berhasil diambil",
+                "data": data_rows
+            }
+
+        except pymysql.Error as e:
+            return {"status": False, "error": f"Terjadi error {e!r}, error nya {e.args[0]}"}
+        except Exception as e:
+            return {"status": False, "error": str(e)}
+
     def get_all_adx_roi_country_hourly_logs_by_params(self, target_date, selected_domain_list=None):
         try:
             # Normalize domain list (optional)
@@ -3392,6 +3439,59 @@ class data_mysql:
             return {"status": False, "error": f"Terjadi error {e!r}, error nya {e.args[0]}"}
         except Exception as e:
             return {"status": False, "error": str(e)}
+
+    def get_all_ads_roi_country_hourly_by_params(self, target_date, selected_domain_list=None):
+        try:
+            # Normalize domain list (optional)
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+            # Gunakan LIKE tanpa wildcard jika domain sama persis dengan TLD (Ads)
+            like_conditions_domain = " OR ".join(["SUBSTRING_INDEX(a.log_ads_domain, '.', 2) LIKE %s"] * len(data_domain_list))
+            like_params_domain = [domain for domain in data_domain_list]    
+            base_sql = [
+                "SELECT",
+                "    DATE(a.log_ads_country_tanggal) AS date,",
+                "    HOUR(a.mdd) AS hour,",
+                "    a.mdd AS time,",
+                "    a.log_ads_country_cd AS country_code,",
+                "    a.log_ads_country_nm AS country_name,",
+                "    SUBSTRING_INDEX(a.log_ads_domain, '.', 2) AS domain,",
+                "    a.log_ads_country_spend AS spend,",
+                "    a.log_ads_country_impresi AS impressions,",
+                "    a.log_ads_country_click AS clicks",
+                "FROM log_ads_country a",
+                "JOIN (",
+                "    SELECT",
+                "        log_ads_country_cd,",
+                "        HOUR(mdd) AS jam,",
+                "        MAX(MINUTE(mdd)) AS max_minute",
+                "    FROM log_ads_country",
+                "    WHERE log_ads_country_tanggal = %s",
+                "    GROUP BY HOUR(mdd), log_ads_country_cd, log_ads_domain",
+                ") b ON a.log_ads_country_cd = b.log_ads_country_cd",
+                "   AND HOUR(a.mdd) = b.jam",
+                "   AND MINUTE(a.mdd) = b.max_minute",
+                "WHERE a.log_ads_country_tanggal = %s",
+            ]
+            params = [target_date, target_date]
+            if data_domain_list:
+                base_sql.append(f"\tAND ({like_conditions_domain})")
+                params.extend(like_params_domain)
+            base_sql.append("GROUP BY HOUR(a.mdd), a.log_ads_country_cd, a.log_ads_domain")
+            base_sql.append("ORDER BY HOUR(a.mdd) ASC, a.log_ads_country_nm ASC")
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get hourly Ads country logs by params")
+            data = self.fetch_all()
+            hasil = {"status": True, "message": "Hourly Ads country logs berhasil diambil", "data": data}
+        except Exception as e:
+            hasil = {"status": False, "data": f"Terjadi error {e!r}"}
+        return {"hasil": hasil}
 
     def get_all_ads_roi_country_hourly_logs_by_params(self, target_date, data_sub_domain=None):
         try:
@@ -4111,11 +4211,13 @@ class data_mysql:
             # --- 3. Susun query
             base_sql = [
                 "SELECT",
+                "\trs.date,",
                 "\trs.account_id, rs.account_name,",
                 "\trs.domain, rs.country_code,",
                 "\tSUM(rs.spend) AS 'spend'",
                 "FROM (",
                     "\tSELECT",
+                    "\t\tb.data_ads_country_tanggal AS 'date',",
                     "\t\ta.account_id, a.account_name,",
                     "\t\tb.data_ads_domain AS 'domain_raw',",
                     "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS domain,",
@@ -4126,7 +4228,7 @@ class data_mysql:
                     "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
                     f"{like_clause}",
                 ") rs",
-                "GROUP BY rs.domain, rs.country_code"
+                "GROUP BY rs.date, rs.domain, rs.country_code"
             ]
             # --- 4. Gabungkan parameter
             params = [start_date_formatted, end_date_formatted] + like_params
