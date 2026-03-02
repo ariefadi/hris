@@ -4883,16 +4883,17 @@ class RoiMonitoringDomainHourlyHeatmapView(View):
 
     def get(self, req):
         try:
+            start_date = req.GET.get('start_date') or req.GET.get('tanggal_dari')
             end_date = req.GET.get('end_date') or req.GET.get('tanggal_sampai') or req.GET.get('date')
             target_date = ''
             try:
-                if end_date and isinstance(end_date, str) and len(end_date) == 10:
+                if start_date and end_date and isinstance(start_date, str) and isinstance(end_date, str) and len(start_date) == 10 and len(end_date) == 10:
+                    datetime.strptime(start_date, '%Y-%m-%d')
                     target_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
             except Exception:
                 target_date = ''
             if not target_date:
                 target_date = datetime.now().strftime('%Y-%m-%d')
-
             cache_key = generate_cache_key(
                 'roi_monitoring_domain_hourly_heatmap',
                 target_date
@@ -4905,14 +4906,19 @@ class RoiMonitoringDomainHourlyHeatmapView(View):
                 target_date
             )
             adx_rows = adx_resp.get('data') if isinstance(adx_resp, dict) else []
-            unique_domains = list({row["domain"] for row in adx_rows})
-            print(f"unique_domains: {unique_domains}")
+            unique_domains = []
+            try:
+                unique_domains = sorted(list({str((row or {}).get('domain') or '').strip() for row in (adx_rows or []) if str((row or {}).get('domain') or '').strip()}))
+            except Exception:
+                unique_domains = []
             ads_resp = db.get_all_ads_roi_country_hourly_by_params(
                 target_date,
                 unique_domains
             )
             print(f"ads_resp: {ads_resp}")
             ads_rows = ((ads_resp or {}).get('hasil') or {}).get('data') or []
+            if not isinstance(ads_rows, list):
+                ads_rows = []
             rev_by_hour = {f"{h:02d}": 0.0 for h in range(24)}
             spend_by_hour = {f"{h:02d}": 0.0 for h in range(24)}
             for row in adx_rows or []:
