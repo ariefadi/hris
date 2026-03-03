@@ -157,18 +157,20 @@ class data_mysql:
     def connect(self):
         """Membuat koneksi baru ke database"""
         try:
-            host = os.getenv('DB_HOST') or os.getenv('HRIS_DB_HOST') or '127.0.0.1'
-            raw_port = (os.getenv('DB_PORT') or os.getenv('HRIS_DB_PORT') or '').strip()
+            # Use the same environment variables as Django settings for consistency
+            host = os.getenv('DB_HOST', '127.0.0.1')
+            # Use the same port as Django (3307, not 3307)
+            raw_port = os.getenv('DB_PORT', '').strip()
             if not raw_port:
-                raw_port = '3307'
+                raw_port = '3306'
             try:
                 port = int(raw_port)
             except (ValueError, TypeError):
-                print(f"Invalid DB_PORT value '{raw_port}', defaulting to 3307")
+                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3307")
                 port = 3307
-            user = os.getenv('DB_USER') or os.getenv('HRIS_DB_USER') or 'root'
-            password = os.getenv('DB_PASSWORD') or os.getenv('HRIS_DB_PASSWORD') or ''
-            database = os.getenv('DB_NAME') or os.getenv('HRIS_DB_NAME') or 'hris_trendHorizone'
+            user = os.getenv('DB_USER', 'root')
+            password = os.getenv('DB_PASSWORD', '')
+            database = os.getenv('DB_NAME', 'hris_trendHorizone')
 
             self.db_hris = pymysql.connect(
                 host=host,
@@ -265,7 +267,7 @@ class data_mysql:
                 LIMIT 1
               """
         try:
-            _log_debug(f"[LOGIN_DEBUG] Attempting login for username={data.get('username')} from DB host={os.getenv('DB_HOST','127.0.0.1')} port={os.getenv('HRIS_DB_PORT','3307')} db={os.getenv('HRIS_DB_NAME','hris_trendHorizone')}")
+            _log_debug(f"[LOGIN_DEBUG] Attempting login for username={data.get('username')} from DB host={os.getenv('DB_HOST','127.0.0.1')} port={os.getenv('HRIS_DB_PORT','3306')} db={os.getenv('HRIS_DB_NAME','hris_trendHorizone')}")
             if not self.execute_query(sql, (data['username'],)):
                 raise pymysql.Error("Failed to execute login query")
             row = self.cur_hris.fetchone()
