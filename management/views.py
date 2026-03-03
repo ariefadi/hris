@@ -4894,9 +4894,17 @@ class RoiMonitoringDomainHourlyHeatmapView(View):
                 target_date = ''
             if not target_date:
                 target_date = datetime.now().strftime('%Y-%m-%d')
+            selected_domains_param = req.GET.get('selected_domains') or ''
+            selected_domains = []
+            try:
+                selected_domains = [d.strip() for d in str(selected_domains_param).split(',') if d and str(d).strip()]
+            except Exception:
+                selected_domains = []
+
             cache_key = generate_cache_key(
                 'roi_monitoring_domain_hourly_heatmap',
-                target_date
+                target_date,
+                ','.join(sorted(selected_domains)) if selected_domains else '*'
             )
             cached = get_cached_data(cache_key)
             if cached is not None:
@@ -4906,16 +4914,22 @@ class RoiMonitoringDomainHourlyHeatmapView(View):
                 target_date
             )
             adx_rows = adx_resp.get('data') if isinstance(adx_resp, dict) else []
-            unique_domains = []
-            try:
-                unique_domains = sorted(list({str((row or {}).get('domain') or '').strip() for row in (adx_rows or []) if str((row or {}).get('domain') or '').strip()}))
-            except Exception:
+
+            if selected_domains:
+                wanted = {str(d).strip() for d in selected_domains if str(d).strip()}
+                adx_rows = [row for row in (adx_rows or []) if str((row or {}).get('domain') or '').strip() in wanted]
+                unique_domains = sorted(list(wanted))
+            else:
                 unique_domains = []
+                try:
+                    unique_domains = sorted(list({str((row or {}).get('domain') or '').strip() for row in (adx_rows or []) if str((row or {}).get('domain') or '').strip()}))
+                except Exception:
+                    unique_domains = []
+
             ads_resp = db.get_all_ads_roi_country_hourly_by_params(
                 target_date,
                 unique_domains
             )
-            print(f"ads_resp: {ads_resp}")
             ads_rows = ((ads_resp or {}).get('hasil') or {}).get('data') or []
             if not isinstance(ads_rows, list):
                 ads_rows = []

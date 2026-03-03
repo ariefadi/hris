@@ -288,6 +288,182 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
   html[data-theme="dark"] #roiTemporalHeatmapSection .roi-heatmap-legend {
       color: rgba(226, 232, 240, 0.8);
   }
+
+  #roiDomainDetailModal .roi-domain-detail-dialog {
+      max-width: none;
+      width: min(1920px, calc(100vw - 24px));
+      margin: 12px auto;
+  }
+  #roiDomainDetailModal .roi-domain-detail-modal {
+      height: calc(100vh - 24px);
+  }
+  #roiDomainDetailModal .roi-domain-detail-modal .modal-body {
+      overflow: auto;
+      max-height: calc(100vh - 110px);
+  }
+  @media (max-width: 576px) {
+      #roiDomainDetailModal .roi-domain-detail-dialog {
+          width: calc(100vw - 12px);
+          margin: 6px auto;
+      }
+      #roiDomainDetailModal .roi-domain-detail-modal {
+          height: calc(100vh - 12px);
+      }
+      #roiDomainDetailModal .roi-domain-detail-modal .modal-body {
+          max-height: calc(100vh - 96px);
+      }
+  }
+
+  .roi-domain-detail-modal .modal-header {
+      border-bottom: 0;
+  }
+  .roi-domain-detail-dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #22c55e, #06b6d4);
+      margin-right: 8px;
+  }
+  .roi-domain-detail-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+  }
+  .roi-domain-detail-tags .badge {
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-weight: 700;
+      letter-spacing: .02em;
+  }
+  .roi-domain-detail-card {
+      border-radius: 16px;
+      overflow: hidden;
+  }
+  .roi-domain-detail-advisor {
+      font-size: 13px;
+      line-height: 1.5;
+      font-weight: 600;
+  }
+  .roi-domain-matrix {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+  }
+  .roi-domain-metric {
+      border-radius: 12px;
+      background: rgba(148, 163, 184, 0.12);
+      padding: 12px;
+  }
+  .roi-domain-metric .k {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: rgba(15, 23, 42, 0.62);
+  }
+  .roi-domain-metric .v {
+      font-size: 18px;
+      font-weight: 900;
+      margin-top: 6px;
+  }
+  html[data-theme="dark"] .roi-domain-metric { background: rgba(15, 23, 42, 0.35); }
+  html[data-theme="dark"] .roi-domain-metric .k { color: rgba(226, 232, 240, 0.7); }
+
+  .roi-domain-audit {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 240px;
+      overflow: auto;
+  }
+  .roi-domain-audit .item {
+      border-radius: 12px;
+      padding: 10px 12px;
+      background: rgba(148, 163, 184, 0.10);
+  }
+  .roi-domain-audit .item .t {
+      font-size: 11px;
+      font-weight: 800;
+      opacity: .7;
+      margin-bottom: 4px;
+  }
+  .roi-domain-audit .item .m {
+      font-size: 12px;
+      font-weight: 700;
+  }
+  html[data-theme="dark"] .roi-domain-audit .item { background: rgba(15, 23, 42, 0.35); }
+
+  .roi-domain-hotspot .bar {
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.18);
+      overflow: hidden;
+  }
+  .roi-domain-hotspot .fill {
+      height: 100%;
+      width: 0;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #22c55e, #06b6d4);
+  }
+  .roi-domain-hotspot .label {
+      margin-top: 10px;
+      font-size: 12px;
+      font-weight: 800;
+  }
+
+  .roi-domain-temporal-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 8px;
+  }
+  .roi-domain-temporal-grid .cell {
+      border-radius: 10px;
+      padding: 10px 8px;
+      text-align: center;
+      background: rgba(148, 163, 184, 0.12);
+      cursor: default;
+      user-select: none;
+  }
+  .roi-domain-temporal-grid .cell .h {
+      font-size: 10px;
+      font-weight: 900;
+      opacity: .75;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+  }
+  .roi-domain-temporal-grid .cell .v {
+      margin-top: 6px;
+      font-size: 13px;
+      font-weight: 900;
+  }
+  html[data-theme="dark"] .roi-domain-temporal-grid .cell { background: rgba(15, 23, 42, 0.35); }
+
+  .roi-domain-commands {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+  }
+  .roi-domain-commands .btn {
+      border-radius: 16px;
+      padding: 16px 14px;
+      font-weight: 900;
+      font-size: 13px;
+      min-height: 58px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      white-space: nowrap;
+  }
+  .roi-domain-commands .btn i {
+      font-size: 18px;
+      line-height: 1;
+  }
+  .roi-domain-commands .roi-domain-cmd[data-action="STOP"] {
+      grid-column: 1 / -1;
+  }
 </style>
 <div class="card">
     <div class="card-header">
@@ -493,11 +669,206 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         <th class="text-center" style="width: 14%;">Earning/Spend/Net</th>
                         <th class="text-center" style="width: 10%;">ROI (%)</th>
                         <th class="text-center" style="width: 12%;">Efisiensi ROI</th>
+                        <th class="text-center" style="width: 6%;">Detail</th>
                     </tr>
                 </thead>
                 <tbody>
                 </tbody>
             </table>
+        </div>
+
+        <div class="modal fade" id="roiDomainDetailModal" tabindex="-1" role="dialog" aria-labelledby="roiDomainDetailModalLabel" aria-hidden="true">
+            <div class="modal-dialog roi-domain-detail-dialog" role="document">
+                <div class="modal-content roi-domain-detail-modal">
+                    <div class="modal-header align-items-start">
+                        <div class="w-100">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <h5 class="modal-title" id="roiDomainDetailModalLabel">
+                                        <span class="roi-domain-detail-dot" aria-hidden="true"></span>
+                                        <span id="roiDomainDetailName">-</span>
+                                    </h5>
+                                    <div class="roi-domain-detail-tags" id="roiDomainDetailTags"></div>
+                                </div>
+                                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="text-muted mt-1" id="roiDomainDetailPeriod"></div>
+                        </div>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-12 col-sm-6 col-lg-3 mb-3">
+                                <div class="metric-card spend">
+                                    <div class="metric-card-inner">
+                                        <div>
+                                            <div class="metric-label">Allocated Resource</div>
+                                            <div class="metric-value" id="roiDomainDetailSpend">Rp 0</div>
+                                        </div>
+                                        <div class="metric-card-icon" aria-hidden="true"><i class="bi bi-cash-stack"></i></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-lg-3 mb-3">
+                                <div class="metric-card roi">
+                                    <div class="metric-card-inner">
+                                        <div>
+                                            <div class="metric-label">Net Efficiency</div>
+                                            <div class="metric-value" id="roiDomainDetailRoi">0%</div>
+                                        </div>
+                                        <div class="metric-card-icon" aria-hidden="true"><i class="bi bi-graph-up-arrow"></i></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-lg-3 mb-3">
+                                <div class="metric-card revenue">
+                                    <div class="metric-card-inner">
+                                        <div>
+                                            <div class="metric-label">Survival Index</div>
+                                            <div class="metric-value"><span id="roiDomainDetailStreak">0</span> <small class="text-muted">days streak</small></div>
+                                        </div>
+                                        <div class="metric-card-icon" aria-hidden="true"><i class="bi bi-shield-check"></i></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-lg-3 mb-3">
+                                <div class="metric-card" style="background: linear-gradient(135deg, #6366f1, #a855f7); color:#fff;">
+                                    <div class="metric-card-inner">
+                                        <div>
+                                            <div class="metric-label" style="color:rgba(255,255,255,.85)">Neural Directive</div>
+                                            <div class="metric-value" style="color:#fff" id="roiDomainDetailDirective">HOLD</div>
+                                        </div>
+                                        <div class="metric-card-icon" aria-hidden="true"><i class="bi bi-lightning-charge"></i></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-12 col-lg-4 mb-3">
+                                <div class="card roi-domain-detail-card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0"><i class="bi bi-cpu"></i> Neural Advisor</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="roi-domain-detail-advisor" id="roiDomainDetailAdvisorText">-</div>
+                                    </div>
+                                </div>
+
+                                <div class="card roi-domain-detail-card mt-3">
+                                    <div class="card-header d-flex align-items-center justify-content-between">
+                                        <h6 class="mb-0"><i class="bi bi-grid-3x3-gap"></i> Neural Matrix</h6>
+                                        <span class="badge badge-secondary">Time: Macro</span>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="roi-domain-matrix">
+                                            <div class="roi-domain-metric">
+                                                <div class="k">ROI Stability</div>
+                                                <div class="v" id="roiDomainDetailRoiStability">0</div>
+                                            </div>
+                                            <div class="roi-domain-metric">
+                                                <div class="k">Spend Velocity</div>
+                                                <div class="v" id="roiDomainDetailSpendVelocity">0</div>
+                                            </div>
+                                            <div class="roi-domain-metric">
+                                                <div class="k">Stability Index</div>
+                                                <div class="v" id="roiDomainDetailStabilityIndex">0</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="card roi-domain-detail-card mt-3">
+                                    <div class="card-header">
+                                        <h6 class="mb-0"><i class="bi bi-journal-text"></i> Neural Audit Log</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="roi-domain-audit" id="roiDomainDetailAuditLog"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-lg-4 mb-3">
+                                <div class="card roi-domain-detail-card">
+                                    <div class="card-header">
+                                        <h6 class="mb-0"><i class="bi bi-activity"></i> 7D Performance Vector</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="roiDomainDetailPerfChart" style="height: 240px;"></div>
+                                    </div>
+                                </div>
+
+                                <div class="card roi-domain-detail-card mt-3">
+                                    <div class="card-header d-flex align-items-center justify-content-between">
+                                        <h6 class="mb-0"><i class="bi bi-thermometer-sun"></i> Hot Sweet Spot</h6>
+                                        <small class="text-muted" id="roiDomainDetailHotSpotHint"></small>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="roi-domain-hotspot">
+                                            <div class="bar"><div class="fill" id="roiDomainDetailHotSpotFill"></div></div>
+                                            <div class="label" id="roiDomainDetailHotSpotLabel">-</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="card roi-domain-detail-card mt-3">
+                                    <div class="card-header">
+                                        <h6 class="mb-0"><i class="bi bi-clock"></i> Temporal Matrix</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="roi-domain-temporal-grid" id="roiDomainDetailTemporalGrid"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-12 col-lg-4 mb-3">
+                                <div class="card roi-domain-detail-card">
+                                    <div class="card-header d-flex align-items-center justify-content-between">
+                                        <h6 class="mb-0"><i class="bi bi-card-text"></i> Strategic Notes</h6>
+                                        <button type="button" class="btn btn-sm btn-warning" id="roiDomainDetailSaveNote">Save Note</button>
+                                    </div>
+                                    <div class="card-body">
+                                        <textarea class="form-control" id="roiDomainDetailNotes" rows="7" placeholder="Record long-term strategic observations for this node..."></textarea>
+                                    </div>
+                                </div>
+
+                                <div class="card roi-domain-detail-card mt-3">
+                                    <div class="card-header d-flex align-items-center justify-content-between">
+                                        <h6 class="mb-0"><i class="bi bi-command"></i> Command Center</h6>
+                                        <span class="badge badge-success">ACTIVE</span>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="roi-domain-commands">
+                                            <button type="button" class="btn btn-primary roi-domain-cmd" data-action="SCALE_20">
+                                                <i class="bi bi-graph-up-arrow" aria-hidden="true"></i>
+                                                <span>Scale +20%</span>
+                                            </button>
+                                            <button type="button" class="btn btn-dark roi-domain-cmd" data-action="HOLD">
+                                                <i class="bi bi-pause-circle" aria-hidden="true"></i>
+                                                <span>Quick Hold</span>
+                                            </button>
+                                            <button type="button" class="btn btn-primary roi-domain-cmd" data-action="OPTIMIZE">
+                                                <i class="bi bi-sliders" aria-hidden="true"></i>
+                                                <span>Optimize</span>
+                                            </button>
+                                            <button type="button" class="btn btn-warning roi-domain-cmd" data-action="CUT_20">
+                                                <i class="bi bi-graph-down-arrow" aria-hidden="true"></i>
+                                                <span>Cut -20%</span>
+                                            </button>
+                                            <button type="button" class="btn btn-danger roi-domain-cmd" data-action="STOP">
+                                                <i class="bi bi-stop-circle" aria-hidden="true"></i>
+                                                <span>Stop Node</span>
+                                            </button>
+                                        </div>
+                                        <div class="text-muted mt-2" style="font-size:12px" id="roiDomainDetailCmdStatus"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
