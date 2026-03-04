@@ -3862,24 +3862,18 @@ def _process_regular_csv_data(raw_data):
             # Extract values from CSV row with proper fallbacks
             date = row.get('Dimension.DATE', '')
             
-            # Handle different site name dimensions - prioritize direct API data
-            site_name = 'Unknown'
-            
-            # First try to get site name directly from API dimensions
+            site_name = ''
             if 'Dimension.SITE_NAME' in row:
-                site_name = row.get('Dimension.SITE_NAME', 'Unknown')
-                print(f"[DEBUG] Using SITE_NAME from API: {site_name}")
+                site_name = str(row.get('Dimension.SITE_NAME', '') or '').strip()
             elif 'Dimension.AD_EXCHANGE_SITE_NAME' in row:
-                site_name = row.get('Dimension.AD_EXCHANGE_SITE_NAME', 'Ad Exchange Display')
-                print(f"[DEBUG] Using AD_EXCHANGE_SITE_NAME from API: {site_name}")
-            elif 'Dimension.AD_UNIT_NAME' in row:
-                # Use AD_UNIT_NAME directly without mapping
-                site_name = row.get('Dimension.AD_UNIT_NAME', 'Unknown')
-                print(f"[DEBUG] Using AD_UNIT_NAME from API: {site_name}")
-            elif 'Dimension.AD_UNIT_ID' in row:
-                # Use AD_UNIT_ID directly without mapping
-                site_name = row.get('Dimension.AD_UNIT_ID', 'Unknown')
-                print(f"[DEBUG] Using AD_UNIT_ID from API: {site_name}")
+                site_name = str(row.get('Dimension.AD_EXCHANGE_SITE_NAME', '') or '').strip()
+
+            if not site_name:
+                continue
+
+            low_site = site_name.lower().strip()
+            if low_site in ['not applicable', '(not applicable)', 'n/a', 'na']:
+                continue
             
             # Handle different possible column names for impressions
             impressions = 0
@@ -4168,13 +4162,16 @@ def _process_country_csv_data(raw_data):
             if not country_name or country_name in ['Country', 'Total', 'N/A']:
                 continue
             
-            # Get site name if available with robust fallbacks
-            # Prefer AD_EXCHANGE_SITE_NAME, then SITE_NAME, then AD_UNIT_NAME
-            site_name = row.get('Dimension.AD_EXCHANGE_SITE_NAME', '').strip()
-            if not site_name:
-                site_name = row.get('Dimension.SITE_NAME', '').strip()
-            if not site_name:
-                site_name = row.get('Dimension.AD_UNIT_NAME', '').strip()
+            site_name = ''
+            if 'Dimension.SITE_NAME' in row:
+                site_name = str(row.get('Dimension.SITE_NAME', '') or '').strip()
+            elif 'Dimension.AD_EXCHANGE_SITE_NAME' in row:
+                site_name = str(row.get('Dimension.AD_EXCHANGE_SITE_NAME', '') or '').strip()
+
+            if site_name:
+                low_site = site_name.lower().strip()
+                if low_site in ['not applicable', '(not applicable)', 'n/a', 'na']:
+                    continue
             
             if row_count <= 3:
                 print(f"[DEBUG] Row {row_count} - Country: {country_name}, Site: {site_name}")
