@@ -128,6 +128,16 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
   #table_traffic_account tbody tr.selected-row {
       background-color: rgba(13, 110, 253, 0.08) !important;
   }
+
+  #adsenseRekapDomainTable #table_traffic_account {
+      table-layout: fixed;
+  }
+
+  #adsenseRekapDomainTable #table_traffic_account thead th,
+  #adsenseRekapDomainTable #table_traffic_account tbody td {
+      white-space: nowrap;
+      vertical-align: middle;
+  }
 </style>
 <div class="card">
     <div class="card-header">
@@ -289,29 +299,24 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
             <table id="table_traffic_account" class="table table-bordered table-striped" style="width:100%">
                 <thead>
                     <tr>
-                        <th rowspan="2" style="width: 2%;" class="text-center checkbox-cell no-export">
+                        <th style="width: 44px;" class="text-center checkbox-cell no-export">
                             <div class="checkbox-center">
                                 <input type="checkbox" id="select_all_rows" aria-label="Pilih semua baris" />
                             </div>
                         </th>
-                        <th rowspan="2" style="width: 10%;" class="text-center">Subdomain</th>
-                        <th rowspan="2" style="width: 8%;" class="text-center">Tanggal</th>
-                        <th rowspan="2" style="width: 8%;" class="text-center">Spend (Rp)</th>
-                        <th colspan="2" style="width: 12%;" class="text-center">Klik</th>
-                        <th rowspan="2" style="width: 12%;" class="text-center">Avg <br> CPR</th>
-                        <th colspan="2" style="width: 12%;" class="text-center">Avg <br> CTR (%)</th>
-                        <th colspan="2" style="width: 12%;" class="text-center">Avg <br> CPC (Rp)</th>
-                        <th rowspan="2" style="width: 8%;" class="text-center">Avg <br> eCPM (Rp)</th>
-                        <th rowspan="2" style="width: 8%;" class="text-center">ROI (%)</th>
-                        <th rowspan="2" style="width: 8%;" class="text-center">Pendapatan (Rp)</th>
-                    </tr>
-                    <tr>
+                        <th class="text-center">Subdomain</th>
+                        <th class="text-center">Tanggal</th>
+                        <th class="text-center">Spend (Rp)</th>
                         <th class="text-center">Klik Ads</th>
                         <th class="text-center">Klik Adsense</th>
-                        <th class="text-center">CTR Ads</th>
-                        <th class="text-center">CTR Adsense</th>
-                        <th class="text-center">CPC Ads</th>
-                        <th class="text-center">CPC Adsense</th>
+                        <th class="text-center">Avg CPR</th>
+                        <th class="text-center">CTR Ads (%)</th>
+                        <th class="text-center">CTR Adsense (%)</th>
+                        <th class="text-center">CPC Ads (Rp)</th>
+                        <th class="text-center">CPC Adsense (Rp)</th>
+                        <th class="text-center">Avg eCPM (Rp)</th>
+                        <th class="text-center">ROI (%)</th>
+                        <th class="text-center">Pendapatan (Rp)</th>
                     </tr>
                 </thead>
                 <tbody>
