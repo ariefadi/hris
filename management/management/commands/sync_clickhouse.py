@@ -183,7 +183,9 @@ class Command(BaseCommand):
                                 where_params = (start_date,)
 
                             if date_col and (not no_delete) and (not dry_run):
-                            self._ch_post(f"ALTER TABLE {table} DELETE WHERE toDate({date_col}) >= toDate('{start_date}') SETTINGS mutations_sync=1")
+                                self._ch_post(
+                                    f"ALTER TABLE {table} DELETE WHERE toDate({date_col}) >= toDate('{start_date}') SETTINGS mutations_sync=1"
+                                )
 
                             if dry_run:
                                 cur.execute(f"SELECT COUNT(*) AS c FROM `{table}`{where_sql}", where_params)

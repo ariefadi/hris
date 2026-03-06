@@ -1309,7 +1309,13 @@ class data_mysql:
     def get_data_ads_country_to_insert_log(self, account, country, domain, campaign, tanggal):
         try:
             sql_select = (
-                "SELECT * FROM data_ads_country WHERE account_ads_id = %s AND data_ads_country_cd LIKE %s AND data_ads_domain = %s AND data_ads_campaign_nm LIKE %s AND data_ads_country_tanggal LIKE %s"
+                "SELECT * FROM data_ads_country "
+                "WHERE account_ads_id = %s "
+                "AND data_ads_country_cd LIKE %s "
+                "AND data_ads_domain = %s "
+                "AND data_ads_campaign_nm LIKE %s "
+                "AND data_ads_country_tanggal LIKE %s "
+                "ORDER BY mdd DESC LIMIT 1"
             )
             if not self.execute_query(sql_select, (account, country, domain, campaign, tanggal)):
                 raise pymysql.Error("Failed to select data ads country by date range")

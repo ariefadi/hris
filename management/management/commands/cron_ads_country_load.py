@@ -152,8 +152,8 @@ class Command(BaseCommand):
                                 'log_ads_country_cpr': round(float(result_log_data.get('data_ads_country_cpr') or 0), 2),
                                 'log_ads_country_cpc': float(result_log_data.get('data_ads_country_cpc') or 0),
                                 'mdb': '0',
-                                'mdb_name': 'Log Insert',
-                                'mdd': result_log_data.get('mdd'),
+                                'mdb_name': 'Log Snapshot (Before Replace)',
+                                'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                             }
                             try:
                                 insert_log = data_mysql().insert_log_ads_country_log(params_log)
@@ -188,6 +188,27 @@ class Command(BaseCommand):
                         res = data_mysql().insert_data_ads_country(record)
                         if res.get('hasil', {}).get('status'):
                             total_insert += 1
+                            params_log_new = {
+                                'account_ads_id': record.get('account_ads_id'),
+                                'log_ads_country_cd': record.get('data_ads_country_cd'),
+                                'log_ads_country_nm': record.get('data_ads_country_nm'),
+                                'log_ads_domain': record.get('data_ads_domain'),
+                                'log_ads_campaign_nm': record.get('data_ads_campaign_nm'),
+                                'log_ads_country_tanggal': record.get('data_ads_country_tanggal'),
+                                'log_ads_country_spend': record.get('data_ads_country_spend'),
+                                'log_ads_country_impresi': record.get('data_ads_country_impresi'),
+                                'log_ads_country_click': record.get('data_ads_country_click'),
+                                'log_ads_country_reach': record.get('data_ads_country_reach'),
+                                'log_ads_country_cpr': record.get('data_ads_country_cpr'),
+                                'log_ads_country_cpc': record.get('data_ads_country_cpc'),
+                                'mdb': '0',
+                                'mdb_name': 'Log Snapshot (After Replace)',
+                                'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                            }
+                            try:
+                                data_mysql().insert_log_ads_country_log(params_log_new)
+                            except Exception:
+                                pass
                         else:
                             total_error += 1
                     except Exception as ie:
