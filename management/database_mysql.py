@@ -5,18 +5,12 @@ from google.auth import credentials
 import pymysql.cursors
 import json
 import os
-import re
 from django.conf import settings
 from datetime import datetime
 from google_auth_oauthlib.flow import InstalledAppFlow
 from random import sample
 from argon2 import PasswordHasher, exceptions as argon2_exceptions
 from .crypto import sandi
-
-try:
-    import requests
-except Exception:
-    requests = None
 def _log_debug(message):
     try:
         with open('/tmp/hris_login_debug.log', 'a') as f:
@@ -27,148 +21,30 @@ def _log_debug(message):
 def run_sql(sql):
     print(json.dumps(sql, indent=2, sort_keys=True))
 
-class ClickHouseHttpCursor:
-    def __init__(self, host, port=8123, user='default', password='', database='', timeout=30):
-        self.host = host
-        self.port = int(port) if port else 8123
-        self.user = user or 'default'
-        self.password = password or ''
-        self.database = database or ''
-        self.timeout = timeout
-        self._rows = []
-
-    def close(self):
-        self._rows = []
-
-    @property
-    def rowcount(self):
-        try:
-            return len(self._rows or [])
-        except Exception:
-            return 0
-
-    def _escape(self, v):
-        if v is None:
-            return 'NULL'
-        if isinstance(v, bool):
-            return '1' if v else '0'
-        if isinstance(v, (int, float)):
-            return str(v)
-        if isinstance(v, (datetime,)):
-            return "'" + v.strftime('%Y-%m-%d %H:%M:%S').replace("'", "''") + "'"
-        s = str(v)
-        return "'" + s.replace("'", "''") + "'"
-
-    def _substitute_params(self, query, params):
-        if not params:
-            return query
-        if not isinstance(params, (list, tuple)):
-            params = (params,)
-        parts = query.split('%s')
-        if len(parts) == 1:
-            return query
-        out = [parts[0]]
-        for i in range(1, len(parts)):
-            pv = params[i - 1] if i - 1 < len(params) else None
-            out.append(self._escape(pv))
-            out.append(parts[i])
-        return ''.join(out)
-
-    def _normalize_sql(self, query):
-        q = str(query or '')
-        q = q.replace('`', '')
-        q = re.sub(r"\bAS\s+'([A-Za-z_][A-Za-z0-9_]*)'", r"AS \1", q, flags=re.IGNORECASE)
-        q = re.sub(r"\bDATE\s*\(", "toDate(", q, flags=re.IGNORECASE)
-        q = re.sub(r"\bNOW\s*\(\s*\)", "now()", q, flags=re.IGNORECASE)
-        return q
-
-    def execute(self, query, params=None):
-        if requests is None:
-            raise RuntimeError('The requests library is not installed')
-        q = self._normalize_sql(query)
-        q = self._substitute_params(q, params)
-        q = q.strip().rstrip(';')
-        if ' format ' not in q.lower():
-            q = q + '\nFORMAT JSON'
-
-        base = f"http://{self.host}:{self.port}/"
-        http_params = {}
-        if self.database:
-            http_params['database'] = self.database
-        if self.user:
-            http_params['user'] = self.user
-        if self.password:
-            http_params['password'] = self.password
-
-        resp = requests.post(base, params=http_params, data=q.encode('utf-8'), timeout=self.timeout)
-        resp.raise_for_status()
-        js = resp.json()
-        self._rows = js.get('data') or []
-        return True
-
-    def fetchall(self):
-        return list(self._rows or [])
-
-    def fetchone(self):
-        rows = self._rows or []
-        return rows[0] if rows else None
-
 class data_mysql:
     
     def __init__(self):
         self.db_hris = None
-        self.mysql_cur = None
-        self.report_cur = None
         self.cur_hris = None
         self.connect()
-
-    def _report_engine(self):
-        return str(os.getenv('REPORT_DB_ENGINE', '') or os.getenv('DB_REPORT_ENGINE', '') or '').strip().lower()
-
-    def _should_use_report(self, query):
-        engine = self._report_engine()
-        if engine not in ('clickhouse', 'ch'):
-            return False
-        q = str(query or '').lstrip().lower()
-        if not q.startswith('select'):
-            return False
-        for t in ('data_adsense_country', 'data_adsense_domain', 'data_adx_country', 'data_adx_domain'):
-            if t in q:
-                return True
-        return False
-
-    def _ensure_report_connection(self):
-        if self.report_cur:
-            return True
-        if requests is None:
-            raise RuntimeError('The requests library is not installed')
-        host = os.getenv('CH_HOST') or os.getenv('REPORT_DB_HOST') or os.getenv('DB_REPORT_HOST') or os.getenv('DB_HOST') or os.getenv('HRIS_DB_HOST') or '127.0.0.1'
-        raw_port = (os.getenv('CH_PORT') or os.getenv('REPORT_DB_PORT') or os.getenv('DB_REPORT_PORT') or '8123').strip()
-        try:
-            port = int(raw_port)
-        except (ValueError, TypeError):
-            port = 8123
-        user = os.getenv('CH_USER') or os.getenv('REPORT_DB_USER') or os.getenv('DB_REPORT_USER') or 'default'
-        password = os.getenv('CH_PASSWORD') or os.getenv('REPORT_DB_PASSWORD') or os.getenv('DB_REPORT_PASSWORD') or ''
-        database = os.getenv('CH_DB') or os.getenv('REPORT_DB_NAME') or os.getenv('DB_REPORT_NAME') or os.getenv('DB_NAME') or os.getenv('HRIS_DB_NAME') or 'hris_trendHorizone'
-        self.report_cur = ClickHouseHttpCursor(host=host, port=port, user=user, password=password, database=database)
-        return True
 
     def connect(self):
         """Membuat koneksi baru ke database"""
         try:
-            host = os.getenv('DB_HOST') or os.getenv('HRIS_DB_HOST') or '127.0.0.1'
-            raw_port = (os.getenv('DB_PORT') or os.getenv('HRIS_DB_PORT') or '').strip()
+            # Use the same environment variables as Django settings for consistency
+            host = os.getenv('DB_HOST', '127.0.0.1')
+            # Use the same port as Django (3307, not 3307)
+            raw_port = os.getenv('DB_PORT', '').strip()
             if not raw_port:
                 raw_port = '3307'
             try:
                 port = int(raw_port)
             except (ValueError, TypeError):
-                print(f"Invalid DB_PORT value '{raw_port}', defaulting to 3307")
+                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3307")
                 port = 3307
-            user = os.getenv('DB_USER') or os.getenv('HRIS_DB_USER') or 'root'
-            password = os.getenv('DB_PASSWORD') or os.getenv('HRIS_DB_PASSWORD') or ''
-            database = os.getenv('DB_NAME') or os.getenv('HRIS_DB_NAME') or 'hris_trendHorizone'
+            user = os.getenv('DB_USER', 'root')
+            password = os.getenv('DB_PASSWORD', '')
+            database = os.getenv('DB_NAME', 'hris_trendHorizone')
 
             self.db_hris = pymysql.connect(
                 host=host,
@@ -178,8 +54,7 @@ class data_mysql:
                 database=database,
                 cursorclass=pymysql.cursors.DictCursor
             )
-            self.mysql_cur = self.db_hris.cursor()
-            self.cur_hris = self.mysql_cur
+            self.cur_hris = self.db_hris.cursor()
             return True
         except pymysql.Error as e:
             print(f"Error connecting to database: {e}")
@@ -197,19 +72,11 @@ class data_mysql:
     def close(self):
         """Menutup koneksi database"""
         try:
-            if self.mysql_cur:
-                try:
-                    self.mysql_cur.close()
-                except Exception:
-                    pass
-            if self.report_cur:
-                try:
-                    self.report_cur.close()
-                except Exception:
-                    pass
+            if self.cur_hris:
+                self.cur_hris.close()
             if self.db_hris:
                 self.db_hris.close()
-        except Exception:
+        except pymysql.Error:
             pass
 
     def __del__(self):
@@ -221,19 +88,12 @@ class data_mysql:
         Mengeksekusi query dengan penanganan koneksi yang lebih baik
         """
         try:
-            if self._should_use_report(query):
-                self._ensure_report_connection()
-                self.cur_hris = self.report_cur
-                self.cur_hris.execute(query, params)
-                return True
-
             if not self.ensure_connection():
                 raise pymysql.Error("Could not establish database connection")
-
-            self.cur_hris = self.mysql_cur
+            
             self.cur_hris.execute(query, params)
             return True
-        except Exception as e:
+        except pymysql.Error as e:
             print(f"Database error: {e}")
             return False
 
@@ -1546,9 +1406,8 @@ class data_mysql:
             FROM `data_adx_country`
         '''
         try:
-            if not self.execute_query(sql):
-                raise pymysql.Error('Failed to fetch last update')
-            datanya = self.cur_hris.fetchone() if self.cur_hris else None
+            self.cur_hris.execute(sql)
+            datanya = self.cur_hris.fetchone()
             hasil = {
                 "status": True,
                 "data": datanya
@@ -1566,9 +1425,8 @@ class data_mysql:
             FROM `data_adsense_country`
         '''
         try:
-            if not self.execute_query(sql):
-                raise pymysql.Error('Failed to fetch last update')
-            datanya = self.cur_hris.fetchone() if self.cur_hris else None
+            self.cur_hris.execute(sql)
+            datanya = self.cur_hris.fetchone()
             hasil = {
                 "status": True,
                 "data": datanya
@@ -1586,9 +1444,8 @@ class data_mysql:
             FROM `data_adx_domain`
         '''
         try:
-            if not self.execute_query(sql):
-                raise pymysql.Error('Failed to fetch last update')
-            datanya = self.cur_hris.fetchone() if self.cur_hris else None
+            self.cur_hris.execute(sql)
+            datanya = self.cur_hris.fetchone()
             hasil = {
                 "status": True,
                 "data": datanya
@@ -1606,9 +1463,8 @@ class data_mysql:
             FROM `data_adsense_domain`
         '''
         try:
-            if not self.execute_query(sql):
-                raise pymysql.Error('Failed to fetch last update')
-            datanya = self.cur_hris.fetchone() if self.cur_hris else None
+            self.cur_hris.execute(sql)
+            datanya = self.cur_hris.fetchone()
             hasil = {
                 "status": True,
                 "data": datanya
@@ -2908,7 +2764,7 @@ class data_mysql:
             if data_domain_list:
                 base_sql.append(f"\tAND ({like_conditions_domain})")
                 params.extend(like_params_domain)
-            base_sql.append("GROUP BY a.account_id, a.account_name, a.user_mail, b.data_adx_country_tanggal, b.data_adx_country_domain, b.data_adx_country_cd")
+            base_sql.append("GROUP BY b.data_adx_country_tanggal, b.data_adx_country_domain, b.data_adx_country_cd")
             base_sql.append("ORDER BY b.data_adx_country_tanggal ASC")
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):

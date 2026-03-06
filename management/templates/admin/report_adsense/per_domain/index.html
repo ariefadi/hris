@@ -130,7 +130,14 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
   }
 
   #adsenseRekapDomainTable #table_traffic_account {
-      table-layout: fixed;
+      width: 100% !important;
+      table-layout: auto;
+  }
+
+  #adsenseRekapDomainTable .dataTables_scrollHeadInner,
+  #adsenseRekapDomainTable .dataTables_scrollHeadInner table,
+  #adsenseRekapDomainTable .dataTables_scrollBody table {
+      width: 100% !important;
   }
 
   #adsenseRekapDomainTable #table_traffic_account thead th,
@@ -295,7 +302,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
             </div>
         </div>
         <!-- Data Table -->
-        <div class="dt-responsive-table mt-3 table-responsive" id="adsenseRekapDomainTable" data-title="Tabel" data-intro="Tabel detail ROI per domain dan tanggal. Gunakan search/sort/export DataTables (jika tersedia) untuk analisis.">
+        <div class="dt-responsive-table mt-3" id="adsenseRekapDomainTable" data-title="Tabel" data-intro="Tabel detail ROI per domain dan tanggal. Gunakan search/sort/export DataTables (jika tersedia) untuk analisis.">
             <table id="table_traffic_account" class="table table-bordered table-striped" style="width:100%">
                 <thead>
                     <tr>
