@@ -125,17 +125,50 @@ class data_mysql:
     def _report_engine(self):
         return str(os.getenv('REPORT_DB_ENGINE', '') or os.getenv('DB_REPORT_ENGINE', '') or '').strip().lower()
 
+    def _report_tables(self):
+        raw = str(os.getenv('REPORT_DB_TABLES', '') or os.getenv('DB_REPORT_TABLES', '') or '').strip()
+        if raw:
+            tables = [t.strip().lower() for t in raw.split(',') if t.strip()]
+            if tables:
+                return tables
+        return [
+            'data_adsense_country',
+            'data_adsense_domain',
+            'data_adx_country',
+            'data_adx_domain',
+            'data_ads_campaign',
+            'data_ads_country',
+            'log_ads_country',
+            'log_adx_country',
+        ]
+
+    def _extract_query_tables(self, query):
+        q = str(query or '')
+        hits = re.findall(r'\b(?:from|join)\s+`?([A-Za-z0-9_.]+)`?', q, flags=re.IGNORECASE)
+        out = []
+        for h in (hits or []):
+            t = str(h or '')
+            if '.' in t:
+                t = t.split('.')[-1]
+            t = t.strip().strip('`"').lower()
+            if t and t not in out:
+                out.append(t)
+        return out
+
     def _should_use_report(self, query):
         engine = self._report_engine()
         if engine not in ('clickhouse', 'ch'):
             return False
-        q = str(query or '').lstrip().lower()
-        if not q.startswith('select'):
+        q = str(query or '').lstrip()
+        if not q.lower().startswith('select'):
             return False
-        for t in ('data_adsense_country', 'data_adsense_domain', 'data_adx_country', 'data_adx_domain'):
-            if t in q:
-                return True
-        return False
+        tables = self._extract_query_tables(q)
+        if not tables:
+            return False
+        report_tables = set(self._report_tables())
+        if any((t not in report_tables) for t in tables):
+            return False
+        return True
 
     def _ensure_report_connection(self):
         if self.report_cur:
@@ -3010,7 +3043,7 @@ class data_mysql:
             elif isinstance(selected_account_list, (set, tuple)):
                 selected_account_list = list(selected_account_list)
             data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
-            like_conditions_account = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
+            like_conditions_account = " OR ".join(["b.account_id LIKE %s"] * len(data_account_list))
             like_params_account = [f"{account}%" for account in data_account_list] 
             # --- 1. Pastikan selected_domain_list adalah list string
             if isinstance(selected_domain_list, str):
@@ -3029,8 +3062,7 @@ class data_mysql:
                 "\tb.data_adx_country_domain AS 'site_name',",
                 "\tb.data_adx_country_cd AS 'country_code',",
                 "\tSUM(b.data_adx_country_revenue) AS 'revenue'",
-                "FROM app_credentials a",
-                "INNER JOIN data_adx_country b ON a.account_id = b.account_id",
+                "FROM data_adx_country b",
                 "WHERE",
             ]
             params = []
@@ -3075,7 +3107,7 @@ class data_mysql:
             elif isinstance(selected_account_list, (set, tuple)):
                 selected_account_list = list(selected_account_list)
             data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
-            like_conditions_account = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
+            like_conditions_account = " OR ".join(["b.account_id LIKE %s"] * len(data_account_list))
             like_params_account = [f"{account}%" for account in data_account_list] 
             # --- 1. Pastikan selected_domain_list adalah list string
             if isinstance(selected_domain_list, str):
@@ -3093,8 +3125,7 @@ class data_mysql:
                 "\tCONCAT(SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 1), '.com') AS 'site_name',",
                 "\tb.data_adsense_country_cd AS 'country_code',",
                 "\tSUM(b.data_adsense_country_revenue) AS 'revenue'",
-                "FROM app_credentials a",
-                "INNER JOIN data_adsense_country b ON a.account_id = b.account_id",
+                "FROM data_adsense_country b",
                 "WHERE",
             ]
             params = []
@@ -4372,7 +4403,6 @@ class data_mysql:
             like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
             like_clause = f"\tAND ({like_conditions})" if like_conditions else ""
             like_params = [f"%{d}%" for d in data_sub_domain]
-            print(f"like_params: {like_params}") 
             # --- 3. Susun query
             base_sql = [
                 "SELECT",
@@ -4437,7 +4467,6 @@ class data_mysql:
             like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
             like_clause = f"\tAND ({like_conditions})" if like_conditions else ""
             like_params = [f"%{d}%" for d in data_sub_domain]
-            print(f"like_params: {like_params}") 
             # --- 3. Susun query
             base_sql = [
                 "SELECT",

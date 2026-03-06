@@ -2263,7 +2263,24 @@ class AdxSummaryDataView(View):
         admin = req.session.get('hris_admin', {})
         if selected_account == '':
             rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
-            account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
+            if not isinstance(rs_account, dict) or not rs_account.get('status'):
+                return JsonResponse({
+                    'status': False,
+                    'error': (rs_account or {}).get('data') or 'Gagal mengambil data account AdX'
+                })
+            rows = rs_account.get('data') or []
+            if not isinstance(rows, list):
+                rows = []
+            account_ids = []
+            for item in rows:
+                aid = None
+                try:
+                    if isinstance(item, dict):
+                        aid = item.get('account_id')
+                except Exception:
+                    aid = None
+                if aid is not None and str(aid).strip():
+                    account_ids.append(str(aid))
             selected_account = ",".join(account_ids)
         else:
             selected_account = req.GET.get('selected_account', '')
@@ -4317,7 +4334,24 @@ class RoiTrafficPerDomainDataView(View):
             admin = req.session.get('hris_admin', {})
             if selected_accounts == '':
                 rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
-                account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
+                if not isinstance(rs_account, dict) or not rs_account.get('status'):
+                    return JsonResponse({
+                        'status': False,
+                        'error': (rs_account or {}).get('data') or 'Gagal mengambil data account AdX'
+                    })
+                rows = rs_account.get('data') or []
+                if not isinstance(rows, list):
+                    rows = []
+                account_ids = []
+                for item in rows:
+                    aid = None
+                    try:
+                        if isinstance(item, dict):
+                            aid = item.get('account_id')
+                    except Exception:
+                        aid = None
+                    if aid is not None and str(aid).strip():
+                        account_ids.append(str(aid))
                 selected_accounts = ",".join(account_ids)
             else:
                 selected_accounts = req.GET.get('selected_account_adx', '')
@@ -4734,6 +4768,14 @@ class RoiTrafficPerDomainDataView(View):
                         'roi': roi
                     })
             roi_nett_summary = ((total_revenue - total_spend) / total_spend * 100) if total_spend > 0 else 0
+
+            if not isinstance(raw_rows_all, list):
+                raw_rows_all = []
+            try:
+                raw_rows_all.sort(key=lambda x: (str((x or {}).get('date') or ''), str((x or {}).get('site_name') or '')))
+            except Exception:
+                pass
+
             result = {
                 'status': True,
                 'data': combined_data_all,              # semua kontribusi
@@ -5346,7 +5388,20 @@ class RoiMonitoringDomainDataView(View):
             selected_domain_list = []
             if selected_domains:
                 selected_domain_list = [str(s).strip() for s in selected_domains.split(',') if s.strip()]
-            print(f"selected_domain_list: {selected_domain_list}")
+
+            response_cache_key = generate_cache_key(
+                'roi_domain_response_v2',
+                admin.get('user_id') or '',
+                admin.get('super_st') or '',
+                start_date_formatted,
+                end_date_formatted,
+                ','.join(selected_account_list) if selected_account_list else '',
+                ','.join(selected_domain_list) if selected_domain_list else '',
+            )
+            cached_response = get_cached_data(response_cache_key)
+            if cached_response is not None:
+                return JsonResponse(cached_response, safe=False)
+
             # --- 3. Ambil data AdX
             adx_result = data_mysql().get_all_adx_monitoring_account_by_params(
                 start_date_formatted,
@@ -5389,6 +5444,7 @@ class RoiMonitoringDomainDataView(View):
                 )
             # --- 5. Gabungkan data AdX dan Facebook
             # Siapkan struktur data
+            raw_rows_map = {}
             raw_rows_all = []
             combined_data_all = []
             combined_data_filtered = []
@@ -5428,14 +5484,18 @@ class RoiMonitoringDomainDataView(View):
                     account_ads = str((fb_data or {}).get('account_name', ''))
                     spend = float((fb_data or {}).get('spend', 0))
                     revenue = float(adx_item.get('revenue', 0))
-                    raw_rows_all.append({
-                        'site_name': site_key,
-                        'date': date_key,
-                        'account_ads': account_ads,
-                        'country_code': country_code,
-                        'spend': spend,
-                        'revenue': revenue
-                    })
+                    row_key = f"{date_key}_{site_key}"
+                    cur_row = raw_rows_map.get(row_key)
+                    if not cur_row:
+                        cur_row = {
+                            'site_name': site_key,
+                            'date': date_key,
+                            'spend': 0.0,
+                            'revenue': 0.0,
+                        }
+                        raw_rows_map[row_key] = cur_row
+                    cur_row['spend'] = float(cur_row.get('spend', 0) or 0) + spend
+                    cur_row['revenue'] = float(cur_row.get('revenue', 0) or 0) + revenue
                     if site_key not in grouped_all:
                         grouped_all[site_key] = {'site_name': site_key, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
                     grouped_all[site_key]['account_ads'] = account_ads
@@ -5459,14 +5519,18 @@ class RoiMonitoringDomainDataView(View):
                     account_ads = str(fb_item.get('account_name', ''))
                     spend = float(fb_item.get('spend', 0) or 0)
 
-                    raw_rows_all.append({
-                        'site_name': site_key,
-                        'date': str(fb_item.get('date', '')),
-                        'account_ads': account_ads,
-                        'country_code': normalize_country_code(fb_item.get('country_code', '')),
-                        'spend': spend,
-                        'revenue': 0.0
-                    })
+                    date_key = str(fb_item.get('date', ''))
+                    row_key = f"{date_key}_{site_key}"
+                    cur_row = raw_rows_map.get(row_key)
+                    if not cur_row:
+                        cur_row = {
+                            'site_name': site_key,
+                            'date': date_key,
+                            'spend': 0.0,
+                            'revenue': 0.0,
+                        }
+                        raw_rows_map[row_key] = cur_row
+                    cur_row['spend'] = float(cur_row.get('spend', 0) or 0) + spend
 
                     if site_key not in grouped_all:
                         grouped_all[site_key] = {'site_name': site_key, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
@@ -5510,6 +5574,13 @@ class RoiMonitoringDomainDataView(View):
                         'roi': roi
                     })
             roi_nett_summary = ((total_revenue - total_spend) / total_spend * 100) if total_spend > 0 else 0
+
+            raw_rows_all = list((raw_rows_map or {}).values())
+            try:
+                raw_rows_all.sort(key=lambda x: (str((x or {}).get('date') or ''), str((x or {}).get('site_name') or '')))
+            except Exception:
+                pass
+
             result = {
                 'status': True,
                 'data': combined_data_all,              # semua kontribusi
@@ -5521,7 +5592,7 @@ class RoiMonitoringDomainDataView(View):
                     'total_revenue': total_revenue
                 }
             }
-            print(f"[DEBUG ROI] result: {result.get('summary')}")
+            set_cached_data(response_cache_key, result, timeout=300)
             return JsonResponse(result, safe=False)
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
