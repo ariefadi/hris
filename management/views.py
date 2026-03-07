@@ -5037,7 +5037,7 @@ class RoiMonitoringDomainHourlyHeatmapView(View):
             result = {
                 'status': True,
                 'start_date': start_date_formatted,
-                'end_date': unique_name_site,
+                'end_date': end_date_formatted,
                 'hours': hours,
                 'roi': roi_series,
                 'revenue': revenue_series,

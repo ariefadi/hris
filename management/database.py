@@ -192,17 +192,17 @@ class data_mysql:
         try:
             # Use the same environment variables as Django settings for consistency
             host = os.getenv('DB_HOST', '127.0.0.1')
-            # Use the same port as Django (3307, not 3307)
+            # Use the same port as Django (3306, not 3306)
             raw_port = os.getenv('DB_PORT', '').strip()
             if not raw_port:
-                raw_port = '3307'
+                raw_port = '3306'
             try:
                 port = int(raw_port)
             except (ValueError, TypeError):
-                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3307")
-                port = 3307
+                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
+                port = 3306
             user = os.getenv('DB_USER', 'root')
-            password = os.getenv('DB_PASSWORD', '')
+            password = os.getenv('DB_PASSWORD', 'hris123456')
             database = os.getenv('DB_NAME', 'hris_trendHorizone')
 
             self.db_hris = pymysql.connect(
@@ -300,7 +300,7 @@ class data_mysql:
                 LIMIT 1
               """
         try:
-            _log_debug(f"[LOGIN_DEBUG] Attempting login for username={data.get('username')} from DB host={os.getenv('DB_HOST','127.0.0.1')} port={os.getenv('HRIS_DB_PORT','3307')} db={os.getenv('HRIS_DB_NAME','hris_trendHorizone')}")
+            _log_debug(f"[LOGIN_DEBUG] Attempting login for username={data.get('username')} from DB host={os.getenv('DB_HOST','127.0.0.1')} port={os.getenv('HRIS_DB_PORT','3306')} db={os.getenv('HRIS_DB_NAME','hris_trendHorizone')}")
             if not self.execute_query(sql, (data['username'],)):
                 raise pymysql.Error("Failed to execute login query")
             row = self.cur_hris.fetchone()
@@ -3647,10 +3647,10 @@ class data_mysql:
                 data_sub_domain = list(data_sub_domain)
             if not data_sub_domain:
                 raise ValueError("data_sub_domain is required and cannot be empty")
+            # like_conditions = " OR ".join(["SUBSTRING_INDEX(a.log_ads_domain, '.', 2) LIKE %s"] * len(data_sub_domain))
             like_conditions = " OR ".join(["a.log_ads_domain LIKE %s"] * len(data_sub_domain))
             like_clause = f"\tAND ({like_conditions})" if like_conditions else ""
             like_params = [f"%{d}%" for d in data_sub_domain]
-            print(like_params)
             # =========================
             # QUERY BARU (pakai subquery rs)
             # =========================
