@@ -4328,9 +4328,14 @@ class RoiTrafficPerDomainDataView(View):
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
         try:
-            start_date = req.GET.get('start_date')
-            end_date = req.GET.get('end_date')
+            start_date = req.GET.get('start_date') or req.GET.get('tanggal_dari')
+            end_date = req.GET.get('end_date') or req.GET.get('tanggal_sampai') or req.GET.get('date')
             selected_accounts = req.GET.get('selected_account_adx')
+            today_ymd = datetime.now().strftime('%Y-%m-%d')
+            if not start_date:
+                start_date = today_ymd
+            if not end_date:
+                end_date = today_ymd
             admin = req.session.get('hris_admin', {})
             if selected_accounts == '':
                 rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
@@ -4359,10 +4364,11 @@ class RoiTrafficPerDomainDataView(View):
             selected_account_ads = req.GET.get('selected_account_ads')
             # --- 1. Parse tanggal aman
             def parse_date(d):
+                s = str(d or '').strip()
                 try:
-                    return datetime.strptime(d, '%Y-%m-%d').strftime('%Y-%m-%d')
+                    return datetime.strptime(s, '%Y-%m-%d').strftime('%Y-%m-%d')
                 except (ValueError, TypeError):
-                    raise ValueError(f"Tanggal tidak valid: {d}")
+                    raise ValueError(f"Tanggal tidak valid: {s}")
             start_date_formatted = parse_date(start_date)
             end_date_formatted = parse_date(end_date)
             # --- 2. Normalisasi selected_sites_list
@@ -4927,52 +4933,95 @@ class RoiMonitoringDomainHourlyHeatmapView(View):
         try:
             start_date = req.GET.get('start_date') or req.GET.get('tanggal_dari')
             end_date = req.GET.get('end_date') or req.GET.get('tanggal_sampai') or req.GET.get('date')
-            target_date = ''
-            try:
-                if start_date and end_date and isinstance(start_date, str) and isinstance(end_date, str) and len(start_date) == 10 and len(end_date) == 10:
-                    datetime.strptime(start_date, '%Y-%m-%d')
-                    target_date = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')
-            except Exception:
-                target_date = ''
-            if not target_date:
-                target_date = datetime.now().strftime('%Y-%m-%d')
-            selected_domains_param = req.GET.get('selected_domains') or ''
-            selected_domains = []
-            try:
-                selected_domains = [d.strip() for d in str(selected_domains_param).split(',') if d and str(d).strip()]
-            except Exception:
-                selected_domains = []
-
+            selected_accounts = req.GET.get('selected_account_adx')
+            today_ymd = datetime.now().strftime('%Y-%m-%d')
+            if not start_date:
+                start_date = today_ymd
+            if not end_date:
+                end_date = today_ymd
+            admin = req.session.get('hris_admin', {})
+            if selected_accounts == '':
+                rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+                account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
+                selected_accounts = ",".join(account_ids)
+            else:
+                selected_accounts = req.GET.get('selected_account_adx', '')
+            selected_domains = req.GET.get('selected_domains')
+            # --- 2. Normalisasi selected_sites_list
+            selected_account_list = []
+            if selected_accounts:
+                selected_account_list = [str(s).strip() for s in selected_accounts.split(',') if s.strip()]
+            selected_domain_list = []
+            if selected_domains:
+                selected_domain_list = [str(s).strip() for s in selected_domains.split(',') if s.strip()]
             cache_key = generate_cache_key(
-                'roi_monitoring_domain_hourly_heatmap',
-                target_date,
-                ','.join(sorted(selected_domains)) if selected_domains else '*'
+                'roi_monitoring_domain_hourly_heatmap_v2',
+                admin.get('user_id') or '',
+                admin.get('super_st') or '',
+                start_date,
+                end_date,
+                ','.join(selected_account_list) if selected_account_list else '',
+                ','.join(selected_domain_list) if selected_domain_list else '',
             )
             cached = get_cached_data(cache_key)
             if cached is not None:
                 return JsonResponse(cached, safe=False)
+
             db = data_mysql()
             adx_resp = db.get_all_adx_roi_country_hourly_by_params(
-                target_date
+                start_date,
+                end_date,
+                selected_account_list,
+                selected_domain_list,
             )
+            if isinstance(adx_resp, dict) and (not adx_resp.get('status', True)):
+                return JsonResponse({'status': False, 'error': adx_resp.get('error') or 'Gagal mengambil data AdX hourly.'})
             adx_rows = adx_resp.get('data') if isinstance(adx_resp, dict) else []
-
-            if selected_domains:
-                wanted = {str(d).strip() for d in selected_domains if str(d).strip()}
-                adx_rows = [row for row in (adx_rows or []) if str((row or {}).get('domain') or '').strip() in wanted]
-                unique_domains = sorted(list(wanted))
-            else:
-                unique_domains = []
-                try:
-                    unique_domains = sorted(list({str((row or {}).get('domain') or '').strip() for row in (adx_rows or []) if str((row or {}).get('domain') or '').strip()}))
-                except Exception:
-                    unique_domains = []
-
-            ads_resp = db.get_all_ads_roi_country_hourly_by_params(
-                target_date,
-                unique_domains
-            )
+            if not isinstance(adx_rows, list):
+                adx_rows = []
+            # --- 4. Proses Facebook data
+            facebook_data = None
+            unique_name_site = []
+            if selected_domain_list:
+                for site in selected_domain_list:
+                    site = str(site).strip()
+                    main_domain = site
+                    if "." in site:
+                        parts = site.split(".")       # pisah berdasarkan titik
+                        if len(parts) >= 2:
+                            main_domain = ".".join(parts[:2])
+                    unique_name_site.append(main_domain)
+            elif adx_rows:
+                extracted_sites = set()
+                for adx_item in (adx_rows or []):
+                    dom = ''
+                    try:
+                        if isinstance(adx_item, dict):
+                            dom = str(adx_item.get('domain') or adx_item.get('site_name') or '').strip()
+                    except Exception:
+                        dom = ''
+                    if dom and dom != 'Unknown':
+                        extracted_sites.add(dom)
+                for site in extracted_sites:
+                    main_domain = site
+                    if "." in site:
+                        parts = site.split(".")
+                        if len(parts) >= 2:
+                            main_domain = ".".join(parts[:2])
+                    unique_name_site.append(main_domain)
+            unique_name_site = list(set(unique_name_site))
+            ads_resp = None
+            if unique_name_site:
+                ads_resp = db.get_all_ads_roi_country_hourly_by_params(
+                    start_date,
+                    end_date,
+                    unique_name_site
+                )
+            if isinstance(ads_resp, dict) and isinstance(ads_resp.get('hasil'), dict) and (not ads_resp.get('hasil', {}).get('status', True)):
+                return JsonResponse({'status': False, 'error': ads_resp.get('hasil', {}).get('data') or 'Gagal mengambil data Ads hourly.'})
             ads_rows = ((ads_resp or {}).get('hasil') or {}).get('data') or []
+            if not isinstance(ads_rows, list):
+                ads_rows = []
             if not isinstance(ads_rows, list):
                 ads_rows = []
             rev_by_hour = {f"{h:02d}": 0.0 for h in range(24)}
@@ -5011,7 +5060,8 @@ class RoiMonitoringDomainHourlyHeatmapView(View):
                 roi_series.append(round((((r - s) / s) * 100) if s > 0 else 0.0, 2))
             result = {
                 'status': True,
-                'date': target_date,
+                'start_date': start_date,
+                'end_date': end_date,
                 'hours': hours,
                 'roi': roi_series,
                 'revenue': revenue_series,
