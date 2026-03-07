@@ -3533,98 +3533,54 @@ class data_mysql:
 
         return {"hasil": hasil}
 
-    def get_all_adx_roi_country_hourly_by_params(self, start_date, end_date, selected_account_list = None, selected_domain_list = None):
+    def get_all_adx_roi_country_hourly_by_params(self, start_date, end_date, selected_domain_list = None):
         try:
+            # --- 1. Pastikan selected_domain_list adalah list string
             if isinstance(selected_domain_list, str):
-                selected_domain_list = [s.strip() for s in selected_domain_list.split(",") if s.strip()]
+                selected_domain_list = [selected_domain_list.strip()]
             elif selected_domain_list is None:
                 selected_domain_list = []
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
-
-            data_domain_list = [str(d).strip() for d in (selected_domain_list or []) if str(d).strip()]
-            patterns = []
-            for d in data_domain_list:
-                parts = d.split('.')
-                if len(parts) >= 3:
-                    patterns.append(d + '%')
-                else:
-                    patterns.append(d + '.%')
-
-            use_ch = self._report_engine() in ('clickhouse', 'ch')
-
-            params = [start_date, end_date]
-            if use_ch:
-                base_sql = [
-                    "SELECT",
-                    "    toDate(log_adx_country_tanggal) AS date,",
-                    "    toHour(toDateTime(toString(mdd))) AS hour,",
-                    "    max(toDateTime(toString(mdd))) AS time,",
-                    "    log_adx_country_cd AS country_code,",
-                    "    argMax(log_adx_country_nm, toDateTime(toString(mdd))) AS country_name,",
-                    "    arrayStringConcat(arraySlice(splitByChar('.', log_adx_country_domain), 1, 2), '.') AS domain,",
-                    "    argMax(log_adx_country_impresi, toDateTime(toString(mdd))) AS impressions,",
-                    "    argMax(log_adx_country_click, toDateTime(toString(mdd))) AS clicks,",
-                    "    argMax(log_adx_country_revenue, toDateTime(toString(mdd))) AS revenue",
-                    "FROM log_adx_country",
-                    "WHERE toDate(log_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
-                    "AND arrayStringConcat(arraySlice(splitByChar('.', log_adx_country_domain), 1, 2), '.') NOT IN ('(Not applicable)')",
-                ]
-
-                if data_domain_list:
-                    wanted = []
-                    for d in data_domain_list:
-                        parts = str(d).split('.')
-                        base = '.'.join(parts[:2]) if len(parts) >= 2 else str(d)
-                        base = str(base).strip()
-                        if base:
-                            wanted.append(base)
-                    if wanted:
-                        cond = " OR ".join(["arrayStringConcat(arraySlice(splitByChar('.', log_adx_country_domain), 1, 2), '.') = %s"] * len(wanted))
-                        base_sql.append(f"AND ({cond})")
-                        params.extend(wanted)
-
-                base_sql.append("GROUP BY date, hour, country_code, domain")
-                base_sql.append("ORDER BY hour ASC, country_name ASC")
-                sql = "\n".join(base_sql)
-            else:
-                base_sql = [
-                    "SELECT",
-                    "    DATE(a.log_adx_country_tanggal) AS date,",
-                    "    HOUR(a.mdd) AS hour,",
-                    "    a.mdd AS time,",
-                    "    a.log_adx_country_cd AS country_code,",
-                    "    a.log_adx_country_nm AS country_name,",
-                    "    SUBSTRING_INDEX(a.log_adx_country_domain, '.', 2) AS domain,",
-                    "    a.log_adx_country_impresi AS impressions,",
-                    "    a.log_adx_country_click AS clicks,",
-                    "    a.log_adx_country_revenue AS revenue",
-                    "FROM log_adx_country a",
-                    "JOIN (",
-                    "    SELECT",
-                    "        log_adx_country_cd,",
-                    "        log_adx_country_domain,",
-                    "        HOUR(mdd) AS jam,",
-                    "        MAX(mdd) AS max_time",
-                    "    FROM log_adx_country",
-                    "    WHERE log_adx_country_tanggal BETWEEN %s AND %s",
-                    "    GROUP BY HOUR(mdd), log_adx_country_cd, log_adx_country_domain",
-                    ") b ON a.log_adx_country_cd = b.log_adx_country_cd",
-                    "   AND a.log_adx_country_domain = b.log_adx_country_domain",
-                    "   AND a.mdd = b.max_time",
-                    "WHERE a.log_adx_country_tanggal BETWEEN %s AND %s",
-                    "AND SUBSTRING_INDEX(a.log_adx_country_domain, '.', 2) NOT IN ('(Not applicable)')",
-                ]
-                params = [start_date, end_date, start_date, end_date]
-                if patterns:
-                    like_conditions_domain = " OR ".join(["a.log_adx_country_domain LIKE %s"] * len(patterns))
-                    base_sql.append(f"AND ({like_conditions_domain})")
-                    params.extend(patterns)
-                base_sql.append("ORDER BY hour ASC, a.log_adx_country_nm ASC")
-                sql = "\n".join(base_sql)
+            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+            # --- 2. Buat kondisi LIKE untuk setiap domain
+            like_conditions_domain = " OR ".join(["a.log_adx_country_domain LIKE %s"] * len(data_domain_list))
+            like_params_domain = [f"%{domain}%" for domain in data_domain_list] 
+            base_sql = [
+                "SELECT",
+                "    DATE(a.log_adx_country_tanggal) AS date,",
+                "    HOUR(a.mdd) AS hour,",
+                "    a.mdd AS time,",
+                "    a.log_adx_country_cd AS country_code,",
+                "    a.log_adx_country_nm AS country_name,",
+                "    a.log_adx_country_domain,",
+                "    a.log_adx_country_impresi AS impressions,",
+                "    a.log_adx_country_click AS clicks,",
+                "    a.log_adx_country_revenue AS revenue",
+                "FROM log_adx_country a",
+                "JOIN (",
+                "    SELECT",
+                "        log_adx_country_cd,",
+                "        log_adx_country_domain,",
+                "        HOUR(mdd) AS jam,",
+                "        MAX(mdd) AS max_time",
+                "    FROM log_adx_country",
+                "    WHERE log_adx_country_tanggal BETWEEN %s AND %s",
+                "    GROUP BY HOUR(mdd), log_adx_country_cd, log_adx_country_domain",
+                ") b ON a.log_adx_country_cd = b.log_adx_country_cd",
+                "   AND a.log_adx_country_domain = b.log_adx_country_domain",
+                "   AND a.mdd = b.max_time",
+                "WHERE a.log_adx_country_tanggal BETWEEN %s AND %s",
+                "AND a.log_adx_country_domain NOT IN ('(Not applicable)')",
+            ]
+            params = [start_date, end_date, start_date, end_date]
+            if data_domain_list:
+                base_sql.append(f"\tAND ({like_conditions_domain})")
+                params.extend(like_params_domain)
+            base_sql.append("ORDER BY hour ASC, a.log_adx_country_nm ASC")
+            sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get hourly AdX country logs by params")
-
             data_rows = self.fetch_all()
             return {
                 "status": True,
@@ -3680,120 +3636,70 @@ class data_mysql:
         except Exception as e:
             return {"status": False, "error": str(e)}
 
-    def get_all_ads_roi_country_hourly_by_params(self, start_date, end_date, selected_domain_list=None):
+    def get_all_ads_roi_country_hourly_by_params(self, start_date, end_date, data_sub_domain=None):
         try:
-            if isinstance(selected_domain_list, str):
-                selected_domain_list = [s.strip() for s in selected_domain_list.split(",") if s.strip()]
-            elif selected_domain_list is None:
-                selected_domain_list = []
-            elif isinstance(selected_domain_list, (set, tuple)):
-                selected_domain_list = list(selected_domain_list)
-
-            domain_list = [str(s).strip() for s in (selected_domain_list or []) if str(s).strip()]
-            if not domain_list:
-                return {"hasil": {"status": True, "message": "Hourly Ads country logs berhasil diambil", "data": []}}
-
-            patterns = []
-            for d in domain_list:
-                parts = d.split('.')
-                if len(parts) >= 3:
-                    base = ".".join(parts[:-1]) + "."
-                elif len(parts) == 2:
-                    base = d + "."
-                else:
-                    base = d + "."
-                patterns.append(base + "%")
-
-            like_conditions = " OR ".join(["log_ads_domain LIKE %s"] * len(patterns))
-            like_clause = f"AND ({like_conditions})" if like_conditions else ""
-
-            use_ch = self._report_engine() in ('clickhouse', 'ch')
-            params = [start_date, end_date]
-
-            if use_ch:
-                base_sql = [
-                    "SELECT",
-                    "   rs.hour,",
-                    "   SUM(rs.spend) AS spend,",
-                    "   SUM(rs.impressions) AS impressions,",
-                    "   SUM(rs.clicks) AS clicks",
-                    "FROM (",
-                    "   SELECT",
-                    "       toHour(toDateTime(toString(mdd))) AS hour,",
-                    "       arrayStringConcat(arraySlice(splitByChar('.', log_ads_domain), 1, 2), '.') AS domain,",
-                    "       log_ads_country_cd,",
-                    "       argMax(log_ads_country_spend, toDateTime(toString(mdd))) AS spend,",
-                    "       argMax(log_ads_country_impresi, toDateTime(toString(mdd))) AS impressions,",
-                    "       argMax(log_ads_country_click, toDateTime(toString(mdd))) AS clicks",
-                    "   FROM log_ads_country",
-                    "   WHERE toDate(log_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
-                ]
-
-                if domain_list:
-                    wanted = []
-                    for d in domain_list:
-                        parts = str(d).split('.')
-                        base = '.'.join(parts[:2]) if len(parts) >= 2 else str(d)
-                        base = str(base).strip()
-                        if base:
-                            wanted.append(base)
-                    if wanted:
-                        cond = " OR ".join(["arrayStringConcat(arraySlice(splitByChar('.', log_ads_domain), 1, 2), '.') = %s"] * len(wanted))
-                        base_sql.append(f"AND ({cond})")
-                        params.extend(wanted)
-
-                base_sql.extend([
-                    "   GROUP BY hour, domain, log_ads_country_cd",
-                    ") rs",
-                    "GROUP BY rs.hour",
-                    "ORDER BY rs.hour ASC"
-                ])
-                sql = "\n".join(base_sql)
-            else:
-                base_sql = [
-                    "SELECT",
-                    "   rs.hour,",
-                    "   SUM(rs.spend) AS spend,",
-                    "   SUM(rs.impressions) AS impressions,",
-                    "   SUM(rs.clicks) AS clicks",
-                    "FROM (",
-                    "   SELECT",
-                    "       HOUR(a.mdd) AS hour,",
-                    "       SUM(a.log_ads_country_spend) AS spend,",
-                    "       SUM(a.log_ads_country_impresi) AS impressions,",
-                    "       SUM(a.log_ads_country_click) AS clicks",
-                    "   FROM log_ads_country a",
-                    "   INNER JOIN (",
-                    "       SELECT",
-                    "           log_ads_country_cd,",
-                    "           HOUR(mdd) AS jam,",
-                    "           MAX(mdd) AS max_time",
-                    "       FROM log_ads_country",
-                    "       WHERE log_ads_country_tanggal BETWEEN %s AND %s",
-                    "       GROUP BY HOUR(mdd), log_ads_domain, log_ads_country_cd",
-                    "   ) b",
-                    "    ON a.log_ads_country_cd = b.log_ads_country_cd",
-                    "    AND HOUR(a.mdd) = b.jam",
-                    "    AND a.mdd = b.max_time",
-                    "   WHERE a.log_ads_country_tanggal BETWEEN %s AND %s",
-                ]
-                params = [start_date, end_date, start_date, end_date]
-                if like_clause:
-                    base_sql.append(like_clause)
-                    params.extend(patterns)
-                base_sql.extend([
-                    "GROUP BY HOUR(a.mdd)",
-                    ") rs",
-                    "GROUP BY rs.hour",
-                    "ORDER BY rs.hour ASC"
-                ])
-                sql = "\n".join(base_sql)
+            # --- 1. Pastikan selected_domain_list adalah list string
+            if isinstance(data_sub_domain, str):
+                data_sub_domain = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
+            elif data_sub_domain is None:
+                data_sub_domain = []
+            elif isinstance(data_sub_domain, (set, tuple)):
+                data_sub_domain = list(data_sub_domain)
+            if not data_sub_domain:
+                raise ValueError("data_sub_domain is required and cannot be empty")
+            like_conditions = " OR ".join(["a.log_ads_domain LIKE %s"] * len(data_sub_domain))
+            like_clause = f"\tAND ({like_conditions})" if like_conditions else ""
+            like_params = [f"%{d}%" for d in data_sub_domain]
+            print(like_params)
+            # =========================
+            # QUERY BARU (pakai subquery rs)
+            # =========================
+            base_sql = [
+                "SELECT",
+                "\trs.hour,",
+                "\tSUM(rs.spend) AS spend,",
+                "\tSUM(rs.impressions) AS impressions,",
+                "\tSUM(rs.clicks) AS clicks",
+                "FROM (",
+                    "\tSELECT",
+                    "\t\tHOUR(a.mdd) AS hour,",
+                    "\t\tSUM(a.log_ads_country_spend) AS spend,",
+                    "\t\tSUM(a.log_ads_country_impresi) AS impressions,",
+                    "\t\tSUM(a.log_ads_country_click) AS clicks",
+                    "\tFROM log_ads_country a",
+                    "\tINNER JOIN (",
+                        "\t\tSELECT",
+                        "\t\t\tlog_ads_country_cd,",
+                        "\t\t\tHOUR(mdd) AS jam,",
+                        "\t\t\tMAX(mdd) AS max_time",
+                        "\t\tFROM log_ads_country",
+                        "\t\tWHERE log_ads_country_tanggal BETWEEN %s AND %s",
+                        "\t\tGROUP BY HOUR(mdd), log_ads_domain, log_ads_country_cd",
+                    "\t) b",
+                    "\tON a.log_ads_country_cd = b.log_ads_country_cd",
+                    "\tAND HOUR(a.mdd) = b.jam",
+                    "\tAND a.mdd = b.max_time",
+                    "\tWHERE a.log_ads_country_tanggal BETWEEN %s AND %s",
+                    f"{like_clause}",
+                    "\tGROUP BY HOUR(a.mdd)",
+                ") rs",
+                "GROUP BY rs.hour",
+                "ORDER BY rs.hour ASC"
+            ]
+            params = [start_date, end_date, start_date, end_date] + like_params
+            sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get hourly Ads country logs by params")
             data = self.fetch_all()
-            hasil = {"status": True, "message": "Hourly Ads country logs berhasil diambil", "data": data}
+            hasil = {
+                "status": True,
+                "message": "Hourly Ads country logs berhasil diambil",
+                "data": data
+            }
+
         except Exception as e:
             hasil = {"status": False, "data": f"Terjadi error {e!r}"}
+
         return {"hasil": hasil}
 
     def get_all_ads_roi_country_hourly_logs_by_params(self, target_date, data_sub_domain=None):
