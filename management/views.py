@@ -2,6 +2,7 @@ from collections import defaultdict
 import os
 import csv
 from io import StringIO
+import math
 import re
 import site
 from traceback import print_tb
@@ -5518,10 +5519,18 @@ class RoiMonitoringDomainDataView(View):
                             'date': date_key,
                             'spend': 0.0,
                             'revenue': 0.0,
+                            'impressions_fb': 0.0,
+                            'clicks_fb': 0.0,
+                            'impressions_adx': 0.0,
+                            'clicks_adx': 0.0,
                         }
                         raw_rows_map[row_key] = cur_row
                     cur_row['spend'] = float(cur_row.get('spend', 0) or 0) + spend
                     cur_row['revenue'] = float(cur_row.get('revenue', 0) or 0) + revenue
+                    cur_row['impressions_fb'] = float(cur_row.get('impressions_fb', 0) or 0) + float((fb_data or {}).get('impressions') or 0)
+                    cur_row['clicks_fb'] = float(cur_row.get('clicks_fb', 0) or 0) + float((fb_data or {}).get('clicks') or 0)
+                    cur_row['impressions_adx'] = float(cur_row.get('impressions_adx', 0) or 0) + float(adx_item.get('impressions') or 0)
+                    cur_row['clicks_adx'] = float(cur_row.get('clicks_adx', 0) or 0) + float(adx_item.get('clicks') or 0)
                     if site_key not in grouped_all:
                         grouped_all[site_key] = {'site_name': site_key, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
                     grouped_all[site_key]['account_ads'] = account_ads
@@ -5554,9 +5563,15 @@ class RoiMonitoringDomainDataView(View):
                             'date': date_key,
                             'spend': 0.0,
                             'revenue': 0.0,
+                            'impressions_fb': 0.0,
+                            'clicks_fb': 0.0,
+                            'impressions_adx': 0.0,
+                            'clicks_adx': 0.0,
                         }
                         raw_rows_map[row_key] = cur_row
                     cur_row['spend'] = float(cur_row.get('spend', 0) or 0) + spend
+                    cur_row['impressions_fb'] = float(cur_row.get('impressions_fb', 0) or 0) + float(fb_item.get('impressions') or 0)
+                    cur_row['clicks_fb'] = float(cur_row.get('clicks_fb', 0) or 0) + float(fb_item.get('clicks') or 0)
 
                     if site_key not in grouped_all:
                         grouped_all[site_key] = {'site_name': site_key, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
@@ -5607,11 +5622,147 @@ class RoiMonitoringDomainDataView(View):
             except Exception:
                 pass
 
+            def _clamp(v, lo, hi):
+                try:
+                    x = float(v)
+                except Exception:
+                    x = 0.0
+                if x < lo:
+                    return lo
+                if x > hi:
+                    return hi
+                return x
+
+            def _stdev(values):
+                xs = []
+                for v in (values or []):
+                    try:
+                        xs.append(float(v))
+                    except Exception:
+                        xs.append(0.0)
+                if len(xs) < 2:
+                    return 0.0
+                mean = sum(xs) / float(len(xs))
+                var = sum((x - mean) ** 2 for x in xs) / float(len(xs) - 1)
+                return math.sqrt(var)
+
+            def _decide_action(m):
+                roi = float(m.get('roi') or 0.0)
+                spend = float(m.get('spend') or 0.0)
+                clicks_fb = float(m.get('clicks_fb') or 0.0)
+                clicks_adx = float(m.get('clicks_adx') or 0.0)
+                impressions_fb = float(m.get('impressions_fb') or 0.0)
+                impressions_adx = float(m.get('impressions_adx') or 0.0)
+                stability_idx = float(m.get('stability_idx') or 0.0)
+                last3_avg_roi = float(m.get('last3_avg_roi') or 0.0)
+                days = int(m.get('days') or 0)
+
+                ctr_fb = (clicks_fb / impressions_fb * 100.0) if impressions_fb > 0 else 0.0
+                ctr_adx = (clicks_adx / impressions_adx * 100.0) if impressions_adx > 0 else 0.0
+                cpc_fb = (spend / clicks_fb) if clicks_fb > 0 else 0.0
+                cpc_adx = (float(m.get('revenue') or 0.0) / clicks_adx) if clicks_adx > 0 else 0.0
+                cpm_fb = (spend / impressions_fb * 1000.0) if impressions_fb > 0 else 0.0
+                ecpm_adx = (float(m.get('revenue') or 0.0) / impressions_adx * 1000.0) if impressions_adx > 0 else 0.0
+                conv_rate = (clicks_adx / clicks_fb * 100.0) if clicks_fb > 0 else 0.0
+
+                low_signal = (spend < 25000.0) or ((clicks_fb + clicks_adx) < 30.0) or (days < 2)
+
+                reasons = []
+                action = 'HOLD'
+
+                if low_signal:
+                    action = 'HOLD'
+                    reasons.append('Data belum cukup kuat untuk keputusan agresif')
+                else:
+                    if spend >= 100000.0 and (roi <= -30.0 or last3_avg_roi <= -20.0):
+                        action = 'STOP'
+                        reasons.append('ROI negatif berat pada spend signifikan')
+                    elif roi < 0.0:
+                        action = 'CUT'
+                        reasons.append('ROI negatif')
+                    elif roi >= 50.0 and stability_idx >= 60.0 and conv_rate >= 2.0:
+                        action = 'SCALE_UP'
+                        reasons.append('ROI tinggi dan stabil')
+                    else:
+                        action = 'HOLD'
+                        reasons.append('ROI belum memenuhi syarat scale atau cut')
+
+                roi_score = _clamp(((roi + 50.0) / 150.0) * 100.0, 0.0, 100.0)
+                conv_score = _clamp((conv_rate / 10.0) * 100.0, 0.0, 100.0)
+                score = _clamp((roi_score * 0.55) + (stability_idx * 0.25) + (conv_score * 0.20), 0.0, 100.0)
+
+                return {
+                    'action': action,
+                    'score': round(score, 0),
+                    'reasons': reasons[:3],
+                    'ctr_fb': ctr_fb,
+                    'ctr_adx': ctr_adx,
+                    'cpc_fb': cpc_fb,
+                    'cpc_adx': cpc_adx,
+                    'cpm_fb': cpm_fb,
+                    'ecpm_adx': ecpm_adx,
+                    'conv_rate': conv_rate,
+                }
+
+            by_site = defaultdict(list)
+            for r in (raw_rows_all or []):
+                site_key = str((r or {}).get('site_name') or '').strip()
+                if not site_key:
+                    continue
+                by_site[site_key].append(r)
+
+            ml = {}
+            for site_key, rows in (by_site or {}).items():
+                try:
+                    rows_sorted = sorted(rows, key=lambda x: str((x or {}).get('date') or ''))
+                except Exception:
+                    rows_sorted = list(rows)
+
+                spend_total = sum(float((x or {}).get('spend') or 0.0) for x in rows_sorted)
+                revenue_total = sum(float((x or {}).get('revenue') or 0.0) for x in rows_sorted)
+                impressions_fb_total = sum(float((x or {}).get('impressions_fb') or 0.0) for x in rows_sorted)
+                clicks_fb_total = sum(float((x or {}).get('clicks_fb') or 0.0) for x in rows_sorted)
+                impressions_adx_total = sum(float((x or {}).get('impressions_adx') or 0.0) for x in rows_sorted)
+                clicks_adx_total = sum(float((x or {}).get('clicks_adx') or 0.0) for x in rows_sorted)
+
+                roi_total = ((revenue_total - spend_total) / spend_total * 100.0) if spend_total > 0 else 0.0
+
+                daily_roi = []
+                for x in rows_sorted:
+                    s = float((x or {}).get('spend') or 0.0)
+                    rrev = float((x or {}).get('revenue') or 0.0)
+                    if s > 0:
+                        daily_roi.append(((rrev - s) / s) * 100.0)
+
+                last7 = daily_roi[-7:] if daily_roi else []
+                roi_stab = _stdev(last7)
+                stability_idx = _clamp(100.0 - (roi_stab * 4.0), 0.0, 100.0)
+
+                last3 = daily_roi[-3:] if daily_roi else []
+                last3_avg_roi = (sum(last3) / float(len(last3))) if last3 else 0.0
+
+                ml_payload = {
+                    'roi': roi_total,
+                    'spend': spend_total,
+                    'revenue': revenue_total,
+                    'impressions_fb': impressions_fb_total,
+                    'clicks_fb': clicks_fb_total,
+                    'impressions_adx': impressions_adx_total,
+                    'clicks_adx': clicks_adx_total,
+                    'days': len(rows_sorted),
+                    'roi_stability': roi_stab,
+                    'stability_idx': stability_idx,
+                    'last3_avg_roi': last3_avg_roi,
+                }
+                ml_payload.update(_decide_action(ml_payload))
+                ml[site_key] = ml_payload
+
             result = {
                 'status': True,
-                'data': combined_data_all,              # semua kontribusi
-                'data_filtered': combined_data_filtered, # hanya spend > 0
-                'raw_rows': raw_rows_all,                # baris mentah (opsional, untuk analisis)
+                'data': combined_data_all,
+                'data_filtered': combined_data_filtered,
+                'raw_rows': raw_rows_all,
+                'ml': ml,
                 'summary': {
                     'total_spend': total_spend,
                     'roi_nett': roi_nett_summary,

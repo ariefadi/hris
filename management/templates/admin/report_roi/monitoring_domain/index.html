@@ -443,26 +443,92 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
   .roi-domain-commands {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
+      gap: 14px;
+      margin-top: 18px;
   }
-  .roi-domain-commands .btn {
-      border-radius: 16px;
-      padding: 16px 14px;
+  .roi-cmd-tile {
+      position: relative;
+  }
+  .roi-cmd-pill {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 11px;
       font-weight: 900;
-      font-size: 13px;
-      min-height: 58px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #ffffff;
+      background: linear-gradient(135deg, #22c55e, #06b6d4);
+      box-shadow: 0 14px 30px rgba(2, 6, 23, 0.18);
+      white-space: nowrap;
+  }
+  .roi-cmd-tile.is-recommended .roi-cmd-pill {
       display: inline-flex;
+  }
+  .roi-cmd-btn {
+      width: 100%;
+      border: 0;
+      border-radius: 26px;
+      padding: 22px 16px;
+      min-height: 112px;
+      display: flex;
       align-items: center;
       justify-content: center;
       gap: 10px;
-      white-space: nowrap;
+      flex-direction: column;
+      font-weight: 900;
+      transition: transform .15s ease, filter .15s ease, box-shadow .15s ease;
+      box-shadow: 0 18px 45px rgba(2, 6, 23, 0.12);
   }
-  .roi-domain-commands .btn i {
-      font-size: 18px;
+  .roi-cmd-btn:hover {
+      transform: translateY(-2px);
+      filter: brightness(1.03);
+      box-shadow: 0 24px 60px rgba(2, 6, 23, 0.16);
+  }
+  .roi-cmd-btn:focus {
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.22), 0 24px 60px rgba(2, 6, 23, 0.16);
+  }
+  html[data-theme="dark"] .roi-cmd-btn {
+      box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  }
+  .roi-cmd-btn .roi-cmd-icon {
+      font-size: 34px;
       line-height: 1;
   }
-  .roi-domain-commands .roi-domain-cmd[data-action="STOP"] {
-      grid-column: 1 / -1;
+  .roi-cmd-btn .roi-cmd-title {
+      font-size: 12px;
+      letter-spacing: .10em;
+      text-transform: uppercase;
+  }
+  .roi-cmd-btn .roi-cmd-sub {
+      font-size: 11px;
+      font-weight: 800;
+      opacity: .86;
+  }
+  .roi-cmd-pause {
+      color: #ffffff;
+      background: linear-gradient(135deg, #6b7280, #334155);
+  }
+  .roi-cmd-scale {
+      color: #ffffff;
+      background: linear-gradient(135deg, #06b6d4, #3b82f6);
+  }
+  .roi-cmd-cut {
+      color: #111827;
+      background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  }
+  .roi-cmd-stop {
+      color: #ffffff;
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+  }
+  html[data-theme="dark"] .roi-cmd-cut {
+      color: #0f172a;
   }
 </style>
 <div class="card">
@@ -703,7 +769,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                                 <div class="metric-card spend">
                                     <div class="metric-card-inner">
                                         <div>
-                                            <div class="metric-label">Allocated Resource</div>
+                                            <div class="metric-label">Alokasi Budget</div>
                                             <div class="metric-value" id="roiDomainDetailSpend">Rp 0</div>
                                         </div>
                                         <div class="metric-card-icon" aria-hidden="true"><i class="bi bi-cash-stack"></i></div>
@@ -714,7 +780,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                                 <div class="metric-card roi">
                                     <div class="metric-card-inner">
                                         <div>
-                                            <div class="metric-label">Net Efficiency</div>
+                                            <div class="metric-label">Efisiensi ROI</div>
                                             <div class="metric-value" id="roiDomainDetailRoi">0%</div>
                                         </div>
                                         <div class="metric-card-icon" aria-hidden="true"><i class="bi bi-graph-up-arrow"></i></div>
@@ -725,7 +791,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                                 <div class="metric-card revenue">
                                     <div class="metric-card-inner">
                                         <div>
-                                            <div class="metric-label">Survival Index</div>
+                                            <div class="metric-label">Index Range Hari</div>
                                             <div class="metric-value"><span id="roiDomainDetailStreak">0</span> <small class="text-muted">days streak</small></div>
                                         </div>
                                         <div class="metric-card-icon" aria-hidden="true"><i class="bi bi-shield-check"></i></div>
@@ -736,7 +802,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                                 <div class="metric-card" style="background: linear-gradient(135deg, #6366f1, #a855f7); color:#fff;">
                                     <div class="metric-card-inner">
                                         <div>
-                                            <div class="metric-label" style="color:rgba(255,255,255,.85)">Neural Directive</div>
+                                            <div class="metric-label" style="color:rgba(255,255,255,.85)">Rekomendasi Saat Ini</div>
                                             <div class="metric-value" style="color:#fff" id="roiDomainDetailDirective">HOLD</div>
                                         </div>
                                         <div class="metric-card-icon" aria-hidden="true"><i class="bi bi-lightning-charge"></i></div>
@@ -749,7 +815,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                             <div class="col-12 col-lg-4 mb-3">
                                 <div class="card roi-domain-detail-card">
                                     <div class="card-header">
-                                        <h6 class="mb-0"><i class="bi bi-cpu"></i> Neural Advisor</h6>
+                                        <h6 class="mb-0"><i class="bi bi-cpu"></i> Rekomendasi Keputusan</h6>
                                     </div>
                                     <div class="card-body">
                                         <div class="roi-domain-detail-advisor" id="roiDomainDetailAdvisorText">-</div>
@@ -758,8 +824,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 
                                 <div class="card roi-domain-detail-card mt-3">
                                     <div class="card-header d-flex align-items-center justify-content-between">
-                                        <h6 class="mb-0"><i class="bi bi-grid-3x3-gap"></i> Neural Matrix</h6>
-                                        <span class="badge badge-secondary">Time: Macro</span>
+                                        <h6 class="mb-0"><i class="bi bi-grid-3x3-gap"></i> Metrik Analisis</h6>
                                     </div>
                                     <div class="card-body">
                                         <div class="roi-domain-matrix">
@@ -772,7 +837,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                                                 <div class="v" id="roiDomainDetailSpendVelocity">0</div>
                                             </div>
                                             <div class="roi-domain-metric">
-                                                <div class="k">Stability Index</div>
+                                                <div class="k">Stability Index Score</div>
                                                 <div class="v" id="roiDomainDetailStabilityIndex">0</div>
                                             </div>
                                         </div>
@@ -781,7 +846,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 
                                 <div class="card roi-domain-detail-card mt-3">
                                     <div class="card-header">
-                                        <h6 class="mb-0"><i class="bi bi-journal-text"></i> Neural Audit Log</h6>
+                                        <h6 class="mb-0"><i class="bi bi-journal-text"></i> Aktifitas Log</h6>
                                     </div>
                                     <div class="card-body">
                                         <div class="roi-domain-audit" id="roiDomainDetailAuditLog"></div>
@@ -792,7 +857,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                             <div class="col-12 col-lg-4 mb-3">
                                 <div class="card roi-domain-detail-card">
                                     <div class="card-header">
-                                        <h6 class="mb-0"><i class="bi bi-activity"></i> 7D Performance Vector</h6>
+                                        <h6 class="mb-0"><i class="bi bi-activity"></i> Trend ROI di 3/7/14 Hari Terakhir   </h6>
                                     </div>
                                     <div class="card-body">
                                         <div id="roiDomainDetailPerfChart" style="height: 240px;"></div>
@@ -801,7 +866,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 
                                 <div class="card roi-domain-detail-card mt-3">
                                     <div class="card-header d-flex align-items-center justify-content-between">
-                                        <h6 class="mb-0"><i class="bi bi-thermometer-sun"></i> Hot Sweet Spot</h6>
+                                        <h6 class="mb-0"><i class="bi bi-thermometer-sun"></i>Spot ROI Tertinggi</h6>
                                         <small class="text-muted" id="roiDomainDetailHotSpotHint"></small>
                                     </div>
                                     <div class="card-body">
@@ -814,7 +879,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 
                                 <div class="card roi-domain-detail-card mt-3">
                                     <div class="card-header">
-                                        <h6 class="mb-0"><i class="bi bi-clock"></i> Temporal Matrix</h6>
+                                        <h6 class="mb-0" id="roiDomainDetailTemporalTitle"><i class="bi bi-clock"></i> Temporal Matrix</h6>
                                     </div>
                                     <div class="card-body">
                                         <div class="roi-domain-temporal-grid" id="roiDomainDetailTemporalGrid"></div>
@@ -825,8 +890,8 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                             <div class="col-12 col-lg-4 mb-3">
                                 <div class="card roi-domain-detail-card">
                                     <div class="card-header d-flex align-items-center justify-content-between">
-                                        <h6 class="mb-0"><i class="bi bi-card-text"></i> Strategic Notes</h6>
-                                        <button type="button" class="btn btn-sm btn-warning" id="roiDomainDetailSaveNote">Save Note</button>
+                                        <h6 class="mb-0"><i class="bi bi-card-text"></i> Catatan Strategis</h6>
+                                        <button type="button" class="btn btn-sm btn-warning" id="roiDomainDetailSaveNote"><i class="bi bi-save"></i> Simpan Catatan</button>
                                     </div>
                                     <div class="card-body">
                                         <textarea class="form-control" id="roiDomainDetailNotes" rows="7" placeholder="Record long-term strategic observations for this node..."></textarea>
@@ -839,27 +904,47 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                                         <span class="badge badge-success">ACTIVE</span>
                                     </div>
                                     <div class="card-body">
-                                        <div class="roi-domain-commands">
-                                            <button type="button" class="btn btn-primary roi-domain-cmd" data-action="SCALE_20">
-                                                <i class="bi bi-graph-up-arrow" aria-hidden="true"></i>
-                                                <span>Scale +20%</span>
-                                            </button>
-                                            <button type="button" class="btn btn-dark roi-domain-cmd" data-action="HOLD">
-                                                <i class="bi bi-pause-circle" aria-hidden="true"></i>
-                                                <span>Quick Hold</span>
-                                            </button>
-                                            <button type="button" class="btn btn-primary roi-domain-cmd" data-action="OPTIMIZE">
-                                                <i class="bi bi-sliders" aria-hidden="true"></i>
-                                                <span>Optimize</span>
-                                            </button>
-                                            <button type="button" class="btn btn-warning roi-domain-cmd" data-action="CUT_20">
-                                                <i class="bi bi-graph-down-arrow" aria-hidden="true"></i>
-                                                <span>Cut -20%</span>
-                                            </button>
-                                            <button type="button" class="btn btn-danger roi-domain-cmd" data-action="STOP">
-                                                <i class="bi bi-stop-circle" aria-hidden="true"></i>
-                                                <span>Stop Node</span>
-                                            </button>
+                                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                            <div>
+                                                <small class="text-muted">Recommendation</small>
+                                                <span class="badge badge-info ml-2" id="roiDomainDetailRecAction">HOLD</span>
+                                            </div>
+                                            <div class="text-muted" style="font-size:12px">Score: <span id="roiDomainDetailRecScore">0</span></div>
+                                        </div>
+                                        <div class="text-muted mb-2" style="font-size:12px" id="roiDomainDetailRecReasons"></div>
+                                        <div class="roi-domain-commands" id="roiDomainDetailCmdGrid">
+                                            <div class="roi-cmd-tile" data-action="HOLD">
+                                                <div class="roi-cmd-pill">Recommended</div>
+                                                <button type="button" class="btn roi-domain-cmd roi-cmd-btn roi-cmd-pause" data-action="HOLD">
+                                                    <div class="roi-cmd-icon"><i class="bi bi-pause-circle" aria-hidden="true"></i></div>
+                                                    <div class="roi-cmd-title">Hold</div>
+                                                    <div class="roi-cmd-sub">Tahan budget sementara</div>
+                                                </button>
+                                            </div>
+                                            <div class="roi-cmd-tile" data-action="SCALE_UP">
+                                                <div class="roi-cmd-pill">Recommended</div>
+                                                <button type="button" class="btn roi-domain-cmd roi-cmd-btn roi-cmd-scale" data-action="SCALE_UP">
+                                                    <div class="roi-cmd-icon"><i class="bi bi-arrow-up-circle" aria-hidden="true"></i></div>
+                                                    <div class="roi-cmd-title">Naikkan Budget</div>
+                                                    <div class="roi-cmd-sub">Scale bertahap</div>
+                                                </button>
+                                            </div>
+                                            <div class="roi-cmd-tile" data-action="CUT">
+                                                <div class="roi-cmd-pill">Recommended</div>
+                                                <button type="button" class="btn roi-domain-cmd roi-cmd-btn roi-cmd-cut" data-action="CUT">
+                                                    <div class="roi-cmd-icon"><i class="bi bi-arrow-down-circle" aria-hidden="true"></i></div>
+                                                    <div class="roi-cmd-title">Turunkan Budget</div>
+                                                    <div class="roi-cmd-sub">Reduce spend</div>
+                                                </button>
+                                            </div>
+                                            <div class="roi-cmd-tile" data-action="STOP">
+                                                <div class="roi-cmd-pill">Recommended</div>
+                                                <button type="button" class="btn roi-domain-cmd roi-cmd-btn roi-cmd-stop" data-action="STOP">
+                                                    <div class="roi-cmd-icon"><i class="bi bi-stop-circle" aria-hidden="true"></i></div>
+                                                    <div class="roi-cmd-title">Stop</div>
+                                                    <div class="roi-cmd-sub">Hentikan spend</div>
+                                                </button>
+                                            </div>
                                         </div>
                                         <div class="text-muted mt-2" style="font-size:12px" id="roiDomainDetailCmdStatus"></div>
                                     </div>
