@@ -174,8 +174,8 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 padding-top: 20%;">
             <i class="fas fa fa-sync-alt fa-spin"></i> Menyiapkan Data ... 
         </div>
-        <div class="row" id="summary_boxes" style="display: none;" data-title="Ringkasan" data-intro="Ringkasan metrik utama: Total Spend, ROI Nett, dan Total Pendapatan (akan muncul setelah data dimuat).">
-            <div class="col-12 col-sm-6 col-md-4">
+        <div class="row" id="summary_boxes" style="display: none;" data-title="Ringkasan" data-intro="Ringkasan metrik utama: Total Spend, ROI Nett, Total Pendapatan, dan Total Pendapatan Bersih (akan muncul setelah data dimuat).">
+            <div class="col-12 col-sm-6 col-md-3">
                 <div class="metric-card spend">
                     <div class="metric-card-inner">
                         <div>
@@ -188,20 +188,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-md-4">
-                <div class="metric-card roi">
-                    <div class="metric-card-inner">
-                        <div>
-                            <div class="metric-label">ROI Nett</div>
-                            <div class="metric-value" id="roi_nett">0%</div>
-                        </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-percent"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-4">
+            <div class="col-12 col-sm-6 col-md-3">
                 <div class="metric-card revenue">
                     <div class="metric-card-inner">
                         <div>
@@ -210,6 +197,32 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         </div>
                         <div class="metric-card-icon" aria-hidden="true">
                             <i class="bi bi-currency-dollar"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="metric-card revenue">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Pendapatan Bersih</div>
+                            <div class="metric-value" id="total_net_revenue">Rp 0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-wallet2"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="metric-card roi">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">ROI Nett</div>
+                            <div class="metric-value" id="roi_nett">0%</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-percent"></i>
                         </div>
                     </div>
                 </div>
@@ -247,7 +260,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     </div>
                     <div class="card-body">
                         <div class="row">
-                            <div class="col-12 col-sm-6 col-md-4">
+                            <div class="col-12 col-sm-6 col-md-3">
                                 <div class="metric-card spend">
                                     <div class="metric-card-inner">
                                         <div>
@@ -260,20 +273,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-12 col-sm-6 col-md-4">
-                                <div class="metric-card roi">
-                                    <div class="metric-card-inner">
-                                        <div>
-                                            <div class="metric-label">ROI Hari Ini</div>
-                                            <div class="metric-value" id="today_roi">0%</div>
-                                        </div>
-                                        <div class="metric-card-icon" aria-hidden="true">
-                                            <i class="bi bi-graph-up-arrow"></i>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-12 col-sm-6 col-md-4">
+                            <div class="col-12 col-sm-6 col-md-3">
                                 <div class="metric-card revenue">
                                     <div class="metric-card-inner">
                                         <div>
@@ -282,6 +282,32 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                                         </div>
                                         <div class="metric-card-icon" aria-hidden="true">
                                             <i class="bi bi-currency-dollar"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <div class="metric-card revenue">
+                                    <div class="metric-card-inner">
+                                        <div>
+                                            <div class="metric-label">Pendapatan Bersih Hari Ini</div>
+                                            <div class="metric-value" id="today_net_revenue">Rp 0</div>
+                                        </div>
+                                        <div class="metric-card-icon" aria-hidden="true">
+                                            <i class="bi bi-wallet2"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12 col-sm-6 col-md-3">
+                                <div class="metric-card roi">
+                                    <div class="metric-card-inner">
+                                        <div>
+                                            <div class="metric-label">ROI Hari Ini</div>
+                                            <div class="metric-value" id="today_roi">0%</div>
+                                        </div>
+                                        <div class="metric-card-icon" aria-hidden="true">
+                                            <i class="bi bi-graph-up-arrow"></i>
                                         </div>
                                     </div>
                                 </div>

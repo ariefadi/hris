@@ -433,40 +433,22 @@ $(document).ready(function () {
     // Fungsi untuk update summary boxes
     function updateSummaryBoxes(data) {
         if (!data || !Array.isArray(data)) return;
-        // Hitung summary dari data
-        var totalImpressionsFb = 0;
-        var totalImpressionsAdx = 0;
+
         var totalSpend = 0;
-        var totalClicksFb = 0;
-        var totalClicksAdx = 0;
-        var totalCPR = 0;
         var totalRevenue = 0;
-        var totalROI = 0;
-        var validROICount = 0;
+
         data.forEach(function (item) {
-            totalImpressionsFb += item.impressions_fb || 0;
-            totalImpressionsAdx += item.impressions_adx || 0;
-            totalSpend += item.spend || 0;
-            totalClicksFb += item.clicks_fb || 0;
-            totalClicksAdx += item.clicks_adx || 0;
-            totalCPR += item.cpr || 0;
-            totalRevenue += item.revenue || 0;
-            if (item.roi && item.roi !== 0) {
-                totalROI += item.roi;
-                validROICount++;
-            }
+            totalSpend += Number(item.spend || 0);
+            totalRevenue += Number(item.revenue || 0);
         });
-        var averageCTRFb = totalImpressionsFb > 0 ? (totalClicksFb / totalImpressionsFb * 100) : 0;
-        var averageCTRAdx = totalImpressionsAdx > 0 ? (totalClicksAdx / totalImpressionsAdx * 100) : 0;
+
         var totalROI = totalSpend > 0 ? (((totalRevenue - totalSpend) / totalSpend) * 100) : 0;
+        var totalNetRevenue = totalRevenue - totalSpend;
+
         $('#total_spend').text(formatCurrencyIDR(totalSpend));
-        $('#total_clicks_fb').text(totalClicksFb.toLocaleString('id-ID'));
-        $('#total_clicks_adx').text(totalClicksAdx.toLocaleString('id-ID'));
-        $('#rata_cpr').text(formatCurrencyIDR(totalCPR / data.length));
-        $('#total_ctr_fb').text(averageCTRFb.toFixed(2) + '%');
-        $('#total_ctr_adx').text(averageCTRAdx.toFixed(2) + '%');
         $('#total_roi').text(totalROI.toFixed(2) + '%');
         $('#total_revenue').text(formatCurrencyIDR(totalRevenue));
+        $('#total_net_revenue').text(formatCurrencyIDR(totalNetRevenue));
     }
     // Fungsi untuk inisialisasi DataTable
     function initializeDataTable(data) {
@@ -478,21 +460,24 @@ $(document).ready(function () {
                     countryFlag = '<img src="https://flagcdn.com/16x12/' + row.country_code.toLowerCase() + '.png" alt="' + row.country_code + '" style="margin-right: 5px;"> ';
                 }
                 // Sisipkan kolom pertama untuk checkbox
+                var spendVal = Number(row.spend || 0);
+                var revenueVal = Number(row.revenue || 0);
                 tableData.push([
                     '',                                     // 0: Checkbox (render di columnDefs)
                     countryFlag + (row.country || ''),     // 1: Negara
                     row.country_code || '',                // 2: Kode Negara
-                    Number(row.spend || 0),                // 3: Spend (Rp) — was 2
-                    Number(row.clicks_fb || 0),            // 4: Klik FB — was 3
-                    Number(row.clicks_adx || 0),           // 5: Klik ADX — was 4
-                    Number(row.cpr || 0),                  // 6: CPR — was 5
-                    Number(row.ctr_fb || 0),               // 7: CTR FB (%) — was 6
-                    Number(row.ctr_adx || 0),              // 8: CTR ADX (%) — was 7
-                    Number(row.cpc_fb || 0),               // 9: CPC FB (Rp) — was 8
-                    Number(row.cpc_adx || 0),              // 10: CPC ADX (Rp) — was 9
-                    Number(row.ecpm || 0),                 // 11: eCPM (Rp) — was 10
-                    Number(row.roi || 0),                  // 12: ROI (%) — was 11
-                    Number(row.revenue || 0)               // 13: Pendapatan (Rp) — was 12
+                    spendVal,                              // 3: Spend (Rp)
+                    Number(row.clicks_fb || 0),            // 4: Klik FB
+                    Number(row.clicks_adx || 0),           // 5: Klik ADX
+                    Number(row.cpr || 0),                  // 6: CPR
+                    Number(row.ctr_fb || 0),               // 7: CTR FB (%)
+                    Number(row.ctr_adx || 0),              // 8: CTR ADX (%)
+                    Number(row.cpc_fb || 0),               // 9: CPC FB (Rp)
+                    Number(row.cpc_adx || 0),              // 10: CPC ADX (Rp)
+                    Number(row.ecpm || 0),                 // 11: eCPM (Rp)
+                    Number(row.roi || 0),                  // 12: ROI (%)
+                    revenueVal,                            // 13: Pendapatan (Rp)
+                    (revenueVal - spendVal)                // 14: Pendapatan Bersih (Rp)
                 ]);
             });
         }
@@ -741,7 +726,7 @@ $(document).ready(function () {
                     className: "text-center"
                 },
                 {
-                    targets: [3, 4, 5, 6, 9, 10, 11, 13],
+                    targets: [3, 4, 5, 6, 9, 10, 11, 13, 14],
                     className: "text-right"
                 },
                 // Kolom 0: checkbox per-baris
@@ -856,6 +841,16 @@ $(document).ready(function () {
                 // Pendapatan (kolom 13)
                 {
                     targets: 13,
+                    type: 'num',
+                    render: function (data, type) {
+                        var v = Number(data) || 0;
+                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
+                        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
+                    }
+                },
+                // Pendapatan Bersih (kolom 14)
+                {
+                    targets: 14,
                     type: 'num',
                     render: function (data, type) {
                         var v = Number(data) || 0;
@@ -984,6 +979,7 @@ $(document).ready(function () {
                 clicks_fb: item.clicks_fb || 0,
                 clicks_adx: item.clicks_adx || 0,
                 spend: item.spend || 0,
+                cpr: item.cpr || 0,
                 revenue: item.revenue || 0
             });
         });
@@ -1141,15 +1137,20 @@ $(document).ready(function () {
                                     'Kode: {point.code}<br>' +
                                     'ROI: <b>{point.value:.2f}%</b><br>',
                         pointFormatter: function() {
-                            var formattedValue = this.value.toFixed(2) + '%';
-                            return '<b>' + this.name + '</b><br>' +
-                                   'Kode: ' + this.code + '<br>' +
+                            var formattedValue = Number(this.value || 0).toFixed(2) + '%';
+                            var clicksFb = Number(this.clicks_fb || 0);
+                            var clicksAdx = Number(this.clicks_adx || 0);
+                            var spend = Number(this.spend || 0);
+                            var cpr = Number(this.cpr || 0);
+                            var revenue = Number(this.revenue || 0);
+                            return '<b>' + (this.name || '') + '</b><br>' +
+                                   'Kode: ' + (this.code || '') + '<br>' +
                                    'ROI: <b>' + formattedValue + '</b><br>' +
-                                   'Clicks (FB): <b>' + this.clicks_fb.toLocaleString('id-ID') + '</b><br>' +
-                                   'Clicks (ADX): <b>' + this.clicks_adx.toLocaleString('id-ID') + '</b><br>' +
-                                   'Spend: <b>Rp ' + Math.round(this.spend).toLocaleString('id-ID') + '</b><br>' +
-                                   'CPR: <b>' + this.cpr.toLocaleString('id-ID') + '</b><br>' +
-                                   'Revenue: <b>Rp ' + Math.round(this.revenue).toLocaleString('id-ID') + '</b><br>';
+                                   'Clicks (FB): <b>' + clicksFb.toLocaleString('id-ID') + '</b><br>' +
+                                   'Clicks (ADX): <b>' + clicksAdx.toLocaleString('id-ID') + '</b><br>' +
+                                   'Spend: <b>Rp ' + Math.round(spend).toLocaleString('id-ID') + '</b><br>' +
+                                   'CPR: <b>' + Math.round(cpr).toLocaleString('id-ID') + '</b><br>' +
+                                   'Revenue: <b>Rp ' + Math.round(revenue).toLocaleString('id-ID') + '</b><br>';
                         },
                         nullFormat: '<b>{point.name}</b><br>Tidak ada data ROI'
                     },

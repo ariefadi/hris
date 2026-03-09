@@ -217,21 +217,8 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 padding-top: 20%;">
             <i class="fas fa fa-sync-alt fa-spin"></i> Memuat Data Traffic ... 
         </div>
-        <div class="row" id="summary_boxes" style="display: none;" data-title="Ringkasan" data-intro="Ringkasan metrik utama (klik, spend, ROI, pendapatan). Akan muncul setelah data dimuat.">
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="metric-card clicks">
-                    <div class="metric-card-inner">
-                        <div>
-                            <div class="metric-label">Total Klik</div>
-                            <div class="metric-value" id="total_clicks_fb">0</div>
-                        </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-cursor-fill"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-3">
+        <div class="row" id="summary_boxes" style="display: none;" data-title="Ringkasan" data-intro="Ringkasan metrik utama (klik, spend, ROI, pendapatan, pendapatan bersih). Akan muncul setelah data dimuat.">
+            <div class="col-12 col-sm-6 col-md-4 col-lg-3">
                 <div class="metric-card spend">
                     <div class="metric-card-inner">
                         <div>
@@ -244,20 +231,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="metric-card roi">
-                    <div class="metric-card-inner">
-                        <div>
-                            <div class="metric-label">ROI Nett</div>
-                            <div class="metric-value" id="roi_nett">0%</div>
-                        </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-graph-up-arrow"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-4 col-lg-3">
                 <div class="metric-card revenue">
                     <div class="metric-card-inner">
                         <div>
@@ -266,6 +240,32 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         </div>
                         <div class="metric-card-icon" aria-hidden="true">
                             <i class="bi bi-currency-dollar"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                <div class="metric-card revenue">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Pendapatan Bersih</div>
+                            <div class="metric-value" id="total_net_revenue">Rp 0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-wallet2"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-4 col-lg-3">
+                <div class="metric-card roi">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">ROI Nett</div>
+                            <div class="metric-value" id="roi_nett">0%</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-graph-up-arrow"></i>
                         </div>
                     </div>
                 </div>
@@ -304,6 +304,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         <th rowspan="2" style="width: 8%;" class="text-center">Avg <br> eCPM (Rp)</th>
                         <th rowspan="2" style="width: 8%;" class="text-center">ROI (%)</th>
                         <th rowspan="2" style="width: 8%;" class="text-center">Pendapatan (Rp)</th>
+                        <th rowspan="2" style="width: 10%;" class="text-center">Pendapatan Bersih (Rp)</th>
                     </tr>
                     <tr>
                         <th class="text-center">Klik Ads</th>

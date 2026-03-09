@@ -633,7 +633,7 @@ $().ready(function () {
                 className: "text-center"
             },
             {
-                targets: [3, 4, 5, 6, 9, 10, 11, 13],
+                targets: [3, 4, 5, 6, 9, 10, 11, 13, 14],
                 className: "text-right"
             },
             {
@@ -718,6 +718,14 @@ $().ready(function () {
             },
             {
                 targets: 13,
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatCurrencyIDR(val);
+                }
+            },
+            {
+                targets: 14,
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
@@ -841,7 +849,8 @@ $().ready(function () {
                 Number(item.cpc_adx || 0),
                 Number(item.cpm || 0),
                 Number(item.roi || 0),
-                Number(item.revenue || 0)
+                Number(item.revenue || 0),
+                (Number(item.revenue || 0) - Number(item.spend || 0))
             ]);
         });
         table.draw();
@@ -885,23 +894,24 @@ function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_ac
                     var totalClicksAdx = 0;
                     var totalSpend = 0;
                     var totalRevenue = 0;
-                
+
                     (data || []).forEach(function (item) {
                         totalClicksFb += Number(item.clicks_fb || 0);
                         totalClicksAdx += Number(item.clicks_adx || 0);
                         totalSpend += Number(item.spend || 0);
                         totalRevenue += Number(item.revenue || 0);
                     });
-                
+
                     var roiNett = totalSpend > 0 ? ((totalRevenue - totalSpend) / totalSpend) * 100 : 0;
-                
+                    var totalNetRevenue = totalRevenue - totalSpend;
+
                     $('#total_clicks_fb').text(formatNumber(totalClicksFb));
                     $('#total_clicks_adx').text(formatNumber(totalClicksAdx));
                     $('#total_spend').text(formatCurrencyIDR(totalSpend));
                     $('#roi_nett').text(formatNumber(roiNett, 2) + '%');
                     $('#total_revenue').text(formatCurrencyIDR(totalRevenue));
-                
-                    // pastikan summary terlihat
+                    $('#total_net_revenue').text(formatCurrencyIDR(totalNetRevenue));
+
                     $('#summary_boxes').show();
                 };
                 // Create ROI Daily Chart
@@ -965,7 +975,8 @@ function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_ac
                         Number(item.cpc_adx || 0),
                         Number(item.cpm || 0),
                         Number(item.roi || 0),
-                        Number(item.revenue || 0)
+                        Number(item.revenue || 0),
+                        (Number(item.revenue || 0) - Number(item.spend || 0))
                     ]);
                 });
                 
@@ -1081,6 +1092,7 @@ function createROIDailyChart(data) {
     const avgROIData = [];
     const revenueData = [];
     const spendData = [];
+    const profitData = [];
     const labels = [];
     sortedDates.forEach(date => {
         const roiValues = dailyROI[date];
@@ -1096,6 +1108,7 @@ function createROIDailyChart(data) {
         avgROIData.push(parseFloat(avgROI.toFixed(2)));
         revenueData.push(dailyRevenue[date]);
         spendData.push(dailySpend[date]);
+        profitData.push(dailyRevenue[date] - dailySpend[date]);
     });
     // Buat chart baru
     const canvasElement = document.getElementById('chart_roi_daily');
@@ -1123,19 +1136,33 @@ function createROIDailyChart(data) {
         type: 'line',
         data: {
             labels: labels,
-            datasets: [{
-                label: 'ROI Harian (%)',
-                data: avgROIData,
-                borderColor: 'rgb(75, 192, 192)',
-                backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                borderWidth: 3,
-                fill: true,
-                tension: 0.4,
-                pointBackgroundColor: 'rgb(75, 192, 192)',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointRadius: 6
-            }]
+            datasets: [
+                {
+                    label: 'Profit (Rp)',
+                    data: profitData,
+                    type: 'bar',
+                    yAxisID: 'y1',
+                    backgroundColor: 'rgba(34, 197, 94, 0.35)',
+                    borderColor: 'rgba(34, 197, 94, 1)',
+                    borderWidth: 1,
+                    order: 0
+                },
+                {
+                    label: 'ROI Harian (%)',
+                    data: avgROIData,
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: 'rgb(75, 192, 192)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6,
+                    yAxisID: 'y',
+                    order: 1
+                }
+            ]
         },
         options: {
             responsive: true,
@@ -1159,10 +1186,16 @@ function createROIDailyChart(data) {
                     callbacks: {
                         label: function (context) {
                             const dataIndex = context.dataIndex;
-                            const roi = context.parsed.y;
+                            const dsLabel = context.dataset && context.dataset.label ? context.dataset.label : '';
                             const revenue = revenueData[dataIndex];
                             const spend = spendData[dataIndex];
 
+                            if (dsLabel === 'Profit (Rp)') {
+                                const v = (context.parsed && context.parsed.y !== undefined) ? context.parsed.y : context.raw;
+                                return [`Profit: ${formatCurrencyIDR(v)}`];
+                            }
+
+                            const roi = context.parsed.y;
                             return [
                                 `ROI: ${Number(roi).toFixed(2)}%`,
                                 `Revenue: ${formatCurrencyIDR(revenue)}`,
@@ -1203,6 +1236,25 @@ function createROIDailyChart(data) {
                     ticks: {
                         callback: function (value) {
                             return value + '%';
+                        }
+                    }
+                },
+                y1: {
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Profit (Rp)',
+                        font: {
+                            weight: 'bold'
+                        }
+                    },
+                    grid: {
+                        drawOnChartArea: false
+                    },
+                    ticks: {
+                        callback: function (value) {
+                            return formatCurrencyIDR(value);
                         }
                     }
                 }

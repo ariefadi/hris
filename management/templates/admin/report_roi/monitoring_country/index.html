@@ -300,8 +300,8 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 padding-top: 20%;">
             <i class="fas fa fa-sync-alt fa-spin"></i> Memuat Data Traffic ... 
         </div>
-        <div class="row" id="summary_boxes" style="display: none;" data-title="Ringkasan" data-intro="Ringkasan metrik utama: Total Spend, ROI Nett, dan Total Pendapatan. Akan muncul setelah data dimuat.">
-            <div class="col-12 col-sm-6 col-md-4">
+        <div class="row" id="summary_boxes" style="display: none;" data-title="Ringkasan" data-intro="Ringkasan metrik utama: Total Spend, ROI Nett, Total Pendapatan, dan Total Pendapatan Bersih. Akan muncul setelah data dimuat.">
+            <div class="col-12 col-sm-6 col-md-3">
                 <div class="metric-card spend">
                     <div class="metric-card-inner">
                         <div>
@@ -314,20 +314,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     </div>
                 </div>
             </div>
-            <div class="col-12 col-sm-6 col-md-4">
-                <div class="metric-card roi">
-                    <div class="metric-card-inner">
-                        <div>
-                            <div class="metric-label">ROI Nett</div>
-                            <div class="metric-value" id="total_roi">0%</div>
-                        </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-graph-up-arrow"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-4">
+            <div class="col-12 col-sm-6 col-md-3">
                 <div class="metric-card revenue">
                     <div class="metric-card-inner">
                         <div>
@@ -336,6 +323,32 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         </div>
                         <div class="metric-card-icon" aria-hidden="true">
                             <i class="bi bi-currency-dollar"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="metric-card revenue">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">Total Pendapatan Bersih</div>
+                            <div class="metric-value" id="total_net_revenue">$0</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-wallet2"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-12 col-sm-6 col-md-3">
+                <div class="metric-card roi">
+                    <div class="metric-card-inner">
+                        <div>
+                            <div class="metric-label">ROI Nett</div>
+                            <div class="metric-value" id="total_roi">0%</div>
+                        </div>
+                        <div class="metric-card-icon" aria-hidden="true">
+                            <i class="bi bi-graph-up-arrow"></i>
                         </div>
                     </div>
                 </div>
@@ -355,9 +368,10 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         <!-- Kolom baru untuk checklist -->
                         <th class="text-center" style="width: 20%;">Nama Negara</th>
                         <th class="text-center" style="width: 10%;">Kode Negara</th>
-                        <th class="text-center" style="width: 20%;">Spend (Rp)</th>
-                        <th class="text-center" style="width: 20%;">Pendapatan (Rp)</th>
-                        <th class="text-center" style="width: 20%;">ROI (%)</th>
+                        <th class="text-center" style="width: 18%;">Spend (Rp)</th>
+                        <th class="text-center" style="width: 18%;">Pendapatan (Rp)</th>
+                        <th class="text-center" style="width: 18%;">Pendapatan Bersih (Rp)</th>
+                        <th class="text-center" style="width: 18%;">ROI (%)</th>
                     </tr>
                 </thead>
                 <tbody>

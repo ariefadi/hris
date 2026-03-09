@@ -308,11 +308,13 @@ function updateSummaryBoxes(data) {
     });
     var averageCTR = totalImpressions > 0 ? (totalClicks / totalImpressions * 100) : 0;
     var averageROI = validROICount > 0 ? (totalROI / validROICount) : 0;
+    var totalNetRevenue = totalRevenue - totalSpend;
     $('#total_impressions').text(totalImpressions.toLocaleString('id-ID'));
     $('#total_spend').text(formatCurrencyIDR(totalSpend));
     // Jika AdX Account sudah dipilih, tampilkan data meskipun domain belum dipilih
     $('#total_clicks').text(totalClicks.toLocaleString('id-ID'));
     $('#total_revenue').text(formatCurrencyIDR(totalRevenue));
+    $('#total_net_revenue').text(formatCurrencyIDR(totalNetRevenue));
     // Isi ROI Nett sesuai elemen template
     $('#roi_nett').text(averageROI.toFixed(2) + '%');
     // Elemen total_ctr mungkin tidak ada di template; abaikan jika tidak ada
@@ -416,6 +418,29 @@ function create_roi_daily_chart(data) {
     var revenueByDomain = {}; // { domain: [revenue per tanggal] }
     var spendByDomain = {};   // { domain: [total_costs per tanggal] }
 
+    var profitTotals = [];
+    dates.forEach(function (date) {
+        var sumRevenue = 0;
+        var sumSpend = 0;
+        Array.from(domainSet).forEach(function (domain) {
+            var m = (metricsMap[domain] && metricsMap[domain][date]) ? metricsMap[domain][date] : { revenue: 0, spend: 0, other_costs: 0 };
+            sumRevenue += Number(m.revenue || 0);
+            sumSpend += Number(m.spend || 0);
+        });
+        profitTotals.push(sumRevenue - sumSpend);
+    });
+
+    datasets.push({
+        label: 'Profit',
+        data: profitTotals,
+        yAxisID: 'y1',
+        type: 'bar',
+        backgroundColor: 'rgba(34, 197, 94, 0.35)',
+        borderColor: 'rgba(34, 197, 94, 1)',
+        borderWidth: 1,
+        order: 0
+    });
+
     var domains = Array.from(domainSet).sort();
     domains.forEach(function (domain, idx) {
         var color = palette[idx % palette.length];
@@ -447,7 +472,9 @@ function create_roi_daily_chart(data) {
             pointBackgroundColor: color,
             pointBorderColor: '#fff',
             pointBorderWidth: 2,
-            pointRadius: 4
+            pointRadius: 4,
+            yAxisID: 'y',
+            order: 1
         });
     });
 
@@ -476,6 +503,15 @@ function create_roi_daily_chart(data) {
                         callback: function (value) { return Number(value).toFixed(1) + '%'; }
                     },
                     grid: { display: true, color: 'rgba(0, 0, 0, 0.1)' }
+                },
+                y1: {
+                    display: true,
+                    position: 'right',
+                    title: { display: true, text: 'Profit (Rp)', font: { weight: 'bold' } },
+                    ticks: {
+                        callback: function (value) { return formatCurrencyIDR(value); }
+                    },
+                    grid: { drawOnChartArea: false }
                 }
             },
             plugins: {
@@ -489,13 +525,16 @@ function create_roi_daily_chart(data) {
                     intersect: false,
                     callbacks: {
                         label: function (context) {
-                            var domainLabel = context.dataset.label;
+                            var label = context.dataset.label;
                             var i = context.dataIndex;
+                            if (label === 'Profit') {
+                                return 'Profit: ' + formatCurrencyIDR((context.parsed && context.parsed.y !== undefined) ? context.parsed.y : context.raw);
+                            }
                             var roiVal = Number(context.parsed.y || 0).toFixed(2);
-                            var revenue = (revenueByDomain[domainLabel] || [])[i] || 0;
-                            var spend = (spendByDomain[domainLabel] || [])[i] || 0;
+                            var revenue = (revenueByDomain[label] || [])[i] || 0;
+                            var spend = (spendByDomain[label] || [])[i] || 0;
                             return [
-                                domainLabel + ': ' + roiVal + '%',
+                                label + ': ' + roiVal + '%',
                                 'Revenue: ' + formatCurrencyIDR(revenue),
                                 'Spend: ' + formatCurrencyIDR(spend)
                             ];
@@ -694,10 +733,13 @@ function load_ROI_summary_data(tanggal_dari, tanggal_sampai) {
             if (response && response.status) {
                 // Perbarui summary jika tersedia
                 if (response.summary) {
-                    // Jika AdX Account sudah dipilih, tampilkan data meskipun domain belum dipilih
-                    $('#total_spend').text(formatCurrencyIDR(response.summary.total_spend || 0));
+                    var totalSpend = Number(response.summary.total_spend || 0);
+                    var totalRevenue = Number(response.summary.total_revenue || 0);
+                    var totalNetRevenue = totalRevenue - totalSpend;
+                    $('#total_spend').text(formatCurrencyIDR(totalSpend));
                     $('#roi_nett').text(formatNumber(response.summary.roi_nett || 0, 2) + '%');
-                    $('#total_revenue').text(formatCurrencyIDR(response.summary.total_revenue || 0));
+                    $('#total_revenue').text(formatCurrencyIDR(totalRevenue));
+                    $('#total_net_revenue').text(formatCurrencyIDR(totalNetRevenue));
                     $('#summary_boxes').show();
                 }
                 // Tampilkan chart ROI harian jika ada data
@@ -733,11 +775,12 @@ function load_ROI_summary_data(tanggal_dari, tanggal_sampai) {
                         });
                         var todayTotalCosts = todaySpend + todayOtherCosts;
                         var todayRoi = todayTotalCosts > 0 ? ((todayRevenue - todayTotalCosts) / todayTotalCosts) * 100 : 0;
-                        // Jika AdX Account sudah dipilih, tampilkan data meskipun domain belum dipilih
+                        var todayNetRevenue = todayRevenue - todaySpend;
                         $('#today_spend').text(formatCurrencyIDR(todaySpend));
                         $('#today_clicks').text(formatNumber(todayClicks));
                         $('#today_roi').text(todayRoi.toFixed(2) + '%');
                         $('#today_revenue').text(formatCurrencyIDR(todayRevenue));
+                        $('#today_net_revenue').text(formatCurrencyIDR(todayNetRevenue));
                         $('#today_traffic').show();
                         $('#overlay').hide();
                     } else {
@@ -751,6 +794,7 @@ function load_ROI_summary_data(tanggal_dari, tanggal_sampai) {
                         $('#today_clicks').text(formatNumber(0));
                         $('#today_roi').text('0.00%');
                         $('#today_revenue').text(formatCurrencyIDR(0));
+                        $('#today_net_revenue').text(formatCurrencyIDR(0));
                         $('#today_traffic').show();
                         $('#overlay').hide();
                     }
