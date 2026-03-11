@@ -3889,6 +3889,14 @@ class RoiTrafficPerCountryDataView(View):
                 
                 result['data'] = filtered_data
                 result['total_records'] = len(filtered_data)
+
+            if countries_list and result.get('status'):
+                try:
+                    allow_codes = set([normalize_country_code(x) for x in (countries_list or []) if normalize_country_code(x)])
+                    if allow_codes:
+                        result['daily_rows'] = [r for r in (result.get('daily_rows') or []) if normalize_country_code((r or {}).get('country_code')) in allow_codes]
+                except Exception:
+                    pass
             # Simpan hasil akhir ke cache dengan TTL 15 menit
             try:
                 set_cached_data(response_cache_key, result, timeout=900)
@@ -4241,12 +4249,14 @@ def process_roi_monitoring_country_data(data_adx, data_facebook):
         for code, item in agg_all.items():
             s = item['spend']
             r = item['revenue']
+            net_profit = r - s
             roi = ((r - s) / s * 100) if s > 0 else 0
             combined_data_all.append({
                 'country': item['country'],
                 'country_code': code,
                 'spend': round(s, 2),
                 'revenue': round(r, 2),
+                'net_profit': round(net_profit, 2),
                 'roi': round(roi, 2)
             })
 
@@ -4254,12 +4264,14 @@ def process_roi_monitoring_country_data(data_adx, data_facebook):
         for code, item in agg_filtered.items():
             s = item['spend']
             r = item['revenue']
+            net_profit = r - s
             roi = ((r - s) / s * 100) if s > 0 else 0
             combined_data_filtered.append({
                 'country': item['country'],
                 'country_code': code,
                 'spend': round(s, 2),
                 'revenue': round(r, 2),
+                'net_profit': round(net_profit, 2),
                 'roi': round(roi, 2)
             })
 
@@ -4280,11 +4292,13 @@ def process_roi_monitoring_country_data(data_adx, data_facebook):
             'summary_all': {
                 'total_spend': round(total_spend_all, 2),
                 'total_revenue': round(total_revenue_all, 2),
+                'total_net_profit': round(total_revenue_all - total_spend_all, 2),
                 'roi_nett': round(((total_revenue_all - total_spend_all) / total_spend_all * 100) if total_spend_all > 0 else 0, 2)
             },
             'summary_filtered': {
                 'total_spend': round(total_spend_filtered, 2),
                 'total_revenue': round(total_revenue_filtered, 2),
+                'total_net_profit': round(total_revenue_filtered - total_spend_filtered, 2),
                 'roi_nett': round(((total_revenue_filtered - total_spend_filtered) / total_spend_filtered * 100) if total_spend_filtered > 0 else 0, 2)
             }
         }
@@ -4294,6 +4308,88 @@ def process_roi_monitoring_country_data(data_adx, data_facebook):
             'error': f'Error processing ROI traffic country data: {str(e)}',
             'data': []
         }
+
+def build_roi_monitoring_country_daily_rows(data_adx, data_facebook):
+    try:
+        def normalize_country_code(cc):
+            c = (str(cc or '').strip().upper())
+            if not c:
+                return ''
+            alias = {
+                'TU': 'TR'
+            }
+            return alias.get(c, c)
+
+        adx_items = data_adx.get('data') if isinstance(data_adx, dict) else []
+        fb_items = (data_facebook.get('data') if isinstance(data_facebook, dict) else []) or []
+
+        country_name_by_code = {}
+        rev_map = {}
+        spend_map = {}
+
+        for adx_item in (adx_items or []):
+            date_key = str(adx_item.get('date', '') or '')
+            site_name = str(adx_item.get('site_name', '') or '')
+            base_subdomain = extract_base_subdomain(site_name)
+            country_code = normalize_country_code(adx_item.get('country_code', '') or '')
+            country_name = adx_item.get('country_name', '') or ''
+            revenue = float(adx_item.get('revenue', 0) or 0)
+            if not date_key or not base_subdomain or not country_code:
+                continue
+            country_name_by_code[country_code] = country_name or country_name_by_code.get(country_code, '')
+            k = f"{date_key}|{base_subdomain}|{country_code}"
+            rev_map[k] = rev_map.get(k, 0.0) + revenue
+
+        for fb_item in (fb_items or []):
+            date_key = str(fb_item.get('date', '') or '')
+            domain = str(fb_item.get('domain', '') or '')
+            base_subdomain = extract_base_subdomain(domain)
+            country_code = normalize_country_code(fb_item.get('country_code', '') or '')
+            country_name = fb_item.get('country_name', '') or ''
+            spend = float(fb_item.get('spend', 0) or 0)
+            if not date_key or not base_subdomain or not country_code:
+                continue
+            country_name_by_code[country_code] = country_name or country_name_by_code.get(country_code, '')
+            k = f"{date_key}|{base_subdomain}|{country_code}"
+            spend_map[k] = spend_map.get(k, 0.0) + spend
+
+        union_keys = set(list(rev_map.keys()) + list(spend_map.keys()))
+        daily_agg = {}
+        for k in union_keys:
+            parts = str(k).split('|')
+            if len(parts) != 3:
+                continue
+            date_key, _, country_code = parts
+            revenue = float(rev_map.get(k, 0.0) or 0.0)
+            spend = float(spend_map.get(k, 0.0) or 0.0)
+            dk = (date_key, country_code)
+            cur = daily_agg.get(dk)
+            if not cur:
+                cur = {'date': date_key, 'country_code': country_code, 'country': country_name_by_code.get(country_code, ''), 'spend': 0.0, 'revenue': 0.0}
+                daily_agg[dk] = cur
+            cur['spend'] += spend
+            cur['revenue'] += revenue
+
+        rows = []
+        for (_, _), item in daily_agg.items():
+            s = float(item.get('spend', 0.0) or 0.0)
+            r = float(item.get('revenue', 0.0) or 0.0)
+            net_profit = r - s
+            roi = ((r - s) / s * 100) if s > 0 else 0.0
+            rows.append({
+                'date': item.get('date'),
+                'country': item.get('country') or country_name_by_code.get(item.get('country_code'), ''),
+                'country_code': item.get('country_code'),
+                'spend': round(s, 2),
+                'revenue': round(r, 2),
+                'net_profit': round(net_profit, 2),
+                'roi': round(roi, 2)
+            })
+
+        rows.sort(key=lambda x: (str(x.get('date') or ''), str(x.get('country_code') or '')))
+        return rows
+    except Exception:
+        return []
 
 class RoiTrafficPerDomainView(View):
     """View untuk ROI Per Domain"""
@@ -4915,6 +5011,454 @@ class RoiCountryHourlyDataView(View):
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
 
+class RoiMonitoringCountryHourlyHeatmapView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            is_ajax = False
+            try:
+                is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            except Exception:
+                pass
+            if not is_ajax:
+                is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+            if is_ajax:
+                return JsonResponse({'status': False, 'error': 'Sesi berakhir atau tidak valid. Silakan login ulang.'})
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            target_date = req.GET.get('date')
+            if not target_date or not isinstance(target_date, str) or len(target_date) != 10:
+                target_date = datetime.now().strftime('%Y-%m-%d')
+
+            selected_domains = req.GET.get('selected_domains', '')
+            selected_domain_list = []
+            if selected_domains:
+                selected_domain_list = [str(s).strip() for s in str(selected_domains).split(',') if str(s).strip()]
+
+            cache_key = generate_cache_key(
+                'roi_monitoring_country_hourly_heatmap_v1',
+                target_date,
+                ','.join(selected_domain_list) if selected_domain_list else ''
+            )
+            cached = get_cached_data(cache_key)
+            if cached is not None:
+                return JsonResponse(cached, safe=False)
+
+            db = data_mysql()
+            adx_resp = db.get_all_adx_roi_country_hourly_logs_by_params(
+                target_date,
+                selected_domain_list,
+            )
+            adx_rows = adx_resp.get('data') if isinstance(adx_resp, dict) else []
+
+            ads_resp = db.get_all_ads_roi_country_hourly_logs_by_params(
+                target_date,
+                selected_domain_list,
+            )
+            ads_rows = (ads_resp.get('hasil') or {}).get('data') if isinstance(ads_resp, dict) else []
+
+            by_country = {}
+            hours_present = set()
+
+            for row in adx_rows or []:
+                code = str(row.get('country_code', '') or '').upper()
+                name = row.get('country_name', '') or code
+                hour = int(row.get('hour', 0) or 0)
+                hkey = f"{hour:02d}"
+                if code not in by_country:
+                    by_country[code] = {'country_code': code, 'country': name, 'revenue': {}, 'spend': {}}
+                by_country[code]['revenue'][hkey] = by_country[code]['revenue'].get(hkey, 0.0) + float(row.get('revenue', 0) or 0)
+                hours_present.add(hkey)
+
+            for row in ads_rows or []:
+                code = str(row.get('country_code', '') or '').upper()
+                name = row.get('country_name', '') or code
+                hour = int(row.get('hour', 0) or 0)
+                hkey = f"{hour:02d}"
+                if code not in by_country:
+                    by_country[code] = {'country_code': code, 'country': name, 'revenue': {}, 'spend': {}}
+                by_country[code]['spend'][hkey] = by_country[code]['spend'].get(hkey, 0.0) + float(row.get('spend', 0) or 0)
+                hours_present.add(hkey)
+
+            hours = sorted(list(hours_present), key=lambda x: int(x)) if hours_present else [f"{h:02d}" for h in range(24)]
+
+            countries_series = []
+            total_revenue = 0.0
+            total_spend = 0.0
+
+            for code, item in by_country.items():
+                series = []
+                rev_series = []
+                spend_series = []
+                for h in hours:
+                    r = float(item['revenue'].get(h, 0.0))
+                    s = float(item['spend'].get(h, 0.0))
+                    roi = ((r - s) / s * 100) if s > 0 else 0.0
+                    series.append(round(roi, 2))
+                    rev_series.append(round(r, 2))
+                    spend_series.append(round(s, 2))
+                    total_revenue += r
+                    total_spend += s
+                countries_series.append({
+                    'country_code': code,
+                    'country': item.get('country', code),
+                    'roi': series,
+                    'revenue': rev_series,
+                    'spend': spend_series
+                })
+
+            countries_series.sort(key=lambda x: sum(x['roi']), reverse=True)
+
+            result = {
+                'status': True,
+                'date': target_date,
+                'hours': hours,
+                'countries': countries_series,
+                'summary': {
+                    'total_revenue': round(total_revenue, 2),
+                    'total_spend': round(total_spend, 2),
+                    'roi_nett': round(((total_revenue - total_spend) / total_spend * 100) if total_spend > 0 else 0, 2),
+                    'total_countries': len(countries_series)
+                }
+            }
+
+            if countries_series:
+                set_cached_data(cache_key, result, timeout=1800)
+
+            return JsonResponse(result, safe=False)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
+
+class DashboardDomainHourlyHeatmapView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            is_ajax = False
+            try:
+                is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            except Exception:
+                pass
+            if not is_ajax:
+                is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+            if is_ajax:
+                return JsonResponse({'status': False, 'error': 'Sesi berakhir atau tidak valid. Silakan login ulang.'})
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            tanggal = req.GET.get('tanggal', '')
+            # --- 1. Parse tanggal aman
+            def parse_date(d):
+                try:
+                    return datetime.strptime(d, '%Y-%m-%d').strftime('%Y-%m-%d')
+                except (ValueError, TypeError):
+                    raise ValueError(f"Tanggal tidak valid: {d}")
+            tanggal_formatted = parse_date(tanggal)
+            cache_key = generate_cache_key(
+                'dashboard_domain_hourly_heatmap',
+                tanggal_formatted,
+            )
+            cached = get_cached_data(cache_key)
+            if cached is not None:
+                return JsonResponse(cached, safe=False)
+            db = data_mysql()
+            adx_resp = db.get_all_adx_country_hourly_by_params(
+                tanggal_formatted
+            )
+            adx_rows = adx_resp.get('data') if isinstance(adx_resp, dict) else []
+            # --- 4. Proses Facebook data
+            unique_name_site = []
+            if adx_resp:
+                # Ambil unique site dari AdX
+                extracted_sites = set[Any]()
+                for adx_item in adx_resp['data']:
+                    site_name = str(adx_item.get('log_adx_country_domain', '')).strip()
+                    if site_name and site_name != 'Unknown':
+                        extracted_sites.add(site_name)
+                for site in extracted_sites:
+                    main_domain = site
+                    if "." in site:
+                        parts = site.split(".")       # pisah berdasarkan titik
+                        if len(parts) >= 2:
+                            main_domain = ".".join(parts[:2])
+                    unique_name_site.append(main_domain)
+            unique_name_site = list(set(unique_name_site))
+            ads_resp = None
+            if unique_name_site:
+                ads_resp = db.get_all_ads_country_hourly_by_params(
+                    tanggal_formatted,
+                    unique_name_site
+                )
+                print(f"ads_resp: {ads_resp}")
+            ads_rows = ((ads_resp or {}).get('hasil') or {}).get('data') or []
+            if not isinstance(ads_rows, list):
+                ads_rows = []
+            rev_by_hour = {f"{h:02d}": 0.0 for h in range(24)}
+            spend_by_hour = {f"{h:02d}": 0.0 for h in range(24)}
+            for row in adx_rows or []:
+                try:
+                    hour = int(row.get('hour', 0) or 0)
+                except Exception:
+                    hour = 0
+                if hour < 0 or hour > 23:
+                    continue
+                hkey = f"{hour:02d}"
+                rev_by_hour[hkey] = rev_by_hour.get(hkey, 0.0) + float(row.get('revenue', 0) or 0)
+            for row in ads_rows or []:
+                try:
+                    hour = int(row.get('hour', 0) or 0)
+                except Exception:
+                    hour = 0
+                if hour < 0 or hour > 23:
+                    continue
+                hkey = f"{hour:02d}"
+                spend_by_hour[hkey] = spend_by_hour.get(hkey, 0.0) + float(row.get('spend', 0) or 0)
+            hours = [f"{h:02d}" for h in range(24)]
+            revenue_series = []
+            spend_series = []
+            roi_series = []
+            total_revenue = 0.0
+            total_spend = 0.0
+            for h in hours:
+                r = float(rev_by_hour.get(h, 0.0) or 0.0)
+                s = float(spend_by_hour.get(h, 0.0) or 0.0)
+                total_revenue += r
+                total_spend += s
+                revenue_series.append(round(r, 2))
+                spend_series.append(round(s, 2))
+                roi_series.append(round((((r - s) / s) * 100) if s > 0 else 0.0, 2))
+            result = {
+                'status': True,
+                'tanggal': tanggal_formatted,
+                'hours': hours,
+                'roi': roi_series,
+                'revenue': revenue_series,
+                'spend': spend_series,
+                'summary': {
+                    'total_revenue': round(total_revenue, 2),
+                    'total_spend': round(total_spend, 2),
+                    'roi_nett': round((((total_revenue - total_spend) / total_spend) * 100) if total_spend > 0 else 0.0, 2)
+                }
+            }
+            set_cached_data(cache_key, result, timeout=300)
+            return JsonResponse(result, safe=False)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
+
+class DashboardPortfolioPulseView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            is_ajax = False
+            try:
+                is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            except Exception:
+                pass
+            if not is_ajax:
+                is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+            if is_ajax:
+                return JsonResponse({'status': False, 'error': 'Sesi berakhir atau tidak valid. Silakan login ulang.'})
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            end_date = (req.GET.get('end_date') or req.GET.get('tanggal') or '').strip()
+            days_raw = req.GET.get('days', '14')
+            forecast_raw = req.GET.get('forecast_days', '3')
+
+            def parse_date(d):
+                try:
+                    return datetime.strptime(d, '%Y-%m-%d').date()
+                except (ValueError, TypeError):
+                    raise ValueError(f"Tanggal tidak valid: {d}")
+
+            end_dt = parse_date(end_date)
+
+            try:
+                days = int(days_raw)
+            except Exception:
+                days = 14
+            if days < 1:
+                days = 1
+            if days > 60:
+                days = 60
+
+            try:
+                forecast_days = int(forecast_raw)
+            except Exception:
+                forecast_days = 3
+            if forecast_days < 0:
+                forecast_days = 0
+            if forecast_days > 7:
+                forecast_days = 7
+
+            start_dt = end_dt - timedelta(days=days - 1)
+            start_date_formatted = start_dt.strftime('%Y-%m-%d')
+            end_date_formatted = end_dt.strftime('%Y-%m-%d')
+
+            cache_key = generate_cache_key(
+                'dashboard_portfolio_pulse',
+                start_date_formatted,
+                end_date_formatted,
+                str(days),
+                str(forecast_days),
+            )
+            cached = get_cached_data(cache_key)
+            if cached is not None:
+                return JsonResponse(cached, safe=False)
+
+            db = data_mysql()
+            engine = ''
+            try:
+                engine = (db._report_engine() or '').lower()
+            except Exception:
+                engine = ''
+
+            if engine in ('clickhouse', 'ch'):
+                sql_rev = """
+                    SELECT
+                        toDate(data_adx_country_tanggal) AS date,
+                        SUM(data_adx_country_revenue) AS revenue
+                    FROM data_adx_country
+                    WHERE toDate(data_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)
+                    GROUP BY date
+                    ORDER BY date ASC
+                """.strip()
+                sql_spend = """
+                    SELECT
+                        toDate(b.data_ads_country_tanggal) AS date,
+                        SUM(b.data_ads_country_spend) AS spend
+                    FROM data_ads_country b
+                    INNER JOIN (
+                        SELECT DISTINCT
+                            concat(
+                                arrayElement(splitByChar('.', data_adx_country_domain), 1),
+                                '.',
+                                arrayElement(splitByChar('.', data_adx_country_domain), 2),
+                                '.com'
+                            ) AS domain
+                        FROM data_adx_country
+                        WHERE toDate(data_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)
+                    ) d
+                        ON concat(
+                            arrayElement(splitByChar('.', b.data_ads_domain), 1),
+                            '.',
+                            arrayElement(splitByChar('.', b.data_ads_domain), 2),
+                            '.com'
+                        ) = d.domain
+                    WHERE toDate(b.data_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)
+                    GROUP BY date
+                    ORDER BY date ASC
+                """.strip()
+            else:
+                sql_rev = """
+                    SELECT
+                        DATE(b.data_adx_country_tanggal) AS date,
+                        SUM(b.data_adx_country_revenue) AS revenue
+                    FROM data_adx_country b
+                    WHERE b.data_adx_country_tanggal BETWEEN %s AND %s
+                    GROUP BY DATE(b.data_adx_country_tanggal)
+                    ORDER BY DATE(b.data_adx_country_tanggal) ASC
+                """.strip()
+                sql_spend = """
+                    SELECT
+                        DATE(b.data_ads_country_tanggal) AS date,
+                        SUM(b.data_ads_country_spend) AS spend
+                    FROM data_ads_country b
+                    INNER JOIN (
+                        SELECT DISTINCT
+                            CONCAT(SUBSTRING_INDEX(a.data_adx_country_domain, '.', 2), '.com') AS domain
+                        FROM data_adx_country a
+                        WHERE a.data_adx_country_tanggal BETWEEN %s AND %s
+                    ) d
+                        ON CONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') = d.domain
+                    WHERE b.data_ads_country_tanggal BETWEEN %s AND %s
+                    GROUP BY DATE(b.data_ads_country_tanggal)
+                    ORDER BY DATE(b.data_ads_country_tanggal) ASC
+                """.strip()
+
+            if not db.execute_query(sql_rev, (start_date_formatted, end_date_formatted)):
+                raise Exception('Gagal mengambil data revenue')
+            rev_rows = db.fetch_all() or []
+            db.commit()
+
+            if not db.execute_query(sql_spend, (start_date_formatted, end_date_formatted, start_date_formatted, end_date_formatted)):
+                raise Exception('Gagal mengambil data spend')
+            spend_rows = db.fetch_all() or []
+            db.commit()
+
+            rev_by_date = {}
+            for r in rev_rows:
+                k = str(r.get('date') or '').strip()
+                if not k:
+                    continue
+                rev_by_date[k] = rev_by_date.get(k, 0.0) + float(r.get('revenue', 0) or 0)
+
+            spend_by_date = {}
+            for r in spend_rows:
+                k = str(r.get('date') or '').strip()
+                if not k:
+                    continue
+                spend_by_date[k] = spend_by_date.get(k, 0.0) + float(r.get('spend', 0) or 0)
+
+            dates = []
+            revenue = []
+            spend = []
+            roi = []
+            for i in range(days):
+                d = (start_dt + timedelta(days=i)).strftime('%Y-%m-%d')
+                dates.append(d)
+                r = float(rev_by_date.get(d, 0.0) or 0.0)
+                s = float(spend_by_date.get(d, 0.0) or 0.0)
+                revenue.append(round(r, 2))
+                spend.append(round(s, 2))
+                roi.append(round((((r - s) / s) * 100) if s > 0 else 0.0, 2))
+
+            def avg_last(vals, k=3):
+                xs = [float(v or 0.0) for v in (vals or []) if v is not None]
+                if not xs:
+                    return 0.0
+                xs = xs[-k:] if len(xs) > k else xs
+                return sum(xs) / float(len(xs))
+
+            spend_nonzero = [float(v) for v in spend if (v is not None and float(v) > 0)]
+            spend_base = avg_last(spend_nonzero if spend_nonzero else spend, 3)
+
+            roi_nonzero = []
+            for i in range(len(roi)):
+                try:
+                    if float(spend[i] or 0) > 0:
+                        roi_nonzero.append(float(roi[i] or 0.0))
+                except Exception:
+                    pass
+            roi_base = avg_last(roi_nonzero if roi_nonzero else roi, 3)
+
+            forecast_spend = [round(float(spend_base or 0.0), 2) for _ in range(forecast_days)]
+            forecast_roi = [round(float(roi_base or 0.0), 2) for _ in range(forecast_days)]
+
+            result = {
+                'status': True,
+                'start_date': start_date_formatted,
+                'end_date': end_date_formatted,
+                'days': days,
+                'forecast_days': forecast_days,
+                'dates': dates,
+                'revenue': revenue,
+                'spend': spend,
+                'roi': roi,
+                'forecast': {
+                    'spend': forecast_spend,
+                    'roi': forecast_roi
+                }
+            }
+
+            set_cached_data(cache_key, result, timeout=300)
+            return JsonResponse(result, safe=False)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
+
 class RoiMonitoringDomainHourlyHeatmapView(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
@@ -5053,7 +5597,6 @@ class RoiMonitoringDomainHourlyHeatmapView(View):
             return JsonResponse(result, safe=False)
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
-
 
 class RoiHourlyAdxFilterView(View):
     def dispatch(self, request, *args, **kwargs):
@@ -5774,6 +6317,245 @@ class RoiMonitoringDomainDataView(View):
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
 
+class RoiMonitoringDomainCampaignsView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            account_ads = (req.GET.get('account_ads') or '').strip()
+            site_name = (req.GET.get('site_name') or '').strip()
+            start_date = (req.GET.get('start_date') or '').strip()
+            end_date = (req.GET.get('end_date') or '').strip()
+
+            if not end_date:
+                end_date = datetime.now().strftime('%Y-%m-%d')
+            if not start_date:
+                try:
+                    end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+                except Exception:
+                    end_dt = datetime.now().date()
+                    end_date = end_dt.strftime('%Y-%m-%d')
+                start_date = (end_dt - timedelta(days=6)).strftime('%Y-%m-%d')
+
+            if not account_ads or not site_name:
+                return JsonResponse({'status': False, 'error': 'account_ads dan site_name wajib diisi', 'campaigns': []})
+
+            accounts = (data_mysql().master_account_ads() or {}).get('data') or []
+            match = None
+            for a in (accounts or []):
+                if str((a or {}).get('account_name') or '').strip() == account_ads:
+                    match = a
+                    break
+            if match is None:
+                key = account_ads.lower()
+                for a in (accounts or []):
+                    if str((a or {}).get('account_name') or '').strip().lower() == key:
+                        match = a
+                        break
+            if match is None:
+                return JsonResponse({'status': False, 'error': 'Account Ads tidak ditemukan', 'campaigns': []})
+
+            access_token = str((match or {}).get('access_token') or '')
+            account_id = str((match or {}).get('account_id') or '')
+            account_name = str((match or {}).get('account_name') or account_ads)
+            if not access_token or not account_id:
+                return JsonResponse({'status': False, 'error': 'Access token / account_id kosong', 'campaigns': []})
+
+            rs = fetch_data_insights_account(
+                str(start_date),
+                access_token,
+                account_id,
+                str(site_name),
+                account_name,
+                str(end_date),
+            )
+            items = (rs or {}).get('data') or []
+            by_id = {}
+            for it in (items or []):
+                cid = str((it or {}).get('campaign_id') or '').strip()
+                if not cid:
+                    continue
+                try:
+                    spend = float((it or {}).get('spend') or 0.0)
+                except Exception:
+                    spend = 0.0
+                cur = by_id.get(cid)
+                cur_spend = 0.0
+                if isinstance(cur, dict):
+                    try:
+                        cur_spend = float(cur.get('spend') or 0.0)
+                    except Exception:
+                        cur_spend = 0.0
+                if (cur is None) or (spend > cur_spend):
+                    try:
+                        dbgt = float((it or {}).get('daily_budget') or 0.0)
+                    except Exception:
+                        dbgt = 0.0
+                    by_id[cid] = {
+                        'campaign_id': cid,
+                        'campaign_name': str((it or {}).get('campaign_name') or cid),
+                        'daily_budget': dbgt,
+                        'spend': spend,
+                    }
+
+            campaigns = list(by_id.values())
+            try:
+                campaigns.sort(key=lambda x: float((x or {}).get('spend') or 0.0), reverse=True)
+            except Exception:
+                pass
+
+            return JsonResponse({'status': True, 'campaigns': campaigns, 'start_date': start_date, 'end_date': end_date}, safe=False)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e), 'campaigns': []}, safe=False)
+
+@method_decorator(csrf_exempt, name='dispatch')
+class RoiMonitoringDomainUpdateDailyBudgetCampaignView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        try:
+            account_ads = (req.POST.get('account_ads') or '').strip()
+            campaign_id = (req.POST.get('campaign_id') or '').strip()
+            raw = req.POST.get('daily_budget', '0')
+            cleaned = raw.replace('Rp', '').replace('.', '').replace(',', '').strip()
+            try:
+                daily_budget = int(cleaned)
+            except Exception:
+                daily_budget = 0
+
+            if not account_ads or not campaign_id:
+                return JsonResponse({'status': False, 'error': 'account_ads dan campaign_id wajib diisi'})
+            if daily_budget <= 0:
+                return JsonResponse({'status': False, 'error': 'daily_budget tidak valid'})
+
+            accounts = (data_mysql().master_account_ads() or {}).get('data') or []
+            match = None
+            for a in (accounts or []):
+                if str((a or {}).get('account_name') or '').strip() == account_ads:
+                    match = a
+                    break
+            if match is None:
+                key = account_ads.lower()
+                for a in (accounts or []):
+                    if str((a or {}).get('account_name') or '').strip().lower() == key:
+                        match = a
+                        break
+            if match is None:
+                return JsonResponse({'status': False, 'error': 'Account Ads tidak ditemukan'})
+
+            access_token = str((match or {}).get('access_token') or '')
+            account_id = str((match or {}).get('account_id') or '')
+            if not access_token or not account_id:
+                return JsonResponse({'status': False, 'error': 'Access token / account_id kosong'})
+
+            data = fetch_daily_budget_per_campaign(
+                access_token,
+                account_id,
+                str(campaign_id),
+                int(daily_budget),
+            )
+
+            if (data or {}).get('daily_budget') is not None:
+                from .utils import invalidate_cache_on_data_update
+                invalidate_cache_on_data_update(account_id, campaign_id, 'budget_update')
+
+            return JsonResponse({'status': True, 'daily_budget': (data or {}).get('daily_budget')})
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
+
+@method_decorator(csrf_exempt, name='dispatch')
+class RoiMonitoringDomainUpdateCampaignStatusCampaignView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        try:
+            account_ads = (req.POST.get('account_ads') or '').strip()
+            status = (req.POST.get('status') or 'PAUSED').strip().upper() or 'PAUSED'
+
+            campaign_id = (req.POST.get('campaign_id') or '').strip()
+            campaign_ids_json = (req.POST.get('campaign_ids') or '').strip()
+
+            campaign_ids = []
+            if campaign_ids_json:
+                try:
+                    import json
+                    parsed = json.loads(campaign_ids_json)
+                    if isinstance(parsed, list):
+                        campaign_ids = [str(x).strip() for x in parsed if str(x).strip()]
+                except Exception:
+                    campaign_ids = []
+
+            if campaign_id:
+                campaign_ids = [campaign_id]
+
+            if not account_ads:
+                return JsonResponse({'status': False, 'error': 'account_ads wajib diisi'})
+            if not campaign_ids:
+                return JsonResponse({'status': False, 'error': 'campaign_id(s) wajib diisi'})
+            if status not in ['ACTIVE', 'PAUSED']:
+                return JsonResponse({'status': False, 'error': 'status tidak valid'})
+
+            accounts = (data_mysql().master_account_ads() or {}).get('data') or []
+            match = None
+            for a in (accounts or []):
+                if str((a or {}).get('account_name') or '').strip() == account_ads:
+                    match = a
+                    break
+            if match is None:
+                key = account_ads.lower()
+                for a in (accounts or []):
+                    if str((a or {}).get('account_name') or '').strip().lower() == key:
+                        match = a
+                        break
+            if match is None:
+                return JsonResponse({'status': False, 'error': 'Account Ads tidak ditemukan'})
+
+            access_token = str((match or {}).get('access_token') or '')
+            account_id = str((match or {}).get('account_id') or '')
+            if not access_token or not account_id:
+                return JsonResponse({'status': False, 'error': 'Access token / account_id kosong'})
+
+            success_count = 0
+            failed = []
+            last_status = None
+
+            for cid in campaign_ids:
+                try:
+                    data = fetch_status_per_campaign(str(access_token), str(cid), str(status))
+                    if isinstance(data, dict) and ('error' not in data):
+                        success_count += 1
+                        last_status = data.get('status')
+                        try:
+                            from .utils import invalidate_cache_on_data_update
+                            invalidate_cache_on_data_update(account_id, cid, 'status_update')
+                        except Exception:
+                            pass
+                    else:
+                        failed.append({'campaign_id': cid, 'error': (data or {}).get('error') if isinstance(data, dict) else 'unknown_error'})
+                except Exception as e:
+                    failed.append({'campaign_id': cid, 'error': str(e)})
+
+            if success_count <= 0:
+                return JsonResponse({'status': False, 'error': 'Gagal mengupdate status campaign', 'failed': failed}, safe=False)
+
+            return JsonResponse({
+                'status': True,
+                'updated': success_count,
+                'failed': failed,
+                'campaign_status': last_status or status,
+            }, safe=False)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
+
 # ===== ROI Monitoring Country =====
 
 class RoiMonitoringCountryView(View):
@@ -6015,6 +6797,7 @@ class RoiMonitoringCountryDataView(View):
             adx_payload = data_adx.get('hasil') if isinstance(data_adx, dict) and data_adx.get('hasil') else data_adx
             fb_payload = (data_facebook.get('hasil') if isinstance(data_facebook, dict) and data_facebook.get('hasil') else {'status': True, 'data': []})
             result = process_roi_monitoring_country_data(adx_payload, fb_payload)
+            result['daily_rows'] = build_roi_monitoring_country_daily_rows(adx_payload, fb_payload)
             # Filter hasil berdasarkan negara yang dipilih jika ada
             if countries_list and result.get('status') and result.get('data'):
                 # Parse selected countries dari format "Country Name (CODE)" menjadi list nama negara

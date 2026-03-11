@@ -161,6 +161,113 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
       transform: none !important;
       margin-top: 0 !important;
   }
+
+  #roiTemporalHeatmapSection .roi-heatmap-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #0f172a;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-title .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #f59e0b;
+      display: inline-block;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 12px;
+      padding: 8px 0 12px;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-cell {
+      border-radius: 14px;
+      background: #f1f5f9;
+      padding: 10px 8px;
+      text-align: center;
+      box-shadow: 0 1px 0 rgba(15,23,42,.04), 0 6px 18px rgba(15,23,42,.05);
+      user-select: none;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-hour {
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(15,23,42,.55);
+      margin-bottom: 4px;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-value {
+      font-size: 14px;
+      font-weight: 800;
+      color: #0f172a;
+      line-height: 1.2;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-note {
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(15,23,42,.45);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-legend {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(15,23,42,.55);
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+      display: inline-block;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-tooltip {
+      position: fixed;
+      z-index: 2100;
+      display: none;
+      background: rgba(15, 23, 42, 0.96);
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 12px;
+      box-shadow: 0 14px 40px rgba(0,0,0,.35);
+      min-width: 170px;
+      pointer-events: none;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-tooltip .tt-hour {
+      font-size: 11px;
+      opacity: .75;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+  }
+  #roiTemporalHeatmapSection .roi-heatmap-tooltip .tt-val {
+      font-size: 16px;
+      font-weight: 900;
+  }
+
+  html[data-theme="dark"] #roiTemporalHeatmapSection .roi-heatmap-title {
+      color: #e5e7eb;
+  }
+  html[data-theme="dark"] #roiTemporalHeatmapSection .roi-heatmap-note {
+      color: rgba(226, 232, 240, 0.7);
+  }
+  html[data-theme="dark"] #roiTemporalHeatmapSection .roi-heatmap-legend {
+      color: rgba(226, 232, 240, 0.8);
+  }
 </style>
 {% endblock %}
 {% block content %}
@@ -349,6 +456,54 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         </div>
                         <div class="metric-card-icon" aria-hidden="true">
                             <i class="bi bi-graph-up-arrow"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-3" id="roiCountryDailyChartSection" style="display:none;">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
+                            <div class="font-weight-bold"><i class="bi bi-graph-up-arrow"></i> Perbandingan Spend, Earning, Net Profit & ROI (Daily)</div>
+                            <div style="min-width: 240px;">
+                                <select class="form-control" id="roiHeatmapCountrySelect"></select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div style="height: 360px;">
+                            <canvas id="roiCountryDailyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-3" id="roiTemporalHeatmapSection" style="display:none;">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <div class="d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
+                            <div class="roi-heatmap-title">
+                                <span class="dot" aria-hidden="true"></span>
+                                <span>TEMPORAL ROI HEATMAP (PER JAM - <span id="roiTemporalHeatmapLabel">HARI INI</span>)</span>
+                            </div>
+                            <div class="text-muted" style="font-size:12px" id="roiCountryDailyChartMeta"></div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="roiTemporalHeatmapTooltip" class="roi-heatmap-tooltip"></div>
+                        <div id="roiTemporalHeatmapGrid" class="roi-heatmap-grid"></div>
+                        <div class="roi-heatmap-foot">
+                            <div class="roi-heatmap-note">* darker nodes represent peak performance windows</div>
+                            <div class="roi-heatmap-legend">
+                                <span><span class="roi-heatmap-swatch" style="background:#e6f0ff"></span> Low</span>
+                                <span><span class="roi-heatmap-swatch" style="background:#93c5fd"></span> Target</span>
+                                <span><span class="roi-heatmap-swatch" style="background:#1d4ed8"></span> Peak</span>
+                                <span><span class="roi-heatmap-swatch" style="background:#fee2e2"></span> Loss</span>
+                                <span><span class="roi-heatmap-swatch" style="background:#dc2626"></span> Deep Loss</span>
+                            </div>
                         </div>
                     </div>
                 </div>

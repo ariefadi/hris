@@ -21,6 +21,8 @@ urlpatterns = [
     # DASHBOARD
     path('admin/dashboard', views.DashboardAdmin.as_view(), name='dashboard_admin'),
     path('admin/dashboard_data', views.DashboardData.as_view(), name='dashboard_data'),
+    path('admin/dashboard_hourly_heatmap', views.DashboardDomainHourlyHeatmapView.as_view()),
+    path('admin/dashboard_portfolio_pulse', views.DashboardPortfolioPulseView.as_view()),
     # Portal switching
     path('admin/switch_portal/<str:portal_id>', views.SwitchPortal.as_view(), name='switch_portal'),
  
@@ -125,9 +127,13 @@ urlpatterns = [
     path('admin/monitoring_domain', views.RoiMonitoringDomainView.as_view(), name='roi_monitoring_domain'),
     path('admin/page_monitoring_domain', views.RoiMonitoringDomainDataView.as_view()),
     path('admin/page_monitoring_domain_hourly_heatmap', views.RoiMonitoringDomainHourlyHeatmapView.as_view()),
+    path('admin/page_monitoring_domain_campaigns', views.RoiMonitoringDomainCampaignsView.as_view()),
+    path('admin/update_daily_budget_monitoring_domain_campaign', views.RoiMonitoringDomainUpdateDailyBudgetCampaignView.as_view()),
+    path('admin/update_campaign_status_monitoring_domain_campaign', views.RoiMonitoringDomainUpdateCampaignStatusCampaignView.as_view()),
     # Menu ROI Monitoring Country
     path('admin/monitoring_country', views.RoiMonitoringCountryView.as_view(), name='roi_monitoring_country'),
     path('admin/page_monitoring_country', views.RoiMonitoringCountryDataView.as_view()),
+    path('admin/page_monitoring_country_hourly_heatmap', views.RoiMonitoringCountryHourlyHeatmapView.as_view()),
     # Menu ROI Rekapitulasi
     path('admin/rekapitulasi_earning', views.RoiRekapitulasiView.as_view(), name='roi_rekapitulasi'),
     path('admin/page_rekapitulasi_earning', views.RoiRekapitulasiDataView.as_view()),

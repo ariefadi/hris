@@ -344,6 +344,177 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-prevbutton:h
     border-radius: 16px !important;
     box-shadow: 0 0 0 6px var(--tour-ring) !important;
 }
+
+.dashboard-recap-tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 6px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.04);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+}
+.dashboard-recap-tabs .btn {
+    border-radius: 999px;
+    font-weight: 900;
+    letter-spacing: .03em;
+    padding: 6px 12px;
+    line-height: 1.2;
+    border: 1px solid transparent;
+    background: transparent;
+    color: #334155;
+    box-shadow: none;
+}
+.dashboard-recap-tabs .btn.btn-primary {
+    background: #ffffff;
+    color: #0f172a;
+    border-color: rgba(15, 23, 42, 0.10);
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.10);
+}
+.dashboard-recap-tabs .btn.btn-outline-primary {
+    background: transparent;
+    border-color: transparent;
+}
+.dashboard-recap-tabs .btn:hover {
+    background: rgba(255, 255, 255, 0.55);
+}
+.dashboard-recap-tabs .btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.18);
+}
+
+html[data-theme="dark"] .dashboard-recap-tabs {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.10);
+}
+html[data-theme="dark"] .dashboard-recap-tabs .btn {
+    color: rgba(233, 236, 239, 0.90);
+}
+html[data-theme="dark"] .dashboard-recap-tabs .btn.btn-primary {
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.18);
+    box-shadow: none;
+}
+html[data-theme="dark"] .dashboard-recap-tabs .btn:hover {
+    background: rgba(255, 255, 255, 0.10);
+}
+
+.dashboard-recap-card { border-radius:16px; border:1px solid rgba(15,23,42,0.08); overflow:hidden; }
+.dashboard-recap-header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.metric-card.spend { background: linear-gradient(135deg, #ff4b1f 0%, #ff9068 100%); }
+.metric-card.revenue { background: linear-gradient(135deg, #7f00ff 0%, #e100ff 100%); }
+.metric-card.net { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+.metric-card.roi { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.dashboard-recap-table th, .dashboard-recap-table td { vertical-align: middle; }
+
+#dashboardRecapTemporalCard .roi-heatmap-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: #0f172a;
+}
+#dashboardRecapTemporalCard .roi-heatmap-title .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: #f59e0b;
+    display: inline-block;
+}
+#dashboardRecapTemporalCard .roi-heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 12px;
+    padding: 8px 0 12px;
+}
+#dashboardRecapTemporalCard .roi-heatmap-cell {
+    border-radius: 14px;
+    background: #f1f5f9;
+    padding: 10px 8px;
+    text-align: center;
+    box-shadow: 0 1px 0 rgba(15,23,42,.04), 0 6px 18px rgba(15,23,42,.05);
+    user-select: none;
+}
+#dashboardRecapTemporalCard .roi-heatmap-hour {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(15,23,42,.55);
+    margin-bottom: 4px;
+}
+#dashboardRecapTemporalCard .roi-heatmap-value {
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+}
+#dashboardRecapTemporalCard .roi-heatmap-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+#dashboardRecapTemporalCard .roi-heatmap-note {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(15,23,42,.45);
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+#dashboardRecapTemporalCard .roi-heatmap-legend {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(15,23,42,.55);
+}
+#dashboardRecapTemporalCard .roi-heatmap-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    display: inline-block;
+}
+#dashboardRecapTemporalTooltip {
+    position: fixed;
+    z-index: 99999;
+    display: none;
+    background: rgba(15, 23, 42, 0.96);
+    color: #fff;
+    padding: 10px 12px;
+    border-radius: 12px;
+    box-shadow: 0 14px 40px rgba(0,0,0,.35);
+    min-width: 170px;
+    pointer-events: none;
+}
+#dashboardRecapTemporalTooltip .tt-hour {
+    font-size: 11px;
+    opacity: .75;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+#dashboardRecapTemporalTooltip .tt-val {
+    font-size: 16px;
+    font-weight: 900;
+}
+
+html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-title {
+    color: #e5e7eb;
+}
+html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-note {
+    color: rgba(226, 232, 240, 0.7);
+}
+html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
+    color: rgba(226, 232, 240, 0.8);
+}
 </style>
 {% endblock %}
 
@@ -360,7 +531,107 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-prevbutton:h
             <div id="error-message" class="error-message" style="display: none;">
                 <strong>Error:</strong> <span id="error-text"></span>
             </div>
-            <!-- Dashboard Content -->
+
+            <div id="dashboardRecapRoot" style="display:none;">
+                <div class="card dashboard-card dashboard-recap-card">
+                    <div class="card-header">
+                        <div class="dashboard-recap-header">
+                            <div>
+                                <div style="font-weight:900;letter-spacing:.02em;">Dashboard Earning Adx Manager & AdSense</div>
+                                <div class="text-muted" style="font-size:12px;">Default: hari ini</div>
+                            </div>
+                            <div class="d-flex align-items-center" style="gap:10px;flex-wrap:wrap;">
+                                <label for="dashboardRecapDate" class="mb-0" style="font-weight:800;font-size:12px;letter-spacing:.06em;text-transform:uppercase;">Filter Tanggal</label>
+                                <input id="dashboardRecapDate" type="text" class="form-control datepicker-input" style="min-width: 180px;" placeholder="YYYY-MM-DD" autocomplete="off" />
+                            </div>
+                        </div>
+                        <div class="mt-2 dashboard-recap-tabs" id="dashboardRecapSourceTabs" role="tablist" aria-label="Rekap source">
+                            <button type="button" class="btn btn-sm btn-primary" data-source="adx">Summary AdX Manager</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-source="adsense">Summary AdSense Manager</button>
+                        </div>
+                        <div class="mt-2 dashboard-recap-tabs" id="dashboardRecapDimTabs" role="tablist" aria-label="Rekap dimensi">
+                            <button type="button" class="btn btn-sm btn-primary" data-dim="domain">Per Domain</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-dim="country">Per Negara</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="dashboardRecapSummaryRow">
+                            <div class="col-12 col-sm-6 col-md-3"><div class="metric-card spend"><div class="metric-card-inner"><div><div class="metric-label">Total Spend</div><div class="metric-value" id="recapTotalSpend">Rp 0</div></div><div class="metric-card-icon" aria-hidden="true"><i class="bi bi-wallet2"></i></div></div></div></div>
+                            <div class="col-12 col-sm-6 col-md-3"><div class="metric-card revenue"><div class="metric-card-inner"><div><div class="metric-label">Total Pendapatan</div><div class="metric-value" id="recapTotalRevenue">Rp 0</div></div><div class="metric-card-icon" aria-hidden="true"><i class="bi bi-currency-dollar"></i></div></div></div></div>
+                            <div class="col-12 col-sm-6 col-md-3"><div class="metric-card net"><div class="metric-card-inner"><div><div class="metric-label">Total Pendapatan Bersih</div><div class="metric-value" id="recapTotalNet">Rp 0</div></div><div class="metric-card-icon" aria-hidden="true"><i class="bi bi-graph-up"></i></div></div></div></div>
+                            <div class="col-12 col-sm-6 col-md-3"><div class="metric-card roi"><div class="metric-card-inner"><div><div class="metric-label">ROI Nett</div><div class="metric-value" id="recapTotalRoi">0%</div></div><div class="metric-card-icon" aria-hidden="true"><i class="bi bi-bullseye"></i></div></div></div></div>
+                        </div>
+
+                        <div class="card dashboard-card mt-2" id="dashboardPulseCard" style="border-radius:16px;">
+                            <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
+                                <div style="font-weight:900;"><i class="bi bi-activity me-2"></i> Grafik Matrik Data (14 Hari + Prediksi 3 Hari)</div>
+                                <div class="d-flex align-items-center" style="gap:10px;flex-wrap:wrap;">
+                                    <div class="dashboard-recap-tabs" id="dashboardPulseTabs" role="tablist" aria-label="Portfolio Pulse">
+                                        <button type="button" class="btn btn-sm btn-primary" data-metric="roi">ROI %</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-metric="spend">SPEND</button>
+                                    </div>
+                                    <div class="text-muted" style="font-size:12px" id="dashboardPulseMeta"></div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container" style="height: 340px; margin: 0;">
+                                    <canvas id="dashboardPortfolioPulseChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card dashboard-card mt-2" style="border-radius:16px;">
+                            <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
+                                <div style="font-weight:900;"><i class="bi bi-bar-chart-line me-2"></i> Perbandingan Spend, Pendapatan, Pendapatan Bersih & ROI</div>
+                                <div class="text-muted" style="font-size:12px" id="dashboardRecapChartMeta"></div>
+                            </div>
+                            <div class="card-body">
+                                <div class="chart-container" style="height: 340px; margin: 0;">
+                                    <canvas id="dashboardRecapChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card dashboard-card mt-3" id="dashboardRecapTemporalCard" style="border-radius:16px;display:none;">
+                            <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
+                                <div class="roi-heatmap-title"><span class="dot" aria-hidden="true"></span><span>TEMPORAL ROI HEATMAP (PER JAM - <span id="dashboardRecapTemporalLabel">HARI INI</span>)</span></div>
+                                <div class="text-muted" style="font-size:12px" id="dashboardRecapTemporalMeta"></div>
+                            </div>
+                            <div class="card-body">
+                                <div id="dashboardRecapTemporalHint" class="text-muted" style="display:none;font-size:12px;"></div>
+                                <div id="dashboardRecapTemporalChart"></div>
+                            </div>
+                        </div>
+
+                        <div class="card dashboard-card mt-3" style="border-radius:16px;">
+                            <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
+                                <div style="font-weight:900;"><i class="bi bi-table me-2"></i> Detail Data</div>
+                                <div class="text-muted" style="font-size:12px" id="dashboardRecapTableMeta"></div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-bordered mb-0 dashboard-recap-table" id="dashboardRecapTable">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:48px" class="text-center">No</th>
+                                                <th id="dashboardRecapThName">Domain</th>
+                                                <th id="dashboardRecapThCode" style="width:90px;display:none;">Kode</th>
+                                                <th class="text-end" style="width:170px;">Spend</th>
+                                                <th class="text-end" style="width:170px;">Pendapatan</th>
+                                                <th class="text-end" style="width:190px;">Pendapatan Bersih</th>
+                                                <th class="text-end" style="width:110px;">ROI</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="dashboardRecapTbody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dashboard Content (lama, tidak lagi dipakai) -->
             <div id="dashboard-content" style="display: none;">
                 <div class="d-flex justify-content-end mb-2" id="dashboard-tour-trigger">
                     <button type="button" class="btn btn-sm btn-outline-primary dashboard-tour-btn" id="btnDashboardTour">
@@ -581,12 +852,14 @@ let earningsComparisonChart;
 
 function showError(message) {
     const loading = document.getElementById('loading');
-    const content = document.getElementById('dashboard-content');
+    const legacy = document.getElementById('dashboard-content');
+    const recap = document.getElementById('dashboardRecapRoot');
     const box = document.getElementById('error-message');
     const text = document.getElementById('error-text');
 
     if (loading) loading.style.display = 'none';
-    if (content) content.style.display = 'none';
+    if (legacy) legacy.style.display = 'none';
+    if (recap) recap.style.display = 'none';
     if (box) box.style.display = 'block';
     if (text) text.textContent = message || 'Unknown error';
 }
@@ -1727,28 +2000,637 @@ function startDashboardTour() {
 
     tour.start();
 }
-// Initialize dashboard
-document.addEventListener('DOMContentLoaded', function() {
-    const tourBtn = document.getElementById('btnDashboardTour');
-    if (tourBtn) {
-        tourBtn.addEventListener('click', function() {
-            startDashboardTour();
+function initDashboardRecap() {
+    const loading = document.getElementById('loading');
+    const box = document.getElementById('error-message');
+    const root = document.getElementById('dashboardRecapRoot');
+    const dateEl = document.getElementById('dashboardRecapDate');
+    const legacy = document.getElementById('dashboard-content');
+    if (legacy) legacy.style.display = 'none';
+
+    if (!root || !dateEl) return showError('UI rekap tidak lengkap');
+    if (typeof Chart === 'undefined') return showError('Chart.js library is not loaded.');
+
+    const fmtIdr = (v) => (Math.round(Number(v)||0)).toLocaleString('id-ID', { style:'currency', currency:'IDR', maximumFractionDigits:0 });
+    const fmtPct = (v) => `${(Number(v)||0).toFixed(2)}%`;
+    const esc = (s) => String(s||'').replace(/</g,'&lt;');
+    const today = () => {
+        const d = new Date();
+        const mm = String(d.getMonth()+1).padStart(2,'0');
+        const dd = String(d.getDate()).padStart(2,'0');
+        return `${d.getFullYear()}-${mm}-${dd}`;
+    };
+
+    function setActive(groupId, attr, val) {
+        const g = document.getElementById(groupId);
+        if (!g) return;
+        g.querySelectorAll('button').forEach(b => {
+            const on = String(b.getAttribute(attr)) === String(val);
+            b.classList.toggle('btn-primary', on);
+            b.classList.toggle('btn-outline-primary', !on);
         });
     }
-    // Check if Chart.js is loaded
-    if (typeof Chart === 'undefined') {
-        showError('Chart.js library is not loaded. Please refresh the page.');
-        return;
+
+    function getState() {
+        const sBtn = document.querySelector('#dashboardRecapSourceTabs button.btn-primary');
+        const dBtn = document.querySelector('#dashboardRecapDimTabs button.btn-primary');
+        return {
+            source: sBtn ? (sBtn.getAttribute('data-source')||'adx') : 'adx',
+            dim: dBtn ? (dBtn.getAttribute('data-dim')||'domain') : 'domain',
+            date: String(dateEl.value||'').trim()
+        };
     }
-    // Check if Highcharts is loaded
-    if (typeof Highcharts === 'undefined') {
-        showError('Highcharts library is not loaded. Please refresh the page.');
-        return;
+
+    function endpoint(st) {
+        const ymd = st.date;
+        if (st.source === 'adsense') {
+            return st.dim === 'country'
+                ? `/management/admin/page_monitoring_country_adsense?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adsense=&selected_domains=&selected_countries=`
+                : `/management/admin/page_monitoring_domain_adsense?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adsense=&selected_domains=`;
+        }
+        return st.dim === 'country'
+            ? `/management/admin/page_monitoring_country?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adx=&selected_domains=&selected_countries=`
+            : `/management/admin/page_monitoring_domain?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adx=&selected_domains=`;
     }
-    fetchDashboardData();
-    // Auto-refresh every 5 minutes
-    setInterval(fetchDashboardData, 5 * 60 * 1000);
-    initRoiHourlyModal();
+
+    function rowsFrom(dim, arr) {
+        const out = (arr||[]).map(r => {
+            const spend = Number(r?.spend)||0;
+            const revenue = Number(r?.revenue)||0;
+            const net = (r && r.net_profit != null) ? (Number(r.net_profit)||0) : (revenue - spend);
+            const roi = (r && r.roi != null) ? (Number(r.roi)||0) : (spend>0 ? ((revenue-spend)/spend*100) : 0);
+            const name = dim === 'country' ? (r?.country||'-') : (r?.site_name||r?.site||r?.subdomain||'-');
+            const code = dim === 'country' ? (r?.country_code||'') : '';
+            return { name:String(name||'-'), code:String(code||''), spend, revenue, net, roi };
+        });
+        out.sort((a,b) => (b.revenue||0) - (a.revenue||0));
+        return out;
+    }
+
+    function renderSummary(s) {
+        const spend = Number(s?.total_spend)||0;
+        const rev = Number(s?.total_revenue)||0;
+        const net = (s && s.total_net_profit != null) ? (Number(s.total_net_profit)||0) : (rev - spend);
+        const roi = (s && s.roi_nett != null) ? (Number(s.roi_nett)||0)
+            : (s && s.total_roi != null) ? (Number(s.total_roi)||0)
+            : (spend>0 ? ((rev-spend)/spend*100) : 0);
+        document.getElementById('recapTotalSpend').textContent = fmtIdr(spend);
+        document.getElementById('recapTotalRevenue').textContent = fmtIdr(rev);
+        document.getElementById('recapTotalNet').textContent = fmtIdr(net);
+        document.getElementById('recapTotalRoi').textContent = fmtPct(roi);
+    }
+
+    function renderTable(dim, rows) {
+        const thName = document.getElementById('dashboardRecapThName');
+        const thCode = document.getElementById('dashboardRecapThCode');
+        if (thName) thName.textContent = dim === 'country' ? 'Nama Negara' : 'Domain';
+
+        const data = (rows || []).map((r, i) => {
+            return [
+                i + 1,
+                esc(r.name),
+                esc(r.code || ''),
+                fmtIdr(r.spend),
+                fmtIdr(r.revenue),
+                fmtIdr(r.net),
+                fmtPct(r.roi)
+            ];
+        });
+
+        const metaEl = document.getElementById('dashboardRecapTableMeta');
+        if (metaEl) metaEl.textContent = `${rows.length} baris`;
+
+        const hasDt = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.DataTable === 'function');
+        const tableEl = document.getElementById('dashboardRecapTable');
+        const tbody = document.getElementById('dashboardRecapTbody');
+        if (!tableEl || !tbody) return;
+
+        if (!hasDt) {
+            if (thCode) thCode.style.display = dim === 'country' ? '' : 'none';
+            tbody.innerHTML = '';
+            data.forEach(row => {
+                const tr = document.createElement('tr');
+                const codeCell = dim === 'country' ? `<td class="text-center">${row[2]}</td>` : '';
+                tr.innerHTML = `
+                    <td class="text-center">${row[0]}</td>
+                    <td>${row[1]}</td>
+                    ${codeCell}
+                    <td class="text-end">${row[3]}</td>
+                    <td class="text-end">${row[4]}</td>
+                    <td class="text-end">${row[5]}</td>
+                    <td class="text-end">${row[6]}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            return;
+        }
+
+        const $table = jQuery(tableEl);
+        const isInit = jQuery.fn.DataTable.isDataTable(tableEl);
+
+        if (!isInit) {
+            window.dashboardRecapDt = $table.DataTable({
+                data: data,
+                paging: true,
+                pageLength: 10,
+                lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
+                lengthChange: true,
+                searching: true,
+                info: true,
+                ordering: false,
+                autoWidth: false,
+                responsive: true,
+                language: {
+                    lengthMenu: 'Tampilkan _MENU_ data',
+                    search: 'Cari:',
+                    info: 'Menampilkan _START_ - _END_ dari _TOTAL_ data',
+                    infoEmpty: 'Tidak ada data',
+                    zeroRecords: 'Data tidak ditemukan',
+                    paginate: { previous: 'Sebelumnya', next: 'Berikutnya' }
+                },
+                columnDefs: [
+                    { targets: 0, className: 'text-center', width: '48px' },
+                    { targets: [3,4,5,6], className: 'text-end' },
+                    { targets: 2, className: 'text-center', width: '90px', visible: (dim === 'country') }
+                ]
+            });
+        } else {
+            const dt = window.dashboardRecapDt || $table.DataTable();
+            dt.clear();
+            dt.rows.add(data);
+            dt.draw(false);
+            dt.column(2).visible(dim === 'country', false);
+        }
+
+        if (thCode) thCode.style.display = dim === 'country' ? '' : 'none';
+    }
+
+    function renderChart(dim, rows, meta) {
+        const canvas = document.getElementById('dashboardRecapChart');
+        const ctx = canvas.getContext('2d');
+        const top = rows.slice(0, 12);
+        const labels = top.map(r => dim==='country' ? `${r.name} (${r.code||''})` : r.name);
+        if (window.dashboardRecapChart?.destroy) window.dashboardRecapChart.destroy();
+        window.dashboardRecapChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    { label:'Spend', data: top.map(r=>Math.round(r.spend||0)), backgroundColor:'rgba(239,83,80,0.28)', borderColor:'rgba(239,83,80,0.9)', borderWidth:1, yAxisID:'yMoney' },
+                    { label:'Pendapatan', data: top.map(r=>Math.round(r.revenue||0)), backgroundColor:'rgba(67,160,71,0.22)', borderColor:'rgba(67,160,71,0.9)', borderWidth:1, yAxisID:'yMoney' },
+                    { label:'Pendapatan Bersih', data: top.map(r=>Math.round(r.net||0)), backgroundColor:'rgba(25,118,210,0.18)', borderColor:'rgba(25,118,210,0.9)', borderWidth:1, yAxisID:'yMoney' },
+                    { type:'line', label:'ROI (%)', data: top.map(r=>Number(r.roi)||0), borderColor:'rgba(124,58,237,0.95)', backgroundColor:'transparent', borderWidth:2, tension:0.2, yAxisID:'yRoi' }
+                ]
+            },
+            options: {
+                responsive:true,
+                maintainAspectRatio:false,
+                interaction:{ mode:'index', intersect:false },
+                plugins:{
+                    legend:{ position:'top' },
+                    tooltip:{ callbacks:{ label:function(c){ return c.dataset.yAxisID==='yRoi' ? `${c.dataset.label}: ${fmtPct(c.parsed.y)}` : `${c.dataset.label}: ${fmtIdr(c.parsed.y)}`; } } }
+                },
+                scales:{
+                    yMoney:{ position:'left', ticks:{ callback:(v)=>fmtIdr(v) } },
+                    yRoi:{ position:'right', grid:{ drawOnChartArea:false }, ticks:{ callback:(v)=>`${Math.round(Number(v)||0)}%` } }
+                }
+            }
+        });
+        document.getElementById('dashboardRecapChartMeta').textContent = meta;
+    }
+
+    function fmtMmDd(ymd) {
+        const m = String(ymd || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if (!m) return String(ymd || '');
+        return m[2] + '/' + m[3];
+    }
+
+    function pulseMetric() {
+        return window.dashboardPulseMetric || 'roi';
+    }
+
+    function renderPulseChart(metric, payload) {
+        const canvas = document.getElementById('dashboardPortfolioPulseChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        const dates = Array.isArray(payload?.dates) ? payload.dates : [];
+        const forecastDays = Number(payload?.forecast_days || 0) || 0;
+        const labelsHist = dates.map(d => fmtMmDd(d));
+        const labelsFc = Array.from({ length: forecastDays }, (_, i) => 'P' + String(i + 1));
+        const labels = labelsHist.concat(labelsFc);
+
+        const seriesActual = metric === 'spend'
+            ? (Array.isArray(payload?.spend) ? payload.spend : [])
+            : (Array.isArray(payload?.roi) ? payload.roi : []);
+
+        const seriesForecast = metric === 'spend'
+            ? (Array.isArray(payload?.forecast?.spend) ? payload.forecast.spend : [])
+            : (Array.isArray(payload?.forecast?.roi) ? payload.forecast.roi : []);
+
+        const histLen = seriesActual.length;
+        const lastActual = histLen ? Number(seriesActual[histLen - 1] || 0) : 0;
+
+        const actualData = seriesActual.map(v => Number(v || 0)).concat(Array.from({ length: forecastDays }, () => null));
+        const forecastData = (
+            Array.from({ length: Math.max(0, histLen - 1) }, () => null)
+                .concat(histLen ? [lastActual] : [])
+                .concat(seriesForecast.map(v => Number(v || 0)))
+        );
+
+        if (window.dashboardPortfolioPulseChart?.destroy) window.dashboardPortfolioPulseChart.destroy();
+
+        const border = metric === 'spend' ? 'rgba(59,130,246,0.95)' : 'rgba(124,58,237,0.95)';
+        const fill = metric === 'spend' ? 'rgba(59,130,246,0.12)' : 'rgba(124,58,237,0.12)';
+        const yLabel = metric === 'spend' ? 'Spend' : 'ROI (%)';
+
+        window.dashboardPortfolioPulseChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: yLabel,
+                        data: actualData,
+                        borderColor: border,
+                        backgroundColor: fill,
+                        borderWidth: 2,
+                        pointRadius: 2,
+                        pointHoverRadius: 4,
+                        tension: 0.25,
+                        fill: true
+                    },
+                    {
+                        label: 'Forecast',
+                        data: forecastData,
+                        borderColor: 'rgba(100,116,139,0.9)',
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        pointRadius: 2,
+                        pointHoverRadius: 4,
+                        tension: 0.25,
+                        borderDash: [6, 6],
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(c) {
+                                const v = Number(c.parsed.y || 0);
+                                if (metric === 'spend') return `${c.dataset.label}: ${fmtIdr(v)}`;
+                                return `${c.dataset.label}: ${fmtPct(v)}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            callback: function(v) {
+                                if (metric === 'spend') return fmtIdr(v);
+                                return `${Math.round(Number(v || 0))}%`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    async function renderPortfolioPulse(ymd) {
+        const card = document.getElementById('dashboardPulseCard');
+        const metaEl = document.getElementById('dashboardPulseMeta');
+        const canvas = document.getElementById('dashboardPortfolioPulseChart');
+        if (!card || !canvas) return;
+
+        if (metaEl) metaEl.textContent = '';
+
+        try {
+            const qs = new URLSearchParams({ end_date: ymd, days: '14', forecast_days: '3' });
+            const resp = await fetch('/management/admin/dashboard_portfolio_pulse?' + qs.toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const json = await resp.json();
+            if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat Portfolio Pulse');
+
+            window.dashboardPulsePayload = json;
+
+            const s = String(json.start_date || '');
+            const e = String(json.end_date || '');
+            if (metaEl && s && e) metaEl.textContent = `${s} s/d ${e}`;
+
+            renderPulseChart(pulseMetric(), json);
+        } catch (e) {
+            window.dashboardPulsePayload = null;
+            if (metaEl) metaEl.textContent = 'Data tidak tersedia';
+            if (window.dashboardPortfolioPulseChart?.destroy) window.dashboardPortfolioPulseChart.destroy();
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    }
+
+    function setTemporalVisible(visible, hint) {
+        const card = document.getElementById('dashboardRecapTemporalCard');
+        const hintEl = document.getElementById('dashboardRecapTemporalHint');
+        const metaEl = document.getElementById('dashboardRecapTemporalMeta');
+        if (card) card.style.display = visible ? '' : 'none';
+        if (hintEl) {
+            hintEl.style.display = hint ? '' : 'none';
+            hintEl.textContent = hint || '';
+        }
+        if (metaEl) metaEl.textContent = '';
+    }
+
+    async function renderTemporalRoiHourlyChart(selectedDomain, ymd) {
+        const chartEl = document.getElementById('dashboardRecapTemporalChart');
+        const metaEl = document.getElementById('dashboardRecapTemporalMeta');
+        if (!chartEl) return;
+
+        chartEl.innerHTML = '<div class="text-muted">Memuat data hourly...</div>';
+
+        async function fetchHourly(domain) {
+            const qs = new URLSearchParams({
+                tanggal: ymd,
+            });
+            const resp = await fetch('/management/admin/dashboard_hourly_heatmap?' + qs.toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            return await resp.json();
+        }
+
+        let usedDomain = selectedDomain || '';
+        let json = null;
+        try {
+            json = await fetchHourly(usedDomain);
+            const hasSeries = !!(
+                (Array.isArray(json?.spend) && json.spend.length) ||
+                (Array.isArray(json?.revenue) && json.revenue.length) ||
+                (Array.isArray(json?.roi) && json.roi.length)
+            );
+            if (!json || !json.status || !hasSeries) {
+                usedDomain = '';
+                json = await fetchHourly('');
+            }
+        } catch (e) {
+            json = null;
+        }
+
+        if (!json || !json.status) {
+            chartEl.innerHTML = '<div class="text-muted">Data hourly tidak tersedia.</div>';
+            if (metaEl) metaEl.textContent = `${ymd}`;
+            return;
+        }
+
+        const labelEl = document.getElementById('dashboardRecapTemporalLabel');
+
+        function formatDateIdLongUpper(ymdStr) {
+            const m = String(ymdStr || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+            if (!m) return '';
+            const y = m[1];
+            const mo = Number(m[2]);
+            const d = Number(m[3]);
+            const months = ['JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI', 'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER'];
+            const mm = (mo >= 1 && mo <= 12) ? months[mo - 1] : '';
+            if (!mm || !isFinite(d)) return '';
+            return String(d) + ' ' + mm + ' ' + String(y);
+        }
+
+        if (labelEl) {
+            const td = String(ymd || '').trim();
+            if (td && td === today()) labelEl.textContent = 'HARI INI';
+            else {
+                const fmt = formatDateIdLongUpper(td);
+                labelEl.textContent = fmt ? ('PADA ' + fmt) : (td || 'HARI INI');
+            }
+        }
+
+        const hours = (json && Array.isArray(json.hours)) ? json.hours : [];
+        const roiIn = (json && Array.isArray(json.roi)) ? json.roi : [];
+        const revenueIn = (json && Array.isArray(json.revenue)) ? json.revenue : [];
+        const spendIn = (json && Array.isArray(json.spend)) ? json.spend : [];
+
+        const idxByHour = {};
+        for (let i = 0; i < hours.length; i++) idxByHour[String(hours[i] || '')] = i;
+
+        const order = [];
+        for (let h = 0; h <= 23; h++) order.push(h);
+
+        const roiVals = [];
+        for (let j = 0; j < order.length; j++) {
+            const hk = String(order[j]).padStart(2, '0');
+            const ix = idxByHour[hk];
+            roiVals.push(Number((roiIn && roiIn[ix] != null) ? roiIn[ix] : 0) || 0);
+        }
+        let maxPos = 0;
+        let minNeg = 0;
+        roiVals.forEach(v => {
+            if (v > maxPos) maxPos = v;
+            if (v < minNeg) minNeg = v;
+        });
+
+        function lerpColor(a, b, amount) {
+            const ah = parseInt(String(a || '').replace('#', ''), 16);
+            const ar = (ah >> 16) & 0xff;
+            const ag = (ah >> 8) & 0xff;
+            const ab = ah & 0xff;
+            const bh = parseInt(String(b || '').replace('#', ''), 16);
+            const br = (bh >> 16) & 0xff;
+            const bg = (bh >> 8) & 0xff;
+            const bb = bh & 0xff;
+            const r = Math.round(ar + amount * (br - ar));
+            const g = Math.round(ag + amount * (bg - ag));
+            const bl = Math.round(ab + amount * (bb - ab));
+            return '#' + ((1 << 24) + (r << 16) + (g << 8) + bl).toString(16).slice(1);
+        }
+
+        chartEl.innerHTML = (
+            '<div id="dashboardRecapTemporalGrid" class="roi-heatmap-grid"></div>' +
+            '<div class="roi-heatmap-foot">' +
+                '<div class="roi-heatmap-note">* DARKER NODES REPRESENT PEAK PERFORMANCE WINDOWS</div>' +
+                '<div class="roi-heatmap-legend">' +
+                    '<span class="roi-heatmap-swatch" style="background:#e6f0ff"></span> Low' +
+                    '<span class="roi-heatmap-swatch" style="background:#93c5fd"></span> Target' +
+                    '<span class="roi-heatmap-swatch" style="background:#1d4ed8"></span> Peak' +
+                '</div>' +
+            '</div>'
+        );
+
+        const grid = document.getElementById('dashboardRecapTemporalGrid');
+        let tt = document.getElementById('dashboardRecapTemporalTooltip');
+        if (!tt) {
+            tt = document.createElement('div');
+            tt.id = 'dashboardRecapTemporalTooltip';
+            tt.className = 'roi-heatmap-tooltip';
+            document.body.appendChild(tt);
+        }
+        if (!grid) return;
+
+        grid.innerHTML = '';
+        order.forEach(hourNum => {
+            const hk = String(hourNum).padStart(2, '0');
+            const ix = idxByHour[hk];
+            const v = Number((roiIn && ix != null && roiIn[ix] != null) ? roiIn[ix] : 0) || 0;
+            const rev = Number((revenueIn && ix != null && revenueIn[ix] != null) ? revenueIn[ix] : 0) || 0;
+            const sp = Number((spendIn && ix != null && spendIn[ix] != null) ? spendIn[ix] : 0) || 0;
+
+            let t = 0;
+            let bgc = '#f1f5f9';
+            if (v >= 0) {
+                t = maxPos > 0 ? (v / maxPos) : 0;
+                bgc = lerpColor('#e6f0ff', '#1d4ed8', t);
+            } else {
+                t = minNeg < 0 ? (v / minNeg) : 0;
+                bgc = lerpColor('#fee2e2', '#dc2626', t);
+            }
+
+            const cell = document.createElement('div');
+            cell.className = 'roi-heatmap-cell';
+            cell.style.background = bgc;
+
+            const textDark = (v >= 0 ? (t < 0.55) : (t < 0.5));
+            const hourEl = document.createElement('div');
+            hourEl.className = 'roi-heatmap-hour';
+            hourEl.style.color = textDark ? 'rgba(15,23,42,.55)' : 'rgba(255,255,255,.85)';
+            hourEl.textContent = hk + ':00';
+
+            const valEl = document.createElement('div');
+            valEl.className = 'roi-heatmap-value';
+            valEl.style.color = textDark ? '#0f172a' : '#ffffff';
+            valEl.textContent = (Number(v) || 0).toFixed(2) + '%';
+
+            cell.appendChild(hourEl);
+            cell.appendChild(valEl);
+
+            cell.addEventListener('mouseenter', function (e) {
+                if (!tt) return;
+                const hourLabel = hourEl.textContent || '';
+                const valueLabel = valEl.textContent || '';
+                tt.innerHTML = '<div class="tt-hour">Time Vector ' + esc(hourLabel) + '</div>' +
+                    '<div class="tt-val">ROI Nett ' + esc(valueLabel) + '</div>' +
+                    '<div style="margin-top:6px;font-size:11px;opacity:.85;font-weight:700">Spend ' + fmtIdr(sp) + ' | Revenue ' + fmtIdr(rev) + '</div>';
+                tt.style.display = 'block';
+                const x = (e && e.clientX != null) ? e.clientX : 0;
+                const y = (e && e.clientY != null) ? e.clientY : 0;
+                tt.style.left = (x + 14) + 'px';
+                tt.style.top = (y + 14) + 'px';
+            });
+            cell.addEventListener('mousemove', function (e) {
+                if (!tt || tt.style.display !== 'block') return;
+                const x = (e && e.clientX != null) ? e.clientX : 0;
+                const y = (e && e.clientY != null) ? e.clientY : 0;
+                tt.style.left = (x + 14) + 'px';
+                tt.style.top = (y + 14) + 'px';
+            });
+            cell.addEventListener('mouseleave', function () {
+                if (!tt) return;
+                tt.style.display = 'none';
+            });
+
+            grid.appendChild(cell);
+        });
+
+        if (metaEl) {
+            const domLabel = usedDomain ? usedDomain : 'All Domains';
+            metaEl.textContent = `${domLabel} • ${ymd}`;
+        }
+    }
+
+    async function load() {
+        const st = getState();
+        if (!st.date) return;
+        if (box) box.style.display = 'none';
+        if (loading) loading.style.display = 'flex';
+        try {
+            const res = await fetch(endpoint(st));
+            const json = await res.json();
+            if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat data');
+            const list = (Array.isArray(json.data_filtered) && json.data_filtered.length) ? json.data_filtered : (Array.isArray(json.data) ? json.data : []);
+            const rows = rowsFrom(st.dim, list);
+            renderSummary(json.summary_filtered || json.summary_all || json.summary || {});
+            const meta = `${st.source==='adsense'?'AdSense':'AdX'} • ${st.dim==='country'?'Per Negara':'Per Domain'} • ${st.date}`;
+            renderChart(st.dim, rows, meta);
+            renderTable(st.dim, rows);
+            await renderPortfolioPulse(st.date);
+
+            if (st.source === 'adx' && st.dim === 'domain') {
+                const topDomain = rows.find(r => r && r.name && r.name !== '-')?.name || '';
+                setTemporalVisible(true, 'Data diambil dari Monitoring Domain (hourly).');
+                try {
+                    await renderTemporalRoiHourlyChart(topDomain, st.date);
+                } catch (e) {
+                    setTemporalVisible(true, 'Gagal memuat data hourly.');
+                }
+            } else {
+                setTemporalVisible(false, '');
+            }
+
+            root.style.display = 'block';
+        } catch (e) {
+            root.style.display = 'none';
+            showError(String(e?.message || e || 'Error'));
+        } finally {
+            if (loading) loading.style.display = 'none';
+        }
+    }
+
+    if (!dateEl.value) dateEl.value = today();
+
+    const hasDatepicker = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.datepicker === 'function');
+    if (hasDatepicker) {
+        const $date = jQuery(dateEl);
+        $date.datepicker({
+            format: 'yyyy-mm-dd',
+            autoclose: true,
+            todayHighlight: true,
+            orientation: 'bottom auto'
+        });
+        if (dateEl.value) $date.datepicker('update', dateEl.value);
+        $date.on('changeDate', function() { load(); });
+    } else {
+        dateEl.addEventListener('change', load);
+    }
+
+    setActive('dashboardRecapSourceTabs', 'data-source', 'adx');
+    setActive('dashboardRecapDimTabs', 'data-dim', 'domain');
+    setActive('dashboardPulseTabs', 'data-metric', 'roi');
+    window.dashboardPulseMetric = 'roi';
+
+    document.getElementById('dashboardPulseTabs').addEventListener('click', function(e){
+        const b = e.target.closest('button[data-metric]');
+        if (!b) return;
+        const m = b.getAttribute('data-metric') || 'roi';
+        window.dashboardPulseMetric = m;
+        setActive('dashboardPulseTabs', 'data-metric', m);
+        if (window.dashboardPulsePayload) renderPulseChart(m, window.dashboardPulsePayload);
+    });
+
+    document.getElementById('dashboardRecapSourceTabs').addEventListener('click', function(e){
+
+        const b = e.target.closest('button[data-source]');
+        if (!b) return;
+        setActive('dashboardRecapSourceTabs', 'data-source', b.getAttribute('data-source'));
+        load();
+    });
+    document.getElementById('dashboardRecapDimTabs').addEventListener('click', function(e){
+        const b = e.target.closest('button[data-dim]');
+        if (!b) return;
+        setActive('dashboardRecapDimTabs', 'data-dim', b.getAttribute('data-dim'));
+        load();
+    });
+
+    load();
+}
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    initDashboardRecap();
 });
 </script>
 {% endblock %}
