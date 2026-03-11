@@ -5168,19 +5168,21 @@ class DashboardDomainHourlyHeatmapView(View):
                 tanggal_formatted
             )
             adx_rows = adx_resp.get('data') if isinstance(adx_resp, dict) else []
+            if not isinstance(adx_rows, list):
+                adx_rows = []
             # --- 4. Proses Facebook data
             unique_name_site = []
-            if adx_resp:
+            if isinstance(adx_resp, dict) and adx_resp.get('status') and adx_rows:
                 # Ambil unique site dari AdX
                 extracted_sites = set[Any]()
-                for adx_item in adx_resp['data']:
-                    site_name = str(adx_item.get('log_adx_country_domain', '')).strip()
+                for adx_item in adx_rows:
+                    site_name = str((adx_item or {}).get('log_adx_country_domain', '')).strip()
                     if site_name and site_name != 'Unknown':
                         extracted_sites.add(site_name)
                 for site in extracted_sites:
                     main_domain = site
                     if "." in site:
-                        parts = site.split(".")       # pisah berdasarkan titik
+                        parts = site.split(".")
                         if len(parts) >= 2:
                             main_domain = ".".join(parts[:2])
                     unique_name_site.append(main_domain)
