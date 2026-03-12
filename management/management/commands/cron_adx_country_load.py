@@ -135,8 +135,8 @@ class Command(BaseCommand):
                                     'log_adx_country_cpm': result_log_data.get('data_adx_country_cpm'),
                                     'log_adx_country_revenue': result_log_data.get('data_adx_country_revenue'),
                                     'mdb': '0',
-                                    'mdb_name': 'Log Insert',
-                                    'mdd': result_log_data.get('mdd'),
+                                    'mdb_name': 'Log Snapshot (Before Replace)',
+                                    'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                                 }
                                 try:
                                     insert_log = db.insert_log_adx_country_log(params_log)
@@ -167,6 +167,26 @@ class Command(BaseCommand):
                             ins = db.insert_data_adx_country(record)
                             if ins.get('hasil', {}).get('status'):
                                 total_insert += 1
+                                params_log_new = {
+                                    'account_id': record.get('account_id'),
+                                    'log_adx_country_tanggal': record.get('data_adx_country_tanggal'),
+                                    'log_adx_country_cd': record.get('data_adx_country_cd'),
+                                    'log_adx_country_nm': record.get('data_adx_country_nm'),
+                                    'log_adx_country_domain': record.get('data_adx_country_domain'),
+                                    'log_adx_country_impresi': record.get('data_adx_country_impresi'),
+                                    'log_adx_country_click': record.get('data_adx_country_click'),
+                                    'log_adx_country_cpc': record.get('data_adx_country_cpc'),
+                                    'log_adx_country_ctr': record.get('data_adx_country_ctr'),
+                                    'log_adx_country_cpm': record.get('data_adx_country_cpm'),
+                                    'log_adx_country_revenue': record.get('data_adx_country_revenue'),
+                                    'mdb': '0',
+                                    'mdb_name': 'Log Snapshot (After Replace)',
+                                    'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                }
+                                try:
+                                    db.insert_log_adx_country_log(params_log_new)
+                                except Exception:
+                                    pass
                             else:
                                 total_error += 1
                                 self.stdout.write(self.style.ERROR(

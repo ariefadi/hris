@@ -2358,12 +2358,33 @@ class data_mysql:
 
     def get_data_adx_country_to_insert_log(self, account_id, tanggal, code_negara, site_name):
         try:
-            sql_select = (
-                "SELECT * FROM data_adx_country WHERE account_id = %s AND data_adx_country_tanggal LIKE %s AND data_adx_country_cd = %s AND data_adx_country_domain LIKE %s"
+            if not self.ensure_connection():
+                raise pymysql.Error("Could not establish database connection")
+            self.cur_hris = self.mysql_cur
+
+            sql_exact = (
+                "SELECT * FROM data_adx_country "
+                "WHERE account_id = %s "
+                "AND data_adx_country_tanggal LIKE %s "
+                "AND data_adx_country_cd = %s "
+                "AND data_adx_country_domain = %s "
+                "ORDER BY mdd DESC LIMIT 1"
             )
-            if not self.execute_query(sql_select, (account_id, f"{tanggal}%", code_negara, site_name)):
-                raise pymysql.Error("Failed to select data adx country by date range")
-            data = self.cur_hris.fetchone()
+            self.mysql_cur.execute(sql_exact, (account_id, f"{tanggal}%", code_negara, site_name))
+            data = self.mysql_cur.fetchone()
+
+            if (not data) and site_name:
+                sql_like = (
+                    "SELECT * FROM data_adx_country "
+                    "WHERE account_id = %s "
+                    "AND data_adx_country_tanggal LIKE %s "
+                    "AND data_adx_country_cd = %s "
+                    "AND data_adx_country_domain LIKE %s "
+                    "ORDER BY mdd DESC LIMIT 1"
+                )
+                self.mysql_cur.execute(sql_like, (account_id, f"{tanggal}%", code_negara, f"%{site_name}%"))
+                data = self.mysql_cur.fetchone()
+
             if not data:
                 return {'hasil': {'status': False, 'message': 'Data adx country tidak ditemukan'}}
             return {'hasil': {'status': True, 'data': data}}
