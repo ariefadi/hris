@@ -3847,124 +3847,123 @@ class data_mysql:
         return {"hasil": hasil}
 
     def get_all_ads_country_hourly_by_params(self, tanggal, data_sub_domain=None):
-    try:
-        # --- normalisasi domain
-        if isinstance(data_sub_domain, str):
-            domains = [d.strip() for d in data_sub_domain.split(",") if d.strip()]
-        elif isinstance(data_sub_domain, (list, tuple, set)):
-            domains = list(data_sub_domain)
-        else:
-            domains = []
+        try:
+            # --- normalisasi domain
+            if isinstance(data_sub_domain, str):
+                domains = [d.strip() for d in data_sub_domain.split(",") if d.strip()]
+            elif isinstance(data_sub_domain, (list, tuple, set)):
+                domains = list(data_sub_domain)
+            else:
+                domains = []
 
-        if not domains:
-            raise ValueError("data_sub_domain is required")
+            if not domains:
+                raise ValueError("data_sub_domain is required")
 
-        like_params = [f"%{d}%" for d in domains]
+            like_params = [f"%{d}%" for d in domains]
 
-        # ======================
-        # CLICKHOUSE QUERY
-        # ======================
-        like_clause_ch = " OR ".join(["log_ads_domain LIKE %s"] * len(domains))
+            # ======================
+            # CLICKHOUSE QUERY
+            # ======================
+            like_clause_ch = " OR ".join(["log_ads_domain LIKE %s"] * len(domains))
 
-        sql_ch = f"""
-        SELECT
-            hour,
-            SUM(spend) AS spend,
-            SUM(impressions) AS impressions,
-            SUM(clicks) AS clicks
-        FROM (
+            sql_ch = f"""
             SELECT
-                toHour(mdd) AS hour,
-                log_ads_country_cd AS country_code,
-                log_ads_domain,
-                argMax(log_ads_country_spend, mdd) AS spend,
-                argMax(log_ads_country_impresi, mdd) AS impressions,
-                argMax(log_ads_country_click, mdd) AS clicks
-            FROM log_ads_country
-            WHERE toDate(log_ads_country_tanggal) = toDate(%s)
-              AND ({like_clause_ch})
-            GROUP BY hour, country_code, log_ads_domain
-        ) t
-        GROUP BY hour
-        ORDER BY hour
-        """
-
-        # ======================
-        # MYSQL QUERY
-        # ======================
-        like_clause_mysql = " OR ".join(["a.log_ads_domain LIKE %s"] * len(domains))
-
-        sql_mysql = f"""
-        SELECT
-            rs.hour,
-            SUM(rs.spend) AS spend,
-            SUM(rs.impressions) AS impressions,
-            SUM(rs.clicks) AS clicks
-        FROM (
-            SELECT
-                HOUR(a.mdd) AS hour,
-                SUM(a.log_ads_country_spend) AS spend,
-                SUM(a.log_ads_country_impresi) AS impressions,
-                SUM(a.log_ads_country_click) AS clicks
-            FROM log_ads_country a
-            INNER JOIN (
+                hour,
+                SUM(spend) AS spend,
+                SUM(impressions) AS impressions,
+                SUM(clicks) AS clicks
+            FROM (
                 SELECT
-                    log_ads_country_cd,
-                    HOUR(mdd) AS jam,
-                    MAX(mdd) AS max_time
+                    toHour(mdd) AS hour,
+                    log_ads_country_cd AS country_code,
+                    log_ads_domain,
+                    argMax(log_ads_country_spend, mdd) AS spend,
+                    argMax(log_ads_country_impresi, mdd) AS impressions,
+                    argMax(log_ads_country_click, mdd) AS clicks
                 FROM log_ads_country
-                WHERE log_ads_country_tanggal = %s
-                GROUP BY HOUR(mdd), log_ads_domain, log_ads_country_cd
-            ) b
-              ON a.log_ads_country_cd = b.log_ads_country_cd
-             AND HOUR(a.mdd) = b.jam
-             AND a.mdd = b.max_time
-            WHERE a.log_ads_country_tanggal = %s
-              AND ({like_clause_mysql})
-            GROUP BY HOUR(a.mdd), a.log_ads_domain, a.log_ads_country_cd
-        ) rs
-        GROUP BY rs.hour
-        ORDER BY rs.hour
-        """
+                WHERE toDate(log_ads_country_tanggal) = toDate(%s)
+                  AND ({like_clause_ch})
+                GROUP BY hour, country_code, log_ads_domain
+            ) t
+            GROUP BY hour
+            ORDER BY hour
+            """
 
-        # ======================
-        # EXECUTION
-        # ======================
-        engine = (self._report_engine() or "").lower()
+            # ======================
+            # MYSQL QUERY
+            # ======================
+            like_clause_mysql = " OR ".join(["a.log_ads_domain LIKE %s"] * len(domains))
 
-        if engine in ("clickhouse", "ch"):
-            params = [tanggal] + like_params
+            sql_mysql = f"""
+            SELECT
+                rs.hour,
+                SUM(rs.spend) AS spend,
+                SUM(rs.impressions) AS impressions,
+                SUM(rs.clicks) AS clicks
+            FROM (
+                SELECT
+                    HOUR(a.mdd) AS hour,
+                    SUM(a.log_ads_country_spend) AS spend,
+                    SUM(a.log_ads_country_impresi) AS impressions,
+                    SUM(a.log_ads_country_click) AS clicks
+                FROM log_ads_country a
+                INNER JOIN (
+                    SELECT
+                        log_ads_country_cd,
+                        HOUR(mdd) AS jam,
+                        MAX(mdd) AS max_time
+                    FROM log_ads_country
+                    WHERE log_ads_country_tanggal = %s
+                    GROUP BY HOUR(mdd), log_ads_domain, log_ads_country_cd
+                ) b
+                  ON a.log_ads_country_cd = b.log_ads_country_cd
+                 AND HOUR(a.mdd) = b.jam
+                 AND a.mdd = b.max_time
+                WHERE a.log_ads_country_tanggal = %s
+                  AND ({like_clause_mysql})
+                GROUP BY HOUR(a.mdd), a.log_ads_domain, a.log_ads_country_cd
+            ) rs
+            GROUP BY rs.hour
+            ORDER BY rs.hour
+            """
 
-            if self.execute_query(sql_ch, tuple(params)):
-                data = self.fetch_all() or []
+            # ======================
+            # EXECUTION
+            # ======================
+            engine = (self._report_engine() or "").lower()
 
-                if data:
-                    return {
-                        "hasil": {
-                            "status": True,
-                            "message": "Hourly Ads country logs berhasil diambil",
-                            "data": data,
+            if engine in ("clickhouse", "ch"):
+                params = [tanggal] + like_params
+
+                if self.execute_query(sql_ch, tuple(params)):
+                    data = self.fetch_all() or []
+
+                    if data:
+                        return {
+                            "hasil": {
+                                "status": True,
+                                "message": "Hourly Ads country logs berhasil diambil",
+                                "data": data,
+                            }
                         }
-                    }
 
-        # fallback MySQL
-        if not self.ensure_connection():
-            raise Exception("MySQL connection failed")
+            if not self.ensure_connection():
+                raise Exception("MySQL connection failed")
 
-        params_mysql = [tanggal, tanggal] + like_params
-        self.mysql_cur.execute(sql_mysql, params_mysql)
-        data = self.mysql_cur.fetchall() or []
+            params_mysql = [tanggal, tanggal] + like_params
+            self.mysql_cur.execute(sql_mysql, params_mysql)
+            data = self.mysql_cur.fetchall() or []
 
-        return {
-            "hasil": {
-                "status": True,
-                "message": "Hourly Ads country logs berhasil diambil",
-                "data": data,
+            return {
+                "hasil": {
+                    "status": True,
+                    "message": "Hourly Ads country logs berhasil diambil",
+                    "data": data,
+                }
             }
-        }
 
-    except Exception as e:
-        return {"hasil": {"status": False, "data": str(e)}}
+        except Exception as e:
+            return {"hasil": {"status": False, "data": str(e)}}
 
     def get_all_ads_roi_country_hourly_logs_by_params(self, target_date, data_sub_domain=None):
         try:
