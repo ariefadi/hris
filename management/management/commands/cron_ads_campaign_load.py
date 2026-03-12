@@ -6,6 +6,7 @@ from facebook_business.adobjects.adaccount import AdAccount
 from facebook_business.adobjects.adsinsights import AdsInsights
 from facebook_business.adobjects.campaign import Campaign
 from management.database import data_mysql
+
 class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument(
@@ -22,14 +23,25 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **kwargs):
+        tanggal = kwargs.get('tanggal')
+        start = kwargs.get('start')
+        end = kwargs.get('end')
+
         rs_account = data_mysql().master_account_ads()['data']
         total_insert = 0
         total_error = 0
-        # Default: hari ini
+
         today_dt = datetime.now().date()
-        start_date = today_dt.strftime('%Y-%m-%d')
-        end_date = today_dt.strftime('%Y-%m-%d')
-        # Hapus data existing pada rentang tanggal agar ditimpa data baru
+        if start and end:
+            start_date = start
+            end_date = end
+        elif tanggal and tanggal != '%':
+            start_date = tanggal
+            end_date = tanggal
+        else:
+            start_date = today_dt.strftime('%Y-%m-%d')
+            end_date = today_dt.strftime('%Y-%m-%d')
+
         for account_data in rs_account:
             try:
                 # Aggregate per campaign per tanggal
@@ -57,7 +69,8 @@ class Command(BaseCommand):
                     AdsInsights.Field.impressions,
                     'cost_per_result',
                     AdsInsights.Field.actions,
-                    AdsInsights.Field.date_start
+                    AdsInsights.Field.date_start,
+                    AdsInsights.Field.frequency,
                 ]
                 params = {
                     'level': 'campaign',
@@ -85,6 +98,9 @@ class Command(BaseCommand):
                         'impressions': 0,
                         'clicks': 0.0,
                         'cpr': 0.0,
+                        'frequency': 0.0,
+                        'lpv': 0.0,
+                        'lpv_rate': 0.0,
                         'tanggal': tanggal_row,
                         'status': config.get('status'),
                     })
@@ -105,34 +121,50 @@ class Command(BaseCommand):
                             agg['cpr'] += float(cost_per_result_val)
                         except (TypeError, ValueError):
                             pass
-                    # Actions: link_clicks
-                    result_action_type = 'link_click'
-                    result_count = 0
-                    for action in item.get('actions', []):
-                        if action.get('action_type') == result_action_type:
-                            try:
-                                result_count = float(action.get('value', 0) or 0)
-                            except (TypeError, ValueError):
-                                result_count = 0
-                            break
-                    if result_count not in [None, ""]:
-                        agg['clicks'] += result_count
+                    # Frequency
+                    frequency_val = item.get('frequency')
+                    if frequency_val not in [None, ""]:
+                        try:
+                            agg['frequency'] += float(frequency_val)
+                        except (TypeError, ValueError):
+                            pass
+                    def pick_action(actions, action_type):
+                        for a in actions or []:
+                            if a.get('action_type') == action_type:
+                                try:
+                                    return float(a.get('value', 0) or 0)
+                                except (TypeError, ValueError):
+                                    return 0.0
+                        return 0.0
+                    actions = item.get('actions', [])
+                    link_clicks = pick_action(actions, 'link_click')
+                    lpv = pick_action(actions, 'landing_page_view')
+                    if link_clicks:
+                        agg['clicks'] += float(link_clicks)
+                    if lpv:
+                        agg['lpv'] += float(lpv)
                     # Status sudah diambil dari config jika tersedia
                 # Insert per-campaign aggregate ke data_ads_campaign
                 for (_, _), agg in campaign_aggregates.items():
-                    # Hitung CPC aman
-                    cpc = round(agg['spend'] / agg['clicks'], 2) if agg['clicks'] else 0.0
+                    clicks = float(agg.get('clicks') or 0)
+                    spend = float(agg.get('spend') or 0)
+                    lpv = float(agg.get('lpv') or 0)
+                    cpc = round(spend / clicks, 2) if clicks else 0.0
+                    lpv_rate = round((lpv / clicks) * 100, 2) if clicks else 0.0
                     record = {
                         'account_ads_id': account_data['account_id'],
                         'data_ads_domain': (agg['campaign_name'] or '').split('_')[0],
                         'data_ads_campaign_nm': agg['campaign_name'] or '',
                         'data_ads_tanggal': agg['tanggal'],
-                        'data_ads_spend': round(agg['spend'], 2),
+                        'data_ads_spend': round(spend, 2),
                         'data_ads_impresi': int(agg['impressions']),
-                        'data_ads_click': int(agg['clicks']),
+                        'data_ads_click': int(clicks),
                         'data_ads_reach': int(agg['reach']),
                         'data_ads_cpr': round(agg['cpr'], 2),
                         'data_ads_cpc': cpc,
+                        'data_ads_frekuensi': round(float(agg.get('frequency') or 0), 2),
+                        'data_ads_lpv': round(lpv, 2),
+                        'data_ads_lpv_rate': lpv_rate,
                         'mdb': '0',
                         'mdb_name': 'Cron Job',
                         'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),

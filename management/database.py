@@ -28,11 +28,11 @@ def run_sql(sql):
     print(json.dumps(sql, indent=2, sort_keys=True))
 
 class ClickHouseHttpCursor:
-    def __init__(self, host, port=8123, user='default', password='hris123456', database='', timeout=30):
+    def __init__(self, host, port=8123, user='default', password='', database='', timeout=30):
         self.host = host
         self.port = int(port) if port else 8123
         self.user = user or 'default'
-        self.password = password or 'hris123456'
+        self.password = password or ''
         self.database = database or ''
         self.timeout = timeout
         self._rows = []
@@ -191,7 +191,7 @@ class data_mysql:
         except (ValueError, TypeError):
             port = 8123
         user = os.getenv('CH_USER') or os.getenv('REPORT_DB_USER') or os.getenv('DB_REPORT_USER') or 'default'
-        password = os.getenv('CH_PASSWORD') or os.getenv('REPORT_DB_PASSWORD') or os.getenv('DB_REPORT_PASSWORD') or 'hris123456'
+        password = os.getenv('CH_PASSWORD') or os.getenv('REPORT_DB_PASSWORD') or os.getenv('DB_REPORT_PASSWORD') or ''
         database = os.getenv('CH_DB') or os.getenv('REPORT_DB_NAME') or os.getenv('DB_REPORT_NAME') or os.getenv('DB_NAME') or os.getenv('HRIS_DB_NAME') or 'hris_trendHorizone'
         self.report_cur = ClickHouseHttpCursor(host=host, port=port, user=user, password=password, database=database)
         return True
@@ -201,17 +201,17 @@ class data_mysql:
         try:
             # Use the same environment variables as Django settings for consistency
             host = os.getenv('DB_HOST', '127.0.0.1')
-            # Use the same port as Django (3306, not 3306)
+            # Use the same port as Django (3307, not 3307)
             raw_port = os.getenv('DB_PORT', '').strip()
             if not raw_port:
-                raw_port = '3306'
+                raw_port = '3307'
             try:
                 port = int(raw_port)
             except (ValueError, TypeError):
-                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
-                port = 3306
+                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3307")
+                port = 3307
             user = os.getenv('DB_USER', 'root')
-            password = os.getenv('DB_PASSWORD', 'hris123456')
+            password = os.getenv('DB_PASSWORD', '')
             database = os.getenv('DB_NAME', 'hris_trendHorizone')
 
             self.db_hris = pymysql.connect(
@@ -309,7 +309,7 @@ class data_mysql:
                 LIMIT 1
               """
         try:
-            _log_debug(f"[LOGIN_DEBUG] Attempting login for username={data.get('username')} from DB host={os.getenv('DB_HOST','127.0.0.1')} port={os.getenv('HRIS_DB_PORT','3306')} db={os.getenv('HRIS_DB_NAME','hris_trendHorizone')}")
+            _log_debug(f"[LOGIN_DEBUG] Attempting login for username={data.get('username')} from DB host={os.getenv('DB_HOST','127.0.0.1')} port={os.getenv('HRIS_DB_PORT','3307')} db={os.getenv('HRIS_DB_NAME','hris_trendHorizone')}")
             if not self.execute_query(sql, (data['username'],)):
                 raise pymysql.Error("Failed to execute login query")
             row = self.cur_hris.fetchone()
@@ -1352,12 +1352,18 @@ class data_mysql:
                             log_ads_country.log_ads_country_reach,
                             log_ads_country.log_ads_country_cpr,
                             log_ads_country.log_ads_country_cpc,
+                            log_ads_country.log_ads_country_frekuensi,
+                            log_ads_country.log_ads_country_lpv,
+                            log_ads_country.log_ads_country_lpv_rate,
                             log_ads_country.mdb,
                             log_ads_country.mdb_name,
                             log_ads_country.mdd
                         )
                     VALUES
                         (
+                            %s,
+                            %s,
+                            %s,
                             %s,
                             %s,
                             %s,
@@ -1388,6 +1394,9 @@ class data_mysql:
                 data['log_ads_country_reach'],
                 data['log_ads_country_cpr'],    
                 data['log_ads_country_cpc'],
+                data['log_ads_country_frekuensi'],
+                data['log_ads_country_lpv'],
+                data['log_ads_country_lpv_rate'],
                 data['mdb'],
                 data['mdb_name'],
                 data['mdd']
@@ -2233,12 +2242,18 @@ class data_mysql:
                             data_ads_campaign.data_ads_reach,
                             data_ads_campaign.data_ads_cpr,
                             data_ads_campaign.data_ads_cpc,
+                            data_ads_campaign.data_ads_frekuensi,
+                            data_ads_campaign.data_ads_lpv,
+                            data_ads_campaign.data_ads_lpv_rate,
                             data_ads_campaign.mdb,
                             data_ads_campaign.mdb_name,
                             data_ads_campaign.mdd
                         )
                     VALUES
                         (
+                            %s,
+                            %s,
+                            %s,
                             %s,
                             %s,
                             %s,
@@ -2265,6 +2280,9 @@ class data_mysql:
                 data['data_ads_reach'],
                 data['data_ads_cpr'],
                 data['data_ads_cpc'],
+                data['data_ads_frekuensi'],
+                data['data_ads_lpv'],
+                data['data_ads_lpv_rate'],
                 data['mdb'],
                 data['mdb_name'],
                 data['mdd']
@@ -2301,12 +2319,18 @@ class data_mysql:
                             data_ads_country.data_ads_country_reach,
                             data_ads_country.data_ads_country_cpr,
                             data_ads_country.data_ads_country_cpc,
+                            data_ads_country.data_ads_country_frekuensi,
+                            data_ads_country.data_ads_country_lpv,
+                            data_ads_country.data_ads_country_lpv_rate,
                             data_ads_country.mdb,
                             data_ads_country.mdb_name,
                             data_ads_country.mdd
                         )
                     VALUES
                         (
+                            %s,
+                            %s,
+                            %s,
                             %s,
                             %s,
                             %s,
@@ -2337,6 +2361,9 @@ class data_mysql:
                 data['data_ads_country_reach'],
                 data['data_ads_country_cpr'],
                 data['data_ads_country_cpc'],
+                data['data_ads_country_frekuensi'],
+                data['data_ads_country_lpv'],
+                data['data_ads_country_lpv_rate'],
                 data['mdb'],
                 data['mdb_name'],
                 data['mdd']

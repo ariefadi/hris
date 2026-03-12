@@ -65,6 +65,7 @@ class Command(BaseCommand):
                     AdsInsights.Field.impressions,
                     'cost_per_result',
                     AdsInsights.Field.actions,
+                    AdsInsights.Field.frequency,
                     AdsInsights.Field.date_start
                 ]
                 params = {
@@ -100,15 +101,26 @@ class Command(BaseCommand):
                         spend = float(item.get('spend', 0) or 0)
                         impressions = int(item.get('impressions', 0) or 0)
                         reach = int(item.get('reach', 0) or 0)
-                        # Actions: link_click
-                        clicks_val = 0.0
-                        for action in item.get('actions', []):
-                            if action.get('action_type') == 'link_click':
-                                try:
-                                    clicks_val = float(action.get('value', 0) or 0)
-                                except (TypeError, ValueError):
-                                    clicks_val = 0.0
-                                break
+
+                        frequency_val = item.get('frequency')
+                        try:
+                            frequency = float(frequency_val) if frequency_val not in [None, ""] else 0.0
+                        except (TypeError, ValueError):
+                            frequency = 0.0
+
+                        def pick_action(actions, action_type):
+                            for a in actions or []:
+                                if a.get('action_type') == action_type:
+                                    try:
+                                        return float(a.get('value', 0) or 0)
+                                    except (TypeError, ValueError):
+                                        return 0.0
+                            return 0.0
+
+                        actions = item.get('actions', [])
+                        clicks_val = pick_action(actions, 'link_click')
+                        lpv_val = pick_action(actions, 'landing_page_view')
+                        lpv_rate = round((lpv_val / clicks_val) * 100, 2) if clicks_val else 0.0
                         # Cost per result (link_click)
                         cpr_val = 0.0
                         for cpr_item in item.get('cost_per_result', []):
@@ -137,6 +149,9 @@ class Command(BaseCommand):
                             'data_ads_country_reach': reach,
                             'data_ads_country_cpr': round(cpr_val, 2),
                             'data_ads_country_cpc': cpc,
+                            'data_ads_country_frekuensi': round(frequency, 2),
+                            'data_ads_country_lpv': round(lpv_val, 2),
+                            'data_ads_country_lpv_rate': lpv_rate,
                             'mdb': '0',
                             'mdb_name': 'Cron Job',
                             'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),

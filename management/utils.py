@@ -4039,6 +4039,27 @@ def _run_regular_country_report(client, start_date, end_date, selected_sites, co
     ]
     # Use regular Ad Manager columns with more fallback options
     regular_column_combinations = [
+        [
+            'TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS',
+            'TOTAL_LINE_ITEM_LEVEL_CLICKS',
+            'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE',
+            'AD_EXCHANGE_TOTAL_REQUESTS',
+            'AD_EXCHANGE_RESPONSES_SERVED',
+            'AD_EXCHANGE_MATCH_RATE',
+            'TOTAL_FILL_RATE',
+            'AD_EXCHANGE_ACTIVE_VIEW_VIEWABLE_IMPRESSIONS_RATE',
+            'AD_EXCHANGE_ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME',
+        ],
+        [
+            'TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS',
+            'TOTAL_LINE_ITEM_LEVEL_CLICKS',
+            'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE',
+            'TOTAL_AD_REQUESTS',
+            'TOTAL_RESPONSES_SERVED',
+            'TOTAL_FILL_RATE',
+            'TOTAL_ACTIVE_VIEW_VIEWABLE_IMPRESSIONS_RATE',
+            'TOTAL_ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME',
+        ],
         ['TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CLICKS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE'],
         ['TOTAL_IMPRESSIONS', 'TOTAL_CLICKS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE'],
         ['TOTAL_IMPRESSIONS', 'TOTAL_CLICKS'],
@@ -4046,6 +4067,7 @@ def _run_regular_country_report(client, start_date, end_date, selected_sites, co
         ['TOTAL_IMPRESSIONS'],
         ['TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS'],
         # Additional fallback columns
+        ['AD_SERVER_IMPRESSIONS', 'AD_SERVER_CLICKS', 'AD_SERVER_ALL_REVENUE'],
         ['AD_SERVER_IMPRESSIONS', 'AD_SERVER_CLICKS'],
         ['AD_SERVER_IMPRESSIONS'],
         # Basic columns that should always work
@@ -4178,19 +4200,85 @@ def _process_country_csv_data(raw_data):
             
             processed_count += 1
             
-            # Extract metrics with fallback - use the correct column names
-            impressions = int(row.get('Column.TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS', 0) or 0)
-            clicks = int(row.get('Column.TOTAL_LINE_ITEM_LEVEL_CLICKS', 0) or 0)
-            revenue = float(row.get('Column.TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE', 0) or 0) / 1000000  # Convert from micros
-            
-            # Calculate derived metrics
+            def _to_int(v):
+                try:
+                    s = str(v or '0').replace(',', '').replace('%', '').strip()
+                    return int(float(s or 0))
+                except Exception:
+                    return 0
+
+            def _to_float(v):
+                try:
+                    s = str(v or '0').replace(',', '').replace('%', '').strip()
+                    return float(s or 0)
+                except Exception:
+                    return 0.0
+
+            def _pick_first(row_dict, keys, default=None):
+                for k in keys:
+                    if k in row_dict and row_dict.get(k) not in [None, '']:
+                        return row_dict.get(k)
+                return default
+
+            impressions = _to_int(_pick_first(row, [
+                'Column.TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS',
+                'Column.TOTAL_IMPRESSIONS',
+                'Column.AD_SERVER_IMPRESSIONS',
+            ], 0))
+            clicks = _to_int(_pick_first(row, [
+                'Column.TOTAL_LINE_ITEM_LEVEL_CLICKS',
+                'Column.TOTAL_CLICKS',
+                'Column.AD_SERVER_CLICKS',
+            ], 0))
+
+            revenue_micros = _to_float(_pick_first(row, [
+                'Column.TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE',
+                'Column.AD_SERVER_CPM_AND_CPC_REVENUE',
+                'Column.AD_SERVER_ALL_REVENUE',
+            ], 0.0))
+            revenue = revenue_micros / 1000000
+
+            total_requests = _to_int(_pick_first(row, [
+                'Column.AD_EXCHANGE_TOTAL_REQUESTS',
+                'Column.TOTAL_AD_REQUESTS',
+            ], 0))
+            responses_served = _to_int(_pick_first(row, [
+                'Column.AD_EXCHANGE_RESPONSES_SERVED',
+                'Column.TOTAL_RESPONSES_SERVED',
+            ], 0))
+
+            match_rate = _to_float(_pick_first(row, [
+                'Column.AD_EXCHANGE_MATCH_RATE',
+                'Column.PROGRAMMATIC_MATCH_RATE',
+            ], 0.0))
+            total_fill_rate = _to_float(_pick_first(row, [
+                'Column.TOTAL_FILL_RATE',
+            ], 0.0))
+
+            active_view_pct_viewable = _to_float(_pick_first(row, [
+                'Column.AD_EXCHANGE_ACTIVE_VIEW_VIEWABLE_IMPRESSIONS_RATE',
+                'Column.TOTAL_ACTIVE_VIEW_VIEWABLE_IMPRESSIONS_RATE',
+            ], 0.0))
+            active_view_avg_time_sec = _to_float(_pick_first(row, [
+                'Column.AD_EXCHANGE_ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME',
+                'Column.TOTAL_ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME',
+            ], 0.0))
+
             ctr = (clicks / impressions * 100) if impressions > 0 else 0
             ecpm = (revenue / impressions * 1000) if impressions > 0 else 0
             cpc = revenue / clicks if clicks > 0 else 0
-            
-            # Get country code from country name
+
             country_code = _get_country_code_from_name(country_name)
-    
+
+            if total_requests <= 0:
+                total_requests = impressions
+            if responses_served <= 0:
+                responses_served = impressions
+            if not match_rate and total_requests > 0:
+                match_rate = (responses_served / total_requests) * 100
+            if not total_fill_rate and responses_served > 0:
+                total_fill_rate = (impressions / responses_served) * 100
+
             row_data = {
                 'country_name': country_name,
                 'country_code': country_code,
@@ -4200,8 +4288,14 @@ def _process_country_csv_data(raw_data):
                 'ctr': ctr,
                 'ecpm': ecpm,
                 'cpc': cpc,
-                'requests': impressions,  # Use impressions as requests for now
-                'matched_requests': impressions  # Use impressions as matched requests for now
+                'total_requests': total_requests,
+                'responses_served': responses_served,
+                'match_rate': match_rate,
+                'total_fill_rate': total_fill_rate,
+                'active_view_pct_viewable': active_view_pct_viewable,
+                'active_view_avg_time_sec': active_view_avg_time_sec,
+                'requests': total_requests,
+                'matched_requests': responses_served,
             }
             
             # Add site name if available
@@ -4230,11 +4324,24 @@ def _process_country_csv_data(raw_data):
                     'site_name': row.get('site_name'),
                     'impressions': 0,
                     'clicks': 0,
-                    'revenue': 0.0
+                    'revenue': 0.0,
+                    'total_requests': 0,
+                    'responses_served': 0,
+                    'active_view_pct_viewable_sum': 0.0,
+                    'active_view_avg_time_sec_sum': 0.0,
+                    'active_view_weight': 0,
                 }
-            aggregated[key]['impressions'] += row.get('impressions', 0)
-            aggregated[key]['clicks'] += row.get('clicks', 0)
-            aggregated[key]['revenue'] += row.get('revenue', 0.0)
+            impressions = int(row.get('impressions', 0) or 0)
+            aggregated[key]['impressions'] += impressions
+            aggregated[key]['clicks'] += int(row.get('clicks', 0) or 0)
+            aggregated[key]['revenue'] += float(row.get('revenue', 0.0) or 0.0)
+            aggregated[key]['total_requests'] += int(row.get('total_requests', row.get('requests', 0)) or 0)
+            aggregated[key]['responses_served'] += int(row.get('responses_served', row.get('matched_requests', 0)) or 0)
+            av_pct = float(row.get('active_view_pct_viewable', 0.0) or 0.0)
+            av_time = float(row.get('active_view_avg_time_sec', 0.0) or 0.0)
+            aggregated[key]['active_view_pct_viewable_sum'] += (av_pct * impressions)
+            aggregated[key]['active_view_avg_time_sec_sum'] += (av_time * impressions)
+            aggregated[key]['active_view_weight'] += impressions
 
         # Hitung metrik turunan untuk hasil agregasi
         aggregated_data = []
@@ -4245,6 +4352,15 @@ def _process_country_csv_data(raw_data):
             ctr = (clicks / impressions * 100) if impressions > 0 else 0
             ecpm = (revenue / impressions * 1000) if impressions > 0 else 0
             cpc = (revenue / clicks) if clicks > 0 else 0
+            total_requests = int(agg.get('total_requests', 0) or 0)
+            responses_served = int(agg.get('responses_served', 0) or 0)
+            match_rate = (responses_served / total_requests * 100) if total_requests > 0 else 0.0
+            total_fill_rate = (impressions / responses_served * 100) if responses_served > 0 else 0.0
+
+            w = int(agg.get('active_view_weight', 0) or 0)
+            active_view_pct_viewable = (float(agg.get('active_view_pct_viewable_sum', 0.0) or 0.0) / w) if w > 0 else 0.0
+            active_view_avg_time_sec = (float(agg.get('active_view_avg_time_sec_sum', 0.0) or 0.0) / w) if w > 0 else 0.0
+
             aggregated_data.append({
                 'country_name': agg['country_name'],
                 'country_code': agg['country_code'],
@@ -4255,8 +4371,14 @@ def _process_country_csv_data(raw_data):
                 'ctr': ctr,
                 'ecpm': ecpm,
                 'cpc': cpc,
-                'requests': impressions,
-                'matched_requests': impressions
+                'total_requests': total_requests,
+                'responses_served': responses_served,
+                'match_rate': match_rate,
+                'total_fill_rate': total_fill_rate,
+                'active_view_pct_viewable': active_view_pct_viewable,
+                'active_view_avg_time_sec': active_view_avg_time_sec,
+                'requests': total_requests,
+                'matched_requests': responses_served,
             })
 
         # Urutkan berdasarkan pendapatan terbesar ke terkecil
@@ -4268,12 +4390,15 @@ def _process_country_csv_data(raw_data):
         total_revenue = sum(row['revenue'] for row in aggregated_data)
         total_ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0
 
+        total_requests_sum = sum(int(row.get('total_requests', row.get('requests', 0)) or 0) for row in aggregated_data)
+        total_responses_served_sum = sum(int(row.get('responses_served', row.get('matched_requests', 0)) or 0) for row in aggregated_data)
+
         summary = {
             'total_impressions': total_impressions,
             'total_clicks': total_clicks,
             'total_revenue': total_revenue,
-            'total_requests': total_impressions,
-            'total_matched_requests': total_impressions,
+            'total_requests': total_requests_sum,
+            'total_matched_requests': total_responses_served_sum,
             'total_ctr': total_ctr
         }
 
