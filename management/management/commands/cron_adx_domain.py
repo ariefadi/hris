@@ -5,6 +5,7 @@ from management.database import data_mysql
 from management.utils import fetch_adx_traffic_account_by_user
 from management.utils import fetch_user_adx_account_data
 import os
+import uuid
 
 def convert_to_idr(amount, currency_code):
     try:
@@ -47,7 +48,7 @@ class Command(BaseCommand):
             end_date = tanggal
         else:
             today_dt = datetime.now().date()
-            start_date = (today_dt - timedelta(days=6)).strftime('%Y-%m-%d')
+            start_date = (today_dt - timedelta(days=3)).strftime('%Y-%m-%d')
             end_date = today_dt.strftime('%Y-%m-%d')
         self.stdout.write(self.style.WARNING(
             f"Menarik dan menyimpan AdX per domain untuk range {start_date} s/d {end_date} (7 hari)."
@@ -84,7 +85,8 @@ class Command(BaseCommand):
                     if isinstance(acct_info, dict) and acct_info.get('status'):
                         currency_code = (acct_info.get('data', {}) or {}).get('currency_code') or 'IDR'
                     # Ambil data AdX per domain untuk 1 hari (start=end)
-                    res = fetch_adx_traffic_account_by_user(user_mail, day_dt, day_dt, selected_sites=None)
+                    # report_level='ad_unit_to_site' akan merge advanced metrics (Ad Exchange Display) ke baris SITE_NAME
+                    res = fetch_adx_traffic_account_by_user(user_mail, day_dt, day_dt, selected_sites=None, report_level='ad_unit_to_site')
                     if not res or not res.get('status'):
                         total_error += 1
                         self.stdout.write(self.style.ERROR(
@@ -93,31 +95,66 @@ class Command(BaseCommand):
                         continue
                     for item in res.get('data', []) or []:
                         try:
-                            impressions = int(item.get('impressions', 0) or 0)
-                            clicks = int(item.get('clicks', 0) or 0)
-                            revenue = float(item.get('revenue', 0.0) or 0.0)
-                            cpc = float(item.get('cpc', 0.0) or 0.0)
-                            ctr = float(item.get('ctr', 0.0) or 0.0)
-                            cpm = float(item.get('ecpm', 0.0) or 0.0)
+                            def _to_float(val):
+                                s = str(val or '').replace(',', '').replace('%', '').strip()
+                                if not s:
+                                    return 0.0
+                                try:
+                                    return float(s)
+                                except Exception:
+                                    return 0.0
+
+                            def _to_int(val):
+                                return int(_to_float(val))
+
+                            impressions = _to_int(item.get('impressions', 0))
+                            clicks = _to_int(item.get('clicks', 0))
+                            revenue = _to_float(item.get('revenue', 0.0))
+
+                            site_name = str(item.get('site_name') or '').strip()
+                            if not site_name:
+                                continue
+
+                            cpc = _to_float(item.get('cpc', 0.0))
+                            ctr = _to_float(item.get('ctr', 0.0))
+                            ecpm = _to_float(item.get('ecpm', 0.0))
+                            cpm = ecpm
+
+                            total_requests = _to_int(item.get('total_requests', 0))
+                            responses_served = _to_int(item.get('responses_served', 0))
+                            match_rate = _to_float(item.get('match_rate', 0.0))
+                            fill_rate = _to_float(item.get('fill_rate', 0.0))
+                            active_view_pct_viewable = _to_float(item.get('active_view_pct_viewable', 0.0))
+                            active_view_avg_time_sec = _to_float(item.get('active_view_avg_time_sec', 0.0))
+
                             # Konversi revenue ke IDR jika currency bukan IDR
                             revenue_idr = convert_to_idr(revenue, currency_code)
+
                             record = {
+                                'data_adx_domain_id': str(uuid.uuid4()),
                                 'account_id': cred.get('account_id') or '',
                                 'data_adx_domain_tanggal': day_str,
-                                'data_adx_domain': item.get('site_name') or '',
+                                'data_adx_domain': site_name,
                                 'data_adx_domain_impresi': impressions,
                                 'data_adx_domain_click': clicks,
-                                'data_adx_domain_cpc': cpc,
+                                'data_adx_domain_cpc': int(round(cpc)),
                                 'data_adx_domain_ctr': ctr,
-                                'data_adx_domain_cpm': cpm,
-                                'data_adx_domain_revenue': revenue_idr,
+                                'data_adx_domain_cpm': int(round(cpm)),
+                                'data_adx_domain_ecpm': int(round(ecpm)),
+                                'data_adx_domain_total_requests': total_requests,
+                                'data_adx_domain_responses_served': responses_served,
+                                'data_adx_domain_match_rate': int(round(match_rate)),
+                                'data_adx_domain_fill_rate': int(round(fill_rate)),
+                                'data_adx_domain_active_view_pct_viewable': int(round(active_view_pct_viewable)),
+                                'data_adx_domain_active_view_avg_time_sec': int(round(active_view_avg_time_sec)),
+                                'data_adx_domain_revenue': int(round(revenue_idr)),
                                 'mdb': '0',
                                 'mdb_name': 'Cron Job',
                                 'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                             }
                             # Bersihkan data existing untuk range agar idempotent
                             try:
-                                del_res = db.delete_data_adx_domain_by_date_account(cred.get('account_id'), day_str, item.get('site_name'))
+                                del_res = db.delete_data_adx_domain_by_date_account(cred.get('account_id'), day_str, site_name)
                                 if del_res.get('hasil', {}).get('status'):
                                     affected = del_res.get('hasil', {}).get('affected', 0)
                                     self.stdout.write(self.style.WARNING(

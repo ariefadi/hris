@@ -48,7 +48,7 @@ class Command(BaseCommand):
             end_date = tanggal
         else:
             today_dt = datetime.now().date()
-            start_date = (today_dt - timedelta(days=6)).strftime('%Y-%m-%d')
+            start_date = (today_dt - timedelta(days=3)).strftime('%Y-%m-%d')
             end_date = today_dt.strftime('%Y-%m-%d')
         self.stdout.write(self.style.WARNING(
             f"Menarik dan menyimpan AdX per negara untuk range {start_date} s/d {end_date} (7 hari)."
@@ -95,34 +95,66 @@ class Command(BaseCommand):
                         continue
                     for item in res.get('data', []):
                         try:
-                            # Map dan hitung metrik sesuai schema data_adx
-                            impressions = int(item.get('impressions', 0) or 0)
-                            clicks = int(item.get('clicks', 0) or 0)
-                            revenue = float(item.get('revenue', 0.0) or 0.0)
-                            # Konversi revenue ke IDR
+                            def _to_float(val):
+                                try:
+                                    s = str(val or '').replace(',', '').replace('%', '').strip()
+                                    if not s:
+                                        return 0.0
+                                    return float(s)
+                                except Exception:
+                                    return 0.0
+
+                            def _to_int(val):
+                                return int(_to_float(val))
+
+                            impressions = _to_int(item.get('impressions', 0))
+                            clicks = _to_int(item.get('clicks', 0))
+                            revenue = _to_float(item.get('revenue', 0.0))
+
+                            country_cd = (item.get('country_code') or '').upper().strip()
+                            site_name = (item.get('site_name') or '').strip()
+                            if not country_cd or not site_name:
+                                continue
+
                             revenue_idr = convert_to_idr(revenue, currency_code)
-                            # Hitung turunan dari revenue yang sudah IDR agar konsisten
-                            cpc = float(item.get('cpc', 0.0) or (revenue_idr / clicks if clicks > 0 else 0.0))
-                            cpm = float(item.get('ecpm', 0.0) or (revenue_idr / impressions * 1000 if impressions > 0 else 0.0))
+
+                            ctr = _to_float(item.get('ctr', 0.0) or (clicks / impressions * 100 if impressions > 0 else 0.0))
+                            cpc_idr = (revenue_idr / clicks) if clicks > 0 else 0.0
+                            ecpm_idr = (revenue_idr / impressions * 1000) if impressions > 0 else 0.0
+
+                            total_requests = _to_int(item.get('total_requests', 0))
+                            responses_served = _to_int(item.get('responses_served', 0))
+                            match_rate = _to_float(item.get('match_rate', 0.0))
+                            fill_rate = _to_float(item.get('fill_rate', 0.0))
+                            active_view_pct_viewable = _to_float(item.get('active_view_pct_viewable', 0.0))
+                            active_view_avg_time_sec = _to_float(item.get('active_view_avg_time_sec', 0.0))
+
                             record = {
                                 'account_id': cred.get('account_id') or '',
                                 'data_adx_country_tanggal': day_str,
-                                'data_adx_country_cd': (item.get('country_code') or '').upper(),
+                                'data_adx_country_cd': country_cd,
                                 'data_adx_country_nm': item.get('country_name') or '',
-                                'data_adx_country_domain': item.get('site_name') or '',
+                                'data_adx_country_domain': site_name,
                                 'data_adx_country_impresi': impressions,
                                 'data_adx_country_click': clicks,
-                                'data_adx_country_cpc': cpc,
-                                'data_adx_country_ctr': float(item.get('ctr', 0.0) or (clicks / impressions * 100 if impressions > 0 else 0.0)),
-                                'data_adx_country_cpm': cpm,
-                                'data_adx_country_revenue': revenue_idr,
+                                'data_adx_country_ctr': ctr,
+                                'data_adx_country_cpc': int(round(cpc_idr)),
+                                'data_adx_country_cpm': int(round(ecpm_idr)),
+                                'data_adx_country_ecpm': int(round(ecpm_idr)),
+                                'data_adx_country_total_requests': total_requests,
+                                'data_adx_country_response_served': responses_served,
+                                'data_adx_country_match_rate': int(round(match_rate)),
+                                'data_adx_country_fill_rate': int(round(fill_rate)),
+                                'data_adx_country_active_view_pct_viewable': int(round(active_view_pct_viewable)),
+                                'data_adx_country_active_view_avg_time_sec': int(round(active_view_avg_time_sec)),
+                                'data_adx_country_revenue': int(round(revenue_idr)),
                                 'mdb': '0',
                                 'mdb_name': 'Cron Job',
                                 'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                             }
                             # Bersihkan data existing untuk range per account agar idempotent
                             try:
-                                del_res = db.delete_data_adx_country_by_date(cred.get('account_id'), day_str, record.get('data_adx_country_cd'), record.get('data_adx_country_domain'))
+                                del_res = db.delete_data_adx_country_by_date(cred.get('account_id'), day_str, country_cd, site_name)
                                 if del_res.get('hasil', {}).get('status'):
                                     affected = del_res.get('hasil', {}).get('affected', 0)
                                     self.stdout.write(self.style.WARNING(
@@ -140,7 +172,7 @@ class Command(BaseCommand):
                             else:
                                 total_error += 1
                                 self.stdout.write(self.style.ERROR(
-                                    f"Gagal insert untuk {user_mail} - {account_name}: {ins.get('hasil', {}).get('data')}"
+                                    f"Gagal insert untuk {user_mail} - {account_name}: {ins.get('hasil', {}).get('data')} | country={country_cd} | site={site_name}"
                                 ))
                         except Exception as ie:
                             total_error += 1

@@ -8,6 +8,30 @@ from facebook_business.adobjects.adset import AdSet
 from facebook_business.adobjects.ad import Ad
 from facebook_business.exceptions import FacebookRequestError
 from collections import defaultdict
+import yaml
+import tempfile
+import time
+import io
+import csv
+import gzip
+import os
+import ssl
+import socket
+import urllib3
+import traceback
+import zeep
+import requests
+import pycountry
+import hashlib
+import json
+from django.core.cache import cache
+from django.conf import settings
+import os
+from string import Template
+import asyncio
+import threading
+
+import googleads.common
 
 try:
     from googleads import ad_manager
@@ -70,30 +94,6 @@ def with_user_credentials(view_func):
         return view_func(request, *args, **kwargs)
         
     return wrapper
-
-import yaml
-import tempfile
-import time
-import io
-import csv
-import gzip
-import os
-import ssl
-import urllib3
-import traceback
-import zeep
-import requests
-import pycountry
-import hashlib
-import json
-from django.core.cache import cache
-from django.conf import settings
-import os
-from string import Template
-import asyncio
-import threading
-
-import googleads.common
 
 def _format_idr_number(v):
     try:
@@ -2609,7 +2609,7 @@ def fetch_adx_summary_data(user_mail, start_date, end_date):
             'error': f'Error mengambil data AdX: {str(e)}'
         }
 
-def fetch_adx_traffic_account_by_user(user_mail, start_date, end_date, selected_sites=None):
+def fetch_adx_traffic_account_by_user(user_mail, start_date, end_date, selected_sites=None, report_level='site'):
     """Fetch traffic account data using user's credentials with AdX fallback to regular metrics"""
     try:
         # Get user's Ad Manager client
@@ -2622,7 +2622,99 @@ def fetch_adx_traffic_account_by_user(user_mail, start_date, end_date, selected_
             start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
         if isinstance(end_date, str):
             end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-        # Try AdX first, then fallback to regular metrics
+
+        if report_level == 'ad_unit_to_site':
+            base_res = None
+            adv_res = None
+            base_err = None
+            adv_err = None
+
+            try:
+                base_res = _run_regular_report(client, start_date, end_date, selected_sites)
+            except Exception as e:
+                base_err = str(e)
+                base_res = {
+                    'status': False,
+                    'error': base_err,
+                    'data': [],
+                }
+
+            try:
+                adv_res = _run_ad_unit_report_to_site(client, start_date, end_date, selected_sites)
+            except Exception as e:
+                adv_err = str(e)
+                adv_res = {
+                    'status': False,
+                    'error': adv_err,
+                    'data': [],
+                }
+
+            def _norm_site(name: str) -> str:
+                return (name or '').strip().lower().replace('www.', '').replace('.com', '')
+
+            base_data = (base_res or {}).get('data') or []
+            adv_data = (adv_res or {}).get('data') or []
+
+            if base_data and adv_data:
+                by_key = {}
+                for row in base_data:
+                    k = (row.get('date'), _norm_site(row.get('site_name')))
+                    by_key[k] = row
+
+                adv_by_key = {}
+                adv_display_by_date = {}
+                for a in adv_data:
+                    k = (a.get('date'), _norm_site(a.get('site_name')))
+                    adv_by_key[k] = a
+                    if (a.get('site_name') or '').strip().lower() == 'ad exchange display':
+                        adv_display_by_date[a.get('date')] = a
+
+                def _is_zero(v) -> bool:
+                    if v in [None, '']:
+                        return True
+                    try:
+                        return float(v) == 0.0
+                    except Exception:
+                        return False
+
+                for (dt, site_norm), tgt in by_key.items():
+                    a = adv_by_key.get((dt, site_norm))
+                    if a is None:
+                        a = adv_display_by_date.get(dt)
+                    if a is None:
+                        continue
+
+                    def _fill_num(key):
+                        if _is_zero(tgt.get(key)):
+                            val = a.get(key)
+                            if val is not None and val != '':
+                                tgt[key] = val
+
+                    _fill_num('total_requests')
+                    _fill_num('responses_served')
+                    _fill_num('match_rate')
+                    _fill_num('fill_rate')
+                    _fill_num('active_view_pct_viewable')
+                    _fill_num('active_view_avg_time_sec')
+
+                merged = list(by_key.values())
+                summary = _calculate_summary_from_processed_data(merged, start_date, end_date)
+                return {
+                    'status': True,
+                    'data': merged,
+                    'summary': summary,
+                    'api_method': 'site_plus_advanced',
+                    'note': 'Merged advanced AdX metrics into SITE_NAME rows'
+                }
+
+            if base_res and base_res.get('status'):
+                return base_res
+
+            return {
+                'status': False,
+                'error': f"No base SITE_NAME data. regular_error={base_err}; advanced_error={adv_err}",
+            }
+
         return _run_regular_report(client, start_date, end_date, selected_sites)
             
             
@@ -3330,25 +3422,35 @@ def get_user_adsense_client(user_mail):
 def get_user_adx_credentials(user_mail):
     """Get user's AdX credentials safely"""
     try:
-        # Pastikan user_mail valid
         if not user_mail:
             return {
                 'status': False,
                 'error': 'Email tidak boleh kosong'
             }
-        # Ambil kredensial dengan parameter yang benar
         db = data_mysql()
         creds_result = db.get_user_credentials(user_mail=user_mail)
-        print("✅ creds_result:", creds_result)
-        # Periksa apakah query berhasil
-        if not creds_result['status']:
+        if not creds_result.get('status'):
             return {
                 'status': False,
                 'error': f'Gagal mengambil kredensial: {creds_result.get("error", "Unknown error")}'
             }
-        credentials = creds_result['data']
-        print(f"✅ credentials: {credentials}")
-        # Validasi kredensial yang diperlukan
+        credentials = creds_result.get('data') or {}
+        required_fields = [
+            'client_id',
+            'client_secret',
+            'refresh_token',
+            'network_code'
+        ]
+        missing_fields = [field for field in required_fields if not credentials.get(field)]
+        if missing_fields:
+            return {
+                'status': False,
+                'error': f'Kredensial tidak lengkap: {", ".join(missing_fields)}'
+            }
+        return {
+            'status': True,
+            'data': credentials
+        }
         required_fields = [
             'client_id',
             'client_secret',
@@ -3377,9 +3479,10 @@ def get_user_adx_credentials(user_mail):
 def get_user_ad_manager_client(user_mail, skip_network_verification=False):
     """Get Ad Manager client using user's credentials"""
     try:
-        # Ambil kredensial user dengan fungsi yang aman
         creds_result = get_user_adx_credentials(user_mail=user_mail)
-        credentials = creds_result['data']
+        if not creds_result.get('status'):
+            return creds_result
+        credentials = creds_result.get('data') or {}
         # Pastikan semua kredensial dalam format string yang benar
         client_id = str(credentials.get('client_id', '')).strip()
         client_secret = str(credentials.get('client_secret', '')).strip()
@@ -3693,19 +3796,26 @@ def fetch_adx_traffic_campaign_by_user(user_mail, start_date, end_date, site_fil
 def _run_regular_report(client, start_date, end_date, selected_sites):
     """Run regular Ad Manager report as fallback (no dimensionFilters; post-filter by site)"""
     report_service = client.GetService('ReportService', version='v202502')
-    # Lebihkan fallback kolom agar lebih tahan error
+    last_error = None
     regular_column_combinations = [
-        ['TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CLICKS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE'],
-        ['TOTAL_IMPRESSIONS', 'TOTAL_CLICKS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE'],
+        ['AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE', 'TOTAL_LINE_ITEM_LEVEL_CLICKS'],
+        ['AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE', 'AD_EXCHANGE_CLICKS'],
+        ['AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE', 'AD_SERVER_CLICKS'],
+        ['AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE', 'TOTAL_CLICKS'],
+
+        ['TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE', 'TOTAL_LINE_ITEM_LEVEL_CLICKS'],
+        ['TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE', 'TOTAL_CLICKS'],
+
+        ['TOTAL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE', 'TOTAL_CLICKS'],
         ['TOTAL_IMPRESSIONS', 'TOTAL_CLICKS'],
         ['AD_SERVER_IMPRESSIONS', 'AD_SERVER_CLICKS'],
-        ['TOTAL_IMPRESSIONS']
+        ['TOTAL_IMPRESSIONS'],
     ]
     # Coba beberapa variasi dimensi; hindari filter di level query
+    # Untuk domain, wajib ada site name (jangan pakai ['DATE'] karena site_name kosong)
     dimension_combinations = [
         ['DATE', 'SITE_NAME'],
         ['DATE', 'AD_EXCHANGE_SITE_NAME'],
-        ['DATE']
     ]
     for dimensions in dimension_combinations:
         for columns in regular_column_combinations:
@@ -3729,14 +3839,19 @@ def _run_regular_report(client, start_date, end_date, selected_sites):
                     }
                 }
                 # Try to run the report job
-                report_job = report_service.runReportJob(report_query)
+                old_timeout = socket.getdefaulttimeout()
+                socket.setdefaulttimeout(90)
+                try:
+                    report_job = report_service.runReportJob(report_query)
+                finally:
+                    socket.setdefaulttimeout(old_timeout)
                 print(f"[DEBUG] Regular report created successfully with dimensions: {dimensions}, columns: {columns}")
                 # Wait for completion and download
                 raw_result = _wait_and_download_report(client, report_job['id'])
                 print(f"[DEBUG] Raw result: {raw_result}")
                 # Process the raw CSV data to match expected frontend format
-                if raw_result.get('status') and raw_result.get('data'):
-                    processed_data = _process_regular_csv_data(raw_result['data'])
+                if raw_result.get('status'):
+                    processed_data = _process_regular_csv_data(raw_result.get('data') or [])
                     # Post-filter situs jika filter domain diberikan
                     if selected_sites:
                         if isinstance(selected_sites, (set, list)):
@@ -3758,10 +3873,10 @@ def _run_regular_report(client, start_date, end_date, selected_sites):
                         'note': f'Using regular Ad Manager metrics (dimensions: {dimensions}, columns: {columns})'
                     }
                 else:
-                    # Lanjutkan mencoba kombinasi berikutnya jika hasil kosong
                     continue
             except Exception as e:
                 error_msg = str(e)
+                last_error = error_msg
                 print(f"[DEBUG] Combination dimensions: {dimensions}, columns: {columns} failed: {error_msg}")
                 # If NOT_NULL error, try next combination
                 if 'NOT_NULL' in error_msg:
@@ -3772,85 +3887,469 @@ def _run_regular_report(client, start_date, end_date, selected_sites):
                 # For other errors, try next combination
                 else:
                     continue
-    # Jika semua kombinasi reguler gagal, beri pesan yang lebih jelas
-    raise Exception("All regular column combinations failed")
+    raise Exception(f"All regular column combinations failed. Last error: {last_error}")
+
+
+def _run_ad_unit_report_to_site(client, start_date, end_date, selected_sites):
+    report_service = client.GetService('ReportService', version='v202502')
+    last_error = None
+
+    ad_unit_column_combinations = [
+        [
+            'TOTAL_AD_REQUESTS',
+            'AD_EXCHANGE_RESPONSES_SERVED',
+            'AD_EXCHANGE_MATCH_RATE',
+            'AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS',
+            'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE',
+            'TOTAL_CLICKS',
+            'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS',
+            'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS',
+            'ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME',
+        ],
+        [
+            'TOTAL_AD_REQUESTS',
+            'AD_EXCHANGE_RESPONSES_SERVED',
+            'AD_EXCHANGE_MATCH_RATE',
+            'AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS',
+            'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE',
+            'TOTAL_CLICKS',
+            'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS',
+            'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS',
+        ],
+        [
+            'TOTAL_AD_REQUESTS',
+            'AD_EXCHANGE_RESPONSES_SERVED',
+            'AD_EXCHANGE_MATCH_RATE',
+            'AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS',
+            'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE',
+            'TOTAL_CLICKS',
+        ],
+        [
+            'TOTAL_AD_REQUESTS',
+            'AD_EXCHANGE_RESPONSES_SERVED',
+            'AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS',
+            'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE',
+            'TOTAL_CLICKS',
+        ],
+        ['TOTAL_AD_REQUESTS', 'AD_EXCHANGE_RESPONSES_SERVED', 'AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS'],
+    ]
+
+    dimension_combinations = [
+        ['DATE', 'AD_UNIT_NAME'],
+        ['DATE', 'AD_UNIT_ID'],
+        ['DATE', 'AD_EXCHANGE_SITE_NAME'],
+        ['DATE', 'AD_EXCHANGE_SITE_NAME', 'AD_UNIT_ID'],
+    ]
+
+    for dimensions in dimension_combinations:
+        for columns in ad_unit_column_combinations:
+            try:
+                print(f"[DEBUG] Trying ad-unit dimensions: {dimensions}, columns: {columns}")
+                report_query = {
+                    'reportQuery': {
+                        'dimensions': dimensions,
+                        'columns': columns,
+                        'dateRangeType': 'CUSTOM_DATE',
+                        'startDate': {
+                            'year': start_date.year,
+                            'month': start_date.month,
+                            'day': start_date.day
+                        },
+                        'endDate': {
+                            'year': end_date.year,
+                            'month': end_date.month,
+                            'day': end_date.day
+                        }
+                    }
+                }
+                old_timeout = socket.getdefaulttimeout()
+                socket.setdefaulttimeout(90)
+                try:
+                    report_job = report_service.runReportJob(report_query)
+                finally:
+                    socket.setdefaulttimeout(old_timeout)
+
+                raw_result = _wait_and_download_report(client, report_job['id'])
+                if not raw_result.get('status'):
+                    continue
+
+                processed_data = _process_ad_unit_csv_to_site(client, raw_result.get('data') or [], selected_sites)
+                summary = _calculate_summary_from_processed_data(processed_data, start_date, end_date)
+                return {
+                    'status': True,
+                    'data': processed_data,
+                    'summary': summary,
+                    'api_method': 'ad_unit_to_site',
+                    'note': f"Using {dimensions} and aggregating to SITE_NAME (columns: {columns})"
+                }
+            except Exception as e:
+                error_msg = str(e)
+                last_error = error_msg
+                print(f"[DEBUG] Ad-unit combination dimensions: {dimensions}, columns: {columns} failed: {error_msg}")
+                if 'NOT_SUPPORTED' in error_msg or 'COLUMNS_NOT_SUPPORTED_FOR_REQUESTED_DIMENSIONS' in error_msg:
+                    continue
+                if 'PERMISSION' in error_msg.upper():
+                    raise e
+                continue
+
+    raise Exception(f"All ad unit dimension/column combinations failed. Last error: {last_error}")
+
+
+def _process_ad_unit_csv_to_site(client, raw_data, selected_sites):
+    def _to_float(val):
+        s = str(val or '').replace(',', '').replace('%', '').strip()
+        if not s:
+            return 0.0
+        try:
+            return float(s)
+        except Exception:
+            return 0.0
+
+    def _to_int(val):
+        return int(_to_float(val))
+
+    has_site_dim = any(('Dimension.SITE_NAME' in r) or ('Dimension.AD_EXCHANGE_SITE_NAME' in r) for r in (raw_data or []))
+
+    use_id = (not has_site_dim) and any(('Dimension.AD_UNIT_ID' in r) for r in (raw_data or []))
+
+    id_to_site = {}
+    if use_id:
+        ad_unit_ids = set()
+        for row in raw_data:
+            ad_unit_id = str(row.get('Dimension.AD_UNIT_ID', '') or '').strip()
+            if ad_unit_id and ad_unit_id.lower() not in ['ad unit id', 'total']:
+                ad_unit_ids.add(ad_unit_id)
+        id_to_site = _map_ad_unit_ids_to_site_names(
+            client,
+            list(ad_unit_ids),
+            only_top_level_name='Ad Exchange Display',
+            return_domain_under_top=False,
+        )
+
+    sites_norm = None
+    if selected_sites:
+        if isinstance(selected_sites, (set, list)):
+            selected_sites_str = ','.join([str(s) for s in selected_sites])
+        else:
+            selected_sites_str = str(selected_sites)
+        sites_norm = [s.strip().lower().replace('www.', '').replace('.com', '')
+                      for s in selected_sites_str.split(',') if s.strip()]
+
+    def _match_site(row_name: str) -> bool:
+        if not sites_norm:
+            return True
+        nm = (row_name or '').lower().replace('www.', '').replace('.com', '')
+        return any(sn in nm for sn in sites_norm)
+
+    aggregated = {}
+
+    for row in raw_data:
+        date = row.get('Dimension.DATE')
+
+        site_name = ''
+        if 'Dimension.SITE_NAME' in row:
+            site_name = str(row.get('Dimension.SITE_NAME', '') or '').strip()
+        elif 'Dimension.AD_EXCHANGE_SITE_NAME' in row:
+            site_name = str(row.get('Dimension.AD_EXCHANGE_SITE_NAME', '') or '').strip()
+
+        if not site_name:
+            if use_id:
+                ad_unit_key = str(row.get('Dimension.AD_UNIT_ID', '') or '').strip()
+                if not ad_unit_key or ad_unit_key.lower() in ['ad unit id', 'total']:
+                    continue
+                site_name = id_to_site.get(ad_unit_key) or ''
+            else:
+                ad_unit_name = str(row.get('Dimension.AD_UNIT_NAME', '') or '').strip()
+                if not ad_unit_name or ad_unit_name.lower() in ['ad unit name', 'total']:
+                    continue
+                if ad_unit_name.strip().lower() != 'ad exchange display':
+                    continue
+                site_name = 'Ad Exchange Display'
+
+        if not site_name or not _match_site(site_name):
+            continue
+
+        impressions = 0
+        if 'Column.AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS' in row:
+            impressions = _to_int(row.get('Column.AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS'))
+        elif 'Column.TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS' in row:
+            impressions = _to_int(row.get('Column.TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS'))
+        elif 'Column.TOTAL_IMPRESSIONS' in row:
+            impressions = _to_int(row.get('Column.TOTAL_IMPRESSIONS'))
+
+        clicks = 0
+        if 'Column.TOTAL_CLICKS' in row:
+            clicks = _to_int(row.get('Column.TOTAL_CLICKS'))
+        elif 'Column.TOTAL_LINE_ITEM_LEVEL_CLICKS' in row:
+            clicks = _to_int(row.get('Column.TOTAL_LINE_ITEM_LEVEL_CLICKS'))
+        elif 'Column.AD_EXCHANGE_CLICKS' in row:
+            clicks = _to_int(row.get('Column.AD_EXCHANGE_CLICKS'))
+
+        revenue = 0.0
+        if 'Column.TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE' in row:
+            revenue = _to_float(row.get('Column.TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE')) / 1000000
+        elif 'Column.AD_EXCHANGE_TOTAL_EARNINGS' in row:
+            revenue = _to_float(row.get('Column.AD_EXCHANGE_TOTAL_EARNINGS'))
+
+        total_requests = _to_int(row.get('Column.TOTAL_AD_REQUESTS')) if 'Column.TOTAL_AD_REQUESTS' in row else 0
+        responses_served = _to_int(row.get('Column.AD_EXCHANGE_RESPONSES_SERVED')) if 'Column.AD_EXCHANGE_RESPONSES_SERVED' in row else 0
+
+        viewable = _to_int(row.get('Column.ACTIVE_VIEW_VIEWABLE_IMPRESSIONS')) if 'Column.ACTIVE_VIEW_VIEWABLE_IMPRESSIONS' in row else 0
+        measurable = _to_int(row.get('Column.ACTIVE_VIEW_MEASURABLE_IMPRESSIONS')) if 'Column.ACTIVE_VIEW_MEASURABLE_IMPRESSIONS' in row else 0
+        avg_time = _to_float(row.get('Column.ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME')) if 'Column.ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME' in row else 0.0
+
+        key = (date, site_name)
+        if key not in aggregated:
+            aggregated[key] = {
+                'impressions': 0,
+                'clicks': 0,
+                'revenue': 0.0,
+                'total_requests': 0,
+                'responses_served': 0,
+                'viewable': 0,
+                'measurable': 0,
+                'view_time_weighted': 0.0,
+            }
+
+        agg = aggregated[key]
+        agg['impressions'] += impressions
+        agg['clicks'] += clicks
+        agg['revenue'] += revenue
+        agg['total_requests'] += total_requests
+        agg['responses_served'] += responses_served
+        agg['viewable'] += viewable
+        agg['measurable'] += measurable
+        agg['view_time_weighted'] += (avg_time * measurable)
+
+    processed = []
+    for (date, site_name), agg in aggregated.items():
+        impressions = agg['impressions']
+        clicks = agg['clicks']
+        revenue = agg['revenue']
+        total_requests = agg['total_requests']
+        responses_served = agg['responses_served']
+        viewable = agg['viewable']
+        measurable = agg['measurable']
+
+        cpc = (revenue / clicks) if clicks > 0 else 0.0
+        ctr = (clicks / impressions * 100) if impressions > 0 else 0.0
+        ecpm = (revenue / impressions * 1000) if impressions > 0 else 0.0
+
+        match_rate = (responses_served / total_requests * 100) if total_requests > 0 else 0.0
+        fill_rate = (impressions / responses_served * 100) if responses_served > 0 else 0.0
+
+        active_view_pct_viewable = (viewable / measurable * 100) if measurable > 0 else 0.0
+        active_view_avg_time_sec = (agg['view_time_weighted'] / measurable) if measurable > 0 else 0.0
+
+        processed.append({
+            'date': date,
+            'site_name': site_name,
+            'impressions': impressions,
+            'clicks': clicks,
+            'revenue': revenue,
+            'cpc': cpc,
+            'ctr': ctr,
+            'ecpm': ecpm,
+            'total_requests': total_requests,
+            'responses_served': responses_served,
+            'match_rate': match_rate,
+            'fill_rate': fill_rate,
+            'active_view_pct_viewable': active_view_pct_viewable,
+            'active_view_avg_time_sec': active_view_avg_time_sec,
+        })
+
+    return processed
+
+
+def _map_ad_unit_ids_to_site_names(client, ad_unit_ids, only_top_level_name=None, return_domain_under_top=False):
+    if not ad_manager:
+        return {}
+
+    inventory_service = client.GetService('InventoryService', version='v202502')
+
+    safe_ids = [str(i).strip() for i in (ad_unit_ids or []) if str(i).strip().isdigit()]
+    if not safe_ids:
+        return {}
+
+    cache = {}
+    pending = set(safe_ids)
+
+    while pending:
+        batch = []
+        for _ in range(min(500, len(pending))):
+            batch.append(pending.pop())
+
+        statement = ad_manager.StatementBuilder()
+        statement.Where(f"id IN ({','.join(batch)})")
+        resp = inventory_service.getAdUnitsByStatement(statement.ToStatement())
+
+        if isinstance(resp, dict):
+            results = resp.get('results') or []
+        elif isinstance(resp, list):
+            results = resp
+        else:
+            results = getattr(resp, 'results', None) or []
+
+        for au in results:
+            if isinstance(au, dict):
+                au_id = str(au.get('id') or '').strip()
+                parent_id = str(au.get('parentId') or '').strip()
+                name = str(au.get('name') or '').strip()
+            else:
+                au_id = str(getattr(au, 'id', '') or '').strip()
+                parent_id = str(getattr(au, 'parentId', '') or '').strip()
+                name = str(getattr(au, 'name', '') or '').strip()
+
+            if not au_id:
+                continue
+
+            cache[au_id] = {
+                'id': au_id,
+                'parentId': parent_id,
+                'name': name,
+            }
+
+            if parent_id and parent_id not in cache:
+                pending.add(parent_id)
+
+    ancestor_filter = (only_top_level_name or '').strip().lower()
+
+    id_to_site = {}
+    for ad_unit_id in safe_ids:
+        cur = ad_unit_id
+        seen = set()
+        child_below_match = ''
+
+        while True:
+            au = cache.get(cur)
+            if not au:
+                break
+
+            name = str(au.get('name') or '').strip()
+
+            # Match any ancestor level (not only direct child of root)
+            if ancestor_filter and name.lower() == ancestor_filter:
+                if return_domain_under_top:
+                    if child_below_match:
+                        id_to_site[ad_unit_id] = child_below_match
+                else:
+                    id_to_site[ad_unit_id] = name
+                break
+
+            parent_id = str(au.get('parentId') or '').strip()
+            if not parent_id:
+                # If no filter requested, return the topmost reached name
+                if not ancestor_filter and name:
+                    id_to_site[ad_unit_id] = name
+                break
+
+            if cur in seen:
+                break
+            seen.add(cur)
+
+            # Track immediate child under the next parent (for return_domain_under_top)
+            child_below_match = name
+            cur = parent_id
+
+    return id_to_site
+
+
+def _get_root_ad_unit_id(client):
+    try:
+        network_service = client.GetService('NetworkService', version='v202502')
+        net = network_service.getCurrentNetwork()
+        if isinstance(net, dict):
+            root_id = str(net.get('effectiveRootAdUnitId') or '').strip()
+        else:
+            root_id = str(getattr(net, 'effectiveRootAdUnitId', '') or '').strip()
+        return root_id or None
+    except Exception:
+        return None
+
 
 def _wait_and_download_report(client, report_job_id):
     """Wait for report completion and download data"""
-    
-    report_service = client.GetService('ReportService', version='v202502')
-    
-    # Wait for report completion
-    max_attempts = 30
-    for attempt in range(max_attempts):
-        try:
-            status = report_service.getReportJobStatus(report_job_id)
-            print(f"[DEBUG] Report status check {attempt + 1}: {status}")
-            
-            if status == 'COMPLETED':
-                print(f"[DEBUG] Report completed, downloading...")
-                
-                # Download report using DownloadReportToFile
-                downloader = client.GetDataDownloader(version='v202502')
-                
-                # Create temporary file for report data
-                import tempfile
-                with tempfile.NamedTemporaryFile(mode='w+b', delete=True, suffix='.csv.gz') as temp_file:
-                    try:
-                        # Download report to file
-                        downloader.DownloadReportToFile(report_job_id, 'CSV_DUMP', temp_file)
-                        
-                        # Read the gzip compressed file content
-                        temp_file.seek(0)
-                        import gzip
-                        with gzip.open(temp_file, 'rt') as gz_file:
-                            report_data = gz_file.read()
-                        
-                    except Exception as download_error:
-                        print(f"[DEBUG] DownloadReportToFile failed: {download_error}")
-                        raise download_error
-                
-                # Parse CSV data
-                lines = report_data.strip().split('\n')
-                if len(lines) <= 1:
+
+    old_timeout = socket.getdefaulttimeout()
+    socket.setdefaulttimeout(90)
+    try:
+        report_service = client.GetService('ReportService', version='v202502')
+
+        # Wait for report completion
+        max_attempts = 120
+        for attempt in range(max_attempts):
+            try:
+                status = report_service.getReportJobStatus(report_job_id)
+                print(f"[DEBUG] Report status check {attempt + 1}: {status}")
+
+                if status == 'COMPLETED':
+                    print(f"[DEBUG] Report completed, downloading...")
+
+                    # Download report using DownloadReportToFile
+                    downloader = client.GetDataDownloader(version='v202502')
+
+                    # Create temporary file for report data
+                    import tempfile
+                    with tempfile.NamedTemporaryFile(mode='w+b', delete=True, suffix='.csv.gz') as temp_file:
+                        try:
+                            # Download report to file
+                            downloader.DownloadReportToFile(report_job_id, 'CSV_DUMP', temp_file)
+
+                            # Read the gzip compressed file content
+                            temp_file.seek(0)
+                            import gzip
+                            with gzip.open(temp_file, 'rt') as gz_file:
+                                report_data = gz_file.read()
+
+                        except Exception as download_error:
+                            print(f"[DEBUG] DownloadReportToFile failed: {download_error}")
+                            raise download_error
+
+                    import csv
+                    import io
+
+                    rows = list(csv.reader(io.StringIO(report_data)))
+                    if len(rows) <= 1:
+                        return {
+                            'status': True,
+                            'data': [],
+                            'message': 'No data available for the specified date range'
+                        }
+
+                    headers = rows[0]
+                    data = []
+                    for values in rows[1:]:
+                        if not values:
+                            continue
+                        row = dict(zip(headers, values))
+                        if row:
+                            data.append(row)
+
+                    print(f"[DEBUG] Successfully downloaded {len(data)} rows")
                     return {
                         'status': True,
-                        'data': [],
-                        'message': 'No data available for the specified date range'
+                        'data': data,
+                        'message': f'Successfully retrieved {len(data)} rows'
                     }
-                
-                # Parse header and data
-                headers = lines[0].split(',')
-                data = []
-                for line in lines[1:]:
-                    if line.strip():
-                        values = line.split(',')
-                        row = dict(zip(headers, values))
-                        data.append(row)
-                
-                print(f"[DEBUG] Successfully downloaded {len(data)} rows")
-                return {
-                    'status': True,
-                    'data': data,
-                    'message': f'Successfully retrieved {len(data)} rows'
-                }
-                
-            elif status == 'FAILED':
-                return {
-                    'status': False,
-                    'error': 'Report generation failed'
-                }
-            else:
-                time.sleep(2)
-                
-        except Exception as e:
-            print(f"[DEBUG] Status check failed: {e}")
-            time.sleep(2)
-    
-    return {
-        'status': False,
-        'error': 'Report generation timed out'
-    }
+
+                if status == 'FAILED':
+                    return {
+                        'status': False,
+                        'error': 'Report generation failed'
+                    }
+
+                time.sleep(5)
+
+            except Exception as e:
+                print(f"[DEBUG] Status check failed: {e}")
+                time.sleep(5)
+
+        return {
+            'status': False,
+            'error': 'Report generation timed out'
+        }
+    finally:
+        socket.setdefaulttimeout(old_timeout)
 
 
 def _process_regular_csv_data(raw_data):
@@ -3875,34 +4374,46 @@ def _process_regular_csv_data(raw_data):
             if low_site in ['not applicable', '(not applicable)', 'n/a', 'na']:
                 continue
             
-            # Handle different possible column names for impressions
+            def _to_float(val):
+                s = str(val or '').replace(',', '').replace('%', '').strip()
+                if not s:
+                    return 0.0
+                try:
+                    return float(s)
+                except Exception:
+                    return 0.0
+
+            def _to_int(val):
+                return int(_to_float(val))
+
             impressions = 0
-            if 'Column.AD_EXCHANGE_IMPRESSIONS' in row:
-                impressions = int(row.get('Column.AD_EXCHANGE_IMPRESSIONS', 0))
+            if 'Column.AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS' in row:
+                impressions = _to_int(row.get('Column.AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS'))
+            elif 'Column.AD_EXCHANGE_IMPRESSIONS' in row:
+                impressions = _to_int(row.get('Column.AD_EXCHANGE_IMPRESSIONS'))
             elif 'Column.TOTAL_IMPRESSIONS' in row:
-                impressions = int(row.get('Column.TOTAL_IMPRESSIONS', 0))
+                impressions = _to_int(row.get('Column.TOTAL_IMPRESSIONS'))
             elif 'Column.TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS' in row:
-                impressions = int(row.get('Column.TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS', 0))
-            
-            # Handle clicks - prioritize line item level columns
+                impressions = _to_int(row.get('Column.TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS'))
+
             clicks = 0
             if 'Column.TOTAL_LINE_ITEM_LEVEL_CLICKS' in row:
-                clicks = int(row.get('Column.TOTAL_LINE_ITEM_LEVEL_CLICKS', 0))
+                clicks = _to_int(row.get('Column.TOTAL_LINE_ITEM_LEVEL_CLICKS'))
             elif 'Column.AD_EXCHANGE_CLICKS' in row:
-                clicks = int(row.get('Column.AD_EXCHANGE_CLICKS', 0))
+                clicks = _to_int(row.get('Column.AD_EXCHANGE_CLICKS'))
+            elif 'Column.AD_SERVER_CLICKS' in row:
+                clicks = _to_int(row.get('Column.AD_SERVER_CLICKS'))
             elif 'Column.TOTAL_CLICKS' in row:
-                clicks = int(row.get('Column.TOTAL_CLICKS', 0))
-            
-            # Handle revenue - prioritize line item level columns
+                clicks = _to_int(row.get('Column.TOTAL_CLICKS'))
+
             revenue = 0.0
             if 'Column.TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE' in row:
-                # Revenue is in micro units, convert to actual currency
-                revenue_micro = float(row.get('Column.TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE', 0))
+                revenue_micro = _to_float(row.get('Column.TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE'))
                 print(f"[DEBUG] Revenue before conversion: {revenue_micro}")
-                revenue = revenue_micro / 1000000  # Convert from micro units
+                revenue = revenue_micro / 1000000
                 print(f"[DEBUG] Revenue after conversion: {revenue}")
             elif 'Column.AD_EXCHANGE_TOTAL_EARNINGS' in row:
-                revenue = float(row.get('Column.AD_EXCHANGE_TOTAL_EARNINGS', 0))
+                revenue = _to_float(row.get('Column.AD_EXCHANGE_TOTAL_EARNINGS'))
                 print(f"[DEBUG] AdX Revenue (no conversion): {revenue}")
             
             # Handle pre-calculated metrics from AdX if available
@@ -3925,6 +4436,34 @@ def _process_regular_csv_data(raw_data):
             elif impressions > 0 and revenue > 0:
                 ecpm = (revenue / impressions) * 1000
             
+            def _to_float(val):
+                s = str(val or '').replace(',', '').replace('%', '').strip()
+                if not s:
+                    return 0.0
+                try:
+                    return float(s)
+                except Exception:
+                    return 0.0
+
+            def _to_int(val):
+                return int(_to_float(val))
+
+            total_requests = _to_int(row.get('Column.TOTAL_AD_REQUESTS')) if 'Column.TOTAL_AD_REQUESTS' in row else 0
+            responses_served = _to_int(row.get('Column.AD_EXCHANGE_RESPONSES_SERVED')) if 'Column.AD_EXCHANGE_RESPONSES_SERVED' in row else 0
+
+            match_rate = _to_float(row.get('Column.AD_EXCHANGE_MATCH_RATE')) if 'Column.AD_EXCHANGE_MATCH_RATE' in row else 0.0
+            if not match_rate and total_requests > 0:
+                match_rate = (responses_served / total_requests) * 100
+
+            fill_rate = (impressions / responses_served * 100) if responses_served > 0 else 0.0
+
+            viewable = _to_int(row.get('Column.ACTIVE_VIEW_VIEWABLE_IMPRESSIONS')) if 'Column.ACTIVE_VIEW_VIEWABLE_IMPRESSIONS' in row else 0
+            measurable = _to_int(row.get('Column.ACTIVE_VIEW_MEASURABLE_IMPRESSIONS')) if 'Column.ACTIVE_VIEW_MEASURABLE_IMPRESSIONS' in row else 0
+
+            active_view_pct_viewable = (viewable / measurable * 100) if measurable > 0 else 0.0
+
+            active_view_avg_time_sec = _to_float(row.get('Column.ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME')) if 'Column.ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME' in row else 0.0
+
             processed.append({
                 'date': date,
                 'site_name': site_name,
@@ -3933,7 +4472,13 @@ def _process_regular_csv_data(raw_data):
                 'revenue': revenue,
                 'cpc': cpc,
                 'ctr': ctr,
-                'ecpm': ecpm
+                'ecpm': ecpm,
+                'total_requests': total_requests,
+                'responses_served': responses_served,
+                'match_rate': match_rate,
+                'fill_rate': fill_rate,
+                'active_view_pct_viewable': active_view_pct_viewable,
+                'active_view_avg_time_sec': active_view_avg_time_sec,
             })
             
         except Exception as e:
@@ -3983,7 +4528,6 @@ def _calculate_summary_from_processed_data(data, start_date, end_date):
 def fetch_adx_traffic_per_country(start_date, end_date, user_mail, selected_sites=None, countries_list=None):
     """Fetch AdX traffic data per country using user credentials """
     try:
-        # Use user-specific Ad Manager client
         client_result = get_user_ad_manager_client(user_mail)
         if not client_result.get('status', False):
             print(f"[ERROR] Gagal mendapatkan client Ad Manager: {client_result.get('error', 'Unknown error')}")
@@ -3993,12 +4537,62 @@ def fetch_adx_traffic_per_country(start_date, end_date, user_mail, selected_site
                 'is_fallback': False
             }
         client = client_result['client']
-        # Convert string dates to datetime.date objects
+
         if isinstance(start_date, str):
             start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
         if isinstance(end_date, str):
             end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-        return _run_regular_country_report(client, start_date, end_date, selected_sites, countries_list)
+
+        base_res = _run_regular_country_report(client, start_date, end_date, selected_sites, countries_list)
+        if not base_res.get('status'):
+            return base_res
+
+        adv_res = None
+        try:
+            adv_res = _run_country_advanced_report(client, start_date, end_date, selected_sites, countries_list)
+        except Exception:
+            adv_res = None
+
+        base_data = base_res.get('data') or []
+        adv_data = (adv_res or {}).get('data') or []
+        if not base_data or not adv_data:
+            return base_res
+
+        def _norm_site(name: str) -> str:
+            return (name or '').strip().lower().replace('www.', '').replace('.com', '')
+
+        adv_by_key = {}
+        adv_by_country = {}
+        for a in adv_data:
+            cc = str(a.get('country_code') or '').strip().upper()
+            sn = _norm_site(a.get('site_name'))
+            if cc:
+                adv_by_key[(cc, sn)] = a
+                if cc not in adv_by_country:
+                    adv_by_country[cc] = a
+
+        def _is_zero(v) -> bool:
+            if v in [None, '']:
+                return True
+            try:
+                return float(v) == 0.0
+            except Exception:
+                return False
+
+        for row in base_data:
+            cc = str(row.get('country_code') or '').strip().upper()
+            sn = _norm_site(row.get('site_name'))
+            a = adv_by_key.get((cc, sn)) or adv_by_country.get(cc)
+            if not a:
+                continue
+            for k in ['total_requests', 'responses_served', 'match_rate', 'fill_rate', 'active_view_pct_viewable', 'active_view_avg_time_sec']:
+                if _is_zero(row.get(k)):
+                    val = a.get(k)
+                    if val is not None and val != '':
+                        row[k] = val
+
+        base_res['note'] = ((base_res.get('note') or '').strip() + '; merged_advanced=true').strip('; ')
+        return base_res
     except Exception as e:
         return {
             'status': False,
@@ -4032,34 +4626,13 @@ def _run_regular_country_report(client, start_date, end_date, selected_sites, co
     report_service = client.GetService('ReportService', version='v202502')
     # Determine dimensions based on site_filter
     dimension_combinations = [
-        ['SITE_NAME', 'AD_UNIT_NAME', 'COUNTRY_NAME'],
-        ['AD_EXCHANGE_SITE_NAME', 'AD_UNIT_NAME', 'COUNTRY_NAME'],
-        ['AD_UNIT_NAME', 'COUNTRY_NAME'],
-        ['AD_UNIT_NAME']
+        ['SITE_NAME', 'COUNTRY_NAME'],
+        ['AD_EXCHANGE_SITE_NAME', 'COUNTRY_NAME'],
+        ['SITE_NAME', 'COUNTRY_NAME', 'AD_UNIT_NAME'],
+        ['AD_EXCHANGE_SITE_NAME', 'COUNTRY_NAME', 'AD_UNIT_NAME'],
     ]
     # Use regular Ad Manager columns with more fallback options
     regular_column_combinations = [
-        [
-            'TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS',
-            'TOTAL_LINE_ITEM_LEVEL_CLICKS',
-            'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE',
-            'AD_EXCHANGE_TOTAL_REQUESTS',
-            'AD_EXCHANGE_RESPONSES_SERVED',
-            'AD_EXCHANGE_MATCH_RATE',
-            'TOTAL_FILL_RATE',
-            'AD_EXCHANGE_ACTIVE_VIEW_VIEWABLE_IMPRESSIONS_RATE',
-            'AD_EXCHANGE_ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME',
-        ],
-        [
-            'TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS',
-            'TOTAL_LINE_ITEM_LEVEL_CLICKS',
-            'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE',
-            'TOTAL_AD_REQUESTS',
-            'TOTAL_RESPONSES_SERVED',
-            'TOTAL_FILL_RATE',
-            'TOTAL_ACTIVE_VIEW_VIEWABLE_IMPRESSIONS_RATE',
-            'TOTAL_ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME',
-        ],
         ['TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CLICKS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE'],
         ['TOTAL_IMPRESSIONS', 'TOTAL_CLICKS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE'],
         ['TOTAL_IMPRESSIONS', 'TOTAL_CLICKS'],
@@ -4067,7 +4640,6 @@ def _run_regular_country_report(client, start_date, end_date, selected_sites, co
         ['TOTAL_IMPRESSIONS'],
         ['TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS'],
         # Additional fallback columns
-        ['AD_SERVER_IMPRESSIONS', 'AD_SERVER_CLICKS', 'AD_SERVER_ALL_REVENUE'],
         ['AD_SERVER_IMPRESSIONS', 'AD_SERVER_CLICKS'],
         ['AD_SERVER_IMPRESSIONS'],
         # Basic columns that should always work
@@ -4155,6 +4727,121 @@ def _run_regular_country_report(client, start_date, end_date, selected_sites, co
         'message': 'No data available for the selected period and countries'
     }
 
+def _run_country_advanced_report(client, start_date, end_date, selected_sites, countries_list):
+    report_service = client.GetService('ReportService', version='v202502')
+
+    dimension_combinations = [
+        ['AD_EXCHANGE_SITE_NAME', 'COUNTRY_NAME', 'AD_UNIT_NAME'],
+        ['SITE_NAME', 'COUNTRY_NAME', 'AD_UNIT_NAME'],
+        ['COUNTRY_NAME', 'AD_UNIT_NAME'],
+        ['COUNTRY_NAME', 'AD_UNIT_ID'],
+    ]
+
+    column_combinations = [
+        [
+            'TOTAL_AD_REQUESTS',
+            'AD_EXCHANGE_RESPONSES_SERVED',
+            'AD_EXCHANGE_MATCH_RATE',
+            'AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS',
+            'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS',
+            'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS',
+            'ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME',
+        ],
+        [
+            'TOTAL_AD_REQUESTS',
+            'AD_EXCHANGE_RESPONSES_SERVED',
+            'AD_EXCHANGE_MATCH_RATE',
+            'AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS',
+            'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS',
+            'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS',
+        ],
+        [
+            'TOTAL_AD_REQUESTS',
+            'AD_EXCHANGE_RESPONSES_SERVED',
+            'AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS',
+        ],
+    ]
+
+    for dimensions in dimension_combinations:
+        for columns in column_combinations:
+            try:
+                report_query = {
+                    'reportQuery': {
+                        'dimensions': dimensions,
+                        'columns': columns,
+                        'dateRangeType': 'CUSTOM_DATE',
+                        'startDate': {
+                            'year': start_date.year,
+                            'month': start_date.month,
+                            'day': start_date.day
+                        },
+                        'endDate': {
+                            'year': end_date.year,
+                            'month': end_date.month,
+                            'day': end_date.day
+                        }
+                    }
+                }
+
+                filters = []
+                if 'AD_UNIT_NAME' in dimensions:
+                    filters.append("AD_UNIT_NAME = 'Ad Exchange Display'")
+
+                if selected_sites:
+                    if isinstance(selected_sites, set):
+                        selected_sites = ','.join(selected_sites)
+                    preferred_dimensions_order = ['SITE_NAME', 'AD_EXCHANGE_SITE_NAME']
+                    filter_dimension = None
+                    for d in preferred_dimensions_order:
+                        if d in dimensions:
+                            filter_dimension = d
+                            break
+                    if filter_dimension:
+                        if ',' in str(selected_sites):
+                            sites = [f"'{s.strip()}'" for s in str(selected_sites).split(',') if s.strip()]
+                            filters.append(f"{filter_dimension} IN ({', '.join(sites)})")
+                        else:
+                            filters.append(f"{filter_dimension} = '{str(selected_sites).strip()}'")
+
+                if countries_list:
+                    country_filter = build_country_filter_from_codes(countries_list)
+                    if country_filter:
+                        filters.append(country_filter)
+
+                if filters:
+                    report_query['reportQuery']['statement'] = {'query': f"WHERE {' AND '.join(filters)}"}
+
+                report_job = report_service.runReportJob(report_query)
+                raw = _wait_and_download_report(client, report_job['id'])
+                if not raw.get('status'):
+                    continue
+
+                csv_text = ''
+                try:
+                    buf = io.StringIO()
+                    writer = csv.DictWriter(buf, fieldnames=list((raw.get('data') or [{}])[0].keys()))
+                    writer.writeheader()
+                    for r in raw.get('data') or []:
+                        writer.writerow(r)
+                    csv_text = buf.getvalue()
+                except Exception:
+                    csv_text = ''
+
+                if not csv_text:
+                    return {'status': True, 'data': [], 'summary': {}}
+
+                res = _process_country_csv_data(csv_text)
+                if res.get('status'):
+                    return res
+            except Exception as e:
+                msg = str(e)
+                if 'COLUMNS_NOT_SUPPORTED_FOR_REQUESTED_DIMENSIONS' in msg or 'NOT_SUPPORTED' in msg:
+                    continue
+                continue
+
+    return {'status': True, 'data': [], 'summary': {}}
+
+
 def _process_country_csv_data(raw_data):
     """Process CSV data for country traffic"""
     print(f"[DEBUG] ===== _process_country_csv_data START =====")
@@ -4200,84 +4887,68 @@ def _process_country_csv_data(raw_data):
             
             processed_count += 1
             
-            def _to_int(v):
+            def _to_float(val):
+                s = str(val or '').replace(',', '').replace('%', '').strip()
+                if not s:
+                    return 0.0
                 try:
-                    s = str(v or '0').replace(',', '').replace('%', '').strip()
-                    return int(float(s or 0))
-                except Exception:
-                    return 0
-
-            def _to_float(v):
-                try:
-                    s = str(v or '0').replace(',', '').replace('%', '').strip()
-                    return float(s or 0)
+                    return float(s)
                 except Exception:
                     return 0.0
 
-            def _pick_first(row_dict, keys, default=None):
-                for k in keys:
-                    if k in row_dict and row_dict.get(k) not in [None, '']:
-                        return row_dict.get(k)
-                return default
+            def _to_int(val):
+                return int(_to_float(val))
 
-            impressions = _to_int(_pick_first(row, [
-                'Column.TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS',
-                'Column.TOTAL_IMPRESSIONS',
-                'Column.AD_SERVER_IMPRESSIONS',
-            ], 0))
-            clicks = _to_int(_pick_first(row, [
-                'Column.TOTAL_LINE_ITEM_LEVEL_CLICKS',
-                'Column.TOTAL_CLICKS',
-                'Column.AD_SERVER_CLICKS',
-            ], 0))
+            impressions = 0
+            if 'Column.AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS' in row:
+                impressions = _to_int(row.get('Column.AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS'))
+            elif 'Column.TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS' in row:
+                impressions = _to_int(row.get('Column.TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS'))
+            elif 'Column.TOTAL_IMPRESSIONS' in row:
+                impressions = _to_int(row.get('Column.TOTAL_IMPRESSIONS'))
+            elif 'Column.AD_SERVER_IMPRESSIONS' in row:
+                impressions = _to_int(row.get('Column.AD_SERVER_IMPRESSIONS'))
 
-            revenue_micros = _to_float(_pick_first(row, [
-                'Column.TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE',
-                'Column.AD_SERVER_CPM_AND_CPC_REVENUE',
-                'Column.AD_SERVER_ALL_REVENUE',
-            ], 0.0))
-            revenue = revenue_micros / 1000000
+            clicks = 0
+            if 'Column.TOTAL_LINE_ITEM_LEVEL_CLICKS' in row:
+                clicks = _to_int(row.get('Column.TOTAL_LINE_ITEM_LEVEL_CLICKS'))
+            elif 'Column.AD_EXCHANGE_CLICKS' in row:
+                clicks = _to_int(row.get('Column.AD_EXCHANGE_CLICKS'))
+            elif 'Column.AD_SERVER_CLICKS' in row:
+                clicks = _to_int(row.get('Column.AD_SERVER_CLICKS'))
+            elif 'Column.TOTAL_CLICKS' in row:
+                clicks = _to_int(row.get('Column.TOTAL_CLICKS'))
 
-            total_requests = _to_int(_pick_first(row, [
-                'Column.AD_EXCHANGE_TOTAL_REQUESTS',
-                'Column.TOTAL_AD_REQUESTS',
-            ], 0))
-            responses_served = _to_int(_pick_first(row, [
-                'Column.AD_EXCHANGE_RESPONSES_SERVED',
-                'Column.TOTAL_RESPONSES_SERVED',
-            ], 0))
+            revenue = 0.0
+            if 'Column.TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE' in row:
+                revenue = _to_float(row.get('Column.TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE')) / 1000000
+            elif 'Column.AD_EXCHANGE_TOTAL_EARNINGS' in row:
+                revenue = _to_float(row.get('Column.AD_EXCHANGE_TOTAL_EARNINGS'))
+            elif 'Column.AD_SERVER_ALL_REVENUE' in row:
+                revenue = _to_float(row.get('Column.AD_SERVER_ALL_REVENUE'))
 
-            match_rate = _to_float(_pick_first(row, [
-                'Column.AD_EXCHANGE_MATCH_RATE',
-                'Column.PROGRAMMATIC_MATCH_RATE',
-            ], 0.0))
-            total_fill_rate = _to_float(_pick_first(row, [
-                'Column.TOTAL_FILL_RATE',
-            ], 0.0))
+            total_requests = _to_int(row.get('Column.TOTAL_AD_REQUESTS')) if 'Column.TOTAL_AD_REQUESTS' in row else 0
+            responses_served = _to_int(row.get('Column.AD_EXCHANGE_RESPONSES_SERVED')) if 'Column.AD_EXCHANGE_RESPONSES_SERVED' in row else 0
 
-            active_view_pct_viewable = _to_float(_pick_first(row, [
-                'Column.AD_EXCHANGE_ACTIVE_VIEW_VIEWABLE_IMPRESSIONS_RATE',
-                'Column.TOTAL_ACTIVE_VIEW_VIEWABLE_IMPRESSIONS_RATE',
-            ], 0.0))
-            active_view_avg_time_sec = _to_float(_pick_first(row, [
-                'Column.AD_EXCHANGE_ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME',
-                'Column.TOTAL_ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME',
-            ], 0.0))
+            viewable = _to_int(row.get('Column.ACTIVE_VIEW_VIEWABLE_IMPRESSIONS')) if 'Column.ACTIVE_VIEW_VIEWABLE_IMPRESSIONS' in row else 0
+            measurable = _to_int(row.get('Column.ACTIVE_VIEW_MEASURABLE_IMPRESSIONS')) if 'Column.ACTIVE_VIEW_MEASURABLE_IMPRESSIONS' in row else 0
+            avg_time = _to_float(row.get('Column.ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME')) if 'Column.ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME' in row else 0.0
 
-            ctr = (clicks / impressions * 100) if impressions > 0 else 0
-            ecpm = (revenue / impressions * 1000) if impressions > 0 else 0
-            cpc = revenue / clicks if clicks > 0 else 0
+            ctr = (clicks / impressions * 100) if impressions > 0 else 0.0
+            ecpm = (revenue / impressions * 1000) if impressions > 0 else 0.0
+            cpc = (revenue / clicks) if clicks > 0 else 0.0
+
+            match_rate = 0.0
+            if 'Column.AD_EXCHANGE_MATCH_RATE' in row:
+                match_rate = _to_float(row.get('Column.AD_EXCHANGE_MATCH_RATE'))
+            elif total_requests > 0:
+                match_rate = (responses_served / total_requests * 100)
+
+            fill_rate = (impressions / responses_served * 100) if responses_served > 0 else 0.0
+            active_view_pct_viewable = (viewable / measurable * 100) if measurable > 0 else 0.0
+            active_view_avg_time_sec = avg_time
 
             country_code = _get_country_code_from_name(country_name)
-
-            if total_requests <= 0:
-                total_requests = impressions
-            if responses_served <= 0:
-                responses_served = impressions
-            if not match_rate and total_requests > 0:
-                match_rate = (responses_served / total_requests) * 100
-            if not total_fill_rate and responses_served > 0:
-                total_fill_rate = (impressions / responses_served) * 100
 
             row_data = {
                 'country_name': country_name,
@@ -4291,17 +4962,21 @@ def _process_country_csv_data(raw_data):
                 'total_requests': total_requests,
                 'responses_served': responses_served,
                 'match_rate': match_rate,
-                'total_fill_rate': total_fill_rate,
+                'fill_rate': fill_rate,
                 'active_view_pct_viewable': active_view_pct_viewable,
                 'active_view_avg_time_sec': active_view_avg_time_sec,
-                'requests': total_requests,
-                'matched_requests': responses_served,
+                'viewable': viewable,
+                'measurable': measurable,
+                'view_time_weighted': (avg_time * measurable),
             }
             
-            # Add site name if available
-            if site_name:
-                row_data['site_name'] = site_name
-            
+            if not site_name:
+                ad_unit_name = str(row.get('Dimension.AD_UNIT_NAME', '') or '').strip()
+                if ad_unit_name.strip().lower() != 'ad exchange display':
+                    continue
+                site_name = 'Ad Exchange Display'
+
+            row_data['site_name'] = site_name
             data.append(row_data)
         
         print(f"[DEBUG] Processing summary:")
@@ -4327,21 +5002,18 @@ def _process_country_csv_data(raw_data):
                     'revenue': 0.0,
                     'total_requests': 0,
                     'responses_served': 0,
-                    'active_view_pct_viewable_sum': 0.0,
-                    'active_view_avg_time_sec_sum': 0.0,
-                    'active_view_weight': 0,
+                    'viewable': 0,
+                    'measurable': 0,
+                    'view_time_weighted': 0.0,
                 }
-            impressions = int(row.get('impressions', 0) or 0)
-            aggregated[key]['impressions'] += impressions
-            aggregated[key]['clicks'] += int(row.get('clicks', 0) or 0)
-            aggregated[key]['revenue'] += float(row.get('revenue', 0.0) or 0.0)
-            aggregated[key]['total_requests'] += int(row.get('total_requests', row.get('requests', 0)) or 0)
-            aggregated[key]['responses_served'] += int(row.get('responses_served', row.get('matched_requests', 0)) or 0)
-            av_pct = float(row.get('active_view_pct_viewable', 0.0) or 0.0)
-            av_time = float(row.get('active_view_avg_time_sec', 0.0) or 0.0)
-            aggregated[key]['active_view_pct_viewable_sum'] += (av_pct * impressions)
-            aggregated[key]['active_view_avg_time_sec_sum'] += (av_time * impressions)
-            aggregated[key]['active_view_weight'] += impressions
+            aggregated[key]['impressions'] += row.get('impressions', 0)
+            aggregated[key]['clicks'] += row.get('clicks', 0)
+            aggregated[key]['revenue'] += row.get('revenue', 0.0)
+            aggregated[key]['total_requests'] += row.get('total_requests', 0)
+            aggregated[key]['responses_served'] += row.get('responses_served', 0)
+            aggregated[key]['viewable'] += row.get('viewable', 0)
+            aggregated[key]['measurable'] += row.get('measurable', 0)
+            aggregated[key]['view_time_weighted'] += row.get('view_time_weighted', 0.0)
 
         # Hitung metrik turunan untuk hasil agregasi
         aggregated_data = []
@@ -4352,14 +5024,15 @@ def _process_country_csv_data(raw_data):
             ctr = (clicks / impressions * 100) if impressions > 0 else 0
             ecpm = (revenue / impressions * 1000) if impressions > 0 else 0
             cpc = (revenue / clicks) if clicks > 0 else 0
-            total_requests = int(agg.get('total_requests', 0) or 0)
-            responses_served = int(agg.get('responses_served', 0) or 0)
+            total_requests = agg.get('total_requests', 0)
+            responses_served = agg.get('responses_served', 0)
             match_rate = (responses_served / total_requests * 100) if total_requests > 0 else 0.0
-            total_fill_rate = (impressions / responses_served * 100) if responses_served > 0 else 0.0
+            fill_rate = (impressions / responses_served * 100) if responses_served > 0 else 0.0
 
-            w = int(agg.get('active_view_weight', 0) or 0)
-            active_view_pct_viewable = (float(agg.get('active_view_pct_viewable_sum', 0.0) or 0.0) / w) if w > 0 else 0.0
-            active_view_avg_time_sec = (float(agg.get('active_view_avg_time_sec_sum', 0.0) or 0.0) / w) if w > 0 else 0.0
+            viewable = agg.get('viewable', 0)
+            measurable = agg.get('measurable', 0)
+            active_view_pct_viewable = (viewable / measurable * 100) if measurable > 0 else 0.0
+            active_view_avg_time_sec = (agg.get('view_time_weighted', 0.0) / measurable) if measurable > 0 else 0.0
 
             aggregated_data.append({
                 'country_name': agg['country_name'],
@@ -4374,11 +5047,9 @@ def _process_country_csv_data(raw_data):
                 'total_requests': total_requests,
                 'responses_served': responses_served,
                 'match_rate': match_rate,
-                'total_fill_rate': total_fill_rate,
+                'fill_rate': fill_rate,
                 'active_view_pct_viewable': active_view_pct_viewable,
                 'active_view_avg_time_sec': active_view_avg_time_sec,
-                'requests': total_requests,
-                'matched_requests': responses_served,
             })
 
         # Urutkan berdasarkan pendapatan terbesar ke terkecil
@@ -4390,15 +5061,15 @@ def _process_country_csv_data(raw_data):
         total_revenue = sum(row['revenue'] for row in aggregated_data)
         total_ctr = (total_clicks / total_impressions * 100) if total_impressions > 0 else 0
 
-        total_requests_sum = sum(int(row.get('total_requests', row.get('requests', 0)) or 0) for row in aggregated_data)
-        total_responses_served_sum = sum(int(row.get('responses_served', row.get('matched_requests', 0)) or 0) for row in aggregated_data)
+        total_requests_sum = sum(int(row.get('total_requests', 0) or 0) for row in aggregated_data)
+        total_responses_served_sum = sum(int(row.get('responses_served', 0) or 0) for row in aggregated_data)
 
         summary = {
             'total_impressions': total_impressions,
             'total_clicks': total_clicks,
             'total_revenue': total_revenue,
             'total_requests': total_requests_sum,
-            'total_matched_requests': total_responses_served_sum,
+            'total_responses_served': total_responses_served_sum,
             'total_ctr': total_ctr
         }
 

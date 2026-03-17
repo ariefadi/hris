@@ -43,7 +43,7 @@ class Command(BaseCommand):
             else:
                 # Default: 7 hari terakhir (termasuk hari ini)
                 today_dt = datetime.now().date()
-                start_date = (today_dt - timedelta(days=6)).strftime('%Y-%m-%d')
+                start_date = (today_dt - timedelta(days=3)).strftime('%Y-%m-%d')
                 end_date = today_dt.strftime('%Y-%m-%d')
         for account_data in rs_account:
             try:

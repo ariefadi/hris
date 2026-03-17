@@ -274,6 +274,421 @@ def get_user_adsense_client(user_mail):
             'error': f'Error initializing AdSense client: {str(e)}'
         }
 
+def fetch_adsense_traffic_per_domain_advanced(user_mail, start_date, end_date, site_filter='%'):
+    try:
+        client_result = get_user_adsense_client(user_mail)
+        if not client_result.get('status'):
+            return client_result
+
+        service = client_result['service']
+        accounts = service.accounts().list().execute()
+        accounts_list = accounts.get('accounts', []) or []
+        if not accounts_list:
+            return {'status': False, 'error': 'No AdSense accounts found'}
+
+        acc0 = accounts_list[0]
+        account_name = acc0.get('name') or ''
+        currency_code = acc0.get('currencyCode') or acc0.get('currency_code') or ''
+
+        start_parts = start_date.split('-')
+        end_parts = end_date.split('-')
+
+        def _to_float(val):
+            try:
+                s = str(val or '').replace(',', '').replace('%', '').strip()
+                if not s:
+                    return 0.0
+                return float(s)
+            except Exception:
+                return 0.0
+
+        def _to_int(val):
+            return int(_to_float(val))
+
+        def _pct_to_0_100(val):
+            v = _to_float(val)
+            if 0 < v <= 1:
+                return v * 100.0
+            return v
+
+        metrics_candidates = [
+            [
+                'IMPRESSIONS',
+                'CLICKS',
+                'ESTIMATED_EARNINGS',
+                'PAGE_VIEWS',
+                'AD_REQUESTS',
+                'PAGE_VIEWS_RPM',
+                'AD_REQUESTS_COVERAGE',
+                'ACTIVE_VIEW_VIEWABILITY',
+                'ACTIVE_VIEW_MEASURABILITY',
+                'ACTIVE_VIEW_TIME',
+            ],
+            [
+                'IMPRESSIONS',
+                'CLICKS',
+                'ESTIMATED_EARNINGS',
+                'PAGE_VIEWS',
+                'AD_REQUESTS',
+            ],
+            [
+                'IMPRESSIONS',
+                'CLICKS',
+                'ESTIMATED_EARNINGS',
+            ],
+        ]
+
+        report = None
+        used_metrics = None
+        last_err = None
+        for metrics in metrics_candidates:
+            try:
+                report_request = service.accounts().reports().generate(
+                    account=account_name,
+                    dateRange='CUSTOM',
+                    startDate_year=int(start_parts[0]),
+                    startDate_month=int(start_parts[1]),
+                    startDate_day=int(start_parts[2]),
+                    endDate_year=int(end_parts[0]),
+                    endDate_month=int(end_parts[1]),
+                    endDate_day=int(end_parts[2]),
+                    dimensions=['OWNED_SITE_DOMAIN_NAME'],
+                    metrics=metrics,
+                )
+
+                if site_filter and site_filter != '%':
+                    try:
+                        report_request = report_request.filter(f'OWNED_SITE_DOMAIN_NAME=~"{site_filter}"')
+                    except Exception:
+                        pass
+
+                report = report_request.execute()
+                used_metrics = metrics
+                break
+            except Exception as e:
+                last_err = e
+                continue
+
+        if report is None or used_metrics is None:
+            return {'status': False, 'error': f'Error fetching AdSense per domain: {str(last_err)}'}
+
+        try:
+            report_currency = report.get('currencyCode') or report.get('currency_code')
+            if not report_currency:
+                meta = report.get('metadata') or {}
+                report_currency = meta.get('currencyCode') or meta.get('currency_code')
+            if report_currency:
+                currency_code = report_currency
+        except Exception:
+            pass
+        currency_code = (currency_code or '').strip().upper()
+
+        agg = {}
+        for row in report.get('rows', []) or []:
+            cells = row.get('cells', []) or []
+            dim_val = cells[0].get('value') if len(cells) > 0 else ''
+            domain = extract_domain_from_ad_unit(dim_val) or '-'
+
+            mvals = {}
+            for i, metric in enumerate(used_metrics):
+                cell_idx = 1 + i
+                mvals[metric] = cells[cell_idx].get('value') if len(cells) > cell_idx else 0
+
+            impressions = _to_int(mvals.get('IMPRESSIONS'))
+            clicks = _to_int(mvals.get('CLICKS'))
+            earnings = _to_float(mvals.get('ESTIMATED_EARNINGS'))
+            page_views = _to_int(mvals.get('PAGE_VIEWS'))
+            ad_requests = _to_int(mvals.get('AD_REQUESTS'))
+            page_views_rpm = _to_float(mvals.get('PAGE_VIEWS_RPM'))
+            ad_requests_coverage = _pct_to_0_100(mvals.get('AD_REQUESTS_COVERAGE'))
+            active_view_viewability = _pct_to_0_100(mvals.get('ACTIVE_VIEW_VIEWABILITY'))
+            active_view_measurability = _pct_to_0_100(mvals.get('ACTIVE_VIEW_MEASURABILITY'))
+            active_view_time = _to_float(mvals.get('ACTIVE_VIEW_TIME'))
+
+            cur = agg.get(domain)
+            if not cur:
+                cur = {
+                    'impressions': 0,
+                    'clicks': 0,
+                    'earnings': 0.0,
+                    'page_views': 0,
+                    'ad_requests': 0,
+                    'active_view_viewability_sum': 0.0,
+                    'active_view_measurability_sum': 0.0,
+                    'active_view_time_sum': 0.0,
+                    'active_view_weight': 0,
+                }
+                agg[domain] = cur
+
+            cur['impressions'] += impressions
+            cur['clicks'] += clicks
+            cur['earnings'] += earnings
+            cur['page_views'] += page_views
+            cur['ad_requests'] += ad_requests
+
+            w = impressions
+            if w > 0:
+                cur['active_view_viewability_sum'] += active_view_viewability * w
+                cur['active_view_measurability_sum'] += active_view_measurability * w
+                cur['active_view_time_sum'] += active_view_time * w
+                cur['active_view_weight'] += w
+
+            cur['page_views_rpm'] = page_views_rpm
+            cur['ad_requests_coverage'] = ad_requests_coverage
+
+        results = []
+        for domain, v in agg.items():
+            impressions = int(v.get('impressions', 0) or 0)
+            clicks = int(v.get('clicks', 0) or 0)
+            earnings = float(v.get('earnings', 0.0) or 0.0)
+            page_views = int(v.get('page_views', 0) or 0)
+            ad_requests = int(v.get('ad_requests', 0) or 0)
+
+            page_views_rpm = _to_float(v.get('page_views_rpm', 0.0))
+            if page_views > 0 and not page_views_rpm:
+                page_views_rpm = (earnings / page_views) * 1000.0
+
+            ad_requests_coverage = _to_float(v.get('ad_requests_coverage', 0.0))
+            if ad_requests > 0 and not ad_requests_coverage:
+                ad_requests_coverage = (float(impressions) / float(ad_requests)) * 100.0
+
+            w = int(v.get('active_view_weight', 0) or 0)
+            active_view_viewability = (float(v.get('active_view_viewability_sum', 0.0) or 0.0) / float(w)) if w > 0 else 0.0
+            active_view_measurability = (float(v.get('active_view_measurability_sum', 0.0) or 0.0) / float(w)) if w > 0 else 0.0
+            active_view_time = (float(v.get('active_view_time_sum', 0.0) or 0.0) / float(w)) if w > 0 else 0.0
+
+            results.append(
+                {
+                    'domain': domain,
+                    'impressions': impressions,
+                    'clicks': clicks,
+                    'revenue': earnings,
+                    'page_views': page_views,
+                    'page_views_rpm': page_views_rpm,
+                    'ad_requests': ad_requests,
+                    'ad_requests_coverage': ad_requests_coverage,
+                    'active_view_viewability': active_view_viewability,
+                    'active_view_measurability': active_view_measurability,
+                    'active_view_time': active_view_time,
+                }
+            )
+
+        results.sort(key=lambda x: x.get('revenue', 0.0) or 0.0, reverse=True)
+        return {'status': True, 'data': results, 'currency_code': currency_code}
+    except Exception as e:
+        return {'status': False, 'error': f'Error fetching AdSense per domain: {str(e)}'}
+
+
+def fetch_adsense_traffic_per_country_domain_advanced(user_mail, start_date, end_date, site_filter='%'):
+    try:
+        client_result = get_user_adsense_client(user_mail)
+        if not client_result.get('status'):
+            return client_result
+
+        service = client_result['service']
+        accounts = service.accounts().list().execute()
+        accounts_list = accounts.get('accounts', []) or []
+        if not accounts_list:
+            return {'status': False, 'error': 'No AdSense accounts found'}
+
+        acc0 = accounts_list[0]
+        account_name = acc0.get('name') or ''
+        currency_code = acc0.get('currencyCode') or acc0.get('currency_code') or ''
+
+        start_parts = start_date.split('-')
+        end_parts = end_date.split('-')
+
+        def _to_float(val):
+            try:
+                s = str(val or '').replace(',', '').replace('%', '').strip()
+                if not s:
+                    return 0.0
+                return float(s)
+            except Exception:
+                return 0.0
+
+        def _to_int(val):
+            return int(_to_float(val))
+
+        def _pct_to_0_100(val):
+            v = _to_float(val)
+            if 0 < v <= 1:
+                return v * 100.0
+            return v
+
+        metrics_candidates = [
+            [
+                'IMPRESSIONS',
+                'CLICKS',
+                'ESTIMATED_EARNINGS',
+                'PAGE_VIEWS',
+                'AD_REQUESTS',
+                'PAGE_VIEWS_RPM',
+                'AD_REQUESTS_COVERAGE',
+                'ACTIVE_VIEW_VIEWABILITY',
+                'ACTIVE_VIEW_MEASURABILITY',
+                'ACTIVE_VIEW_TIME',
+            ],
+            [
+                'IMPRESSIONS',
+                'CLICKS',
+                'ESTIMATED_EARNINGS',
+                'PAGE_VIEWS',
+                'AD_REQUESTS',
+            ],
+            [
+                'IMPRESSIONS',
+                'CLICKS',
+                'ESTIMATED_EARNINGS',
+            ],
+        ]
+
+        report = None
+        used_metrics = None
+        last_err = None
+        for metrics in metrics_candidates:
+            try:
+                report_request = service.accounts().reports().generate(
+                    account=account_name,
+                    dateRange='CUSTOM',
+                    startDate_year=int(start_parts[0]),
+                    startDate_month=int(start_parts[1]),
+                    startDate_day=int(start_parts[2]),
+                    endDate_year=int(end_parts[0]),
+                    endDate_month=int(end_parts[1]),
+                    endDate_day=int(end_parts[2]),
+                    dimensions=['COUNTRY_NAME', 'COUNTRY_CODE', 'OWNED_SITE_DOMAIN_NAME'],
+                    metrics=metrics,
+                )
+
+                if site_filter and site_filter != '%':
+                    try:
+                        report_request = report_request.filter(f'OWNED_SITE_DOMAIN_NAME=~"{site_filter}"')
+                    except Exception:
+                        pass
+
+                report = report_request.execute()
+                used_metrics = metrics
+                break
+            except Exception as e:
+                last_err = e
+                continue
+
+        if report is None or used_metrics is None:
+            return {'status': False, 'error': f'Error fetching AdSense per country+domain: {str(last_err)}'}
+
+        try:
+            report_currency = report.get('currencyCode') or report.get('currency_code')
+            if not report_currency:
+                meta = report.get('metadata') or {}
+                report_currency = meta.get('currencyCode') or meta.get('currency_code')
+            if report_currency:
+                currency_code = report_currency
+        except Exception:
+            pass
+        currency_code = (currency_code or '').strip().upper()
+
+        agg = {}
+        for row in report.get('rows', []) or []:
+            cells = row.get('cells', []) or []
+            country_name = cells[0].get('value') if len(cells) > 0 else ''
+            country_code = (cells[1].get('value') if len(cells) > 1 else '') or ''
+            dim_val = cells[2].get('value') if len(cells) > 2 else ''
+            domain = extract_domain_from_ad_unit(dim_val) or '-'
+
+            mvals = {}
+            for i, metric in enumerate(used_metrics):
+                cell_idx = 3 + i
+                mvals[metric] = cells[cell_idx].get('value') if len(cells) > cell_idx else 0
+
+            impressions = _to_int(mvals.get('IMPRESSIONS'))
+            clicks = _to_int(mvals.get('CLICKS'))
+            earnings = _to_float(mvals.get('ESTIMATED_EARNINGS'))
+            page_views = _to_int(mvals.get('PAGE_VIEWS'))
+            ad_requests = _to_int(mvals.get('AD_REQUESTS'))
+            page_views_rpm = _to_float(mvals.get('PAGE_VIEWS_RPM'))
+            ad_requests_coverage = _pct_to_0_100(mvals.get('AD_REQUESTS_COVERAGE'))
+            active_view_viewability = _pct_to_0_100(mvals.get('ACTIVE_VIEW_VIEWABILITY'))
+            active_view_measurability = _pct_to_0_100(mvals.get('ACTIVE_VIEW_MEASURABILITY'))
+            active_view_time = _to_float(mvals.get('ACTIVE_VIEW_TIME'))
+
+            key = ((country_code or '').upper(), country_name or '', domain)
+            cur = agg.get(key)
+            if not cur:
+                cur = {
+                    'impressions': 0,
+                    'clicks': 0,
+                    'earnings': 0.0,
+                    'page_views': 0,
+                    'ad_requests': 0,
+                    'active_view_viewability_sum': 0.0,
+                    'active_view_measurability_sum': 0.0,
+                    'active_view_time_sum': 0.0,
+                    'active_view_weight': 0,
+                }
+                agg[key] = cur
+
+            cur['impressions'] += impressions
+            cur['clicks'] += clicks
+            cur['earnings'] += earnings
+            cur['page_views'] += page_views
+            cur['ad_requests'] += ad_requests
+
+            w = impressions
+            if w > 0:
+                cur['active_view_viewability_sum'] += active_view_viewability * w
+                cur['active_view_measurability_sum'] += active_view_measurability * w
+                cur['active_view_time_sum'] += active_view_time * w
+                cur['active_view_weight'] += w
+
+            cur['page_views_rpm'] = page_views_rpm
+            cur['ad_requests_coverage'] = ad_requests_coverage
+
+        results = []
+        for (cc, cn, domain), v in agg.items():
+            impressions = int(v.get('impressions', 0) or 0)
+            clicks = int(v.get('clicks', 0) or 0)
+            earnings = float(v.get('earnings', 0.0) or 0.0)
+            page_views = int(v.get('page_views', 0) or 0)
+            ad_requests = int(v.get('ad_requests', 0) or 0)
+
+            page_views_rpm = _to_float(v.get('page_views_rpm', 0.0))
+            if page_views > 0 and not page_views_rpm:
+                page_views_rpm = (earnings / page_views) * 1000.0
+
+            ad_requests_coverage = _to_float(v.get('ad_requests_coverage', 0.0))
+            if ad_requests > 0 and not ad_requests_coverage:
+                ad_requests_coverage = (float(impressions) / float(ad_requests)) * 100.0
+
+            w = int(v.get('active_view_weight', 0) or 0)
+            active_view_viewability = (float(v.get('active_view_viewability_sum', 0.0) or 0.0) / float(w)) if w > 0 else 0.0
+            active_view_measurability = (float(v.get('active_view_measurability_sum', 0.0) or 0.0) / float(w)) if w > 0 else 0.0
+            active_view_time = (float(v.get('active_view_time_sum', 0.0) or 0.0) / float(w)) if w > 0 else 0.0
+
+            results.append(
+                {
+                    'country': cn,
+                    'country_code': cc,
+                    'domain': domain,
+                    'impressions': impressions,
+                    'clicks': clicks,
+                    'revenue': earnings,
+                    'page_views': page_views,
+                    'page_views_rpm': page_views_rpm,
+                    'ad_requests': ad_requests,
+                    'ad_requests_coverage': ad_requests_coverage,
+                    'active_view_viewability': active_view_viewability,
+                    'active_view_measurability': active_view_measurability,
+                    'active_view_time': active_view_time,
+                }
+            )
+
+        results.sort(key=lambda x: x.get('revenue', 0.0) or 0.0, reverse=True)
+        return {'status': True, 'data': results, 'currency_code': currency_code}
+    except Exception as e:
+        return {'status': False, 'error': f'Error fetching AdSense per country+domain: {str(e)}'}
+
+
 def fetch_adsense_traffic_account_data(user_mail, start_date, end_date, site_filter='%'):
     """
     Fetch AdSense traffic account data including sites, campaigns, clicks, impressions, CPC, CPR, revenue

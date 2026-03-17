@@ -5,6 +5,7 @@ from management.database import data_mysql
 from management.utils import fetch_adx_traffic_account_by_user
 from management.utils import fetch_user_adx_account_data
 import os
+import uuid
 
 def convert_to_idr(amount, currency_code):
     try:
@@ -38,14 +39,26 @@ class Command(BaseCommand):
             help='Tanggal tunggal (YYYY-MM-DD). Jika tidak diisi, ambil hari ini.'
         )
     def handle(self, *args, **kwargs):
-        # range tanggal hari ini
+        tanggal_arg = (kwargs.get('tanggal') or '%').strip()
+
         today_dt = datetime.now().date()
-        start_date = today_dt.strftime('%Y-%m-%d')
-        end_date = today_dt.strftime('%Y-%m-%d')
-        # start_date = '2025-11-29'
-        # end_date = '2025-11-29'
+        default_dt = today_dt - timedelta(days=1)
+        start_date = default_dt.strftime('%Y-%m-%d')
+        end_date = default_dt.strftime('%Y-%m-%d')
+
+        if tanggal_arg and tanggal_arg != '%':
+            try:
+                tanggal_dt = datetime.strptime(tanggal_arg, '%Y-%m-%d').date()
+            except ValueError:
+                self.stdout.write(self.style.ERROR(
+                    f"Format --tanggal tidak valid: {tanggal_arg}. Gunakan YYYY-MM-DD."
+                ))
+                return
+            start_date = tanggal_dt.strftime('%Y-%m-%d')
+            end_date = tanggal_dt.strftime('%Y-%m-%d')
+
         self.stdout.write(self.style.WARNING(
-            f"Menarik dan menyimpan AdX per domain untuk range {start_date} s/d {end_date}."
+            f"Menarik dan menyimpan AdX per domain untuk range {start_date} s/d {end_date}. (Default: H-1, override pakai --tanggal)"
         ))
         db = data_mysql()
         # Ambil semua kredensial dari app_credentials
@@ -58,7 +71,9 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR("Tidak ada kredensial aktif di app_credentials."))
             return
         total_insert = 0
-        total_error = 0
+        total_fetch_error = 0
+        total_insert_error = 0
+        total_empty = 0
         # Loop per hari agar data per tanggal tersimpan akurat
         start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
         end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
@@ -79,69 +94,133 @@ class Command(BaseCommand):
                     if isinstance(acct_info, dict) and acct_info.get('status'):
                         currency_code = (acct_info.get('data', {}) or {}).get('currency_code') or 'IDR'
                     # Ambil data AdX per domain untuk 1 hari (start=end)
-                    res = fetch_adx_traffic_account_by_user(user_mail, day_dt, day_dt, selected_sites=None)
+                    res = fetch_adx_traffic_account_by_user(user_mail, day_dt, day_dt, selected_sites=None, report_level='ad_unit_to_site')
                     if not res or not res.get('status'):
-                        total_error += 1
+                        total_fetch_error += 1
+                        err = None
+                        if isinstance(res, dict):
+                            err = res.get('error')
                         self.stdout.write(self.style.ERROR(
-                            f"Gagal fetch AdX untuk {user_mail} ({account_name}): {res.get('error') if isinstance(res, dict) else 'Unknown error'}"
+                            f"Gagal fetch AdX untuk {user_mail} ({account_name}): {err or 'Unknown error'}"
                         ))
                         continue
-                    for item in res.get('data', []) or []:
+
+                    rows_data = res.get('data', []) or []
+                    if not rows_data:
+                        total_empty += 1
+                        self.stdout.write(self.style.WARNING(
+                            f"Data AdX kosong untuk {user_mail} ({account_name}) pada {day_str}. api_method={res.get('api_method')}, note={res.get('note')}"
+                        ))
+                        continue
+
+                    try:
+                        del_res = db.delete_data_adx_domain_by_date_account(cred.get('account_id'), day_str, '%')
+                        if del_res.get('hasil', {}).get('status'):
+                            affected = del_res.get('hasil', {}).get('affected', 0)
+                            self.stdout.write(self.style.WARNING(
+                                f"Membersihkan data existing AdX Domain ({affected} baris) untuk range {start_date} s/d {end_date}."
+                            ))
+                        else:
+                            self.stdout.write(self.style.ERROR(
+                                f"Gagal menghapus data existing AdX Domain: {del_res.get('hasil', {}).get('data')}"
+                            ))
+                    except Exception as e:
+                        self.stdout.write(self.style.ERROR(f"Error saat menghapus data existing AdX Domain: {e}"))
+
+                    for item in rows_data:
                         try:
                             impressions = int(item.get('impressions', 0) or 0)
                             clicks = int(item.get('clicks', 0) or 0)
                             revenue = float(item.get('revenue', 0.0) or 0.0)
+
+                            site_name = (item.get('site_name') or '').strip()
+                            if not site_name:
+                                continue
+
                             cpc = float(item.get('cpc', 0.0) or 0.0)
                             ctr = float(item.get('ctr', 0.0) or 0.0)
-                            cpm = float(item.get('ecpm', 0.0) or 0.0)
+                            ecpm = float(item.get('ecpm', 0.0) or 0.0)
+                            cpm = ecpm
+
+                            total_requests_val = item.get('total_requests', 0)
+                            try:
+                                total_requests = int(float(str(total_requests_val).replace(',', '').replace('%', '') or 0))
+                            except (TypeError, ValueError):
+                                total_requests = 0
+
+                            responses_served_val = item.get('responses_served', 0)
+                            try:
+                                responses_served = int(float(str(responses_served_val).replace(',', '').replace('%', '') or 0))
+                            except (TypeError, ValueError):
+                                responses_served = 0
+
+                            match_rate_val = item.get('match_rate', 0.0)
+                            try:
+                                match_rate = float(str(match_rate_val).replace(',', '').replace('%', '') or 0)
+                            except (TypeError, ValueError):
+                                match_rate = 0.0
+
+                            fill_rate_val = item.get('fill_rate', 0.0)
+                            try:
+                                fill_rate = float(str(fill_rate_val).replace(',', '').replace('%', '') or 0)
+                            except (TypeError, ValueError):
+                                fill_rate = 0.0
+
+                            active_view_pct_viewable_val = item.get('active_view_pct_viewable', 0.0)
+                            try:
+                                active_view_pct_viewable = float(str(active_view_pct_viewable_val).replace(',', '').replace('%', '') or 0)
+                            except (TypeError, ValueError):
+                                active_view_pct_viewable = 0.0
+
+                            active_view_avg_time_sec_val = item.get('active_view_avg_time_sec', 0.0)
+                            try:
+                                active_view_avg_time_sec = float(str(active_view_avg_time_sec_val).replace(',', '').replace('%', '') or 0)
+                            except (TypeError, ValueError):
+                                active_view_avg_time_sec = 0.0
+
                             # Konversi revenue ke IDR jika currency bukan IDR
                             revenue_idr = convert_to_idr(revenue, currency_code)
+
                             record = {
+                                'data_adx_domain_id': str(uuid.uuid4()),
                                 'account_id': cred.get('account_id') or '',
                                 'data_adx_domain_tanggal': day_str,
-                                'data_adx_domain': item.get('site_name') or '',
+                                'data_adx_domain': site_name,
                                 'data_adx_domain_impresi': impressions,
                                 'data_adx_domain_click': clicks,
-                                'data_adx_domain_cpc': cpc,
+                                'data_adx_domain_cpc': int(round(cpc)),
                                 'data_adx_domain_ctr': ctr,
-                                'data_adx_domain_cpm': cpm,
-                                'data_adx_domain_revenue': revenue_idr,
+                                'data_adx_domain_cpm': int(round(cpm)),
+                                'data_adx_domain_ecpm': int(round(ecpm)),
+                                'data_adx_domain_total_requests': total_requests,
+                                'data_adx_domain_responses_served': responses_served,
+                                'data_adx_domain_match_rate': int(round(match_rate)),
+                                'data_adx_domain_fill_rate': int(round(fill_rate)),
+                                'data_adx_domain_active_view_pct_viewable': int(round(active_view_pct_viewable)),
+                                'data_adx_domain_active_view_avg_time_sec': int(round(active_view_avg_time_sec)),
+                                'data_adx_domain_revenue': int(round(revenue_idr)),
                                 'mdb': '0',
                                 'mdb_name': 'Cron Job',
                                 'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                             }
-                            # Bersihkan data existing untuk range agar idempotent
-                            try:
-                                del_res = db.delete_data_adx_domain_by_date_account(cred.get('account_id'), day_str, item.get('site_name'))
-                                if del_res.get('hasil', {}).get('status'):
-                                    affected = del_res.get('hasil', {}).get('affected', 0)
-                                    self.stdout.write(self.style.WARNING(
-                                        f"Membersihkan data existing AdX Domain ({affected} baris) untuk range {start_date} s/d {end_date}."
-                                    ))
-                                else:
-                                    self.stdout.write(self.style.ERROR(
-                                        f"Gagal menghapus data existing AdX Domain: {del_res.get('hasil', {}).get('data')}"
-                                    ))
-                            except Exception as e:
-                                self.stdout.write(self.style.ERROR(f"Error saat menghapus data existing AdX Domain: {e}"))
                             ins = db.insert_data_adx_domain(record)
                             if ins.get('hasil', {}).get('status'):
                                 total_insert += 1
                             else:
-                                total_error += 1
+                                total_insert_error += 1
                                 self.stdout.write(self.style.ERROR(
                                     f"Gagal insert untuk {user_mail} - {account_name}: {ins.get('hasil', {}).get('data')}"
                                 ))
                         except Exception as ie:
-                            total_error += 1
+                            total_insert_error += 1
                             self.stdout.write(self.style.ERROR(
                                 f"Gagal proses baris domain untuk {user_mail} - {account_name}: {ie}"
                             ))
                 except Exception as e:
-                    total_error += 1
+                    total_fetch_error += 1
                     self.stdout.write(self.style.ERROR(
                         f"Gagal memproses kredensial {cred.get('user_mail','Unknown')}: {e}"
                     ))
         self.stdout.write(self.style.SUCCESS(
-            f"Selesai. Berhasil insert: {total_insert}, gagal: {total_error}."
+            f"Selesai. Berhasil insert: {total_insert}, gagal fetch: {total_fetch_error}, gagal insert: {total_insert_error}, kosong: {total_empty}."
         ))

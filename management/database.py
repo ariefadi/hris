@@ -129,6 +129,7 @@ class data_mysql:
         self.mysql_cur = None
         self.report_cur = None
         self.cur_hris = None
+        self.last_error = None
         self.connect()
 
     def _report_engine(self):
@@ -201,15 +202,15 @@ class data_mysql:
         try:
             # Use the same environment variables as Django settings for consistency
             host = os.getenv('DB_HOST', '127.0.0.1')
-            # Use the same port as Django (3307, not 3307)
+            # Use the same port as Django (3306, not 3306)
             raw_port = os.getenv('DB_PORT', '').strip()
             if not raw_port:
-                raw_port = '3307'
+                raw_port = '3306'
             try:
                 port = int(raw_port)
             except (ValueError, TypeError):
-                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3307")
-                port = 3307
+                print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
+                port = 3306
             user = os.getenv('DB_USER', 'root')
             password = os.getenv('DB_PASSWORD', '')
             database = os.getenv('DB_NAME', 'hris_trendHorizone')
@@ -278,6 +279,7 @@ class data_mysql:
             self.cur_hris.execute(query, params)
             return True
         except Exception as e:
+            self.last_error = str(e)
             print(f"Database error: {e}")
             return False
 
@@ -309,7 +311,7 @@ class data_mysql:
                 LIMIT 1
               """
         try:
-            _log_debug(f"[LOGIN_DEBUG] Attempting login for username={data.get('username')} from DB host={os.getenv('DB_HOST','127.0.0.1')} port={os.getenv('HRIS_DB_PORT','3307')} db={os.getenv('HRIS_DB_NAME','hris_trendHorizone')}")
+            _log_debug(f"[LOGIN_DEBUG] Attempting login for username={data.get('username')} from DB host={os.getenv('DB_HOST','127.0.0.1')} port={os.getenv('HRIS_DB_PORT','3306')} db={os.getenv('HRIS_DB_NAME','hris_trendHorizone')}")
             if not self.execute_query(sql, (data['username'],)):
                 raise pymysql.Error("Failed to execute login query")
             row = self.cur_hris.fetchone()
@@ -1280,9 +1282,26 @@ class data_mysql:
                 "data": datanya
             }
         except pymysql.Error as e:
+            err_code = None
+            err_msg = None
+            try:
+                if isinstance(getattr(e, 'args', None), (list, tuple)) and len(e.args) >= 2:
+                    err_code = e.args[0]
+                    err_msg = e.args[1]
+                elif isinstance(getattr(e, 'args', None), (list, tuple)) and len(e.args) == 1:
+                    err_code = e.args[0]
+            except Exception:
+                err_code = None
+                err_msg = None
+
             hasil = {
                 "status": False,
-                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+                'data': 'Terjadi error {!r}, code={}, message={}'.format(e, err_code, err_msg)
+            }
+        except Exception as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}'.format(e)
             }
         return {'hasil': hasil}
 
@@ -1309,9 +1328,21 @@ class data_mysql:
                 "affected": affected
             }
         except pymysql.Error as e:
+            err_code = None
+            err_msg = None
+            try:
+                if isinstance(getattr(e, 'args', None), (list, tuple)) and len(e.args) >= 2:
+                    err_code = e.args[0]
+                    err_msg = e.args[1]
+                elif isinstance(getattr(e, 'args', None), (list, tuple)) and len(e.args) == 1:
+                    err_code = e.args[0]
+            except Exception:
+                err_code = None
+                err_msg = None
+
             hasil = {
                 "status": False,
-                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+                'data': 'Terjadi error {!r}, code={}, message={}'.format(e, err_code, err_msg)
             }
         return {'hasil': hasil}
 
@@ -1410,9 +1441,21 @@ class data_mysql:
                 "message": "Data ads country log berhasil ditambahkan"
             }
         except pymysql.Error as e:
+            err_code = None
+            err_msg = None
+            try:
+                if isinstance(getattr(e, 'args', None), (list, tuple)) and len(e.args) >= 2:
+                    err_code = e.args[0]
+                    err_msg = e.args[1]
+                elif isinstance(getattr(e, 'args', None), (list, tuple)) and len(e.args) == 1:
+                    err_code = e.args[0]
+            except Exception:
+                err_code = None
+                err_msg = None
+
             hasil = {
                 "status": False,
-                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+                'data': 'Terjadi error {!r}, code={}, message={}'.format(e, err_code, err_msg)
             }
         return {'hasil': hasil} 
 
@@ -1437,9 +1480,21 @@ class data_mysql:
                 "affected": affected
             }
         except pymysql.Error as e:
+            err_code = None
+            err_msg = None
+            try:
+                if isinstance(getattr(e, 'args', None), (list, tuple)) and len(e.args) >= 2:
+                    err_code = e.args[0]
+                    err_msg = e.args[1]
+                elif isinstance(getattr(e, 'args', None), (list, tuple)) and len(e.args) == 1:
+                    err_code = e.args[0]
+            except Exception:
+                err_code = None
+                err_msg = None
+
             hasil = {
                 "status": False,
-                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+                'data': 'Terjadi error {!r}, code={}, message={}'.format(e, err_code, err_msg)
             }
         return {'hasil': hasil}
     
@@ -2525,6 +2580,13 @@ class data_mysql:
                             data_adx_country.data_adx_country_ctr,
                             data_adx_country.data_adx_country_cpc,
                             data_adx_country.data_adx_country_cpm,
+                            data_adx_country.data_adx_country_ecpm,
+                            data_adx_country.data_adx_country_total_requests,
+                            data_adx_country.data_adx_country_responses_served,
+                            data_adx_country.data_adx_country_match_rate,
+                            data_adx_country.data_adx_country_fill_rate,
+                            data_adx_country.data_adx_country_active_view_pct_viewable,
+                            data_adx_country.data_adx_country_active_view_avg_time_sec,
                             data_adx_country.data_adx_country_revenue,
                             data_adx_country.mdb,
                             data_adx_country.mdb_name,
@@ -2532,6 +2594,13 @@ class data_mysql:
                         )
                     VALUES
                         (
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
                             %s,
                             %s,
                             %s,
@@ -2559,6 +2628,13 @@ class data_mysql:
                 data['data_adx_country_ctr'],
                 data['data_adx_country_cpc'],
                 data['data_adx_country_cpm'],
+                data['data_adx_country_ecpm'],
+                data['data_adx_country_total_requests'],
+                data['data_adx_country_response_served'],
+                data['data_adx_country_match_rate'],
+                data['data_adx_country_fill_rate'],
+                data['data_adx_country_active_view_pct_viewable'],
+                data['data_adx_country_active_view_avg_time_sec'],
                 data['data_adx_country_revenue'],
                 data['mdb'],
                 data['mdb_name'],
@@ -2595,17 +2671,32 @@ class data_mysql:
                 "affected": affected_rows
             }
         except pymysql.Error as e:
+            err_code = None
+            err_msg = None
+            try:
+                if isinstance(getattr(e, 'args', None), (list, tuple)) and len(e.args) >= 2:
+                    err_code = e.args[0]
+                    err_msg = e.args[1]
+                elif isinstance(getattr(e, 'args', None), (list, tuple)) and len(e.args) == 1:
+                    err_code = e.args[0]
+            except Exception:
+                err_code = None
+                err_msg = None
+
             hasil = {
                 "status": False,
-                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+                'data': 'Terjadi error {!r}, code={}, message={}'.format(e, err_code, err_msg)
             }
         return {'hasil': hasil}
 
     def insert_data_adx_domain(self, data):
         try:
-            sql_insert = """
+            self.last_error = None
+
+            sql_insert_with_id = """
                         INSERT INTO data_adx_domain
                         (
+                            data_adx_domain.data_adx_domain_id,
                             data_adx_domain.account_id,
                             data_adx_domain.data_adx_domain_tanggal,
                             data_adx_domain.data_adx_domain,
@@ -2614,6 +2705,13 @@ class data_mysql:
                             data_adx_domain.data_adx_domain_cpc,
                             data_adx_domain.data_adx_domain_ctr,
                             data_adx_domain.data_adx_domain_cpm,
+                            data_adx_domain.data_adx_domain_ecpm,
+                            data_adx_domain.data_adx_domain_total_requests,
+                            data_adx_domain.data_adx_domain_responses_served,
+                            data_adx_domain.data_adx_domain_match_rate,
+                            data_adx_domain.data_adx_domain_fill_rate,
+                            data_adx_domain.data_adx_domain_active_view_pct_viewable,
+                            data_adx_domain.data_adx_domain_active_view_avg_time_sec,
                             data_adx_domain.data_adx_domain_revenue,
                             data_adx_domain.mdb,
                             data_adx_domain.mdb_name,
@@ -2632,24 +2730,98 @@ class data_mysql:
                             %s,
                             %s,
                             %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
                             %s
                         )
                 """
-            if not self.execute_query(sql_insert, (
-                data['account_id'],
-                data['data_adx_domain_tanggal'],
-                data['data_adx_domain'],
-                data['data_adx_domain_impresi'],
-                data['data_adx_domain_click'],
-                data['data_adx_domain_cpc'],
-                data['data_adx_domain_ctr'],
-                data['data_adx_domain_cpm'],
-                data['data_adx_domain_revenue'],
-                data['mdb'],
-                data['mdb_name'],
-                data['mdd']
-            )):
-                raise pymysql.Error("Failed to insert data adx domain")
+
+            sql_insert_no_id = """
+                        INSERT INTO data_adx_domain
+                        (
+                            data_adx_domain.account_id,
+                            data_adx_domain.data_adx_domain_tanggal,
+                            data_adx_domain.data_adx_domain,
+                            data_adx_domain.data_adx_domain_impresi,
+                            data_adx_domain.data_adx_domain_click,
+                            data_adx_domain.data_adx_domain_cpc,
+                            data_adx_domain.data_adx_domain_ctr,
+                            data_adx_domain.data_adx_domain_cpm,
+                            data_adx_domain.data_adx_domain_ecpm,
+                            data_adx_domain.data_adx_domain_total_requests,
+                            data_adx_domain.data_adx_domain_responses_served,
+                            data_adx_domain.data_adx_domain_match_rate,
+                            data_adx_domain.data_adx_domain_fill_rate,
+                            data_adx_domain.data_adx_domain_active_view_pct_viewable,
+                            data_adx_domain.data_adx_domain_active_view_avg_time_sec,
+                            data_adx_domain.data_adx_domain_revenue,
+                            data_adx_domain.mdb,
+                            data_adx_domain.mdb_name,
+                            data_adx_domain.mdd
+                        )
+                    VALUES
+                        (
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s
+                        )
+                """
+
+            params_with_id = (
+                data.get('data_adx_domain_id'),
+                data.get('account_id'),
+                data.get('data_adx_domain_tanggal'),
+                data.get('data_adx_domain'),
+                data.get('data_adx_domain_impresi'),
+                data.get('data_adx_domain_click'),
+                data.get('data_adx_domain_cpc'),
+                data.get('data_adx_domain_ctr'),
+                data.get('data_adx_domain_cpm'),
+                data.get('data_adx_domain_ecpm'),
+                data.get('data_adx_domain_total_requests'),
+                data.get('data_adx_domain_responses_served'),
+                data.get('data_adx_domain_match_rate'),
+                data.get('data_adx_domain_fill_rate'),
+                data.get('data_adx_domain_active_view_pct_viewable'),
+                data.get('data_adx_domain_active_view_avg_time_sec'),
+                data.get('data_adx_domain_revenue'),
+                data.get('mdb'),
+                data.get('mdb_name'),
+                data.get('mdd')
+            )
+
+            ok = self.execute_query(sql_insert_with_id, params_with_id)
+            if not ok:
+                last = str(self.last_error or '')
+                if 'data_adx_domain_id' in last and 'Unknown column' in last:
+                    params_no_id = params_with_id[1:]
+                    ok = self.execute_query(sql_insert_no_id, params_no_id)
+
+            if not ok:
+                raise pymysql.Error(self.last_error or 'Failed to insert data adx domain')
+
             if not self.commit():
                 raise pymysql.Error("Failed to commit data adx domain insert")
             hasil = {
@@ -2657,9 +2829,21 @@ class data_mysql:
                 "message": "Data adx domain berhasil ditambahkan"
             }
         except pymysql.Error as e:
+            err_code = None
+            err_msg = None
+            try:
+                if isinstance(getattr(e, 'args', None), (list, tuple)) and len(e.args) >= 2:
+                    err_code = e.args[0]
+                    err_msg = e.args[1]
+                elif isinstance(getattr(e, 'args', None), (list, tuple)) and len(e.args) == 1:
+                    err_code = e.args[0]
+            except Exception:
+                err_code = None
+                err_msg = None
+
             hasil = {
                 "status": False,
-                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+                'data': 'Terjadi error {!r}, code={}, message={}'.format(e, err_code, err_msg)
             }
         return {'hasil': hasil}
         
@@ -2697,9 +2881,16 @@ class data_mysql:
                             data_adsense_country.data_adsense_country_domain,
                             data_adsense_country.data_adsense_country_impresi,
                             data_adsense_country.data_adsense_country_click,
-                            data_adsense_country.data_adsense_country_ctr,
                             data_adsense_country.data_adsense_country_cpc,
+                            data_adsense_country.data_adsense_country_ctr,
                             data_adsense_country.data_adsense_country_cpm,
+                            data_adsense_country.data_adsense_country_page_views,
+                            data_adsense_country.data_adsense_country_page_views_rpm,
+                            data_adsense_country.data_adsense_country_ad_requests,
+                            data_adsense_country.data_adsense_country_ad_requests_coverage,
+                            data_adsense_country.data_adsense_country_active_view_viewability,
+                            data_adsense_country.data_adsense_country_active_view_measurability,
+                            data_adsense_country.data_adsense_country_active_view_time,
                             data_adsense_country.data_adsense_country_revenue,
                             data_adsense_country.mdb,
                             data_adsense_country.mdb_name,
@@ -2707,6 +2898,13 @@ class data_mysql:
                         )
                     VALUES
                         (
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
                             %s,
                             %s,
                             %s,
@@ -2731,9 +2929,16 @@ class data_mysql:
                 data['data_adsense_country_domain'],
                 data['data_adsense_country_impresi'],
                 data['data_adsense_country_click'],
-                data['data_adsense_country_ctr'],
                 data['data_adsense_country_cpc'],
+                data['data_adsense_country_ctr'],
                 data['data_adsense_country_cpm'],
+                data['data_adsense_country_page_views'],
+                data['data_adsense_country_page_views_rpm'],
+                data['data_adsense_country_ad_requests'],
+                data['data_adsense_country_ad_requests_coverage'],
+                data['data_adsense_country_active_view_viewability'],
+                data['data_adsense_country_active_view_measurability'],
+                data['data_adsense_country_active_view_time'],
                 data['data_adsense_country_revenue'],
                 data['mdb'],
                 data['mdb_name'],
@@ -2906,6 +3111,13 @@ class data_mysql:
                             data_adsense_ctr,
                             data_adsense_cpc,
                             data_adsense_cpm,
+                            data_adsense_page_views,
+                            data_adsense_page_views_rpm,
+                            data_adsense_ad_requests,
+                            data_adsense_ad_requests_coverage,
+                            data_adsense_active_view_viewability,
+                            data_adsense_active_view_measurability,
+                            data_adsense_active_view_time,
                             data_adsense_revenue,
                             mdb,
                             mdb_name,
@@ -2921,7 +3133,14 @@ class data_mysql:
                             %s, 
                             %s, 
                             %s, 
-                            %s, 
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
                             %s, 
                             %s, 
                             %s
@@ -2936,6 +3155,13 @@ class data_mysql:
                 data['data_adsense_ctr'],
                 data['data_adsense_cpc'],
                 data['data_adsense_cpm'],
+                data.get('data_adsense_page_views', 0),
+                data.get('data_adsense_page_views_rpm', 0),
+                data.get('data_adsense_ad_requests', 0),
+                data.get('data_adsense_ad_requests_coverage', 0),
+                data.get('data_adsense_active_view_viewability', 0),
+                data.get('data_adsense_active_view_measurability', 0),
+                data.get('data_adsense_active_view_time', 0),
                 data['data_adsense_revenue'],
                 data['mdb'],
                 data['mdb_name'],

@@ -88,68 +88,63 @@ class Command(BaseCommand):
                         continue
                     for item in res.get('data', []):
                         try:
-                            # Map dan hitung metrik sesuai schema data_adx
-                            impressions = int(item.get('impressions', 0) or 0)
-                            clicks = int(item.get('clicks', 0) or 0)
-                            revenue = float(item.get('revenue', 0.0) or 0.0)
-                            # Konversi revenue ke IDR
+                            def _to_float(val):
+                                try:
+                                    s = str(val or '').replace(',', '').replace('%', '').strip()
+                                    if not s:
+                                        return 0.0
+                                    return float(s)
+                                except Exception:
+                                    return 0.0
+
+                            def _to_int(val):
+                                return int(_to_float(val))
+
+                            impressions = _to_int(item.get('impressions', 0))
+                            clicks = _to_int(item.get('clicks', 0))
+                            revenue = _to_float(item.get('revenue', 0.0))
+
                             revenue_idr = convert_to_idr(revenue, currency_code)
-                            # Hitung turunan dari revenue yang sudah IDR agar konsisten
-                            cpc = float(item.get('cpc', 0.0) or (revenue_idr / clicks if clicks > 0 else 0.0))
-                            cpm = float(item.get('ecpm', 0.0) or (revenue_idr / impressions * 1000 if impressions > 0 else 0.0))
+
+                            ctr = _to_float(item.get('ctr', 0.0) or (clicks / impressions * 100 if impressions > 0 else 0.0))
+                            cpc_idr = (revenue_idr / clicks) if clicks > 0 else 0.0
+                            ecpm_idr = (revenue_idr / impressions * 1000) if impressions > 0 else 0.0
+
+                            total_requests = _to_int(item.get('total_requests', 0))
+                            responses_served = _to_int(item.get('responses_served', 0))
+                            match_rate = _to_float(item.get('match_rate', 0.0))
+                            fill_rate = _to_float(item.get('fill_rate', 0.0))
+                            active_view_pct_viewable = _to_float(item.get('active_view_pct_viewable', 0.0))
+                            active_view_avg_time_sec = _to_float(item.get('active_view_avg_time_sec', 0.0))
+
+                            country_cd = (item.get('country_code') or '').upper().strip()
+                            site_name = (item.get('site_name') or '').strip()
+                            if not country_cd or not site_name:
+                                continue
+
                             record = {
                                 'account_id': cred.get('account_id') or '',
                                 'data_adx_country_tanggal': day_str,
-                                'data_adx_country_cd': (item.get('country_code') or '').upper(),
+                                'data_adx_country_cd': country_cd,
                                 'data_adx_country_nm': item.get('country_name') or '',
-                                'data_adx_country_domain': item.get('site_name') or '',
+                                'data_adx_country_domain': site_name,
                                 'data_adx_country_impresi': impressions,
                                 'data_adx_country_click': clicks,
-                                'data_adx_country_cpc': cpc,
-                                'data_adx_country_ctr': float(item.get('ctr', 0.0) or (clicks / impressions * 100 if impressions > 0 else 0.0)),
-                                'data_adx_country_cpm': cpm,
-                                'data_adx_country_revenue': revenue_idr,
+                                'data_adx_country_ctr': ctr,
+                                'data_adx_country_cpc': int(round(cpc_idr)),
+                                'data_adx_country_cpm': int(round(ecpm_idr)),
+                                'data_adx_country_ecpm': int(round(ecpm_idr)),
+                                'data_adx_country_total_requests': total_requests,
+                                'data_adx_country_response_served': responses_served,
+                                'data_adx_country_match_rate': int(round(match_rate)),
+                                'data_adx_country_fill_rate': int(round(fill_rate)),
+                                'data_adx_country_active_view_pct_viewable': int(round(active_view_pct_viewable)),
+                                'data_adx_country_active_view_avg_time_sec': int(round(active_view_avg_time_sec)),
+                                'data_adx_country_revenue': int(round(revenue_idr)),
                                 'mdb': '0',
                                 'mdb_name': 'Cron Job',
                                 'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                             }
-                            # Insert data sebelum di hapus ke log adx_country_log
-                            result_log_res = db.get_data_adx_country_to_insert_log(
-                                cred.get('account_id'), 
-                                day_str, 
-                                record.get('data_adx_country_cd'), 
-                                record.get('data_adx_country_domain')
-                            )
-                            result_log_data = (result_log_res or {}).get('hasil', {}).get('data')
-                            if (result_log_res or {}).get('hasil', {}).get('status') and isinstance(result_log_data, dict):
-                                params_log = {
-                                    'account_id': result_log_data.get('account_id'),
-                                    'log_adx_country_tanggal': result_log_data.get('data_adx_country_tanggal'),
-                                    'log_adx_country_cd': result_log_data.get('data_adx_country_cd'),
-                                    'log_adx_country_nm': result_log_data.get('data_adx_country_nm'),
-                                    'log_adx_country_domain': result_log_data.get('data_adx_country_domain'),
-                                    'log_adx_country_impresi': result_log_data.get('data_adx_country_impresi'),
-                                    'log_adx_country_click': result_log_data.get('data_adx_country_click'),
-                                    'log_adx_country_cpc': result_log_data.get('data_adx_country_cpc'),
-                                    'log_adx_country_ctr': result_log_data.get('data_adx_country_ctr'),
-                                    'log_adx_country_cpm': result_log_data.get('data_adx_country_cpm'),
-                                    'log_adx_country_revenue': result_log_data.get('data_adx_country_revenue'),
-                                    'mdb': '0',
-                                    'mdb_name': 'Log Snapshot (Before Replace)',
-                                    'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                                }
-                                try:
-                                    insert_log = db.insert_log_adx_country_log(params_log)
-                                    if insert_log.get('hasil', {}).get('status'):
-                                        self.stdout.write(self.style.SUCCESS(
-                                            f"Log AdX per negara berhasil disimpan: {params_log}"
-                                        ))
-                                    else:
-                                        self.stdout.write(self.style.ERROR(
-                                            f"Gagal menyimpan log AdX per negara: {insert_log.get('hasil', {}).get('data')}"
-                                        ))
-                                except Exception as e:
-                                    self.stdout.write(self.style.ERROR(f"Error saat menyimpan log AdX per negara: {e}"))
                             try:
                                 # Bersihkan data existing untuk range agar idempotent
                                 del_res = db.delete_data_adx_country_by_date(cred.get('account_id'), day_str, record.get('data_adx_country_cd'), record.get('data_adx_country_domain'))
@@ -178,9 +173,15 @@ class Command(BaseCommand):
                                     'log_adx_country_cpc': record.get('data_adx_country_cpc'),
                                     'log_adx_country_ctr': record.get('data_adx_country_ctr'),
                                     'log_adx_country_cpm': record.get('data_adx_country_cpm'),
+                                    'log_adx_country_total_requests': record.get('data_adx_country_total_requests'),
+                                    'log_adx_country_response_served': record.get('data_adx_country_response_served'),
+                                    'log_adx_country_match_rate': record.get('data_adx_country_match_rate'),
+                                    'log_adx_country_fill_rate': record.get('data_adx_country_fill_rate'),
+                                    'log_adx_country_active_view_pct_viewable': record.get('data_adx_country_active_view_pct_viewable'),
+                                    'log_adx_country_active_view_avg_time_sec': record.get('data_adx_country_active_view_avg_time_sec'),
                                     'log_adx_country_revenue': record.get('data_adx_country_revenue'),
                                     'mdb': '0',
-                                    'mdb_name': 'Log Snapshot (After Replace)',
+                                    'mdb_name': 'Log Snapshot',
                                     'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                                 }
                                 try:
@@ -190,7 +191,7 @@ class Command(BaseCommand):
                             else:
                                 total_error += 1
                                 self.stdout.write(self.style.ERROR(
-                                    f"Gagal insert untuk {user_mail} - {account_name}: {ins.get('hasil', {}).get('data')}"
+                                    f"Gagal insert untuk {user_mail} - {account_name}: {ins.get('hasil', {}).get('data')} | country={country_cd} | site={site_name}"
                                 ))
                         except Exception as ie:
                             total_error += 1
