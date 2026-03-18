@@ -2970,7 +2970,7 @@ class data_mysql:
                 account_list = list(account_list)
             data_account_list = [str(a).strip() for a in account_list if str(a).strip()]
             # --- 2. Buat kondisi LIKE untuk setiap domain
-            like_conditions_account = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
+            like_conditions_account = " OR ".join(["b.account_id LIKE %s"] * len(data_account_list))
             like_params_account = [f"%{account}%" for account in data_account_list] 
             base_sql = [
                 "SELECT",
@@ -2980,6 +2980,12 @@ class data_mysql:
                 "\tb.data_adsense_country_cd AS 'country_code',",
                 "\tSUM(b.data_adsense_country_impresi) AS 'impressions_adsense',",
                 "\tSUM(b.data_adsense_country_click) AS 'clicks_adsense',",
+                "\tSUM(b.data_adsense_country_page_views) AS 'page_views',",
+                "\tSUM(b.data_adsense_country_ad_requests) AS 'ad_requests',",
+                "\tSUM(COALESCE(b.data_adsense_country_ad_requests_coverage, 0) * COALESCE(b.data_adsense_country_ad_requests, 0)) AS 'ad_requests_coverage_weighted_sum',",
+                "\tSUM(COALESCE(b.data_adsense_country_active_view_viewability, 0) * COALESCE(b.data_adsense_country_impresi, 0)) AS 'active_view_viewability_weighted_sum',",
+                "\tSUM(COALESCE(b.data_adsense_country_active_view_measurability, 0) * COALESCE(b.data_adsense_country_impresi, 0)) AS 'active_view_measurability_weighted_sum',",
+                "\tSUM(COALESCE(b.data_adsense_country_active_view_time, 0) * COALESCE(b.data_adsense_country_impresi, 0)) AS 'active_view_time_weighted_sum',",
                 "\tCASE WHEN SUM(b.data_adsense_country_click) > 0 THEN ROUND(SUM(b.data_adsense_country_revenue) / SUM(b.data_adsense_country_click), 0) ELSE 0 END AS 'cpc_adsense',",
                 "\tCASE WHEN SUM(b.data_adsense_country_impresi) > 0 THEN ROUND((SUM(b.data_adsense_country_revenue) / SUM(b.data_adsense_country_impresi)) * 1000) ELSE 0 END AS 'ecpm',",
                 "\tSUM(b.data_adsense_country_revenue) AS 'revenue'",
@@ -3034,6 +3040,23 @@ class data_mysql:
                 "\tb.data_adsense_country_cd AS country_code,",
                 "\tSUM(b.data_adsense_country_impresi) AS impressions,",
                 "\tSUM(b.data_adsense_country_click) AS clicks,",
+                "\tSUM(b.data_adsense_country_page_views) AS page_views,",
+                "\tCASE WHEN SUM(b.data_adsense_country_page_views) > 0",
+                "\t\tTHEN ROUND(SUM(COALESCE(b.data_adsense_country_page_views_rpm, 0) * COALESCE(b.data_adsense_country_page_views, 0)) / SUM(b.data_adsense_country_page_views), 2)",
+                "\t\tELSE 0 END AS page_views_rpm,",
+                "\tSUM(b.data_adsense_country_ad_requests) AS ad_requests,",
+                "\tCASE WHEN SUM(b.data_adsense_country_ad_requests) > 0",
+                "\t\tTHEN ROUND(SUM(COALESCE(b.data_adsense_country_ad_requests_coverage, 0) * COALESCE(b.data_adsense_country_ad_requests, 0)) / SUM(b.data_adsense_country_ad_requests), 2)",
+                "\t\tELSE 0 END AS ad_requests_coverage,",
+                "\tCASE WHEN SUM(b.data_adsense_country_impresi) > 0",
+                "\t\tTHEN ROUND(SUM(COALESCE(b.data_adsense_country_active_view_viewability, 0) * COALESCE(b.data_adsense_country_impresi, 0)) / SUM(b.data_adsense_country_impresi), 2)",
+                "\t\tELSE 0 END AS active_view_viewability,",
+                "\tCASE WHEN SUM(b.data_adsense_country_impresi) > 0",
+                "\t\tTHEN ROUND(SUM(COALESCE(b.data_adsense_country_active_view_measurability, 0) * COALESCE(b.data_adsense_country_impresi, 0)) / SUM(b.data_adsense_country_impresi), 2)",
+                "\t\tELSE 0 END AS active_view_measurability,",
+                "\tCASE WHEN SUM(b.data_adsense_country_impresi) > 0",
+                "\t\tTHEN ROUND(SUM(COALESCE(b.data_adsense_country_active_view_time, 0) * COALESCE(b.data_adsense_country_impresi, 0)) / SUM(b.data_adsense_country_impresi), 2)",
+                "\t\tELSE 0 END AS active_view_time,",
                 "\tCASE WHEN SUM(b.data_adsense_country_impresi) > 0",
                 "\t\tTHEN ROUND((SUM(b.data_adsense_country_click) / SUM(b.data_adsense_country_impresi)) * 100, 2)",
                 "\t\tELSE 0 END AS ctr,",
@@ -3216,6 +3239,10 @@ class data_mysql:
                 "\tSUM(b.data_adx_country_click) AS 'clicks_adx',",
                 "\tCASE WHEN SUM(b.data_adx_country_click) > 0 THEN ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 0) ELSE 0 END AS 'cpc_adx',",
                 "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0 THEN ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000) ELSE 0 END AS 'ecpm',",
+                "\tSUM(b.data_adx_country_total_requests) AS 'total_requests',",
+                "\tSUM(b.data_adx_country_responses_served) AS 'responses_served',",
+                "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0 THEN ROUND(SUM(b.data_adx_country_active_view_pct_viewable * b.data_adx_country_impresi) / SUM(b.data_adx_country_impresi), 2) ELSE 0 END AS 'active_view_pct_viewable',",
+                "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0 THEN ROUND(SUM(b.data_adx_country_active_view_avg_time_sec * b.data_adx_country_impresi) / SUM(b.data_adx_country_impresi), 2) ELSE 0 END AS 'active_view_avg_time_sec',",
                 "\tSUM(b.data_adx_country_revenue) AS 'revenue'",
                 "FROM app_credentials a",
                 "INNER JOIN data_adx_country b ON a.account_id = b.account_id",
@@ -3485,7 +3512,6 @@ class data_mysql:
             like_params_domain = [f"%{domain}%" for domain in data_domain_list] 
             base_sql = [
                 "SELECT",
-                "\ta.account_id, a.account_name, a.user_mail,",
                 "\tb.data_adx_country_nm AS country_name,",
                 "\tb.data_adx_country_cd AS country_code,",
                 "\tSUM(b.data_adx_country_impresi) AS impressions,",
@@ -3494,14 +3520,27 @@ class data_mysql:
                 "\t\tTHEN ROUND((SUM(b.data_adx_country_click) / SUM(b.data_adx_country_impresi)) * 100, 2)",
                 "\t\tELSE 0 END AS ctr,",
                 "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
-                "\t\tTHEN ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000)",
+                "\t\tTHEN ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000, 2)",
                 "\t\tELSE 0 END AS ecpm,",
                 "\tCASE WHEN SUM(b.data_adx_country_click) > 0",
-                "\t\tTHEN ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 0)",
+                "\t\tTHEN ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 2)",
                 "\t\tELSE 0 END AS cpc,",
+                "\tSUM(b.data_adx_country_total_requests) AS total_requests,",
+                "\tSUM(b.data_adx_country_responses_served) AS responses_served,",
+                "\tCASE WHEN SUM(b.data_adx_country_total_requests) > 0",
+                "\t\tTHEN ROUND((SUM(b.data_adx_country_responses_served) / SUM(b.data_adx_country_total_requests)) * 100, 2)",
+                "\t\tELSE 0 END AS match_rate,",
+                "\tCASE WHEN SUM(b.data_adx_country_responses_served) > 0",
+                "\t\tTHEN ROUND((SUM(b.data_adx_country_impresi) / SUM(b.data_adx_country_responses_served)) * 100, 2)",
+                "\t\tELSE 0 END AS fill_rate,",
+                "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
+                "\t\tTHEN ROUND(SUM(b.data_adx_country_active_view_pct_viewable * b.data_adx_country_impresi) / SUM(b.data_adx_country_impresi), 2)",
+                "\t\tELSE 0 END AS active_view_pct_viewable,",
+                "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
+                "\t\tTHEN ROUND(SUM(b.data_adx_country_active_view_avg_time_sec * b.data_adx_country_impresi) / SUM(b.data_adx_country_impresi), 2)",
+                "\t\tELSE 0 END AS active_view_avg_time_sec,",
                 "\tSUM(b.data_adx_country_revenue) AS revenue",
-                "FROM app_credentials a",
-                "INNER JOIN data_adx_country b ON a.account_id = b.account_id",
+                "FROM data_adx_country b",
                 "WHERE",
             ]
             params = []
@@ -3539,7 +3578,19 @@ class data_mysql:
             total_impressions = sum((row.get('impressions') or 0) for row in data_rows) if data_rows else 0
             total_clicks = sum((row.get('clicks') or 0) for row in data_rows) if data_rows else 0
             total_revenue = sum((row.get('revenue') or 0) for row in data_rows) if data_rows else 0.0
+            total_requests = sum((row.get('total_requests') or 0) for row in data_rows) if data_rows else 0
+            responses_served = sum((row.get('responses_served') or 0) for row in data_rows) if data_rows else 0
+
             total_ctr_ratio = (float(total_clicks) / float(total_impressions)) if total_impressions else 0.0
+            match_rate = (float(responses_served) / float(total_requests) * 100.0) if total_requests else 0.0
+            fill_rate = (float(total_impressions) / float(responses_served) * 100.0) if responses_served else 0.0
+
+            active_view_pct_viewable = 0.0
+            active_view_avg_time_sec = 0.0
+            if total_impressions:
+                active_view_pct_viewable = sum((float(row.get('active_view_pct_viewable') or 0.0) * float(row.get('impressions') or 0)) for row in data_rows) / float(total_impressions)
+                active_view_avg_time_sec = sum((float(row.get('active_view_avg_time_sec') or 0.0) * float(row.get('impressions') or 0)) for row in data_rows) / float(total_impressions)
+
             return {
                 "status": True,
                 "message": "Data adx traffic country berhasil diambil",
@@ -3548,7 +3599,13 @@ class data_mysql:
                     "total_impressions": total_impressions,
                     "total_clicks": total_clicks,
                     "total_revenue": total_revenue,
-                    "total_ctr": total_ctr_ratio
+                    "total_ctr": total_ctr_ratio,
+                    "total_requests": total_requests,
+                    "responses_served": responses_served,
+                    "match_rate": round(match_rate, 2),
+                    "fill_rate": round(fill_rate, 2),
+                    "active_view_pct_viewable": round(active_view_pct_viewable, 2),
+                    "active_view_avg_time_sec": round(active_view_avg_time_sec, 2)
                 }
             }
         except pymysql.Error as e:
@@ -4372,8 +4429,11 @@ class data_mysql:
                 "\tSUM(rs.clicks) AS 'clicks',",
                 "\tSUM(rs.impressions) AS 'impressions',",
                 "\tSUM(rs.reach) AS 'reach',",
+                "\tROUND(AVG(rs.frequency), 2) AS 'frequency',",
+                "\tSUM(rs.lpv) AS 'lpv',",
+                "\tROUND(AVG(rs.lpv_rate), 2) AS 'lpv_rate',",
                 "\tROUND(AVG(rs.cpr), 0) AS 'cpr',",
-                "\tROUND((SUM(rs.spend)/SUM(rs.clicks)), 0) AS 'cpc'",
+                "\tCASE WHEN SUM(rs.clicks) > 0 THEN ROUND((SUM(rs.spend) / SUM(rs.clicks)), 0) ELSE 0 END AS 'cpc'",
                 "FROM (",
                     "\tSELECT",
                     "\t\ta.account_id, a.account_name, a.account_email,",
@@ -4384,6 +4444,9 @@ class data_mysql:
                     "\t\tb.data_ads_impresi AS 'impressions',",
                     "\t\tb.data_ads_click AS 'clicks',",
                     "\t\tb.data_ads_reach AS 'reach',",
+                    "\t\tb.data_ads_frekuensi AS 'frequency',",
+                    "\t\tb.data_ads_lpv AS 'lpv',",
+                    "\t\tb.data_ads_lpv_rate AS 'lpv_rate',",
                     "\t\tb.data_ads_cpr AS 'cpr'",
                     "\tFROM master_account_ads a",
                     "\tINNER JOIN data_ads_campaign b ON a.account_id = b.account_ads_id",
@@ -4399,7 +4462,7 @@ class data_mysql:
                 base_sql.append(f"\tAND ({like_conditions_domain})")
                 params.extend(like_params_domain)
             base_sql.append(") rs")
-            base_sql.append("GROUP BY rs.account_name, rs.date, rs.domain")
+            base_sql.append("GROUP BY rs.account_id, rs.account_name, rs.account_email, rs.date, rs.domain, rs.campaign")
             base_sql.append("ORDER BY rs.date, rs.domain, rs.campaign")
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):

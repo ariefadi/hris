@@ -311,9 +311,10 @@ function getExportMetaTrafficAccount() {
 }
 
 function initializeDataTable(data) {
+    window.__adxTrafficAccountRows = (data && Array.isArray(data)) ? data : [];
     var tableData = [];
-    if (data && Array.isArray(data)) {
-        data.forEach(function (row) {
+    if (window.__adxTrafficAccountRows.length) {
+        window.__adxTrafficAccountRows.forEach(function (row, idx) {
             // Format tanggal ke format Indonesia
             var formattedDate = row.date || '-';
             if (row.date && row.date.match(/\d{4}-\d{2}-\d{2}/)) {
@@ -328,6 +329,10 @@ function initializeDataTable(data) {
                 formattedDate = day + ' ' + month + ' ' + year;
             }
             var cellDate = '<span data-order="' + (row.date || '-') + '">' + formattedDate + '</span>';
+            var btnDetail = '<button type="button" class="btn btn-sm btn-outline-primary btn-adx-traffic-account-detail" data-row-index="' + idx + '" title="Detail">'
+                + '<i class="bi bi-eye-fill" aria-hidden="true"></i>'
+                + '</button>';
+
             tableData.push([
                 cellDate,
                 row.site_name || '-',
@@ -335,7 +340,8 @@ function initializeDataTable(data) {
                 formatCurrencyIDR(row.cpc_adx || 0),
                 formatCurrencyIDR(row.ecpm || 0),
                 formatNumber(row.ctr || 0, 2) + ' %',
-                formatCurrencyIDR(row.revenue || 0)
+                formatCurrencyIDR(row.revenue || 0),
+                btnDetail
             ]);
         });
     }
@@ -382,7 +388,7 @@ function initializeDataTable(data) {
                 extend: 'excel',
                 text: 'Export Excel',
                 className: 'btn btn-success',
-                exportOptions: { columns: ':visible' },
+                exportOptions: { columns: ':visible:not(.no-export)' },
                 title: function () { 
                     var meta = getExportMetaTrafficAccount();
                     let title = 'Traffic AdX Per Account';
@@ -420,7 +426,7 @@ function initializeDataTable(data) {
                     var merges = $('mergeCells', sheet);
                     var mergeXml = '';
                     for (var m = 1; m <= headerRows.length; m++) {
-                        mergeXml += '<mergeCell ref="A' + m + ':G' + m + '"/>';
+                        mergeXml += '<mergeCell ref="A' + m + ':H' + m + '"/>';
                     }
                     if (merges.length === 0) {
                         $('worksheet', sheet).append('<mergeCells count="' + headerRows.length + '">' + mergeXml + '</mergeCells>');
@@ -435,7 +441,7 @@ function initializeDataTable(data) {
                 extend: 'pdf',
                 text: 'Export PDF',
                 className: 'btn btn-danger',
-                exportOptions: { columns: ':visible' },
+                exportOptions: { columns: ':visible:not(.no-export)' },
                 title: function () { 
                     var meta = getExportMetaTrafficAccount();
                     let title = 'Traffic AdX Per Account';
@@ -457,7 +463,7 @@ function initializeDataTable(data) {
                 extend: 'copy',
                 text: 'Copy',
                 className: 'btn btn-info',
-                exportOptions: { columns: ':visible' },
+                exportOptions: { columns: ':visible:not(.no-export)' },
                 customize: function (txt) {
                     var meta = getExportMetaTrafficAccount();
                     var header = meta.titleText + '\n' + meta.periodText;
@@ -471,7 +477,7 @@ function initializeDataTable(data) {
                 extend: 'csv',
                 text: 'Export CSV',
                 className: 'btn btn-primary',
-                exportOptions: { columns: ':visible' },
+                exportOptions: { columns: ':visible:not(.no-export)' },
                 customize: function (csv) {
                     var meta = getExportMetaTrafficAccount();
                     var out = meta.titleText + '\n' + meta.periodText;
@@ -484,7 +490,7 @@ function initializeDataTable(data) {
                 extend: 'print',
                 text: 'Print',
                 className: 'btn btn-warning',
-                exportOptions: { columns: ':visible' },
+                exportOptions: { columns: ':visible:not(.no-export)' },
                 title: function () { 
                     var meta = getExportMetaTrafficAccount();
                     let title = '<h3 style="text-align:center;margin:0">Traffic AdX Per Account</h3>';
@@ -505,13 +511,19 @@ function initializeDataTable(data) {
                 extend: 'colvis',
                 text: 'Column Visibility',
                 className: 'btn btn-default',
-                exportOptions: { columns: ':visible' }
+                exportOptions: { columns: ':visible:not(.no-export)' }
             }
         ],
         columnDefs: [
             { 
-                targets: [0, 5], 
+                targets: [0, 5, 7], 
                 className: 'text-center'
+            },
+            {
+                targets: [7],
+                orderable: false,
+                searchable: false,
+                className: 'text-center no-export'
             },
             {
                 targets: [2, 3, 4, 6], // Kolom numerik ditata kanan
@@ -569,6 +581,33 @@ function initializeDataTable(data) {
     });
     // Paksa urutan setelah inisialisasi untuk memastikan tidak tertimpa
     table.order([0, 'desc']).draw();
+
+    $('#table_traffic_account tbody')
+        .off('click', '.btn-adx-traffic-account-detail')
+        .on('click', '.btn-adx-traffic-account-detail', function () {
+            var idx = parseInt($(this).attr('data-row-index') || '0', 10);
+            var row = (window.__adxTrafficAccountRows || [])[idx] || {};
+
+            $('#adxTrafficAccountDetailDate').text(formatDateID(row.date || ''));
+            $('#adxTrafficAccountDetailSite').text(escapeHtml(row.site_name || '-'));
+            $('#adxTrafficAccountDetailSiteRaw').text(escapeHtml(row.site_name_raw || '-'));
+
+            $('#adxTrafficAccountDetailImpressions').text(formatNumber(row.impressions_adx || 0));
+            $('#adxTrafficAccountDetailClicks').text(formatNumber(row.clicks_adx || 0));
+            $('#adxTrafficAccountDetailCtr').text(formatNumber(row.ctr || 0, 2) + ' %');
+            $('#adxTrafficAccountDetailCpc').text(formatCurrencyIDR(row.cpc_adx || 0));
+            $('#adxTrafficAccountDetailEcpm').text(formatCurrencyIDR(row.ecpm || 0));
+            $('#adxTrafficAccountDetailRevenue').text(formatCurrencyIDR(row.revenue || 0));
+
+            $('#adxTrafficAccountDetailTotalRequests').text(formatNumber(row.total_requests || 0));
+            $('#adxTrafficAccountDetailResponsesServed').text(formatNumber(row.responses_served || 0));
+            $('#adxTrafficAccountDetailMatchRate').text(formatNumber(row.match_rate || 0, 2) + ' %');
+            $('#adxTrafficAccountDetailFillRate').text(formatNumber(row.fill_rate || 0, 2) + ' %');
+            $('#adxTrafficAccountDetailActiveViewPctViewable').text(formatNumber(row.active_view_pct_viewable || 0, 2) + ' %');
+            $('#adxTrafficAccountDetailActiveViewAvgTimeSec').text(formatNumber(row.active_view_avg_time_sec || 0, 2));
+
+            $('#adxTrafficAccountDetailModal').modal('show');
+        });
 
     try {
         table.columns.adjust();

@@ -280,9 +280,11 @@ $(document).ready(function () {
 
     // Fungsi untuk inisialisasi DataTable
     function initializeDataTable(data) {
+        window.__adsenseTrafficCountryRows = (data && Array.isArray(data)) ? data : [];
+
         var tableData = [];
-        if (data && Array.isArray(data)) {
-            data.forEach(function (row) {
+        if (window.__adsenseTrafficCountryRows.length) {
+            window.__adsenseTrafficCountryRows.forEach(function (row, idx) {
                 var countryFlag = '';
                 if (row.country_code) {
                     countryFlag = '<img src="https://flagcdn.com/16x12/' + String(row.country_code).toLowerCase() + '.png" alt="' + row.country_code + '" style="margin-right: 5px;"> ';
@@ -295,6 +297,10 @@ $(document).ready(function () {
                 var ecpmNum = parseFloat(row.ecpm || 0) || 0;
                 var revenueNum = parseFloat(row.revenue || 0) || 0;
 
+                var btnDetail = '<button type="button" class="btn btn-sm btn-outline-primary btn-adsense-traffic-country-detail" data-row-index="' + idx + '" title="Detail">'
+                    + '<i class="bi bi-eye-fill" aria-hidden="true"></i>'
+                    + '</button>';
+
                 tableData.push([
                     countryFlag + (row.country_name || ''),
                     row.country_code || '',
@@ -303,7 +309,8 @@ $(document).ready(function () {
                     ctrNum.toFixed(2) + '%',
                     formatCurrencyIDR(cpcNum),
                     formatCurrencyIDR(ecpmNum),
-                    revenueNum
+                    revenueNum,
+                    btnDetail
                 ]);
             });
         }
@@ -477,7 +484,7 @@ $(document).ready(function () {
             ],
             columnDefs: [
                 { 
-                    targets: [1, 4], 
+                    targets: [1, 4, 8], 
                     className: 'text-center'
                 },
                 {
@@ -493,12 +500,60 @@ $(document).ready(function () {
                         }
                         return data; // gunakan nilai numerik untuk sort/filter
                     }
+                },
+                {
+                    targets: 8,
+                    orderable: false,
+                    searchable: false,
+                    className: 'text-center no-export'
                 }
             ]
         });
 
         // Paksa urutan setelah inisialisasi untuk memastikan tidak tertimpa
         table.order([7, 'desc']).draw();
+
+        $('#table_traffic_country tbody')
+            .off('click', '.btn-adsense-traffic-country-detail')
+            .on('click', '.btn-adsense-traffic-country-detail', function () {
+                var idx = parseInt($(this).attr('data-row-index') || '0', 10);
+                var row = (window.__adsenseTrafficCountryRows || [])[idx] || {};
+
+                $('#adsenseTrafficCountryDetailCountryName').text(escapeHtml(row.country_name || '-'));
+                $('#adsenseTrafficCountryDetailCountryCode').text(escapeHtml(row.country_code || '-'));
+
+                var imp = Number(row.impressions || 0);
+                var clk = Number(row.clicks || 0);
+                var ctr = parseFloat(row.ctr);
+                if (isNaN(ctr)) ctr = 0;
+
+                $('#adsenseTrafficCountryDetailImpressions').text(imp.toLocaleString('id-ID'));
+                $('#adsenseTrafficCountryDetailClicks').text(clk.toLocaleString('id-ID'));
+                $('#adsenseTrafficCountryDetailCtr').text(ctr.toFixed(2) + ' %');
+                $('#adsenseTrafficCountryDetailCpc').text(formatCurrencyIDR(row.cpc || 0));
+                $('#adsenseTrafficCountryDetailEcpm').text(formatCurrencyIDR(row.ecpm || 0));
+                $('#adsenseTrafficCountryDetailRevenue').text(formatCurrencyIDR(row.revenue || 0));
+
+                $('#adsenseTrafficCountryDetailPageViews').text(Number(row.page_views || 0).toLocaleString('id-ID'));
+                $('#adsenseTrafficCountryDetailPageViewsRpm').text(formatCurrencyIDR(row.page_views_rpm || 0));
+                $('#adsenseTrafficCountryDetailAdRequests').text(Number(row.ad_requests || 0).toLocaleString('id-ID'));
+
+                var cov = parseFloat(row.ad_requests_coverage);
+                if (isNaN(cov)) cov = 0;
+                var avv = parseFloat(row.active_view_viewability);
+                if (isNaN(avv)) avv = 0;
+                var avm = parseFloat(row.active_view_measurability);
+                if (isNaN(avm)) avm = 0;
+                var avt = parseFloat(row.active_view_time);
+                if (isNaN(avt)) avt = 0;
+
+                $('#adsenseTrafficCountryDetailAdRequestsCoverage').text(cov.toFixed(2) + ' %');
+                $('#adsenseTrafficCountryDetailActiveViewViewability').text(avv.toFixed(2) + ' %');
+                $('#adsenseTrafficCountryDetailActiveViewMeasurability').text(avm.toFixed(2) + ' %');
+                $('#adsenseTrafficCountryDetailActiveViewTime').text(avt.toFixed(2));
+
+                $('#adsenseTrafficCountryDetailModal').modal('show');
+            });
     }
 
     // Fungsi untuk format mata uang IDR

@@ -382,9 +382,11 @@ $(document).ready(function () {
 
     // Fungsi untuk inisialisasi DataTable
     function initializeDataTable(data) {
+        window.__adxTrafficCountryRows = (data && Array.isArray(data)) ? data : [];
+
         var tableData = [];
-        if (data && Array.isArray(data)) {
-            data.forEach(function (row) {
+        if (window.__adxTrafficCountryRows.length) {
+            window.__adxTrafficCountryRows.forEach(function (row, idx) {
                 var countryFlag = '';
                 if (row.country_code) {
                     countryFlag = '<img src="https://flagcdn.com/16x12/' + String(row.country_code).toLowerCase() + '.png" alt="' + row.country_code + '" style="margin-right: 5px;"> ';
@@ -397,15 +399,20 @@ $(document).ready(function () {
                 var ecpmNum = parseFloat(row.ecpm || 0) || 0;
                 var revenueNum = parseFloat(row.revenue || 0) || 0;
 
+                var btnDetail = '<button type="button" class="btn btn-sm btn-outline-primary btn-adx-traffic-country-detail" data-row-index="' + idx + '" title="Detail">'
+                    + '<i class="bi bi-eye-fill" aria-hidden="true"></i>'
+                    + '</button>';
+
                 tableData.push([
                     countryFlag + (row.country_name || ''),
                     row.country_code || '',
-                    impressionsNum.toLocaleString('id-ID'),
-                    clicksNum.toLocaleString('id-ID'),
-                    ctrNum.toFixed(2) + '%',
-                    formatCurrencyIDR(cpcNum),
-                    formatCurrencyIDR(ecpmNum),
-                    revenueNum
+                    impressionsNum,
+                    clicksNum,
+                    ctrNum,
+                    cpcNum,
+                    ecpmNum,
+                    revenueNum,
+                    btnDetail
                 ]);
             });
         }
@@ -489,7 +496,7 @@ $(document).ready(function () {
                         var merges = $('mergeCells', sheet);
                         var mergeXml = '';
                         for (var m = 1; m <= headerRows.length; m++) {
-                            mergeXml += '<mergeCell ref="A' + m + ':H' + m + '"/>';
+                            mergeXml += '<mergeCell ref="A' + m + ':N' + m + '"/>';
                         }
                         if (merges.length === 0) {
                             $('worksheet', sheet).append('<mergeCells count="' + headerRows.length + '">' + mergeXml + '</mergeCells>');
@@ -574,33 +581,90 @@ $(document).ready(function () {
                     extend: 'colvis',
                     text: 'Column Visibility',
                     className: 'btn btn-default',
-                    exportOptions: { columns: ':visible' }
+                    exportOptions: { columns: ':visible:not(.no-export)' }
                 }
             ],
             columnDefs: [
-                { 
-                    targets: [1, 4], 
-                    className: 'text-center'
-                },
-                { 
-                    targets: [2, 3, 5, 6, 7], 
-                    className: 'text-right'
+                { targets: [1, 4, 8], className: 'text-center' },
+                { targets: [2, 3, 5, 6, 7], className: 'text-right' },
+                {
+                    targets: [2, 3],
+                    type: 'num',
+                    render: function (data, type) {
+                        if (type === 'display') return Number(data || 0).toLocaleString('id-ID');
+                        return Number(data || 0);
+                    }
                 },
                 {
-                    targets: 7,
+                    targets: 4,
                     type: 'num',
-                    render: function (data, type, row) {
-                        if (type === 'display') {
-                            return formatCurrencyIDR(data || 0);
-                        }
-                        return data; // gunakan nilai numerik untuk sort/filter
+                    render: function (data, type) {
+                        var v = parseFloat(data);
+                        if (isNaN(v)) v = 0;
+                        if (type === 'display') return v.toFixed(2) + '%';
+                        return v;
                     }
+                },
+                {
+                    targets: [5, 6, 7],
+                    type: 'num',
+                    render: function (data, type) {
+                        if (type === 'display') return formatCurrencyIDR(data || 0);
+                        return Number(data || 0);
+                    }
+                },
+                {
+                    targets: 8,
+                    orderable: false,
+                    searchable: false,
+                    className: 'text-center no-export'
                 }
             ]
         });
 
         // Paksa urutan setelah inisialisasi untuk memastikan tidak tertimpa
         table.order([7, 'desc']).draw();
+
+        $('#table_traffic_country tbody')
+            .off('click', '.btn-adx-traffic-country-detail')
+            .on('click', '.btn-adx-traffic-country-detail', function () {
+                var idx = parseInt($(this).attr('data-row-index') || '0', 10);
+                var row = (window.__adxTrafficCountryRows || [])[idx] || {};
+
+                $('#adxTrafficCountryDetailCountryName').text(escapeHtml(row.country_name || '-'));
+                $('#adxTrafficCountryDetailCountryCode').text(escapeHtml(row.country_code || '-'));
+
+                var impressions = Number(row.impressions || 0);
+                var clicks = Number(row.clicks || 0);
+                var ctr = parseFloat(row.ctr);
+                if (isNaN(ctr)) ctr = 0;
+
+                $('#adxTrafficCountryDetailImpressions').text(impressions.toLocaleString('id-ID'));
+                $('#adxTrafficCountryDetailClicks').text(clicks.toLocaleString('id-ID'));
+                $('#adxTrafficCountryDetailCtr').text(ctr.toFixed(2) + ' %');
+                $('#adxTrafficCountryDetailCpc').text(formatCurrencyIDR(row.cpc || 0));
+                $('#adxTrafficCountryDetailEcpm').text(formatCurrencyIDR(row.ecpm || 0));
+                $('#adxTrafficCountryDetailRevenue').text(formatCurrencyIDR(row.revenue || 0));
+
+                $('#adxTrafficCountryDetailTotalRequests').text(Number(row.total_requests || 0).toLocaleString('id-ID'));
+                $('#adxTrafficCountryDetailResponsesServed').text(Number(row.responses_served || 0).toLocaleString('id-ID'));
+
+                var matchRate = parseFloat(row.match_rate);
+                if (isNaN(matchRate)) matchRate = 0;
+                var fillRate = parseFloat(row.fill_rate);
+                if (isNaN(fillRate)) fillRate = 0;
+                var avPct = parseFloat(row.active_view_pct_viewable);
+                if (isNaN(avPct)) avPct = 0;
+                var avTime = parseFloat(row.active_view_avg_time_sec);
+                if (isNaN(avTime)) avTime = 0;
+
+                $('#adxTrafficCountryDetailMatchRate').text(matchRate.toFixed(2) + ' %');
+                $('#adxTrafficCountryDetailFillRate').text(fillRate.toFixed(2) + ' %');
+                $('#adxTrafficCountryDetailActiveViewPctViewable').text(avPct.toFixed(2) + ' %');
+                $('#adxTrafficCountryDetailActiveViewAvgTimeSec').text(avTime.toFixed(2));
+
+                $('#adxTrafficCountryDetailModal').modal('show');
+            });
     }
 
     // Fungsi untuk membuat chart dengan Highcharts Maps
@@ -640,12 +704,7 @@ $(document).ready(function () {
                         'hc-key': countryCode.toLowerCase(),
                         code: countryCode,
                         name: item.country_name || 'Unknown',
-                        value: revenue,
-                        impressions: item.impressions || 0,
-                        clicks: item.clicks || 0,
-                        ctr: item.ctr || 0,
-                        cpc: item.cpc || 0,
-                        ecpm: item.ecpm || 0
+                        value: revenue
                     });
                 }
             }
@@ -788,12 +847,6 @@ $(document).ready(function () {
                         pointFormat: '<b>{point.name}</b><br>' +
                             'Kode: {point.code}<br>' +
                             'Pendapatan: <b>Rp {point.value:,.0f}</b><br>',
-                        pointFormatter: function () {
-                            var formattedValue = 'Rp ' + Math.round(this.value).toLocaleString('id-ID');
-                            return '<b>' + this.name + '</b><br>' +
-                                'Kode: ' + this.code + '<br>' +
-                                'Pendapatan: <b>' + formattedValue + '</b><br>';
-                        },
                         nullFormat: '<b>{point.name}</b><br>Tidak ada data traffic'
                     },
                     borderColor: borderColor,

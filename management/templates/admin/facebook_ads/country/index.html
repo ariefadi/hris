@@ -180,6 +180,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     <th class="text-center" style="font-size: 12px;" width="10%">Frequency</th>
                     <th class="text-center" style="font-size: 12px;" width="10%">CPR</th>
                     <th class="text-center" style="font-size: 12px;" width="10%">CPC</th>
+                    <th class="text-center no-export" style="font-size: 12px;" width="5%">Detail</th>
                 </tr>
             </thead>
             <tbody>
@@ -194,9 +195,86 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     <th class="text-right" style="font-size: 12px;" id="total_frequency"></th>
                     <th class="text-right" style="font-size: 12px;" id="total_cpr"></th>
                     <th class="text-right" style="font-size: 12px;" id="total_cpc"></th>
+                    <th class="no-export"></th>
                 </tr>
             </tfoot>
         </table>
+        </div>
+
+        <div class="modal fade" id="facebookCountryDetailModal" tabindex="-1" role="dialog" aria-labelledby="facebookCountryDetailModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="facebookCountryDetailModalLabel">
+                            <i class="bi bi-eye-fill"></i> Detail Traffic Negara
+                        </h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-borderless mb-0">
+                                        <tbody>
+                                            <tr>
+                                                <th style="width: 45%;">Negara</th>
+                                                <td id="facebookCountryDetailCountryName">-</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Kode</th>
+                                                <td id="facebookCountryDetailCountryCode">-</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-borderless mb-0">
+                                        <tbody>
+                                            <tr>
+                                                <th style="width: 45%;">Spend</th>
+                                                <td id="facebookCountryDetailSpend" class="text-right">Rp 0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Impressions</th>
+                                                <td id="facebookCountryDetailImpressions" class="text-right">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Reach</th>
+                                                <td id="facebookCountryDetailReach" class="text-right">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Clicks</th>
+                                                <td id="facebookCountryDetailClicks" class="text-right">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Frequency</th>
+                                                <td id="facebookCountryDetailFrequency" class="text-right">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>CPR</th>
+                                                <td id="facebookCountryDetailCpr" class="text-right">Rp 0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>CPC</th>
+                                                <td id="facebookCountryDetailCpc" class="text-right">Rp 0</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                            <i class="bi bi-x"></i> Tutup
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

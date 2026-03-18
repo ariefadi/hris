@@ -253,11 +253,125 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         <th style="width: 7%" class="text-center">CPM (Rp)</th>
                         <th style="width: 7%" class="text-center">CTR (%)</th>
                         <th style="width: 10%" class="text-center">Pendapatan (Rp)</th>
+                        <th style="width: 5%" class="text-center no-export">Detail</th>
                     </tr>
                 </thead>
                 <tbody>
                 </tbody>
             </table>
+        </div>
+
+        <div class="modal fade" id="adsenseTrafficAccountDetailModal" tabindex="-1" role="dialog" aria-labelledby="adsenseTrafficAccountDetailModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="adsenseTrafficAccountDetailModalLabel">
+                            <i class="bi bi-eye-fill"></i> Detail Traffic
+                        </h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-borderless mb-0">
+                                        <tbody>
+                                            <tr>
+                                                <th style="width: 40%;">Tanggal</th>
+                                                <td id="adsenseTrafficAccountDetailDate">-</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Account</th>
+                                                <td id="adsenseTrafficAccountDetailAccount">-</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Site</th>
+                                                <td id="adsenseTrafficAccountDetailSite">-</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-borderless mb-0">
+                                        <tbody>
+                                            <tr>
+                                                <th style="width: 45%;">Impresi</th>
+                                                <td id="adsenseTrafficAccountDetailImpressions" class="text-right">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Klik</th>
+                                                <td id="adsenseTrafficAccountDetailClicks" class="text-right">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>CTR</th>
+                                                <td id="adsenseTrafficAccountDetailCtr" class="text-right">0%</td>
+                                            </tr>
+                                            <tr>
+                                                <th>CPC</th>
+                                                <td id="adsenseTrafficAccountDetailCpc" class="text-right">Rp 0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>CPM</th>
+                                                <td id="adsenseTrafficAccountDetailCpm" class="text-right">Rp 0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Pendapatan</th>
+                                                <td id="adsenseTrafficAccountDetailRevenue" class="text-right">Rp 0</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0" style="width:100%">
+                                <tbody>
+                                    <tr>
+                                        <th style="width: 45%;">Page Views</th>
+                                        <td id="adsenseTrafficAccountDetailPageViews" class="text-right">0</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Page Views RPM</th>
+                                        <td id="adsenseTrafficAccountDetailPageViewsRpm" class="text-right">Rp 0</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Ad Requests</th>
+                                        <td id="adsenseTrafficAccountDetailAdRequests" class="text-right">0</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Ad Requests Coverage</th>
+                                        <td id="adsenseTrafficAccountDetailAdRequestsCoverage" class="text-right">0%</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Active View Viewability</th>
+                                        <td id="adsenseTrafficAccountDetailActiveViewViewability" class="text-right">0%</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Active View Measurability</th>
+                                        <td id="adsenseTrafficAccountDetailActiveViewMeasurability" class="text-right">0%</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Active View Time (sec)</th>
+                                        <td id="adsenseTrafficAccountDetailActiveViewTime" class="text-right">0</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                            <i class="bi bi-x"></i> Tutup
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

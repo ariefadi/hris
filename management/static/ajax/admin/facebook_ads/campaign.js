@@ -181,7 +181,10 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
             $('#overlay').fadeOut(500);
             const tanggal = new Date();
             judul = "Rekapitulasi Traffic Per Campaign Facebook";
-            $.each(data_campaign.data_campaign, function (index, value) {
+
+            window.__facebookCampaignRows = (data_campaign && data_campaign.data_campaign) ? data_campaign.data_campaign : [];
+
+            $.each(window.__facebookCampaignRows, function (index, value) {
                 let data_cpr = value.cpr;
                 let cpr_number = parseFloat(data_cpr)
                 let cpr = cpr_number.toFixed(0).replace(',', '.');
@@ -202,7 +205,7 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 var event_data = '<tr>';
                 event_data += '<td class="text-center" style="font-size: 12px;"><b>' + formattedDate + '</b></td>';
                 event_data += '<td class="text-left" style="font-size: 12px;"><span class="badge badge-info" style="color: white;">' + value.account_name + '</span></td>';
-                event_data += '<td class="text-left" style="font-size: 12px;"><span class="badge badge-danger" style="color: white;">' + value.domain + '</span></td>';
+                event_data += '<td class="text-left" style="font-size: 12px;"><span class="badge badge-danger" style="color: white;">' + (value.campaign || '-') + '</span></td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.spend).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.impressions).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.reach).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
@@ -210,6 +213,11 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 event_data += '<td class="text-right" style="font-size: 12px;">' + formattedFrequency + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + cpr + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + value.cpc + '</td>';
+                event_data += '<td class="text-center no-export" style="font-size: 12px;">'
+                    + '<button type="button" class="btn btn-sm btn-outline-primary btn-facebook-campaign-detail" data-row-index="' + index + '" title="Detail">'
+                    + '<i class="bi bi-eye-fill" aria-hidden="true"></i>'
+                    + '</button>'
+                    + '</td>';
                 event_data += '</tr>';
                 $("#table_data_campaign_facebook tbody").append(event_data);
             })
@@ -245,6 +253,9 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 $('#total_cpc').text(data_cpc);
             })
             $('#table_data_campaign_facebook').DataTable({
+                columnDefs: [
+                    { targets: -1, orderable: false, searchable: false }
+                ],
                 "paging": true,
                 "pageLength": 50,
                 "lengthChange": true,
@@ -268,7 +279,7 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                             + tanggal.getFullYear(),
                         exportOptions: {
                             columns: ':visible',
-                            columns: [0, 1, 2, 3, 4, 5, 6, 7],      // hanya kolom yang terlihat
+                            columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],      // tanpa kolom Detail
                             modifier: {
                                 search: 'applied',      // sesuai filter pencarian
                                 order: 'applied'        // sesuai urutan saat itu
@@ -279,7 +290,7 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                             // =========================
                             // Set column width secara manual (unit: character width)
                             // =========================
-                            const colWidths = [10, 15, 15, 10, 10, 10, 10, 10]; // 💡 Sesuaikan berdasarkan % di HTML
+                            const colWidths = [10, 15, 15, 10, 10, 10, 10, 10, 10, 10]; // 💡 Sesuaikan berdasarkan % di HTML
                             const cols = $('cols', sheet);
                             cols.empty(); // Kosongkan default <col> dari DataTables
                             for (let i = 0; i < colWidths.length; i++) {
@@ -326,16 +337,55 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                                     if (body[i][5]) body[i][5].alignment = 'right';
                                     if (body[i][6]) body[i][6].alignment = 'right';
                                     if (body[i][7]) body[i][7].alignment = 'right';
+                                    if (body[i][8]) body[i][8].alignment = 'right';
+                                    if (body[i][9]) body[i][9].alignment = 'right';
                                 }
                             }
                             // Margin
                             doc.content[1].margin = [0, 0, 0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
-                            // Manual width sesuai presentase kolom HTML (tanpa kolom terakhir)
-                            doc.content[1].table.widths = ['10%', '15%', '15%', '10%', '10%', '10%', '10%', '10%'];
+                            // Manual width sesuai presentase kolom HTML (tanpa kolom Detail)
+                            doc.content[1].table.widths = ['10%', '15%', '15%', '10%', '10%', '10%', '10%', '10%', '10%', '10%'];
                         }
                     }
                 ]
             });
+
+            $('#table_data_campaign_facebook tbody')
+                .off('click', '.btn-facebook-campaign-detail')
+                .on('click', '.btn-facebook-campaign-detail', function () {
+                    var idx = parseInt($(this).attr('data-row-index') || '0', 10);
+                    var row = (window.__facebookCampaignRows || [])[idx] || {};
+
+                    function fmtInt(v) {
+                        return (Number(v || 0)).toLocaleString('id-ID');
+                    }
+                    function fmtIdr(v) {
+                        var n = Number(v || 0);
+                        return 'Rp ' + Math.round(n).toLocaleString('id-ID');
+                    }
+
+                    $('#facebookCampaignDetailDate').text(row.date || '-');
+                    $('#facebookCampaignDetailAccount').text(row.account_name || '-');
+                    $('#facebookCampaignDetailDomain').text(row.domain || '-');
+                    $('#facebookCampaignDetailCampaign').text(row.campaign || '-');
+
+                    $('#facebookCampaignDetailSpend').text(fmtIdr(row.spend));
+                    $('#facebookCampaignDetailImpressions').text(fmtInt(row.impressions));
+                    $('#facebookCampaignDetailReach').text(fmtInt(row.reach));
+                    $('#facebookCampaignDetailClicks').text(fmtInt(row.clicks));
+
+                    var freq = Number(row.frequency || 0);
+                    $('#facebookCampaignDetailFrequency').text(isNaN(freq) ? '0' : freq.toFixed(1));
+
+                    $('#facebookCampaignDetailCpr').text(fmtIdr(row.cpr));
+                    $('#facebookCampaignDetailCpc').text(fmtIdr(row.cpc));
+
+                    $('#facebookCampaignDetailLpv').text(fmtInt(row.lpv));
+                    var lr = Number(row.lpv_rate || 0);
+                    $('#facebookCampaignDetailLpvRate').text((isNaN(lr) ? 0 : lr).toFixed(2) + '%');
+
+                    $('#facebookCampaignDetailModal').modal('show');
+                });
         },
     });
 }

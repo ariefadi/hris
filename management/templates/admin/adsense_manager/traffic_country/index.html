@@ -229,11 +229,121 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         <th style="width: 10px;" class="text-center">CPC (Rp)</th>
                         <th style="width: 10px;" class="text-center">eCPM (Rp)</th>
                         <th style="width: 10px;" class="text-center">Pendapatan (Rp)</th>
+                        <th style="width: 5px;" class="text-center no-export">Detail</th>
                     </tr>
                 </thead>
                 <tbody>
                 </tbody>
             </table>
+        </div>
+
+        <div class="modal fade" id="adsenseTrafficCountryDetailModal" tabindex="-1" role="dialog" aria-labelledby="adsenseTrafficCountryDetailModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="adsenseTrafficCountryDetailModalLabel">
+                            <i class="bi bi-eye-fill"></i> Detail Traffic Negara
+                        </h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-borderless mb-0">
+                                        <tbody>
+                                            <tr>
+                                                <th style="width: 45%;">Negara</th>
+                                                <td id="adsenseTrafficCountryDetailCountryName">-</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Kode</th>
+                                                <td id="adsenseTrafficCountryDetailCountryCode">-</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-borderless mb-0">
+                                        <tbody>
+                                            <tr>
+                                                <th style="width: 45%;">Impresi</th>
+                                                <td id="adsenseTrafficCountryDetailImpressions" class="text-right">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Klik</th>
+                                                <td id="adsenseTrafficCountryDetailClicks" class="text-right">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>CTR</th>
+                                                <td id="adsenseTrafficCountryDetailCtr" class="text-right">0%</td>
+                                            </tr>
+                                            <tr>
+                                                <th>CPC</th>
+                                                <td id="adsenseTrafficCountryDetailCpc" class="text-right">Rp 0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>eCPM</th>
+                                                <td id="adsenseTrafficCountryDetailEcpm" class="text-right">Rp 0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Pendapatan</th>
+                                                <td id="adsenseTrafficCountryDetailRevenue" class="text-right">Rp 0</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0" style="width:100%">
+                                <tbody>
+                                    <tr>
+                                        <th style="width: 45%;">Page Views</th>
+                                        <td id="adsenseTrafficCountryDetailPageViews" class="text-right">0</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Page Views RPM</th>
+                                        <td id="adsenseTrafficCountryDetailPageViewsRpm" class="text-right">Rp 0</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Ad Requests</th>
+                                        <td id="adsenseTrafficCountryDetailAdRequests" class="text-right">0</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Ad Requests Coverage</th>
+                                        <td id="adsenseTrafficCountryDetailAdRequestsCoverage" class="text-right">0%</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Active View Viewability</th>
+                                        <td id="adsenseTrafficCountryDetailActiveViewViewability" class="text-right">0%</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Active View Measurability</th>
+                                        <td id="adsenseTrafficCountryDetailActiveViewMeasurability" class="text-right">0%</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Active View Time (sec)</th>
+                                        <td id="adsenseTrafficCountryDetailActiveViewTime" class="text-right">0</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                            <i class="bi bi-x"></i> Tutup
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

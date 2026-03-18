@@ -130,12 +130,39 @@ class AdsenseTrafficAccountDataView(View):
                     account_name = str(rs.get('account_name', '') or '')
                     impressions = int(rs.get('impressions_adsense', 0) or 0)
                     clicks = int(rs.get('clicks_adsense', 0) or 0)
+                    page_views = int(rs.get('page_views', 0) or 0)
+                    ad_requests = int(rs.get('ad_requests', 0) or 0)
+
+                    ad_requests_coverage_weighted_sum = float(rs.get('ad_requests_coverage_weighted_sum', 0.0) or 0.0)
+                    active_view_viewability_weighted_sum = float(rs.get('active_view_viewability_weighted_sum', 0.0) or 0.0)
+                    active_view_measurability_weighted_sum = float(rs.get('active_view_measurability_weighted_sum', 0.0) or 0.0)
+                    active_view_time_weighted_sum = float(rs.get('active_view_time_weighted_sum', 0.0) or 0.0)
+
                     revenue = float(rs.get('revenue', 0.0) or 0.0)
                     key = f"{date_key}|{base_subdomain}"
-                    entry = rows_map.get(key) or {'date': date_key, 'account_name': account_name, 'site_name': base_subdomain, 'impressions_adsense': 0, 'clicks_adsense': 0, 'revenue': 0.0}
+                    entry = rows_map.get(key) or {
+                        'date': date_key,
+                        'account_name': account_name,
+                        'site_name': base_subdomain,
+                        'impressions_adsense': 0,
+                        'clicks_adsense': 0,
+                        'page_views': 0,
+                        'ad_requests': 0,
+                        'ad_requests_coverage_weighted_sum': 0.0,
+                        'active_view_viewability_weighted_sum': 0.0,
+                        'active_view_measurability_weighted_sum': 0.0,
+                        'active_view_time_weighted_sum': 0.0,
+                        'revenue': 0.0
+                    }
                     entry['account_name'] = account_name
                     entry['impressions_adsense'] += impressions
                     entry['clicks_adsense'] += clicks
+                    entry['page_views'] += page_views
+                    entry['ad_requests'] += ad_requests
+                    entry['ad_requests_coverage_weighted_sum'] += ad_requests_coverage_weighted_sum
+                    entry['active_view_viewability_weighted_sum'] += active_view_viewability_weighted_sum
+                    entry['active_view_measurability_weighted_sum'] += active_view_measurability_weighted_sum
+                    entry['active_view_time_weighted_sum'] += active_view_time_weighted_sum
                     entry['revenue'] += revenue
                     rows_map[key] = entry
             result_rows = []
@@ -145,10 +172,20 @@ class AdsenseTrafficAccountDataView(View):
             for _, item in rows_map.items():
                 imp = int(item.get('impressions_adsense') or 0)
                 clk = int(item.get('clicks_adsense') or 0)
+                pv = int(item.get('page_views') or 0)
+                ar = int(item.get('ad_requests') or 0)
                 rev = float(item.get('revenue') or 0.0)
+
                 cpc_adsense = (rev / clk) if clk > 0 else 0.0
                 ctr = ((clk / imp) * 100) if imp > 0 else 0.0
                 ecpm = ((rev / imp) * 1000) if imp > 0 else 0.0
+                page_views_rpm = ((rev / pv) * 1000) if pv > 0 else 0.0
+
+                ad_requests_coverage = (float(item.get('ad_requests_coverage_weighted_sum') or 0.0) / float(ar)) if ar > 0 else 0.0
+                active_view_viewability = (float(item.get('active_view_viewability_weighted_sum') or 0.0) / float(imp)) if imp > 0 else 0.0
+                active_view_measurability = (float(item.get('active_view_measurability_weighted_sum') or 0.0) / float(imp)) if imp > 0 else 0.0
+                active_view_time = (float(item.get('active_view_time_weighted_sum') or 0.0) / float(imp)) if imp > 0 else 0.0
+
                 total_impressions += imp
                 total_clicks += clk
                 total_revenue += rev
@@ -161,7 +198,14 @@ class AdsenseTrafficAccountDataView(View):
                     'cpc_adsense': round(cpc_adsense, 2),
                     'ecpm': round(ecpm, 2),
                     'ctr': round(ctr, 2),
-                    'revenue': round(rev, 2)
+                    'revenue': round(rev, 2),
+                    'page_views': pv,
+                    'page_views_rpm': round(page_views_rpm, 2),
+                    'ad_requests': ar,
+                    'ad_requests_coverage': round(ad_requests_coverage, 2),
+                    'active_view_viewability': round(active_view_viewability, 2),
+                    'active_view_measurability': round(active_view_measurability, 2),
+                    'active_view_time': round(active_view_time, 2)
                 })
             result_rows.sort(key=lambda x: (x['date'] or '', x['site_name'] or ''))
             summary = {

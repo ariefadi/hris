@@ -76,7 +76,7 @@ function load_adsense_traffic_account_data(tanggal_dari, tanggal_sampai, selecte
     }
     $("#overlay").show();
     // Destroy existing DataTable if exists
-    if ($.fn.DataTable.isDataTable('#table_traffic_country')) {
+    if ($.fn.DataTable.isDataTable('#table_traffic_account')) {
         $('#table_traffic_account').DataTable().destroy();
     }
     // AJAX Request
@@ -197,10 +197,11 @@ function getExportMetaTrafficAccount() {
     };
 }
 function initializeDataTable(data) {
+    window.__adsenseTrafficAccountRows = (data && Array.isArray(data)) ? data : [];
+
     var tableData = [];
-    if (data && Array.isArray(data)) {
-        data.forEach(function (row) {
-            // Format tanggal ke format Indonesia
+    if (window.__adsenseTrafficAccountRows.length) {
+        window.__adsenseTrafficAccountRows.forEach(function (row, idx) {
             var formattedDate = row.date || '-';
             if (row.date && row.date.match(/\d{4}-\d{2}-\d{2}/)) {
                 var months = [
@@ -214,15 +215,28 @@ function initializeDataTable(data) {
                 formattedDate = day + ' ' + month + ' ' + year;
             }
             var cellDate = '<span data-order="' + (row.date || '-') + '">' + formattedDate + '</span>';
+
+            var clicksNum = Number(row.clicks_adsense || 0);
+            var cpcNum = Number(row.cpc_adsense || 0);
+            var cpmNum = Number(row.ecpm || 0);
+            var ctrNum = parseFloat(row.ctr);
+            if (isNaN(ctrNum)) ctrNum = 0;
+            var revenueNum = Number(row.revenue || 0);
+
+            var btnDetail = '<button type="button" class="btn btn-sm btn-outline-primary btn-adsense-traffic-account-detail" data-row-index="' + idx + '" title="Detail">'
+                + '<i class="bi bi-eye-fill" aria-hidden="true"></i>'
+                + '</button>';
+
             tableData.push([
                 cellDate,
                 row.account_name || '-',
                 row.site_name || '-',
-                formatNumber(row.clicks_adsense || 0),
-                formatCurrencyIDR(row.cpc_adsense || 0),
-                formatCurrencyIDR(row.ecpm || 0),
-                formatNumber(row.ctr || 0, 2) + ' %',
-                formatCurrencyIDR(row.revenue || 0)
+                clicksNum,
+                cpcNum,
+                cpmNum,
+                ctrNum,
+                revenueNum,
+                btnDetail
             ]);
         });
     }
@@ -269,13 +283,12 @@ function initializeDataTable(data) {
                 extend: 'excel',
                 text: 'Export Excel',
                 className: 'btn btn-success',
-                exportOptions: { columns: ':visible' },
+                exportOptions: { columns: ':visible:not(.no-export)' },
                 title: function () { 
                     var meta = getExportMetaTrafficAccount();
-                    let title = 'Traffic AdX Per Account';
+                    let title = 'Traffic AdSense Per Account';
                     if (meta.periodText) title += ' ' + meta.periodText;
                     if (meta.accountText) title += ' ' + meta.accountText;
-                    if (meta.domainText) title += ' ' + meta.domainText;
                     return title;
                 },
                 customize: function (xlsx) {
@@ -307,7 +320,7 @@ function initializeDataTable(data) {
                     var merges = $('mergeCells', sheet);
                     var mergeXml = '';
                     for (var m = 1; m <= headerRows.length; m++) {
-                        mergeXml += '<mergeCell ref="A' + m + ':G' + m + '"/>';
+                        mergeXml += '<mergeCell ref="A' + m + ':H' + m + '"/>';
                     }
                     if (merges.length === 0) {
                         $('worksheet', sheet).append('<mergeCells count="' + headerRows.length + '">' + mergeXml + '</mergeCells>');
@@ -322,13 +335,12 @@ function initializeDataTable(data) {
                 extend: 'pdf',
                 text: 'Export PDF',
                 className: 'btn btn-danger',
-                exportOptions: { columns: ':visible' },
+                exportOptions: { columns: ':visible:not(.no-export)' },
                 title: function () { 
                     var meta = getExportMetaTrafficAccount();
-                    let title = 'Traffic AdX Per Account';
+                    let title = 'Traffic AdSense Per Account';
                     if (meta.periodText) title += ' ' + meta.periodText;
                     if (meta.accountText) title += ' ' + meta.accountText;
-                    if (meta.domainText) title += ' ' + meta.domainText;
                     return title;
                 },
                 customize: function (doc) {
@@ -344,7 +356,7 @@ function initializeDataTable(data) {
                 extend: 'copy',
                 text: 'Copy',
                 className: 'btn btn-info',
-                exportOptions: { columns: ':visible' },
+                exportOptions: { columns: ':visible:not(.no-export)' },
                 customize: function (txt) {
                     var meta = getExportMetaTrafficAccount();
                     var header = meta.titleText + '\n' + meta.periodText;
@@ -358,7 +370,7 @@ function initializeDataTable(data) {
                 extend: 'csv',
                 text: 'Export CSV',
                 className: 'btn btn-primary',
-                exportOptions: { columns: ':visible' },
+                exportOptions: { columns: ':visible:not(.no-export)' },
                 customize: function (csv) {
                     var meta = getExportMetaTrafficAccount();
                     var out = meta.titleText + '\n' + meta.periodText;
@@ -371,13 +383,12 @@ function initializeDataTable(data) {
                 extend: 'print',
                 text: 'Print',
                 className: 'btn btn-warning',
-                exportOptions: { columns: ':visible' },
+                exportOptions: { columns: ':visible:not(.no-export)' },
                 title: function () { 
                     var meta = getExportMetaTrafficAccount();
-                    let title = '<h3 style="text-align:center;margin:0">Traffic AdX Per Account</h3>';
+                    let title = '<h3 style="text-align:center;margin:0">Traffic AdSense Per Account</h3>';
                     if (meta.periodText) title += ' ' + meta.periodText;
                     if (meta.accountText) title += ' ' + meta.accountText;
-                    if (meta.domainText) title += ' ' + meta.domainText;
                     return title;
                 },
                 messageTop: function () {
@@ -391,71 +402,107 @@ function initializeDataTable(data) {
             {
                 extend: 'colvis',
                 text: 'Column Visibility',
-                className: 'btn btn-default',
-                exportOptions: { columns: ':visible' }
+                className: 'btn btn-default'
             }
         ],
         columnDefs: [
-            { 
-                targets: [0, 6], 
-                className: 'text-center'
-            },
+            { targets: [0, 6, 8], className: 'text-center' },
+            { targets: [3, 4, 5, 7], className: 'text-right' },
             {
-                targets: [3, 4, 5, 7], // Kolom numerik ditata kanan
-                className: "text-right"
-            },
-            {
-                // Sort numerik untuk CPC (Rp) - kolom index 2
-                targets: 2,
-                type: 'num',
-                render: function (data, type) {
-                    if (type === 'sort' || type === 'type') {
-                        var v = parseFloat(String(data).replace(/[Rp.\s]/g, '').replace(/,/g, ''));
-                        return isNaN(v) ? 0 : v;
-                    }
-                    return data;
-                }
-            },
-            {
-                // Sort numerik untuk eCPM (Rp) - kolom index 3
                 targets: 3,
                 type: 'num',
                 render: function (data, type) {
-                    if (type === 'sort' || type === 'type') {
-                        var v = parseFloat(String(data).replace(/[Rp.\s]/g, '').replace(/,/g, ''));
-                        return isNaN(v) ? 0 : v;
-                    }
-                    return data;
+                    if (type === 'display') return Number(data || 0).toLocaleString('id-ID');
+                    return Number(data || 0);
                 }
             },
             {
-                // Sort numerik untuk CTR (%) - kolom index 4
                 targets: 4,
                 type: 'num',
                 render: function (data, type) {
-                    if (type === 'sort' || type === 'type') {
-                        var v = parseFloat(String(data).replace('%', '').trim());
-                        return isNaN(v) ? 0 : v;
-                    }
-                    return data;
+                    if (type === 'display') return formatCurrencyIDR(data || 0);
+                    return Number(data || 0);
                 }
             },
             {
-                // Sort numerik untuk Pendapatan (Rp) - kolom index 5
                 targets: 5,
                 type: 'num',
                 render: function (data, type) {
-                    if (type === 'sort' || type === 'type') {
-                        var v = parseFloat(String(data).replace(/[Rp.\s]/g, '').replace(/,/g, ''));
-                        return isNaN(v) ? 0 : v;
-                    }
-                    return data;
+                    if (type === 'display') return formatCurrencyIDR(data || 0);
+                    return Number(data || 0);
                 }
+            },
+            {
+                targets: 6,
+                type: 'num',
+                render: function (data, type) {
+                    var v = parseFloat(data);
+                    if (isNaN(v)) v = 0;
+                    if (type === 'display') return v.toFixed(2) + ' %';
+                    return v;
+                }
+            },
+            {
+                targets: 7,
+                type: 'num',
+                render: function (data, type) {
+                    if (type === 'display') return formatCurrencyIDR(data || 0);
+                    return Number(data || 0);
+                }
+            },
+            {
+                targets: 8,
+                orderable: false,
+                searchable: false,
+                className: 'text-center no-export'
             }
         ]
     });
-    // Paksa urutan setelah inisialisasi untuk memastikan tidak tertimpa
+
     table.order([0, 'desc']).draw();
+
+    $('#table_traffic_account tbody')
+        .off('click', '.btn-adsense-traffic-account-detail')
+        .on('click', '.btn-adsense-traffic-account-detail', function () {
+            var idx = parseInt($(this).attr('data-row-index') || '0', 10);
+            var row = (window.__adsenseTrafficAccountRows || [])[idx] || {};
+
+            $('#adsenseTrafficAccountDetailDate').text(formatDateID(row.date || '-'));
+            $('#adsenseTrafficAccountDetailAccount').text(escapeHtml(row.account_name || '-'));
+            $('#adsenseTrafficAccountDetailSite').text(escapeHtml(row.site_name || '-'));
+
+            var imp = Number(row.impressions_adsense || 0);
+            var clk = Number(row.clicks_adsense || 0);
+            var ctr = parseFloat(row.ctr);
+            if (isNaN(ctr)) ctr = 0;
+
+            $('#adsenseTrafficAccountDetailImpressions').text(imp.toLocaleString('id-ID'));
+            $('#adsenseTrafficAccountDetailClicks').text(clk.toLocaleString('id-ID'));
+            $('#adsenseTrafficAccountDetailCtr').text(ctr.toFixed(2) + ' %');
+            $('#adsenseTrafficAccountDetailCpc').text(formatCurrencyIDR(row.cpc_adsense || 0));
+            $('#adsenseTrafficAccountDetailCpm').text(formatCurrencyIDR(row.ecpm || 0));
+            $('#adsenseTrafficAccountDetailRevenue').text(formatCurrencyIDR(row.revenue || 0));
+
+            $('#adsenseTrafficAccountDetailPageViews').text(Number(row.page_views || 0).toLocaleString('id-ID'));
+            $('#adsenseTrafficAccountDetailPageViewsRpm').text(formatCurrencyIDR(row.page_views_rpm || 0));
+            $('#adsenseTrafficAccountDetailAdRequests').text(Number(row.ad_requests || 0).toLocaleString('id-ID'));
+
+            var cov = parseFloat(row.ad_requests_coverage);
+            if (isNaN(cov)) cov = 0;
+            var avv = parseFloat(row.active_view_viewability);
+            if (isNaN(avv)) avv = 0;
+            var avm = parseFloat(row.active_view_measurability);
+            if (isNaN(avm)) avm = 0;
+            var avt = parseFloat(row.active_view_time);
+            if (isNaN(avt)) avt = 0;
+
+            $('#adsenseTrafficAccountDetailAdRequestsCoverage').text(cov.toFixed(2) + ' %');
+            $('#adsenseTrafficAccountDetailActiveViewViewability').text(avv.toFixed(2) + ' %');
+            $('#adsenseTrafficAccountDetailActiveViewMeasurability').text(avm.toFixed(2) + ' %');
+            $('#adsenseTrafficAccountDetailActiveViewTime').text(avt.toFixed(2));
+
+            $('#adsenseTrafficAccountDetailModal').modal('show');
+        });
 }
 // Function to create revenue line chart (matching adsense_summary style)
 function create_revenue_line_chart(data) {

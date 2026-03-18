@@ -1995,24 +1995,37 @@ class page_per_campaign_facebook(View):
         total_reach = 0
         total_clicks = 0
         for row in raw_rows or []:
-            # Pastikan akses aman terhadap dictionary
             account_name = row.get('account_name')
             domain = row.get('domain')
+            campaign = row.get('campaign')
+
             spend = float(row.get('spend', 0) or 0)
             impressions = int(row.get('impressions', 0) or 0)
             reach = int(row.get('reach', 0) or 0)
             clicks = int(row.get('clicks', 0) or 0)
             cpr = float(row.get('cpr', 0) or 0)
             cpc = float(row.get('cpc', 0) or 0)
-            # Hitung frequency sebagai persen (impressions/reach * 100)
-            if reach == 0:
-                frequency = 0
+
+            frequency_val = row.get('frequency', None)
+            if frequency_val in [None, '']:
+                if reach == 0:
+                    frequency = 0
+                else:
+                    frequency = float(format(impressions / reach, '.1f'))
             else:
-                frequency = format(impressions/reach, '.1f')    
+                try:
+                    frequency = float(frequency_val)
+                except Exception:
+                    frequency = 0
+
+            lpv = float(row.get('lpv', 0) or 0)
+            lpv_rate = float(row.get('lpv_rate', 0) or 0)
+
             normalized_rows.append({
                 'date': row.get('date'),
                 'account_name': account_name,
                 'domain': domain,
+                'campaign': campaign,
                 'spend': spend,
                 'impressions': impressions,
                 'reach': reach,
@@ -2020,6 +2033,8 @@ class page_per_campaign_facebook(View):
                 'frequency': frequency,
                 'cpr': cpr,
                 'cpc': cpc,
+                'lpv': lpv,
+                'lpv_rate': lpv_rate,
             })
             # Akumulasi untuk total
             total_spend += spend
@@ -2087,10 +2102,11 @@ class page_per_country_facebook(View):
         selected_domain_list = []
         if data_domain:
             selected_domain_list = [str(s).strip() for s in data_domain.split(',') if s.strip()]
-            selected_countries_json = req.POST.get('selected_countries', '[]')
+
+        selected_countries_json = req.POST.get('selected_countries', '[]')
         try:
             selected_countries = json.loads(selected_countries_json)
-        except:
+        except Exception:
             selected_countries = []
         db_resp = data_mysql().get_all_ads_traffic_country_by_params(
             tanggal_dari,
@@ -2117,9 +2133,14 @@ class page_per_country_facebook(View):
             impressions = int(r.get('impressions') or 0)
             reach = int(r.get('reach') or 0)
             clicks = int(r.get('clicks') or 0)
-            frequency = format(impressions / reach, '.1f')
+            if reach:
+                frequency = format(impressions / reach, '.1f')
+            else:
+                frequency = 0
             normalized.append({
                 'country': country_label,
+                'country_name': country_name,
+                'country_code': country_code,
                 'spend': spend,
                 'impressions': impressions,
                 'reach': reach,
@@ -2132,9 +2153,10 @@ class page_per_country_facebook(View):
             total_impressions += impressions
             total_reach += reach
             total_clicks += clicks
-            frequency_total = format(total_impressions / total_reach, '.1f')
-            rata_cpr_ratio = format(sum((row.get('cpr') or 0) for row in normalized) / len(normalized), '.0f') if normalized else '0.0'
-            rata_cpc_ratio = format(sum((row.get('cpc') or 0) for row in normalized) / len(normalized), '.0f') if normalized else '0.0'
+
+        frequency_total = format(total_impressions / total_reach, '.1f') if total_reach else 0
+        rata_cpr_ratio = format(sum((row.get('cpr') or 0) for row in normalized) / len(normalized), '.0f') if normalized else '0.0'
+        rata_cpc_ratio = format(sum((row.get('cpc') or 0) for row in normalized) / len(normalized), '.0f') if normalized else '0.0'
         data = {
             'data': normalized,
             'total': {
@@ -3237,12 +3259,37 @@ class AdxTrafficPerAccountDataView(View):
                     impressions = int(rs.get('impressions_adx', 0) or 0)
                     clicks = int(rs.get('clicks_adx', 0) or 0)
                     revenue = float(rs.get('revenue', 0.0) or 0.0)
+                    total_requests = int(rs.get('total_requests', 0) or 0)
+                    responses_served = int(rs.get('responses_served', 0) or 0)
+                    active_view_pct_viewable = float(rs.get('active_view_pct_viewable', 0.0) or 0.0)
+                    active_view_avg_time_sec = float(rs.get('active_view_avg_time_sec', 0.0) or 0.0)
+
                     key = f"{date_key}|{base_subdomain}"
-                    entry = rows_map.get(key) or {'date': date_key, 'site_name': base_subdomain, 'impressions_adx': 0, 'clicks_adx': 0, 'revenue': 0.0}
+                    entry = rows_map.get(key)
+                    if not entry:
+                        entry = {
+                            'date': date_key,
+                            'site_name': base_subdomain,
+                            'site_name_raw': raw_site,
+                            'impressions_adx': 0,
+                            'clicks_adx': 0,
+                            'revenue': 0.0,
+                            'total_requests': 0,
+                            'responses_served': 0,
+                            'active_view_weight': 0,
+                            'active_view_pct_viewable_sum': 0.0,
+                            'active_view_avg_time_sec_sum': 0.0,
+                        }
+                        rows_map[key] = entry
                     entry['impressions_adx'] += impressions
                     entry['clicks_adx'] += clicks
                     entry['revenue'] += revenue
-                    rows_map[key] = entry
+                    entry['total_requests'] += total_requests
+                    entry['responses_served'] += responses_served
+                    if impressions > 0:
+                        entry['active_view_weight'] += impressions
+                        entry['active_view_pct_viewable_sum'] += active_view_pct_viewable * impressions
+                        entry['active_view_avg_time_sec_sum'] += active_view_avg_time_sec * impressions
             result_rows = []
             total_impressions = 0
             total_clicks = 0
@@ -3257,14 +3304,32 @@ class AdxTrafficPerAccountDataView(View):
                 total_impressions += imp
                 total_clicks += clk
                 total_revenue += rev
+                total_requests = int(item.get('total_requests') or 0)
+                responses_served = int(item.get('responses_served') or 0)
+
+                match_rate = (float(responses_served) / float(total_requests) * 100.0) if total_requests > 0 else 0.0
+                fill_rate = (float(imp) / float(responses_served) * 100.0) if responses_served > 0 else 0.0
+
+                w = int(item.get('active_view_weight') or 0)
+                active_view_pct_viewable = (float(item.get('active_view_pct_viewable_sum') or 0.0) / float(w)) if w > 0 else 0.0
+                active_view_avg_time_sec = (float(item.get('active_view_avg_time_sec_sum') or 0.0) / float(w)) if w > 0 else 0.0
+
                 result_rows.append({
                     'date': item['date'],
                     'site_name': item['site_name'] + '.com',
+                    'site_name_raw': item.get('site_name_raw') or item.get('site_name') or '',
+                    'impressions_adx': imp,
                     'clicks_adx': clk,
                     'cpc_adx': round(cpc_adx, 2),
                     'ecpm': round(ecpm, 2),
                     'ctr': round(ctr, 2),
-                    'revenue': round(rev, 2)
+                    'revenue': round(rev, 2),
+                    'total_requests': total_requests,
+                    'responses_served': responses_served,
+                    'match_rate': round(match_rate, 2),
+                    'fill_rate': round(fill_rate, 2),
+                    'active_view_pct_viewable': round(active_view_pct_viewable, 2),
+                    'active_view_avg_time_sec': round(active_view_avg_time_sec, 2),
                 })
             result_rows.sort(key=lambda x: (x['date'] or '', x['site_name'] or ''))
             summary = {

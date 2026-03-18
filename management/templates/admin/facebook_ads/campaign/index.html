@@ -166,6 +166,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     <th class="text-center" style="font-size: 12px;" width="8%">Frequency</th>
                     <th class="text-center" style="font-size: 12px;" width="8%">CPR <br> ( Rp. )</th>
                     <th class="text-center" style="font-size: 12px;" width="8%">CPC <br> ( Rp. )</th>
+                    <th class="text-center no-export" style="font-size: 12px;" width="4%">Detail</th>
                 </tr>
             </thead>
             <tbody>
@@ -181,9 +182,102 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     <th class="text-right" style="font-size: 12px;" id="total_frequency"></th>
                     <th class="text-right" style="font-size: 12px;" id="total_cpr"></th>
                     <th class="text-right" style="font-size: 12px;" id="total_cpc"></th>
+                    <th class="no-export"></th>
                 </tr>
             </tfoot>
         </table>
+
+        <div class="modal fade" id="facebookCampaignDetailModal" tabindex="-1" role="dialog" aria-labelledby="facebookCampaignDetailModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="facebookCampaignDetailModalLabel">
+                            <i class="bi bi-eye-fill"></i> Detail Campaign
+                        </h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-borderless mb-0">
+                                        <tbody>
+                                            <tr>
+                                                <th style="width: 40%;">Tanggal</th>
+                                                <td id="facebookCampaignDetailDate">-</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Account</th>
+                                                <td id="facebookCampaignDetailAccount">-</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Domain</th>
+                                                <td id="facebookCampaignDetailDomain">-</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Campaign</th>
+                                                <td id="facebookCampaignDetailCampaign">-</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-borderless mb-0">
+                                        <tbody>
+                                            <tr>
+                                                <th style="width: 45%;">Spend</th>
+                                                <td id="facebookCampaignDetailSpend" class="text-right">Rp 0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Impressions</th>
+                                                <td id="facebookCampaignDetailImpressions" class="text-right">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Reach</th>
+                                                <td id="facebookCampaignDetailReach" class="text-right">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Clicks (Hasil)</th>
+                                                <td id="facebookCampaignDetailClicks" class="text-right">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Frequency</th>
+                                                <td id="facebookCampaignDetailFrequency" class="text-right">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>CPR</th>
+                                                <td id="facebookCampaignDetailCpr" class="text-right">Rp 0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>CPC</th>
+                                                <td id="facebookCampaignDetailCpc" class="text-right">Rp 0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>LPV</th>
+                                                <td id="facebookCampaignDetailLpv" class="text-right">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>LPV Rate</th>
+                                                <td id="facebookCampaignDetailLpvRate" class="text-right">0%</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                            <i class="bi bi-x"></i> Tutup
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
         </div>
     </div>
 </div>

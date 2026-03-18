@@ -265,11 +265,121 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         <th style="width: 10%;" class="text-center">eCPM (Rp)</th>
                         <th style="width: 5%;" class="text-center">CTR (%)</th>
                         <th style="width: 10%;" class="text-center">Pendapatan (Rp)</th>
+                        <th style="width: 5%;" class="text-center no-export">Detail</th>
                     </tr>
                 </thead>
                 <tbody>
                 </tbody>
             </table>
+        </div>
+
+        <div class="modal fade" id="adxTrafficAccountDetailModal" tabindex="-1" role="dialog" aria-labelledby="adxTrafficAccountDetailModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="adxTrafficAccountDetailModalLabel">
+                            <i class="bi bi-eye-fill"></i> Detail Traffic
+                        </h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-borderless mb-0">
+                                        <tbody>
+                                            <tr>
+                                                <th style="width: 40%;">Tanggal</th>
+                                                <td id="adxTrafficAccountDetailDate">-</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Site</th>
+                                                <td id="adxTrafficAccountDetailSite">-</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Site Raw</th>
+                                                <td id="adxTrafficAccountDetailSiteRaw">-</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-borderless mb-0">
+                                        <tbody>
+                                            <tr>
+                                                <th style="width: 45%;">Impresi</th>
+                                                <td id="adxTrafficAccountDetailImpressions">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Klik</th>
+                                                <td id="adxTrafficAccountDetailClicks">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>CTR</th>
+                                                <td id="adxTrafficAccountDetailCtr">0%</td>
+                                            </tr>
+                                            <tr>
+                                                <th>CPC</th>
+                                                <td id="adxTrafficAccountDetailCpc">Rp 0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>eCPM</th>
+                                                <td id="adxTrafficAccountDetailEcpm">Rp 0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Pendapatan</th>
+                                                <td id="adxTrafficAccountDetailRevenue">Rp 0</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered mb-0" style="width:100%">
+                                <tbody>
+                                    <tr>
+                                        <th style="width: 45%;">Total Requests</th>
+                                        <td id="adxTrafficAccountDetailTotalRequests" class="text-right">0</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Responses Served</th>
+                                        <td id="adxTrafficAccountDetailResponsesServed" class="text-right">0</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Match Rate</th>
+                                        <td id="adxTrafficAccountDetailMatchRate" class="text-right">0%</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Fill Rate</th>
+                                        <td id="adxTrafficAccountDetailFillRate" class="text-right">0%</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Active View % Viewable</th>
+                                        <td id="adxTrafficAccountDetailActiveViewPctViewable" class="text-right">0%</td>
+                                    </tr>
+                                    <tr>
+                                        <th>Active View Avg Time (sec)</th>
+                                        <td id="adxTrafficAccountDetailActiveViewAvgTimeSec" class="text-right">0</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                            <i class="bi bi-x"></i> Tutup
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
