@@ -52,7 +52,7 @@ class Command(BaseCommand):
         except (TypeError, ValueError):
             port = 3306
         user = os.getenv("DB_USER") or os.getenv("HRIS_DB_USER", "root")
-        password = os.getenv("DB_PASSWORD") or os.getenv("HRIS_DB_PASSWORD", "")
+        password = os.getenv("DB_PASSWORD") or os.getenv("HRIS_DB_PASSWORD", "hris123456")
         database = os.getenv("DB_NAME") or os.getenv("HRIS_DB_NAME", "hris_trendHorizone")
         connect_timeout = int(os.getenv("MYSQL_CONNECT_TIMEOUT", "10"))
         read_timeout = int(os.getenv("MYSQL_READ_TIMEOUT", "300"))
@@ -71,14 +71,14 @@ class Command(BaseCommand):
         )
 
     def _ch_config(self):
-        host = os.getenv("CH_HOST") or os.getenv("REPORT_DB_HOST") or os.getenv("DB_REPORT_HOST") or "127.0.0.1"
+        host = os.getenv("CH_HOST") or os.getenv("REPORT_DB_HOST") or os.getenv("DB_REPORT_HOST") or "167.172.93.194"
         raw_port = (os.getenv("CH_PORT") or os.getenv("REPORT_DB_PORT") or os.getenv("DB_REPORT_PORT") or "8123").strip()
         try:
             port = int(raw_port)
         except (TypeError, ValueError):
             port = 8123
-        user = os.getenv("CH_USER") or os.getenv("REPORT_DB_USER") or os.getenv("DB_REPORT_USER") or "default"
-        password = os.getenv("CH_PASSWORD") or os.getenv("REPORT_DB_PASSWORD") or os.getenv("DB_REPORT_PASSWORD") or "hris123456"
+        user = os.getenv("CH_USER") or os.getenv("REPORT_DB_USER") or os.getenv("DB_REPORT_USER") or "superbadmin"
+        password = os.getenv("CH_PASSWORD") or os.getenv("REPORT_DB_PASSWORD") or os.getenv("DB_REPORT_PASSWORD") or "45TYgdopmyuHJiu6756"
         database = os.getenv("CH_DB") or os.getenv("REPORT_DB_NAME") or os.getenv("DB_REPORT_NAME") or ""
         timeout = int(os.getenv("CH_HTTP_TIMEOUT", "60"))
         return host, port, user, password, database, timeout

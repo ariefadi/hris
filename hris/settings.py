@@ -144,7 +144,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': os.getenv('HRIS_DB_NAME', 'hris_trendHorizone'),
         'USER': os.getenv('HRIS_DB_USER', 'root'),
-        'PASSWORD': os.getenv('HRIS_DB_PASSWORD', ''),
+        'PASSWORD': os.getenv('HRIS_DB_PASSWORD', 'hris123456'),
         'HOST': os.getenv('HRIS_DB_HOST', '127.0.0.1'),
         'PORT': os.getenv('HRIS_DB_PORT', '3306'),
         'OPTIONS': {
