@@ -3031,7 +3031,12 @@ class data_mysql:
             elif isinstance(selected_account_list, (set, tuple)):
                 selected_account_list = list(selected_account_list)
             data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
-            like_conditions_account = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
+
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            like_account_col = "b.account_id" if use_clickhouse else "a.account_id"
+            like_conditions_account = " OR ".join([f"{like_account_col} LIKE %s"] * len(data_account_list))
             like_params_account = [f"%{account}%" for account in data_account_list] 
             base_sql = [
                 "SELECT",
@@ -3497,7 +3502,12 @@ class data_mysql:
             elif isinstance(selected_account_list, (set, tuple)):
                 selected_account_list = list(selected_account_list)
             data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
-            like_conditions_account = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
+
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            like_account_col = "b.account_id" if use_clickhouse else "a.account_id"
+            like_conditions_account = " OR ".join([f"{like_account_col} LIKE %s"] * len(data_account_list))
             like_params_account = [f"%{account}%" for account in data_account_list] 
             # --- 1. Pastikan selected_domain_list adalah list string
             if isinstance(selected_domain_list, str):
@@ -4786,18 +4796,35 @@ class data_mysql:
                 selected_account_list = list(selected_account_list)
             if not selected_account_list:
                 raise ValueError("selected_account_list is required and cannot be empty")
-            like_conditions = " OR ".join(["a.account_id LIKE %s"] * len(selected_account_list))
+
+            engine = (self._report_engine() or '').lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            like_col = "b.account_id" if use_clickhouse else "a.account_id"
+            like_conditions = " OR ".join([f"{like_col} LIKE %s"] * len(selected_account_list))
             like_params = [f"%{d}%" for d in selected_account_list]
-            base_sql = [
-                "SELECT",
-                "\tb.data_adx_domain AS 'site_name'",
-                "FROM",
-                "\tapp_credentials a",
-                "INNER JOIN data_adx_domain b ON a.account_id = b.account_id",
-                "WHERE b.data_adx_domain_tanggal BETWEEN %s AND %s",
-                f"\tAND ({like_conditions})",
-                "GROUP BY b.data_adx_domain",
-            ]
+
+            if use_clickhouse:
+                base_sql = [
+                    "SELECT",
+                    "\tb.data_adx_domain AS 'site_name'",
+                    "FROM data_adx_domain b",
+                    "WHERE toDate(b.data_adx_domain_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
+                    f"\tAND ({like_conditions})",
+                    "GROUP BY b.data_adx_domain",
+                ]
+            else:
+                base_sql = [
+                    "SELECT",
+                    "\tb.data_adx_domain AS 'site_name'",
+                    "FROM",
+                    "\tapp_credentials a",
+                    "INNER JOIN data_adx_domain b ON a.account_id = b.account_id",
+                    "WHERE b.data_adx_domain_tanggal BETWEEN %s AND %s",
+                    f"\tAND ({like_conditions})",
+                    "GROUP BY b.data_adx_domain",
+                ]
+
             params = [tanggal_dari, tanggal_sampai] + like_params
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
@@ -4873,39 +4900,66 @@ class data_mysql:
             like_conditions = " OR ".join(["CONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') LIKE %s"] * len(data_sub_domain))
             like_params = [f"%{d}%" for d in data_sub_domain]  # tambahkan % supaya match '.com'
             # --- 3. Susun query
-            base_sql = [
-                "SELECT",
-                "\trs.account_id, rs.account_name, rs.account_email,",
-                "\trs.date, rs.domain, rs.campaign, rs.country_code,",
-                "\tSUM(rs.spend) AS 'spend',",
-                "\tSUM(rs.clicks_fb) AS 'clicks_fb',",
-                "\tSUM(rs.impressions_fb) AS 'impressions_fb',",
-                "\tROUND(AVG(rs.cpr), 0) AS 'cpr',",
-                "\tROUND((SUM(rs.spend)/SUM(rs.clicks_fb)), 0) AS 'cpc_fb'",
-                "FROM (",
-                    "\tSELECT",
-                    "\t\ta.account_id, a.account_name, a.account_email,",
-                    "\t\tb.data_ads_country_tanggal AS 'date',",
-                    "\t\tb.data_ads_country_cd AS 'country_code',",
-                    "\t\tb.data_ads_country_nm AS 'country_name',",
-                    "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS domain,",
-                    "\t\tb.data_ads_campaign_nm AS 'campaign',",
-                    "\t\tb.data_ads_country_spend AS 'spend',",
-                    "\t\tb.data_ads_country_impresi AS 'impressions_fb',",
-                    "\t\tb.data_ads_country_click AS 'clicks_fb',",
-                    "\t\tb.data_ads_country_cpr AS 'cpr'",
-                    "\tFROM master_account_ads a",
-                    "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
-                    "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
-                    f"\tAND ({like_conditions})",
-                ") rs",
-                "GROUP BY rs.date, rs.domain, rs.country_code",
-                "ORDER BY rs.account_id, rs.date",
-            ]
-            # --- 4. Gabungkan parameter
-            params = [start_date_formatted, end_date_formatted] + like_params
-            # --- 5. Eksekusi query
-            sql = "\n".join(base_sql)
+            engine = (self._report_engine() or '').lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            if use_clickhouse:
+                domain_expr = "concat(arrayElement(splitByChar('.', b.data_ads_domain), 1), '.', arrayElement(splitByChar('.', b.data_ads_domain), 2), '.com')"
+                like_conditions_ch = " OR ".join([f"{domain_expr} LIKE %s"] * len(data_sub_domain))
+                base_sql = [
+                    "SELECT",
+                    "\t'' AS 'account_id',",
+                    "\t'' AS 'account_name',",
+                    "\t'' AS 'account_email',",
+                    "\ttoDate(b.data_ads_country_tanggal) AS 'date',",
+                    f"\t{domain_expr} AS domain,",
+                    "\t'' AS 'campaign',",
+                    "\tb.data_ads_country_cd AS 'country_code',",
+                    "\tSUM(b.data_ads_country_spend) AS 'spend',",
+                    "\tSUM(b.data_ads_country_click) AS 'clicks_fb',",
+                    "\tSUM(b.data_ads_country_impresi) AS 'impressions_fb',",
+                    "\tROUND(AVG(b.data_ads_country_cpr), 0) AS 'cpr',",
+                    "\tCASE WHEN SUM(b.data_ads_country_click) > 0 THEN ROUND(SUM(b.data_ads_country_spend) / SUM(b.data_ads_country_click), 0) ELSE 0 END AS 'cpc_fb'",
+                    "FROM data_ads_country b",
+                    "WHERE toDate(b.data_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
+                    f"\tAND ({like_conditions_ch})",
+                    f"GROUP BY toDate(b.data_ads_country_tanggal), {domain_expr}, b.data_ads_country_cd",
+                    "ORDER BY toDate(b.data_ads_country_tanggal) ASC",
+                ]
+                params = [start_date_formatted, end_date_formatted] + like_params
+                sql = "\n".join(base_sql)
+            else:
+                base_sql = [
+                    "SELECT",
+                    "\trs.account_id, rs.account_name, rs.account_email,",
+                    "\trs.date, rs.domain, rs.campaign, rs.country_code,",
+                    "\tSUM(rs.spend) AS 'spend',",
+                    "\tSUM(rs.clicks_fb) AS 'clicks_fb',",
+                    "\tSUM(rs.impressions_fb) AS 'impressions_fb',",
+                    "\tROUND(AVG(rs.cpr), 0) AS 'cpr',",
+                    "\tROUND((SUM(rs.spend)/SUM(rs.clicks_fb)), 0) AS 'cpc_fb'",
+                    "FROM (",
+                        "\tSELECT",
+                        "\t\ta.account_id, a.account_name, a.account_email,",
+                        "\t\tb.data_ads_country_tanggal AS 'date',",
+                        "\t\tb.data_ads_country_cd AS 'country_code',",
+                        "\t\tb.data_ads_country_nm AS 'country_name',",
+                        "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS domain,",
+                        "\t\tb.data_ads_campaign_nm AS 'campaign',",
+                        "\t\tb.data_ads_country_spend AS 'spend',",
+                        "\t\tb.data_ads_country_impresi AS 'impressions_fb',",
+                        "\t\tb.data_ads_country_click AS 'clicks_fb',",
+                        "\t\tb.data_ads_country_cpr AS 'cpr'",
+                        "\tFROM master_account_ads a",
+                        "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
+                        "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
+                        f"\tAND ({like_conditions})",
+                    ") rs",
+                    "GROUP BY rs.date, rs.domain, rs.country_code",
+                    "ORDER BY rs.account_id, rs.date",
+                ]
+                params = [start_date_formatted, end_date_formatted] + like_params
+                sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all ads roi traffic campaign by params")
             data = self.fetch_all()
@@ -5017,39 +5071,79 @@ class data_mysql:
             like_clause = f"\tAND ({like_conditions})" if like_conditions else ""
             like_params = [f"%{d}%" for d in data_sub_domain]
             # --- 3. Susun query
-            base_sql = [
-                "SELECT",
-                "\trs.date,",
-                "\trs.account_id, rs.account_name,",
-                "\trs.domain, rs.country_code,",
-                "\tSUM(rs.spend) AS spend,",
-                "\tSUM(rs.impressions) AS impressions,",
-                "\tSUM(rs.clicks) AS clicks,",
-                "\tCASE WHEN SUM(rs.impressions) > 0 THEN ROUND((SUM(rs.clicks) / SUM(rs.impressions)) * 100, 4) ELSE 0 END AS ctr,",
-                "\tCASE WHEN SUM(rs.clicks) > 0 THEN ROUND(SUM(rs.spend) / SUM(rs.clicks), 4) ELSE 0 END AS cpc,",
-                "\tCASE WHEN SUM(rs.impressions) > 0 THEN ROUND((SUM(rs.spend) / SUM(rs.impressions)) * 1000, 4) ELSE 0 END AS cpm",
-                "FROM (",
-                    "\tSELECT",
-                    "\t\tb.data_ads_country_tanggal AS date,",
-                    "\t\ta.account_id, a.account_name,",
-                    "\t\tb.data_ads_domain AS domain_raw,",
-                    "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS domain,",
-                    "\t\tb.data_ads_country_cd AS country_code,",
-                    "\t\tb.data_ads_country_spend AS spend,",
-                    "\t\tb.data_ads_country_impresi AS impressions,",
-                    "\t\tb.data_ads_country_click AS clicks",
-                    "\tFROM master_account_ads a",
-                    "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
-                    "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
-                    f"{like_clause}",
-                ") rs",
-                "GROUP BY",
-                "\trs.date,",
-                "\trs.account_id,",
-                "\trs.account_name,",
-                "\trs.domain,",
-                "\trs.country_code"
-            ]
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            if use_clickhouse:
+                domain_expr = "concat(arrayElement(splitByChar('.', b.data_ads_domain), 1), '.', arrayElement(splitByChar('.', b.data_ads_domain), 2), '.com')"
+                base_sql = [
+                    "SELECT",
+                    "\trs.date,",
+                    "\trs.account_id, rs.account_name,",
+                    "\trs.domain, rs.country_code,",
+                    "\tSUM(rs.spend) AS spend,",
+                    "\tSUM(rs.impressions) AS impressions,",
+                    "\tSUM(rs.clicks) AS clicks,",
+                    "\tCASE WHEN SUM(rs.impressions) > 0 THEN ROUND((SUM(rs.clicks) / SUM(rs.impressions)) * 100, 4) ELSE 0 END AS ctr,",
+                    "\tCASE WHEN SUM(rs.clicks) > 0 THEN ROUND(SUM(rs.spend) / SUM(rs.clicks), 4) ELSE 0 END AS cpc,",
+                    "\tCASE WHEN SUM(rs.impressions) > 0 THEN ROUND((SUM(rs.spend) / SUM(rs.impressions)) * 1000, 4) ELSE 0 END AS cpm",
+                    "FROM (",
+                        "\tSELECT",
+                        "\t\ttoDate(b.data_ads_country_tanggal) AS date,",
+                        "\t\tb.account_ads_id AS account_id,",
+                        "\t\t'' AS account_name,",
+                        "\t\tb.data_ads_domain AS domain_raw,",
+                        f"\t\t{domain_expr} AS domain,",
+                        "\t\tb.data_ads_country_cd AS country_code,",
+                        "\t\tb.data_ads_country_spend AS spend,",
+                        "\t\tb.data_ads_country_impresi AS impressions,",
+                        "\t\tb.data_ads_country_click AS clicks",
+                        "\tFROM data_ads_country b",
+                        "\tWHERE toDate(b.data_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
+                        f"{like_clause}",
+                    ") rs",
+                    "GROUP BY",
+                    "\trs.date,",
+                    "\trs.account_id,",
+                    "\trs.account_name,",
+                    "\trs.domain,",
+                    "\trs.country_code"
+                ]
+            else:
+                base_sql = [
+                    "SELECT",
+                    "\trs.date,",
+                    "\trs.account_id, rs.account_name,",
+                    "\trs.domain, rs.country_code,",
+                    "\tSUM(rs.spend) AS spend,",
+                    "\tSUM(rs.impressions) AS impressions,",
+                    "\tSUM(rs.clicks) AS clicks,",
+                    "\tCASE WHEN SUM(rs.impressions) > 0 THEN ROUND((SUM(rs.clicks) / SUM(rs.impressions)) * 100, 4) ELSE 0 END AS ctr,",
+                    "\tCASE WHEN SUM(rs.clicks) > 0 THEN ROUND(SUM(rs.spend) / SUM(rs.clicks), 4) ELSE 0 END AS cpc,",
+                    "\tCASE WHEN SUM(rs.impressions) > 0 THEN ROUND((SUM(rs.spend) / SUM(rs.impressions)) * 1000, 4) ELSE 0 END AS cpm",
+                    "FROM (",
+                        "\tSELECT",
+                        "\t\tb.data_ads_country_tanggal AS date,",
+                        "\t\ta.account_id, a.account_name,",
+                        "\t\tb.data_ads_domain AS domain_raw,",
+                        "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS domain,",
+                        "\t\tb.data_ads_country_cd AS country_code,",
+                        "\t\tb.data_ads_country_spend AS spend,",
+                        "\t\tb.data_ads_country_impresi AS impressions,",
+                        "\t\tb.data_ads_country_click AS clicks",
+                        "\tFROM master_account_ads a",
+                        "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
+                        "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
+                        f"{like_clause}",
+                    ") rs",
+                    "GROUP BY",
+                    "\trs.date,",
+                    "\trs.account_id,",
+                    "\trs.account_name,",
+                    "\trs.domain,",
+                    "\trs.country_code"
+                ]
+
             # --- 4. Gabungkan parameter
             params = [start_date_formatted, end_date_formatted] + like_params
             # --- 5. Eksekusi query
@@ -5057,6 +5151,31 @@ class data_mysql:
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all ads roi traffic campaign by params")
             data = self.fetch_all()
+
+            if use_clickhouse and isinstance(data, list) and data:
+                try:
+                    account_ids = []
+                    seen_ids = set()
+                    for r in data:
+                        aid = str((r or {}).get('account_id') or '').strip()
+                        if aid and aid not in seen_ids:
+                            seen_ids.add(aid)
+                            account_ids.append(aid)
+                    if account_ids:
+                        placeholders = ','.join(['%s'] * len(account_ids))
+                        sql_map = f"SELECT account_id, account_name FROM master_account_ads WHERE account_id IN ({placeholders})"
+                        if self.execute_query(sql_map, tuple(account_ids)):
+                            rows_map = self.fetch_all() or []
+                            name_map = {str((x or {}).get('account_id') or '').strip(): str((x or {}).get('account_name') or '').strip() for x in (rows_map or [])}
+                            for r in data:
+                                if not isinstance(r, dict):
+                                    continue
+                                aid = str(r.get('account_id') or '').strip()
+                                if aid and not str(r.get('account_name') or '').strip():
+                                    r['account_name'] = name_map.get(aid, '')
+                except Exception:
+                    pass
+
             if not self.commit():
                 raise pymysql.Error("Failed to commit get all ads roi traffic campaign by params")
             hasil = {
@@ -5402,31 +5521,60 @@ class data_mysql:
             like_conditions_domain = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
             like_params_domain = [f"%{domain}%" for domain in data_domain_list]
 
-            base_sql = [
-                "SELECT",
-                "\tb.data_adx_country_tanggal AS 'date',",
-                "\tb.data_adx_country_domain AS 'site_name',",
-                "\tb.data_adx_country_cd AS 'country_code',",
-                "\tb.data_adx_country_nm AS 'country_name',",
-                "\tSUM(b.data_adx_country_impresi) AS impressions,",
-                "\tSUM(b.data_adx_country_click) AS clicks,",
-                "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
-                "\t\tTHEN ROUND((SUM(b.data_adx_country_click) / SUM(b.data_adx_country_impresi)) * 100, 2)",
-                "\t\tELSE 0 END AS ctr,",
-                "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
-                "\t\tTHEN ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000)",
-                "\t\tELSE 0 END AS ecpm,",
-                "\tCASE WHEN SUM(b.data_adx_country_click) > 0",
-                "\t\tTHEN ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 0)",
-                "\t\tELSE 0 END AS cpc,",
-                "\tSUM(b.data_adx_country_revenue) AS 'revenue'",
-                "FROM app_credentials a",
-                "INNER JOIN data_adx_country b ON a.account_id = b.account_id",
-                "WHERE",
-            ]
-            params = []
-            base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
-            params.extend([start_date, end_date])
+            engine = (self._report_engine() or '').lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            if use_clickhouse:
+                base_sql = [
+                    "SELECT",
+                    "\ttoDate(b.data_adx_country_tanggal) AS 'date',",
+                    "\tb.data_adx_country_domain AS 'site_name',",
+                    "\tb.data_adx_country_cd AS 'country_code',",
+                    "\tb.data_adx_country_nm AS 'country_name',",
+                    "\tSUM(b.data_adx_country_impresi) AS impressions,",
+                    "\tSUM(b.data_adx_country_click) AS clicks,",
+                    "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
+                    "\t\tTHEN ROUND((SUM(b.data_adx_country_click) / SUM(b.data_adx_country_impresi)) * 100, 2)",
+                    "\t\tELSE 0 END AS ctr,",
+                    "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
+                    "\t\tTHEN ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000)",
+                    "\t\tELSE 0 END AS ecpm,",
+                    "\tCASE WHEN SUM(b.data_adx_country_click) > 0",
+                    "\t\tTHEN ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 0)",
+                    "\t\tELSE 0 END AS cpc,",
+                    "\tSUM(b.data_adx_country_revenue) AS 'revenue'",
+                    "FROM data_adx_country b",
+                    "WHERE",
+                ]
+                params = []
+                base_sql.append("toDate(b.data_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)")
+                params.extend([start_date, end_date])
+            else:
+                base_sql = [
+                    "SELECT",
+                    "\tb.data_adx_country_tanggal AS 'date',",
+                    "\tb.data_adx_country_domain AS 'site_name',",
+                    "\tb.data_adx_country_cd AS 'country_code',",
+                    "\tb.data_adx_country_nm AS 'country_name',",
+                    "\tSUM(b.data_adx_country_impresi) AS impressions,",
+                    "\tSUM(b.data_adx_country_click) AS clicks,",
+                    "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
+                    "\t\tTHEN ROUND((SUM(b.data_adx_country_click) / SUM(b.data_adx_country_impresi)) * 100, 2)",
+                    "\t\tELSE 0 END AS ctr,",
+                    "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
+                    "\t\tTHEN ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000)",
+                    "\t\tELSE 0 END AS ecpm,",
+                    "\tCASE WHEN SUM(b.data_adx_country_click) > 0",
+                    "\t\tTHEN ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 0)",
+                    "\t\tELSE 0 END AS cpc,",
+                    "\tSUM(b.data_adx_country_revenue) AS 'revenue'",
+                    "FROM app_credentials a",
+                    "INNER JOIN data_adx_country b ON a.account_id = b.account_id",
+                    "WHERE",
+                ]
+                params = []
+                base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
+                params.extend([start_date, end_date])
 
             if data_account_list:
                 base_sql.append(f"\tAND ({like_conditions_account})")
@@ -5447,8 +5595,12 @@ class data_mysql:
                 base_sql.append(f"AND b.data_adx_country_cd IN ({placeholders})")
                 params.extend(country_codes)
 
-            base_sql.append("GROUP BY b.data_adx_country_tanggal, b.data_adx_country_domain, b.data_adx_country_cd, b.data_adx_country_nm")
-            base_sql.append("ORDER BY b.data_adx_country_tanggal ASC")
+            if use_clickhouse:
+                base_sql.append("GROUP BY toDate(b.data_adx_country_tanggal), b.data_adx_country_domain, b.data_adx_country_cd, b.data_adx_country_nm")
+                base_sql.append("ORDER BY toDate(b.data_adx_country_tanggal) ASC")
+            else:
+                base_sql.append("GROUP BY b.data_adx_country_tanggal, b.data_adx_country_domain, b.data_adx_country_cd, b.data_adx_country_nm")
+                base_sql.append("ORDER BY b.data_adx_country_tanggal ASC")
             sql = "\n".join(base_sql)
 
             if not self.execute_query(sql, tuple(params)):
@@ -5565,21 +5717,41 @@ class data_mysql:
             like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
             like_params = [f"%{d}%" for d in data_sub_domain]
 
-            sql_parts = [
-                "SELECT",
-                "\tb.data_ads_country_tanggal AS 'date',",
-                "\tb.data_ads_country_cd AS 'country_code',",
-                "\tb.data_ads_country_nm AS 'country_name',",
-                "\tb.data_ads_domain AS 'domain',",
-                "\tSUM(b.data_ads_country_spend) AS 'spend',",
-                "\tSUM(b.data_ads_country_click) AS 'clicks',",
-                "\tSUM(b.data_ads_country_impresi) AS 'impressions',",
-                "\tROUND(AVG(b.data_ads_country_cpr), 0) AS 'cpr'",
-                "FROM master_account_ads a",
-                "INNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
-                "WHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
-                f"\tAND ({like_conditions})",
-            ]
+            engine = (self._report_engine() or '').lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            if use_clickhouse:
+                sql_parts = [
+                    "SELECT",
+                    "\ttoDate(b.data_ads_country_tanggal) AS 'date',",
+                    "\tb.data_ads_country_cd AS 'country_code',",
+                    "\tb.data_ads_country_nm AS 'country_name',",
+                    "\tb.data_ads_domain AS 'domain',",
+                    "\tSUM(b.data_ads_country_spend) AS 'spend',",
+                    "\tSUM(b.data_ads_country_click) AS 'clicks',",
+                    "\tSUM(b.data_ads_country_impresi) AS 'impressions',",
+                    "\tROUND(AVG(b.data_ads_country_cpr), 0) AS 'cpr'",
+                    "FROM data_ads_country b",
+                    "WHERE toDate(b.data_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
+                    f"\tAND ({like_conditions})",
+                ]
+            else:
+                sql_parts = [
+                    "SELECT",
+                    "\tb.data_ads_country_tanggal AS 'date',",
+                    "\tb.data_ads_country_cd AS 'country_code',",
+                    "\tb.data_ads_country_nm AS 'country_name',",
+                    "\tb.data_ads_domain AS 'domain',",
+                    "\tSUM(b.data_ads_country_spend) AS 'spend',",
+                    "\tSUM(b.data_ads_country_click) AS 'clicks',",
+                    "\tSUM(b.data_ads_country_impresi) AS 'impressions',",
+                    "\tROUND(AVG(b.data_ads_country_cpr), 0) AS 'cpr'",
+                    "FROM master_account_ads a",
+                    "INNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
+                    "WHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
+                    f"\tAND ({like_conditions})",
+                ]
+
             params = [start_date_formatted, end_date_formatted] + like_params
 
             country_codes = []
@@ -5593,8 +5765,12 @@ class data_mysql:
                 sql_parts.append(f"AND b.data_ads_country_cd IN ({placeholders})")
                 params.extend(country_codes)
 
-            sql_parts.append("GROUP BY b.data_ads_country_tanggal, b.data_ads_country_cd, b.data_ads_country_nm, b.data_ads_domain")
-            sql_parts.append("ORDER BY b.data_ads_country_tanggal ASC")
+            if use_clickhouse:
+                sql_parts.append("GROUP BY toDate(b.data_ads_country_tanggal), b.data_ads_country_cd, b.data_ads_country_nm, b.data_ads_domain")
+                sql_parts.append("ORDER BY toDate(b.data_ads_country_tanggal) ASC")
+            else:
+                sql_parts.append("GROUP BY b.data_ads_country_tanggal, b.data_ads_country_cd, b.data_ads_country_nm, b.data_ads_domain")
+                sql_parts.append("ORDER BY b.data_ads_country_tanggal ASC")
             sql = "\n".join(sql_parts)
 
             if not self.execute_query(sql, tuple(params)):
@@ -5672,7 +5848,12 @@ class data_mysql:
             elif isinstance(selected_account_list, (set, tuple)):
                 selected_account_list = list(selected_account_list)
             data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
-            like_conditions_account = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
+
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            like_account_col = "b.account_id" if use_clickhouse else "a.account_id"
+            like_conditions_account = " OR ".join([f"{like_account_col} LIKE %s"] * len(data_account_list))
             like_params_account = [f"%{account}%" for account in data_account_list] 
 
             if isinstance(selected_domain_list, str):
@@ -5685,20 +5866,35 @@ class data_mysql:
             like_conditions_domain = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
             like_params_domain = [f"%{domain}%" for domain in data_domain_list]
 
-            base_sql = [
-                "SELECT",
-                "\tb.data_adx_country_tanggal AS 'date',",
-                "\tb.data_adx_country_domain AS 'site_name',",
-                "\tb.data_adx_country_cd AS 'country_code',",
-                "\tb.data_adx_country_nm AS 'country_name',",
-                "\tSUM(b.data_adx_country_revenue) AS 'revenue'",
-                "FROM app_credentials a",
-                "INNER JOIN data_adx_country b ON a.account_id = b.account_id",
-                "WHERE",
-            ]
-            params = []
-            base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
-            params.extend([start_date, end_date])
+            if use_clickhouse:
+                base_sql = [
+                    "SELECT",
+                    "\ttoDate(b.data_adx_country_tanggal) AS 'date',",
+                    "\tb.data_adx_country_domain AS 'site_name',",
+                    "\tb.data_adx_country_cd AS 'country_code',",
+                    "\tb.data_adx_country_nm AS 'country_name',",
+                    "\tSUM(b.data_adx_country_revenue) AS 'revenue'",
+                    "FROM data_adx_country b",
+                    "WHERE",
+                ]
+                params = []
+                base_sql.append("toDate(b.data_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)")
+                params.extend([start_date, end_date])
+            else:
+                base_sql = [
+                    "SELECT",
+                    "\tb.data_adx_country_tanggal AS 'date',",
+                    "\tb.data_adx_country_domain AS 'site_name',",
+                    "\tb.data_adx_country_cd AS 'country_code',",
+                    "\tb.data_adx_country_nm AS 'country_name',",
+                    "\tSUM(b.data_adx_country_revenue) AS 'revenue'",
+                    "FROM app_credentials a",
+                    "INNER JOIN data_adx_country b ON a.account_id = b.account_id",
+                    "WHERE",
+                ]
+                params = []
+                base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
+                params.extend([start_date, end_date])
 
             if data_account_list:
                 base_sql.append(f"\tAND ({like_conditions_account})")
@@ -5719,8 +5915,12 @@ class data_mysql:
                 base_sql.append(f"AND b.data_adx_country_cd IN ({placeholders})")
                 params.extend(country_codes)
 
-            base_sql.append("GROUP BY b.data_adx_country_tanggal, b.data_adx_country_domain, b.data_adx_country_cd, b.data_adx_country_nm")
-            base_sql.append("ORDER BY b.data_adx_country_tanggal ASC")
+            if use_clickhouse:
+                base_sql.append("GROUP BY toDate(b.data_adx_country_tanggal), b.data_adx_country_domain, b.data_adx_country_cd, b.data_adx_country_nm")
+                base_sql.append("ORDER BY toDate(b.data_adx_country_tanggal) ASC")
+            else:
+                base_sql.append("GROUP BY b.data_adx_country_tanggal, b.data_adx_country_domain, b.data_adx_country_cd, b.data_adx_country_nm")
+                base_sql.append("ORDER BY b.data_adx_country_tanggal ASC")
             sql = "\n".join(base_sql)
 
             if not self.execute_query(sql, tuple(params)):
@@ -5823,21 +6023,41 @@ class data_mysql:
             like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
             like_params = [f"%{d}%" for d in data_sub_domain]
 
-            sql_parts = [
-                "SELECT",
-                "\tb.data_ads_country_tanggal AS 'date',",
-                "\tb.data_ads_country_cd AS 'country_code',",
-                "\tb.data_ads_country_nm AS 'country_name',",
-                "\tb.data_ads_domain AS 'domain',",
-                "\tSUM(b.data_ads_country_spend) AS 'spend',",
-                "\tSUM(b.data_ads_country_click) AS 'clicks',",
-                "\tSUM(b.data_ads_country_impresi) AS 'impressions',",
-                "\tROUND(AVG(b.data_ads_country_cpr), 0) AS 'cpr'",
-                "FROM master_account_ads a",
-                "INNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
-                "WHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
-                f"\tAND ({like_conditions})",
-            ]
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            if use_clickhouse:
+                sql_parts = [
+                    "SELECT",
+                    "\ttoDate(b.data_ads_country_tanggal) AS 'date',",
+                    "\tb.data_ads_country_cd AS 'country_code',",
+                    "\tb.data_ads_country_nm AS 'country_name',",
+                    "\tb.data_ads_domain AS 'domain',",
+                    "\tSUM(b.data_ads_country_spend) AS 'spend',",
+                    "\tSUM(b.data_ads_country_click) AS 'clicks',",
+                    "\tSUM(b.data_ads_country_impresi) AS 'impressions',",
+                    "\tROUND(AVG(b.data_ads_country_cpr), 0) AS 'cpr'",
+                    "FROM data_ads_country b",
+                    "WHERE toDate(b.data_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
+                    f"\tAND ({like_conditions})",
+                ]
+            else:
+                sql_parts = [
+                    "SELECT",
+                    "\tb.data_ads_country_tanggal AS 'date',",
+                    "\tb.data_ads_country_cd AS 'country_code',",
+                    "\tb.data_ads_country_nm AS 'country_name',",
+                    "\tb.data_ads_domain AS 'domain',",
+                    "\tSUM(b.data_ads_country_spend) AS 'spend',",
+                    "\tSUM(b.data_ads_country_click) AS 'clicks',",
+                    "\tSUM(b.data_ads_country_impresi) AS 'impressions',",
+                    "\tROUND(AVG(b.data_ads_country_cpr), 0) AS 'cpr'",
+                    "FROM master_account_ads a",
+                    "INNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
+                    "WHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
+                    f"\tAND ({like_conditions})",
+                ]
+
             params = [start_date_formatted, end_date_formatted] + like_params
 
             country_codes = []

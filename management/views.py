@@ -4657,7 +4657,6 @@ class RoiTrafficPerDomainDataView(View):
                         'cpm': cpm,
                         'revenue': revenue
                     })
-                    print(f"[DEBUG ROI] raw_rows_all: {raw_rows_all[-1]}")
                     key = f"{date_key}|{base_subdomain or subdomain}"
                     entry = grouped_all.get(key) or {
                         'site_name': base_subdomain or subdomain,
@@ -4937,18 +4936,10 @@ class RoiTrafficPerDomainDataView(View):
                     })
             roi_nett_summary = ((total_revenue - total_spend) / total_spend * 100) if total_spend > 0 else 0
 
-            if not isinstance(raw_rows_all, list):
-                raw_rows_all = []
-            try:
-                raw_rows_all.sort(key=lambda x: (str((x or {}).get('date') or ''), str((x or {}).get('site_name') or '')))
-            except Exception:
-                pass
-
             result = {
                 'status': True,
                 'data': combined_data_all,              # semua kontribusi
                 'data_filtered': combined_data_filtered, # hanya spend > 0
-                'raw_rows': raw_rows_all,                # baris mentah (opsional, untuk analisis)
                 'summary': {
                     'total_clicks_fb': total_clicks_fb,
                     'total_clicks_adx': total_clicks_adx,
