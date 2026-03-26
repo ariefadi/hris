@@ -118,7 +118,25 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 200px;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+}
+
+.loading-spinner .loading-inner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    font-size: 1.5rem;
+    font-weight: 800;
+}
+
+.dashboard-admin-content {
+    position: relative;
+    min-height: 60vh;
 }
 
 .spinner-border {
@@ -521,10 +539,12 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
 {% block content %}
 <main class="app-main">
     <div class="app-content">
-        <div class="container-fluid">
+        <div class="container-fluid dashboard-admin-content">
             <!-- Loading Spinner -->
             <div id="loading" class="loading-spinner">
-                <div class="spinner-border text-primary" role="status">
+                <div class="loading-inner">
+                    <i class="fas fa-sync-alt fa-spin" aria-hidden="true"></i>
+                    <span>Memuat Data ...</span>
                 </div>
             </div>
             <!-- Error Message -->
