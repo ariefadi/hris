@@ -70,7 +70,7 @@ def get_credentials_from_db(request=None):
 # Quick-start development settings - unsuitable for production
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'your-secret-key-here')
 DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() == 'true'
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'kiwipixel.com', 'www.kiwipixel.com', '159.223.63.249']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', 'api-tracker.kiwipixel.com', 'api-tracker1.kiwipixel.com', 'kiwipixel.com', 'www.kiwipixel.com', '159.223.63.249']
 
 # Application definition
 INSTALLED_APPS = [
