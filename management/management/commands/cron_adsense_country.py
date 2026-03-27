@@ -29,7 +29,13 @@ def convert_to_idr(amount, currency_code):
 
 
 def fetch_adsense_traffic_per_country_domain(user_mail, start_date, end_date, site_filter='%'):
-    return fetch_adsense_traffic_per_country_domain_advanced(user_mail, start_date, end_date, site_filter=site_filter)
+    return fetch_adsense_traffic_per_country_domain_advanced(
+        user_mail,
+        start_date,
+        end_date,
+        site_filter=site_filter,
+        report_level='subdomain',
+    )
 
 
 class Command(BaseCommand):

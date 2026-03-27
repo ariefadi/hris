@@ -292,7 +292,16 @@ def fetch_adsense_traffic_per_domain_advanced(user_mail, start_date, end_date, s
 
         lvl = str(report_level or 'owned_site').strip().lower()
         use_campaign = lvl in ('campaign', 'ad_unit', 'ad_unit_name', 'adunit')
-        group_dim = 'AD_UNIT_NAME' if use_campaign else 'OWNED_SITE_DOMAIN_NAME'
+        use_site_name = lvl in ('site_name', 'sitename')
+        use_subdomain = lvl in ('subdomain', 'host', 'header', 'page_url', 'pageurl')
+        if use_campaign:
+            group_dims = ['AD_UNIT_NAME']
+        elif use_subdomain:
+            group_dims = ['PAGE_URL']
+        elif use_site_name:
+            group_dims = ['SITE_NAME', 'OWNED_SITE_DOMAIN_NAME']
+        else:
+            group_dims = ['OWNED_SITE_DOMAIN_NAME']
 
         start_parts = start_date.split('-')
         end_parts = end_date.split('-')
@@ -344,36 +353,43 @@ def fetch_adsense_traffic_per_domain_advanced(user_mail, start_date, end_date, s
 
         report = None
         used_metrics = None
+        used_dim = None
         last_err = None
-        for metrics in metrics_candidates:
-            try:
-                report_request = service.accounts().reports().generate(
-                    account=account_name,
-                    dateRange='CUSTOM',
-                    startDate_year=int(start_parts[0]),
-                    startDate_month=int(start_parts[1]),
-                    startDate_day=int(start_parts[2]),
-                    endDate_year=int(end_parts[0]),
-                    endDate_month=int(end_parts[1]),
-                    endDate_day=int(end_parts[2]),
-                    dimensions=[group_dim],
-                    metrics=metrics,
-                )
 
-                if site_filter and site_filter != '%':
-                    try:
-                        report_request = report_request.filter(f'{group_dim}=~"{site_filter}"')
-                    except Exception:
-                        pass
+        for dim in group_dims:
+            for metrics in metrics_candidates:
+                try:
+                    report_request = service.accounts().reports().generate(
+                        account=account_name,
+                        dateRange='CUSTOM',
+                        startDate_year=int(start_parts[0]),
+                        startDate_month=int(start_parts[1]),
+                        startDate_day=int(start_parts[2]),
+                        endDate_year=int(end_parts[0]),
+                        endDate_month=int(end_parts[1]),
+                        endDate_day=int(end_parts[2]),
+                        dimensions=[dim],
+                        metrics=metrics,
+                    )
 
-                report = report_request.execute()
-                used_metrics = metrics
+                    if site_filter and site_filter != '%':
+                        try:
+                            report_request = report_request.filter(f'{dim}=~"{site_filter}"')
+                        except Exception:
+                            pass
+
+                    report = report_request.execute()
+                    used_metrics = metrics
+                    used_dim = dim
+                    break
+                except Exception as e:
+                    last_err = e
+                    continue
+
+            if report is not None and used_metrics is not None:
                 break
-            except Exception as e:
-                last_err = e
-                continue
 
-        if report is None or used_metrics is None:
+        if report is None or used_metrics is None or used_dim is None:
             return {'status': False, 'error': f'Error fetching AdSense per domain: {str(last_err)}'}
 
         try:
@@ -391,7 +407,24 @@ def fetch_adsense_traffic_per_domain_advanced(user_mail, start_date, end_date, s
         for row in report.get('rows', []) or []:
             cells = row.get('cells', []) or []
             dim_val = cells[0].get('value') if len(cells) > 0 else ''
-            domain = extract_domain_from_ad_unit(dim_val) or '-'
+
+            if used_dim == 'AD_UNIT_NAME':
+                domain = extract_domain_from_ad_unit(dim_val) or '-'
+            elif used_dim == 'PAGE_URL':
+                s = str(dim_val or '').strip()
+                if s and '://' not in s:
+                    s = 'http://' + s
+                try:
+                    host = (urlparse(s).netloc or '').strip().lower()
+                except Exception:
+                    host = ''
+                if host and ':' in host:
+                    host = host.split(':', 1)[0]
+                if host.startswith('www.') and host.count('.') > 1:
+                    host = host[4:]
+                domain = host or '-'
+            else:
+                domain = (str(dim_val or '').strip() or '-')
 
             mvals = {}
             for i, metric in enumerate(used_metrics):
@@ -483,7 +516,7 @@ def fetch_adsense_traffic_per_domain_advanced(user_mail, start_date, end_date, s
         return {'status': False, 'error': f'Error fetching AdSense per domain: {str(e)}'}
 
 
-def fetch_adsense_traffic_per_country_domain_advanced(user_mail, start_date, end_date, site_filter='%'):
+def fetch_adsense_traffic_per_country_domain_advanced(user_mail, start_date, end_date, site_filter='%', report_level='owned_site'):
     try:
         client_result = get_user_adsense_client(user_mail)
         if not client_result.get('status'):
@@ -498,6 +531,10 @@ def fetch_adsense_traffic_per_country_domain_advanced(user_mail, start_date, end
         acc0 = accounts_list[0]
         account_name = acc0.get('name') or ''
         currency_code = acc0.get('currencyCode') or acc0.get('currency_code') or ''
+
+        lvl = str(report_level or 'owned_site').strip().lower()
+        use_subdomain = lvl in ('subdomain', 'host', 'header', 'page_url', 'pageurl')
+        domain_dim = 'PAGE_URL' if use_subdomain else 'OWNED_SITE_DOMAIN_NAME'
 
         start_parts = start_date.split('-')
         end_parts = end_date.split('-')
@@ -561,13 +598,13 @@ def fetch_adsense_traffic_per_country_domain_advanced(user_mail, start_date, end
                     endDate_year=int(end_parts[0]),
                     endDate_month=int(end_parts[1]),
                     endDate_day=int(end_parts[2]),
-                    dimensions=['COUNTRY_NAME', 'COUNTRY_CODE', 'OWNED_SITE_DOMAIN_NAME'],
+                    dimensions=['COUNTRY_NAME', 'COUNTRY_CODE', domain_dim],
                     metrics=metrics,
                 )
 
                 if site_filter and site_filter != '%':
                     try:
-                        report_request = report_request.filter(f'OWNED_SITE_DOMAIN_NAME=~"{site_filter}"')
+                        report_request = report_request.filter(f'{domain_dim}=~"{site_filter}"')
                     except Exception:
                         pass
 
@@ -598,7 +635,22 @@ def fetch_adsense_traffic_per_country_domain_advanced(user_mail, start_date, end
             country_name = cells[0].get('value') if len(cells) > 0 else ''
             country_code = (cells[1].get('value') if len(cells) > 1 else '') or ''
             dim_val = cells[2].get('value') if len(cells) > 2 else ''
-            domain = extract_domain_from_ad_unit(dim_val) or '-'
+
+            if domain_dim == 'PAGE_URL':
+                s = str(dim_val or '').strip()
+                if s and '://' not in s:
+                    s = 'http://' + s
+                try:
+                    host = (urlparse(s).netloc or '').strip().lower()
+                except Exception:
+                    host = ''
+                if host and ':' in host:
+                    host = host.split(':', 1)[0]
+                if host.startswith('www.') and host.count('.') > 1:
+                    host = host[4:]
+                domain = host or '-'
+            else:
+                domain = (str(dim_val or '').strip() or '-')
 
             mvals = {}
             for i, metric in enumerate(used_metrics):
