@@ -2145,10 +2145,10 @@ function initDashboardRecap() {
                 i + 1,
                 domainCell(r),
                 esc(r.code || ''),
-                fmtIdr(r.spend),
-                fmtIdr(r.revenue),
-                fmtIdr(r.net),
-                fmtPct(r.roi)
+                Number(r.spend) || 0,
+                Number(r.revenue) || 0,
+                Number(r.net) || 0,
+                Number(r.roi) || 0,
             ];
         });
 
@@ -2170,10 +2170,10 @@ function initDashboardRecap() {
                     <td class="text-center">${row[0]}</td>
                     <td>${row[1]}</td>
                     ${codeCell}
-                    <td class="text-end">${row[3]}</td>
-                    <td class="text-end">${row[4]}</td>
-                    <td class="text-end">${row[5]}</td>
-                    <td class="text-end">${row[6]}</td>
+                    <td class="text-end">${fmtIdr(row[3])}</td>
+                    <td class="text-end">${fmtIdr(row[4])}</td>
+                    <td class="text-end">${fmtIdr(row[5])}</td>
+                    <td class="text-end">${fmtPct(row[6])}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -2192,7 +2192,8 @@ function initDashboardRecap() {
                 lengthChange: true,
                 searching: true,
                 info: true,
-                ordering: false,
+                ordering: true,
+                order: [[6, 'desc']],
                 autoWidth: false,
                 responsive: true,
                 language: {
@@ -2204,9 +2205,27 @@ function initDashboardRecap() {
                     paginate: { previous: 'Sebelumnya', next: 'Berikutnya' }
                 },
                 columnDefs: [
-                    { targets: 0, className: 'text-center', width: '48px' },
-                    { targets: [3,4,5,6], className: 'text-end' },
-                    { targets: 2, className: 'text-center', width: '90px', visible: (dim === 'country') }
+                    { targets: 0, className: 'text-center', width: '48px', orderable: false },
+                    { targets: 1, orderable: true },
+                    { targets: 2, className: 'text-center', width: '90px', visible: (dim === 'country') },
+                    {
+                        targets: [3,4,5],
+                        className: 'text-end',
+                        render: function (data, type) {
+                            const v = Number(data) || 0;
+                            if (type === 'display' || type === 'filter') return fmtIdr(v);
+                            return v;
+                        }
+                    },
+                    {
+                        targets: 6,
+                        className: 'text-end',
+                        render: function (data, type) {
+                            const v = Number(data) || 0;
+                            if (type === 'display' || type === 'filter') return fmtPct(v);
+                            return v;
+                        }
+                    }
                 ]
             });
         } else {
