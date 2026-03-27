@@ -206,14 +206,24 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 </div>
 {% endblock %}
 {% block more_scripts %}
-<script src="https://code.highcharts.com/highcharts.js"></script>
-<script src="https://code.highcharts.com/modules/treemap.js"></script>
-<script src="https://code.highcharts.com/modules/sunburst.js"></script>
-<script src="https://code.highcharts.com/modules/treegraph.js"></script>
-<script src="https://code.highcharts.com/modules/exporting.js"></script>
-<script src="https://code.highcharts.com/modules/accessibility.js"></script>
-<script src="https://code.highcharts.com/themes/adaptive.js"></script>
-<script src="{% static 'ajax/admin/facebook_ads/summary.js'%}?v={%now 'u'%}"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highcharts.min.js" onerror="console.error('Failed to load Highcharts')"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/treemap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/sunburst.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/treegraph.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
+<script>
+    function loadFacebookSummaryScript() {
+        if (typeof Highcharts !== 'undefined') {
+            var script = document.createElement('script');
+            script.src = '{% static "ajax/admin/facebook_ads/summary.js" %}?v={%now "u"%}';
+            document.head.appendChild(script);
+        } else {
+            setTimeout(loadFacebookSummaryScript, 100);
+        }
+    }
+    loadFacebookSummaryScript();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
 <script>
 (function() {

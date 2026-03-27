@@ -274,7 +274,7 @@ def get_user_adsense_client(user_mail):
             'error': f'Error initializing AdSense client: {str(e)}'
         }
 
-def fetch_adsense_traffic_per_domain_advanced(user_mail, start_date, end_date, site_filter='%'):
+def fetch_adsense_traffic_per_domain_advanced(user_mail, start_date, end_date, site_filter='%', report_level='owned_site'):
     try:
         client_result = get_user_adsense_client(user_mail)
         if not client_result.get('status'):
@@ -289,6 +289,10 @@ def fetch_adsense_traffic_per_domain_advanced(user_mail, start_date, end_date, s
         acc0 = accounts_list[0]
         account_name = acc0.get('name') or ''
         currency_code = acc0.get('currencyCode') or acc0.get('currency_code') or ''
+
+        lvl = str(report_level or 'owned_site').strip().lower()
+        use_campaign = lvl in ('campaign', 'ad_unit', 'ad_unit_name', 'adunit')
+        group_dim = 'AD_UNIT_NAME' if use_campaign else 'OWNED_SITE_DOMAIN_NAME'
 
         start_parts = start_date.split('-')
         end_parts = end_date.split('-')
@@ -352,13 +356,13 @@ def fetch_adsense_traffic_per_domain_advanced(user_mail, start_date, end_date, s
                     endDate_year=int(end_parts[0]),
                     endDate_month=int(end_parts[1]),
                     endDate_day=int(end_parts[2]),
-                    dimensions=['OWNED_SITE_DOMAIN_NAME'],
+                    dimensions=[group_dim],
                     metrics=metrics,
                 )
 
                 if site_filter and site_filter != '%':
                     try:
-                        report_request = report_request.filter(f'OWNED_SITE_DOMAIN_NAME=~"{site_filter}"')
+                        report_request = report_request.filter(f'{group_dim}=~"{site_filter}"')
                     except Exception:
                         pass
 

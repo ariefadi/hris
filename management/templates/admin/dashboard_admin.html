@@ -421,6 +421,10 @@ html[data-theme="dark"] .dashboard-recap-tabs .btn:hover {
 
 .dashboard-recap-card { border-radius:16px; border:1px solid rgba(15,23,42,0.08); overflow:hidden; }
 .dashboard-recap-header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+.dashboard-recap-header .select2-container { min-width: 180px; }
+.dashboard-recap-header .select2-container--bootstrap4 .select2-selection--single { height: 38px; }
+.dashboard-recap-header .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered { line-height: 36px; }
+.dashboard-recap-header .select2-container--bootstrap4 .select2-selection--single .select2-selection__arrow { height: 36px; }
 .metric-card.spend { background: linear-gradient(135deg, #ff4b1f 0%, #ff9068 100%); }
 .metric-card.revenue { background: linear-gradient(135deg, #7f00ff 0%, #e100ff 100%); }
 .metric-card.net { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
@@ -560,14 +564,20 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
                                 <div style="font-weight:900;letter-spacing:.02em;">Dashboard Earning Adx Manager & AdSense</div>
                                 <div class="text-muted" style="font-size:12px;">Default: hari ini</div>
                             </div>
-                            <div class="d-flex align-items-center" style="gap:10px;flex-wrap:wrap;">
-                                <label for="dashboardRecapDate" class="mb-0" style="font-weight:800;font-size:12px;letter-spacing:.06em;text-transform:uppercase;">Filter Tanggal</label>
-                                <input id="dashboardRecapDate" type="text" class="form-control datepicker-input" style="min-width: 180px;" placeholder="YYYY-MM-DD" autocomplete="off" />
+                            <div class="d-flex align-items-center" style="gap:16px;flex-wrap:nowrap;white-space:nowrap;overflow-x:auto;max-width:100%;">
+                                <div class="d-flex align-items-center" style="gap:10px;">
+                                    <label for="dashboardRecapDate" class="mb-0" style="font-weight:800;font-size:12px;letter-spacing:.06em;text-transform:uppercase;">Filter Tanggal</label>
+                                    <input id="dashboardRecapDate" type="text" class="form-control datepicker-input w-auto" style="width: 180px;" placeholder="YYYY-MM-DD" autocomplete="off" />
+                                </div>
+                                <div class="d-flex align-items-center" style="gap:10px;">
+                                    <label for="dashboardRecapSource" class="mb-0" style="font-weight:800;font-size:12px;letter-spacing:.06em;text-transform:uppercase;">Data Sumber</label>
+                                    <select id="dashboardRecapSource" class="form-control w-auto" style="width: 180px;">
+                                        <option value="all">Semua Data</option>
+                                        <option value="adx">AdX Manager</option>
+                                        <option value="adsense">AdSense Manager</option>
+                                    </select>
+                                </div>
                             </div>
-                        </div>
-                        <div class="mt-2 dashboard-recap-tabs" id="dashboardRecapSourceTabs" role="tablist" aria-label="Rekap source">
-                            <button type="button" class="btn btn-sm btn-primary" data-source="adx">Summary AdX Manager</button>
-                            <button type="button" class="btn btn-sm btn-outline-primary" data-source="adsense">Summary AdSense Manager</button>
                         </div>
                         <div class="mt-2 dashboard-recap-tabs" id="dashboardRecapDimTabs" role="tablist" aria-label="Rekap dimensi">
                             <button type="button" class="btn btn-sm btn-primary" data-dim="domain">Per Domain</button>
@@ -2025,10 +2035,11 @@ function initDashboardRecap() {
     const box = document.getElementById('error-message');
     const root = document.getElementById('dashboardRecapRoot');
     const dateEl = document.getElementById('dashboardRecapDate');
+    const sourceEl = document.getElementById('dashboardRecapSource');
     const legacy = document.getElementById('dashboard-content');
     if (legacy) legacy.style.display = 'none';
 
-    if (!root || !dateEl) return showError('UI rekap tidak lengkap');
+    if (!root || !dateEl || !sourceEl) return showError('UI rekap tidak lengkap');
     if (typeof Chart === 'undefined') return showError('Chart.js library is not loaded.');
 
     const fmtIdr = (v) => (Math.round(Number(v)||0)).toLocaleString('id-ID', { style:'currency', currency:'IDR', maximumFractionDigits:0 });
@@ -2052,28 +2063,26 @@ function initDashboardRecap() {
     }
 
     function getState() {
-        const sBtn = document.querySelector('#dashboardRecapSourceTabs button.btn-primary');
         const dBtn = document.querySelector('#dashboardRecapDimTabs button.btn-primary');
         return {
-            source: sBtn ? (sBtn.getAttribute('data-source')||'adx') : 'adx',
+            source: String(sourceEl.value || 'all').trim(),
             dim: dBtn ? (dBtn.getAttribute('data-dim')||'domain') : 'domain',
             date: String(dateEl.value||'').trim()
         };
     }
 
-    function endpoint(st) {
-        const ymd = st.date;
-        if (st.source === 'adsense') {
-            return st.dim === 'country'
+    function endpointFor(source, dim, ymd) {
+        if (source === 'adsense') {
+            return dim === 'country'
                 ? `/management/admin/page_monitoring_country_adsense?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adsense=&selected_domains=&selected_countries=`
                 : `/management/admin/page_monitoring_domain_adsense?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adsense=&selected_domains=`;
         }
-        return st.dim === 'country'
+        return dim === 'country'
             ? `/management/admin/page_monitoring_country?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adx=&selected_domains=&selected_countries=`
             : `/management/admin/page_monitoring_domain?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adx=&selected_domains=`;
     }
 
-    function rowsFrom(dim, arr) {
+    function rowsFrom(dim, arr, sourceTag) {
         const out = (arr||[]).map(r => {
             const spend = Number(r?.spend)||0;
             const revenue = Number(r?.revenue)||0;
@@ -2081,9 +2090,17 @@ function initDashboardRecap() {
             const roi = (r && r.roi != null) ? (Number(r.roi)||0) : (spend>0 ? ((revenue-spend)/spend*100) : 0);
             const name = dim === 'country' ? (r?.country||'-') : (r?.site_name||r?.site||r?.subdomain||'-');
             const code = dim === 'country' ? (r?.country_code||'') : '';
-            return { name:String(name||'-'), code:String(code||''), spend, revenue, net, roi };
+            const src = String(sourceTag || '').trim().toLowerCase();
+            return { name:String(name||'-'), code:String(code||''), spend, revenue, net, roi, source: src };
         });
-        out.sort((a,b) => (b.revenue||0) - (a.revenue||0));
+        out.sort((a,b) => {
+            const ar = Number(a?.roi) || 0;
+            const br = Number(b?.roi) || 0;
+            if (br !== ar) return br - ar;
+            const arev = Number(a?.revenue) || 0;
+            const brev = Number(b?.revenue) || 0;
+            return brev - arev;
+        });
         return out;
     }
 
@@ -2105,10 +2122,28 @@ function initDashboardRecap() {
         const thCode = document.getElementById('dashboardRecapThCode');
         if (thName) thName.textContent = dim === 'country' ? 'Nama Negara' : 'Domain';
 
+        function domainCell(r) {
+            const name = esc(r?.name);
+            if (dim === 'country') return name;
+
+            const srcs = r && r.sources;
+            const badges = [];
+            if (srcs && (srcs.adx || srcs.adsense)) {
+                if (srcs.adx) badges.push('<span class="badge badge-primary badge-pill ml-2">AdX</span>');
+                if (srcs.adsense) badges.push('<span class="badge badge-success badge-pill ml-1">AdSense</span>');
+            } else {
+                const src = String(r?.source || '').toLowerCase();
+                if (src === 'adx') badges.push('<span class="badge badge-primary badge-pill ml-2">AdX</span>');
+                if (src === 'adsense') badges.push('<span class="badge badge-success badge-pill ml-2">AdSense</span>');
+            }
+
+            return badges.length ? (name + ' ' + badges.join('')) : name;
+        }
+
         const data = (rows || []).map((r, i) => {
             return [
                 i + 1,
-                esc(r.name),
+                domainCell(r),
                 esc(r.code || ''),
                 fmtIdr(r.spend),
                 fmtIdr(r.revenue),
@@ -2189,7 +2224,29 @@ function initDashboardRecap() {
         const canvas = document.getElementById('dashboardRecapChart');
         const ctx = canvas.getContext('2d');
         const top = rows.slice(0, 12);
-        const labels = top.map(r => dim==='country' ? `${r.name} (${r.code||''})` : r.name);
+
+        function rowSourceTag(r) {
+            const srcs = r && r.sources;
+            if (srcs && (srcs.adx || srcs.adsense)) {
+                const tags = [];
+                if (srcs.adx) tags.push('AdX');
+                if (srcs.adsense) tags.push('AdSense');
+                return tags.length ? tags.join('+') : '';
+            }
+            const src = String(r?.source || '').toLowerCase();
+            if (src === 'adx') return 'AdX';
+            if (src === 'adsense') return 'AdSense';
+            return '';
+        }
+
+        const labels = top.map(r => {
+            const tag = rowSourceTag(r);
+            if (dim === 'country') {
+                const base = `${r.name} (${r.code||''})`;
+                return tag ? `${base} • ${tag}` : base;
+            }
+            return tag ? `${r.name} • ${tag}` : r.name;
+        });
         if (window.dashboardRecapChart?.destroy) window.dashboardRecapChart.destroy();
         window.dashboardRecapChart = new Chart(ctx, {
             type: 'bar',
@@ -2562,19 +2619,121 @@ function initDashboardRecap() {
         }
     }
 
+    function pickList(json) {
+        return (Array.isArray(json?.data_filtered) && json.data_filtered.length)
+            ? json.data_filtered
+            : (Array.isArray(json?.data) ? json.data : []);
+    }
+
+    function mergeRows(rowsA, rowsB) {
+        const m = new Map();
+
+        function put(r) {
+            const key = `${String(r?.name||'-')}|${String(r?.code||'')}`;
+            const cur = m.get(key) || {
+                name: String(r?.name||'-'),
+                code: String(r?.code||''),
+                spend: 0,
+                revenue: 0,
+                sources: { adx: false, adsense: false }
+            };
+            const spend = Number(r?.spend) || 0;
+            const revenue = Number(r?.revenue) || 0;
+            const src = String(r?.source || '').toLowerCase();
+
+            cur.spend = Math.max(Number(cur.spend)||0, spend);
+            cur.revenue = (Number(cur.revenue)||0) + revenue;
+            if (src === 'adx') cur.sources.adx = true;
+            if (src === 'adsense') cur.sources.adsense = true;
+
+            m.set(key, cur);
+        }
+
+        (rowsA || []).forEach(put);
+        (rowsB || []).forEach(put);
+
+        const out = [];
+        for (const v of m.values()) {
+            const spend = Number(v.spend) || 0;
+            const revenue = Number(v.revenue) || 0;
+            out.push({
+                name: v.name,
+                code: v.code,
+                spend,
+                revenue,
+                net: revenue - spend,
+                roi: spend > 0 ? ((revenue - spend) / spend * 100) : 0,
+                sources: v.sources
+            });
+        }
+        out.sort((a,b) => {
+            const ar = Number(a?.roi) || 0;
+            const br = Number(b?.roi) || 0;
+            if (br !== ar) return br - ar;
+            const arev = Number(a?.revenue) || 0;
+            const brev = Number(b?.revenue) || 0;
+            return brev - arev;
+        });
+        return out;
+    }
+
+    function summarize(rows) {
+        const spend = (rows || []).reduce((acc, r) => acc + (Number(r?.spend)||0), 0);
+        const revenue = (rows || []).reduce((acc, r) => acc + (Number(r?.revenue)||0), 0);
+        const net = revenue - spend;
+        const roi = spend > 0 ? (net / spend * 100) : 0;
+        return { total_spend: spend, total_revenue: revenue, total_net_profit: net, roi_nett: roi };
+    }
+
+    function sourceLabel(src) {
+        if (src === 'adsense') return 'AdSense';
+        if (src === 'adx') return 'AdX';
+        return 'Semua';
+    }
+
     async function load() {
         const st = getState();
         if (!st.date) return;
         if (box) box.style.display = 'none';
         if (loading) loading.style.display = 'flex';
         try {
-            const res = await fetch(endpoint(st));
-            const json = await res.json();
-            if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat data');
-            const list = (Array.isArray(json.data_filtered) && json.data_filtered.length) ? json.data_filtered : (Array.isArray(json.data) ? json.data : []);
-            const rows = rowsFrom(st.dim, list);
-            renderSummary(json.summary_filtered || json.summary_all || json.summary || {});
-            const meta = `${st.source==='adsense'?'AdSense':'AdX'} • ${st.dim==='country'?'Per Negara':'Per Domain'} • ${st.date}`;
+            let rows = [];
+            let summary = null;
+
+            if (st.source === 'all') {
+                const [resAdx, resAds] = await Promise.all([
+                    fetch(endpointFor('adx', st.dim, st.date)),
+                    fetch(endpointFor('adsense', st.dim, st.date))
+                ]);
+                const [jsonAdx, jsonAds] = await Promise.all([resAdx.json(), resAds.json()]);
+                if (!jsonAdx || !jsonAdx.status) throw new Error(jsonAdx?.error || 'Gagal memuat data AdX');
+                if (!jsonAds || !jsonAds.status) throw new Error(jsonAds?.error || 'Gagal memuat data AdSense');
+
+                const rowsAdx = rowsFrom(st.dim, pickList(jsonAdx), 'adx');
+                const rowsAds = rowsFrom(st.dim, pickList(jsonAds), 'adsense');
+                rows = mergeRows(rowsAdx, rowsAds);
+                summary = summarize(rows);
+            } else {
+                const res = await fetch(endpointFor(st.source, st.dim, st.date));
+                const json = await res.json();
+                if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat data');
+                rows = rowsFrom(st.dim, pickList(json), st.source);
+                summary = (json.summary_filtered || json.summary_all || json.summary || {});
+            }
+
+            try {
+                rows.sort((a,b) => {
+                    const ar = Number(a?.roi) || 0;
+                    const br = Number(b?.roi) || 0;
+                    if (br !== ar) return br - ar;
+                    const arev = Number(a?.revenue) || 0;
+                    const brev = Number(b?.revenue) || 0;
+                    return brev - arev;
+                });
+            } catch (e) {}
+
+            renderSummary(summary);
+            const meta = `${sourceLabel(st.source)} • ${st.dim==='country'?'Per Negara':'Per Domain'} • ${st.date}`;
             renderChart(st.dim, rows, meta);
             renderTable(st.dim, rows);
             await renderPortfolioPulse(st.date);
@@ -2617,7 +2776,21 @@ function initDashboardRecap() {
         dateEl.addEventListener('change', load);
     }
 
-    setActive('dashboardRecapSourceTabs', 'data-source', 'adx');
+    if (!sourceEl.value) sourceEl.value = 'all';
+
+    if (window.jQuery && jQuery.fn && typeof jQuery.fn.select2 === 'function') {
+        try {
+            if (jQuery(sourceEl).data('select2')) {
+                jQuery(sourceEl).select2('destroy');
+            }
+        } catch (e) {}
+        jQuery(sourceEl).select2({
+            theme: 'bootstrap4',
+            width: 'style',
+            minimumResultsForSearch: Infinity
+        });
+    }
+
     setActive('dashboardRecapDimTabs', 'data-dim', 'domain');
     setActive('dashboardPulseTabs', 'data-metric', 'roi');
     window.dashboardPulseMetric = 'roi';
@@ -2631,13 +2804,18 @@ function initDashboardRecap() {
         if (window.dashboardPulsePayload) renderPulseChart(m, window.dashboardPulsePayload);
     });
 
-    document.getElementById('dashboardRecapSourceTabs').addEventListener('click', function(e){
+    if (window.jQuery && jQuery.fn && typeof jQuery.fn.select2 === 'function' && jQuery(sourceEl).data('select2')) {
+        jQuery(sourceEl)
+            .off('.dashboardRecapSource')
+            .on('change.dashboardRecapSource select2:select.dashboardRecapSource select2:clear.dashboardRecapSource', function(){
+                load();
+            });
+    } else {
+        sourceEl.addEventListener('change', function(){
+            load();
+        });
+    }
 
-        const b = e.target.closest('button[data-source]');
-        if (!b) return;
-        setActive('dashboardRecapSourceTabs', 'data-source', b.getAttribute('data-source'));
-        load();
-    });
     document.getElementById('dashboardRecapDimTabs').addEventListener('click', function(e){
         const b = e.target.closest('button[data-dim]');
         if (!b) return;
