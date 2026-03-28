@@ -786,19 +786,18 @@ class RekapTrafficPerDomainDataView(View):
                     if site_name and site_name != 'Unknown':
                         extracted_sites.add(site_name)
                 for site in extracted_sites:
-                    if "." in site:
-                        parts = site.split(".")       # pisah berdasarkan titik
-                        main_domain = ".".join(parts[:1])
-                    else:
-                        main_domain = site
+                    site = str(site).strip()
+                    main_domain = extract_base_subdomain_fb_adsense(site) if site else site
                     unique_name_site.append(main_domain)
             unique_name_site = list(set(unique_name_site))
+            print(f"unique_name_site: {unique_name_site}")
             if unique_name_site:
                 facebook_data = data_mysql().get_all_ads_adsense_roi_traffic_campaign_by_params(
                     start_date_formatted,
                     end_date_formatted,
                     unique_name_site
                 )
+            print(f"facebook_data: {facebook_data}")
             # --- 5. Gabungkan data AdX dan Facebook
             raw_rows_all = []
             combined_data_all = []
@@ -837,9 +836,9 @@ class RekapTrafficPerDomainDataView(View):
                 seen_fb_keys = set()
                 for adsense_item in adsense_result['hasil']['data']:
                     date_key = str(adsense_item.get('date', ''))
-                    subdomain = str(adsense_item.get('site_name', ''))
-                    base_subdomain = extract_base_subdomain(subdomain)
-                    fb_key = f"{date_key}_{base_subdomain}"
+                    subdomain = str(adsense_item.get('site_name', '')).strip()
+                    fb_base = extract_base_subdomain_fb_adsense(subdomain)
+                    fb_key = f"{date_key}_{fb_base}"
                     impressions_adsense = float(adsense_item.get('impressions_adsense', 0))
                     country_code = normalize_country_code(adsense_item.get('country_code', ''))
                     seen_fb_keys.add(fb_key)
@@ -857,7 +856,7 @@ class RekapTrafficPerDomainDataView(View):
                     cpc_adsense = (revenue / clicks_adsense) if clicks_adsense > 0 else 0
                     cpm = float(adsense_item.get('ecpm', 0))
                     raw_rows_all.append({
-                        'site_name': base_subdomain or subdomain,
+                        'site_name': subdomain,
                         'date': date_key,
                         'country_code': country_code,
                         'spend': spend,
@@ -873,9 +872,9 @@ class RekapTrafficPerDomainDataView(View):
                         'cpm': cpm,
                         'revenue': revenue
                     })
-                    key = f"{date_key}|{base_subdomain or subdomain}"
+                    key = f"{date_key}|{subdomain}"
                     entry = grouped_all.get(key) or {
-                        'site_name': base_subdomain or subdomain,
+                        'site_name': subdomain,
                         'date': date_key,
                         'spend': 0.0,
                         'revenue': 0.0,
@@ -916,7 +915,7 @@ class RekapTrafficPerDomainDataView(View):
                     grouped_all[key] = entry
                     if spend > 0:
                         f_entry = grouped_filtered.get(key) or {
-                            'site_name': base_subdomain or subdomain,
+                            'site_name': subdomain,
                             'date': date_key,
                             'spend': 0.0,
                             'revenue': 0.0,
@@ -1075,7 +1074,7 @@ class RekapTrafficPerDomainDataView(View):
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
                     combined_data_all.append({
-                        'site_name': item['site_name'] + '.com',
+                        'site_name': item['site_name'],
                         'date': item['date'],
                         'spend': spend_val,
                         'impressions_fb': impressions_fb_val,
@@ -1119,7 +1118,7 @@ class RekapTrafficPerDomainDataView(View):
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
                     combined_data_filtered.append({
-                        'site_name': item['site_name'] + '.com',
+                        'site_name': item['site_name'],
                         'date': item['date'],
                         'spend': spend_val,
                         'impressions_fb': impressions_fb_val,
@@ -1290,7 +1289,7 @@ class RekapTrafficPerCountryAdsenseDataView(View):
                     print(f"[DEBUG ROI] Unable to derive sites_for_fb: {_sites_err}")
             # ===== Response-level cache (meng-cache hasil akhir penggabungan) =====
             response_cache_key = generate_cache_key_adsense(
-                'roi_traffic_country_response_v2',
+                'roi_traffic_country_response_v3',
                 start_date,
                 end_date,
                 selected_account_list,
@@ -1324,14 +1323,12 @@ class RekapTrafficPerCountryAdsenseDataView(View):
                                 unique_sites.add(site_name)
                         extracted_names = []
                         for site in unique_sites:
-                            if "." not in site:
+                            site = str(site).strip().strip('.')
+                            if not site or site == 'Unknown':
                                 continue
-                            parts = site.split(".")       # pisah berdasarkan titik
-                            if len(parts) >= 1:
-                                main_domain = ".".join(parts[:1])
-                            else:
-                                main_domain = site
-                            extracted_names.append(main_domain)
+                            main_domain = extract_base_subdomain_fb_adsense(site) if '.' in site else site
+                            if main_domain:
+                                extracted_names.append(main_domain)
                         unique_name_site = list(set(extracted_names))
                     fb_future = executor.submit(
                         data_mysql().get_all_ads_roi_country_detail_adsense_by_params,
@@ -1340,7 +1337,6 @@ class RekapTrafficPerCountryAdsenseDataView(View):
                         unique_name_site,
                         countries_list_query
                     )
-                    print(f"[DEBUG ROI] Facebook future: {fb_future}")
                     data_adsense = adsense_future.result()
                     try:
                         # Hapus timeout: tunggu hingga FB selesai agar data lengkap
@@ -1363,8 +1359,11 @@ class RekapTrafficPerCountryAdsenseDataView(View):
                             unique_sites = set(site.strip() for site in sites_for_fb if site.strip() and site.strip() != 'Unknown')
                             extracted_names = []
                             for site in unique_sites:
-                                main_domain = extract_base_subdomain(site.strip())
-                                if main_domain and main_domain != 'Unknown':
+                                site = str(site).strip().strip('.')
+                                if not site or site == 'Unknown':
+                                    continue
+                                main_domain = extract_base_subdomain_fb_adsense(site) if '.' in site else site
+                                if main_domain:
                                     extracted_names.append(main_domain)
                             unique_name_site = list(set(extracted_names))
                         if not unique_name_site:
@@ -1373,9 +1372,11 @@ class RekapTrafficPerCountryAdsenseDataView(View):
                             if adsense_items_tmp:
                                 extracted_names = []
                                 for adsense_item in (adsense_items_tmp or []):
-                                    site_name = str(adsense_item.get('site_name', '') or '')
-                                    main_domain = extract_base_subdomain(site_name.strip())
-                                    if main_domain and main_domain != 'Unknown':
+                                    site_name = str(adsense_item.get('site_name', '') or '').strip().strip('.')
+                                    if not site_name or site_name == 'Unknown':
+                                        continue
+                                    main_domain = extract_base_subdomain_fb_adsense(site_name) if '.' in site_name else site_name
+                                    if main_domain:
                                         extracted_names.append(main_domain)
                                 unique_name_site = list(set(extracted_names))
                         print(f"[DEBUG ROI] Unique name site (from AdSense): {unique_name_site}")
@@ -1474,12 +1475,20 @@ def process_roi_traffic_country_data(data_adsense, data_facebook):
             if c == 'TU':
                 return 'TR'
             return c
+        def _clean_domain(val):
+            s = str(val or '').strip().strip('.')
+            if not s:
+                return ''
+            parts = [p for p in s.split('.') if p]
+            if len(parts) >= 2 and parts[-1] == parts[-2]:
+                parts = parts[:-1]
+            return '.'.join(parts)
         # Normalisasi AdSense: date + base_subdomain + country_code
         adsense_items = data_adsense.get('data') if isinstance(data_adsense, dict) else []
         for adsense_item in (adsense_items or []):
             date_key = str(adsense_item.get('date', '') or '')
-            site_name = str(adsense_item.get('site_name', '') or '')
-            base_subdomain = site_name
+            site_name = _clean_domain(adsense_item.get('site_name', '') or '')
+            base_subdomain = extract_base_subdomain_fb_adsense(site_name) if site_name else ''
             country_code = normalize_country_code(adsense_item.get('country_code', '') or '')
             country_name = adsense_item.get('country_name', '') or ''
             impressions_adsense = int(adsense_item.get('impressions', 0) or 0)
@@ -1500,8 +1509,8 @@ def process_roi_traffic_country_data(data_adsense, data_facebook):
         fb_items = fb_payload.get('data') or []
         for fb_item in fb_items:
             date_key = str(fb_item.get('date', '') or '')
-            domain = str(fb_item.get('domain', '') or '')
-            base_subdomain = extract_base_subdomain_fb_adsense(domain)
+            domain = _clean_domain(fb_item.get('domain', '') or '')
+            base_subdomain = extract_base_subdomain_fb_adsense(domain) if domain else ''
             country_code = normalize_country_code(fb_item.get('country_code', '') or '')
             country_name = fb_item.get('country_name', '') or ''
             spend = float(fb_item.get('spend', 0) or 0)
@@ -1778,28 +1787,21 @@ class RoiMonitoringDomainAdsenseDataView(View):
             if selected_domain_list:
                 for site in selected_domain_list:
                     site = str(site).strip()
-                    if "." in site:
-                        parts = site.split(".")       # pisah berdasarkan titik
-                        if len(parts) >= 1:
-                            main_domain = ".".join(parts[:1])
-                        else:
-                            main_domain = site
-                    unique_name_site.append(main_domain)
+                    if not site or site == 'Unknown':
+                        continue
+                    main_domain = extract_base_subdomain_fb_adsense(site) if '.' in site else site
+                    if main_domain:
+                        unique_name_site.append(main_domain)
             elif adsense_result:
-                # Ambil unique site dari AdSense
-                extracted_sites = set()     
+                # Ambil unique site dari AdX
+                extracted_sites = set()
                 for adsense_item in adsense_result['hasil']['data']:
                     site_name = str(adsense_item.get('site_name', '')).strip()
                     if site_name and site_name != 'Unknown':
                         extracted_sites.add(site_name)
                 for site in extracted_sites:
-                    if "." in site:
-                        parts = site.split(".")       # pisah berdasarkan titik
-                        if len(parts) >= 1:
-                            main_domain = ".".join(parts[:1])
-                        else:
-                            main_domain = site
-                    unique_name_site.append(main_domain)
+                    site = str(site).strip()
+                    unique_name_site.append(site)
             unique_name_site = list(set(unique_name_site))
             if unique_name_site:
                 facebook_data = data_mysql().get_all_adsense_roi_monitoring_campaign_by_params(
@@ -1824,10 +1826,10 @@ class RoiMonitoringDomainAdsenseDataView(View):
             facebook_map = {}
             if facebook_data and facebook_data['hasil']['data']:
                 for fb_item in facebook_data['hasil']['data']:
-                    date_key = str(fb_item.get('date', ''))
-                    subdomain = str(fb_item.get('domain', ''))
-                    country_code = normalize_country_code(fb_item.get('country_code', ''))
-                    key = f"{date_key}_{extract_base_subdomain(subdomain)}_{country_code}"
+                    subdomain = str(fb_item.get('domain', '') or '').strip()
+                    country_code = normalize_country_code(fb_item.get('country_code', '') or '')
+                    base_subdomain = extract_base_subdomain_fb_adsense(subdomain) if subdomain else ''
+                    key = f"{base_subdomain}_{country_code}"
                     facebook_map[key] = fb_item
             if adsense_result and adsense_result['hasil']['data']:
                 # --- NEW: siapkan raw_rows + dua grup agregasi
@@ -1835,12 +1837,12 @@ class RoiMonitoringDomainAdsenseDataView(View):
                 grouped_filtered = {}
                 seen_fb_keys = set()
                 for adsense_item in adsense_result['hasil']['data']:
-                    date_key = str(adsense_item.get('date', ''))
-                    subdomain = str(adsense_item.get('site_name', ''))
-                    base_subdomain = extract_base_subdomain(subdomain)
-                    site_key = base_subdomain or subdomain
-                    country_code = normalize_country_code(adsense_item.get('country_code', ''))
-                    key = f"{date_key}_{base_subdomain}_{country_code}"
+                    date_key = str(adsense_item.get('date', '') or '')
+                    subdomain = str(adsense_item.get('site_name', '')).strip()
+                    site_key = f"{subdomain}"
+                    country_code = normalize_country_code(adsense_item.get('country_code', '') or '')
+                    base_subdomain = extract_base_subdomain_fb_adsense(subdomain) if subdomain else ''
+                    key = f"{base_subdomain}_{country_code}"
                     seen_fb_keys.add(key)
                     fb_data = facebook_map.get(key)
                     account_ads = str((fb_data or {}).get('account_name', ''))
@@ -1869,8 +1871,8 @@ class RoiMonitoringDomainAdsenseDataView(View):
                 for fb_key, fb_item in (facebook_map or {}).items():
                     if fb_key in seen_fb_keys:
                         continue
-                    subdomain = str(fb_item.get('domain', ''))
-                    base_subdomain = extract_base_subdomain(subdomain)
+                    subdomain = str(fb_item.get('domain', '') or '').strip()
+                    base_subdomain = extract_base_subdomain_fb_adsense(subdomain) if subdomain else ''
                     site_key = base_subdomain or subdomain
                     account_ads = str(fb_item.get('account_name', ''))
                     spend = float(fb_item.get('spend', 0) or 0)
@@ -2062,7 +2064,7 @@ class RoiMonitoringCountryAdsenseDataView(View):
                     print(f"[DEBUG ROI] Unable to derive sites_for_fb: {_sites_err}")
             # ===== Response-level cache (meng-cache hasil akhir penggabungan) =====
             response_cache_key = generate_cache_key_adsense(
-                'roi_country_adsense_response_v2',
+                'roi_country_adsense_response_v3',
                 start_date,
                 end_date,
                 selected_account or '',
@@ -2094,11 +2096,12 @@ class RoiMonitoringCountryAdsenseDataView(View):
                             unique_sites.add(site_name)
                     extracted_names = []
                     for site in unique_sites:
-                        if "." not in site:
+                        site = str(site).strip()
+                        if not site or site == 'Unknown':
                             continue
-                        parts = site.split(".")
-                        main_domain = ".".join(parts[:1]) if len(parts) >= 1 else site
-                        extracted_names.append(main_domain)
+                        main_domain = extract_base_subdomain_fb_adsense(site) if '.' in site else site
+                        if main_domain:
+                            extracted_names.append(main_domain)
                     unique_name_site = list(set(extracted_names))
 
                     fb_future = executor.submit(
@@ -2127,8 +2130,12 @@ class RoiMonitoringCountryAdsenseDataView(View):
                         unique_sites = set(site.strip() for site in sites_for_fb if site.strip() and site.strip() != 'Unknown')
                         extracted_names = []
                         for site in unique_sites:
-                            main_domain = ".".join(site.split(".")[:1]) if "." in site else site
-                            extracted_names.append(main_domain)
+                            site = str(site).strip()
+                            if not site or site == 'Unknown':
+                                continue
+                            main_domain = extract_base_subdomain_fb_adsense(site) if '.' in site else site
+                            if main_domain:
+                                extracted_names.append(main_domain)
                         unique_name_site = list(set(extracted_names))
                     if unique_name_site:
                         data_facebook = data_mysql().get_all_ads_adsense_country_detail_by_params(
@@ -2223,35 +2230,48 @@ def process_roi_monitoring_country_data(data_adsense, data_facebook):
                 'TU': 'TR'
             }
             return alias.get(c, c)
-        # Normalisasi AdSense: date + base_subdomain + country_code
+
+        def normalize_domain_name(value):
+            s = str(value or '').strip()
+            if not s:
+                return ''
+            if '://' in s:
+                s = s.split('://', 1)[1]
+            s = s.split('/', 1)[0]
+            s = s.split(':', 1)[0]
+            s = s.strip().strip('.')
+            parts = [p for p in s.split('.') if p]
+            if len(parts) >= 2 and parts[-1] == parts[-2]:
+                parts = parts[:-1]
+            return '.'.join(parts)
+
+        # Normalisasi AdSense: date + base_domain (2 label terakhir) + country_code
         adsense_items = data_adsense.get('data') if isinstance(data_adsense, dict) else []
         for adsense_item in (adsense_items or []):
             date_key = str(adsense_item.get('date', '') or '')
-            site_name = str(adsense_item.get('site_name', '') or '')
-            base_subdomain = site_name
+            site_name = normalize_domain_name(adsense_item.get('site_name', '') or '')
             country_code = normalize_country_code(adsense_item.get('country_code', '') or '')
             country_name = adsense_item.get('country_name', '') or ''
             revenue = float(adsense_item.get('revenue', 0) or 0)
-            if not date_key or not base_subdomain or not country_code:
+            if not date_key or not site_name or not country_code:
                 continue
             country_name_by_code[country_code] = country_name or country_name_by_code.get(country_code, '')
-            key = f"{date_key}_{base_subdomain}_{country_code}"
+            key = f"{date_key}_{site_name}_{country_code}"
             adsense_map[key] = (adsense_map.get(key, 0.0) + revenue)
 
-        # Normalisasi FB: date + base_subdomain + country_code
+        # Normalisasi FB: date + site_name + country_code
         fb_payload = data_facebook if isinstance(data_facebook, dict) else {'status': True, 'data': []}
         fb_items = fb_payload.get('data') or []
         for fb_item in fb_items:
             date_key = str(fb_item.get('date', '') or '')
-            domain = str(fb_item.get('domain', '') or '')
-            base_subdomain = extract_base_subdomain_fb_adsense(domain)
+            site_name = normalize_domain_name(fb_item.get('domain', '') or '')
             country_code = normalize_country_code(fb_item.get('country_code', '') or '')
             country_name = fb_item.get('country_name', '') or ''
             spend = float(fb_item.get('spend', 0) or 0)
-            if not date_key or not base_subdomain or not country_code:
+            if not date_key or not site_name or not country_code:
                 continue
             country_name_by_code[country_code] = country_name or country_name_by_code.get(country_code, '')
-            key = f"{date_key}_{base_subdomain}_{country_code}"
+            key = f"{date_key}_{site_name}_{country_code}"
             fb_map[key] = (fb_map.get(key, 0.0) + spend)
 
         # Agregasi per country_code

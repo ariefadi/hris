@@ -2982,11 +2982,11 @@ class data_mysql:
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
             # --- 2. Buat kondisi LIKE untuk setiap domain
-            like_conditions_domain = " OR ".join(["CONCAT(SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 2), '.com') LIKE %s"] * len(data_domain_list))
+            like_conditions_domain = " OR ".join(["b.data_adsense_country_domain LIKE %s"] * len(data_domain_list))
             like_params_domain = [f"%{domain}%" for domain in data_domain_list] 
             base_sql = [
                 "SELECT",
-                "\tCONCAT(SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 1), '.com') AS 'site_name',",
+                "\tb.data_adsense_country_domain AS 'site_name',",
                 "\tb.data_adsense_country_cd AS 'country_code',",
                 "\tSUM(b.data_adsense_country_revenue) AS 'revenue'",
                 "FROM app_credentials a",
@@ -4265,10 +4265,17 @@ class data_mysql:
             if not data_sub_domain:
                 raise ValueError("data_sub_domain is required and cannot be empty")
             # --- 2. Buat kondisi LIKE untuk setiap domain
-            like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_sub_domain))
+            like_conditions = " OR ".join([
+                "(b.data_ads_domain LIKE %s OR SUBSTRING_INDEX(b.data_ads_domain, '.', -2) LIKE %s OR SUBSTRING_INDEX(b.data_ads_domain, '.', 1) LIKE %s)"
+            ] * len(data_sub_domain))
             like_clause = f"\tAND ({like_conditions})" if like_conditions else ""
-            like_params = [f"%{d}%" for d in data_sub_domain]
-            print(f"like_params: {like_params}") 
+            like_params = []
+            for d in data_sub_domain:
+                d = str(d or '').strip()
+                if not d:
+                    continue
+                d_first = d.split('.')[0] if '.' in d else d
+                like_params.extend([f"%{d}%", f"%{d}%", f"%{d_first}%"])
             # --- 3. Susun query
             base_sql = [
                 "SELECT",
@@ -4338,15 +4345,15 @@ class data_mysql:
             base_sql = [
                 "SELECT",
                 "\trs.account_id, rs.account_name,",
-                "\tSUBSTRING_INDEX(rs.domain, '.', -2) AS 'domain', rs.country_code,",
+                "\trs.domain AS 'domain', rs.country_code,",
                 "\tSUM(rs.spend) AS 'spend'",
                 "FROM (",
                     "\tSELECT",
                     "\t\ta.account_id, a.account_name,",
                     "\t\tb.data_ads_domain AS 'domain_raw',",
-                    "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS domain,",
+                    "\t\tSUBSTRING_INDEX(b.data_ads_domain, '.', -2) AS domain,",
                     "\t\tb.data_ads_country_cd AS 'country_code',",
-                    "\t\tb.data_ads_country_spend AS 'spend'",
+                    "\t\tb.data_ads_country_spend AS 'spend'", 
                     "\tFROM master_account_ads a",
                     "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
                     "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
@@ -4999,12 +5006,12 @@ class data_mysql:
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
-            like_conditions_domain = " OR ".join(["CONCAT(SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 1), '.com') LIKE %s"] * len(data_domain_list))
+            like_conditions_domain = " OR ".join(["b.data_adsense_country_domain LIKE %s"] * len(data_domain_list))
             like_params_domain = [f"%{domain}%" for domain in data_domain_list]
             base_sql = [
                 "SELECT",
                 "\tb.data_adsense_country_tanggal AS 'date',",
-                "\tCONCAT(SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 1), '.com') AS 'site_name',",
+                "\tb.data_adsense_country_domain AS 'site_name',",
                 "\tb.data_adsense_country_cd AS 'country_code',",
                 "\tb.data_adsense_country_nm AS 'country_name',",
                 "\tSUM(b.data_adsense_country_revenue) AS 'revenue'",
@@ -5032,7 +5039,7 @@ class data_mysql:
                 base_sql.append(f"AND b.data_adsense_country_cd IN ({placeholders})")
                 params.extend(country_codes)
 
-            base_sql.append("GROUP BY b.data_adsense_country_tanggal, CONCAT(SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 1), '.com'), b.data_adsense_country_cd, b.data_adsense_country_nm")
+            base_sql.append("GROUP BY b.data_adsense_country_tanggal, b.data_adsense_country_domain, b.data_adsense_country_cd, b.data_adsense_country_nm")
             base_sql.append("ORDER BY b.data_adsense_country_tanggal ASC")
             sql = "\n".join(base_sql)
 
@@ -5120,7 +5127,7 @@ class data_mysql:
                 data_sub_domain = []
             if not data_sub_domain:
                 raise ValueError("data_sub_domain is required and cannot be empty")
-            like_conditions = " OR ".join( ["CONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') LIKE %s"] * len(data_sub_domain))
+            like_conditions = " OR ".join(["SUBSTRING_INDEX(b.data_ads_domain, '.', -2) LIKE %s"] * len(data_sub_domain))
             like_params = [f"%{d}%" for d in data_sub_domain]
             # -----------------------------
             # Normalize country filter
@@ -5145,7 +5152,7 @@ class data_mysql:
                 "\trs.date,",
                 "\trs.country_code,",
                 "\trs.country_name,",
-                "\tSUBSTRING_INDEX(rs.domain, '.', -2) AS domain,",
+                "\trs.domain AS domain,",
                 "\tSUM(rs.spend) AS spend,",
                 "\tSUM(rs.clicks) AS clicks,",
                 "\tSUM(rs.impressions) AS impressions,",
@@ -5155,7 +5162,7 @@ class data_mysql:
                     "\t\tb.data_ads_country_tanggal AS date,",
                     "\t\tb.data_ads_country_cd AS country_code,",
                     "\t\tb.data_ads_country_nm AS country_name,",
-                    "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS domain,",
+                    "\t\tSUBSTRING_INDEX(b.data_ads_domain, '.', -2) AS domain,",
                     "\t\tSUM(b.data_ads_country_spend) AS spend,",
                     "\t\tSUM(b.data_ads_country_click) AS clicks,",
                     "\t\tSUM(b.data_ads_country_impresi) AS impressions,",
@@ -5169,13 +5176,13 @@ class data_mysql:
                     "\t\tb.data_ads_country_tanggal,",
                     "\t\tb.data_ads_country_cd,",
                     "\t\tb.data_ads_country_nm,",
-                    "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com')",
+                    "\t\tSUBSTRING_INDEX(b.data_ads_domain, '.', -2)",
                 ") rs",
                 "GROUP BY",
                 "\trs.date,",
                 "\trs.country_code,",
                 "\trs.country_name,",
-                "\tSUBSTRING_INDEX(rs.domain, '.', -2)",
+                "\trs.domain",
                 "ORDER BY rs.date ASC"
             ]
             sql = "\n".join(sql_parts)

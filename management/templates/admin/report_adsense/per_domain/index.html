@@ -129,19 +129,17 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
       background-color: rgba(13, 110, 253, 0.08) !important;
   }
 
+  /* Compact table layout for ROI Per Domain */
   #adsenseRekapDomainTable #table_traffic_account {
       width: 100% !important;
       table-layout: auto;
-  }
-
-  #adsenseRekapDomainTable .dataTables_scrollHeadInner,
-  #adsenseRekapDomainTable .dataTables_scrollHeadInner table,
-  #adsenseRekapDomainTable .dataTables_scrollBody table {
-      width: 100% !important;
+      font-size: 15px;
+      line-height: 1.5;
   }
 
   #adsenseRekapDomainTable #table_traffic_account thead th,
   #adsenseRekapDomainTable #table_traffic_account tbody td {
+      padding: 0.45rem 0.6rem;
       white-space: nowrap;
       vertical-align: middle;
   }
@@ -302,7 +300,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
             </div>
         </div>
         <!-- Data Table -->
-        <div class="dt-responsive-table mt-3" id="adsenseRekapDomainTable" data-title="Tabel" data-intro="Tabel detail ROI per domain dan tanggal. Gunakan search/sort/export DataTables (jika tersedia) untuk analisis.">
+        <div id="adsenseRekapDomainTable" class="dt-responsive-table mt-3" data-title="Tabel" data-intro="Tabel detail ROI per domain dan tanggal. Gunakan search/sort/export DataTables (jika tersedia) untuk analisis.">
             <table id="table_traffic_account" class="table table-bordered table-striped" style="width:100%">
                 <thead>
                     <tr>
@@ -313,17 +311,17 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         </th>
                         <th class="text-center">Subdomain</th>
                         <th class="text-center">Tanggal</th>
-                        <th class="text-center">Spend (Rp)</th>
-                        <th class="text-center">Klik Ads</th>
-                        <th class="text-center">Klik Adsense</th>
-                        <th class="text-center">Avg CPR</th>
-                        <th class="text-center">CTR Ads (%)</th>
-                        <th class="text-center">CTR Adsense (%)</th>
-                        <th class="text-center">CPC Ads (Rp)</th>
-                        <th class="text-center">CPC Adsense (Rp)</th>
-                        <th class="text-center">Avg eCPM (Rp)</th>
-                        <th class="text-center">ROI (%)</th>
-                        <th class="text-center">Pendapatan (Rp)</th>
+                        <th class="text-center">Spend</th>
+                        <th class="text-center">Click <br> Facebook</th>
+                        <th class="text-center">Click <br> Adsense</th>
+                        <th class="text-center">Average <br> CPR</th>
+                        <th class="text-center">CTR <br> Facebook</th>
+                        <th class="text-center">CTR <br> Adsense</th>
+                        <th class="text-center">CPC <br> Facebook</th>
+                        <th class="text-center">CPC <br> Adsense</th>
+                        <th class="text-center">Avg <br> eCPM</th>
+                        <th class="text-center">Pendapatan</th>
+                        <th class="text-center">ROI</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -383,8 +381,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
             '#btn_load_data',
             '#adsenseRekapDomainLastUpdate',
             '#summary_boxes',
-            '#charts_section',
-            '#adsenseRekapDomainTable'
+            '#charts_section'
         ];
 
         selectors.forEach(function(sel) {
