@@ -4230,13 +4230,10 @@ class data_mysql:
             if not domains:
                 raise ValueError("data_sub_domain is required")
 
-            like_params = [f"%{d}%" for d in domains]
-
             # ======================
-            # CLICKHOUSE QUERY
+            # CLICKHOUSE QUERY (startsWith)
             # ======================
-            like_clause_ch = " OR ".join(["log_ads_domain LIKE %s"] * len(domains))
-
+            starts_clause_ch = " OR ".join(["startsWith(log_ads_domain, %s)"] * len(domains))
             sql_ch = f"""
             SELECT
                 hour,
@@ -4253,7 +4250,7 @@ class data_mysql:
                     argMax(log_ads_country_click, mdd) AS clicks
                 FROM log_ads_country
                 WHERE toDate(log_ads_country_tanggal) = toDate(%s)
-                  AND ({like_clause_ch})
+                AND ({starts_clause_ch})
                 GROUP BY hour, country_code, log_ads_domain
             ) t
             GROUP BY hour
@@ -4261,8 +4258,9 @@ class data_mysql:
             """
 
             # ======================
-            # MYSQL QUERY
+            # MYSQL QUERY (TETAP)
             # ======================
+            like_params = [f"%{d}%" for d in domains]
             like_clause_mysql = " OR ".join(["a.log_ads_domain LIKE %s"] * len(domains))
 
             sql_mysql = f"""
@@ -4287,11 +4285,11 @@ class data_mysql:
                     WHERE log_ads_country_tanggal = %s
                     GROUP BY HOUR(mdd), log_ads_domain, log_ads_country_cd
                 ) b
-                  ON a.log_ads_country_cd = b.log_ads_country_cd
-                 AND HOUR(a.mdd) = b.jam
-                 AND a.mdd = b.max_time
+                ON a.log_ads_country_cd = b.log_ads_country_cd
+                AND HOUR(a.mdd) = b.jam
+                AND a.mdd = b.max_time
                 WHERE a.log_ads_country_tanggal = %s
-                  AND ({like_clause_mysql})
+                AND ({like_clause_mysql})
                 GROUP BY HOUR(a.mdd), a.log_ads_domain, a.log_ads_country_cd
             ) rs
             GROUP BY rs.hour
@@ -4304,9 +4302,9 @@ class data_mysql:
             engine = (self._report_engine() or "").lower()
 
             if engine in ("clickhouse", "ch"):
-                params = [tanggal] + like_params
+                params_tuple = tuple([tanggal] + [str(d or '').strip() for d in (domains or [])])
 
-                if self.execute_query(sql_ch, tuple(params)):
+                if self.execute_query(sql_ch, params_tuple):
                     data = self.fetch_all() or []
 
                     if data:
@@ -4318,6 +4316,9 @@ class data_mysql:
                             }
                         }
 
+            # ======================
+            # MYSQL FALLBACK
+            # ======================
             if not self.ensure_connection():
                 raise Exception("MySQL connection failed")
 

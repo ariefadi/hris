@@ -5243,13 +5243,13 @@ class DashboardDomainHourlyHeatmapView(View):
                             main_domain = ".".join(parts[:2])
                     unique_name_site.append(main_domain)
             unique_name_site = list(set(unique_name_site))
+            print(f"unique_name_site: {unique_name_site}")
             ads_resp = None
             if unique_name_site:
                 ads_resp = db.get_all_ads_country_hourly_by_params(
                     tanggal_formatted,
                     unique_name_site
                 )
-                print(f"ads_resp: {ads_resp}")
             ads_rows = ((ads_resp or {}).get('hasil') or {}).get('data') or []
             if not isinstance(ads_rows, list):
                 ads_rows = []
