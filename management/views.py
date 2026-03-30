@@ -5221,8 +5221,7 @@ class DashboardDomainHourlyHeatmapView(View):
                 return JsonResponse(cached, safe=False)
             db = data_mysql()
             adx_resp = db.get_all_adx_country_hourly_by_params(
-                tanggal_formatted,
-                force_mysql=True
+                tanggal_formatted
             )
             adx_rows = adx_resp.get('data') if isinstance(adx_resp, dict) else []
             if not isinstance(adx_rows, list):
@@ -5248,8 +5247,7 @@ class DashboardDomainHourlyHeatmapView(View):
             if unique_name_site:
                 ads_resp = db.get_all_ads_country_hourly_by_params(
                     tanggal_formatted,
-                    unique_name_site,
-                    force_mysql=True
+                    unique_name_site
                 )
                 print(f"ads_resp: {ads_resp}")
             ads_rows = ((ads_resp or {}).get('hasil') or {}).get('data') or []
