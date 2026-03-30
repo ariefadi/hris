@@ -3983,7 +3983,7 @@ class data_mysql:
         except Exception as e:
             return {"status": False, "error": str(e)}
 
-    def get_all_adx_country_hourly_by_params(self, tanggal):
+    def get_all_adx_country_hourly_by_params(self, tanggal, force_mysql=False):
         try:
             engine = ''
             try:
@@ -3991,7 +3991,7 @@ class data_mysql:
             except Exception:
                 engine = ''
 
-            if engine in ('clickhouse', 'ch'):
+            if (not force_mysql) and engine in ('clickhouse', 'ch'):
                 sql = "\n".join([
                     "SELECT",
                     "    toHour(mdd) AS hour,",
@@ -4217,7 +4217,7 @@ class data_mysql:
 
         return {"hasil": hasil}
 
-    def get_all_ads_country_hourly_by_params(self, tanggal, data_sub_domain=None):
+    def get_all_ads_country_hourly_by_params(self, tanggal, data_sub_domain=None, force_mysql=False):
         try:
             # --- normalisasi domain
             if isinstance(data_sub_domain, str):
@@ -4303,7 +4303,7 @@ class data_mysql:
             # ======================
             engine = (self._report_engine() or "").lower()
 
-            if engine in ("clickhouse", "ch"):
+            if (not force_mysql) and engine in ("clickhouse", "ch"):
                 params = [tanggal] + like_params
 
                 if self.execute_query(sql_ch, tuple(params)):

@@ -462,6 +462,22 @@ html[data-theme="dark"] .dashboard-recap-tabs .btn:hover {
     box-shadow: 0 1px 0 rgba(15,23,42,.04), 0 6px 18px rgba(15,23,42,.05);
     user-select: none;
 }
+#dashboardRecapTemporalCard .roi-heatmap-cell.is-23 {
+    grid-column: 12;
+    grid-row: 1 / span 2;
+    padding: 16px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+#dashboardRecapTemporalCard .roi-heatmap-cell.is-23 .roi-heatmap-hour {
+    font-size: 12px;
+    margin-bottom: 8px;
+}
+#dashboardRecapTemporalCard .roi-heatmap-cell.is-23 .roi-heatmap-value {
+    font-size: 18px;
+}
 #dashboardRecapTemporalCard .roi-heatmap-hour {
     font-size: 11px;
     font-weight: 700;
@@ -2516,7 +2532,7 @@ function initDashboardRecap() {
         for (let i = 0; i < hours.length; i++) idxByHour[String(hours[i] || '')] = i;
 
         const order = [];
-        for (let h = 0; h <= 23; h++) order.push(h);
+        for (let h = 1; h <= 23; h++) order.push(h);
 
         const roiVals = [];
         for (let j = 0; j < order.length; j++) {
@@ -2588,6 +2604,16 @@ function initDashboardRecap() {
 
             const cell = document.createElement('div');
             cell.className = 'roi-heatmap-cell';
+            if (hourNum === 23) {
+                cell.classList.add('is-23');
+                cell.style.gridColumn = '12';
+                cell.style.gridRow = '1 / span 2';
+            } else {
+                const row = (hourNum >= 1 && hourNum <= 11) ? 1 : 2;
+                const col = (hourNum >= 1 && hourNum <= 11) ? hourNum : (hourNum - 11);
+                cell.style.gridColumn = String(col);
+                cell.style.gridRow = String(row);
+            }
             cell.style.background = bgc;
 
             const textDark = (v >= 0 ? (t < 0.55) : (t < 0.5));
