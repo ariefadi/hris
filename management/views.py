@@ -5212,13 +5212,6 @@ class DashboardDomainHourlyHeatmapView(View):
                 except (ValueError, TypeError):
                     raise ValueError(f"Tanggal tidak valid: {d}")
             tanggal_formatted = parse_date(tanggal)
-            cache_key = generate_cache_key(
-                'dashboard_domain_hourly_heatmap',
-                tanggal_formatted,
-            )
-            cached = get_cached_data(cache_key)
-            if cached is not None:
-                return JsonResponse(cached, safe=False)
             db = data_mysql()
             adx_resp = db.get_all_adx_country_hourly_by_params(
                 tanggal_formatted
@@ -5300,7 +5293,6 @@ class DashboardDomainHourlyHeatmapView(View):
                     'roi_nett': round((((total_revenue - total_spend) / total_spend) * 100) if total_spend > 0 else 0.0, 2)
                 }
             }
-            set_cached_data(cache_key, result, timeout=300)
             return JsonResponse(result, safe=False)
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
@@ -5355,17 +5347,6 @@ class DashboardPortfolioPulseView(View):
             start_dt = end_dt - timedelta(days=days - 1)
             start_date_formatted = start_dt.strftime('%Y-%m-%d')
             end_date_formatted = end_dt.strftime('%Y-%m-%d')
-
-            cache_key = generate_cache_key(
-                'dashboard_portfolio_pulse',
-                start_date_formatted,
-                end_date_formatted,
-                str(days),
-                str(forecast_days),
-            )
-            cached = get_cached_data(cache_key)
-            if cached is not None:
-                return JsonResponse(cached, safe=False)
 
             db = data_mysql()
             engine = ''
@@ -5512,7 +5493,6 @@ class DashboardPortfolioPulseView(View):
                 }
             }
 
-            set_cached_data(cache_key, result, timeout=300)
             return JsonResponse(result, safe=False)
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
