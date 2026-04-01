@@ -71,7 +71,7 @@ class Command(BaseCommand):
         )
 
     def _ch_config(self):
-        host = os.getenv("CH_HOST") or os.getenv("REPORT_DB_HOST") or os.getenv("DB_REPORT_HOST") or "167.172.93.194"
+        host = os.getenv("CH_HOST") or os.getenv("REPORT_DB_HOST") or os.getenv("DB_REPORT_HOST") or "127.0.0.1"
         raw_port = (os.getenv("CH_PORT") or os.getenv("REPORT_DB_PORT") or os.getenv("DB_REPORT_PORT") or "8123").strip()
         try:
             port = int(raw_port)
