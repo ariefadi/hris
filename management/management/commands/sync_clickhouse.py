@@ -78,8 +78,8 @@ class Command(BaseCommand):
             port = int(raw_port)
         except (TypeError, ValueError):
             port = 8123
-        user = os.getenv("CH_USER") or os.getenv("REPORT_DB_USER") or os.getenv("DB_REPORT_USER") or "superbadmin"
-        password = os.getenv("CH_PASSWORD") or os.getenv("REPORT_DB_PASSWORD") or os.getenv("DB_REPORT_PASSWORD") or "45TYgdopmyuHJiu6756"
+        user = os.getenv("CH_USER") or os.getenv("REPORT_DB_USER") or os.getenv("DB_REPORT_USER") or "default"
+        password = os.getenv("CH_PASSWORD") or os.getenv("REPORT_DB_PASSWORD") or os.getenv("DB_REPORT_PASSWORD") or "hris123456"
         database = os.getenv("CH_DB") or os.getenv("REPORT_DB_NAME") or os.getenv("DB_REPORT_NAME") or ""
         timeout = int(os.getenv("CH_HTTP_TIMEOUT", "60"))
         return host, port, user, password, database, timeout

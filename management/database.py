@@ -2542,6 +2542,113 @@ class data_mysql:
             }
         return {'hasil': hasil}                        
 
+    def insert_log_adsense_country_log(self, data):
+        try:
+            if not self.ensure_connection():
+                raise pymysql.Error("Could not establish database connection")
+            self.cur_hris = self.mysql_cur
+
+            sql_insert = """
+                        INSERT INTO log_adsense_country
+                        (
+                            log_adsense_country.account_id,
+                            log_adsense_country.log_adsense_country_tanggal,
+                            log_adsense_country.log_adsense_country_cd,
+                            log_adsense_country.log_adsense_country_nm,
+                            log_adsense_country.log_adsense_country_domain,
+                            log_adsense_country.log_adsense_country_impresi,
+                            log_adsense_country.log_adsense_country_click,
+                            log_adsense_country.log_adsense_country_cpc,
+                            log_adsense_country.log_adsense_country_ctr,
+                            log_adsense_country.log_adsense_country_cpm,
+                            log_adsense_country.log_adsense_country_page_views,
+                            log_adsense_country.log_adsense_country_page_views_rpm,
+                            log_adsense_country.log_adsense_country_ad_requests,
+                            log_adsense_country.log_adsense_country_ad_requests_coverage,
+                            log_adsense_country.log_adsense_country_active_view_viewability,
+                            log_adsense_country.log_adsense_country_active_view_measurability,
+                            log_adsense_country.log_adsense_country_active_view_time,
+                            log_adsense_country.log_adsense_country_revenue,
+                            log_adsense_country.mdb,
+                            log_adsense_country.mdb_name,
+                            log_adsense_country.mdd
+                        )
+                    VALUES
+                        (
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s
+                        )
+                """
+
+            self.mysql_cur.execute(sql_insert, (
+                data['account_id'],
+                data['log_adsense_country_tanggal'],
+                data['log_adsense_country_cd'],
+                data['log_adsense_country_nm'],
+                data['log_adsense_country_domain'],
+                data['log_adsense_country_impresi'],
+                data['log_adsense_country_click'],
+                data['log_adsense_country_cpc'],
+                data['log_adsense_country_ctr'],
+                data['log_adsense_country_cpm'],
+                data['log_adsense_country_page_views'],
+                data['log_adsense_country_page_views_rpm'],
+                data['log_adsense_country_ad_requests'],
+                data['log_adsense_country_ad_requests_coverage'],
+                data['log_adsense_country_active_view_viewability'],
+                data['log_adsense_country_active_view_measurability'],
+                data['log_adsense_country_active_view_time'],
+                data['log_adsense_country_revenue'],
+                data['mdb'],
+                data['mdb_name'],
+                data['mdd'],
+            ))
+
+            if not self.commit():
+                raise pymysql.Error("Failed to commit data adsense country log insert")
+
+            hasil = {
+                "status": True,
+                "message": "Data adsense country log berhasil ditambahkan",
+            }
+        except pymysql.Error as e:
+            err_code = None
+            err_msg = None
+            try:
+                if isinstance(getattr(e, 'args', None), (list, tuple)) and len(e.args) >= 2:
+                    err_code = e.args[0]
+                    err_msg = e.args[1]
+                elif isinstance(getattr(e, 'args', None), (list, tuple)) and len(e.args) == 1:
+                    err_code = e.args[0]
+            except Exception:
+                err_code = None
+                err_msg = None
+
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, code={}, message={}'.format(e, err_code, err_msg),
+            }
+        return {'hasil': hasil}
+
 
     def delete_data_adx_country_by_date(self, account_id, tanggal, code_negara, site_name):
         try:

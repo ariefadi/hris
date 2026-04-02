@@ -54,7 +54,7 @@ class Command(BaseCommand):
         except (TypeError, ValueError):
             port = 3306
         user = os.getenv("DB_USER") or os.getenv("HRIS_DB_USER", "root")
-        password = os.getenv("DB_PASSWORD") or os.getenv("HRIS_DB_PASSWORD", "")
+        password = os.getenv("DB_PASSWORD") or os.getenv("HRIS_DB_PASSWORD", "hris123456")
         database = os.getenv("DB_NAME") or os.getenv("HRIS_DB_NAME", "hris_trendHorizone")
         connect_timeout = int(os.getenv("MYSQL_CONNECT_TIMEOUT", "10"))
         read_timeout = int(os.getenv("MYSQL_READ_TIMEOUT", "300"))
