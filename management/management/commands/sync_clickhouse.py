@@ -1,3 +1,4 @@
+
 from django.core.management.base import BaseCommand
 from datetime import date, datetime, timedelta
 import json
@@ -137,7 +138,7 @@ class Command(BaseCommand):
         engine = str(os.getenv("REPORT_DB_ENGINE", "") or os.getenv("DB_REPORT_ENGINE", "") or "").strip().lower()
         if engine not in ("clickhouse", "ch"):
             self.stdout.write(self.style.WARNING("REPORT_DB_ENGINE belum diset clickhouse/ch; sync tetap bisa jalan tapi pastikan env ClickHouse sudah benar."))
-        
+
         days_opt = options.get("days")
         since_opt = options.get("since")
         if since_opt:
