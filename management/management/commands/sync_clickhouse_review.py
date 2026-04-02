@@ -25,15 +25,17 @@ class Command(BaseCommand):
 
     def _default_tables(self):
         return [
-            "data_adsense_country",
-            "data_adsense_domain",
-            "data_adx_country",
-            "data_adx_domain",
-            "data_ads_campaign",
-            "data_ads_country",
-            "log_ads_country",
-            "log_adsense_country",
-            "log_adx_country",
+            'data_adsense_country',
+            'data_adsense_domain',
+            'data_adx_country',
+            'data_adx_domain',
+            'data_ads_campaign',
+            'data_ads_country',
+            'log_ads_country',
+            'log_adsense_country',
+            'log_adx_country',
+            'master_account_ads',
+            'master_ads'
         ]
 
     def _resolve_tables(self, tables_arg):

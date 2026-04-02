@@ -139,14 +139,20 @@ TEMPLATES = [
 WSGI_APPLICATION = 'hris.wsgi.application'
 
 # Database Configuration - MySQL
+_db_name = os.getenv('HRIS_DB_NAME') or os.getenv('DB_NAME') or 'hris_trendHorizone'
+_db_user = os.getenv('HRIS_DB_USER') or os.getenv('DB_USER') or 'root'
+_db_password = os.getenv('HRIS_DB_PASSWORD') or os.getenv('DB_PASSWORD') or ''
+_db_host = os.getenv('HRIS_DB_HOST') or os.getenv('DB_HOST') or '127.0.0.1'
+_db_port = os.getenv('HRIS_DB_PORT') or os.getenv('DB_PORT') or '3306'
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.getenv('HRIS_DB_NAME', 'hris_trendHorizone'),
-        'USER': os.getenv('HRIS_DB_USER', 'root'),
-        'PASSWORD': os.getenv('HRIS_DB_PASSWORD', ''),
-        'HOST': os.getenv('HRIS_DB_HOST', '127.0.0.1'),
-        'PORT': os.getenv('HRIS_DB_PORT', '3306'),
+        'NAME': _db_name,
+        'USER': _db_user,
+        'PASSWORD': _db_password,
+        'HOST': _db_host,
+        'PORT': _db_port,
         'OPTIONS': {
             'sql_mode': 'STRICT_TRANS_TABLES',
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES', time_zone='+00:00'",

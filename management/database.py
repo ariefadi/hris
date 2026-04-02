@@ -14,9 +14,32 @@ from argon2 import PasswordHasher, exceptions as argon2_exceptions
 from .crypto import sandi
 
 try:
+    from dotenv import load_dotenv
+except Exception:
+    load_dotenv = None
+
+try:
     import requests
 except Exception:
     requests = None
+
+_ENV_LOADED = False
+
+
+def _ensure_env_loaded():
+    global _ENV_LOADED
+    if _ENV_LOADED:
+        return
+    _ENV_LOADED = True
+    if load_dotenv is None:
+        return
+    try:
+        root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+        env_path = os.path.join(root, '.env')
+        if os.path.exists(env_path):
+            load_dotenv(env_path, override=False)
+    except Exception:
+        pass
 def _log_debug(message):
     try:
         with open('/tmp/hris_login_debug.log', 'a') as f:
@@ -142,8 +165,6 @@ class data_mysql:
             if tables:
                 return tables
         return [
-            'app_credentials',
-            'app_credentials_assign'
             'data_adsense_country',
             'data_adsense_domain',
             'data_adx_country',
@@ -153,7 +174,6 @@ class data_mysql:
             'log_ads_country',
             'log_adsense_country',
             'log_adx_country',
-            'log_adsense_country',
             'master_account_ads',
             'master_ads'
         ]
@@ -191,6 +211,7 @@ class data_mysql:
             return True
         if requests is None:
             raise RuntimeError('The requests library is not installed')
+        _ensure_env_loaded()
         host = os.getenv('CH_HOST') or os.getenv('REPORT_DB_HOST') or os.getenv('DB_REPORT_HOST') or os.getenv('DB_HOST') or os.getenv('HRIS_DB_HOST') or '127.0.0.1'
         raw_port = (os.getenv('CH_PORT') or os.getenv('REPORT_DB_PORT') or os.getenv('DB_REPORT_PORT') or '8123').strip()
         try:
@@ -206,10 +227,9 @@ class data_mysql:
     def connect(self):
         """Membuat koneksi baru ke database"""
         try:
-            # Use the same environment variables as Django settings for consistency
-            host = os.getenv('DB_HOST', '127.0.0.1')
-            # Use the same port as Django (3306, not 3306)
-            raw_port = os.getenv('DB_PORT', '').strip()
+            _ensure_env_loaded()
+            host = os.getenv('DB_HOST') or '127.0.0.1'
+            raw_port = (os.getenv('DB_PORT') or '').strip()
             if not raw_port:
                 raw_port = '3306'
             try:
@@ -217,9 +237,9 @@ class data_mysql:
             except (ValueError, TypeError):
                 print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
                 port = 3306
-            user = os.getenv('DB_USER', 'root')
-            password = os.getenv('DB_PASSWORD', 'hris123456')
-            database = os.getenv('DB_NAME', 'hris_trendHorizone')
+            user = os.getenv('DB_USER') or 'root'
+            password = os.getenv('DB_PASSWORD') or 'hris123456'
+            database = os.getenv('DB_NAME') or 'hris_trendHorizone'
 
             self.db_hris = pymysql.connect(
                 host=host,
