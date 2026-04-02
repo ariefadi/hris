@@ -138,11 +138,14 @@ class Command(BaseCommand):
         if engine not in ("clickhouse", "ch"):
             self.stdout.write(self.style.WARNING("REPORT_DB_ENGINE belum diset clickhouse/ch; sync tetap bisa jalan tapi pastikan env ClickHouse sudah benar."))
         
+        days_opt = options.get("days")
         since_opt = options.get("since")
         if since_opt:
             start_date = since_opt.strip()
         else:
-            start_date = date.today().strftime("%Y-%m-%d")
+            days = days_opt if days_opt is not None else int(os.getenv("CH_SYNC_DAYS", "1"))
+            days = max(1, int(days))
+            start_date = (date.today() - timedelta(days=days - 1)).strftime("%Y-%m-%d")
 
         tables = self._resolve_tables(options.get("tables"))
         batch_size = int(options.get("batch_size") or 5000)
