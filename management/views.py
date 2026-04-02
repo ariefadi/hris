@@ -5205,6 +5205,7 @@ class DashboardDomainHourlyHeatmapView(View):
     def get(self, req):
         try:
             tanggal = req.GET.get('tanggal', '')
+            source = (req.GET.get('source') or 'adx').strip().lower()
             # --- 1. Parse tanggal aman
             def parse_date(d):
                 try:
@@ -5213,19 +5214,23 @@ class DashboardDomainHourlyHeatmapView(View):
                     raise ValueError(f"Tanggal tidak valid: {d}")
             tanggal_formatted = parse_date(tanggal)
             db = data_mysql()
-            adx_resp = db.get_all_adx_country_hourly_by_params(
-                tanggal_formatted
-            )
-            adx_rows = adx_resp.get('data') if isinstance(adx_resp, dict) else []
-            if not isinstance(adx_rows, list):
-                adx_rows = []
-            # --- 4. Proses Facebook data
+
+            if source == 'adsense':
+                rev_resp = db.get_all_adsense_country_hourly_by_params(tanggal_formatted)
+                domain_key = 'log_adsense_country_domain'
+            else:
+                rev_resp = db.get_all_adx_country_hourly_by_params(tanggal_formatted)
+                domain_key = 'log_adx_country_domain'
+
+            rev_rows = rev_resp.get('data') if isinstance(rev_resp, dict) else []
+            if not isinstance(rev_rows, list):
+                rev_rows = []
+
             unique_name_site = []
-            if isinstance(adx_resp, dict) and adx_resp.get('status') and adx_rows:
-                # Ambil unique site dari AdX
+            if isinstance(rev_resp, dict) and rev_resp.get('status') and rev_rows:
                 extracted_sites = set[Any]()
-                for adx_item in adx_rows:
-                    site_name = str((adx_item or {}).get('log_adx_country_domain', '')).strip()
+                for item in rev_rows:
+                    site_name = str((item or {}).get(domain_key, '')).strip()
                     if site_name and site_name != 'Unknown':
                         extracted_sites.add(site_name)
                 for site in extracted_sites:
@@ -5237,6 +5242,7 @@ class DashboardDomainHourlyHeatmapView(View):
                     unique_name_site.append(main_domain)
             unique_name_site = list(set(unique_name_site))
             print(f"unique_name_site: {unique_name_site}")
+
             ads_resp = None
             if unique_name_site:
                 ads_resp = db.get_all_ads_country_hourly_by_params(
@@ -5246,9 +5252,10 @@ class DashboardDomainHourlyHeatmapView(View):
             ads_rows = ((ads_resp or {}).get('hasil') or {}).get('data') or []
             if not isinstance(ads_rows, list):
                 ads_rows = []
+
             rev_by_hour = {f"{h:02d}": 0.0 for h in range(24)}
             spend_by_hour = {f"{h:02d}": 0.0 for h in range(24)}
-            for row in adx_rows or []:
+            for row in rev_rows or []:
                 try:
                     hour = int(row.get('hour', 0) or 0)
                 except Exception:

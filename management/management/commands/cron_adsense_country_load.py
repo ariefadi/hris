@@ -206,6 +206,33 @@ class Command(BaseCommand):
                             ins = db.insert_data_adsense_country(record)
                             if ins.get('hasil', {}).get('status'):
                                 total_insert += 1
+                                params_log_new = {
+                                    'account_id': record.get('account_id'),
+                                    'log_adsense_country_tanggal': record.get('data_adsense_country_tanggal'),
+                                    'log_adsense_country_cd': record.get('data_adsense_country_cd'),
+                                    'log_adsense_country_nm': record.get('data_adsense_country_nm'),
+                                    'log_adsense_country_domain': record.get('data_adsense_country_domain'),
+                                    'log_adsense_country_impresi': record.get('data_adsense_country_impresi'),
+                                    'log_adsense_country_click': record.get('data_adsense_country_click'),
+                                    'log_adsense_country_cpc': record.get('data_adsense_country_cpc'),
+                                    'log_adsense_country_ctr': int(round(float(record.get('data_adsense_country_ctr') or 0.0))),
+                                    'log_adsense_country_cpm': record.get('data_adsense_country_cpm'),
+                                    'log_adsense_country_page_views': record.get('data_adsense_country_page_views'),
+                                    'log_adsense_country_page_views_rpm': record.get('data_adsense_country_page_views_rpm'),
+                                    'log_adsense_country_ad_requests': record.get('data_adsense_country_ad_requests'),
+                                    'log_adsense_country_ad_requests_coverage': record.get('data_adsense_country_ad_requests_coverage'),
+                                    'log_adsense_country_active_view_viewability': record.get('data_adsense_country_active_view_viewability'),
+                                    'log_adsense_country_active_view_measurability': record.get('data_adsense_country_active_view_measurability'),
+                                    'log_adsense_country_active_view_time': record.get('data_adsense_country_active_view_time'),
+                                    'log_adsense_country_revenue': record.get('data_adsense_country_revenue'),
+                                    'mdb': '0',
+                                    'mdb_name': 'Log Snapshot',
+                                    'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                }
+                                try:
+                                    db.insert_log_adsense_country_log(params_log_new)
+                                except Exception:
+                                    pass
                             else:
                                 total_error += 1
                                 self.stdout.write(

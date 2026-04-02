@@ -31,6 +31,7 @@ class Command(BaseCommand):
             "data_ads_campaign",
             "data_ads_country",
             "log_ads_country",
+            "log_adsense_country",
             "log_adx_country",
         ]
 

@@ -4107,6 +4107,127 @@ class data_mysql:
         except Exception as e:
             return {"status": False, "error": str(e)}
 
+    def get_all_adsense_country_hourly_by_params(self, tanggal):
+        try:
+            engine = ''
+            try:
+                engine = (self._report_engine() or '').strip().lower()
+            except Exception:
+                engine = ''
+
+            if engine in ('clickhouse', 'ch'):
+                sql = "\n".join([
+                    "SELECT",
+                    "    toHour(mdd) AS hour,",
+                    "    log_adsense_country_cd AS country_code,",
+                    "    log_adsense_country_domain,",
+                    "    argMax(log_adsense_country_impresi, mdd) AS impressions,",
+                    "    argMax(log_adsense_country_click, mdd) AS clicks,",
+                    "    argMax(log_adsense_country_revenue, mdd) AS revenue",
+                    "FROM log_adsense_country",
+                    "WHERE toDate(log_adsense_country_tanggal) = toDate(%s)",
+                    "GROUP BY hour, country_code, log_adsense_country_domain",
+                    "ORDER BY hour ASC",
+                ])
+                params = [tanggal]
+                if not self.execute_query(sql, tuple(params)):
+                    raise pymysql.Error("Failed to get hourly AdSense country logs by params")
+                data_rows = self.fetch_all() or []
+                if data_rows:
+                    return {
+                        "status": True,
+                        "message": "Hourly AdSense country logs berhasil diambil",
+                        "data": data_rows
+                    }
+
+                try:
+                    if not self.ensure_connection():
+                        raise pymysql.Error("Could not establish database connection")
+                    self.cur_hris = self.mysql_cur
+                    base_sql = [
+                        "SELECT",
+                        "    DATE(a.log_adsense_country_tanggal) AS date,",
+                        "    HOUR(a.mdd) AS hour,",
+                        "    a.mdd AS time,",
+                        "    a.log_adsense_country_cd AS country_code,",
+                        "    a.log_adsense_country_nm AS country_name,",
+                        "    a.log_adsense_country_domain,",
+                        "    SUM(a.log_adsense_country_impresi) AS impressions,",
+                        "    SUM(a.log_adsense_country_click) AS clicks,",
+                        "    SUM(a.log_adsense_country_revenue) AS revenue",
+                        "FROM log_adsense_country a",
+                        "JOIN (",
+                        "    SELECT",
+                        "        log_adsense_country_cd,",
+                        "        log_adsense_country_domain,",
+                        "        HOUR(mdd) AS jam,",
+                        "        MAX(mdd) AS max_time",
+                        "    FROM log_adsense_country",
+                        "    WHERE log_adsense_country_tanggal = %s",
+                        "    GROUP BY HOUR(mdd), log_adsense_country_cd, log_adsense_country_domain",
+                        ") b ON a.log_adsense_country_cd = b.log_adsense_country_cd",
+                        "   AND a.log_adsense_country_domain = b.log_adsense_country_domain",
+                        "   AND a.mdd = b.max_time",
+                        "WHERE a.log_adsense_country_tanggal = %s",
+                        "GROUP BY HOUR(a.mdd), a.log_adsense_country_cd",
+                        "ORDER BY hour ASC, a.log_adsense_country_nm ASC",
+                    ]
+                    sql_mysql = "\n".join(base_sql)
+                    params_mysql = (tanggal, tanggal)
+                    self.mysql_cur.execute(sql_mysql, params_mysql)
+                    data_rows = self.mysql_cur.fetchall() or []
+                except Exception:
+                    data_rows = []
+
+                return {
+                    "status": True,
+                    "message": "Hourly AdSense country logs berhasil diambil",
+                    "data": data_rows
+                }
+
+            base_sql = [
+                "SELECT",
+                "    DATE(a.log_adsense_country_tanggal) AS date,",
+                "    HOUR(a.mdd) AS hour,",
+                "    a.mdd AS time,",
+                "    a.log_adsense_country_cd AS country_code,",
+                "    a.log_adsense_country_nm AS country_name,",
+                "    a.log_adsense_country_domain,",
+                "    SUM(a.log_adsense_country_impresi) AS impressions,",
+                "    SUM(a.log_adsense_country_click) AS clicks,",
+                "    SUM(a.log_adsense_country_revenue) AS revenue",
+                "FROM log_adsense_country a",
+                "JOIN (",
+                "    SELECT",
+                "        log_adsense_country_cd,",
+                "        log_adsense_country_domain,",
+                "        HOUR(mdd) AS jam,",
+                "        MAX(mdd) AS max_time",
+                "    FROM log_adsense_country",
+                "    WHERE log_adsense_country_tanggal = %s",
+                "    GROUP BY HOUR(mdd), log_adsense_country_cd, log_adsense_country_domain",
+                ") b ON a.log_adsense_country_cd = b.log_adsense_country_cd",
+                "   AND a.log_adsense_country_domain = b.log_adsense_country_domain",
+                "   AND a.mdd = b.max_time",
+                "WHERE a.log_adsense_country_tanggal = %s",
+            ]
+            params = [tanggal, tanggal]
+            base_sql.append("GROUP BY HOUR(a.mdd), a.log_adsense_country_cd")
+            base_sql.append("ORDER BY hour ASC, a.log_adsense_country_nm ASC")
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get hourly AdSense country logs by params")
+            data_rows = self.fetch_all()
+            return {
+                "status": True,
+                "message": "Hourly AdSense country logs berhasil diambil",
+                "data": data_rows
+            }
+        except pymysql.Error as e:
+            return {"status": False, "error": f"Terjadi error {e!r}, error nya {e.args[0]}"}
+        except Exception as e:
+            return {"status": False, "error": str(e)}
+
     def get_all_adx_roi_country_hourly_logs_by_params(self, target_date, selected_domain_list=None):
         try:
             # Normalize domain list (optional)

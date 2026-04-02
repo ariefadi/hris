@@ -2460,7 +2460,7 @@ function initDashboardRecap() {
         if (metaEl) metaEl.textContent = '';
     }
 
-    async function renderTemporalRoiHourlyChart(selectedDomain, ymd) {
+    async function renderTemporalRoiHourlyChart(selectedDomain, ymd, source) {
         const chartEl = document.getElementById('dashboardRecapTemporalChart');
         const metaEl = document.getElementById('dashboardRecapTemporalMeta');
         if (!chartEl) return;
@@ -2470,6 +2470,7 @@ function initDashboardRecap() {
         async function fetchHourly(domain) {
             const qs = new URLSearchParams({
                 tanggal: ymd,
+                source: String(source || 'adx'),
             });
             const resp = await fetch('/management/admin/dashboard_hourly_heatmap?' + qs.toString(), {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }
@@ -2783,11 +2784,11 @@ function initDashboardRecap() {
             renderTable(st.dim, rows);
             await renderPortfolioPulse(st.date);
 
-            if (st.source === 'adx' && st.dim === 'domain') {
+            if ((st.source === 'adx' || st.source === 'adsense') && st.dim === 'domain') {
                 const topDomain = rows.find(r => r && r.name && r.name !== '-')?.name || '';
                 setTemporalVisible(true, 'Data diambil dari Monitoring Domain (hourly).');
                 try {
-                    await renderTemporalRoiHourlyChart(topDomain, st.date);
+                    await renderTemporalRoiHourlyChart(topDomain, st.date, st.source);
                 } catch (e) {
                     setTemporalVisible(true, 'Gagal memuat data hourly.');
                 }
