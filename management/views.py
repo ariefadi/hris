@@ -5242,7 +5242,6 @@ class DashboardDomainHourlyHeatmapView(View):
 
             unique_name_site = []
             extracted_sites = set[Any]()
-
             def _collect_sites(rows, key):
                 for item in rows or []:
                     site_name = str((item or {}).get(key, '')).strip()
@@ -5261,7 +5260,7 @@ class DashboardDomainHourlyHeatmapView(View):
                 unique_name_site.append(main_domain)
 
             unique_name_site = list(set(unique_name_site))
-            print(f"unique_name_site: {unique_name_site}")
+            print(f"unique_name_site_data: {unique_name_site}")
 
             ads_resp = None
             if unique_name_site:
@@ -5269,6 +5268,7 @@ class DashboardDomainHourlyHeatmapView(View):
                     tanggal_formatted,
                     unique_name_site
                 )
+            print(f"ads_resp_data: {ads_resp}")
             ads_rows = ((ads_resp or {}).get('hasil') or {}).get('data') or []
             if not isinstance(ads_rows, list):
                 ads_rows = []

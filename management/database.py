@@ -142,6 +142,8 @@ class data_mysql:
             if tables:
                 return tables
         return [
+            'app_credentials',
+            'app_credentials_assign'
             'data_adsense_country',
             'data_adsense_domain',
             'data_adx_country',
@@ -149,7 +151,11 @@ class data_mysql:
             'data_ads_campaign',
             'data_ads_country',
             'log_ads_country',
+            'log_adsense_country',
             'log_adx_country',
+            'log_adsense_country',
+            'master_account_ads',
+            'master_ads'
         ]
 
     def _extract_query_tables(self, query):
@@ -3501,8 +3507,14 @@ class data_mysql:
             elif isinstance(selected_account_list, (set, tuple)):
                 selected_account_list = list(selected_account_list)
             data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
-            like_conditions_account = " OR ".join(["b.account_id LIKE %s"] * len(data_account_list))
-            like_params_account = [f"{account}%" for account in data_account_list] 
+
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            account_col = "toString(b.account_id)" if use_clickhouse else "b.account_id"
+            like_conditions_account = " OR ".join([f"{account_col} LIKE %s"] * len(data_account_list))
+            like_params_account = [f"{account}%" for account in data_account_list]
+
             # --- 1. Pastikan selected_domain_list adalah list string
             if isinstance(selected_domain_list, str):
                 selected_domain_list = [selected_domain_list.strip()]
@@ -3511,46 +3523,72 @@ class data_mysql:
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+
             # --- 2. Buat kondisi LIKE untuk setiap domain
             like_conditions_domain = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
-            like_params_domain = [f"%{domain}%" for domain in data_domain_list] 
-            base_sql = [
-                "SELECT",
-                "\tb.data_adx_country_tanggal AS 'date',",
-                "\tb.data_adx_country_domain AS 'site_name',",
-                "\tb.data_adx_country_cd AS 'country_code',",
-                "\tSUM(b.data_adx_country_impresi) AS impressions,",
-                "\tSUM(b.data_adx_country_click) AS clicks,",
-                "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
-                "\t\tTHEN ROUND((SUM(b.data_adx_country_click) / SUM(b.data_adx_country_impresi)) * 100, 4)",
-                "\t\tELSE 0 END AS ctr,",
-                "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
-                "\t\tTHEN ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000, 4)",
-                "\t\tELSE 0 END AS ecpm,",
-                "\tCASE WHEN SUM(b.data_adx_country_click) > 0",
-                "\t\tTHEN ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 4)",
-                "\t\tELSE 0 END AS cpc,",
-                "\tSUM(b.data_adx_country_revenue) AS 'revenue'",
-                "FROM data_adx_country b",
-                "WHERE",
-            ]
-            params = []
-            base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
-            params.extend([start_date, end_date])
-            # Normalize selected_account and apply account filter
+            like_params_domain = [f"%{domain}%" for domain in data_domain_list]
+
+            if use_clickhouse:
+                base_sql = [
+                    "SELECT",
+                    "\ttoDate(b.data_adx_country_tanggal) AS 'date',",
+                    "\tb.data_adx_country_domain AS 'site_name',",
+                    "\tb.data_adx_country_cd AS 'country_code',",
+                    "\tSUM(b.data_adx_country_impresi) AS impressions,",
+                    "\tSUM(b.data_adx_country_click) AS clicks,",
+                    "\tif(SUM(b.data_adx_country_impresi) > 0, ROUND((SUM(b.data_adx_country_click) / SUM(b.data_adx_country_impresi)) * 100, 4), 0) AS ctr,",
+                    "\tif(SUM(b.data_adx_country_impresi) > 0, ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000, 4), 0) AS ecpm,",
+                    "\tif(SUM(b.data_adx_country_click) > 0, ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 4), 0) AS cpc,",
+                    "\tSUM(b.data_adx_country_revenue) AS 'revenue'",
+                    "FROM data_adx_country b",
+                    "WHERE",
+                ]
+                params = []
+                base_sql.append("toDate(b.data_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)")
+                params.extend([start_date, end_date])
+            else:
+                base_sql = [
+                    "SELECT",
+                    "\tb.data_adx_country_tanggal AS 'date',",
+                    "\tb.data_adx_country_domain AS 'site_name',",
+                    "\tb.data_adx_country_cd AS 'country_code',",
+                    "\tSUM(b.data_adx_country_impresi) AS impressions,",
+                    "\tSUM(b.data_adx_country_click) AS clicks,",
+                    "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
+                    "\t\tTHEN ROUND((SUM(b.data_adx_country_click) / SUM(b.data_adx_country_impresi)) * 100, 4)",
+                    "\t\tELSE 0 END AS ctr,",
+                    "\tCASE WHEN SUM(b.data_adx_country_impresi) > 0",
+                    "\t\tTHEN ROUND((SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_impresi)) * 1000, 4)",
+                    "\t\tELSE 0 END AS ecpm,",
+                    "\tCASE WHEN SUM(b.data_adx_country_click) > 0",
+                    "\t\tTHEN ROUND(SUM(b.data_adx_country_revenue) / SUM(b.data_adx_country_click), 4)",
+                    "\t\tELSE 0 END AS cpc,",
+                    "\tSUM(b.data_adx_country_revenue) AS 'revenue'",
+                    "FROM data_adx_country b",
+                    "WHERE",
+                ]
+                params = []
+                base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
+                params.extend([start_date, end_date])
+
             if data_account_list:
                 base_sql.append(f"\tAND ({like_conditions_account})")
                 params.extend(like_params_account)
-            # Normalize selected_sites (CSV string or list) and apply domain filter
+
             if data_domain_list:
                 base_sql.append(f"\tAND ({like_conditions_domain})")
                 params.extend(like_params_domain)
-            
-            base_sql.append("GROUP BY b.data_adx_country_tanggal, b.data_adx_country_domain, b.data_adx_country_cd")
-            base_sql.append("ORDER BY b.data_adx_country_tanggal ASC, b.data_adx_country_domain ASC")
+
+            if use_clickhouse:
+                base_sql.append("GROUP BY toDate(b.data_adx_country_tanggal), b.data_adx_country_domain, b.data_adx_country_cd")
+                base_sql.append("ORDER BY toDate(b.data_adx_country_tanggal) ASC, b.data_adx_country_domain ASC")
+            else:
+                base_sql.append("GROUP BY b.data_adx_country_tanggal, b.data_adx_country_domain, b.data_adx_country_cd")
+                base_sql.append("ORDER BY b.data_adx_country_tanggal ASC, b.data_adx_country_domain ASC")
+
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
-                raise pymysql.Error("Failed to get all adx monitoring account by params")  
+                raise pymysql.Error("Failed to get all adx monitoring account by params")
             data = self.fetch_all()
             if not self.commit():
                 raise pymysql.Error("Failed to commit get all adx monitoring account by params")
@@ -3576,8 +3614,14 @@ class data_mysql:
             elif isinstance(selected_account_list, (set, tuple)):
                 selected_account_list = list(selected_account_list)
             data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
-            like_conditions_account = " OR ".join(["b.account_id LIKE %s"] * len(data_account_list))
-            like_params_account = [f"{account}%" for account in data_account_list] 
+
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            account_col = "toString(b.account_id)" if use_clickhouse else "b.account_id"
+            like_conditions_account = " OR ".join([f"{account_col} LIKE %s"] * len(data_account_list))
+            like_params_account = [f"{account}%" for account in data_account_list]
+
             # --- 1. Pastikan selected_domain_list adalah list string
             if isinstance(selected_domain_list, str):
                 selected_domain_list = [selected_domain_list.strip()]
@@ -3586,33 +3630,41 @@ class data_mysql:
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
-            # --- 2. Buat kondisi LIKE untuk setiap domain
-            like_conditions_domain = " OR ".join(["SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 2) LIKE %s"] * len(data_domain_list))
-            like_params_domain = [f"%{domain}%" for domain in data_domain_list] 
+
+            site_expr = "concat(arrayElement(splitByChar('.', b.data_adsense_country_domain), 1), '.', arrayElement(splitByChar('.', b.data_adsense_country_domain), 2))" if use_clickhouse else "SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 2)"
+
+            like_conditions_domain = " OR ".join([f"{site_expr} LIKE %s"] * len(data_domain_list))
+            like_params_domain = [f"%{domain}%" for domain in data_domain_list]
+
             base_sql = [
                 "SELECT",
-                "\tSUBSTRING_INDEX(b.data_adsense_country_domain, '.', 2) AS 'site_name',",
+                f"\t{site_expr} AS 'site_name',",
                 "\tb.data_adsense_country_cd AS 'country_code',",
                 "\tSUM(b.data_adsense_country_revenue) AS 'revenue'",
                 "FROM data_adsense_country b",
                 "WHERE",
             ]
             params = []
-            base_sql.append("b.data_adsense_country_tanggal BETWEEN %s AND %s")
+            if use_clickhouse:
+                base_sql.append("toDate(b.data_adsense_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)")
+            else:
+                base_sql.append("b.data_adsense_country_tanggal BETWEEN %s AND %s")
             params.extend([start_date, end_date])
-            # Normalize selected_account and apply account filter
+
             if data_account_list:
                 base_sql.append(f"\tAND ({like_conditions_account})")
                 params.extend(like_params_account)
-            # Normalize selected_sites (CSV string or list) and apply domain filter
+
             if data_domain_list:
                 base_sql.append(f"\tAND ({like_conditions_domain})")
                 params.extend(like_params_domain)
-            base_sql.append("GROUP BY SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 2), b.data_adsense_country_cd")
-            base_sql.append("ORDER BY SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 2) ASC")
+
+            base_sql.append(f"GROUP BY {site_expr}, b.data_adsense_country_cd")
+            base_sql.append(f"ORDER BY {site_expr} ASC")
+
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
-                raise pymysql.Error("Failed to get all adsense monitoring account by params")       
+                raise pymysql.Error("Failed to get all adsense monitoring account by params")
             data = self.fetch_all()
             if not self.commit():
                 raise pymysql.Error("Failed to commit get all adsense monitoring account by params")
@@ -4092,248 +4144,65 @@ class data_mysql:
 
     def get_all_adx_country_hourly_by_params(self, tanggal):
         try:
-            engine = ''
-            try:
-                engine = (self._report_engine() or '').strip().lower()
-            except Exception:
-                engine = ''
-
-            if engine in ('clickhouse', 'ch'):
-                sql = "\n".join([
-                    "SELECT",
-                    "    toHour(mdd) AS hour,",
-                    "    log_adx_country_cd AS country_code,",
-                    "    log_adx_country_domain,",
-                    "    argMax(log_adx_country_impresi, mdd) AS impressions,",
-                    "    argMax(log_adx_country_click, mdd) AS clicks,",
-                    "    argMax(log_adx_country_revenue, mdd) AS revenue",
-                    "FROM log_adx_country",
-                    "WHERE toDate(log_adx_country_tanggal) = toDate(%s)",
-                    "  AND log_adx_country_domain NOT IN ('(Not applicable)')",
-                    "GROUP BY hour, country_code, log_adx_country_domain",
-                    "ORDER BY hour ASC",
-                ])
-                params = [tanggal]
-                if not self.execute_query(sql, tuple(params)):
-                    raise pymysql.Error("Failed to get hourly AdX country logs by params")
-                data_rows = self.fetch_all() or []
-                if data_rows:
-                    return {
-                        "status": True,
-                        "message": "Hourly AdX country logs berhasil diambil",
-                        "data": data_rows
-                    }
-
-                try:
-                    if not self.ensure_connection():
-                        raise pymysql.Error("Could not establish database connection")
-                    self.cur_hris = self.mysql_cur
-                    base_sql = [
-                        "SELECT",
-                        "    DATE(a.log_adx_country_tanggal) AS date,",
-                        "    HOUR(a.mdd) AS hour,",
-                        "    a.mdd AS time,",
-                        "    a.log_adx_country_cd AS country_code,",
-                        "    a.log_adx_country_nm AS country_name,",
-                        "    a.log_adx_country_domain,",
-                        "    SUM(a.log_adx_country_impresi) AS impressions,",
-                        "    SUM(a.log_adx_country_click) AS clicks,",
-                        "    SUM(a.log_adx_country_revenue) AS revenue",
-                        "FROM log_adx_country a",
-                        "JOIN (",
-                        "    SELECT",
-                        "        log_adx_country_cd,",
-                        "        log_adx_country_domain,",
-                        "        HOUR(mdd) AS jam,",
-                        "        MAX(mdd) AS max_time",
-                        "    FROM log_adx_country",
-                        "    WHERE log_adx_country_tanggal = %s",
-                        "    GROUP BY HOUR(mdd), log_adx_country_cd, log_adx_country_domain",
-                        ") b ON a.log_adx_country_cd = b.log_adx_country_cd",
-                        "   AND a.log_adx_country_domain = b.log_adx_country_domain",
-                        "   AND a.mdd = b.max_time",
-                        "WHERE a.log_adx_country_tanggal = %s",
-                        "AND a.log_adx_country_domain NOT IN ('(Not applicable)')",
-                        "GROUP BY HOUR(a.mdd), a.log_adx_country_cd",
-                        "ORDER BY hour ASC, a.log_adx_country_nm ASC",
-                    ]
-                    sql_mysql = "\n".join(base_sql)
-                    params_mysql = (tanggal, tanggal)
-                    self.mysql_cur.execute(sql_mysql, params_mysql)
-                    data_rows = self.mysql_cur.fetchall() or []
-                except Exception:
-                    data_rows = []
-
-                return {
-                    "status": True,
-                    "message": "Hourly AdX country logs berhasil diambil",
-                    "data": data_rows
-                }
-
-            base_sql = [
+            sql = "\n".join([
                 "SELECT",
-                "    DATE(a.log_adx_country_tanggal) AS date,",
-                "    HOUR(a.mdd) AS hour,",
-                "    a.mdd AS time,",
-                "    a.log_adx_country_cd AS country_code,",
-                "    a.log_adx_country_nm AS country_name,",
-                "    a.log_adx_country_domain,",
-                "    SUM(a.log_adx_country_impresi) AS impressions,",
-                "    SUM(a.log_adx_country_click) AS clicks,",
-                "    SUM(a.log_adx_country_revenue) AS revenue",
-                "FROM log_adx_country a",
-                "JOIN (",
-                "    SELECT",
-                "        log_adx_country_cd,",
-                "        log_adx_country_domain,",
-                "        HOUR(mdd) AS jam,",
-                "        MAX(mdd) AS max_time",
-                "    FROM log_adx_country",
-                "    WHERE log_adx_country_tanggal = %s",
-                "    GROUP BY HOUR(mdd), log_adx_country_cd, log_adx_country_domain",
-                ") b ON a.log_adx_country_cd = b.log_adx_country_cd",
-                "   AND a.log_adx_country_domain = b.log_adx_country_domain",
-                "   AND a.mdd = b.max_time",
-                "WHERE a.log_adx_country_tanggal = %s",
-                "AND a.log_adx_country_domain NOT IN ('(Not applicable)')",
-            ]
-            params = [tanggal, tanggal]
-            base_sql.append("GROUP BY HOUR(a.mdd), a.log_adx_country_cd")
-            base_sql.append("ORDER BY hour ASC, a.log_adx_country_nm ASC")
-            sql = "\n".join(base_sql)
-            if not self.execute_query(sql, tuple(params)):
-                raise pymysql.Error("Failed to get hourly AdX country logs by params")
-            data_rows = self.fetch_all()
+                "    toHour(mdd) AS hour,",
+                "    log_adx_country_cd AS country_code,",
+                "    log_adx_country_domain,",
+                "    argMax(log_adx_country_impresi, mdd) AS impressions,",
+                "    argMax(log_adx_country_click, mdd) AS clicks,",
+                "    argMax(log_adx_country_revenue, mdd) AS revenue",
+                "FROM log_adx_country",
+                "WHERE toDate(log_adx_country_tanggal) = toDate(%s)",
+                "  AND log_adx_country_domain NOT IN ('(Not applicable)')",
+                "GROUP BY hour, country_code, log_adx_country_domain",
+                "ORDER BY hour ASC",
+            ])
+            params = [tanggal]
+
+            self._ensure_report_connection()
+            self.cur_hris = self.report_cur
+            self.cur_hris.execute(sql, tuple(params))
+            data_rows = self.fetch_all() or []
+            
             return {
                 "status": True,
                 "message": "Hourly AdX country logs berhasil diambil",
                 "data": data_rows
             }
-        except pymysql.Error as e:
-            return {"status": False, "error": f"Terjadi error {e!r}, error nya {e.args[0]}"}
         except Exception as e:
-            return {"status": False, "error": str(e)}
+            return {"status": False, "error": f"Terjadi error {e!r}"}
 
     def get_all_adsense_country_hourly_by_params(self, tanggal):
+        """Selalu ambil data hourly AdSense dari ClickHouse (tanpa fallback MySQL)."""
         try:
-            engine = ''
-            try:
-                engine = (self._report_engine() or '').strip().lower()
-            except Exception:
-                engine = ''
-
-            if engine in ('clickhouse', 'ch'):
-                sql = "\n".join([
-                    "SELECT",
-                    "    toHour(mdd) AS hour,",
-                    "    log_adsense_country_cd AS country_code,",
-                    "    log_adsense_country_domain,",
-                    "    argMax(log_adsense_country_impresi, mdd) AS impressions,",
-                    "    argMax(log_adsense_country_click, mdd) AS clicks,",
-                    "    argMax(log_adsense_country_revenue, mdd) AS revenue",
-                    "FROM log_adsense_country",
-                    "WHERE toDate(log_adsense_country_tanggal) = toDate(%s)",
-                    "GROUP BY hour, country_code, log_adsense_country_domain",
-                    "ORDER BY hour ASC",
-                ])
-                params = [tanggal]
-                if not self.execute_query(sql, tuple(params)):
-                    raise pymysql.Error("Failed to get hourly AdSense country logs by params")
-                data_rows = self.fetch_all() or []
-                if data_rows:
-                    return {
-                        "status": True,
-                        "message": "Hourly AdSense country logs berhasil diambil",
-                        "data": data_rows
-                    }
-
-                try:
-                    if not self.ensure_connection():
-                        raise pymysql.Error("Could not establish database connection")
-                    self.cur_hris = self.mysql_cur
-                    base_sql = [
-                        "SELECT",
-                        "    DATE(a.log_adsense_country_tanggal) AS date,",
-                        "    HOUR(a.mdd) AS hour,",
-                        "    a.mdd AS time,",
-                        "    a.log_adsense_country_cd AS country_code,",
-                        "    a.log_adsense_country_nm AS country_name,",
-                        "    a.log_adsense_country_domain,",
-                        "    SUM(a.log_adsense_country_impresi) AS impressions,",
-                        "    SUM(a.log_adsense_country_click) AS clicks,",
-                        "    SUM(a.log_adsense_country_revenue) AS revenue",
-                        "FROM log_adsense_country a",
-                        "JOIN (",
-                        "    SELECT",
-                        "        log_adsense_country_cd,",
-                        "        log_adsense_country_domain,",
-                        "        HOUR(mdd) AS jam,",
-                        "        MAX(mdd) AS max_time",
-                        "    FROM log_adsense_country",
-                        "    WHERE log_adsense_country_tanggal = %s",
-                        "    GROUP BY HOUR(mdd), log_adsense_country_cd, log_adsense_country_domain",
-                        ") b ON a.log_adsense_country_cd = b.log_adsense_country_cd",
-                        "   AND a.log_adsense_country_domain = b.log_adsense_country_domain",
-                        "   AND a.mdd = b.max_time",
-                        "WHERE a.log_adsense_country_tanggal = %s",
-                        "GROUP BY HOUR(a.mdd), a.log_adsense_country_cd",
-                        "ORDER BY hour ASC, a.log_adsense_country_nm ASC",
-                    ]
-                    sql_mysql = "\n".join(base_sql)
-                    params_mysql = (tanggal, tanggal)
-                    self.mysql_cur.execute(sql_mysql, params_mysql)
-                    data_rows = self.mysql_cur.fetchall() or []
-                except Exception:
-                    data_rows = []
-
-                return {
-                    "status": True,
-                    "message": "Hourly AdSense country logs berhasil diambil",
-                    "data": data_rows
-                }
-
-            base_sql = [
+            sql = "\n".join([
                 "SELECT",
-                "    DATE(a.log_adsense_country_tanggal) AS date,",
-                "    HOUR(a.mdd) AS hour,",
-                "    a.mdd AS time,",
-                "    a.log_adsense_country_cd AS country_code,",
-                "    a.log_adsense_country_nm AS country_name,",
-                "    a.log_adsense_country_domain,",
-                "    SUM(a.log_adsense_country_impresi) AS impressions,",
-                "    SUM(a.log_adsense_country_click) AS clicks,",
-                "    SUM(a.log_adsense_country_revenue) AS revenue",
-                "FROM log_adsense_country a",
-                "JOIN (",
-                "    SELECT",
-                "        log_adsense_country_cd,",
-                "        log_adsense_country_domain,",
-                "        HOUR(mdd) AS jam,",
-                "        MAX(mdd) AS max_time",
-                "    FROM log_adsense_country",
-                "    WHERE log_adsense_country_tanggal = %s",
-                "    GROUP BY HOUR(mdd), log_adsense_country_cd, log_adsense_country_domain",
-                ") b ON a.log_adsense_country_cd = b.log_adsense_country_cd",
-                "   AND a.log_adsense_country_domain = b.log_adsense_country_domain",
-                "   AND a.mdd = b.max_time",
-                "WHERE a.log_adsense_country_tanggal = %s",
-            ]
-            params = [tanggal, tanggal]
-            base_sql.append("GROUP BY HOUR(a.mdd), a.log_adsense_country_cd")
-            base_sql.append("ORDER BY hour ASC, a.log_adsense_country_nm ASC")
-            sql = "\n".join(base_sql)
-            if not self.execute_query(sql, tuple(params)):
-                raise pymysql.Error("Failed to get hourly AdSense country logs by params")
-            data_rows = self.fetch_all()
+                "    toHour(mdd) AS hour,",
+                "    log_adsense_country_cd AS country_code,",
+                "    log_adsense_country_domain,",
+                "    argMax(log_adsense_country_impresi, mdd) AS impressions,",
+                "    argMax(log_adsense_country_click, mdd) AS clicks,",
+                "    argMax(log_adsense_country_revenue, mdd) AS revenue",
+                "FROM log_adsense_country",
+                "WHERE toDate(log_adsense_country_tanggal) = toDate(%s)",
+                "GROUP BY hour, country_code, log_adsense_country_domain",
+                "ORDER BY hour ASC",
+            ])
+            params = (tanggal,)
+
+            self._ensure_report_connection()
+            self.cur_hris = self.report_cur
+            self.cur_hris.execute(sql, params)
+            data_rows = self.fetch_all() or []
+
             return {
                 "status": True,
                 "message": "Hourly AdSense country logs berhasil diambil",
-                "data": data_rows
+                "data": data_rows,
             }
-        except pymysql.Error as e:
-            return {"status": False, "error": f"Terjadi error {e!r}, error nya {e.args[0]}"}
         except Exception as e:
-            return {"status": False, "error": str(e)}
+            return {"status": False, "error": f"Terjadi error {e!r}"}
 
     def get_all_adx_roi_country_hourly_logs_by_params(self, target_date, selected_domain_list=None):
         try:
@@ -4447,7 +4316,7 @@ class data_mysql:
 
     def get_all_ads_country_hourly_by_params(self, tanggal, data_sub_domain=None):
         try:
-            # --- normalisasi domain
+            # Normalisasi domain
             if isinstance(data_sub_domain, str):
                 domains = [d.strip() for d in data_sub_domain.split(",") if d.strip()]
             elif isinstance(data_sub_domain, (list, tuple, set)):
@@ -4455,104 +4324,46 @@ class data_mysql:
             else:
                 domains = []
 
+            domains = [str(d).strip() for d in (domains or []) if str(d).strip()]
             if not domains:
                 raise ValueError("data_sub_domain is required")
 
-            # ======================
-            # CLICKHOUSE QUERY (startsWith)
-            # ======================
+            # Buat clause startsWith
             starts_clause_ch = " OR ".join(["startsWith(log_ads_domain, %s)"] * len(domains))
+
+            # Query: last record per hour (menit terakhir)
             sql_ch = f"""
-            SELECT
-                hour,
-                SUM(spend) AS spend,
-                SUM(impressions) AS impressions,
-                SUM(clicks) AS clicks
-            FROM (
-                SELECT
-                    toHour(mdd) AS hour,
-                    log_ads_country_cd AS country_code,
-                    log_ads_domain,
-                    argMax(log_ads_country_spend, mdd) AS spend,
-                    argMax(log_ads_country_impresi, mdd) AS impressions,
-                    argMax(log_ads_country_click, mdd) AS clicks
-                FROM log_ads_country
-                WHERE toDate(log_ads_country_tanggal) = toDate(%s)
-                AND ({starts_clause_ch})
-                GROUP BY hour, country_code, log_ads_domain
-            ) t
-            GROUP BY hour
-            ORDER BY hour
-            """
-
-            # ======================
-            # MYSQL QUERY (TETAP)
-            # ======================
-            like_params = [f"%{d}%" for d in domains]
-            like_clause_mysql = " OR ".join(["a.log_ads_domain LIKE %s"] * len(domains))
-
-            sql_mysql = f"""
-            SELECT
-                rs.hour,
-                SUM(rs.spend) AS spend,
-                SUM(rs.impressions) AS impressions,
-                SUM(rs.clicks) AS clicks
-            FROM (
-                SELECT
-                    HOUR(a.mdd) AS hour,
-                    SUM(a.log_ads_country_spend) AS spend,
-                    SUM(a.log_ads_country_impresi) AS impressions,
-                    SUM(a.log_ads_country_click) AS clicks
-                FROM log_ads_country a
-                INNER JOIN (
+            WITH
+                last_minute_per_hour AS (
                     SELECT
-                        log_ads_country_cd,
-                        HOUR(mdd) AS jam,
-                        MAX(mdd) AS max_time
-                    FROM log_ads_country
-                    WHERE log_ads_country_tanggal = %s
-                    GROUP BY HOUR(mdd), log_ads_domain, log_ads_country_cd
-                ) b
-                ON a.log_ads_country_cd = b.log_ads_country_cd
-                AND HOUR(a.mdd) = b.jam
-                AND a.mdd = b.max_time
-                WHERE a.log_ads_country_tanggal = %s
-                AND ({like_clause_mysql})
-                GROUP BY HOUR(a.mdd), a.log_ads_domain, a.log_ads_country_cd
-            ) rs
-            GROUP BY rs.hour
-            ORDER BY rs.hour
+                        toHour(mdd) AS hour,
+                        MAX(toMinute(mdd)) AS last_minute
+                    FROM hris_trendHorizone.log_ads_country
+                    WHERE toDate(log_ads_country_tanggal) = toDate(%s)
+                    GROUP BY hour
+                )
+            SELECT
+                h.hour,
+                SUM(lacs.log_ads_country_spend) AS spend,
+                SUM(lacs.log_ads_country_impresi) AS impressions,
+                SUM(lacs.log_ads_country_click) AS clicks
+            FROM hris_trendHorizone.log_ads_country AS lacs
+            JOIN last_minute_per_hour AS h
+                ON toHour(lacs.mdd) = h.hour
+            AND toMinute(lacs.mdd) = h.last_minute
+            WHERE toDate(lacs.log_ads_country_tanggal) = toDate(%s)
+            AND ({starts_clause_ch})
+            GROUP BY h.hour
+            ORDER BY h.hour;
             """
 
-            # ======================
-            # EXECUTION
-            # ======================
-            engine = (self._report_engine() or "").lower()
+            # Params: tanggal untuk CTE + tanggal untuk main query + domains
+            params_tuple = tuple([tanggal, tanggal] + domains)
 
-            if engine in ("clickhouse", "ch"):
-                params_tuple = tuple([tanggal] + [str(d or '').strip() for d in (domains or [])])
-
-                if self.execute_query(sql_ch, params_tuple):
-                    data = self.fetch_all() or []
-
-                    if data:
-                        return {
-                            "hasil": {
-                                "status": True,
-                                "message": "Hourly Ads country logs berhasil diambil",
-                                "data": data,
-                            }
-                        }
-
-            # ======================
-            # MYSQL FALLBACK
-            # ======================
-            if not self.ensure_connection():
-                raise Exception("MySQL connection failed")
-
-            params_mysql = [tanggal, tanggal] + like_params
-            self.mysql_cur.execute(sql_mysql, params_mysql)
-            data = self.mysql_cur.fetchall() or []
+            self._ensure_report_connection()
+            self.cur_hris = self.report_cur
+            self.cur_hris.execute(sql_ch, params_tuple)
+            data = self.fetch_all() or []
 
             return {
                 "hasil": {
@@ -4561,7 +4372,6 @@ class data_mysql:
                     "data": data,
                 }
             }
-
         except Exception as e:
             return {"hasil": {"status": False, "data": str(e)}}
 
@@ -5113,18 +4923,42 @@ class data_mysql:
                 selected_account_list = list(selected_account_list)
             if not selected_account_list:
                 raise ValueError("selected_account_list is required and cannot be empty")
-            like_conditions = " OR ".join(["a.account_id LIKE %s"] * len(selected_account_list))
+
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            if use_clickhouse:
+                like_col = "toString(b.account_id)"
+                site_expr = "concat(arrayElement(splitByChar('.', b.data_adsense_domain), 1), '.', arrayElement(splitByChar('.', b.data_adsense_domain), 2))"
+            else:
+                like_col = "a.account_id"
+                site_expr = "SUBSTRING_INDEX(b.data_adsense_domain, '.', 2)"
+
+            like_conditions = " OR ".join([f"{like_col} LIKE %s"] * len(selected_account_list))
             like_params = [f"%{d}%" for d in selected_account_list]
-            base_sql = [
-                "SELECT",
-                "\tSUBSTRING_INDEX(b.data_adsense_domain, '.', 2) AS 'site_name'",
-                "FROM",
-                "\tapp_credentials a",
-                "INNER JOIN data_adsense_domain b ON a.account_id = b.account_id",
-                "WHERE b.data_adsense_tanggal BETWEEN %s AND %s",
-                f"\tAND ({like_conditions})",
-                "GROUP BY b.data_adsense_domain",
-            ]
+
+            if use_clickhouse:
+                base_sql = [
+                    "SELECT",
+                    f"\t{site_expr} AS 'site_name'",
+                    "FROM",
+                    "\tdata_adsense_domain b",
+                    "WHERE toDate(b.data_adsense_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
+                    f"\tAND ({like_conditions})",
+                    f"GROUP BY {site_expr}",
+                ]
+            else:
+                base_sql = [
+                    "SELECT",
+                    "\tSUBSTRING_INDEX(b.data_adsense_domain, '.', 2) AS 'site_name'",
+                    "FROM",
+                    "\tapp_credentials a",
+                    "INNER JOIN data_adsense_domain b ON a.account_id = b.account_id",
+                    "WHERE b.data_adsense_tanggal BETWEEN %s AND %s",
+                    f"\tAND ({like_conditions})",
+                    "GROUP BY b.data_adsense_domain",
+                ]
+
             params = [tanggal_dari, tanggal_sampai] + like_params
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
@@ -5457,7 +5291,6 @@ class data_mysql:
 
     def get_all_adsense_roi_monitoring_campaign_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None):
         try:
-            # --- 1. Pastikan data_sub_domain adalah list string
             if isinstance(data_sub_domain, str):
                 data_sub_domain = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
             elif data_sub_domain is None:
@@ -5466,45 +5299,107 @@ class data_mysql:
                 data_sub_domain = list(data_sub_domain)
             if not data_sub_domain:
                 raise ValueError("data_sub_domain is required and cannot be empty")
-            # --- 2. Buat kondisi LIKE untuk setiap domain
-            like_conditions = " OR ".join([
-                "(b.data_ads_domain LIKE %s OR SUBSTRING_INDEX(b.data_ads_domain, '.', 2) LIKE %s OR SUBSTRING_INDEX(b.data_ads_domain, '.', 1) LIKE %s)"
-            ] * len(data_sub_domain))
-            like_clause = f"\tAND ({like_conditions})" if like_conditions else ""
-            like_params = []
-            for d in data_sub_domain:
-                d = str(d or '').strip()
-                if not d:
-                    continue
-                d_first = d.split('.')[0] if '.' in d else d
-                like_params.extend([f"%{d}%", f"%{d}%", f"%{d_first}%"])
-            # --- 3. Susun query
-            base_sql = [
-                "SELECT",
-                "\trs.account_id, rs.account_name,",
-                "\trs.domain AS 'domain', rs.country_code,",
-                "\tSUM(rs.spend) AS 'spend'",
-                "FROM (",
-                    "\tSELECT",
-                    "\t\ta.account_id, a.account_name,",
-                    "\t\tb.data_ads_domain AS 'domain_raw',",
-                    "\t\tSUBSTRING_INDEX(b.data_ads_domain, '.', 2) AS domain,",
-                    "\t\tb.data_ads_country_cd AS 'country_code',",
-                    "\t\tb.data_ads_country_spend AS 'spend'", 
-                    "\tFROM master_account_ads a",
-                    "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
-                    "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
-                    f"{like_clause}",
-                ") rs",
-                "GROUP BY rs.domain, rs.country_code"
-            ]
-            # --- 4. Gabungkan parameter
-            params = [start_date_formatted, end_date_formatted] + like_params
-            # --- 5. Eksekusi query
+
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            if use_clickhouse:
+                domain_1 = "arrayElement(splitByChar('.', b.data_ads_domain), 1)"
+                domain_2 = "concat(arrayElement(splitByChar('.', b.data_ads_domain), 1), '.', arrayElement(splitByChar('.', b.data_ads_domain), 2))"
+
+                cond_parts = []
+                like_params = []
+                for d in (data_sub_domain or []):
+                    d = str(d or '').strip()
+                    if not d:
+                        continue
+                    d_first = d.split('.')[0] if '.' in d else d
+                    cond_parts.append(f"(positionCaseInsensitive(b.data_ads_domain, %s) > 0 OR positionCaseInsensitive({domain_2}, %s) > 0 OR positionCaseInsensitive({domain_1}, %s) > 0)")
+                    like_params.extend([d, d, d_first])
+
+                like_clause = f"\tAND ({' OR '.join(cond_parts)})" if cond_parts else ""
+
+                base_sql = [
+                    "SELECT",
+                    "\tany(rs.account_id) AS account_id,",
+                    "\t'' AS account_name,",
+                    "\trs.domain AS 'domain', rs.country_code,",
+                    "\tSUM(rs.spend) AS 'spend'",
+                    "FROM (",
+                        "\tSELECT",
+                        "\t\tb.account_ads_id AS account_id,",
+                        f"\t\t{domain_2} AS domain,",
+                        "\t\tb.data_ads_country_cd AS 'country_code',",
+                        "\t\tb.data_ads_country_spend AS 'spend'",
+                        "\tFROM data_ads_country b",
+                        "\tWHERE toDate(b.data_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
+                        f"{like_clause}",
+                    ") rs",
+                    "GROUP BY rs.domain, rs.country_code"
+                ]
+                params = [start_date_formatted, end_date_formatted] + like_params
+            else:
+                like_conditions = " OR ".join([
+                    "(b.data_ads_domain LIKE %s OR SUBSTRING_INDEX(b.data_ads_domain, '.', 2) LIKE %s OR SUBSTRING_INDEX(b.data_ads_domain, '.', 1) LIKE %s)"
+                ] * len(data_sub_domain))
+                like_clause = f"\tAND ({like_conditions})" if like_conditions else ""
+                like_params = []
+                for d in data_sub_domain:
+                    d = str(d or '').strip()
+                    if not d:
+                        continue
+                    d_first = d.split('.')[0] if '.' in d else d
+                    like_params.extend([f"%{d}%", f"%{d}%", f"%{d_first}%"])
+                base_sql = [
+                    "SELECT",
+                    "\trs.account_id, rs.account_name,",
+                    "\trs.domain AS 'domain', rs.country_code,",
+                    "\tSUM(rs.spend) AS 'spend'",
+                    "FROM (",
+                        "\tSELECT",
+                        "\t\ta.account_id, a.account_name,",
+                        "\t\tb.data_ads_domain AS 'domain_raw',",
+                        "\t\tSUBSTRING_INDEX(b.data_ads_domain, '.', 2) AS domain,",
+                        "\t\tb.data_ads_country_cd AS 'country_code',",
+                        "\t\tb.data_ads_country_spend AS 'spend'",
+                        "\tFROM master_account_ads a",
+                        "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
+                        "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
+                        f"{like_clause}",
+                    ") rs",
+                    "GROUP BY rs.domain, rs.country_code"
+                ]
+                params = [start_date_formatted, end_date_formatted] + like_params
+
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get all ads roi traffic campaign by params")
             data = self.fetch_all()
+
+            if use_clickhouse and isinstance(data, list) and data:
+                try:
+                    account_ids = []
+                    seen_ids = set()
+                    for r in data:
+                        aid = str((r or {}).get('account_id') or '').strip()
+                        if aid and aid not in seen_ids:
+                            seen_ids.add(aid)
+                            account_ids.append(aid)
+                    if account_ids:
+                        placeholders = ','.join(['%s'] * len(account_ids))
+                        sql_map = f"SELECT account_id, account_name FROM master_account_ads WHERE account_id IN ({placeholders})"
+                        if self.execute_query(sql_map, tuple(account_ids)):
+                            rows_map = self.fetch_all() or []
+                            name_map = {str((x or {}).get('account_id') or '').strip(): str((x or {}).get('account_name') or '').strip() for x in (rows_map or [])}
+                            for r in data:
+                                if not isinstance(r, dict):
+                                    continue
+                                aid = str(r.get('account_id') or '').strip()
+                                if aid and not str(r.get('account_name') or '').strip():
+                                    r['account_name'] = name_map.get(aid, '')
+                except Exception:
+                    pass
+
             if not self.commit():
                 raise pymysql.Error("Failed to commit get all ads roi traffic campaign by params")
             hasil = {
@@ -6422,9 +6317,6 @@ class data_mysql:
         return {"hasil": hasil}
     def get_all_ads_adsense_country_detail_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None, countries_list=None):
         try:
-            # -----------------------------
-            # Normalize domain filter
-            # -----------------------------
             if isinstance(data_sub_domain, str):
                 data_sub_domain = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
             elif isinstance(data_sub_domain, (set, tuple)):
@@ -6433,66 +6325,97 @@ class data_mysql:
                 data_sub_domain = []
             if not data_sub_domain:
                 raise ValueError("data_sub_domain is required and cannot be empty")
-            like_conditions = " OR ".join(["SUBSTRING_INDEX(b.data_ads_domain, '.', 2) LIKE %s"] * len(data_sub_domain))
+
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            domain_expr = "concat(arrayElement(splitByChar('.', b.data_ads_domain), 1), '.', arrayElement(splitByChar('.', b.data_ads_domain), 2))" if use_clickhouse else "SUBSTRING_INDEX(b.data_ads_domain, '.', 2)"
+
+            like_conditions = " OR ".join([f"{domain_expr} LIKE %s"] * len(data_sub_domain))
             like_params = [f"%{d}%" for d in data_sub_domain]
-            # -----------------------------
-            # Normalize country filter
-            # -----------------------------
+
             country_codes = []
             if countries_list:
                 if isinstance(countries_list, str):
                     country_codes = [c.strip() for c in countries_list.split(',') if c.strip()]
                 elif isinstance(countries_list, (list, tuple)):
                     country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
+
             country_sql = ""
             country_params = []
             if country_codes:
                 placeholders = ",".join(["%s"] * len(country_codes))
                 country_sql = f" AND b.data_ads_country_cd IN ({placeholders})"
                 country_params = country_codes
-            # -----------------------------
-            # SQL Query
-            # -----------------------------
-            sql_parts = [
-                "SELECT",
-                "\trs.date,",
-                "\trs.country_code,",
-                "\trs.country_name,",
-                "\trs.domain AS domain,",
-                "\tSUM(rs.spend) AS spend,",
-                "\tSUM(rs.clicks) AS clicks,",
-                "\tSUM(rs.impressions) AS impressions,",
-                "\tROUND(AVG(rs.cpr), 0) AS cpr",
-                "FROM (",
-                    "\tSELECT",
-                    "\t\tb.data_ads_country_tanggal AS date,",
-                    "\t\tb.data_ads_country_cd AS country_code,",
-                    "\t\tb.data_ads_country_nm AS country_name,",
-                    "\t\tSUBSTRING_INDEX(b.data_ads_domain, '.', 2) AS domain,",
-                    "\t\tSUM(b.data_ads_country_spend) AS spend,",
-                    "\t\tSUM(b.data_ads_country_click) AS clicks,",
-                    "\t\tSUM(b.data_ads_country_impresi) AS impressions,",
-                    "\t\tROUND(AVG(b.data_ads_country_cpr), 0) AS cpr",
-                    "\tFROM master_account_ads a",
-                    "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
-                    "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
-                    f"\t\tAND ({like_conditions})",
-                    f"\t\t{country_sql}",
-                    "\tGROUP BY",
-                    "\t\tb.data_ads_country_tanggal,",
-                    "\t\tb.data_ads_country_cd,",
-                    "\t\tb.data_ads_country_nm,",
-                    "\t\tSUBSTRING_INDEX(b.data_ads_domain, '.', -2)",
-                ") rs",
-                "GROUP BY",
-                "\trs.date,",
-                "\trs.country_code,",
-                "\trs.country_name,",
-                "\trs.domain",
-                "ORDER BY rs.date ASC"
-            ]
-            sql = "\n".join(sql_parts)
-            params = ( [start_date_formatted, end_date_formatted] + like_params + country_params)
+
+            if use_clickhouse:
+                sql_parts = [
+                    "SELECT",
+                    "\ttoDate(b.data_ads_country_tanggal) AS date,",
+                    "\tb.data_ads_country_cd AS country_code,",
+                    "\tb.data_ads_country_nm AS country_name,",
+                    f"\t{domain_expr} AS domain,",
+                    "\tSUM(b.data_ads_country_spend) AS spend,",
+                    "\tSUM(b.data_ads_country_click) AS clicks,",
+                    "\tSUM(b.data_ads_country_impresi) AS impressions,",
+                    "\tROUND(AVG(b.data_ads_country_cpr), 0) AS cpr",
+                    "FROM data_ads_country b",
+                    "WHERE toDate(b.data_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
+                    f"\tAND ({like_conditions})",
+                    f"\t{country_sql}",
+                    "GROUP BY",
+                    "\ttoDate(b.data_ads_country_tanggal),",
+                    "\tb.data_ads_country_cd,",
+                    "\tb.data_ads_country_nm,",
+                    f"\t{domain_expr}",
+                    "ORDER BY date ASC"
+                ]
+                sql = "\n".join(sql_parts)
+                params = [start_date_formatted, end_date_formatted] + like_params + country_params
+            else:
+                sql_parts = [
+                    "SELECT",
+                    "\trs.date,",
+                    "\trs.country_code,",
+                    "\trs.country_name,",
+                    "\trs.domain AS domain,",
+                    "\tSUM(rs.spend) AS spend,",
+                    "\tSUM(rs.clicks) AS clicks,",
+                    "\tSUM(rs.impressions) AS impressions,",
+                    "\tROUND(AVG(rs.cpr), 0) AS cpr",
+                    "FROM ("
+                ]
+                sql_parts.extend([
+                        "\tSELECT",
+                        "\t\tb.data_ads_country_tanggal AS date,",
+                        "\t\tb.data_ads_country_cd AS country_code,",
+                        "\t\tb.data_ads_country_nm AS country_name,",
+                        "\t\tSUBSTRING_INDEX(b.data_ads_domain, '.', 2) AS domain,",
+                        "\t\tSUM(b.data_ads_country_spend) AS spend,",
+                        "\t\tSUM(b.data_ads_country_click) AS clicks,",
+                        "\t\tSUM(b.data_ads_country_impresi) AS impressions,",
+                        "\t\tROUND(AVG(b.data_ads_country_cpr), 0) AS cpr",
+                        "\tFROM master_account_ads a",
+                        "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
+                        "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
+                        f"\t\tAND ({like_conditions})",
+                        f"\t\t{country_sql}",
+                        "\tGROUP BY",
+                        "\t\tb.data_ads_country_tanggal,",
+                        "\t\tb.data_ads_country_cd,",
+                        "\t\tb.data_ads_country_nm,",
+                        "\t\tSUBSTRING_INDEX(b.data_ads_domain, '.', -2)",
+                    ") rs",
+                    "GROUP BY",
+                    "\trs.date,",
+                    "\trs.country_code,",
+                    "\trs.country_name,",
+                    "\trs.domain",
+                    "ORDER BY rs.date ASC"
+                ])
+                sql = "\n".join(sql_parts)
+                params = [start_date_formatted, end_date_formatted] + like_params + country_params
+
             if not self.execute_query(sql, tuple(params)):
                 raise pymysql.Error("Failed to get adsense country detail by params")
             data = self.fetch_all()
