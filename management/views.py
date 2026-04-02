@@ -5215,31 +5215,51 @@ class DashboardDomainHourlyHeatmapView(View):
             tanggal_formatted = parse_date(tanggal)
             db = data_mysql()
 
-            if source == 'adsense':
-                rev_resp = db.get_all_adsense_country_hourly_by_params(tanggal_formatted)
-                domain_key = 'log_adsense_country_domain'
-            else:
-                rev_resp = db.get_all_adx_country_hourly_by_params(tanggal_formatted)
-                domain_key = 'log_adx_country_domain'
+            adx_resp = None
+            adsense_resp = None
+            adx_rows = []
+            adsense_rows = []
 
-            rev_rows = rev_resp.get('data') if isinstance(rev_resp, dict) else []
-            if not isinstance(rev_rows, list):
-                rev_rows = []
+            if source == 'adsense':
+                adsense_resp = db.get_all_adsense_country_hourly_by_params(tanggal_formatted)
+                adsense_rows = (adsense_resp.get('data') if isinstance(adsense_resp, dict) else []) or []
+                if not isinstance(adsense_rows, list):
+                    adsense_rows = []
+            elif source == 'all':
+                adx_resp = db.get_all_adx_country_hourly_by_params(tanggal_formatted)
+                adsense_resp = db.get_all_adsense_country_hourly_by_params(tanggal_formatted)
+                adx_rows = (adx_resp.get('data') if isinstance(adx_resp, dict) else []) or []
+                adsense_rows = (adsense_resp.get('data') if isinstance(adsense_resp, dict) else []) or []
+                if not isinstance(adx_rows, list):
+                    adx_rows = []
+                if not isinstance(adsense_rows, list):
+                    adsense_rows = []
+            else:
+                adx_resp = db.get_all_adx_country_hourly_by_params(tanggal_formatted)
+                adx_rows = (adx_resp.get('data') if isinstance(adx_resp, dict) else []) or []
+                if not isinstance(adx_rows, list):
+                    adx_rows = []
 
             unique_name_site = []
-            if isinstance(rev_resp, dict) and rev_resp.get('status') and rev_rows:
-                extracted_sites = set[Any]()
-                for item in rev_rows:
-                    site_name = str((item or {}).get(domain_key, '')).strip()
+            extracted_sites = set[Any]()
+
+            def _collect_sites(rows, key):
+                for item in rows or []:
+                    site_name = str((item or {}).get(key, '')).strip()
                     if site_name and site_name != 'Unknown':
                         extracted_sites.add(site_name)
-                for site in extracted_sites:
-                    main_domain = site
-                    if "." in site:
-                        parts = site.split(".")
-                        if len(parts) >= 2:
-                            main_domain = ".".join(parts[:2])
-                    unique_name_site.append(main_domain)
+
+            _collect_sites(adx_rows, 'log_adx_country_domain')
+            _collect_sites(adsense_rows, 'log_adsense_country_domain')
+
+            for site in extracted_sites:
+                main_domain = site
+                if "." in site:
+                    parts = site.split(".")
+                    if len(parts) >= 2:
+                        main_domain = ".".join(parts[:2])
+                unique_name_site.append(main_domain)
+
             unique_name_site = list(set(unique_name_site))
             print(f"unique_name_site: {unique_name_site}")
 
@@ -5255,15 +5275,21 @@ class DashboardDomainHourlyHeatmapView(View):
 
             rev_by_hour = {f"{h:02d}": 0.0 for h in range(24)}
             spend_by_hour = {f"{h:02d}": 0.0 for h in range(24)}
-            for row in rev_rows or []:
-                try:
-                    hour = int(row.get('hour', 0) or 0)
-                except Exception:
-                    hour = 0
-                if hour < 0 or hour > 23:
-                    continue
-                hkey = f"{hour:02d}"
-                rev_by_hour[hkey] = rev_by_hour.get(hkey, 0.0) + float(row.get('revenue', 0) or 0)
+
+            def _acc_rev(rows):
+                for row in rows or []:
+                    try:
+                        hour = int(row.get('hour', 0) or 0)
+                    except Exception:
+                        hour = 0
+                    if hour < 0 or hour > 23:
+                        continue
+                    hkey = f"{hour:02d}"
+                    rev_by_hour[hkey] = rev_by_hour.get(hkey, 0.0) + float(row.get('revenue', 0) or 0)
+
+            _acc_rev(adx_rows)
+            _acc_rev(adsense_rows)
+
             for row in ads_rows or []:
                 try:
                     hour = int(row.get('hour', 0) or 0)

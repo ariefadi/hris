@@ -2784,7 +2784,7 @@ function initDashboardRecap() {
             renderTable(st.dim, rows);
             await renderPortfolioPulse(st.date);
 
-            if ((st.source === 'adx' || st.source === 'adsense') && st.dim === 'domain') {
+            if ((st.source === 'adx' || st.source === 'adsense' || st.source === 'all') && st.dim === 'domain') {
                 const topDomain = rows.find(r => r && r.name && r.name !== '-')?.name || '';
                 setTemporalVisible(true, 'Data diambil dari Monitoring Domain (hourly).');
                 try {
