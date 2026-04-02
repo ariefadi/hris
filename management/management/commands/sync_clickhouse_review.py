@@ -92,14 +92,22 @@ class Command(BaseCommand):
             raise RuntimeError("requests library tidak tersedia (dibutuhkan untuk koneksi ClickHouse HTTP).")
         host, port, user, password, database, timeout = self._ch_config()
         base = f"http://{host}:{port}/"
+
         params = {}
         if database:
             params["database"] = database
+
+        auth = None
         if user:
-            params["user"] = user
-        if password:
-            params["password"] = password
-        resp = requests.post(base, params=params, data=sql_text.encode("utf-8"), timeout=timeout)
+            auth = (user, password or "")
+
+        resp = requests.post(
+            base,
+            params=params,
+            auth=auth,
+            data=sql_text.encode("utf-8"),
+            timeout=timeout,
+        )
         if resp.status_code >= 400:
             body = (resp.text or '').strip()
             if len(body) > 2000:
