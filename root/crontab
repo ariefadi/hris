@@ -8,27 +8,27 @@ DJANGO_MANAGE="$VENV $APPDIR/manage.py"
 # Ads Master: setiap hari 23:59
 59 23 * * * cd $APPDIR && flock -n /var/run/hris_ads_master.lock -c "$DJANGO_MANAGE cron_ads_master >> /var/log/hris/cron_ads_master.log 2>&1"
 
-# AdX Domain Load: setiap 10 menit
-*/10 * * * * cd $APPDIR && flock -n /var/run/hris_adx_domain_load.lock -c "$DJANGO_MANAGE cron_adx_domain_load >> /var/log/hris/cron_adx_domain_load.log 2>&1"
+# AdX Domain Load: setiap 30 menit
+*/30 * * * * cd $APPDIR && flock -n /var/run/hris_adx_domain_load.lock -c "$DJANGO_MANAGE cron_adx_domain_load >> /var/log/hris/cron_adx_domain_load.log 2>&1"
 
-# AdX Country Load: setiap 10 menit
-*/10 * * * * cd $APPDIR && flock -n /var/run/hris_adx_country_load.lock -c "$DJANGO_MANAGE cron_adx_country_load >> /var/log/hris/cron_adx_country_load.log 2>&1"
+# AdX Country Load: setiap 30 menit
+*/30 * * * * cd $APPDIR && flock -n /var/run/hris_adx_country_load.lock -c "$DJANGO_MANAGE cron_adx_country_load >> /var/log/hris/cron_adx_country_load.log 2>&1"
 
-# Adsense Domain Load: setiap 10 menit
-*/10 * * * * cd $APPDIR && flock -n /var/run/hris_adsense_domain_load.lock -c "$DJANGO_MANAGE cron_adsense_domain_load >> /var/log/hris/cron_adsense_domain_load.log 2>&1"
+# Adsense Domain Load: setiap 20 menit
+*/20 * * * * cd $APPDIR && flock -n /var/run/hris_adsense_domain_load.lock -c "$DJANGO_MANAGE cron_adsense_domain_load >> /var/log/hris/cron_adsense_domain_load.log 2>&1"
 
-# Adsense Country Load: setiap 10 menit
-*/10 * * * * cd $APPDIR && flock -n /var/run/hris_adsense_country_load.lock -c "$DJANGO_MANAGE cron_adsense_country_load >> /var/log/hris/cron_adsense_country_load.log 2>&1"
+# Adsense Country Load: setiap 20 menit
+*/20 * * * * cd $APPDIR && flock -n /var/run/hris_adsense_country_load.lock -c "$DJANGO_MANAGE cron_adsense_country_load >> /var/log/hris/cron_adsense_country_load.log 2>&1"
 
-# Ads Campaign Load: setiap 10 menit
-*/10 * * * * cd $APPDIR && flock -n /var/run/hris_ads_campaign_load.lock -c "$DJANGO_MANAGE cron_ads_campaign_load >> /var/log/hris/cron_ads_campaign_load.log 2>&1"
+# Ads Campaign Load: setiap 40 menit
+*/40 * * * * cd $APPDIR && flock -n /var/run/hris_ads_campaign_load.lock -c "$DJANGO_MANAGE cron_ads_campaign_load >> /var/log/hris/cron_ads_campaign_load.log 2>&1"
 
-# Ads Country Load: setiap 10 menit
-*/10 * * * * cd $APPDIR && flock -n /var/run/hris_ads_country_load.lock -c "$DJANGO_MANAGE cron_ads_country_load >> /var/log/hris/cron_ads_country_load.log 2>&1"
+# Ads Country Load: setiap 40 menit
+*/40 * * * * cd $APPDIR && flock -n /var/run/hris_ads_country_load.lock -c "$DJANGO_MANAGE cron_ads_country_load >> /var/log/hris/cron_ads_country_load.log 2>&1"
 
-# Sync ClickHouse (reporting): setiap 10 menit (offset menit 5)
-5-59/10 * * * * cd $APPDIR && flock -n /var/run/hris_sync_clickhouse.lock -c "$DJANGO_MANAGE sync_clickhouse >> /var/log/hris/sync_clickhouse.log 2>&1"
-0 */12 * * * cd $APPDIR && flock -n /var/run/hris_sync_clickhouse_review.lock -c "$DJANGO_MANAGE sync_clickhouse_review >> /var/log/hris/sync_clickhouse_review.log 2>&1"
+# Sync ClickHouse (reporting): setiap 5 menit
+*/5 * * * * cd $APPDIR && flock -n /var/run/hris_sync_clickhouse.lock -c "$DJANGO_MANAGE sync_clickhouse >> /var/log/hris/sync_clickhouse.log 2>&1"
+0 */2 * * * cd $APPDIR && flock -n /var/run/hris_sync_clickhouse_review.lock -c "$DJANGO_MANAGE sync_clickhouse_review >> /var/log/hris/sync_clickhouse_review.log 2>&1"
 
 # AdX Domain: setiap 6 jam
 0 */6 * * * cd $APPDIR && flock -n /var/run/hris_adx_domain.lock -c "$DJANGO_MANAGE cron_adx_domain >> /var/log/hris/cron_adx_domain.log 2>&1"
