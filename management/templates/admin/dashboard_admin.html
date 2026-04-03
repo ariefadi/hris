@@ -134,6 +134,15 @@
     font-weight: 800;
 }
 
+.bi-spin {
+    animation: bi-spin 1s linear infinite;
+}
+
+@keyframes bi-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
 .dashboard-admin-content {
     position: relative;
     min-height: 60vh;
@@ -571,6 +580,9 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
             <div id="error-message" class="error-message" style="display: none;">
                 <strong>Error:</strong> <span id="error-text"></span>
             </div>
+            <div id="success-message" class="alert alert-success" style="display:none;border-radius:10px;margin:20px 0;">
+                <strong>Info:</strong> <span id="success-text"></span>
+            </div>
 
             <div id="dashboardRecapRoot" style="display:none;">
                 <div class="card dashboard-card dashboard-recap-card">
@@ -579,6 +591,9 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
                             <div>
                                 <div style="font-weight:900;letter-spacing:.02em;">Dashboard Earning Adx Manager & AdSense</div>
                                 <div class="text-muted" style="font-size:12px;">Default: hari ini</div>
+                                <div id="dashboardRecapSyncAlert" class="alert alert-info" style="display:none;border-radius:10px;margin-top:10px;margin-bottom:0;padding:10px 12px;">
+                                    <span id="dashboardRecapSyncAlertText">Syncronize sedang berlangsung</span>
+                                </div>
                             </div>
                             <div class="d-flex align-items-center" style="gap:16px;flex-wrap:nowrap;white-space:nowrap;overflow-x:auto;max-width:100%;">
                                 <div class="d-flex align-items-center" style="gap:10px;">
@@ -592,6 +607,10 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
                                         <option value="adx">AdX Manager</option>
                                         <option value="adsense">AdSense Manager</option>
                                     </select>
+                                    <button id="dashboardRecapSyncBtn" type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:8px;">
+                                        <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                                        <span>Synchronize</span>
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -908,6 +927,57 @@ function showError(message) {
     if (recap) recap.style.display = 'none';
     if (box) box.style.display = 'block';
     if (text) text.textContent = message || 'Unknown error';
+}
+
+function showRecapMessage(kind, message) {
+    const errBox = document.getElementById('error-message');
+    const errText = document.getElementById('error-text');
+    const okBox = document.getElementById('success-message');
+    const okText = document.getElementById('success-text');
+
+    if (errBox) errBox.style.display = 'none';
+    if (okBox) okBox.style.display = 'none';
+
+    const k = String(kind || '').toLowerCase();
+    if (k === 'success') {
+        if (okBox) okBox.style.display = 'block';
+        if (okText) okText.textContent = message || 'OK';
+    } else {
+        if (errBox) errBox.style.display = 'block';
+        if (errText) errText.textContent = message || 'Error';
+    }
+
+    try {
+        window.clearTimeout(window.__dashboardRecapMsgTimer);
+        window.__dashboardRecapMsgTimer = window.setTimeout(function(){
+            if (errBox) errBox.style.display = 'none';
+            if (okBox) okBox.style.display = 'none';
+        }, 5000);
+    } catch (e) {}
+}
+
+function setSyncAlert(kind, message) {
+    const box = document.getElementById('dashboardRecapSyncAlert');
+    const text = document.getElementById('dashboardRecapSyncAlertText');
+    if (!box || !text) return;
+
+    const k = String(kind || 'info').toLowerCase();
+    box.classList.remove('alert-info', 'alert-success', 'alert-danger');
+    if (k === 'success') box.classList.add('alert-success');
+    else if (k === 'error' || k === 'danger') box.classList.add('alert-danger');
+    else box.classList.add('alert-info');
+
+    text.textContent = message || '';
+    box.style.display = message ? 'block' : 'none';
+
+    try {
+        window.clearTimeout(window.__dashboardSyncAlertTimer);
+        if (k === 'success') {
+            window.__dashboardSyncAlertTimer = window.setTimeout(function(){
+                box.style.display = 'none';
+            }, 5000);
+        }
+    } catch (e) {}
 }
 
 // Fetch dashboard data
@@ -2052,6 +2122,7 @@ function initDashboardRecap() {
     const root = document.getElementById('dashboardRecapRoot');
     const dateEl = document.getElementById('dashboardRecapDate');
     const sourceEl = document.getElementById('dashboardRecapSource');
+    const syncBtn = document.getElementById('dashboardRecapSyncBtn');
     const legacy = document.getElementById('dashboard-content');
     if (legacy) legacy.style.display = 'none';
 
@@ -2862,7 +2933,39 @@ function initDashboardRecap() {
         });
     }
 
+    if (syncBtn) {
+        syncBtn.addEventListener('click', async function(){
+            const st = getState();
+            const tanggal = String(st.date || '').trim();
+            if (!tanggal) return;
+
+            const originalHtml = syncBtn.innerHTML;
+            syncBtn.disabled = true;
+            syncBtn.innerHTML = '<i class="bi bi-arrow-repeat bi-spin" aria-hidden="true"></i><span>Synchronize...</span>';
+
+            setSyncAlert('info', 'Syncronize sedang berlangsung');
+            try {
+                const res = await fetch('/management/admin/dashboard_sync', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ tanggal })
+                });
+                const json = await res.json();
+                if (!json || !json.status) throw new Error(json?.error || json?.message || 'Gagal synchronize');
+                await load();
+                setSyncAlert('success', 'Syncronize berhasil');
+            } catch (e) {
+                setSyncAlert('error', 'Syncronize gagal');
+                showRecapMessage('error', String(e?.message || e || 'Error'));
+            } finally {
+                syncBtn.disabled = false;
+                syncBtn.innerHTML = originalHtml;
+            }
+        });
+    }
+
     document.getElementById('dashboardRecapDimTabs').addEventListener('click', function(e){
+
         const b = e.target.closest('button[data-dim]');
         if (!b) return;
         setActive('dashboardRecapDimTabs', 'data-dim', b.getAttribute('data-dim'));

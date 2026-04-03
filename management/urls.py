@@ -23,6 +23,7 @@ urlpatterns = [
     path('admin/dashboard_data', views.DashboardData.as_view(), name='dashboard_data'),
     path('admin/dashboard_hourly_heatmap', views.DashboardDomainHourlyHeatmapView.as_view()),
     path('admin/dashboard_portfolio_pulse', views.DashboardPortfolioPulseView.as_view()),
+    path('admin/dashboard_sync', views.DashboardSyncView.as_view()),
     # Portal switching
     path('admin/switch_portal/<str:portal_id>', views.SwitchPortal.as_view(), name='switch_portal'),
  

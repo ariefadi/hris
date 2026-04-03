@@ -18,6 +18,7 @@ from django.conf import settings
 from django import template
 from datetime import datetime, date, timedelta
 from django.http import HttpResponse, JsonResponse, QueryDict
+from django.core.management import call_command
 try:
     from .database import data_mysql
 except Exception:
@@ -906,6 +907,57 @@ class DashboardAdmin(View):
             'oauth_banner': oauth_banner
         }
         return render(req, 'admin/dashboard_admin.html', data)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DashboardSyncView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        try:
+            payload = {}
+            try:
+                payload = json.loads((req.body or b'').decode('utf-8') or '{}')
+            except Exception:
+                payload = {}
+
+            tanggal = str(payload.get('tanggal') or '').strip()
+            if not tanggal:
+                tanggal = '%'
+
+            steps = []
+            commands = [
+                'cron_adsense_country_load',
+                'cron_adx_country_load',
+                'sync_clickhouse',
+            ]
+
+            for cmd in commands:
+                buf = StringIO()
+                try:
+                    if tanggal != '%':
+                        call_command(cmd, tanggal=tanggal, stdout=buf)
+                    else:
+                        call_command(cmd, stdout=buf)
+                    steps.append({'command': cmd, 'status': True, 'output': buf.getvalue()})
+                except Exception as e:
+                    steps.append({'command': cmd, 'status': False, 'error': str(e), 'output': buf.getvalue()})
+                    return JsonResponse(
+                        {
+                            'status': False,
+                            'message': f'Gagal menjalankan {cmd}',
+                            'steps': steps,
+                        },
+                        status=500,
+                    )
+
+            return JsonResponse({'status': True, 'message': 'Synchronize selesai', 'steps': steps})
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)}, status=500)
+
 
 class SwitchPortal(View):
     def dispatch(self, request, *args, **kwargs):
