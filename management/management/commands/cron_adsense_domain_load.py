@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand
+from django.core.management import call_command
 from datetime import datetime, timedelta
 import os
 
@@ -222,5 +223,18 @@ class Command(BaseCommand):
                             f"Gagal memproses kredensial {cred.get('user_mail','Unknown')}: {e}"
                         )
                     )
+
+        if total_insert:
+            try:
+                self.stdout.write(self.style.WARNING(
+                    f"Sync ClickHouse: data_adsense_domain since={start_date} (delete lalu insert)"
+                ))
+                call_command(
+                    'sync_clickhouse',
+                    tables='data_adsense_domain',
+                    since=start_date,
+                )
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Gagal sync ClickHouse data_adsense_domain: {e}"))
 
         self.stdout.write(self.style.SUCCESS(f"Selesai. Berhasil insert: {total_insert}, gagal: {total_error}."))

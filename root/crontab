@@ -26,9 +26,9 @@ DJANGO_MANAGE="$VENV $APPDIR/manage.py"
 # Ads Country Load: setiap 40 menit
 */40 * * * * cd $APPDIR && flock -n /var/run/hris_ads_country_load.lock -c "$DJANGO_MANAGE cron_ads_country_load >> /var/log/hris/cron_ads_country_load.log 2>&1"
 
-# Sync ClickHouse (reporting): setiap 5 menit
-*/5 * * * * cd $APPDIR && flock -n /var/run/hris_sync_clickhouse.lock -c "$DJANGO_MANAGE sync_clickhouse >> /var/log/hris/sync_clickhouse.log 2>&1"
-0 */2 * * * cd $APPDIR && flock -n /var/run/hris_sync_clickhouse_review.lock -c "$DJANGO_MANAGE sync_clickhouse_review >> /var/log/hris/sync_clickhouse_review.log 2>&1"
+# Sync ClickHouse (reporting): setiap 6 jam
+0 */6 * * * cd $APPDIR && flock -n /var/run/hris_sync_clickhouse.lock -c "$DJANGO_MANAGE sync_clickhouse >> /var/log/hris/sync_clickhouse.log 2>&1"
+59 23 * * * cd $APPDIR && flock -n /var/run/hris_sync_clickhouse_review.lock -c "$DJANGO_MANAGE sync_clickhouse_review >> /var/log/hris/sync_clickhouse_review.log 2>&1"
 
 # AdX Domain: setiap 6 jam
 0 */6 * * * cd $APPDIR && flock -n /var/run/hris_adx_domain.lock -c "$DJANGO_MANAGE cron_adx_domain >> /var/log/hris/cron_adx_domain.log 2>&1"

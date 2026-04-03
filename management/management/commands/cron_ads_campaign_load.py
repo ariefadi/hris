@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand
+from django.core.management import call_command
 from datetime import datetime, timedelta
 from collections import defaultdict
 from facebook_business.api import FacebookAdsApi
@@ -194,6 +195,20 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(
                     f"Gagal memproses akun {account_data.get('account_name','Unknown')}: {e}"
                 ))
+
+        if total_insert:
+            try:
+                self.stdout.write(self.style.WARNING(
+                    f"Sync ClickHouse: data_ads_campaign since={start_date} (delete lalu insert)"
+                ))
+                call_command(
+                    'sync_clickhouse',
+                    tables='data_ads_campaign',
+                    since=start_date,
+                )
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Gagal sync ClickHouse data_ads_campaign: {e}"))
+
         self.stdout.write(self.style.SUCCESS(
             f"Selesai. Berhasil insert: {total_insert}, gagal: {total_error}."
         ))

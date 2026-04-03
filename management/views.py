@@ -925,6 +925,7 @@ class DashboardSyncView(View):
                 payload = {}
 
             tanggal = str(payload.get('tanggal') or '').strip()
+            print(f'tanggal_sinkron: {tanggal}')
             if not tanggal:
                 tanggal = '%'
 
@@ -932,7 +933,7 @@ class DashboardSyncView(View):
             commands = [
                 'cron_adsense_country_load',
                 'cron_adx_country_load',
-                'sync_clickhouse',
+                'cron_ads_country_load',
             ]
 
             for cmd in commands:
