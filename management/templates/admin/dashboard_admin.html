@@ -627,6 +627,31 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
                             <div class="col-12 col-sm-6 col-md-3"><div class="metric-card roi"><div class="metric-card-inner"><div><div class="metric-label">ROI Nett</div><div class="metric-value" id="recapTotalRoi">0%</div></div><div class="metric-card-icon" aria-hidden="true"><i class="bi bi-bullseye"></i></div></div></div></div>
                         </div>
 
+                        <div class="card dashboard-card mt-3" style="border-radius:16px;">
+                            <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
+                                <div style="font-weight:900;"><i class="bi bi-table me-2"></i> Detail Data</div>
+                                <div class="text-muted" style="font-size:12px" id="dashboardRecapTableMeta"></div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-bordered mb-0 dashboard-recap-table" id="dashboardRecapTable">
+                                        <thead>
+                                            <tr>
+                                                <th style="width:48px" class="text-center">No</th>
+                                                <th id="dashboardRecapThName">Domain</th>
+                                                <th id="dashboardRecapThCode" style="width:90px;display:none;">Kode</th>
+                                                <th class="text-end" style="width:170px;">Spend</th>
+                                                <th class="text-end" style="width:170px;">Pendapatan</th>
+                                                <th class="text-end" style="width:190px;">Pendapatan Bersih</th>
+                                                <th class="text-end" style="width:110px;">ROI</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="dashboardRecapTbody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="card dashboard-card mt-2" id="dashboardPulseCard" style="border-radius:16px;">
                             <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
                                 <div style="font-weight:900;"><i class="bi bi-activity me-2"></i> Grafik Matrik Data (14 Hari + Prediksi 3 Hari)</div>
@@ -668,30 +693,6 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
                             </div>
                         </div>
 
-                        <div class="card dashboard-card mt-3" style="border-radius:16px;">
-                            <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
-                                <div style="font-weight:900;"><i class="bi bi-table me-2"></i> Detail Data</div>
-                                <div class="text-muted" style="font-size:12px" id="dashboardRecapTableMeta"></div>
-                            </div>
-                            <div class="card-body p-0">
-                                <div class="table-responsive">
-                                    <table class="table table-striped table-bordered mb-0 dashboard-recap-table" id="dashboardRecapTable">
-                                        <thead>
-                                            <tr>
-                                                <th style="width:48px" class="text-center">No</th>
-                                                <th id="dashboardRecapThName">Domain</th>
-                                                <th id="dashboardRecapThCode" style="width:90px;display:none;">Kode</th>
-                                                <th class="text-end" style="width:170px;">Spend</th>
-                                                <th class="text-end" style="width:170px;">Pendapatan</th>
-                                                <th class="text-end" style="width:190px;">Pendapatan Bersih</th>
-                                                <th class="text-end" style="width:110px;">ROI</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="dashboardRecapTbody"></tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
