@@ -292,14 +292,14 @@ def fetch_adsense_traffic_per_domain_advanced(user_mail, start_date, end_date, s
 
         lvl = str(report_level or 'owned_site').strip().lower()
         use_campaign = lvl in ('campaign', 'ad_unit', 'ad_unit_name', 'adunit')
-        use_site_name = lvl in ('site_name', 'sitename')
+        use_site_name = lvl in ('site_name', 'sitename', 'site')
         use_subdomain = lvl in ('subdomain', 'host', 'header', 'page_url', 'pageurl')
         if use_campaign:
             group_dims = ['AD_UNIT_NAME']
         elif use_subdomain:
             group_dims = ['PAGE_URL']
         elif use_site_name:
-            group_dims = ['SITE_NAME', 'OWNED_SITE_DOMAIN_NAME']
+            group_dims = ['DOMAIN_NAME', 'OWNED_SITE_DOMAIN_NAME']
         else:
             group_dims = ['OWNED_SITE_DOMAIN_NAME']
 
@@ -534,7 +534,13 @@ def fetch_adsense_traffic_per_country_domain_advanced(user_mail, start_date, end
 
         lvl = str(report_level or 'owned_site').strip().lower()
         use_subdomain = lvl in ('subdomain', 'host', 'header', 'page_url', 'pageurl')
-        domain_dim = 'PAGE_URL' if use_subdomain else 'OWNED_SITE_DOMAIN_NAME'
+        use_domain = lvl in ('site', 'site_name', 'sitename', 'domain', 'domain_name', 'domainname')
+        if use_subdomain:
+            domain_dim = 'PAGE_URL'
+        elif use_domain:
+            domain_dim = 'DOMAIN_NAME'
+        else:
+            domain_dim = 'OWNED_SITE_DOMAIN_NAME'
 
         start_parts = start_date.split('-')
         end_parts = end_date.split('-')
