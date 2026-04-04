@@ -1,0 +1,135 @@
+{% extends "admin_base.html" %}
+{% load static %}
+{% block page_title %}AdSense Policy Events{% endblock %}
+{% block page_heading %}AdSense Policy Events{% endblock %}
+
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">AdSense Policy Events</li>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
+    <h3 class="card-title mb-0">Deteksi Email Policy AdSense (Gmail)</h3>
+    <div class="d-flex align-items-center" style="gap:10px;">
+      <select id="policyDays" class="form-control form-control-sm" style="width:140px;">
+        <option value="30">30 hari</option>
+        <option value="90">90 hari</option>
+        <option value="180" selected>180 hari</option>
+        <option value="365">365 hari</option>
+      </select>
+      <button id="policySyncBtn" type="button" class="btn btn-sm btn-primary" style="display:inline-flex;align-items:center;gap:8px;">
+        <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+        <span>Synchronize</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="card-body">
+    <div id="policyAlert" class="alert alert-info" style="display:none;border-radius:10px;">
+      <span id="policyAlertText">Syncronize sedang berlangsung</span>
+      <pre id="policyAlertDetails" style="display:none;white-space:pre-wrap;margin:8px 0 0 0;"></pre>
+    </div>
+
+    <div class="table-responsive">
+      <table id="policyTable" class="table table-bordered table-striped" style="width:100%;">
+        <thead>
+          <tr>
+            {% for c in columns %}
+              <th>{{ c }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              {% for cell in row %}
+                <td style="max-width:420px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ cell }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="text-muted" style="font-size:12px;">
+      Table: <strong>{{ table_name }}</strong>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const btn = document.getElementById('policySyncBtn');
+  const daysEl = document.getElementById('policyDays');
+  const alertBox = document.getElementById('policyAlert');
+  const alertText = document.getElementById('policyAlertText');
+  const alertDetails = document.getElementById('policyAlertDetails');
+
+  function setAlert(kind, text, details) {
+    if (!alertBox || !alertText) return;
+    alertBox.classList.remove('alert-info','alert-success','alert-danger');
+    if (kind === 'success') alertBox.classList.add('alert-success');
+    else if (kind === 'error') alertBox.classList.add('alert-danger');
+    else alertBox.classList.add('alert-info');
+
+    const t = String(text || '').trim();
+    alertText.textContent = t;
+    alertBox.style.display = t ? 'block' : 'none';
+
+    const d = String(details || '').trim();
+    if (alertDetails) {
+      alertDetails.textContent = d;
+      alertDetails.style.display = d ? 'block' : 'none';
+    }
+  }
+
+  if (!btn) return;
+
+  btn.addEventListener('click', async function(){
+    const originalHtml = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-arrow-repeat" aria-hidden="true"></i><span>Synchronize...</span>';
+    setAlert('info', 'Syncronize sedang berlangsung');
+
+    try {
+      const days = parseInt((daysEl && daysEl.value) || '180', 10) || 180;
+      const res = await fetch('/management/admin/adsense_policy_events_sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ days })
+      });
+      const json = await res.json();
+      if (!json || !json.status) throw new Error(json?.error || 'Gagal synchronize');
+
+      const failed = parseInt(json?.failed || 0, 10) || 0;
+      const inserted = parseInt(json?.inserted || 0, 10) || 0;
+      const skipped = parseInt(json?.skipped || 0, 10) || 0;
+      const message = String(json?.message || '').trim();
+
+      if (failed > 0) {
+        const failedSteps = (json?.steps || []).filter(s => s && s.status === false);
+        const lines = failedSteps.slice(0, 12).map(function(s){
+          const mail = String(s.user_mail || '').trim();
+          const name = String(s.account_name || '').trim();
+          const err = String(s.error || '').trim();
+          return (mail || name ? ((mail ? mail : name) + (mail && name ? (' - ' + name) : '')) : 'akun') + ': ' + (err || 'error');
+        });
+        const more = failedSteps.length > 12 ? ('\n... +' + (failedSteps.length - 12) + ' akun') : '';
+        setAlert('error', message || 'Syncronize selesai tapi ada error', lines.join('\n') + more);
+        return;
+      }
+
+      setAlert('success', message || ('Syncronize selesai. Baru: ' + inserted + ', skip: ' + skipped));
+      window.setTimeout(function(){ window.location.reload(); }, 800);
+    } catch (e) {
+      setAlert('error', String(e?.message || e || 'Syncronize gagal'));
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = originalHtml;
+    }
+  });
+})();
+</script>
+{% endblock %}

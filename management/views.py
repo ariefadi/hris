@@ -933,7 +933,6 @@ class DashboardSyncView(View):
             commands = [
                 'cron_adsense_country_load',
                 'cron_adx_country_load',
-                'cron_ads_country_load',
             ]
 
             for cmd in commands:
@@ -946,16 +945,28 @@ class DashboardSyncView(View):
                     steps.append({'command': cmd, 'status': True, 'output': buf.getvalue()})
                 except Exception as e:
                     steps.append({'command': cmd, 'status': False, 'error': str(e), 'output': buf.getvalue()})
-                    return JsonResponse(
-                        {
-                            'status': False,
-                            'message': f'Gagal menjalankan {cmd}',
-                            'steps': steps,
-                        },
-                        status=500,
-                    )
 
-            return JsonResponse({'status': True, 'message': 'Synchronize selesai', 'steps': steps})
+            failed = 0
+            for s in steps:
+                if not s.get('status'):
+                    failed += 1
+
+            if failed == len(commands):
+                return JsonResponse(
+                    {
+                        'status': False,
+                        'message': 'Synchronize gagal (semua job error)',
+                        'failed': failed,
+                        'steps': steps,
+                    },
+                    status=200,
+                )
+
+            message = 'Synchronize selesai'
+            if failed:
+                message = f'Synchronize selesai, tapi {failed} job error'
+
+            return JsonResponse({'status': True, 'message': message, 'failed': failed, 'steps': steps})
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)}, status=500)
 

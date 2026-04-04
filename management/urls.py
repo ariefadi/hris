@@ -105,6 +105,9 @@ urlpatterns = [
     path('admin/adsense_traffic_country', views_adsense.AdsenseTrafficPerCountryView.as_view(), name='adsense_traffic_country'),
     path('admin/adsense_traffic_country_data', views_adsense.AdsenseTrafficPerCountryDataView.as_view(), name='adsense_traffic_country_data'),
     path('admin/get_countries_adsense', views_adsense.get_countries_adsense, name='get_countries_adsense'),
+    # Menu AdSense Policy Events (Gmail)
+    path('admin/adsense_policy_events', views_adsense.AdsensePolicyEventsView.as_view(), name='adsense_policy_events'),
+    path('admin/adsense_policy_events_sync', views_adsense.AdsensePolicyEventsSyncView.as_view(), name='adsense_policy_events_sync'),
 
     # OAuth Management - menggunakan oauth_views_package untuk konsistensi
     path('admin/oauth/management/', oauth_management_dashboard, name='oauth_management_dashboard'),

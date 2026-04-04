@@ -38,6 +38,8 @@ from .utils_adsense import (
     generate_cache_key_adsense,
     get_cached_data_adsense,
 )
+from .list_adsense_policy_events import list_adsense_policy_events
+from .sync_adsense_policy_events import sync_adsense_policy_events
 
 def get_adsense_data(request):
     if 'credentials' not in request.session:
@@ -671,6 +673,54 @@ class AdsenseCredentialsListView(View):
             return JsonResponse({'status': True, 'data': data})
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
+
+
+class AdsensePolicyEventsView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('/management/admin/login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        db = data_mysql()
+        result = list_adsense_policy_events(db, limit=200)
+        data = {
+            'title': 'AdSense Policy Events',
+            'user': req.session.get('hris_admin', {}),
+            'columns': result.get('columns') or [],
+            'rows': result.get('rows') or [],
+            'table_name': result.get('table') or '',
+        }
+        return render(req, 'admin/adsense_manager/policy_event/index.html', data)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class AdsensePolicyEventsSyncView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        try:
+            payload = {}
+            try:
+                payload = json.loads((req.body or b'').decode('utf-8') or '{}')
+            except Exception:
+                payload = {}
+
+            days = payload.get('days')
+            try:
+                days = int(days)
+            except Exception:
+                days = 180
+
+            db = data_mysql()
+            result = sync_adsense_policy_events(db, days=days)
+            return JsonResponse(result)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)}, status=500)
+
 
 class RekapAdsenseSummaryView(View):
     """View untuk Rekap Adsense Summary - menampilkan ringkasan data Adsense"""

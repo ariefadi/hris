@@ -2953,8 +2953,20 @@ function initDashboardRecap() {
                 });
                 const json = await res.json();
                 if (!json || !json.status) throw new Error(json?.error || json?.message || 'Gagal synchronize');
+
+                const steps = Array.isArray(json?.steps) ? json.steps : [];
+                const failedSteps = steps.filter(s => s && s.status === false);
+
                 await load();
-                setSyncAlert('success', 'Syncronize berhasil');
+
+                if (failedSteps.length > 0) {
+                    const names = failedSteps.map(s => String(s.command || '').trim()).filter(Boolean).join(', ');
+                    const firstErr = failedSteps.find(s => s && s.error)?.error;
+                    setSyncAlert('info', json?.message || ('Synchronize selesai, tapi ada error: ' + (names || 'job')));
+                    if (firstErr) showRecapMessage('error', String(firstErr));
+                } else {
+                    setSyncAlert('success', json?.message || 'Syncronize berhasil');
+                }
             } catch (e) {
                 setSyncAlert('error', 'Syncronize gagal');
                 showRecapMessage('error', String(e?.message || e || 'Error'));
