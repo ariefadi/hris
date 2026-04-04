@@ -268,4 +268,16 @@ class Command(BaseCommand):
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"Gagal sync ClickHouse data_adsense_country: {e}"))
 
+            try:
+                self.stdout.write(self.style.WARNING(
+                    f"Sync ClickHouse: log_adsense_country since={start_date} (delete lalu insert)"
+                ))
+                call_command(
+                    'sync_clickhouse',
+                    tables='log_adsense_country',
+                    since=start_date,
+                )
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Gagal sync ClickHouse log_adsense_country: {e}"))
+
         self.stdout.write(self.style.SUCCESS(f"Selesai. Berhasil insert: {total_insert}, gagal: {total_error}."))
