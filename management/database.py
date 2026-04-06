@@ -219,7 +219,7 @@ class data_mysql:
         except (ValueError, TypeError):
             port = 8123
         user = os.getenv('CH_USER') or os.getenv('REPORT_DB_USER') or os.getenv('DB_REPORT_USER') or 'default'
-        password = os.getenv('CH_PASSWORD') or os.getenv('REPORT_DB_PASSWORD') or os.getenv('DB_REPORT_PASSWORD') or ''
+        password = os.getenv('CH_PASSWORD') or os.getenv('REPORT_DB_PASSWORD') or os.getenv('DB_REPORT_PASSWORD') or 'hris123456'
         database = os.getenv('CH_DB') or os.getenv('REPORT_DB_NAME') or os.getenv('DB_REPORT_NAME') or os.getenv('DB_NAME') or os.getenv('HRIS_DB_NAME') or 'hris_trendHorizone'
         self.report_cur = ClickHouseHttpCursor(host=host, port=port, user=user, password=password, database=database)
         return True
@@ -238,7 +238,7 @@ class data_mysql:
                 print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
                 port = 3306
             user = os.getenv('DB_USER') or 'root'
-            password = os.getenv('DB_PASSWORD') or ''
+            password = os.getenv('DB_PASSWORD') or 'hris123456'
             database = os.getenv('DB_NAME') or 'hris_trendHorizone'
 
             self.db_hris = pymysql.connect(
@@ -4350,7 +4350,6 @@ class data_mysql:
 
             # Buat clause startsWith
             starts_clause_ch = " OR ".join(["startsWith(log_ads_domain, %s)"] * len(domains))
-
             # Query: last record per hour (menit terakhir)
             sql_ch = f"""
             SELECT
@@ -4366,7 +4365,7 @@ class data_mysql:
             """
 
             # Params: tanggal untuk CTE + tanggal untuk main query + domains
-            params_tuple = tuple([tanggal, tanggal] + domains)
+            params_tuple = tuple([tanggal] + domains)
 
             self._ensure_report_connection()
             self.cur_hris = self.report_cur
