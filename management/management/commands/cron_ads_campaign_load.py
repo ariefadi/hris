@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand
 from django.core.management import call_command
 from datetime import datetime, timedelta
 from collections import defaultdict
+import uuid
 from facebook_business.api import FacebookAdsApi
 from facebook_business.adobjects.adaccount import AdAccount
 from facebook_business.adobjects.adsinsights import AdsInsights
@@ -28,7 +29,8 @@ class Command(BaseCommand):
         start = kwargs.get('start')
         end = kwargs.get('end')
 
-        rs_account = data_mysql().master_account_ads()['data']
+        db = data_mysql()
+        rs_account = db.master_account_ads()['data']
         total_insert = 0
         total_error = 0
 
@@ -171,7 +173,12 @@ class Command(BaseCommand):
                         'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                     }
                     try:
-                        del_res = data_mysql().delete_data_ads_campaign_by_date_account(account_data['account_id'], (agg['campaign_name'] or '').split('_')[0], agg['campaign_name'], agg['tanggal'])
+                        del_res = db.delete_data_ads_campaign_by_date_account(
+                            account_data['account_id'],
+                            (agg['campaign_name'] or '').split('_')[0],
+                            agg['campaign_name'],
+                            agg['tanggal'],
+                        )
                         if del_res.get('hasil', {}).get('status'):
                             affected = del_res.get('hasil', {}).get('affected', 0)
                             self.stdout.write(self.style.WARNING(
@@ -185,9 +192,33 @@ class Command(BaseCommand):
                         self.stdout.write(self.style.ERROR(
                             f"Error saat menghapus data existing: {e}"
                         ))
-                    res = data_mysql().insert_data_ads_campaign(record)
+
+                    res = db.insert_data_ads_campaign(record)
                     if res.get('hasil', {}).get('status'):
                         total_insert += 1
+                        params_log_new = {
+                            'log_ads_id': str(uuid.uuid4()),
+                            'account_ads_id': record.get('account_ads_id'),
+                            'log_ads_domain': record.get('data_ads_domain'),
+                            'log_ads_campaign_nm': record.get('data_ads_campaign_nm'),
+                            'log_ads_tanggal': record.get('data_ads_tanggal'),
+                            'log_ads_spend': int(round(float(record.get('data_ads_spend') or 0))),
+                            'log_ads_impresi': record.get('data_ads_impresi'),
+                            'log_ads_click': record.get('data_ads_click'),
+                            'log_ads_reach': record.get('data_ads_reach'),
+                            'log_ads_cpr': record.get('data_ads_cpr'),
+                            'log_ads_cpc': record.get('data_ads_cpc'),
+                            'log_ads_frekuensi': record.get('data_ads_frekuensi'),
+                            'log_ads_lpv': record.get('data_ads_lpv'),
+                            'log_ads_lpv_rate': record.get('data_ads_lpv_rate'),
+                            'mdb': '0',
+                            'mdb_name': 'Log Snapshot',
+                            'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        }
+                        try:
+                            db.insert_log_ads_campaign_log(params_log_new)
+                        except Exception:
+                            pass
                     else:
                         total_error += 1
             except Exception as e:
@@ -208,6 +239,18 @@ class Command(BaseCommand):
                 )
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"Gagal sync ClickHouse data_ads_campaign: {e}"))
+
+            try:
+                self.stdout.write(self.style.WARNING(
+                    f"Sync ClickHouse: log_ads_campaign since={start_date} (delete lalu insert)"
+                ))
+                call_command(
+                    'sync_clickhouse',
+                    tables='log_ads_campaign',
+                    since=start_date,
+                )
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Gagal sync ClickHouse log_ads_campaign: {e}"))
 
         self.stdout.write(self.style.SUCCESS(
             f"Selesai. Berhasil insert: {total_insert}, gagal: {total_error}."

@@ -207,6 +207,32 @@ class Command(BaseCommand):
                             ins = db.insert_data_adx_domain(record)
                             if ins.get('hasil', {}).get('status'):
                                 total_insert += 1
+                                params_log_new = {
+                                    'log_adx_domain_id': str(uuid.uuid4()),
+                                    'account_id': record.get('account_id'),
+                                    'log_adx_domain_tanggal': record.get('data_adx_domain_tanggal'),
+                                    'log_adx_domain': record.get('data_adx_domain'),
+                                    'log_adx_domain_impresi': record.get('data_adx_domain_impresi'),
+                                    'log_adx_domain_click': record.get('data_adx_domain_click'),
+                                    'log_adx_domain_cpc': record.get('data_adx_domain_cpc'),
+                                    'log_adx_domain_ctr': float(record.get('data_adx_domain_ctr') or 0.0),
+                                    'log_adx_domain_cpm': record.get('data_adx_domain_cpm'),
+                                    'log_adx_domain_ecpm': record.get('data_adx_domain_ecpm'),
+                                    'log_adx_domain_total_requests': record.get('data_adx_domain_total_requests'),
+                                    'log_adx_domain_responses_served': record.get('data_adx_domain_responses_served'),
+                                    'log_adx_domain_match_rate': record.get('data_adx_domain_match_rate'),
+                                    'log_adx_domain_fill_rate': record.get('data_adx_domain_fill_rate'),
+                                    'log_adx_domain_active_view_pct_viewable': record.get('data_adx_domain_active_view_pct_viewable'),
+                                    'log_adx_domain_active_view_avg_time_sec': record.get('data_adx_domain_active_view_avg_time_sec'),
+                                    'log_adx_domain_revenue': record.get('data_adx_domain_revenue'),
+                                    'mdb': '0',
+                                    'mdb_name': 'Log Snapshot',
+                                    'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                }
+                                try:
+                                    db.insert_log_adx_domain_log(params_log_new)
+                                except Exception:
+                                    pass
                             else:
                                 total_insert_error += 1
                                 self.stdout.write(self.style.ERROR(
@@ -234,6 +260,18 @@ class Command(BaseCommand):
                 )
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"Gagal sync ClickHouse data_adx_domain: {e}"))
+
+            try:
+                self.stdout.write(self.style.WARNING(
+                    f"Sync ClickHouse: log_adx_domain since={start_date} (delete lalu insert)"
+                ))
+                call_command(
+                    'sync_clickhouse',
+                    tables='log_adx_domain',
+                    since=start_date,
+                )
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Gagal sync ClickHouse log_adx_domain: {e}"))
 
         self.stdout.write(self.style.SUCCESS(
             f"Selesai. Berhasil insert: {total_insert}, gagal fetch: {total_fetch_error}, gagal insert: {total_insert_error}, kosong: {total_empty}."

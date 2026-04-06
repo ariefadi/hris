@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand
 from django.core.management import call_command
 from datetime import datetime, timedelta
 import os
+import uuid
 
 from management.database import data_mysql
 from management.utils import fetch_user_adx_account_data
@@ -202,6 +203,32 @@ class Command(BaseCommand):
                             ins = db.insert_data_adsense_domain(record)
                             if ins.get('hasil', {}).get('status'):
                                 total_insert += 1
+                                params_log_new = {
+                                    'log_adsense_id': str(uuid.uuid4()),
+                                    'account_id': record.get('account_id'),
+                                    'log_adsense_tanggal': record.get('data_adsense_tanggal'),
+                                    'log_adsense_domain': record.get('data_adsense_domain'),
+                                    'log_adsense_impresi': record.get('data_adsense_impresi'),
+                                    'log_adsense_click': record.get('data_adsense_click'),
+                                    'log_adsense_cpc': record.get('data_adsense_cpc'),
+                                    'log_adsense_ctr': float(record.get('data_adsense_ctr') or 0.0),
+                                    'log_adsense_cpm': record.get('data_adsense_cpm'),
+                                    'log_adsense_page_views': record.get('data_adsense_page_views'),
+                                    'log_adsense_page_views_rpm': record.get('data_adsense_page_views_rpm'),
+                                    'log_adsense_ad_requests': record.get('data_adsense_ad_requests'),
+                                    'log_adsense_ad_requests_coverage': record.get('data_adsense_ad_requests_coverage'),
+                                    'log_adsense_active_view_viewability': record.get('data_adsense_active_view_viewability'),
+                                    'log_adsense_active_view_measurability': record.get('data_adsense_active_view_measurability'),
+                                    'log_adsense_active_view_time': record.get('data_adsense_active_view_time'),
+                                    'log_adsense_revenue': record.get('data_adsense_revenue'),
+                                    'mdb': '0',
+                                    'mdb_name': 'Log Snapshot',
+                                    'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                }
+                                try:
+                                    db.insert_log_adsense_domain_log(params_log_new)
+                                except Exception:
+                                    pass
                             else:
                                 total_error += 1
                                 self.stdout.write(
@@ -236,5 +263,17 @@ class Command(BaseCommand):
                 )
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"Gagal sync ClickHouse data_adsense_domain: {e}"))
+
+            try:
+                self.stdout.write(self.style.WARNING(
+                    f"Sync ClickHouse: log_adsense_domain since={start_date} (delete lalu insert)"
+                ))
+                call_command(
+                    'sync_clickhouse',
+                    tables='log_adsense_domain',
+                    since=start_date,
+                )
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Gagal sync ClickHouse log_adsense_domain: {e}"))
 
         self.stdout.write(self.style.SUCCESS(f"Selesai. Berhasil insert: {total_insert}, gagal: {total_error}."))

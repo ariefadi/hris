@@ -219,7 +219,7 @@ class data_mysql:
         except (ValueError, TypeError):
             port = 8123
         user = os.getenv('CH_USER') or os.getenv('REPORT_DB_USER') or os.getenv('DB_REPORT_USER') or 'default'
-        password = os.getenv('CH_PASSWORD') or os.getenv('REPORT_DB_PASSWORD') or os.getenv('DB_REPORT_PASSWORD') or ''
+        password = os.getenv('CH_PASSWORD') or os.getenv('REPORT_DB_PASSWORD') or os.getenv('DB_REPORT_PASSWORD') or 'hris123456'
         database = os.getenv('CH_DB') or os.getenv('REPORT_DB_NAME') or os.getenv('DB_REPORT_NAME') or os.getenv('DB_NAME') or os.getenv('HRIS_DB_NAME') or 'hris_trendHorizone'
         self.report_cur = ClickHouseHttpCursor(host=host, port=port, user=user, password=password, database=database)
         return True
@@ -238,7 +238,7 @@ class data_mysql:
                 print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
                 port = 3306
             user = os.getenv('DB_USER') or 'root'
-            password = os.getenv('DB_PASSWORD') or ''
+            password = os.getenv('DB_PASSWORD') or 'hris123456'
             database = os.getenv('DB_NAME') or 'hris_trendHorizone'
 
             self.db_hris = pymysql.connect(
@@ -1484,6 +1484,96 @@ class data_mysql:
                 'data': 'Terjadi error {!r}, code={}, message={}'.format(e, err_code, err_msg)
             }
         return {'hasil': hasil} 
+
+    def insert_log_ads_campaign_log(self, data):
+        try:
+            sql_insert = """
+                        INSERT INTO log_ads_campaign
+                        (
+                            log_ads_campaign.log_ads_id,
+                            log_ads_campaign.account_ads_id,
+                            log_ads_campaign.log_ads_domain,
+                            log_ads_campaign.log_ads_campaign_nm,
+                            log_ads_campaign.log_ads_tanggal,
+                            log_ads_campaign.log_ads_spend,
+                            log_ads_campaign.log_ads_impresi,
+                            log_ads_campaign.log_ads_click,
+                            log_ads_campaign.log_ads_reach,
+                            log_ads_campaign.log_ads_cpr,
+                            log_ads_campaign.log_ads_cpc,
+                            log_ads_campaign.log_ads_frekuensi,
+                            log_ads_campaign.log_ads_lpv,
+                            log_ads_campaign.log_ads_lpv_rate,
+                            log_ads_campaign.mdb,
+                            log_ads_campaign.mdb_name,
+                            log_ads_campaign.mdd
+                        )
+                    VALUES
+                        (
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s
+                        )
+                """
+            if not self.execute_query(sql_insert, (
+                data['log_ads_id'],
+                data['account_ads_id'],
+                data['log_ads_domain'],
+                data['log_ads_campaign_nm'],
+                data['log_ads_tanggal'],
+                data['log_ads_spend'],
+                data['log_ads_impresi'],
+                data['log_ads_click'],
+                data['log_ads_reach'],
+                data['log_ads_cpr'],
+                data['log_ads_cpc'],
+                data['log_ads_frekuensi'],
+                data['log_ads_lpv'],
+                data['log_ads_lpv_rate'],
+                data['mdb'],
+                data['mdb_name'],
+                data['mdd'],
+            )):
+                raise pymysql.Error("Failed to insert data ads campaign log")
+            if not self.commit():
+                raise pymysql.Error("Failed to commit data ads campaign log insert")
+
+            hasil = {
+                "status": True,
+                "message": "Data ads campaign log berhasil ditambahkan"
+            }
+        except pymysql.Error as e:
+            err_code = None
+            err_msg = None
+            try:
+                if isinstance(getattr(e, 'args', None), (list, tuple)) and len(e.args) >= 2:
+                    err_code = e.args[0]
+                    err_msg = e.args[1]
+                elif isinstance(getattr(e, 'args', None), (list, tuple)) and len(e.args) == 1:
+                    err_code = e.args[0]
+            except Exception:
+                err_code = None
+                err_msg = None
+
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, code={}, message={}'.format(e, err_code, err_msg)
+            }
+        return {'hasil': hasil}
 
     def delete_data_ads_country_by_date_account(self, account, country, domain, campaign, tanggal):
         try:
@@ -2810,7 +2900,94 @@ class data_mysql:
                 "status": False,
                 'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
-        return {'hasil': hasil}                        
+        return {'hasil': hasil}
+
+    def insert_log_adx_domain_log(self, data):
+        try:
+            sql_insert = """
+                        INSERT INTO log_adx_domain
+                        (
+                            log_adx_domain.log_adx_domain_id,
+                            log_adx_domain.account_id,
+                            log_adx_domain.log_adx_domain_tanggal,
+                            log_adx_domain.log_adx_domain,
+                            log_adx_domain.log_adx_domain_impresi,
+                            log_adx_domain.log_adx_domain_click,
+                            log_adx_domain.log_adx_domain_cpc,
+                            log_adx_domain.log_adx_domain_ctr,
+                            log_adx_domain.log_adx_domain_cpm,
+                            log_adx_domain.log_adx_domain_ecpm,
+                            log_adx_domain.log_adx_domain_total_requests,
+                            log_adx_domain.log_adx_domain_responses_served,
+                            log_adx_domain.log_adx_domain_match_rate,
+                            log_adx_domain.log_adx_domain_fill_rate,
+                            log_adx_domain.log_adx_domain_active_view_pct_viewable,
+                            log_adx_domain.log_adx_domain_active_view_avg_time_sec,
+                            log_adx_domain.log_adx_domain_revenue,
+                            log_adx_domain.mdb,
+                            log_adx_domain.mdb_name,
+                            log_adx_domain.mdd
+                        )
+                    VALUES
+                        (
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s
+                        )
+                """
+            if not self.execute_query(sql_insert, (
+                data['log_adx_domain_id'],
+                data['account_id'],
+                data['log_adx_domain_tanggal'],
+                data['log_adx_domain'],
+                data['log_adx_domain_impresi'],
+                data['log_adx_domain_click'],
+                data['log_adx_domain_cpc'],
+                data['log_adx_domain_ctr'],
+                data['log_adx_domain_cpm'],
+                data['log_adx_domain_ecpm'],
+                data['log_adx_domain_total_requests'],
+                data['log_adx_domain_responses_served'],
+                data['log_adx_domain_match_rate'],
+                data['log_adx_domain_fill_rate'],
+                data['log_adx_domain_active_view_pct_viewable'],
+                data['log_adx_domain_active_view_avg_time_sec'],
+                data['log_adx_domain_revenue'],
+                data['mdb'],
+                data['mdb_name'],
+                data['mdd'],
+            )):
+                raise pymysql.Error("Failed to insert data adx domain log")
+            if not self.commit():
+                raise pymysql.Error("Failed to commit data adx domain log insert")
+
+            hasil = {
+                "status": True,
+                "message": "Data adx domain log berhasil ditambahkan"
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
 
     def insert_log_adsense_country_log(self, data):
         try:
@@ -2899,6 +3076,111 @@ class data_mysql:
             hasil = {
                 "status": True,
                 "message": "Data adsense country log berhasil ditambahkan",
+            }
+        except pymysql.Error as e:
+            err_code = None
+            err_msg = None
+            try:
+                if isinstance(getattr(e, 'args', None), (list, tuple)) and len(e.args) >= 2:
+                    err_code = e.args[0]
+                    err_msg = e.args[1]
+                elif isinstance(getattr(e, 'args', None), (list, tuple)) and len(e.args) == 1:
+                    err_code = e.args[0]
+            except Exception:
+                err_code = None
+                err_msg = None
+
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, code={}, message={}'.format(e, err_code, err_msg),
+            }
+        return {'hasil': hasil}
+
+
+    def insert_log_adsense_domain_log(self, data):
+        try:
+            if not self.ensure_connection():
+                raise pymysql.Error("Could not establish database connection")
+            self.cur_hris = self.mysql_cur
+
+            sql_insert = """
+                        INSERT INTO log_adsense_domain
+                        (
+                            log_adsense_domain.log_adsense_id,
+                            log_adsense_domain.account_id,
+                            log_adsense_domain.log_adsense_tanggal,
+                            log_adsense_domain.log_adsense_domain,
+                            log_adsense_domain.log_adsense_impresi,
+                            log_adsense_domain.log_adsense_click,
+                            log_adsense_domain.log_adsense_cpc,
+                            log_adsense_domain.log_adsense_ctr,
+                            log_adsense_domain.log_adsense_cpm,
+                            log_adsense_domain.log_adsense_page_views,
+                            log_adsense_domain.log_adsense_page_views_rpm,
+                            log_adsense_domain.log_adsense_ad_requests,
+                            log_adsense_domain.log_adsense_ad_requests_coverage,
+                            log_adsense_domain.log_adsense_active_view_viewability,
+                            log_adsense_domain.log_adsense_active_view_measurability,
+                            log_adsense_domain.log_adsense_active_view_time,
+                            log_adsense_domain.log_adsense_revenue,
+                            log_adsense_domain.mdb,
+                            log_adsense_domain.mdb_name,
+                            log_adsense_domain.mdd
+                        )
+                    VALUES
+                        (
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s,
+                            %s
+                        )
+                """
+
+            self.mysql_cur.execute(sql_insert, (
+                data['log_adsense_id'],
+                data['account_id'],
+                data['log_adsense_tanggal'],
+                data['log_adsense_domain'],
+                data['log_adsense_impresi'],
+                data['log_adsense_click'],
+                data['log_adsense_cpc'],
+                data['log_adsense_ctr'],
+                data['log_adsense_cpm'],
+                data.get('log_adsense_page_views', 0),
+                data.get('log_adsense_page_views_rpm', 0),
+                data.get('log_adsense_ad_requests', 0),
+                data.get('log_adsense_ad_requests_coverage', 0),
+                data.get('log_adsense_active_view_viewability', 0),
+                data.get('log_adsense_active_view_measurability', 0),
+                data.get('log_adsense_active_view_time', 0),
+                data['log_adsense_revenue'],
+                data['mdb'],
+                data['mdb_name'],
+                data['mdd'],
+            ))
+
+            if not self.commit():
+                raise pymysql.Error("Failed to commit data adsense domain log insert")
+
+            hasil = {
+                "status": True,
+                "message": "Data adsense domain log berhasil ditambahkan",
             }
         except pymysql.Error as e:
             err_code = None
