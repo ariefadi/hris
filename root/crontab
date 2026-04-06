@@ -30,17 +30,17 @@ DJANGO_MANAGE="$VENV $APPDIR/manage.py"
 0 */6 * * * cd $APPDIR && flock -n /var/run/hris_sync_clickhouse.lock -c "$DJANGO_MANAGE sync_clickhouse >> /var/log/hris/sync_clickhouse.log 2>&1"
 59 23 * * * cd $APPDIR && flock -n /var/run/hris_sync_clickhouse_review.lock -c "$DJANGO_MANAGE sync_clickhouse_review >> /var/log/hris/sync_clickhouse_review.log 2>&1"
 
-# AdX Domain: setiap 6 jam
-0 */6 * * * cd $APPDIR && flock -n /var/run/hris_adx_domain.lock -c "$DJANGO_MANAGE cron_adx_domain >> /var/log/hris/cron_adx_domain.log 2>&1"
+# AdX Domain: setiap hari jam 00:01
+1 0 * * * cd $APPDIR && flock -n /var/run/hris_adx_domain.lock -c "$DJANGO_MANAGE cron_adx_domain >> /var/log/hris/cron_adx_domain.log 2>&1"
 
-# AdX Country: setiap 6 jam
-0 */6 * * * cd $APPDIR && flock -n /var/run/hris_adx_country.lock -c "$DJANGO_MANAGE cron_adx_country >> /var/log/hris/cron_adx_country.log 2>&1"
+# AdX Country: setiap hari jam 00:01
+1 0 * * * cd $APPDIR && flock -n /var/run/hris_adx_country.lock -c "$DJANGO_MANAGE cron_adx_country >> /var/log/hris/cron_adx_country.log 2>&1"
 
-# Ads Campaign: setiap 6 jam
-0 */6 * * * cd $APPDIR && flock -n /var/run/hris_ads_campaign.lock -c "$DJANGO_MANAGE cron_ads_campaign >> /var/log/hris/cron_ads_campaign.log 2>&1"
+# Ads Campaign: setiap hari jam 00:01
+1 0 * * * cd $APPDIR && flock -n /var/run/hris_ads_campaign.lock -c "$DJANGO_MANAGE cron_ads_campaign >> /var/log/hris/cron_ads_campaign.log 2>&1"
 
-# Ads Country: setiap 6 jam
-0 */6 * * * cd $APPDIR && flock -n /var/run/hris_ads_country.lock -c "$DJANGO_MANAGE cron_ads_country >> /var/log/hris/cron_ads_country.log 2>&1"
+# Ads Country: setiap hari jam 00:01
+1 0 * * * cd $APPDIR && flock -n /var/run/hris_ads_country.lock -c "$DJANGO_MANAGE cron_ads_country >> /var/log/hris/cron_ads_country.log 2>&1"
 
 # ROI Rekapitulasi Earning: jam 02,05,08,11,14,17,20,23 menit 59
 59 2-23/3 * * * cd $APPDIR && flock -n /var/run/hris_roi_rekapitulasi_earning.lock -c "$DJANGO_MANAGE cron_roi_rekapitulasi_earning_telegram >> /var/log/hris/cron_roi_rekapitulasi_earning_telegram.log 2>&1"
