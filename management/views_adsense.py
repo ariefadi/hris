@@ -689,6 +689,7 @@ class AdsensePolicyEventsView(View):
             'user': req.session.get('hris_admin', {}),
             'columns': result.get('columns') or [],
             'rows': result.get('rows') or [],
+            'items': result.get('items') or [],
             'table_name': result.get('table') or '',
         }
         return render(req, 'admin/adsense_manager/policy_event/index.html', data)

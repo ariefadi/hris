@@ -2,14 +2,56 @@ from django.core.management.base import BaseCommand
 from django.core.management import call_command
 from datetime import datetime, timedelta
 from collections import defaultdict
-from facebook_business.api import FacebookAdsApi
-from facebook_business.adobjects.adaccount import AdAccount
-from facebook_business.adobjects.adsinsights import AdsInsights
-from facebook_business.exceptions import FacebookRequestError
+
+try:
+    from facebook_business.api import FacebookAdsApi
+    from facebook_business.adobjects.adaccount import AdAccount
+    from facebook_business.adobjects.adsinsights import AdsInsights
+    from facebook_business.exceptions import FacebookRequestError
+except Exception:
+    FacebookAdsApi = None
+    AdAccount = None
+    AdsInsights = None
+    FacebookRequestError = Exception
+
 import requests
 import urllib3
 from management.database import data_mysql
 from management.utils import get_country_name_from_code
+
+
+def _bulk_insert_data_ads_country(db, rows):
+    if not rows:
+        return True
+    if not db.ensure_connection():
+        return False
+    cur = db.mysql_cur
+    sql = (
+        "INSERT INTO data_ads_country ("
+        "account_ads_id,data_ads_country_cd,data_ads_country_nm,data_ads_domain,data_ads_campaign_nm,data_ads_country_tanggal,"
+        "data_ads_country_spend,data_ads_country_impresi,data_ads_country_click,data_ads_country_reach,data_ads_country_cpr,"
+        "data_ads_country_cpc,data_ads_country_frekuensi,data_ads_country_lpv,data_ads_country_lpv_rate,mdb,mdb_name,mdd"
+        ") VALUES (" + ",".join(["%s"] * 18) + ")"
+    )
+    cur.executemany(sql, rows)
+    return db.commit()
+
+
+def _bulk_insert_log_ads_country(db, rows):
+    if not rows:
+        return True
+    if not db.ensure_connection():
+        return False
+    cur = db.mysql_cur
+    sql = (
+        "INSERT INTO log_ads_country ("
+        "account_ads_id,log_ads_country_cd,log_ads_country_nm,log_ads_domain,log_ads_campaign_nm,log_ads_country_tanggal,"
+        "log_ads_country_spend,log_ads_country_impresi,log_ads_country_click,log_ads_country_reach,log_ads_country_cpr,"
+        "log_ads_country_cpc,log_ads_country_frekuensi,log_ads_country_lpv,log_ads_country_lpv_rate,mdb,mdb_name,mdd"
+        ") VALUES (" + ",".join(["%s"] * 18) + ")"
+    )
+    cur.executemany(sql, rows)
+    return db.commit()
 
 class Command(BaseCommand):
     def add_arguments(self, parser):
@@ -29,19 +71,38 @@ class Command(BaseCommand):
             '--domain', type=str, default='%',
             help='Filter sub-domain (nama campaign mengandung). Default: %'
         )
+
     def handle(self, *args, **kwargs):
-        rs_account = data_mysql().master_account_ads()['data']
+        if FacebookAdsApi is None:
+            self.stdout.write(self.style.ERROR('Facebook SDK (facebook_business) belum terpasang. cron_ads_country_load tidak bisa dijalankan.'))
+            return
+
+        db = data_mysql()
+        rs_account = (db.master_account_ads() or {}).get('data') or []
         total_insert = 0
         total_error = 0
-        # Default: hari ini
+
         today_dt = datetime.now().date()
         start_date = today_dt.strftime('%Y-%m-%d')
         end_date = today_dt.strftime('%Y-%m-%d')
+
+        tanggal_arg = str(kwargs.get('tanggal') or '').strip()
+        start_arg = str(kwargs.get('start') or '').strip()
+        end_arg = str(kwargs.get('end') or '').strip()
+        if start_arg and end_arg:
+            start_date = start_arg
+            end_date = end_arg
+        elif tanggal_arg:
+            start_date = tanggal_arg
+            end_date = tanggal_arg
+
+        domain_filter = str(kwargs.get('domain') or '%').strip() or '%'
+
         for account_data in rs_account:
             try:
-                domain_filter = kwargs.get('domain')
                 FacebookAdsApi.init(access_token=account_data['access_token'])
                 account = AdAccount(account_data['account_id'])
+
                 fields = [
                     AdsInsights.Field.ad_id,
                     AdsInsights.Field.ad_name,
@@ -54,38 +115,53 @@ class Command(BaseCommand):
                     'cost_per_result',
                     AdsInsights.Field.actions,
                     AdsInsights.Field.frequency,
-                    AdsInsights.Field.date_start
+                    AdsInsights.Field.date_start,
                 ]
+
                 params = {
                     'level': 'campaign',
-                    'time_range': {
-                        'since': start_date,
-                        'until': end_date
-                    },
+                    'time_range': {'since': start_date, 'until': end_date},
                     'breakdowns': ['country'],
                     'time_increment': 1,
                     'limit': 1000,
                 }
-                if domain_filter and str(domain_filter).strip() != '%':
+                if domain_filter != '%':
                     params['filtering'] = [{
                         'field': 'campaign.name',
                         'operator': 'CONTAIN',
-                        'value': str(domain_filter).strip()
+                        'value': domain_filter,
                     }]
+
                 try:
                     insights = account.get_insights(fields=fields, params=params)
                 except (FacebookRequestError, requests.exceptions.RequestException, urllib3.exceptions.HTTPError, Exception) as e:
-                    print(f"[ERROR] Gagal mengambil insights Facebook: {e}")
+                    self.stdout.write(self.style.ERROR(f"[ERROR] Gagal mengambil insights Facebook: {e}"))
                     insights = []
+
+                per_day_data = defaultdict(list)
+                per_day_log = defaultdict(list)
+                now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+                def pick_action(actions, action_type):
+                    for a in actions or []:
+                        if a.get('action_type') == action_type:
+                            try:
+                                return float(a.get('value', 0) or 0)
+                            except (TypeError, ValueError):
+                                return 0.0
+                    return 0.0
+
                 for item in insights:
                     try:
                         tanggal_row = item.get('date_start')
                         if not tanggal_row:
                             continue
+
                         campaign_name = item.get('campaign_name') or ''
                         domain_value = (campaign_name.split('_')[0] if campaign_name else '')
-                        if domain_filter and str(domain_filter).strip() != '%':
-                            domain_value = str(domain_filter).strip()
+                        if domain_filter != '%':
+                            domain_value = domain_filter
+
                         spend = float(item.get('spend', 0) or 0)
                         impressions = int(item.get('impressions', 0) or 0)
                         reach = int(item.get('reach', 0) or 0)
@@ -96,21 +172,11 @@ class Command(BaseCommand):
                         except (TypeError, ValueError):
                             frequency = 0.0
 
-                        def pick_action(actions, action_type):
-                            for a in actions or []:
-                                if a.get('action_type') == action_type:
-                                    try:
-                                        return float(a.get('value', 0) or 0)
-                                    except (TypeError, ValueError):
-                                        return 0.0
-                            return 0.0
-
                         actions = item.get('actions', [])
                         clicks_val = pick_action(actions, 'link_click')
                         lpv_val = pick_action(actions, 'landing_page_view')
                         lpv_rate = round((lpv_val / clicks_val) * 100, 2) if clicks_val else 0.0
 
-                        # Cost per result (link_click)
                         cpr_val = 0.0
                         for cpr_item in item.get('cost_per_result', []):
                             if cpr_item.get('indicator') == 'actions:link_click':
@@ -121,79 +187,95 @@ class Command(BaseCommand):
                                     except (TypeError, ValueError):
                                         cpr_val = 0.0
                                 break
+
                         cpc = round(spend / clicks_val, 2) if clicks_val else 0.0
-                        # Facebook Insights dengan breakdown 'country' mengembalikan field 'country' (kode ISO2)
+
                         country_code_val = item.get('country') or ''
                         country_name_val = get_country_name_from_code(country_code_val) if country_code_val else ''
-                        record = {
-                            'account_ads_id': account_data['account_id'],
-                            'data_ads_domain': domain_value,
-                            'data_ads_country_cd': country_code_val,
-                            'data_ads_country_nm': country_name_val,
-                            'data_ads_campaign_nm': campaign_name,
-                            'data_ads_country_tanggal': tanggal_row,
-                            'data_ads_country_spend': round(spend, 2),
-                            'data_ads_country_impresi': impressions,
-                            'data_ads_country_click': int(clicks_val),
-                            'data_ads_country_reach': reach,
-                            'data_ads_country_cpr': round(cpr_val, 2),
-                            'data_ads_country_cpc': cpc,
-                            'data_ads_country_frekuensi': round(frequency, 2),
-                            'data_ads_country_lpv': round(lpv_val, 2),
-                            'data_ads_country_lpv_rate': lpv_rate,
-                            'mdb': '0',
-                            'mdb_name': 'Cron Job',
-                            'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                        }
-                        try:
-                            # Hapus data existing pada rentang tanggal agar ditimpa data baru
-                            del_res = data_mysql().delete_data_ads_country_by_date_account(account_data['account_id'], country_code_val, domain_value, campaign_name, tanggal_row)
-                            if del_res.get('hasil', {}).get('status'):
-                                affected = del_res.get('hasil', {}).get('affected', 0)
-                                self.stdout.write(self.style.WARNING(
-                                    f"Membersihkan data existing ({affected} baris) untuk akun {account_data.get('account_name','Unknown')}."
-                                ))
-                            else:
-                                self.stdout.write(self.style.ERROR(
-                                    f"Gagal menghapus data existing untuk range {start_date} s/d {end_date}: {del_res.get('hasil', {}).get('data')}"
-                                ))
-                        except Exception as e:
-                            self.stdout.write(self.style.ERROR(
-                                f"Error saat menghapus data existing: {e}"
-                            ))
-                        res = data_mysql().insert_data_ads_country(record)
-                        if res.get('hasil', {}).get('status'):
-                            total_insert += 1
-                            params_log_new = {
-                                'account_ads_id': record.get('account_ads_id'),
-                                'log_ads_country_cd': record.get('data_ads_country_cd'),
-                                'log_ads_country_nm': record.get('data_ads_country_nm'),
-                                'log_ads_domain': record.get('data_ads_domain'),
-                                'log_ads_campaign_nm': record.get('data_ads_campaign_nm'),
-                                'log_ads_country_tanggal': record.get('data_ads_country_tanggal'),
-                                'log_ads_country_spend': record.get('data_ads_country_spend'),
-                                'log_ads_country_impresi': record.get('data_ads_country_impresi'),
-                                'log_ads_country_click': record.get('data_ads_country_click'),
-                                'log_ads_country_reach': record.get('data_ads_country_reach'),
-                                'log_ads_country_cpr': record.get('data_ads_country_cpr'),
-                                'log_ads_country_cpc': record.get('data_ads_country_cpc'),
-                                'log_ads_country_frekuensi': record.get('data_ads_country_frekuensi'),
-                                'log_ads_country_lpv': record.get('data_ads_country_lpv'),
-                                'log_ads_country_lpv_rate': record.get('data_ads_country_lpv_rate'),
-                                'mdb': '0',
-                                'mdb_name': 'Log Snapshot',
-                                'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                            }
-                            try:
-                                data_mysql().insert_log_ads_country_log(params_log_new)
-                            except Exception:
-                                pass
-                        else:
-                            total_error += 1
+
+                        per_day_data[str(tanggal_row)].append((
+                            account_data['account_id'],
+                            country_code_val,
+                            country_name_val,
+                            domain_value,
+                            campaign_name,
+                            str(tanggal_row),
+                            round(spend, 2),
+                            impressions,
+                            int(clicks_val),
+                            reach,
+                            round(cpr_val, 2),
+                            cpc,
+                            round(frequency, 2),
+                            round(lpv_val, 2),
+                            lpv_rate,
+                            '0',
+                            'Cron Job',
+                            now_str,
+                        ))
+
+                        per_day_log[str(tanggal_row)].append((
+                            account_data['account_id'],
+                            country_code_val,
+                            country_name_val,
+                            domain_value,
+                            campaign_name,
+                            str(tanggal_row),
+                            round(spend, 2),
+                            impressions,
+                            int(clicks_val),
+                            reach,
+                            round(cpr_val, 2),
+                            cpc,
+                            round(frequency, 2),
+                            round(lpv_val, 2),
+                            lpv_rate,
+                            '0',
+                            'Log Snapshot',
+                            now_str,
+                        ))
                     except Exception as ie:
                         total_error += 1
                         self.stdout.write(self.style.ERROR(
-                            f"Gagal insert baris negara untuk akun {account_data.get('account_name','Unknown')}: {ie}"
+                            f"Gagal proses baris negara untuk akun {account_data.get('account_name','Unknown')}: {ie}"
+                        ))
+
+                for day_str, rows in per_day_data.items():
+                    if not rows:
+                        continue
+                    try:
+                        if domain_filter != '%':
+                            sql_del = (
+                                "DELETE FROM data_ads_country WHERE account_ads_id=%s AND data_ads_country_tanggal=%s AND data_ads_domain=%s"
+                            )
+                            db.execute_query(sql_del, (account_data['account_id'], day_str, domain_filter))
+                            db.commit()
+                            sql_del_log = (
+                                "DELETE FROM log_ads_country WHERE account_ads_id=%s AND log_ads_country_tanggal=%s AND log_ads_domain=%s"
+                            )
+                            db.execute_query(sql_del_log, (account_data['account_id'], day_str, domain_filter))
+                            db.commit()
+                        else:
+                            sql_del = "DELETE FROM data_ads_country WHERE account_ads_id=%s AND data_ads_country_tanggal=%s"
+                            db.execute_query(sql_del, (account_data['account_id'], day_str))
+                            db.commit()
+                            sql_del_log = "DELETE FROM log_ads_country WHERE account_ads_id=%s AND log_ads_country_tanggal=%s"
+                            db.execute_query(sql_del_log, (account_data['account_id'], day_str))
+                            db.commit()
+
+                        ok_data = _bulk_insert_data_ads_country(db, rows)
+                        ok_log = _bulk_insert_log_ads_country(db, per_day_log.get(day_str) or [])
+                        if ok_data and ok_log:
+                            total_insert += len(rows)
+                        else:
+                            total_error += len(rows)
+                            self.stdout.write(self.style.ERROR(
+                                f"Gagal bulk insert untuk akun {account_data.get('account_name','Unknown')} tanggal {day_str}"
+                            ))
+                    except Exception as e:
+                        total_error += len(rows)
+                        self.stdout.write(self.style.ERROR(
+                            f"Gagal bulk sync untuk akun {account_data.get('account_name','Unknown')} tanggal {day_str}: {e}"
                         ))
 
             except Exception as e:

@@ -933,40 +933,57 @@ class DashboardSyncView(View):
             commands = [
                 'cron_adsense_country_load',
                 'cron_adx_country_load',
+                'cron_ads_country_load',
             ]
+            print(f'commands: {commands}')
 
             for cmd in commands:
                 buf = StringIO()
+                step = {'command': cmd}
                 try:
                     if tanggal != '%':
                         call_command(cmd, tanggal=tanggal, stdout=buf)
                     else:
                         call_command(cmd, stdout=buf)
-                    steps.append({'command': cmd, 'status': True, 'output': buf.getvalue()})
+                    step['status'] = True
                 except Exception as e:
-                    steps.append({'command': cmd, 'status': False, 'error': str(e), 'output': buf.getvalue()})
+                    step['status'] = False
+                    step['error'] = str(e)
 
-            failed = 0
+                out = buf.getvalue()
+                step['output'] = out
+
+                try:
+                    m_ins = re.search(r"Berhasil\s+insert:\s*([0-9]+)", out or '', flags=re.IGNORECASE)
+                    if m_ins:
+                        step['inserted'] = int(m_ins.group(1))
+                    m_fail = re.search(r"gagal:\s*([0-9]+)", out or '', flags=re.IGNORECASE)
+                    if m_fail:
+                        step['failed_rows'] = int(m_fail.group(1))
+                except Exception:
+                    pass
+
+                steps.append(step)
+
+            parts = []
             for s in steps:
-                if not s.get('status'):
-                    failed += 1
-
-            if failed == len(commands):
-                return JsonResponse(
-                    {
-                        'status': False,
-                        'message': 'Synchronize gagal (semua job error)',
-                        'failed': failed,
-                        'steps': steps,
-                    },
-                    status=200,
-                )
+                ins = s.get('inserted')
+                if ins is None:
+                    continue
+                cmd = str(s.get('command') or '').strip()
+                short = cmd.replace('cron_', '').replace('_load', '')
+                parts.append(f"{short}={ins}")
 
             message = 'Synchronize selesai'
-            if failed:
-                message = f'Synchronize selesai, tapi {failed} job error'
+            if parts:
+                message = message + ' (' + ', '.join(parts) + ')'
 
-            return JsonResponse({'status': True, 'message': message, 'failed': failed, 'steps': steps})
+            failed_jobs = 0
+            for s in steps:
+                if s.get('status') is False:
+                    failed_jobs += 1
+
+            return JsonResponse({'status': True, 'message': message, 'failed': failed_jobs, 'steps': steps})
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)}, status=500)
 

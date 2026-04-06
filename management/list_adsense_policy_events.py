@@ -426,9 +426,10 @@ def list_adsense_policy_events(db, limit=200):
         'status',
         'source',
         'subject',
-        'from_email',
         'domain',
         'url',
+        'raw_body',
+        'from_email',
         'created_at',
         'mdd',
         'event_id',
@@ -450,4 +451,10 @@ def list_adsense_policy_events(db, limit=200):
     for r in dict_rows:
         rows.append([r.get(c, '') for c in display_cols])
 
-    return {'status': True, 'table': TABLE_NAME, 'columns': display_cols, 'rows': rows}
+    return {
+        'status': True,
+        'table': TABLE_NAME,
+        'columns': display_cols,
+        'rows': rows,
+        'items': dict_rows,
+    }
