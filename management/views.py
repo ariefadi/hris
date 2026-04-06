@@ -925,20 +925,60 @@ class DashboardSyncView(View):
                 payload = {}
 
             tanggal = str(payload.get('tanggal') or '').strip()
-            print(f'tanggal_sinkron: {tanggal}')
             if not tanggal:
                 tanggal = '%'
 
+            source = str(payload.get('source') or 'all').strip().lower()
+
             steps = []
-            commands = [
-                'cron_adsense_country_load',
-                'cron_adx_country_load',
-                'cron_ads_country_load',
-            ]
+            if source == 'adsense':
+                commands = [
+                    'cron_ads_country_load',
+                    'cron_adsense_country_load',
+                ]
+            elif source == 'adx':
+                commands = [
+                    'cron_ads_country_load',
+                    'cron_adx_country_load',
+                ]
+            else:
+                commands = [
+                    'cron_ads_country_load',
+                    'cron_adx_country_load',
+                    'cron_adsense_country_load',
+                ]
+
+            print(f'source: {source}')
             print(f'commands: {commands}')
 
+            class _LimitedStringIO:
+                def __init__(self, max_chars=20000):
+                    self.max_chars = int(max_chars or 0)
+                    self._parts = []
+                    self._len = 0
+
+                def write(self, s):
+                    if s is None:
+                        return 0
+                    ss = str(s)
+                    self._parts.append(ss)
+                    self._len += len(ss)
+                    if self.max_chars > 0 and self._len > self.max_chars:
+                        joined = ''.join(self._parts)
+                        if len(joined) > self.max_chars:
+                            joined = joined[-self.max_chars:]
+                        self._parts = [joined]
+                        self._len = len(joined)
+                    return len(ss)
+
+                def flush(self):
+                    return None
+
+                def getvalue(self):
+                    return ''.join(self._parts)
+
             for cmd in commands:
-                buf = StringIO()
+                buf = _LimitedStringIO(max_chars=20000)
                 step = {'command': cmd}
                 try:
                     if tanggal != '%':
@@ -5341,7 +5381,6 @@ class DashboardDomainHourlyHeatmapView(View):
                 unique_name_site.append(main_domain)
 
             unique_name_site = list(set(unique_name_site))
-            print(f"unique_name_site_data: {unique_name_site}")
 
             ads_resp = None
             if unique_name_site:
@@ -5349,7 +5388,6 @@ class DashboardDomainHourlyHeatmapView(View):
                     tanggal_formatted,
                     unique_name_site
                 )
-            print(f"ads_resp_data: {ads_resp}")
             ads_rows = ((ads_resp or {}).get('hasil') or {}).get('data') or []
             if not isinstance(ads_rows, list):
                 ads_rows = []
@@ -5367,7 +5405,6 @@ class DashboardDomainHourlyHeatmapView(View):
                         continue
                     hkey = f"{hour:02d}"
                     rev_by_hour[hkey] = rev_by_hour.get(hkey, 0.0) + float(row.get('revenue', 0) or 0)
-
             _acc_rev(adx_rows)
             _acc_rev(adsense_rows)
 
@@ -6131,6 +6168,33 @@ class RoiMonitoringDomainDataView(View):
                 selected_account_list,
                 selected_domain_list
             )
+
+            last_update = ''
+            try:
+                lu = data_mysql().get_last_update_adx_monitoring_by_params(
+                    start_date_formatted,
+                    end_date_formatted,
+                    selected_account_list
+                )
+                last_update = ((lu or {}).get('data') or {}).get('last_update') or ''
+            except Exception:
+                last_update = ''
+
+            last_update_by_site = {}
+            try:
+                lus = data_mysql().get_last_update_adx_monitoring_by_domain_params(
+                    start_date_formatted,
+                    end_date_formatted,
+                    selected_account_list,
+                    selected_domain_list
+                )
+                for x in ((lus or {}).get('data') or []):
+                    k = str((x or {}).get('site_name') or '').strip()
+                    if k:
+                        last_update_by_site[k] = (x or {}).get('last_update') or ''
+            except Exception:
+                last_update_by_site = {}
+
             # --- 4. Proses Facebook data
             facebook_data = None
             unique_name_site = []
@@ -6292,7 +6356,8 @@ class RoiMonitoringDomainDataView(View):
                         'account_ads': item['account_ads'],
                         'spend': spend_val,
                         'revenue': revenue_val,
-                        'roi': roi
+                        'roi': roi,
+                        'last_update': last_update_by_site.get(item['site_name'], '')
                     })
                     total_spend += spend_val
                     total_revenue += revenue_val
@@ -6307,7 +6372,8 @@ class RoiMonitoringDomainDataView(View):
                         'account_ads': item['account_ads'],
                         'spend': spend_val,
                         'revenue': revenue_val,
-                        'roi': roi
+                        'roi': roi,
+                        'last_update': last_update_by_site.get(item['site_name'], '')
                     })
             roi_nett_summary = ((total_revenue - total_spend) / total_spend * 100) if total_spend > 0 else 0
 
@@ -6454,6 +6520,7 @@ class RoiMonitoringDomainDataView(View):
 
             result = {
                 'status': True,
+                'last_update': last_update,
                 'data': combined_data_all,
                 'data_filtered': combined_data_filtered,
                 'raw_rows': raw_rows_all,

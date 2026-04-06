@@ -1832,6 +1832,33 @@ class RoiMonitoringDomainAdsenseDataView(View):
                 selected_account_list,
                 selected_domain_list
             )
+
+            last_update = ''
+            try:
+                lu = data_mysql().get_last_update_adsense_monitoring_by_params(
+                    start_date_formatted,
+                    end_date_formatted,
+                    selected_account_list
+                )
+                last_update = ((lu or {}).get('data') or {}).get('last_update') or ''
+            except Exception:
+                last_update = ''
+
+            last_update_by_site = {}
+            try:
+                lus = data_mysql().get_last_update_adsense_monitoring_by_domain_params(
+                    start_date_formatted,
+                    end_date_formatted,
+                    selected_account_list,
+                    selected_domain_list
+                )
+                for x in ((lus or {}).get('data') or []):
+                    k = str((x or {}).get('site_name') or '').strip()
+                    if k:
+                        last_update_by_site[k] = (x or {}).get('last_update') or ''
+            except Exception:
+                last_update_by_site = {}
+
             # --- 4. Proses Facebook data
             facebook_data = None
             unique_name_site = []
@@ -1957,7 +1984,8 @@ class RoiMonitoringDomainAdsenseDataView(View):
                         'account_ads': item['account_ads'],
                         'spend': spend_val,
                         'revenue': revenue_val,
-                        'roi': roi
+                        'roi': roi,
+                        'last_update': last_update_by_site.get(item['site_name'], '')
                     })
                     total_spend += spend_val
                     total_revenue += revenue_val
@@ -1972,11 +2000,13 @@ class RoiMonitoringDomainAdsenseDataView(View):
                         'account_ads': item['account_ads'],
                         'spend': spend_val,
                         'revenue': revenue_val,
-                        'roi': roi
+                        'roi': roi,
+                        'last_update': last_update_by_site.get(item['site_name'], '')
                     })
             roi_nett_summary = ((total_revenue - total_spend) / total_spend * 100) if total_spend > 0 else 0
             result = {
                 'status': True,
+                'last_update': last_update,
                 'data': combined_data_all,              # semua kontribusi
                 'data_filtered': combined_data_filtered, # hanya spend > 0
                 'raw_rows': raw_rows_all,                # baris mentah (opsional, untuk analisis)

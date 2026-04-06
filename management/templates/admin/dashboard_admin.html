@@ -644,6 +644,7 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
                                                 <th class="text-end" style="width:170px;">Pendapatan</th>
                                                 <th class="text-end" style="width:190px;">Pendapatan Bersih</th>
                                                 <th class="text-end" style="width:110px;">ROI</th>
+                                                <th class="text-center" style="width:160px;">Updated</th>
                                             </tr>
                                         </thead>
                                         <tbody id="dashboardRecapTbody"></tbody>
@@ -2170,7 +2171,7 @@ function initDashboardRecap() {
             : `/management/admin/page_monitoring_domain?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adx=&selected_domains=`;
     }
 
-    function rowsFrom(dim, arr, sourceTag) {
+    function rowsFrom(dim, arr, sourceTag, lastUpdate) {
         const out = (arr||[]).map(r => {
             const spend = Number(r?.spend)||0;
             const revenue = Number(r?.revenue)||0;
@@ -2179,7 +2180,8 @@ function initDashboardRecap() {
             const name = dim === 'country' ? (r?.country||'-') : (r?.site_name||r?.site||r?.subdomain||'-');
             const code = dim === 'country' ? (r?.country_code||'') : '';
             const src = String(sourceTag || '').trim().toLowerCase();
-            return { name:String(name||'-'), code:String(code||''), spend, revenue, net, roi, source: src };
+            const lu = (r && (r.last_update != null)) ? r.last_update : lastUpdate;
+            return { name:String(name||'-'), code:String(code||''), spend, revenue, net, roi, source: src, last_update: lu };
         });
         out.sort((a,b) => {
             const ar = Number(a?.roi) || 0;
@@ -2210,22 +2212,61 @@ function initDashboardRecap() {
         const thCode = document.getElementById('dashboardRecapThCode');
         if (thName) thName.textContent = dim === 'country' ? 'Nama Negara' : 'Domain';
 
+        function fmtUpdateTime(v) {
+            const s = String(v || '').trim();
+            if (!s) return '';
+            const m = s.match(/(\d{2}:\d{2}:\d{2})/);
+            return m ? m[1] : s;
+        }
+
+        function updBadge(t, marginCls) {
+            const tt = fmtUpdateTime(t);
+            if (!tt) return '';
+            const m = marginCls ? ` ${marginCls}` : '';
+            return `<span class="badge badge-danger badge-pill${m}">${esc(tt)}</span>`;
+        }
+
         function domainCell(r) {
             const name = esc(r?.name);
             if (dim === 'country') return name;
 
             const srcs = r && r.sources;
             const badges = [];
+
             if (srcs && (srcs.adx || srcs.adsense)) {
                 if (srcs.adx) badges.push('<span class="badge badge-primary badge-pill ml-2">AdX</span>');
-                if (srcs.adsense) badges.push('<span class="badge badge-success badge-pill ml-1">AdSense</span>');
+                if (srcs.adsense) badges.push('<span class="badge badge-warning badge-pill ml-1 text-dark">AdSense</span>');
             } else {
                 const src = String(r?.source || '').toLowerCase();
                 if (src === 'adx') badges.push('<span class="badge badge-primary badge-pill ml-2">AdX</span>');
-                if (src === 'adsense') badges.push('<span class="badge badge-success badge-pill ml-2">AdSense</span>');
+                if (src === 'adsense') badges.push('<span class="badge badge-warning badge-pill ml-2 text-dark">AdSense</span>');
             }
 
             return badges.length ? (name + ' ' + badges.join('')) : name;
+        }
+
+        function updatedCell(r) {
+            if (dim === 'country') return '-';
+
+            const srcs = r && r.sources;
+            const lus = r && r.last_updates;
+            const badges = [];
+
+            if (srcs && (srcs.adx || srcs.adsense)) {
+                if (srcs.adx) {
+                    const b = updBadge(lus && lus.adx, '');
+                    if (b) badges.push(b);
+                }
+                if (srcs.adsense) {
+                    const b = updBadge(lus && lus.adsense, badges.length ? 'ml-1' : '');
+                    if (b) badges.push(b);
+                }
+            } else {
+                const b = updBadge(r && r.last_update, '');
+                if (b) badges.push(b);
+            }
+
+            return badges.join(' ') || '-';
         }
 
         const data = (rows || []).map((r, i) => {
@@ -2237,6 +2278,7 @@ function initDashboardRecap() {
                 Number(r.revenue) || 0,
                 Number(r.net) || 0,
                 Number(r.roi) || 0,
+                updatedCell(r),
             ];
         });
 
@@ -2262,6 +2304,7 @@ function initDashboardRecap() {
                     <td class="text-end">${fmtIdr(row[4])}</td>
                     <td class="text-end">${fmtIdr(row[5])}</td>
                     <td class="text-end">${fmtPct(row[6])}</td>
+                    <td class="text-center">${row[7]}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -2312,6 +2355,28 @@ function initDashboardRecap() {
                             const v = Number(data) || 0;
                             if (type === 'display' || type === 'filter') return fmtPct(v);
                             return v;
+                        }
+                    },
+                    {
+                        targets: 7,
+                        className: 'text-center',
+                        orderable: true,
+                        searchable: false,
+                        render: function (data, type) {
+                            const s = String(data || '');
+                            if (type === 'display') return s;
+                            const times = s.match(/\d{2}:\d{2}:\d{2}/g) || [];
+                            if (type === 'filter') return times.join(' ');
+                            let maxSec = -1;
+                            for (const t of times) {
+                                const p = t.split(':');
+                                const hh = Number(p[0]) || 0;
+                                const mm = Number(p[1]) || 0;
+                                const ss = Number(p[2]) || 0;
+                                const sec = (hh * 3600) + (mm * 60) + ss;
+                                if (sec > maxSec) maxSec = sec;
+                            }
+                            return maxSec;
                         }
                     }
                 ]
@@ -2753,7 +2818,8 @@ function initDashboardRecap() {
                 code: String(r?.code||''),
                 spend: 0,
                 revenue: 0,
-                sources: { adx: false, adsense: false }
+                sources: { adx: false, adsense: false },
+                last_updates: { adx: '', adsense: '' }
             };
             const spend = Number(r?.spend) || 0;
             const revenue = Number(r?.revenue) || 0;
@@ -2761,8 +2827,14 @@ function initDashboardRecap() {
 
             cur.spend = Math.max(Number(cur.spend)||0, spend);
             cur.revenue = (Number(cur.revenue)||0) + revenue;
-            if (src === 'adx') cur.sources.adx = true;
-            if (src === 'adsense') cur.sources.adsense = true;
+            if (src === 'adx') {
+                cur.sources.adx = true;
+                if (r && r.last_update) cur.last_updates.adx = r.last_update;
+            }
+            if (src === 'adsense') {
+                cur.sources.adsense = true;
+                if (r && r.last_update) cur.last_updates.adsense = r.last_update;
+            }
 
             m.set(key, cur);
         }
@@ -2781,7 +2853,8 @@ function initDashboardRecap() {
                 revenue,
                 net: revenue - spend,
                 roi: spend > 0 ? ((revenue - spend) / spend * 100) : 0,
-                sources: v.sources
+                sources: v.sources,
+                last_updates: v.last_updates
             });
         }
         out.sort((a,b) => {
@@ -2827,15 +2900,15 @@ function initDashboardRecap() {
                 if (!jsonAdx || !jsonAdx.status) throw new Error(jsonAdx?.error || 'Gagal memuat data AdX');
                 if (!jsonAds || !jsonAds.status) throw new Error(jsonAds?.error || 'Gagal memuat data AdSense');
 
-                const rowsAdx = rowsFrom(st.dim, pickList(jsonAdx), 'adx');
-                const rowsAds = rowsFrom(st.dim, pickList(jsonAds), 'adsense');
+                const rowsAdx = rowsFrom(st.dim, pickList(jsonAdx), 'adx', jsonAdx.last_update);
+                const rowsAds = rowsFrom(st.dim, pickList(jsonAds), 'adsense', jsonAds.last_update);
                 rows = mergeRows(rowsAdx, rowsAds);
                 summary = summarize(rows);
             } else {
                 const res = await fetch(endpointFor(st.source, st.dim, st.date));
                 const json = await res.json();
                 if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat data');
-                rows = rowsFrom(st.dim, pickList(json), st.source);
+                rows = rowsFrom(st.dim, pickList(json), st.source, json.last_update);
                 summary = (json.summary_filtered || json.summary_all || json.summary || {});
             }
 
@@ -2952,7 +3025,7 @@ function initDashboardRecap() {
                         'Content-Type': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest'
                     },
-                    body: JSON.stringify({ tanggal }),
+                    body: JSON.stringify({ tanggal, source: st.source }),
                     credentials: 'same-origin'
                 });
 

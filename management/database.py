@@ -219,7 +219,7 @@ class data_mysql:
         except (ValueError, TypeError):
             port = 8123
         user = os.getenv('CH_USER') or os.getenv('REPORT_DB_USER') or os.getenv('DB_REPORT_USER') or 'default'
-        password = os.getenv('CH_PASSWORD') or os.getenv('REPORT_DB_PASSWORD') or os.getenv('DB_REPORT_PASSWORD') or 'hris123456'
+        password = os.getenv('CH_PASSWORD') or os.getenv('REPORT_DB_PASSWORD') or os.getenv('DB_REPORT_PASSWORD') or ''
         database = os.getenv('CH_DB') or os.getenv('REPORT_DB_NAME') or os.getenv('DB_REPORT_NAME') or os.getenv('DB_NAME') or os.getenv('HRIS_DB_NAME') or 'hris_trendHorizone'
         self.report_cur = ClickHouseHttpCursor(host=host, port=port, user=user, password=password, database=database)
         return True
@@ -238,7 +238,7 @@ class data_mysql:
                 print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
                 port = 3306
             user = os.getenv('DB_USER') or 'root'
-            password = os.getenv('DB_PASSWORD') or 'hris123456'
+            password = os.getenv('DB_PASSWORD') or ''
             database = os.getenv('DB_NAME') or 'hris_trendHorizone'
 
             self.db_hris = pymysql.connect(
@@ -1752,6 +1752,250 @@ class data_mysql:
             hasil = {
                 "status": True,
                 "data": datanya
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return hasil
+
+    def get_last_update_adx_monitoring_by_params(self, start_date, end_date, selected_account_list=None):
+        try:
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
+
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            account_col = "toString(b.account_id)" if use_clickhouse else "b.account_id"
+            like_conditions_account = " OR ".join([f"{account_col} LIKE %s"] * len(data_account_list))
+            like_params_account = [f"{account}%" for account in data_account_list]
+
+            base_sql = [
+                "SELECT",
+                "\tMAX(b.mdd) AS 'last_update'",
+                "FROM data_adx_country b",
+                "WHERE",
+            ]
+            params = []
+            if use_clickhouse:
+                base_sql.append("toDate(b.data_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)")
+            else:
+                base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+
+            if data_account_list:
+                base_sql.append(f"\tAND ({like_conditions_account})")
+                params.extend(like_params_account)
+
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error('Failed to fetch last update')
+            datanya = self.cur_hris.fetchone() if self.cur_hris else None
+            if not self.commit():
+                raise pymysql.Error('Failed to commit last update')
+            hasil = {
+                "status": True,
+                "data": datanya
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return hasil
+
+    def get_last_update_adsense_monitoring_by_params(self, start_date, end_date, selected_account_list=None):
+        try:
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
+
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            account_col = "toString(b.account_id)" if use_clickhouse else "b.account_id"
+            like_conditions_account = " OR ".join([f"{account_col} LIKE %s"] * len(data_account_list))
+            like_params_account = [f"{account}%" for account in data_account_list]
+
+            base_sql = [
+                "SELECT",
+                "\tMAX(b.mdd) AS 'last_update'",
+                "FROM data_adsense_country b",
+                "WHERE",
+            ]
+            params = []
+            if use_clickhouse:
+                base_sql.append("toDate(b.data_adsense_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)")
+            else:
+                base_sql.append("b.data_adsense_country_tanggal BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+
+            if data_account_list:
+                base_sql.append(f"\tAND ({like_conditions_account})")
+                params.extend(like_params_account)
+
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error('Failed to fetch last update')
+            datanya = self.cur_hris.fetchone() if self.cur_hris else None
+            if not self.commit():
+                raise pymysql.Error('Failed to commit last update')
+            hasil = {
+                "status": True,
+                "data": datanya
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return hasil
+
+    def get_last_update_adx_monitoring_by_domain_params(self, start_date, end_date, selected_account_list=None, selected_domain_list=None):
+        try:
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
+
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            account_col = "toString(b.account_id)" if use_clickhouse else "b.account_id"
+            like_conditions_account = " OR ".join([f"{account_col} LIKE %s"] * len(data_account_list))
+            like_params_account = [f"{account}%" for account in data_account_list]
+
+            site_expr = "concat(arrayElement(splitByChar('.', b.data_adx_country_domain), 1), '.', arrayElement(splitByChar('.', b.data_adx_country_domain), 2))" if use_clickhouse else "SUBSTRING_INDEX(b.data_adx_country_domain, '.', 2)"
+            like_conditions_domain = " OR ".join([f"{site_expr} LIKE %s"] * len(data_domain_list))
+            like_params_domain = [f"%{domain}%" for domain in data_domain_list]
+
+            base_sql = [
+                "SELECT",
+                f"\t{site_expr} AS 'site_name',",
+                "\tMAX(b.mdd) AS 'last_update'",
+                "FROM data_adx_country b",
+                "WHERE",
+            ]
+            params = []
+            if use_clickhouse:
+                base_sql.append("toDate(b.data_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)")
+            else:
+                base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+
+            if data_account_list:
+                base_sql.append(f"\tAND ({like_conditions_account})")
+                params.extend(like_params_account)
+
+            if data_domain_list:
+                base_sql.append(f"\tAND ({like_conditions_domain})")
+                params.extend(like_params_domain)
+
+            base_sql.append(f"GROUP BY {site_expr}")
+            base_sql.append(f"ORDER BY {site_expr} ASC")
+
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error('Failed to fetch last update by domain')
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error('Failed to commit last update by domain')
+            hasil = {
+                "status": True,
+                "data": data
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return hasil
+
+    def get_last_update_adsense_monitoring_by_domain_params(self, start_date, end_date, selected_account_list=None, selected_domain_list=None):
+        try:
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
+
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            account_col = "toString(b.account_id)" if use_clickhouse else "b.account_id"
+            like_conditions_account = " OR ".join([f"{account_col} LIKE %s"] * len(data_account_list))
+            like_params_account = [f"{account}%" for account in data_account_list]
+
+            site_expr = "concat(arrayElement(splitByChar('.', b.data_adsense_country_domain), 1), '.', arrayElement(splitByChar('.', b.data_adsense_country_domain), 2))" if use_clickhouse else "SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 2)"
+            like_conditions_domain = " OR ".join([f"{site_expr} LIKE %s"] * len(data_domain_list))
+            like_params_domain = [f"%{domain}%" for domain in data_domain_list]
+
+            base_sql = [
+                "SELECT",
+                f"\t{site_expr} AS 'site_name',",
+                "\tMAX(b.mdd) AS 'last_update'",
+                "FROM data_adsense_country b",
+                "WHERE",
+            ]
+            params = []
+            if use_clickhouse:
+                base_sql.append("toDate(b.data_adsense_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)")
+            else:
+                base_sql.append("b.data_adsense_country_tanggal BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+
+            if data_account_list:
+                base_sql.append(f"\tAND ({like_conditions_account})")
+                params.extend(like_params_account)
+
+            if data_domain_list:
+                base_sql.append(f"\tAND ({like_conditions_domain})")
+                params.extend(like_params_domain)
+
+            base_sql.append(f"GROUP BY {site_expr}")
+            base_sql.append(f"ORDER BY {site_expr} ASC")
+
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error('Failed to fetch last update by domain')
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error('Failed to commit last update by domain')
+            hasil = {
+                "status": True,
+                "data": data
             }
         except pymysql.Error as e:
             hasil = {
@@ -4174,7 +4418,7 @@ class data_mysql:
                 "    argMax(log_adx_country_revenue, mdd) AS revenue",
                 "FROM log_adx_country",
                 "WHERE toDate(log_adx_country_tanggal) = toDate(%s)",
-                "  AND log_adx_country_domain NOT IN ('(Not applicable)')",
+                "AND log_adx_country_domain NOT IN ('(Not applicable)')",
                 "GROUP BY hour, country_code, log_adx_country_domain",
                 "ORDER BY hour ASC",
             ])
