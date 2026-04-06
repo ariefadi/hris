@@ -4209,11 +4209,11 @@ class data_mysql:
                 "GROUP BY hour, country_code, log_adsense_country_domain",
                 "ORDER BY hour ASC",
             ])
-            params = (tanggal,)
+            params = [tanggal]
 
             self._ensure_report_connection()
             self.cur_hris = self.report_cur
-            self.cur_hris.execute(sql, params)
+            self.cur_hris.execute(sql, tuple(params))
             data_rows = self.fetch_all() or []
 
             return {
