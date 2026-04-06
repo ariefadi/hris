@@ -219,7 +219,7 @@ class data_mysql:
         except (ValueError, TypeError):
             port = 8123
         user = os.getenv('CH_USER') or os.getenv('REPORT_DB_USER') or os.getenv('DB_REPORT_USER') or 'default'
-        password = os.getenv('CH_PASSWORD') or os.getenv('REPORT_DB_PASSWORD') or os.getenv('DB_REPORT_PASSWORD') or 'hris123456'
+        password = os.getenv('CH_PASSWORD') or os.getenv('REPORT_DB_PASSWORD') or os.getenv('DB_REPORT_PASSWORD') or ''
         database = os.getenv('CH_DB') or os.getenv('REPORT_DB_NAME') or os.getenv('DB_REPORT_NAME') or os.getenv('DB_NAME') or os.getenv('HRIS_DB_NAME') or 'hris_trendHorizone'
         self.report_cur = ClickHouseHttpCursor(host=host, port=port, user=user, password=password, database=database)
         return True
@@ -238,7 +238,7 @@ class data_mysql:
                 print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
                 port = 3306
             user = os.getenv('DB_USER') or 'root'
-            password = os.getenv('DB_PASSWORD') or 'hris123456'
+            password = os.getenv('DB_PASSWORD') or ''
             database = os.getenv('DB_NAME') or 'hris_trendHorizone'
 
             self.db_hris = pymysql.connect(
@@ -4353,28 +4353,16 @@ class data_mysql:
 
             # Query: last record per hour (menit terakhir)
             sql_ch = f"""
-            WITH
-                last_minute_per_hour AS (
-                    SELECT
-                        toHour(mdd) AS hour,
-                        MAX(toMinute(mdd)) AS last_minute
-                    FROM hris_trendHorizone.log_ads_country
-                    WHERE toDate(log_ads_country_tanggal) = toDate(%s)
-                    GROUP BY hour
-                )
             SELECT
-                h.hour,
+                toHour(lacs.mdd) AS hour,
                 SUM(lacs.log_ads_country_spend) AS spend,
                 SUM(lacs.log_ads_country_impresi) AS impressions,
                 SUM(lacs.log_ads_country_click) AS clicks
             FROM hris_trendHorizone.log_ads_country AS lacs
-            JOIN last_minute_per_hour AS h
-                ON toHour(lacs.mdd) = h.hour
-            AND toMinute(lacs.mdd) = h.last_minute
             WHERE toDate(lacs.log_ads_country_tanggal) = toDate(%s)
             AND ({starts_clause_ch})
-            GROUP BY h.hour
-            ORDER BY h.hour;
+            GROUP BY hour
+            ORDER BY hour;
             """
 
             # Params: tanggal untuk CTE + tanggal untuk main query + domains
