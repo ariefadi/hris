@@ -2948,11 +2948,31 @@ function initDashboardRecap() {
             try {
                 const res = await fetch('/management/admin/dashboard_sync', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tanggal })
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ tanggal }),
+                    credentials: 'same-origin'
                 });
-                const json = await res.json();
-                if (!json || !json.status) throw new Error(json?.error || json?.message || 'Gagal synchronize');
+
+                if (res.redirected || (res.url && String(res.url).includes('/login'))) {
+                    throw new Error('Session login berakhir. Silakan login ulang.');
+                }
+
+                const ct = (res.headers.get('content-type') || '').toLowerCase();
+                let json = null;
+                if (ct.includes('application/json')) {
+                    json = await res.json();
+                } else {
+                    const text = await res.text();
+                    const snippet = String(text || '').trim().slice(0, 200);
+                    throw new Error(`Response bukan JSON (HTTP ${res.status}). ${snippet}`);
+                }
+
+                if (!res.ok || !json || !json.status) {
+                    throw new Error(json?.error || json?.message || `Gagal synchronize (HTTP ${res.status})`);
+                }
 
                 const steps = Array.isArray(json?.steps) ? json.steps : [];
                 const failedSteps = steps.filter(s => s && s.status === false);
