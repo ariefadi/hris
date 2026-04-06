@@ -38,45 +38,6 @@ def fetch_adsense_traffic_per_country_domain(user_mail, start_date, end_date, si
         report_level='subdomain',
     )
 
-
-def _bulk_insert_data_adsense_country(db, rows):
-    if not rows:
-        return True
-    if not db.ensure_connection():
-        return False
-    cur = db.mysql_cur
-    sql = (
-        "INSERT INTO data_adsense_country ("
-        "account_id,data_adsense_country_tanggal,data_adsense_country_cd,data_adsense_country_nm,data_adsense_country_domain,"
-        "data_adsense_country_impresi,data_adsense_country_click,data_adsense_country_cpc,data_adsense_country_ctr,data_adsense_country_cpm,"
-        "data_adsense_country_page_views,data_adsense_country_page_views_rpm,data_adsense_country_ad_requests,data_adsense_country_ad_requests_coverage,"
-        "data_adsense_country_active_view_viewability,data_adsense_country_active_view_measurability,data_adsense_country_active_view_time,data_adsense_country_revenue,"
-        "mdb,mdb_name,mdd"
-        ") VALUES (" + ",".join(["%s"] * 21) + ")"
-    )
-    cur.executemany(sql, rows)
-    return db.commit()
-
-
-def _bulk_insert_log_adsense_country(db, rows):
-    if not rows:
-        return True
-    if not db.ensure_connection():
-        return False
-    cur = db.mysql_cur
-    sql = (
-        "INSERT INTO log_adsense_country ("
-        "account_id,log_adsense_country_tanggal,log_adsense_country_cd,log_adsense_country_nm,log_adsense_country_domain,"
-        "log_adsense_country_impresi,log_adsense_country_click,log_adsense_country_cpc,log_adsense_country_ctr,log_adsense_country_cpm,"
-        "log_adsense_country_page_views,log_adsense_country_page_views_rpm,log_adsense_country_ad_requests,log_adsense_country_ad_requests_coverage,"
-        "log_adsense_country_active_view_viewability,log_adsense_country_active_view_measurability,log_adsense_country_active_view_time,log_adsense_country_revenue,"
-        "mdb,mdb_name,mdd"
-        ") VALUES (" + ",".join(["%s"] * 21) + ")"
-    )
-    cur.executemany(sql, rows)
-    return db.commit()
-
-
 class Command(BaseCommand):
     help = "Tarik dan simpan data AdSense per negara & domain ke data_adsense, default hari ini. Kredensial diambil dari app_credentials."
 
@@ -157,10 +118,8 @@ class Command(BaseCommand):
                     res_currency = (res.get('currency_code') or '').strip().upper()
                     if res_currency:
                         currency_code = res_currency
+
                     items = res.get('data', []) or []
-                    data_rows = []
-                    log_rows = []
-                    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
                     def _to_float(val):
                         try:
@@ -202,105 +161,91 @@ class Command(BaseCommand):
                             if (not ad_requests_coverage) and ad_requests > 0:
                                 ad_requests_coverage = (float(impressions) / float(ad_requests)) * 100.0
 
-                            data_rows.append((
-                                account_id,
-                                day_str,
-                                country_cd,
-                                country_nm,
-                                domain,
-                                impressions,
-                                clicks,
-                                int(round(cpc_idr)),
-                                float(ctr),
-                                int(round(cpm_idr)),
-                                page_views,
-                                int(round(page_views_rpm_idr)),
-                                ad_requests,
-                                _pct_to_int(ad_requests_coverage),
-                                _pct_to_int(item.get('active_view_viewability', 0.0)),
-                                _pct_to_int(item.get('active_view_measurability', 0.0)),
-                                int(round(_to_float(item.get('active_view_time', 0.0)))),
-                                int(round(revenue_idr)),
-                                '0',
-                                'Cron Job',
-                                now_str,
-                            ))
+                            record = {
+                                'account_id': account_id,
+                                'data_adsense_country_tanggal': day_str,
+                                'data_adsense_country_cd': country_cd,
+                                'data_adsense_country_nm': country_nm,
+                                'data_adsense_country_domain': domain,
+                                'data_adsense_country_impresi': impressions,
+                                'data_adsense_country_click': clicks,
+                                'data_adsense_country_ctr': float(ctr),
+                                'data_adsense_country_cpc': int(round(cpc_idr)),
+                                'data_adsense_country_cpm': int(round(cpm_idr)),
+                                'data_adsense_country_page_views': page_views,
+                                'data_adsense_country_page_views_rpm': int(round(page_views_rpm_idr)),
+                                'data_adsense_country_ad_requests': ad_requests,
+                                'data_adsense_country_ad_requests_coverage': _pct_to_int(ad_requests_coverage),
+                                'data_adsense_country_active_view_viewability': _pct_to_int(item.get('active_view_viewability', 0.0)),
+                                'data_adsense_country_active_view_measurability': _pct_to_int(item.get('active_view_measurability', 0.0)),
+                                'data_adsense_country_active_view_time': int(round(_to_float(item.get('active_view_time', 0.0)))),
+                                'data_adsense_country_revenue': int(round(revenue_idr)),
+                                'mdb': '0',
+                                'mdb_name': 'Cron Job',
+                                'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                            }
 
-                            log_rows.append((
-                                account_id,
-                                day_str,
-                                country_cd,
-                                country_nm,
-                                domain,
-                                impressions,
-                                clicks,
-                                int(round(cpc_idr)),
-                                int(round(float(ctr))),
-                                int(round(cpm_idr)),
-                                page_views,
-                                int(round(page_views_rpm_idr)),
-                                ad_requests,
-                                _pct_to_int(ad_requests_coverage),
-                                _pct_to_int(item.get('active_view_viewability', 0.0)),
-                                _pct_to_int(item.get('active_view_measurability', 0.0)),
-                                int(round(_to_float(item.get('active_view_time', 0.0)))),
-                                int(round(revenue_idr)),
-                                '0',
-                                'Log Snapshot',
-                                now_str,
-                            ))
+                            try:
+                                sql_del = (
+                                    "DELETE FROM data_adsense_country "
+                                    "WHERE account_id=%s "
+                                    "AND DATE(data_adsense_country_tanggal)=%s "
+                                    "AND data_adsense_country_cd=%s "
+                                    "AND data_adsense_country_domain=%s"
+                                )
+                                if db.execute_query(sql_del, (account_id, day_str, country_cd, domain)):
+                                    affected = db.cur_hris.rowcount if db.cur_hris else 0
+                                    if db.commit() and affected:
+                                        self.stdout.write(
+                                            self.style.WARNING(
+                                                f"Membersihkan data existing AdSense ({affected} baris) untuk {day_str}."
+                                            )
+                                        )
+                            except Exception as e:
+                                self.stdout.write(self.style.ERROR(f"Error saat menghapus data existing AdSense: {e}"))
+
+                            ins = db.insert_data_adsense_country(record)
+                            if ins.get('hasil', {}).get('status'):
+                                total_insert += 1
+                                params_log_new = {
+                                    'account_id': record.get('account_id'),
+                                    'log_adsense_country_tanggal': record.get('data_adsense_country_tanggal'),
+                                    'log_adsense_country_cd': record.get('data_adsense_country_cd'),
+                                    'log_adsense_country_nm': record.get('data_adsense_country_nm'),
+                                    'log_adsense_country_domain': record.get('data_adsense_country_domain'),
+                                    'log_adsense_country_impresi': record.get('data_adsense_country_impresi'),
+                                    'log_adsense_country_click': record.get('data_adsense_country_click'),
+                                    'log_adsense_country_cpc': record.get('data_adsense_country_cpc'),
+                                    'log_adsense_country_ctr': int(round(float(record.get('data_adsense_country_ctr') or 0.0))),
+                                    'log_adsense_country_cpm': record.get('data_adsense_country_cpm'),
+                                    'log_adsense_country_page_views': record.get('data_adsense_country_page_views'),
+                                    'log_adsense_country_page_views_rpm': record.get('data_adsense_country_page_views_rpm'),
+                                    'log_adsense_country_ad_requests': record.get('data_adsense_country_ad_requests'),
+                                    'log_adsense_country_ad_requests_coverage': record.get('data_adsense_country_ad_requests_coverage'),
+                                    'log_adsense_country_active_view_viewability': record.get('data_adsense_country_active_view_viewability'),
+                                    'log_adsense_country_active_view_measurability': record.get('data_adsense_country_active_view_measurability'),
+                                    'log_adsense_country_active_view_time': record.get('data_adsense_country_active_view_time'),
+                                    'log_adsense_country_revenue': record.get('data_adsense_country_revenue'),
+                                    'mdb': '0',
+                                    'mdb_name': 'Log Snapshot',
+                                    'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                }
+                                try:
+                                    db.insert_log_adsense_country_log(params_log_new)
+                                except Exception:
+                                    pass
+                            else:
+                                total_error += 1
+                                self.stdout.write(
+                                    self.style.ERROR(
+                                        f"Gagal insert data AdSense negara untuk {user_mail} - {account_name}"
+                                    )
+                                )
                         except Exception as ie:
                             total_error += 1
                             self.stdout.write(
                                 self.style.ERROR(
                                     f"Gagal proses baris negara untuk {user_mail} - {account_name}: {ie}"
-                                )
-                            )
-
-                    if data_rows:
-                        try:
-                            sql_del = (
-                                "DELETE FROM data_adsense_country "
-                                "WHERE account_id=%s AND DATE(data_adsense_country_tanggal)=%s"
-                            )
-                            if db.execute_query(sql_del, (account_id, day_str)):
-                                affected = db.cur_hris.rowcount if db.cur_hris else 0
-                                if db.commit() and affected:
-                                    self.stdout.write(
-                                        self.style.WARNING(
-                                            f"Membersihkan data existing AdSense ({affected} baris) untuk {day_str}."
-                                        )
-                                    )
-                        except Exception as e:
-                            self.stdout.write(self.style.ERROR(f"Error saat menghapus data existing AdSense: {e}"))
-
-                        try:
-                            sql_del_log = (
-                                "DELETE FROM log_adsense_country "
-                                "WHERE account_id=%s AND DATE(log_adsense_country_tanggal)=%s"
-                            )
-                            if db.execute_query(sql_del_log, (account_id, day_str)):
-                                db.commit()
-                        except Exception as e:
-                            self.stdout.write(self.style.ERROR(f"Error saat menghapus log existing AdSense: {e}"))
-
-                        try:
-                            ok_data = _bulk_insert_data_adsense_country(db, data_rows)
-                            ok_log = _bulk_insert_log_adsense_country(db, log_rows)
-                            if ok_data and ok_log:
-                                total_insert += len(data_rows)
-                            else:
-                                total_error += len(data_rows)
-                                self.stdout.write(
-                                    self.style.ERROR(
-                                        f"Gagal bulk insert untuk {user_mail} - {account_name}"
-                                    )
-                                )
-                        except Exception as e:
-                            total_error += len(data_rows)
-                            self.stdout.write(
-                                self.style.ERROR(
-                                    f"Gagal bulk insert untuk {user_mail} - {account_name}: {e}"
                                 )
                             )
                 except Exception as e:
