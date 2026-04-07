@@ -440,6 +440,47 @@ html[data-theme="dark"] .dashboard-recap-tabs .btn:hover {
 .metric-card.roi { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
 .dashboard-recap-table th, .dashboard-recap-table td { vertical-align: middle; }
 
+.sd-wrap { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
+.sd-card { flex: 1; min-width: 320px; background: #f8fafc; border: 1px solid rgba(15,23,42,0.08); border-radius: 14px; padding: 12px 14px; }
+.sd-title { font-weight: 900; font-size: 14px; margin-bottom: 8px; color: #0f172a; }
+.sd-sub { font-size: 12px; font-weight: 700; opacity: .75; }
+.sd-badges { display:flex; flex-wrap:wrap; gap:6px; margin: 8px 0 10px; }
+.sd-grid { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.sd-kv { width:100%; border-collapse: collapse; }
+.sd-kv td { padding: 7px 8px; border-bottom: 1px solid rgba(15,23,42,0.06); }
+.sd-kv td:last-child { text-align: right; font-weight: 800; }
+.sd-plat { flex: 1; min-width: 320px; border: 1px solid rgba(15,23,42,0.08); border-radius: 14px; overflow: hidden; background: #fff; }
+.sd-plat-hd { padding: 10px 12px; color: #fff; display:flex; align-items:center; justify-content:space-between; gap: 10px; }
+.sd-plat-hd .sd-plat-name { font-weight: 900; letter-spacing: .02em; }
+.sd-plat-hd .sd-plat-points { font-weight: 900; background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.28); padding: 3px 8px; border-radius: 999px; }
+.sd-plat--adx .sd-plat-hd { background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); }
+.sd-plat--adsense .sd-plat-hd { background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); }
+.sd-plat-body { padding: 12px; }
+.sd-details { border: 1px solid rgba(15,23,42,0.10); border-radius: 12px; background: #f8fafc; overflow: hidden; }
+.sd-details summary { cursor: pointer; padding: 10px 12px; list-style: none; display:flex; align-items:center; justify-content:space-between; gap: 10px; font-weight: 900; color: #0f172a; }
+.sd-details summary::-webkit-details-marker { display:none; }
+.sd-details .sd-det-right { font-weight: 900; opacity: .85; }
+.sd-details .sd-det-body { padding: 10px 12px 12px; border-top: 1px solid rgba(15,23,42,0.08); }
+.sd-details.sd-yield { border-left: 5px solid #7c3aed; }
+.sd-details.sd-delivery { border-left: 5px solid #2563eb; }
+.sd-details.sd-traffic { border-left: 5px solid #10b981; }
+.sd-details.sd-quality { border-left: 5px solid #f59e0b; }
+.sd-metric { display:flex; align-items:center; justify-content:space-between; gap: 10px; padding: 6px 0; border-bottom: 1px dashed rgba(15,23,42,0.10); }
+.sd-metric:last-child { border-bottom: 0; }
+.sd-metric .k { font-weight: 800; font-size: 12px; color: rgba(15,23,42,0.78); }
+.sd-metric .v { font-weight: 900; font-size: 12px; color: #0f172a; }
+
+html[data-theme="dark"] .sd-card { background: rgba(15,23,42,0.35); border-color: rgba(255,255,255,0.10); }
+html[data-theme="dark"] .sd-title { color: rgba(226,232,240,0.95); }
+html[data-theme="dark"] .sd-sub { color: rgba(226,232,240,0.70); }
+html[data-theme="dark"] .sd-kv td { border-bottom-color: rgba(255,255,255,0.10); }
+html[data-theme="dark"] .sd-plat { background: rgba(2,6,23,0.25); border-color: rgba(255,255,255,0.10); }
+html[data-theme="dark"] .sd-details { background: rgba(15,23,42,0.35); border-color: rgba(255,255,255,0.10); }
+html[data-theme="dark"] .sd-details summary { color: rgba(226,232,240,0.95); }
+html[data-theme="dark"] .sd-details .sd-det-body { border-top-color: rgba(255,255,255,0.10); }
+html[data-theme="dark"] .sd-metric .k { color: rgba(226,232,240,0.75); }
+html[data-theme="dark"] .sd-metric .v { color: rgba(226,232,240,0.95); }
+
 #dashboardRecapTemporalCard .roi-heatmap-title {
     display: flex;
     align-items: center;
@@ -637,14 +678,17 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
                                     <table class="table table-striped table-bordered mb-0 dashboard-recap-table" id="dashboardRecapTable">
                                         <thead>
                                             <tr>
-                                                <th style="width:48px" class="text-center">No</th>
-                                                <th id="dashboardRecapThName">Domain</th>
-                                                <th id="dashboardRecapThCode" style="width:90px;display:none;">Kode</th>
-                                                <th class="text-end" style="width:170px;">Spend</th>
-                                                <th class="text-end" style="width:170px;">Pendapatan</th>
-                                                <th class="text-end" style="width:190px;">Pendapatan Bersih</th>
-                                                <th class="text-end" style="width:110px;">ROI</th>
-                                                <th class="text-center" style="width:160px;">Updated</th>
+                                                <th class="text-center">No</th>
+                                                <th id="dashboardRecapThName" class="text-center">Sub Domain</th>
+                                                <th id="dashboardRecapThCode" class="text-center" style="width:90px;display:none;">Kode</th>
+                                                <th class="text-end">Spend</th>
+                                                <th class="text-end">Pendapatan</th>
+                                                <th class="text-end">Pendapatan Bersih</th>
+                                                <th class="text-center">ROI</th>
+                                                <th class="text-center">Score</th>
+                                                <th class="text-center">Keputusan</th>
+                                                <th class="text-center">Updated</th>
+                                                <th class="text-center">Detail</th>
                                             </tr>
                                         </thead>
                                         <tbody id="dashboardRecapTbody"></tbody>
@@ -884,6 +928,15 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
                                             <button id="roiHourlyDetailClose" type="button" class="btn btn-sm btn-outline-secondary">Close</button>
                                         </div>
                                         <div id="roiHourlyDetailBody" style="padding:12px 16px;"></div>
+                                    </div>
+                                </div>
+                                <div id="scoreDetailModal" style="position:fixed;top:0;left:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:1060;">
+                                    <div style="background:#fff;max-width:2400px;width:100vw;max-height:98vh;overflow:auto;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.2);">
+                                        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #eee;">
+                                            <h6 id="scoreDetailTitle" style="margin:0;">Detail Score</h6>
+                                            <button id="scoreDetailClose" type="button" class="btn btn-sm btn-outline-secondary">Close</button>
+                                        </div>
+                                        <div id="scoreDetailBody" style="padding:12px 16px;"></div>
                                     </div>
                                 </div>
                             </div>
@@ -1797,7 +1850,13 @@ function renderRoiCountryMap(items) {
             const roi = Number(it.roi || 0);
             const spend = Number(it.spend || 0);
             const weight = Math.max(1, Math.sqrt(Math.max(0, revenue)));
-            return { name, weight, revenue, roi, spend };
+            const totalRequests = (it && it.total_requests != null) ? Number(it.total_requests) : null;
+            const responsesServed = (it && it.responses_served != null) ? Number(it.responses_served) : null;
+            const matchRate = (it && it.match_rate != null) ? Number(it.match_rate) : null;
+            const fillRate = (it && it.total_fill_rate != null) ? Number(it.total_fill_rate) : ((it && it.fill_rate != null) ? Number(it.fill_rate) : null);
+            const impressions = (it && it.impressions != null) ? Number(it.impressions) : null;
+            const clicks = (it && it.clicks != null) ? Number(it.clicks) : null;
+            return { name, weight, revenue, roi, spend, totalRequests, responsesServed, matchRate, fillRate, impressions, clicks };
         })
         .filter(p => p.name);
 
@@ -1812,7 +1871,20 @@ function renderRoiCountryMap(items) {
                 const p = this.point || {};
                 const rev = Number(p.revenue || 0);
                 const roiVal = Number(p.roi || 0);
-                return `<b>${p.name || ''}</b><br/>Pendapatan: <b>${formatIdr(rev)}</b><br/>ROI: <b>${roiVal.toFixed(2)}%</b>`;
+                const spendVal = Number(p.spend || 0);
+                const rows = [
+                    `<b>${p.name || ''}</b>`,
+                    `Pendapatan: <b>${formatIdr(rev)}</b>`,
+                    `Spend: <b>${formatIdr(spendVal)}</b>`,
+                    `ROI: <b>${roiVal.toFixed(2)}%</b>`
+                ];
+                if (p.totalRequests != null) rows.push(`AdX Requests: <b>${fmtInt(p.totalRequests)}</b>`);
+                if (p.responsesServed != null) rows.push(`AdX Responses: <b>${fmtInt(p.responsesServed)}</b>`);
+                if (p.matchRate != null) rows.push(`AdX Match Rate: <b>${fmtPct(p.matchRate)}</b>`);
+                if (p.fillRate != null) rows.push(`AdX Total Fill Rate: <b>${fmtPct(p.fillRate)}</b>`);
+                if (p.impressions != null) rows.push(`AdX Impressions: <b>${fmtInt(p.impressions)}</b>`);
+                if (p.clicks != null) rows.push(`AdX Clicks: <b>${fmtInt(p.clicks)}</b>`);
+                return rows.join('<br/>');
             }
         },
         series: [{
@@ -2163,15 +2235,70 @@ function initDashboardRecap() {
     function endpointFor(source, dim, ymd) {
         if (source === 'adsense') {
             return dim === 'country'
-                ? `/management/admin/page_monitoring_country_adsense?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adsense=&selected_domains=&selected_countries=`
+                ? `/management/admin/page_monitoring_country_adsense?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adsense=&selected_domains=&selected_countries=&include_subdomains=1`
                 : `/management/admin/page_monitoring_domain_adsense?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adsense=&selected_domains=`;
         }
         return dim === 'country'
-            ? `/management/admin/page_monitoring_country?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adx=&selected_domains=&selected_countries=`
+            ? `/management/admin/page_monitoring_country?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adx=&selected_domains=&selected_countries=&include_subdomains=1`
             : `/management/admin/page_monitoring_domain?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adx=&selected_domains=`;
     }
 
-    function rowsFrom(dim, arr, sourceTag, lastUpdate) {
+    function baseSubdomain(fullString) {
+        const s = String(fullString || '').trim();
+        if (!s) return '';
+        const parts = s.split('.').filter(Boolean);
+        if (parts.length >= 2) return parts[0] + '.' + parts[1];
+        return s;
+    }
+
+    function uniqKeepOrder(xs) {
+        const out = [];
+        const seen = new Set();
+        (xs || []).forEach(function(x) {
+            const k = String(x || '').trim();
+            if (!k || seen.has(k)) return;
+            seen.add(k);
+            out.push(k);
+        });
+        return out;
+    }
+
+    function scoringBaselineEndpoint(ymd, domains, days) {
+        const qs = new URLSearchParams({
+            date: String(ymd || '').trim(),
+            days: String(days || 28),
+            domains: (domains || []).join(',')
+        });
+        return '/management/admin/page_monitoring_scoring_baseline_hourly?' + qs.toString();
+    }
+
+    async function loadScoringBaselineHourly(state, rows) {
+        window.dashboardRecapBaselineHourly = {};
+        if (!state || state.dim !== 'domain') return;
+        const src = String(state.source || '').toLowerCase();
+        if (!(src === 'adx' || src === 'adsense' || src === 'all')) return;
+
+        const doms = uniqKeepOrder((rows || []).map(r => baseSubdomain(r && r.name)).filter(Boolean)).slice(0, 120);
+        if (!doms.length) return;
+
+        try {
+            const url = scoringBaselineEndpoint(state.date, doms, 28);
+            const resp = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const json = await resp.json();
+            if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat baseline hourly');
+            window.dashboardRecapBaselineHourly = (json && json.domains) ? json.domains : {};
+        } catch (e) {
+            window.dashboardRecapBaselineHourly = {};
+        }
+
+        const m = window.dashboardRecapBaselineHourly || {};
+        (rows || []).forEach(function(r) {
+            const k = baseSubdomain(r && r.name);
+            r.hourly_baseline = (k && m[k]) ? m[k] : null;
+        });
+    }
+
+    function rowsFrom(dim, arr, sourceTag, lastUpdate, mlMap) {
         const out = (arr||[]).map(r => {
             const spend = Number(r?.spend)||0;
             const revenue = Number(r?.revenue)||0;
@@ -2181,7 +2308,72 @@ function initDashboardRecap() {
             const code = dim === 'country' ? (r?.country_code||'') : '';
             const src = String(sourceTag || '').trim().toLowerCase();
             const lu = (r && (r.last_update != null)) ? r.last_update : lastUpdate;
-            return { name:String(name||'-'), code:String(code||''), spend, revenue, net, roi, source: src, last_update: lu };
+            const accountAds = (r && r.account_ads != null) ? String(r.account_ads || '') : '';
+            const prevSpend = (r && r.prev_spend != null) ? (Number(r.prev_spend)||0) : null;
+            const prevRevenue = (r && r.prev_revenue != null) ? (Number(r.prev_revenue)||0) : null;
+            const prevNet = (r && r.prev_net_profit != null) ? (Number(r.prev_net_profit)||0) : null;
+            const prevRoi = (r && r.prev_roi != null) ? (Number(r.prev_roi)||0) : null;
+            const dSpend = (r && r.delta_spend != null) ? (Number(r.delta_spend)||0) : null;
+            const dRevenue = (r && r.delta_revenue != null) ? (Number(r.delta_revenue)||0) : null;
+            const dNet = (r && r.delta_net_profit != null) ? (Number(r.delta_net_profit)||0) : null;
+            const dRoi = (r && r.delta_roi != null) ? (Number(r.delta_roi)||0) : null;
+            const ml = (dim !== 'country' && mlMap && name && mlMap[String(name)]) ? mlMap[String(name)] : null;
+
+            const metrics = {};
+            if (src === 'adx' || (dim === 'country' && r && (r.cpc != null || r.impressions != null || r.total_requests != null))) {
+                const adxFillRate = (r && r.total_fill_rate != null) ? Number(r.total_fill_rate) : ((r && r.fill_rate != null) ? Number(r.fill_rate) : null);
+                metrics.adx = {
+                    adx_revenue: revenue,
+                    adx_avg_ecpm: (r && r.ecpm != null) ? Number(r.ecpm) : null,
+                    adx_cpc: (r && r.cpc != null) ? Number(r.cpc) : null,
+                    adx_impressions: (r && r.impressions != null) ? Number(r.impressions) : null,
+                    adx_clicks: (r && r.clicks != null) ? Number(r.clicks) : null,
+                    adx_total_requests: (r && r.total_requests != null) ? Number(r.total_requests) : null,
+                    adx_responses_served: (r && r.responses_served != null) ? Number(r.responses_served) : null,
+                    adx_match_rate: (r && r.match_rate != null) ? Number(r.match_rate) : null,
+                    adx_total_fill_rate: adxFillRate,
+                    adx_active_view_pct_viewable: (r && r.active_view_pct_viewable != null) ? Number(r.active_view_pct_viewable) : null,
+                    adx_active_view_avg_time_sec: (r && r.active_view_avg_time_sec != null) ? Number(r.active_view_avg_time_sec) : null,
+                };
+            }
+            if (src === 'adsense') {
+                metrics.adsense = {
+                    adsense_estimated_earnings: revenue,
+                    adsense_page_views_rpm: (r && r.page_views_rpm != null) ? Number(r.page_views_rpm) : null,
+                    adsense_cost_per_click: (r && r.cost_per_click != null) ? Number(r.cost_per_click) : null,
+                    adsense_impressions: (r && r.impressions != null) ? Number(r.impressions) : null,
+                    adsense_clicks: (r && r.clicks != null) ? Number(r.clicks) : null,
+                    adsense_page_views: (r && r.page_views != null) ? Number(r.page_views) : null,
+                    adsense_ad_requests: (r && r.ad_requests != null) ? Number(r.ad_requests) : null,
+                    adsense_matched_ad_requests: (r && r.matched_ad_requests != null) ? Number(r.matched_ad_requests) : null,
+                    adsense_ad_requests_coverage: (r && r.ad_requests_coverage != null) ? Number(r.ad_requests_coverage) : null,
+                    adsense_active_view_viewability: (r && r.active_view_viewability != null) ? Number(r.active_view_viewability) : null,
+                    adsense_active_view_measurability: (r && r.active_view_measurability != null) ? Number(r.active_view_measurability) : null,
+                    adsense_active_view_time: (r && r.active_view_time != null) ? Number(r.active_view_time) : null,
+                };
+            }
+
+            return {
+                name:String(name||'-'),
+                code:String(code||''),
+                account_ads: accountAds,
+                spend,
+                revenue,
+                net,
+                roi,
+                source: src,
+                last_update: lu,
+                prev_spend: prevSpend,
+                prev_revenue: prevRevenue,
+                prev_net: prevNet,
+                prev_roi: prevRoi,
+                delta_spend: dSpend,
+                delta_revenue: dRevenue,
+                delta_net: dNet,
+                delta_roi: dRoi,
+                ml,
+                metrics
+            };
         });
         out.sort((a,b) => {
             const ar = Number(a?.roi) || 0;
@@ -2207,10 +2399,1804 @@ function initDashboardRecap() {
         document.getElementById('recapTotalRoi').textContent = fmtPct(roi);
     }
 
-    function renderTable(dim, rows) {
+    function clamp(v, lo, hi) {
+        const x = Number(v);
+        if (!isFinite(x)) return lo;
+        if (x < lo) return lo;
+        if (x > hi) return hi;
+        return x;
+    }
+
+    function computeFreshnessScore(lastUpdateStr, ymd) {
+        const s = String(lastUpdateStr || '').trim();
+        if (!s) return { score: 55, ageHours: null };
+        let ts = null;
+        const m = s.match(/(\d{2}:\d{2}:\d{2})/);
+        if (m && ymd) {
+            const iso = String(ymd) + 'T' + m[1];
+            const d = new Date(iso);
+            if (!isNaN(d.getTime())) ts = d.getTime();
+        }
+        if (!ts) {
+            const d2 = new Date(s);
+            if (!isNaN(d2.getTime())) ts = d2.getTime();
+        }
+        if (!ts) return { score: 55, ageHours: null };
+        const ageMs = Date.now() - ts;
+        const ageHours = ageMs / 3600000;
+        if (!isFinite(ageHours) || ageHours < 0) return { score: 55, ageHours: null };
+        let sc = 55;
+        if (ageHours <= 2) sc = 100;
+        else if (ageHours <= 6) sc = 85;
+        else if (ageHours <= 12) sc = 70;
+        else if (ageHours <= 24) sc = 55;
+        else if (ageHours <= 48) sc = 40;
+        else sc = 25;
+        return { score: sc, ageHours };
+    }
+
+    function scoreAndDecision(row, state) {
+        const spend = Number(row?.spend) || 0;
+        const roi = Number(row?.roi) || 0;
+
+        const hasSources = row && row.sources && (row.sources.adx || row.sources.adsense);
+        const hasAdx = hasSources ? !!row.sources.adx : (String(row?.source||'') === 'adx');
+        const hasAdsense = hasSources ? !!row.sources.adsense : (String(row?.source||'') === 'adsense');
+
+        const covScore = (hasAdx && hasAdsense) ? 100 : (hasAdx || hasAdsense) ? 70 : 35;
+
+        const ymd = String(state?.date || '').trim();
+        const lu = row?.last_updates ? (hasAdx ? row.last_updates.adx : hasAdsense ? row.last_updates.adsense : '') : row?.last_update;
+        const fresh = computeFreshnessScore(lu, ymd);
+
+        const m = (row && row.metrics && typeof row.metrics === 'object') ? row.metrics : {};
+        const pm = (row && row.prev_metrics && typeof row.prev_metrics === 'object') ? row.prev_metrics : {};
+        function pickMetric() {
+            for (let i = 0; i < arguments.length; i++) {
+                const v = Number(arguments[i]);
+                if (isFinite(v)) return v;
+            }
+            return null;
+        }
+        function normalizeAdxMetrics(x) {
+            if (!x) return null;
+            const fillRate = pickMetric(x.adx_total_fill_rate, x.adx_fill_rate);
+            return Object.assign({}, x, { adx_total_fill_rate: fillRate, adx_fill_rate: fillRate });
+        }
+        function normalizeAdsenseMetrics(x) {
+            if (!x) return null;
+            const estimatedEarnings = pickMetric(x.adsense_estimated_earnings, x.estimated_earnings);
+            const pageViewsRpm = pickMetric(x.adsense_page_views_rpm, x.page_views_rpm);
+            const costPerClick = pickMetric(x.adsense_cost_per_click, x.cost_per_click);
+            const impressions = pickMetric(x.adsense_impressions, x.impressions);
+            const clicks = pickMetric(x.adsense_clicks, x.clicks);
+            const pageViews = pickMetric(x.adsense_page_views, x.page_views);
+            const adRequests = pickMetric(x.adsense_ad_requests, x.ad_requests);
+            const matchedAdRequests = pickMetric(x.adsense_matched_ad_requests, x.matched_ad_requests);
+            const adRequestsCoverage = pickMetric(x.adsense_ad_requests_coverage, x.ad_requests_coverage);
+            const activeViewViewability = pickMetric(x.adsense_active_view_viewability, x.active_view_viewability);
+            const activeViewMeasurability = pickMetric(x.adsense_active_view_measurability, x.active_view_measurability);
+            const activeViewTime = pickMetric(x.adsense_active_view_time, x.active_view_time);
+            return Object.assign({}, x, {
+                adsense_estimated_earnings: estimatedEarnings,
+                estimated_earnings: estimatedEarnings,
+                adsense_page_views_rpm: pageViewsRpm,
+                page_views_rpm: pageViewsRpm,
+                adsense_cost_per_click: costPerClick,
+                cost_per_click: costPerClick,
+                adsense_impressions: impressions,
+                impressions: impressions,
+                adsense_clicks: clicks,
+                clicks: clicks,
+                adsense_page_views: pageViews,
+                page_views: pageViews,
+                adsense_ad_requests: adRequests,
+                ad_requests: adRequests,
+                adsense_matched_ad_requests: matchedAdRequests,
+                matched_ad_requests: matchedAdRequests,
+                adsense_ad_requests_coverage: adRequestsCoverage,
+                ad_requests_coverage: adRequestsCoverage,
+                adsense_active_view_viewability: activeViewViewability,
+                active_view_viewability: activeViewViewability,
+                adsense_active_view_measurability: activeViewMeasurability,
+                active_view_measurability: activeViewMeasurability,
+                adsense_active_view_time: activeViewTime,
+                active_view_time: activeViewTime,
+            });
+        }
+        const adx = normalizeAdxMetrics((m && m.adx) ? m.adx : null);
+        const adsense = normalizeAdsenseMetrics((m && m.adsense) ? m.adsense : null);
+        const adxPrev = normalizeAdxMetrics((pm && pm.adx) ? pm.adx : null);
+        const adsensePrev = normalizeAdsenseMetrics((pm && pm.adsense) ? pm.adsense : null);
+
+        function stepScore(val, steps) {
+            const v = Number(val);
+            if (!isFinite(v)) return null;
+            for (let i = 0; i < steps.length; i++) {
+                const it = steps[i];
+                if (v < it.max) return it.score;
+            }
+            return steps.length ? steps[steps.length - 1].score : null;
+        }
+
+        function logScore(val, capPow) {
+            const x = Number(val);
+            if (!isFinite(x) || x <= 0) return 0;
+            const p = Math.log10(x);
+            return clamp((p / (capPow || 8)) * 100, 0, 100);
+        }
+
+        function pctScore(val, lo, hi) {
+            const v = Number(val);
+            if (!isFinite(v)) return null;
+            return clamp(((v - lo) / (hi - lo)) * 100, 0, 100);
+        }
+
+        function avg(list) {
+            const xs = (list || []).filter(x => x != null).map(Number).filter(x => isFinite(x));
+            if (!xs.length) return null;
+            return xs.reduce((a,b)=>a+b,0) / xs.length;
+        }
+
+        function weightedAvg(items) {
+            const xs = (items || []).filter(it => Array.isArray(it) && it.length >= 2 && it[0] != null && isFinite(Number(it[0])) && Number(it[1]) > 0);
+            if (!xs.length) return null;
+            const num = xs.reduce((a, it) => a + (Number(it[0]) * Number(it[1])), 0);
+            const den = xs.reduce((a, it) => a + Number(it[1]), 0);
+            return den > 0 ? (num / den) : null;
+        }
+
+        function scoreAdxAspects(x, prev) {
+            if (!x) return null;
+            const hasPrev = !!prev;
+            const eps = 1e-9;
+
+            function signedToPct(s) {
+                const v = Number(s);
+                if (!isFinite(v)) return null;
+                return clamp(((v + 1) / 2) * 100, 0, 100);
+            }
+            function zCount(cur, prv) {
+                const c = Number(cur);
+                const p = Number(prv);
+                if (!isFinite(c) || !isFinite(p)) return null;
+                const denom = Math.sqrt(Math.max(c, 0) + Math.max(p, 0) + eps);
+                if (denom <= 0) return 0;
+                const z = (c - p) / denom;
+                return clamp(z / 3, -1, 1);
+            }
+            function zLogRatio(cur, prv, scale) {
+                const c = Number(cur);
+                const p = Number(prv);
+                if (!isFinite(c) || !isFinite(p)) return null;
+                const sc = Math.max(Number(scale) || 0, 1e-6);
+                const z = (Math.log(Math.max(c, 0) + 1) - Math.log(Math.max(p, 0) + 1)) / sc;
+                return clamp(z / 3, -1, 1);
+            }
+            function zRatePct(pCurPct, nCur, pPrevPct, nPrev) {
+                const pc = Number(pCurPct);
+                const pp = Number(pPrevPct);
+                const nc = Number(nCur);
+                const np = Number(nPrev);
+                if (!isFinite(pc) || !isFinite(pp) || !isFinite(nc) || !isFinite(np) || nc <= 0 || np <= 0) return null;
+                const pCur = clamp(pc / 100, 0, 1);
+                const pPrev = clamp(pp / 100, 0, 1);
+                const pPool = ((pCur * nc) + (pPrev * np)) / (nc + np + eps);
+                const se = Math.sqrt(pPool * (1 - pPool) * ((1 / (nc + eps)) + (1 / (np + eps))) + eps);
+                if (se <= 0) return 0;
+                const z = (pCur - pPrev) / se;
+                return clamp(z / 3, -1, 1);
+            }
+
+            const yieldEcpm = hasPrev
+                ? signedToPct(zLogRatio(x.adx_avg_ecpm, prev.adx_avg_ecpm, 0.25))
+                : stepScore(x.adx_avg_ecpm, [
+                    { max: 2000, score: 20 },
+                    { max: 5000, score: 45 },
+                    { max: 10000, score: 70 },
+                    { max: 20000, score: 90 },
+                    { max: 1e18, score: 100 },
+                ]);
+            const yieldCpc = hasPrev
+                ? signedToPct(zLogRatio(x.adx_cpc, prev.adx_cpc, 0.25))
+                : stepScore(x.adx_cpc, [
+                    { max: 200, score: 20 },
+                    { max: 500, score: 45 },
+                    { max: 1000, score: 70 },
+                    { max: 2000, score: 90 },
+                    { max: 1e18, score: 100 },
+                ]);
+            const yieldRev = hasPrev ? signedToPct(zLogRatio(x.adx_revenue, prev.adx_revenue, 0.35)) : logScore(x.adx_revenue, 8);
+            const yieldScore = weightedAvg([[yieldEcpm, 1.35], [yieldCpc, 0.80]]);
+            const revenueScore = yieldRev;
+
+            const responseScore = hasPrev ? signedToPct(zCount(x.adx_responses_served, prev.adx_responses_served)) : logScore(x.adx_responses_served, 7);
+            const matchScore = hasPrev
+                ? signedToPct(zRatePct(x.adx_match_rate, x.adx_total_requests, prev.adx_match_rate, prev.adx_total_requests))
+                : pctScore(x.adx_match_rate, 50, 95);
+            const fillScore = hasPrev
+                ? signedToPct(zRatePct(x.adx_fill_rate, x.adx_total_requests, prev.adx_fill_rate, prev.adx_total_requests))
+                : pctScore(x.adx_fill_rate, 30, 95);
+            const reqScore = hasPrev ? signedToPct(zCount(x.adx_total_requests, prev.adx_total_requests)) : logScore(x.adx_total_requests, 7);
+            const deliveryScore = weightedAvg([[reqScore, 0.95], [responseScore, 1.05], [matchScore, 1.20], [fillScore, 1.30]]);
+
+            const impScore = hasPrev ? signedToPct(zCount(x.adx_impressions, prev.adx_impressions)) : logScore(x.adx_impressions, 8);
+            const clickScore = hasPrev ? signedToPct(zCount(x.adx_clicks, prev.adx_clicks)) : logScore(x.adx_clicks, 6);
+            const trafficScore = weightedAvg([[impScore, 1.05], [clickScore, 0.70]]);
+            const engagementScore = clickScore;
+
+            const viewScore = hasPrev
+                ? signedToPct(zRatePct(x.adx_active_view_pct_viewable, x.adx_impressions, prev.adx_active_view_pct_viewable, prev.adx_impressions))
+                : pctScore(x.adx_active_view_pct_viewable, 40, 75);
+            const timeScore = hasPrev
+                ? signedToPct(zLogRatio(x.adx_active_view_avg_time_sec, prev.adx_active_view_avg_time_sec, 0.25))
+                : stepScore(x.adx_active_view_avg_time_sec, [
+                    { max: 2, score: 20 },
+                    { max: 5, score: 50 },
+                    { max: 10, score: 75 },
+                    { max: 20, score: 90 },
+                    { max: 1e18, score: 100 },
+                ]);
+            const qualityScore = weightedAvg([[viewScore, 0.85], [timeScore, 0.55]]);
+
+            return {
+                revenue: revenueScore,
+                engagement: engagementScore,
+                yield: yieldScore,
+                delivery: deliveryScore,
+                traffic: trafficScore,
+                quality: qualityScore,
+                metrics: {
+                    adx_revenue: x.adx_revenue,
+                    adx_avg_ecpm: x.adx_avg_ecpm,
+                    adx_cpc: x.adx_cpc,
+                    adx_total_requests: x.adx_total_requests,
+                    adx_responses_served: x.adx_responses_served,
+                    adx_match_rate: x.adx_match_rate,
+                    adx_fill_rate: x.adx_fill_rate,
+                    adx_impressions: x.adx_impressions,
+                    adx_clicks: x.adx_clicks,
+                    adx_active_view_pct_viewable: x.adx_active_view_pct_viewable,
+                    adx_active_view_avg_time_sec: x.adx_active_view_avg_time_sec,
+                }
+            };
+        }
+
+        function scoreAdsenseAspects(x, prev) {
+            if (!x) return null;
+            const hasPrev = !!prev;
+            const eps = 1e-9;
+
+            function signedToPct(s) {
+                const v = Number(s);
+                if (!isFinite(v)) return null;
+                return clamp(((v + 1) / 2) * 100, 0, 100);
+            }
+            function zCount(cur, prv) {
+                const c = Number(cur);
+                const p = Number(prv);
+                if (!isFinite(c) || !isFinite(p)) return null;
+                const denom = Math.sqrt(Math.max(c, 0) + Math.max(p, 0) + eps);
+                if (denom <= 0) return 0;
+                const z = (c - p) / denom;
+                return clamp(z / 3, -1, 1);
+            }
+            function zLogRatio(cur, prv, scale) {
+                const c = Number(cur);
+                const p = Number(prv);
+                if (!isFinite(c) || !isFinite(p)) return null;
+                const sc = Math.max(Number(scale) || 0, 1e-6);
+                const z = (Math.log(Math.max(c, 0) + 1) - Math.log(Math.max(p, 0) + 1)) / sc;
+                return clamp(z / 3, -1, 1);
+            }
+            function zRatePct(pCurPct, nCur, pPrevPct, nPrev) {
+                const pc = Number(pCurPct);
+                const pp = Number(pPrevPct);
+                const nc = Number(nCur);
+                const np = Number(nPrev);
+                if (!isFinite(pc) || !isFinite(pp) || !isFinite(nc) || !isFinite(np) || nc <= 0 || np <= 0) return null;
+                const pCur = clamp(pc / 100, 0, 1);
+                const pPrev = clamp(pp / 100, 0, 1);
+                const pPool = ((pCur * nc) + (pPrev * np)) / (nc + np + eps);
+                const se = Math.sqrt(pPool * (1 - pPool) * ((1 / (nc + eps)) + (1 / (np + eps))) + eps);
+                if (se <= 0) return 0;
+                const z = (pCur - pPrev) / se;
+                return clamp(z / 3, -1, 1);
+            }
+
+            const rpmScore = hasPrev
+                ? signedToPct(zLogRatio(x.page_views_rpm, prev.page_views_rpm, 0.25))
+                : stepScore(x.page_views_rpm, [
+                    { max: 2000, score: 20 },
+                    { max: 5000, score: 45 },
+                    { max: 10000, score: 70 },
+                    { max: 20000, score: 90 },
+                    { max: 1e18, score: 100 },
+                ]);
+            const cpcScore = hasPrev
+                ? signedToPct(zLogRatio(x.cost_per_click, prev.cost_per_click, 0.25))
+                : stepScore(x.cost_per_click, [
+                    { max: 200, score: 20 },
+                    { max: 500, score: 45 },
+                    { max: 1000, score: 70 },
+                    { max: 2000, score: 90 },
+                    { max: 1e18, score: 100 },
+                ]);
+            const revScore = hasPrev
+                ? signedToPct(zLogRatio(x.estimated_earnings, prev.estimated_earnings, 0.35))
+                : logScore(x.estimated_earnings, 8);
+            const yieldScore = weightedAvg([[rpmScore, 1.25], [cpcScore, 0.85]]);
+            const revenueScore = revScore;
+
+            const reqScore = hasPrev ? signedToPct(zCount(x.ad_requests, prev.ad_requests)) : logScore(x.ad_requests, 7);
+            const matchedReqScore = hasPrev ? signedToPct(zCount(x.matched_ad_requests, prev.matched_ad_requests)) : logScore(x.matched_ad_requests, 7);
+            const covScore2 = hasPrev
+                ? signedToPct(zRatePct(x.ad_requests_coverage, x.ad_requests, prev.ad_requests_coverage, prev.ad_requests))
+                : pctScore(x.ad_requests_coverage, 40, 95);
+            const impScore = hasPrev ? signedToPct(zCount(x.impressions, prev.impressions)) : logScore(x.impressions, 8);
+            const deliveryScore = weightedAvg([[reqScore, 0.95], [matchedReqScore, 1.05], [impScore, 1.00], [covScore2, 1.25]]);
+
+            const pvScore = hasPrev ? signedToPct(zCount(x.page_views, prev.page_views)) : logScore(x.page_views, 8);
+            const clkScore = hasPrev ? signedToPct(zCount(x.clicks, prev.clicks)) : logScore(x.clicks, 6);
+            const trafficScore = weightedAvg([[pvScore, 0.95], [clkScore, 0.75]]);
+            const engagementScore = clkScore;
+
+            const viewScore = hasPrev
+                ? signedToPct(zRatePct(x.active_view_viewability, x.impressions, prev.active_view_viewability, prev.impressions))
+                : pctScore(x.active_view_viewability, 40, 75);
+            const measScore = hasPrev
+                ? signedToPct(zRatePct(x.active_view_measurability, x.impressions, prev.active_view_measurability, prev.impressions))
+                : pctScore(x.active_view_measurability, 40, 90);
+            const timeScore = hasPrev
+                ? signedToPct(zLogRatio(x.active_view_time, prev.active_view_time, 0.25))
+                : stepScore(x.active_view_time, [
+                    { max: 2, score: 20 },
+                    { max: 5, score: 50 },
+                    { max: 10, score: 75 },
+                    { max: 20, score: 90 },
+                    { max: 1e18, score: 100 },
+                ]);
+            const qualityScore = weightedAvg([[viewScore, 0.85], [measScore, 0.45], [timeScore, 0.55]]);
+
+            return {
+                revenue: revenueScore,
+                engagement: engagementScore,
+                yield: yieldScore,
+                delivery: deliveryScore,
+                traffic: trafficScore,
+                quality: qualityScore,
+                metrics: {
+                    estimated_earnings: x.estimated_earnings,
+                    page_views_rpm: x.page_views_rpm,
+                    cost_per_click: x.cost_per_click,
+                    ad_requests: x.ad_requests,
+                    matched_ad_requests: x.matched_ad_requests,
+                    impressions: x.impressions,
+                    clicks: x.clicks,
+                    page_views: x.page_views,
+                    ad_requests_coverage: x.ad_requests_coverage,
+                    active_view_viewability: x.active_view_viewability,
+                    active_view_measurability: x.active_view_measurability,
+                    active_view_time: x.active_view_time,
+                }
+            };
+        }
+
+        function sumArr(xs) {
+            const a = (xs || []).map(Number).filter(v => isFinite(v));
+            return a.reduce((p, c) => p + c, 0);
+        }
+
+        function hourlyZToPct(z) {
+            const v = Number(z);
+            if (!isFinite(v)) return null;
+            const s = clamp(v / 3, -1, 1);
+            return clamp(((s + 1) / 2) * 100, 0, 100);
+        }
+
+        function hourlyMetricZScore(curArr, baseArr, scaleArr, weightArr) {
+            const cur = Array.isArray(curArr) ? curArr : [];
+            const base = Array.isArray(baseArr) ? baseArr : [];
+            const sc = Array.isArray(scaleArr) ? scaleArr : [];
+            const w = Array.isArray(weightArr) ? weightArr : [];
+            let sw = 0;
+            let sz = 0;
+            let ss = 0;
+            for (let h = 0; h < 24; h++) {
+                const c = Number(cur[h]);
+                const b = Number(base[h]);
+                const s = Math.max(1e-6, Number(sc[h]));
+                if (!isFinite(c) || !isFinite(b) || !isFinite(s)) continue;
+                const ww = Math.max(0, Number(w[h]));
+                const z = (c - b) / s;
+                const pct = hourlyZToPct(z);
+                if (!isFinite(ww) || pct == null) continue;
+                sw += ww;
+                sz += ww * z;
+                ss += ww * pct;
+            }
+            if (sw <= 0) return { z: null, score: null };
+            return { z: sz / sw, score: ss / sw };
+        }
+
+        function hourlyCtrZScore(curClkArr, curImpArr, pBaseArr, weightArr) {
+            const clk = Array.isArray(curClkArr) ? curClkArr : [];
+            const imp = Array.isArray(curImpArr) ? curImpArr : [];
+            const pBase = Array.isArray(pBaseArr) ? pBaseArr : [];
+            const w = Array.isArray(weightArr) ? weightArr : [];
+            let sw = 0;
+            let sz = 0;
+            let ss = 0;
+            for (let h = 0; h < 24; h++) {
+                const cClk = Math.max(0, Number(clk[h]));
+                const cImp = Math.max(0, Number(imp[h]));
+                const pb = clamp(Number(pBase[h]), 0, 1);
+                if (!isFinite(cClk) || !isFinite(cImp) || !isFinite(pb) || cImp <= 0) continue;
+                const pc = clamp(cClk / (cImp + 1e-9), 0, 1);
+                const se = Math.sqrt((pb * (1 - pb)) / (cImp + 1e-9) + 1e-9);
+                if (!isFinite(se) || se <= 0) continue;
+                const ww = Math.max(0, Number(w[h]));
+                const z = (pc - pb) / se;
+                const pct = hourlyZToPct(z);
+                if (!isFinite(ww) || pct == null) continue;
+                sw += ww;
+                sz += ww * z;
+                ss += ww * pct;
+            }
+            if (sw <= 0) return { z: null, score: null };
+            return { z: sz / sw, score: ss / sw };
+        }
+
+        function scorePlatformHourly(b, platformKey) {
+            const cur = b && b.cur ? b.cur : null;
+            const base = b && b.base ? b.base : null;
+            if (!cur || !base) return null;
+
+            const curImp = Array.isArray(cur.imp) ? cur.imp : [];
+            const curClk = Array.isArray(cur.clk) ? cur.clk : [];
+            const curRev = Array.isArray(cur.rev) ? cur.rev : [];
+            const curRpm = Array.isArray(cur.rpm) ? cur.rpm : [];
+            const curCpc = Array.isArray(cur.cpc) ? cur.cpc : [];
+
+            const w = (base && base.imp && Array.isArray(base.imp.median)) ? base.imp.median : curImp;
+
+            const imp = hourlyMetricZScore(curImp, base?.imp?.median, base?.imp?.scale, w);
+            const clk = hourlyMetricZScore(curClk, base?.clk?.median, base?.clk?.scale, w);
+            const rev = hourlyMetricZScore(curRev, base?.rev?.median, base?.rev?.scale, w);
+            const rpm = hourlyMetricZScore(curRpm, base?.rpm?.ewma, base?.rpm?.scale, w);
+            const cpc = hourlyMetricZScore(curCpc, base?.cpc?.ewma, base?.cpc?.scale, w);
+            const ctr = hourlyCtrZScore(curClk, curImp, base?.ctr?.p, w);
+
+            const yieldScore = avg([rpm.score, cpc.score, rev.score]);
+            const trafficScore = avg([imp.score, clk.score]);
+            const deliveryScore = ctr.score;
+            const qualityScore = 55;
+
+            const totalImp = sumArr(curImp);
+            const totalClk = sumArr(curClk);
+            const totalRev = sumArr(curRev);
+            const totalRpm = (totalRev / (totalImp + 1e-9)) * 1000;
+            const totalCpc = (totalRev / (totalClk + 1e-9));
+
+            const metrics = (String(platformKey || '').toLowerCase() === 'adsense') ? {
+                estimated_earnings: totalRev,
+                page_views_rpm: totalRpm,
+                cost_per_click: totalCpc,
+                impressions: totalImp,
+                clicks: totalClk,
+            } : {
+                adx_revenue: totalRev,
+                adx_avg_ecpm: totalRpm,
+                adx_cpc: totalCpc,
+                adx_impressions: totalImp,
+                adx_clicks: totalClk,
+            };
+
+            return {
+                yield: yieldScore,
+                delivery: deliveryScore,
+                traffic: trafficScore,
+                quality: qualityScore,
+                hourly: {
+                    z: {
+                        imp: imp.z,
+                        clk: clk.z,
+                        rev: rev.z,
+                        rpm: rpm.z,
+                        cpc: cpc.z,
+                        ctr: ctr.z,
+                    }
+                },
+                metrics,
+            };
+        }
+
+        const hb = row && row.hourly_baseline ? row.hourly_baseline : null;
+        const adxAsp = (hb && hb.adx) ? scorePlatformHourly(hb.adx, 'adx') : scoreAdxAspects(adx, adxPrev);
+        const adsAsp = (hb && hb.adsense) ? scorePlatformHourly(hb.adsense, 'adsense') : scoreAdsenseAspects(adsense, adsensePrev);
+
+        if (adxAsp && adxAsp.metrics) adxAsp.metrics = normalizeAdxMetrics(adxAsp.metrics);
+        if (adsAsp && adsAsp.metrics) adsAsp.metrics = normalizeAdsenseMetrics(adsAsp.metrics);
+        if (hb && hb.adx && adxAsp && adx) {
+            adxAsp.metrics = normalizeAdxMetrics(Object.assign({}, adxAsp.metrics || {}, adx));
+        }
+        if (hb && hb.adsense && adsAsp && adsense) {
+            adsAsp.metrics = normalizeAdsenseMetrics(Object.assign({}, adsAsp.metrics || {}, adsense));
+        }
+
+        const spendScore = clamp((Math.log10(Math.max(spend, 1)) / 6) * 100, 0, 100);
+        const roiScore = clamp(((roi + 50) / 150) * 100, 0, 100);
+
+        const covPts = (covScore / 100) * 12;
+        const freshPts = (fresh.score / 100) * 10;
+        const spendPts = (spendScore / 100) * 8;
+        const roiPts = (roiScore / 100) * 10;
+
+        const presentPlatforms = [adxAsp ? 'adx' : null, adsAsp ? 'adsense' : null].filter(Boolean);
+        const platformPool = 60;
+        const perPlatform = presentPlatforms.length ? (platformPool / presentPlatforms.length) : 0;
+
+        function platformPoints(asp) {
+            if (!asp) return { pts: 0, w: {} };
+            const w = { yield: 0.40, delivery: 0.30, traffic: 0.15, quality: 0.15 };
+            const y = asp.yield == null ? null : clamp(asp.yield, 0, 100);
+            const d = asp.delivery == null ? null : clamp(asp.delivery, 0, 100);
+            const t = asp.traffic == null ? null : clamp(asp.traffic, 0, 100);
+            const q = asp.quality == null ? null : clamp(asp.quality, 0, 100);
+            const pts = perPlatform * (
+                (y == null ? 0 : (y / 100) * w.yield) +
+                (d == null ? 0 : (d / 100) * w.delivery) +
+                (t == null ? 0 : (t / 100) * w.traffic) +
+                (q == null ? 0 : (q / 100) * w.quality)
+            );
+            return { pts, w, y, d, t, q };
+        }
+
+        const adxPts = platformPoints(adxAsp);
+        const adsPts = platformPoints(adsAsp);
+        function healthFromAspect(v) {
+            const n = Number(v);
+            return isFinite(n) ? clamp((n - 50) * 2, -100, 100) : null;
+        }
+        function weightedHealth(items) {
+            const xs = (items || []).filter(it => it && it.score != null && isFinite(Number(it.score)) && Number(it.weight) > 0);
+            if (!xs.length) return 0;
+            const num = xs.reduce((a, it) => a + (healthFromAspect(it.score) * Number(it.weight)), 0);
+            const den = xs.reduce((a, it) => a + Number(it.weight), 0);
+            return den > 0 ? (num / den) : 0;
+        }
+        const conceptGroups = {
+            traffic: weightedHealth([{ score: adsAsp && adsAsp.traffic, weight: 0.95 }]),
+            delivery: weightedHealth([{ score: adxAsp && adxAsp.delivery, weight: 5.55 }, { score: adsAsp && adsAsp.delivery, weight: 4.25 }]),
+            yield: weightedHealth([{ score: adxAsp && adxAsp.yield, weight: 2.15 }, { score: adsAsp && adsAsp.yield, weight: 2.10 }]),
+            quality: weightedHealth([{ score: adxAsp && adxAsp.quality, weight: 1.40 }, { score: adsAsp && adsAsp.quality, weight: 1.85 }]),
+            revenue: weightedHealth([{ score: adxAsp && adxAsp.revenue, weight: 1.80 }, { score: adsAsp && adsAsp.revenue, weight: 1.70 }]),
+            efficiency: weightedHealth([{ score: adsAsp && adsAsp.yield, weight: 0.85 }, { score: adsAsp && adsAsp.traffic, weight: 1.10 }]),
+            engagement: weightedHealth([{ score: adxAsp && adxAsp.engagement, weight: 0.70 }, { score: adsAsp && adsAsp.engagement, weight: 0.75 }]),
+            control: weightedHealth([{ score: roiScore, weight: 1.00 }, { score: spendScore, weight: 0.60 }]),
+        };
+        const healthScore = weightedHealth([
+            { score: adxAsp && adxAsp.delivery, weight: 5.55 }, { score: adsAsp && adsAsp.delivery, weight: 4.25 },
+            { score: adxAsp && adxAsp.yield, weight: 2.15 }, { score: adsAsp && adsAsp.yield, weight: 2.10 },
+            { score: adxAsp && adxAsp.revenue, weight: 1.80 }, { score: adsAsp && adsAsp.revenue, weight: 1.70 },
+            { score: adsAsp && adsAsp.traffic, weight: 0.95 }, { score: adxAsp && adxAsp.quality, weight: 1.40 },
+            { score: adsAsp && adsAsp.quality, weight: 1.85 },
+        ]);
+        const conceptScore = clamp((healthScore + 100) / 2, 0, 100);
+        let score = clamp((covPts + freshPts + spendPts + roiPts + adxPts.pts + adsPts.pts) * 0.45 + conceptScore * 0.55, 0, 100);
+
+        const labelReasons = [];
+        let label = '';
+
+        if (String(state?.source || '') === 'all' && !(hasAdx && hasAdsense)) {
+            labelReasons.push('Coverage sumber belum lengkap (AdX/AdSense)');
+        }
+
+        if (!label && String(state?.source || '') === 'all' && !(hasAdx || hasAdsense)) {
+            label = 'DATA_INCOMPLETE';
+            labelReasons.push('Tidak ada data AdX/AdSense');
+        }
+
+        const dRoi = (row && row.delta_roi != null) ? Number(row.delta_roi) : null;
+        const dRev = (row && row.delta_revenue != null) ? Number(row.delta_revenue) : null;
+        const dSpend = (row && row.delta_spend != null) ? Number(row.delta_spend) : null;
+
+        if (!label && spend >= 100000 && (roi <= -30 || (dRoi != null && dRoi <= -15))) {
+            label = 'RED_FLAG';
+            labelReasons.push('ROI negatif berat pada spend signifikan');
+        } else if (!label && roi < 0) {
+            label = 'NEG_ADJUSTMENT';
+            labelReasons.push('ROI negatif');
+        } else {
+            function pickZ(a, k) {
+                const v = a && a.hourly && a.hourly.z ? a.hourly.z[k] : null;
+                const n = Number(v);
+                return isFinite(n) ? n : null;
+            }
+            const zAdx = adxAsp ? {
+                rev: pickZ(adxAsp, 'rev'),
+                imp: pickZ(adxAsp, 'imp'),
+                clk: pickZ(adxAsp, 'clk'),
+                rpm: pickZ(adxAsp, 'rpm'),
+                ctr: pickZ(adxAsp, 'ctr'),
+            } : null;
+            const zAds = adsAsp ? {
+                rev: pickZ(adsAsp, 'rev'),
+                imp: pickZ(adsAsp, 'imp'),
+                clk: pickZ(adsAsp, 'clk'),
+                rpm: pickZ(adsAsp, 'rpm'),
+                ctr: pickZ(adsAsp, 'ctr'),
+            } : null;
+
+            const wAdx = Number(adxAsp?.metrics?.adx_revenue);
+            const wAds = Number(adsAsp?.metrics?.estimated_earnings);
+            const sw = (isFinite(wAdx) ? wAdx : 0) + (isFinite(wAds) ? wAds : 0);
+
+            function mixZ(k) {
+                const a = zAdx ? zAdx[k] : null;
+                const b = zAds ? zAds[k] : null;
+                const wa = (isFinite(wAdx) && wAdx > 0) ? wAdx : (a != null ? 1 : 0);
+                const wb = (isFinite(wAds) && wAds > 0) ? wAds : (b != null ? 1 : 0);
+                const den = wa + wb;
+                if (den <= 0) return null;
+                const num = (a == null ? 0 : a * wa) + (b == null ? 0 : b * wb);
+                return num / den;
+            }
+
+            const zRev = mixZ('rev');
+            const zImp = mixZ('imp');
+            const zCtr = mixZ('ctr');
+            const zRpm = mixZ('rpm');
+
+            if (!label && zRev != null) {
+                if (zRev <= -2.0 && zImp != null && zImp <= -1.5) {
+                    label = 'TRAFFIC_DROP';
+                    labelReasons.push('Traffic turun signifikan vs baseline hourly (EWMA+MAD)');
+                } else if (zRev <= -2.0 && zCtr != null && zCtr <= -1.5) {
+                    label = 'SERVING_DROP';
+                    labelReasons.push('CTR turun vs baseline hourly (indikasi serving drop)');
+                } else if (zRev <= -2.0 && zRpm != null && zRpm <= -1.5) {
+                    label = 'YIELD_DROP';
+                    labelReasons.push('RPM turun vs baseline hourly (indikasi yield drop)');
+                } else if (zRev >= 2.0 && zImp != null && zImp >= 1.5) {
+                    label = 'POSITIVE_EXPANSION';
+                    labelReasons.push('Traffic naik vs baseline hourly dan revenue ikut naik');
+                }
+            }
+
+            if (!label && dRev != null && dSpend != null) {
+                const pvCur = adsense ? Number(adsense.page_views) : null;
+                const pvPrev = adsensePrev ? Number(adsensePrev.page_views) : null;
+                const clkCur = adsense ? Number(adsense.clicks) : null;
+                const clkPrev = adsensePrev ? Number(adsensePrev.clicks) : null;
+
+                const reqCur = adsense ? Number(adsense.ad_requests) : null;
+                const reqPrev = adsensePrev ? Number(adsensePrev.ad_requests) : null;
+                const covCur = adsense ? Number(adsense.ad_requests_coverage) : null;
+                const covPrev = adsensePrev ? Number(adsensePrev.ad_requests_coverage) : null;
+
+                const impCur = adsense ? Number(adsense.impressions) : null;
+                const impPrev = adsensePrev ? Number(adsensePrev.impressions) : null;
+                const viewCur = adsense ? Number(adsense.active_view_viewability) : null;
+                const viewPrev = adsensePrev ? Number(adsensePrev.active_view_viewability) : null;
+
+                const adxReqCur = adx ? Number(adx.adx_total_requests) : null;
+                const adxReqPrev = adxPrev ? Number(adxPrev.adx_total_requests) : null;
+                const adxMatchCur = adx ? Number(adx.adx_match_rate) : null;
+                const adxMatchPrev = adxPrev ? Number(adxPrev.adx_match_rate) : null;
+                const adxFillCur = adx ? Number(adx.adx_fill_rate) : null;
+                const adxFillPrev = adxPrev ? Number(adxPrev.adx_fill_rate) : null;
+                const adxViewCur = adx ? Number(adx.adx_active_view_pct_viewable) : null;
+                const adxViewPrev = adxPrev ? Number(adxPrev.adx_active_view_pct_viewable) : null;
+                const adxImpCur = adx ? Number(adx.adx_impressions) : null;
+                const adxImpPrev = adxPrev ? Number(adxPrev.adx_impressions) : null;
+
+                const hasTrafficDropAds = (pvPrev > 0 && pvCur >= 0 && pvCur < pvPrev * 0.75) || (clkPrev > 0 && clkCur >= 0 && clkCur < clkPrev * 0.75);
+                const hasServingDropAds = (reqPrev > 0 && reqCur >= 0 && reqCur >= reqPrev * 0.95) && (covPrev != null && covCur != null && covCur <= covPrev - 5);
+                const hasViewDropAds = (impPrev > 0 && impCur >= 0 && impCur >= impPrev * 0.90) && (viewPrev != null && viewCur != null && viewCur <= viewPrev - 5);
+
+                const hasServingDropAdx = (adxReqPrev > 0 && adxReqCur >= 0 && adxReqCur >= adxReqPrev * 0.95) && (
+                    (adxMatchPrev != null && adxMatchCur != null && adxMatchCur <= adxMatchPrev - 5) ||
+                    (adxFillPrev != null && adxFillCur != null && adxFillCur <= adxFillPrev - 5)
+                );
+                const hasViewDropAdx = (adxImpPrev > 0 && adxImpCur >= 0 && adxImpCur >= adxImpPrev * 0.90) && (adxViewPrev != null && adxViewCur != null && adxViewCur <= adxViewPrev - 5);
+
+                if (dRev < 0 && hasTrafficDropAds) {
+                    label = 'TRAFFIC_DROP';
+                    labelReasons.push('Traffic turun signifikan (H-1)');
+                } else if (dRev < 0 && (hasServingDropAds || hasServingDropAdx)) {
+                    label = 'SERVING_DROP';
+                    labelReasons.push('Serving turun (coverage/match/fill turun saat request stabil)');
+                } else if (dRev < 0 && (hasViewDropAds || hasViewDropAdx)) {
+                    label = 'VIEWABILITY_DROP';
+                    labelReasons.push('Active View turun signifikan (H-1)');
+                } else if (dRev < 0 && Math.abs(dSpend) <= Math.max(5000, spend * 0.05)) {
+                    label = 'YIELD_DROP';
+                    labelReasons.push('Revenue turun sementara spend relatif stabil');
+                } else if (dRev > 0 && (pvPrev > 0 && pvCur > pvPrev * 1.10) && (adsAsp && adsAsp.yield != null && adsAsp.yield >= 55)) {
+                    label = 'POSITIVE_EXPANSION';
+                    labelReasons.push('Traffic naik dan yield tetap sehat');
+                }
+            }
+        }
+
+        if (!label) {
+            const groupPairs = [
+                ['TRAFFIC_DROP', conceptGroups.traffic],
+                ['SERVING_DROP', conceptGroups.delivery],
+                ['YIELD_DROP', conceptGroups.yield],
+                ['VIEWABILITY_DROP', conceptGroups.quality],
+                ['EFFICIENCY_DROP', conceptGroups.efficiency],
+                ['REVENUE_DROP', conceptGroups.revenue],
+            ];
+            const posCount = Object.values(conceptGroups).filter(v => Number(v) >= 8).length;
+            const negCount = Object.values(conceptGroups).filter(v => Number(v) <= -8).length;
+            if (!(hasAdx || hasAdsense)) label = 'DATA_INCOMPLETE';
+            else if (healthScore >= 18 && posCount >= negCount) label = 'POSITIVE_EXPANSION';
+            else if (healthScore >= 10 && posCount > negCount) label = 'POSITIVE_RECOVERY';
+            else if (healthScore <= -18) {
+                const picked = groupPairs.sort((a, b) => a[1] - b[1])[0];
+                label = picked && picked[1] <= -8 ? picked[0] : 'NEGATIVE_MIXED';
+            } else label = 'STABLE';
+            labelReasons.push(`health=${healthScore.toFixed(2)}`);
+        }
+        if (label === 'STABLE') label = '';
+
+        let decision = 'OPTIMIZE';
+        if (score >= 80) decision = 'SCALE';
+        else if (score >= 60) decision = 'KEEP';
+        else if (score >= 40) decision = 'OPTIMIZE';
+        else decision = 'PAUSE';
+
+        if (label === 'RED_FLAG') decision = 'PAUSE';
+        if (label === 'DATA_INCOMPLETE' && decision === 'SCALE') decision = 'KEEP';
+
+        const reasons = [];
+        if (label) reasons.push(label);
+        labelReasons.forEach(x => reasons.push(x));
+        if (hasAdx && hasAdsense) reasons.push('Coverage: AdX+AdSense');
+        else if (hasAdx) reasons.push('Coverage: AdX');
+        else if (hasAdsense) reasons.push('Coverage: AdSense');
+
+        return {
+            score: Math.round(score),
+            decision,
+            label,
+            reasons: reasons.slice(0, 4),
+            breakdown: {
+                points: {
+                    coverage: covPts,
+                    freshness: freshPts,
+                    spend: spendPts,
+                    roi: roiPts,
+                    adx: adxPts.pts,
+                    adsense: adsPts.pts,
+                    total: score
+                },
+                adx: adxAsp ? { aspects: adxAsp, computed: adxPts } : null,
+                adsense: adsAsp ? { aspects: adsAsp, computed: adsPts } : null,
+                meta: {
+                    cov_score: covScore,
+                    freshness_score: fresh.score,
+                    spend_score: spendScore,
+                    roi_score: roiScore,
+                    health_score: healthScore,
+                    traffic_score: conceptGroups.traffic,
+                    delivery_score: conceptGroups.delivery,
+                    yield_score: conceptGroups.yield,
+                    quality_score: conceptGroups.quality,
+                    revenue_score: conceptGroups.revenue,
+                    efficiency_score: conceptGroups.efficiency,
+                    engagement_score: conceptGroups.engagement,
+                    control_score: conceptGroups.control,
+                    last_update: lu,
+                    date: ymd
+                }
+            }
+        };
+    }
+
+    function keputusanBadge(meta) {
+        const d = String(meta?.decision || '').toUpperCase();
+        const label = String(meta?.label || '').trim();
+        const title = (meta?.reasons && meta.reasons.length) ? esc(meta.reasons.join(' • ')) : '';
+
+        let cls = 'badge badge-secondary badge-pill';
+        if (d === 'SCALE') cls = 'badge badge-success badge-pill';
+        else if (d === 'KEEP') cls = 'badge badge-primary badge-pill';
+        else if (d === 'OPTIMIZE') cls = 'badge badge-warning badge-pill text-dark';
+        else if (d === 'PAUSE') cls = 'badge badge-danger badge-pill';
+
+        const sub = label ? `<div style="font-size:11px;opacity:.8;margin-top:4px;font-weight:800;">${esc(label)}</div>` : '';
+        return `<div title="${title}"><span class="${cls}">${esc(d || '-')}</span>${sub}</div>`;
+    }
+
+    function openScoreDetailModal(title, html) {
+        const modal = document.getElementById('scoreDetailModal');
+        const body = document.getElementById('scoreDetailBody');
+        const ttl = document.getElementById('scoreDetailTitle');
+        if (!modal || !body || !ttl) return;
+        if (modal.parentNode !== document.body) {
+            document.body.appendChild(modal);
+        }
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.right = '0';
+        modal.style.bottom = '0';
+        modal.style.width = '100%';
+        modal.style.height = '100%';
+        modal.style.zIndex = '2000';
+        ttl.textContent = title || 'Detail Score';
+        body.innerHTML = html || '';
+        modal.style.display = 'flex';
+    }
+
+    function closeScoreDetailModal() {
+        const modal = document.getElementById('scoreDetailModal');
+        if (!modal) return;
+        modal.style.display = 'none';
+    }
+
+    function initScoreDetailModal() {
+        const modal = document.getElementById('scoreDetailModal');
+        const btn = document.getElementById('scoreDetailClose');
+        if (btn) btn.onclick = closeScoreDetailModal;
+        if (modal) {
+            if (modal.parentNode !== document.body) {
+                document.body.appendChild(modal);
+            }
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.right = '0';
+            modal.style.bottom = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.zIndex = '2000';
+            modal.addEventListener('click', function(e) {
+                if (e.target && e.target.id === 'scoreDetailModal') {
+                    closeScoreDetailModal();
+                }
+            });
+        }
+    }
+
+    function endpointForRange(source, dim, startYmd, endYmd, selectedDomain) {
+        const sd = encodeURIComponent(String(selectedDomain || '').trim());
+        const s = encodeURIComponent(String(startYmd || '').trim());
+        const e = encodeURIComponent(String(endYmd || '').trim());
+        if (source === 'adsense') {
+            return dim === 'country'
+                ? `/management/admin/page_monitoring_country_adsense?start_date=${s}&end_date=${e}&selected_account_adsense=&selected_domains=&selected_countries=&include_subdomains=1`
+                : `/management/admin/page_monitoring_domain_adsense?start_date=${s}&end_date=${e}&selected_account_adsense=&selected_domains=${sd}`;
+        }
+        return dim === 'country'
+            ? `/management/admin/page_monitoring_country?start_date=${s}&end_date=${e}&selected_account_adx=&selected_domains=&selected_countries=&include_subdomains=1`
+            : `/management/admin/page_monitoring_domain?start_date=${s}&end_date=${e}&selected_account_adx=&selected_domains=${sd}`;
+    }
+
+    function ymdSeq(startYmd, endYmd) {
+        const out = [];
+        let cur = String(startYmd || '').trim();
+        const end = String(endYmd || '').trim();
+        if (!cur || !end) return out;
+        for (let i = 0; i < 64; i++) {
+            out.push(cur);
+            if (cur === end) break;
+            cur = ymdShift(cur, 1);
+        }
+        return out;
+    }
+
+    function dailyAggFromRawRows(rawRows, domainKey) {
+        const out = {};
+        const dk = baseSubdomain(domainKey);
+        const n0 = (v) => {
+            const x = Number(v);
+            return isFinite(x) ? x : 0;
+        };
+        const i0 = (v) => {
+            const x = parseInt(v, 10);
+            return isFinite(x) ? x : 0;
+        };
+        (rawRows || []).forEach(function(r) {
+            const d = String((r && r.date) || '').slice(0, 10);
+            if (!d) return;
+            const sn = baseSubdomain((r && r.site_name) || (r && r.site) || (r && r.domain) || '');
+            if (dk && sn && dk !== sn) return;
+
+            const o = out[d] || (out[d] = {
+                spend: 0,
+                revenue: 0,
+                impressions_fb: 0,
+                clicks_fb: 0,
+                impressions_adx: 0,
+                clicks_adx: 0,
+                total_requests: 0,
+                responses_served: 0,
+                adx_active_view_weight: 0,
+                adx_active_view_pct_viewable_sum: 0,
+                adx_active_view_avg_time_sec_sum: 0,
+                impressions_adsense: 0,
+                clicks_adsense: 0,
+                page_views: 0,
+                ad_requests: 0,
+                adsense_ad_requests_coverage_weighted_sum: 0,
+                adsense_active_view_viewability_weighted_sum: 0,
+                adsense_active_view_measurability_weighted_sum: 0,
+                adsense_active_view_time_weighted_sum: 0,
+            });
+
+            o.spend += n0(r && r.spend);
+            o.revenue += n0(r && r.revenue);
+
+            o.impressions_fb += n0(r && r.impressions_fb);
+            o.clicks_fb += n0(r && r.clicks_fb);
+
+            o.impressions_adx += n0(r && r.impressions_adx);
+            o.clicks_adx += n0(r && r.clicks_adx);
+            o.total_requests += i0(r && r.total_requests);
+            o.responses_served += i0(r && r.responses_served);
+
+            const wAdx = i0((r && r.active_view_weight) != null ? r.active_view_weight : (r && r.impressions_adx));
+            if (wAdx > 0) {
+                o.adx_active_view_weight += wAdx;
+                if ((r && r.active_view_pct_viewable_sum) != null) {
+                    o.adx_active_view_pct_viewable_sum += n0(r.active_view_pct_viewable_sum);
+                } else if ((r && r.active_view_pct_viewable) != null) {
+                    o.adx_active_view_pct_viewable_sum += n0(r.active_view_pct_viewable) * wAdx;
+                }
+                if ((r && r.active_view_avg_time_sec_sum) != null) {
+                    o.adx_active_view_avg_time_sec_sum += n0(r.active_view_avg_time_sec_sum);
+                } else if ((r && r.active_view_avg_time_sec) != null) {
+                    o.adx_active_view_avg_time_sec_sum += n0(r.active_view_avg_time_sec) * wAdx;
+                }
+            }
+
+            o.impressions_adsense += n0(r && (r.impressions || r.impressions_adsense));
+            o.clicks_adsense += n0(r && (r.clicks || r.clicks_adsense));
+            o.page_views += n0(r && r.page_views);
+            o.ad_requests += n0(r && r.ad_requests);
+            o.adsense_ad_requests_coverage_weighted_sum += n0(r && r.ad_requests_coverage_weighted_sum);
+            o.adsense_active_view_viewability_weighted_sum += n0(r && r.active_view_viewability_weighted_sum);
+            o.adsense_active_view_measurability_weighted_sum += n0(r && r.active_view_measurability_weighted_sum);
+            o.adsense_active_view_time_weighted_sum += n0(r && r.active_view_time_weighted_sum);
+        });
+        return out;
+    }
+
+    async function fetchTrendRaw(source, dim, startYmd, endYmd, domainKey) {
+        const url = endpointForRange(source, dim, startYmd, endYmd, domainKey);
+        const resp = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const json = await resp.json();
+        if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat trend');
+        if (String(dim || '') === 'country') return Array.isArray(json.daily_rows) ? json.daily_rows : [];
+        return Array.isArray(json.raw_rows) ? json.raw_rows : [];
+    }
+
+    async function buildTrendSeries(domainKey, endYmd, state, daysBack) {
+        const dim = (state && state.dim) ? state.dim : 'domain';
+        const src = String((state && state.source) || 'all').toLowerCase();
+        const back = Math.max(0, Number(daysBack) || 0);
+        const end = String(endYmd || '').trim();
+        const start = ymdShift(end, -back);
+        const dates = ymdSeq(start, end);
+
+        const blank = () => ({ dates, spend: [], revenue: [], roi: [], metrics: {} });
+        const n0 = (v) => {
+            const x = Number(v);
+            return isFinite(x) ? x : 0;
+        };
+        const div = (a, b, k) => (b > 0 ? (a / b) * (k || 1) : 0);
+
+        function normCC(cc) {
+            const s = String(cc || '').trim().toUpperCase();
+            if (!s) return '';
+            if (s === 'TU') return 'TR';
+            return s;
+        }
+
+        function dailyAggFromCountryDailyRows(rows, countryCode) {
+            const out = {};
+            const want = normCC(countryCode);
+            (rows || []).forEach(function(r){
+                const d = String((r && r.date) || '').slice(0, 10);
+                if (!d) return;
+                const cc = normCC((r && (r.country_code || r.code)) || '');
+                if (want && cc !== want) return;
+                const o = out[d] || (out[d] = { spend: 0, revenue: 0 });
+                o.spend += n0(r && r.spend);
+                o.revenue += n0(r && r.revenue);
+            });
+            return out;
+        }
+
+        function seriesFromCountryDaily(m) {
+            const spend = dates.map(d => n0(m[d]?.spend));
+            const revenue = dates.map(d => n0(m[d]?.revenue));
+            const roi = dates.map((d, i) => {
+                const s = spend[i] || 0;
+                const r = revenue[i] || 0;
+                return s > 0 ? ((r - s) / s * 100) : 0;
+            });
+            return { dates, spend, revenue, roi, metrics: {} };
+        }
+
+        if (dim === 'country') {
+            const cc = normCC(domainKey);
+            if (!cc) return blank();
+            if (src === 'all') {
+                const [rowsAdx, rowsAds] = await Promise.all([
+                    fetchTrendRaw('adx', 'country', start, end, ''),
+                    fetchTrendRaw('adsense', 'country', start, end, '')
+                ]);
+                const mAdx = dailyAggFromCountryDailyRows(rowsAdx, cc);
+                const mAds = dailyAggFromCountryDailyRows(rowsAds, cc);
+                const spend = dates.map(d => Math.max(n0(mAdx[d]?.spend), n0(mAds[d]?.spend)));
+                const revenue = dates.map(d => n0(mAdx[d]?.revenue) + n0(mAds[d]?.revenue));
+                const roi = dates.map((d, i) => {
+                    const s = spend[i] || 0;
+                    const r = revenue[i] || 0;
+                    return s > 0 ? ((r - s) / s * 100) : 0;
+                });
+                return { dates, spend, revenue, roi, metrics: {} };
+            }
+            const rows = await fetchTrendRaw(src, 'country', start, end, '');
+            return seriesFromCountryDaily(dailyAggFromCountryDailyRows(rows, cc));
+        }
+
+        if (dim !== 'domain') return blank();
+
+        function seriesFromDaily(m) {
+            const spend = dates.map(d => n0(m[d]?.spend));
+            const revenue = dates.map(d => n0(m[d]?.revenue));
+            const impressions_fb = dates.map(d => n0(m[d]?.impressions_fb));
+            const clicks_fb = dates.map(d => n0(m[d]?.clicks_fb));
+            const impressions_adx = dates.map(d => n0(m[d]?.impressions_adx));
+            const clicks_adx = dates.map(d => n0(m[d]?.clicks_adx));
+            const total_requests = dates.map(d => n0(m[d]?.total_requests));
+            const responses_served = dates.map(d => n0(m[d]?.responses_served));
+            const adx_active_view_weight = dates.map(d => n0(m[d]?.adx_active_view_weight));
+            const adx_active_view_pct_viewable = dates.map(d => div(n0(m[d]?.adx_active_view_pct_viewable_sum), n0(m[d]?.adx_active_view_weight), 1));
+            const adx_active_view_avg_time_sec = dates.map(d => div(n0(m[d]?.adx_active_view_avg_time_sec_sum), n0(m[d]?.adx_active_view_weight), 1));
+
+            const impressions_adsense = dates.map(d => n0(m[d]?.impressions_adsense));
+            const clicks_adsense = dates.map(d => n0(m[d]?.clicks_adsense));
+            const page_views = dates.map(d => n0(m[d]?.page_views));
+            const ad_requests = dates.map(d => n0(m[d]?.ad_requests));
+            const ad_requests_coverage = dates.map(d => div(n0(m[d]?.adsense_ad_requests_coverage_weighted_sum), n0(m[d]?.ad_requests), 1));
+            const active_view_viewability = dates.map(d => div(n0(m[d]?.adsense_active_view_viewability_weighted_sum), n0(m[d]?.impressions_adsense), 1));
+            const active_view_measurability = dates.map(d => div(n0(m[d]?.adsense_active_view_measurability_weighted_sum), n0(m[d]?.impressions_adsense), 1));
+            const active_view_time = dates.map(d => div(n0(m[d]?.adsense_active_view_time_weighted_sum), n0(m[d]?.impressions_adsense), 1));
+
+            const roi = dates.map((d, i) => {
+                const s = spend[i] || 0;
+                const r = revenue[i] || 0;
+                return s > 0 ? ((r - s) / s * 100) : 0;
+            });
+
+            const ctr_fb = dates.map((d, i) => div(clicks_fb[i], impressions_fb[i], 100));
+            const ctr_adx = dates.map((d, i) => div(clicks_adx[i], impressions_adx[i], 100));
+            const cpc_fb = dates.map((d, i) => div(spend[i], clicks_fb[i], 1));
+            const cpc_adx = dates.map((d, i) => div(revenue[i], clicks_adx[i], 1));
+            const cpm_fb = dates.map((d, i) => div(spend[i], impressions_fb[i], 1000));
+            const ecpm_adx = dates.map((d, i) => div(revenue[i], impressions_adx[i], 1000));
+            const match_rate = dates.map((d, i) => div(responses_served[i], total_requests[i], 100));
+            const fill_rate = dates.map((d, i) => div(impressions_adx[i], responses_served[i], 100));
+            const conv_rate = dates.map((d, i) => div(clicks_adx[i], clicks_fb[i], 100));
+
+            const ctr_adsense = dates.map((d, i) => div(clicks_adsense[i], impressions_adsense[i], 100));
+            const cpc_adsense = dates.map((d, i) => div(revenue[i], clicks_adsense[i], 1));
+            const ecpm_adsense = dates.map((d, i) => div(revenue[i], impressions_adsense[i], 1000));
+            const page_views_rpm = dates.map((d, i) => div(revenue[i], page_views[i], 1000));
+
+            return {
+                dates,
+                spend,
+                revenue,
+                roi,
+                metrics: {
+                    impressions_fb,
+                    clicks_fb,
+                    ctr_fb,
+                    cpc_fb,
+                    cpm_fb,
+                    impressions_adx,
+                    clicks_adx,
+                    ctr_adx,
+                    cpc_adx,
+                    ecpm_adx,
+                    total_requests,
+                    responses_served,
+                    match_rate,
+                    fill_rate,
+                    adx_active_view_weight,
+                    adx_active_view_pct_viewable,
+                    adx_active_view_avg_time_sec,
+                    conv_rate,
+                    impressions_adsense,
+                    clicks_adsense,
+                    ctr_adsense,
+                    cpc_adsense,
+                    ecpm_adsense,
+                    page_views,
+                    page_views_rpm,
+                    ad_requests,
+                    ad_requests_coverage,
+                    active_view_viewability,
+                    active_view_measurability,
+                    active_view_time,
+                }
+            };
+        }
+
+        if (src === 'adx' || src === 'adsense') {
+            const raw = await fetchTrendRaw(src, dim, start, end, domainKey);
+            const m = dailyAggFromRawRows(raw, domainKey);
+            return seriesFromDaily(m);
+        }
+
+        const [rawAdx, rawAds] = await Promise.all([
+            fetchTrendRaw('adx', dim, start, end, domainKey),
+            fetchTrendRaw('adsense', dim, start, end, domainKey)
+        ]);
+        const mAdx = dailyAggFromRawRows(rawAdx, domainKey);
+        const mAds = dailyAggFromRawRows(rawAds, domainKey);
+
+        const sx = seriesFromDaily(mAdx);
+        const ss = seriesFromDaily(mAds);
+
+        const spend = dates.map((d, i) => Math.max(n0(sx.spend[i]), n0(ss.spend[i])));
+        const revenue_adx = sx.revenue.slice();
+        const revenue_adsense = ss.revenue.slice();
+        const revenue = dates.map((d, i) => n0(revenue_adx[i]) + n0(revenue_adsense[i]));
+        const roi = dates.map((d, i) => {
+            const s = spend[i] || 0;
+            const r = revenue[i] || 0;
+            return s > 0 ? ((r - s) / s * 100) : 0;
+        });
+
+        return {
+            dates,
+            spend,
+            revenue,
+            roi,
+            metrics: Object.assign({}, sx.metrics || {}, ss.metrics || {}, {
+                spend_adx: sx.spend.slice(),
+                spend_adsense: ss.spend.slice(),
+                revenue_adx,
+                revenue_adsense,
+            })
+        };
+    }
+
+    function renderScoreTrendChart(series) {
+        const canvas = document.getElementById('sdTrendChart');
+        if (!canvas || typeof Chart !== 'function') return;
+
+        try {
+            if (window.scoreDetailTrendChart && typeof window.scoreDetailTrendChart.destroy === 'function') {
+                window.scoreDetailTrendChart.destroy();
+            }
+        } catch (e) {}
+
+        const labels = (series && series.dates) ? series.dates : [];
+        const spend = (series && series.spend) ? series.spend : [];
+        const revenue = (series && series.revenue) ? series.revenue : [];
+        const roi = (series && series.roi) ? series.roi : [];
+
+        window.scoreDetailTrendChart = new Chart(canvas.getContext('2d'), {
+            data: {
+                labels,
+                datasets: [
+                    { type: 'bar', label: 'Revenue', data: revenue, yAxisID: 'yMoney', backgroundColor: 'rgba(16, 185, 129, 0.35)', borderColor: 'rgba(16, 185, 129, 0.9)', borderWidth: 1 },
+                    { type: 'bar', label: 'Spend', data: spend, yAxisID: 'yMoney', backgroundColor: 'rgba(239, 68, 68, 0.25)', borderColor: 'rgba(239, 68, 68, 0.8)', borderWidth: 1 },
+                    { type: 'line', label: 'ROI (%)', data: roi, yAxisID: 'yRoi', borderColor: 'rgba(59, 130, 246, 1)', backgroundColor: 'rgba(59, 130, 246, 0.15)', tension: 0.25, pointRadius: 2 }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'bottom' },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const lab = String(context.dataset.label || '');
+                                const v = context.parsed.y;
+                                if (lab.includes('ROI')) return `${lab}: ${Number(v || 0).toFixed(2)}%`;
+                                return `${lab}: ${fmtIdr(Number(v || 0))}`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    yMoney: { position: 'left', ticks: { callback: function(v){ return fmtIdr(v); } } },
+                    yRoi: { position: 'right', grid: { drawOnChartArea: false }, ticks: { callback: function(v){ return `${Number(v).toFixed(0)}%`; } } }
+                }
+            }
+        });
+    }
+
+    function bindScoreTrendControls(domainKey, endYmd, state) {
+        const s1 = document.getElementById('sdTrendBtn1');
+        const s7 = document.getElementById('sdTrendBtn7');
+        const s14 = document.getElementById('sdTrendBtn14');
+        const st = document.getElementById('sdTrendStatus');
+
+        function setActive(n) {
+            [s1, s7, s14].forEach(function(b){
+                if (!b) return;
+                const on = String(b.getAttribute('data-days')) === String(n);
+                b.classList.toggle('btn-primary', on);
+                b.classList.toggle('btn-outline-primary', !on);
+            });
+        }
+
+        function sumArr(a){
+            return (a || []).reduce(function(acc, x){
+                const n = Number(x);
+                return acc + (isFinite(n) ? n : 0);
+            }, 0);
+        }
+
+        function deltaPct(cur, prev) {
+            const c = Number(cur);
+            const p = Number(prev);
+            if (!isFinite(c) || !isFinite(p) || p <= 0) return null;
+            return ((c - p) / p) * 100;
+        }
+
+        function renderTrendStats(series) {
+            const el = document.getElementById('sdTrendStats');
+            if (!el) return;
+
+            const dates = (series && series.dates) ? series.dates : [];
+            const n = dates.length;
+            if (!n) { el.innerHTML = ''; return; }
+
+            const spend = (series && series.spend) ? series.spend : [];
+            const revenue = (series && series.revenue) ? series.revenue : [];
+            const roi = (series && series.roi) ? series.roi : [];
+
+            const totalSpend = sumArr(spend);
+            const totalRev = sumArr(revenue);
+            const totalNet = totalRev - totalSpend;
+            const totalRoi = totalSpend > 0 ? (totalNet / totalSpend * 100) : 0;
+
+            const firstRoi = Number(roi[0] || 0) || 0;
+            const lastRoi = Number(roi[n - 1] || 0) || 0;
+            const dRoi = lastRoi - firstRoi;
+
+            const firstRev = Number(revenue[0] || 0) || 0;
+            const lastRev = Number(revenue[n - 1] || 0) || 0;
+            const dRevPct = deltaPct(lastRev, firstRev);
+
+            const firstSpend = Number(spend[0] || 0) || 0;
+            const lastSpend = Number(spend[n - 1] || 0) || 0;
+            const dSpendPct = deltaPct(lastSpend, firstSpend);
+
+            function row(k, v) {
+                return `<tr><td style="padding:7px 8px;border-bottom:1px solid rgba(15,23,42,0.06);font-weight:800;">${esc(k)}</td><td style="padding:7px 8px;border-bottom:1px solid rgba(15,23,42,0.06);text-align:right;font-weight:900;">${v}</td></tr>`;
+            }
+
+            const sign = (x) => (x >= 0 ? '+' : '');
+            const mk = (delta, text) => (delta == null || !isFinite(Number(delta))) ? '' : ' (' + String(text || '') + ')';
+
+            let h = '';
+            h += `<table class="sd-kv" style="margin-top:10px;">`;
+            h += row('ROI total (range)', `${totalRoi.toFixed(2)}%`);
+            h += row('Revenue total (range)', fmtIdr(totalRev));
+            h += row('Spend total (range)', fmtIdr(totalSpend));
+            h += row('Net total (range)', fmtIdr(totalNet));
+            h += row('ROI awal → akhir', `${firstRoi.toFixed(2)}% → ${lastRoi.toFixed(2)}%${mk(dRoi, sign(dRoi) + dRoi.toFixed(2) + 'pp')}`);
+            h += row('Revenue awal → akhir', `${fmtIdr(firstRev)} → ${fmtIdr(lastRev)}${mk(dRevPct, sign(dRevPct) + dRevPct.toFixed(1) + '%')}`);
+            h += row('Spend awal → akhir', `${fmtIdr(firstSpend)} → ${fmtIdr(lastSpend)}${mk(dSpendPct, sign(dSpendPct) + dSpendPct.toFixed(1) + '%')}`);
+            h += `</table>`;
+
+            el.innerHTML = h;
+        }
+
+        async function run(days) {
+            const back = (Number(days) === 1) ? 1 : (Math.max(2, Number(days) || 14) - 1);
+            setActive(days);
+            if (st) st.textContent = 'Loading trend...';
+            try {
+                const series = await buildTrendSeries(domainKey, endYmd, state, back);
+                renderScoreTrendChart(series);
+                renderTrendStats(series);
+
+                const n = (series && series.dates) ? series.dates.length : 0;
+                const roi = (series && series.roi) ? series.roi : [];
+                const spend = (series && series.spend) ? series.spend : [];
+                const revenue = (series && series.revenue) ? series.revenue : [];
+
+                const firstRoi = Number(roi[0] || 0) || 0;
+                const lastRoi = Number(roi[n - 1] || 0) || 0;
+                const dRoi = lastRoi - firstRoi;
+
+                const dRevPct = deltaPct(Number(revenue[n - 1] || 0) || 0, Number(revenue[0] || 0) || 0);
+                const dSpendPct = deltaPct(Number(spend[n - 1] || 0) || 0, Number(spend[0] || 0) || 0);
+
+                const sign = (x) => (x >= 0 ? '+' : '');
+                const parts = [];
+                parts.push(`${n} hari`);
+                if (n) parts.push(`ROI ${lastRoi.toFixed(2)}% (${sign(dRoi)}${dRoi.toFixed(2)}pp)`);
+                if (dRevPct != null) parts.push(`Rev ${sign(dRevPct)}${dRevPct.toFixed(1)}%`);
+                if (dSpendPct != null) parts.push(`Spend ${sign(dSpendPct)}${dSpendPct.toFixed(1)}%`);
+
+                if (st) st.textContent = parts.join(' • ');
+            } catch (e) {
+                if (st) st.textContent = String(e?.message || e || 'Gagal memuat trend');
+                const el = document.getElementById('sdTrendStats');
+                if (el) el.innerHTML = '';
+            }
+        }
+
+        if (s1) s1.onclick = function(){ run(1); };
+        if (s7) s7.onclick = function(){ run(7); };
+        if (s14) s14.onclick = function(){ run(14); };
+
+        run(14);
+    }
+
+    function bindScoreCampaignControls(row, ymd) {
+        const loadBtn = document.getElementById('sdLoadCampaignBtn');
+        const pauseBtn = document.getElementById('sdPauseSelectedBtn');
+        const actBtn = document.getElementById('sdActivateSelectedBtn');
+        const scaleBtn = document.getElementById('sdScaleUp15Btn');
+        const optBtn = document.getElementById('sdOptimize10Btn');
+        const statusEl = document.getElementById('sdCampaignStatus');
+        const wrapEl = document.getElementById('sdCampaignTable');
+
+        if (!wrapEl) return;
+
+        const accountAds = String(row?.account_ads || '').trim();
+        const siteName = String(row?.name || '').trim();
+        const end = String(ymd || '').trim();
+        const start = end ? ymdShift(end, -6) : '';
+
+        const st = { campaigns: [] };
+
+        function setStatus(msg) {
+            if (statusEl) statusEl.textContent = String(msg || '');
+        }
+
+        async function getCampaigns() {
+            const qs = new URLSearchParams({ account_ads: accountAds, site_name: siteName, start_date: start, end_date: end });
+            const resp = await fetch('/management/admin/page_monitoring_domain_campaigns?' + qs.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            const json = await resp.json();
+            if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat campaigns');
+            return Array.isArray(json.campaigns) ? json.campaigns : [];
+        }
+
+        async function postForm(url, data) {
+            const body = new URLSearchParams();
+            Object.keys(data || {}).forEach(function(k){
+                const v = (data || {})[k];
+                if (v == null) return;
+                body.append(k, String(v));
+            });
+            const resp = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8', 'X-Requested-With': 'XMLHttpRequest' },
+                body: body.toString()
+            });
+            return await resp.json();
+        }
+
+        async function updateBudget(campaignId, dailyBudget) {
+            const json = await postForm('/management/admin/update_daily_budget_monitoring_domain_campaign', { account_ads: accountAds, campaign_id: campaignId, daily_budget: dailyBudget });
+            if (!json || !json.status) throw new Error(json?.error || 'Gagal update daily budget');
+            return json;
+        }
+
+        async function updateStatus(campaignIds, status) {
+            const json = await postForm('/management/admin/update_campaign_status_monitoring_domain_campaign', { account_ads: accountAds, status: status, campaign_ids: JSON.stringify(campaignIds || []) });
+            if (!json || !json.status) throw new Error(json?.error || 'Gagal update status');
+            return json;
+        }
+
+        function selectedIds() {
+            const cbs = wrapEl.querySelectorAll('input.sd-camp-cb[type="checkbox"][data-cid]');
+            const ids = [];
+            cbs.forEach(function(cb){ if (cb.checked) ids.push(String(cb.getAttribute('data-cid') || '')); });
+            return ids.filter(Boolean);
+        }
+
+        function byId(id) {
+            const key = String(id || '');
+            return (st.campaigns || []).find(x => String(x?.campaign_id || x?.id || '') === key) || null;
+        }
+
+        function render() {
+            const rows = Array.isArray(st.campaigns) ? st.campaigns : [];
+            if (!rows.length) {
+                wrapEl.innerHTML = '<div class="text-muted" style="font-size:12px;">Belum ada data campaign.</div>';
+                return;
+            }
+
+            let h = '';
+            h += '<div class="table-responsive">';
+            h += '<table class="table table-sm table-striped" style="margin:0;">';
+            h += '<thead><tr>';
+            h += '<th style="width:34px;" class="text-center"><input type="checkbox" id="sdCampCheckAll"></th>';
+            h += '<th>Campaign</th>';
+            h += '<th class="text-end" style="width:120px;">Spend</th>';
+            h += '<th class="text-end" style="width:160px;">Daily Budget</th>';
+            h += '<th style="width:96px;" class="text-center">Update</th>';
+            h += '</tr></thead><tbody>';
+
+            rows.forEach(function(c){
+                const cid = String(c?.campaign_id || c?.id || '').trim();
+                const name = String(c?.campaign_name || c?.name || '-');
+                const spend = Number(c?.spend || 0) || 0;
+                const bud = Number(c?.daily_budget || c?.budget || 0) || 0;
+                const inputId = `sdBud_${cid}`;
+
+                h += '<tr>';
+                h += `<td class="text-center"><input class="sd-camp-cb" type="checkbox" data-cid="${esc(cid)}"></td>`;
+                h += `<td style="font-weight:800;">${esc(name)}</td>`;
+                h += `<td class="text-end">${fmtIdr(spend)}</td>`;
+                h += `<td class="text-end"><input id="${esc(inputId)}" type="text" class="form-control form-control-sm" value="${esc(String(Math.round(bud)))}" style="text-align:right;"></td>`;
+                h += `<td class="text-center"><button type="button" class="btn btn-sm btn-outline-primary sd-camp-upd" data-cid="${esc(cid)}">Save</button></td>`;
+                h += '</tr>';
+            });
+
+            h += '</tbody></table></div>';
+            wrapEl.innerHTML = h;
+        }
+
+        async function refresh() {
+            if (!accountAds || !siteName || !start || !end) {
+                setStatus('account_ads / domain / tanggal tidak valid');
+                if (loadBtn) loadBtn.disabled = true;
+                return;
+            }
+            setStatus('Loading campaigns...');
+            if (loadBtn) loadBtn.disabled = true;
+            try {
+                st.campaigns = await getCampaigns();
+                render();
+                setStatus(`${st.campaigns.length} campaign • ${start} s/d ${end}`);
+            } catch (e) {
+                st.campaigns = [];
+                render();
+                setStatus(String(e?.message || e || 'Gagal memuat campaigns'));
+            } finally {
+                if (loadBtn) loadBtn.disabled = false;
+            }
+        }
+
+        async function bulkStatus(status) {
+            const ids = selectedIds();
+            if (!ids.length) { setStatus('Pilih minimal 1 campaign'); return; }
+            setStatus('Updating status...');
+            try { await updateStatus(ids, status); setStatus(`OK: status ${status} (${ids.length} campaign)`); }
+            catch (e) { setStatus(String(e?.message || e || 'Gagal update status')); }
+        }
+
+        async function bulkBudget(mult) {
+            const ids = selectedIds();
+            if (!ids.length) { setStatus('Pilih minimal 1 campaign'); return; }
+            setStatus('Updating daily budget...');
+            try {
+                for (const cid of ids) {
+                    const c = byId(cid);
+                    const base = Number(c?.daily_budget || c?.budget || 0) || 0;
+                    const next = Math.max(1, Math.round(base * mult));
+                    await updateBudget(cid, next);
+                    const inp = document.getElementById(`sdBud_${cid}`);
+                    if (inp) inp.value = String(next);
+                }
+                setStatus(`OK: update budget (${ids.length} campaign)`);
+            } catch (e) {
+                setStatus(String(e?.message || e || 'Gagal update budget'));
+            }
+        }
+
+        if (loadBtn) loadBtn.onclick = refresh;
+        if (pauseBtn) pauseBtn.onclick = function(){ bulkStatus('PAUSED'); };
+        if (actBtn) actBtn.onclick = function(){ bulkStatus('ACTIVE'); };
+        if (scaleBtn) scaleBtn.onclick = function(){ bulkBudget(1.15); };
+        if (optBtn) optBtn.onclick = function(){ bulkBudget(0.90); };
+
+        wrapEl.addEventListener('change', function(e) {
+            const t = e.target;
+            if (!t) return;
+            if (t.id === 'sdCampCheckAll') {
+                const on = !!t.checked;
+                wrapEl.querySelectorAll('input.sd-camp-cb[type="checkbox"][data-cid]').forEach(function(cb){ cb.checked = on; });
+            }
+        });
+
+        wrapEl.addEventListener('click', async function(e) {
+            const btn = e.target && e.target.closest ? e.target.closest('.sd-camp-upd') : null;
+            if (!btn) return;
+            const cid = String(btn.getAttribute('data-cid') || '');
+            const inp = document.getElementById(`sdBud_${cid}`);
+            const raw = String(inp ? inp.value : '').trim();
+            const cleaned = raw.replace('Rp','').replace(/\./g,'').replace(/,/g,'').trim();
+            const n = parseInt(cleaned, 10);
+            if (!cid || !isFinite(n) || n <= 0) { setStatus('daily budget tidak valid'); return; }
+            setStatus('Updating daily budget...');
+            btn.disabled = true;
+            try { await updateBudget(cid, n); setStatus(`OK: update daily budget (${cid})`); }
+            catch (er) { setStatus(String(er?.message || er || 'Gagal update daily budget')); }
+            finally { btn.disabled = false; }
+        });
+
+        render();
+    }
+
+    function renderTable(dim, rows, state) {
         const thName = document.getElementById('dashboardRecapThName');
         const thCode = document.getElementById('dashboardRecapThCode');
         if (thName) thName.textContent = dim === 'country' ? 'Nama Negara' : 'Domain';
+
+        const tableEl = document.getElementById('dashboardRecapTable');
+        if (tableEl && !tableEl.dataset.boundScoreDetail) {
+            tableEl.addEventListener('click', function(e) {
+                const btn = e.target && e.target.closest ? e.target.closest('.dashboard-score-detail-btn') : null;
+                if (!btn) return;
+                const key = btn.getAttribute('data-score-key') || '';
+                const payload = (window.dashboardRecapScoreDetails || {})[key];
+                if (!payload) return;
+                const meta = payload.meta || {};
+                const bd = meta.breakdown || {};
+                const r = payload.row || {};
+                const dimNow = String(payload?.state?.dim || state?.dim || dim || 'domain');
+
+                function pct(v) {
+                    const x = Number(v);
+                    if (!isFinite(x)) return '-';
+                    return `${x.toFixed(2)}%`;
+                }
+                function num(v) {
+                    const x = Number(v);
+                    if (!isFinite(x)) return '-';
+                    return String(Math.round(x));
+                }
+                function money(v) {
+                    const x = Number(v);
+                    if (!isFinite(x)) return '-';
+                    return fmtIdr(x);
+                }
+                function row2(k, v) {
+                    return `<tr><td style="padding:7px 8px;border-bottom:1px solid rgba(15,23,42,0.06);font-weight:800;">${esc(k)}</td><td style="padding:7px 8px;border-bottom:1px solid rgba(15,23,42,0.06);text-align:right;font-weight:900;">${v}</td></tr>`;
+                }
+
+                const metricLabelMap = {
+                    adx_revenue: 'AdX Revenue',
+                    adx_avg_ecpm: 'AdX eCPM',
+                    adx_cpc: 'AdX CPC',
+                    adx_total_requests: 'AdX Requests',
+                    adx_responses_served: 'AdX Responses',
+                    adx_match_rate: 'AdX Match Rate',
+                    adx_total_fill_rate: 'AdX Total Fill Rate',
+                    adx_fill_rate: 'AdX Total Fill Rate',
+                    adx_impressions: 'AdX Impressions',
+                    adx_clicks: 'AdX Clicks',
+                    adx_active_view_pct_viewable: 'AdX Active View %',
+                    adx_active_view_avg_time_sec: 'AdX Active View Time (s)',
+                    adsense_estimated_earnings: 'AdSense Estimated Earnings',
+                    adsense_page_views_rpm: 'AdSense Page Views RPM',
+                    adsense_cost_per_click: 'AdSense Cost Per Click',
+                    adsense_ad_requests: 'AdSense Ad Requests',
+                    adsense_matched_ad_requests: 'AdSense Matched Requests',
+                    adsense_impressions: 'AdSense Impressions',
+                    adsense_clicks: 'AdSense Clicks',
+                    adsense_page_views: 'AdSense Page Views',
+                    adsense_ad_requests_coverage: 'AdSense Coverage',
+                    adsense_active_view_viewability: 'AdSense Viewability',
+                    adsense_active_view_measurability: 'AdSense Measurability',
+                    adsense_active_view_time: 'AdSense Active View Time',
+                };
+
+                function labelMetric(k) {
+                    const kk = String(k || '');
+                    if (metricLabelMap[kk]) return metricLabelMap[kk];
+                    return kk.replace(/_/g, ' ');
+                }
+
+                function fmtMetric(k, v) {
+                    const kk = String(k || '');
+                    if (v == null) return '-';
+                    if (kk.includes('revenue') || kk.includes('earnings') || kk.includes('rpm') || kk.includes('cpc') || kk.includes('ecpm')) return money(v);
+                    if (kk.includes('rate') || kk.includes('coverage') || kk.includes('viewability') || kk.includes('measurability') || kk.includes('pct')) return pct(v);
+                    if (kk.includes('time')) return `${Number(v).toFixed(2)}s`;
+                    return num(v);
+                }
+
+                function metricList(keys, m) {
+                    const ks = (keys || []).filter(function(k) {
+                        if (!k) return false;
+                        if (!m) return false;
+                        return m[k] != null;
+                    });
+                    if (!ks.length) return '<div class="sd-sub">-</div>';
+                    return ks.map(function(k) {
+                        const v = fmtMetric(k, m ? m[k] : null);
+                        return `<div class="sd-metric"><div class="k">${esc(labelMetric(k))}</div><div class="v">${esc(String(v))}</div></div>`;
+                    }).join('');
+                }
+
+                const title = `${(dimNow === 'country' ? 'Country' : 'Domain')}: ${String(r.name||'-')}${r.code ? ' (' + String(r.code) + ')' : ''}`;
+
+                const pts = (bd.points || {});
+                const adx = (bd.adx && bd.adx.aspects) ? bd.adx : null;
+                const ads = (bd.adsense && bd.adsense.aspects) ? bd.adsense : null;
+
+                let html = '';
+                html += `<div class="sd-wrap">`;
+                html += `<div class="sd-card">`;
+                html += `<div class="sd-title">Score ${esc(String(meta.score||0))} • ${esc(String(meta.decision||''))}</div>`;
+                if (meta.label) html += `<div class="sd-sub" style="font-weight:900;">Label: ${esc(String(meta.label))}</div>`;
+                if (meta.reasons && meta.reasons.length) {
+                    html += `<div class="sd-badges">`;
+                    meta.reasons.forEach(function(x){
+                        html += `<span class="badge badge-light" style="border:1px solid rgba(15,23,42,0.12);">${esc(String(x))}</span>`;
+                    });
+                    html += `</div>`;
+                }
+                html += `<table class="sd-kv">`;
+                html += row2('Points: Coverage', num(pts.coverage));
+                html += row2('Points: Freshness', num(pts.freshness));
+                html += row2('Points: Spend', num(pts.spend));
+                html += row2('Points: ROI', num(pts.roi));
+                html += row2('Points: AdX', num(pts.adx));
+                html += row2('Points: AdSense', num(pts.adsense));
+                html += row2('Points: Total', num(pts.total));
+                html += row2('Health Score', pct(bd?.meta?.health_score));
+                html += row2('Traffic Score', pct(bd?.meta?.traffic_score));
+                html += row2('Delivery Score', pct(bd?.meta?.delivery_score));
+                html += row2('Yield Score', pct(bd?.meta?.yield_score));
+                html += row2('Quality Score', pct(bd?.meta?.quality_score));
+                html += `</table>`;
+
+                if (dimNow === 'country') {
+                    const cc = String(r?.code || '').trim().toUpperCase();
+                    const map = window.dashboardRecapSubdomainsByCountry || {};
+                    const list = Array.isArray(map[cc]) ? map[cc] : [];
+                    html += `<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(15,23,42,0.10);">`;
+                    html += `<div class="sd-title" style="font-size:14px;margin-bottom:6px;">Subdomain Terkait</div>`;
+                    if (list.length) {
+                        html += `<div class="sd-sub" style="font-size:12px;line-height:1.45;">${list.map(s => `<div>${esc(s)}</div>`).join('')}</div>`;
+                    } else {
+                        html += `<div class="sd-sub">-</div>`;
+                    }
+                    html += `</div>`;
+                }
+
+                if (dimNow === 'domain') {
+                    html += `<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(15,23,42,0.10);">`;
+                    html += `<div class="sd-title" style="font-size:14px;margin-bottom:6px;">Aksi Campaign</div>`;
+                    html += `<div class="sd-sub" style="margin-top:0;">Account Ads: <span style="font-weight:900;">${esc(String(r?.account_ads || '-'))}</span></div>`;
+                    html += `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;">`;
+                    html += `<button id="sdLoadCampaignBtn" type="button" class="btn btn-sm btn-outline-primary">Muat campaign (7 hari)</button>`;
+                    html += `<button id="sdScaleUp15Btn" type="button" class="btn btn-sm btn-success">Scale +15%</button>`;
+                    html += `<button id="sdOptimize10Btn" type="button" class="btn btn-sm btn-warning text-dark">Optimize -10%</button>`;
+                    html += `<button id="sdActivateSelectedBtn" type="button" class="btn btn-sm btn-outline-success">Active</button>`;
+                    html += `<button id="sdPauseSelectedBtn" type="button" class="btn btn-sm btn-outline-danger">Pause</button>`;
+                    html += `<div id="sdCampaignStatus" class="text-muted" style="margin-left:auto;font-size:12px;"></div>`;
+                    html += `</div>`;
+                    html += `<div id="sdCampaignTable" style="margin-top:10px;"></div>`;
+                    html += `</div>`;
+                }
+
+                html += `</div>`;
+
+                function platformBlock(name, p) {
+                    if (!p || !p.aspects) return '';
+                    const a = p.aspects;
+                    const c = p.computed || {};
+                    const w = c.w || { yield:0.40, delivery:0.30, traffic:0.15, quality:0.15 };
+                    const platKey = String(name || '').toLowerCase() === 'adsense' ? 'adsense' : 'adx';
+
+                    const metricByAspect = (platKey === 'adsense') ? {
+                        yield: ['adsense_estimated_earnings','adsense_page_views_rpm','adsense_cost_per_click'],
+                        delivery: ['adsense_ad_requests','adsense_matched_ad_requests','adsense_ad_requests_coverage','adsense_impressions'],
+                        traffic: ['adsense_page_views','adsense_clicks'],
+                        quality: ['adsense_active_view_viewability','adsense_active_view_measurability','adsense_active_view_time'],
+                    } : {
+                        yield: ['adx_revenue','adx_avg_ecpm','adx_cpc'],
+                        delivery: ['adx_total_requests','adx_responses_served','adx_match_rate','adx_total_fill_rate'],
+                        traffic: ['adx_impressions','adx_clicks'],
+                        quality: ['adx_active_view_pct_viewable','adx_active_view_avg_time_sec'],
+                    };
+
+                    const m = a.metrics || {};
+
+                    function det(cls, title, score, ww, keys) {
+                        const right = `${num(score)} (w ${Math.round(ww*100)}%)`;
+                        return (
+                            `<details class="sd-details ${esc(cls)}" open>` +
+                                `<summary><span>${esc(title)}</span><span class="sd-det-right">${esc(right)}</span></summary>` +
+                                `<div class="sd-det-body">${metricList(keys, m)}</div>` +
+                            `</details>`
+                        );
+                    }
+
+                    let h = '';
+                    h += `<div class="sd-plat sd-plat--${esc(platKey)}">`;
+                    h += `<div class="sd-plat-hd"><div class="sd-plat-name">${esc(name)}</div><div class="sd-plat-points">Points ${num(c.pts)}</div></div>`;
+                    h += `<div class="sd-plat-body">`;
+                    h += `<div class="sd-grid">`;
+                    h += det('sd-yield', 'Yield', a.yield, w.yield, metricByAspect.yield);
+                    h += det('sd-delivery', 'Delivery', a.delivery, w.delivery, metricByAspect.delivery);
+                    h += det('sd-traffic', 'Traffic', a.traffic, w.traffic, metricByAspect.traffic);
+                    h += det('sd-quality', 'Quality', a.quality, w.quality, metricByAspect.quality);
+                    h += `</div>`;
+
+                    const aliasOf = {
+                        adx_fill_rate: 'adx_total_fill_rate',
+                        estimated_earnings: 'adsense_estimated_earnings',
+                        page_views_rpm: 'adsense_page_views_rpm',
+                        cost_per_click: 'adsense_cost_per_click',
+                        impressions: 'adsense_impressions',
+                        clicks: 'adsense_clicks',
+                        page_views: 'adsense_page_views',
+                        ad_requests: 'adsense_ad_requests',
+                        matched_ad_requests: 'adsense_matched_ad_requests',
+                        ad_requests_coverage: 'adsense_ad_requests_coverage',
+                        active_view_viewability: 'adsense_active_view_viewability',
+                        active_view_measurability: 'adsense_active_view_measurability',
+                        active_view_time: 'adsense_active_view_time',
+                    };
+                    const allKeys = Object.keys(m || {}).filter(function(k){ return m && m[k] != null && !(aliasOf[k] && m[aliasOf[k]] != null); });
+                    if (allKeys.length) {
+                        h += `<details class="sd-details" style="margin-top:10px;">`;
+                        h += `<summary><span>Semua metrics</span><span class="sd-det-right">${esc(String(allKeys.length))}</span></summary>`;
+                        h += `<div class="sd-det-body">${metricList(allKeys, m)}</div>`;
+                        h += `</details>`;
+                    }
+
+                    h += `</div>`;
+                    h += `</div>`;
+                    return h;
+                }
+
+                html += platformBlock('AdX', adx);
+                html += platformBlock('AdSense', ads);
+
+                if (dimNow === 'domain' || dimNow === 'country') {
+                    html += `<div class="sd-card" style="margin-top:12px;">
+                        <div class="sd-title" style="font-size:14px;">Trend (mundur)</div>
+                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+                            <button id="sdTrendBtn1" data-days="1" type="button" class="btn btn-sm btn-outline-primary">1 hari</button>
+                            <button id="sdTrendBtn7" data-days="7" type="button" class="btn btn-sm btn-outline-primary">7 hari</button>
+                            <button id="sdTrendBtn14" data-days="14" type="button" class="btn btn-sm btn-primary">14 hari</button>
+                            <div id="sdTrendStatus" class="text-muted" style="margin-left:auto;font-size:12px;">-</div>
+                        </div>
+                        <div style="margin-top:10px;height:260px;">
+                            <canvas id="sdTrendChart"></canvas>
+                        </div>
+                        <div id="sdTrendStats"></div>
+                    </div>`;
+
+                }
+
+                html += `</div>`;
+
+                openScoreDetailModal(title, html);
+
+                const ymd = (bd && bd.meta && bd.meta.date) ? String(bd.meta.date) : '';
+                const st = payload.state || window.dashboardRecapLastState || {};
+                const st2 = Object.assign({}, st, { dim: dimNow });
+                if ((dimNow === 'domain' || dimNow === 'country') && ymd && r) {
+                    const keyForTrend = (dimNow === 'country') ? String(r?.code || '').trim() : String(r?.name || '').trim();
+                    if (keyForTrend) bindScoreTrendControls(keyForTrend, ymd, st2);
+                }
+                if (dimNow === 'domain' && ymd && r && r.name) {
+                    bindScoreCampaignControls(r, ymd);
+                }
+            });
+            tableEl.dataset.boundScoreDetail = '1';
+        }
+
+        initScoreDetailModal();
 
         function fmtUpdateTime(v) {
             const s = String(v || '').trim();
@@ -2269,7 +4255,33 @@ function initDashboardRecap() {
             return badges.join(' ') || '-';
         }
 
-        const data = (rows || []).map((r, i) => {
+        window.dashboardRecapScoreDetails = window.dashboardRecapScoreDetails || {};
+
+        const scored = (rows || []).map((r) => {
+            const meta = scoreAndDecision(r, state);
+            return { r, meta };
+        });
+
+        const scores = scored.map(x => Number(x?.meta?.score) || 0);
+        const minScore = scores.length ? Math.min.apply(null, scores) : null;
+        const maxScore = scores.length ? Math.max.apply(null, scores) : null;
+        const hasRange = (minScore != null && maxScore != null && minScore !== maxScore);
+
+        if (tableEl) {
+            tableEl.dataset.minScore = minScore == null ? '' : String(minScore);
+            tableEl.dataset.maxScore = maxScore == null ? '' : String(maxScore);
+            tableEl.dataset.hasRange = hasRange ? '1' : '';
+        }
+
+        const data = scored.map((x, i) => {
+            const r = x.r;
+            const meta = x.meta;
+            const k = `${String(state?.dim || '')}\u241F${String(r?.name || '')}|${String(r?.code || '')}`;
+            window.dashboardRecapScoreDetails[k] = { row: r, meta, state };
+
+            const keputusanHtml = `${keputusanBadge(meta)}`;
+            const detailBtn = `<button type="button" class="btn btn-sm btn-outline-secondary dashboard-score-detail-btn" data-score-key="${esc(k)}">Detail</button>`;
+
             return [
                 i + 1,
                 domainCell(r),
@@ -2278,7 +4290,10 @@ function initDashboardRecap() {
                 Number(r.revenue) || 0,
                 Number(r.net) || 0,
                 Number(r.roi) || 0,
+                Number(meta.score) || 0,
+                keputusanHtml,
                 updatedCell(r),
+                detailBtn,
             ];
         });
 
@@ -2286,7 +4301,6 @@ function initDashboardRecap() {
         if (metaEl) metaEl.textContent = `${rows.length} baris`;
 
         const hasDt = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.DataTable === 'function');
-        const tableEl = document.getElementById('dashboardRecapTable');
         const tbody = document.getElementById('dashboardRecapTbody');
         if (!tableEl || !tbody) return;
 
@@ -2295,6 +4309,11 @@ function initDashboardRecap() {
             tbody.innerHTML = '';
             data.forEach(row => {
                 const tr = document.createElement('tr');
+
+                const scoreVal = Number(row[7]) || 0;
+                if (hasRange && scoreVal === minScore) tr.classList.add('table-danger');
+                else if (hasRange && scoreVal === maxScore) tr.classList.add('table-info');
+
                 const codeCell = dim === 'country' ? `<td class="text-center">${row[2]}</td>` : '';
                 tr.innerHTML = `
                     <td class="text-center">${row[0]}</td>
@@ -2303,8 +4322,11 @@ function initDashboardRecap() {
                     <td class="text-end">${fmtIdr(row[3])}</td>
                     <td class="text-end">${fmtIdr(row[4])}</td>
                     <td class="text-end">${fmtIdr(row[5])}</td>
-                    <td class="text-end">${fmtPct(row[6])}</td>
+                    <td class="text-center">${fmtPct(row[6])}</td>
                     <td class="text-center">${row[7]}</td>
+                    <td class="text-center">${row[8]}</td>
+                    <td class="text-center">${row[9]}</td>
+                    <td class="text-center">${row[10]}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -2313,6 +4335,18 @@ function initDashboardRecap() {
 
         const $table = jQuery(tableEl);
         const isInit = jQuery.fn.DataTable.isDataTable(tableEl);
+
+        function bindNoColumn(dt) {
+            if (!dt || typeof dt.on !== 'function') return;
+            dt.off('.dashboardNo');
+            dt.on('draw.dashboardNo order.dashboardNo search.dashboardNo page.dashboardNo', function() {
+                const info = (dt.page && typeof dt.page.info === 'function') ? dt.page.info() : { start: 0 };
+                const start = Number(info && info.start) || 0;
+                dt.column(0, { search: 'applied', order: 'applied', page: 'current' }).nodes().each(function(cell, i) {
+                    cell.textContent = String(start + i + 1);
+                });
+            });
+        }
 
         if (!isInit) {
             window.dashboardRecapDt = $table.DataTable({
@@ -2324,7 +4358,7 @@ function initDashboardRecap() {
                 searching: true,
                 info: true,
                 ordering: true,
-                order: [[6, 'desc']],
+                order: [[7, 'desc']],
                 autoWidth: false,
                 responsive: true,
                 language: {
@@ -2335,8 +4369,31 @@ function initDashboardRecap() {
                     zeroRecords: 'Data tidak ditemukan',
                     paginate: { previous: 'Sebelumnya', next: 'Berikutnya' }
                 },
+                rowCallback: function(row, rowData) {
+                    const hasRange = !!(tableEl && tableEl.dataset && tableEl.dataset.hasRange === '1');
+                    jQuery(row).removeClass('table-danger table-info');
+                    if (!hasRange) return;
+
+                    const minScore = Number(tableEl.dataset.minScore);
+                    const maxScore = Number(tableEl.dataset.maxScore);
+                    const sc = Number(rowData && rowData[7]) || 0;
+
+                    if (sc === minScore) jQuery(row).addClass('table-danger');
+                    else if (sc === maxScore) jQuery(row).addClass('table-info');
+                },
                 columnDefs: [
-                    { targets: 0, className: 'text-center', width: '48px', orderable: false },
+                    {
+                        targets: 0,
+                        className: 'text-center',
+                        width: '48px',
+                        orderable: false,
+                        searchable: false,
+                        render: function (_data, type, _row, meta) {
+                            const n = (meta.row + 1);
+                            if (type === 'display' || type === 'filter') return String(n);
+                            return n;
+                        }
+                    },
                     { targets: 1, orderable: true },
                     { targets: 2, className: 'text-center', width: '90px', visible: (dim === 'country') },
                     {
@@ -2350,7 +4407,7 @@ function initDashboardRecap() {
                     },
                     {
                         targets: 6,
-                        className: 'text-end',
+                        className: 'text-center',
                         render: function (data, type) {
                             const v = Number(data) || 0;
                             if (type === 'display' || type === 'filter') return fmtPct(v);
@@ -2359,6 +4416,16 @@ function initDashboardRecap() {
                     },
                     {
                         targets: 7,
+                        className: 'text-center',
+                        render: function (data, type) {
+                            const v = Number(data) || 0;
+                            if (type === 'display' || type === 'filter') return String(v);
+                            return v;
+                        }
+                    },
+                    { targets: 8, className: 'text-center', orderable: false },
+                    {
+                        targets: 9,
                         className: 'text-center',
                         orderable: true,
                         searchable: false,
@@ -2378,11 +4445,15 @@ function initDashboardRecap() {
                             }
                             return maxSec;
                         }
-                    }
+                    },
+                    { targets: 10, className: 'text-center', orderable: false, searchable: false }
                 ]
             });
+            bindNoColumn(window.dashboardRecapDt);
+            window.dashboardRecapDt.draw(false);
         } else {
             const dt = window.dashboardRecapDt || $table.DataTable();
+            bindNoColumn(dt);
             dt.clear();
             dt.rows.add(data);
             dt.draw(false);
@@ -2816,10 +4887,13 @@ function initDashboardRecap() {
             const cur = m.get(key) || {
                 name: String(r?.name||'-'),
                 code: String(r?.code||''),
+                account_ads: String(r?.account_ads||''),
                 spend: 0,
                 revenue: 0,
                 sources: { adx: false, adsense: false },
-                last_updates: { adx: '', adsense: '' }
+                last_updates: { adx: '', adsense: '' },
+                ml: null,
+                metrics: { adx: null, adsense: null }
             };
             const spend = Number(r?.spend) || 0;
             const revenue = Number(r?.revenue) || 0;
@@ -2830,10 +4904,15 @@ function initDashboardRecap() {
             if (src === 'adx') {
                 cur.sources.adx = true;
                 if (r && r.last_update) cur.last_updates.adx = r.last_update;
+                if (r && r.account_ads) cur.account_ads = String(r.account_ads || '');
+                if (r && r.ml) cur.ml = r.ml;
+                if (r && r.metrics && r.metrics.adx) cur.metrics.adx = r.metrics.adx;
             }
             if (src === 'adsense') {
                 cur.sources.adsense = true;
                 if (r && r.last_update) cur.last_updates.adsense = r.last_update;
+                if (r && r.account_ads && !cur.account_ads) cur.account_ads = String(r.account_ads || '');
+                if (r && r.metrics && r.metrics.adsense) cur.metrics.adsense = r.metrics.adsense;
             }
 
             m.set(key, cur);
@@ -2849,12 +4928,15 @@ function initDashboardRecap() {
             out.push({
                 name: v.name,
                 code: v.code,
+                account_ads: v.account_ads,
                 spend,
                 revenue,
                 net: revenue - spend,
                 roi: spend > 0 ? ((revenue - spend) / spend * 100) : 0,
                 sources: v.sources,
-                last_updates: v.last_updates
+                last_updates: v.last_updates,
+                ml: v.ml,
+                metrics: v.metrics
             });
         }
         out.sort((a,b) => {
@@ -2882,8 +4964,58 @@ function initDashboardRecap() {
         return 'Semua';
     }
 
+    function ymdShift(ymd, days) {
+        const s = String(ymd || '').trim();
+        if (!s) return s;
+        const d = new Date(`${s}T00:00:00`);
+        if (!isFinite(d.getTime())) return s;
+        d.setDate(d.getDate() + (Number(days) || 0));
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        return `${d.getFullYear()}-${mm}-${dd}`;
+    }
+
+    function attachPrevRows(curRows, prevRows) {
+        const m = new Map();
+        (prevRows || []).forEach(function(r){
+            const k = `${String(r?.name||'')} ${String(r?.code||'')}`;
+            m.set(k, r);
+        });
+        (curRows || []).forEach(function(r){
+            const k = `${String(r?.name||'')} ${String(r?.code||'')}`;
+            const p = m.get(k);
+            if (!p) return;
+
+            const prevSpend = Number(p?.spend) || 0;
+            const prevRevenue = Number(p?.revenue) || 0;
+            const prevNet = (prevRevenue - prevSpend);
+            const prevRoi = prevSpend > 0 ? (prevNet / prevSpend * 100) : 0;
+
+            r.prev_spend = prevSpend;
+            r.prev_revenue = prevRevenue;
+            r.prev_net = prevNet;
+            r.prev_roi = prevRoi;
+
+            r.delta_spend = (Number(r?.spend)||0) - prevSpend;
+            r.delta_revenue = (Number(r?.revenue)||0) - prevRevenue;
+            r.delta_net = (Number(r?.net)||0) - prevNet;
+            r.delta_roi = (Number(r?.roi)||0) - prevRoi;
+
+            const curMetrics = (r && r.metrics) ? r.metrics : null;
+            const prevMetrics = (p && p.metrics) ? p.metrics : null;
+            if (curMetrics || prevMetrics) {
+                r.prev_metrics = {
+                    adx: prevMetrics && prevMetrics.adx ? prevMetrics.adx : null,
+                    adsense: prevMetrics && prevMetrics.adsense ? prevMetrics.adsense : null
+                };
+            }
+        });
+        return curRows;
+    }
+
     async function load() {
         const st = getState();
+        window.dashboardRecapLastState = st;
         if (!st.date) return;
         if (box) box.style.display = 'none';
         if (loading) loading.style.display = 'flex';
@@ -2891,24 +5023,91 @@ function initDashboardRecap() {
             let rows = [];
             let summary = null;
 
+            const prevDate = ymdShift(st.date, -1);
+
             if (st.source === 'all') {
-                const [resAdx, resAds] = await Promise.all([
+                const [resAdx, resAds, resAdxPrev, resAdsPrev] = await Promise.all([
                     fetch(endpointFor('adx', st.dim, st.date)),
-                    fetch(endpointFor('adsense', st.dim, st.date))
+                    fetch(endpointFor('adsense', st.dim, st.date)),
+                    fetch(endpointFor('adx', st.dim, prevDate)),
+                    fetch(endpointFor('adsense', st.dim, prevDate))
                 ]);
-                const [jsonAdx, jsonAds] = await Promise.all([resAdx.json(), resAds.json()]);
+                const [jsonAdx, jsonAds, jsonAdxPrev, jsonAdsPrev] = await Promise.all([
+                    resAdx.json(),
+                    resAds.json(),
+                    resAdxPrev.json(),
+                    resAdsPrev.json()
+                ]);
                 if (!jsonAdx || !jsonAdx.status) throw new Error(jsonAdx?.error || 'Gagal memuat data AdX');
                 if (!jsonAds || !jsonAds.status) throw new Error(jsonAds?.error || 'Gagal memuat data AdSense');
 
-                const rowsAdx = rowsFrom(st.dim, pickList(jsonAdx), 'adx', jsonAdx.last_update);
-                const rowsAds = rowsFrom(st.dim, pickList(jsonAds), 'adsense', jsonAds.last_update);
+                if (st.dim === 'country') {
+                    const out = {};
+                    function addMap(m) {
+                        if (!m || typeof m !== 'object') return;
+                        Object.keys(m).forEach(function(cc){
+                            const key = String(cc || '').trim().toUpperCase();
+                            if (!key) return;
+                            const arr = Array.isArray(m[cc]) ? m[cc] : [];
+                            if (!out[key]) out[key] = [];
+                            arr.forEach(function(x){
+                                const v = String(x || '').trim();
+                                if (!v) return;
+                                if (out[key].indexOf(v) === -1) out[key].push(v);
+                            });
+                        });
+                    }
+                    addMap(jsonAdx && jsonAdx.subdomains_by_country);
+                    addMap(jsonAds && jsonAds.subdomains_by_country);
+                    Object.keys(out).forEach(function(cc){ out[cc].sort(); });
+                    window.dashboardRecapSubdomainsByCountry = out;
+                } else {
+                    window.dashboardRecapSubdomainsByCountry = {};
+                }
+
+                const rowsAdx = rowsFrom(st.dim, pickList(jsonAdx), 'adx', jsonAdx.last_update, jsonAdx.ml);
+                const rowsAds = rowsFrom(st.dim, pickList(jsonAds), 'adsense', jsonAds.last_update, null);
                 rows = mergeRows(rowsAdx, rowsAds);
+
+                if (jsonAdxPrev && jsonAdxPrev.status && jsonAdsPrev && jsonAdsPrev.status) {
+                    const rowsAdxPrev = rowsFrom(st.dim, pickList(jsonAdxPrev), 'adx', jsonAdxPrev.last_update, jsonAdxPrev.ml);
+                    const rowsAdsPrev = rowsFrom(st.dim, pickList(jsonAdsPrev), 'adsense', jsonAdsPrev.last_update, null);
+                    const prevRows = mergeRows(rowsAdxPrev, rowsAdsPrev);
+                    attachPrevRows(rows, prevRows);
+                }
+
                 summary = summarize(rows);
             } else {
-                const res = await fetch(endpointFor(st.source, st.dim, st.date));
-                const json = await res.json();
+                const [res, resPrev] = await Promise.all([
+                    fetch(endpointFor(st.source, st.dim, st.date)),
+                    fetch(endpointFor(st.source, st.dim, prevDate))
+                ]);
+                const [json, jsonPrev] = await Promise.all([res.json(), resPrev.json()]);
                 if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat data');
-                rows = rowsFrom(st.dim, pickList(json), st.source, json.last_update);
+
+                if (st.dim === 'country') {
+                    const out = {};
+                    const m = (json && json.subdomains_by_country) ? json.subdomains_by_country : {};
+                    if (m && typeof m === 'object') {
+                        Object.keys(m).forEach(function(cc){
+                            const key = String(cc || '').trim().toUpperCase();
+                            if (!key) return;
+                            const arr = Array.isArray(m[cc]) ? m[cc] : [];
+                            out[key] = arr.map(x => String(x || '').trim()).filter(Boolean).slice().sort();
+                        });
+                    }
+                    window.dashboardRecapSubdomainsByCountry = out;
+                } else {
+                    window.dashboardRecapSubdomainsByCountry = {};
+                }
+
+                rows = rowsFrom(st.dim, pickList(json), st.source, json.last_update, json.ml);
+
+                if (jsonPrev && jsonPrev.status) {
+                    const prevRows = rowsFrom(st.dim, pickList(jsonPrev), st.source, jsonPrev.last_update, jsonPrev.ml);
+                    attachPrevRows(rows, prevRows);
+                }
+
                 summary = (json.summary_filtered || json.summary_all || json.summary || {});
             }
 
@@ -2923,10 +5122,12 @@ function initDashboardRecap() {
                 });
             } catch (e) {}
 
+            await loadScoringBaselineHourly(st, rows);
+
             renderSummary(summary);
             const meta = `${sourceLabel(st.source)} • ${st.dim==='country'?'Per Negara':'Per Domain'} • ${st.date}`;
             renderChart(st.dim, rows, meta);
-            renderTable(st.dim, rows);
+            renderTable(st.dim, rows, st);
             await renderPortfolioPulse(st.date);
 
             if ((st.source === 'adx' || st.source === 'adsense' || st.source === 'all') && st.dim === 'domain') {

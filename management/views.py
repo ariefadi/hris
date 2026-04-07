@@ -4380,15 +4380,47 @@ def process_roi_monitoring_country_data(data_adx, data_facebook):
             date_key = str(adx_item.get('date', '') or '')
             site_name = str(adx_item.get('site_name', '') or '')
             base_subdomain = extract_base_subdomain(site_name)
-            print(f"[DEBUG ROI] Base subdomain adx: {base_subdomain}")
             country_code = normalize_country_code(adx_item.get('country_code', '') or '')
             country_name = adx_item.get('country_name', '') or ''
             revenue = float(adx_item.get('revenue', 0) or 0)
+            
+            impressions_adx = int(adx_item.get('impressions', 0) or 0)
+            clicks_adx = int(adx_item.get('clicks', 0) or 0)
+            total_requests = int(adx_item.get('total_requests', 0) or 0)
+            responses_served = int(adx_item.get('responses_served', 0) or 0)
+            match_rate = float(adx_item.get('match_rate', 0) or 0)
+            fill_rate = float(adx_item.get('fill_rate', 0) or 0)
+            active_view_pct_viewable = float(adx_item.get('active_view_pct_viewable', 0) or 0)
+            active_view_avg_time_sec = float(adx_item.get('active_view_avg_time_sec', 0) or 0)
+            
             if not date_key or not base_subdomain or not country_code:
                 continue
             country_name_by_code[country_code] = country_name or country_name_by_code.get(country_code, '')
             key = f"{date_key}_{base_subdomain}_{country_code}"
-            adx_map[key] = (adx_map.get(key, 0.0) + revenue)
+            
+            entry = adx_map.get(key) or {
+                'revenue': 0.0,
+                'impressions_adx': 0,
+                'clicks_adx': 0,
+                'total_requests': 0,
+                'responses_served': 0,
+                'match_rate_sum': 0.0,
+                'fill_rate_sum': 0.0,
+                'active_view_pct_viewable_sum': 0.0,
+                'active_view_avg_time_sec_sum': 0.0,
+                'count': 0
+            }
+            entry['revenue'] += revenue
+            entry['impressions_adx'] += impressions_adx
+            entry['clicks_adx'] += clicks_adx
+            entry['total_requests'] += total_requests
+            entry['responses_served'] += responses_served
+            entry['match_rate_sum'] += match_rate
+            entry['fill_rate_sum'] += fill_rate
+            entry['active_view_pct_viewable_sum'] += active_view_pct_viewable
+            entry['active_view_avg_time_sec_sum'] += active_view_avg_time_sec
+            entry['count'] += 1
+            adx_map[key] = entry
 
         # Normalisasi FB: date + base_subdomain + country_code
         fb_payload = data_facebook if isinstance(data_facebook, dict) else {'status': True, 'data': []}
@@ -4416,50 +4448,94 @@ def process_roi_monitoring_country_data(data_adx, data_facebook):
                 country_code = key.split('_')[-1]
             except Exception:
                 continue
-            revenue = float(adx_map.get(key, 0.0) or 0.0)
+                
+            adx_entry = adx_map.get(key) or {
+                'revenue': 0.0,
+                'impressions_adx': 0,
+                'clicks_adx': 0,
+                'total_requests': 0,
+                'responses_served': 0,
+                'match_rate_sum': 0.0,
+                'fill_rate_sum': 0.0,
+                'active_view_pct_viewable_sum': 0.0,
+                'active_view_avg_time_sec_sum': 0.0,
+                'count': 0
+            }
+            revenue = float(adx_entry['revenue'])
             spend = float(fb_map.get(key, 0.0) or 0.0)
             name = country_name_by_code.get(country_code, '')
 
             if country_code not in agg_all:
-                agg_all[country_code] = {'country': name, 'country_code': country_code, 'spend': 0.0, 'revenue': 0.0}
-            agg_all[country_code]['spend'] += spend
-            agg_all[country_code]['revenue'] += revenue
+                agg_all[country_code] = {
+                    'country': name, 'country_code': country_code, 'spend': 0.0, 'revenue': 0.0,
+                    'impressions_adx': 0, 'clicks_adx': 0, 'total_requests': 0, 'responses_served': 0,
+                    'match_rate_sum': 0.0, 'fill_rate_sum': 0.0, 'active_view_pct_viewable_sum': 0.0, 'active_view_avg_time_sec_sum': 0.0, 'count': 0
+                }
+            
+            curr = agg_all[country_code]
+            curr['spend'] += spend
+            curr['revenue'] += revenue
+            curr['impressions_adx'] += adx_entry['impressions_adx']
+            curr['clicks_adx'] += adx_entry['clicks_adx']
+            curr['total_requests'] += adx_entry['total_requests']
+            curr['responses_served'] += adx_entry['responses_served']
+            curr['match_rate_sum'] += adx_entry['match_rate_sum']
+            curr['fill_rate_sum'] += adx_entry['fill_rate_sum']
+            curr['active_view_pct_viewable_sum'] += adx_entry['active_view_pct_viewable_sum']
+            curr['active_view_avg_time_sec_sum'] += adx_entry['active_view_avg_time_sec_sum']
+            curr['count'] += adx_entry['count']
 
             if spend > 0:
                 if country_code not in agg_filtered:
-                    agg_filtered[country_code] = {'country': name, 'country_code': country_code, 'spend': 0.0, 'revenue': 0.0}
-                agg_filtered[country_code]['spend'] += spend
-                agg_filtered[country_code]['revenue'] += revenue
+                    agg_filtered[country_code] = {
+                        'country': name, 'country_code': country_code, 'spend': 0.0, 'revenue': 0.0,
+                        'impressions_adx': 0, 'clicks_adx': 0, 'total_requests': 0, 'responses_served': 0,
+                        'match_rate_sum': 0.0, 'fill_rate_sum': 0.0, 'active_view_pct_viewable_sum': 0.0, 'active_view_avg_time_sec_sum': 0.0, 'count': 0
+                    }
+                curr_f = agg_filtered[country_code]
+                curr_f['spend'] += spend
+                curr_f['revenue'] += revenue
+                curr_f['impressions_adx'] += adx_entry['impressions_adx']
+                curr_f['clicks_adx'] += adx_entry['clicks_adx']
+                curr_f['total_requests'] += adx_entry['total_requests']
+                curr_f['responses_served'] += adx_entry['responses_served']
+                curr_f['match_rate_sum'] += adx_entry['match_rate_sum']
+                curr_f['fill_rate_sum'] += adx_entry['fill_rate_sum']
+                curr_f['active_view_pct_viewable_sum'] += adx_entry['active_view_pct_viewable_sum']
+                curr_f['active_view_avg_time_sec_sum'] += adx_entry['active_view_avg_time_sec_sum']
+                curr_f['count'] += adx_entry['count']
 
-        combined_data_all = []
-        for code, item in agg_all.items():
+        def build_row(code, item):
             s = item['spend']
             r = item['revenue']
             net_profit = r - s
             roi = ((r - s) / s * 100) if s > 0 else 0
-            combined_data_all.append({
+            cnt = max(1, item['count'])
+            
+            cpc_adx = r / item['clicks_adx'] if item['clicks_adx'] > 0 else 0.0
+            ecpm_adx = (r / item['impressions_adx']) * 1000 if item['impressions_adx'] > 0 else 0.0
+            
+            return {
                 'country': item['country'],
                 'country_code': code,
                 'spend': round(s, 2),
                 'revenue': round(r, 2),
                 'net_profit': round(net_profit, 2),
-                'roi': round(roi, 2)
-            })
+                'roi': round(roi, 2),
+                'impressions': item['impressions_adx'],
+                'clicks': item['clicks_adx'],
+                'cpc': round(cpc_adx, 2),
+                'ecpm': round(ecpm_adx, 2),
+                'total_requests': item['total_requests'],
+                'responses_served': item['responses_served'],
+                'match_rate': round(item['match_rate_sum'] / cnt, 2),
+                'fill_rate': round(item['fill_rate_sum'] / cnt, 2),
+                'active_view_pct_viewable': round(item['active_view_pct_viewable_sum'] / cnt, 2),
+                'active_view_avg_time_sec': round(item['active_view_avg_time_sec_sum'] / cnt, 2),
+            }
 
-        combined_data_filtered = []
-        for code, item in agg_filtered.items():
-            s = item['spend']
-            r = item['revenue']
-            net_profit = r - s
-            roi = ((r - s) / s * 100) if s > 0 else 0
-            combined_data_filtered.append({
-                'country': item['country'],
-                'country_code': code,
-                'spend': round(s, 2),
-                'revenue': round(r, 2),
-                'net_profit': round(net_profit, 2),
-                'roi': round(roi, 2)
-            })
+        combined_data_all = [build_row(code, item) for code, item in agg_all.items()]
+        combined_data_filtered = [build_row(code, item) for code, item in agg_filtered.items()]
 
         combined_data_all.sort(key=lambda x: x['roi'], reverse=True)
         combined_data_filtered.sort(key=lambda x: x['roi'], reverse=True)
@@ -4512,6 +4588,7 @@ def build_roi_monitoring_country_daily_rows(data_adx, data_facebook):
         country_name_by_code = {}
         rev_map = {}
         spend_map = {}
+        adx_metrics_map = {}
 
         for adx_item in (adx_items or []):
             date_key = str(adx_item.get('date', '') or '')
@@ -4520,11 +4597,36 @@ def build_roi_monitoring_country_daily_rows(data_adx, data_facebook):
             country_code = normalize_country_code(adx_item.get('country_code', '') or '')
             country_name = adx_item.get('country_name', '') or ''
             revenue = float(adx_item.get('revenue', 0) or 0)
+            
+            impressions_adx = int(adx_item.get('impressions', 0) or 0)
+            clicks_adx = int(adx_item.get('clicks', 0) or 0)
+            total_requests = int(adx_item.get('total_requests', 0) or 0)
+            responses_served = int(adx_item.get('responses_served', 0) or 0)
+            match_rate = float(adx_item.get('match_rate', 0) or 0)
+            fill_rate = float(adx_item.get('fill_rate', 0) or 0)
+            active_view_pct_viewable = float(adx_item.get('active_view_pct_viewable', 0) or 0)
+            active_view_avg_time_sec = float(adx_item.get('active_view_avg_time_sec', 0) or 0)
+
             if not date_key or not base_subdomain or not country_code:
                 continue
             country_name_by_code[country_code] = country_name or country_name_by_code.get(country_code, '')
             k = f"{date_key}|{base_subdomain}|{country_code}"
             rev_map[k] = rev_map.get(k, 0.0) + revenue
+            
+            entry = adx_metrics_map.get(k) or {
+                'impressions_adx': 0, 'clicks_adx': 0, 'total_requests': 0, 'responses_served': 0,
+                'match_rate_sum': 0.0, 'fill_rate_sum': 0.0, 'active_view_pct_viewable_sum': 0.0, 'active_view_avg_time_sec_sum': 0.0, 'count': 0
+            }
+            entry['impressions_adx'] += impressions_adx
+            entry['clicks_adx'] += clicks_adx
+            entry['total_requests'] += total_requests
+            entry['responses_served'] += responses_served
+            entry['match_rate_sum'] += match_rate
+            entry['fill_rate_sum'] += fill_rate
+            entry['active_view_pct_viewable_sum'] += active_view_pct_viewable
+            entry['active_view_avg_time_sec_sum'] += active_view_avg_time_sec
+            entry['count'] += 1
+            adx_metrics_map[k] = entry
 
         for fb_item in (fb_items or []):
             date_key = str(fb_item.get('date', '') or '')
@@ -4548,13 +4650,31 @@ def build_roi_monitoring_country_daily_rows(data_adx, data_facebook):
             date_key, _, country_code = parts
             revenue = float(rev_map.get(k, 0.0) or 0.0)
             spend = float(spend_map.get(k, 0.0) or 0.0)
+            adx_metrics = adx_metrics_map.get(k) or {
+                'impressions_adx': 0, 'clicks_adx': 0, 'total_requests': 0, 'responses_served': 0,
+                'match_rate_sum': 0.0, 'fill_rate_sum': 0.0, 'active_view_pct_viewable_sum': 0.0, 'active_view_avg_time_sec_sum': 0.0, 'count': 0
+            }
             dk = (date_key, country_code)
             cur = daily_agg.get(dk)
             if not cur:
-                cur = {'date': date_key, 'country_code': country_code, 'country': country_name_by_code.get(country_code, ''), 'spend': 0.0, 'revenue': 0.0}
+                cur = {
+                    'date': date_key, 'country_code': country_code, 'country': country_name_by_code.get(country_code, ''), 
+                    'spend': 0.0, 'revenue': 0.0,
+                    'impressions_adx': 0, 'clicks_adx': 0, 'total_requests': 0, 'responses_served': 0,
+                    'match_rate_sum': 0.0, 'fill_rate_sum': 0.0, 'active_view_pct_viewable_sum': 0.0, 'active_view_avg_time_sec_sum': 0.0, 'count': 0
+                }
                 daily_agg[dk] = cur
             cur['spend'] += spend
             cur['revenue'] += revenue
+            cur['impressions_adx'] += adx_metrics['impressions_adx']
+            cur['clicks_adx'] += adx_metrics['clicks_adx']
+            cur['total_requests'] += adx_metrics['total_requests']
+            cur['responses_served'] += adx_metrics['responses_served']
+            cur['match_rate_sum'] += adx_metrics['match_rate_sum']
+            cur['fill_rate_sum'] += adx_metrics['fill_rate_sum']
+            cur['active_view_pct_viewable_sum'] += adx_metrics['active_view_pct_viewable_sum']
+            cur['active_view_avg_time_sec_sum'] += adx_metrics['active_view_avg_time_sec_sum']
+            cur['count'] += adx_metrics['count']
 
         rows = []
         for (_, _), item in daily_agg.items():
@@ -4562,6 +4682,11 @@ def build_roi_monitoring_country_daily_rows(data_adx, data_facebook):
             r = float(item.get('revenue', 0.0) or 0.0)
             net_profit = r - s
             roi = ((r - s) / s * 100) if s > 0 else 0.0
+            cnt = max(1, item['count'])
+            
+            cpc_adx = r / item['clicks_adx'] if item['clicks_adx'] > 0 else 0.0
+            ecpm_adx = (r / item['impressions_adx']) * 1000 if item['impressions_adx'] > 0 else 0.0
+            
             rows.append({
                 'date': item.get('date'),
                 'country': item.get('country') or country_name_by_code.get(item.get('country_code'), ''),
@@ -4569,7 +4694,17 @@ def build_roi_monitoring_country_daily_rows(data_adx, data_facebook):
                 'spend': round(s, 2),
                 'revenue': round(r, 2),
                 'net_profit': round(net_profit, 2),
-                'roi': round(roi, 2)
+                'roi': round(roi, 2),
+                'impressions': item['impressions_adx'],
+                'clicks': item['clicks_adx'],
+                'cpc': round(cpc_adx, 2),
+                'ecpm': round(ecpm_adx, 2),
+                'total_requests': item['total_requests'],
+                'responses_served': item['responses_served'],
+                'match_rate': round(item['match_rate_sum'] / cnt, 2),
+                'fill_rate': round(item['fill_rate_sum'] / cnt, 2),
+                'active_view_pct_viewable': round(item['active_view_pct_viewable_sum'] / cnt, 2),
+                'active_view_avg_time_sec': round(item['active_view_avg_time_sec_sum'] / cnt, 2),
             })
 
         rows.sort(key=lambda x: (str(x.get('date') or ''), str(x.get('country_code') or '')))
@@ -5187,6 +5322,454 @@ class RoiCountryHourlyDataView(View):
             return JsonResponse(result, safe=False)
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
+
+class MonitoringScoringBaselineHourlyView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            is_ajax = False
+            try:
+                is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            except Exception:
+                pass
+            if not is_ajax:
+                is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+            if is_ajax:
+                return JsonResponse({'status': False, 'error': 'Sesi berakhir atau tidak valid. Silakan login ulang.'})
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            target_date = req.GET.get('date')
+            if not target_date or not isinstance(target_date, str) or len(target_date) != 10:
+                target_date = datetime.now().strftime('%Y-%m-%d')
+
+            try:
+                days = int(req.GET.get('days') or 28)
+            except Exception:
+                days = 28
+            days = max(14, min(days, 28))
+
+            domains_q = str(req.GET.get('domains') or '').strip()
+            domain_list = [s.strip() for s in domains_q.split(',') if s.strip()]
+            domain_list = domain_list[:120]
+
+            if not domain_list:
+                return JsonResponse({'status': True, 'date': target_date, 'days': days, 'domains': {}}, safe=False)
+
+            try:
+                td = datetime.strptime(target_date, '%Y-%m-%d')
+            except Exception:
+                td = datetime.now()
+            hist_end = (td - timedelta(days=1)).strftime('%Y-%m-%d')
+            hist_start = (td - timedelta(days=days)).strftime('%Y-%m-%d')
+
+            cache_key = generate_cache_key(
+                'monitoring_scoring_baseline_hourly_v2',
+                target_date,
+                str(days),
+                ','.join(domain_list),
+            )
+            cached = get_cached_data(cache_key)
+            if cached is not None:
+                return JsonResponse(cached, safe=False)
+
+            def _median(xs):
+                ys = [float(v) for v in (xs or []) if v is not None and isfinite(float(v))]
+                if not ys:
+                    return 0.0
+                ys.sort()
+                n = len(ys)
+                mid = n // 2
+                if n % 2 == 1:
+                    return float(ys[mid])
+                return (float(ys[mid - 1]) + float(ys[mid])) / 2.0
+
+            def _mad(xs, med):
+                dev = [abs(float(v) - float(med)) for v in (xs or []) if v is not None and isfinite(float(v))]
+                return _median(dev)
+
+            def _ewma_last(xs, span=14):
+                ys = [float(v) for v in (xs or []) if v is not None and isfinite(float(v))]
+                if not ys:
+                    return 0.0
+                a = 2.0 / (float(span) + 1.0)
+                e = ys[0]
+                for v in ys[1:]:
+                    e = (a * v) + ((1.0 - a) * e)
+                return float(e)
+
+            def _ewma_residuals(xs, span=14):
+                ys = [float(v) for v in (xs or []) if v is not None and isfinite(float(v))]
+                if len(ys) < 2:
+                    return []
+                a = 2.0 / (float(span) + 1.0)
+                e = ys[0]
+                res = []
+                for v in ys[1:]:
+                    res.append(v - e)
+                    e = (a * v) + ((1.0 - a) * e)
+                return res
+
+            def _agg(rows, dom_key):
+                out = {}
+                for r in (rows or []):
+                    dom_raw = str((r or {}).get(dom_key) or '').strip()
+                    if not dom_raw:
+                        continue
+                    dom = extract_base_subdomain(dom_raw)
+                    dt = (r or {}).get('date')
+                    dts = str(dt)[:10]
+                    try:
+                        h = int((r or {}).get('hour') or 0)
+                    except Exception:
+                        h = 0
+                    if h < 0 or h > 23:
+                        continue
+                    if dom not in out:
+                        out[dom] = {}
+                    if dts not in out[dom]:
+                        out[dom][dts] = {str(i): {'impressions': 0.0, 'clicks': 0.0, 'revenue': 0.0, 'page_views': 0.0, 'ad_requests': 0.0, 'matched_ad_requests': 0.0, 'total_requests': 0.0, 'responses_served': 0.0} for i in range(24)}
+                    hk = str(h)
+                    cell = out[dom][dts][hk]
+                    imp = float((r or {}).get('impressions') or 0)
+                    ad_req = float((r or {}).get('ad_requests') or 0)
+                    matched = float((r or {}).get('matched_ad_requests') or 0)
+                    if matched <= 0 and ad_req > 0:
+                        cov = float((r or {}).get('ad_requests_coverage') or 0)
+                        matched = max(0.0, ad_req * cov / 100.0)
+                    cell['impressions'] += imp
+                    cell['clicks'] += float((r or {}).get('clicks') or 0)
+                    cell['revenue'] += float((r or {}).get('revenue') or 0)
+                    cell['page_views'] += float((r or {}).get('page_views') or 0)
+                    cell['ad_requests'] += ad_req
+                    cell['matched_ad_requests'] += matched
+                    cell['total_requests'] += float((r or {}).get('total_requests') or 0)
+                    cell['responses_served'] += float((r or {}).get('responses_served') or 0)
+                return out
+
+            db = data_mysql()
+            adx_hist = db.get_all_adx_roi_country_hourly_by_params(hist_start, hist_end, domain_list)
+            adx_hist_rows = (adx_hist or {}).get('data') if isinstance(adx_hist, dict) else []
+            adx_cur = db.get_all_adx_roi_country_hourly_by_params(target_date, target_date, domain_list)
+            adx_cur_rows = (adx_cur or {}).get('data') if isinstance(adx_cur, dict) else []
+
+            ads_hist = db.get_all_adsense_country_hourly_range_by_params(hist_start, hist_end, domain_list)
+            ads_hist_rows = (ads_hist or {}).get('data') if isinstance(ads_hist, dict) else []
+            ads_cur = db.get_all_adsense_country_hourly_range_by_params(target_date, target_date, domain_list)
+            ads_cur_rows = (ads_cur or {}).get('data') if isinstance(ads_cur, dict) else []
+
+            adx_map = _agg(adx_hist_rows, 'log_adx_country_domain')
+            adx_cur_map = _agg(adx_cur_rows, 'log_adx_country_domain')
+            ads_map = _agg(ads_hist_rows, 'log_adsense_country_domain')
+            ads_cur_map = _agg(ads_cur_rows, 'log_adsense_country_domain')
+
+            def _to_inc(day_hours):
+                keys = ['impressions', 'clicks', 'revenue', 'page_views', 'ad_requests', 'matched_ad_requests', 'total_requests', 'responses_served']
+                cum = {k: [float(day_hours.get(str(h), {}).get(k) or 0.0) for h in range(24)] for k in keys}
+                inc = {k: [] for k in keys}
+                for h in range(24):
+                    p = h - 1
+                    for k in keys:
+                        inc[k].append(max(0.0, cum[k][h] - (cum[k][p] if p >= 0 else 0.0)))
+                rpm = [(inc['revenue'][h] / (inc['impressions'][h] + 1e-9)) * 1000.0 for h in range(24)]
+                page_rpm = [(inc['revenue'][h] / (inc['page_views'][h] + 1e-9)) * 1000.0 for h in range(24)]
+                cpc = [(inc['revenue'][h] / (inc['clicks'][h] + 1e-9)) for h in range(24)]
+                ctr = [(inc['clicks'][h] / (inc['impressions'][h] + 1e-9)) for h in range(24)]
+                return {'imp': inc['impressions'], 'clk': inc['clicks'], 'rev': inc['revenue'], 'pv': inc['page_views'], 'req': inc['ad_requests'], 'mreq': inc['matched_ad_requests'], 'treq': inc['total_requests'], 'rsp': inc['responses_served'], 'rpm': rpm, 'page_rpm': page_rpm, 'cpc': cpc, 'ctr': ctr}
+
+            def _build(dom_hist, dom_cur):
+                dates_sorted = sorted(dom_hist.keys())
+                inc_by_date = {d: _to_inc(dom_hist[d]) for d in dates_sorted}
+                cur_dates = sorted(dom_cur.keys())
+                cur_inc = _to_inc(dom_cur[cur_dates[-1]]) if cur_dates else {'imp':[0.0]*24,'clk':[0.0]*24,'rev':[0.0]*24,'rpm':[0.0]*24,'cpc':[0.0]*24,'ctr':[0.0]*24}
+
+                def _stat_arr(key):
+                    med, scale = [], []
+                    for h in range(24):
+                        xs = [inc_by_date[d][key][h] for d in dates_sorted]
+                        m = _median(xs)
+                        md = _mad(xs, m)
+                        sc = max(1e-6, 1.4826 * float(md))
+                        med.append(float(m))
+                        scale.append(float(sc))
+                    return {'median': med, 'scale': scale}
+
+                def _ewma_arr(key):
+                    base, scale = [], []
+                    for h in range(24):
+                        xs = [inc_by_date[d][key][h] for d in dates_sorted]
+                        b = _ewma_last(xs, 14)
+                        res = _ewma_residuals(xs, 14)
+                        rm = _median(res)
+                        rmad = _mad(res, rm)
+                        sc = max(1e-6, 1.4826 * float(rmad))
+                        base.append(float(b))
+                        scale.append(float(sc))
+                    return {'ewma': base, 'scale': scale}
+
+                def _ctr_prev():
+                    p, n = [], []
+                    for h in range(24):
+                        succ = sum([inc_by_date[d]['clk'][h] for d in dates_sorted])
+                        denom = sum([inc_by_date[d]['imp'][h] for d in dates_sorted])
+                        denom = float(denom) if denom > 0 else 0.0
+                        p.append(float(succ / denom) if denom > 0 else 0.0)
+                        n.append(float(denom))
+                    return {'p': p, 'n': n}
+
+                return {
+                    'cur': cur_inc,
+                    'base': {
+                        'imp': _stat_arr('imp'),
+                        'clk': _stat_arr('clk'),
+                        'rev': _stat_arr('rev'),
+                        'rpm': _ewma_arr('rpm'),
+                        'cpc': _ewma_arr('cpc'),
+                        'ctr': _ctr_prev(),
+                        'sample_days': len(dates_sorted),
+                    }
+                }
+
+            result_domains = {}
+            keys = set(list(adx_map.keys()) + list(adx_cur_map.keys()) + list(ads_map.keys()) + list(ads_cur_map.keys()))
+            for dom in keys:
+                result_domains[dom] = {
+                    'adx': _build(adx_map.get(dom, {}), adx_cur_map.get(dom, {})) if (dom in adx_map or dom in adx_cur_map) else None,
+                    'adsense': _build(ads_map.get(dom, {}), ads_cur_map.get(dom, {})) if (dom in ads_map or dom in ads_cur_map) else None,
+                }
+
+            result = {
+                'status': True,
+                'date': target_date,
+                'days': days,
+                'history': {'start': hist_start, 'end': hist_end},
+                'domains': result_domains,
+            }
+            set_cached_data(cache_key, result, timeout=900)
+            return JsonResponse(result, safe=False)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
+
+
+class MonitoringScoringBaselineHourlyView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            is_ajax = False
+            try:
+                is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            except Exception:
+                pass
+            if not is_ajax:
+                is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+            if is_ajax:
+                return JsonResponse({'status': False, 'error': 'Sesi berakhir atau tidak valid. Silakan login ulang.'})
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            target_date = req.GET.get('date')
+            if not target_date or not isinstance(target_date, str) or len(target_date) != 10:
+                target_date = datetime.now().strftime('%Y-%m-%d')
+
+            try:
+                days = int(req.GET.get('days') or 28)
+            except Exception:
+                days = 28
+            days = max(14, min(days, 28))
+
+            domains_q = str(req.GET.get('domains') or '').strip()
+            domain_list = [s.strip() for s in domains_q.split(',') if s.strip()]
+            domain_list = domain_list[:120]
+
+            if not domain_list:
+                return JsonResponse({'status': True, 'date': target_date, 'days': days, 'domains': {}}, safe=False)
+
+            try:
+                td = datetime.strptime(target_date, '%Y-%m-%d')
+            except Exception:
+                td = datetime.now()
+            hist_end = (td - timedelta(days=1)).strftime('%Y-%m-%d')
+            hist_start = (td - timedelta(days=days)).strftime('%Y-%m-%d')
+
+            cache_key = generate_cache_key(
+                'monitoring_scoring_baseline_hourly_v1',
+                target_date,
+                str(days),
+                ','.join(domain_list),
+            )
+            cached = get_cached_data(cache_key)
+            if cached is not None:
+                return JsonResponse(cached, safe=False)
+
+            def _median(xs):
+                ys = [float(v) for v in (xs or []) if v is not None and math.isfinite(float(v))]
+                if not ys:
+                    return 0.0
+                ys.sort()
+                n = len(ys)
+                mid = n // 2
+                if n % 2 == 1:
+                    return float(ys[mid])
+                return (float(ys[mid - 1]) + float(ys[mid])) / 2.0
+
+            def _mad(xs, med):
+                dev = [abs(float(v) - float(med)) for v in (xs or []) if v is not None and math.isfinite(float(v))]
+                return _median(dev)
+
+            def _ewma_last(xs, span=14):
+                ys = [float(v) for v in (xs or []) if v is not None and math.isfinite(float(v))]
+                if not ys:
+                    return 0.0
+                a = 2.0 / (float(span) + 1.0)
+                e = ys[0]
+                for v in ys[1:]:
+                    e = (a * v) + ((1.0 - a) * e)
+                return float(e)
+
+            def _ewma_residuals(xs, span=14):
+                ys = [float(v) for v in (xs or []) if v is not None and math.isfinite(float(v))]
+                if len(ys) < 2:
+                    return []
+                a = 2.0 / (float(span) + 1.0)
+                e = ys[0]
+                res = []
+                for v in ys[1:]:
+                    res.append(v - e)
+                    e = (a * v) + ((1.0 - a) * e)
+                return res
+
+            def _agg(rows, dom_key):
+                out = {}
+                for r in (rows or []):
+                    dom_raw = str((r or {}).get(dom_key) or '').strip()
+                    if not dom_raw:
+                        continue
+                    dom = extract_base_subdomain(dom_raw)
+                    dt = (r or {}).get('date')
+                    dts = str(dt)[:10]
+                    try:
+                        h = int((r or {}).get('hour') or 0)
+                    except Exception:
+                        h = 0
+                    if h < 0 or h > 23:
+                        continue
+                    if dom not in out:
+                        out[dom] = {}
+                    if dts not in out[dom]:
+                        out[dom][dts] = {str(i): {'impressions': 0.0, 'clicks': 0.0, 'revenue': 0.0} for i in range(24)}
+                    hk = str(h)
+                    cell = out[dom][dts][hk]
+                    cell['impressions'] += float((r or {}).get('impressions') or 0)
+                    cell['clicks'] += float((r or {}).get('clicks') or 0)
+                    cell['revenue'] += float((r or {}).get('revenue') or 0)
+                return out
+
+            db = data_mysql()
+            adx_hist = db.get_all_adx_roi_country_hourly_by_params(hist_start, hist_end, domain_list)
+            adx_hist_rows = (adx_hist or {}).get('data') if isinstance(adx_hist, dict) else []
+            adx_cur = db.get_all_adx_roi_country_hourly_by_params(target_date, target_date, domain_list)
+            adx_cur_rows = (adx_cur or {}).get('data') if isinstance(adx_cur, dict) else []
+
+            ads_hist = db.get_all_adsense_country_hourly_range_by_params(hist_start, hist_end, domain_list)
+            ads_hist_rows = (ads_hist or {}).get('data') if isinstance(ads_hist, dict) else []
+            ads_cur = db.get_all_adsense_country_hourly_range_by_params(target_date, target_date, domain_list)
+            ads_cur_rows = (ads_cur or {}).get('data') if isinstance(ads_cur, dict) else []
+
+            adx_map = _agg(adx_hist_rows, 'log_adx_country_domain')
+            adx_cur_map = _agg(adx_cur_rows, 'log_adx_country_domain')
+            ads_map = _agg(ads_hist_rows, 'log_adsense_country_domain')
+            ads_cur_map = _agg(ads_cur_rows, 'log_adsense_country_domain')
+
+            def _to_inc(day_hours):
+                cum_imp = [float(day_hours.get(str(h), {}).get('impressions') or 0.0) for h in range(24)]
+                cum_clk = [float(day_hours.get(str(h), {}).get('clicks') or 0.0) for h in range(24)]
+                cum_rev = [float(day_hours.get(str(h), {}).get('revenue') or 0.0) for h in range(24)]
+                inc_imp, inc_clk, inc_rev = [], [], []
+                for h in range(24):
+                    p = h - 1
+                    inc_imp.append(max(0.0, cum_imp[h] - (cum_imp[p] if p >= 0 else 0.0)))
+                    inc_clk.append(max(0.0, cum_clk[h] - (cum_clk[p] if p >= 0 else 0.0)))
+                    inc_rev.append(max(0.0, cum_rev[h] - (cum_rev[p] if p >= 0 else 0.0)))
+                rpm = [(inc_rev[h] / (inc_imp[h] + 1e-9)) * 1000.0 for h in range(24)]
+                cpc = [(inc_rev[h] / (inc_clk[h] + 1e-9)) for h in range(24)]
+                ctr = [(inc_clk[h] / (inc_imp[h] + 1e-9)) for h in range(24)]
+                return {'imp': inc_imp, 'clk': inc_clk, 'rev': inc_rev, 'rpm': rpm, 'cpc': cpc, 'ctr': ctr}
+
+            def _build(dom_hist, dom_cur):
+                dates_sorted = sorted(dom_hist.keys())
+                inc_by_date = {d: _to_inc(dom_hist[d]) for d in dates_sorted}
+                cur_dates = sorted(dom_cur.keys())
+                cur_inc = _to_inc(dom_cur[cur_dates[-1]]) if cur_dates else {'imp':[0.0]*24,'clk':[0.0]*24,'rev':[0.0]*24,'rpm':[0.0]*24,'cpc':[0.0]*24,'ctr':[0.0]*24}
+
+                def _stat_arr(key):
+                    med, scale = [], []
+                    for h in range(24):
+                        xs = [inc_by_date[d][key][h] for d in dates_sorted]
+                        m = _median(xs)
+                        md = _mad(xs, m)
+                        sc = max(1e-6, 1.4826 * float(md))
+                        med.append(float(m))
+                        scale.append(float(sc))
+                    return {'median': med, 'scale': scale}
+
+                def _ewma_arr(key):
+                    base, scale = [], []
+                    for h in range(24):
+                        xs = [inc_by_date[d][key][h] for d in dates_sorted]
+                        b = _ewma_last(xs, 14)
+                        res = _ewma_residuals(xs, 14)
+                        rm = _median(res)
+                        rmad = _mad(res, rm)
+                        sc = max(1e-6, 1.4826 * float(rmad))
+                        base.append(float(b))
+                        scale.append(float(sc))
+                    return {'ewma': base, 'scale': scale}
+
+                def _ctr_prev():
+                    p, n = [], []
+                    for h in range(24):
+                        succ = sum([inc_by_date[d]['clk'][h] for d in dates_sorted])
+                        denom = sum([inc_by_date[d]['imp'][h] for d in dates_sorted])
+                        denom = float(denom) if denom > 0 else 0.0
+                        p.append(float(succ / denom) if denom > 0 else 0.0)
+                        n.append(float(denom))
+                    return {'p': p, 'n': n}
+
+                return {
+                    'cur': cur_inc,
+                    'base': {
+                        'imp': _stat_arr('imp'),
+                        'clk': _stat_arr('clk'),
+                        'rev': _stat_arr('rev'),
+                        'rpm': _ewma_arr('rpm'),
+                        'cpc': _ewma_arr('cpc'),
+                        'ctr': _ctr_prev(),
+                        'sample_days': len(dates_sorted),
+                    }
+                }
+
+            result_domains = {}
+            keys = set(list(adx_map.keys()) + list(adx_cur_map.keys()) + list(ads_map.keys()) + list(ads_cur_map.keys()))
+            for dom in keys:
+                result_domains[dom] = {
+                    'adx': _build(adx_map.get(dom, {}), adx_cur_map.get(dom, {})) if (dom in adx_map or dom in adx_cur_map) else None,
+                    'adsense': _build(ads_map.get(dom, {}), ads_cur_map.get(dom, {})) if (dom in ads_map or dom in ads_cur_map) else None,
+                }
+
+            result = {
+                'status': True,
+                'date': target_date,
+                'days': days,
+                'history': {'start': hist_start, 'end': hist_end},
+                'domains': result_domains,
+            }
+            set_cached_data(cache_key, result, timeout=900)
+            return JsonResponse(result, safe=False)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
+
 
 class RoiMonitoringCountryHourlyHeatmapView(View):
     def dispatch(self, request, *args, **kwargs):
@@ -6269,7 +6852,14 @@ class RoiMonitoringDomainDataView(View):
                     fb_data = facebook_map.get(key)
                     account_ads = str((fb_data or {}).get('account_name', ''))
                     spend = float((fb_data or {}).get('spend', 0))
-                    revenue = float(adx_item.get('revenue', 0))
+                    revenue = float(adx_item.get('revenue', 0) or 0)
+                    impressions = int(adx_item.get('impressions') or 0)
+                    clicks = int(adx_item.get('clicks') or 0)
+                    total_requests = int(adx_item.get('total_requests') or 0)
+                    responses_served = int(adx_item.get('responses_served') or 0)
+                    active_view_pct_viewable = float(adx_item.get('active_view_pct_viewable') or 0.0)
+                    active_view_avg_time_sec = float(adx_item.get('active_view_avg_time_sec') or 0.0)
+
                     row_key = f"{date_key}_{site_key}"
                     cur_row = raw_rows_map.get(row_key)
                     if not cur_row:
@@ -6282,26 +6872,80 @@ class RoiMonitoringDomainDataView(View):
                             'clicks_fb': 0.0,
                             'impressions_adx': 0.0,
                             'clicks_adx': 0.0,
+                            'total_requests': 0,
+                            'responses_served': 0,
+                            'active_view_weight': 0,
+                            'active_view_pct_viewable_sum': 0.0,
+                            'active_view_avg_time_sec_sum': 0.0,
                         }
                         raw_rows_map[row_key] = cur_row
+
                     cur_row['spend'] = float(cur_row.get('spend', 0) or 0) + spend
                     cur_row['revenue'] = float(cur_row.get('revenue', 0) or 0) + revenue
                     cur_row['impressions_fb'] = float(cur_row.get('impressions_fb', 0) or 0) + float((fb_data or {}).get('impressions') or 0)
                     cur_row['clicks_fb'] = float(cur_row.get('clicks_fb', 0) or 0) + float((fb_data or {}).get('clicks') or 0)
-                    cur_row['impressions_adx'] = float(cur_row.get('impressions_adx', 0) or 0) + float(adx_item.get('impressions') or 0)
-                    cur_row['clicks_adx'] = float(cur_row.get('clicks_adx', 0) or 0) + float(adx_item.get('clicks') or 0)
+
+                    cur_row['impressions_adx'] = float(cur_row.get('impressions_adx', 0) or 0) + float(impressions)
+                    cur_row['clicks_adx'] = float(cur_row.get('clicks_adx', 0) or 0) + float(clicks)
+                    cur_row['total_requests'] = int(cur_row.get('total_requests', 0) or 0) + total_requests
+                    cur_row['responses_served'] = int(cur_row.get('responses_served', 0) or 0) + responses_served
+                    if impressions > 0:
+                        cur_row['active_view_weight'] = int(cur_row.get('active_view_weight', 0) or 0) + impressions
+                        cur_row['active_view_pct_viewable_sum'] = float(cur_row.get('active_view_pct_viewable_sum', 0) or 0) + (active_view_pct_viewable * impressions)
+                        cur_row['active_view_avg_time_sec_sum'] = float(cur_row.get('active_view_avg_time_sec_sum', 0) or 0) + (active_view_avg_time_sec * impressions)
+
                     if site_key not in grouped_all:
-                        grouped_all[site_key] = {'site_name': site_key, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
+                        grouped_all[site_key] = {
+                            'site_name': site_key,
+                            'account_ads': account_ads,
+                            'spend': 0.0,
+                            'revenue': 0.0,
+                            'impressions': 0,
+                            'clicks': 0,
+                            'total_requests': 0,
+                            'responses_served': 0,
+                            'active_view_weight': 0,
+                            'active_view_pct_viewable_sum': 0.0,
+                            'active_view_avg_time_sec_sum': 0.0,
+                        }
                     grouped_all[site_key]['account_ads'] = account_ads
                     grouped_all[site_key]['spend'] += spend
                     grouped_all[site_key]['revenue'] += revenue
+                    grouped_all[site_key]['impressions'] += impressions
+                    grouped_all[site_key]['clicks'] += clicks
+                    grouped_all[site_key]['total_requests'] += total_requests
+                    grouped_all[site_key]['responses_served'] += responses_served
+                    if impressions > 0:
+                        grouped_all[site_key]['active_view_weight'] += impressions
+                        grouped_all[site_key]['active_view_pct_viewable_sum'] += (active_view_pct_viewable * impressions)
+                        grouped_all[site_key]['active_view_avg_time_sec_sum'] += (active_view_avg_time_sec * impressions)
 
                     if spend > 0:
                         if site_key not in grouped_filtered:
-                            grouped_filtered[site_key] = {'site_name': site_key, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
+                            grouped_filtered[site_key] = {
+                                'site_name': site_key,
+                                'account_ads': account_ads,
+                                'spend': 0.0,
+                                'revenue': 0.0,
+                                'impressions': 0,
+                                'clicks': 0,
+                                'total_requests': 0,
+                                'responses_served': 0,
+                                'active_view_weight': 0,
+                                'active_view_pct_viewable_sum': 0.0,
+                                'active_view_avg_time_sec_sum': 0.0,
+                            }
                         grouped_filtered[site_key]['account_ads'] = account_ads
                         grouped_filtered[site_key]['spend'] += spend
                         grouped_filtered[site_key]['revenue'] += revenue
+                        grouped_filtered[site_key]['impressions'] += impressions
+                        grouped_filtered[site_key]['clicks'] += clicks
+                        grouped_filtered[site_key]['total_requests'] += total_requests
+                        grouped_filtered[site_key]['responses_served'] += responses_served
+                        if impressions > 0:
+                            grouped_filtered[site_key]['active_view_weight'] += impressions
+                            grouped_filtered[site_key]['active_view_pct_viewable_sum'] += (active_view_pct_viewable * impressions)
+                            grouped_filtered[site_key]['active_view_avg_time_sec_sum'] += (active_view_avg_time_sec * impressions)
 
                 # Tambahkan baris FB yang tidak punya pasangan AdX (supaya total spend konsisten)
                 for fb_key, fb_item in (facebook_map or {}).items():
@@ -6351,12 +6995,34 @@ class RoiMonitoringDomainDataView(View):
                     spend_val = item['spend']
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
+                    impressions = int(item.get('impressions', 0) or 0)
+                    clicks = int(item.get('clicks', 0) or 0)
+                    total_requests = int(item.get('total_requests', 0) or 0)
+                    responses_served = int(item.get('responses_served', 0) or 0)
+                    match_rate = (float(responses_served) / float(total_requests) * 100.0) if total_requests > 0 else 0.0
+                    fill_rate = (float(impressions) / float(responses_served) * 100.0) if responses_served > 0 else 0.0
+                    cpc = (float(revenue_val) / float(clicks)) if clicks > 0 else 0.0
+                    ecpm = ((float(revenue_val) / float(impressions)) * 1000.0) if impressions > 0 else 0.0
+                    w = int(item.get('active_view_weight', 0) or 0)
+                    active_view_pct_viewable = (float(item.get('active_view_pct_viewable_sum', 0.0) or 0.0) / float(w)) if w > 0 else 0.0
+                    active_view_avg_time_sec = (float(item.get('active_view_avg_time_sec_sum', 0.0) or 0.0) / float(w)) if w > 0 else 0.0
+
                     combined_data_all.append({
                         'site_name': item['site_name'],
                         'account_ads': item['account_ads'],
                         'spend': spend_val,
                         'revenue': revenue_val,
                         'roi': roi,
+                        'impressions': impressions,
+                        'clicks': clicks,
+                        'ecpm': round(ecpm, 2),
+                        'cpc': round(cpc, 2),
+                        'total_requests': total_requests,
+                        'responses_served': responses_served,
+                        'match_rate': round(match_rate, 2),
+                        'fill_rate': round(fill_rate, 2),
+                        'active_view_pct_viewable': round(active_view_pct_viewable, 2),
+                        'active_view_avg_time_sec': round(active_view_avg_time_sec, 2),
                         'last_update': last_update_by_site.get(item['site_name'], '')
                     })
                     total_spend += spend_val
@@ -6367,12 +7033,34 @@ class RoiMonitoringDomainDataView(View):
                     spend_val = item['spend']
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
+                    impressions = int(item.get('impressions', 0) or 0)
+                    clicks = int(item.get('clicks', 0) or 0)
+                    total_requests = int(item.get('total_requests', 0) or 0)
+                    responses_served = int(item.get('responses_served', 0) or 0)
+                    match_rate = (float(responses_served) / float(total_requests) * 100.0) if total_requests > 0 else 0.0
+                    fill_rate = (float(impressions) / float(responses_served) * 100.0) if responses_served > 0 else 0.0
+                    cpc = (float(revenue_val) / float(clicks)) if clicks > 0 else 0.0
+                    ecpm = ((float(revenue_val) / float(impressions)) * 1000.0) if impressions > 0 else 0.0
+                    w = int(item.get('active_view_weight', 0) or 0)
+                    active_view_pct_viewable = (float(item.get('active_view_pct_viewable_sum', 0.0) or 0.0) / float(w)) if w > 0 else 0.0
+                    active_view_avg_time_sec = (float(item.get('active_view_avg_time_sec_sum', 0.0) or 0.0) / float(w)) if w > 0 else 0.0
+
                     combined_data_filtered.append({
                         'site_name': item['site_name'],
                         'account_ads': item['account_ads'],
                         'spend': spend_val,
                         'revenue': revenue_val,
                         'roi': roi,
+                        'impressions': impressions,
+                        'clicks': clicks,
+                        'ecpm': round(ecpm, 2),
+                        'cpc': round(cpc, 2),
+                        'total_requests': total_requests,
+                        'responses_served': responses_served,
+                        'match_rate': round(match_rate, 2),
+                        'fill_rate': round(fill_rate, 2),
+                        'active_view_pct_viewable': round(active_view_pct_viewable, 2),
+                        'active_view_avg_time_sec': round(active_view_avg_time_sec, 2),
                         'last_update': last_update_by_site.get(item['site_name'], '')
                     })
             roi_nett_summary = ((total_revenue - total_spend) / total_spend * 100) if total_spend > 0 else 0
@@ -6845,6 +7533,7 @@ class RoiMonitoringCountryDataView(View):
         if selected_domain:
             selected_domain_list = [str(s).strip() for s in selected_domain.split(',') if s.strip()]
         selected_countries = req.GET.get('selected_countries', '')
+        include_subdomains = str(req.GET.get('include_subdomains') or '').strip().lower() in ('1', 'true', 'yes')
         try:
             # Validasi parameter tanggal terlebih dahulu
             if not start_date or not end_date:
@@ -6917,7 +7606,8 @@ class RoiMonitoringCountryDataView(View):
                 end_date,
                 selected_account or '',
                 selected_domain_list or '',
-                ','.join(countries_list_query) if countries_list_query else ''
+                ','.join(countries_list_query) if countries_list_query else '',
+                'subdomains:1' if include_subdomains else ''
             )
             cached_response = get_cached_data(response_cache_key)
             if cached_response is not None:
@@ -7016,7 +7706,175 @@ class RoiMonitoringCountryDataView(View):
             adx_payload = data_adx.get('hasil') if isinstance(data_adx, dict) and data_adx.get('hasil') else data_adx
             fb_payload = (data_facebook.get('hasil') if isinstance(data_facebook, dict) and data_facebook.get('hasil') else {'status': True, 'data': []})
             result = process_roi_monitoring_country_data(adx_payload, fb_payload)
-            result['daily_rows'] = build_roi_monitoring_country_daily_rows(adx_payload, fb_payload)
+
+            # Tambahkan daily_rows
+            try:
+                result['daily_rows'] = build_roi_monitoring_country_daily_rows(adx_payload, fb_payload)
+            except Exception:
+                result['daily_rows'] = []
+
+            # ===== H-1 compare (previous day) untuk single-day request =====
+            compare = None
+            try:
+                if start_date == end_date:
+                    cur_dt = datetime.strptime(str(start_date), '%Y-%m-%d')
+                    prev_dt = cur_dt - timedelta(days=1)
+                    prev_start = prev_dt.strftime('%Y-%m-%d')
+                    prev_end = prev_start
+
+                    unique_name_site_local = []
+                    try:
+                        unique_name_site_local = locals().get('unique_name_site') or []
+                    except Exception:
+                        unique_name_site_local = []
+
+                    prev_adx = data_mysql().get_all_log_adx_country_detail_by_params(
+                        prev_start,
+                        prev_end,
+                        selected_account_list,
+                        selected_domain_list,
+                        countries_list_query
+                    )
+
+                    prev_fb = None
+                    try:
+                        if unique_name_site_local:
+                            prev_fb = data_mysql().get_all_log_ads_country_detail_by_params(
+                                prev_start,
+                                prev_end,
+                                unique_name_site_local,
+                                countries_list_query
+                            )
+                    except Exception:
+                        prev_fb = None
+
+                    prev_adx_payload = prev_adx.get('hasil') if isinstance(prev_adx, dict) and prev_adx.get('hasil') else prev_adx
+                    prev_fb_payload = (prev_fb.get('hasil') if isinstance(prev_fb, dict) and prev_fb.get('hasil') else {'status': True, 'data': []})
+
+                    prev_res = process_roi_monitoring_country_data(
+                        prev_adx_payload or {'status': True, 'data': []},
+                        prev_fb_payload
+                    )
+
+                    def pick_summary(res):
+                        if not isinstance(res, dict):
+                            return {}
+                        return res.get('summary_filtered') or res.get('summary_all') or res.get('summary') or {}
+
+                    def delta_summary(cur, prev):
+                        try:
+                            cs = float(cur.get('total_spend') or 0)
+                            ps = float(prev.get('total_spend') or 0)
+                            cr = float(cur.get('total_revenue') or 0)
+                            pr = float(prev.get('total_revenue') or 0)
+                            cn = float(cur.get('total_net_profit') or 0)
+                            pn = float(prev.get('total_net_profit') or 0)
+                            croi = float(cur.get('roi_nett') or cur.get('total_roi') or 0)
+                            proi = float(prev.get('roi_nett') or prev.get('total_roi') or 0)
+                        except Exception:
+                            cs = ps = cr = pr = cn = pn = croi = proi = 0.0
+                        return {
+                            'total_spend': cs - ps,
+                            'total_revenue': cr - pr,
+                            'total_net_profit': cn - pn,
+                            'roi_nett': croi - proi
+                        }
+
+                    sum_cur = pick_summary(result)
+                    sum_prev = pick_summary(prev_res)
+                    compare = {
+                        'mode': 'h-1',
+                        'current_start': start_date,
+                        'current_end': end_date,
+                        'prev_start': prev_start,
+                        'prev_end': prev_end,
+                        'summary_current': sum_cur,
+                        'summary_prev': sum_prev,
+                        'summary_delta': delta_summary(sum_cur, sum_prev)
+                    }
+
+                    prev_map = {}
+                    for it in (prev_res.get('data') or []):
+                        cc = normalize_country_code((it or {}).get('country_code', ''))
+                        if cc and cc not in prev_map:
+                            prev_map[cc] = it
+
+                    def attach_prev(rows):
+                        for it in (rows or []):
+                            cc = normalize_country_code((it or {}).get('country_code', ''))
+                            p = prev_map.get(cc) or {}
+                            try:
+                                ps = float(p.get('spend') or 0)
+                                pr = float(p.get('revenue') or 0)
+                                pn = float(p.get('net_profit') or (pr - ps))
+                                proi = float(p.get('roi') or (((pr - ps) / ps * 100) if ps > 0 else 0))
+                            except Exception:
+                                ps = pr = pn = proi = 0.0
+                            try:
+                                cs = float(it.get('spend') or 0)
+                                cr = float(it.get('revenue') or 0)
+                                cn = float(it.get('net_profit') or (cr - cs))
+                                croi = float(it.get('roi') or (((cr - cs) / cs * 100) if cs > 0 else 0))
+                            except Exception:
+                                cs = cr = cn = croi = 0.0
+                            it['prev_spend'] = ps
+                            it['prev_revenue'] = pr
+                            it['prev_net_profit'] = pn
+                            it['prev_roi'] = proi
+                            it['delta_spend'] = cs - ps
+                            it['delta_revenue'] = cr - pr
+                            it['delta_net_profit'] = cn - pn
+                            it['delta_roi'] = croi - proi
+
+                    attach_prev(result.get('data'))
+                    attach_prev(result.get('data_filtered'))
+            except Exception:
+                compare = None
+
+            if compare:
+                result['compare'] = compare
+
+            if include_subdomains:
+                subdomains_by_country = {}
+                try:
+                    want = set([normalize_country_code(c) for c in (countries_list or []) if normalize_country_code(c)])
+
+                    def _add(cc, site):
+                        if not cc:
+                            return
+                        if want and cc not in want:
+                            return
+                        s = str(site or '').strip()
+                        if not s or s == 'Unknown':
+                            return
+                        b = extract_base_subdomain(s)
+                        if not b:
+                            return
+                        cur = subdomains_by_country.get(cc)
+                        if cur is None:
+                            cur = set()
+                            subdomains_by_country[cc] = cur
+                        cur.add(b)
+
+                    adx_items = adx_payload.get('data') if isinstance(adx_payload, dict) else []
+                    for it in (adx_items or []):
+                        cc = normalize_country_code((it or {}).get('country_code'))
+                        _add(cc, (it or {}).get('site_name'))
+
+                    fb_items = fb_payload.get('data') if isinstance(fb_payload, dict) else []
+                    for it in (fb_items or []):
+                        cc = normalize_country_code((it or {}).get('country_code'))
+                        _add(cc, (it or {}).get('domain'))
+
+                    result['subdomains_by_country'] = {k: sorted(list(v)) for k, v in subdomains_by_country.items()}
+                    if len(want) == 1:
+                        only = next(iter(want))
+                        result['subdomains'] = result['subdomains_by_country'].get(only, [])
+                except Exception:
+                    result['subdomains_by_country'] = {}
+                    if countries_list and len(countries_list) == 1:
+                        result['subdomains'] = []
+
             # Filter hasil berdasarkan negara yang dipilih jika ada
             if countries_list and result.get('status') and result.get('data'):
                 # Parse selected countries dari format "Country Name (CODE)" menjadi list nama negara

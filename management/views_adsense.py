@@ -1926,25 +1926,85 @@ class RoiMonitoringDomainAdsenseDataView(View):
                     account_ads = str((fb_data or {}).get('account_name', ''))
                     spend = float((fb_data or {}).get('spend', 0))
                     revenue = float(adsense_item.get('revenue', 0))
+                    impressions = int(adsense_item.get('impressions', 0) or 0)
+                    clicks = int(adsense_item.get('clicks', 0) or 0)
+                    page_views = int(adsense_item.get('page_views', 0) or 0)
+                    ad_requests = int(adsense_item.get('ad_requests', 0) or 0)
+
+                    ad_requests_coverage_weighted_sum = float(adsense_item.get('ad_requests_coverage_weighted_sum', 0.0) or 0.0)
+                    active_view_viewability_weighted_sum = float(adsense_item.get('active_view_viewability_weighted_sum', 0.0) or 0.0)
+                    active_view_measurability_weighted_sum = float(adsense_item.get('active_view_measurability_weighted_sum', 0.0) or 0.0)
+                    active_view_time_weighted_sum = float(adsense_item.get('active_view_time_weighted_sum', 0.0) or 0.0)
+
                     raw_rows_all.append({
                         'site_name': site_key,
                         'date': date_key,
                         'account_ads': account_ads,
                         'country_code': country_code,
                         'spend': spend,
-                        'revenue': revenue
+                        'revenue': revenue,
+                        'impressions': impressions,
+                        'clicks': clicks,
+                        'page_views': page_views,
+                        'ad_requests': ad_requests,
+                        'ad_requests_coverage_weighted_sum': ad_requests_coverage_weighted_sum,
+                        'active_view_viewability_weighted_sum': active_view_viewability_weighted_sum,
+                        'active_view_measurability_weighted_sum': active_view_measurability_weighted_sum,
+                        'active_view_time_weighted_sum': active_view_time_weighted_sum,
                     })
                     if site_key not in grouped_all:
-                        grouped_all[site_key] = {'site_name': site_key, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
+                        grouped_all[site_key] = {
+                            'site_name': site_key,
+                            'account_ads': account_ads,
+                            'spend': 0.0,
+                            'revenue': 0.0,
+                            'impressions': 0,
+                            'clicks': 0,
+                            'page_views': 0,
+                            'ad_requests': 0,
+                            'ad_requests_coverage_weighted_sum': 0.0,
+                            'active_view_viewability_weighted_sum': 0.0,
+                            'active_view_measurability_weighted_sum': 0.0,
+                            'active_view_time_weighted_sum': 0.0,
+                        }
                     grouped_all[site_key]['account_ads'] = account_ads
                     grouped_all[site_key]['spend'] += spend
                     grouped_all[site_key]['revenue'] += revenue
+                    grouped_all[site_key]['impressions'] += impressions
+                    grouped_all[site_key]['clicks'] += clicks
+                    grouped_all[site_key]['page_views'] += page_views
+                    grouped_all[site_key]['ad_requests'] += ad_requests
+                    grouped_all[site_key]['ad_requests_coverage_weighted_sum'] += ad_requests_coverage_weighted_sum
+                    grouped_all[site_key]['active_view_viewability_weighted_sum'] += active_view_viewability_weighted_sum
+                    grouped_all[site_key]['active_view_measurability_weighted_sum'] += active_view_measurability_weighted_sum
+                    grouped_all[site_key]['active_view_time_weighted_sum'] += active_view_time_weighted_sum
                     if spend > 0:
                         if site_key not in grouped_filtered:
-                            grouped_filtered[site_key] = {'site_name': site_key, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
+                            grouped_filtered[site_key] = {
+                                'site_name': site_key,
+                                'account_ads': account_ads,
+                                'spend': 0.0,
+                                'revenue': 0.0,
+                                'impressions': 0,
+                                'clicks': 0,
+                                'page_views': 0,
+                                'ad_requests': 0,
+                                'ad_requests_coverage_weighted_sum': 0.0,
+                                'active_view_viewability_weighted_sum': 0.0,
+                                'active_view_measurability_weighted_sum': 0.0,
+                                'active_view_time_weighted_sum': 0.0,
+                            }
                         grouped_filtered[site_key]['account_ads'] = account_ads
                         grouped_filtered[site_key]['spend'] += spend
                         grouped_filtered[site_key]['revenue'] += revenue
+                        grouped_filtered[site_key]['impressions'] += impressions
+                        grouped_filtered[site_key]['clicks'] += clicks
+                        grouped_filtered[site_key]['page_views'] += page_views
+                        grouped_filtered[site_key]['ad_requests'] += ad_requests
+                        grouped_filtered[site_key]['ad_requests_coverage_weighted_sum'] += ad_requests_coverage_weighted_sum
+                        grouped_filtered[site_key]['active_view_viewability_weighted_sum'] += active_view_viewability_weighted_sum
+                        grouped_filtered[site_key]['active_view_measurability_weighted_sum'] += active_view_measurability_weighted_sum
+                        grouped_filtered[site_key]['active_view_time_weighted_sum'] += active_view_time_weighted_sum
                 # Tambahkan baris FB yang tidak punya pasangan AdX (supaya total spend konsisten)
                 for fb_key, fb_item in (facebook_map or {}).items():
                     if fb_key in seen_fb_keys:
@@ -1963,12 +2023,38 @@ class RoiMonitoringDomainAdsenseDataView(View):
                         'revenue': 0.0
                     })
                     if site_key not in grouped_all:
-                        grouped_all[site_key] = {'site_name': site_key, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
+                        grouped_all[site_key] = {
+                            'site_name': site_key,
+                            'account_ads': account_ads,
+                            'spend': 0.0,
+                            'revenue': 0.0,
+                            'impressions': 0,
+                            'clicks': 0,
+                            'page_views': 0,
+                            'ad_requests': 0,
+                            'ad_requests_coverage_weighted_sum': 0.0,
+                            'active_view_viewability_weighted_sum': 0.0,
+                            'active_view_measurability_weighted_sum': 0.0,
+                            'active_view_time_weighted_sum': 0.0,
+                        }
                     grouped_all[site_key]['account_ads'] = account_ads
                     grouped_all[site_key]['spend'] += spend
                     if spend > 0:
                         if site_key not in grouped_filtered:
-                            grouped_filtered[site_key] = {'site_name': site_key, 'account_ads': account_ads, 'spend': 0.0, 'revenue': 0.0}
+                            grouped_filtered[site_key] = {
+                                'site_name': site_key,
+                                'account_ads': account_ads,
+                                'spend': 0.0,
+                                'revenue': 0.0,
+                                'impressions': 0,
+                                'clicks': 0,
+                                'page_views': 0,
+                                'ad_requests': 0,
+                                'ad_requests_coverage_weighted_sum': 0.0,
+                                'active_view_viewability_weighted_sum': 0.0,
+                                'active_view_measurability_weighted_sum': 0.0,
+                                'active_view_time_weighted_sum': 0.0,
+                            }
                         grouped_filtered[site_key]['account_ads'] = account_ads
                         grouped_filtered[site_key]['spend'] += spend
                 # Bentuk output agregasi + ROI
@@ -1979,12 +2065,34 @@ class RoiMonitoringDomainAdsenseDataView(View):
                     spend_val = item['spend']
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
+                    impressions = int(item.get('impressions', 0) or 0)
+                    clicks = int(item.get('clicks', 0) or 0)
+                    page_views = int(item.get('page_views', 0) or 0)
+                    ad_requests = int(item.get('ad_requests', 0) or 0)
+
+                    cost_per_click = (float(revenue_val) / float(clicks)) if clicks > 0 else 0.0
+                    page_views_rpm = (float(revenue_val) / float(page_views) * 1000.0) if page_views > 0 else 0.0
+                    ad_requests_coverage = (float(item.get('ad_requests_coverage_weighted_sum', 0.0) or 0.0) / float(ad_requests)) if ad_requests > 0 else 0.0
+                    active_view_viewability = (float(item.get('active_view_viewability_weighted_sum', 0.0) or 0.0) / float(impressions)) if impressions > 0 else 0.0
+                    active_view_measurability = (float(item.get('active_view_measurability_weighted_sum', 0.0) or 0.0) / float(impressions)) if impressions > 0 else 0.0
+                    active_view_time = (float(item.get('active_view_time_weighted_sum', 0.0) or 0.0) / float(impressions)) if impressions > 0 else 0.0
+
                     combined_data_all.append({
                         'site_name': item['site_name'],
                         'account_ads': item['account_ads'],
                         'spend': spend_val,
                         'revenue': revenue_val,
                         'roi': roi,
+                        'impressions': impressions,
+                        'clicks': clicks,
+                        'page_views': page_views,
+                        'page_views_rpm': round(page_views_rpm, 2),
+                        'ad_requests': ad_requests,
+                        'ad_requests_coverage': round(ad_requests_coverage, 2),
+                        'active_view_viewability': round(active_view_viewability, 2),
+                        'active_view_measurability': round(active_view_measurability, 2),
+                        'active_view_time': round(active_view_time, 2),
+                        'cost_per_click': round(cost_per_click, 2),
                         'last_update': last_update_by_site.get(item['site_name'], '')
                     })
                     total_spend += spend_val
@@ -1995,12 +2103,34 @@ class RoiMonitoringDomainAdsenseDataView(View):
                     spend_val = item['spend']
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
+                    impressions = int(item.get('impressions', 0) or 0)
+                    clicks = int(item.get('clicks', 0) or 0)
+                    page_views = int(item.get('page_views', 0) or 0)
+                    ad_requests = int(item.get('ad_requests', 0) or 0)
+
+                    cost_per_click = (float(revenue_val) / float(clicks)) if clicks > 0 else 0.0
+                    page_views_rpm = (float(revenue_val) / float(page_views) * 1000.0) if page_views > 0 else 0.0
+                    ad_requests_coverage = (float(item.get('ad_requests_coverage_weighted_sum', 0.0) or 0.0) / float(ad_requests)) if ad_requests > 0 else 0.0
+                    active_view_viewability = (float(item.get('active_view_viewability_weighted_sum', 0.0) or 0.0) / float(impressions)) if impressions > 0 else 0.0
+                    active_view_measurability = (float(item.get('active_view_measurability_weighted_sum', 0.0) or 0.0) / float(impressions)) if impressions > 0 else 0.0
+                    active_view_time = (float(item.get('active_view_time_weighted_sum', 0.0) or 0.0) / float(impressions)) if impressions > 0 else 0.0
+
                     combined_data_filtered.append({
                         'site_name': item['site_name'],
                         'account_ads': item['account_ads'],
                         'spend': spend_val,
                         'revenue': revenue_val,
                         'roi': roi,
+                        'impressions': impressions,
+                        'clicks': clicks,
+                        'page_views': page_views,
+                        'page_views_rpm': round(page_views_rpm, 2),
+                        'ad_requests': ad_requests,
+                        'ad_requests_coverage': round(ad_requests_coverage, 2),
+                        'active_view_viewability': round(active_view_viewability, 2),
+                        'active_view_measurability': round(active_view_measurability, 2),
+                        'active_view_time': round(active_view_time, 2),
+                        'cost_per_click': round(cost_per_click, 2),
                         'last_update': last_update_by_site.get(item['site_name'], '')
                     })
             roi_nett_summary = ((total_revenue - total_spend) / total_spend * 100) if total_spend > 0 else 0
@@ -2084,6 +2214,7 @@ class RoiMonitoringCountryAdsenseDataView(View):
         if selected_domain:
             selected_domain_list = [str(s).strip() for s in selected_domain.split(',') if s.strip()]
         selected_countries = req.GET.get('selected_countries', '')
+        include_subdomains = str(req.GET.get('include_subdomains') or '').strip().lower() in ('1', 'true', 'yes')
         try:
             # Validasi parameter tanggal terlebih dahulu
             if not start_date or not end_date:
@@ -2150,7 +2281,8 @@ class RoiMonitoringCountryAdsenseDataView(View):
                 end_date,
                 selected_account or '',
                 selected_domain_list or '',
-                ','.join(countries_list_query) if countries_list_query else ''
+                ','.join(countries_list_query) if countries_list_query else '',
+                'subdomains:1' if include_subdomains else ''
             )
             cached_response = get_cached_data_adsense(response_cache_key)
             if cached_response is not None:
@@ -2253,6 +2385,172 @@ class RoiMonitoringCountryAdsenseDataView(View):
             adsense_payload = data_adsense.get('hasil') if isinstance(data_adsense, dict) and data_adsense.get('hasil') else data_adsense
             fb_payload = (data_facebook.get('hasil') if isinstance(data_facebook, dict) and data_facebook.get('hasil') else {'status': True, 'data': []})
             result = process_roi_monitoring_country_data(adsense_payload, fb_payload)
+
+            compare = None
+            try:
+                if start_date == end_date:
+                    cur_dt = datetime.strptime(str(start_date), '%Y-%m-%d')
+                    prev_dt = cur_dt - timedelta(days=1)
+                    prev_start = prev_dt.strftime('%Y-%m-%d')
+                    prev_end = prev_start
+
+                    prev_adsense = data_mysql().get_all_log_adsense_country_detail_by_params(
+                        prev_start,
+                        prev_end,
+                        selected_account_list,
+                        selected_domain_list,
+                        countries_list_query
+                    )
+
+                    prev_fb = None
+                    try:
+                        if unique_name_site:
+                            prev_fb = data_mysql().get_all_log_ads_country_detail_by_params(
+                                prev_start,
+                                prev_end,
+                                unique_name_site,
+                                countries_list_query
+                            )
+                    except Exception:
+                        prev_fb = None
+
+                    prev_adsense_payload = prev_adsense.get('hasil') if isinstance(prev_adsense, dict) and prev_adsense.get('hasil') else prev_adsense
+                    prev_fb_payload = (prev_fb.get('hasil') if isinstance(prev_fb, dict) and prev_fb.get('hasil') else {'status': True, 'data': []})
+
+                    prev_res = process_roi_monitoring_country_data(
+                        prev_adsense_payload or {'status': True, 'data': []},
+                        prev_fb_payload
+                    )
+
+                    def pick_summary(res):
+                        if not isinstance(res, dict):
+                            return {}
+                        return res.get('summary_filtered') or res.get('summary_all') or res.get('summary') or {}
+
+                    def delta_summary(cur, prev):
+                        try:
+                            cs = float(cur.get('total_spend') or 0)
+                            ps = float(prev.get('total_spend') or 0)
+                            cr = float(cur.get('total_revenue') or 0)
+                            pr = float(prev.get('total_revenue') or 0)
+                            cn = float(cur.get('total_net_profit') or 0)
+                            pn = float(prev.get('total_net_profit') or 0)
+                            croi = float(cur.get('roi_nett') or cur.get('total_roi') or 0)
+                            proi = float(prev.get('roi_nett') or prev.get('total_roi') or 0)
+                        except Exception:
+                            cs = ps = cr = pr = cn = pn = croi = proi = 0.0
+                        return {
+                            'total_spend': cs - ps,
+                            'total_revenue': cr - pr,
+                            'total_net_profit': cn - pn,
+                            'roi_nett': croi - proi
+                        }
+
+                    sum_cur = pick_summary(result)
+                    sum_prev = pick_summary(prev_res)
+                    compare = {
+                        'mode': 'h-1',
+                        'current_start': start_date,
+                        'current_end': end_date,
+                        'prev_start': prev_start,
+                        'prev_end': prev_end,
+                        'summary_current': sum_cur,
+                        'summary_prev': sum_prev,
+                        'summary_delta': delta_summary(sum_cur, sum_prev)
+                    }
+
+                    prev_map = {}
+                    for it in (prev_res.get('data') or []):
+                        cc = normalize_country_code((it or {}).get('country_code', ''))
+                        if cc and cc not in prev_map:
+                            prev_map[cc] = it
+
+                    for it in (result.get('data') or []):
+                        cc = normalize_country_code((it or {}).get('country_code', ''))
+                        p = prev_map.get(cc) or {}
+                        try:
+                            ps = float(p.get('spend') or 0)
+                            pr = float(p.get('revenue') or 0)
+                            pn = float(p.get('net_profit') or (pr - ps))
+                            proi = float(p.get('roi') or (((pr - ps) / ps * 100) if ps > 0 else 0))
+                        except Exception:
+                            ps = pr = pn = proi = 0.0
+                        try:
+                            cs = float(it.get('spend') or 0)
+                            cr = float(it.get('revenue') or 0)
+                            cn = float(it.get('net_profit') or (cr - cs))
+                            croi = float(it.get('roi') or (((cr - cs) / cs * 100) if cs > 0 else 0))
+                        except Exception:
+                            cs = cr = cn = croi = 0.0
+                        it['prev_spend'] = ps
+                        it['prev_revenue'] = pr
+                        it['prev_net_profit'] = pn
+                        it['prev_roi'] = proi
+                        it['delta_spend'] = cs - ps
+                        it['delta_revenue'] = cr - pr
+                        it['delta_net_profit'] = cn - pn
+                        it['delta_roi'] = croi - proi
+            except Exception:
+                compare = None
+
+            if compare:
+                result['compare'] = compare
+
+            if include_subdomains:
+                subdomains_by_country = {}
+                try:
+                    want = set([normalize_country_code(c) for c in (countries_list or []) if normalize_country_code(c)])
+
+                    def normalize_domain_name(value):
+                        s = str(value or '').strip()
+                        if not s:
+                            return ''
+                        if '://' in s:
+                            s = s.split('://', 1)[1]
+                        s = s.split('/', 1)[0]
+                        s = s.split(':', 1)[0]
+                        s = s.strip().strip('.')
+                        parts = [p for p in s.split('.') if p]
+                        if len(parts) >= 2 and parts[-1] == parts[-2]:
+                            parts = parts[:-1]
+                        return '.'.join(parts)
+
+                    def _add(cc, site):
+                        if not cc:
+                            return
+                        if want and cc not in want:
+                            return
+                        s = normalize_domain_name(site)
+                        if not s or s == 'Unknown':
+                            return
+                        b = extract_base_subdomain_fb_adsense(s)
+                        if not b:
+                            return
+                        cur = subdomains_by_country.get(cc)
+                        if cur is None:
+                            cur = set()
+                            subdomains_by_country[cc] = cur
+                        cur.add(b)
+
+                    ads_items = adsense_payload.get('data') if isinstance(adsense_payload, dict) else []
+                    for it in (ads_items or []):
+                        cc = normalize_country_code((it or {}).get('country_code'))
+                        _add(cc, (it or {}).get('site_name'))
+
+                    fb_items = fb_payload.get('data') if isinstance(fb_payload, dict) else []
+                    for it in (fb_items or []):
+                        cc = normalize_country_code((it or {}).get('country_code'))
+                        _add(cc, (it or {}).get('domain'))
+
+                    result['subdomains_by_country'] = {k: sorted(list(v)) for k, v in subdomains_by_country.items()}
+                    if len(want) == 1:
+                        only = next(iter(want))
+                        result['subdomains'] = result['subdomains_by_country'].get(only, [])
+                except Exception:
+                    result['subdomains_by_country'] = {}
+                    if countries_list and len(countries_list) == 1:
+                        result['subdomains'] = []
+
             # Filter hasil berdasarkan negara yang dipilih jika ada
             if countries_list and result.get('status') and result.get('data'):
                 # Parse selected countries dari format "Country Name (CODE)" menjadi list nama negara

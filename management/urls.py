@@ -138,6 +138,7 @@ urlpatterns = [
     path('admin/monitoring_country', views.RoiMonitoringCountryView.as_view(), name='roi_monitoring_country'),
     path('admin/page_monitoring_country', views.RoiMonitoringCountryDataView.as_view()),
     path('admin/page_monitoring_country_hourly_heatmap', views.RoiMonitoringCountryHourlyHeatmapView.as_view()),
+    path('admin/page_monitoring_scoring_baseline_hourly', views.MonitoringScoringBaselineHourlyView.as_view()),
     # Menu ROI Rekapitulasi
     path('admin/rekapitulasi_earning', views.RoiRekapitulasiView.as_view(), name='roi_rekapitulasi'),
     path('admin/page_rekapitulasi_earning', views.RoiRekapitulasiDataView.as_view()),
