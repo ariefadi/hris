@@ -25,6 +25,45 @@ except Exception:
 
 _ENV_LOADED = False
 
+# ...existing code...
+import pandas as pd
+import clickhouse_connect
+from django.conf import settings
+from django.db import connection
+# ...existing code...
+
+_clickhouse_client = None
+
+def get_clickhouse_client():
+    global _clickhouse_client
+    if _clickhouse_client is None:
+        _clickhouse_client = clickhouse_connect.get_client(
+            host=getattr(settings, 'CLICKHOUSE_HOST', '127.0.0.1'),
+            port=getattr(settings, 'CLICKHOUSE_PORT', 8123),
+            username=getattr(settings, 'CLICKHOUSE_USER', 'default'),
+            password=getattr(settings, 'CLICKHOUSE_PASSWORD', 'hris123456'),
+            database=getattr(settings, 'CLICKHOUSE_DATABASE', 'hris_trendHorizone'),
+        )
+    return _clickhouse_client
+
+def query_df(sql: str) -> pd.DataFrame:
+    client = get_clickhouse_client()
+    return client.query_df(sql)
+
+def insert_df(table: str, df: pd.DataFrame) -> None:
+    if df is None or df.empty:
+        return
+    client = get_clickhouse_client()
+    client.insert_df(table, df)
+
+def query_mysql_df(sql: str, params=None) -> pd.DataFrame:
+    with connection.cursor() as cursor:
+        cursor.execute(sql, params or [])
+        columns = [col[0] for col in cursor.description] if cursor.description else []
+        rows = cursor.fetchall()
+    return pd.DataFrame(rows, columns=columns)
+# ...existing code...
+
 
 def _ensure_env_loaded():
     global _ENV_LOADED

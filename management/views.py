@@ -5,6 +5,7 @@ from io import StringIO
 import math
 import re
 import site
+import inspect
 from traceback import print_tb
 from typing import Any
 from django.conf import settings
@@ -36,6 +37,7 @@ from django.contrib import messages
 from hris.mail import send_mail
 from argon2 import PasswordHasher
 import random
+import numpy as np
 # Pandas can fail to import if numpy binary is incompatible; avoid crashing at module load
 try:
     import pandas as pd
@@ -52,6 +54,8 @@ from .crypto import sandi
 import requests
 import json
 import uuid
+from datetime import datetime
+from django.http import JsonResponse
 # Optional dependencies: guard imports to prevent module-level crashes
 try:
     from geopy.geocoders import Nominatim
@@ -110,7 +114,6 @@ from .utils import (
     get_telegram_chat_id_for_user,
     send_telegram_message_aiogram,
     _format_idr_number,
-    # cache helpers
     generate_cache_key,
     get_cached_data,
     set_cached_data,
@@ -907,7 +910,103 @@ class DashboardAdmin(View):
             'oauth_banner': oauth_banner
         }
         return render(req, 'admin/dashboard_admin.html', data)
+    
+# ...existing code...
+import traceback
+import logging
 
+logger = logging.getLogger(__name__)
+# ...existing code...
+@method_decorator(csrf_exempt, name='dispatch')
+class DashboardCreateScoringView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({
+                'status': False,
+                'message': 'Unauthorized'
+            }, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        try:
+            payload = json.loads((req.body or b'').decode('utf-8') or '{}')
+
+            target_date = str(payload.get('date') or '').strip()
+            run_hour_raw = payload.get('run_hour')
+            domain = str(payload.get('domain') or payload.get('site') or '').strip().lower()
+            country_cd = str(payload.get('country_cd') or payload.get('country_code') or '').strip().upper()
+            mapped_revenue_source = str(payload.get('mapped_revenue_source') or '').strip().lower()
+
+            if not target_date:
+                return JsonResponse({
+                    'status': False,
+                    'message': 'date wajib diisi'
+                }, status=400)
+
+            if not domain and not country_cd:
+                return JsonResponse({
+                    'status': False,
+                    'message': 'domain atau country_cd wajib diisi'
+                }, status=400)
+
+            try:
+                target_dt = datetime.strptime(target_date, '%Y-%m-%d').date()
+            except Exception:
+                return JsonResponse({
+                    'status': False,
+                    'message': 'format date harus YYYY-MM-DD'
+                }, status=400)
+
+            run_hour = None
+            if run_hour_raw not in (None, ''):
+                try:
+                    run_hour = int(run_hour_raw)
+                except Exception:
+                    return JsonResponse({
+                        'status': False,
+                        'message': 'run_hour harus integer'
+                    }, status=400)
+
+            comparison_dates = {
+                'h1': (target_dt - timedelta(days=1)).isoformat(),
+                'h3': (target_dt - timedelta(days=3)).isoformat(),
+                'h7': (target_dt - timedelta(days=7)).isoformat(),
+                'h14': (target_dt - timedelta(days=14)).isoformat(),
+            }
+
+            scoring_module = _get_scoring_concept_module()
+            scoring_result = scoring_module.score_site_country(
+                target_date=target_dt,
+                compatibility_mode=False,
+                write_results=False,
+                domain=domain or None,
+                country_cd=country_cd or None,
+            )
+            return JsonResponse({
+                'status': True,
+                'message': 'create scoring berhasil',
+                'request': {
+                    'date': target_date,
+                    'run_hour': run_hour,
+                    'domain': domain,
+                    'country_cd': country_cd,
+                    'mapped_revenue_source': mapped_revenue_source,
+                },
+                'comparison_dates': comparison_dates,
+                'scoring': scoring_result,
+            }, safe=False, json_dumps_params={'allow_nan': False})
+
+        except Exception as e:
+            logger.exception("DashboardCreateScoringView failed")
+            return JsonResponse({
+                'status': False,
+                'message': str(e),
+                'traceback': traceback.format_exc(),
+            }, status=500)
+
+def _get_scoring_concept_module():
+    from . import scoring_concept
+    return scoring_concept
 
 @method_decorator(csrf_exempt, name='dispatch')
 class DashboardSyncView(View):
@@ -1005,12 +1104,59 @@ class DashboardSyncView(View):
 
                 steps.append(step)
 
+            failed_jobs = 0
+            for s in steps:
+                if s.get('status') is False:
+                    failed_jobs += 1
+
+            scoring_step = None
+            if tanggal != '%':
+                scoring_step = {'command': 'score_site_country'}
+                try:
+                    if failed_jobs > 0:
+                        scoring_step['status'] = True
+                        scoring_step['skipped'] = True
+                        scoring_step['warning'] = 'Scoring dilewati karena masih ada job sinkronisasi yang gagal.'
+                    else:
+                        target_date = datetime.strptime(tanggal, '%Y-%m-%d').date()
+                        score_site_country = _get_scoring_concept_module().score_site_country
+                        scoring_result = score_site_country(
+                            target_date=target_date,
+                            compatibility_mode=True,
+                            write_results=True
+                        )
+                        scoring_step['status'] = bool(scoring_result.get('ok'))
+                        scoring_step['rows_written'] = int(scoring_result.get('rows_written') or 0)
+                        scoring_step['event_rows_written'] = int(scoring_result.get('event_rows_written') or 0)
+                        if scoring_result.get('warning'):
+                            scoring_step['warning'] = str(scoring_result.get('warning'))
+                        scoring_step['result'] = scoring_result
+                except Exception as e:
+                    scoring_step['status'] = False
+                    scoring_step['error'] = str(e)
+                steps.append(scoring_step)
+                        # ...existing code...
+            else:
+                target_date = datetime.strptime(tanggal, '%Y-%m-%d').date()
+                score_site_country = _get_scoring_concept_module().score_site_country
+                scoring_result = score_site_country(
+                    target_date=target_date,
+                    compatibility_mode=True,
+                    write_results=True
+                )
+            # ...existing code...
             parts = []
             for s in steps:
+                cmd = str(s.get('command') or '').strip()
+                if cmd == 'score_site_country':
+                    if s.get('rows_written') is not None:
+                        parts.append(f"status={int(s.get('rows_written') or 0)}")
+                    if s.get('event_rows_written') is not None:
+                        parts.append(f"events={int(s.get('event_rows_written') or 0)}")
+                    continue
                 ins = s.get('inserted')
                 if ins is None:
                     continue
-                cmd = str(s.get('command') or '').strip()
                 short = cmd.replace('cron_', '').replace('_load', '')
                 parts.append(f"{short}={ins}")
 
@@ -5218,6 +5364,221 @@ def extract_base_subdomain(full_string):
     # jika tidak ada titik, kembalikan string asli
     return main_domain
 
+def normalize_score(val, min_val, max_val):
+    try:
+        val = float(val or 0)
+        min_val = float(min_val or 0)
+        max_val = float(max_val or 0)
+        if max_val == min_val:
+            return 0.0
+        return (val - min_val) / (max_val - min_val)
+    except Exception:
+        return 0.0
+
+def scoring_engine(meta, adx, adsense, weights=None):
+    """
+    meta, adx, adsense: dict {'1d':..., '3d':..., '7d':..., '14d':...}
+    weights: dict, e.g. {'meta':0.4, 'adx':0.3, 'adsense':0.3}
+    """
+    if weights is None:
+        weights = {'meta': 0.4, 'adx': 0.3, 'adsense': 0.3}
+    # flatten all values for normalization
+    all_vals = []
+    for d in [meta, adx, adsense]:
+        all_vals += [float(d.get(k, 0) or 0) for k in ['1d','3d','7d','14d']]
+    min_v, max_v = min(all_vals), max(all_vals)
+    meta_score = sum([normalize_score(meta.get(k, 0), min_v, max_v) for k in ['1d','3d','7d','14d']]) / 4
+    adx_score = sum([normalize_score(adx.get(k, 0), min_v, max_v) for k in ['1d','3d','7d','14d']]) / 4
+    adsense_score = sum([normalize_score(adsense.get(k, 0), min_v, max_v) for k in ['1d','3d','7d','14d']]) / 4
+    final_score = (
+        meta_score * weights['meta'] +
+        adx_score * weights['adx'] +
+        adsense_score * weights['adsense']
+    )
+    if final_score >= 0.7:
+        decision = "scale"
+    elif final_score >= 0.4:
+        decision = "hold"
+    else:
+        decision = "stop"
+    return {
+        "meta_score": round(meta_score, 3),
+        "adx_score": round(adx_score, 3),
+        "adsense_score": round(adsense_score, 3),
+        "final_score": round(final_score, 3),
+        "decision": decision
+    }
+
+class MonitoringScoringBaselineHourlyView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            is_ajax = False
+            try:
+                is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            except Exception:
+                pass
+            if not is_ajax:
+                is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+            if is_ajax:
+                return JsonResponse({'status': False, 'error': 'Sesi berakhir atau tidak valid. Silakan login ulang.'})
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_metrics_sum(db, table, date_field, days, metrics):
+        today = datetime.now().date()
+        start = today - timedelta(days=days)
+        fields = ', '.join([f"SUM({m}) as {m}" for m in metrics])
+        sql = f"""
+            SELECT {fields}
+            FROM {table}
+            WHERE {date_field} >= %s AND {date_field} <= %s
+        """
+        if db.execute_query(sql, (start, today)):
+            row = db.cur_hris.fetchone()
+            # Kembalikan dict {metrik: nilai}
+            if isinstance(row, dict):
+                return {m: float(row.get(m) or 0) for m in metrics}
+            else:
+                return {m: float(row[i] or 0) for i, m in enumerate(metrics)}
+        return {m: 0.0 for m in metrics}
+    
+    def scoring_engine_multi(meta, adx, adsense, weights=None):
+        """
+        meta, adx, adsense:         class MonitoringScoringBaselineHourlyView(View):
+            def dispatch(self, request, *args, **kwargs):
+                if 'hris_admin' not in request.session:
+                    is_ajax = False
+                    try:
+                        is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+                    except Exception:
+                        pass
+                    if not is_ajax:
+                        is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
+                    if is_ajax:
+                        return JsonResponse({'status': False, 'error': 'Sesi berakhir atau tidak valid. Silakan login ulang.'})
+                    return redirect('admin_login')
+                return super().dispatch(request, *args, **kwargs)
+        
+            def get(self, req):
+                try:
+                    db = data_mysql()
+                    # Daftar metrik numerik utama per tabel
+                    meta_metrics = [
+                        'log_ads_country_impre­si', 'log_ads_country_click', 'log_ads_country_cpc', 'log_ads_country_ctr',
+                        'log_ads_country_cpm', 'log_ads_country_ecpm', 'log_ads_country_revenue'
+                    ]
+                    adx_metrics = [
+                        'log_adx_country_impre­si', 'log_adx_country_click', 'log_adx_country_cpc', 'log_adx_country_ctr',
+                        'log_adx_country_cpm', 'log_adx_country_ecpm', 'log_adx_country_total_requests',
+                        'log_adx_country_responses_served', 'log_adx_country_match_rate', 'log_adx_country_fill_rate',
+                        'log_adx_country_active_view_pct_viewable', 'log_adx_country_active_view_avg_time_sec',
+                        'log_adx_country_revenue'
+                    ]
+                    adsense_metrics = [
+                        'log_adsense_country_impre­si', 'log_adsense_country_click', 'log_adsense_country_cpc', 'log_adsense_country_ctr',
+                        'log_adsense_country_cpm', 'log_adsense_country_ecpm', 'log_adsense_country_revenue'
+                    ]
+                    meta = {w: get_metrics_sum(db, 'log_ads_country', 'log_ads_country_tanggal', int(w[:-1]), meta_metrics) for w in ['1d','3d','7d','14d']}
+                    adx = {w: get_metrics_sum(db, 'log_adx_country', 'log_adx_country_tanggal', int(w[:-1]), adx_metrics) for w in ['1d','3d','7d','14d']}
+                    adsense = {w: get_metrics_sum(db, 'log_adsense_country', 'log_adsense_country_tanggal', int(w[:-1]), adsense_metrics) for w in ['1d','3d','7d','14d']}
+                    result = scoring_engine_multi(meta, adx, adsense)
+                    return JsonResponse({
+                        'status': True,
+                        'meta': meta,
+                        'adx': adx,
+                        'adsense': adsense,
+                        'scoring': result
+                    })
+                except Exception as e:
+                    return JsonResponse({'status': False, 'error': str(e)})dict {'1d':{metrik:val,...}, '3d':..., ...}
+        """
+        if weights is None:
+            weights = {'meta': 0.4, 'adx': 0.3, 'adsense': 0.3}
+        # Gabungkan semua nilai untuk normalisasi global
+        all_vals = []
+        for d in [meta, adx, adsense]:
+            for window in ['1d','3d','7d','14d']:
+                all_vals += list((d.get(window) or {}).values())
+        min_v, max_v = min(all_vals), max(all_vals)
+        def norm_avg(d):
+            vals = []
+            for window in ['1d','3d','7d','14d']:
+                for v in (d.get(window) or {}).values():
+                    vals.append(normalize_score(v, min_v, max_v))
+            return sum(vals) / len(vals) if vals else 0.0
+        meta_score = norm_avg(meta)
+        adx_score = norm_avg(adx)
+        adsense_score = norm_avg(adsense)
+        final_score = (
+            meta_score * weights['meta'] +
+            adx_score * weights['adx'] +
+            adsense_score * weights['adsense']
+        )
+        if final_score >= 0.7:
+            decision = "scale"
+        elif final_score >= 0.4:
+            decision = "hold"
+        else:
+            decision = "stop"
+        return {
+            "meta_score": round(meta_score, 3),
+            "adx_score": round(adx_score, 3),
+            "adsense_score": round(adsense_score, 3),
+            "final_score": round(final_score, 3),
+            "decision": decision
+        }
+
+    def get(self, req):
+        try:
+            # Ambil tanggal hari ini
+            today = datetime.now().date()
+            db = data_mysql()
+
+            # Helper untuk ambil sum revenue per window hari
+            def get_sum(table, date_field, revenue_field, days):
+                start = today - timedelta(days=days)
+                sql = f"""
+                    SELECT SUM({revenue_field}) as total
+                    FROM {table}
+                    WHERE {date_field} >= %s AND {date_field} <= %s
+                """
+                if db.execute_query(sql, (start, today)):
+                    row = db.cur_hris.fetchone()
+                    return float((row.get('total') if isinstance(row, dict) else row[0]) or 0)
+                return 0
+
+            meta = {
+                '1d': get_sum('log_ads_country', 'log_ads_country_tanggal', 'log_ads_country_revenue', 1),
+                '3d': get_sum('log_ads_country', 'log_ads_country_tanggal', 'log_ads_country_revenue', 3),
+                '7d': get_sum('log_ads_country', 'log_ads_country_tanggal', 'log_ads_country_revenue', 7),
+                '14d': get_sum('log_ads_country', 'log_ads_country_tanggal', 'log_ads_country_revenue', 14),
+            }
+            adx = { 
+                '1d': get_sum('log_adx_country', 'log_adx_country_tanggal', 'log_adx_country_revenue', 1),
+                '3d': get_sum('log_adx_country', 'log_adx_country_tanggal', 'log_adx_country_revenue', 3),
+                '7d': get_sum('log_adx_country', 'log_adx_country_tanggal', 'log_adx_country_revenue', 7),
+                '14d': get_sum('log_adx_country', 'log_adx_country_tanggal', 'log_adx_country_revenue', 14),
+            }
+            adsense = {
+                '1d': get_sum('log_adsense_country', 'log_adsense_country_tanggal', 'log_adsense_country_revenue', 1),
+                '3d': get_sum('log_adsense_country', 'log_adsense_country_tanggal', 'log_adsense_country_revenue', 3),
+                '7d': get_sum('log_adsense_country', 'log_adsense_country_tanggal', 'log_adsense_country_revenue', 7),
+                '14d': get_sum('log_adsense_country', 'log_adsense_country_tanggal', 'log_adsense_country_revenue', 14),
+            }
+
+            # Panggil scoring engine (fungsi sudah ada di bawah file ini)
+            result = scoring_engine(meta, adx, adsense)
+            print("Scoring Result:", result)  # Debug print
+            return JsonResponse({
+                'status': True,
+                'meta': meta,
+                'adx': adx,
+                'adsense': adsense,
+                'scoring': result
+            })
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)})
+
 class RoiCountryHourlyDataView(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
@@ -5323,452 +5684,7 @@ class RoiCountryHourlyDataView(View):
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
 
-class MonitoringScoringBaselineHourlyView(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            is_ajax = False
-            try:
-                is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-            except Exception:
-                pass
-            if not is_ajax:
-                is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
-            if is_ajax:
-                return JsonResponse({'status': False, 'error': 'Sesi berakhir atau tidak valid. Silakan login ulang.'})
-            return redirect('admin_login')
-        return super().dispatch(request, *args, **kwargs)
 
-    def get(self, req):
-        try:
-            target_date = req.GET.get('date')
-            if not target_date or not isinstance(target_date, str) or len(target_date) != 10:
-                target_date = datetime.now().strftime('%Y-%m-%d')
-
-            try:
-                days = int(req.GET.get('days') or 28)
-            except Exception:
-                days = 28
-            days = max(14, min(days, 28))
-
-            domains_q = str(req.GET.get('domains') or '').strip()
-            domain_list = [s.strip() for s in domains_q.split(',') if s.strip()]
-            domain_list = domain_list[:120]
-
-            if not domain_list:
-                return JsonResponse({'status': True, 'date': target_date, 'days': days, 'domains': {}}, safe=False)
-
-            try:
-                td = datetime.strptime(target_date, '%Y-%m-%d')
-            except Exception:
-                td = datetime.now()
-            hist_end = (td - timedelta(days=1)).strftime('%Y-%m-%d')
-            hist_start = (td - timedelta(days=days)).strftime('%Y-%m-%d')
-
-            cache_key = generate_cache_key(
-                'monitoring_scoring_baseline_hourly_v2',
-                target_date,
-                str(days),
-                ','.join(domain_list),
-            )
-            cached = get_cached_data(cache_key)
-            if cached is not None:
-                return JsonResponse(cached, safe=False)
-
-            def _median(xs):
-                ys = [float(v) for v in (xs or []) if v is not None and isfinite(float(v))]
-                if not ys:
-                    return 0.0
-                ys.sort()
-                n = len(ys)
-                mid = n // 2
-                if n % 2 == 1:
-                    return float(ys[mid])
-                return (float(ys[mid - 1]) + float(ys[mid])) / 2.0
-
-            def _mad(xs, med):
-                dev = [abs(float(v) - float(med)) for v in (xs or []) if v is not None and isfinite(float(v))]
-                return _median(dev)
-
-            def _ewma_last(xs, span=14):
-                ys = [float(v) for v in (xs or []) if v is not None and isfinite(float(v))]
-                if not ys:
-                    return 0.0
-                a = 2.0 / (float(span) + 1.0)
-                e = ys[0]
-                for v in ys[1:]:
-                    e = (a * v) + ((1.0 - a) * e)
-                return float(e)
-
-            def _ewma_residuals(xs, span=14):
-                ys = [float(v) for v in (xs or []) if v is not None and isfinite(float(v))]
-                if len(ys) < 2:
-                    return []
-                a = 2.0 / (float(span) + 1.0)
-                e = ys[0]
-                res = []
-                for v in ys[1:]:
-                    res.append(v - e)
-                    e = (a * v) + ((1.0 - a) * e)
-                return res
-
-            def _agg(rows, dom_key):
-                out = {}
-                for r in (rows or []):
-                    dom_raw = str((r or {}).get(dom_key) or '').strip()
-                    if not dom_raw:
-                        continue
-                    dom = extract_base_subdomain(dom_raw)
-                    dt = (r or {}).get('date')
-                    dts = str(dt)[:10]
-                    try:
-                        h = int((r or {}).get('hour') or 0)
-                    except Exception:
-                        h = 0
-                    if h < 0 or h > 23:
-                        continue
-                    if dom not in out:
-                        out[dom] = {}
-                    if dts not in out[dom]:
-                        out[dom][dts] = {str(i): {'impressions': 0.0, 'clicks': 0.0, 'revenue': 0.0, 'page_views': 0.0, 'ad_requests': 0.0, 'matched_ad_requests': 0.0, 'total_requests': 0.0, 'responses_served': 0.0} for i in range(24)}
-                    hk = str(h)
-                    cell = out[dom][dts][hk]
-                    imp = float((r or {}).get('impressions') or 0)
-                    ad_req = float((r or {}).get('ad_requests') or 0)
-                    matched = float((r or {}).get('matched_ad_requests') or 0)
-                    if matched <= 0 and ad_req > 0:
-                        cov = float((r or {}).get('ad_requests_coverage') or 0)
-                        matched = max(0.0, ad_req * cov / 100.0)
-                    cell['impressions'] += imp
-                    cell['clicks'] += float((r or {}).get('clicks') or 0)
-                    cell['revenue'] += float((r or {}).get('revenue') or 0)
-                    cell['page_views'] += float((r or {}).get('page_views') or 0)
-                    cell['ad_requests'] += ad_req
-                    cell['matched_ad_requests'] += matched
-                    cell['total_requests'] += float((r or {}).get('total_requests') or 0)
-                    cell['responses_served'] += float((r or {}).get('responses_served') or 0)
-                return out
-
-            db = data_mysql()
-            adx_hist = db.get_all_adx_roi_country_hourly_by_params(hist_start, hist_end, domain_list)
-            adx_hist_rows = (adx_hist or {}).get('data') if isinstance(adx_hist, dict) else []
-            adx_cur = db.get_all_adx_roi_country_hourly_by_params(target_date, target_date, domain_list)
-            adx_cur_rows = (adx_cur or {}).get('data') if isinstance(adx_cur, dict) else []
-
-            ads_hist = db.get_all_adsense_country_hourly_range_by_params(hist_start, hist_end, domain_list)
-            ads_hist_rows = (ads_hist or {}).get('data') if isinstance(ads_hist, dict) else []
-            ads_cur = db.get_all_adsense_country_hourly_range_by_params(target_date, target_date, domain_list)
-            ads_cur_rows = (ads_cur or {}).get('data') if isinstance(ads_cur, dict) else []
-
-            adx_map = _agg(adx_hist_rows, 'log_adx_country_domain')
-            adx_cur_map = _agg(adx_cur_rows, 'log_adx_country_domain')
-            ads_map = _agg(ads_hist_rows, 'log_adsense_country_domain')
-            ads_cur_map = _agg(ads_cur_rows, 'log_adsense_country_domain')
-
-            def _to_inc(day_hours):
-                keys = ['impressions', 'clicks', 'revenue', 'page_views', 'ad_requests', 'matched_ad_requests', 'total_requests', 'responses_served']
-                cum = {k: [float(day_hours.get(str(h), {}).get(k) or 0.0) for h in range(24)] for k in keys}
-                inc = {k: [] for k in keys}
-                for h in range(24):
-                    p = h - 1
-                    for k in keys:
-                        inc[k].append(max(0.0, cum[k][h] - (cum[k][p] if p >= 0 else 0.0)))
-                rpm = [(inc['revenue'][h] / (inc['impressions'][h] + 1e-9)) * 1000.0 for h in range(24)]
-                page_rpm = [(inc['revenue'][h] / (inc['page_views'][h] + 1e-9)) * 1000.0 for h in range(24)]
-                cpc = [(inc['revenue'][h] / (inc['clicks'][h] + 1e-9)) for h in range(24)]
-                ctr = [(inc['clicks'][h] / (inc['impressions'][h] + 1e-9)) for h in range(24)]
-                return {'imp': inc['impressions'], 'clk': inc['clicks'], 'rev': inc['revenue'], 'pv': inc['page_views'], 'req': inc['ad_requests'], 'mreq': inc['matched_ad_requests'], 'treq': inc['total_requests'], 'rsp': inc['responses_served'], 'rpm': rpm, 'page_rpm': page_rpm, 'cpc': cpc, 'ctr': ctr}
-
-            def _build(dom_hist, dom_cur):
-                dates_sorted = sorted(dom_hist.keys())
-                inc_by_date = {d: _to_inc(dom_hist[d]) for d in dates_sorted}
-                cur_dates = sorted(dom_cur.keys())
-                cur_inc = _to_inc(dom_cur[cur_dates[-1]]) if cur_dates else {'imp':[0.0]*24,'clk':[0.0]*24,'rev':[0.0]*24,'rpm':[0.0]*24,'cpc':[0.0]*24,'ctr':[0.0]*24}
-
-                def _stat_arr(key):
-                    med, scale = [], []
-                    for h in range(24):
-                        xs = [inc_by_date[d][key][h] for d in dates_sorted]
-                        m = _median(xs)
-                        md = _mad(xs, m)
-                        sc = max(1e-6, 1.4826 * float(md))
-                        med.append(float(m))
-                        scale.append(float(sc))
-                    return {'median': med, 'scale': scale}
-
-                def _ewma_arr(key):
-                    base, scale = [], []
-                    for h in range(24):
-                        xs = [inc_by_date[d][key][h] for d in dates_sorted]
-                        b = _ewma_last(xs, 14)
-                        res = _ewma_residuals(xs, 14)
-                        rm = _median(res)
-                        rmad = _mad(res, rm)
-                        sc = max(1e-6, 1.4826 * float(rmad))
-                        base.append(float(b))
-                        scale.append(float(sc))
-                    return {'ewma': base, 'scale': scale}
-
-                def _ctr_prev():
-                    p, n = [], []
-                    for h in range(24):
-                        succ = sum([inc_by_date[d]['clk'][h] for d in dates_sorted])
-                        denom = sum([inc_by_date[d]['imp'][h] for d in dates_sorted])
-                        denom = float(denom) if denom > 0 else 0.0
-                        p.append(float(succ / denom) if denom > 0 else 0.0)
-                        n.append(float(denom))
-                    return {'p': p, 'n': n}
-
-                return {
-                    'cur': cur_inc,
-                    'base': {
-                        'imp': _stat_arr('imp'),
-                        'clk': _stat_arr('clk'),
-                        'rev': _stat_arr('rev'),
-                        'rpm': _ewma_arr('rpm'),
-                        'cpc': _ewma_arr('cpc'),
-                        'ctr': _ctr_prev(),
-                        'sample_days': len(dates_sorted),
-                    }
-                }
-
-            result_domains = {}
-            keys = set(list(adx_map.keys()) + list(adx_cur_map.keys()) + list(ads_map.keys()) + list(ads_cur_map.keys()))
-            for dom in keys:
-                result_domains[dom] = {
-                    'adx': _build(adx_map.get(dom, {}), adx_cur_map.get(dom, {})) if (dom in adx_map or dom in adx_cur_map) else None,
-                    'adsense': _build(ads_map.get(dom, {}), ads_cur_map.get(dom, {})) if (dom in ads_map or dom in ads_cur_map) else None,
-                }
-
-            result = {
-                'status': True,
-                'date': target_date,
-                'days': days,
-                'history': {'start': hist_start, 'end': hist_end},
-                'domains': result_domains,
-            }
-            set_cached_data(cache_key, result, timeout=900)
-            return JsonResponse(result, safe=False)
-        except Exception as e:
-            return JsonResponse({'status': False, 'error': str(e)})
-
-
-class MonitoringScoringBaselineHourlyView(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            is_ajax = False
-            try:
-                is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest'
-            except Exception:
-                pass
-            if not is_ajax:
-                is_ajax = request.META.get('HTTP_X_REQUESTED_WITH') == 'XMLHttpRequest'
-            if is_ajax:
-                return JsonResponse({'status': False, 'error': 'Sesi berakhir atau tidak valid. Silakan login ulang.'})
-            return redirect('admin_login')
-        return super().dispatch(request, *args, **kwargs)
-
-    def get(self, req):
-        try:
-            target_date = req.GET.get('date')
-            if not target_date or not isinstance(target_date, str) or len(target_date) != 10:
-                target_date = datetime.now().strftime('%Y-%m-%d')
-
-            try:
-                days = int(req.GET.get('days') or 28)
-            except Exception:
-                days = 28
-            days = max(14, min(days, 28))
-
-            domains_q = str(req.GET.get('domains') or '').strip()
-            domain_list = [s.strip() for s in domains_q.split(',') if s.strip()]
-            domain_list = domain_list[:120]
-
-            if not domain_list:
-                return JsonResponse({'status': True, 'date': target_date, 'days': days, 'domains': {}}, safe=False)
-
-            try:
-                td = datetime.strptime(target_date, '%Y-%m-%d')
-            except Exception:
-                td = datetime.now()
-            hist_end = (td - timedelta(days=1)).strftime('%Y-%m-%d')
-            hist_start = (td - timedelta(days=days)).strftime('%Y-%m-%d')
-
-            cache_key = generate_cache_key(
-                'monitoring_scoring_baseline_hourly_v1',
-                target_date,
-                str(days),
-                ','.join(domain_list),
-            )
-            cached = get_cached_data(cache_key)
-            if cached is not None:
-                return JsonResponse(cached, safe=False)
-
-            def _median(xs):
-                ys = [float(v) for v in (xs or []) if v is not None and math.isfinite(float(v))]
-                if not ys:
-                    return 0.0
-                ys.sort()
-                n = len(ys)
-                mid = n // 2
-                if n % 2 == 1:
-                    return float(ys[mid])
-                return (float(ys[mid - 1]) + float(ys[mid])) / 2.0
-
-            def _mad(xs, med):
-                dev = [abs(float(v) - float(med)) for v in (xs or []) if v is not None and math.isfinite(float(v))]
-                return _median(dev)
-
-            def _ewma_last(xs, span=14):
-                ys = [float(v) for v in (xs or []) if v is not None and math.isfinite(float(v))]
-                if not ys:
-                    return 0.0
-                a = 2.0 / (float(span) + 1.0)
-                e = ys[0]
-                for v in ys[1:]:
-                    e = (a * v) + ((1.0 - a) * e)
-                return float(e)
-
-            def _ewma_residuals(xs, span=14):
-                ys = [float(v) for v in (xs or []) if v is not None and math.isfinite(float(v))]
-                if len(ys) < 2:
-                    return []
-                a = 2.0 / (float(span) + 1.0)
-                e = ys[0]
-                res = []
-                for v in ys[1:]:
-                    res.append(v - e)
-                    e = (a * v) + ((1.0 - a) * e)
-                return res
-
-            def _agg(rows, dom_key):
-                out = {}
-                for r in (rows or []):
-                    dom_raw = str((r or {}).get(dom_key) or '').strip()
-                    if not dom_raw:
-                        continue
-                    dom = extract_base_subdomain(dom_raw)
-                    dt = (r or {}).get('date')
-                    dts = str(dt)[:10]
-                    try:
-                        h = int((r or {}).get('hour') or 0)
-                    except Exception:
-                        h = 0
-                    if h < 0 or h > 23:
-                        continue
-                    if dom not in out:
-                        out[dom] = {}
-                    if dts not in out[dom]:
-                        out[dom][dts] = {str(i): {'impressions': 0.0, 'clicks': 0.0, 'revenue': 0.0} for i in range(24)}
-                    hk = str(h)
-                    cell = out[dom][dts][hk]
-                    cell['impressions'] += float((r or {}).get('impressions') or 0)
-                    cell['clicks'] += float((r or {}).get('clicks') or 0)
-                    cell['revenue'] += float((r or {}).get('revenue') or 0)
-                return out
-
-            db = data_mysql()
-            adx_hist = db.get_all_adx_roi_country_hourly_by_params(hist_start, hist_end, domain_list)
-            adx_hist_rows = (adx_hist or {}).get('data') if isinstance(adx_hist, dict) else []
-            adx_cur = db.get_all_adx_roi_country_hourly_by_params(target_date, target_date, domain_list)
-            adx_cur_rows = (adx_cur or {}).get('data') if isinstance(adx_cur, dict) else []
-
-            ads_hist = db.get_all_adsense_country_hourly_range_by_params(hist_start, hist_end, domain_list)
-            ads_hist_rows = (ads_hist or {}).get('data') if isinstance(ads_hist, dict) else []
-            ads_cur = db.get_all_adsense_country_hourly_range_by_params(target_date, target_date, domain_list)
-            ads_cur_rows = (ads_cur or {}).get('data') if isinstance(ads_cur, dict) else []
-
-            adx_map = _agg(adx_hist_rows, 'log_adx_country_domain')
-            adx_cur_map = _agg(adx_cur_rows, 'log_adx_country_domain')
-            ads_map = _agg(ads_hist_rows, 'log_adsense_country_domain')
-            ads_cur_map = _agg(ads_cur_rows, 'log_adsense_country_domain')
-
-            def _to_inc(day_hours):
-                cum_imp = [float(day_hours.get(str(h), {}).get('impressions') or 0.0) for h in range(24)]
-                cum_clk = [float(day_hours.get(str(h), {}).get('clicks') or 0.0) for h in range(24)]
-                cum_rev = [float(day_hours.get(str(h), {}).get('revenue') or 0.0) for h in range(24)]
-                inc_imp, inc_clk, inc_rev = [], [], []
-                for h in range(24):
-                    p = h - 1
-                    inc_imp.append(max(0.0, cum_imp[h] - (cum_imp[p] if p >= 0 else 0.0)))
-                    inc_clk.append(max(0.0, cum_clk[h] - (cum_clk[p] if p >= 0 else 0.0)))
-                    inc_rev.append(max(0.0, cum_rev[h] - (cum_rev[p] if p >= 0 else 0.0)))
-                rpm = [(inc_rev[h] / (inc_imp[h] + 1e-9)) * 1000.0 for h in range(24)]
-                cpc = [(inc_rev[h] / (inc_clk[h] + 1e-9)) for h in range(24)]
-                ctr = [(inc_clk[h] / (inc_imp[h] + 1e-9)) for h in range(24)]
-                return {'imp': inc_imp, 'clk': inc_clk, 'rev': inc_rev, 'rpm': rpm, 'cpc': cpc, 'ctr': ctr}
-
-            def _build(dom_hist, dom_cur):
-                dates_sorted = sorted(dom_hist.keys())
-                inc_by_date = {d: _to_inc(dom_hist[d]) for d in dates_sorted}
-                cur_dates = sorted(dom_cur.keys())
-                cur_inc = _to_inc(dom_cur[cur_dates[-1]]) if cur_dates else {'imp':[0.0]*24,'clk':[0.0]*24,'rev':[0.0]*24,'rpm':[0.0]*24,'cpc':[0.0]*24,'ctr':[0.0]*24}
-
-                def _stat_arr(key):
-                    med, scale = [], []
-                    for h in range(24):
-                        xs = [inc_by_date[d][key][h] for d in dates_sorted]
-                        m = _median(xs)
-                        md = _mad(xs, m)
-                        sc = max(1e-6, 1.4826 * float(md))
-                        med.append(float(m))
-                        scale.append(float(sc))
-                    return {'median': med, 'scale': scale}
-
-                def _ewma_arr(key):
-                    base, scale = [], []
-                    for h in range(24):
-                        xs = [inc_by_date[d][key][h] for d in dates_sorted]
-                        b = _ewma_last(xs, 14)
-                        res = _ewma_residuals(xs, 14)
-                        rm = _median(res)
-                        rmad = _mad(res, rm)
-                        sc = max(1e-6, 1.4826 * float(rmad))
-                        base.append(float(b))
-                        scale.append(float(sc))
-                    return {'ewma': base, 'scale': scale}
-
-                def _ctr_prev():
-                    p, n = [], []
-                    for h in range(24):
-                        succ = sum([inc_by_date[d]['clk'][h] for d in dates_sorted])
-                        denom = sum([inc_by_date[d]['imp'][h] for d in dates_sorted])
-                        denom = float(denom) if denom > 0 else 0.0
-                        p.append(float(succ / denom) if denom > 0 else 0.0)
-                        n.append(float(denom))
-                    return {'p': p, 'n': n}
-
-                return {
-                    'cur': cur_inc,
-                    'base': {
-                        'imp': _stat_arr('imp'),
-                        'clk': _stat_arr('clk'),
-                        'rev': _stat_arr('rev'),
-                        'rpm': _ewma_arr('rpm'),
-                        'cpc': _ewma_arr('cpc'),
-                        'ctr': _ctr_prev(),
-                        'sample_days': len(dates_sorted),
-                    }
-                }
-
-            result_domains = {}
-            keys = set(list(adx_map.keys()) + list(adx_cur_map.keys()) + list(ads_map.keys()) + list(ads_cur_map.keys()))
-            for dom in keys:
-                result_domains[dom] = {
-                    'adx': _build(adx_map.get(dom, {}), adx_cur_map.get(dom, {})) if (dom in adx_map or dom in adx_cur_map) else None,
-                    'adsense': _build(ads_map.get(dom, {}), ads_cur_map.get(dom, {})) if (dom in ads_map or dom in ads_cur_map) else None,
-                }
-
-            result = {
-                'status': True,
-                'date': target_date,
-                'days': days,
-                'history': {'start': hist_start, 'end': hist_end},
-                'domains': result_domains,
-            }
-            set_cached_data(cache_key, result, timeout=900)
-            return JsonResponse(result, safe=False)
-        except Exception as e:
-            return JsonResponse({'status': False, 'error': str(e)})
 
 
 class RoiMonitoringCountryHourlyHeatmapView(View):

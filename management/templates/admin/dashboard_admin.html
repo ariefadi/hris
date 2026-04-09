@@ -603,6 +603,325 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-note {
 html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
     color: rgba(226, 232, 240, 0.8);
 }
+
+.scx-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr;
+    gap: 16px;
+}
+@media (max-width: 991.98px) {
+    .scx-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.scx-card {
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 14px;
+    padding: 16px;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.04);
+}
+
+.scx-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 12px;
+}
+
+.scx-sub {
+    font-size: 12px;
+    color: #64748b;
+}
+
+.scx-hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.scx-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.scx-pill {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+    border: 1px solid transparent;
+}
+
+.scx-pill.green {
+    background: rgba(22, 163, 74, 0.12);
+    color: #15803d;
+    border-color: rgba(22, 163, 74, 0.18);
+}
+
+.scx-pill.red {
+    background: rgba(220, 38, 38, 0.12);
+    color: #b91c1c;
+    border-color: rgba(220, 38, 38, 0.18);
+}
+
+.scx-pill.yellow {
+    background: rgba(245, 158, 11, 0.14);
+    color: #b45309;
+    border-color: rgba(245, 158, 11, 0.20);
+}
+
+.scx-pill.gray {
+    background: rgba(100, 116, 139, 0.12);
+    color: #475569;
+    border-color: rgba(100, 116, 139, 0.18);
+}
+
+.scx-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+@media (max-width: 576px) {
+    .scx-kpi-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.scx-kpi {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 12px;
+    padding: 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.scx-kpi-label {
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+
+.scx-kpi-value {
+    font-size: 22px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+}
+
+.scx-kpi-note {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 4px;
+}
+
+.scx-progress {
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    background: #e2e8f0;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.scx-progress > span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+}
+
+.scx-progress.green > span { background: linear-gradient(90deg, #16a34a, #22c55e); }
+.scx-progress.red > span { background: linear-gradient(90deg, #dc2626, #ef4444); }
+.scx-progress.blue > span { background: linear-gradient(90deg, #2563eb, #3b82f6); }
+.scx-progress.yellow > span { background: linear-gradient(90deg, #d97706, #f59e0b); }
+
+.scx-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.scx-item {
+    border: 1px solid rgba(15, 23, 42, 0.07);
+    border-radius: 12px;
+    padding: 12px;
+    background: #fff;
+}
+
+.scx-item-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.scx-item-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+}
+
+.scx-item-desc {
+    font-size: 12px;
+    color: #475569;
+    line-height: 1.5;
+}
+
+.scx-impact {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 999px;
+}
+
+.scx-impact.up {
+    color: #15803d;
+    background: rgba(22, 163, 74, 0.12);
+}
+
+.scx-impact.down {
+    color: #b91c1c;
+    background: rgba(220, 38, 38, 0.12);
+}
+
+.scx-impact.neutral {
+    color: #475569;
+    background: rgba(100, 116, 139, 0.12);
+}
+
+.scx-info-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.scx-info-table td {
+    padding: 7px 0;
+    border-bottom: 1px dashed rgba(15, 23, 42, 0.08);
+}
+
+.scx-info-table td:first-child {
+    color: #64748b;
+    width: 42%;
+}
+
+.scx-info-table td:last-child {
+    font-weight: 600;
+    color: #0f172a;
+    text-align: right;
+}
+
+.scx-callout {
+    border-radius: 12px;
+    padding: 14px;
+    background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);
+    border: 1px solid rgba(37, 99, 235, 0.10);
+    color: #1e293b;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.scx-callout strong {
+    color: #0f172a;
+}
+
+.scx-mini-muted {
+    font-size: 11px;
+    color: #64748b;
+    margin-top: 8px;
+}
+
+.scx-simple-table th,
+.scx-simple-table td {
+    font-size: 12px;
+    vertical-align: middle;
+}
+
+.scx-simple-table th {
+    white-space: nowrap;
+}
+
+.scx-section-gap {
+    margin-top: 16px;
+}
+
+.scx-country-table th,
+.scx-country-table td {
+    font-size: 12px;
+    vertical-align: middle;
+}
+
+.scx-country-table th {
+    white-space: nowrap;
+}
+
+.scx-trend-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+@media (max-width: 991.98px) {
+    .scx-trend-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 576px) {
+    .scx-trend-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.scx-trend-card {
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 12px;
+    padding: 12px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.scx-trend-card .win {
+    font-size: 11px;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-bottom: 6px;
+}
+
+.scx-trend-card .score {
+    font-size: 20px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.2;
+}
+
+.scx-trend-card .meta {
+    font-size: 12px;
+    color: #475569;
+    margin-top: 6px;
+    line-height: 1.45;
+}
+
+.scx-note-box {
+    border: 1px dashed rgba(15, 23, 42, 0.10);
+    border-radius: 12px;
+    padding: 10px 12px;
+    background: #fff;
+    font-size: 12px;
+    color: #475569;
+}
+
+/* ...existing code... */
 </style>
 {% endblock %}
 
@@ -2223,6 +2542,20 @@ function initDashboardRecap() {
         });
     }
 
+    // ...existing code...
+
+    function safeNum(v, fallback = 0) {
+        const n = Number(v);
+        return Number.isFinite(n) ? n : fallback;
+    }
+
+    function safeFixed(v, digits = 2, fallback = '-') {
+        const n = Number(v);
+        return Number.isFinite(n) ? n.toFixed(digits) : fallback;
+    }
+
+    // ...existing code...
+
     function getState() {
         const dBtn = document.querySelector('#dashboardRecapDimTabs button.btn-primary');
         return {
@@ -2241,6 +2574,45 @@ function initDashboardRecap() {
         return dim === 'country'
             ? `/management/admin/page_monitoring_country?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adx=&selected_domains=&selected_countries=&include_subdomains=1`
             : `/management/admin/page_monitoring_domain?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adx=&selected_domains=`;
+    }
+
+    function scoringLookupKey(dim, row) {
+        if (String(dim || '') === 'country') return String(row?.code || row?.country_cd || row?.name || '').trim().toUpperCase();
+        return String(row?.name || row?.domain || '').trim().toLowerCase();
+    }
+
+    async function fetchDashboardScoring(rows, state) {
+        const entities = uniqKeepOrder((rows || []).map(r => scoringLookupKey(state?.dim, r)).filter(Boolean));
+        if (!entities.length || !state?.date) return {};
+        try {
+            const res = await fetch('/management/admin/dashboard_scoring_data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ date: String(state.date || '').trim(), dim: String(state.dim || 'domain').trim(), source: String(state.source || 'all').trim(), entities }),
+                credentials: 'same-origin'
+            });
+            const json = await res.json();
+            if (!res.ok || !json || !json.status) throw new Error(json?.error || `Gagal memuat scoring (HTTP ${res.status})`);
+            return (json?.data && typeof json.data === 'object') ? json.data : {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function mergeScoreMeta(localMeta, backendMeta, row, state) {
+        if (!backendMeta || typeof backendMeta !== 'object') return localMeta;
+        const merged = Object.assign({}, backendMeta);
+        const bd = Object.assign({}, merged.breakdown || {});
+        const meta = Object.assign({}, bd.meta || {});
+        meta.trend_windows = row?.trend_windows || meta.trend_windows || {};
+        meta.date = String(state?.date || meta.date || '').trim();
+        meta.last_update = row?.last_updates ? (row.last_updates.adx || row.last_updates.adsense || meta.last_update || '') : (row?.last_update || meta.last_update || '');
+        bd.meta = meta;
+        merged.breakdown = bd;
+        if (!Array.isArray(merged.reasons) || !merged.reasons.length) merged.reasons = Array.isArray(localMeta?.reasons) ? localMeta.reasons : [];
+        if (merged.score == null) merged.score = localMeta?.score || 0;
+        if (!merged.decision) merged.decision = localMeta?.decision || 'KEEP';
+        return merged;
     }
 
     function baseSubdomain(fullString) {
@@ -2297,6 +2669,372 @@ function initDashboardRecap() {
             r.hourly_baseline = (k && m[k]) ? m[k] : null;
         });
     }
+
+    // ...existing code...
+
+    function scxNum(v, digits = 2) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return '-';
+        return n.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: 0 });
+    }
+
+    function scxPct01(v, digits = 0) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return '-';
+        return `${(n * 100).toFixed(digits)}%`;
+    }
+
+    function scxClamp(v, min, max) {
+        return Math.max(min, Math.min(max, v));
+    }
+
+    function scxMetricName(key) {
+        const map = {
+            meta_spend: 'Spend Iklan',
+            meta_avg_cpc: 'Biaya per Klik',
+            meta_clicks: 'Klik Iklan',
+            meta_lpv: 'Landing Page View',
+            meta_lpv_rate: 'Rasio LPV',
+            meta_frequency: 'Frekuensi Iklan',
+            adsense_estimated_earnings: 'Revenue AdSense',
+            adsense_page_views: 'Page Views AdSense',
+            adsense_clicks: 'Klik AdSense',
+            adsense_cost_per_click: 'CPC AdSense',
+            adsense_page_views_rpm: 'RPM AdSense',
+            adsense_ad_requests: 'Request AdSense',
+            adsense_matched_ad_requests: 'Matched Request AdSense',
+            adsense_impressions: 'Impression AdSense',
+            adsense_ad_requests_coverage: 'Coverage AdSense',
+            adsense_active_view_viewability: 'Viewability AdSense',
+            adsense_active_view_measurability: 'Measurability AdSense',
+            adsense_active_view_time: 'Active View Time AdSense',
+            adx_revenue: 'Revenue AdX',
+            adx_impressions: 'Impression AdX',
+            adx_clicks: 'Klik AdX',
+            adx_avg_ecpm: 'eCPM AdX',
+            adx_cpc: 'CPC AdX',
+            adx_total_requests: 'Request AdX',
+            adx_responses_served: 'Responses Served AdX',
+            adx_match_rate: 'Match Rate AdX',
+            adx_total_fill_rate: 'Fill Rate AdX',
+            adx_active_view_pct_viewable: 'Viewability AdX',
+            adx_active_view_avg_time_sec: 'Active View Time AdX',
+            blended_revenue: 'Total Revenue',
+            revenue_per_lpv: 'Revenue per LPV',
+            roi_proxy: 'ROI Proxy',
+            meta_cost_per_lpv: 'Cost per LPV',
+            request_to_impression_eff: 'Efisiensi Request ke Impression',
+            revenue_per_request_total: 'Revenue per Request',
+            click_pressure: 'Tekanan Klik',
+            request_density: 'Kepadatan Request',
+            attention_quality_blended: 'Kualitas Attention',
+            active_time_blended: 'Durasi Attention',
+            viewability_gap_abs: 'Gap Viewability'
+        };
+        return map[String(key || '')] || String(key || '-').replaceAll('_', ' ');
+    }
+
+    function scxSignalTone(v) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return 'neutral';
+        if (n > 0.12) return 'up';
+        if (n < -0.12) return 'down';
+        return 'neutral';
+    }
+
+    function scxSignalText(v) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return 'Netral';
+        if (n > 0.25) return 'Dampak positif kuat';
+        if (n > 0.12) return 'Dampak positif';
+        if (n < -0.25) return 'Perlu perhatian tinggi';
+        if (n < -0.12) return 'Perlu perhatian';
+        return 'Relatif netral';
+    }
+
+    function scxConfidenceLabel(v) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return 'Tidak diketahui';
+        if (n >= 0.8) return 'Tinggi';
+        if (n >= 0.55) return 'Sedang';
+        return 'Masih awal';
+    }
+
+    function scxHealthLabel(v) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return 'Belum ada penilaian';
+        if (n >= 35) return 'Kondisi kuat';
+        if (n >= 10) return 'Cenderung positif';
+        if (n <= -35) return 'Lemah';
+        if (n <= -10) return 'Cenderung turun';
+        return 'Netral';
+    }
+
+    function scxRiskLabel(v) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return 'Tidak diketahui';
+        if (n >= 70) return 'Risiko tinggi';
+        if (n >= 40) return 'Risiko sedang';
+        return 'Risiko rendah';
+    }
+
+    function scxDecisionLabel(v) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return 'Belum ada keputusan';
+        if (n >= 35) return 'Layak dipertahankan';
+        if (n >= 10) return 'Positif, tetap monitor';
+        if (n <= -25) return 'Butuh tindakan cepat';
+        if (n < 0) return 'Perlu observasi';
+        return 'Tunggu data tambahan';
+    }
+
+    function scxRootCauseText(label) {
+        const map = {
+            POSITIVE_EXPANSION: 'Performa tumbuh dan sinyal positif lebih dominan.',
+            POSITIVE_RECOVERY: 'Ada pemulihan dibanding baseline historis.',
+            TRAFFIC_DROP: 'Traffic menurun dibanding pola normal.',
+            SERVING_DROP: 'Distribusi iklan / serving melemah.',
+            YIELD_DROP: 'Yield monetisasi menurun.',
+            VIEWABILITY_DROP: 'Kualitas viewability melemah.',
+            EFFICIENCY_DROP: 'Efisiensi biaya atau monetisasi memburuk.',
+            REVENUE_DROP: 'Revenue turun dibanding baseline.',
+            NEG_ADJUSTMENT: 'Ada indikasi koreksi data / adjustment.',
+            RED_FLAG_IVT: 'Ada indikasi risiko traffic atau kualitas tidak sehat.',
+            STABLE: 'Belum ada perubahan besar terhadap baseline.'
+        };
+        const key = String(label || '').toUpperCase();
+        return map[key] || String(label || '-').replaceAll('_', ' ');
+    }
+
+    function scxTopEvents(events, mode) {
+        const filtered = (Array.isArray(events) ? events : []).filter(function(ev) {
+            const cls = String(ev?.change_class || '').toUpperCase();
+            return mode === 'positive' ? cls === 'POSITIVE' : cls === 'NEGATIVE';
+        });
+
+        return filtered
+            .sort(function(a, b) {
+                return Math.abs(Number(b?.signal_strength || 0)) - Math.abs(Number(a?.signal_strength || 0));
+            })
+            .slice(0, 4)
+            .map(function(ev) {
+                return {
+                    name: scxMetricName(ev?.header_name || ev?.rule_key || '-'),
+                    signal: Number(ev?.signal_strength || 0),
+                    current: ev?.cur_value,
+                    baseline: ev?.baseline_center,
+                    label: ev?.event_label || '',
+                    reason: ev?.event_reason || ''
+                };
+            });
+    }
+
+    function scxBuildNarrative(status, events) {
+        const health = Number(status?.health_score || 0);
+        const risk = Number(status?.ivt_risk_score || 0);
+        const decision = Number(status?.decision_margin || 0);
+        const confidence = Number(status?.confidence || 0);
+
+        const positives = scxTopEvents(events, 'positive');
+        const negatives = scxTopEvents(events, 'negative');
+
+        let text = '';
+        text += `Status saat ini ${scxHealthLabel(health).toLowerCase()}. `;
+        text += `Keputusan akhir: ${scxDecisionLabel(decision).toLowerCase()}. `;
+        text += `Tingkat keyakinan model ${scxConfidenceLabel(confidence).toLowerCase()} `;
+        text += `dengan ${scxRiskLabel(risk).toLowerCase()}. `;
+
+        if (positives.length) {
+            text += `Pendorong utama: ${positives.map(x => x.name).join(', ')}. `;
+        }
+        if (negatives.length) {
+            text += `Hal yang perlu dipantau: ${negatives.map(x => x.name).join(', ')}.`;
+        }
+
+        return text.trim();
+    }
+
+    function scxActionText(status) {
+        const decision = Number(status?.decision_margin || 0);
+        const risk = Number(status?.ivt_risk_score || 0);
+        const confidence = Number(status?.confidence || 0);
+        const finalLabel = String(status?.final_label || '').toUpperCase();
+
+        if (finalLabel.startsWith('RED_FLAG') || risk >= 70) {
+            return 'Prioritaskan investigasi kualitas traffic, sumber traffic, dan anomali delivery.';
+        }
+        if (decision >= 35 && confidence >= 0.5) {
+            return 'Pertahankan strategi saat ini, lalu monitor apakah revenue ikut menguat pada jam berikutnya.';
+        }
+        if (decision >= 10) {
+            return 'Arah masih positif, tetapi perlu dipantau agar traffic benar-benar berubah menjadi revenue.';
+        }
+        if (decision < 0) {
+            return 'Perlu review efisiensi biaya, serving, dan monetisasi sebelum scale lebih lanjut.';
+        }
+        return 'Data masih tipis atau netral. Tunggu beberapa titik data tambahan sebelum mengambil keputusan.';
+    }
+
+    function scxRenderImpactList(items, emptyText, mode) {
+        if (!items.length) {
+            return `<div class="scx-sub">${esc(emptyText)}</div>`;
+        }
+        return `<div class="scx-list">` + items.map(function(item) {
+            return `
+                <div class="scx-item">
+                    <div class="scx-item-top">
+                        <div class="scx-item-name">${esc(item.name)}</div>
+                        <span class="scx-impact ${mode === 'positive' ? 'up' : 'down'}">${esc(scxSignalText(item.signal))}</span>
+                    </div>
+                    <div class="scx-item-desc">
+                        Current <strong>${esc(scxNum(item.current, 2))}</strong>
+                        dibanding baseline <strong>${esc(scxNum(item.baseline, 2))}</strong>.
+                    </div>
+                </div>
+            `;
+        }).join('') + `</div>`;
+    }
+
+    function scxCountryKey(obj) {
+        return String(obj?.country_cd || obj?.country_code || obj?.country_nm || obj?.country_name || '-')
+            .trim()
+            .toUpperCase();
+    }
+
+    function scxCountryLabel(obj) {
+        const code = String(obj?.country_cd || obj?.country_code || '').trim().toUpperCase();
+        const name = String(obj?.country_nm || obj?.country_name || '').trim();
+        if (name && code && name.toUpperCase() !== code) return `${name} (${code})`;
+        return name || code || '-';
+    }
+
+    function scxGroupScoringByCountry(statuses, events) {
+        const map = new Map();
+
+        (Array.isArray(statuses) ? statuses : []).forEach(function(st) {
+            const key = scxCountryKey(st);
+            if (!map.has(key)) {
+                map.set(key, { key, status: st, events: [] });
+            } else {
+                map.get(key).status = st;
+            }
+        });
+
+        (Array.isArray(events) ? events : []).forEach(function(ev) {
+            const key = scxCountryKey(ev);
+            if (!map.has(key)) {
+                map.set(key, { key, status: null, events: [ev] });
+            } else {
+                map.get(key).events.push(ev);
+            }
+        });
+
+        return Array.from(map.values()).sort(function(a, b) {
+            const da = Number(a?.status?.decision_margin || 0);
+            const db = Number(b?.status?.decision_margin || 0);
+            return db - da;
+        });
+    }
+
+    function scxPickPrimaryCountryGroup(groups) {
+        if (!Array.isArray(groups) || !groups.length) return { key: '-', status: {}, events: [] };
+        return groups[0];
+    }
+
+    function scxTrendTone(score) {
+        const n = Number(score);
+        if (!Number.isFinite(n)) return 'gray';
+        if (n >= 70) return 'green';
+        if (n >= 50) return 'yellow';
+        return 'red';
+    }
+
+    function scxTrendLabel(score) {
+        const n = Number(score);
+        if (!Number.isFinite(n)) return 'Belum cukup data';
+        if (n >= 70) return 'Kuat';
+        if (n >= 50) return 'Cukup sehat';
+        return 'Perlu perhatian';
+    }
+
+    function scxSigned(v, digits = 1, suffix = '') {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return '-';
+        const sign = n > 0 ? '+' : '';
+        return `${sign}${n.toFixed(digits)}${suffix}`;
+    }
+
+    function scxRenderTrendWindows(trendWindows) {
+        const wins = [
+            { key: 'd1', title: 'H-1' },
+            { key: 'd3', title: 'H-3' },
+            { key: 'd7', title: 'H-7' },
+            { key: 'd14', title: 'H-14' }
+        ];
+
+        return `<div class="scx-trend-grid">` + wins.map(function(item) {
+            const w = trendWindows?.[item.key] || {};
+            const tone = scxTrendTone(w?.score);
+            return `
+                <div class="scx-trend-card">
+                    <div class="win">${esc(item.title)}</div>
+                    <div class="score">${esc(scxNum(w?.score, 1))}</div>
+                    <div><span class="scx-pill ${tone}">${esc(scxTrendLabel(w?.score))}</span></div>
+                    <div class="meta">
+                        Avg ROI: <strong>${esc(scxNum(w?.avg_roi, 2))}%</strong><br>
+                        Δ ROI: <strong>${esc(scxSigned(w?.roi_delta, 2, 'pp'))}</strong><br>
+                        Δ Revenue: <strong>${esc(scxSigned(w?.revenue_delta_pct, 1, '%'))}</strong>
+                    </div>
+                </div>
+            `;
+        }).join('') + `</div>`;
+    }
+
+    function scxBaselineText(ev) {
+        const histPoints = Number(ev?.hist_points);
+        const base = Number(ev?.baseline_center);
+        if (Number.isFinite(histPoints) && histPoints <= 0) return 'Belum cukup histori';
+        if (!Number.isFinite(base)) return 'Belum cukup histori';
+        return scxNum(base, 2);
+    }
+
+    function scxCountrySummaryTable(groups) {
+        if (!groups.length) {
+            return `<div class="scx-sub">Tidak ada ringkasan negara.</div>`;
+        }
+
+        let html = `<div class="table-responsive"><table class="table table-sm table-striped scx-country-table">`;
+        html += `<thead><tr>`;
+        html += `<th>Negara</th>`;
+        html += `<th>Status</th>`;
+        html += `<th class="text-end">Health</th>`;
+        html += `<th class="text-end">Risk</th>`;
+        html += `<th class="text-end">Decision</th>`;
+        html += `</tr></thead><tbody>`;
+
+        groups.forEach(function(group) {
+            const st = group?.status || {};
+            const finalLabel = String(st?.final_label || 'UNKNOWN');
+            const tone = (
+                finalLabel.includes('POSITIVE') || finalLabel.includes('RECOVERY') || finalLabel.includes('EXPANSION')
+            ) ? 'green' : (
+                finalLabel.includes('DROP') || finalLabel.includes('NEG') || finalLabel.includes('RED_FLAG')
+            ) ? 'red' : 'yellow';
+
+            html += `<tr>`;
+            html += `<td>${esc(scxCountryLabel(st))}</td>`;
+            html += `<td><span class="scx-pill ${tone}">${esc(finalLabel)}</span></td>`;
+            html += `<td class="text-end">${esc(scxNum(st?.health_score, 2))}</td>`;
+            html += `<td class="text-end">${esc(scxNum(st?.ivt_risk_score, 2))}</td>`;
+            html += `<td class="text-end">${esc(scxNum(st?.decision_margin, 2))}</td>`;
+            html += `</tr>`;
+        });
+
+        html += `</tbody></table></div>`;
+        return html;
+    }
+
+// ...existing code...
 
     function rowsFrom(dim, arr, sourceTag, lastUpdate, mlMap) {
         const out = (arr||[]).map(r => {
@@ -2545,6 +3283,15 @@ function initDashboardRecap() {
             const den = xs.reduce((a, it) => a + Number(it[1]), 0);
             return den > 0 ? (num / den) : null;
         }
+
+        const trendWindows = (row && row.trend_windows && typeof row.trend_windows === 'object') ? row.trend_windows : {};
+        const tw1 = trendWindows.d1 || null;
+        const tw3 = trendWindows.d3 || null;
+        const tw7 = trendWindows.d7 || null;
+        const tw14 = trendWindows.d14 || null;
+        const multiWindowScore = weightedAvg([[tw1 && tw1.score, 0.15], [tw3 && tw3.score, 0.25], [tw7 && tw7.score, 0.30], [tw14 && tw14.score, 0.30]]);
+        const trendPositive = [tw3, tw7, tw14].filter(w => w && Number(w.avg_roi) >= 8 && Number(w.roi_delta) >= -3).length;
+        const trendNegative = [tw3, tw7, tw14].filter(w => w && Number(w.avg_roi) < 0 && Number(w.roi_delta) <= 0).length;
 
         function scoreAdxAspects(x, prev) {
             if (!x) return null;
@@ -2983,7 +3730,8 @@ function initDashboardRecap() {
             { score: adsAsp && adsAsp.quality, weight: 1.85 },
         ]);
         const conceptScore = clamp((healthScore + 100) / 2, 0, 100);
-        let score = clamp((covPts + freshPts + spendPts + roiPts + adxPts.pts + adsPts.pts) * 0.45 + conceptScore * 0.55, 0, 100);
+        const baseScore = clamp((covPts + freshPts + spendPts + roiPts + adxPts.pts + adsPts.pts) * 0.45 + conceptScore * 0.55, 0, 100);
+        let score = clamp((baseScore * 0.75) + ((multiWindowScore == null ? baseScore : multiWindowScore) * 0.25), 0, 100);
 
         const labelReasons = [];
         let label = '';
@@ -3120,6 +3868,14 @@ function initDashboardRecap() {
             }
         }
 
+        if (!label && trendNegative >= 3) {
+            label = 'NEGATIVE_MIXED';
+            labelReasons.push('Trend 3/7/14 hari konsisten melemah');
+        } else if (!label && trendPositive >= 2 && tw14 && Number(tw14.avg_roi) >= 10) {
+            label = 'POSITIVE_RECOVERY';
+            labelReasons.push('Trend 3/7/14 hari konsisten menguat');
+        }
+
         if (!label) {
             const groupPairs = [
                 ['TRAFFIC_DROP', conceptGroups.traffic],
@@ -3150,6 +3906,11 @@ function initDashboardRecap() {
 
         if (label === 'RED_FLAG') decision = 'PAUSE';
         if (label === 'DATA_INCOMPLETE' && decision === 'SCALE') decision = 'KEEP';
+        if (tw14 && tw7 && tw3) {
+            if (Number(tw14.avg_roi) < 0 && Number(tw7.avg_roi) < 0 && Number(tw3.avg_roi) < 0 && score < 60) decision = 'PAUSE';
+            else if (Number(tw14.avg_roi) >= 20 && Number(tw7.avg_roi) >= 15 && Number(tw3.avg_roi) >= 10 && score >= 75) decision = 'SCALE';
+            else if (Number(tw14.avg_roi) >= 8 && Number(tw7.avg_roi) >= 5 && score >= 60 && decision === 'OPTIMIZE') decision = 'KEEP';
+        }
 
         const reasons = [];
         if (label) reasons.push(label);
@@ -3181,6 +3942,8 @@ function initDashboardRecap() {
                     spend_score: spendScore,
                     roi_score: roiScore,
                     health_score: healthScore,
+                    trend_score: multiWindowScore,
+                    trend_windows: trendWindows,
                     traffic_score: conceptGroups.traffic,
                     delivery_score: conceptGroups.delivery,
                     yield_score: conceptGroups.yield,
@@ -3292,18 +4055,54 @@ function initDashboardRecap() {
     function dailyAggFromRawRows(rawRows, domainKey) {
         const out = {};
         const dk = baseSubdomain(domainKey);
+
         const n0 = (v) => {
             const x = Number(v);
             return isFinite(x) ? x : 0;
         };
+
         const i0 = (v) => {
             const x = parseInt(v, 10);
             return isFinite(x) ? x : 0;
         };
+
+        const pickNum = (obj, keys) => {
+            for (const key of (keys || [])) {
+                if (obj && obj[key] != null && obj[key] !== '') {
+                    const v = Number(obj[key]);
+                    if (isFinite(v)) return v;
+                }
+            }
+            return 0;
+        };
+
+        const pickText = (obj, keys) => {
+            for (const key of (keys || [])) {
+                const v = obj && obj[key];
+                if (v != null && String(v).trim() !== '') return String(v).trim();
+            }
+            return '';
+        };
+
         (rawRows || []).forEach(function(r) {
-            const d = String((r && r.date) || '').slice(0, 10);
+            const d = String(
+                pickText(r, ['date', 'tanggal', 'log_adsense_country_tanggal', 'log_adx_country_tanggal'])
+            ).slice(0, 10);
             if (!d) return;
-            const sn = baseSubdomain((r && r.site_name) || (r && r.site) || (r && r.domain) || '');
+
+            const sn = baseSubdomain(
+                pickText(r, [
+                    'site_name',
+                    'site',
+                    'domain',
+                    'subdomain',
+                    'site_name_root',
+                    'domain_name',
+                    'log_adsense_country_domain',
+                    'log_adx_country_domain'
+                ])
+            );
+
             if (dk && sn && dk !== sn) return;
 
             const o = out[d] || (out[d] = {
@@ -3328,41 +4127,91 @@ function initDashboardRecap() {
                 adsense_active_view_time_weighted_sum: 0,
             });
 
-            o.spend += n0(r && r.spend);
-            o.revenue += n0(r && r.revenue);
+            const spendVal = pickNum(r, [
+                'spend',
+                'meta_spend',
+                'data_ads_country_spend'
+            ]);
 
-            o.impressions_fb += n0(r && r.impressions_fb);
-            o.clicks_fb += n0(r && r.clicks_fb);
+            const revenueVal = pickNum(r, [
+                'revenue',
+                'estimated_earnings',
+                'estimated_earning',
+                'earnings',
+                'adsense_estimated_earnings',
+                'data_adsense_country_revenue',
+                'log_adsense_country_estimated_earnings',
+                'adx_revenue',
+                'data_adx_country_revenue'
+            ]);
 
-            o.impressions_adx += n0(r && r.impressions_adx);
-            o.clicks_adx += n0(r && r.clicks_adx);
-            o.total_requests += i0(r && r.total_requests);
-            o.responses_served += i0(r && r.responses_served);
+            o.spend += spendVal;
+            o.revenue += revenueVal;
 
-            const wAdx = i0((r && r.active_view_weight) != null ? r.active_view_weight : (r && r.impressions_adx));
+            o.impressions_fb += pickNum(r, ['impressions_fb', 'meta_impressions']);
+            o.clicks_fb += pickNum(r, ['clicks_fb', 'meta_clicks']);
+
+            o.impressions_adx += pickNum(r, ['impressions_adx', 'adx_impressions', 'data_adx_country_impresi']);
+            o.clicks_adx += pickNum(r, ['clicks_adx', 'adx_clicks', 'data_adx_country_click']);
+            o.total_requests += i0(pickNum(r, ['total_requests', 'adx_total_requests', 'data_adx_country_total_requests']));
+            o.responses_served += i0(pickNum(r, ['responses_served', 'adx_responses_served', 'data_adx_country_responses_served']));
+
+            const wAdx = i0(pickNum(r, ['active_view_weight', 'impressions_adx', 'adx_impressions', 'data_adx_country_impresi']));
             if (wAdx > 0) {
                 o.adx_active_view_weight += wAdx;
-                if ((r && r.active_view_pct_viewable_sum) != null) {
-                    o.adx_active_view_pct_viewable_sum += n0(r.active_view_pct_viewable_sum);
-                } else if ((r && r.active_view_pct_viewable) != null) {
-                    o.adx_active_view_pct_viewable_sum += n0(r.active_view_pct_viewable) * wAdx;
-                }
-                if ((r && r.active_view_avg_time_sec_sum) != null) {
-                    o.adx_active_view_avg_time_sec_sum += n0(r.active_view_avg_time_sec_sum);
-                } else if ((r && r.active_view_avg_time_sec) != null) {
-                    o.adx_active_view_avg_time_sec_sum += n0(r.active_view_avg_time_sec) * wAdx;
-                }
+                o.adx_active_view_pct_viewable_sum += pickNum(r, ['active_view_pct_viewable_sum']) || (pickNum(r, ['active_view_pct_viewable', 'adx_active_view_pct_viewable', 'data_adx_country_active_view_pct_viewable']) * wAdx);
+                o.adx_active_view_avg_time_sec_sum += pickNum(r, ['active_view_avg_time_sec_sum']) || (pickNum(r, ['active_view_avg_time_sec', 'adx_active_view_avg_time_sec', 'data_adx_country_active_view_avg_time_sec']) * wAdx);
             }
 
-            o.impressions_adsense += n0(r && (r.impressions || r.impressions_adsense));
-            o.clicks_adsense += n0(r && (r.clicks || r.clicks_adsense));
-            o.page_views += n0(r && r.page_views);
-            o.ad_requests += n0(r && r.ad_requests);
-            o.adsense_ad_requests_coverage_weighted_sum += n0(r && r.ad_requests_coverage_weighted_sum);
-            o.adsense_active_view_viewability_weighted_sum += n0(r && r.active_view_viewability_weighted_sum);
-            o.adsense_active_view_measurability_weighted_sum += n0(r && r.active_view_measurability_weighted_sum);
-            o.adsense_active_view_time_weighted_sum += n0(r && r.active_view_time_weighted_sum);
+            const adsImp = pickNum(r, [
+                'impressions_adsense',
+                'impressions',
+                'adsense_impressions',
+                'data_adsense_country_impresi',
+                'log_adsense_country_impressions'
+            ]);
+            const adsClk = pickNum(r, [
+                'clicks_adsense',
+                'clicks',
+                'adsense_clicks',
+                'data_adsense_country_click',
+                'log_adsense_country_clicks'
+            ]);
+            const adsPv = pickNum(r, [
+                'page_views',
+                'adsense_page_views',
+                'data_adsense_country_page_views',
+                'log_adsense_country_page_views'
+            ]);
+            const adsReq = pickNum(r, [
+                'ad_requests',
+                'adsense_ad_requests',
+                'data_adsense_country_ad_requests',
+                'log_adsense_country_ad_requests'
+            ]);
+
+            o.impressions_adsense += adsImp;
+            o.clicks_adsense += adsClk;
+            o.page_views += adsPv;
+            o.ad_requests += adsReq;
+
+            o.adsense_ad_requests_coverage_weighted_sum +=
+                pickNum(r, ['ad_requests_coverage_weighted_sum']) ||
+                (pickNum(r, ['ad_requests_coverage', 'adsense_ad_requests_coverage', 'data_adsense_country_ad_requests_coverage']) * adsReq);
+
+            o.adsense_active_view_viewability_weighted_sum +=
+                pickNum(r, ['active_view_viewability_weighted_sum']) ||
+                (pickNum(r, ['active_view_viewability', 'adsense_active_view_viewability', 'data_adsense_country_active_view_viewability']) * adsImp);
+
+            o.adsense_active_view_measurability_weighted_sum +=
+                pickNum(r, ['active_view_measurability_weighted_sum']) ||
+                (pickNum(r, ['active_view_measurability', 'adsense_active_view_measurability', 'data_adsense_country_active_view_measurability']) * adsImp);
+
+            o.adsense_active_view_time_weighted_sum +=
+                pickNum(r, ['active_view_time_weighted_sum']) ||
+                (pickNum(r, ['active_view_time', 'adsense_active_view_time', 'data_adsense_country_active_view_time']) * adsImp);
         });
+
         return out;
     }
 
@@ -3371,8 +4220,21 @@ function initDashboardRecap() {
         const resp = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
         const json = await resp.json();
         if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat trend');
-        if (String(dim || '') === 'country') return Array.isArray(json.daily_rows) ? json.daily_rows : [];
-        return Array.isArray(json.raw_rows) ? json.raw_rows : [];
+
+        if (String(dim || '') === 'country') {
+            if (Array.isArray(json.daily_rows) && json.daily_rows.length) return json.daily_rows;
+            if (Array.isArray(json.data_filtered) && json.data_filtered.length) return json.data_filtered;
+            if (Array.isArray(json.data) && json.data.length) return json.data;
+            if (Array.isArray(json.rows) && json.rows.length) return json.rows;
+            return [];
+        }
+
+        if (Array.isArray(json.raw_rows) && json.raw_rows.length) return json.raw_rows;
+        if (Array.isArray(json.data_filtered) && json.data_filtered.length) return json.data_filtered;
+        if (Array.isArray(json.data) && json.data.length) return json.data;
+        if (Array.isArray(json.rows) && json.rows.length) return json.rows;
+
+        return [];
     }
 
     async function buildTrendSeries(domainKey, endYmd, state, daysBack) {
@@ -3571,7 +4433,7 @@ function initDashboardRecap() {
         };
     }
 
-    function renderScoreTrendChart(series) {
+    function renderScoreTrendChart(series, state) {
         const canvas = document.getElementById('sdTrendChart');
         if (!canvas || typeof Chart !== 'function') return;
 
@@ -3581,20 +4443,123 @@ function initDashboardRecap() {
             }
         } catch (e) {}
 
-        const labels = (series && series.dates) ? series.dates : [];
-        const spend = (series && series.spend) ? series.spend : [];
-        const revenue = (series && series.revenue) ? series.revenue : [];
-        const roi = (series && series.roi) ? series.roi : [];
+        const labels = Array.isArray(series?.dates) ? series.dates : [];
+        const spend = Array.isArray(series?.spend) ? series.spend.map(v => safeNum(v)) : [];
+        const revenue = Array.isArray(series?.revenue) ? series.revenue.map(v => safeNum(v)) : [];
+        const roi = Array.isArray(series?.roi) ? series.roi.map(v => safeNum(v)) : [];
+        const metrics = (series && typeof series.metrics === 'object' && series.metrics) ? series.metrics : {};
+        const source = String(state?.source || '').toLowerCase();
+
+        let datasets = [];
+        let scales = {};
+
+        if (source === 'adsense') {
+            const pageViews = Array.isArray(metrics?.page_views) ? metrics.page_views.map(v => safeNum(v)) : [];
+            const rpm = Array.isArray(metrics?.page_views_rpm) ? metrics.page_views_rpm.map(v => safeNum(v)) : [];
+
+            datasets = [
+                {
+                    type: 'bar',
+                    label: 'Revenue',
+                    data: revenue,
+                    yAxisID: 'yMoney',
+                    backgroundColor: 'rgba(16, 185, 129, 0.35)',
+                    borderColor: 'rgba(16, 185, 129, 0.9)',
+                    borderWidth: 1
+                },
+                {
+                    type: 'line',
+                    label: 'Page Views',
+                    data: pageViews,
+                    yAxisID: 'yCount',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    tension: 0.25,
+                    pointRadius: 2
+                },
+                {
+                    type: 'line',
+                    label: 'RPM',
+                    data: rpm,
+                    yAxisID: 'yRpm',
+                    borderColor: 'rgba(245, 158, 11, 1)',
+                    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+                    tension: 0.25,
+                    pointRadius: 2
+                }
+            ];
+
+            scales = {
+                yMoney: {
+                    position: 'left',
+                    ticks: {
+                        callback: function(v) { return fmtIdr(safeNum(v)); }
+                    }
+                },
+                yCount: {
+                    position: 'right',
+                    grid: { drawOnChartArea: false },
+                    ticks: {
+                        callback: function(v) { return safeNum(v).toLocaleString('id-ID'); }
+                    }
+                },
+                yRpm: {
+                    position: 'right',
+                    grid: { drawOnChartArea: false },
+                    display: false
+                }
+            };
+        } else {
+            datasets = [
+                {
+                    type: 'bar',
+                    label: 'Revenue',
+                    data: revenue,
+                    yAxisID: 'yMoney',
+                    backgroundColor: 'rgba(16, 185, 129, 0.35)',
+                    borderColor: 'rgba(16, 185, 129, 0.9)',
+                    borderWidth: 1
+                },
+                {
+                    type: 'bar',
+                    label: 'Spend',
+                    data: spend,
+                    yAxisID: 'yMoney',
+                    backgroundColor: 'rgba(239, 68, 68, 0.25)',
+                    borderColor: 'rgba(239, 68, 68, 0.8)',
+                    borderWidth: 1
+                },
+                {
+                    type: 'line',
+                    label: 'ROI (%)',
+                    data: roi,
+                    yAxisID: 'yRoi',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                    tension: 0.25,
+                    pointRadius: 2
+                }
+            ];
+
+            scales = {
+                yMoney: {
+                    position: 'left',
+                    ticks: {
+                        callback: function(v) { return fmtIdr(safeNum(v)); }
+                    }
+                },
+                yRoi: {
+                    position: 'right',
+                    grid: { drawOnChartArea: false },
+                    ticks: {
+                        callback: function(v) { return `${safeFixed(v, 0, '0')}%`; }
+                    }
+                }
+            };
+        }
 
         window.scoreDetailTrendChart = new Chart(canvas.getContext('2d'), {
-            data: {
-                labels,
-                datasets: [
-                    { type: 'bar', label: 'Revenue', data: revenue, yAxisID: 'yMoney', backgroundColor: 'rgba(16, 185, 129, 0.35)', borderColor: 'rgba(16, 185, 129, 0.9)', borderWidth: 1 },
-                    { type: 'bar', label: 'Spend', data: spend, yAxisID: 'yMoney', backgroundColor: 'rgba(239, 68, 68, 0.25)', borderColor: 'rgba(239, 68, 68, 0.8)', borderWidth: 1 },
-                    { type: 'line', label: 'ROI (%)', data: roi, yAxisID: 'yRoi', borderColor: 'rgba(59, 130, 246, 1)', backgroundColor: 'rgba(59, 130, 246, 0.15)', tension: 0.25, pointRadius: 2 }
-                ]
-            },
+            data: { labels, datasets },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
@@ -3605,29 +4570,85 @@ function initDashboardRecap() {
                         callbacks: {
                             label: function(context) {
                                 const lab = String(context.dataset.label || '');
-                                const v = context.parsed.y;
-                                if (lab.includes('ROI')) return `${lab}: ${Number(v || 0).toFixed(2)}%`;
-                                return `${lab}: ${fmtIdr(Number(v || 0))}`;
+                                const v = safeNum(context.parsed?.y);
+                                if (lab.includes('ROI')) return `${lab}: ${safeFixed(v, 2, '0.00')}%`;
+                                if (lab.includes('RPM')) return `${lab}: ${safeFixed(v, 2, '0.00')}`;
+                                if (lab.includes('Page Views')) return `${lab}: ${v.toLocaleString('id-ID')}`;
+                                return `${lab}: ${fmtIdr(v)}`;
                             }
                         }
                     }
                 },
-                scales: {
-                    yMoney: { position: 'left', ticks: { callback: function(v){ return fmtIdr(v); } } },
-                    yRoi: { position: 'right', grid: { drawOnChartArea: false }, ticks: { callback: function(v){ return `${Number(v).toFixed(0)}%`; } } }
-                }
+                scales: scales
             }
         });
     }
 
+    function avgFinite(xs) {
+        const ys = (xs || []).map(Number).filter(v => isFinite(v));
+        if (!ys.length) return null;
+        return ys.reduce((a, b) => a + b, 0) / ys.length;
+    }
+
+    function deltaPct(cur, prev) {
+        const c = Number(cur);
+        const p = Number(prev);
+        if (!isFinite(c) || !isFinite(p) || p <= 0) return null;
+        return ((c - p) / p) * 100;
+    }
+
+    function summarizeTrendWindow(series, days) {
+        const spend = Array.isArray(series?.spend) ? series.spend : [];
+        const revenue = Array.isArray(series?.revenue) ? series.revenue : [];
+        const roi = Array.isArray(series?.roi) ? series.roi : [];
+        const curSpend = spend.slice(-days);
+        const curRevenue = revenue.slice(-days);
+        const curRoi = roi.slice(-days);
+        const prevSpend = spend.slice(-days * 2, -days);
+        const prevRevenue = revenue.slice(-days * 2, -days);
+        const prevRoi = roi.slice(-days * 2, -days);
+        const sum = (a) => (a || []).reduce((acc, x) => acc + (isFinite(Number(x)) ? Number(x) : 0), 0);
+        const avgRoi = avgFinite(curRoi);
+        const prevAvgRoi = avgFinite(prevRoi);
+        const revDeltaPct = prevRevenue.length ? deltaPct(sum(curRevenue), sum(prevRevenue)) : null;
+        const roiDelta = (avgRoi == null || prevAvgRoi == null) ? null : (avgRoi - prevAvgRoi);
+        const base = clamp(((Number(avgRoi || 0) + 50) / 150) * 100, 0, 100);
+        const roiPts = roiDelta == null ? 50 : clamp(50 + (roiDelta * 2.2), 0, 100);
+        const revPts = revDeltaPct == null ? 50 : clamp(50 + (revDeltaPct * 1.2), 0, 100);
+        return { days, avg_roi: avgRoi, prev_avg_roi: prevAvgRoi, roi_delta: roiDelta, revenue_delta_pct: revDeltaPct, total_spend: sum(curSpend), total_revenue: sum(curRevenue), score: clamp((base * 0.6) + (roiPts * 0.25) + (revPts * 0.15), 0, 100) };
+    }
+
+    function summarizeTrendWindows(series) {
+        return { d1: summarizeTrendWindow(series, 1), d3: summarizeTrendWindow(series, 3), d7: summarizeTrendWindow(series, 7), d14: summarizeTrendWindow(series, 14) };
+    }
+
+    async function getTrendWindowsForRow(row, state) {
+        const ymd = String(state?.date || '').trim();
+        const dim = String(state?.dim || 'domain').trim();
+        const key = dim === 'country' ? String(row?.code || '').trim() : String(row?.name || '').trim();
+        if (!ymd || !key) return {};
+        const cacheKey = [dim, String(state?.source || 'all'), ymd, key].join('|');
+        const store = window.dashboardTrendWindowCache = window.dashboardTrendWindowCache || {};
+        if (store[cacheKey]) return store[cacheKey];
+        try {
+            const out = summarizeTrendWindows(await buildTrendSeries(key, ymd, state, 13));
+            store[cacheKey] = out;
+            return out;
+        } catch (e) {
+            store[cacheKey] = {};
+            return {};
+        }
+    }
+
     function bindScoreTrendControls(domainKey, endYmd, state) {
         const s1 = document.getElementById('sdTrendBtn1');
+        const s3 = document.getElementById('sdTrendBtn3');
         const s7 = document.getElementById('sdTrendBtn7');
         const s14 = document.getElementById('sdTrendBtn14');
         const st = document.getElementById('sdTrendStatus');
 
         function setActive(n) {
-            [s1, s7, s14].forEach(function(b){
+            [s1, s3, s7, s14].forEach(function(b){
                 if (!b) return;
                 const on = String(b.getAttribute('data-days')) === String(n);
                 b.classList.toggle('btn-primary', on);
@@ -3642,60 +4663,73 @@ function initDashboardRecap() {
             }, 0);
         }
 
-        function deltaPct(cur, prev) {
-            const c = Number(cur);
-            const p = Number(prev);
-            if (!isFinite(c) || !isFinite(p) || p <= 0) return null;
-            return ((c - p) / p) * 100;
-        }
-
         function renderTrendStats(series) {
             const el = document.getElementById('sdTrendStats');
             if (!el) return;
 
-            const dates = (series && series.dates) ? series.dates : [];
+            const dates = Array.isArray(series?.dates) ? series.dates : [];
             const n = dates.length;
             if (!n) { el.innerHTML = ''; return; }
 
-            const spend = (series && series.spend) ? series.spend : [];
-            const revenue = (series && series.revenue) ? series.revenue : [];
-            const roi = (series && series.roi) ? series.roi : [];
+            const spend = Array.isArray(series?.spend) ? series.spend : [];
+            const revenue = Array.isArray(series?.revenue) ? series.revenue : [];
+            const roi = Array.isArray(series?.roi) ? series.roi : [];
+            const metrics = (series && typeof series.metrics === 'object' && series.metrics) ? series.metrics : {};
+            const source = String(state?.source || '').toLowerCase();
 
             const totalSpend = sumArr(spend);
             const totalRev = sumArr(revenue);
             const totalNet = totalRev - totalSpend;
             const totalRoi = totalSpend > 0 ? (totalNet / totalSpend * 100) : 0;
 
-            const firstRoi = Number(roi[0] || 0) || 0;
-            const lastRoi = Number(roi[n - 1] || 0) || 0;
+            const firstRoi = safeNum(roi[0], 0);
+            const lastRoi = safeNum(roi[n - 1], 0);
             const dRoi = lastRoi - firstRoi;
 
-            const firstRev = Number(revenue[0] || 0) || 0;
-            const lastRev = Number(revenue[n - 1] || 0) || 0;
+            const firstRev = safeNum(revenue[0], 0);
+            const lastRev = safeNum(revenue[n - 1], 0);
             const dRevPct = deltaPct(lastRev, firstRev);
 
-            const firstSpend = Number(spend[0] || 0) || 0;
-            const lastSpend = Number(spend[n - 1] || 0) || 0;
+            const firstSpend = safeNum(spend[0], 0);
+            const lastSpend = safeNum(spend[n - 1], 0);
             const dSpendPct = deltaPct(lastSpend, firstSpend);
 
             function row(k, v) {
                 return `<tr><td style="padding:7px 8px;border-bottom:1px solid rgba(15,23,42,0.06);font-weight:800;">${esc(k)}</td><td style="padding:7px 8px;border-bottom:1px solid rgba(15,23,42,0.06);text-align:right;font-weight:900;">${v}</td></tr>`;
             }
 
-            const sign = (x) => (x >= 0 ? '+' : '');
-            const mk = (delta, text) => (delta == null || !isFinite(Number(delta))) ? '' : ' (' + String(text || '') + ')';
+            const sign = (x) => (safeNum(x) >= 0 ? '+' : '');
+            const mk = (delta, text) => (delta == null || !Number.isFinite(Number(delta))) ? '' : ' (' + String(text || '') + ')';
 
             let h = '';
             h += `<table class="sd-kv" style="margin-top:10px;">`;
-            h += row('ROI total (range)', `${totalRoi.toFixed(2)}%`);
-            h += row('Revenue total (range)', fmtIdr(totalRev));
-            h += row('Spend total (range)', fmtIdr(totalSpend));
-            h += row('Net total (range)', fmtIdr(totalNet));
-            h += row('ROI awal → akhir', `${firstRoi.toFixed(2)}% → ${lastRoi.toFixed(2)}%${mk(dRoi, sign(dRoi) + dRoi.toFixed(2) + 'pp')}`);
-            h += row('Revenue awal → akhir', `${fmtIdr(firstRev)} → ${fmtIdr(lastRev)}${mk(dRevPct, sign(dRevPct) + dRevPct.toFixed(1) + '%')}`);
-            h += row('Spend awal → akhir', `${fmtIdr(firstSpend)} → ${fmtIdr(lastSpend)}${mk(dSpendPct, sign(dSpendPct) + dSpendPct.toFixed(1) + '%')}`);
-            h += `</table>`;
 
+            if (source === 'adsense') {
+                const pageViews = Array.isArray(metrics?.page_views) ? metrics.page_views : [];
+                const rpm = Array.isArray(metrics?.page_views_rpm) ? metrics.page_views_rpm : [];
+
+                const totalPv = sumArr(pageViews);
+                const avgRpm = avgFinite(rpm);
+                const firstPv = safeNum(pageViews[0], 0);
+                const lastPv = safeNum(pageViews[n - 1], 0);
+                const dPvPct = deltaPct(lastPv, firstPv);
+
+                h += row('Revenue total (range)', fmtIdr(totalRev));
+                h += row('Page Views total', totalPv.toLocaleString('id-ID'));
+                h += row('RPM rata-rata', safeFixed(avgRpm, 2, '-'));
+                h += row('Revenue awal → akhir', `${fmtIdr(firstRev)} → ${fmtIdr(lastRev)}${mk(dRevPct, sign(dRevPct) + safeFixed(dRevPct, 1, '0.0') + '%')}`);
+                h += row('Page Views awal → akhir', `${firstPv.toLocaleString('id-ID')} → ${lastPv.toLocaleString('id-ID')}${mk(dPvPct, sign(dPvPct) + safeFixed(dPvPct, 1, '0.0') + '%')}`);
+            } else {
+                h += row('ROI total (range)', `${safeFixed(totalRoi, 2, '0.00')}%`);
+                h += row('Revenue total (range)', fmtIdr(totalRev));
+                h += row('Spend total (range)', fmtIdr(totalSpend));
+                h += row('Net total (range)', fmtIdr(totalNet));
+                h += row('ROI awal → akhir', `${safeFixed(firstRoi, 2, '0.00')}% → ${safeFixed(lastRoi, 2, '0.00')}%${mk(dRoi, sign(dRoi) + safeFixed(dRoi, 2, '0.00') + 'pp')}`);
+                h += row('Revenue awal → akhir', `${fmtIdr(firstRev)} → ${fmtIdr(lastRev)}${mk(dRevPct, sign(dRevPct) + safeFixed(dRevPct, 1, '0.0') + '%')}`);
+                h += row('Spend awal → akhir', `${fmtIdr(firstSpend)} → ${fmtIdr(lastSpend)}${mk(dSpendPct, sign(dSpendPct) + safeFixed(dSpendPct, 1, '0.0') + '%')}`);
+            }
+
+            h += `</table>`;
             el.innerHTML = h;
         }
 
@@ -3705,7 +4739,13 @@ function initDashboardRecap() {
             if (st) st.textContent = 'Loading trend...';
             try {
                 const series = await buildTrendSeries(domainKey, endYmd, state, back);
-                renderScoreTrendChart(series);
+                console.log('score trend series', {
+                    source: state?.source,
+                    domainKey,
+                    days,
+                    series
+                });
+                renderScoreTrendChart(series, state);
                 renderTrendStats(series);
 
                 const n = (series && series.dates) ? series.dates.length : 0;
@@ -3713,19 +4753,25 @@ function initDashboardRecap() {
                 const spend = (series && series.spend) ? series.spend : [];
                 const revenue = (series && series.revenue) ? series.revenue : [];
 
-                const firstRoi = Number(roi[0] || 0) || 0;
-                const lastRoi = Number(roi[n - 1] || 0) || 0;
+                const firstRoi = safeNum(roi[0], 0);
+                const lastRoi = safeNum(roi[n - 1], 0);
                 const dRoi = lastRoi - firstRoi;
 
-                const dRevPct = deltaPct(Number(revenue[n - 1] || 0) || 0, Number(revenue[0] || 0) || 0);
-                const dSpendPct = deltaPct(Number(spend[n - 1] || 0) || 0, Number(spend[0] || 0) || 0);
+                const dRevPct = deltaPct(safeNum(revenue[n - 1], 0), safeNum(revenue[0], 0));
+                const dSpendPct = deltaPct(safeNum(spend[n - 1], 0), safeNum(spend[0], 0));
 
-                const sign = (x) => (x >= 0 ? '+' : '');
+                const sign = (x) => (safeNum(x) >= 0 ? '+' : '');
                 const parts = [];
                 parts.push(`${n} hari`);
-                if (n) parts.push(`ROI ${lastRoi.toFixed(2)}% (${sign(dRoi)}${dRoi.toFixed(2)}pp)`);
-                if (dRevPct != null) parts.push(`Rev ${sign(dRevPct)}${dRevPct.toFixed(1)}%`);
-                if (dSpendPct != null) parts.push(`Spend ${sign(dSpendPct)}${dSpendPct.toFixed(1)}%`);
+                if (n && String(state?.source || '').toLowerCase() === 'adsense') {
+                    parts.push(`Revenue ${fmtIdr(safeNum(revenue[n - 1], 0))}`);
+                } else if (n) {
+                    parts.push(`ROI ${safeFixed(lastRoi, 2, '0.00')}% (${sign(dRoi)}${safeFixed(dRoi, 2, '0.00')}pp)`);
+                }
+                if (dRevPct != null) parts.push(`Rev ${sign(dRevPct)}${safeFixed(dRevPct, 1, '0.0')}%`);
+                if (dSpendPct != null && String(state?.source || '').toLowerCase() !== 'adsense') {
+                    parts.push(`Spend ${sign(dSpendPct)}${safeFixed(dSpendPct, 1, '0.0')}%`);
+                }
 
                 if (st) st.textContent = parts.join(' • ');
             } catch (e) {
@@ -3736,6 +4782,7 @@ function initDashboardRecap() {
         }
 
         if (s1) s1.onclick = function(){ run(1); };
+        if (s3) s3.onclick = function(){ run(3); };
         if (s7) s7.onclick = function(){ run(7); };
         if (s14) s14.onclick = function(){ run(14); };
 
@@ -3931,7 +4978,282 @@ function initDashboardRecap() {
         render();
     }
 
-    function renderTable(dim, rows, state) {
+    function scoringModalBadge(label) {
+        const v = String(label || '').toUpperCase();
+        if (v.includes('POSITIVE') || v.includes('RECOVERY') || v.includes('EXPANSION')) {
+            return 'badge badge-success badge-pill';
+        }
+        if (v.includes('DROP') || v.includes('NEG') || v.includes('RED_FLAG')) {
+            return 'badge badge-danger badge-pill';
+        }
+        return 'badge badge-warning badge-pill text-dark';
+    }
+
+    function pickScoringArrays(scoring) {
+        const root = scoring || {};
+        const statuses = Array.isArray(root.statuses)
+            ? root.statuses
+            : Array.isArray(root.status)
+                ? root.status
+                : Array.isArray(root?.data?.statuses)
+                    ? root.data.statuses
+                    : [];
+        const events = Array.isArray(root.events)
+            ? root.events
+            : Array.isArray(root?.data?.events)
+                ? root.data.events
+                : [];
+        return { statuses, events };
+    }
+
+        // ...existing code...
+        function renderCreateScoringResult(apiJson, row, state) {
+            const scoring = apiJson?.scoring || {};
+            const comparisonDates = apiJson?.comparison_dates || {};
+            const parsed = pickScoringArrays(scoring);
+            const groups = scxGroupScoringByCountry(parsed.statuses, parsed.events);
+            const primaryGroup = scxPickPrimaryCountryGroup(groups);
+            const first = primaryGroup?.status || {};
+            const events = Array.isArray(primaryGroup?.events) ? primaryGroup.events : [];
+            const trendWindows = row?.trend_windows || {};
+    
+            const finalLabel = String(first?.final_label || 'UNKNOWN');
+            const rootLabel = String(first?.root_cause_label || 'STABLE');
+            const health = Number(first?.health_score || 0);
+            const confidence = Number(first?.confidence || 0);
+            const risk = Number(first?.ivt_risk_score || 0);
+            const decision = Number(first?.decision_margin || 0);
+    
+            const topPositive = scxTopEvents(events, 'positive');
+            const topNegative = scxTopEvents(events, 'negative');
+            const narrative = scxBuildNarrative(first, events);
+            const actionText = scxActionText(first);
+    
+            const statusTone = (
+                finalLabel.includes('POSITIVE') || finalLabel.includes('RECOVERY') || finalLabel.includes('EXPANSION')
+            ) ? 'green' : (
+                finalLabel.includes('DROP') || finalLabel.includes('NEG') || finalLabel.includes('RED_FLAG')
+            ) ? 'red' : 'yellow';
+    
+            const countryInfo = groups.length > 1
+                ? `${groups.length} negara terdeteksi. Detail utama menampilkan negara dengan sinyal terkuat: ${scxCountryLabel(first)}.`
+                : `Detail utama untuk ${scxCountryLabel(first)}.`;
+    
+            const simplifiedEvents = events
+                .filter(function(ev) {
+                    return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED';
+                })
+                .sort(function(a, b) {
+                    return Math.abs(Number(b?.signal_strength || 0)) - Math.abs(Number(a?.signal_strength || 0));
+                })
+                .slice(0, 12);
+    
+            let html = '';
+    
+            html += `<div class="scx-grid">`;
+    
+            html += `<div class="scx-card">`;
+            html += `  <div class="scx-hero">`;
+            html += `      <div>`;
+            html += `          <div class="scx-title" style="margin-bottom:6px;">Ringkasan Hasil Scoring</div>`;
+            html += `          <div class="scx-status">`;
+            html += `              <span class="scx-pill ${statusTone}">${esc(finalLabel)}</span>`;
+            html += `              <span class="scx-pill gray">${esc(rootLabel)}</span>`;
+            html += `          </div>`;
+            html += `      </div>`;
+            html += `      <div class="scx-sub">Tanggal ${esc(String(state?.date || '-'))}</div>`;
+            html += `  </div>`;
+    
+            html += `  <div class="scx-callout">`;
+            html += `      <strong>Kesimpulan:</strong> ${esc(narrative)}<br>`;
+            html += `      <strong>Aksi yang disarankan:</strong> ${esc(actionText)}`;
+            html += `  </div>`;
+    
+            html += `  <div class="scx-section-gap scx-note-box">${esc(countryInfo)}</div>`;
+    
+            html += `  <div class="scx-section-gap scx-kpi-grid">`;
+    
+            html += `      <div class="scx-kpi">`;
+            html += `          <div class="scx-kpi-label">Health Score</div>`;
+            html += `          <div class="scx-kpi-value">${esc(scxNum(health, 2))}</div>`;
+            html += `          <div class="scx-kpi-note">${esc(scxHealthLabel(health))}</div>`;
+            html += `          <div class="scx-progress green"><span style="width:${scxClamp(Math.abs(health), 0, 100)}%"></span></div>`;
+            html += `      </div>`;
+    
+            html += `      <div class="scx-kpi">`;
+            html += `          <div class="scx-kpi-label">Confidence</div>`;
+            html += `          <div class="scx-kpi-value">${esc(scxPct01(confidence, 0))}</div>`;
+            html += `          <div class="scx-kpi-note">${esc(scxConfidenceLabel(confidence))}</div>`;
+            html += `          <div class="scx-progress blue"><span style="width:${scxClamp(confidence * 100, 0, 100)}%"></span></div>`;
+            html += `      </div>`;
+    
+            html += `      <div class="scx-kpi">`;
+            html += `          <div class="scx-kpi-label">Risk Score</div>`;
+            html += `          <div class="scx-kpi-value">${esc(scxNum(risk, 2))}</div>`;
+            html += `          <div class="scx-kpi-note">${esc(scxRiskLabel(risk))}</div>`;
+            html += `          <div class="scx-progress red"><span style="width:${scxClamp(risk, 0, 100)}%"></span></div>`;
+            html += `      </div>`;
+    
+            html += `      <div class="scx-kpi">`;
+            html += `          <div class="scx-kpi-label">Decision Margin</div>`;
+            html += `          <div class="scx-kpi-value">${esc(scxNum(decision, 2))}</div>`;
+            html += `          <div class="scx-kpi-note">${esc(scxDecisionLabel(decision))}</div>`;
+            html += `          <div class="scx-progress yellow"><span style="width:${scxClamp(Math.abs(decision), 0, 100)}%"></span></div>`;
+            html += `      </div>`;
+    
+            html += `  </div>`;
+    
+            html += `  <div class="scx-section-gap">`;
+            html += `      <div class="scx-title">Trend Historis yang Dipakai Scoring</div>`;
+            html +=         scxRenderTrendWindows(trendWindows);
+            html += `  </div>`;
+    
+            html += `  <div class="scx-section-gap">`;
+            html += `      <div class="sd-details">`;
+            html += `          <summary><span>Grafik Trend 1 / 3 / 7 / 14 Hari</span><span class="sd-det-right" id="sdTrendStatus">Loading trend...</span></summary>`;
+            html += `          <div class="sd-det-body">`;
+            html += `              <div class="dashboard-recap-tabs mb-3" style="display:inline-flex;">`;
+            html += `                  <button type="button" class="btn btn-sm btn-primary" id="sdTrendBtn1" data-days="1">H-1</button>`;
+            html += `                  <button type="button" class="btn btn-sm btn-outline-primary" id="sdTrendBtn3" data-days="3">H-3</button>`;
+            html += `                  <button type="button" class="btn btn-sm btn-outline-primary" id="sdTrendBtn7" data-days="7">H-7</button>`;
+            html += `                  <button type="button" class="btn btn-sm btn-outline-primary" id="sdTrendBtn14" data-days="14">H-14</button>`;
+            html += `              </div>`;
+            html += `              <div style="height:320px;"><canvas id="sdTrendChart"></canvas></div>`;
+            html += `              <div id="sdTrendStats"></div>`;
+            html += `          </div>`;
+            html += `      </div>`;
+            html += `  </div>`;
+    
+            html += `  <div class="scx-section-gap">`;
+            html += `      <div class="scx-title">Yang Mendorong Naik</div>`;
+            html +=         scxRenderImpactList(topPositive, 'Belum ada sinyal positif dominan.', 'positive');
+            html += `  </div>`;
+    
+            html += `  <div class="scx-section-gap">`;
+            html += `      <div class="scx-title">Yang Perlu Diperhatikan</div>`;
+            html +=         scxRenderImpactList(topNegative, 'Belum ada sinyal negatif dominan.', 'negative');
+            html += `  </div>`;
+    
+            html += `</div>`;
+    
+            html += `<div class="scx-card">`;
+            html += `  <div class="scx-title">Informasi Utama</div>`;
+            html += `  <table class="scx-info-table">`;
+            html += `      <tr><td>Domain</td><td>${esc(String(row?.name || first?.domain || '-'))}</td></tr>`;
+            html += `      <tr><td>Country Aktif</td><td>${esc(groups.length > 1 ? `${groups.length} negara` : scxCountryLabel(first))}</td></tr>`;
+            html += `      <tr><td>Country Fokus</td><td>${esc(scxCountryLabel(first))}</td></tr>`;
+            html += `      <tr><td>Source</td><td>${esc(String(state?.source || first?.mapped_revenue_source || '-'))}</td></tr>`;
+            html += `      <tr><td>Positive Signals</td><td>${esc(String(first?.positive_signal_count ?? 0))}</td></tr>`;
+            html += `      <tr><td>Negative Signals</td><td>${esc(String(first?.negative_signal_count ?? 0))}</td></tr>`;
+            html += `      <tr><td>H-1</td><td>${esc(String(comparisonDates?.h1 || '-'))}</td></tr>`;
+            html += `      <tr><td>H-3</td><td>${esc(String(comparisonDates?.h3 || '-'))}</td></tr>`;
+            html += `      <tr><td>H-7</td><td>${esc(String(comparisonDates?.h7 || '-'))}</td></tr>`;
+            html += `      <tr><td>H-14</td><td>${esc(String(comparisonDates?.h14 || '-'))}</td></tr>`;
+            html += `  </table>`;
+    
+            html += `  <div class="scx-section-gap">`;
+            html += `      <div class="scx-title">Ringkasan Per Negara</div>`;
+            html +=         scxCountrySummaryTable(groups);
+            html += `  </div>`;
+    
+            html += `  <div class="scx-section-gap">`;
+            html += `      <div class="scx-title">Arti Root Cause</div>`;
+            html += `      <div class="scx-callout">${esc(scxRootCauseText(rootLabel))}</div>`;
+            html += `      <div class="scx-mini-muted">${esc(String(first?.reason_summary || ''))}</div>`;
+            html += `  </div>`;
+    
+            html += `  <div class="scx-section-gap">`;
+            html += `      <div class="scx-title">Detail Teknis Singkat (${esc(scxCountryLabel(first))})</div>`;
+            html += `      <div class="scx-sub" style="margin-bottom:8px;">Baseline hanya tampil jika histori cukup. Jika belum, akan ditandai sebagai <strong>Belum cukup histori</strong>.</div>`;
+            if (simplifiedEvents.length) {
+                html += `<div class="table-responsive"><table class="table table-sm table-striped scx-simple-table">`;
+                html += `<thead><tr>`;
+                html += `<th>Metric</th>`;
+                html += `<th class="text-end">Current</th>`;
+                html += `<th class="text-end">Baseline</th>`;
+                html += `<th>Impact</th>`;
+                html += `</tr></thead><tbody>`;
+                simplifiedEvents.forEach(function(ev) {
+                    const tone = scxSignalTone(ev?.signal_strength);
+                    html += `<tr>`;
+                    html += `<td>${esc(scxMetricName(ev?.header_name || ev?.rule_key || '-'))}</td>`;
+                    html += `<td class="text-end">${esc(scxNum(ev?.cur_value, 2))}</td>`;
+                    html += `<td class="text-end">${esc(scxBaselineText(ev))}</td>`;
+                    html += `<td><span class="scx-impact ${tone}">${esc(scxSignalText(ev?.signal_strength))}</span></td>`;
+                    html += `</tr>`;
+                });
+                html += `</tbody></table></div>`;
+            } else {
+                html += `<div class="scx-sub">Tidak ada detail event.</div>`;
+            }
+            html += `  </div>`;
+    
+            html += `  <details class="sd-details" style="margin-top:16px;">`;
+            html += `      <summary><span>Raw Response</span><span class="sd-det-right">JSON</span></summary>`;
+            html += `      <div class="sd-det-body"><pre style="margin:0;font-size:12px;white-space:pre-wrap;">${esc(JSON.stringify(scoring, null, 2))}</pre></div>`;
+            html += `  </details>`;
+    
+            html += `</div>`;
+            html += `</div>`;
+    
+            return html;
+        }
+    // ...existing code...
+
+    async function createScoringFromDashboardRow(row, state) {
+        const payload = {
+            date: String(state?.date || '').trim(),
+            run_hour: null,
+            domain: String(state?.dim === 'domain' ? (row?.name || '') : '').trim(),
+            site: String(state?.dim === 'domain' ? (row?.name || '') : '').trim(),
+            country_cd: String(state?.dim === 'country' ? (row?.code || '') : '').trim().toUpperCase(),
+            country_code: String(state?.dim === 'country' ? (row?.code || '') : '').trim().toUpperCase(),
+            mapped_revenue_source: String(state?.source || '').trim().toLowerCase(),
+        };
+
+        openScoreDetailModal(
+            `Create Scoring: ${String(row?.name || '-')}`,
+            '<div class="text-muted">Memuat scoring...</div>'
+        );
+
+        try {
+            const res = await fetch('/management/admin/dashboard_create_scoring', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin',
+                body: JSON.stringify(payload)
+            });
+
+            const json = await res.json();
+            if (!res.ok || !json || !json.status) {
+                throw new Error(json?.message || json?.error || `HTTP ${res.status}`);
+            }
+
+            openScoreDetailModal(
+                `Create Scoring: ${String(row?.name || '-')}`,
+                renderCreateScoringResult(json, row, state)
+            );
+
+            window.setTimeout(function() {
+                try {
+                    const trendKey = String(state?.dim === 'country' ? (row?.code || '') : (row?.name || '')).trim();
+                    if (trendKey && state?.date) {
+                        bindScoreTrendControls(trendKey, String(state.date || '').trim(), state);
+                    }
+                } catch (e) {}
+            }, 0);
+        } catch (e) {
+            openScoreDetailModal(
+                `Create Scoring: ${String(row?.name || '-')}`,
+                `<div class="alert alert-danger" style="margin:0;">${esc(String(e?.message || e || 'Gagal create scoring'))}</div>`
+            );
+        }
+    }
+
+    async function renderTable(dim, rows, state) {
         const thName = document.getElementById('dashboardRecapThName');
         const thCode = document.getElementById('dashboardRecapThCode');
         if (thName) thName.textContent = dim === 'country' ? 'Nama Negara' : 'Domain';
@@ -3939,6 +5261,15 @@ function initDashboardRecap() {
         const tableEl = document.getElementById('dashboardRecapTable');
         if (tableEl && !tableEl.dataset.boundScoreDetail) {
             tableEl.addEventListener('click', function(e) {
+                const createBtn = e.target && e.target.closest ? e.target.closest('.dashboard-create-scoring-btn') : null;
+                if (createBtn) {
+                    const key = createBtn.getAttribute('data-score-key') || '';
+                    const payload = (window.dashboardRecapScoreDetails || {})[key];
+                    if (!payload) return;
+                    createScoringFromDashboardRow(payload.row, payload.state);
+                    return;
+                }
+
                 const btn = e.target && e.target.closest ? e.target.closest('.dashboard-score-detail-btn') : null;
                 if (!btn) return;
                 const key = btn.getAttribute('data-score-key') || '';
@@ -3949,249 +5280,7 @@ function initDashboardRecap() {
                 const r = payload.row || {};
                 const dimNow = String(payload?.state?.dim || state?.dim || dim || 'domain');
 
-                function pct(v) {
-                    const x = Number(v);
-                    if (!isFinite(x)) return '-';
-                    return `${x.toFixed(2)}%`;
-                }
-                function num(v) {
-                    const x = Number(v);
-                    if (!isFinite(x)) return '-';
-                    return String(Math.round(x));
-                }
-                function money(v) {
-                    const x = Number(v);
-                    if (!isFinite(x)) return '-';
-                    return fmtIdr(x);
-                }
-                function row2(k, v) {
-                    return `<tr><td style="padding:7px 8px;border-bottom:1px solid rgba(15,23,42,0.06);font-weight:800;">${esc(k)}</td><td style="padding:7px 8px;border-bottom:1px solid rgba(15,23,42,0.06);text-align:right;font-weight:900;">${v}</td></tr>`;
-                }
-
-                const metricLabelMap = {
-                    adx_revenue: 'AdX Revenue',
-                    adx_avg_ecpm: 'AdX eCPM',
-                    adx_cpc: 'AdX CPC',
-                    adx_total_requests: 'AdX Requests',
-                    adx_responses_served: 'AdX Responses',
-                    adx_match_rate: 'AdX Match Rate',
-                    adx_total_fill_rate: 'AdX Total Fill Rate',
-                    adx_fill_rate: 'AdX Total Fill Rate',
-                    adx_impressions: 'AdX Impressions',
-                    adx_clicks: 'AdX Clicks',
-                    adx_active_view_pct_viewable: 'AdX Active View %',
-                    adx_active_view_avg_time_sec: 'AdX Active View Time (s)',
-                    adsense_estimated_earnings: 'AdSense Estimated Earnings',
-                    adsense_page_views_rpm: 'AdSense Page Views RPM',
-                    adsense_cost_per_click: 'AdSense Cost Per Click',
-                    adsense_ad_requests: 'AdSense Ad Requests',
-                    adsense_matched_ad_requests: 'AdSense Matched Requests',
-                    adsense_impressions: 'AdSense Impressions',
-                    adsense_clicks: 'AdSense Clicks',
-                    adsense_page_views: 'AdSense Page Views',
-                    adsense_ad_requests_coverage: 'AdSense Coverage',
-                    adsense_active_view_viewability: 'AdSense Viewability',
-                    adsense_active_view_measurability: 'AdSense Measurability',
-                    adsense_active_view_time: 'AdSense Active View Time',
-                };
-
-                function labelMetric(k) {
-                    const kk = String(k || '');
-                    if (metricLabelMap[kk]) return metricLabelMap[kk];
-                    return kk.replace(/_/g, ' ');
-                }
-
-                function fmtMetric(k, v) {
-                    const kk = String(k || '');
-                    if (v == null) return '-';
-                    if (kk.includes('revenue') || kk.includes('earnings') || kk.includes('rpm') || kk.includes('cpc') || kk.includes('ecpm')) return money(v);
-                    if (kk.includes('rate') || kk.includes('coverage') || kk.includes('viewability') || kk.includes('measurability') || kk.includes('pct')) return pct(v);
-                    if (kk.includes('time')) return `${Number(v).toFixed(2)}s`;
-                    return num(v);
-                }
-
-                function metricList(keys, m) {
-                    const ks = (keys || []).filter(function(k) {
-                        if (!k) return false;
-                        if (!m) return false;
-                        return m[k] != null;
-                    });
-                    if (!ks.length) return '<div class="sd-sub">-</div>';
-                    return ks.map(function(k) {
-                        const v = fmtMetric(k, m ? m[k] : null);
-                        return `<div class="sd-metric"><div class="k">${esc(labelMetric(k))}</div><div class="v">${esc(String(v))}</div></div>`;
-                    }).join('');
-                }
-
-                const title = `${(dimNow === 'country' ? 'Country' : 'Domain')}: ${String(r.name||'-')}${r.code ? ' (' + String(r.code) + ')' : ''}`;
-
-                const pts = (bd.points || {});
-                const adx = (bd.adx && bd.adx.aspects) ? bd.adx : null;
-                const ads = (bd.adsense && bd.adsense.aspects) ? bd.adsense : null;
-
-                let html = '';
-                html += `<div class="sd-wrap">`;
-                html += `<div class="sd-card">`;
-                html += `<div class="sd-title">Score ${esc(String(meta.score||0))} • ${esc(String(meta.decision||''))}</div>`;
-                if (meta.label) html += `<div class="sd-sub" style="font-weight:900;">Label: ${esc(String(meta.label))}</div>`;
-                if (meta.reasons && meta.reasons.length) {
-                    html += `<div class="sd-badges">`;
-                    meta.reasons.forEach(function(x){
-                        html += `<span class="badge badge-light" style="border:1px solid rgba(15,23,42,0.12);">${esc(String(x))}</span>`;
-                    });
-                    html += `</div>`;
-                }
-                html += `<table class="sd-kv">`;
-                html += row2('Points: Coverage', num(pts.coverage));
-                html += row2('Points: Freshness', num(pts.freshness));
-                html += row2('Points: Spend', num(pts.spend));
-                html += row2('Points: ROI', num(pts.roi));
-                html += row2('Points: AdX', num(pts.adx));
-                html += row2('Points: AdSense', num(pts.adsense));
-                html += row2('Points: Total', num(pts.total));
-                html += row2('Health Score', pct(bd?.meta?.health_score));
-                html += row2('Traffic Score', pct(bd?.meta?.traffic_score));
-                html += row2('Delivery Score', pct(bd?.meta?.delivery_score));
-                html += row2('Yield Score', pct(bd?.meta?.yield_score));
-                html += row2('Quality Score', pct(bd?.meta?.quality_score));
-                html += `</table>`;
-
-                if (dimNow === 'country') {
-                    const cc = String(r?.code || '').trim().toUpperCase();
-                    const map = window.dashboardRecapSubdomainsByCountry || {};
-                    const list = Array.isArray(map[cc]) ? map[cc] : [];
-                    html += `<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(15,23,42,0.10);">`;
-                    html += `<div class="sd-title" style="font-size:14px;margin-bottom:6px;">Subdomain Terkait</div>`;
-                    if (list.length) {
-                        html += `<div class="sd-sub" style="font-size:12px;line-height:1.45;">${list.map(s => `<div>${esc(s)}</div>`).join('')}</div>`;
-                    } else {
-                        html += `<div class="sd-sub">-</div>`;
-                    }
-                    html += `</div>`;
-                }
-
-                if (dimNow === 'domain') {
-                    html += `<div style="margin-top:12px;padding-top:10px;border-top:1px solid rgba(15,23,42,0.10);">`;
-                    html += `<div class="sd-title" style="font-size:14px;margin-bottom:6px;">Aksi Campaign</div>`;
-                    html += `<div class="sd-sub" style="margin-top:0;">Account Ads: <span style="font-weight:900;">${esc(String(r?.account_ads || '-'))}</span></div>`;
-                    html += `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;">`;
-                    html += `<button id="sdLoadCampaignBtn" type="button" class="btn btn-sm btn-outline-primary">Muat campaign (7 hari)</button>`;
-                    html += `<button id="sdScaleUp15Btn" type="button" class="btn btn-sm btn-success">Scale +15%</button>`;
-                    html += `<button id="sdOptimize10Btn" type="button" class="btn btn-sm btn-warning text-dark">Optimize -10%</button>`;
-                    html += `<button id="sdActivateSelectedBtn" type="button" class="btn btn-sm btn-outline-success">Active</button>`;
-                    html += `<button id="sdPauseSelectedBtn" type="button" class="btn btn-sm btn-outline-danger">Pause</button>`;
-                    html += `<div id="sdCampaignStatus" class="text-muted" style="margin-left:auto;font-size:12px;"></div>`;
-                    html += `</div>`;
-                    html += `<div id="sdCampaignTable" style="margin-top:10px;"></div>`;
-                    html += `</div>`;
-                }
-
-                html += `</div>`;
-
-                function platformBlock(name, p) {
-                    if (!p || !p.aspects) return '';
-                    const a = p.aspects;
-                    const c = p.computed || {};
-                    const w = c.w || { yield:0.40, delivery:0.30, traffic:0.15, quality:0.15 };
-                    const platKey = String(name || '').toLowerCase() === 'adsense' ? 'adsense' : 'adx';
-
-                    const metricByAspect = (platKey === 'adsense') ? {
-                        yield: ['adsense_estimated_earnings','adsense_page_views_rpm','adsense_cost_per_click'],
-                        delivery: ['adsense_ad_requests','adsense_matched_ad_requests','adsense_ad_requests_coverage','adsense_impressions'],
-                        traffic: ['adsense_page_views','adsense_clicks'],
-                        quality: ['adsense_active_view_viewability','adsense_active_view_measurability','adsense_active_view_time'],
-                    } : {
-                        yield: ['adx_revenue','adx_avg_ecpm','adx_cpc'],
-                        delivery: ['adx_total_requests','adx_responses_served','adx_match_rate','adx_total_fill_rate'],
-                        traffic: ['adx_impressions','adx_clicks'],
-                        quality: ['adx_active_view_pct_viewable','adx_active_view_avg_time_sec'],
-                    };
-
-                    const m = a.metrics || {};
-
-                    function det(cls, title, score, ww, keys) {
-                        const right = `${num(score)} (w ${Math.round(ww*100)}%)`;
-                        return (
-                            `<details class="sd-details ${esc(cls)}" open>` +
-                                `<summary><span>${esc(title)}</span><span class="sd-det-right">${esc(right)}</span></summary>` +
-                                `<div class="sd-det-body">${metricList(keys, m)}</div>` +
-                            `</details>`
-                        );
-                    }
-
-                    let h = '';
-                    h += `<div class="sd-plat sd-plat--${esc(platKey)}">`;
-                    h += `<div class="sd-plat-hd"><div class="sd-plat-name">${esc(name)}</div><div class="sd-plat-points">Points ${num(c.pts)}</div></div>`;
-                    h += `<div class="sd-plat-body">`;
-                    h += `<div class="sd-grid">`;
-                    h += det('sd-yield', 'Yield', a.yield, w.yield, metricByAspect.yield);
-                    h += det('sd-delivery', 'Delivery', a.delivery, w.delivery, metricByAspect.delivery);
-                    h += det('sd-traffic', 'Traffic', a.traffic, w.traffic, metricByAspect.traffic);
-                    h += det('sd-quality', 'Quality', a.quality, w.quality, metricByAspect.quality);
-                    h += `</div>`;
-
-                    const aliasOf = {
-                        adx_fill_rate: 'adx_total_fill_rate',
-                        estimated_earnings: 'adsense_estimated_earnings',
-                        page_views_rpm: 'adsense_page_views_rpm',
-                        cost_per_click: 'adsense_cost_per_click',
-                        impressions: 'adsense_impressions',
-                        clicks: 'adsense_clicks',
-                        page_views: 'adsense_page_views',
-                        ad_requests: 'adsense_ad_requests',
-                        matched_ad_requests: 'adsense_matched_ad_requests',
-                        ad_requests_coverage: 'adsense_ad_requests_coverage',
-                        active_view_viewability: 'adsense_active_view_viewability',
-                        active_view_measurability: 'adsense_active_view_measurability',
-                        active_view_time: 'adsense_active_view_time',
-                    };
-                    const allKeys = Object.keys(m || {}).filter(function(k){ return m && m[k] != null && !(aliasOf[k] && m[aliasOf[k]] != null); });
-                    if (allKeys.length) {
-                        h += `<details class="sd-details" style="margin-top:10px;">`;
-                        h += `<summary><span>Semua metrics</span><span class="sd-det-right">${esc(String(allKeys.length))}</span></summary>`;
-                        h += `<div class="sd-det-body">${metricList(allKeys, m)}</div>`;
-                        h += `</details>`;
-                    }
-
-                    h += `</div>`;
-                    h += `</div>`;
-                    return h;
-                }
-
-                html += platformBlock('AdX', adx);
-                html += platformBlock('AdSense', ads);
-
-                if (dimNow === 'domain' || dimNow === 'country') {
-                    html += `<div class="sd-card" style="margin-top:12px;">
-                        <div class="sd-title" style="font-size:14px;">Trend (mundur)</div>
-                        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;">
-                            <button id="sdTrendBtn1" data-days="1" type="button" class="btn btn-sm btn-outline-primary">1 hari</button>
-                            <button id="sdTrendBtn7" data-days="7" type="button" class="btn btn-sm btn-outline-primary">7 hari</button>
-                            <button id="sdTrendBtn14" data-days="14" type="button" class="btn btn-sm btn-primary">14 hari</button>
-                            <div id="sdTrendStatus" class="text-muted" style="margin-left:auto;font-size:12px;">-</div>
-                        </div>
-                        <div style="margin-top:10px;height:260px;">
-                            <canvas id="sdTrendChart"></canvas>
-                        </div>
-                        <div id="sdTrendStats"></div>
-                    </div>`;
-
-                }
-
-                html += `</div>`;
-
-                openScoreDetailModal(title, html);
-
-                const ymd = (bd && bd.meta && bd.meta.date) ? String(bd.meta.date) : '';
-                const st = payload.state || window.dashboardRecapLastState || {};
-                const st2 = Object.assign({}, st, { dim: dimNow });
-                if ((dimNow === 'domain' || dimNow === 'country') && ymd && r) {
-                    const keyForTrend = (dimNow === 'country') ? String(r?.code || '').trim() : String(r?.name || '').trim();
-                    if (keyForTrend) bindScoreTrendControls(keyForTrend, ymd, st2);
-                }
-                if (dimNow === 'domain' && ymd && r && r.name) {
-                    bindScoreCampaignControls(r, ymd);
-                }
+                // ...existing code...
             });
             tableEl.dataset.boundScoreDetail = '1';
         }
@@ -4257,10 +5346,15 @@ function initDashboardRecap() {
 
         window.dashboardRecapScoreDetails = window.dashboardRecapScoreDetails || {};
 
-        const scored = (rows || []).map((r) => {
-            const meta = scoreAndDecision(r, state);
-            return { r, meta };
-        });
+        const backendScores = await fetchDashboardScoring(rows, state);
+        const scored = await Promise.all((rows || []).map(async (r) => {
+            const trendWindows = await getTrendWindowsForRow(r, state);
+            const rowWithTrend = Object.assign({}, r, { trend_windows: trendWindows });
+            const localMeta = scoreAndDecision(rowWithTrend, state);
+            const backendMeta = backendScores[scoringLookupKey(dim, rowWithTrend)] || null;
+            const meta = mergeScoreMeta(localMeta, backendMeta, rowWithTrend, state);
+            return { r: rowWithTrend, meta };
+        }));
 
         const scores = scored.map(x => Number(x?.meta?.score) || 0);
         const minScore = scores.length ? Math.min.apply(null, scores) : null;
@@ -4276,11 +5370,11 @@ function initDashboardRecap() {
         const data = scored.map((x, i) => {
             const r = x.r;
             const meta = x.meta;
-            const k = `${String(state?.dim || '')}\u241F${String(r?.name || '')}|${String(r?.code || '')}`;
+            const k = `${String(state?.dim || '')}\u241F${String(scoringLookupKey(dim, r) || String(r?.name || ''))}|${String(r?.code || '')}`;
             window.dashboardRecapScoreDetails[k] = { row: r, meta, state };
 
             const keputusanHtml = `${keputusanBadge(meta)}`;
-            const detailBtn = `<button type="button" class="btn btn-sm btn-outline-secondary dashboard-score-detail-btn" data-score-key="${esc(k)}">Detail</button>`;
+            const detailBtn = `<button type="button" class="btn btn-sm btn-primary dashboard-create-scoring-btn" data-score-key="${esc(k)}">Create Scoring</button>`;
 
             return [
                 i + 1,
@@ -4419,7 +5513,12 @@ function initDashboardRecap() {
                         className: 'text-center',
                         render: function (data, type) {
                             const v = Number(data) || 0;
-                            if (type === 'display' || type === 'filter') return String(v);
+                            if (type === 'display') {
+                                const tone = v >= 80 ? 'success' : v >= 60 ? 'primary' : v >= 40 ? 'warning' : 'danger';
+                                const width = Math.max(6, Math.min(100, Math.round(v)));
+                                return `<div style="min-width:92px;text-align:left;"><div style="display:flex;justify-content:space-between;font-size:11px;font-weight:900;margin-bottom:4px;"><span>Score</span><span>${Math.round(v)}</span></div><div class="progress" style="height:6px;border-radius:999px;"><div class="progress-bar bg-${tone}" style="width:${width}%"></div></div></div>`;
+                            }
+                            if (type === 'filter') return String(v);
                             return v;
                         }
                     },
