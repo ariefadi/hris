@@ -27,7 +27,10 @@ _ENV_LOADED = False
 
 # ...existing code...
 import pandas as pd
-import clickhouse_connect
+try:
+    import clickhouse_connect
+except Exception:
+    clickhouse_connect = None
 from django.conf import settings
 from django.db import connection
 # ...existing code...
@@ -36,6 +39,8 @@ _clickhouse_client = None
 
 def get_clickhouse_client():
     global _clickhouse_client
+    if clickhouse_connect is None:
+        raise ModuleNotFoundError("clickhouse_connect")
     if _clickhouse_client is None:
         _clickhouse_client = clickhouse_connect.get_client(
             host=getattr(settings, 'CLICKHOUSE_HOST', '127.0.0.1'),
