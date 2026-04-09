@@ -2146,7 +2146,7 @@ class RoiMonitoringDomainAdsenseDataView(View):
                     'total_revenue': total_revenue
                 }
             }
-            print(f"[DEBUG ROI] result: {result.get('summary')}")
+            print(f"[DEBUG ROI] result_data: {result.get('summary')}")
             return JsonResponse(result, safe=False)
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})

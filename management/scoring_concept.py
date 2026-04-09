@@ -9,7 +9,7 @@ import uuid
 import pandas as pd
 from django.db import connection
 
-from .database import insert_df, query_df, query_mysql_df
+from .database import insert_df, query_df
 
 from .engine_utils import (
     apply_direction,
@@ -26,6 +26,20 @@ from .engine_utils import (
     safe_pct_change,
     weighted_mean,
 )
+# ...existing code...
+
+# Utilitas ekstrak root domain
+def extract_root_domain(domain: str) -> str:
+    """
+    Ekstrak root domain dari domain/subdomain, misal:
+    'a.b.c.d.com' -> 'd.com', 'news.site.co.id' -> 'co.id', 'example.com' -> 'example.com'
+    """
+    if not domain or pd.isna(domain):
+        return ''
+    parts = str(domain).lower().strip().split('.')
+    if len(parts) >= 2:
+        return '.'.join(parts[-2:])
+    return domain.lower().strip()
 # ...existing code...
 
 STATUS_TABLE = "hris_trendHorizone.fact_domain_country_status_history"
@@ -172,7 +186,7 @@ RULES: list[MetricRule] = [
 ]
 
 RAW_JOIN_COLUMNS = [
-    "batch_id", "mdd", "run_date", "run_hour", "entity_key", "domain", "country_cd", "country_nm", "date",
+    "batch_id", "run_date", "entity_key", "domain", "country_cd", "country_nm", "date",
     "account_key", "account_name", "mapped_revenue_source", "revenue_value", "join_status", "master_budget",
     "data_ads_country_spend", "data_ads_country_cpc", "data_ads_country_clicks", "data_ads_country_lpv", "data_ads_country_lpv_rate", "data_ads_country_frequency",
     "data_adsense_country_revenue", "data_adsense_country_estimated_earnings", "data_adsense_country_page_views", "data_adsense_country_clicks",
@@ -246,9 +260,7 @@ COUNTER_RULES = {r.column for r in RULES if r.score_method == "HOURLY_INCREMENT_
 
 STATUS_COMPAT_COLUMNS = [
     "batch_id",
-    "mdd",
     "run_date",
-    "run_hour",
     "entity_key",
     "domain",
     "country_cd",
@@ -307,9 +319,7 @@ STATUS_EXTENDED_COLUMNS = STATUS_COMPAT_COLUMNS + [
 
 EVENT_COMPAT_COLUMNS = [
     "batch_id",
-    "mdd",
     "run_date",
-    "run_hour",
     "entity_key",
     "domain",
     "country_cd",
@@ -509,82 +519,69 @@ def _load_join_history(
     country_cd: str | None = None,
 ) -> pd.DataFrame:
     start_date = target_date - pd.Timedelta(days=int(lookback_days))
-
-    filters = ["k.date >= %s", "k.date <= %s"]
-    params = [start_date, target_date]
-
+    filters = [f"k.date >= '{start_date}'", f"k.date <= '{target_date}'"]
     if domain:
-        filters.append("LOWER(TRIM(k.domain)) LIKE %s")
-        params.append(f"%{normalize_domain(domain)}%")
+        filters.append(f"SUBSTRING_INDEX(LOWER(TRIM(k.domain)), '.', 2) = '{extract_root_domain(domain)}'")
 
     if country_cd:
-        filters.append("UPPER(k.country_cd) = %s")
-        params.append(normalize_country_cd(country_cd))
+        filters.append(f"UPPER(k.country_cd) = '{normalize_country_cd(country_cd)}'")
 
     where_sql = " AND ".join(filters)
-
     sql = f"""
     SELECT
         '' AS batch_id,
-        COALESCE(a.mdd, s.mdd, x.mdd) AS mdd,
-        DATE(COALESCE(a.mdd, s.mdd, x.mdd)) AS run_date,
-        HOUR(COALESCE(a.mdd, s.mdd, x.mdd)) AS run_hour,
-        CONCAT(LOWER(k.domain), '|', UPPER(k.country_cd)) AS entity_key,
-        LOWER(k.domain) AS domain,
+        COALESCE(any(a.data_ads_country_tanggal), any(s.data_adsense_country_tanggal), any(x.data_adx_country_tanggal)) AS run_date,
+        CONCAT(SUBSTRING_INDEX(k.domain, '.', 2), '|', UPPER(k.country_cd)) AS entity_key,
+        SUBSTRING_INDEX(k.domain, '.', 2) AS domain,
         UPPER(k.country_cd) AS country_cd,
-        k.country_nm AS country_nm,
+        any(k.country_nm) AS country_nm,
         k.date AS date,
         '' AS account_key,
         '' AS account_name,
         CASE
-            WHEN s.data_adsense_country_revenue IS NOT NULL AND x.data_adx_country_revenue IS NOT NULL THEN 'mixed'
-            WHEN s.data_adsense_country_revenue IS NOT NULL THEN 'adsense'
-            WHEN x.data_adx_country_revenue IS NOT NULL THEN 'adx'
+            WHEN any(s.data_adsense_country_revenue) IS NOT NULL AND any(x.data_adx_country_revenue) IS NOT NULL THEN 'mixed'
+            WHEN any(s.data_adsense_country_revenue) IS NOT NULL THEN 'adsense'
+            WHEN any(x.data_adx_country_revenue) IS NOT NULL THEN 'adx'
             ELSE 'unknown'
         END AS mapped_revenue_source,
-        COALESCE(s.data_adsense_country_revenue, 0) + COALESCE(x.data_adx_country_revenue, 0) AS revenue_value,
+        COALESCE(any(s.data_adsense_country_revenue), 0) + COALESCE(any(x.data_adx_country_revenue), 0) AS revenue_value,
         CASE
-            WHEN a.data_ads_country_id IS NOT NULL AND s.data_adsense_country_id IS NOT NULL AND x.data_adx_country_id IS NOT NULL THEN 'OK'
-            WHEN a.data_ads_country_id IS NULL AND s.data_adsense_country_id IS NOT NULL THEN 'SOURCE_ONLY_NO_META_ADSENSE'
-            WHEN a.data_ads_country_id IS NULL AND x.data_adx_country_id IS NOT NULL THEN 'SOURCE_ONLY_NO_META_ADX'
-            WHEN a.data_ads_country_id IS NULL AND (s.data_adsense_country_id IS NOT NULL OR x.data_adx_country_id IS NOT NULL) THEN 'SOURCE_ONLY_NO_META'
+            WHEN any(a.data_ads_country_id) IS NOT NULL AND any(s.data_adsense_country_id) IS NOT NULL AND any(x.data_adx_country_id) IS NOT NULL THEN 'OK'
+            WHEN any(a.data_ads_country_id) IS NULL AND any(s.data_adsense_country_id) IS NOT NULL THEN 'SOURCE_ONLY_NO_META_ADSENSE'
+            WHEN any(a.data_ads_country_id) IS NULL AND any(x.data_adx_country_id) IS NOT NULL THEN 'SOURCE_ONLY_NO_META_ADX'
+            WHEN any(a.data_ads_country_id) IS NULL AND (any(s.data_adsense_country_id) IS NOT NULL OR any(x.data_adx_country_id) IS NOT NULL) THEN 'SOURCE_ONLY_NO_META'
             ELSE 'INCOMPLETE'
         END AS join_status,
-
-        COALESCE(ma.master_budget, 0) AS master_budget,
-
-        COALESCE(a.data_ads_country_spend, 0) AS meta_spend,
-        COALESCE(a.data_ads_country_cpc, 0) AS meta_avg_cpc,
-        COALESCE(a.data_ads_country_click, 0) AS meta_clicks,
-        COALESCE(a.data_ads_country_lpv, 0) AS meta_lpv,
-        COALESCE(a.data_ads_country_lpv_rate, 0) AS meta_lpv_rate,
-        COALESCE(a.data_ads_country_frekuensi, 0) AS meta_frequency,
-
-        COALESCE(s.data_adsense_country_revenue, 0) AS adsense_estimated_earnings,
-        COALESCE(s.data_adsense_country_page_views, 0) AS adsense_page_views,
-        COALESCE(s.data_adsense_country_click, 0) AS adsense_clicks,
-        COALESCE(s.data_adsense_country_cpc, 0) AS adsense_cost_per_click,
-        COALESCE(s.data_adsense_country_page_views_rpm, 0) AS adsense_page_views_rpm,
-        COALESCE(s.data_adsense_country_ad_requests, 0) AS adsense_ad_requests,
-        COALESCE(s.data_adsense_country_ad_requests, 0) AS adsense_matched_ad_requests,
-        COALESCE(s.data_adsense_country_impresi, 0) AS adsense_impressions,
-        COALESCE(s.data_adsense_country_ad_requests_coverage, 0) AS adsense_ad_requests_coverage,
-        COALESCE(s.data_adsense_country_active_view_viewability, 0) AS adsense_active_view_viewability,
-        COALESCE(s.data_adsense_country_active_view_measurability, 0) AS adsense_active_view_measurability,
-        COALESCE(s.data_adsense_country_active_view_time, 0) AS adsense_active_view_time,
-
-        COALESCE(x.data_adx_country_revenue, 0) AS adx_revenue,
-        COALESCE(x.data_adx_country_impresi, 0) AS adx_impressions,
-        COALESCE(x.data_adx_country_click, 0) AS adx_clicks,
-        COALESCE(x.data_adx_country_ecpm, 0) AS adx_avg_ecpm,
-        COALESCE(x.data_adx_country_cpc, 0) AS adx_cpc,
-        COALESCE(x.data_adx_country_total_requests, 0) AS adx_total_requests,
-        COALESCE(x.data_adx_country_responses_served, 0) AS adx_responses_served,
-        COALESCE(x.data_adx_country_match_rate, 0) AS adx_match_rate,
-        COALESCE(x.data_adx_country_fill_rate, 0) AS adx_total_fill_rate,
-        COALESCE(x.data_adx_country_active_view_pct_viewable, 0) AS adx_active_view_pct_viewable,
-        COALESCE(x.data_adx_country_active_view_avg_time_sec, 0) AS adx_active_view_avg_time_sec
-
+        COALESCE(any(ma.master_budget), 0) AS master_budget,
+        COALESCE(any(a.data_ads_country_spend), 0) AS meta_spend,
+        COALESCE(any(a.data_ads_country_cpc), 0) AS meta_avg_cpc,
+        COALESCE(any(a.data_ads_country_click), 0) AS meta_clicks,
+        COALESCE(any(a.data_ads_country_lpv), 0) AS meta_lpv,
+        COALESCE(any(a.data_ads_country_lpv_rate), 0) AS meta_lpv_rate,
+        COALESCE(any(a.data_ads_country_frekuensi), 0) AS meta_frequency,
+        COALESCE(any(s.data_adsense_country_revenue), 0) AS adsense_estimated_earnings,
+        COALESCE(any(s.data_adsense_country_page_views), 0) AS adsense_page_views,
+        COALESCE(any(s.data_adsense_country_click), 0) AS adsense_clicks,
+        COALESCE(any(s.data_adsense_country_cpc), 0) AS adsense_cost_per_click,
+        COALESCE(any(s.data_adsense_country_page_views_rpm), 0) AS adsense_page_views_rpm,
+        COALESCE(any(s.data_adsense_country_ad_requests), 0) AS adsense_ad_requests,
+        COALESCE(any(s.data_adsense_country_ad_requests), 0) AS adsense_matched_ad_requests,
+        COALESCE(any(s.data_adsense_country_impresi), 0) AS adsense_impressions,
+        COALESCE(any(s.data_adsense_country_ad_requests_coverage), 0) AS adsense_ad_requests_coverage,
+        COALESCE(any(s.data_adsense_country_active_view_viewability), 0) AS adsense_active_view_viewability,
+        COALESCE(any(s.data_adsense_country_active_view_measurability), 0) AS adsense_active_view_measurability,
+        COALESCE(any(s.data_adsense_country_active_view_time), 0) AS adsense_active_view_time,
+        COALESCE(any(x.data_adx_country_revenue), 0) AS adx_revenue,
+        COALESCE(any(x.data_adx_country_impresi), 0) AS adx_impressions,
+        COALESCE(any(x.data_adx_country_click), 0) AS adx_clicks,
+        COALESCE(any(x.data_adx_country_ecpm), 0) AS adx_avg_ecpm,
+        COALESCE(any(x.data_adx_country_cpc), 0) AS adx_cpc,
+        COALESCE(any(x.data_adx_country_total_requests), 0) AS adx_total_requests,
+        COALESCE(any(x.data_adx_country_responses_served), 0) AS adx_responses_served,
+        COALESCE(any(x.data_adx_country_match_rate), 0) AS adx_match_rate,
+        COALESCE(any(x.data_adx_country_fill_rate), 0) AS adx_total_fill_rate,
+        COALESCE(any(x.data_adx_country_active_view_pct_viewable), 0) AS adx_active_view_pct_viewable,
+        COALESCE(any(x.data_adx_country_active_view_avg_time_sec), 0) AS adx_active_view_avg_time_sec
     FROM (
          SELECT
             data_ads_country_tanggal AS date,
@@ -592,53 +589,47 @@ def _load_join_history(
             data_ads_country_cd AS country_cd,
             data_ads_country_nm AS country_nm
         FROM data_ads_country
-        WHERE data_ads_country_tanggal BETWEEN %s AND %s
-
-        UNION
-
+        WHERE data_ads_country_tanggal BETWEEN '{start_date}' AND '{target_date}'
+        UNION ALL
         SELECT
             data_adsense_country_tanggal AS date,
             TRIM(data_adsense_country_domain) AS domain,
             data_adsense_country_cd AS country_cd,
             data_adsense_country_nm AS country_nm
         FROM data_adsense_country
-        WHERE data_adsense_country_tanggal BETWEEN %s AND %s
-
-        UNION
-
+        WHERE data_adsense_country_tanggal BETWEEN '{start_date}' AND '{target_date}'
+        UNION ALL
         SELECT
             data_adx_country_tanggal AS date,
             TRIM(data_adx_country_domain) AS domain,
             data_adx_country_cd AS country_cd,
             data_adx_country_nm AS country_nm
         FROM data_adx_country
-        WHERE data_adx_country_tanggal BETWEEN %s AND %s
+        WHERE data_adx_country_tanggal BETWEEN '{start_date}' AND '{target_date}'
     ) k
     LEFT JOIN data_ads_country a
         ON a.data_ads_country_tanggal = k.date
-       AND LOWER(TRIM(a.data_ads_domain)) = LOWER(TRIM(k.domain))
+       AND SUBSTRING_INDEX(LOWER(TRIM(a.data_ads_domain)), '.', 2) = SUBSTRING_INDEX(LOWER(TRIM(k.domain)), '.', 2)
        AND a.data_ads_country_cd = k.country_cd
     LEFT JOIN data_adsense_country s
         ON s.data_adsense_country_tanggal = k.date
-       AND LOWER(TRIM(s.data_adsense_country_domain)) = LOWER(TRIM(k.domain))
+       AND SUBSTRING_INDEX(LOWER(TRIM(s.data_adsense_country_domain)), '.', 2) = SUBSTRING_INDEX(LOWER(TRIM(k.domain)), '.', 2)
        AND s.data_adsense_country_cd = k.country_cd
     LEFT JOIN data_adx_country x
         ON x.data_adx_country_tanggal = k.date
-       AND LOWER(TRIM(x.data_adx_country_domain)) = LOWER(TRIM(k.domain))
+       AND SUBSTRING_INDEX(LOWER(TRIM(x.data_adx_country_domain)), '.', 2) = SUBSTRING_INDEX(LOWER(TRIM(k.domain)), '.', 2)
        AND x.data_adx_country_cd = k.country_cd
     LEFT JOIN (
-        SELECT master_domain, master_date, MAX(master_budget) AS master_budget
+        SELECT master_domain, MAX(master_date) AS master_date, MAX(master_budget) AS master_budget
         FROM master_ads
-        GROUP BY master_domain, master_date
+        GROUP BY master_domain
     ) ma
-        ON ma.master_domain = k.domain
-       AND ma.master_date = k.date
+        ON SUBSTRING_INDEX(LOWER(TRIM(ma.master_domain)), '.', 2) = SUBSTRING_INDEX(LOWER(TRIM(k.domain)), '.', 2)
     WHERE {where_sql}
-    ORDER BY k.domain, k.country_cd, k.date, mdd
+    GROUP BY k.domain, k.country_cd, k.date
     """
 
-    union_params = [start_date, target_date, start_date, target_date, start_date, target_date]
-    df = query_mysql_df(sql, union_params + params)
+    df = query_df(sql)
     if df.empty:
         return df
 
@@ -648,17 +639,14 @@ def _load_join_history(
     out["country_nm"] = [_normalize_country_name(c, n) for c, n in zip(out["country_cd"], out["country_nm"])]
     out["entity_base_key"] = out["domain"] + "|" + out["country_cd"]
     out["batch_id"] = out["batch_id"].astype(str)
-    out["mdd"] = pd.to_datetime(out["mdd"], utc=True, errors="coerce")
     out["run_date"] = pd.to_datetime(out["run_date"], errors="coerce").dt.date
     out["date"] = pd.to_datetime(out["date"], errors="coerce").dt.date
     out["day_type"] = out["date"].map(_day_type_for)
 
     out["batch_id"] = out["batch_id"].astype(str)
-    out["mdd"] = pd.to_datetime(out["mdd"], utc=True, errors="coerce")
     out["run_date"] = pd.to_datetime(out["run_date"], errors="coerce").dt.date
     out["date"] = pd.to_datetime(out["date"], errors="coerce").dt.date
     out["day_type"] = out["date"].map(_day_type_for)
-
     numeric_cols = [
         "revenue_value",
         "master_budget",
@@ -699,8 +687,7 @@ def _load_join_history(
         out[col] = out[col].map(safe_float)
 
     out = _compute_derived_features(out)
-    out = out.sort_values(["entity_key", "date", "run_hour", "mdd"]).reset_index(drop=True)
-
+    out = out.sort_values(["entity_key", "date"]).reset_index(drop=True)
     grouped = out.groupby(["entity_key", "date"], sort=False)
     extra_cols = {}
 
@@ -788,23 +775,23 @@ def _compute_derived_features(df: pd.DataFrame) -> pd.DataFrame:
 def _load_recent_status_history(target_date: date, lookback_days: int = 7) -> pd.DataFrame:
     sql_candidates = [
         f"""
-        SELECT batch_id, mdd, run_date, run_hour, entity_key, domain, country_cd, date,
+        SELECT batch_id, run_date, entity_key, domain, country_cd, date,
                health_score, adjustment_score, ivt_risk_score, confidence,
                final_label, root_cause_label,
                positive_streak, negative_streak, adjustment_streak, ivt_streak
         FROM {STATUS_TABLE}
         WHERE date >= toDate('{_sql_date(target_date)}') - INTERVAL {int(lookback_days)} DAY
           AND date <= toDate('{_sql_date(target_date)}')
-        ORDER BY domain, country_cd, date, run_hour, mdd 
+        ORDER BY domain, country_cd, date
         """,
         f"""
-        SELECT batch_id, mdd, run_date, run_hour, entity_key, domain, country_cd, date,
+        SELECT batch_id, run_date, entity_key, domain, country_cd, date,
                health_score, adjustment_score, confidence,
                final_label, root_cause_label
         FROM {STATUS_TABLE}
         WHERE date >= toDate('{_sql_date(target_date)}') - INTERVAL {int(lookback_days)} DAY
           AND date <= toDate('{_sql_date(target_date)}')
-        ORDER BY domain, country_cd, date, run_hour, mdd
+        ORDER BY domain, country_cd, date
         """,
     ]
     df = pd.DataFrame()
@@ -820,9 +807,7 @@ def _load_recent_status_history(target_date: date, lookback_days: int = 7) -> pd
     out["domain"] = out["domain"].map(normalize_domain)
     out["country_cd"] = out["country_cd"].map(normalize_country_cd)
     out["entity_base_key"] = out["domain"] + "|" + out["country_cd"]
-    out["mdd"] = pd.to_datetime(out["mdd"], utc=True, errors="coerce")
     out["date"] = pd.to_datetime(out["date"], errors="coerce").dt.date
-    out["run_hour"] = out["run_hour"].map(lambda x: int(safe_float(x)))
     for col in ["health_score", "adjustment_score", "ivt_risk_score", "confidence", "positive_streak", "negative_streak", "adjustment_streak", "ivt_streak"]:
         if col not in out.columns:
             out[col] = 0.0
@@ -871,11 +856,11 @@ def _select_window(samples: pd.DataFrame, current_day: date, rule: MetricRule, c
     min_points = max(3, int(rule.min_history_points))
     for part, label in candidates:
         if len(part) >= min_points:
-            return part.sort_values(["date", "run_hour", "mdd"]), label
+            return part.sort_values(["date"]), label
     non_empty = [(part, label) for part, label in candidates if not part.empty]
     if non_empty:
         part, label = max(non_empty, key=lambda x: len(x[0]))
-        return part.sort_values(["date", "run_hour", "mdd"]), label
+        return part.sort_values(["date"]), label
     return tmp, "NO_HISTORY"
 
 
@@ -925,9 +910,7 @@ def _counter_baseline(selected, rule):
 def _event_template(cur: pd.Series, rule: MetricRule, batch_uuid: uuid.UUID) -> dict:
     return {
         "batch_id": str(batch_uuid),
-        "mdd": cur["mdd"].to_pydatetime() if hasattr(cur["mdd"], "to_pydatetime") else cur["mdd"],
         "run_date": cur["run_date"],
-        "run_hour": int(cur["run_hour"]),
         "entity_key": cur["entity_key"],
         "domain": cur["domain"],
         "country_cd": cur["country_cd"],
@@ -1119,9 +1102,7 @@ def _signal_lookup(events: list[dict], header_name: str) -> dict:
 def _composite_event_template(cur: pd.Series, batch_uuid: uuid.UUID, header_name: str, source_scope: str, metric_group: str, funnel_stage: str, metric_role: str, expected_direction: str) -> dict:
     return {
         "batch_id": str(batch_uuid),
-        "mdd": cur["mdd"].to_pydatetime() if hasattr(cur["mdd"], "to_pydatetime") else cur["mdd"],
         "run_date": cur["run_date"],
-        "run_hour": int(cur["run_hour"]),
         "entity_key": cur["entity_key"],
         "domain": cur["domain"],
         "country_cd": cur["country_cd"],
@@ -1382,12 +1363,10 @@ def _compute_persistence(cur: pd.Series, recent_status_df: pd.DataFrame) -> dict
             "label": "NONE",
         }
 
-    current_ts = pd.to_datetime(cur["mdd"], utc=True, errors="coerce")
-    same_entity = same_entity[(same_entity["mdd"] < current_ts) | (same_entity["date"] < cur["date"])]
-    same_hour = same_entity[same_entity["run_hour"] == int(cur["run_hour"])]
-    recent = same_hour.sort_values(["date", "run_hour", "mdd"], ascending=False).head(4)
+    same_entity = same_entity[(same_entity["date"] < cur["date"])]
+    recent = same_entity.sort_values(["date"], ascending=False).head(4)
     if recent.empty:
-        recent = same_entity.sort_values(["date", "run_hour", "mdd"], ascending=False).head(4)
+        recent = same_entity.sort_values(["date"], ascending=False).head(4)
 
     records = recent.to_dict("records")
     positive_streak = _rolling_streak(records, lambda r: safe_float(r.get("health_score")) >= 15 or str(r.get("final_label", "")) in POSITIVE_ROOT_LABELS)
@@ -1513,9 +1492,7 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
 
     status = {
         "batch_id": str(batch_uuid),
-        "mdd": cur["mdd"].to_pydatetime() if hasattr(cur["mdd"], "to_pydatetime") else cur["mdd"],
         "run_date": cur["run_date"],
-        "run_hour": int(cur["run_hour"]),
         "entity_key": cur["entity_key"],
         "domain": cur["domain"],
         "country_cd": cur["country_cd"],
@@ -1604,29 +1581,52 @@ def score_site_country(
         domain=domain,
         country_cd=country_cd,
     )
+    audit = {
+        "requested_date": str(target_date),
+        "requested_domain": str(domain or ""),
+        "requested_country_cd": str(country_cd or ""),
+        "history_rows": int(len(history_df)),
+        "effective_date": str(target_date),
+        "fallback_applied": False,
+        "available_dates": [],
+    }
     if history_df.empty:
-        return {"ok": True, "rows_written": 0, "batch_id": str(batch_uuid), "warning": "No join history"}
+        return {"ok": True, "rows_written": 0, "batch_id": str(batch_uuid), "warning": "No join history", "warning_code": "NO_JOIN_HISTORY", "audit": audit}
+    try:
+        audit["available_dates"] = sorted({str(x) for x in history_df["date"].dropna().tolist()})[-7:]
+    except Exception:
+        audit["available_dates"] = []
 
+    effective_date = target_date
     if requested_batch_id:
         current_df = history_df[history_df["batch_id"].eq(requested_batch_id)].copy()
         warning_text = "No rows found for requested batch_id in fact_join_hourly"
     else:
         current_df = history_df[history_df["date"].eq(target_date)].copy()
         warning_text = "No current rows found for target_date in fact_join_hourly"
+        if current_df.empty:
+            fallback_df = history_df[history_df["date"] <= target_date].copy()
+            if fallback_df.empty:
+                fallback_df = history_df.copy()
+            if not fallback_df.empty:
+                effective_date = fallback_df["date"].max()
+                current_df = fallback_df[fallback_df["date"].eq(effective_date)].copy()
+                audit["fallback_applied"] = str(effective_date) != str(target_date)
+                audit["effective_date"] = str(effective_date)
     if current_df.empty:
-        return {"ok": True, "rows_written": 0, "batch_id": str(batch_uuid), "warning": warning_text}
+        return {"ok": True, "rows_written": 0, "batch_id": str(batch_uuid), "warning": warning_text, "warning_code": "NO_CURRENT_ROWS", "effective_date": str(effective_date), "audit": audit}
 
     recent_status_df = _load_recent_status_history(target_date, lookback_days=max(7, min(max(lookback_days, 7), 21)))
     status_rows: list[dict] = []
     event_rows: list[dict] = []
 
-    history_df = history_df.sort_values(["entity_base_key", "date", "run_hour", "mdd"]).reset_index(drop=True)
-    same_hour_groups = {k: g.copy() for k, g in history_df.groupby(["entity_base_key", "run_hour"])}
+    history_df = history_df.sort_values(["entity_base_key", "date"]).reset_index(drop=True)
+    same_hour_groups = {k: g.copy() for k, g in history_df.groupby(["entity_base_key"])}
     all_hour_groups = {k: g.copy() for k, g in history_df.groupby("entity_base_key")}
 
-    for _, cur in current_df.sort_values(["domain", "country_cd", "mdd"]).iterrows():
+    for _, cur in current_df.sort_values(["domain", "country_cd"]).iterrows():
         base_key = cur["entity_base_key"]
-        same_hour = same_hour_groups.get((base_key, int(cur["run_hour"])), pd.DataFrame())
+        same_hour = same_hour_groups.get(base_key, pd.DataFrame())
         same_hour = same_hour[same_hour["date"] < cur["date"]].copy()
         all_hours = all_hour_groups.get(base_key, pd.DataFrame())
         all_hours = all_hours[all_hours["date"] < cur["date"]].copy()
@@ -1657,12 +1657,16 @@ def score_site_country(
             else:
                 insert_df(EVENT_TABLE, event_df[EVENT_EXTENDED_COLUMNS])
 
+    audit["effective_date"] = str(effective_date)
     return {
         "ok": True,
         "rows_written": int(len(status_df)),
         "event_rows_written": int(len(event_df)),
         "batch_id": str(batch_uuid),
         "compatibility_mode": bool(compatibility_mode),
+        "requested_date": str(target_date),
+        "effective_date": str(effective_date),
+        "audit": audit,
         "statuses": _json_safe_records(status_df),
         "events": _json_safe_records(event_df),
     }
@@ -1700,12 +1704,12 @@ def backtest_status_labels(
     compatibility_mode: bool = True,
 ) -> dict:
     status_sql = f"""
-    SELECT domain, country_cd, mdd, date, final_label, health_score, adjustment_score,
+    SELECT domain, country_cd, date, final_label, health_score, adjustment_score,
            confidence, join_status
     FROM {STATUS_TABLE}
     WHERE date >= toDate('{_sql_date(start_date)}')
       AND date <= toDate('{_sql_date(end_date)}')
-    ORDER BY domain, country_cd, mdd
+    ORDER BY domain, country_cd, date
     """
     status_df = query_df(status_sql)
     if status_df.empty:
@@ -1716,7 +1720,7 @@ def backtest_status_labels(
     FROM hris_trendHorizone.fact_join_hourly
     WHERE date >= toDate('{_sql_date(start_date)}')
       AND date <= toDate('{_sql_date(end_date)}') + INTERVAL 1 DAY
-    ORDER BY domain, country_cd, date, run_hour, mdd
+    ORDER BY domain, country_cd, date
     """
     join_df = query_df(join_sql)
     if join_df.empty:
@@ -1730,12 +1734,11 @@ def backtest_status_labels(
     hist["entity_key"] = hist["entity_key"].astype(str)
     hist["entity_base_key"] = hist["domain"] + "|" + hist["country_cd"]
     hist["batch_id"] = hist["batch_id"].astype(str)
-    hist["mdd"] = pd.to_datetime(hist["mdd"], utc=True, errors="coerce")
     hist["run_date"] = pd.to_datetime(hist["run_date"], errors="coerce").dt.date
     hist["date"] = pd.to_datetime(hist["date"], errors="coerce").dt.date
     hist["day_type"] = hist["date"].map(_day_type_for)
     for col in RAW_JOIN_COLUMNS + ["revenue_value"]:
-        if col in hist.columns and col not in {"batch_id", "mdd", "run_date", "entity_key", "domain", "country_cd", "country_nm", "date", "account_key", "account_name", "mapped_revenue_source", "join_status"}:
+        if col in hist.columns and col not in {"batch_id", "run_date", "entity_key", "domain", "country_cd", "country_nm", "date", "account_key", "account_name", "mapped_revenue_source", "join_status"}:
             hist[col] = hist[col].map(safe_float)
         elif col not in hist.columns:
             hist[col] = 0.0
@@ -1744,7 +1747,7 @@ def backtest_status_labels(
         if col in hist.columns:
             hist[col] = hist[col].map(_normalize_rate_value)
     hist = _compute_derived_features(hist)
-    hist = hist.sort_values(["entity_key", "date", "run_hour", "mdd"]).drop_duplicates(subset=["entity_key", "date", "run_hour"], keep="last")
+    hist = hist.sort_values(["entity_key", "date"]).drop_duplicates(subset=["entity_key", "date"], keep="last")
     for col in REQUIRED_METRIC_COLUMNS:
         if col not in hist.columns:
             hist[col] = 0.0
@@ -1755,21 +1758,18 @@ def backtest_status_labels(
     status_df["domain"] = status_df["domain"].map(normalize_domain)
     status_df["country_cd"] = status_df["country_cd"].map(normalize_country_cd)
     status_df["entity_base_key"] = status_df["domain"] + "|" + status_df["country_cd"]
-    status_df["mdd"] = pd.to_datetime(status_df["mdd"], utc=True, errors="coerce")
     status_df["date"] = pd.to_datetime(status_df["date"], errors="coerce").dt.date
 
     rows = []
     for _, row in status_df.iterrows():
         future = hist[
             (hist["entity_base_key"] == row["entity_base_key"])
-            & (hist["mdd"] > row["mdd"])
-            & (hist["mdd"] <= row["mdd"] + pd.Timedelta(hours=horizon_hours))
-        ].sort_values("mdd")
+        ].sort_values("date")
         future_row = future.iloc[-1] if not future.empty else None
         current = hist[
             (hist["entity_base_key"] == row["entity_base_key"])
-            & (hist["mdd"] <= row["mdd"])
-        ].sort_values("mdd")
+            & (hist["date"] <= row["date"])
+        ].sort_values("date")
         current_row = current.iloc[-1] if not current.empty else pd.Series(dtype=float)
         predicted = _map_prediction_label(row.get("final_label"))
         actual = _future_outcome_label(current_row, future_row)
@@ -1777,7 +1777,6 @@ def backtest_status_labels(
             {
                 "domain": row["domain"],
                 "country_cd": row["country_cd"],
-                "mdd": row["mdd"],
                 "predicted": predicted,
                 "actual": actual,
                 "final_label": row.get("final_label", ""),

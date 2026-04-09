@@ -2599,20 +2599,80 @@ function initDashboardRecap() {
         }
     }
 
-    function mergeScoreMeta(localMeta, backendMeta, row, state) {
-        if (!backendMeta || typeof backendMeta !== 'object') return localMeta;
-        const merged = Object.assign({}, backendMeta);
+    function buildCreateScoringPayload(row, state) {
+        return {
+            date: String(state?.date || '').trim(),
+            run_hour: null,
+            domain: String(state?.dim === 'domain' ? (row?.name || '') : '').trim(),
+            site: String(state?.dim === 'domain' ? (row?.name || '') : '').trim(),
+            country_cd: String(state?.dim === 'country' ? (row?.code || '') : '').trim().toUpperCase(),
+            country_code: String(state?.dim === 'country' ? (row?.code || '') : '').trim().toUpperCase(),
+            mapped_revenue_source: String(state?.source || '').trim().toLowerCase(),
+        };
+    }
+
+    function createScoringPayloadKey(payload) {
+        return [payload?.date || '', payload?.domain || '', payload?.country_cd || '', payload?.mapped_revenue_source || ''].join('|');
+    }
+
+    function summarizeCreateScoringResult(json, row, state) {
+        const scoring = json?.scoring || {};
+        const parsed = pickScoringArrays(scoring);
+        const reasons = [];
+        if (scoring?.warning) reasons.push(String(scoring.warning));
+        if (scoring?.audit?.fallback_applied && scoring?.effective_date) reasons.push(`Fallback tanggal ke ${scoring.effective_date}`);
+        if ((!parsed.statuses.length && !parsed.events.length) || Number(scoring?.rows_written || 0) <= 0) return { apiJson: json, score: null, decision: '', label: 'BELUM ADA HASIL', reasons: reasons.length ? reasons : ['Create scoring belum menemukan data'], breakdown: { meta: { trend_windows: row?.trend_windows || {}, date: String(state?.date || '').trim(), requested_date: scoring?.requested_date || '', effective_date: scoring?.effective_date || '', audit: scoring?.audit || {} } } };
+        const groups = scxGroupScoringByCountry(parsed.statuses, parsed.events);
+        const agg = scxAggregateScoring(parsed.statuses, parsed.events, groups);
+        const health = Number(agg?.health_score || 0), risk = Number(agg?.ivt_risk_score || 0), conf = Number(agg?.confidence || 0), dm = Number(agg?.decision_margin || 0);
+        const score = Math.round(scxClamp((((health + 100) / 2) * 0.45) + ((100 - risk) * 0.2) + ((conf * 100) * 0.15) + (scxClamp(dm + 50, 0, 100) * 0.2), 0, 100));
+        let decision = 'HOLD';
+        if (String(agg?.final_label || '').toUpperCase().startsWith('RED_FLAG') || risk >= 70 || dm <= -25) decision = 'STOP';
+        else if (dm >= 35 && conf >= 0.5) decision = 'SCALE UP';
+        else if (dm < 0) decision = 'SCALE DOWN';
+        return { apiJson: json, score, decision, label: String(agg?.final_label || agg?.root_cause_label || 'STABLE'), reasons: reasons.concat([agg?.reason_summary].filter(Boolean)), breakdown: { meta: Object.assign({}, agg, { trend_windows: row?.trend_windows || {}, date: String(state?.date || '').trim(), requested_date: scoring?.requested_date || '', effective_date: scoring?.effective_date || '', audit: scoring?.audit || {} }) } };
+    }
+
+    function summarizeDashboardScoringMeta(meta, row, state) {
+        if (!meta || typeof meta !== 'object') return { score: null, decision: '', label: 'BELUM ADA HASIL', reasons: ['Ringkasan scoring belum tersedia'], breakdown: { meta: { date: String(state?.date || '').trim(), trend_windows: row?.trend_windows || {} } } };
+        const merged = Object.assign({}, meta);
         const bd = Object.assign({}, merged.breakdown || {});
-        const meta = Object.assign({}, bd.meta || {});
-        meta.trend_windows = row?.trend_windows || meta.trend_windows || {};
-        meta.date = String(state?.date || meta.date || '').trim();
-        meta.last_update = row?.last_updates ? (row.last_updates.adx || row.last_updates.adsense || meta.last_update || '') : (row?.last_update || meta.last_update || '');
-        bd.meta = meta;
+        const info = Object.assign({}, bd.meta || {});
+        info.trend_windows = row?.trend_windows || info.trend_windows || {};
+        info.date = String(state?.date || info.date || '').trim();
+        info.last_update = row?.last_updates ? (row.last_updates.adx || row.last_updates.adsense || info.last_update || '') : (row?.last_update || info.last_update || '');
+        bd.meta = info;
         merged.breakdown = bd;
-        if (!Array.isArray(merged.reasons) || !merged.reasons.length) merged.reasons = Array.isArray(localMeta?.reasons) ? localMeta.reasons : [];
-        if (merged.score == null) merged.score = localMeta?.score || 0;
-        if (!merged.decision) merged.decision = localMeta?.decision || 'KEEP';
+        if (!Array.isArray(merged.reasons)) merged.reasons = [];
+        if (merged.score == null) merged.score = null;
+        if (!merged.decision) merged.decision = '';
+        if (!merged.label) merged.label = String(info.final_label || info.root_cause_label || '').trim();
         return merged;
+    }
+
+    async function fetchCreateScoringMeta(row, state) {
+        const payload = buildCreateScoringPayload(row, state);
+        const cache = window.dashboardRecapCreateScoringCache || (window.dashboardRecapCreateScoringCache = {});
+        const cacheKey = createScoringPayloadKey(payload);
+        if (cache[cacheKey]) return cache[cacheKey];
+
+        const run = async function() {
+            try {
+                const res = await fetch('/management/admin/dashboard_create_scoring', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin', body: JSON.stringify(payload) });
+                const json = await res.json();
+                if (!res.ok || !json || !json.status) throw new Error(json?.message || json?.error || `HTTP ${res.status}`);
+                return summarizeCreateScoringResult(json, row, state);
+            } catch (e) {
+                return { apiJson: null, score: null, decision: '', label: 'GAGAL MEMUAT', reasons: [String(e?.message || e || 'Gagal create scoring')], breakdown: { meta: { trend_windows: row?.trend_windows || {}, date: String(state?.date || '').trim() } } };
+            }
+        };
+
+        const prev = window.dashboardRecapCreateScoringQueue || Promise.resolve();
+        const next = prev.then(run, run);
+        window.dashboardRecapCreateScoringQueue = next.then(function() {}, function() {});
+        const meta = await next;
+        cache[cacheKey] = meta;
+        return meta;
     }
 
     function baseSubdomain(fullString) {
@@ -2811,22 +2871,51 @@ function initDashboardRecap() {
             const cls = String(ev?.change_class || '').toUpperCase();
             return mode === 'positive' ? cls === 'POSITIVE' : cls === 'NEGATIVE';
         });
-
-        return filtered
-            .sort(function(a, b) {
-                return Math.abs(Number(b?.signal_strength || 0)) - Math.abs(Number(a?.signal_strength || 0));
-            })
-            .slice(0, 4)
-            .map(function(ev) {
-                return {
-                    name: scxMetricName(ev?.header_name || ev?.rule_key || '-'),
-                    signal: Number(ev?.signal_strength || 0),
-                    current: ev?.cur_value,
-                    baseline: ev?.baseline_center,
+        const map = new Map();
+        filtered.forEach(function(ev) {
+            const key = String(ev?.header_name || ev?.rule_key || '-').trim() || '-';
+            const signal = Number(ev?.signal_strength || 0);
+            const weight = Math.max(Math.abs(signal) * Math.max(Number(ev?.confidence || 0), 0.25), 0.01);
+            if (!map.has(key)) {
+                map.set(key, {
+                    name: scxMetricName(key),
+                    signal_sum: 0,
+                    weight_sum: 0,
+                    current_sum: 0,
+                    baseline_sum: 0,
+                    countries: new Set(),
                     label: ev?.event_label || '',
                     reason: ev?.event_reason || ''
+                });
+            }
+            const row = map.get(key);
+            row.signal_sum += signal * weight;
+            row.weight_sum += weight;
+            row.current_sum += Number(ev?.cur_value || 0) * weight;
+            row.baseline_sum += Number(ev?.baseline_center || 0) * weight;
+            row.countries.add(scxCountryKey(ev));
+            if (Math.abs(signal) >= Math.abs(Number(row.signal || 0))) {
+                row.signal = signal;
+                row.label = ev?.event_label || row.label;
+                row.reason = ev?.event_reason || row.reason;
+            }
+        });
+        return Array.from(map.values())
+            .map(function(row) {
+                const w = row.weight_sum > 0 ? row.weight_sum : 1;
+                return {
+                    name: row.name,
+                    signal: row.signal_sum / w,
+                    current: row.current_sum / w,
+                    baseline: row.baseline_sum / w,
+                    countries: row.countries.size,
+                    label: row.label,
+                    reason: row.reason,
+                    rank_score: Math.abs(row.signal_sum) * Math.max(row.countries.size, 1)
                 };
-            });
+            })
+            .sort(function(a, b) { return Number(b?.rank_score || 0) - Number(a?.rank_score || 0); })
+            .slice(0, 4);
     }
 
     function scxBuildNarrative(status, events) {
@@ -2880,6 +2969,7 @@ function initDashboardRecap() {
             return `<div class="scx-sub">${esc(emptyText)}</div>`;
         }
         return `<div class="scx-list">` + items.map(function(item) {
+            const countriesText = Number(item?.countries || 0) > 1 ? ` · ${esc(String(item.countries))} negara terdampak` : '';
             return `
                 <div class="scx-item">
                     <div class="scx-item-top">
@@ -2888,7 +2978,7 @@ function initDashboardRecap() {
                     </div>
                     <div class="scx-item-desc">
                         Current <strong>${esc(scxNum(item.current, 2))}</strong>
-                        dibanding baseline <strong>${esc(scxNum(item.baseline, 2))}</strong>.
+                        dibanding baseline <strong>${esc(scxNum(item.baseline, 2))}</strong>${countriesText}.
                     </div>
                 </div>
             `;
@@ -2939,6 +3029,92 @@ function initDashboardRecap() {
     function scxPickPrimaryCountryGroup(groups) {
         if (!Array.isArray(groups) || !groups.length) return { key: '-', status: {}, events: [] };
         return groups[0];
+    }
+
+    function scxCalcGroupHealth(events, groupName) {
+        const scoped = (Array.isArray(events) ? events : []).filter(function(ev) {
+            const cls = String(ev?.change_class || '').toUpperCase();
+            return String(ev?.metric_group || '') === groupName && ['POSITIVE', 'NEGATIVE', 'NEUTRAL'].includes(cls);
+        });
+        const den = scoped.reduce(function(s, ev) { return s + Math.abs(Number(ev?.health_component || 0)); }, 0);
+        const num = scoped.reduce(function(s, ev) { return s + Number(ev?.health_component || 0); }, 0);
+        return den > 0 ? (100 * num / den) : 0;
+    }
+
+    function scxCalcGroupRisk(events, groupName) {
+        const scoped = (Array.isArray(events) ? events : []).filter(function(ev) {
+            return String(ev?.metric_group || '') === groupName && Number(ev?.ivt_capacity || 0) > 0;
+        });
+        const den = scoped.reduce(function(s, ev) { return s + Math.max(Number(ev?.ivt_capacity || 0), 0); }, 0);
+        const num = scoped.reduce(function(s, ev) { return s + Math.max(Number(ev?.ivt_component || 0), 0); }, 0);
+        return den > 0 ? scxClamp((100 * num) / den, 0, 100) : 0;
+    }
+
+    function scxAggregateRootCause(status) {
+        const scorable = ['OK', 'SOURCE_ONLY_NO_META', 'SOURCE_ONLY_NO_META_ADSENSE', 'SOURCE_ONLY_NO_META_ADX'];
+        if (!scorable.includes(String(status?.join_status || '').toUpperCase()) && Number(status?.negative_signal_count || 0) === 0 && Number(status?.positive_signal_count || 0) === 0) return 'DATA_INCOMPLETE';
+        if (Number(status?.ivt_risk_score || 0) >= 70) {
+            const ivt = [['RED_FLAG_CLICK_STRESS', Number(status?.ivt_click_stress_score || 0)], ['RED_FLAG_SERVING_SUPPRESSION', Number(status?.ivt_serving_score || 0)], ['RED_FLAG_ATTENTION_COLLAPSE', Number(status?.ivt_attention_score || 0)], ['RED_FLAG_COUNTER_CORRECTION', Number(status?.ivt_counter_score || 0)], ['RED_FLAG_FUNNEL_DIVERGENCE', Number(status?.ivt_funnel_score || 0)]].sort(function(a, b) { return b[1] - a[1]; });
+            return ivt[0][1] >= 45 ? ivt[0][0] : 'RED_FLAG_IVT';
+        }
+        if (Number(status?.adjustment_drop_count || 0) >= 2 && Number(status?.adjustment_score || 0) <= -35) return 'NEG_ADJUSTMENT';
+        if (Number(status?.health_score || 0) >= 18 && Number(status?.ivt_risk_score || 0) < 35 && Number(status?.positive_signal_count || 0) >= Number(status?.negative_signal_count || 0)) return 'POSITIVE_EXPANSION';
+        if (Number(status?.health_score || 0) >= 10 && Number(status?.ivt_risk_score || 0) < 45 && Number(status?.positive_signal_count || 0) > Number(status?.negative_signal_count || 0)) return 'POSITIVE_RECOVERY';
+        if (Number(status?.health_score || 0) <= -18) {
+            const groups = [['TRAFFIC_DROP', Number(status?.traffic_score || 0)], ['SERVING_DROP', Number(status?.delivery_score || 0)], ['YIELD_DROP', Number(status?.yield_score || 0)], ['VIEWABILITY_DROP', Number(status?.quality_score || 0)], ['EFFICIENCY_DROP', Number(status?.efficiency_score || 0)], ['REVENUE_DROP', Number(status?.revenue_score || 0)]].sort(function(a, b) { return a[1] - b[1]; });
+            return groups[0][1] <= -8 ? groups[0][0] : 'NEGATIVE_MIXED';
+        }
+        return 'STABLE';
+    }
+
+    function scxAggregateFinalLabel(rootLabel, status, statuses) {
+        const list = Array.isArray(statuses) ? statuses : [];
+        const negStreak = list.filter(function(st) { return Number(st?.negative_streak || 0) >= 2; }).length;
+        const posStreak = list.filter(function(st) { return Number(st?.positive_streak || 0) >= 2; }).length;
+        const ivtStreak = list.filter(function(st) { return Number(st?.ivt_streak || 0) >= 2; }).length;
+        const negShare = list.length ? (negStreak / list.length) : 0;
+        const posShare = list.length ? (posStreak / list.length) : 0;
+
+        if (Number(status?.ivt_risk_score || 0) >= 70 || (Number(status?.ivt_risk_score || 0) >= 55 && ivtStreak >= 1)) return 'RED_FLAG_IVT';
+        if (rootLabel === 'POSITIVE_EXPANSION' && negShare >= 0.25 && Number(status?.health_score || 0) < 30) return 'WATCH_RECOVERY';
+        if (rootLabel === 'POSITIVE_RECOVERY' && negShare >= 0.25 && Number(status?.health_score || 0) < 18) return 'WATCH_RECOVERY';
+        if (['TRAFFIC_DROP', 'SERVING_DROP', 'YIELD_DROP', 'VIEWABILITY_DROP', 'EFFICIENCY_DROP', 'REVENUE_DROP', 'NEGATIVE_MIXED', 'NEG_ADJUSTMENT'].includes(rootLabel) && posShare >= 0.25 && Number(status?.health_score || 0) > -12 && Number(status?.ivt_risk_score || 0) < 55) return 'WATCH_DECAY';
+        if (rootLabel === 'STABLE' && negShare >= 0.25 && Number(status?.health_score || 0) < 8) return 'WATCH_NEGATIVE';
+        if (rootLabel === 'STABLE' && posShare >= 0.25 && Number(status?.health_score || 0) > 8 && Number(status?.ivt_risk_score || 0) < 45) return 'WATCH_POSITIVE';
+        return rootLabel;
+    }
+
+    function scxAggregateScoring(statuses, events, groups) {
+        const statusList = Array.isArray(statuses) ? statuses : [];
+        const eventList = Array.isArray(events) ? events : [];
+        const seed = statusList[0] || {};
+        const counted = eventList.filter(function(ev) { return ['POSITIVE', 'NEGATIVE', 'NEUTRAL'].includes(String(ev?.change_class || '').toUpperCase()); });
+        const nonSkipped = eventList.filter(function(ev) { return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; });
+        const sum = function(list, pick) { return list.reduce(function(acc, item) { return acc + Number(pick(item) || 0); }, 0); };
+        const healthDen = sum(counted, function(ev) { return Math.abs(Number(ev?.health_component || 0)); });
+        const adjBase = eventList.filter(function(ev) { return Math.abs(Number(ev?.adjustment_component || 0)) > 0; });
+        const adjDen = sum(adjBase, function(ev) { return Math.abs(Number(ev?.adjustment_component || 0)); });
+        const ivtScoped = eventList.filter(function(ev) { return Number(ev?.ivt_capacity || 0) > 0; });
+        const ivtDen = sum(ivtScoped, function(ev) { return Math.max(Number(ev?.ivt_capacity || 0), 0); });
+        const out = Object.assign({}, seed, {
+            country_cd: 'ALL',
+            country_nm: `${Math.max(Array.isArray(groups) ? groups.length : statusList.length, 1)} negara`,
+            join_status: statusList.some(function(st) { return ['OK', 'SOURCE_ONLY_NO_META', 'SOURCE_ONLY_NO_META_ADSENSE', 'SOURCE_ONLY_NO_META_ADX'].includes(String(st?.join_status || '').toUpperCase()); }) ? 'OK' : String(seed?.join_status || 'INCOMPLETE'),
+            health_score: healthDen > 0 ? (100 * sum(eventList, function(ev) { return Number(ev?.health_component || 0); }) / healthDen) : 0,
+            adjustment_score: adjDen > 0 ? (100 * sum(eventList, function(ev) { return Number(ev?.adjustment_component || 0); }) / adjDen) : 0,
+            ivt_risk_score: ivtDen > 0 ? scxClamp((100 * sum(ivtScoped, function(ev) { return Math.max(Number(ev?.ivt_component || 0), 0); })) / ivtDen, 0, 100) : 0,
+            confidence: nonSkipped.length ? scxClamp(sum(nonSkipped, function(ev) { return Number(ev?.confidence || 0); }) / nonSkipped.length, 0, 1) : 0,
+            positive_signal_count: eventList.filter(function(ev) { return String(ev?.change_class || '').toUpperCase() === 'POSITIVE'; }).length,
+            negative_signal_count: eventList.filter(function(ev) { return String(ev?.change_class || '').toUpperCase() === 'NEGATIVE'; }).length,
+            adjustment_drop_count: eventList.filter(function(ev) { return Number(ev?.adjustment_component || 0) < 0; }).length,
+            traffic_score: scxCalcGroupHealth(eventList, 'traffic'), delivery_score: scxCalcGroupHealth(eventList, 'delivery'), yield_score: scxCalcGroupHealth(eventList, 'yield'), quality_score: scxCalcGroupHealth(eventList, 'quality'), revenue_score: scxCalcGroupHealth(eventList, 'revenue'), efficiency_score: scxCalcGroupHealth(eventList, 'efficiency'),
+            ivt_click_stress_score: scxCalcGroupRisk(eventList, 'ivt_click_stress'), ivt_serving_score: scxCalcGroupRisk(eventList, 'ivt_serving'), ivt_attention_score: scxCalcGroupRisk(eventList, 'ivt_attention'), ivt_counter_score: scxCalcGroupRisk(eventList, 'ivt_counter'), ivt_funnel_score: scxCalcGroupRisk(eventList, 'ivt_funnel')
+        });
+        out.decision_margin = Number((out.health_score - out.ivt_risk_score + Math.min(0, out.adjustment_score)).toFixed(4));
+        out.root_cause_label = scxAggregateRootCause(out);
+        out.final_label = scxAggregateFinalLabel(out.root_cause_label, out, statusList);
+        out.reason_summary = `Agregasi seluruh ${Math.max(Array.isArray(groups) ? groups.length : statusList.length, 1)} negara aktif.`;
+        return out;
     }
 
     function scxTrendTone(score) {
@@ -3034,7 +3210,49 @@ function initDashboardRecap() {
         return html;
     }
 
-// ...existing code...
+    function scxDomainKey(obj) { return String(obj?.domain || obj?.site || obj?.site_name || obj?.subdomain || '-').trim().toLowerCase(); }
+    function scxDomainLabel(obj) { return String(obj?.domain || obj?.site || obj?.site_name || obj?.subdomain || '-').trim() || '-'; }
+    function scxGroupScoringBySubdomain(statuses, events, countryKey) {
+        const ck = String(countryKey || '').trim().toUpperCase(), map = new Map();
+        (Array.isArray(statuses) ? statuses : []).forEach(function(st){ if (ck && scxCountryKey(st) !== ck) return; const k = scxDomainKey(st); if (!k || k === '-') return; if (!map.has(k)) map.set(k, { key:k, label:scxDomainLabel(st), status:st, events:[] }); else map.get(k).status = st; });
+        (Array.isArray(events) ? events : []).forEach(function(ev){ if (ck && scxCountryKey(ev) !== ck) return; const k = scxDomainKey(ev); if (!k || k === '-') return; if (!map.has(k)) map.set(k, { key:k, label:scxDomainLabel(ev), status:null, events:[ev] }); else map.get(k).events.push(ev); });
+        return Array.from(map.values()).sort(function(a,b){ return Math.abs(Number(b?.status?.decision_margin || 0)) - Math.abs(Number(a?.status?.decision_margin || 0)); });
+    }
+    function scxSubdomainSummaryTable(items) {
+        if (!items.length) return `<div class="scx-sub">Tidak ada ringkasan subdomain.</div>`;
+        let h = `<div class="table-responsive"><table class="table table-sm table-striped scx-country-table"><thead><tr><th>Subdomain</th><th>Status</th><th class="text-end">Health</th><th class="text-end">Risk</th><th class="text-end">Decision</th></tr></thead><tbody>`;
+        items.forEach(function(it){ const st=it?.status||{}, fl=String(st?.final_label||'UNKNOWN'), tone=(fl.includes('POSITIVE')||fl.includes('RECOVERY')||fl.includes('EXPANSION'))?'green':((fl.includes('DROP')||fl.includes('NEG')||fl.includes('RED_FLAG'))?'red':'yellow'); h += `<tr><td>${esc(String(it?.label || it?.key || '-'))}</td><td><span class="scx-pill ${tone}">${esc(fl)}</span></td><td class="text-end">${esc(scxNum(st?.health_score,2))}</td><td class="text-end">${esc(scxNum(st?.ivt_risk_score,2))}</td><td class="text-end">${esc(scxNum(st?.decision_margin,2))}</td></tr>`; });
+        return h + `</tbody></table></div>`;
+    }
+    function scxRenderSubdomainPane(sub, tabKey) {
+        const st=sub?.status||{}, evs=Array.isArray(sub?.events)?sub.events:[], pos=scxTopEvents(evs,'positive'), neg=scxTopEvents(evs,'negative');
+        const rows=evs.filter(function(ev){ return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; }).sort(function(a,b){ return Math.abs(Number(b?.signal_strength||0)) - Math.abs(Number(a?.signal_strength||0)); }).slice(0,8).map(function(ev){ const t=scxSignalTone(ev?.signal_strength); return `<tr><td>${esc(scxMetricName(ev?.header_name || ev?.rule_key || '-'))}</td><td class="text-end">${esc(scxNum(ev?.cur_value,2))}</td><td class="text-end">${esc(scxBaselineText(ev))}</td><td><span class="scx-impact ${t}">${esc(scxSignalText(ev?.signal_strength))}</span></td></tr>`; }).join('');
+        const fl=String(st?.final_label||'UNKNOWN'), rl=String(st?.root_cause_label||'STABLE'), tone=(fl.includes('POSITIVE')||fl.includes('RECOVERY')||fl.includes('EXPANSION'))?'green':((fl.includes('DROP')||fl.includes('NEG')||fl.includes('RED_FLAG'))?'red':'yellow');
+        return `<div class="scx-grid"><div class="scx-card"><div class="scx-hero"><div><div class="scx-title" style="margin-bottom:6px;">${esc(String(sub?.label || sub?.key || '-'))}</div><div class="scx-status"><span class="scx-pill ${tone}">${esc(fl)}</span>${rl && rl !== fl ? `<span class="scx-pill gray">${esc(rl)}</span>` : ''}</div></div></div><div class="scx-kpi-grid"><div class="scx-kpi"><div class="scx-kpi-label">Health</div><div class="scx-kpi-value">${esc(scxNum(st?.health_score,2))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Confidence</div><div class="scx-kpi-value">${esc(scxPct01(st?.confidence,0))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Risk</div><div class="scx-kpi-value">${esc(scxNum(st?.ivt_risk_score,2))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Decision</div><div class="scx-kpi-value">${esc(scxNum(st?.decision_margin,2))}</div></div></div><div class="scx-section-gap"><div class="sd-details"><summary><span>Grafik Trend</span><span class="sd-det-right" id="${esc(tabKey)}Status">Loading trend...</span></summary><div class="sd-det-body"><div class="dashboard-recap-tabs mb-3" style="display:inline-flex;"><button type="button" class="btn btn-sm btn-primary" id="${esc(tabKey)}Btn1" data-days="1">H-1</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn3" data-days="3">H-3</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn7" data-days="7">H-7</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn14" data-days="14">H-14</button></div><div style="height:320px;"><canvas id="${esc(tabKey)}Chart"></canvas></div><div id="${esc(tabKey)}Stats"></div></div></div></div></div><div class="scx-card"><div class="scx-title">Detail Teknis Singkat</div>${rows ? `<div class="table-responsive"><table class="table table-sm table-striped scx-simple-table"><thead><tr><th>Metric</th><th class="text-end">Current</th><th class="text-end">Baseline</th><th>Impact</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="scx-sub">Belum ada detail event untuk subdomain ini.</div>`}<div class="scx-section-gap"><div class="scx-title">Yang Mendorong Naik</div>${scxRenderImpactList(pos, 'Belum ada sinyal positif dominan.', 'positive')}</div><div class="scx-section-gap"><div class="scx-title">Yang Perlu Diperhatikan</div>${scxRenderImpactList(neg, 'Belum ada sinyal negatif dominan.', 'negative')}</div></div></div>`;
+    }
+
+    function bindScoreCountryTabs(onShow) {
+        const btns = Array.from(document.querySelectorAll('[data-scx-tab-btn]'));
+        const panes = Array.from(document.querySelectorAll('[data-scx-tab-pane]'));
+        if (!btns.length || !panes.length) return;
+        function act(k){ btns.forEach(function(b){ const on=b.getAttribute('data-scx-tab-btn')===k; b.className=`btn btn-sm ${on?'btn-primary':'btn-light'}`; b.style.borderRadius='999px'; b.style.padding='8px 14px'; b.style.border=on?'1px solid transparent':'1px solid rgba(37,99,235,0.18)'; b.style.background=on?'linear-gradient(135deg,#2563eb,#1d4ed8)':'#fff'; b.style.color=on?'#fff':'#1e3a8a'; b.style.boxShadow=on?'0 10px 24px rgba(37,99,235,0.22)':'0 1px 3px rgba(15,23,42,0.06)'; } ); panes.forEach(function(p){ p.style.display = p.getAttribute('data-scx-tab-pane')===k ? '' : 'none'; }); if (typeof onShow === 'function') onShow(k); }
+        btns.forEach(function(b){ b.onclick=function(){ act(String(b.getAttribute('data-scx-tab-btn')||'summary')); }; });
+        act('summary');
+    }
+
+    function scxRenderCountryPane(group, tabKey) {
+        const st = group?.status || {};
+        const evs = Array.isArray(group?.events) ? group.events : [];
+        const pos = scxTopEvents(evs, 'positive');
+        const neg = scxTopEvents(evs, 'negative');
+        const rows = evs.filter(function(ev){ return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; }).sort(function(a,b){ return Math.abs(Number(b?.signal_strength||0)) - Math.abs(Number(a?.signal_strength||0)); }).slice(0,8).map(function(ev){ const t=scxSignalTone(ev?.signal_strength); return `<tr><td>${esc(scxMetricName(ev?.header_name || ev?.rule_key || '-'))}</td><td class="text-end">${esc(scxNum(ev?.cur_value,2))}</td><td class="text-end">${esc(scxBaselineText(ev))}</td><td><span class="scx-impact ${t}">${esc(scxSignalText(ev?.signal_strength))}</span></td></tr>`; }).join('');
+        const fl = String(st?.final_label || 'UNKNOWN');
+        const rl = String(st?.root_cause_label || 'STABLE');
+        const tone = (fl.includes('POSITIVE') || fl.includes('RECOVERY') || fl.includes('EXPANSION')) ? 'green' : ((fl.includes('DROP') || fl.includes('NEG') || fl.includes('RED_FLAG')) ? 'red' : 'yellow');
+        return `<div class="scx-grid"><div class="scx-card"><div class="scx-hero"><div><div class="scx-title" style="margin-bottom:6px;">${esc(scxCountryLabel(st))}</div><div class="scx-status"><span class="scx-pill ${tone}">${esc(fl)}</span>${rl && rl !== fl ? `<span class="scx-pill gray">${esc(rl)}</span>` : ''}</div></div></div><div class="scx-kpi-grid"><div class="scx-kpi"><div class="scx-kpi-label">Health</div><div class="scx-kpi-value">${esc(scxNum(st?.health_score,2))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Confidence</div><div class="scx-kpi-value">${esc(scxPct01(st?.confidence,0))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Risk</div><div class="scx-kpi-value">${esc(scxNum(st?.ivt_risk_score,2))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Decision</div><div class="scx-kpi-value">${esc(scxNum(st?.decision_margin,2))}</div></div></div><div class="scx-section-gap"><div class="sd-details"><summary><span>Grafik Trend</span><span class="sd-det-right" id="${esc(tabKey)}Status">Loading trend...</span></summary><div class="sd-det-body"><div class="dashboard-recap-tabs mb-3" style="display:inline-flex;"><button type="button" class="btn btn-sm btn-primary" id="${esc(tabKey)}Btn1" data-days="1">H-1</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn3" data-days="3">H-3</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn7" data-days="7">H-7</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn14" data-days="14">H-14</button></div><div style="height:320px;"><canvas id="${esc(tabKey)}Chart"></canvas></div><div id="${esc(tabKey)}Stats"></div></div></div></div></div><div class="scx-card"><div class="scx-title">Detail Teknis Singkat</div>${rows ? `<div class="table-responsive"><table class="table table-sm table-striped scx-simple-table"><thead><tr><th>Metric</th><th class="text-end">Current</th><th class="text-end">Baseline</th><th>Impact</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="scx-sub">Tidak ada detail event.</div>`}<div class="scx-section-gap"><div class="scx-title">Yang Mendorong Naik</div>${scxRenderImpactList(pos, 'Belum ada sinyal positif dominan.', 'positive')}</div><div class="scx-section-gap"><div class="scx-title">Yang Perlu Diperhatikan</div>${scxRenderImpactList(neg, 'Belum ada sinyal negatif dominan.', 'negative')}</div></div></div>`;
+    }
+
+    // ...existing code...
 
     function rowsFrom(dim, arr, sourceTag, lastUpdate, mlMap) {
         const out = (arr||[]).map(r => {
@@ -3963,15 +4181,14 @@ function initDashboardRecap() {
         const d = String(meta?.decision || '').toUpperCase();
         const label = String(meta?.label || '').trim();
         const title = (meta?.reasons && meta.reasons.length) ? esc(meta.reasons.join(' • ')) : '';
-
+        if (!d) return `<div title="${title}"><span class="badge badge-light badge-pill" style="color:#6b7280;border:1px solid rgba(107,114,128,.22);">BELUM SIAP</span>${label ? `<div style="font-size:11px;opacity:.8;margin-top:4px;font-weight:800;">${esc(label)}</div>` : ''}</div>`;
         let cls = 'badge badge-secondary badge-pill';
-        if (d === 'SCALE') cls = 'badge badge-success badge-pill';
-        else if (d === 'KEEP') cls = 'badge badge-primary badge-pill';
-        else if (d === 'OPTIMIZE') cls = 'badge badge-warning badge-pill text-dark';
-        else if (d === 'PAUSE') cls = 'badge badge-danger badge-pill';
-
+        if (d === 'SCALE UP') cls = 'badge badge-success badge-pill';
+        else if (d === 'HOLD') cls = 'badge badge-primary badge-pill';
+        else if (d === 'SCALE DOWN') cls = 'badge badge-warning badge-pill text-dark';
+        else if (d === 'STOP') cls = 'badge badge-danger badge-pill';
         const sub = label ? `<div style="font-size:11px;opacity:.8;margin-top:4px;font-weight:800;">${esc(label)}</div>` : '';
-        return `<div title="${title}"><span class="${cls}">${esc(d || '-')}</span>${sub}</div>`;
+        return `<div title="${title}"><span class="${cls}">${esc(d)}</span>${sub}</div>`;
     }
 
     function openScoreDetailModal(title, html) {
@@ -4433,14 +4650,25 @@ function initDashboardRecap() {
         };
     }
 
-    function renderScoreTrendChart(series, state) {
-        const canvas = document.getElementById('sdTrendChart');
-        if (!canvas || typeof Chart !== 'function') return;
+    async function buildTrendSeriesMulti(domainKeys, endYmd, state, daysBack) {
+        const keys = uniqKeepOrder(Array.isArray(domainKeys) ? domainKeys : [domainKeys]).filter(Boolean);
+        if (!keys.length) return buildTrendSeries('', endYmd, state, daysBack);
+        const list = await Promise.all(keys.map(function(k){ return buildTrendSeries(k, endYmd, state, daysBack); }));
+        const base = list.find(function(s){ return Array.isArray(s?.dates) && s.dates.length; }) || { dates: [] };
+        const spend = base.dates.map(function(_, i){ return list.reduce(function(a, s){ return a + safeNum(s?.spend?.[i], 0); }, 0); });
+        const revenue = base.dates.map(function(_, i){ return list.reduce(function(a, s){ return a + safeNum(s?.revenue?.[i], 0); }, 0); });
+        const pageViews = base.dates.map(function(_, i){ return list.reduce(function(a, s){ return a + safeNum(s?.metrics?.page_views?.[i], 0); }, 0); });
+        const roi = base.dates.map(function(_, i){ return spend[i] > 0 ? ((revenue[i] - spend[i]) / spend[i] * 100) : 0; });
+        return { dates: base.dates.slice(), spend, revenue, roi, metrics: { page_views: pageViews, page_views_rpm: pageViews.map(function(v, i){ return v > 0 ? (revenue[i] / v) * 1000 : 0; }) } };
+    }
 
+    function renderScoreTrendChart(series, state, opts) {
+        const o = opts || {};
+        const canvas = document.getElementById(o.canvasId || 'sdTrendChart');
+        if (!canvas || typeof Chart !== 'function') return;
+        const chartKey = String(o.chartKey || 'scoreDetailTrendChart');
         try {
-            if (window.scoreDetailTrendChart && typeof window.scoreDetailTrendChart.destroy === 'function') {
-                window.scoreDetailTrendChart.destroy();
-            }
+            if (window[chartKey] && typeof window[chartKey].destroy === 'function') window[chartKey].destroy();
         } catch (e) {}
 
         const labels = Array.isArray(series?.dates) ? series.dates : [];
@@ -4558,7 +4786,7 @@ function initDashboardRecap() {
             };
         }
 
-        window.scoreDetailTrendChart = new Chart(canvas.getContext('2d'), {
+        window[chartKey] = new Chart(canvas.getContext('2d'), {
             data: { labels, datasets },
             options: {
                 responsive: true,
@@ -4640,12 +4868,13 @@ function initDashboardRecap() {
         }
     }
 
-    function bindScoreTrendControls(domainKey, endYmd, state) {
-        const s1 = document.getElementById('sdTrendBtn1');
-        const s3 = document.getElementById('sdTrendBtn3');
-        const s7 = document.getElementById('sdTrendBtn7');
-        const s14 = document.getElementById('sdTrendBtn14');
-        const st = document.getElementById('sdTrendStatus');
+    function bindScoreTrendControls(domainKey, endYmd, state, opts) {
+        const o = opts || {};
+        const s1 = document.getElementById(o.btn1Id || 'sdTrendBtn1');
+        const s3 = document.getElementById(o.btn3Id || 'sdTrendBtn3');
+        const s7 = document.getElementById(o.btn7Id || 'sdTrendBtn7');
+        const s14 = document.getElementById(o.btn14Id || 'sdTrendBtn14');
+        const st = document.getElementById(o.statusId || 'sdTrendStatus');
 
         function setActive(n) {
             [s1, s3, s7, s14].forEach(function(b){
@@ -4664,7 +4893,7 @@ function initDashboardRecap() {
         }
 
         function renderTrendStats(series) {
-            const el = document.getElementById('sdTrendStats');
+            const el = document.getElementById(o.statsId || 'sdTrendStats');
             if (!el) return;
 
             const dates = Array.isArray(series?.dates) ? series.dates : [];
@@ -4738,14 +4967,14 @@ function initDashboardRecap() {
             setActive(days);
             if (st) st.textContent = 'Loading trend...';
             try {
-                const series = await buildTrendSeries(domainKey, endYmd, state, back);
+                const series = await buildTrendSeriesMulti((o.domainKeys && o.domainKeys.length) ? o.domainKeys : domainKey, endYmd, state, back);
                 console.log('score trend series', {
                     source: state?.source,
                     domainKey,
                     days,
                     series
                 });
-                renderScoreTrendChart(series, state);
+                renderScoreTrendChart(series, state, o);
                 renderTrendStats(series);
 
                 const n = (series && series.dates) ? series.dates.length : 0;
@@ -4776,7 +5005,7 @@ function initDashboardRecap() {
                 if (st) st.textContent = parts.join(' • ');
             } catch (e) {
                 if (st) st.textContent = String(e?.message || e || 'Gagal memuat trend');
-                const el = document.getElementById('sdTrendStats');
+                const el = document.getElementById(o.statsId || 'sdTrendStats');
                 if (el) el.innerHTML = '';
             }
         }
@@ -4790,7 +5019,6 @@ function initDashboardRecap() {
     }
 
     function bindScoreCampaignControls(row, ymd) {
-        const loadBtn = document.getElementById('sdLoadCampaignBtn');
         const pauseBtn = document.getElementById('sdPauseSelectedBtn');
         const actBtn = document.getElementById('sdActivateSelectedBtn');
         const scaleBtn = document.getElementById('sdScaleUp15Btn');
@@ -4885,7 +5113,7 @@ function initDashboardRecap() {
 
                 h += '<tr>';
                 h += `<td class="text-center"><input class="sd-camp-cb" type="checkbox" data-cid="${esc(cid)}"></td>`;
-                h += `<td style="font-weight:800;">${esc(name)}</td>`;
+                h += `<td style="font-weight:400;color:#0f172a;">${esc(name)}</td>`;
                 h += `<td class="text-end">${fmtIdr(spend)}</td>`;
                 h += `<td class="text-end"><input id="${esc(inputId)}" type="text" class="form-control form-control-sm" value="${esc(String(Math.round(bud)))}" style="text-align:right;"></td>`;
                 h += `<td class="text-center"><button type="button" class="btn btn-sm btn-outline-primary sd-camp-upd" data-cid="${esc(cid)}">Save</button></td>`;
@@ -4899,11 +5127,9 @@ function initDashboardRecap() {
         async function refresh() {
             if (!accountAds || !siteName || !start || !end) {
                 setStatus('account_ads / domain / tanggal tidak valid');
-                if (loadBtn) loadBtn.disabled = true;
                 return;
             }
             setStatus('Loading campaigns...');
-            if (loadBtn) loadBtn.disabled = true;
             try {
                 st.campaigns = await getCampaigns();
                 render();
@@ -4912,8 +5138,6 @@ function initDashboardRecap() {
                 st.campaigns = [];
                 render();
                 setStatus(String(e?.message || e || 'Gagal memuat campaigns'));
-            } finally {
-                if (loadBtn) loadBtn.disabled = false;
             }
         }
 
@@ -4944,7 +5168,6 @@ function initDashboardRecap() {
             }
         }
 
-        if (loadBtn) loadBtn.onclick = refresh;
         if (pauseBtn) pauseBtn.onclick = function(){ bulkStatus('PAUSED'); };
         if (actBtn) actBtn.onclick = function(){ bulkStatus('ACTIVE'); };
         if (scaleBtn) scaleBtn.onclick = function(){ bulkBudget(1.15); };
@@ -4975,7 +5198,7 @@ function initDashboardRecap() {
             finally { btn.disabled = false; }
         });
 
-        render();
+        refresh();
     }
 
     function scoringModalBadge(label) {
@@ -5012,13 +5235,19 @@ function initDashboardRecap() {
             const comparisonDates = apiJson?.comparison_dates || {};
             const parsed = pickScoringArrays(scoring);
             const groups = scxGroupScoringByCountry(parsed.statuses, parsed.events);
+            const subgroups = String(state?.dim || '').toLowerCase() === 'country' ? scxGroupScoringBySubdomain(parsed.statuses, parsed.events, row?.code || '') : [];
+            const useSubTabs = !!subgroups.length;
+            const summaryTrendKeys = useSubTabs ? subgroups.map(function(it){ return it.key; }).filter(Boolean) : [];
             const primaryGroup = scxPickPrimaryCountryGroup(groups);
-            const first = primaryGroup?.status || {};
-            const events = Array.isArray(primaryGroup?.events) ? primaryGroup.events : [];
+            const focusStatus = primaryGroup?.status || {};
+            const focusEvents = Array.isArray(primaryGroup?.events) ? primaryGroup.events : [];
+            const events = Array.isArray(parsed?.events) ? parsed.events : [];
+            const first = scxAggregateScoring(parsed.statuses, events, groups);
             const trendWindows = row?.trend_windows || {};
     
             const finalLabel = String(first?.final_label || 'UNKNOWN');
             const rootLabel = String(first?.root_cause_label || 'STABLE');
+            const showRootLabel = rootLabel && rootLabel !== finalLabel;
             const health = Number(first?.health_score || 0);
             const confidence = Number(first?.confidence || 0);
             const risk = Number(first?.ivt_risk_score || 0);
@@ -5035,11 +5264,13 @@ function initDashboardRecap() {
                 finalLabel.includes('DROP') || finalLabel.includes('NEG') || finalLabel.includes('RED_FLAG')
             ) ? 'red' : 'yellow';
     
-            const countryInfo = groups.length > 1
-                ? `${groups.length} negara terdeteksi. Detail utama menampilkan negara dengan sinyal terkuat: ${scxCountryLabel(first)}.`
-                : `Detail utama untuk ${scxCountryLabel(first)}.`;
-    
-            const simplifiedEvents = events
+            const countryInfo = useSubTabs
+                ? `Ringkasan utama memakai agregasi seluruh ${subgroups.length} subdomain aktif di ${scxCountryLabel(focusStatus)}.`
+                : groups.length > 1
+                    ? `Ringkasan utama memakai agregasi seluruh ${groups.length} negara aktif. Detail teknis di bawah tetap menampilkan negara dengan sinyal terkuat: ${scxCountryLabel(focusStatus)}.`
+                    : `Ringkasan utama memakai seluruh data yang tersedia untuk ${scxCountryLabel(first)}.`;
+
+            const simplifiedEvents = focusEvents
                 .filter(function(ev) {
                     return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED';
                 })
@@ -5047,9 +5278,14 @@ function initDashboardRecap() {
                     return Math.abs(Number(b?.signal_strength || 0)) - Math.abs(Number(a?.signal_strength || 0));
                 })
                 .slice(0, 12);
+            const canAct = String(state?.dim || '').toLowerCase() === 'domain' && String(row?.account_ads || '').trim();
+            const tabButtons = `<div class="mb-3" style="padding:14px;border:1px solid rgba(37,99,235,0.12);background:linear-gradient(180deg,rgba(239,246,255,0.9),rgba(255,255,255,0.95));border-radius:18px;"><div style="font-size:12px;color:#475569;margin-bottom:10px;">${useSubTabs ? 'Navigasi hasil scoring per subdomain negara aktif' : 'Navigasi hasil scoring per negara aktif'}</div><div class="dashboard-recap-tabs" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-primary" data-scx-tab-btn="summary">Kesimpulan Akhir</button>${(useSubTabs ? subgroups : groups).map(function(item, idx){ const count = Array.isArray(item?.events) ? item.events.filter(function(ev){ return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; }).length : 0; const label = useSubTabs ? String(item?.label || item?.key || '-') : String(scxCountryLabel(item?.status || { country_cd: item?.key || '-' }) || '-').toUpperCase(); return `<button type="button" class="btn btn-sm btn-light" data-scx-tab-btn="${useSubTabs ? `sub-${idx}` : `country-${idx}`}">${esc(label)} <span style="margin-left:6px;font-size:11px;opacity:0.72;">${esc(String(count))}</span></button>`; }).join('')}</div></div>`;
+            const actionPanel = canAct ? `<div class="scx-section-gap" style="padding:14px;border:1px solid rgba(15,23,42,0.08);border-radius:16px;background:#fff;"><div class="scx-title">Campaign Aktif di Subdomain</div><div class="scx-sub" style="margin-bottom:10px;">Campaign langsung dimuat otomatis untuk subdomain ini.</div><div class="dashboard-recap-tabs mb-2" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-danger" id="sdPauseSelectedBtn">Stop</button><button type="button" class="btn btn-sm btn-primary" id="sdActivateSelectedBtn">Hold</button><button type="button" class="btn btn-sm btn-success" id="sdScaleUp15Btn">Scale Up</button><button type="button" class="btn btn-sm btn-warning text-dark" id="sdOptimize10Btn">Scale Down</button></div><div id="sdCampaignStatus" class="scx-sub" style="margin-bottom:8px;"></div><div id="sdCampaignTable"></div></div>` : '';
+            const countryPanes = useSubTabs ? subgroups.map(function(sub, idx){ return `<div data-scx-tab-pane="sub-${idx}" style="display:none;">${scxRenderSubdomainPane(sub, `scxSubTrend${idx}`)}</div>`; }).join('') : groups.map(function(group, idx){ return `<div data-scx-tab-pane="country-${idx}" style="display:none;">${scxRenderCountryPane(group, `scxCountryTrend${idx}`)}</div>`; }).join('');
     
             let html = '';
-    
+            html += tabButtons;
+            html += `<div data-scx-tab-pane="summary">`;
             html += `<div class="scx-grid">`;
     
             html += `<div class="scx-card">`;
@@ -5058,7 +5294,7 @@ function initDashboardRecap() {
             html += `          <div class="scx-title" style="margin-bottom:6px;">Ringkasan Hasil Scoring</div>`;
             html += `          <div class="scx-status">`;
             html += `              <span class="scx-pill ${statusTone}">${esc(finalLabel)}</span>`;
-            html += `              <span class="scx-pill gray">${esc(rootLabel)}</span>`;
+            if (showRootLabel) html += `              <span class="scx-pill gray">${esc(rootLabel)}</span>`;
             html += `          </div>`;
             html += `      </div>`;
             html += `      <div class="scx-sub">Tanggal ${esc(String(state?.date || '-'))}</div>`;
@@ -5070,6 +5306,7 @@ function initDashboardRecap() {
             html += `  </div>`;
     
             html += `  <div class="scx-section-gap scx-note-box">${esc(countryInfo)}</div>`;
+            html += actionPanel;
     
             html += `  <div class="scx-section-gap scx-kpi-grid">`;
     
@@ -5105,7 +5342,7 @@ function initDashboardRecap() {
     
             html += `  <div class="scx-section-gap">`;
             html += `      <div class="scx-title">Trend Historis yang Dipakai Scoring</div>`;
-            html +=         scxRenderTrendWindows(trendWindows);
+            html +=         `<div id="scxSummaryTrendWindows">${scxRenderTrendWindows(trendWindows)}</div>`;
             html += `  </div>`;
     
             html += `  <div class="scx-section-gap">`;
@@ -5141,7 +5378,7 @@ function initDashboardRecap() {
             html += `  <table class="scx-info-table">`;
             html += `      <tr><td>Domain</td><td>${esc(String(row?.name || first?.domain || '-'))}</td></tr>`;
             html += `      <tr><td>Country Aktif</td><td>${esc(groups.length > 1 ? `${groups.length} negara` : scxCountryLabel(first))}</td></tr>`;
-            html += `      <tr><td>Country Fokus</td><td>${esc(scxCountryLabel(first))}</td></tr>`;
+            html += `      <tr><td>Country Fokus</td><td>${esc(scxCountryLabel(focusStatus))}</td></tr>`;
             html += `      <tr><td>Source</td><td>${esc(String(state?.source || first?.mapped_revenue_source || '-'))}</td></tr>`;
             html += `      <tr><td>Positive Signals</td><td>${esc(String(first?.positive_signal_count ?? 0))}</td></tr>`;
             html += `      <tr><td>Negative Signals</td><td>${esc(String(first?.negative_signal_count ?? 0))}</td></tr>`;
@@ -5152,18 +5389,18 @@ function initDashboardRecap() {
             html += `  </table>`;
     
             html += `  <div class="scx-section-gap">`;
-            html += `      <div class="scx-title">Ringkasan Per Negara</div>`;
-            html +=         scxCountrySummaryTable(groups);
+            html += `      <div class="scx-title">${useSubTabs ? 'Ringkasan Per Subdomain' : 'Ringkasan Per Negara'}</div>`;
+            html +=         useSubTabs ? scxSubdomainSummaryTable(subgroups) : scxCountrySummaryTable(groups);
             html += `  </div>`;
     
             html += `  <div class="scx-section-gap">`;
             html += `      <div class="scx-title">Arti Root Cause</div>`;
             html += `      <div class="scx-callout">${esc(scxRootCauseText(rootLabel))}</div>`;
-            html += `      <div class="scx-mini-muted">${esc(String(first?.reason_summary || ''))}</div>`;
+            html += `      <div class="scx-mini-muted">${esc(String(first?.reason_summary || ''))} ${groups.length > 1 ? `Negara fokus teknis: ${scxCountryLabel(focusStatus)}.` : ''}</div>`;
             html += `  </div>`;
     
             html += `  <div class="scx-section-gap">`;
-            html += `      <div class="scx-title">Detail Teknis Singkat (${esc(scxCountryLabel(first))})</div>`;
+            html += `      <div class="scx-title">Detail Teknis Singkat (${esc(scxCountryLabel(focusStatus))})</div>`;
             html += `      <div class="scx-sub" style="margin-bottom:8px;">Baseline hanya tampil jika histori cukup. Jika belum, akan ditandai sebagai <strong>Belum cukup histori</strong>.</div>`;
             if (simplifiedEvents.length) {
                 html += `<div class="table-responsive"><table class="table table-sm table-striped scx-simple-table">`;
@@ -5195,21 +5432,15 @@ function initDashboardRecap() {
     
             html += `</div>`;
             html += `</div>`;
+            html += `</div>`;
+            html += countryPanes;
     
             return html;
         }
     // ...existing code...
 
-    async function createScoringFromDashboardRow(row, state) {
-        const payload = {
-            date: String(state?.date || '').trim(),
-            run_hour: null,
-            domain: String(state?.dim === 'domain' ? (row?.name || '') : '').trim(),
-            site: String(state?.dim === 'domain' ? (row?.name || '') : '').trim(),
-            country_cd: String(state?.dim === 'country' ? (row?.code || '') : '').trim().toUpperCase(),
-            country_code: String(state?.dim === 'country' ? (row?.code || '') : '').trim().toUpperCase(),
-            mapped_revenue_source: String(state?.source || '').trim().toLowerCase(),
-        };
+    async function createScoringFromDashboardRow(row, state, metaHint) {
+        const payload = buildCreateScoringPayload(row, state);
 
         openScoreDetailModal(
             `Create Scoring: ${String(row?.name || '-')}`,
@@ -5217,32 +5448,60 @@ function initDashboardRecap() {
         );
 
         try {
-            const res = await fetch('/management/admin/dashboard_create_scoring', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                credentials: 'same-origin',
-                body: JSON.stringify(payload)
-            });
+            const trendWindows = row?.trend_windows || await getTrendWindowsForRow(row, state);
+            const rowWithTrend = Object.assign({}, row, { trend_windows: trendWindows });
+            const json = metaHint?.apiJson ? metaHint.apiJson : await (async function(){
+                const res = await fetch('/management/admin/dashboard_create_scoring', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (!res.ok || !data || !data.status) throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
+                return data;
+            })();
 
-            const json = await res.json();
-            if (!res.ok || !json || !json.status) {
-                throw new Error(json?.message || json?.error || `HTTP ${res.status}`);
-            }
+            const parsedScoring = pickScoringArrays(json?.scoring || {});
+            const groups = scxGroupScoringByCountry(parsedScoring.statuses, parsedScoring.events);
+            const subgroups = String(state?.dim || '').toLowerCase() === 'country' ? scxGroupScoringBySubdomain(parsedScoring.statuses, parsedScoring.events, row?.code || '') : [];
 
             openScoreDetailModal(
                 `Create Scoring: ${String(row?.name || '-')}`,
-                renderCreateScoringResult(json, row, state)
+                renderCreateScoringResult(json, rowWithTrend, state)
             );
 
             window.setTimeout(function() {
                 try {
-                    const trendKey = String(state?.dim === 'country' ? (row?.code || '') : (row?.name || '')).trim();
-                    if (trendKey && state?.date) {
-                        bindScoreTrendControls(trendKey, String(state.date || '').trim(), state);
-                    }
+                    bindScoreCountryTabs(function(tabKey){
+                        const endYmd = String(state.date || '').trim();
+                        if (!endYmd) return;
+                        if (tabKey === 'summary') {
+                            const summaryKeys = subgroups.map(function(it){ return it.key; }).filter(Boolean);
+                            if (summaryKeys.length) {
+                                const trendState = Object.assign({}, state, { dim: 'domain' });
+                                bindScoreTrendControls('', endYmd, trendState, { domainKeys: summaryKeys });
+                                const winsEl = document.getElementById('scxSummaryTrendWindows');
+                                if (winsEl) buildTrendSeriesMulti(summaryKeys, endYmd, trendState, 27).then(function(series){ winsEl.innerHTML = scxRenderTrendWindows(summarizeTrendWindows(series)); }).catch(function(){});
+                            } else {
+                                const trendKey = String(state?.dim === 'country' ? (row?.code || '') : (row?.name || '')).trim();
+                                if (trendKey) bindScoreTrendControls(trendKey, endYmd, state);
+                            }
+                            return;
+                        }
+                        if (String(tabKey || '').indexOf('sub-') === 0) {
+                            const idx = Number(String(tabKey || '').replace('sub-', ''));
+                            const sub = Array.isArray(subgroups) ? subgroups[idx] : null;
+                            if (sub?.key) bindScoreTrendControls(sub.key, endYmd, Object.assign({}, state, { dim: 'domain' }), { btn1Id: `scxSubTrend${idx}Btn1`, btn3Id: `scxSubTrend${idx}Btn3`, btn7Id: `scxSubTrend${idx}Btn7`, btn14Id: `scxSubTrend${idx}Btn14`, statusId: `scxSubTrend${idx}Status`, statsId: `scxSubTrend${idx}Stats`, canvasId: `scxSubTrend${idx}Chart`, chartKey: `scxSubTrendChart${idx}` });
+                            return;
+                        }
+                        const idx = Number(String(tabKey || '').replace('country-', ''));
+                        const group = Array.isArray(groups) ? groups[idx] : null;
+                        const st = group?.status || {};
+                        const trendKey = String(st?.country_cd || st?.country_code || '').trim();
+                        if (trendKey) bindScoreTrendControls(trendKey, endYmd, Object.assign({}, state, { dim: 'country' }), { btn1Id: `scxCountryTrend${idx}Btn1`, btn3Id: `scxCountryTrend${idx}Btn3`, btn7Id: `scxCountryTrend${idx}Btn7`, btn14Id: `scxCountryTrend${idx}Btn14`, statusId: `scxCountryTrend${idx}Status`, statsId: `scxCountryTrend${idx}Stats`, canvasId: `scxCountryTrend${idx}Chart`, chartKey: `scxCountryTrendChart${idx}` });
+                    });
+                    if (String(state?.dim || '').toLowerCase() === 'domain' && rowWithTrend?.account_ads && state?.date) bindScoreCampaignControls(rowWithTrend, String(state.date || '').trim());
                 } catch (e) {}
             }, 0);
         } catch (e) {
@@ -5266,7 +5525,7 @@ function initDashboardRecap() {
                     const key = createBtn.getAttribute('data-score-key') || '';
                     const payload = (window.dashboardRecapScoreDetails || {})[key];
                     if (!payload) return;
-                    createScoringFromDashboardRow(payload.row, payload.state);
+                    createScoringFromDashboardRow(payload.row, payload.state, payload.meta);
                     return;
                 }
 
@@ -5347,14 +5606,10 @@ function initDashboardRecap() {
         window.dashboardRecapScoreDetails = window.dashboardRecapScoreDetails || {};
 
         const backendScores = await fetchDashboardScoring(rows, state);
-        const scored = await Promise.all((rows || []).map(async (r) => {
-            const trendWindows = await getTrendWindowsForRow(r, state);
-            const rowWithTrend = Object.assign({}, r, { trend_windows: trendWindows });
-            const localMeta = scoreAndDecision(rowWithTrend, state);
-            const backendMeta = backendScores[scoringLookupKey(dim, rowWithTrend)] || null;
-            const meta = mergeScoreMeta(localMeta, backendMeta, rowWithTrend, state);
-            return { r: rowWithTrend, meta };
-        }));
+        const scored = (rows || []).map(function(r) {
+            const meta = summarizeDashboardScoringMeta(backendScores[scoringLookupKey(dim, r)] || null, r, state);
+            return { r, meta };
+        });
 
         const scores = scored.map(x => Number(x?.meta?.score) || 0);
         const minScore = scores.length ? Math.min.apply(null, scores) : null;
@@ -5384,7 +5639,7 @@ function initDashboardRecap() {
                 Number(r.revenue) || 0,
                 Number(r.net) || 0,
                 Number(r.roi) || 0,
-                Number(meta.score) || 0,
+                meta.score == null ? null : Number(meta.score),
                 keputusanHtml,
                 updatedCell(r),
                 detailBtn,
@@ -5512,6 +5767,11 @@ function initDashboardRecap() {
                         targets: 7,
                         className: 'text-center',
                         render: function (data, type) {
+                            if (data == null || data === '') {
+                                if (type === 'display') return `<div style="min-width:92px;text-align:left;color:#6b7280;font-size:11px;font-weight:800;">Belum ada hasil</div>`;
+                                if (type === 'filter') return '';
+                                return -1;
+                            }
                             const v = Number(data) || 0;
                             if (type === 'display') {
                                 const tone = v >= 80 ? 'success' : v >= 60 ? 'primary' : v >= 40 ? 'warning' : 'danger';

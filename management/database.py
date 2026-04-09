@@ -4242,12 +4242,14 @@ class data_mysql:
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
 
             site_expr = "concat(arrayElement(splitByChar('.', b.data_adsense_country_domain), 1), '.', arrayElement(splitByChar('.', b.data_adsense_country_domain), 2))" if use_clickhouse else "SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 2)"
+            date_expr = "toDate(b.data_adsense_country_tanggal)" if use_clickhouse else "DATE(b.data_adsense_country_tanggal)"
 
             like_conditions_domain = " OR ".join([f"{site_expr} LIKE %s"] * len(data_domain_list))
             like_params_domain = [f"%{domain}%" for domain in data_domain_list]
 
             base_sql = [
                 "SELECT",
+                f"\t{date_expr} AS 'date',",
                 f"\t{site_expr} AS 'site_name',",
                 "\tb.data_adsense_country_cd AS 'country_code',",
                 "\tSUM(b.data_adsense_country_impresi) AS 'impressions',",
@@ -4277,8 +4279,8 @@ class data_mysql:
                 base_sql.append(f"\tAND ({like_conditions_domain})")
                 params.extend(like_params_domain)
 
-            base_sql.append(f"GROUP BY {site_expr}, b.data_adsense_country_cd")
-            base_sql.append(f"ORDER BY {site_expr} ASC")
+            base_sql.append(f"GROUP BY {date_expr}, {site_expr}, b.data_adsense_country_cd")
+            base_sql.append(f"ORDER BY {date_expr} ASC, {site_expr} ASC")
 
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):
