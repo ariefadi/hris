@@ -27,39 +27,106 @@ _ENV_LOADED = False
 
 # ...existing code...
 import pandas as pd
+clickhouse_connect_import_error = None
 try:
     import clickhouse_connect
-except Exception:
+except Exception as e:
     clickhouse_connect = None
-from django.conf import settings
+    clickhouse_connect_import_error = e
 from django.db import connection
 # ...existing code...
 
 _clickhouse_client = None
 
+def _clickhouse_http_config():
+    _ensure_env_loaded()
+    host = getattr(settings, 'CH_HOST', None) or os.getenv('CH_HOST') or os.getenv('REPORT_DB_HOST') or os.getenv('DB_REPORT_HOST') or '127.0.0.1'
+    raw_port = str(getattr(settings, 'CH_PORT', '') or os.getenv('CH_PORT') or os.getenv('REPORT_DB_PORT') or os.getenv('DB_REPORT_PORT') or '8123').strip()
+    try:
+        port = int(raw_port)
+    except (ValueError, TypeError):
+        port = 8123
+    user = getattr(settings, 'CH_USER', None) or os.getenv('CH_USER') or os.getenv('REPORT_DB_USER') or os.getenv('DB_REPORT_USER') or 'default'
+    password = getattr(settings, 'CH_PASSWORD', None) or os.getenv('CH_PASSWORD') or os.getenv('REPORT_DB_PASSWORD') or os.getenv('DB_REPORT_PASSWORD') or 'hris123456'
+    database = getattr(settings, 'CH_DB', None) or os.getenv('CH_DB') or os.getenv('REPORT_DB_NAME') or os.getenv('DB_REPORT_NAME') or 'hris_trendHorizone'
+    return host, port, user, password, database
+
+def _clickhouse_http_post(sql_text: str, timeout: int = 120):
+    if requests is None:
+        raise RuntimeError('The requests library is not installed')
+    host, port, user, password, database = _clickhouse_http_config()
+    base = f"http://{host}:{port}/"
+    params = {}
+    if database:
+        params['database'] = database
+    auth = None
+    if user and password is not None:
+        auth = (user, password or '')
+    elif user:
+        auth = (user, '')
+    resp = requests.post(
+        base,
+        params=params,
+        auth=auth,
+        data=str(sql_text).encode('utf-8'),
+        timeout=timeout,
+    )
+    resp.raise_for_status()
+    return resp
+
 def get_clickhouse_client():
     global _clickhouse_client
     if clickhouse_connect is None:
+        if clickhouse_connect_import_error is not None:
+            raise clickhouse_connect_import_error
         raise ModuleNotFoundError("clickhouse_connect")
     if _clickhouse_client is None:
         _clickhouse_client = clickhouse_connect.get_client(
-            host=getattr(settings, 'CLICKHOUSE_HOST', '127.0.0.1'),
-            port=getattr(settings, 'CLICKHOUSE_PORT', 8123),
-            username=getattr(settings, 'CLICKHOUSE_USER', 'default'),
-            password=getattr(settings, 'CLICKHOUSE_PASSWORD', 'hris123456'),
-            database=getattr(settings, 'CLICKHOUSE_DATABASE', 'hris_trendHorizone'),
+            host=getattr(settings, 'CH_HOST', '127.0.0.1'),
+            port=getattr(settings, 'CH_PORT', 8123),
+            username=getattr(settings, 'CH_USER', 'default'),
+            password=getattr(settings, 'CH_PASSWORD', 'hris123456'),
+            database=getattr(settings, 'CH_DB', 'hris_trendHorizone'),
         )
     return _clickhouse_client
 
 def query_df(sql: str) -> pd.DataFrame:
-    client = get_clickhouse_client()
-    return client.query_df(sql)
+    if clickhouse_connect is not None:
+        client = get_clickhouse_client()
+        return client.query_df(sql)
+    if requests is None:
+        if clickhouse_connect_import_error is not None:
+            raise clickhouse_connect_import_error
+        raise ModuleNotFoundError("clickhouse_connect")
+    host, port, user, password, database = _clickhouse_http_config()
+    cur = ClickHouseHttpCursor(host=host, port=port, user=user, password=password, database=database)
+    cur.execute(sql)
+    return pd.DataFrame(cur.fetchall())
 
 def insert_df(table: str, df: pd.DataFrame) -> None:
     if df is None or df.empty:
         return
-    client = get_clickhouse_client()
-    client.insert_df(table, df)
+    if clickhouse_connect is not None:
+        client = get_clickhouse_client()
+        client.insert_df(table, df)
+        return
+    if requests is None:
+        if clickhouse_connect_import_error is not None:
+            raise clickhouse_connect_import_error
+        raise ModuleNotFoundError("clickhouse_connect")
+    records = df.to_dict(orient='records')
+    raw_chunk = str(os.getenv('CH_INSERT_BATCH_SIZE', '5000') or '5000').strip()
+    try:
+        chunk_size = int(raw_chunk)
+    except (ValueError, TypeError):
+        chunk_size = 5000
+    if chunk_size <= 0:
+        chunk_size = 5000
+    for i in range(0, len(records), chunk_size):
+        chunk = records[i:i + chunk_size]
+        lines = [json.dumps(r, ensure_ascii=False, default=str) for r in chunk]
+        payload = f"INSERT INTO {table} FORMAT JSONEachRow\n" + "\n".join(lines) + "\n"
+        _clickhouse_http_post(payload)
 
 def query_mysql_df(sql: str, params=None) -> pd.DataFrame:
     with connection.cursor() as cursor:
