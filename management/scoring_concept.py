@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 import math
 import uuid
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 from django.db import connection
@@ -558,15 +559,16 @@ def _prepare_insert_df(table: str, df: pd.DataFrame, columns: list[str]) -> pd.D
         return df
     out = df.copy()
     table_cols = _get_table_columns(table)
-    now_local = datetime.utcnow() + timedelta(hours=7)
+    now_local = datetime.now(ZoneInfo("Asia/Jakarta")).replace(microsecond=0)
+    now_storage = now_local.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
     if not table_cols or "id" in table_cols:
         out["id"] = [str(uuid.uuid4()) for _ in range(len(out))]
     if not table_cols or "event_date" in table_cols:
         out["event_date"] = [now_local.date()] * len(out)
     if not table_cols or "event_time" in table_cols:
-        out["event_time"] = [now_local.replace(microsecond=0)] * len(out)
+        out["event_time"] = [now_storage] * len(out)
     if not table_cols or "mdd" in table_cols:
-        out["mdd"] = [now_local.replace(microsecond=0)] * len(out)
+        out["mdd"] = [now_storage] * len(out)
     if table == EVENT_TABLE:
         for target_col, source_col in EVENT_INSERT_ALIASES.items():
             if source_col in out.columns and (not table_cols or target_col in table_cols):

@@ -1006,7 +1006,7 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
                                                 <th class="text-center">ROI</th>
                                                 <th class="text-center">Score</th>
                                                 <th class="text-center">Keputusan</th>
-                                                <th class="text-center">Updated</th>
+                                                <th class="text-center">Data Updated</th>
                                                 <th class="text-center">Detail</th>
                                             </tr>
                                         </thead>
@@ -2648,6 +2648,37 @@ function initDashboardRecap() {
         if (!merged.decision) merged.decision = '';
         if (!merged.label) merged.label = String(info.final_label || info.root_cause_label || '').trim();
         return merged;
+    }
+
+    function buildScoreCellData(meta) {
+        const info = meta?.breakdown?.meta || {};
+        const value = meta?.score == null ? null : Number(meta.score);
+        const raw = String(info.snapshot_time || info.last_update || '').trim();
+        let updatedAt = '';
+        if (raw) {
+            const dt = new Date(raw.replace(' ', 'T'));
+            updatedAt = Number.isNaN(dt.getTime()) ? raw : dt.toLocaleString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+        }
+        return { value, updatedAt };
+    }
+
+    function renderScoreCell(data, type) {
+        const value = data && typeof data === 'object' ? data.value : data;
+        const updatedAt = data && typeof data === 'object' ? String(data.updatedAt || '').trim() : '';
+        if (value == null || value === '') {
+            if (type === 'display') return `<div style="min-width:92px;text-align:left;color:#6b7280;font-size:11px;font-weight:800;">Belum ada hasil</div>`;
+            if (type === 'filter') return '';
+            return -1;
+        }
+        const v = Number(value) || 0;
+        if (type === 'display') {
+            const tone = v >= 80 ? 'success' : v >= 60 ? 'primary' : v >= 40 ? 'warning' : 'danger';
+            const width = Math.max(6, Math.min(100, Math.round(v)));
+            const sub = updatedAt ? `<div style="margin-top:6px;font-size:10px;line-height:1.35;color:#6b7280;font-weight:700;">Update score<br>${esc(updatedAt)}</div>` : '';
+            return `<div style="min-width:92px;text-align:left;"><div style="display:flex;justify-content:space-between;font-size:11px;font-weight:900;margin-bottom:4px;"><span>Score</span><span>${Math.round(v)}</span></div><div class="progress" style="height:6px;border-radius:999px;"><div class="progress-bar bg-${tone}" style="width:${width}%"></div></div>${sub}</div>`;
+        }
+        if (type === 'filter') return updatedAt ? `${v} ${updatedAt}` : String(v);
+        return v;
     }
 
     async function fetchCreateScoringMeta(row, state) {
@@ -5639,7 +5670,7 @@ function initDashboardRecap() {
                 Number(r.revenue) || 0,
                 Number(r.net) || 0,
                 Number(r.roi) || 0,
-                meta.score == null ? null : Number(meta.score),
+                buildScoreCellData(meta),
                 keputusanHtml,
                 updatedCell(r),
                 detailBtn,
@@ -5659,7 +5690,7 @@ function initDashboardRecap() {
             data.forEach(row => {
                 const tr = document.createElement('tr');
 
-                const scoreVal = Number(row[7]) || 0;
+                const scoreVal = Number(row[7]?.value) || 0;
                 if (hasRange && scoreVal === minScore) tr.classList.add('table-danger');
                 else if (hasRange && scoreVal === maxScore) tr.classList.add('table-info');
 
@@ -5672,7 +5703,7 @@ function initDashboardRecap() {
                     <td class="text-end">${fmtIdr(row[4])}</td>
                     <td class="text-end">${fmtIdr(row[5])}</td>
                     <td class="text-center">${fmtPct(row[6])}</td>
-                    <td class="text-center">${row[7]}</td>
+                    <td class="text-center">${renderScoreCell(row[7], 'display')}</td>
                     <td class="text-center">${row[8]}</td>
                     <td class="text-center">${row[9]}</td>
                     <td class="text-center">${row[10]}</td>
@@ -5725,7 +5756,7 @@ function initDashboardRecap() {
 
                     const minScore = Number(tableEl.dataset.minScore);
                     const maxScore = Number(tableEl.dataset.maxScore);
-                    const sc = Number(rowData && rowData[7]) || 0;
+                    const sc = Number(rowData && rowData[7] && rowData[7].value) || 0;
 
                     if (sc === minScore) jQuery(row).addClass('table-danger');
                     else if (sc === maxScore) jQuery(row).addClass('table-info');
@@ -5767,19 +5798,7 @@ function initDashboardRecap() {
                         targets: 7,
                         className: 'text-center',
                         render: function (data, type) {
-                            if (data == null || data === '') {
-                                if (type === 'display') return `<div style="min-width:92px;text-align:left;color:#6b7280;font-size:11px;font-weight:800;">Belum ada hasil</div>`;
-                                if (type === 'filter') return '';
-                                return -1;
-                            }
-                            const v = Number(data) || 0;
-                            if (type === 'display') {
-                                const tone = v >= 80 ? 'success' : v >= 60 ? 'primary' : v >= 40 ? 'warning' : 'danger';
-                                const width = Math.max(6, Math.min(100, Math.round(v)));
-                                return `<div style="min-width:92px;text-align:left;"><div style="display:flex;justify-content:space-between;font-size:11px;font-weight:900;margin-bottom:4px;"><span>Score</span><span>${Math.round(v)}</span></div><div class="progress" style="height:6px;border-radius:999px;"><div class="progress-bar bg-${tone}" style="width:${width}%"></div></div></div>`;
-                            }
-                            if (type === 'filter') return String(v);
-                            return v;
+                            return renderScoreCell(data, type);
                         }
                     },
                     { targets: 8, className: 'text-center', orderable: false },

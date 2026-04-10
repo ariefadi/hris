@@ -943,7 +943,8 @@ class DashboardScoringDataView(View):
                 raise RuntimeError('query_df belum tersedia')
             status_table = getattr(scoring_module, 'STATUS_TABLE', 'hris_trendHorizone.fact_domain_country_status_history')
             table_cols = set(getattr(scoring_module, '_get_table_columns', lambda _t: set())(status_table) or [])
-            snapshot_expr = 'event_time' if 'event_time' in table_cols else ('mdd' if 'mdd' in table_cols else 'toDateTime(run_date)')
+            raw_snapshot_expr = 'event_time' if 'event_time' in table_cols else ('mdd' if 'mdd' in table_cols else 'toDateTime(run_date)')
+            snapshot_expr = f"toTimeZone({raw_snapshot_expr}, 'Asia/Jakarta')"
             date_expr = 'toDate(event_date)' if 'event_date' in table_cols else ('toDate(date)' if 'date' in table_cols else 'toDate(run_date)')
             entity_expr = 'upper(country_cd)' if dim == 'country' else 'lower(domain)'
             literals = ', '.join("'{}'".format(x.replace("'", "''")) for x in sorted(set(entities)))
