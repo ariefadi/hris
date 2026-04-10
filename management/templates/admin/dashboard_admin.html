@@ -134,6 +134,40 @@
     font-weight: 800;
 }
 
+.score-loading-state {
+    min-height: 52vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 32px 16px;
+}
+
+.score-loading-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.score-loading-card .spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+.score-loading-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #0f172a;
+}
+
+.score-loading-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #475569;
+    word-break: break-word;
+}
+
 .bi-spin {
     animation: bi-spin 1s linear infinite;
 }
@@ -4222,6 +4256,12 @@ function initDashboardRecap() {
         return `<div title="${title}"><span class="${cls}">${esc(d)}</span>${sub}</div>`;
     }
 
+    function setScoreDetailCloseVisible(visible) {
+        const btn = document.getElementById('scoreDetailClose');
+        if (!btn) return;
+        btn.style.display = visible ? 'inline-flex' : 'none';
+    }
+
     function openScoreDetailModal(title, html) {
         const modal = document.getElementById('scoreDetailModal');
         const body = document.getElementById('scoreDetailBody');
@@ -4240,6 +4280,7 @@ function initDashboardRecap() {
         modal.style.zIndex = '2000';
         ttl.textContent = title || 'Detail Score';
         body.innerHTML = html || '';
+        setScoreDetailCloseVisible(true);
         modal.style.display = 'flex';
     }
 
@@ -5472,11 +5513,13 @@ function initDashboardRecap() {
 
     async function createScoringFromDashboardRow(row, state, metaHint) {
         const payload = buildCreateScoringPayload(row, state);
+        const scoreName = String(row?.name || '-').trim() || '-';
 
         openScoreDetailModal(
-            `Create Scoring: ${String(row?.name || '-')}`,
-            '<div class="text-muted">Memuat scoring...</div>'
+            'Create Scoring',
+            `<div class="score-loading-state"><div class="score-loading-card"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><div class="score-loading-title">Creating Score</div><div class="score-loading-name">${esc(scoreName)}</div></div></div>`
         );
+        setScoreDetailCloseVisible(false);
 
         try {
             const trendWindows = row?.trend_windows || await getTrendWindowsForRow(row, state);
