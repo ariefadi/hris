@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 import math
 import uuid
 
@@ -44,6 +44,21 @@ def extract_root_domain(domain: str) -> str:
 
 STATUS_TABLE = "hris_trendHorizone.fact_domain_country_status_history"
 EVENT_TABLE = "hris_trendHorizone.fact_change_event_long"
+TABLE_COLUMNS_CACHE: dict[str, set[str]] = {}
+EVENT_INSERT_ALIASES = {
+    "metric_name": "header_name",
+    "source": "source_scope",
+    "reason": "event_reason",
+    "label": "event_label",
+    "labels": "event_label",
+    "current_value": "cur_value",
+    "previous_value": "prev_value",
+    "delta": "delta_abs",
+    "pct_change": "delta_pct",
+    "score": "signal_strength",
+    "impact_score": "health_component",
+    "decision": "change_class",
+}
 
 SCORABLE_JOIN_STATUSES = {
     "OK",
@@ -273,6 +288,21 @@ STATUS_COMPAT_COLUMNS = [
     "status_scope",
     "spend",
     "revenue_value",
+    "meta_spend",
+    "meta_ctr",
+    "meta_cpc",
+    "adx_revenue",
+    "adx_impressions",
+    "adx_clicks",
+    "adx_rpm",
+    "adx_fill_rate",
+    "adsense_revenue",
+    "adsense_pageviews",
+    "adsense_clicks",
+    "adsense_ctr",
+    "adsense_page_rpm",
+    "score",
+    "profitability_score",
     "health_score",
     "adjustment_score",
     "confidence",
@@ -289,6 +319,10 @@ STATUS_COMPAT_COLUMNS = [
     "efficiency_score",
     "engagement_score",
     "control_score",
+    "decision",
+    "labels",
+    "revenue_change",
+    "ctr_change",
     "top_positive_labels",
     "top_negative_labels",
     "top_positive_headers",
@@ -434,8 +468,15 @@ def _json_safe_records(df: pd.DataFrame) -> list[dict]:
 
 # ...existing code...
 def _safe_text(value) -> str:
-    if value is None or pd.isna(value):
+    if value is None:
         return ""
+    if isinstance(value, (list, tuple, set)):
+        return "; ".join([_safe_text(v) for v in value if _safe_text(v)])
+    try:
+        if pd.isna(value):
+            return ""
+    except Exception:
+        pass
     return str(value).strip()
 
 def _safe_label_values(values) -> list[str]:
@@ -499,11 +540,50 @@ def _family_rank_factor(rank: int) -> float:
     return 1.0 / math.pow(rank, 0.8)
 
 
+def _get_table_columns(table: str) -> set[str]:
+    cached = TABLE_COLUMNS_CACHE.get(table)
+    if cached is not None:
+        return cached
+    try:
+        desc = query_df(f"DESCRIBE TABLE {table}")
+        cols = {str(x).strip() for x in desc.get("name", pd.Series(dtype=str)).tolist() if str(x).strip()}
+    except Exception:
+        cols = set()
+    TABLE_COLUMNS_CACHE[table] = cols
+    return cols
+
+
+def _prepare_insert_df(table: str, df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
+    if df.empty:
+        return df
+    out = df.copy()
+    table_cols = _get_table_columns(table)
+    now_local = datetime.utcnow() + timedelta(hours=7)
+    if not table_cols or "id" in table_cols:
+        out["id"] = [str(uuid.uuid4()) for _ in range(len(out))]
+    if not table_cols or "event_date" in table_cols:
+        out["event_date"] = [now_local.date()] * len(out)
+    if not table_cols or "event_time" in table_cols:
+        out["event_time"] = [now_local.replace(microsecond=0)] * len(out)
+    if not table_cols or "mdd" in table_cols:
+        out["mdd"] = [now_local.replace(microsecond=0)] * len(out)
+    if table == EVENT_TABLE:
+        for target_col, source_col in EVENT_INSERT_ALIASES.items():
+            if source_col in out.columns and (not table_cols or target_col in table_cols):
+                out[target_col] = out[source_col]
+    keep = [c for c in columns if c in out.columns and (not table_cols or c in table_cols)]
+    extra = [c for c in ["id", "event_date", "event_time", "mdd"] if c in out.columns and (not table_cols or c in table_cols)]
+    alias_keep = [c for c in EVENT_INSERT_ALIASES if c in out.columns and (not table_cols or c in table_cols)] if table == EVENT_TABLE else []
+    keep = extra + alias_keep + [c for c in keep if c not in extra and c not in alias_keep]
+    if not keep:
+        raise RuntimeError(f"Tidak ada kolom yang cocok untuk insert ke {table}")
+    return out[keep]
+
+
 def _coerce_insert_df(table: str, df: pd.DataFrame, columns: list[str]) -> None:
     if df.empty:
         return
-    keep = [c for c in columns if c in df.columns]
-    insert_df(table, df[keep])
+    insert_df(table, _prepare_insert_df(table, df, columns))
 
 
 def _counter_drop_magnitude(prev_value: float, increment: float) -> float:
@@ -555,6 +635,11 @@ def _load_join_history(
         COALESCE(any(ma.master_budget), 0) AS master_budget,
         COALESCE(any(a.data_ads_country_spend), 0) AS meta_spend,
         COALESCE(any(a.data_ads_country_cpc), 0) AS meta_avg_cpc,
+        CASE
+            WHEN COALESCE(any(a.data_ads_country_impresi), 0) > 0
+                THEN (COALESCE(any(a.data_ads_country_click), 0) / COALESCE(any(a.data_ads_country_impresi), 0)) * 100
+            ELSE 0
+        END AS meta_ctr,
         COALESCE(any(a.data_ads_country_click), 0) AS meta_clicks,
         COALESCE(any(a.data_ads_country_lpv), 0) AS meta_lpv,
         COALESCE(any(a.data_ads_country_lpv_rate), 0) AS meta_lpv_rate,
@@ -563,6 +648,7 @@ def _load_join_history(
         COALESCE(any(s.data_adsense_country_page_views), 0) AS adsense_page_views,
         COALESCE(any(s.data_adsense_country_click), 0) AS adsense_clicks,
         COALESCE(any(s.data_adsense_country_cpc), 0) AS adsense_cost_per_click,
+        COALESCE(any(s.data_adsense_country_ctr), 0) AS adsense_ctr,
         COALESCE(any(s.data_adsense_country_page_views_rpm), 0) AS adsense_page_views_rpm,
         COALESCE(any(s.data_adsense_country_ad_requests), 0) AS adsense_ad_requests,
         COALESCE(any(s.data_adsense_country_ad_requests), 0) AS adsense_matched_ad_requests,
@@ -652,6 +738,7 @@ def _load_join_history(
         "master_budget",
         "meta_spend",
         "meta_avg_cpc",
+        "meta_ctr",
         "meta_clicks",
         "meta_lpv",
         "meta_lpv_rate",
@@ -659,6 +746,7 @@ def _load_join_history(
         "adsense_estimated_earnings",
         "adsense_page_views",
         "adsense_clicks",
+        "adsense_ctr",
         "adsense_cost_per_click",
         "adsense_page_views_rpm",
         "adsense_ad_requests",
@@ -1489,6 +1577,8 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
     health_score = 100.0 * health_num / health_den if health_den > 0 else 0.0
     adjustment_score = 100.0 * adjustment_num / adjustment_den if adjustment_den > 0 else 0.0
     ivt_risk_score = clip(100.0 * ivt_num / ivt_den, 0.0, 100.0) if ivt_den > 0 else 0.0
+    current_blended_ctr = _safe_div(safe_float(cur.get("total_clicks_blended")), safe_float(cur.get("total_impressions_blended")), 0.0) * 100.0
+    prev_blended_ctr = _safe_div(safe_float(cur.get("prev__total_clicks_blended")), safe_float(cur.get("prev__total_impressions_blended")), 0.0) * 100.0
 
     status = {
         "batch_id": str(batch_uuid),
@@ -1505,6 +1595,21 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "status_scope": "ACTIVE_DATE",
         "spend": safe_float(cur.get("meta_spend")),
         "revenue_value": safe_float(cur.get("revenue_value")),
+        "meta_spend": safe_float(cur.get("meta_spend")),
+        "meta_ctr": safe_float(cur.get("meta_ctr")),
+        "meta_cpc": safe_float(cur.get("meta_avg_cpc")),
+        "adx_revenue": safe_float(cur.get("adx_revenue")),
+        "adx_impressions": safe_float(cur.get("adx_impressions")),
+        "adx_clicks": safe_float(cur.get("adx_clicks")),
+        "adx_rpm": safe_float(cur.get("adx_avg_ecpm")),
+        "adx_fill_rate": safe_float(cur.get("adx_total_fill_rate")),
+        "adsense_revenue": safe_float(cur.get("adsense_estimated_earnings")),
+        "adsense_pageviews": safe_float(cur.get("adsense_page_views")),
+        "adsense_clicks": safe_float(cur.get("adsense_clicks")),
+        "adsense_ctr": safe_float(cur.get("adsense_ctr")),
+        "adsense_page_rpm": safe_float(cur.get("adsense_page_views_rpm")),
+        "score": health_score,
+        "profitability_score": _group_health_score(events, "revenue"),
         "health_score": health_score,
         "adjustment_score": adjustment_score,
         "ivt_risk_score": ivt_risk_score,
@@ -1525,6 +1630,10 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "efficiency_score": _group_health_score(events, "efficiency"),
         "engagement_score": _group_health_score(events, "engagement"),
         "control_score": _group_health_score(events, "control"),
+        "decision": "",
+        "labels": "",
+        "revenue_change": safe_float(cur.get("delta__blended_revenue")),
+        "ctr_change": current_blended_ctr - prev_blended_ctr,
         "ivt_click_stress_score": _group_risk_score(events, "ivt_click_stress"),
         "ivt_serving_score": _group_risk_score(events, "ivt_serving"),
         "ivt_attention_score": _group_risk_score(events, "ivt_attention"),
@@ -1548,6 +1657,13 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
     status["root_cause_label"] = _root_cause_label(status)
     final_label, hysteresis_applied = _apply_hysteresis(status["root_cause_label"], status, persistence)
     status["final_label"] = final_label
+    status["decision"] = final_label
+    label_parts = []
+    for value in [status["top_positive_labels"], status["top_negative_labels"]]:
+        text = _safe_text(value)
+        if text:
+            label_parts.append(text)
+    status["labels"] = "; ".join(label_parts) or status["root_cause_label"]
     status["hysteresis_applied"] = hysteresis_applied
     status["reason_summary"] = "; ".join([
         f"health={status['health_score']:.2f}",
@@ -1650,12 +1766,12 @@ def score_site_country(
             if compatibility_mode:
                 _coerce_insert_df(STATUS_TABLE, status_df, STATUS_COMPAT_COLUMNS)
             else:
-                insert_df(STATUS_TABLE, status_df[STATUS_EXTENDED_COLUMNS])
+                _coerce_insert_df(STATUS_TABLE, status_df, STATUS_EXTENDED_COLUMNS)
         if not event_df.empty:
             if compatibility_mode:
                 _coerce_insert_df(EVENT_TABLE, event_df, EVENT_COMPAT_COLUMNS)
             else:
-                insert_df(EVENT_TABLE, event_df[EVENT_EXTENDED_COLUMNS])
+                _coerce_insert_df(EVENT_TABLE, event_df, EVENT_EXTENDED_COLUMNS)
 
     audit["effective_date"] = str(effective_date)
     return {

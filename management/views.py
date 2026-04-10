@@ -918,6 +918,77 @@ import logging
 logger = logging.getLogger(__name__)
 # ...existing code...
 @method_decorator(csrf_exempt, name='dispatch')
+class DashboardScoringDataView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        try:
+            if pd is None:
+                raise RuntimeError('pandas belum tersedia')
+            payload = json.loads((req.body or b'').decode('utf-8') or '{}')
+            target_date = str(payload.get('date') or '').strip()
+            dim = str(payload.get('dim') or 'domain').strip().lower()
+            raw_entities = payload.get('entities') or []
+            entities = [str(x).strip().upper() if dim == 'country' else str(x).strip().lower() for x in raw_entities if str(x).strip()]
+            if not target_date:
+                return JsonResponse({'status': False, 'error': 'date wajib diisi'}, status=400)
+            if not entities:
+                return JsonResponse({'status': True, 'data': {}}, safe=False)
+            scoring_module = _get_scoring_concept_module()
+            query_df = getattr(scoring_module, 'query_df', None)
+            if query_df is None:
+                raise RuntimeError('query_df belum tersedia')
+            status_table = getattr(scoring_module, 'STATUS_TABLE', 'hris_trendHorizone.fact_domain_country_status_history')
+            table_cols = set(getattr(scoring_module, '_get_table_columns', lambda _t: set())(status_table) or [])
+            snapshot_expr = 'event_time' if 'event_time' in table_cols else ('mdd' if 'mdd' in table_cols else 'toDateTime(run_date)')
+            date_expr = 'toDate(event_date)' if 'event_date' in table_cols else ('toDate(date)' if 'date' in table_cols else 'toDate(run_date)')
+            entity_expr = 'upper(country_cd)' if dim == 'country' else 'lower(domain)'
+            literals = ', '.join("'{}'".format(x.replace("'", "''")) for x in sorted(set(entities)))
+            cols = ['domain', 'country_cd', 'country_nm', 'date', 'event_date', 'mapped_revenue_source', 'join_status', 'final_label', 'root_cause_label', 'decision', 'score', 'health_score', 'ivt_risk_score', 'confidence', 'decision_margin']
+            keep = [c for c in cols if not table_cols or c in table_cols]
+            sql = f"SELECT {entity_expr} AS entity_key, {date_expr} AS scoring_date, {snapshot_expr} AS snapshot_time, {', '.join(keep)} FROM {status_table} WHERE {date_expr} = toDate('{target_date}') AND {entity_expr} IN ({literals}) ORDER BY entity_key, snapshot_time DESC"
+            df = query_df(sql)
+            if df.empty:
+                return JsonResponse({'status': True, 'data': {}}, safe=False)
+            df['entity_key'] = df['entity_key'].astype(str).map(lambda x: x.strip().upper() if dim == 'country' else x.strip().lower())
+            df['scoring_date'] = pd.to_datetime(df.get('scoring_date'), errors='coerce').dt.date
+            df['snapshot_time'] = pd.to_datetime(df.get('snapshot_time'), errors='coerce')
+            out = {}
+            for entity_key, part in df.groupby('entity_key', sort=False):
+                latest = part['snapshot_time'].dropna().max()
+                snap = part[part['snapshot_time'].eq(latest)].copy() if pd.notna(latest) else part.copy()
+                avg = lambda c: float(pd.to_numeric(snap[c], errors='coerce').dropna().mean()) if c in snap.columns and pd.to_numeric(snap[c], errors='coerce').dropna().size else 0.0
+                health, risk, conf, dm = avg('health_score'), avg('ivt_risk_score'), avg('confidence'), avg('decision_margin')
+                score_values = pd.to_numeric(snap['score'], errors='coerce').dropna() if 'score' in snap.columns else pd.Series(dtype=float)
+                if score_values.size:
+                    score = int(round(max(0.0, min(100.0, float(score_values.mean())))))
+                    score_source = 'stored_score'
+                else:
+                    score = int(round(max(0.0, min(100.0, (((health + 100.0) / 2.0) * 0.45) + ((100.0 - risk) * 0.2) + ((conf * 100.0) * 0.15) + (max(0.0, min(100.0, dm + 50.0)) * 0.2)))))
+                    score_source = 'derived_formula'
+                labels = [str(x).strip() for x in snap.get('final_label', pd.Series(dtype=str)).tolist() if str(x).strip()]
+                label = sorted(labels, key=lambda x: (0 if x.upper().startswith('RED_FLAG') else 1 if ('DROP' in x.upper() or x.upper().startswith('NEG')) else 2 if x.upper().startswith('WATCH') else 3 if x.upper() == 'STABLE' else 4, x))[0] if labels else ''
+                decisions = [str(x).strip().upper() for x in snap.get('decision', pd.Series(dtype=str)).tolist() if str(x).strip()]
+                decision = sorted(decisions, key=lambda x: ({'STOP': 0, 'SCALE DOWN': 1, 'HOLD': 2, 'SCALE UP': 3}.get(x, 9), x))[0] if decisions else ''
+                if not decision:
+                    if label.startswith('RED_FLAG') or risk >= 70 or dm <= -25:
+                        decision = 'STOP'
+                    elif dm >= 35 and conf >= 0.5:
+                        decision = 'SCALE UP'
+                    elif dm < 0:
+                        decision = 'SCALE DOWN'
+                    else:
+                        decision = 'HOLD'
+                out[entity_key] = {'score': score, 'decision': decision, 'label': label or 'STABLE', 'reasons': [f"Snapshot terakhir {latest.strftime('%Y-%m-%d %H:%M:%S') if pd.notna(latest) else target_date}", f"{int(len(snap))} baris status", f"Sumber score: {score_source}"], 'breakdown': {'meta': {'date': target_date, 'snapshot_time': latest.strftime('%Y-%m-%d %H:%M:%S') if pd.notna(latest) else '', 'health_score': round(health, 4), 'ivt_risk_score': round(risk, 4), 'confidence': round(conf, 4), 'decision_margin': round(dm, 4), 'row_count': int(len(snap)), 'score_source': score_source, 'score_row_count': int(score_values.size)}}}
+            return JsonResponse({'status': True, 'data': out}, safe=False, json_dumps_params={'allow_nan': False})
+        except Exception as e:
+            logger.exception('DashboardScoringDataView failed')
+            return JsonResponse({'status': False, 'error': str(e), 'traceback': traceback.format_exc()}, status=500)
+
+@method_decorator(csrf_exempt, name='dispatch')
 class DashboardCreateScoringView(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
@@ -978,7 +1049,7 @@ class DashboardCreateScoringView(View):
             scoring_result = scoring_module.score_site_country(
                 target_date=target_dt,
                 compatibility_mode=False,
-                write_results=False,
+                write_results=True,
                 domain=domain or None,
                 country_cd=country_cd or None,
             )
