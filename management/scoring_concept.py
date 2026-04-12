@@ -2,13 +2,12 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime
 import math
 import uuid
 from zoneinfo import ZoneInfo
 
 import pandas as pd
-from django.db import connection
 
 from .database import insert_df, query_df
 
@@ -68,13 +67,6 @@ SCORABLE_JOIN_STATUSES = {
     "SOURCE_ONLY_NO_META_ADX",
 }
 
-def _require_clickhouse():
-    if query_df is None:
-        raise RuntimeError(
-            "query_df belum tersedia. Pastikan clickhouse terpasang "
-            "atau sediakan helper query_df lokal di scoring_concept.py."
-        )
-
 NEGATIVE_ROOT_LABELS = {
     "TRAFFIC_DROP",
     "SERVING_DROP",
@@ -115,6 +107,32 @@ COUNTER_CORRECTION_COLUMNS = {
     "blended_revenue",
 }
 
+SOURCE_MODE_ADSENSE_ONLY = "ADSENSE_ONLY"
+SOURCE_MODE_ADX_ONLY = "ADX_ONLY"
+SOURCE_MODE_MIXED = "MIXED"
+
+BLENDED_DUPLICATE_COLUMNS_BY_SOURCE_MODE = {
+    SOURCE_MODE_ADSENSE_ONLY: {
+        "blended_revenue",
+        "attention_quality_blended",
+        "active_time_blended",
+        "viewability_gap_abs",
+    },
+    SOURCE_MODE_ADX_ONLY: {
+        "blended_revenue",
+        "request_to_impression_eff",
+        "attention_quality_blended",
+        "active_time_blended",
+        "viewability_gap_abs",
+    },
+    SOURCE_MODE_MIXED: set(),
+}
+
+SOURCE_SCOPE_BLOCKLIST_BY_SOURCE_MODE = {
+    SOURCE_MODE_ADSENSE_ONLY: {"adx"},
+    SOURCE_MODE_ADX_ONLY: {"adsense"},
+    SOURCE_MODE_MIXED: set(),
+}
 
 @dataclass(frozen=True)
 class MetricRule:
@@ -145,8 +163,16 @@ class MetricRule:
     family_rank: int = 1
     range_low: float | None = None
     range_high: float | None = None
+    band_dynamic: bool = False
+    band_quantile_low: float = 0.10
+    band_quantile_high: float = 0.90
+    band_sigma: float = 2.0
+    band_min_width_pct: float = 0.05
     label_positive: str = ""
     label_negative: str = ""
+    provisional_metric: bool = False
+    freshness_full_confidence_hours: int = 24
+    freshness_min_confidence_factor: float = 0.65
     requires_source_match: bool = True
     requires_join_status_ok: bool = False
 
@@ -481,12 +507,60 @@ def _safe_text(value) -> str:
     return str(value).strip()
 
 def _safe_label_values(values) -> list[str]:
+    if values is None:
+        return []
+    if isinstance(values, pd.DataFrame):
+        values = values.values.flatten().tolist()
+    elif isinstance(values, pd.Series):
+        values = values.tolist()
+    elif not isinstance(values, (list, tuple, set)):
+        values = [values]
     out = []
     for value in values:
         text = _safe_text(value)
         if text:
             out.append(text)
     return out
+
+
+def _pick_top_labels_from_values(values, top_n=3) -> list[str]:
+    labels = _safe_label_values(values)
+    if not labels:
+        return []
+    counts = Counter(labels)
+    return [label for label, _ in counts.most_common(max(1, int(top_n or 3)))]
+
+
+def _safe_scalar(value, default=""):
+    if isinstance(value, pd.DataFrame):
+        if value.empty:
+            return default
+        value = value.iloc[0, 0]
+    elif isinstance(value, pd.Series):
+        values = value.tolist()
+        for item in values:
+            try:
+                if pd.isna(item):
+                    continue
+            except Exception:
+                pass
+            return item
+        return default
+    elif isinstance(value, (list, tuple, set)):
+        for item in value:
+            try:
+                if pd.isna(item):
+                    continue
+            except Exception:
+                pass
+            return item
+        return default
+    try:
+        if pd.isna(value):
+            return default
+    except Exception:
+        pass
+    return value
 # ...existing code...
 
 def _normalize_country_name(country_cd, country_nm):
@@ -560,15 +634,30 @@ def _prepare_insert_df(table: str, df: pd.DataFrame, columns: list[str]) -> pd.D
     out = df.copy()
     table_cols = _get_table_columns(table)
     now_local = datetime.now(ZoneInfo("Asia/Jakarta")).replace(microsecond=0)
-    now_storage = now_local.astimezone(ZoneInfo("UTC")).replace(tzinfo=None)
+    fallback_date = now_local.date()
+
+    def pick_row_date(row: pd.Series) -> date:
+        for key in ["event_date", "date", "run_date"]:
+            value = row.get(key)
+            if value is None or value == "":
+                continue
+            parsed = pd.to_datetime(value, errors="coerce")
+            if pd.notna(parsed):
+                return parsed.date()
+        return fallback_date
+
+    row_dates = out.apply(pick_row_date, axis=1) if len(out) else pd.Series(dtype=object)
+    event_dates = row_dates.tolist() if len(row_dates) else [fallback_date] * len(out)
+    event_times = [datetime.combine(d, now_local.time(), tzinfo=ZoneInfo("Asia/Jakarta")).astimezone(ZoneInfo("UTC")).replace(tzinfo=None) for d in event_dates]
+
     if not table_cols or "id" in table_cols:
         out["id"] = [str(uuid.uuid4()) for _ in range(len(out))]
     if not table_cols or "event_date" in table_cols:
-        out["event_date"] = [now_local.date()] * len(out)
+        out["event_date"] = event_dates
     if not table_cols or "event_time" in table_cols:
-        out["event_time"] = [now_storage] * len(out)
+        out["event_time"] = event_times
     if not table_cols or "mdd" in table_cols:
-        out["mdd"] = [now_storage] * len(out)
+        out["mdd"] = event_times
     if table == EVENT_TABLE:
         for target_col, source_col in EVENT_INSERT_ALIASES.items():
             if source_col in out.columns and (not table_cols or target_col in table_cols):
@@ -588,10 +677,85 @@ def _coerce_insert_df(table: str, df: pd.DataFrame, columns: list[str]) -> None:
     insert_df(table, _prepare_insert_df(table, df, columns))
 
 
+COUNTER_CORRECTION_MIN_MAGNITUDE = 0.85
+
+
 def _counter_drop_magnitude(prev_value: float, increment: float) -> float:
     prev_abs = max(abs(safe_float(prev_value)), 1.0)
     return clip(abs(safe_float(increment)) / prev_abs, 0.0, 1.0)
 
+def _mapped_source_mode(mapped_revenue_source: str | None) -> str | None:
+    value = str(mapped_revenue_source or "").strip().lower()
+    if not value:
+        return None
+    has_adsense = "adsense" in value
+    has_adx = any(token in value for token in ["adx", "ad exchange", "ad_exchange", "google_adx"])
+    if has_adsense and has_adx:
+        return SOURCE_MODE_MIXED
+    if has_adsense:
+        return SOURCE_MODE_ADSENSE_ONLY
+    if has_adx:
+        return SOURCE_MODE_ADX_ONLY
+    return None
+
+def _source_activity_flags(row: pd.Series | dict) -> tuple[bool, bool]:
+    adsense_active = any(safe_float(row.get(c)) > 0 for c in ["adsense_estimated_earnings", "adsense_page_views", "adsense_ad_requests", "adsense_impressions"])
+    adx_active = any(safe_float(row.get(c)) > 0 for c in ["adx_revenue", "adx_impressions", "adx_total_requests", "adx_responses_served"])
+    return adsense_active, adx_active
+
+def _infer_source_mode(row: pd.Series | dict) -> str:
+    mapped_mode = _mapped_source_mode(row.get("mapped_revenue_source"))
+    adsense_active, adx_active = _source_activity_flags(row)
+    if mapped_mode == SOURCE_MODE_MIXED:
+        return SOURCE_MODE_MIXED
+    if adsense_active and adx_active:
+        return SOURCE_MODE_MIXED
+    if mapped_mode == SOURCE_MODE_ADSENSE_ONLY and not adx_active:
+        return SOURCE_MODE_ADSENSE_ONLY
+    if mapped_mode == SOURCE_MODE_ADX_ONLY and not adsense_active:
+        return SOURCE_MODE_ADX_ONLY
+    if adsense_active:
+        return SOURCE_MODE_ADSENSE_ONLY
+    if adx_active:
+        return SOURCE_MODE_ADX_ONLY
+    return mapped_mode or SOURCE_MODE_MIXED
+
+def _get_source_mode(row: pd.Series | dict) -> str:
+    value = str(row.get("source_mode", "") or "").strip().upper()
+    if value in {SOURCE_MODE_ADSENSE_ONLY, SOURCE_MODE_ADX_ONLY, SOURCE_MODE_MIXED}:
+        return value
+    return _infer_source_mode(row)
+
+def _blended_metric_allowed(row: pd.Series | dict, column: str) -> bool:
+    mode = _get_source_mode(row)
+    return column not in BLENDED_DUPLICATE_COLUMNS_BY_SOURCE_MODE.get(mode, set())
+
+
+def _source_scope_allowed(row: pd.Series | dict, source_scope: str) -> bool:
+    mode = _get_source_mode(row)
+    return source_scope not in SOURCE_SCOPE_BLOCKLIST_BY_SOURCE_MODE.get(mode, set())
+
+def _filter_history_by_source_mode(samples: pd.DataFrame, row: pd.Series | dict, rule: MetricRule) -> pd.DataFrame:
+    if samples.empty or rule.source_scope == "meta" or "source_mode" not in samples.columns:
+        return samples
+    mode = _get_source_mode(row)
+    if mode == SOURCE_MODE_MIXED:
+        return samples
+    scoped = samples[samples["source_mode"] == mode].copy()
+    return scoped if not scoped.empty else samples
+
+def _counter_correction_columns_for_mode(source_mode: str) -> set[str]:
+    if source_mode == SOURCE_MODE_ADSENSE_ONLY:
+        return {
+            c for c in COUNTER_CORRECTION_COLUMNS
+            if not c.startswith("adx_") and c != "blended_revenue"
+        }
+    if source_mode == SOURCE_MODE_ADX_ONLY:
+        return {
+            c for c in COUNTER_CORRECTION_COLUMNS
+            if not c.startswith("adsense_") and c != "blended_revenue"
+        }
+    return set(COUNTER_CORRECTION_COLUMNS)
 
 def _load_join_history(
     target_date: date,
@@ -603,11 +767,9 @@ def _load_join_history(
     start_date = target_date - pd.Timedelta(days=int(lookback_days))
     filters = [f"k.date >= '{start_date}'", f"k.date <= '{target_date}'"]
     if domain:
-        filters.append(f"SUBSTRING_INDEX(LOWER(TRIM(k.domain)), '.', 2) = '{extract_root_domain(domain)}'")
-
+        filters.append(f"SUBSTRING_INDEX(LOWER(TRIM(k.domain)), '.', 2) = '{normalize_domain(domain)}'")
     if country_cd:
         filters.append(f"UPPER(k.country_cd) = '{normalize_country_cd(country_cd)}'")
-
     where_sql = " AND ".join(filters)
     sql = f"""
     SELECT
@@ -722,17 +884,26 @@ def _load_join_history(
         return df
 
     out = df.copy()
-    out["domain"] = out["domain"].map(lambda x: normalize_domain("" if pd.isna(x) else str(x)))
-    out["country_cd"] = out["country_cd"].map(lambda x: normalize_country_cd("" if pd.isna(x) else str(x)))
-    out["country_nm"] = [_normalize_country_name(c, n) for c, n in zip(out["country_cd"], out["country_nm"])]
-    out["entity_base_key"] = out["domain"] + "|" + out["country_cd"]
+    if "domain" not in out.columns:
+        out["domain"] = ""
+    if "country_cd" not in out.columns:
+        out["country_cd"] = ""
+    if "country_nm" not in out.columns:
+        out["country_nm"] = ""
+    out["domain"] = out.apply(lambda row: normalize_domain(str(_safe_scalar(row.get("domain", ""), ""))), axis=1)
+    out["country_cd"] = out.apply(lambda row: normalize_country_cd(str(_safe_scalar(row.get("country_cd", ""), ""))), axis=1)
+    out["country_nm"] = out.apply(lambda row: _normalize_country_name(_safe_scalar(row.get("country_cd", ""), ""), _safe_scalar(row.get("country_nm", ""), "")), axis=1)
+    out["entity_key"] = out["domain"] + "|" + out["country_cd"]
+    out["entity_base_key"] = out["entity_key"]
+    out["source_mode"] = out.apply(_infer_source_mode, axis=1)
     out["batch_id"] = out["batch_id"].astype(str)
-    out["run_date"] = pd.to_datetime(out["run_date"], errors="coerce").dt.date
-    out["date"] = pd.to_datetime(out["date"], errors="coerce").dt.date
-    out["day_type"] = out["date"].map(_day_type_for)
-
-    out["batch_id"] = out["batch_id"].astype(str)
-    out["run_date"] = pd.to_datetime(out["run_date"], errors="coerce").dt.date
+    run_dt = pd.to_datetime(out["run_date"], errors="coerce")
+    out["run_date"] = run_dt.dt.date
+    if "run_hour" in out.columns:
+        out["run_hour"] = pd.to_numeric(out["run_hour"], errors="coerce")
+    else:
+        out["run_hour"] = run_dt.dt.hour
+    out["run_hour"] = out["run_hour"].fillna(23).clip(lower=0, upper=23).astype(int)
     out["date"] = pd.to_datetime(out["date"], errors="coerce").dt.date
     out["day_type"] = out["date"].map(_day_type_for)
     numeric_cols = [
@@ -777,8 +948,8 @@ def _load_join_history(
         out[col] = out[col].map(safe_float)
 
     out = _compute_derived_features(out)
-    out = out.sort_values(["entity_key", "date"]).reset_index(drop=True)
-    grouped = out.groupby(["entity_key", "date"], sort=False)
+    out = out.sort_values(["entity_key", "date", "run_hour"]).reset_index(drop=True)
+    grouped = out.groupby("entity_key", sort=False)
     extra_cols = {}
 
     for col in REQUIRED_METRIC_COLUMNS:
@@ -797,8 +968,7 @@ def _compute_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     def col(name: str) -> pd.Series:
         if name not in out.columns:
             out[name] = 0.0
-        out[name] = out[name].map(safe_float)
-        return out[name]
+        return out[name].astype(float)
 
     blended_revenue = col("adsense_estimated_earnings") + col("adx_revenue")
     total_clicks = col("adsense_clicks") + col("adx_clicks")
@@ -809,6 +979,19 @@ def _compute_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     out["total_clicks_blended"] = total_clicks
     out["total_requests_blended"] = total_requests
     out["total_impressions_blended"] = total_impressions
+
+    run_hour_series = pd.to_numeric(out.get("run_hour", 0), errors="coerce")
+    if not isinstance(run_hour_series, pd.Series):
+        run_hour_series = pd.Series([run_hour_series] * len(out), index=out.index)
+    expected_day_progress = ((run_hour_series.fillna(0.0).clip(lower=0.0, upper=23.0) + 1.0) / 24.0).clip(lower=(1.0 / 24.0), upper=1.0)
+    out["meta_budget_utilization"] = [
+        _safe_div(s, b, 0.0) if safe_float(b) > 0 else 0.0
+        for s, b in zip(col("meta_spend"), col("meta_daily_budget"))
+    ]
+    out["meta_budget_pacing_index"] = [
+        _safe_div(util, progress, 0.0) if safe_float(budget) > 0 else 0.0
+        for util, progress, budget in zip(out["meta_budget_utilization"], expected_day_progress, col("meta_daily_budget"))
+    ]
 
     out["meta_cost_per_lpv"] = [
         _safe_div(s, lpv, 0.0) for s, lpv in zip(col("meta_spend"), col("meta_lpv"))
@@ -859,6 +1042,7 @@ def _compute_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     out["attention_quality_blended"] = blended_attention_quality
     out["active_time_blended"] = blended_active_time
     out["viewability_gap_abs"] = blended_view_gap
+    out["source_mode"] = out.apply(_infer_source_mode, axis=1)
     return out
 
 
@@ -914,15 +1098,16 @@ def _load_recent_status_history(target_date: date, lookback_days: int = 7) -> pd
 
 def _source_has_activity(row: pd.Series, source_scope: str) -> bool:
     if source_scope == "meta":
-        return any(safe_float(row.get(c)) > 0 for c in ["meta_spend", "meta_clicks", "meta_lpv", "master_budget"])
+        return any(safe_float(row.get(c)) > 0 for c in ["meta_spend", "meta_clicks", "meta_lpv", "meta_daily_budget"])
     if source_scope == "adsense":
-        return any(safe_float(row.get(c)) > 0 for c in ["adsense_estimated_earnings", "adsense_page_views", "adsense_ad_requests", "adsense_impressions"])
+        adsense_active, _ = _source_activity_flags(row)
+        return adsense_active
     if source_scope == "adx":
-        return any(safe_float(row.get(c)) > 0 for c in ["adx_revenue", "adx_impressions", "adx_total_requests", "adx_responses_served"])
+        _, adx_active = _source_activity_flags(row)
+        return adx_active
     if source_scope == "blended":
         return any(safe_float(row.get(c)) > 0 for c in ["meta_lpv", "meta_spend", "adsense_estimated_earnings", "adx_revenue", "total_requests_blended", "total_impressions_blended"])
     return False
-
 
 def _select_window(samples: pd.DataFrame, current_day: date, rule: MetricRule, current_day_type: str, scope_label: str) -> tuple[pd.DataFrame, str]:
     if samples.empty:
@@ -954,50 +1139,117 @@ def _select_window(samples: pd.DataFrame, current_day: date, rule: MetricRule, c
     return tmp, "NO_HISTORY"
 
 
-# ...existing code...
 def _level_baseline(samples: pd.DataFrame, rule: MetricRule) -> tuple[float, float, int]:
     if samples.empty:
         return 0.0, max(rule.deadband_abs, 1e-6), 0
-
-    values = [safe_float(v) for v in samples[rule.column].tolist()]
-    weights = (
-        [safe_float(v) for v in samples[rule.denominator_column].tolist()]
-        if rule.denominator_column and rule.denominator_column in samples.columns
-        else [1.0] * len(values)
-    )
-
+    values = samples[rule.column].astype(float).tolist()
+    weights = samples[rule.denominator_column].astype(float).tolist() if rule.denominator_column and rule.denominator_column in samples.columns else [1.0] * len(values)
     if rule.score_method == "EWMA_LEVEL_Z":
         center = ewma_last(values, alpha=rule.ewma_alpha)
     elif rule.score_method == "PROPORTION_Z":
         center = weighted_mean(values, weights)
     else:
         center = robust_median(values)
-
-    abs_dev = [abs(v - center) for v in values]
-    scale = robust_median(abs_dev) or 1e-9
-
+    scale = robust_scale(center, values)
     floor = max(abs(center) * rule.deadband_pct, rule.deadband_abs, 1e-6)
     scale = max(scale, floor)
-
     return center, scale, len(values)
-# ...existing code...
 
 
-def _counter_baseline(selected, rule):
-    values = [safe_float(v) for v in selected if v is not None]
-    hist_points = len(values)
-
-    if not values:
-        return 0.0, 1.0, 0
-
+def _counter_baseline(samples: pd.DataFrame, rule: MetricRule) -> tuple[float, float, int]:
+    if samples.empty:
+        return 0.0, max(rule.deadband_abs, 1e-6), 0
+    values = samples[f"delta__{rule.column}"].astype(float).tolist()
     center = robust_median(values)
-    abs_dev = [abs(v - center) for v in values]
-    scale = robust_median(abs_dev) or 1e-9
+    scale = robust_scale(center, values)
+    floor = max(abs(center) * rule.deadband_pct, rule.deadband_abs, 1e-6)
+    scale = max(scale, floor)
+    return center, scale, len(values)
 
-    return center, scale, hist_points
+def _band_range(samples: pd.DataFrame, rule: MetricRule) -> tuple[float, float, float, float, int]:
+    values: list[float] = []
+    if not samples.empty and rule.column in samples.columns:
+        for value in samples[rule.column].tolist():
+            val = safe_float(value)
+            if math.isfinite(val):
+                values.append(val)
 
+    hist_points = len(values)
+    static_low = safe_float(rule.range_low) if rule.range_low is not None else None
+    static_high = safe_float(rule.range_high) if rule.range_high is not None else None
+    min_half_width = max(rule.deadband_abs, 1e-6)
+
+    if rule.band_dynamic and hist_points >= max(3, rule.min_history_points // 2):
+        series = pd.Series(values, dtype=float)
+        center = robust_median(values)
+        scale = robust_scale(center, values)
+        q_low = float(series.quantile(rule.band_quantile_low))
+        q_high = float(series.quantile(rule.band_quantile_high))
+        min_half_width = max(min_half_width, abs(center) * rule.band_min_width_pct)
+        low = min(q_low, center - (rule.band_sigma * scale))
+        high = max(q_high, center + (rule.band_sigma * scale))
+        if ((high - low) / 2.0) < min_half_width:
+            low = center - min_half_width
+            high = center + min_half_width
+        if static_low is not None:
+            low = max(low, static_low)
+        if static_high is not None:
+            high = min(high, static_high)
+        if high <= low:
+            if static_low is not None and static_high is not None and static_high > static_low:
+                low = static_low
+                high = static_high
+            else:
+                low = center - min_half_width
+                high = center + min_half_width
+        center = (low + high) / 2.0
+        width = max((high - low) / 2.0, min_half_width, 1e-6)
+        return low, high, center, width, hist_points
+
+    if static_low is not None and static_high is not None and static_high > static_low:
+        center = (static_low + static_high) / 2.0
+        width = max((static_high - static_low) / 2.0, abs(center) * rule.band_min_width_pct, min_half_width, 1e-6)
+        return static_low, static_high, center, width, hist_points
+
+    center = robust_median(values) if values else 0.0
+    width = max(abs(center) * max(rule.band_min_width_pct, rule.deadband_pct), min_half_width, 1e-6)
+    low = center - width
+    high = center + width
+    return low, high, center, width, hist_points
+
+def _band_distance(value: float, low: float, high: float, center: float, width: float) -> float:
+    val = safe_float(value)
+    band_width = max(width, 1e-6)
+    if val < low:
+        return (low - val) / band_width
+    if val > high:
+        return (val - high) / band_width
+    return abs(val - center) / band_width * 0.25
+
+
+def _band_absolute_component(distance: float) -> float:
+    dist = max(safe_float(distance), 0.0)
+    if dist <= 0.25:
+        return 0.18 * (1.0 - (dist / 0.25))
+    return -clip((dist - 0.25) / 0.75, 0.0, 1.0)
+
+def _freshness_confidence_factor(cur: pd.Series, rule: MetricRule) -> float:
+    if not rule.provisional_metric:
+        return 1.0
+    ts = pd.to_datetime(cur.get("run_time"), utc=True, errors="coerce")
+    if pd.isna(ts):
+        return 1.0
+    now_utc = pd.Timestamp.now(tz="UTC")
+    hours_old = max((now_utc - ts).total_seconds() / 3600.0, 0.0)
+    full_hours = max(int(rule.freshness_full_confidence_hours or 0), 1)
+    floor = clip(rule.freshness_min_confidence_factor, 0.0, 1.0)
+    if hours_old >= full_hours:
+        return 1.0
+    progress = clip(hours_old / full_hours, 0.0, 1.0)
+    return floor + ((1.0 - floor) * progress)
 
 def _event_template(cur: pd.Series, rule: MetricRule, batch_uuid: uuid.UUID) -> dict:
+    source_mode = _get_source_mode(cur)
     return {
         "batch_id": str(batch_uuid),
         "run_date": cur["run_date"],
@@ -1010,6 +1262,7 @@ def _event_template(cur: pd.Series, rule: MetricRule, batch_uuid: uuid.UUID) -> 
         "account_name": cur.get("account_name", ""),
         "mapped_revenue_source": cur.get("mapped_revenue_source", ""),
         "join_status": cur.get("join_status", ""),
+        "source_mode": source_mode,
         "source_scope": rule.source_scope,
         "header_name": rule.column,
         "metric_group": rule.metric_group,
@@ -1052,8 +1305,20 @@ def _evaluate_rule(cur: pd.Series, same_hour: pd.DataFrame, all_hours: pd.DataFr
     event = _event_template(cur, rule, batch_uuid)
     cur_value = event["cur_value"]
     prev_value = event["prev_value"]
+    raw_prev_value = cur.get(f"prev__{rule.column}")
+    prev_is_missing = pd.isna(raw_prev_value)
     event["delta_abs"] = cur_value - prev_value
     event["delta_pct"] = safe_pct_change(cur_value, prev_value)
+
+    if not _source_scope_allowed(cur, rule.source_scope):
+        event["event_reason"] = "SOURCE_SCOPE_DISABLED_BY_MODE"
+        event["note"] = f"source_mode={event['source_mode']}"
+        return event
+
+    if rule.source_scope == "blended" and not _blended_metric_allowed(cur, rule.column):
+        event["event_reason"] = "BLENDED_DUPLICATE_DISABLED"
+        event["note"] = f"source_mode={event['source_mode']}"
+        return event
 
     if rule.requires_source_match and not _source_has_activity(cur, rule.source_scope):
         event["event_reason"] = "SOURCE_SCOPE_SKIPPED"
@@ -1074,43 +1339,68 @@ def _evaluate_rule(cur: pd.Series, same_hour: pd.DataFrame, all_hours: pd.DataFr
     if rule.denominator_column:
         event["denominator_value"] = safe_float(cur.get(rule.denominator_column))
 
-    selected, baseline_source = _select_window(same_hour, cur["date"], rule, cur.get("day_type", "UNKNOWN"), "SITE_SAME_HOUR")
+    same_hour_scoped = _filter_history_by_source_mode(same_hour, cur, rule)
+    all_hours_scoped = _filter_history_by_source_mode(all_hours, cur, rule)
+    selected, baseline_source = _select_window(same_hour_scoped, cur["date"], rule, cur.get("day_type", "UNKNOWN"), "SITE_SAME_HOUR")
     if len(selected) < max(3, rule.min_history_points // 2):
-        selected, baseline_source = _select_window(all_hours, cur["date"], rule, cur.get("day_type", "UNKNOWN"), "SITE_ALL_HOURS")
+        selected, baseline_source = _select_window(all_hours_scoped, cur["date"], rule, cur.get("day_type", "UNKNOWN"), "SITE_ALL_HOURS")
 
     family_factor = _family_rank_factor(rule.family_rank)
+    join_status = str(cur.get("join_status"))
+    join_conf = 1.0 if join_status == "OK" else 0.75 if join_status.startswith("SOURCE_ONLY_NO_META") else 0.25
+
     if rule.score_method == "BAND_TARGET":
-        center = (safe_float(rule.range_low) + safe_float(rule.range_high)) / 2.0
-        width = max((safe_float(rule.range_high) - safe_float(rule.range_low)) / 2.0, 1e-6)
-        if cur_value < safe_float(rule.range_low):
-            dist = (safe_float(rule.range_low) - cur_value) / width
-        elif cur_value > safe_float(rule.range_high):
-            dist = (cur_value - safe_float(rule.range_high)) / width
-        else:
-            dist = abs(cur_value - center) / width * 0.25
+        low, high, center, width, hist_points = _band_range(selected, rule)
+        dist = _band_distance(cur_value, low, high, center, width)
+        prev_dist = dist if prev_is_missing else _band_distance(prev_value, low, high, center, width)
+        movement_component = 0.0 if prev_is_missing else clip(prev_dist - dist, -1.0, 1.0)
+        absolute_component = _band_absolute_component(dist)
+        signal_strength = clip((movement_component * 0.65) + (absolute_component * 0.35), -1.0, 1.0)
+        if dist > 0.25 and signal_strength > 0:
+            signal_strength = min(signal_strength, 0.15)
 
-        prev_dist = dist
-        if not pd.isna(prev_value):
-            if prev_value < safe_float(rule.range_low):
-                prev_dist = (safe_float(rule.range_low) - prev_value) / width
-            elif prev_value > safe_float(rule.range_high):
-                prev_dist = (prev_value - safe_float(rule.range_high)) / width
-            else:
-                prev_dist = abs(prev_value - center) / width * 0.25
+        history_conf = clip(hist_points / max(rule.min_history_points, 1), 0.25, 1.0) if hist_points > 0 else 0.25
+        prev_conf = 0.60 if prev_is_missing else 1.0
+        baseline_conf = BASELINE_CONFIDENCE.get(baseline_source, 0.35)
+        freshness_factor = _freshness_confidence_factor(cur, rule)
+        event["confidence"] = clip(((history_conf * 0.35) + (baseline_conf * 0.20) + (prev_conf * 0.25) + (join_conf * 0.20)) * freshness_factor, 0.0, 1.0)
 
-        signal_strength = clip(prev_dist - dist, -1.0, 1.0)
+        sign_weight = rule.positive_weight if signal_strength > 0 else rule.negative_weight if signal_strength < 0 else 1.0
         event["baseline_center"] = center
         event["baseline_scale"] = width
         event["baseline_source"] = baseline_source
-        event["hist_points"] = int(len(selected))
-        event["confidence"] = clip(0.35 + (0.25 if pd.notna(prev_value) else 0.0), 0.0, 1.0)
+        event["hist_points"] = hist_points
         event["signal_strength"] = signal_strength
-        event["health_component"] = signal_strength * rule.base_weight * family_factor * event["confidence"]
+        event["health_component"] = signal_strength * rule.base_weight * sign_weight * family_factor * event["confidence"]
         event["ivt_capacity"] = rule.ivt_weight * family_factor * event["confidence"]
         event["ivt_component"] = max(0.0, -signal_strength) * event["ivt_capacity"]
-        event["change_class"] = "POSITIVE" if signal_strength > 0.02 else "NEGATIVE" if signal_strength < -0.02 else "NEUTRAL"
-        event["event_label"] = rule.label_positive if event["change_class"] == "POSITIVE" else rule.label_negative if event["change_class"] == "NEGATIVE" else ""
-        event["event_reason"] = "IN_TARGET_BAND" if dist <= 0.25 else "OUTSIDE_TARGET_BAND"
+
+        if signal_strength > 0.02:
+            event["change_class"] = "POSITIVE"
+            event["event_label"] = rule.label_positive or f"{rule.column.upper()}_IN_RANGE"
+        elif signal_strength < -0.02:
+            event["change_class"] = "NEGATIVE"
+            event["event_label"] = rule.label_negative or f"{rule.column.upper()}_OUT_OF_RANGE"
+        else:
+            event["change_class"] = "NEUTRAL"
+
+        if dist <= 0.25:
+            event["event_reason"] = "IN_TARGET_BAND"
+        elif movement_component > 0.10:
+            event["event_reason"] = "OUTSIDE_TARGET_BAND_RECOVERING"
+        else:
+            event["event_reason"] = "OUTSIDE_TARGET_BAND"
+
+        note_parts = [
+            f"baseline_source={baseline_source}",
+            f"hist_points={hist_points}",
+            f"band=({low:.4f},{high:.4f})",
+            f"family_rank={rule.family_rank}",
+            f"source_mode={event['source_mode']}",
+        ]
+        if freshness_factor < 0.999:
+            note_parts.append(f"freshness_factor={freshness_factor:.3f}")
+        event["note"] = ";".join(note_parts)
         return event
 
     if rule.score_method == "HOURLY_INCREMENT_Z":
@@ -1144,11 +1434,11 @@ def _evaluate_rule(cur: pd.Series, same_hour: pd.DataFrame, all_hours: pd.DataFr
         event["event_reason"] = "UNSUPPORTED_RULE"
         return event
 
-    history_conf = clip(len(selected) / max(rule.min_history_points, 1), 0.25, 1.0)
+    history_conf = clip(hist_points / max(rule.min_history_points, 1), 0.25, 1.0)
     volume_conf = 1.0 if event["volume_gate_value"] == 0 else clip(event["volume_gate_value"] / max(rule.min_volume or event["volume_gate_value"], 1.0), 0.0, 1.0)
-    join_conf = 1.0 if str(cur.get("join_status")) == "OK" else 0.75 if str(cur.get("join_status")).startswith("SOURCE_ONLY_NO_META") else 0.25
     baseline_conf = BASELINE_CONFIDENCE.get(baseline_source, 0.35)
-    event["confidence"] = clip((history_conf * 0.40) + (baseline_conf * 0.20) + (volume_conf * 0.20) + (join_conf * 0.20), 0.0, 1.0)
+    freshness_factor = _freshness_confidence_factor(cur, rule)
+    event["confidence"] = clip(((history_conf * 0.40) + (baseline_conf * 0.20) + (volume_conf * 0.20) + (join_conf * 0.20)) * freshness_factor, 0.0, 1.0)
 
     sign_weight = rule.positive_weight if signal_strength > 0 else rule.negative_weight if signal_strength < 0 else 1.0
     event["baseline_center"] = center
@@ -1163,9 +1453,11 @@ def _evaluate_rule(cur: pd.Series, same_hour: pd.DataFrame, all_hours: pd.DataFr
     event["ivt_component"] = max(0.0, -signal_strength) * event["ivt_capacity"]
 
     if rule.adjustment_weight > 0 and rule.column in COUNTER_CORRECTION_COLUMNS and event["current_increment"] < 0 and safe_float(prev_value) > 0:
-        magnitude = max(abs(signal_strength), _counter_drop_magnitude(prev_value, event["current_increment"]))
-        event["adjustment_component"] = -magnitude * rule.adjustment_weight * event["confidence"] * family_factor
-        event["ivt_component"] += magnitude * 0.55 * event["ivt_capacity"]
+        counter_drop = _counter_drop_magnitude(prev_value, event["current_increment"])
+        if counter_drop >= COUNTER_CORRECTION_MIN_MAGNITUDE:
+            magnitude = max(abs(signal_strength), counter_drop)
+            event["adjustment_component"] = -magnitude * rule.adjustment_weight * event["confidence"] * family_factor
+            event["ivt_component"] += magnitude * 0.55 * event["ivt_capacity"]
 
     if signal_strength > 0.02:
         event["change_class"] = "POSITIVE"
@@ -1177,9 +1469,16 @@ def _evaluate_rule(cur: pd.Series, same_hour: pd.DataFrame, all_hours: pd.DataFr
         event["change_class"] = "NEUTRAL"
         event["event_reason"] = "WITHIN_DEADBAND"
 
-    event["note"] = f"baseline_source={baseline_source};hist_points={hist_points};family_rank={rule.family_rank}"
+    note_parts = [
+        f"baseline_source={baseline_source}",
+        f"hist_points={hist_points}",
+        f"family_rank={rule.family_rank}",
+        f"source_mode={event['source_mode']}",
+    ]
+    if freshness_factor < 0.999:
+        note_parts.append(f"freshness_factor={freshness_factor:.3f}")
+    event["note"] = ";".join(note_parts)
     return event
-
 
 def _signal_lookup(events: list[dict], header_name: str) -> dict:
     hits = [e for e in events if e["header_name"] == header_name and e["change_class"] != "SKIPPED"]
@@ -1239,7 +1538,6 @@ def _composite_event_template(cur: pd.Series, batch_uuid: uuid.UUID, header_name
         "note": "",
     }
 
-
 def _avg_conf(*events: dict) -> float:
     vals = [safe_float(e.get("confidence")) for e in events if e]
     return clip(sum(vals) / max(len(vals), 1), 0.0, 1.0)
@@ -1247,14 +1545,22 @@ def _avg_conf(*events: dict) -> float:
 
 def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uuid: uuid.UUID) -> list[dict]:
     out: list[dict] = []
-    sig = {e["header_name"]: e for e in row_events if e["change_class"] != "SKIPPED"}
+    source_mode = _get_source_mode(cur)
+    composite_source_scope = "blended"
+    if source_mode == SOURCE_MODE_ADSENSE_ONLY:
+        composite_source_scope = "adsense"
+    elif source_mode == SOURCE_MODE_ADX_ONLY:
+        composite_source_scope = "adx"
 
     lpv = _signal_lookup(row_events, "meta_lpv")
     lpv_rate = _signal_lookup(row_events, "meta_lpv_rate")
     freq = _signal_lookup(row_events, "meta_frequency")
+    budget_pacing = _signal_lookup(row_events, "meta_budget_pacing_index")
     rev_per_lpv = _signal_lookup(row_events, "revenue_per_lpv")
     roi_proxy = _signal_lookup(row_events, "roi_proxy")
     blended_rev = _signal_lookup(row_events, "blended_revenue")
+    ads_rev = _signal_lookup(row_events, "adsense_estimated_earnings")
+    adx_rev = _signal_lookup(row_events, "adx_revenue")
     ads_req = _signal_lookup(row_events, "adsense_ad_requests")
     adx_req = _signal_lookup(row_events, "adx_total_requests")
     coverage = _signal_lookup(row_events, "adsense_ad_requests_coverage")
@@ -1269,33 +1575,83 @@ def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uui
     ads_rpm = _signal_lookup(row_events, "adsense_page_views_rpm")
     att_quality = _signal_lookup(row_events, "attention_quality_blended")
     att_time = _signal_lookup(row_events, "active_time_blended")
+    ads_view = _signal_lookup(row_events, "adsense_active_view_viewability")
+    ads_time = _signal_lookup(row_events, "adsense_active_view_time")
+    adx_view = _signal_lookup(row_events, "adx_active_view_pct_viewable")
+    adx_time = _signal_lookup(row_events, "adx_active_view_avg_time_sec")
     click_pressure = _signal_lookup(row_events, "click_pressure")
     request_density = _signal_lookup(row_events, "request_density")
 
-    req_signal = max(safe_float(ads_req["signal_strength"]), safe_float(adx_req["signal_strength"]))
-    click_signal = max(safe_float(ads_clicks["signal_strength"]), safe_float(adx_clicks["signal_strength"]))
-    yield_floor = min(
-        safe_float(ads_cpc["signal_strength"]),
-        safe_float(adx_cpc["signal_strength"]),
-        safe_float(adx_ecpm["signal_strength"]),
-        safe_float(ads_rpm["signal_strength"]),
-        safe_float(rev_per_lpv["signal_strength"]),
-    )
-    delivery_floor = min(
-        safe_float(coverage["signal_strength"]),
-        safe_float(match_rate["signal_strength"]),
-        safe_float(fill_rate["signal_strength"]),
-        safe_float(req_eff["signal_strength"]),
-    )
-    attention_floor = min(safe_float(att_quality["signal_strength"]), safe_float(att_time["signal_strength"]))
+    def active_events(items: list[dict]) -> list[dict]:
+        return [
+            e for e in items
+            if e and (
+                safe_float(e.get("confidence")) > 0
+                or abs(safe_float(e.get("signal_strength"))) > 0
+                or abs(safe_float(e.get("cur_value"))) > 0
+            )
+        ]
+
+    def signal_values(items: list[dict]) -> list[float]:
+        return [safe_float(e.get("signal_strength")) for e in active_events(items)]
+
+    def avg_conf_items(items: list[dict]) -> float:
+        return _avg_conf(*active_events(items))
+
+    def mode_note(note: str) -> str:
+        note = str(note or "").strip()
+        prefix = f"source_mode={source_mode}"
+        return prefix if not note else f"{prefix};{note}"
+
+    if source_mode == SOURCE_MODE_ADSENSE_ONLY:
+        request_events = [ads_req]
+        click_events = [ads_clicks]
+        yield_events = [ads_cpc, ads_rpm, rev_per_lpv]
+        delivery_events = [coverage, req_eff]
+        attention_events = [ads_view, ads_time]
+        primary_revenue = ads_rev
+        quality_view_metric = ads_view
+        quality_time_metric = ads_time
+    elif source_mode == SOURCE_MODE_ADX_ONLY:
+        request_events = [adx_req]
+        click_events = [adx_clicks]
+        yield_events = [adx_cpc, adx_ecpm, rev_per_lpv]
+        delivery_events = [match_rate, fill_rate]
+        attention_events = [adx_view, adx_time]
+        primary_revenue = adx_rev
+        quality_view_metric = adx_view
+        quality_time_metric = adx_time
+    else:
+        request_events = [ads_req, adx_req]
+        click_events = [ads_clicks, adx_clicks]
+        yield_events = [ads_cpc, adx_cpc, adx_ecpm, ads_rpm, rev_per_lpv]
+        delivery_events = [coverage, match_rate, fill_rate, req_eff]
+        attention_events = [att_quality, att_time]
+        primary_revenue = blended_rev
+        quality_view_metric = att_quality
+        quality_time_metric = att_time
+
+    req_values = signal_values(request_events)
+    click_values = signal_values(click_events)
+    yield_values = signal_values(yield_events)
+    delivery_values = signal_values(delivery_events)
+    attention_values = signal_values(attention_events)
+
+    req_signal = max(req_values) if req_values else 0.0
+    click_signal = max(click_values) if click_values else 0.0
+    yield_floor = min(yield_values) if yield_values else 0.0
+    delivery_floor = min(delivery_values) if delivery_values else 0.0
+    attention_floor = min(attention_values) if attention_values else 0.0
 
     def push(evt: dict) -> None:
         if evt:
+            evt["source_mode"] = source_mode
+            evt["note"] = mode_note(evt.get("note", ""))
             out.append(evt)
 
     if safe_float(lpv["signal_strength"]) > 0.25 and min(safe_float(rev_per_lpv["signal_strength"]), safe_float(roi_proxy["signal_strength"])) < -0.20:
-        conf = _avg_conf(lpv, rev_per_lpv, roi_proxy)
-        evt = _composite_event_template(cur, batch_uuid, "cx_traffic_without_value", "blended", "ivt_funnel", "funnel_divergence", "relationship", "DOWN_GOOD")
+        conf = avg_conf_items([lpv, rev_per_lpv, roi_proxy])
+        evt = _composite_event_template(cur, batch_uuid, "cx_traffic_without_value", composite_source_scope, "ivt_funnel", "funnel_divergence", "relationship", "DOWN_GOOD")
         evt["confidence"] = conf
         evt["signal_strength"] = -clip((safe_float(lpv["signal_strength"]) + abs(min(safe_float(rev_per_lpv["signal_strength"]), safe_float(roi_proxy["signal_strength"])))) / 2.0, 0.0, 1.0)
         evt["health_component"] = -1.10 * conf
@@ -1308,8 +1664,8 @@ def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uui
         push(evt)
 
     if click_signal > 0.30 and yield_floor < -0.25:
-        conf = _avg_conf(ads_clicks, adx_clicks, ads_cpc, adx_cpc, adx_ecpm, ads_rpm, rev_per_lpv)
-        evt = _composite_event_template(cur, batch_uuid, "cx_click_spike_without_yield", "blended", "ivt_click_stress", "click_pressure", "relationship", "DOWN_GOOD")
+        conf = avg_conf_items(click_events + yield_events)
+        evt = _composite_event_template(cur, batch_uuid, "cx_click_spike_without_yield", composite_source_scope, "ivt_click_stress", "click_pressure", "relationship", "DOWN_GOOD")
         evt["confidence"] = conf
         evt["signal_strength"] = -clip((click_signal + abs(yield_floor)) / 2.0, 0.0, 1.0)
         evt["health_component"] = -0.95 * conf
@@ -1322,8 +1678,8 @@ def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uui
         push(evt)
 
     if req_signal > 0.15 and delivery_floor < -0.20:
-        conf = _avg_conf(ads_req, adx_req, coverage, match_rate, fill_rate, req_eff)
-        evt = _composite_event_template(cur, batch_uuid, "cx_serving_suppression", "blended", "ivt_serving", "serving_health", "relationship", "DOWN_GOOD")
+        conf = avg_conf_items(request_events + delivery_events)
+        evt = _composite_event_template(cur, batch_uuid, "cx_serving_suppression", composite_source_scope, "ivt_serving", "serving_health", "relationship", "DOWN_GOOD")
         evt["confidence"] = conf
         evt["signal_strength"] = -clip((req_signal + abs(delivery_floor)) / 2.0, 0.0, 1.0)
         evt["health_component"] = -1.15 * conf
@@ -1336,8 +1692,8 @@ def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uui
         push(evt)
 
     if attention_floor < -0.22:
-        conf = _avg_conf(att_quality, att_time)
-        evt = _composite_event_template(cur, batch_uuid, "cx_attention_collapse", "blended", "ivt_attention", "attention", "relationship", "DOWN_GOOD")
+        conf = avg_conf_items(attention_events)
+        evt = _composite_event_template(cur, batch_uuid, "cx_attention_collapse", composite_source_scope, "ivt_attention", "attention", "relationship", "DOWN_GOOD")
         evt["confidence"] = conf
         evt["signal_strength"] = -clip(abs(attention_floor), 0.0, 1.0)
         evt["health_component"] = -0.75 * conf
@@ -1351,18 +1707,20 @@ def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uui
 
     correction_details = []
     correction_severity = 0.0
-    for col in sorted(COUNTER_CORRECTION_COLUMNS):
+    for col in sorted(_counter_correction_columns_for_mode(source_mode)):
+        if col in BLENDED_DUPLICATE_COLUMNS_BY_SOURCE_MODE.get(source_mode, set()):
+            continue
         prev_value = safe_float(cur.get(f"prev__{col}"))
         current_increment = safe_float(cur.get(f"delta__{col}"))
         if prev_value > 0 and current_increment < 0:
             magnitude = _counter_drop_magnitude(prev_value, current_increment)
-            if magnitude >= 0.01:
+            if magnitude >= COUNTER_CORRECTION_MIN_MAGNITUDE:
                 correction_details.append(f"{col}:{current_increment:.4f}")
                 correction_severity += magnitude
     if correction_details:
         conf = 0.95
         sev = clip(correction_severity / max(len(correction_details), 1), 0.0, 1.0)
-        evt = _composite_event_template(cur, batch_uuid, "cx_counter_correction_cluster", "blended", "ivt_counter", "counter_adjustment", "relationship", "DOWN_GOOD")
+        evt = _composite_event_template(cur, batch_uuid, "cx_counter_correction_cluster", composite_source_scope, "ivt_counter", "counter_adjustment", "relationship", "DOWN_GOOD")
         evt["confidence"] = conf
         evt["signal_strength"] = -sev
         evt["health_component"] = -1.20 * sev * conf
@@ -1376,8 +1734,8 @@ def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uui
         push(evt)
 
     if safe_float(freq["signal_strength"]) < -0.15 and safe_float(lpv_rate["signal_strength"]) < -0.15 and min(safe_float(rev_per_lpv["signal_strength"]), safe_float(roi_proxy["signal_strength"])) < -0.15:
-        conf = _avg_conf(freq, lpv_rate, rev_per_lpv, roi_proxy)
-        evt = _composite_event_template(cur, batch_uuid, "cx_saturation_funnel_divergence", "blended", "ivt_funnel", "fatigue", "relationship", "DOWN_GOOD")
+        conf = avg_conf_items([freq, lpv_rate, rev_per_lpv, roi_proxy])
+        evt = _composite_event_template(cur, batch_uuid, "cx_saturation_funnel_divergence", composite_source_scope, "ivt_funnel", "fatigue", "relationship", "DOWN_GOOD")
         evt["confidence"] = conf
         evt["signal_strength"] = -clip((abs(safe_float(freq["signal_strength"])) + abs(safe_float(lpv_rate["signal_strength"])) + abs(min(safe_float(rev_per_lpv["signal_strength"]), safe_float(roi_proxy["signal_strength"])))) / 3.0, 0.0, 1.0)
         evt["health_component"] = -0.85 * conf
@@ -1389,11 +1747,25 @@ def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uui
         evt["note"] = "fatigue / saturation signature detected"
         push(evt)
 
-    if safe_float(blended_rev["signal_strength"]) > 0.25 and safe_float(rev_per_lpv["signal_strength"]) > 0.15 and delivery_floor > -0.05:
-        conf = _avg_conf(blended_rev, rev_per_lpv, req_eff, coverage, match_rate, fill_rate)
-        evt = _composite_event_template(cur, batch_uuid, "cx_monetization_aligned_growth", "blended", "revenue", "monetization", "relationship", "UP_GOOD")
+    if safe_float(budget_pacing["signal_strength"]) < -0.18 and min(safe_float(rev_per_lpv["signal_strength"]), safe_float(roi_proxy["signal_strength"])) < -0.15:
+        conf = avg_conf_items([budget_pacing, rev_per_lpv, roi_proxy])
+        evt = _composite_event_template(cur, batch_uuid, "cx_budget_pressure_without_value", composite_source_scope, "efficiency", "budget_pacing", "relationship", "DOWN_GOOD")
         evt["confidence"] = conf
-        evt["signal_strength"] = clip((safe_float(blended_rev["signal_strength"]) + safe_float(rev_per_lpv["signal_strength"]) + max(delivery_floor, 0.0)) / 3.0, 0.0, 1.0)
+        evt["signal_strength"] = -clip((abs(safe_float(budget_pacing["signal_strength"])) + abs(min(safe_float(rev_per_lpv["signal_strength"]), safe_float(roi_proxy["signal_strength"])))) / 2.0, 0.0, 1.0)
+        evt["health_component"] = -0.80 * abs(evt["signal_strength"]) * conf
+        evt["ivt_component"] = 0.35 * abs(evt["signal_strength"]) * conf
+        evt["ivt_capacity"] = 0.45 * conf
+        evt["change_class"] = "NEGATIVE"
+        evt["event_label"] = "BUDGET_PRESSURE_WITHOUT_VALUE"
+        evt["event_reason"] = "PACING_HOT_AND_VALUE_DOWN"
+        evt["note"] = "budget pacing moved out of band while unit economics weakened"
+        push(evt)
+
+    if safe_float(primary_revenue["signal_strength"]) > 0.25 and safe_float(rev_per_lpv["signal_strength"]) > 0.15 and delivery_floor > -0.05:
+        conf = avg_conf_items([primary_revenue, rev_per_lpv] + delivery_events)
+        evt = _composite_event_template(cur, batch_uuid, "cx_monetization_aligned_growth", composite_source_scope, "revenue", "monetization", "relationship", "UP_GOOD")
+        evt["confidence"] = conf
+        evt["signal_strength"] = clip((safe_float(primary_revenue["signal_strength"]) + safe_float(rev_per_lpv["signal_strength"]) + max(delivery_floor, 0.0)) / 3.0, 0.0, 1.0)
         evt["health_component"] = 1.20 * evt["signal_strength"] * conf
         evt["ivt_component"] = 0.0
         evt["ivt_capacity"] = 0.35 * conf
@@ -1403,11 +1775,11 @@ def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uui
         evt["note"] = "revenue, yield, and delivery are aligned"
         push(evt)
 
-    if safe_float(att_quality["signal_strength"]) > 0.20 and safe_float(att_time["signal_strength"]) > 0.20 and safe_float(click_pressure["signal_strength"]) >= -0.10:
-        conf = _avg_conf(att_quality, att_time, click_pressure, request_density)
-        evt = _composite_event_template(cur, batch_uuid, "cx_quality_recovery", "blended", "quality", "attention", "relationship", "UP_GOOD")
+    if safe_float(quality_view_metric["signal_strength"]) > 0.20 and safe_float(quality_time_metric["signal_strength"]) > 0.20 and safe_float(click_pressure["signal_strength"]) >= -0.10:
+        conf = avg_conf_items([quality_view_metric, quality_time_metric, click_pressure, request_density])
+        evt = _composite_event_template(cur, batch_uuid, "cx_quality_recovery", composite_source_scope, "quality", "attention", "relationship", "UP_GOOD")
         evt["confidence"] = conf
-        evt["signal_strength"] = clip((safe_float(att_quality["signal_strength"]) + safe_float(att_time["signal_strength"])) / 2.0, 0.0, 1.0)
+        evt["signal_strength"] = clip((safe_float(quality_view_metric["signal_strength"]) + safe_float(quality_time_metric["signal_strength"])) / 2.0, 0.0, 1.0)
         evt["health_component"] = 0.60 * evt["signal_strength"] * conf
         evt["ivt_component"] = 0.0
         evt["ivt_capacity"] = 0.25 * conf
@@ -1504,6 +1876,58 @@ def _group_risk_score(events: list[dict], group_name: str) -> float:
     return clip(100.0 * numerator / denominator, 0.0, 100.0)
 
 
+def _derive_decision_margin(health_score: float, ivt_risk_score: float, adjustment_score: float) -> float:
+    return float(health_score - ivt_risk_score + min(0.0, adjustment_score))
+
+
+def _derive_adjustment_score(events: list[dict], health_den: float) -> float:
+    adjustment_burden = sum(max(-safe_float(e.get("adjustment_component")), 0.0) for e in events)
+    signal_den = max(safe_float(health_den) + adjustment_burden, 0.0)
+    if signal_den <= 0:
+        return 0.0
+    return float(-clip(100.0 * adjustment_burden / signal_den, 0.0, 100.0))
+
+
+def _derive_status_score(status: dict) -> int:
+    health = safe_float(status.get("health_score"))
+    risk = safe_float(status.get("ivt_risk_score"))
+    confidence = clip(safe_float(status.get("confidence")), 0.0, 1.0)
+    decision_margin = safe_float(status.get("decision_margin"))
+    score = (((health + 100.0) / 2.0) * 0.45) + ((100.0 - risk) * 0.2) + ((confidence * 100.0) * 0.15) + (clip(decision_margin + 50.0, 0.0, 100.0) * 0.2)
+    return int(round(clip(score, 0.0, 100.0)))
+
+
+def derive_decision(score: float, label: str, health_score: float, ivt_risk_score: float, adjustment_score: float, decision_margin: float, confidence: float) -> tuple[str, str]:
+    score_value = clip(safe_float(score), 0.0, 100.0)
+    label_key = str(label or "STABLE").upper()
+    health = safe_float(health_score)
+    risk = safe_float(ivt_risk_score)
+    adjustment = safe_float(adjustment_score)
+    margin = safe_float(decision_margin)
+    conf = clip(safe_float(confidence), 0.0, 1.0)
+    severe_stop = label_key.startswith("RED_FLAG") or (risk >= 85 and conf >= 0.55 and score_value < 45) or (margin <= -55 and health <= -18 and conf >= 0.55)
+    if severe_stop:
+        decision = "STOP"
+    elif (label_key in POSITIVE_ROOT_LABELS or label_key == "WATCH_POSITIVE") and score_value >= 65 and risk < 55 and margin >= 8 and conf >= 0.5:
+        decision = "SCALE UP"
+    elif (label_key in NEGATIVE_ROOT_LABELS or label_key in {"WATCH_NEGATIVE", "WATCH_DECAY"}) and (score_value < 60 or margin < -8 or health < -8 or adjustment < -15):
+        decision = "SCALE DOWN"
+    elif score_value >= 75 and risk < 45 and margin >= 12 and conf >= 0.55:
+        decision = "SCALE UP"
+    elif score_value < 45 and (margin < -8 or health < -10 or adjustment < -20 or risk >= 65):
+        decision = "SCALE DOWN"
+    else:
+        decision = "HOLD"
+    basis = f"decision={decision}; score={score_value:.0f}; label={label_key}; risk={risk:.1f}; margin={margin:.1f}; conf={conf * 100:.0f}%"
+    return decision, basis
+
+
+def _derive_status_decision(status: dict) -> str:
+    score = safe_float(status.get("score")) or _derive_status_score(status)
+    decision, _ = derive_decision(score, status.get("final_label") or status.get("root_cause_label"), status.get("health_score"), status.get("ivt_risk_score"), status.get("adjustment_score"), status.get("decision_margin"), status.get("confidence"))
+    return decision
+
+
 def _root_cause_label(status: dict) -> str:
     if status["join_status"] not in SCORABLE_JOIN_STATUSES and status["negative_signal_count"] == 0 and status["positive_signal_count"] == 0:
         return "DATA_INCOMPLETE"
@@ -1517,7 +1941,9 @@ def _root_cause_label(status: dict) -> str:
         }
         label, value = max(ivt_groups.items(), key=lambda x: x[1])
         return label if value >= 45 else "RED_FLAG_IVT"
-    if status["adjustment_drop_count"] >= 2 and status["adjustment_score"] <= -35:
+    total_signal_count = max(status["positive_signal_count"] + status["negative_signal_count"] + status["neutral_signal_count"], 1)
+    adjustment_share = safe_float(status["adjustment_drop_count"]) / total_signal_count
+    if status["adjustment_drop_count"] >= 3 and adjustment_share >= 0.35 and status["adjustment_score"] <= -45:
         return "NEG_ADJUSTMENT"
     if status["health_score"] >= 18 and status["ivt_risk_score"] < 35 and status["positive_signal_count"] >= status["negative_signal_count"]:
         return "POSITIVE_EXPANSION"
@@ -1570,14 +1996,12 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
 
     health_num = sum(safe_float(e["health_component"]) for e in events)
     health_den = sum(max(abs(safe_float(e["health_component"])), 0.0) for e in events if e["change_class"] in {"POSITIVE", "NEGATIVE", "NEUTRAL"})
-    adjustment_num = sum(safe_float(e["adjustment_component"]) for e in events)
-    adjustment_den = sum(abs(safe_float(e["adjustment_component"])) for e in events if abs(safe_float(e["adjustment_component"])) > 0)
     ivt_num = sum(max(0.0, safe_float(e.get("ivt_component"))) for e in events)
     ivt_den = sum(max(safe_float(e.get("ivt_capacity")), 0.0) for e in events if safe_float(e.get("ivt_capacity")) > 0)
     confidence = sum(safe_float(e["confidence"]) for e in events if e["change_class"] != "SKIPPED") / max(len([e for e in events if e["change_class"] != "SKIPPED"]), 1)
 
     health_score = 100.0 * health_num / health_den if health_den > 0 else 0.0
-    adjustment_score = 100.0 * adjustment_num / adjustment_den if adjustment_den > 0 else 0.0
+    adjustment_score = _derive_adjustment_score(events, health_den)
     ivt_risk_score = clip(100.0 * ivt_num / ivt_den, 0.0, 100.0) if ivt_den > 0 else 0.0
     current_blended_ctr = _safe_div(safe_float(cur.get("total_clicks_blended")), safe_float(cur.get("total_impressions_blended")), 0.0) * 100.0
     prev_blended_ctr = _safe_div(safe_float(cur.get("prev__total_clicks_blended")), safe_float(cur.get("prev__total_impressions_blended")), 0.0) * 100.0
@@ -1594,6 +2018,7 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "account_name": cur.get("account_name", ""),
         "mapped_revenue_source": cur.get("mapped_revenue_source", ""),
         "join_status": cur.get("join_status", ""),
+        "source_mode": _get_source_mode(cur),
         "status_scope": "ACTIVE_DATE",
         "spend": safe_float(cur.get("meta_spend")),
         "revenue_value": safe_float(cur.get("revenue_value")),
@@ -1603,27 +2028,23 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "adx_revenue": safe_float(cur.get("adx_revenue")),
         "adx_impressions": safe_float(cur.get("adx_impressions")),
         "adx_clicks": safe_float(cur.get("adx_clicks")),
-        "adx_rpm": safe_float(cur.get("adx_avg_ecpm")),
-        "adx_fill_rate": safe_float(cur.get("adx_total_fill_rate")),
+        "adx_rpm": safe_float(cur.get("adx_rpm")),
+        "adx_fill_rate": safe_float(cur.get("adx_match_rate")),
         "adsense_revenue": safe_float(cur.get("adsense_estimated_earnings")),
         "adsense_pageviews": safe_float(cur.get("adsense_page_views")),
         "adsense_clicks": safe_float(cur.get("adsense_clicks")),
         "adsense_ctr": safe_float(cur.get("adsense_ctr")),
         "adsense_page_rpm": safe_float(cur.get("adsense_page_views_rpm")),
-        "score": health_score,
+        "score": 0,
         "profitability_score": _group_health_score(events, "revenue"),
         "health_score": health_score,
         "adjustment_score": adjustment_score,
-        "ivt_risk_score": ivt_risk_score,
-        "decision_margin": round(health_score - ivt_risk_score + min(0.0, adjustment_score), 4),
-        "confidence": clip(confidence, 0.0, 1.0),
+        "confidence": confidence,
         "positive_signal_count": len(positive),
         "negative_signal_count": len(negative),
         "neutral_signal_count": len(neutral),
         "skipped_signal_count": len(skipped),
-        "adjustment_drop_count": sum(1 for e in events if safe_float(e["adjustment_component"]) < 0),
-        "composite_positive_count": len(composite_positive),
-        "composite_negative_count": len(composite_negative),
+        "adjustment_drop_count": sum(1 for e in events if safe_float(e.get("adjustment_component")) < 0),
         "traffic_score": _group_health_score(events, "traffic"),
         "delivery_score": _group_health_score(events, "delivery"),
         "yield_score": _group_health_score(events, "yield"),
@@ -1633,14 +2054,18 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "engagement_score": _group_health_score(events, "engagement"),
         "control_score": _group_health_score(events, "control"),
         "decision": "",
-        "labels": "",
-        "revenue_change": safe_float(cur.get("delta__blended_revenue")),
+        "labels": [],
+        "revenue_change": safe_pct_change(safe_float(cur.get("revenue_value")), safe_float(cur.get("prev__revenue_value"))),
         "ctr_change": current_blended_ctr - prev_blended_ctr,
+        "ivt_risk_score": ivt_risk_score,
         "ivt_click_stress_score": _group_risk_score(events, "ivt_click_stress"),
         "ivt_serving_score": _group_risk_score(events, "ivt_serving"),
         "ivt_attention_score": _group_risk_score(events, "ivt_attention"),
         "ivt_counter_score": _group_risk_score(events, "ivt_counter"),
         "ivt_funnel_score": _group_risk_score(events, "ivt_funnel"),
+        "decision_margin": _derive_decision_margin(health_score, ivt_risk_score, adjustment_score),
+        "composite_positive_count": len(composite_positive),
+        "composite_negative_count": len(composite_negative),
         "positive_streak": persistence["positive_streak"],
         "negative_streak": persistence["negative_streak"],
         "adjustment_streak": persistence["adjustment_streak"],
@@ -1648,10 +2073,10 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "persistence_score": persistence["persistence_score"],
         "persistence_label": persistence["label"],
         "hysteresis_applied": 0,
-        "top_positive_labels": pick_top_labels(Counter(_safe_label_values([e.get("event_label") for e in positive]))),
-        "top_negative_labels": pick_top_labels(Counter(_safe_label_values([e.get("event_label") for e in negative]))),
-        "top_positive_headers": pick_top_labels(Counter(_safe_label_values([e.get("header_name") for e in positive]))),
-        "top_negative_headers": pick_top_labels(Counter(_safe_label_values([e.get("header_name") for e in negative]))),
+        "top_positive_labels": _pick_top_labels_from_values(e.get("event_label") for e in positive),
+        "top_negative_labels": _pick_top_labels_from_values(e.get("event_label") for e in negative),
+        "top_positive_headers": _pick_top_labels_from_values(e.get("header_name") for e in positive),
+        "top_negative_headers": _pick_top_labels_from_values(e.get("header_name") for e in negative),
         "root_cause_label": "",
         "final_label": "",
         "reason_summary": "",
@@ -1659,15 +2084,12 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
     status["root_cause_label"] = _root_cause_label(status)
     final_label, hysteresis_applied = _apply_hysteresis(status["root_cause_label"], status, persistence)
     status["final_label"] = final_label
-    status["decision"] = final_label
-    label_parts = []
-    for value in [status["top_positive_labels"], status["top_negative_labels"]]:
-        text = _safe_text(value)
-        if text:
-            label_parts.append(text)
-    status["labels"] = "; ".join(label_parts) or status["root_cause_label"]
+    status["score"] = _derive_status_score(status)
+    status["decision"], decision_basis = derive_decision(status["score"], status["final_label"] or status["root_cause_label"], status["health_score"], status["ivt_risk_score"], status["adjustment_score"], status["decision_margin"], status["confidence"])
+    status["labels"] = [label for label in [status["root_cause_label"], final_label] if label]
     status["hysteresis_applied"] = hysteresis_applied
     status["reason_summary"] = "; ".join([
+        decision_basis,
         f"health={status['health_score']:.2f}",
         f"ivt={status['ivt_risk_score']:.2f}",
         f"adjust={status['adjustment_score']:.2f}",
@@ -1675,11 +2097,11 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         f"delivery={status['delivery_score']:.2f}",
         f"yield={status['yield_score']:.2f}",
         f"quality={status['quality_score']:.2f}",
+        f"source_mode={status['source_mode']}",
         f"persistence={status['persistence_score']:.2f}",
         f"streaks=+{status['positive_streak']}/-{status['negative_streak']}/ivt{status['ivt_streak']}",
     ])
     return status
-
 
 def score_site_country(
     target_date: date,
@@ -1691,60 +2113,40 @@ def score_site_country(
     country_cd: str | None = None,
 ) -> dict:
     batch_uuid = ensure_uuid(batch_id)
-    requested_batch_id = str(batch_id).strip() if batch_id is not None else ""
-    history_df = _load_join_history(
-        target_date,
-        batch_uuid,
-        lookback_days=lookback_days,
-        domain=domain,
-        country_cd=country_cd,
-    )
-    audit = {
-        "requested_date": str(target_date),
-        "requested_domain": str(domain or ""),
-        "requested_country_cd": str(country_cd or ""),
-        "history_rows": int(len(history_df)),
-        "effective_date": str(target_date),
-        "fallback_applied": False,
-        "available_dates": [],
-    }
+    domain_key = normalize_domain(domain) if domain else ""
+    country_key = normalize_country_cd(country_cd) if country_cd else ""
+    history_df = _load_join_history(target_date, batch_uuid, lookback_days=lookback_days)
     if history_df.empty:
-        return {"ok": True, "rows_written": 0, "batch_id": str(batch_uuid), "warning": "No join history", "warning_code": "NO_JOIN_HISTORY", "audit": audit}
-    try:
-        audit["available_dates"] = sorted({str(x) for x in history_df["date"].dropna().tolist()})[-7:]
-    except Exception:
-        audit["available_dates"] = []
+        return {"ok": True, "rows_written": 0, "event_rows_written": 0, "batch_id": str(batch_uuid), "warning": "No join history", "statuses": [], "events": []}
 
-    effective_date = target_date
-    if requested_batch_id:
-        current_df = history_df[history_df["batch_id"].eq(requested_batch_id)].copy()
-        warning_text = "No rows found for requested batch_id in fact_join_hourly"
-    else:
-        current_df = history_df[history_df["date"].eq(target_date)].copy()
-        warning_text = "No current rows found for target_date in fact_join_hourly"
-        if current_df.empty:
-            fallback_df = history_df[history_df["date"] <= target_date].copy()
-            if fallback_df.empty:
-                fallback_df = history_df.copy()
-            if not fallback_df.empty:
-                effective_date = fallback_df["date"].max()
-                current_df = fallback_df[fallback_df["date"].eq(effective_date)].copy()
-                audit["fallback_applied"] = str(effective_date) != str(target_date)
-                audit["effective_date"] = str(effective_date)
+    if domain_key:
+        history_df = history_df[history_df["domain"] == domain_key].copy()
+    if country_key:
+        history_df = history_df[history_df["country_cd"] == country_key].copy()
+    if history_df.empty:
+        return {"ok": True, "rows_written": 0, "event_rows_written": 0, "batch_id": str(batch_uuid), "warning": "No join history for requested filter", "statuses": [], "events": []}
+
+    current_df = history_df[history_df["is_current_batch"]].copy()
     if current_df.empty:
-        return {"ok": True, "rows_written": 0, "batch_id": str(batch_uuid), "warning": warning_text, "warning_code": "NO_CURRENT_ROWS", "effective_date": str(effective_date), "audit": audit}
+        return {"ok": True, "rows_written": 0, "event_rows_written": 0, "batch_id": str(batch_uuid), "warning": "No current batch rows found in fact_join_hourly", "statuses": [], "events": []}
 
     recent_status_df = _load_recent_status_history(target_date, lookback_days=max(7, min(max(lookback_days, 7), 21)))
+    if not recent_status_df.empty:
+        if domain_key:
+            recent_status_df = recent_status_df[recent_status_df["domain"] == domain_key].copy()
+        if country_key:
+            recent_status_df = recent_status_df[recent_status_df["country_cd"] == country_key].copy()
     status_rows: list[dict] = []
     event_rows: list[dict] = []
 
-    history_df = history_df.sort_values(["entity_base_key", "date"]).reset_index(drop=True)
-    same_hour_groups = {k: g.copy() for k, g in history_df.groupby(["entity_base_key"])}
+    history_df = history_df.sort_values(["entity_base_key", "run_hour", "date"]).reset_index(drop=True)
+    same_hour_groups = {k: g.copy() for k, g in history_df.groupby(["entity_base_key", "run_hour"])}
     all_hour_groups = {k: g.copy() for k, g in history_df.groupby("entity_base_key")}
+
 
     for _, cur in current_df.sort_values(["domain", "country_cd"]).iterrows():
         base_key = cur["entity_base_key"]
-        same_hour = same_hour_groups.get(base_key, pd.DataFrame())
+        same_hour = same_hour_groups.get((base_key, int(cur["run_hour"])), pd.DataFrame())
         same_hour = same_hour[same_hour["date"] < cur["date"]].copy()
         all_hours = all_hour_groups.get(base_key, pd.DataFrame())
         all_hours = all_hours[all_hours["date"] < cur["date"]].copy()
@@ -1775,20 +2177,15 @@ def score_site_country(
             else:
                 _coerce_insert_df(EVENT_TABLE, event_df, EVENT_EXTENDED_COLUMNS)
 
-    audit["effective_date"] = str(effective_date)
     return {
         "ok": True,
         "rows_written": int(len(status_df)),
         "event_rows_written": int(len(event_df)),
         "batch_id": str(batch_uuid),
         "compatibility_mode": bool(compatibility_mode),
-        "requested_date": str(target_date),
-        "effective_date": str(effective_date),
-        "audit": audit,
         "statuses": _json_safe_records(status_df),
         "events": _json_safe_records(event_df),
     }
-
 
 def _map_prediction_label(value: str) -> str:
     label = str(value or "").upper()
@@ -1799,7 +2196,6 @@ def _map_prediction_label(value: str) -> str:
     if label in NEGATIVE_ROOT_LABELS or label.startswith("WATCH_NEGATIVE") or label == "WATCH_DECAY":
         return "NEGATIVE"
     return "STABLE"
-
 
 def _future_outcome_label(current_row: pd.Series, future_row: pd.Series | None) -> str:
     if future_row is None or future_row.empty:
@@ -1814,11 +2210,9 @@ def _future_outcome_label(current_row: pd.Series, future_row: pd.Series | None) 
         return "POSITIVE"
     return "STABLE"
 
-
 def backtest_status_labels(
     start_date: date,
     end_date: date,
-    horizon_hours: int = 3,
     compatibility_mode: bool = True,
 ) -> dict:
     status_sql = f"""
@@ -1832,7 +2226,6 @@ def backtest_status_labels(
     status_df = query_df(status_sql)
     if status_df.empty:
         return {"ok": True, "rows": 0, "warning": "No status rows in range"}
-
     join_sql = f"""
     SELECT *
     FROM hris_trendHorizone.fact_join_hourly

@@ -948,7 +948,7 @@ class DashboardScoringDataView(View):
             date_expr = 'toDate(event_date)' if 'event_date' in table_cols else ('toDate(date)' if 'date' in table_cols else 'toDate(run_date)')
             entity_expr = 'upper(country_cd)' if dim == 'country' else 'lower(domain)'
             literals = ', '.join("'{}'".format(x.replace("'", "''")) for x in sorted(set(entities)))
-            cols = ['domain', 'country_cd', 'country_nm', 'date', 'event_date', 'mapped_revenue_source', 'join_status', 'final_label', 'root_cause_label', 'decision', 'score', 'health_score', 'ivt_risk_score', 'confidence', 'decision_margin']
+            cols = ['domain', 'country_cd', 'country_nm', 'date', 'event_date', 'mapped_revenue_source', 'join_status', 'final_label', 'root_cause_label', 'decision', 'score', 'health_score', 'adjustment_score', 'ivt_risk_score', 'confidence', 'decision_margin']
             keep = [c for c in cols if not table_cols or c in table_cols]
             sql = f"SELECT {entity_expr} AS entity_key, {date_expr} AS scoring_date, {snapshot_expr} AS snapshot_time, {', '.join(keep)} FROM {status_table} WHERE {date_expr} = toDate('{target_date}') AND {entity_expr} IN ({literals}) ORDER BY entity_key, snapshot_time DESC"
             df = query_df(sql)
@@ -958,11 +958,12 @@ class DashboardScoringDataView(View):
             df['scoring_date'] = pd.to_datetime(df.get('scoring_date'), errors='coerce').dt.date
             df['snapshot_time'] = pd.to_datetime(df.get('snapshot_time'), errors='coerce')
             out = {}
+            derive_decision = getattr(scoring_module, 'derive_decision', None)
             for entity_key, part in df.groupby('entity_key', sort=False):
                 latest = part['snapshot_time'].dropna().max()
                 snap = part[part['snapshot_time'].eq(latest)].copy() if pd.notna(latest) else part.copy()
                 avg = lambda c: float(pd.to_numeric(snap[c], errors='coerce').dropna().mean()) if c in snap.columns and pd.to_numeric(snap[c], errors='coerce').dropna().size else 0.0
-                health, risk, conf, dm = avg('health_score'), avg('ivt_risk_score'), avg('confidence'), avg('decision_margin')
+                health, risk, conf, dm, adj = avg('health_score'), avg('ivt_risk_score'), avg('confidence'), avg('decision_margin'), avg('adjustment_score')
                 score_values = pd.to_numeric(snap['score'], errors='coerce').dropna() if 'score' in snap.columns else pd.Series(dtype=float)
                 if score_values.size:
                     score = int(round(max(0.0, min(100.0, float(score_values.mean())))))
@@ -972,18 +973,11 @@ class DashboardScoringDataView(View):
                     score_source = 'derived_formula'
                 labels = [str(x).strip() for x in snap.get('final_label', pd.Series(dtype=str)).tolist() if str(x).strip()]
                 label = sorted(labels, key=lambda x: (0 if x.upper().startswith('RED_FLAG') else 1 if ('DROP' in x.upper() or x.upper().startswith('NEG')) else 2 if x.upper().startswith('WATCH') else 3 if x.upper() == 'STABLE' else 4, x))[0] if labels else ''
-                decisions = [str(x).strip().upper() for x in snap.get('decision', pd.Series(dtype=str)).tolist() if str(x).strip()]
-                decision = sorted(decisions, key=lambda x: ({'STOP': 0, 'SCALE DOWN': 1, 'HOLD': 2, 'SCALE UP': 3}.get(x, 9), x))[0] if decisions else ''
-                if not decision:
-                    if label.startswith('RED_FLAG') or risk >= 70 or dm <= -25:
-                        decision = 'STOP'
-                    elif dm >= 35 and conf >= 0.5:
-                        decision = 'SCALE UP'
-                    elif dm < 0:
-                        decision = 'SCALE DOWN'
-                    else:
-                        decision = 'HOLD'
-                out[entity_key] = {'score': score, 'decision': decision, 'label': label or 'STABLE', 'reasons': [f"Snapshot terakhir {latest.strftime('%Y-%m-%d %H:%M:%S') if pd.notna(latest) else target_date}", f"{int(len(snap))} baris status", f"Sumber score: {score_source}"], 'breakdown': {'meta': {'date': target_date, 'snapshot_time': latest.strftime('%Y-%m-%d %H:%M:%S') if pd.notna(latest) else '', 'health_score': round(health, 4), 'ivt_risk_score': round(risk, 4), 'confidence': round(conf, 4), 'decision_margin': round(dm, 4), 'row_count': int(len(snap)), 'score_source': score_source, 'score_row_count': int(score_values.size)}}}
+                if callable(derive_decision):
+                    decision, decision_basis = derive_decision(score, label or 'STABLE', health, risk, adj, dm, conf)
+                else:
+                    decision, decision_basis = 'HOLD', ''
+                out[entity_key] = {'score': score, 'decision': decision, 'label': label or 'STABLE', 'reasons': [f"Snapshot terakhir {latest.strftime('%Y-%m-%d %H:%M:%S') if pd.notna(latest) else target_date}", f"{int(len(snap))} baris status", f"Sumber score: {score_source}", decision_basis], 'breakdown': {'meta': {'date': target_date, 'snapshot_time': latest.strftime('%Y-%m-%d %H:%M:%S') if pd.notna(latest) else '', 'health_score': round(health, 4), 'ivt_risk_score': round(risk, 4), 'adjustment_score': round(adj, 4), 'confidence': round(conf, 4), 'decision_margin': round(dm, 4), 'row_count': int(len(snap)), 'score_source': score_source, 'score_row_count': int(score_values.size)}}}
             return JsonResponse({'status': True, 'data': out}, safe=False, json_dumps_params={'allow_nan': False})
         except Exception as e:
             logger.exception('DashboardScoringDataView failed')
