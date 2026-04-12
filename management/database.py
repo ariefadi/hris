@@ -5800,75 +5800,83 @@ class data_mysql:
 
         return {"hasil": hasil}
 
-    def get_all_ads_adsense_roi_traffic_campaign_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None):
+    def get_all_ads_adsense_roi_traffic_campaign_by_params( self, start_date_formatted, end_date_formatted, data_sub_domain=None ):
         try:
-            # --- 1. Pastikan data_sub_domain adalah list string
+            # --- 1. Normalize input
             if isinstance(data_sub_domain, str):
-                data_sub_domain = [s.strip() for s in data_sub_domain.split(",") if s.strip()]
-            elif data_sub_domain is None:
-                data_sub_domain = []
-            elif isinstance(data_sub_domain, (set, tuple)):
-                data_sub_domain = list(data_sub_domain)
-            if not data_sub_domain:
-                raise ValueError("data_sub_domain is required and cannot be empty")
-            # --- 2. Buat kondisi LIKE untuk tiap domain
-            like_conditions = " OR ".join(["CONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') LIKE %s"] * len(data_sub_domain))
-            like_params = [f"%{d}%" for d in data_sub_domain]  # tambahkan % supaya match '.com'
-            # --- 3. Susun query
-            base_sql = [
-                "SELECT",
-                "\trs.account_id, rs.account_name, rs.account_email,",
-                "\trs.date, rs.domain, rs.country_code,",
-                "\tSUM(rs.spend) AS 'spend',",
-                "\tSUM(rs.clicks_fb) AS 'clicks_fb',",
-                "\tSUM(rs.impressions_fb) AS 'impressions_fb',",
-                "\tROUND(AVG(rs.cpr), 0) AS 'cpr',",
-                "\tROUND((SUM(rs.spend)/SUM(rs.clicks_fb)), 0) AS 'cpc_fb'",
-                "FROM (",
-                    "\tSELECT",
-                    "\t\ta.account_id, a.account_name, a.account_email,",
-                    "\t\tb.data_ads_country_tanggal AS 'date',",
-                    "\t\tb.data_ads_country_cd AS 'country_code',",
-                    "\t\tb.data_ads_country_nm AS 'country_name',",
-                    "\t\tSUBSTRING_INDEX(b.data_ads_domain, '.', 2) AS domain,",
-                    "\t\tb.data_ads_country_spend AS 'spend',",
-                    "\t\tb.data_ads_country_impresi AS 'impressions_fb',",
-                    "\t\tb.data_ads_country_click AS 'clicks_fb',",
-                    "\t\tb.data_ads_country_cpr AS 'cpr'",
-                    "\tFROM master_account_ads a",
-                    "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
-                    "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
-                    f"\tAND ({like_conditions})",
-                ") rs",
-                "GROUP BY rs.date, rs.domain, rs.country_code",
-                "ORDER BY rs.account_id, rs.date",
-            ]
-            # --- 4. Gabungkan parameter
-            params = [start_date_formatted, end_date_formatted] + like_params
-            # --- 5. Eksekusi query
-            sql = "\n".join(base_sql)
-            if not self.execute_query(sql, tuple(params)):
-                raise pymysql.Error("Failed to get all ads roi traffic campaign by params")
-            data = self.fetch_all()
-            if not self.commit():
-                raise pymysql.Error("Failed to commit get all ads roi traffic campaign by params")
+                domains = [d.strip() for d in data_sub_domain.split(",") if d.strip()]
+            elif isinstance(data_sub_domain, (list, tuple, set)):
+                domains = list(data_sub_domain)
+            else:
+                domains = []
+            domains = [str(d).strip() for d in (domains or []) if str(d).strip()]
+            if not domains:
+                raise ValueError("data_sub_domain is required")
+            # Buat clause startsWith
+            starts_clause_ch = " OR ".join(["startsWith(b.data_ads_domain, %s)"] * len(domains))
+            # --- 3. Query ClickHouse (no subquery, optimized)
+            query = f"""
+            SELECT
+                rs.account_id,
+                any(rs.account_name) AS account_name,
+                any(rs.account_email) AS account_email,
+                rs.date,
+                rs.domain,
+                rs.country_code,
+                sum(rs.spend) AS spend,
+                sum(rs.clicks_fb) AS clicks_fb,
+                sum(rs.impressions_fb) AS impressions_fb,
+                round(avg(rs.cpr), 0) AS cpr,
+                if(sum(rs.clicks_fb) = 0, 0,
+                    round(sum(rs.spend) / sum(rs.clicks_fb), 0)
+                ) AS cpc_fb
+            FROM
+            (
+                SELECT
+                    a.account_id,
+                    a.account_name,
+                    a.account_email,
+                    b.data_ads_country_tanggal AS date,
+                    b.data_ads_country_cd AS country_code,
+                    b.data_ads_country_nm AS country_name,
+                    arrayStringConcat(
+                        arraySlice(splitByChar('.', b.data_ads_domain), 1, 2),
+                        '.'
+                    ) AS domain,
+                    b.data_ads_country_spend AS spend,
+                    b.data_ads_country_impresi AS impressions_fb,
+                    b.data_ads_country_click AS clicks_fb,
+                    b.data_ads_country_cpr AS cpr
+                FROM hris_trendHorizone.master_account_ads a
+                INNER JOIN hris_trendHorizone.data_ads_country b ON a.account_id = b.account_ads_id
+                WHERE b.data_ads_country_tanggal BETWEEN toDate('{start_date_formatted}') AND toDate('{end_date_formatted}')
+                AND ({starts_clause_ch})
+            ) rs
+            GROUP BY
+                rs.account_id,
+                rs.date,
+                rs.domain,
+                rs.country_code
+            ORDER BY
+                rs.account_id,
+                rs.date
+            """
+            # Params: tanggal untuk CTE + tanggal untuk main query + domains
+            params_tuple = tuple([start_date_formatted, end_date_formatted] + domains)  
+            self._ensure_report_connection()
+            self.cur_hris = self.report_cur
+            self.cur_hris.execute(query, params_tuple)
+            data = self.fetch_all() or []
             hasil = {
                 "status": True,
                 "message": "Data ads traffic campaign berhasil diambil",
                 "data": data
             }
-
-        except pymysql.Error as e:
-            hasil = {
-                "status": False,
-                "data": f"Terjadi error {e!r}, error nya {e.args[0]}"
-            }
         except Exception as e:
             hasil = {
                 "status": False,
-                "data": f"Terjadi error {e}"
+                "data": f"Terjadi error {e!r}"
             }
-
         return {"hasil": hasil}
 
     def get_all_ads_roi_monitoring_campaign_by_params(self, start_date_formatted, end_date_formatted, data_sub_domain=None):

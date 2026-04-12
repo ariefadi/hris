@@ -711,13 +711,25 @@ class AdsensePolicyEventsSyncView(View):
                 payload = {}
 
             days = payload.get('days')
+            sync_date = str(payload.get('sync_date') or '').strip()
+            raw_account_filter = payload.get('account_filter')
+            if isinstance(raw_account_filter, list):
+                account_filter = [str(v).strip() for v in raw_account_filter if str(v).strip()]
+            else:
+                single_filter = str(raw_account_filter or '').strip()
+                account_filter = [single_filter] if single_filter else []
             try:
                 days = int(days)
             except Exception:
                 days = 180
 
             db = data_mysql()
-            result = sync_adsense_policy_events(db, days=days)
+            result = sync_adsense_policy_events(
+                db,
+                days=days,
+                sync_date=sync_date or None,
+                account_filter=account_filter or None,
+            )
             return JsonResponse(result)
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)}, status=500)
@@ -841,7 +853,6 @@ class RekapTrafficPerDomainDataView(View):
                     main_domain = extract_base_subdomain_fb_adsense(site) if site else site
                     unique_name_site.append(main_domain)
             unique_name_site = list(set(unique_name_site))
-            print(f"unique_name_site: {unique_name_site}")
             if unique_name_site:
                 facebook_data = data_mysql().get_all_ads_adsense_roi_traffic_campaign_by_params(
                     start_date_formatted,

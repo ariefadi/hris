@@ -4,8 +4,14 @@ from management.database import data_mysql
 from management.list_adsense_policy_events import sync_adsense_policy_events as _sync_adsense_policy_events
 
 
-def sync_adsense_policy_events(db, days=180, max_per_user=200):
-    return _sync_adsense_policy_events(db, days=days, max_per_user=max_per_user)
+def sync_adsense_policy_events(db, days=180, max_per_user=200, sync_date=None, account_filter=None):
+    return _sync_adsense_policy_events(
+        db,
+        days=days,
+        max_per_user=max_per_user,
+        sync_date=sync_date,
+        account_filter=account_filter,
+    )
 
 
 class Command(BaseCommand):

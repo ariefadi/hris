@@ -3248,7 +3248,9 @@ class AdxAccountOAuthStartView(View):
                 # Scope untuk Google Ad Manager
                 'https://www.googleapis.com/auth/admanager',
                 # Scope untuk Google AdSense
-                'https://www.googleapis.com/auth/adsense'
+                'https://www.googleapis.com/auth/adsense',
+                # Scope untuk sinkronisasi Gmail AdSense policy events
+                'https://www.googleapis.com/auth/gmail.readonly'
             ]
             flow = Flow.from_client_config(client_config, scopes=scopes)
             flow.redirect_uri = redirect_uri
@@ -3369,7 +3371,9 @@ class AdxAccountOAuthCallbackView(View):
                 # Scope untuk Google Ad Manager
                 'https://www.googleapis.com/auth/admanager',
                 # Scope untuk Google AdSense
-                'https://www.googleapis.com/auth/adsense'
+                'https://www.googleapis.com/auth/adsense',
+                # Scope untuk sinkronisasi Gmail AdSense policy events
+                'https://www.googleapis.com/auth/gmail.readonly'
             ]
 
             flow = Flow.from_client_config(client_config, scopes=scopes)

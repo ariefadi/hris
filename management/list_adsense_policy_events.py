@@ -1,7 +1,7 @@
 import base64
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 
 from google.auth.transport.requests import Request
@@ -242,7 +242,7 @@ def _exists_event(db, event_id):
     return bool(db.cur_hris.fetchone())
 
 
-def sync_adsense_policy_events(db, days=180, max_per_user=200):
+def sync_adsense_policy_events(db, days=180, max_per_user=200, sync_date=None, account_filter=None):
     cols, err = _ensure_table_columns(db)
     if err:
         return {'status': False, 'error': err}
@@ -256,7 +256,23 @@ def sync_adsense_policy_events(db, days=180, max_per_user=200):
     except Exception:
         max_per_user = 200
 
-    query = f'from:adsense-noreply@google.com (policy OR violation OR "Policy issue" OR "limited ads" OR "invalid traffic") newer_than:{days}d'
+    target_date = None
+    if isinstance(sync_date, datetime):
+        target_date = sync_date.date()
+    elif isinstance(sync_date, date):
+        target_date = sync_date
+    elif str(sync_date or '').strip():
+        try:
+            target_date = datetime.strptime(str(sync_date).strip(), '%Y-%m-%d').date()
+        except Exception:
+            target_date = None
+
+    base_query = 'from:adsense-noreply@google.com (policy OR violation OR "Policy issue" OR "limited ads" OR "invalid traffic")'
+    if target_date:
+        next_date = target_date + timedelta(days=1)
+        query = f"{base_query} after:{target_date.strftime('%Y/%m/%d')} before:{next_date.strftime('%Y/%m/%d')}"
+    else:
+        query = f'{base_query} newer_than:{days}d'
 
     sql_creds = """
         SELECT account_id, account_name, user_mail, client_id, client_secret, refresh_token
@@ -268,6 +284,21 @@ def sync_adsense_policy_events(db, days=180, max_per_user=200):
         return {'status': False, 'error': getattr(db, 'last_error', '') or 'Gagal membaca app_credentials'}
 
     credentials_rows = db.cur_hris.fetchall() or []
+    account_filters = account_filter if isinstance(account_filter, (list, tuple, set)) else ([account_filter] if account_filter else [])
+    account_filters = [str(v).strip().lower() for v in account_filters if str(v).strip()]
+    if account_filters:
+        credentials_rows = [
+            r for r in credentials_rows
+            if any(
+                flt in str(r.get('account_name') or '').strip().lower()
+                or flt in str(r.get('user_mail') or '').strip().lower()
+                or flt == str(r.get('account_id') or '').strip().lower()
+                for flt in account_filters
+            )
+        ]
+    if not credentials_rows:
+        requested = ', '.join(account_filters) if account_filters else '-'
+        return {'status': False, 'error': f"Akun tidak ditemukan atau tidak aktif: {requested}"}
     steps = []
     inserted = 0
     skipped = 0
@@ -398,6 +429,8 @@ def sync_adsense_policy_events(db, days=180, max_per_user=200):
         'message': message,
         'table': TABLE_NAME,
         'query': query,
+        'sync_date': target_date.isoformat() if target_date else '',
+        'account_filter': list(account_filter) if isinstance(account_filter, (list, tuple, set)) else str(account_filter or ''),
         'inserted': inserted,
         'skipped': skipped,
         'failed': failed,
