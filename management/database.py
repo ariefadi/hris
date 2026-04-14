@@ -6789,7 +6789,6 @@ class data_mysql:
 
 
     def get_all_adx_country_detail_by_params(self, start_date, end_date, selected_account_list = None, selected_domain_list = None, countries_list = None):
-        # ... existing code ...
         try:
              # --- 0. Pastikan selected_account_list adalah list string
             if isinstance(selected_account_list, str):

@@ -7672,10 +7672,56 @@ class RoiMonitoringCountryDataView(View):
                 return JsonResponse(cached_response, safe=False)
             data_facebook = None
             # Jalankan paralel jika selected_domain sudah ada (menghindari fetch FB yang terlalu lebar)
-            if selected_domain_list:
+            if selected_account_list and not selected_domain_list:
+               with ThreadPoolExecutor(max_workers=2) as executor:
+                    adx_future = data_mysql().get_all_adx_country_detail_by_params(
+                        start_date,
+                        end_date,
+                        selected_account_list,
+                        selected_domain_list,
+                        countries_list_query
+                    )
+                    data_adx = adx_future.result()
+                    print(f"adx_future_monitor: {data_adx}")
+                    unique_name_site = []
+                    if data_adx.get("status") and data_adx.get("data"):
+                        unique_sites = set()
+                        for row in data_adx["data"]:
+                            site_name = (row.get("site_name") or "").strip().lower()
+                            if not site_name or site_name == "unknown":
+                                continue
+                            unique_sites.add(site_name)
+                        extracted_names = []
+                        for site in unique_sites:
+                            if "." not in site:
+                                continue
+
+                            parts = site.split(".")
+
+                            if len(parts) >= 2:
+                                main_domain = ".".join(parts[:2])   # ✅ ambil depan
+                            else:
+                                main_domain = site
+
+                            extracted_names.append(main_domain)
+                        unique_name_site = list(set(extracted_names))
+                        print(f"unique_name_site_coba_monitor: {unique_name_site}")
+                    fb_future = executor.submit(
+                        data_mysql().get_all_ads_country_detail_by_params,
+                        start_date,
+                        end_date,
+                        unique_name_site,
+                        countries_list_query
+                    )
+                    data_adx = adx_future.result()
+                    try:
+                        # Hapus timeout: tunggu hingga FB selesai agar data lengkap
+                        data_facebook = fb_future.result()
+                    except Exception as e:
+                        data_facebook = None 
+            elif selected_domain_list:
                 with ThreadPoolExecutor(max_workers=2) as executor:
-                    adx_future = executor.submit(
-                        data_mysql().get_all_adx_country_detail_by_params,
+                    adx_future = data_mysql().get_all_adx_country_detail_by_params(
                         start_date,
                         end_date,
                         selected_account_list,
