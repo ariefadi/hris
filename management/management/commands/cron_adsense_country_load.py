@@ -35,7 +35,7 @@ def fetch_adsense_traffic_per_country_domain(user_mail, start_date, end_date, si
         start_date,
         end_date,
         site_filter=site_filter,
-        report_level='subdomain',
+        report_level='site',
     )
 
 class Command(BaseCommand):

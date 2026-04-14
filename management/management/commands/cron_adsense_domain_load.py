@@ -38,7 +38,7 @@ def fetch_adsense_traffic_per_domain(user_mail, start_date, end_date, site_filte
         start_date,
         end_date,
         site_filter=site_filter,
-        report_level='subdomain',
+        report_level='site',
     )
 
 
