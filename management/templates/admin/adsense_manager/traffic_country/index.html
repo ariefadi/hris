@@ -101,7 +101,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 <label>Range Sampai</label>
                  <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label>Filter Account</label>
                 <select class="form-control select2-multiple" id="account_filter" multiple>
                     {% for account in data_account_adsense %}
@@ -110,12 +110,16 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 </select>
             </div>
             <div class="col-md-3">
+                <label>Filter Subdomain</label>
+                <input type="text" class="form-control" id="domain_filter" placeholder="contoh: handsome.uaetiming.com">
+            </div>
+            <div class="col-md-2">
                 <label>Filter Negara</label>
                 <select class="form-control" id="country_filter" multiple>
                     <!-- Gunakan Select2 dengan tags: true; pengguna dapat mengetik negara -->
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <label>&nbsp;</label>
                 <button type="button" class="btn btn-primary form-control" id="btn_load_data" data-title="Muat Data" data-intro="Mengambil data traffic sesuai filter yang dipilih dan menampilkan ringkasan, peta, serta tabel.">
                     <i class="fas fa-search"></i> Muat Data

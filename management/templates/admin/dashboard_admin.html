@@ -995,6 +995,10 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
                                     <input id="dashboardRecapDate" type="text" class="form-control datepicker-input w-auto" style="width: 180px;" placeholder="YYYY-MM-DD" autocomplete="off" />
                                 </div>
                                 <div class="d-flex align-items-center" style="gap:10px;">
+                                    <label for="dashboardRecapSubdomain" class="mb-0" style="font-weight:800;font-size:12px;letter-spacing:.06em;text-transform:uppercase;">Filter Subdomain</label>
+                                    <input id="dashboardRecapSubdomain" type="text" class="form-control w-auto" style="width: 220px;" placeholder="contoh: benteng" autocomplete="off" />
+                                </div>
+                                <div class="d-flex align-items-center" style="gap:10px;">
                                     <label for="dashboardRecapSource" class="mb-0" style="font-weight:800;font-size:12px;letter-spacing:.06em;text-transform:uppercase;">Data Sumber</label>
                                     <select id="dashboardRecapSource" class="form-control w-auto" style="width: 180px;">
                                         <option value="all">Semua Data</option>
@@ -2549,6 +2553,7 @@ function initDashboardRecap() {
     const root = document.getElementById('dashboardRecapRoot');
     const dateEl = document.getElementById('dashboardRecapDate');
     const sourceEl = document.getElementById('dashboardRecapSource');
+    const subdomainEl = document.getElementById('dashboardRecapSubdomain');
     const syncBtn = document.getElementById('dashboardRecapSyncBtn');
     const legacy = document.getElementById('dashboard-content');
     if (legacy) legacy.style.display = 'none';
@@ -2595,19 +2600,21 @@ function initDashboardRecap() {
         return {
             source: String(sourceEl.value || 'all').trim(),
             dim: dBtn ? (dBtn.getAttribute('data-dim')||'domain') : 'domain',
-            date: String(dateEl.value||'').trim()
+            date: String(dateEl.value||'').trim(),
+            subdomain: String(subdomainEl?.value || '').trim()
         };
     }
 
-    function endpointFor(source, dim, ymd) {
+    function endpointFor(source, dim, ymd, subdomain) {
+        const qDomain = encodeURIComponent(String(subdomain || '').trim());
         if (source === 'adsense') {
             return dim === 'country'
-                ? `/management/admin/page_monitoring_country_adsense?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adsense=&selected_domains=&selected_countries=&include_subdomains=1`
-                : `/management/admin/page_monitoring_domain_adsense?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adsense=&selected_domains=`;
+                ? `/management/admin/page_monitoring_country_adsense?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adsense=&selected_domains=${qDomain}&selected_countries=&include_subdomains=1`
+                : `/management/admin/page_monitoring_domain_adsense?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adsense=&selected_domains=${qDomain}`;
         }
         return dim === 'country'
-            ? `/management/admin/page_monitoring_country?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adx=&selected_domains=&selected_countries=&include_subdomains=1`
-            : `/management/admin/page_monitoring_domain?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adx=&selected_domains=`;
+            ? `/management/admin/page_monitoring_country?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adx=&selected_domains=${qDomain}&selected_countries=&include_subdomains=1`
+            : `/management/admin/page_monitoring_domain?start_date=${encodeURIComponent(ymd)}&end_date=${encodeURIComponent(ymd)}&selected_account_adx=&selected_domains=${qDomain}`;
     }
 
     function scoringLookupKey(dim, row) {
@@ -6480,10 +6487,10 @@ function initDashboardRecap() {
 
             if (st.source === 'all') {
                 const [resAdx, resAds, resAdxPrev, resAdsPrev] = await Promise.all([
-                    fetch(endpointFor('adx', st.dim, st.date)),
-                    fetch(endpointFor('adsense', st.dim, st.date)),
-                    fetch(endpointFor('adx', st.dim, prevDate)),
-                    fetch(endpointFor('adsense', st.dim, prevDate))
+                    fetch(endpointFor('adx', st.dim, st.date, st.subdomain)),
+                    fetch(endpointFor('adsense', st.dim, st.date, st.subdomain)),
+                    fetch(endpointFor('adx', st.dim, prevDate, st.subdomain)),
+                    fetch(endpointFor('adsense', st.dim, prevDate, st.subdomain))
                 ]);
                 const [jsonAdx, jsonAds, jsonAdxPrev, jsonAdsPrev] = await Promise.all([
                     resAdx.json(),
@@ -6532,8 +6539,8 @@ function initDashboardRecap() {
                 summary = summarize(rows);
             } else {
                 const [res, resPrev] = await Promise.all([
-                    fetch(endpointFor(st.source, st.dim, st.date)),
-                    fetch(endpointFor(st.source, st.dim, prevDate))
+                    fetch(endpointFor(st.source, st.dim, st.date, st.subdomain)),
+                    fetch(endpointFor(st.source, st.dim, prevDate, st.subdomain))
                 ]);
                 const [json, jsonPrev] = await Promise.all([res.json(), resPrev.json()]);
                 if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat data');
@@ -6578,7 +6585,8 @@ function initDashboardRecap() {
             await loadScoringBaselineHourly(st, rows);
 
             renderSummary(summary);
-            const meta = `${sourceLabel(st.source)} • ${st.dim==='country'?'Per Negara':'Per Domain'} • ${st.date}`;
+            const subMeta = st.subdomain ? ` • subdomain: ${st.subdomain}` : '';
+            const meta = `${sourceLabel(st.source)} • ${st.dim==='country'?'Per Negara':'Per Domain'} • ${st.date}${subMeta}`;
             renderChart(st.dim, rows, meta);
             renderTable(st.dim, rows, st);
             await renderPortfolioPulse(st.date);
@@ -6622,6 +6630,15 @@ function initDashboardRecap() {
     }
 
     if (!sourceEl.value) sourceEl.value = 'all';
+    if (subdomainEl) {
+        subdomainEl.addEventListener('change', load);
+        subdomainEl.addEventListener('keydown', function(ev){
+            if (ev.key === 'Enter') {
+                ev.preventDefault();
+                load();
+            }
+        });
+    }
 
     if (window.jQuery && jQuery.fn && typeof jQuery.fn.select2 === 'function') {
         try {

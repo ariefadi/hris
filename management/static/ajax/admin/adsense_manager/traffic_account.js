@@ -59,16 +59,17 @@ $(document).ready(function () {
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
         var selected_account = $("#account_filter").val();
+        var selected_domains = String($("#domain_filter").val() || '').trim();
         if (tanggal_dari != "" && tanggal_sampai != "") {
             e.preventDefault();
             $("#overlay").show();
-            load_adsense_traffic_account_data(tanggal_dari, tanggal_sampai, selected_account);
+            load_adsense_traffic_account_data(tanggal_dari, tanggal_sampai, selected_account, selected_domains);
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
         }
     });
 });
-function load_adsense_traffic_account_data(tanggal_dari, tanggal_sampai, selected_account) {
+function load_adsense_traffic_account_data(tanggal_dari, tanggal_sampai, selected_account, selected_domains) {
     // Convert array to comma-separated string for backend
     var accountFilter = '';
     if (selected_account && selected_account.length > 0) {
@@ -86,7 +87,8 @@ function load_adsense_traffic_account_data(tanggal_dari, tanggal_sampai, selecte
         data: {
             'start_date': tanggal_dari,
             'end_date': tanggal_sampai,
-            'selected_account': accountFilter
+            'selected_account': accountFilter,
+            'selected_domains': selected_domains || ''
         },
         headers: {
             'X-CSRFToken': csrftoken
@@ -190,10 +192,13 @@ function getExportMetaTrafficAccount() {
     var titleText = 'Traffic Adsense Per Account';
     var periodText = 'Periode ' + formatDateID(start) + ' s/d ' + formatDateID(end);
     var accounts = getSelectedTextList('#account_filter');
+    var domainsRaw = String($('#domain_filter').val() || '').trim();
+    var domains = domainsRaw ? domainsRaw.split(',').map(function (s) { return String(s || '').trim(); }).filter(function (s) { return s; }) : [];
     return {
         titleText: titleText,
         periodText: periodText,
-        accountText: accounts.length ? ('Account: ' + accounts.join(', ')) : ''
+        accountText: accounts.length ? ('Account: ' + accounts.join(', ')) : '',
+        domainText: domains.length ? ('Subdomain: ' + domains.join(', ')) : ''
     };
 }
 function initializeDataTable(data) {

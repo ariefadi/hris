@@ -72,13 +72,14 @@ $(document).ready(function () {
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
         var selected_account = $("#account_filter").val();
+        var selected_domains = String($("#domain_filter").val() || '').trim();
         if (tanggal_dari != "" && tanggal_sampai != "") {
             e.preventDefault();
             $('#adsenseTrafficCountryMap').hide();
             $('#worldMapAdsense').empty();
             $("#overlay").show();
             load_country_options(selected_account);
-            load_adsense_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account);
+            load_adsense_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account, selected_domains);
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
         }
@@ -126,10 +127,11 @@ $(document).ready(function () {
     }
 
     // Fungsi untuk load data traffic per country
-    function load_adsense_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account) {
+    function load_adsense_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account, selected_domains) {
         var startDate = tanggal_dari;
         var endDate = tanggal_sampai;
         var selected_account = selected_account;
+        var selectedDomains = String(selected_domains || '').trim();
         var selectedCountries = $('#country_filter').val();
         if (!startDate || !endDate) {
             alert('Silakan pilih rentang tanggal');
@@ -159,6 +161,7 @@ $(document).ready(function () {
                 start_date: startDate,
                 end_date: endDate,
                 selected_account: accountFilter,
+                selected_domains: selectedDomains,
                 selected_countries: countryFilter
             },
             headers: {
@@ -256,7 +259,8 @@ $(document).ready(function () {
         var periodText = 'Periode ' + formatDateID(start) + ' s/d ' + formatDateID(end);
 
         var accounts = getSelectedTextList('#account_filter');
-        var domains = getSelectedTextList('#domain_filter');
+        var domainsRaw = String($('#domain_filter').val() || '').trim();
+        var domains = domainsRaw ? domainsRaw.split(',').map(function (s) { return String(s || '').trim(); }).filter(function (s) { return s; }) : [];
 
         return {
             titleText: titleText,

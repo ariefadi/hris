@@ -2,6 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const startInput = document.getElementById('start_date');
   const endInput = document.getElementById('end_date');
   const accountSelect = document.getElementById('account_filter');
+  const domainInput = document.getElementById('domain_filter');
   const countrySelect = document.getElementById('country_filter');
   const btnLoad = document.getElementById('btn_load_summary');
   const infoBox = document.getElementById('summary_info');
@@ -97,6 +98,12 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!countrySelect) return '';
     const vals = Array.from(countrySelect.selectedOptions || []).map(o => o.value).filter(Boolean);
     return vals.join(',');
+  };
+
+  const getSelectedDomainsCsv = () => {
+    const raw = String((domainInput && domainInput.value) || '').trim();
+    if (!raw) return '';
+    return raw.split(',').map(s => String(s || '').trim()).filter(Boolean).join(',');
   };
 
   const loadCountryOptions = async () => {
@@ -305,6 +312,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const start_date = startInput.value;
     const end_date = endInput.value;
     const selected_account = getSelectedAccountsCsv();
+    const selected_domains = getSelectedDomainsCsv();
     const selected_countries = getSelectedCountriesCsv();
     infoBox.style.display = 'none';
 
@@ -319,10 +327,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const p1 = new URLSearchParams({ start_date, end_date });
       if (selected_account) p1.set('selected_account', selected_account);
+      if (selected_domains) p1.set('selected_domains', selected_domains);
       if (selected_countries) p1.set('selected_countries', selected_countries);
 
       const p2 = new URLSearchParams({ start_date, end_date });
       if (selected_account) p2.set('selected_account', selected_account);
+      if (selected_domains) p2.set('selected_domains', selected_domains);
       if (selected_countries) p2.set('selected_countries', selected_countries);
 
       const [accountRes, countryRes] = await Promise.all([

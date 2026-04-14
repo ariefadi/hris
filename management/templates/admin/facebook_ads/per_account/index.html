@@ -110,15 +110,11 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
-                <label>Filter Domain</label>
-                <select class="form-control select2-multiple" id="select_domain" multiple>
-                    {% for data_domain in data_domain %}
-                    <option value="{{data_domain.data_ads_domain}}">{{data_domain.data_ads_domain}}</option>
-                    {% endfor %}
-                </select>
+            <div class="col-md-4">
+                <label>Filter Subdomain</label>
+                <input type="text" class="form-control" id="select_domain" placeholder="contoh: handsome.uaetiming.com" />
             </div>
-            <div class="col-md-2">
+            <div class="col-md-1">
                 <label>&nbsp;</label>
                 <button type="button" class="btn btn-primary form-control" id="btn_load_data" data-title="Muat Data" data-intro="Mengambil data traffic sesuai filter yang dipilih dan memperbarui tabel.">
                     <i class="fas fa-search"></i> Muat Data

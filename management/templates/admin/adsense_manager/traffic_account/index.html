@@ -93,15 +93,15 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
     </div> <!-- /.card-header -->
     <div class="card-body">
         <div class="form-row" id="adsenseTrafficAccountFilters" data-title="Filter" data-intro="Pilih range tanggal dan filter Account, lalu klik Muat Data untuk menampilkan traffic AdSense per akun.">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label>Range Dari</label>
                 <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Dari"/>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label>Range Sampai</label>
                  <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label>Filter Account</label>
                 <select class="form-control select2-multiple" id="account_filter" multiple>
                     {% for account in data_account_adsense %}
@@ -109,7 +109,11 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-4">
+                <label>Filter Subdomain</label>
+                <input type="text" class="form-control" id="domain_filter" placeholder="contoh: handsome.uaetiming.com">
+            </div>
+            <div class="col-md-1">
                 <label>&nbsp;</label>
                 <button type="button" class="btn btn-primary form-control" id="btn_load_data" data-title="Muat Data" data-intro="Mengambil data traffic sesuai filter yang dipilih dan menampilkan ringkasan, grafik, serta tabel.">
                     <i class="fas fa-search"></i> Muat Data

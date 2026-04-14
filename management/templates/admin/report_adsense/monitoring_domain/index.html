@@ -155,12 +155,8 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 </select>
             </div>
             <div class="col-md-4">
-                <label>Filter Domain AdSense</label>
-                <select class="form-control select2 select2-multiple" id="domain_filter" multiple>
-                    {% for domain in data_domain_adsense %}
-                    <option value="{{ domain.data_adsense_domain }}">{{ domain.data_adsense_domain }}</option>
-                    {% endfor %}
-                </select>
+                <label>Filter Subdomain</label>
+                <input type="text" class="form-control" id="domain_filter" placeholder="contoh: handsome.uaetiming.com" />
             </div>
             <div class="col-md-1">
                 <label>Tanpa Spends</label>
