@@ -7673,8 +7673,9 @@ class RoiMonitoringCountryDataView(View):
             data_facebook = None
             # Jalankan paralel jika selected_domain sudah ada (menghindari fetch FB yang terlalu lebar)
             if selected_account_list and not selected_domain_list:
-               with ThreadPoolExecutor(max_workers=2) as executor:
-                    adx_future = data_mysql().get_all_adx_country_detail_by_params(
+                with ThreadPoolExecutor(max_workers=2) as executor:
+                    adx_future = executor.submit(
+                        data_mysql().get_all_adx_roi_country_detail_by_params,
                         start_date,
                         end_date,
                         selected_account_list,
@@ -7682,7 +7683,6 @@ class RoiMonitoringCountryDataView(View):
                         countries_list_query
                     )
                     data_adx = adx_future.result()
-                    print(f"adx_future_monitor: {data_adx}")
                     unique_name_site = []
                     if data_adx.get("status") and data_adx.get("data"):
                         unique_sites = set()
@@ -7705,9 +7705,9 @@ class RoiMonitoringCountryDataView(View):
 
                             extracted_names.append(main_domain)
                         unique_name_site = list(set(extracted_names))
-                        print(f"unique_name_site_coba_monitor: {unique_name_site}")
+                        print(f"unique_name_site_coba: {unique_name_site}")
                     fb_future = executor.submit(
-                        data_mysql().get_all_ads_country_detail_by_params,
+                        data_mysql().get_all_ads_roi_country_detail_by_params,
                         start_date,
                         end_date,
                         unique_name_site,
@@ -7718,35 +7718,40 @@ class RoiMonitoringCountryDataView(View):
                         # Hapus timeout: tunggu hingga FB selesai agar data lengkap
                         data_facebook = fb_future.result()
                     except Exception as e:
-                        data_facebook = None 
-            elif selected_domain_list:
+                        data_facebook = None
+            elif selected_domain_list :
                 with ThreadPoolExecutor(max_workers=2) as executor:
-                    adx_future = data_mysql().get_all_adx_country_detail_by_params(
+                    adx_future = executor.submit(
+                        data_mysql().get_all_adx_roi_country_detail_by_params,
                         start_date,
                         end_date,
                         selected_account_list,
                         selected_domain_list,
                         countries_list_query
                     )
-                    # Normalisasi domain FB
+                    # Pastikan selected_sites adalah list
                     if isinstance(selected_domain_list, str):
                         selected_domain_list = [s.strip() for s in selected_domain_list.split(",") if s.strip()]
-                    unique_sites = set()
-                    for site_item in selected_domain_list:
-                        site_name = site_item.strip()
-                        if site_name and site_name != 'Unknown':
-                            unique_sites.add(site_name)
-                    extracted_names = []
-                    for site in unique_sites:
-                        if "." not in site:
-                            continue
-                        parts = site.split(".")
-                        main_domain = ".".join(parts[:2]) if len(parts) >= 2 else site
-                        extracted_names.append(main_domain)
-                    unique_name_site = list(set(extracted_names))
-
+                    if selected_domain_list:
+                        unique_sites = set()
+                        for site_item in selected_domain_list:
+                            site_name = site_item.strip()
+                            if site_name and site_name != 'Unknown':
+                                unique_sites.add(site_name)
+                        extracted_names = []
+                        for site in unique_sites:
+                            if "." not in site:
+                                continue
+                            parts = site.split(".")       # pisah berdasarkan titik
+                            if len(parts) >= 2:
+                                main_domain = ".".join(parts[:2])
+                            else:
+                                main_domain = site
+                            extracted_names.append(main_domain)
+                        unique_name_site = list(set(extracted_names))
+                        print(f"unique_name_site_ok: {unique_name_site}")
                     fb_future = executor.submit(
-                        data_mysql().get_all_ads_country_detail_by_params,
+                        data_mysql().get_all_ads_roi_country_detail_by_params,
                         start_date,
                         end_date,
                         unique_name_site,
@@ -7754,36 +7759,50 @@ class RoiMonitoringCountryDataView(View):
                     )
                     data_adx = adx_future.result()
                     try:
+                        # Hapus timeout: tunggu hingga FB selesai agar data lengkap
                         data_facebook = fb_future.result()
-                    except Exception:
+                    except Exception as e:
                         data_facebook = None
             else:
-                data_adx = data_mysql().get_all_adx_country_detail_by_params(
-                    start_date,
-                    end_date,
-                    selected_account_list,
-                    selected_domain_list,
+                # Filter Domain kosong: tampilkan data semua domain dari akun AdX terpilih
+                data_adx = data_mysql().get_all_adx_roi_country_detail_by_params(
+                    start_date, 
+                    end_date, 
+                    selected_account_list, 
+                    selected_domain_list, 
                     countries_list_query
                 )
                 try:
                     unique_name_site = []
-                    if sites_for_fb:
-                        unique_sites = set(site.strip() for site in sites_for_fb if site.strip() and site.strip() != 'Unknown')
-                        extracted_names = []
-                        for site in unique_sites:
-                            main_domain = ".".join(site.split(".")[:2]) if "." in site else site
-                            extracted_names.append(main_domain)
-                        unique_name_site = list(set(extracted_names))
-                    print(f"[DEBUG ROI] Unique name site adx: {unique_name_site}")
-                    if unique_name_site:
-                        data_facebook = data_mysql().get_all_ads_country_detail_by_params(
-                            start_date,
-                            end_date,
-                            unique_name_site,
-                            countries_list_query
-                        )
-                    else:
-                        data_facebook = None
+                    with ThreadPoolExecutor(max_workers=1) as executor:
+                        if sites_for_fb:
+                            unique_sites = set(site.strip() for site in sites_for_fb if site.strip() and site.strip() != 'Unknown')
+                            extracted_names = []
+                            for site in unique_sites:
+                                main_domain = extract_base_subdomain(site.strip())
+                                if main_domain and main_domain != 'Unknown':
+                                    extracted_names.append(main_domain)
+                            unique_name_site = list(set(extracted_names))
+
+                        if not unique_name_site:
+                            adx_payload_tmp = data_adx.get('hasil') if isinstance(data_adx, dict) and data_adx.get('hasil') else data_adx
+                            adx_items_tmp = adx_payload_tmp.get('data') if isinstance(adx_payload_tmp, dict) else []
+                            if adx_items_tmp:
+                                extracted_names = []
+                                for adx_item in (adx_items_tmp or []):
+                                    site_name = str(adx_item.get('site_name', '') or '')
+                                    main_domain = extract_base_subdomain(site_name.strip())
+                                    if main_domain and main_domain != 'Unknown':
+                                        extracted_names.append(main_domain)
+                                unique_name_site = list(set(extracted_names))
+                        if unique_name_site:
+                            fb_future = executor.submit(
+                                data_mysql().get_all_ads_roi_country_detail_by_params,
+                                start_date, end_date, unique_name_site, countries_list_query
+                            )
+                            data_facebook = fb_future.result()
+                        else:
+                            data_facebook = None
                 except Exception as e:
                     print(f"[DEBUG] Facebook fetch (all domains) failed: {e}; continue without FB data")
                     data_facebook = None
