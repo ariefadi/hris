@@ -330,7 +330,7 @@ class data_mysql:
         except (ValueError, TypeError):
             port = 8123
         user = os.getenv('CH_USER') or os.getenv('REPORT_DB_USER') or os.getenv('DB_REPORT_USER') or 'default'
-        password = os.getenv('CH_PASSWORD') or os.getenv('REPORT_DB_PASSWORD') or os.getenv('DB_REPORT_PASSWORD') or 'hris123456'
+        password = os.getenv('CH_PASSWORD') or os.getenv('REPORT_DB_PASSWORD') or os.getenv('DB_REPORT_PASSWORD') or ''
         database = os.getenv('CH_DB') or os.getenv('REPORT_DB_NAME') or os.getenv('DB_REPORT_NAME') or os.getenv('DB_NAME') or os.getenv('HRIS_DB_NAME') or 'hris_trendHorizone'
         self.report_cur = ClickHouseHttpCursor(host=host, port=port, user=user, password=password, database=database)
         return True
@@ -349,7 +349,7 @@ class data_mysql:
                 print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
                 port = 3306
             user = os.getenv('DB_USER') or 'root'
-            password = os.getenv('DB_PASSWORD') or 'hris123456'
+            password = os.getenv('DB_PASSWORD') or ''
             database = os.getenv('DB_NAME') or 'hris_trendHorizone'
 
             self.db_hris = pymysql.connect(
@@ -6393,7 +6393,6 @@ class data_mysql:
         return {"hasil": hasil}
 
     def get_all_adx_roi_country_detail_by_params(self, start_date, end_date, selected_account_list = None, selected_domain_list = None, countries_list = None):
-        # ... existing code ...
         try:
             if isinstance(selected_account_list, str):
                 selected_account_list = [selected_account_list.strip()]
@@ -6402,21 +6401,35 @@ class data_mysql:
             elif isinstance(selected_account_list, (set, tuple)):
                 selected_account_list = list(selected_account_list)
             data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
-            like_conditions_account = " OR ".join(["b.account_id LIKE %s"] * len(data_account_list))
-            like_params_account = [f"%{account}%" for account in data_account_list]
+
             if isinstance(selected_domain_list, str):
                 selected_domain_list = [selected_domain_list.strip()]
             elif selected_domain_list is None:
                 selected_domain_list = []
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
-            data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
-            like_conditions_domain = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
-            like_params_domain = [f"%{domain}%" for domain in data_domain_list]
 
-            engine = (self._report_engine() or '').lower()
+            def _norm_domain(v):
+                s = str(v).strip()
+                if not s:
+                    return ''
+                parts = [p for p in s.split('.') if p]
+                return '.'.join(parts[:2]) if len(parts) >= 2 else s
+
+            data_domain_list = []
+            for d in selected_domain_list:
+                nd = _norm_domain(d)
+                if nd:
+                    data_domain_list.append(nd)
+
+            engine = (self._report_engine() or '').strip().lower()
             use_clickhouse = engine in ('clickhouse', 'ch')
-
+            account_col = "toString(b.account_id)" if use_clickhouse else "b.account_id"
+            site_expr = "concat(arrayElement(splitByChar('.', b.data_adx_country_domain), 1), '.', arrayElement(splitByChar('.', b.data_adx_country_domain), 2))" if use_clickhouse else "SUBSTRING_INDEX(b.data_adx_country_domain, '.', 2)"
+            like_conditions_account = " OR ".join([f"{account_col} LIKE %s"] * len(data_account_list))
+            like_params_account = [f"%{account}%" for account in data_account_list]
+            like_conditions_domain = " OR ".join([f"{site_expr} LIKE %s"] * len(data_domain_list))
+            like_params_domain = [f"%{domain}%" for domain in data_domain_list]
             if use_clickhouse:
                 base_sql = [
                     "SELECT",
@@ -6439,9 +6452,6 @@ class data_mysql:
                     "FROM data_adx_country b",
                     "WHERE",
                 ]
-                params = []
-                base_sql.append("toDate(b.data_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)")
-                params.extend([start_date, end_date])
             else:
                 base_sql = [
                     "SELECT",
@@ -6465,9 +6475,13 @@ class data_mysql:
                     "INNER JOIN data_adx_country b ON a.account_id = b.account_id",
                     "WHERE",
                 ]
-                params = []
+
+            params = []
+            if use_clickhouse:
+                base_sql.append("toDate(b.data_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)")
+            else:
                 base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
-                params.extend([start_date, end_date])
+            params.extend([start_date, end_date])
 
             if data_account_list:
                 base_sql.append(f"\tAND ({like_conditions_account})")

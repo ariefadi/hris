@@ -948,7 +948,7 @@ class DashboardScoringDataView(View):
             date_expr = 'toDate(event_date)' if 'event_date' in table_cols else ('toDate(date)' if 'date' in table_cols else 'toDate(run_date)')
             entity_expr = 'upper(country_cd)' if dim == 'country' else 'lower(domain)'
             literals = ', '.join("'{}'".format(x.replace("'", "''")) for x in sorted(set(entities)))
-            cols = ['domain', 'country_cd', 'country_nm', 'date', 'event_date', 'mapped_revenue_source', 'join_status', 'final_label', 'root_cause_label', 'decision', 'score', 'health_score', 'adjustment_score', 'ivt_risk_score', 'confidence', 'decision_margin']
+            cols = ['domain', 'country_cd', 'country_nm', 'date', 'event_date', 'mapped_revenue_source', 'join_status', 'final_label', 'root_cause_label', 'decision', 'score', 'health_score', 'adjustment_score', 'ivt_risk_score', 'confidence', 'decision_margin', 'positive_signal_count', 'negative_signal_count', 'neutral_signal_count', 'adjustment_drop_count', 'traffic_score', 'delivery_score', 'yield_score', 'quality_score', 'efficiency_score', 'revenue_score', 'ivt_click_stress_score', 'ivt_serving_score', 'ivt_attention_score', 'ivt_counter_score', 'ivt_funnel_score', 'positive_streak', 'negative_streak', 'ivt_streak', 'reason_summary']
             keep = [c for c in cols if not table_cols or c in table_cols]
             sql = f"SELECT {entity_expr} AS entity_key, {date_expr} AS scoring_date, {snapshot_expr} AS snapshot_time, {', '.join(keep)} FROM {status_table} WHERE {date_expr} = toDate('{target_date}') AND {entity_expr} IN ({literals}) ORDER BY entity_key, snapshot_time DESC"
             df = query_df(sql)
@@ -959,25 +959,51 @@ class DashboardScoringDataView(View):
             df['snapshot_time'] = pd.to_datetime(df.get('snapshot_time'), errors='coerce')
             out = {}
             derive_decision = getattr(scoring_module, 'derive_decision', None)
+            root_cause_fn = getattr(scoring_module, '_root_cause_label', None)
+            def avg(frame, col, weighted=False):
+                if col not in frame.columns:
+                    return 0.0
+                vals = pd.to_numeric(frame[col], errors='coerce')
+                if not vals.dropna().size:
+                    return 0.0
+                if weighted and 'signal_total' in frame.columns:
+                    w = pd.to_numeric(frame['signal_total'], errors='coerce').fillna(0.0)
+                    mask = vals.notna() & (w > 0)
+                    if mask.any():
+                        return float((vals[mask] * w[mask]).sum() / w[mask].sum())
+                return float(vals.dropna().mean())
             for entity_key, part in df.groupby('entity_key', sort=False):
                 latest = part['snapshot_time'].dropna().max()
                 snap = part[part['snapshot_time'].eq(latest)].copy() if pd.notna(latest) else part.copy()
-                avg = lambda c: float(pd.to_numeric(snap[c], errors='coerce').dropna().mean()) if c in snap.columns and pd.to_numeric(snap[c], errors='coerce').dropna().size else 0.0
-                health, risk, conf, dm, adj = avg('health_score'), avg('ivt_risk_score'), avg('confidence'), avg('decision_margin'), avg('adjustment_score')
+                for c in ['positive_signal_count', 'negative_signal_count', 'neutral_signal_count', 'adjustment_drop_count']:
+                    if c not in snap.columns:
+                        snap[c] = 0
+                snap['signal_total'] = pd.to_numeric(snap['positive_signal_count'], errors='coerce').fillna(0) + pd.to_numeric(snap['negative_signal_count'], errors='coerce').fillna(0) + pd.to_numeric(snap['neutral_signal_count'], errors='coerce').fillna(0)
+                health, risk, conf, adj = avg(snap, 'health_score', True), avg(snap, 'ivt_risk_score', True), avg(snap, 'confidence', True), avg(snap, 'adjustment_score', True)
+                dm = float(health - risk + min(0.0, adj))
+                join_status_series = snap['join_status'] if 'join_status' in snap.columns else pd.Series([''], index=snap.index, dtype='object')
+                status = {'join_status': 'OK' if join_status_series.astype(str).str.upper().isin({'OK', 'SOURCE_ONLY_NO_META', 'SOURCE_ONLY_NO_META_ADSENSE', 'SOURCE_ONLY_NO_META_ADX'}).any() else '', 'health_score': health, 'ivt_risk_score': risk, 'adjustment_score': adj, 'confidence': conf, 'decision_margin': dm, 'positive_signal_count': int(pd.to_numeric(snap['positive_signal_count'], errors='coerce').fillna(0).sum()), 'negative_signal_count': int(pd.to_numeric(snap['negative_signal_count'], errors='coerce').fillna(0).sum()), 'neutral_signal_count': int(pd.to_numeric(snap['neutral_signal_count'], errors='coerce').fillna(0).sum()), 'adjustment_drop_count': int(pd.to_numeric(snap['adjustment_drop_count'], errors='coerce').fillna(0).sum())}
+                for c in ['traffic_score', 'delivery_score', 'yield_score', 'quality_score', 'efficiency_score', 'revenue_score', 'ivt_click_stress_score', 'ivt_serving_score', 'ivt_attention_score', 'ivt_counter_score', 'ivt_funnel_score']:
+                    status[c] = avg(snap, c, True)
+                try:
+                    label = str(root_cause_fn(status) if callable(root_cause_fn) else '').strip()
+                except Exception:
+                    label = ''
+                if not label:
+                    labels = [str(x).strip() for x in snap.get('final_label', pd.Series(dtype=str)).tolist() if str(x).strip()]
+                    label = sorted(labels, key=lambda x: (0 if x.upper().startswith('RED_FLAG') else 1 if ('DROP' in x.upper() or x.upper().startswith('NEG')) else 2 if x.upper().startswith('WATCH') else 3 if x.upper() == 'STABLE' else 4, x))[0] if labels else 'STABLE'
                 score_values = pd.to_numeric(snap['score'], errors='coerce').dropna() if 'score' in snap.columns else pd.Series(dtype=float)
-                if score_values.size:
-                    score = int(round(max(0.0, min(100.0, float(score_values.mean())))))
-                    score_source = 'stored_score'
-                else:
-                    score = int(round(max(0.0, min(100.0, (((health + 100.0) / 2.0) * 0.45) + ((100.0 - risk) * 0.2) + ((conf * 100.0) * 0.15) + (max(0.0, min(100.0, dm + 50.0)) * 0.2)))))
-                    score_source = 'derived_formula'
-                labels = [str(x).strip() for x in snap.get('final_label', pd.Series(dtype=str)).tolist() if str(x).strip()]
-                label = sorted(labels, key=lambda x: (0 if x.upper().startswith('RED_FLAG') else 1 if ('DROP' in x.upper() or x.upper().startswith('NEG')) else 2 if x.upper().startswith('WATCH') else 3 if x.upper() == 'STABLE' else 4, x))[0] if labels else ''
+                score = int(round(max(0.0, min(100.0, float(score_values.mean()))))) if score_values.size else int(round(max(0.0, min(100.0, (((health + 100.0) / 2.0) * 0.45) + ((100.0 - risk) * 0.2) + ((conf * 100.0) * 0.15) + (max(0.0, min(100.0, dm + 50.0)) * 0.2)))))
+                score_source = 'stored_score' if score_values.size else 'derived_formula'
                 if callable(derive_decision):
                     decision, decision_basis = derive_decision(score, label or 'STABLE', health, risk, adj, dm, conf)
                 else:
                     decision, decision_basis = 'HOLD', ''
-                out[entity_key] = {'score': score, 'decision': decision, 'label': label or 'STABLE', 'reasons': [f"Snapshot terakhir {latest.strftime('%Y-%m-%d %H:%M:%S') if pd.notna(latest) else target_date}", f"{int(len(snap))} baris status", f"Sumber score: {score_source}", decision_basis], 'breakdown': {'meta': {'date': target_date, 'snapshot_time': latest.strftime('%Y-%m-%d %H:%M:%S') if pd.notna(latest) else '', 'health_score': round(health, 4), 'ivt_risk_score': round(risk, 4), 'adjustment_score': round(adj, 4), 'confidence': round(conf, 4), 'decision_margin': round(dm, 4), 'row_count': int(len(snap)), 'score_source': score_source, 'score_row_count': int(score_values.size)}}}
+                reasons = [f"Snapshot terakhir {latest.strftime('%Y-%m-%d %H:%M:%S') if pd.notna(latest) else target_date}", f"{int(len(snap))} baris status", f"Sumber score: {score_source}", decision_basis]
+                raw_summary = '; '.join([str(x).strip() for x in snap.get('reason_summary', pd.Series(dtype=str)).tolist() if str(x).strip()][:3])
+                if raw_summary:
+                    reasons.append(raw_summary)
+                out[entity_key] = {'score': score, 'decision': decision, 'label': label or 'STABLE', 'reasons': reasons, 'breakdown': {'meta': {'date': target_date, 'snapshot_time': latest.strftime('%Y-%m-%d %H:%M:%S') if pd.notna(latest) else '', 'health_score': round(health, 4), 'ivt_risk_score': round(risk, 4), 'adjustment_score': round(adj, 4), 'confidence': round(conf, 4), 'decision_margin': round(dm, 4), 'row_count': int(len(snap)), 'score_source': score_source, 'score_row_count': int(score_values.size), 'final_label': label or 'STABLE', 'root_cause_label': label or 'STABLE'}}}
             return JsonResponse({'status': True, 'data': out}, safe=False, json_dumps_params={'allow_nan': False})
         except Exception as e:
             logger.exception('DashboardScoringDataView failed')
@@ -4115,9 +4141,7 @@ class RoiTrafficPerCountryDataView(View):
                         seen.add(x)
                         uniq.append(x)
                 return uniq
-
             countries_list_query = expand_country_codes_filter(countries_list)
-
             # agar FB mengikuti domain yang ada di akun AdX terpilih
             sites_for_fb = None
             if not selected_domain or not selected_domain.strip():
@@ -4150,7 +4174,54 @@ class RoiTrafficPerCountryDataView(View):
                 return JsonResponse(cached_response, safe=False)
             data_facebook = None
             # Jalankan paralel jika selected_domain sudah ada (menghindari fetch FB yang terlalu lebar)
-            if selected_domain_list:
+            if selected_account_list and not selected_domain_list:
+                with ThreadPoolExecutor(max_workers=2) as executor:
+                    adx_future = executor.submit(
+                        data_mysql().get_all_adx_roi_country_detail_by_params,
+                        start_date,
+                        end_date,
+                        selected_account_list,
+                        selected_domain_list,
+                        countries_list_query
+                    )
+                    data_adx = adx_future.result()
+                    unique_name_site = []
+                    if data_adx.get("status") and data_adx.get("data"):
+                        unique_sites = set()
+                        for row in data_adx["data"]:
+                            site_name = (row.get("site_name") or "").strip().lower()
+                            if not site_name or site_name == "unknown":
+                                continue
+                            unique_sites.add(site_name)
+                        extracted_names = []
+                        for site in unique_sites:
+                            if "." not in site:
+                                continue
+
+                            parts = site.split(".")
+
+                            if len(parts) >= 2:
+                                main_domain = ".".join(parts[:2])   # ✅ ambil depan
+                            else:
+                                main_domain = site
+
+                            extracted_names.append(main_domain)
+                        unique_name_site = list(set(extracted_names))
+                        print(f"unique_name_site_coba: {unique_name_site}")
+                    fb_future = executor.submit(
+                        data_mysql().get_all_ads_roi_country_detail_by_params,
+                        start_date,
+                        end_date,
+                        unique_name_site,
+                        countries_list_query
+                    )
+                    data_adx = adx_future.result()
+                    try:
+                        # Hapus timeout: tunggu hingga FB selesai agar data lengkap
+                        data_facebook = fb_future.result()
+                    except Exception as e:
+                        data_facebook = None
+            elif selected_domain_list :
                 with ThreadPoolExecutor(max_workers=2) as executor:
                     adx_future = executor.submit(
                         data_mysql().get_all_adx_roi_country_detail_by_params,
@@ -4180,6 +4251,7 @@ class RoiTrafficPerCountryDataView(View):
                                 main_domain = site
                             extracted_names.append(main_domain)
                         unique_name_site = list(set(extracted_names))
+                        print(f"unique_name_site_ok: {unique_name_site}")
                     fb_future = executor.submit(
                         data_mysql().get_all_ads_roi_country_detail_by_params,
                         start_date,
@@ -4225,7 +4297,6 @@ class RoiTrafficPerCountryDataView(View):
                                     if main_domain and main_domain != 'Unknown':
                                         extracted_names.append(main_domain)
                                 unique_name_site = list(set(extracted_names))
-
                         if unique_name_site:
                             fb_future = executor.submit(
                                 data_mysql().get_all_ads_roi_country_detail_by_params,
@@ -5019,6 +5090,7 @@ class RoiTrafficPerDomainDataView(View):
                 selected_account_list,
                 selected_domain_list
             )
+            print(f"adx_result_domain: {adx_result}")
             # --- 4. Proses Facebook data
             facebook_data = None
             unique_name_site = []
