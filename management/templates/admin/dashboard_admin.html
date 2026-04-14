@@ -2693,6 +2693,14 @@ function initDashboardRecap() {
         return { value, updatedAt };
     }
 
+    function storedScoringForRow(row, state) {
+        const store = window.dashboardRecapStoredScoring || {};
+        const key = scoringLookupKey(state?.dim, row);
+        if (!key) return null;
+        const meta = store[key];
+        return meta ? summarizeDashboardScoringMeta(meta, row, state) : null;
+    }
+
     function renderScoreCell(data, type) {
         const value = data && typeof data === 'object' ? data.value : data;
         const updatedAt = data && typeof data === 'object' ? String(data.updatedAt || '').trim() : '';
@@ -5702,8 +5710,10 @@ function initDashboardRecap() {
         window.dashboardRecapScoreDetails = window.dashboardRecapScoreDetails || {};
 
         const backendScores = await fetchDashboardScoring(rows, state);
+        window.dashboardRecapStoredScoring = (backendScores && typeof backendScores === 'object') ? backendScores : {};
         const scored = (rows || []).map(function(r) {
-            const meta = summarizeDashboardScoringMeta(backendScores[scoringLookupKey(dim, r)] || null, r, state);
+            const storedMeta = storedScoringForRow(r, state);
+            const meta = storedMeta || scoreAndDecision(r, state);
             return { r, meta };
         });
 

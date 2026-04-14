@@ -946,9 +946,11 @@ class DashboardScoringDataView(View):
             raw_snapshot_expr = 'event_time' if 'event_time' in table_cols else ('mdd' if 'mdd' in table_cols else 'toDateTime(run_date)')
             snapshot_expr = f"toTimeZone({raw_snapshot_expr}, 'Asia/Jakarta')"
             date_expr = 'toDate(event_date)' if 'event_date' in table_cols else ('toDate(date)' if 'date' in table_cols else 'toDate(run_date)')
-            entity_expr = 'upper(country_cd)' if dim == 'country' else 'lower(domain)'
+            country_key_col = 'country_code' if 'country_code' in table_cols else 'country_cd'
+            domain_key_col = 'site' if 'site' in table_cols else 'domain'
+            entity_expr = f"upper({country_key_col})" if dim == 'country' else f"lower({domain_key_col})"
             literals = ', '.join("'{}'".format(x.replace("'", "''")) for x in sorted(set(entities)))
-            cols = ['domain', 'country_cd', 'country_nm', 'date', 'event_date', 'mapped_revenue_source', 'join_status', 'final_label', 'root_cause_label', 'decision', 'score', 'health_score', 'adjustment_score', 'ivt_risk_score', 'confidence', 'decision_margin', 'positive_signal_count', 'negative_signal_count', 'neutral_signal_count', 'adjustment_drop_count', 'traffic_score', 'delivery_score', 'yield_score', 'quality_score', 'efficiency_score', 'revenue_score', 'ivt_click_stress_score', 'ivt_serving_score', 'ivt_attention_score', 'ivt_counter_score', 'ivt_funnel_score', 'positive_streak', 'negative_streak', 'ivt_streak', 'reason_summary']
+            cols = ['site', 'domain', 'country_code', 'country_cd', 'country_name', 'country_nm', 'date', 'event_date', 'mapped_revenue_source', 'join_status', 'final_label', 'root_cause_label', 'decision', 'score', 'health_score', 'adjustment_score', 'ivt_risk_score', 'confidence', 'decision_margin', 'positive_signal_count', 'negative_signal_count', 'neutral_signal_count', 'adjustment_drop_count', 'traffic_score', 'delivery_score', 'yield_score', 'quality_score', 'efficiency_score', 'revenue_score', 'ivt_click_stress_score', 'ivt_serving_score', 'ivt_attention_score', 'ivt_counter_score', 'ivt_funnel_score', 'positive_streak', 'negative_streak', 'ivt_streak', 'reason_summary']
             keep = [c for c in cols if not table_cols or c in table_cols]
             sql = f"SELECT {entity_expr} AS entity_key, {date_expr} AS scoring_date, {snapshot_expr} AS snapshot_time, {', '.join(keep)} FROM {status_table} WHERE {date_expr} = toDate('{target_date}') AND {entity_expr} IN ({literals}) ORDER BY entity_key, snapshot_time DESC"
             df = query_df(sql)
