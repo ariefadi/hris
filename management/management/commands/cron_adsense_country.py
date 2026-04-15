@@ -39,6 +39,14 @@ def fetch_adsense_traffic_per_country_domain(user_mail, start_date, end_date, si
     )
 
 
+def force_usd_by_domain(domain):
+    d = str(domain or '').strip().lower()
+    if not d:
+        return False
+    usd_domains = ('sharpdrivers', 'uaetiming', 'valoranewspekanbaru')
+    return any(k in d for k in usd_domains)
+
+
 class Command(BaseCommand):
     help = "Tarik dan simpan data AdSense per negara & domain ke data_adsense, default hari ini. Kredensial diambil dari app_credentials."
 
@@ -150,7 +158,10 @@ class Command(BaseCommand):
                             page_views = int(item.get('page_views', 0) or 0)
                             ad_requests = int(item.get('ad_requests', 0) or 0)
 
-                            revenue_idr = convert_to_idr(revenue, currency_code)
+                            currency_for_item = currency_code
+                            if force_usd_by_domain(domain):
+                                currency_for_item = 'USD'
+                            revenue_idr = convert_to_idr(revenue, currency_for_item)
 
                             ctr = (clicks / impressions * 100) if impressions > 0 else 0.0
                             cpc_idr = (revenue_idr / clicks) if clicks > 0 else 0.0
