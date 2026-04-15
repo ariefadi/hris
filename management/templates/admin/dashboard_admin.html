@@ -5763,6 +5763,7 @@ function initDashboardRecap() {
         if (metaEl) metaEl.textContent = `${rows.length} baris`;
 
         const hasDt = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.DataTable === 'function');
+        const hasDtButtons = !!(hasDt && jQuery.fn.dataTable && jQuery.fn.dataTable.Buttons);
         const tbody = document.getElementById('dashboardRecapTbody');
         if (!tableEl || !tbody) return;
 
@@ -5811,6 +5812,11 @@ function initDashboardRecap() {
         }
 
         if (!isInit) {
+            const exportDate = String(state?.date || '').trim();
+            const exportDim = String(dim || 'domain').toLowerCase();
+            const exportBase = `dashboard_detail_${exportDim}${exportDate ? '_' + exportDate : ''}`;
+            const exportTitle = `Dashboard Detail Data (${exportDim === 'country' ? 'Per Negara' : 'Per Domain'})${exportDate ? ' - ' + exportDate : ''}`;
+
             window.dashboardRecapDt = $table.DataTable({
                 data: data,
                 paging: true,
@@ -5823,6 +5829,15 @@ function initDashboardRecap() {
                 order: [[7, 'desc']],
                 autoWidth: false,
                 responsive: true,
+                dom: hasDtButtons ? 'Blfrtip' : undefined,
+                buttons: hasDtButtons ? [
+                    { extend: 'copyHtml5', text: 'Copy', className: 'btn btn-info btn-sm', exportOptions: { columns: ':visible' }, title: exportTitle },
+                    { extend: 'excelHtml5', text: 'Export Excel', className: 'btn btn-success btn-sm', exportOptions: { columns: ':visible' }, title: exportTitle, filename: exportBase },
+                    { extend: 'pdfHtml5', text: 'Export PDF', className: 'btn btn-danger btn-sm', exportOptions: { columns: ':visible' }, title: exportTitle, filename: exportBase, orientation: 'landscape', pageSize: 'A4' },
+                    { extend: 'csvHtml5', text: 'Export CSV', className: 'btn btn-secondary btn-sm', exportOptions: { columns: ':visible' }, title: exportTitle, filename: exportBase },
+                    { extend: 'print', text: 'Print', className: 'btn btn-warning btn-sm', exportOptions: { columns: ':visible' }, title: exportTitle },
+                    { extend: 'colvis', text: 'Column Visibility', className: 'btn btn-light btn-sm' }
+                ] : [],
                 language: {
                     lengthMenu: 'Tampilkan _MENU_ data',
                     search: 'Cari:',

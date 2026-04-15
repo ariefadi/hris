@@ -114,10 +114,12 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
                 let data_cpr = value.cpr;
                 let cpr_number = parseFloat(data_cpr)
                 let cpr = cpr_number.toFixed(0).replace(',', '.');
-                // Tambahkan logika: jika spend > budget, beri class `table-danger`
+                // Logika remark overspend
                 const isOverBudget = spend > budget;
-                const rowClass = isOverBudget ? 'table-danger' : '';
-                var event_data = `<tr class="${rowClass}">`;
+                const remarkBadge = isOverBudget
+                    ? '<span class="badge badge-danger" style="color: white;">Overspend</span>'
+                    : '<span class="badge badge-primary" style="color: white;">Normal</span>';
+                var event_data = '<tr>';
                 event_data += '<td class="text-center" style="font-size: 12px;">' + (index + 1) + '</td>';
                 event_data += '<td class="text-left" style="font-size: 12px;"><span class="badge badge-secondary" style="color: white;">' + (value.account_name || 'N/A') + '</span></td>';
                 event_data += '<td class="text-left" style="font-size: 12px;"><span class="badge badge-info" style="color: white;">' + value.campaign_name + '</span></td>';
@@ -139,6 +141,7 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
                 event_data += ' <td class="text-right" style="font-size: 12px;">' + formattedClicks + '</td>';
                 event_data += ' <td class="text-right" style="font-size: 12px;">' + formattedFrequency + '</td>';
                 event_data += ' <td class="text-right" style="font-size: 12px;">' + cpr + '</td>';
+                event_data += ' <td class="text-center" style="font-size: 12px;">' + remarkBadge + '</td>';
                 event_data += '<td class="text-center">' +
                                     '<div class="form-check form-switch">' +
                                         '<input class="form-check-input" type="checkbox" id="switch_campaign_'+value.campaign_id+'" ' + 
@@ -347,7 +350,7 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
                                     +tanggal.getFullYear(),
                         exportOptions: {
                             columns: ':visible', 
-                            columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],      // hanya kolom yang terlihat
+                            columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],      // include remark, exclude switch
                             modifier: {
                                 search: 'applied',      // sesuai filter pencarian
                                 order: 'applied'        // sesuai urutan saat itu
@@ -409,12 +412,13 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
                                     if (body[i][9]) body[i][9].alignment = 'right';   // Clicks
                                     if (body[i][10]) body[i][10].alignment = 'right'; // Frequency
                                     if (body[i][11]) body[i][11].alignment = 'right'; // CPR
+                                    if (body[i][12]) body[i][12].alignment = 'center'; // Remark
                                 }
                             }
                             // Margin
                             doc.content[1].margin = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
-                            // Manual width sesuai presentase kolom HTML (tanpa kolom terakhir)
-                            doc.content[1].table.widths = ['3%', '12%', '13%', '8%', '9%', '12%', '9%', '9%', '9%', '9%', '9%', '8%'];
+                            // Manual width sesuai presentase kolom HTML (tanpa kolom switch)
+                            doc.content[1].table.widths = ['3%', '12%', '13%', '8%', '9%', '12%', '9%', '9%', '9%', '9%', '9%', '8%', '8%'];
                         }
                     }
                 ]
