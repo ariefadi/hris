@@ -5,8 +5,8 @@ APPDIR=/var/www/html/hris
 VENV=/var/www/html/hris/hris_env/bin/python3
 DJANGO_MANAGE="$VENV $APPDIR/manage.py"
 
-# Ads Master: setiap hari 23:59
-59 23 * * * cd $APPDIR && flock -n /var/run/hris_ads_master.lock -c "$DJANGO_MANAGE cron_ads_master >> /var/log/hris/cron_ads_master.log 2>&1"
+# Ads Master: setiap 10 menit
+*/10 * * * * cd $APPDIR && flock -n /var/run/hris_ads_master.lock -c "$DJANGO_MANAGE cron_ads_master >> /var/log/hris/cron_ads_master.log 2>&1"
 
 # Adsense Domain Load: setiap 20 menit
 50 * * * * cd $APPDIR && flock -n /var/run/hris_adsense_domain_load.lock -c "$DJANGO_MANAGE cron_adsense_domain_load >> /var/log/hris/cron_adsense_domain_load.log 2>&1"

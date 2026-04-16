@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand
+from django.core.management import call_command
 from datetime import datetime
 from collections import defaultdict
 from facebook_business.api import FacebookAdsApi
@@ -49,7 +50,9 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         tanggal = kwargs.get('tanggal')
-        rs_account = data_mysql().master_account_ads()['data']
+        start_date = tanggal if tanggal and tanggal != '%' else datetime.now().strftime('%Y-%m-%d')
+        db = data_mysql()
+        rs_account = db.master_account_ads()['data']
 
         total_insert = 0
         total_error = 0
@@ -59,10 +62,7 @@ class Command(BaseCommand):
                 FacebookAdsApi.init(access_token=account_data['access_token'])
                 account = AdAccount(account_data['account_id'])
 
-                if not tanggal or tanggal == '%':
-                    today = datetime.now().strftime('%Y-%m-%d')
-                else:
-                    today = tanggal
+                today = start_date
 
                 time_range = {
                     'since': today,
@@ -72,6 +72,15 @@ class Command(BaseCommand):
                     'level': 'campaign',
                     'time_range': time_range,
                 }
+
+                # Hapus data lama untuk tanggal + account yang sama, agar ditimpa data terbaru
+                if not db.execute_query(
+                    "DELETE FROM master_ads WHERE master_date = %s AND account_ads_id = %s",
+                    (today, account_data['account_id'])
+                ):
+                    raise Exception(f"Gagal menghapus data lama master_ads untuk tanggal {today} account {account_data['account_id']}")
+                if not db.commit():
+                    raise Exception(f"Gagal commit penghapusan data lama master_ads untuk tanggal {today} account {account_data['account_id']}")
 
                 campaign_configs = account.get_campaigns(fields=[
                     Campaign.Field.id,
@@ -135,7 +144,7 @@ class Command(BaseCommand):
                         'mdb_name': 'Cron Job',
                         'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                     }
-                    res = data_mysql().insert_data_master_ads(record)
+                    res = db.insert_data_master_ads(record)
                     if res.get('hasil', {}).get('status'):
                         total_insert += 1
                     else:
@@ -146,6 +155,19 @@ class Command(BaseCommand):
                 self.stdout.write(self.style.ERROR(
                     f"Gagal memproses akun {account_data.get('account_name','Unknown')}: {e}"
                 ))
+
+        if total_insert:
+            try:
+                self.stdout.write(self.style.WARNING(
+                    f"Sync ClickHouse: master_ads since={start_date} (delete lalu insert)"
+                ))
+                call_command(
+                    'sync_clickhouse',
+                    tables='master_ads',
+                    since=start_date,
+                )
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Gagal sync ClickHouse master_ads: {e}"))
 
         self.stdout.write(self.style.SUCCESS(
             f"Selesai. Berhasil insert: {total_insert}, gagal: {total_error}."
