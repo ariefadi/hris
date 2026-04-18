@@ -6,7 +6,7 @@ from datetime import date, datetime
 import math
 import uuid
 from zoneinfo import ZoneInfo
-from collections import defaultdict
+
 import pandas as pd
 
 from .database import insert_df, query_df
@@ -16,20 +16,49 @@ from .engine_utils import (
     clip,
     ensure_uuid,
     ewma_last,
-    pick_top_labels,
-    normalize_domain,
     normalize_country_cd,
     normalize_country_nm,
+    normalize_domain,
+    pick_top_labels,
     robust_median,
     robust_scale,
     safe_float,
     safe_pct_change,
     weighted_mean,
 )
+# ...existing code...
 
+# Utilitas ekstrak root domain
+def extract_root_domain(domain: str) -> str:
+    """
+    Ekstrak root domain dari domain/subdomain, misal:
+    'a.b.c.d.com' -> 'd.com', 'news.site.co.id' -> 'co.id', 'example.com' -> 'example.com'
+    """
+    if not domain or pd.isna(domain):
+        return ''
+    parts = str(domain).lower().strip().split('.')
+    if len(parts) >= 2:
+        return '.'.join(parts[-2:])
+    return domain.lower().strip()
+# ...existing code...
 
-STATUS_TABLE = "hris_trendHorizone.fact_site_country_status_history"
+STATUS_TABLE = "hris_trendHorizone.fact_domain_country_status_history"
 EVENT_TABLE = "hris_trendHorizone.fact_change_event_long"
+TABLE_COLUMNS_CACHE: dict[str, set[str]] = {}
+EVENT_INSERT_ALIASES = {
+    "metric_name": "header_name",
+    "source": "source_scope",
+    "reason": "event_reason",
+    "label": "event_label",
+    "labels": "event_label",
+    "current_value": "cur_value",
+    "previous_value": "prev_value",
+    "delta": "delta_abs",
+    "pct_change": "delta_pct",
+    "score": "signal_strength",
+    "impact_score": "health_component",
+    "decision": "change_class",
+}
 
 SCORABLE_JOIN_STATUSES = {
     "OK",
@@ -105,7 +134,6 @@ SOURCE_SCOPE_BLOCKLIST_BY_SOURCE_MODE = {
     SOURCE_MODE_MIXED: set(),
 }
 
-
 @dataclass(frozen=True)
 class MetricRule:
     column: str
@@ -136,15 +164,15 @@ class MetricRule:
     range_low: float | None = None
     range_high: float | None = None
     band_dynamic: bool = False
-    band_quantile_low: float = 0.20
-    band_quantile_high: float = 0.80
-    band_sigma: float = 1.25
-    band_min_width_pct: float = 0.10
-    provisional_metric: bool = False
-    freshness_min_confidence_factor: float = 0.60
-    freshness_full_confidence_hours: int = 6
+    band_quantile_low: float = 0.10
+    band_quantile_high: float = 0.90
+    band_sigma: float = 2.0
+    band_min_width_pct: float = 0.05
     label_positive: str = ""
     label_negative: str = ""
+    provisional_metric: bool = False
+    freshness_full_confidence_hours: int = 24
+    freshness_min_confidence_factor: float = 0.65
     requires_source_match: bool = True
     requires_join_status_ok: bool = False
 
@@ -154,19 +182,18 @@ class MetricRule:
 
 
 RULES: list[MetricRule] = [
-    MetricRule("meta_spend", "meta", "control", "counter", "acquisition_cost", "adjustment_guardrail", "NEUTRAL", "HOURLY_INCREMENT_Z", 0.00, adjustment_weight=1.25, deadband_pct=0.03, family_key="meta_budget", family_rank=2, label_negative="META_SPEND_DROP", requires_source_match=True),
-    MetricRule("meta_budget_pacing_index", "meta", "control", "band", "budget_pacing", "pacing", "RANGE_GOOD", "BAND_TARGET", 0.55, 0.75, 1.10, ivt_weight=0.30, volume_gate_column="meta_daily_budget", min_volume=1, family_key="meta_budget", family_rank=1, range_low=0.70, range_high=1.30, band_dynamic=True, band_quantile_low=0.20, band_quantile_high=0.80, band_sigma=1.00, band_min_width_pct=0.08, label_positive="BUDGET_PACING_IN_RANGE", label_negative="BUDGET_PACING_OUT_OF_RANGE", requires_source_match=True),
-    MetricRule("meta_avg_cpc", "meta", "efficiency", "level", "acquisition_cost", "guardrail", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.85, 0.85, 1.05, ivt_weight=0.20, volume_gate_column="meta_clicks", min_volume=20, family_key="meta_efficiency", family_rank=1, label_positive="META_CPC_IMPROVING", label_negative="META_CPC_RISING", requires_source_match=True),
-    MetricRule("meta_clicks", "meta", "traffic", "counter", "acquisition", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.10, 0.95, 1.10, adjustment_weight=0.75, ivt_weight=0.25, deadband_pct=0.03, family_key="meta_traffic_volume", family_rank=2, label_positive="META_TRAFFIC_UP", label_negative="META_TRAFFIC_DOWN", requires_source_match=True),
-    MetricRule("meta_lpv", "meta", "traffic", "counter", "landing", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.35, 0.95, 1.15, adjustment_weight=1.00, ivt_weight=0.35, deadband_pct=0.03, family_key="meta_traffic_volume", family_rank=1, label_positive="LPV_UP", label_negative="LPV_DOWN", requires_source_match=True),
-    MetricRule("meta_lpv_rate", "meta", "efficiency", "rate", "landing_quality", "derived", "UP_GOOD", "PROPORTION_Z", 1.10, 0.90, 1.15, ivt_weight=0.55, volume_gate_column="meta_clicks", min_volume=20, denominator_column="meta_clicks", numerator_column="meta_lpv", family_key="meta_traffic_quality", family_rank=1, deadband_pct=0.04, label_positive="LPV_RATE_IMPROVING", label_negative="LPV_RATE_DROP", requires_source_match=True),
-    MetricRule("meta_frequency", "meta", "quality", "band", "fatigue", "guardrail", "RANGE_GOOD", "BAND_TARGET", 0.45, 0.70, 1.00, ivt_weight=0.65, family_key="meta_fatigue", family_rank=1, range_low=1.0, range_high=3.5, band_dynamic=True, band_quantile_low=0.20, band_quantile_high=0.80, band_sigma=1.00, band_min_width_pct=0.08, label_positive="FREQUENCY_IN_RANGE", label_negative="FREQUENCY_OUT_OF_RANGE", requires_source_match=True),
+    MetricRule("meta_spend", "meta", "control", "counter", "acquisition_cost", "adjustment_guardrail", "NEUTRAL", "HOURLY_INCREMENT_Z", 0.00, adjustment_weight=1.25, deadband_pct=0.03, family_key="meta_budget", family_rank=1, label_negative="META_SPEND_DROP", requires_source_match=False),
+    MetricRule("meta_avg_cpc", "meta", "efficiency", "level", "acquisition_cost", "guardrail", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.85, 0.85, 1.05, ivt_weight=0.20, volume_gate_column="meta_clicks", min_volume=20, family_key="meta_efficiency", family_rank=1, label_positive="META_CPC_IMPROVING", label_negative="META_CPC_RISING", requires_source_match=False),
+    MetricRule("meta_clicks", "meta", "traffic", "counter", "acquisition", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.10, 0.95, 1.10, adjustment_weight=0.75, ivt_weight=0.25, deadband_pct=0.03, family_key="meta_traffic_volume", family_rank=2, label_positive="META_TRAFFIC_UP", label_negative="META_TRAFFIC_DOWN", requires_source_match=False),
+    MetricRule("meta_lpv", "meta", "traffic", "counter", "landing", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.35, 0.95, 1.15, adjustment_weight=1.00, ivt_weight=0.35, deadband_pct=0.03, family_key="meta_traffic_volume", family_rank=1, label_positive="LPV_UP", label_negative="LPV_DOWN", requires_source_match=False),
+    MetricRule("meta_lpv_rate", "meta", "efficiency", "rate", "landing_quality", "derived", "UP_GOOD", "PROPORTION_Z", 1.10, 0.90, 1.15, ivt_weight=0.55, volume_gate_column="meta_clicks", min_volume=20, denominator_column="meta_clicks", numerator_column="meta_lpv", family_key="meta_traffic_quality", family_rank=1, deadband_pct=0.04, label_positive="LPV_RATE_IMPROVING", label_negative="LPV_RATE_DROP", requires_source_match=False),
+    MetricRule("meta_frequency", "meta", "quality", "band", "fatigue", "guardrail", "RANGE_GOOD", "BAND_TARGET", 0.45, 0.70, 1.00, ivt_weight=0.65, family_key="meta_fatigue", family_rank=1, range_low=1.0, range_high=3.5, label_positive="FREQUENCY_IN_RANGE", label_negative="FREQUENCY_OUT_OF_RANGE", requires_source_match=False),
 
-    MetricRule("adsense_estimated_earnings", "adsense", "revenue", "counter", "monetization", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.70, 0.95, 1.15, adjustment_weight=1.60, ivt_weight=0.45, deadband_pct=0.03, family_key="adsense_revenue", family_rank=1, provisional_metric=True, freshness_min_confidence_factor=0.55, freshness_full_confidence_hours=8, label_positive="ADSENSE_REVENUE_UP", label_negative="ADSENSE_REVENUE_DROP"),
+    MetricRule("adsense_estimated_earnings", "adsense", "revenue", "counter", "monetization", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.70, 0.95, 1.15, adjustment_weight=1.60, ivt_weight=0.45, deadband_pct=0.03, family_key="adsense_revenue", family_rank=1, label_positive="ADSENSE_REVENUE_UP", label_negative="ADSENSE_REVENUE_DROP"),
     MetricRule("adsense_page_views", "adsense", "traffic", "counter", "onsite_traffic", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 0.95, 0.90, 1.05, adjustment_weight=0.80, ivt_weight=0.20, deadband_pct=0.03, family_key="adsense_page_yield", family_rank=3, label_positive="PAGE_VIEWS_UP", label_negative="PAGE_VIEWS_DOWN"),
     MetricRule("adsense_clicks", "adsense", "engagement", "counter", "ad_engagement", "secondary", "UP_GOOD", "HOURLY_INCREMENT_Z", 0.75, 0.85, 1.05, adjustment_weight=0.60, ivt_weight=0.70, deadband_pct=0.03, family_key="adsense_click_yield", family_rank=2, label_positive="ADSENSE_CLICKS_UP", label_negative="ADSENSE_CLICKS_DOWN"),
-    MetricRule("adsense_cost_per_click", "adsense", "yield", "level", "click_yield", "derived", "UP_GOOD", "EWMA_LEVEL_Z", 0.85, 0.85, 1.10, ivt_weight=0.65, volume_gate_column="adsense_clicks", min_volume=20, denominator_column="adsense_clicks", family_key="adsense_click_yield", family_rank=1, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="ADSENSE_CPC_UP", label_negative="ADSENSE_CPC_DOWN"),
-    MetricRule("adsense_page_views_rpm", "adsense", "yield", "level", "page_yield", "primary_derived", "UP_GOOD", "EWMA_LEVEL_Z", 1.25, 0.90, 1.15, ivt_weight=0.80, volume_gate_column="adsense_page_views", min_volume=500, denominator_column="adsense_page_views", family_key="adsense_page_yield", family_rank=1, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="RPM_UP", label_negative="RPM_DOWN"),
+    MetricRule("adsense_cost_per_click", "adsense", "yield", "level", "click_yield", "derived", "UP_GOOD", "EWMA_LEVEL_Z", 0.85, 0.85, 1.10, ivt_weight=0.65, volume_gate_column="adsense_clicks", min_volume=20, denominator_column="adsense_clicks", family_key="adsense_click_yield", family_rank=1, deadband_pct=0.05, label_positive="ADSENSE_CPC_UP", label_negative="ADSENSE_CPC_DOWN"),
+    MetricRule("adsense_page_views_rpm", "adsense", "yield", "level", "page_yield", "primary_derived", "UP_GOOD", "EWMA_LEVEL_Z", 1.25, 0.90, 1.15, ivt_weight=0.80, volume_gate_column="adsense_page_views", min_volume=500, denominator_column="adsense_page_views", family_key="adsense_page_yield", family_rank=1, deadband_pct=0.05, label_positive="RPM_UP", label_negative="RPM_DOWN"),
     MetricRule("adsense_ad_requests", "adsense", "delivery", "counter", "request", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 0.95, 0.90, 1.05, adjustment_weight=1.00, ivt_weight=0.20, deadband_pct=0.03, family_key="adsense_request_volume", family_rank=3, label_positive="AD_REQUESTS_UP", label_negative="AD_REQUESTS_DOWN"),
     MetricRule("adsense_matched_ad_requests", "adsense", "delivery", "counter", "match", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.05, 0.90, 1.10, adjustment_weight=1.00, ivt_weight=0.35, deadband_pct=0.03, family_key="adsense_request_volume", family_rank=2, label_positive="MATCHED_REQUESTS_UP", label_negative="MATCHED_REQUESTS_DOWN"),
     MetricRule("adsense_impressions", "adsense", "delivery", "counter", "render", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.00, 0.90, 1.10, adjustment_weight=0.90, ivt_weight=0.35, deadband_pct=0.03, family_key="adsense_request_volume", family_rank=1, label_positive="IMPRESSIONS_UP", label_negative="IMPRESSIONS_DOWN"),
@@ -175,11 +202,11 @@ RULES: list[MetricRule] = [
     MetricRule("adsense_active_view_measurability", "adsense", "quality", "rate", "measurement", "support", "UP_GOOD", "PROPORTION_Z", 0.45, 0.70, 1.00, ivt_weight=0.40, volume_gate_column="adsense_impressions", min_volume=500, denominator_column="adsense_impressions", family_key="adsense_viewability", family_rank=2, deadband_pct=0.03, label_positive="MEASURABILITY_UP", label_negative="MEASURABILITY_DROP"),
     MetricRule("adsense_active_view_time", "adsense", "quality", "level", "attention", "support", "UP_GOOD", "EWMA_LEVEL_Z", 0.55, 0.75, 1.00, ivt_weight=0.70, volume_gate_column="adsense_impressions", min_volume=500, family_key="adsense_attention", family_rank=1, deadband_pct=0.04, label_positive="ACTIVE_VIEW_TIME_UP", label_negative="ACTIVE_VIEW_TIME_DOWN"),
 
-    MetricRule("adx_revenue", "adx", "revenue", "counter", "monetization", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.80, 0.95, 1.20, adjustment_weight=1.70, ivt_weight=0.45, deadband_pct=0.03, family_key="adx_revenue", family_rank=1, provisional_metric=True, freshness_min_confidence_factor=0.55, freshness_full_confidence_hours=8, label_positive="ADX_REVENUE_UP", label_negative="ADX_REVENUE_DROP"),
+    MetricRule("adx_revenue", "adx", "revenue", "counter", "monetization", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.80, 0.95, 1.20, adjustment_weight=1.70, ivt_weight=0.45, deadband_pct=0.03, family_key="adx_revenue", family_rank=1, label_positive="ADX_REVENUE_UP", label_negative="ADX_REVENUE_DROP"),
     MetricRule("adx_impressions", "adx", "delivery", "counter", "render", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.05, 0.90, 1.10, adjustment_weight=0.90, ivt_weight=0.35, deadband_pct=0.03, family_key="adx_request_volume", family_rank=1, label_positive="ADX_IMPRESSIONS_UP", label_negative="ADX_IMPRESSIONS_DOWN"),
     MetricRule("adx_clicks", "adx", "engagement", "counter", "ad_engagement", "secondary", "UP_GOOD", "HOURLY_INCREMENT_Z", 0.70, 0.85, 1.05, adjustment_weight=0.50, ivt_weight=0.75, deadband_pct=0.03, family_key="adx_click_yield", family_rank=2, label_positive="ADX_CLICKS_UP", label_negative="ADX_CLICKS_DOWN"),
-    MetricRule("adx_avg_ecpm", "adx", "yield", "level", "yield", "primary", "UP_GOOD", "EWMA_LEVEL_Z", 1.35, 0.90, 1.15, ivt_weight=0.80, volume_gate_column="adx_impressions", min_volume=500, denominator_column="adx_impressions", family_key="adx_yield", family_rank=1, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="ECPM_UP", label_negative="ECPM_DOWN"),
-    MetricRule("adx_cpc", "adx", "yield", "level", "click_yield", "derived", "UP_GOOD", "EWMA_LEVEL_Z", 0.80, 0.85, 1.10, ivt_weight=0.65, volume_gate_column="adx_clicks", min_volume=20, denominator_column="adx_clicks", family_key="adx_click_yield", family_rank=1, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="ADX_CPC_UP", label_negative="ADX_CPC_DOWN"),
+    MetricRule("adx_avg_ecpm", "adx", "yield", "level", "yield", "primary", "UP_GOOD", "EWMA_LEVEL_Z", 1.35, 0.90, 1.15, ivt_weight=0.80, volume_gate_column="adx_impressions", min_volume=500, denominator_column="adx_impressions", family_key="adx_yield", family_rank=1, deadband_pct=0.05, label_positive="ECPM_UP", label_negative="ECPM_DOWN"),
+    MetricRule("adx_cpc", "adx", "yield", "level", "click_yield", "derived", "UP_GOOD", "EWMA_LEVEL_Z", 0.80, 0.85, 1.10, ivt_weight=0.65, volume_gate_column="adx_clicks", min_volume=20, denominator_column="adx_clicks", family_key="adx_click_yield", family_rank=1, deadband_pct=0.05, label_positive="ADX_CPC_UP", label_negative="ADX_CPC_DOWN"),
     MetricRule("adx_total_requests", "adx", "delivery", "counter", "request", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 0.95, 0.90, 1.05, adjustment_weight=1.00, ivt_weight=0.20, deadband_pct=0.03, family_key="adx_request_volume", family_rank=3, label_positive="ADX_REQUESTS_UP", label_negative="ADX_REQUESTS_DOWN"),
     MetricRule("adx_responses_served", "adx", "delivery", "counter", "match", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.05, 0.90, 1.10, adjustment_weight=1.00, ivt_weight=0.35, deadband_pct=0.03, family_key="adx_request_volume", family_rank=2, label_positive="RESPONSES_SERVED_UP", label_negative="RESPONSES_SERVED_DOWN"),
     MetricRule("adx_match_rate", "adx", "delivery", "rate", "match", "primary", "UP_GOOD", "PROPORTION_Z", 1.20, 0.80, 1.25, ivt_weight=1.00, volume_gate_column="adx_total_requests", min_volume=200, denominator_column="adx_total_requests", numerator_column="adx_responses_served", family_key="adx_request_rate", family_rank=2, deadband_pct=0.03, label_positive="MATCH_RATE_UP", label_negative="MATCH_RATE_DROP"),
@@ -187,64 +214,63 @@ RULES: list[MetricRule] = [
     MetricRule("adx_active_view_pct_viewable", "adx", "quality", "rate", "viewability", "primary", "UP_GOOD", "PROPORTION_Z", 0.85, 0.80, 1.15, ivt_weight=0.70, volume_gate_column="adx_impressions", min_volume=500, denominator_column="adx_impressions", family_key="adx_viewability", family_rank=1, deadband_pct=0.03, label_positive="ADX_VIEWABILITY_UP", label_negative="ADX_VIEWABILITY_DROP"),
     MetricRule("adx_active_view_avg_time_sec", "adx", "quality", "level", "attention", "support", "UP_GOOD", "EWMA_LEVEL_Z", 0.55, 0.75, 1.00, ivt_weight=0.70, volume_gate_column="adx_impressions", min_volume=500, family_key="adx_attention", family_rank=1, deadband_pct=0.04, label_positive="ADX_ACTIVE_VIEW_TIME_UP", label_negative="ADX_ACTIVE_VIEW_TIME_DOWN"),
 
-    MetricRule("blended_revenue", "blended", "revenue", "counter", "monetization", "composite_primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.95, 0.95, 1.20, adjustment_weight=1.80, ivt_weight=0.55, deadband_pct=0.03, family_key="blended_revenue", family_rank=1, provisional_metric=True, freshness_min_confidence_factor=0.55, freshness_full_confidence_hours=8, label_positive="BLENDED_REVENUE_UP", label_negative="BLENDED_REVENUE_DROP", requires_source_match=True),
-    MetricRule("revenue_per_lpv", "blended", "yield", "level", "monetization_efficiency", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 1.45, 0.90, 1.15, ivt_weight=1.00, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_efficiency", family_rank=1, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="REVENUE_PER_LPV_UP", label_negative="REVENUE_PER_LPV_DOWN", requires_source_match=True),
-    MetricRule("roi_proxy", "blended", "efficiency", "level", "unit_economics", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 1.35, 0.90, 1.15, ivt_weight=0.70, volume_gate_column="meta_spend", min_volume=500, denominator_column="meta_spend", family_key="blended_efficiency", family_rank=2, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="ROI_PROXY_UP", label_negative="ROI_PROXY_DOWN", requires_source_match=True),
-    MetricRule("meta_cost_per_lpv", "blended", "efficiency", "level", "acquisition_cost", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 1.00, 0.85, 1.10, ivt_weight=0.45, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_efficiency", family_rank=3, deadband_pct=0.05, label_positive="COST_PER_LPV_DOWN", label_negative="COST_PER_LPV_UP", requires_source_match=True),
-    MetricRule("request_to_impression_eff", "blended", "delivery", "rate", "render_efficiency", "composite", "UP_GOOD", "PROPORTION_Z", 1.25, 0.90, 1.20, ivt_weight=1.10, volume_gate_column="total_requests_blended", min_volume=300, denominator_column="total_requests_blended", numerator_column="total_impressions_blended", family_key="blended_delivery", family_rank=1, deadband_pct=0.03, label_positive="REQUEST_EFFICIENCY_UP", label_negative="REQUEST_EFFICIENCY_DOWN", requires_source_match=True),
-    MetricRule("revenue_per_request_total", "blended", "yield", "level", "request_yield", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 0.75, 0.85, 1.10, ivt_weight=0.90, volume_gate_column="total_requests_blended", min_volume=300, denominator_column="total_requests_blended", family_key="blended_delivery", family_rank=2, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="REQUEST_YIELD_UP", label_negative="REQUEST_YIELD_DOWN", requires_source_match=True),
-    MetricRule("click_pressure", "blended", "quality", "level", "click_stress", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.45, 0.75, 1.00, ivt_weight=1.65, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_click_pressure", family_rank=1, deadband_pct=0.06, label_positive="CLICK_PRESSURE_DOWN", label_negative="CLICK_PRESSURE_UP", requires_source_match=True),
-    MetricRule("request_density", "blended", "quality", "level", "request_density", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.35, 0.75, 1.00, ivt_weight=1.15, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_click_pressure", family_rank=2, deadband_pct=0.06, label_positive="REQUEST_DENSITY_DOWN", label_negative="REQUEST_DENSITY_UP", requires_source_match=True),
-    MetricRule("attention_quality_blended", "blended", "quality", "rate", "viewability", "composite", "UP_GOOD", "PROPORTION_Z", 0.90, 0.80, 1.10, ivt_weight=0.95, volume_gate_column="total_impressions_blended", min_volume=500, denominator_column="total_impressions_blended", family_key="blended_attention", family_rank=1, deadband_pct=0.03, label_positive="ATTENTION_QUALITY_UP", label_negative="ATTENTION_QUALITY_DROP", requires_source_match=True),
-    MetricRule("active_time_blended", "blended", "quality", "level", "attention", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 0.75, 0.80, 1.00, ivt_weight=0.75, volume_gate_column="total_impressions_blended", min_volume=500, family_key="blended_attention", family_rank=2, deadband_pct=0.04, label_positive="ACTIVE_TIME_BLENDED_UP", label_negative="ACTIVE_TIME_BLENDED_DOWN", requires_source_match=True),
-    MetricRule("viewability_gap_abs", "blended", "quality", "level", "source_alignment", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.35, 0.75, 1.00, ivt_weight=0.85, volume_gate_column="total_impressions_blended", min_volume=500, family_key="blended_attention", family_rank=3, deadband_pct=0.05, label_positive="VIEWABILITY_GAP_DOWN", label_negative="VIEWABILITY_GAP_UP", requires_source_match=True),
+    MetricRule("blended_revenue", "blended", "revenue", "counter", "monetization", "composite_primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.95, 0.95, 1.20, adjustment_weight=1.80, ivt_weight=0.55, deadband_pct=0.03, family_key="blended_revenue", family_rank=1, label_positive="BLENDED_REVENUE_UP", label_negative="BLENDED_REVENUE_DROP", requires_source_match=False),
+    MetricRule("revenue_per_lpv", "blended", "yield", "level", "monetization_efficiency", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 1.45, 0.90, 1.15, ivt_weight=1.00, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_efficiency", family_rank=1, deadband_pct=0.05, label_positive="REVENUE_PER_LPV_UP", label_negative="REVENUE_PER_LPV_DOWN", requires_source_match=False),
+    MetricRule("roi_proxy", "blended", "efficiency", "level", "unit_economics", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 1.35, 0.90, 1.15, ivt_weight=0.70, volume_gate_column="meta_spend", min_volume=500, denominator_column="meta_spend", family_key="blended_efficiency", family_rank=2, deadband_pct=0.05, label_positive="ROI_PROXY_UP", label_negative="ROI_PROXY_DOWN", requires_source_match=False),
+    MetricRule("meta_cost_per_lpv", "blended", "efficiency", "level", "acquisition_cost", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 1.00, 0.85, 1.10, ivt_weight=0.45, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_efficiency", family_rank=3, deadband_pct=0.05, label_positive="COST_PER_LPV_DOWN", label_negative="COST_PER_LPV_UP", requires_source_match=False),
+    MetricRule("request_to_impression_eff", "blended", "delivery", "rate", "render_efficiency", "composite", "UP_GOOD", "PROPORTION_Z", 1.25, 0.90, 1.20, ivt_weight=1.10, volume_gate_column="total_requests_blended", min_volume=300, denominator_column="total_requests_blended", numerator_column="total_impressions_blended", family_key="blended_delivery", family_rank=1, deadband_pct=0.03, label_positive="REQUEST_EFFICIENCY_UP", label_negative="REQUEST_EFFICIENCY_DOWN", requires_source_match=False),
+    MetricRule("revenue_per_request_total", "blended", "yield", "level", "request_yield", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 0.75, 0.85, 1.10, ivt_weight=0.90, volume_gate_column="total_requests_blended", min_volume=300, denominator_column="total_requests_blended", family_key="blended_delivery", family_rank=2, deadband_pct=0.05, label_positive="REQUEST_YIELD_UP", label_negative="REQUEST_YIELD_DOWN", requires_source_match=False),
+    MetricRule("click_pressure", "blended", "quality", "level", "click_stress", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.45, 0.75, 1.00, ivt_weight=1.65, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_click_pressure", family_rank=1, deadband_pct=0.06, label_positive="CLICK_PRESSURE_DOWN", label_negative="CLICK_PRESSURE_UP", requires_source_match=False),
+    MetricRule("request_density", "blended", "quality", "level", "request_density", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.35, 0.75, 1.00, ivt_weight=1.15, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_click_pressure", family_rank=2, deadband_pct=0.06, label_positive="REQUEST_DENSITY_DOWN", label_negative="REQUEST_DENSITY_UP", requires_source_match=False),
+    MetricRule("attention_quality_blended", "blended", "quality", "rate", "viewability", "composite", "UP_GOOD", "PROPORTION_Z", 0.90, 0.80, 1.10, ivt_weight=0.95, volume_gate_column="total_impressions_blended", min_volume=500, denominator_column="total_impressions_blended", family_key="blended_attention", family_rank=1, deadband_pct=0.03, label_positive="ATTENTION_QUALITY_UP", label_negative="ATTENTION_QUALITY_DROP", requires_source_match=False),
+    MetricRule("active_time_blended", "blended", "quality", "level", "attention", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 0.75, 0.80, 1.00, ivt_weight=0.75, volume_gate_column="total_impressions_blended", min_volume=500, family_key="blended_attention", family_rank=2, deadband_pct=0.04, label_positive="ACTIVE_TIME_BLENDED_UP", label_negative="ACTIVE_TIME_BLENDED_DOWN", requires_source_match=False),
+    MetricRule("viewability_gap_abs", "blended", "quality", "level", "source_alignment", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.35, 0.75, 1.00, ivt_weight=0.85, volume_gate_column="total_impressions_blended", min_volume=500, family_key="blended_attention", family_rank=3, deadband_pct=0.05, label_positive="VIEWABILITY_GAP_DOWN", label_negative="VIEWABILITY_GAP_UP", requires_source_match=False),
 ]
-
 
 RAW_JOIN_COLUMNS = [
-    "batch_id",
-    "run_time",
-    "run_date",
-    "run_hour",
-    "entity_key",
-    "site",
-    "country_code",
-    "country_name",
-    "date",
-    "mapped_revenue_source",
-    "revenue_value",
-    "join_status",
-    "meta_daily_budget",
-    "meta_spend",
-    "meta_avg_cpc",
-    "meta_clicks",
-    "meta_lpv",
-    "meta_lpv_rate",
-    "meta_frequency",
-    "adsense_estimated_earnings",
-    "adsense_page_views",
-    "adsense_clicks",
-    "adsense_cost_per_click",
-    "adsense_page_views_rpm",
-    "adsense_ad_requests",
-    "adsense_matched_ad_requests",
-    "adsense_impressions",
-    "adsense_ad_requests_coverage",
-    "adsense_active_view_viewability",
-    "adsense_active_view_measurability",
-    "adsense_active_view_time",
-    "adx_revenue",
-    "adx_impressions",
-    "adx_clicks",
-    "adx_avg_ecpm",
-    "adx_cpc",
-    "adx_total_requests",
-    "adx_responses_served",
-    "adx_match_rate",
-    "adx_total_fill_rate",
-    "adx_active_view_pct_viewable",
-    "adx_active_view_avg_time_sec",
+    "batch_id", "domain", "country_cd", "country_nm", "event_date",
+    "account_key", "account_name", "mapped_revenue_source", "revenue_value", "join_status", "master_budget",
+    "data_ads_country_spend", "data_ads_country_cpc", "data_ads_country_clicks", "data_ads_country_lpv", "data_ads_country_lpv_rate", "data_ads_country_frequency",
+    "data_adsense_country_revenue", "data_adsense_country_estimated_earnings", "data_adsense_country_page_views", "data_adsense_country_clicks",
+    "data_adsense_country_cost_per_click", "data_adsense_country_page_views_rpm", "data_adsense_country_ad_requests",
+    "data_adsense_country_matched_ad_requests", "data_adsense_country_impressions", "data_adsense_country_ad_requests_coverage",
+    "data_adsense_country_active_view_viewability", "data_adsense_country_active_view_measurability", "data_adsense_country_active_view_time",
+    "data_adx_country_revenue", "data_adx_country_impressions", "data_adx_country_clicks", "adxdata_adx_country_clicks",
+    "data_adx_country_avg_ecpm", "data_adx_country_cpc", "data_adx_country_total_requests", "data_adx_country_responses_served",
+    "data_adx_country_match_rate", "data_adx_country_total_fill_rate", "data_adx_country_active_view_pct_viewable", "data_adx_country_active_view_avg_time_sec",
 ]
+
+RAW_CANONICAL_ALIASES = {
+    "meta_spend": ("meta_spend", "data_ads_country_spend"),
+    "meta_avg_cpc": ("meta_avg_cpc", "data_ads_country_cpc"),
+    "meta_clicks": ("meta_clicks", "data_ads_country_clicks"),
+    "meta_lpv": ("meta_lpv", "data_ads_country_lpv"),
+    "meta_lpv_rate": ("meta_lpv_rate", "data_ads_country_lpv_rate"),
+    "meta_frequency": ("meta_frequency", "data_ads_country_frequency"),
+    "adsense_estimated_earnings": ("adsense_estimated_earnings", "data_adsense_country_estimated_earnings", "data_adsense_country_revenue"),
+    "adsense_page_views": ("adsense_page_views", "data_adsense_country_page_views"),
+    "adsense_clicks": ("adsense_clicks", "data_adsense_country_clicks"),
+    "adsense_cost_per_click": ("adsense_cost_per_click", "data_adsense_country_cost_per_click"),
+    "adsense_page_views_rpm": ("adsense_page_views_rpm", "data_adsense_country_page_views_rpm"),
+    "adsense_ad_requests": ("adsense_ad_requests", "data_adsense_country_ad_requests"),
+    "adsense_matched_ad_requests": ("adsense_matched_ad_requests", "data_adsense_country_matched_ad_requests"),
+    "adsense_impressions": ("adsense_impressions", "data_adsense_country_impressions"),
+    "adsense_ad_requests_coverage": ("adsense_ad_requests_coverage", "data_adsense_country_ad_requests_coverage"),
+    "adsense_active_view_viewability": ("adsense_active_view_viewability", "data_adsense_country_active_view_viewability"),
+    "adsense_active_view_measurability": ("adsense_active_view_measurability", "data_adsense_country_active_view_measurability"),
+    "adsense_active_view_time": ("adsense_active_view_time", "data_adsense_country_active_view_time"),
+    "adx_revenue": ("adx_revenue", "data_adx_country_revenue"),
+    "adx_impressions": ("adx_impressions", "data_adx_country_impressions"),
+    "adx_clicks": ("adx_clicks", "data_adx_country_clicks", "adxdata_adx_country_clicks"),
+    "adx_avg_ecpm": ("adx_avg_ecpm", "data_adx_country_avg_ecpm"),
+    "adx_cpc": ("adx_cpc", "data_adx_country_cpc"),
+    "adx_total_requests": ("adx_total_requests", "data_adx_country_total_requests"),
+    "adx_responses_served": ("adx_responses_served", "data_adx_country_responses_served"),
+    "adx_match_rate": ("adx_match_rate", "data_adx_country_match_rate"),
+    "adx_total_fill_rate": ("adx_total_fill_rate", "data_adx_country_total_fill_rate"),
+    "adx_active_view_pct_viewable": ("adx_active_view_pct_viewable", "data_adx_country_active_view_pct_viewable"),
+    "adx_active_view_avg_time_sec": ("adx_active_view_avg_time_sec", "data_adx_country_active_view_avg_time_sec"),
+}
 
 RATE_RULE_COLUMNS = {r.column for r in RULES if r.score_method == "PROPORTION_Z"}
 RAW_RATE_COLUMNS = sorted(set(RATE_RULE_COLUMNS) & set(RAW_JOIN_COLUMNS))
@@ -276,19 +302,33 @@ COUNTER_RULES = {r.column for r in RULES if r.score_method == "HOURLY_INCREMENT_
 
 STATUS_COMPAT_COLUMNS = [
     "batch_id",
-    "run_time",
-    "run_date",
-    "run_hour",
     "entity_key",
-    "site",
-    "country_code",
-    "country_name",
-    "date",
+    "domain",
+    "country_cd",
+    "country_nm",
+    "event_date",
+    "account_key",
+    "account_name",
     "mapped_revenue_source",
     "join_status",
     "status_scope",
     "spend",
     "revenue_value",
+    "meta_spend",
+    "meta_ctr",
+    "meta_cpc",
+    "adx_revenue",
+    "adx_impressions",
+    "adx_clicks",
+    "adx_rpm",
+    "adx_fill_rate",
+    "adsense_revenue",
+    "adsense_pageviews",
+    "adsense_clicks",
+    "adsense_ctr",
+    "adsense_page_rpm",
+    "score",
+    "profitability_score",
     "health_score",
     "adjustment_score",
     "confidence",
@@ -305,6 +345,10 @@ STATUS_COMPAT_COLUMNS = [
     "efficiency_score",
     "engagement_score",
     "control_score",
+    "decision",
+    "labels",
+    "revenue_change",
+    "ctr_change",
     "top_positive_labels",
     "top_negative_labels",
     "top_positive_headers",
@@ -335,14 +379,13 @@ STATUS_EXTENDED_COLUMNS = STATUS_COMPAT_COLUMNS + [
 
 EVENT_COMPAT_COLUMNS = [
     "batch_id",
-    "run_time",
-    "run_date",
-    "run_hour",
     "entity_key",
-    "site",
-    "country_code",
-    "country_name",
-    "date",
+    "domain",
+    "country_cd",
+    "country_nm",
+    "event_date",
+    "account_key",
+    "account_name",
     "mapped_revenue_source",
     "join_status",
     "source_scope",
@@ -397,6 +440,131 @@ BASELINE_CONFIDENCE = {
     "NO_HISTORY": 0.35,
 }
 
+# ...existing code...
+def _json_safe_value(value):
+    if value is None:
+        return None
+
+    if isinstance(value, pd.Timestamp):
+        if pd.isna(value):
+            return None
+        return value.isoformat()
+
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+
+    if isinstance(value, dict):
+        return {str(k): _json_safe_value(v) for k, v in value.items()}
+
+    if isinstance(value, (list, tuple, set)):
+        return [_json_safe_value(v) for v in value]
+
+    try:
+        import numpy as np
+        if isinstance(value, np.ndarray):
+            return [_json_safe_value(v) for v in value.tolist()]
+        if isinstance(value, np.generic):
+            value = value.item()
+    except Exception:
+        pass
+
+    try:
+        if pd.isna(value):
+            return None
+    except Exception:
+        pass
+
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return None
+
+    return value
+
+def _json_safe_records(df: pd.DataFrame) -> list[dict]:
+    if df is None or df.empty:
+        return []
+    out = df.copy()
+    out = out.astype(object)
+    return [
+        {k: _json_safe_value(v) for k, v in row.items()}
+        for row in out.to_dict("records")
+    ]
+# ...existing code...
+
+# ...existing code...
+def _safe_text(value) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple, set)):
+        return "; ".join([_safe_text(v) for v in value if _safe_text(v)])
+    try:
+        if pd.isna(value):
+            return ""
+    except Exception:
+        pass
+    return str(value).strip()
+
+def _safe_label_values(values) -> list[str]:
+    if values is None:
+        return []
+    if isinstance(values, pd.DataFrame):
+        values = values.values.flatten().tolist()
+    elif isinstance(values, pd.Series):
+        values = values.tolist()
+    elif not isinstance(values, (list, tuple, set)):
+        values = [values]
+    out = []
+    for value in values:
+        text = _safe_text(value)
+        if text:
+            out.append(text)
+    return out
+
+
+def _pick_top_labels_from_values(values, top_n=3) -> list[str]:
+    labels = _safe_label_values(values)
+    if not labels:
+        return []
+    counts = Counter(labels)
+    return [label for label, _ in counts.most_common(max(1, int(top_n or 3)))]
+
+
+def _safe_scalar(value, default=""):
+    if isinstance(value, pd.DataFrame):
+        if value.empty:
+            return default
+        value = value.iloc[0, 0]
+    elif isinstance(value, pd.Series):
+        values = value.tolist()
+        for item in values:
+            try:
+                if pd.isna(item):
+                    continue
+            except Exception:
+                pass
+            return item
+        return default
+    elif isinstance(value, (list, tuple, set)):
+        for item in value:
+            try:
+                if pd.isna(item):
+                    continue
+            except Exception:
+                pass
+            return item
+        return default
+    try:
+        if pd.isna(value):
+            return default
+    except Exception:
+        pass
+    return value
+# ...existing code...
+
+def _normalize_country_name(country_cd, country_nm):
+    code = "" if pd.isna(country_cd) else str(country_cd).strip()
+    name = "" if pd.isna(country_nm) else str(country_nm).strip()
+    return normalize_country_nm(name or code)
 
 def _sql_date(value: date) -> str:
     return value.isoformat()
@@ -417,6 +585,20 @@ def _normalize_rate_value(value: float) -> float:
     return x
 
 
+def _apply_clickhouse_aliases(df: pd.DataFrame) -> pd.DataFrame:
+    out = df.copy()
+    for canonical, aliases in RAW_CANONICAL_ALIASES.items():
+        if canonical in out.columns:
+            out[canonical] = out[canonical].map(safe_float)
+            continue
+        out[canonical] = 0.0
+        for alias in aliases:
+            if alias in out.columns:
+                out[canonical] = out[alias].map(safe_float)
+                break
+    return out
+
+
 def _day_type_for(value: date | datetime | pd.Timestamp | str | None) -> str:
     if value is None or value == "":
         return "UNKNOWN"
@@ -431,19 +613,74 @@ def _family_rank_factor(rank: int) -> float:
     return 1.0 / math.pow(rank, 0.8)
 
 
+def _get_table_columns(table: str) -> set[str]:
+    cached = TABLE_COLUMNS_CACHE.get(table)
+    if cached is not None:
+        return cached
+    try:
+        desc = query_df(f"DESCRIBE TABLE {table}")
+        cols = {str(x).strip() for x in desc.get("name", pd.Series(dtype=str)).tolist() if str(x).strip()}
+    except Exception:
+        cols = set()
+    TABLE_COLUMNS_CACHE[table] = cols
+    return cols
+
+
+def _prepare_insert_df(table: str, df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
+    if df.empty:
+        return df
+    out = df.copy()
+    table_cols = _get_table_columns(table)
+    now_local = datetime.now(ZoneInfo("Asia/Jakarta")).replace(microsecond=0)
+    fallback_date = now_local.date()
+
+    def pick_row_date(row: pd.Series) -> date:
+        for key in ["event_date"]:
+            value = row.get(key)
+            if value is None or value == "":
+                continue
+            parsed = pd.to_datetime(value, errors="coerce")
+            if pd.notna(parsed):
+                return parsed.date()
+        return fallback_date
+
+    row_dates = out.apply(pick_row_date, axis=1) if len(out) else pd.Series(dtype=object)
+    event_dates = row_dates.tolist() if len(row_dates) else [fallback_date] * len(out)
+    event_times = [datetime.combine(d, now_local.time(), tzinfo=ZoneInfo("Asia/Jakarta")).astimezone(ZoneInfo("UTC")).replace(tzinfo=None) for d in event_dates]
+
+    if not table_cols or "id" in table_cols:
+        out["id"] = [str(uuid.uuid4()) for _ in range(len(out))]
+    if not table_cols or "event_date" in table_cols:
+        out["event_date"] = event_dates
+    if not table_cols or "event_time" in table_cols:
+        out["event_time"] = event_times
+    if not table_cols or "mdd" in table_cols:
+        out["mdd"] = event_times
+    if table == EVENT_TABLE:
+        for target_col, source_col in EVENT_INSERT_ALIASES.items():
+            if source_col in out.columns and (not table_cols or target_col in table_cols):
+                out[target_col] = out[source_col]
+    keep = [c for c in columns if c in out.columns and (not table_cols or c in table_cols)]
+    extra = [c for c in ["id", "event_date", "event_time", "mdd"] if c in out.columns and (not table_cols or c in table_cols)]
+    alias_keep = [c for c in EVENT_INSERT_ALIASES if c in out.columns and (not table_cols or c in table_cols)] if table == EVENT_TABLE else []
+    keep = extra + alias_keep + [c for c in keep if c not in extra and c not in alias_keep]
+    if not keep:
+        raise RuntimeError(f"Tidak ada kolom yang cocok untuk insert ke {table}")
+    return out[keep]
+
+
 def _coerce_insert_df(table: str, df: pd.DataFrame, columns: list[str]) -> None:
     if df.empty:
-        df["is_current_batch"] = False
-        return df
+        return
+    insert_df(table, _prepare_insert_df(table, df, columns))
 
-    keep = [c for c in columns if c in df.columns]
-    insert_df(table, df[keep])
+
+COUNTER_CORRECTION_MIN_MAGNITUDE = 0.85
 
 
 def _counter_drop_magnitude(prev_value: float, increment: float) -> float:
     prev_abs = max(abs(safe_float(prev_value)), 1.0)
     return clip(abs(safe_float(increment)) / prev_abs, 0.0, 1.0)
-
 
 def _mapped_source_mode(mapped_revenue_source: str | None) -> str | None:
     value = str(mapped_revenue_source or "").strip().lower()
@@ -459,12 +696,10 @@ def _mapped_source_mode(mapped_revenue_source: str | None) -> str | None:
         return SOURCE_MODE_ADX_ONLY
     return None
 
-
 def _source_activity_flags(row: pd.Series | dict) -> tuple[bool, bool]:
     adsense_active = any(safe_float(row.get(c)) > 0 for c in ["adsense_estimated_earnings", "adsense_page_views", "adsense_ad_requests", "adsense_impressions"])
     adx_active = any(safe_float(row.get(c)) > 0 for c in ["adx_revenue", "adx_impressions", "adx_total_requests", "adx_responses_served"])
     return adsense_active, adx_active
-
 
 def _infer_source_mode(row: pd.Series | dict) -> str:
     mapped_mode = _mapped_source_mode(row.get("mapped_revenue_source"))
@@ -483,40 +718,20 @@ def _infer_source_mode(row: pd.Series | dict) -> str:
         return SOURCE_MODE_ADX_ONLY
     return mapped_mode or SOURCE_MODE_MIXED
 
-
 def _get_source_mode(row: pd.Series | dict) -> str:
     value = str(row.get("source_mode", "") or "").strip().upper()
     if value in {SOURCE_MODE_ADSENSE_ONLY, SOURCE_MODE_ADX_ONLY, SOURCE_MODE_MIXED}:
         return value
     return _infer_source_mode(row)
 
-
 def _blended_metric_allowed(row: pd.Series | dict, column: str) -> bool:
     mode = _get_source_mode(row)
     return column not in BLENDED_DUPLICATE_COLUMNS_BY_SOURCE_MODE.get(mode, set())
 
 
-# def _source_scope_allowed(row: pd.Series | dict, source_scope: str) -> bool:
-#     mode = _get_source_mode(row)
-#     return source_scope not in SOURCE_SCOPE_BLOCKLIST_BY_SOURCE_MODE.get(mode, set())
-
 def _source_scope_allowed(row: pd.Series | dict, source_scope: str) -> bool:
     mode = _get_source_mode(row)
-    # meta metrics selalu boleh
-    if source_scope == "meta":
-        return True
-    # ADX metrics
-    if source_scope == "adx":
-        return mode in ("ADX_ONLY", "MIXED")
-    # Adsense metrics
-    if source_scope == "adsense":
-        return mode in ("ADSENSE_ONLY", "MIXED")
-    # Blended metrics → hanya kalau dua source aktif
-    if source_scope == "blended":
-        return mode == "MIXED"
-    # unknown scope
-    return False
-
+    return source_scope not in SOURCE_SCOPE_BLOCKLIST_BY_SOURCE_MODE.get(mode, set())
 
 def _filter_history_by_source_mode(samples: pd.DataFrame, row: pd.Series | dict, rule: MetricRule) -> pd.DataFrame:
     if samples.empty or rule.source_scope == "meta" or "source_mode" not in samples.columns:
@@ -526,7 +741,6 @@ def _filter_history_by_source_mode(samples: pd.DataFrame, row: pd.Series | dict,
         return samples
     scoped = samples[samples["source_mode"] == mode].copy()
     return scoped if not scoped.empty else samples
-
 
 def _counter_correction_columns_for_mode(source_mode: str) -> set[str]:
     if source_mode == SOURCE_MODE_ADSENSE_ONLY:
@@ -541,42 +755,197 @@ def _counter_correction_columns_for_mode(source_mode: str) -> set[str]:
         }
     return set(COUNTER_CORRECTION_COLUMNS)
 
-
-def _load_join_history(target_date: date, domain: str, lookback_days: int = 35) -> pd.DataFrame:
-    print(f'hasil_target_date: {target_date}')
-    print(f'hasil_domain: {domain}')
+def _load_join_history(
+    target_date: date,
+    batch_uuid: uuid.UUID,
+    lookback_days: int = 35,
+    domain: str | None = None,
+    country_cd: str | None = None,
+) -> pd.DataFrame:
+    start_date = target_date - pd.Timedelta(days=int(lookback_days))
+    filters = [f"k.event_date >= '{start_date}'", f"k.event_date <= '{target_date}'"]
+    if domain:
+        filters.append(f"SUBSTRING_INDEX(LOWER(TRIM(k.domain)), '.', 2) = '{normalize_domain(domain)}'")
+    if country_cd:
+        filters.append(f"UPPER(k.country_cd) = '{normalize_country_cd(country_cd)}'")
+    where_sql = " AND ".join(filters)
     sql = f"""
-        SELECT *
-        FROM hris_trendHorizone.fact_join_hourly
-        WHERE date >= toDate('{_sql_date(target_date)}') - INTERVAL {int(lookback_days)} DAY
-        AND date <= toDate('{_sql_date(target_date)}')
-        AND site = '{domain}'
-        ORDER BY site, country_code, date, run_hour, run_time
+    SELECT
+        '' AS batch_id,
+        COALESCE(any(a.data_ads_country_tanggal), any(s.data_adsense_country_tanggal), any(x.data_adx_country_tanggal)) AS event_date,
+        CONCAT(SUBSTRING_INDEX(k.domain, '.', 2), '|', UPPER(k.country_cd)) AS entity_key,
+        SUBSTRING_INDEX(k.domain, '.', 2) AS domain,
+        UPPER(k.country_cd) AS country_cd,
+        any(k.country_nm) AS country_nm,
+        k.event_date AS date,
+        '' AS account_key,
+        '' AS account_name,
+        CASE
+            WHEN any(s.data_adsense_country_revenue) IS NOT NULL AND any(x.data_adx_country_revenue) IS NOT NULL THEN 'mixed'
+            WHEN any(s.data_adsense_country_revenue) IS NOT NULL THEN 'adsense'
+            WHEN any(x.data_adx_country_revenue) IS NOT NULL THEN 'adx'
+            ELSE 'unknown'
+        END AS mapped_revenue_source,
+        COALESCE(any(s.data_adsense_country_revenue), 0) + COALESCE(any(x.data_adx_country_revenue), 0) AS revenue_value,
+        CASE
+            WHEN any(a.data_ads_country_id) IS NOT NULL AND any(s.data_adsense_country_id) IS NOT NULL AND any(x.data_adx_country_id) IS NOT NULL THEN 'OK'
+            WHEN any(a.data_ads_country_id) IS NULL AND any(s.data_adsense_country_id) IS NOT NULL THEN 'SOURCE_ONLY_NO_META_ADSENSE'
+            WHEN any(a.data_ads_country_id) IS NULL AND any(x.data_adx_country_id) IS NOT NULL THEN 'SOURCE_ONLY_NO_META_ADX'
+            WHEN any(a.data_ads_country_id) IS NULL AND (any(s.data_adsense_country_id) IS NOT NULL OR any(x.data_adx_country_id) IS NOT NULL) THEN 'SOURCE_ONLY_NO_META'
+            ELSE 'INCOMPLETE'
+        END AS join_status,
+        COALESCE(any(ma.master_budget), 0) AS master_budget,
+        COALESCE(any(a.data_ads_country_spend), 0) AS meta_spend,
+        COALESCE(any(a.data_ads_country_cpc), 0) AS meta_avg_cpc,
+        CASE
+            WHEN COALESCE(any(a.data_ads_country_impresi), 0) > 0
+                THEN (COALESCE(any(a.data_ads_country_click), 0) / COALESCE(any(a.data_ads_country_impresi), 0)) * 100
+            ELSE 0
+        END AS meta_ctr,
+        COALESCE(any(a.data_ads_country_click), 0) AS meta_clicks,
+        COALESCE(any(a.data_ads_country_lpv), 0) AS meta_lpv,
+        COALESCE(any(a.data_ads_country_lpv_rate), 0) AS meta_lpv_rate,
+        COALESCE(any(a.data_ads_country_frekuensi), 0) AS meta_frequency,
+        COALESCE(any(s.data_adsense_country_revenue), 0) AS adsense_estimated_earnings,
+        COALESCE(any(s.data_adsense_country_page_views), 0) AS adsense_page_views,
+        COALESCE(any(s.data_adsense_country_click), 0) AS adsense_clicks,
+        COALESCE(any(s.data_adsense_country_cpc), 0) AS adsense_cost_per_click,
+        COALESCE(any(s.data_adsense_country_ctr), 0) AS adsense_ctr,
+        COALESCE(any(s.data_adsense_country_page_views_rpm), 0) AS adsense_page_views_rpm,
+        COALESCE(any(s.data_adsense_country_ad_requests), 0) AS adsense_ad_requests,
+        COALESCE(any(s.data_adsense_country_ad_requests), 0) AS adsense_matched_ad_requests,
+        COALESCE(any(s.data_adsense_country_impresi), 0) AS adsense_impressions,
+        COALESCE(any(s.data_adsense_country_ad_requests_coverage), 0) AS adsense_ad_requests_coverage,
+        COALESCE(any(s.data_adsense_country_active_view_viewability), 0) AS adsense_active_view_viewability,
+        COALESCE(any(s.data_adsense_country_active_view_measurability), 0) AS adsense_active_view_measurability,
+        COALESCE(any(s.data_adsense_country_active_view_time), 0) AS adsense_active_view_time,
+        COALESCE(any(x.data_adx_country_revenue), 0) AS adx_revenue,
+        COALESCE(any(x.data_adx_country_impresi), 0) AS adx_impressions,
+        COALESCE(any(x.data_adx_country_click), 0) AS adx_clicks,
+        COALESCE(any(x.data_adx_country_ecpm), 0) AS adx_avg_ecpm,
+        COALESCE(any(x.data_adx_country_cpc), 0) AS adx_cpc,
+        COALESCE(any(x.data_adx_country_total_requests), 0) AS adx_total_requests,
+        COALESCE(any(x.data_adx_country_responses_served), 0) AS adx_responses_served,
+        COALESCE(any(x.data_adx_country_match_rate), 0) AS adx_match_rate,
+        COALESCE(any(x.data_adx_country_fill_rate), 0) AS adx_total_fill_rate,
+        COALESCE(any(x.data_adx_country_active_view_pct_viewable), 0) AS adx_active_view_pct_viewable,
+        COALESCE(any(x.data_adx_country_active_view_avg_time_sec), 0) AS adx_active_view_avg_time_sec
+    FROM (
+         SELECT
+            data_ads_country_tanggal AS event_date,
+            TRIM(data_ads_domain) AS domain,
+            data_ads_country_cd AS country_cd,
+            data_ads_country_nm AS country_nm
+        FROM data_ads_country
+        WHERE data_ads_country_tanggal BETWEEN '{start_date}' AND '{target_date}'
+        UNION ALL
+        SELECT
+            data_adsense_country_tanggal AS event_date,
+            TRIM(data_adsense_country_domain) AS domain,
+            data_adsense_country_cd AS country_cd,
+            data_adsense_country_nm AS country_nm
+        FROM data_adsense_country
+        WHERE data_adsense_country_tanggal BETWEEN '{start_date}' AND '{target_date}'
+        UNION ALL
+        SELECT
+            data_adx_country_tanggal AS event_date,
+            TRIM(data_adx_country_domain) AS domain,
+            data_adx_country_cd AS country_cd,
+            data_adx_country_nm AS country_nm
+        FROM data_adx_country
+        WHERE data_adx_country_tanggal BETWEEN '{start_date}' AND '{target_date}'
+    ) k
+    LEFT JOIN data_ads_country a
+        ON a.data_ads_country_tanggal = k.event_date
+       AND SUBSTRING_INDEX(LOWER(TRIM(a.data_ads_domain)), '.', 2) = SUBSTRING_INDEX(LOWER(TRIM(k.domain)), '.', 2)
+       AND a.data_ads_country_cd = k.country_cd
+    LEFT JOIN data_adsense_country s
+        ON s.data_adsense_country_tanggal = k.event_date
+       AND SUBSTRING_INDEX(LOWER(TRIM(s.data_adsense_country_domain)), '.', 2) = SUBSTRING_INDEX(LOWER(TRIM(k.domain)), '.', 2)
+       AND s.data_adsense_country_cd = k.country_cd
+    LEFT JOIN data_adx_country x
+        ON x.data_adx_country_tanggal = k.event_date
+       AND SUBSTRING_INDEX(LOWER(TRIM(x.data_adx_country_domain)), '.', 2) = SUBSTRING_INDEX(LOWER(TRIM(k.domain)), '.', 2)
+       AND x.data_adx_country_cd = k.country_cd
+    LEFT JOIN (
+        SELECT master_domain, MAX(master_date) AS master_date, MAX(master_budget) AS master_budget
+        FROM master_ads
+        GROUP BY master_domain
+    ) ma
+        ON SUBSTRING_INDEX(LOWER(TRIM(ma.master_domain)), '.', 2) = SUBSTRING_INDEX(LOWER(TRIM(k.domain)), '.', 2)
+    WHERE {where_sql}
+    GROUP BY k.domain, k.country_cd, k.event_date
     """
+
     df = query_df(sql)
     if df.empty:
         return df
+
     out = df.copy()
-    out["site"] = out["site"].map(normalize_domain)
-    out["country_code"] = out["country_code"].map(normalize_country_cd)
-    out["country_name"] = [normalize_country_nm(c, n) for c, n in zip(out["country_code"], out["country_name"])]
-    out["entity_key"] = out["entity_key"].astype(str)
-    out["entity_base_key"] = out["site"] + "|" + out["country_code"]
+    if "domain" not in out.columns:
+        out["domain"] = ""
+    if "country_cd" not in out.columns:
+        out["country_cd"] = ""
+    if "country_nm" not in out.columns:
+        out["country_nm"] = ""
+    out["domain"] = out.apply(lambda row: normalize_domain(str(_safe_scalar(row.get("domain", ""), ""))), axis=1)
+    out["country_cd"] = out.apply(lambda row: normalize_country_cd(str(_safe_scalar(row.get("country_cd", ""), ""))), axis=1)
+    out["country_nm"] = out.apply(lambda row: _normalize_country_name(_safe_scalar(row.get("country_cd", ""), ""), _safe_scalar(row.get("country_nm", ""), "")), axis=1)
+    out["entity_key"] = out["domain"] + "|" + out["country_cd"]
+    out["entity_base_key"] = out["entity_key"]
+    out["source_mode"] = out.apply(_infer_source_mode, axis=1)
     out["batch_id"] = out["batch_id"].astype(str)
-    out["run_time"] = pd.to_datetime(out["run_time"], utc=True, errors="coerce")
-    out["run_date"] = pd.to_datetime(out["run_date"], errors="coerce").dt.date
-    out["date"] = pd.to_datetime(out["date"], errors="coerce").dt.date
-    out["day_type"] = out["date"].map(_day_type_for)
-    out = out.sort_values(["entity_key", "date", "run_hour", "run_time", "batch_id"]).drop_duplicates(subset=["entity_key", "date", "run_hour"], keep="last")
-    for col in RAW_JOIN_COLUMNS + ["revenue_value"]:
-        if col in out.columns:
-            out[col] = out[col].map(safe_float) if col not in {"batch_id", "run_time", "run_date", "entity_key", "site", "country_code", "country_name", "date", "mapped_revenue_source", "join_status"} else out[col]
-        else:
+    run_dt = pd.to_datetime(out["event_date"], errors="coerce")
+    out["event_date"] = run_dt.dt.date
+    if "run_hour" in out.columns:
+        out["run_hour"] = pd.to_numeric(out["run_hour"], errors="coerce")
+    else:
+        out["run_hour"] = run_dt.dt.hour
+    out["run_hour"] = out["run_hour"].fillna(23).clip(lower=0, upper=23).astype(int)
+    out["day_type"] = out["event_date"].map(_day_type_for)
+    numeric_cols = [
+        "revenue_value",
+        "master_budget",
+        "meta_spend",
+        "meta_avg_cpc",
+        "meta_ctr",
+        "meta_clicks",
+        "meta_lpv",
+        "meta_lpv_rate",
+        "meta_frequency",
+        "adsense_estimated_earnings",
+        "adsense_page_views",
+        "adsense_clicks",
+        "adsense_ctr",
+        "adsense_cost_per_click",
+        "adsense_page_views_rpm",
+        "adsense_ad_requests",
+        "adsense_matched_ad_requests",
+        "adsense_impressions",
+        "adsense_ad_requests_coverage",
+        "adsense_active_view_viewability",
+        "adsense_active_view_measurability",
+        "adsense_active_view_time",
+        "adx_revenue",
+        "adx_impressions",
+        "adx_clicks",
+        "adx_avg_ecpm",
+        "adx_cpc",
+        "adx_total_requests",
+        "adx_responses_served",
+        "adx_match_rate",
+        "adx_total_fill_rate",
+        "adx_active_view_pct_viewable",
+        "adx_active_view_avg_time_sec",
+    ]
+
+    for col in numeric_cols:
+        if col not in out.columns:
             out[col] = 0.0
-    for col in RAW_RATE_COLUMNS:
-        out[col] = out[col].map(_normalize_rate_value)
+        out[col] = out[col].map(safe_float)
+
     out = _compute_derived_features(out)
-    out = out.sort_values(["entity_key", "date", "run_hour"]).reset_index(drop=True)
+    out = out.sort_values(["entity_key", "event_date", "run_hour"]).reset_index(drop=True)
     grouped = out.groupby("entity_key", sort=False)
     extra_cols = {}
 
@@ -586,7 +955,7 @@ def _load_join_history(target_date: date, domain: str, lookback_days: int = 35) 
         extra_cols[f"delta__{col}"] = out[col] - prev_series.fillna(0.0)
 
     out = pd.concat([out, pd.DataFrame(extra_cols, index=out.index)], axis=1).copy()
-    out["is_current_batch"] = out["date"].eq(target_date)
+    out["is_current_batch"] = out["event_date"].eq(target_date)
     return out
 
 
@@ -677,23 +1046,23 @@ def _compute_derived_features(df: pd.DataFrame) -> pd.DataFrame:
 def _load_recent_status_history(target_date: date, lookback_days: int = 7) -> pd.DataFrame:
     sql_candidates = [
         f"""
-        SELECT batch_id, run_time, run_date, run_hour, entity_key, site, country_code, date,
+        SELECT batch_id, entity_key, domain, country_cd, event_date,
                health_score, adjustment_score, ivt_risk_score, confidence,
                final_label, root_cause_label,
                positive_streak, negative_streak, adjustment_streak, ivt_streak
         FROM {STATUS_TABLE}
-        WHERE date >= toDate('{_sql_date(target_date)}') - INTERVAL {int(lookback_days)} DAY
-          AND date <= toDate('{_sql_date(target_date)}')
-        ORDER BY site, country_code, date, run_hour, run_time
+        WHERE event_date >= toDate('{_sql_date(target_date)}') - INTERVAL {int(lookback_days)} DAY
+        AND event_date <= toDate('{_sql_date(target_date)}')
+        ORDER BY domain, country_cd, event_date
         """,
         f"""
-        SELECT batch_id, run_time, run_date, run_hour, entity_key, site, country_code, date,
+        SELECT batch_id, entity_key, domain, country_cd, event_date,
                health_score, adjustment_score, confidence,
                final_label, root_cause_label
         FROM {STATUS_TABLE}
-        WHERE date >= toDate('{_sql_date(target_date)}') - INTERVAL {int(lookback_days)} DAY
-          AND date <= toDate('{_sql_date(target_date)}')
-        ORDER BY site, country_code, date, run_hour, run_time
+        WHERE event_date >= toDate('{_sql_date(target_date)}') - INTERVAL {int(lookback_days)} DAY
+        AND event_date <= toDate('{_sql_date(target_date)}')
+        ORDER BY domain, country_cd, event_date
         """,
     ]
     df = pd.DataFrame()
@@ -704,22 +1073,23 @@ def _load_recent_status_history(target_date: date, lookback_days: int = 7) -> pd
         except Exception:
             continue
     if df.empty:
-        df["is_current_batch"] = False
         return df
-
     out = df.copy()
-    out["site"] = out["site"].map(normalize_domain)
-    out["country_code"] = out["country_code"].map(normalize_country_cd)
-    out["entity_base_key"] = out["site"] + "|" + out["country_code"]
-    out["run_time"] = pd.to_datetime(out["run_time"], utc=True, errors="coerce")
-    out["date"] = pd.to_datetime(out["date"], errors="coerce").dt.date
-    out["run_hour"] = out["run_hour"].map(lambda x: int(safe_float(x)))
+    out["domain"] = out["domain"].map(normalize_domain)
+    out["country_cd"] = out["country_cd"].map(normalize_country_cd)
+    out["entity_base_key"] = out["domain"] + "|" + out["country_cd"]
+    out["event_date"] = pd.to_datetime(out["event_date"], errors="coerce").dt.date
     for col in ["health_score", "adjustment_score", "ivt_risk_score", "confidence", "positive_streak", "negative_streak", "adjustment_streak", "ivt_streak"]:
         if col not in out.columns:
             out[col] = 0.0
         out[col] = out[col].map(safe_float)
-    out["final_label"] = out.get("final_label", "").astype(str)
-    out["root_cause_label"] = out.get("root_cause_label", "").astype(str)
+    if "final_label" not in out.columns:
+        out["final_label"] = ""
+    if "root_cause_label" not in out.columns:
+        out["root_cause_label"] = ""
+
+    out["final_label"] = out["final_label"].map(_safe_text)
+    out["root_cause_label"] = out["root_cause_label"].map(_safe_text)
     return out
 
 
@@ -735,7 +1105,6 @@ def _source_has_activity(row: pd.Series, source_scope: str) -> bool:
     if source_scope == "blended":
         return any(safe_float(row.get(c)) > 0 for c in ["meta_lpv", "meta_spend", "adsense_estimated_earnings", "adx_revenue", "total_requests_blended", "total_impressions_blended"])
     return False
-
 
 def _select_window(samples: pd.DataFrame, current_day: date, rule: MetricRule, current_day_type: str, scope_label: str) -> tuple[pd.DataFrame, str]:
     if samples.empty:
@@ -759,11 +1128,11 @@ def _select_window(samples: pd.DataFrame, current_day: date, rule: MetricRule, c
     min_points = max(3, int(rule.min_history_points))
     for part, label in candidates:
         if len(part) >= min_points:
-            return part.sort_values(["date", "run_hour", "run_time"]), label
+            return part.sort_values(["event_date"]), label
     non_empty = [(part, label) for part, label in candidates if not part.empty]
     if non_empty:
         part, label = max(non_empty, key=lambda x: len(x[0]))
-        return part.sort_values(["date", "run_hour", "run_time"]), label
+        return part.sort_values(["event_date"]), label
     return tmp, "NO_HISTORY"
 
 
@@ -778,7 +1147,7 @@ def _level_baseline(samples: pd.DataFrame, rule: MetricRule) -> tuple[float, flo
         center = weighted_mean(values, weights)
     else:
         center = robust_median(values)
-    scale = robust_scale(values, center)
+    scale = robust_scale(center, values)
     floor = max(abs(center) * rule.deadband_pct, rule.deadband_abs, 1e-6)
     scale = max(scale, floor)
     return center, scale, len(values)
@@ -789,11 +1158,10 @@ def _counter_baseline(samples: pd.DataFrame, rule: MetricRule) -> tuple[float, f
         return 0.0, max(rule.deadband_abs, 1e-6), 0
     values = samples[f"delta__{rule.column}"].astype(float).tolist()
     center = robust_median(values)
-    scale = robust_scale(values, center)
+    scale = robust_scale(center, values)
     floor = max(abs(center) * rule.deadband_pct, rule.deadband_abs, 1e-6)
     scale = max(scale, floor)
     return center, scale, len(values)
-
 
 def _band_range(samples: pd.DataFrame, rule: MetricRule) -> tuple[float, float, float, float, int]:
     values: list[float] = []
@@ -811,7 +1179,7 @@ def _band_range(samples: pd.DataFrame, rule: MetricRule) -> tuple[float, float, 
     if rule.band_dynamic and hist_points >= max(3, rule.min_history_points // 2):
         series = pd.Series(values, dtype=float)
         center = robust_median(values)
-        scale = robust_scale(values, center)
+        scale = robust_scale(center, values)
         q_low = float(series.quantile(rule.band_quantile_low))
         q_high = float(series.quantile(rule.band_quantile_high))
         min_half_width = max(min_half_width, abs(center) * rule.band_min_width_pct)
@@ -846,7 +1214,6 @@ def _band_range(samples: pd.DataFrame, rule: MetricRule) -> tuple[float, float, 
     high = center + width
     return low, high, center, width, hist_points
 
-
 def _band_distance(value: float, low: float, high: float, center: float, width: float) -> float:
     val = safe_float(value)
     band_width = max(width, 1e-6)
@@ -863,7 +1230,6 @@ def _band_absolute_component(distance: float) -> float:
         return 0.18 * (1.0 - (dist / 0.25))
     return -clip((dist - 0.25) / 0.75, 0.0, 1.0)
 
-
 def _freshness_confidence_factor(cur: pd.Series, rule: MetricRule) -> float:
     if not rule.provisional_metric:
         return 1.0
@@ -879,23 +1245,20 @@ def _freshness_confidence_factor(cur: pd.Series, rule: MetricRule) -> float:
     progress = clip(hours_old / full_hours, 0.0, 1.0)
     return floor + ((1.0 - floor) * progress)
 
-
 def _event_template(cur: pd.Series, rule: MetricRule, batch_uuid: uuid.UUID) -> dict:
+    source_mode = _get_source_mode(cur)
     return {
         "batch_id": str(batch_uuid),
-        # ✅ TAMBAHKAN INI
-        "family_key": rule.family_key or rule.column,
-        "run_time": cur["run_time"].to_pydatetime() if hasattr(cur["run_time"], "to_pydatetime") else cur["run_time"],
-        "run_date": cur["run_date"],
-        "run_hour": int(cur["run_hour"]),
         "entity_key": cur["entity_key"],
-        "site": cur["site"],
-        "country_code": cur["country_code"],
-        "country_name": cur["country_name"],
-        "date": cur["date"],
+        "domain": cur["domain"],
+        "country_cd": cur["country_cd"],
+        "country_nm": cur["country_nm"],
+        "event_date": cur["event_date"],
+        "account_key": cur.get("account_key", ""),
+        "account_name": cur.get("account_name", ""),
         "mapped_revenue_source": cur.get("mapped_revenue_source", ""),
         "join_status": cur.get("join_status", ""),
-        "source_mode": _get_source_mode(cur),
+        "source_mode": source_mode,
         "source_scope": rule.source_scope,
         "header_name": rule.column,
         "metric_group": rule.metric_group,
@@ -933,6 +1296,7 @@ def _event_template(cur: pd.Series, rule: MetricRule, batch_uuid: uuid.UUID) -> 
         "note": "",
     }
 
+
 def _evaluate_rule(cur: pd.Series, same_hour: pd.DataFrame, all_hours: pd.DataFrame, rule: MetricRule, batch_uuid: uuid.UUID) -> dict:
     event = _event_template(cur, rule, batch_uuid)
     cur_value = event["cur_value"]
@@ -941,6 +1305,7 @@ def _evaluate_rule(cur: pd.Series, same_hour: pd.DataFrame, all_hours: pd.DataFr
     prev_is_missing = pd.isna(raw_prev_value)
     event["delta_abs"] = cur_value - prev_value
     event["delta_pct"] = safe_pct_change(cur_value, prev_value)
+
     if not _source_scope_allowed(cur, rule.source_scope):
         event["event_reason"] = "SOURCE_SCOPE_DISABLED_BY_MODE"
         event["note"] = f"source_mode={event['source_mode']}"
@@ -972,9 +1337,10 @@ def _evaluate_rule(cur: pd.Series, same_hour: pd.DataFrame, all_hours: pd.DataFr
 
     same_hour_scoped = _filter_history_by_source_mode(same_hour, cur, rule)
     all_hours_scoped = _filter_history_by_source_mode(all_hours, cur, rule)
-    selected, baseline_source = _select_window(same_hour_scoped, cur["date"], rule, cur.get("day_type", "UNKNOWN"), "SITE_SAME_HOUR")
+    selected, baseline_source = _select_window(same_hour_scoped, cur["event_date"], rule, cur.get("day_type", "UNKNOWN"), "SITE_SAME_HOUR")
     if len(selected) < max(3, rule.min_history_points // 2):
-        selected, baseline_source = _select_window(all_hours_scoped, cur["date"], rule, cur.get("day_type", "UNKNOWN"), "SITE_ALL_HOURS")
+        selected, baseline_source = _select_window(all_hours_scoped, cur["event_date"], rule, cur.get("day_type", "UNKNOWN"), "SITE_ALL_HOURS")
+
     family_factor = _family_rank_factor(rule.family_rank)
     join_status = str(cur.get("join_status"))
     join_conf = 1.0 if join_status == "OK" else 0.75 if join_status.startswith("SOURCE_ONLY_NO_META") else 0.25
@@ -1034,7 +1400,6 @@ def _evaluate_rule(cur: pd.Series, same_hour: pd.DataFrame, all_hours: pd.DataFr
         return event
 
     if rule.score_method == "HOURLY_INCREMENT_Z":
-        print(f"[DEBUG] Raw rule: {rule}")
         center, scale, hist_points = _counter_baseline(selected, rule)
         raw_delta = event["current_increment"] - center
         deadband = max(abs(center) * rule.deadband_pct, rule.deadband_abs, 1e-6)
@@ -1083,38 +1448,12 @@ def _evaluate_rule(cur: pd.Series, same_hour: pd.DataFrame, all_hours: pd.DataFr
     event["ivt_capacity"] = rule.ivt_weight * event["confidence"] * family_factor
     event["ivt_component"] = max(0.0, -signal_strength) * event["ivt_capacity"]
 
-    # if rule.adjustment_weight > 0 and rule.column in COUNTER_CORRECTION_COLUMNS and event["current_increment"] < 0 and safe_float(prev_value) > 0:
-    # if (
-    #     rule.adjustment_weight > 0
-    #     and rule.column in COUNTER_CORRECTION_COLUMNS
-    #     and event["current_increment"] < 0
-    #     and safe_float(prev_value) > 0
-    #     and _source_scope_allowed(cur, rule.source_scope)
-    #     and (
-    #         not rule.requires_source_match
-    #         or _source_has_activity(cur, rule.source_scope)
-    #     )
-    # ):
-    if (
-        rule.adjustment_weight > 0
-        and rule.column in COUNTER_CORRECTION_COLUMNS
-        and event["change_class"] == "NEGATIVE"   # ⭐ WAJIB
-        and event["event_reason"] not in {
-            "WITHIN_DEADBAND",
-            "LOW_VOLUME_GATE",
-            "SOURCE_SCOPE_SKIPPED",
-        }
-        and event["current_increment"] < 0
-        and safe_float(prev_value) > 0
-    ):
-        magnitude = max(abs(signal_strength), _counter_drop_magnitude(prev_value, event["current_increment"]))
-        event["adjustment_component"] = -magnitude * rule.adjustment_weight * event["confidence"] * family_factor
-        event["adjustment_capacity"] = (
-            rule.adjustment_weight
-            * event["confidence"]
-            * family_factor
-        )
-        event["ivt_component"] += magnitude * 0.55 * event["ivt_capacity"]
+    if rule.adjustment_weight > 0 and rule.column in COUNTER_CORRECTION_COLUMNS and event["current_increment"] < 0 and safe_float(prev_value) > 0:
+        counter_drop = _counter_drop_magnitude(prev_value, event["current_increment"])
+        if counter_drop >= COUNTER_CORRECTION_MIN_MAGNITUDE:
+            magnitude = max(abs(signal_strength), counter_drop)
+            event["adjustment_component"] = -magnitude * rule.adjustment_weight * event["confidence"] * family_factor
+            event["ivt_component"] += magnitude * 0.55 * event["ivt_capacity"]
 
     if signal_strength > 0.02:
         event["change_class"] = "POSITIVE"
@@ -1137,7 +1476,6 @@ def _evaluate_rule(cur: pd.Series, same_hour: pd.DataFrame, all_hours: pd.DataFr
     event["note"] = ";".join(note_parts)
     return event
 
-
 def _signal_lookup(events: list[dict], header_name: str) -> dict:
     hits = [e for e in events if e["header_name"] == header_name and e["change_class"] != "SKIPPED"]
     if not hits:
@@ -1149,17 +1487,15 @@ def _signal_lookup(events: list[dict], header_name: str) -> dict:
 def _composite_event_template(cur: pd.Series, batch_uuid: uuid.UUID, header_name: str, source_scope: str, metric_group: str, funnel_stage: str, metric_role: str, expected_direction: str) -> dict:
     return {
         "batch_id": str(batch_uuid),
-        "run_time": cur["run_time"].to_pydatetime() if hasattr(cur["run_time"], "to_pydatetime") else cur["run_time"],
-        "run_date": cur["run_date"],
-        "run_hour": int(cur["run_hour"]),
         "entity_key": cur["entity_key"],
-        "site": cur["site"],
-        "country_code": cur["country_code"],
-        "country_name": cur["country_name"],
-        "date": cur["date"],
+        "domain": cur["domain"],
+        "country_cd": cur["country_cd"],
+        "country_nm": cur["country_nm"],
+        "event_date": cur["event_date"],
+        "account_key": cur.get("account_key", ""),
+        "account_name": cur.get("account_name", ""),
         "mapped_revenue_source": cur.get("mapped_revenue_source", ""),
         "join_status": cur.get("join_status", ""),
-        "source_mode": _get_source_mode(cur),
         "source_scope": source_scope,
         "header_name": header_name,
         "metric_group": metric_group,
@@ -1196,7 +1532,6 @@ def _composite_event_template(cur: pd.Series, batch_uuid: uuid.UUID, header_name
         "is_composite": 1,
         "note": "",
     }
-
 
 def _avg_conf(*events: dict) -> float:
     vals = [safe_float(e.get("confidence")) for e in events if e]
@@ -1374,7 +1709,7 @@ def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uui
         current_increment = safe_float(cur.get(f"delta__{col}"))
         if prev_value > 0 and current_increment < 0:
             magnitude = _counter_drop_magnitude(prev_value, current_increment)
-            if magnitude >= 0.01:
+            if magnitude >= COUNTER_CORRECTION_MIN_MAGNITUDE:
                 correction_details.append(f"{col}:{current_increment:.4f}")
                 correction_severity += magnitude
     if correction_details:
@@ -1485,12 +1820,10 @@ def _compute_persistence(cur: pd.Series, recent_status_df: pd.DataFrame) -> dict
             "label": "NONE",
         }
 
-    current_ts = pd.to_datetime(cur["run_time"], utc=True, errors="coerce")
-    same_entity = same_entity[(same_entity["run_time"] < current_ts) | (same_entity["date"] < cur["date"])]
-    same_hour = same_entity[same_entity["run_hour"] == int(cur["run_hour"])]
-    recent = same_hour.sort_values(["date", "run_hour", "run_time"], ascending=False).head(4)
+    same_entity = same_entity[(same_entity["event_date"] < cur["event_date"])]
+    recent = same_entity.sort_values(["event_date"], ascending=False).head(4)
     if recent.empty:
-        recent = same_entity.sort_values(["date", "run_hour", "run_time"], ascending=False).head(4)
+        recent = same_entity.sort_values(["event_date"], ascending=False).head(4)
 
     records = recent.to_dict("records")
     positive_streak = _rolling_streak(records, lambda r: safe_float(r.get("health_score")) >= 15 or str(r.get("final_label", "")) in POSITIVE_ROOT_LABELS)
@@ -1538,6 +1871,58 @@ def _group_risk_score(events: list[dict], group_name: str) -> float:
     return clip(100.0 * numerator / denominator, 0.0, 100.0)
 
 
+def _derive_decision_margin(health_score: float, ivt_risk_score: float, adjustment_score: float) -> float:
+    return float(health_score - ivt_risk_score + min(0.0, adjustment_score))
+
+
+def _derive_adjustment_score(events: list[dict], health_den: float) -> float:
+    adjustment_burden = sum(max(-safe_float(e.get("adjustment_component")), 0.0) for e in events)
+    signal_den = max(safe_float(health_den) + adjustment_burden, 0.0)
+    if signal_den <= 0:
+        return 0.0
+    return float(-clip(100.0 * adjustment_burden / signal_den, 0.0, 100.0))
+
+
+def _derive_status_score(status: dict) -> int:
+    health = safe_float(status.get("health_score"))
+    risk = safe_float(status.get("ivt_risk_score"))
+    confidence = clip(safe_float(status.get("confidence")), 0.0, 1.0)
+    decision_margin = safe_float(status.get("decision_margin"))
+    score = (((health + 100.0) / 2.0) * 0.45) + ((100.0 - risk) * 0.2) + ((confidence * 100.0) * 0.15) + (clip(decision_margin + 50.0, 0.0, 100.0) * 0.2)
+    return int(round(clip(score, 0.0, 100.0)))
+
+
+def derive_decision(score: float, label: str, health_score: float, ivt_risk_score: float, adjustment_score: float, decision_margin: float, confidence: float) -> tuple[str, str]:
+    score_value = clip(safe_float(score), 0.0, 100.0)
+    label_key = str(label or "STABLE").upper()
+    health = safe_float(health_score)
+    risk = safe_float(ivt_risk_score)
+    adjustment = safe_float(adjustment_score)
+    margin = safe_float(decision_margin)
+    conf = clip(safe_float(confidence), 0.0, 1.0)
+    severe_stop = label_key.startswith("RED_FLAG") or (risk >= 85 and conf >= 0.55 and score_value < 45) or (margin <= -55 and health <= -18 and conf >= 0.55)
+    if severe_stop:
+        decision = "STOP"
+    elif (label_key in POSITIVE_ROOT_LABELS or label_key == "WATCH_POSITIVE") and score_value >= 65 and risk < 55 and margin >= 8 and conf >= 0.5:
+        decision = "SCALE UP"
+    elif (label_key in NEGATIVE_ROOT_LABELS or label_key in {"WATCH_NEGATIVE", "WATCH_DECAY"}) and (score_value < 60 or margin < -8 or health < -8 or adjustment < -15):
+        decision = "SCALE DOWN"
+    elif score_value >= 75 and risk < 45 and margin >= 12 and conf >= 0.55:
+        decision = "SCALE UP"
+    elif score_value < 45 and (margin < -8 or health < -10 or adjustment < -20 or risk >= 65):
+        decision = "SCALE DOWN"
+    else:
+        decision = "HOLD"
+    basis = f"decision={decision}; score={score_value:.0f}; label={label_key}; risk={risk:.1f}; margin={margin:.1f}; conf={conf * 100:.0f}%"
+    return decision, basis
+
+
+def _derive_status_decision(status: dict) -> str:
+    score = safe_float(status.get("score")) or _derive_status_score(status)
+    decision, _ = derive_decision(score, status.get("final_label") or status.get("root_cause_label"), status.get("health_score"), status.get("ivt_risk_score"), status.get("adjustment_score"), status.get("decision_margin"), status.get("confidence"))
+    return decision
+
+
 def _root_cause_label(status: dict) -> str:
     if status["join_status"] not in SCORABLE_JOIN_STATUSES and status["negative_signal_count"] == 0 and status["positive_signal_count"] == 0:
         return "DATA_INCOMPLETE"
@@ -1551,7 +1936,9 @@ def _root_cause_label(status: dict) -> str:
         }
         label, value = max(ivt_groups.items(), key=lambda x: x[1])
         return label if value >= 45 else "RED_FLAG_IVT"
-    if status["adjustment_drop_count"] >= 2 and status["adjustment_score"] <= -35:
+    total_signal_count = max(status["positive_signal_count"] + status["negative_signal_count"] + status["neutral_signal_count"], 1)
+    adjustment_share = safe_float(status["adjustment_drop_count"]) / total_signal_count
+    if status["adjustment_drop_count"] >= 3 and adjustment_share >= 0.35 and status["adjustment_score"] <= -45:
         return "NEG_ADJUSTMENT"
     if status["health_score"] >= 18 and status["ivt_risk_score"] < 35 and status["positive_signal_count"] >= status["negative_signal_count"]:
         return "POSITIVE_EXPANSION"
@@ -1593,11 +1980,8 @@ def _apply_hysteresis(root_label: str, status: dict, persistence: dict) -> tuple
         return "WATCH_POSITIVE", 1
     return final_label, hysteresis_applied
 
-def _clamp_score(x):
-    return max(0.0, min(100.0, float(x)))
 
 def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.UUID, persistence: dict) -> dict:
-    print(f"[DEBUG] Raw events: {events}")
     positive = [e for e in events if e["change_class"] == "POSITIVE"]
     negative = [e for e in events if e["change_class"] == "NEGATIVE"]
     neutral = [e for e in events if e["change_class"] == "NEUTRAL"]
@@ -1605,84 +1989,56 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
     composite_positive = [e for e in positive if int(safe_float(e.get("is_composite"))) == 1]
     composite_negative = [e for e in negative if int(safe_float(e.get("is_composite"))) == 1]
 
-    # adjustment_num = sum(safe_float(e["adjustment_component"]) for e in events)
-    # adjustment_den = sum(abs(safe_float(e["adjustment_component"])) for e in events if abs(safe_float(e["adjustment_component"])) > 0)
-    adjustment_num = sum(
-        safe_float(e.get("adjustment_component", 0))
-        for e in events
-        if e["change_class"] != "SKIPPED"
-    )
-
-    adjustment_den = sum(
-        safe_float(e.get("adjustment_capacity", 0))
-        for e in events
-        if e["change_class"] != "SKIPPED"
-    )
+    health_num = sum(safe_float(e["health_component"]) for e in events)
+    health_den = sum(max(abs(safe_float(e["health_component"])), 0.0) for e in events if e["change_class"] in {"POSITIVE", "NEGATIVE", "NEUTRAL"})
     ivt_num = sum(max(0.0, safe_float(e.get("ivt_component"))) for e in events)
     ivt_den = sum(max(safe_float(e.get("ivt_capacity")), 0.0) for e in events if safe_float(e.get("ivt_capacity")) > 0)
     confidence = sum(safe_float(e["confidence"]) for e in events if e["change_class"] != "SKIPPED") / max(len([e for e in events if e["change_class"] != "SKIPPED"]), 1)
-    family_scores = defaultdict(list)  
-    for e in events:
-        # family_scores[e["family_key"]].append(e)
-        family_key = e.get("family_key") or e.get("rule_key") or "unknown"
-        family_scores[family_key].append(e)
-    family_health = {}
-    for family, evts in family_scores.items():
-        num = sum(e["health_component"] for e in evts)
-        den = sum(abs(e["health_component"]) for e in evts)
-        family_health[family] = num / den if den > 0 else 0
-    if not family_health:
-        health_score = persistence.get("health_score", 50.0)
-    else:
-        health_score = 100 * sum(family_health.values()) / len(family_health)
-    health_score = 100 * sum(family_health.values()) / max(len(family_health), 1)
-    # ⭐ TAMBAHKAN
-    health_score = max(0.0, min(100.0, health_score))
-    prev_health = persistence.get("health_score", health_score)
-    prev_health = persistence.get("health_score", 50.0)
-    health_score = 0.7 * prev_health + 0.3 * health_score
-    # ⭐ WAJIB ADA
-    health_score = max(0.0, min(100.0, health_score))
-    health_score = _clamp_score(health_score)
-    # health_num = sum(safe_float(e["health_component"]) for e in events)
-    # health_den = sum(max(abs(safe_float(e["health_component"])), 0.0) for e in events if e["change_class"] in {"POSITIVE", "NEGATIVE", "NEUTRAL"})
-    # health_score = 100.0 * health_num / health_den if health_den > 0 else 0.0
-    
-    adjustment_score = (
-        100.0 * adjustment_num / adjustment_den
-        if adjustment_den > 0
-        else 0.0
-    ) if adjustment_den > 0 else 0.0
+
+    health_score = 100.0 * health_num / health_den if health_den > 0 else 0.0
+    adjustment_score = _derive_adjustment_score(events, health_den)
     ivt_risk_score = clip(100.0 * ivt_num / ivt_den, 0.0, 100.0) if ivt_den > 0 else 0.0
+    current_blended_ctr = _safe_div(safe_float(cur.get("total_clicks_blended")), safe_float(cur.get("total_impressions_blended")), 0.0) * 100.0
+    prev_blended_ctr = _safe_div(safe_float(cur.get("prev__total_clicks_blended")), safe_float(cur.get("prev__total_impressions_blended")), 0.0) * 100.0
 
     status = {
         "batch_id": str(batch_uuid),
-        "run_time": cur["run_time"].to_pydatetime() if hasattr(cur["run_time"], "to_pydatetime") else cur["run_time"],
-        "run_date": cur["run_date"],
-        "run_hour": int(cur["run_hour"]),
         "entity_key": cur["entity_key"],
-        "site": cur["site"],
-        "country_code": cur["country_code"],
-        "country_name": cur["country_name"],
-        "date": cur["date"],
+        "domain": cur["domain"],
+        "country_cd": cur["country_cd"],
+        "country_nm": cur["country_nm"],
+        "event_date": cur["event_date"],
+        "account_key": cur.get("account_key", ""),
+        "account_name": cur.get("account_name", ""),
         "mapped_revenue_source": cur.get("mapped_revenue_source", ""),
         "join_status": cur.get("join_status", ""),
         "source_mode": _get_source_mode(cur),
         "status_scope": "ACTIVE_DATE",
         "spend": safe_float(cur.get("meta_spend")),
         "revenue_value": safe_float(cur.get("revenue_value")),
+        "meta_spend": safe_float(cur.get("meta_spend")),
+        "meta_ctr": safe_float(cur.get("meta_ctr")),
+        "meta_cpc": safe_float(cur.get("meta_avg_cpc")),
+        "adx_revenue": safe_float(cur.get("adx_revenue")),
+        "adx_impressions": safe_float(cur.get("adx_impressions")),
+        "adx_clicks": safe_float(cur.get("adx_clicks")),
+        "adx_rpm": safe_float(cur.get("adx_rpm")),
+        "adx_fill_rate": safe_float(cur.get("adx_match_rate")),
+        "adsense_revenue": safe_float(cur.get("adsense_estimated_earnings")),
+        "adsense_pageviews": safe_float(cur.get("adsense_page_views")),
+        "adsense_clicks": safe_float(cur.get("adsense_clicks")),
+        "adsense_ctr": safe_float(cur.get("adsense_ctr")),
+        "adsense_page_rpm": safe_float(cur.get("adsense_page_views_rpm")),
+        "score": 0,
+        "profitability_score": _group_health_score(events, "revenue"),
         "health_score": health_score,
         "adjustment_score": adjustment_score,
-        "ivt_risk_score": ivt_risk_score,
-        "decision_margin": round(health_score - ivt_risk_score + min(0.0, adjustment_score), 4),
-        "confidence": clip(confidence, 0.0, 1.0),
+        "confidence": confidence,
         "positive_signal_count": len(positive),
         "negative_signal_count": len(negative),
         "neutral_signal_count": len(neutral),
         "skipped_signal_count": len(skipped),
-        "adjustment_drop_count": sum(1 for e in events if safe_float(e["adjustment_component"]) < 0),
-        "composite_positive_count": len(composite_positive),
-        "composite_negative_count": len(composite_negative),
+        "adjustment_drop_count": sum(1 for e in events if safe_float(e.get("adjustment_component")) < 0),
         "traffic_score": _group_health_score(events, "traffic"),
         "delivery_score": _group_health_score(events, "delivery"),
         "yield_score": _group_health_score(events, "yield"),
@@ -1691,11 +2047,19 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "efficiency_score": _group_health_score(events, "efficiency"),
         "engagement_score": _group_health_score(events, "engagement"),
         "control_score": _group_health_score(events, "control"),
+        "decision": "",
+        "labels": [],
+        "revenue_change": safe_pct_change(safe_float(cur.get("revenue_value")), safe_float(cur.get("prev__revenue_value"))),
+        "ctr_change": current_blended_ctr - prev_blended_ctr,
+        "ivt_risk_score": ivt_risk_score,
         "ivt_click_stress_score": _group_risk_score(events, "ivt_click_stress"),
         "ivt_serving_score": _group_risk_score(events, "ivt_serving"),
         "ivt_attention_score": _group_risk_score(events, "ivt_attention"),
         "ivt_counter_score": _group_risk_score(events, "ivt_counter"),
         "ivt_funnel_score": _group_risk_score(events, "ivt_funnel"),
+        "decision_margin": _derive_decision_margin(health_score, ivt_risk_score, adjustment_score),
+        "composite_positive_count": len(composite_positive),
+        "composite_negative_count": len(composite_negative),
         "positive_streak": persistence["positive_streak"],
         "negative_streak": persistence["negative_streak"],
         "adjustment_streak": persistence["adjustment_streak"],
@@ -1703,10 +2067,10 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "persistence_score": persistence["persistence_score"],
         "persistence_label": persistence["label"],
         "hysteresis_applied": 0,
-        "top_positive_labels": pick_top_labels(e["event_label"] for e in positive),
-        "top_negative_labels": pick_top_labels(e["event_label"] for e in negative),
-        "top_positive_headers": pick_top_labels(e["header_name"] for e in positive),
-        "top_negative_headers": pick_top_labels(e["header_name"] for e in negative),
+        "top_positive_labels": _pick_top_labels_from_values(e.get("event_label") for e in positive),
+        "top_negative_labels": _pick_top_labels_from_values(e.get("event_label") for e in negative),
+        "top_positive_headers": _pick_top_labels_from_values(e.get("header_name") for e in positive),
+        "top_negative_headers": _pick_top_labels_from_values(e.get("header_name") for e in negative),
         "root_cause_label": "",
         "final_label": "",
         "reason_summary": "",
@@ -1714,8 +2078,12 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
     status["root_cause_label"] = _root_cause_label(status)
     final_label, hysteresis_applied = _apply_hysteresis(status["root_cause_label"], status, persistence)
     status["final_label"] = final_label
+    status["score"] = _derive_status_score(status)
+    status["decision"], decision_basis = derive_decision(status["score"], status["final_label"] or status["root_cause_label"], status["health_score"], status["ivt_risk_score"], status["adjustment_score"], status["decision_margin"], status["confidence"])
+    status["labels"] = [label for label in [status["root_cause_label"], final_label] if label]
     status["hysteresis_applied"] = hysteresis_applied
     status["reason_summary"] = "; ".join([
+        decision_basis,
         f"health={status['health_score']:.2f}",
         f"ivt={status['ivt_risk_score']:.2f}",
         f"adjust={status['adjustment_score']:.2f}",
@@ -1729,41 +2097,54 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
     ])
     return status
 
-
 def score_site_country(
     target_date: date,
-    domain: str | None = None,
     batch_id: str | uuid.UUID | None = None,
     lookback_days: int = 35,
     compatibility_mode: bool = False,
     write_results: bool = True,
+    domain: str | None = None,
+    country_cd: str | None = None,
 ) -> dict:
     batch_uuid = ensure_uuid(batch_id)
-    history_df = _load_join_history(target_date, domain, lookback_days=lookback_days)
-    if domain:
-        history_df = history_df[history_df["site"] == domain].copy()
+    domain_key = normalize_domain(domain) if domain else ""
+    country_key = normalize_country_cd(country_cd) if country_cd else ""
+    history_df = _load_join_history(target_date, batch_uuid, lookback_days=lookback_days)
+    if history_df.empty:
+        return {"ok": True, "rows_written": 0, "event_rows_written": 0, "batch_id": str(batch_uuid), "warning": "No join history", "statuses": [], "events": []}
+
+    if domain_key:
+        history_df = history_df[history_df["domain"] == domain_key].copy()
+    if country_key:
+        history_df = history_df[history_df["country_cd"] == country_key].copy()
     if history_df.empty:
         return {"ok": True, "rows_written": 0, "event_rows_written": 0, "batch_id": str(batch_uuid), "warning": "No join history for requested filter", "statuses": [], "events": []}
+
     current_df = history_df[history_df["is_current_batch"]].copy()
-    print(f"[DEBUG] Raw current_df_ok: {current_df}")
     if current_df.empty:
-        return {"ok": True, "rows_written": 0, "batch_id": str(batch_uuid), "warning": "No current batch rows found in fact_join_hourly"}
+        return {"ok": True, "rows_written": 0, "event_rows_written": 0, "batch_id": str(batch_uuid), "warning": "No current batch rows found in fact_join_hourly", "statuses": [], "events": []}
+
     recent_status_df = _load_recent_status_history(target_date, lookback_days=max(7, min(max(lookback_days, 7), 21)))
     if not recent_status_df.empty:
-        if domain:
-            recent_status_df = recent_status_df[recent_status_df["site"] == domain].copy()
+        if domain_key:
+            recent_status_df = recent_status_df[recent_status_df["domain"] == domain_key].copy()
+        if country_key:
+            recent_status_df = recent_status_df[recent_status_df["country_cd"] == country_key].copy()
     status_rows: list[dict] = []
     event_rows: list[dict] = []
-    history_df = history_df.sort_values(["entity_base_key", "date", "run_hour", "run_time"]).reset_index(drop=True)
+
+    history_df = history_df.sort_values(["entity_base_key", "run_hour", "event_date"]).reset_index(drop=True)
     same_hour_groups = {k: g.copy() for k, g in history_df.groupby(["entity_base_key", "run_hour"])}
     all_hour_groups = {k: g.copy() for k, g in history_df.groupby("entity_base_key")}
 
-    for _, cur in current_df.sort_values(["site", "country_code", "run_time"]).iterrows():
+
+    for _, cur in current_df.sort_values(["domain", "country_cd"]).iterrows():
         base_key = cur["entity_base_key"]
         same_hour = same_hour_groups.get((base_key, int(cur["run_hour"])), pd.DataFrame())
-        same_hour = same_hour[same_hour["date"] < cur["date"]].copy()
+        same_hour = same_hour[same_hour["event_date"] < cur["event_date"]].copy()
         all_hours = all_hour_groups.get(base_key, pd.DataFrame())
-        all_hours = all_hours[all_hours["date"] < cur["date"]].copy()
+        all_hours = all_hours[all_hours["event_date"] < cur["event_date"]].copy()
+
         row_events: list[dict] = []
         for rule in RULES:
             evt = _evaluate_rule(cur, same_hour, all_hours, rule, batch_uuid)
@@ -1783,12 +2164,12 @@ def score_site_country(
             if compatibility_mode:
                 _coerce_insert_df(STATUS_TABLE, status_df, STATUS_COMPAT_COLUMNS)
             else:
-                insert_df(STATUS_TABLE, status_df[STATUS_EXTENDED_COLUMNS])
+                _coerce_insert_df(STATUS_TABLE, status_df, STATUS_EXTENDED_COLUMNS)
         if not event_df.empty:
             if compatibility_mode:
                 _coerce_insert_df(EVENT_TABLE, event_df, EVENT_COMPAT_COLUMNS)
             else:
-                insert_df(EVENT_TABLE, event_df[EVENT_EXTENDED_COLUMNS])
+                _coerce_insert_df(EVENT_TABLE, event_df, EVENT_EXTENDED_COLUMNS)
 
     return {
         "ok": True,
@@ -1796,4 +2177,139 @@ def score_site_country(
         "event_rows_written": int(len(event_df)),
         "batch_id": str(batch_uuid),
         "compatibility_mode": bool(compatibility_mode),
+        "statuses": _json_safe_records(status_df),
+        "events": _json_safe_records(event_df),
     }
+
+def _map_prediction_label(value: str) -> str:
+    label = str(value or "").upper()
+    if label.startswith("RED_FLAG") or label == "NEG_ADJUSTMENT":
+        return "IVT"
+    if label in POSITIVE_ROOT_LABELS or label.startswith("WATCH_POSITIVE"):
+        return "POSITIVE"
+    if label in NEGATIVE_ROOT_LABELS or label.startswith("WATCH_NEGATIVE") or label == "WATCH_DECAY":
+        return "NEGATIVE"
+    return "STABLE"
+
+def _future_outcome_label(current_row: pd.Series, future_row: pd.Series | None) -> str:
+    if future_row is None or future_row.empty:
+        return "UNKNOWN"
+    revenue_delta = safe_float(future_row.get("delta__blended_revenue"))
+    lpv_delta = safe_float(future_row.get("delta__meta_lpv"))
+    roi_now = safe_float(current_row.get("roi_proxy"))
+    roi_future = safe_float(future_row.get("roi_proxy"))
+    if revenue_delta < 0 or (lpv_delta > 0 and roi_future < roi_now - 0.05):
+        return "NEGATIVE"
+    if revenue_delta > 0 and roi_future >= roi_now - 0.02:
+        return "POSITIVE"
+    return "STABLE"
+
+def backtest_status_labels(
+    start_date: date,
+    end_date: date,
+    compatibility_mode: bool = True,
+) -> dict:
+    status_sql = f"""
+    SELECT domain, country_cd, event_date, final_label, health_score, adjustment_score,
+           confidence, join_status
+    FROM {STATUS_TABLE}
+    WHERE event_date >= toDate('{_sql_date(start_date)}')
+    AND event_date <= toDate('{_sql_date(end_date)}')
+    ORDER BY domain, country_cd, event_date
+    """
+    status_df = query_df(status_sql)
+    if status_df.empty:
+        return {"ok": True, "rows": 0, "warning": "No status rows in range"}
+    join_sql = f"""
+    SELECT *
+    FROM hris_trendHorizone.fact_join_hourly
+    WHERE event_date >= toDate('{_sql_date(start_date)}')
+      AND event_date <= toDate('{_sql_date(end_date)}') + INTERVAL 1 DAY
+    ORDER BY domain, country_cd, event_date
+    """
+    join_df = query_df(join_sql)
+    if join_df.empty:
+        return {"ok": True, "rows": 0, "warning": "No join rows for outcome comparison"}
+
+    batch_uuid = uuid.uuid4()
+    hist = join_df.copy()
+    hist["domain"] = hist["domain"].map(lambda x: normalize_domain("" if pd.isna(x) else str(x)))
+    hist["country_cd"] = hist["country_cd"].map(lambda x: normalize_country_cd("" if pd.isna(x) else str(x)))
+    hist["country_nm"] = [_normalize_country_name(c, n) for c, n in zip(hist["country_cd"], hist["country_nm"])]
+    hist["entity_key"] = hist["entity_key"].astype(str)
+    hist["entity_base_key"] = hist["domain"] + "|" + hist["country_cd"]
+    hist["batch_id"] = hist["batch_id"].astype(str)
+    hist["event_date"] = pd.to_datetime(hist["event_date"], errors="coerce").dt.date
+    hist["day_type"] = hist["event_date"].map(_day_type_for)
+    for col in RAW_JOIN_COLUMNS + ["revenue_value"]:
+        if col in hist.columns and col not in {"batch_id", "entity_key", "domain", "country_cd", "country_nm", "event_date", "account_key", "account_name", "mapped_revenue_source", "join_status"}:
+            hist[col] = hist[col].map(safe_float)
+        elif col not in hist.columns:
+            hist[col] = 0.0
+    hist = _apply_clickhouse_aliases(hist)
+    for col in RATE_RULE_COLUMNS:
+        if col in hist.columns:
+            hist[col] = hist[col].map(_normalize_rate_value)
+    hist = _compute_derived_features(hist)
+    hist = hist.sort_values(["entity_key", "event_date"]).drop_duplicates(subset=["entity_key", "event_date"], keep="last")
+    for col in REQUIRED_METRIC_COLUMNS:
+        if col not in hist.columns:
+            hist[col] = 0.0
+        hist[col] = hist[col].map(safe_float)
+        hist[f"prev__{col}"] = hist.groupby(["entity_key", "event_date"])[col].shift(1)
+        hist[f"delta__{col}"] = hist[col] - hist[f"prev__{col}"].fillna(0.0)
+
+    status_df["domain"] = status_df["domain"].map(normalize_domain)
+    status_df["country_cd"] = status_df["country_cd"].map(normalize_country_cd)
+    status_df["entity_base_key"] = status_df["domain"] + "|" + status_df["country_cd"]
+    status_df["event_date"] = pd.to_datetime(status_df["event_date"], errors="coerce").dt.date
+
+    rows = []
+    for _, row in status_df.iterrows():
+        future = hist[
+            (hist["entity_base_key"] == row["entity_base_key"])
+        ].sort_values("event_date")
+        future_row = future.iloc[-1] if not future.empty else None
+        current = hist[
+            (hist["entity_base_key"] == row["entity_base_key"])
+            & (hist["event_date"] <= row["event_date"])
+        ].sort_values("event_date")
+        current_row = current.iloc[-1] if not current.empty else pd.Series(dtype=float)
+        predicted = _map_prediction_label(row.get("final_label"))
+        actual = _future_outcome_label(current_row, future_row)
+        rows.append(
+            {
+                "domain": row["domain"],
+                "country_cd": row["country_cd"],
+                "predicted": predicted,
+                "actual": actual,
+                "final_label": row.get("final_label", ""),
+                "health_score": safe_float(row.get("health_score")),
+                "adjustment_score": safe_float(row.get("adjustment_score")),
+                "confidence": safe_float(row.get("confidence")),
+            }
+        )
+
+    result_df = pd.DataFrame(rows)
+    result_df = result_df[result_df["actual"] != "UNKNOWN"].copy()
+    if result_df.empty:
+        return {"ok": True, "rows": 0, "warning": "No comparable future outcomes within horizon"}
+
+    accuracy = safe_float((result_df["predicted"] == result_df["actual"]).mean())
+    confusion = (
+        result_df.groupby(["predicted", "actual"]).size().reset_index(name="count").sort_values(["predicted", "actual"])
+    )
+    out = {
+        "ok": True,
+        "rows": int(len(result_df)),
+        "accuracy": round(accuracy, 4),
+        "confusion": confusion.to_dict("records"),
+    }
+
+    if not compatibility_mode:
+        try:
+            insert_df("hris_trendHorizone.fact_site_country_status_backtest", result_df)
+            out["backtest_rows_written"] = int(len(result_df))
+        except Exception:
+            out["backtest_rows_written"] = 0
+    return out

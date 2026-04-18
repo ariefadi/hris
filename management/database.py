@@ -1,4 +1,3 @@
-
 from ast import If
 from typing import Any
 from google.auth import credentials
@@ -104,6 +103,18 @@ def query_df(sql: str) -> pd.DataFrame:
     return pd.DataFrame(cur.fetchall())
 
 def insert_df(table: str, df: pd.DataFrame) -> None:
+    import pandas as pd
+    import json
+    for col in df.columns:
+        # Tangani semua tipe datetime pandas (termasuk timezone-aware)
+        if pd.api.types.is_datetime64_any_dtype(df[col]):
+            df[col] = df[col].dt.strftime('%Y-%m-%d %H:%M:%S')
+        elif len(df) > 0 and isinstance(df[col].iloc[0], pd.Timestamp):
+            df[col] = df[col].astype(str)
+        # Tangani kolom list/dict agar jadi string JSON
+        if df[col].apply(lambda x: isinstance(x, (list, dict))).any():
+            df.loc[:, col] = df[col].apply(lambda x: json.dumps(x, ensure_ascii=False) if isinstance(x, (list, dict)) else x)
+
     if df is None or df.empty:
         return
     if clickhouse_connect is not None:
@@ -330,7 +341,7 @@ class data_mysql:
         except (ValueError, TypeError):
             port = 8123
         user = os.getenv('CH_USER') or os.getenv('REPORT_DB_USER') or os.getenv('DB_REPORT_USER') or 'default'
-        password = os.getenv('CH_PASSWORD') or os.getenv('REPORT_DB_PASSWORD') or os.getenv('DB_REPORT_PASSWORD') or 'hris123456'
+        password = os.getenv('CH_PASSWORD') or os.getenv('REPORT_DB_PASSWORD') or os.getenv('DB_REPORT_PASSWORD') or ''
         database = os.getenv('CH_DB') or os.getenv('REPORT_DB_NAME') or os.getenv('DB_REPORT_NAME') or os.getenv('DB_NAME') or os.getenv('HRIS_DB_NAME') or 'hris_trendHorizone'
         self.report_cur = ClickHouseHttpCursor(host=host, port=port, user=user, password=password, database=database)
         return True
@@ -349,7 +360,7 @@ class data_mysql:
                 print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
                 port = 3306
             user = os.getenv('DB_USER') or 'root'
-            password = os.getenv('DB_PASSWORD') or 'hris123456'
+            password = os.getenv('DB_PASSWORD') or ''
             database = os.getenv('DB_NAME') or 'hris_trendHorizone'
 
             self.db_hris = pymysql.connect(
@@ -5311,6 +5322,180 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
+    def get_monitoring_campaign_facebook_by_params(self, tanggal_dari, tanggal_sampai, selected_account_list=None, selected_domain_list=None):
+        try:
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            selected_account_list = [str(a).strip() for a in selected_account_list if str(a).strip() and str(a).strip() != '%']
+
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            selected_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip() and str(d).strip() != '%']
+
+            base_sql = [
+                "SELECT",
+                "\trs.account_name,",
+                "\trs.campaign,",
+                "\trs.spend,",
+                "\trs.daily_budget,",
+                "\trs.campaign_status,",
+                "\tCASE",
+                "\t\tWHEN UPPER(rs.campaign_status) = 'PAUSED' THEN 'Paused'",
+                "\t\tWHEN rs.spend > rs.daily_budget THEN 'Overspend'",
+                "\t\tELSE 'Normal'",
+                "\tEND AS remark",
+                "FROM (",
+                "\tSELECT",
+                "\t\ta.account_name AS account_name,",
+                "\t\tb.data_ads_campaign_nm AS campaign,",
+                "\t\tSUM(b.data_ads_country_spend) AS spend,",
+                "\t\tCOALESCE(MAX(m.master_budget), 0) AS daily_budget,",
+                "\t\tCOALESCE(SUBSTRING_INDEX(GROUP_CONCAT(m.master_status ORDER BY m.master_date DESC, m.mdd DESC SEPARATOR ','), ',', 1), 'UNKNOWN') AS campaign_status",
+                "\tFROM master_account_ads a",
+                "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
+                "\tLEFT JOIN master_ads m ON m.account_ads_id = b.account_ads_id",
+                "\t\tAND m.master_campaign_nm = b.data_ads_campaign_nm",
+                "\t\tAND m.master_date = (",
+                "\t\t\tSELECT MAX(m2.master_date)",
+                "\t\t\tFROM master_ads m2",
+                "\t\t\tWHERE m2.account_ads_id = b.account_ads_id",
+                "\t\t\tAND m2.master_campaign_nm = b.data_ads_campaign_nm",
+                "\t\t)",
+                "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
+            ]
+            params = [tanggal_dari, tanggal_sampai]
+
+            if selected_account_list:
+                acc_like = " OR ".join(["b.account_ads_id LIKE %s"] * len(selected_account_list))
+                base_sql.append(f"\tAND ({acc_like})")
+                params.extend([f"%{a}%" for a in selected_account_list])
+
+            if selected_domain_list:
+                dom_like = " OR ".join(["b.data_ads_domain LIKE %s"] * len(selected_domain_list))
+                base_sql.append(f"\tAND ({dom_like})")
+                params.extend([f"%{d}%" for d in selected_domain_list])
+
+            base_sql.extend([
+                "\tGROUP BY a.account_name, b.data_ads_campaign_nm",
+                ") rs",
+                "WHERE rs.spend > rs.daily_budget OR UPPER(rs.campaign_status) = 'PAUSED'",
+                "ORDER BY rs.spend DESC, rs.account_name ASC",
+            ])
+
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get monitoring campaign facebook by params")
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit monitoring campaign facebook by params")
+
+            hasil = {
+                "status": True,
+                "message": "Monitoring campaign facebook berhasil diambil",
+                "data": data,
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+
+    def get_monitoring_campaign_facebook_by_params(self, tanggal_dari, tanggal_sampai, selected_account_list=None, selected_domain_list=None):
+        try:
+            if isinstance(selected_account_list, str):
+                selected_account_list = [selected_account_list.strip()]
+            elif selected_account_list is None:
+                selected_account_list = []
+            elif isinstance(selected_account_list, (set, tuple)):
+                selected_account_list = list(selected_account_list)
+            selected_account_list = [str(a).strip() for a in selected_account_list if str(a).strip() and str(a).strip() != '%']
+
+            if isinstance(selected_domain_list, str):
+                selected_domain_list = [selected_domain_list.strip()]
+            elif selected_domain_list is None:
+                selected_domain_list = []
+            elif isinstance(selected_domain_list, (set, tuple)):
+                selected_domain_list = list(selected_domain_list)
+            selected_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip() and str(d).strip() != '%']
+
+            base_sql = [
+                "SELECT",
+                "\trs.account_name,",
+                "\trs.campaign,",
+                "\trs.spend,",
+                "\trs.daily_budget,",
+                "\trs.campaign_status,",
+                "\tCASE",
+                "\t\tWHEN UPPER(rs.campaign_status) = 'PAUSED' THEN 'Paused'",
+                "\t\tWHEN rs.spend > rs.daily_budget THEN 'Overspend'",
+                "\t\tELSE 'Normal'",
+                "\tEND AS remark",
+                "FROM (",
+                "\tSELECT",
+                "\t\ta.account_name AS account_name,",
+                "\t\tb.data_ads_campaign_nm AS campaign,",
+                "\t\tSUM(b.data_ads_country_spend) AS spend,",
+                "\t\tCOALESCE(MAX(m.master_budget), 0) AS daily_budget,",
+                "\t\tCOALESCE(SUBSTRING_INDEX(GROUP_CONCAT(m.master_status ORDER BY m.master_date DESC, m.mdd DESC SEPARATOR ','), ',', 1), 'UNKNOWN') AS campaign_status",
+                "\tFROM master_account_ads a",
+                "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
+                "\tLEFT JOIN master_ads m ON m.account_ads_id = b.account_ads_id",
+                "\t\tAND m.master_campaign_nm = b.data_ads_campaign_nm",
+                "\t\tAND m.master_date = (",
+                "\t\t\tSELECT MAX(m2.master_date)",
+                "\t\t\tFROM master_ads m2",
+                "\t\t\tWHERE m2.account_ads_id = b.account_ads_id",
+                "\t\t\tAND m2.master_campaign_nm = b.data_ads_campaign_nm",
+                "\t\t)",
+                "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
+            ]
+            params = [tanggal_dari, tanggal_sampai]
+
+            if selected_account_list:
+                acc_like = " OR ".join(["b.account_ads_id LIKE %s"] * len(selected_account_list))
+                base_sql.append(f"\tAND ({acc_like})")
+                params.extend([f"%{a}%" for a in selected_account_list])
+
+            if selected_domain_list:
+                dom_like = " OR ".join(["b.data_ads_domain LIKE %s"] * len(selected_domain_list))
+                base_sql.append(f"\tAND ({dom_like})")
+                params.extend([f"%{d}%" for d in selected_domain_list])
+
+            base_sql.extend([
+                "\tGROUP BY a.account_name, b.data_ads_campaign_nm",
+                ") rs",
+                "WHERE rs.spend > rs.daily_budget OR UPPER(rs.campaign_status) = 'PAUSED'",
+                "ORDER BY rs.spend DESC, rs.account_name ASC",
+            ])
+
+            sql = "\n".join(base_sql)
+            if not self.execute_query(sql, tuple(params)):
+                raise pymysql.Error("Failed to get monitoring campaign facebook by params")
+            data = self.fetch_all()
+            if not self.commit():
+                raise pymysql.Error("Failed to commit monitoring campaign facebook by params")
+
+            hasil = {
+                "status": True,
+                "message": "Monitoring campaign facebook berhasil diambil",
+                "data": data,
+            }
+        except pymysql.Error as e:
+            hasil = {
+                "status": False,
+                'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
+            }
+        return {'hasil': hasil}
+
     def get_all_ads_traffic_country_by_params(self, tanggal_dari, tanggal_sampai, selected_account_list, selected_domain_list, countries_list = None):
         try:
             # --- 1. Pastikan selected_account_list adalah list string
@@ -7833,3 +8018,305 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
+
+    def get_all_data_meta_adx_adsense_country_detail_by_params(self, tanggal):
+        """
+        Jalankan query ClickHouse untuk mengambil data meta/adx/adsense per domain/country.
+        """
+        try:
+            sql = f"""
+            SELECT
+                toHour(toTimeZone(now(), 'Asia/Jakarta')) AS run_hour,
+                formatDateTime(toTimeZone(now(), 'Asia/Jakarta'), '%H:%i:%S') AS run_time,
+                m.domain AS domain,
+                lower(m.domain) || '|' || upper(m.country_cd) AS entity_key,
+                m.country_cd AS country_code,
+                m.country_name AS country_name,
+                m.date AS date,
+                -- META
+                m.spend AS meta_spend,
+                m.cpc AS meta_cpc,
+                m.clicks AS meta_clicks,
+                m.lpv AS meta_lpv,
+                m.lpv_rate AS meta_lpv_rate,
+                m.frekuensi AS meta_frequency,
+                -- ADX
+                ifNull(a.revenue, 0) AS adx_revenue,
+                ifNull(a.impressions, 0) AS adx_impressions,
+                ifNull(a.clicks, 0) AS adx_clicks,
+                ifNull(a.ecpm, 0) AS adx_ecpm,
+                ifNull(a.cpc, 0) AS adx_cpc,
+                ifNull(a.requests, 0) AS adx_requests,
+                ifNull(a.match_rate, 0) AS adx_match_rate,
+                ifNull(a.fill_rate, 0) AS adx_fill_rate,
+                ifNull(a.active_view_pct_viewable, 0) AS adx_active_view_pct_viewable,
+                ifNull(a.active_view_avg_time_sec, 0) AS adx_active_view_avg_time_sec,
+                -- ADSENSE
+                ifNull(s.revenue, 0) AS adsense_estimated_earnings,
+                ifNull(s.page_views, 0) AS adsense_page_views,
+                ifNull(s.clicks, 0) AS adsense_clicks,
+                ifNull(s.cpc, 0) AS adsense_cost_per_click,
+                ifNull(s.page_views_rpm, 0) AS adsense_page_views_rpm,
+                ifNull(s.requests, 0) AS adsense_ad_requests,
+                ifNull(s.requests_coverage, 0) AS adsense_ad_requests_coverage,
+                ifNull(s.impressions, 0) AS adsense_impressions,
+                ifNull(s.active_view_viewability, 0) AS adsense_active_view_viewability,
+                ifNull(s.active_view_measurability, 0) AS adsense_active_view_measurability,
+                ifNull(s.active_view_time, 0) AS adsense_active_view_time,
+                -- TOTAL
+                (ifNull(a.revenue,0) + ifNull(s.revenue,0)) AS total_revenue,
+                (ifNull(a.revenue,0) + ifNull(s.revenue,0) - m.spend) AS profit,
+                if(m.spend > 0, (ifNull(a.revenue,0) + ifNull(s.revenue,0)) / m.spend, 0) AS roas
+            FROM
+            (
+                -- META
+                SELECT
+                    lower(arrayStringConcat(arraySlice(splitByChar('.', data_ads_domain), 1, 2), '.')) AS domain,
+                    upper(data_ads_country_cd) AS country_cd,
+                    upper(data_ads_country_nm) AS country_name,
+                    toDate(data_ads_country_tanggal) AS date,
+                    toFloat64(argMax(data_ads_country_spend, data_ads_country_tanggal)) AS spend,
+                    toFloat64(argMax(data_ads_country_cpc, data_ads_country_tanggal)) AS cpc,
+                    toFloat64(argMax(data_ads_country_click, data_ads_country_tanggal)) AS clicks,
+                    toFloat64(argMax(data_ads_country_lpv, data_ads_country_tanggal)) AS lpv,
+                    toFloat64(argMax(data_ads_country_lpv_rate, data_ads_country_tanggal)) AS lpv_rate,
+                    toFloat64(argMax(data_ads_country_frekuensi, data_ads_country_tanggal)) AS frekuensi
+                FROM hris_trendHorizone.data_ads_country
+                WHERE data_ads_country_tanggal >= '{tanggal}'
+                GROUP BY domain, country_cd, country_name, date
+            ) m
+            LEFT JOIN
+            (
+                -- ADX
+                SELECT
+                    lower(arrayStringConcat(arraySlice(splitByChar('.', data_adx_country_domain), 1, 2), '.')) AS domain,
+                    upper(data_adx_country_cd) AS country_cd,
+                    upper(data_adx_country_nm) AS country_name,
+                    toDate(data_adx_country_tanggal) AS date,
+                    toFloat64(argMax(data_adx_country_revenue, data_adx_country_tanggal)) AS revenue,
+                    toFloat64(argMax(data_adx_country_impresi, data_adx_country_tanggal)) AS impressions,
+                    toFloat64(argMax(data_adx_country_click, data_adx_country_tanggal)) AS clicks,
+                    toFloat64(argMax(data_adx_country_ecpm, data_adx_country_tanggal)) AS ecpm,
+                    toFloat64(argMax(data_adx_country_cpc, data_adx_country_tanggal)) AS cpc,
+                    toFloat64(argMax(data_adx_country_total_requests, data_adx_country_tanggal)) AS requests,
+                    toFloat64(argMax(data_adx_country_match_rate, data_adx_country_tanggal)) AS match_rate,
+                    toFloat64(argMax(data_adx_country_fill_rate, data_adx_country_tanggal)) AS fill_rate,
+                    toFloat64(argMax(data_adx_country_active_view_pct_viewable, data_adx_country_tanggal)) AS active_view_pct_viewable,
+                    toFloat64(argMax(data_adx_country_active_view_avg_time_sec, data_adx_country_tanggal)) AS active_view_avg_time_sec
+                FROM hris_trendHorizone.data_adx_country
+                WHERE data_adx_country_tanggal >= '{tanggal}'
+                GROUP BY domain, country_cd, country_name, date
+            ) a
+            ON m.domain = a.domain
+            AND m.country_cd = a.country_cd
+            AND m.date = a.date
+            LEFT JOIN
+            (
+                -- ADSENSE
+                SELECT
+                    lower(arrayStringConcat(arraySlice(splitByChar('.', data_adsense_country_domain), 1, 2), '.')) AS domain,
+                    upper(data_adsense_country_cd) AS country_cd,
+                    upper(data_adsense_country_nm) AS country_name,
+                    toDate(data_adsense_country_tanggal) AS date,
+                    toFloat64(argMax(data_adsense_country_revenue, data_adsense_country_tanggal)) AS revenue,
+                    toFloat64(argMax(data_adsense_country_page_views, data_adsense_country_tanggal)) AS page_views,
+                    toFloat64(argMax(data_adsense_country_click, data_adsense_country_tanggal)) AS clicks,
+                    toFloat64(argMax(data_adsense_country_cpc, data_adsense_country_tanggal)) AS cpc,
+                    toFloat64(argMax(data_adsense_country_page_views_rpm, data_adsense_country_tanggal)) AS page_views_rpm,
+                    toFloat64(argMax(data_adsense_country_ad_requests, data_adsense_country_tanggal)) AS requests,
+                    toFloat64(argMax(data_adsense_country_ad_requests_coverage, data_adsense_country_tanggal)) AS requests_coverage,
+                    toFloat64(argMax(data_adsense_country_impresi, data_adsense_country_tanggal)) AS impressions,
+                    toFloat64(argMax(data_adsense_country_active_view_viewability, data_adsense_country_tanggal)) AS active_view_viewability,
+                    toFloat64(argMax(data_adsense_country_active_view_measurability, data_adsense_country_tanggal)) AS active_view_measurability,
+                    toFloat64(argMax(data_adsense_country_active_view_time, data_adsense_country_tanggal)) AS active_view_time
+                FROM hris_trendHorizone.data_adsense_country
+                WHERE data_adsense_country_tanggal >= '{tanggal}'
+                GROUP BY domain, country_cd, country_name, date
+            ) s
+            ON m.domain = s.domain
+            AND m.country_cd = s.country_cd
+            AND m.date = s.date
+            WHERE m.domain IS NOT NULL
+			AND m.spend > 0
+		    AND (
+			     ifNull(a.revenue, 0) > 0
+			     OR ifNull(s.revenue, 0) > 0
+		    )
+			ORDER BY m.date DESC, m.domain ASC
+            """
+            # Gunakan koneksi ClickHouse
+            if clickhouse_connect is None:
+                raise RuntimeError('clickhouse_connect library is not installed')
+            client = get_clickhouse_client()
+            result = client.query(sql)
+            rows = result.result_rows if hasattr(result, 'result_rows') else result.result_set
+            cols = result.column_names if hasattr(result, 'column_names') else []
+            data_rows = [dict(zip(cols, row)) for row in rows]
+            return {
+                "status": True,
+                "message": "Data berhasil diambil",
+                "total_rows": len(data_rows),
+                "data": data_rows
+            }
+        except Exception as e:
+            return {
+                "status": False,
+                "error": f"Terjadi error: {str(e)}"
+            }
+
+    def insert_bulk_fact_domain(self, rows):
+        """
+        Bulk insert ke ClickHouse menggunakan clickhouse_connect.
+        """
+        try:
+            if not rows:
+                return {"status": True, "message": "No data to insert"}
+            from .engine_utils import ensure_uuid
+            import pandas as pd
+            from zoneinfo import ZoneInfo
+            from datetime import datetime
+            now = datetime.now(ZoneInfo("Asia/Jakarta"))
+            # =========================
+            # CONFIG
+            # =========================
+            SOURCE_MODE_MIXED = "MIXED"
+            SOURCE_MODE_ADSENSE_ONLY = "ADSENSE_ONLY"
+            SOURCE_MODE_ADX_ONLY = "ADX_ONLY"
+            SCORABLE_JOIN_STATUSES = {
+                "OK",
+                "SOURCE_ONLY_NO_META",
+                "SOURCE_ONLY_NO_META_ADSENSE",
+                "SOURCE_ONLY_NO_META_ADX",
+            }
+            # =========================
+            # HELPERS
+            # =========================
+            def compute_mapped_revenue_source(mapped_mode,
+                                            adsense_active,
+                                            adx_active):
+
+                if mapped_mode == SOURCE_MODE_MIXED:
+                    return SOURCE_MODE_MIXED
+                if adsense_active and adx_active:
+                    return SOURCE_MODE_MIXED
+                if mapped_mode == SOURCE_MODE_ADSENSE_ONLY and not adx_active:
+                    return SOURCE_MODE_ADSENSE_ONLY
+                if mapped_mode == SOURCE_MODE_ADX_ONLY and not adsense_active:
+                    return SOURCE_MODE_ADX_ONLY
+                if adsense_active:
+                    return SOURCE_MODE_ADSENSE_ONLY
+                if adx_active:
+                    return SOURCE_MODE_ADX_ONLY
+                return mapped_mode or SOURCE_MODE_MIXED
+
+            def compute_join_status(row):
+                meta_active = float(row.get("meta_spend", 0)) > 0
+                adsense_active = float(row.get("adsense_estimated_earnings", 0)) > 0
+                adx_active = float(row.get("adx_revenue", 0)) > 0
+                if meta_active and (adsense_active or adx_active):
+                    return "OK"
+                if not meta_active and adsense_active and adx_active:
+                    return "SOURCE_ONLY_NO_META"
+                if not meta_active and adsense_active:
+                    return "SOURCE_ONLY_NO_META_ADSENSE"
+                if not meta_active and adx_active:
+                    return "SOURCE_ONLY_NO_META_ADX"
+                return "DATA_INCOMPLETE"
+
+            # =========================
+            # BUILD DATAFRAME
+            # =========================
+            data = []
+            for row in rows:
+                adsense_active = float(row.get("adsense_estimated_earnings", 0)) > 0
+                adx_active = float(row.get("adx_revenue", 0)) > 0
+                mapped_revenue_source = compute_mapped_revenue_source(
+                    mapped_mode=row.get("mapped_revenue_source"),
+                    adsense_active=adsense_active,
+                    adx_active=adx_active,
+                )
+                join_status = compute_join_status(row)
+                # 🚨 skip data non-scorable
+                if join_status not in SCORABLE_JOIN_STATUSES:
+                    continue
+                data.append({
+                    "batch_id": ensure_uuid(),
+                    "run_time": row.get("run_time"),
+                    "run_date": now.date(),
+                    "run_hour": row.get("run_hour"),
+                    "site": row.get("domain"),
+                    "entity_key": row.get("entity_key"),
+                    "country_code": row.get("country_code"),
+                    "country_name": row.get("country_name"),
+                    "date": row.get("date"),
+                    # ⭐ GENERATED FIELDS
+                    "mapped_revenue_source": mapped_revenue_source,
+                    "join_status": join_status,
+                    # META
+                    "meta_spend": float(row.get("meta_spend", 0)),
+                    "meta_cpc": float(row.get("meta_cpc", 0)),
+                    "meta_clicks": int(row.get("meta_clicks", 0)),
+                    "meta_lpv": float(row.get("meta_lpv", 0)),
+                    "meta_lpv_rate": int(row.get("meta_lpv_rate", 0)),
+                    "meta_frequency": float(row.get("meta_frequency", 0)),
+                    # ADX
+                    "adx_revenue": float(row.get("adx_revenue", 0)),
+                    "adx_impressions": int(row.get("adx_impressions", 0)),
+                    "adx_clicks": int(row.get("adx_clicks", 0)),
+                    "adx_ecpm": float(row.get("adx_ecpm", 0)),
+                    "adx_cpc": float(row.get("adx_cpc", 0)),
+                    "adx_requests": float(row.get("adx_requests", 0)),
+                    "adx_match_rate": int(row.get("adx_match_rate", 0)),
+                    "adx_fill_rate": int(row.get("adx_fill_rate", 0)),
+                    "adx_active_view_pct_viewable": float(row.get("adx_active_view_pct_viewable", 0)),
+                    "adx_active_view_avg_time_sec": float(row.get("adx_active_view_avg_time_sec", 0)),
+                    # ADSENSE
+                    "adsense_estimated_earnings": float(row.get("adsense_estimated_earnings", 0)),
+                    "adsense_page_views": int(row.get("adsense_page_views", 0)),
+                    "adsense_clicks": int(row.get("adsense_clicks", 0)),
+                    "adsense_cost_per_click": float(row.get("adsense_cost_per_click", 0)),
+                    "adsense_page_views_rpm": float(row.get("adsense_page_views_rpm", 0)),
+                    "adsense_ad_requests": float(row.get("adsense_ad_requests", 0)),
+                    "adsense_impressions": int(row.get("adsense_impressions", 0)),
+                    "adsense_active_view_viewability": int(row.get("adsense_active_view_viewability", 0)),
+                    "adsense_active_view_measurability": float(row.get("adsense_active_view_measurability", 0)),
+                    "adsense_active_view_time": float(row.get("adsense_active_view_time", 0)),
+                    # SUMMARY
+                    "total_revenue": float(row.get("total_revenue", 0)),
+                    "profit": float(row.get("profit", 0)),
+                    "roas": float(row.get("roas", 0)),
+                    "mdd": now,
+                })
+            if not data:
+                return {"status": True, "message": "No scorable rows"}
+            df = pd.DataFrame(data)
+            # =========================
+            # INSERT CLICKHOUSE
+            # =========================
+            if clickhouse_connect is None:
+                raise RuntimeError("clickhouse_connect library is not installed")
+            client = get_clickhouse_client()
+            client.insert_df("hris_trendHorizone.fact_join_hourly", df)
+            return {
+                "status": True,
+                "message": f"Inserted {len(df)} rows"
+            }
+        except Exception as e:
+            return {
+                "status": False,
+                "error": str(e)
+            }
+        
+    def delete_fact_join_hourly_by_date(self, tanggal):
+        """
+        Menghapus data dari ClickHouse fact_join_hourly berdasarkan tanggal.
+        """
+        try:
+            if clickhouse_connect is None:
+                raise RuntimeError('clickhouse_connect library is not installed')
+            client = get_clickhouse_client()
+            sql = f"DELETE FROM hris_trendHorizone.fact_join_hourly WHERE date = toDate('{tanggal}')"
+            client.command(sql)
+            return {"status": True, "message": f"Deleted data for date {tanggal}"}
+        except Exception as e:
+            return {"status": False, "error": str(e)}

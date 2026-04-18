@@ -1,7 +1,9 @@
 {% extends "admin_base.html" %}
 {% load static %}
 {% block page_title %}Facebook Ads{% endblock %}
+
 {% block page_heading %}Facebook Ads{% endblock %}
+
 {% block breadcrumbs %}
     <li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
     <li class="breadcrumb-item active">Facebook Ads</li>
@@ -76,47 +78,64 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 {% endblock %}
 {% block content %}  
 <style>
-  .dt-buttons {
-      margin-bottom: 20px;
+  .dt-buttons { margin-bottom: 20px; }
+  .summary-section-card {
+      background: #fff;
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      border-radius: 14px;
+      box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+      padding: 14px;
   }
-  #container {
-    min-width: 100%;
-    margin: 0 auto;
-    width: 1000px;
-    height: 600px;
- }
+  .summary-section-title {
+      font-weight: 800;
+      font-size: 13px;
+      color: #334155;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+  }
+  .summary-chart-card { min-height: 420px; }
+  html[data-theme="dark"] .summary-section-card {
+      background: #1e1e1e;
+      border-color: #2b2b2b;
+      box-shadow: none;
+  }
 </style>
 <div class="card">
     <div class="card-header">
         <div class="d-flex align-items-center justify-content-between w-100">
             <h3 class="card-title mb-0">Data Summary Facebook Ads</h3>
-            <button type="button" class="btn btn-sm hris-tour-launch-btn" id="btnFacebookSummaryTour">
+            <button type="button" class="btn btn-sm hris-tour-launch-btn" id="btnFacebookPerCampaignTour">
                 <i class="far fa-question-circle" aria-hidden="true"></i> User Manual
             </button>
         </div>
     </div> <!-- /.card-header -->
     <div class="card-body">
-        <div class="form-row" id="facebookSummaryFilters" data-title="Filter" data-intro="Pilih range tanggal dan account, lalu klik Muat Data untuk menampilkan ringkasan dan grafik.">
-            <div class="col-md-3">
-                <label>Range Dari</label>
-                <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="{{ seven_days_ago }}" data-mask="9999-99-99" placeholder="Tanggal Dari"/>
+        <div class="form-row" id="facebookPerCampaignFilters" data-title="Filter" data-intro="Pilih rentang tanggal, account, dan domain (opsional), lalu klik Muat Data untuk menampilkan traffic per campaign.">
+            <div class="col-md-2">
+                <label>Tanggal Dari</label>
+                <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Dari"/>
+            </div>
+            <div class="col-md-2">
+                <label>Tanggal Sampai</label>
+                 <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
             </div>
             <div class="col-md-3">
-                <label>Range Sampai</label>
-                 <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="{{ today }}" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
-            </div>
-            <div class="col-md-4">
                 <label>Filter Account</label>
-                <select class="form-control select2" id="select_account">
-                    <option value=""></option>
-                    {% for data_account in data_account %}
-                    <option value="{{data_account.account_id}}">{{data_account.account_name}}</option>
+                <select class="form-control select2-multiple" id="select_account" multiple>
+                    {% for account in data_account %}
+                    <option value="{{account.account_id}}">{{account.account_name}}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-4">
+                <label>Filter Subdomain</label>
+                <input type="text" class="form-control" id="select_domain" placeholder="contoh: handsome.uaetiming.com" />
+            </div>
+            <div class="col-md-1">
                 <label>&nbsp;</label>
-                <button type="button" class="btn btn-primary form-control" id="btn_load_data" data-title="Muat Data" data-intro="Mengambil data summary sesuai filter yang dipilih.">
+                <button type="button" class="btn btn-primary form-control" id="btn_load_data" data-title="Muat Data" data-intro="Mengambil data traffic sesuai filter yang dipilih dan memperbarui tabel.">
                     <i class="fas fa-search"></i> Muat Data
                 </button>
             </div>
@@ -125,8 +144,13 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 </div>
 <div class="card">
     <div class="card-header">
-        <div class="card-title d-flex justify-content-between align-items-center w-100">
-            <h3 class="card-title"><b><i class="bi bi-diagram-3""></i> Summary Facebook Ads (Ads)</b></h3>
+        <div class="row">
+            <div class="col-6">
+                <h3 class="card-title"><b><i class="bi bi-bar-chart"></i> Tabel Traffic Per Campaign (Ads)</b></h3>
+            </div>
+            <div class="col-6 d-flex justify-content-end">
+                <span id="facebookCampaignLastUpdate" data-title="Last Update" data-intro="Informasi kapan data terakhir kali diperbarui."><i class="bi bi-clock-history"></i> Data Diupdate Terakhir <b>Tanggal {{ data.last_update|date:"d F Y" }} Jam {{ data.last_update|date:"H:i:s" }}</b></span>
+            </div>
         </div>
     </div>
     <div class="card-body">
@@ -144,18 +168,17 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 padding-top: 20%;">
             <i class="fas fa fa-sync-alt fa-spin"></i> Menyiapkan Data ... 
         </div>
-        <!-- Summary boxes -->
-        <div class="row" id="summary_boxes" style="display:none;" data-title="Ringkasan" data-intro="Ringkasan metrik utama: Spend, Click, CPR, dan CPC.">
+        <div class="summary-section-card mb-3" data-title="Ringkasan" data-intro="Ringkasan metrik utama: Total Spend, Total Impresi, Total Klik, dan Total CPC.">
+            <div class="summary-section-title"><i class="bi bi-grid-3x3-gap"></i> Ringkasan Performa</div>
+            <div class="row mb-0" id="summary_boxes_campaign">
             <div class="col-12 col-sm-6 col-md-3">
                 <div class="metric-card spend">
                     <div class="metric-card-inner">
                         <div>
-                            <div class="metric-label">Spend</div>
-                            <div class="metric-value" id="spend">Rp. 0 </div>
+                            <div class="metric-label">Total Spend</div>
+                            <div class="metric-value" id="summary_total_spend">Rp 0</div>
                         </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-cash-stack"></i>
-                        </div>
+                        <div class="metric-card-icon" aria-hidden="true"><i class="bi bi-cash-stack"></i></div>
                     </div>
                 </div>
             </div>
@@ -163,12 +186,10 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 <div class="metric-card clicks">
                     <div class="metric-card-inner">
                         <div>
-                            <div class="metric-label">Click</div>
-                            <div class="metric-value" id="clicks">0</div>
+                            <div class="metric-label">Total Impresi</div>
+                            <div class="metric-value" id="summary_total_impressions">0</div>
                         </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-cursor-fill"></i>
-                        </div>
+                        <div class="metric-card-icon" aria-hidden="true"><i class="bi bi-bar-chart-fill"></i></div>
                     </div>
                 </div>
             </div>
@@ -176,12 +197,10 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 <div class="metric-card cpr">
                     <div class="metric-card-inner">
                         <div>
-                            <div class="metric-label">CPR</div>
-                            <div class="metric-value" id="cpr">Rp. 0</div>
+                            <div class="metric-label">Total Klik</div>
+                            <div class="metric-value" id="summary_total_clicks">0</div>
                         </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-box-arrow-in-up"></i>
-                        </div>
+                        <div class="metric-card-icon" aria-hidden="true"><i class="bi bi-cursor-fill"></i></div>
                     </div>
                 </div>
             </div>
@@ -189,42 +208,199 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 <div class="metric-card cpc">
                     <div class="metric-card-inner">
                         <div>
-                            <div class="metric-label">CPC</div>
-                            <div class="metric-value" id="cpc">Rp. 0</div>
+                            <div class="metric-label">Total CPC</div>
+                            <div class="metric-value" id="summary_total_cpc">Rp 0</div>
                         </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-box-arrow-in-down"></i>
+                        <div class="metric-card-icon" aria-hidden="true"><i class="bi bi-graph-up-arrow"></i></div>
+                    </div>
+                </div>
+            </div>
+            </div>
+        </div>
+
+        <div class="summary-section-card mb-3" data-title="Tabel" data-intro="Tabel detail traffic per campaign sesuai filter. Bagian footer menampilkan total agregat.">
+            <div class="summary-section-title"><i class="bi bi-table"></i> Detail Data Campaign</div>
+            <div class="dt-responsive-table">
+            <table id="table_data_campaign_facebook" class="table table-bordered" data-title="Tabel" data-intro="Tabel detail traffic per campaign sesuai filter. Bagian footer menampilkan total agregat.">
+            <thead>
+                <tr>
+                    <th class="text-center" style="font-size: 12px;" width="10%">Tanggal</th>
+                    <th class="text-center" style="font-size: 12px;" width="15%">Account Name</th>
+                    <th class="text-center" style="font-size: 12px;" width="15%">Campaign Name</th>
+                    <th class="text-center" style="font-size: 12px;" width="8%">Spend</th>
+                    <th class="text-center" style="font-size: 12px;" width="8%">Impression</th>
+                    <th class="text-center" style="font-size: 12px;" width="8%">Reach</th>
+                    <th class="text-center" style="font-size: 12px;" width="8%">Clicks <br> <i>Hasil</i></th>
+                    <th class="text-center" style="font-size: 12px;" width="8%">Frequency</th>
+                    <th class="text-center" style="font-size: 12px;" width="8%">CPR <br> ( Rp. )</th>
+                    <th class="text-center" style="font-size: 12px;" width="8%">CPC <br> ( Rp. )</th>
+                    <th class="text-center no-export" style="font-size: 12px;" width="4%">Detail</th>
+                </tr>
+            </thead>
+            <tbody>
+
+            </tbody>
+            <tfoot>
+                <tr>
+                    <th colspan="3" class="text-center" style="font-size: 14px;">Total</th>
+                    <th class="text-right" style="font-size: 12px;" id="total_spend"></th>
+                    <th class="text-right" style="font-size: 12px;" id="total_impressions"></th>
+                    <th class="text-right" style="font-size: 12px;" id="total_reach"></th>
+                    <th class="text-right" style="font-size: 12px;" id="total_clicks"></th>
+                    <th class="text-right" style="font-size: 12px;" id="total_frequency"></th>
+                    <th class="text-right" style="font-size: 12px;" id="total_cpr"></th>
+                    <th class="text-right" style="font-size: 12px;" id="total_cpc"></th>
+                    <th class="no-export"></th>
+                </tr>
+            </tfoot>
+        </table>
+            </div>
+        </div>
+
+        <div class="row mt-1" data-title="Grafik" data-intro="Perbandingan metrik berdasarkan tanggal dan akun.">
+            <div class="col-md-6 mb-3">
+                <div class="summary-section-card summary-chart-card">
+                    <div class="summary-section-title"><i class="bi bi-graph-up"></i> Pergerakan Per Tanggal</div>
+                    <div id="facebookSummaryLineChart" style="height: 360px;"></div>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="summary-section-card summary-chart-card">
+                    <div class="summary-section-title"><i class="bi bi-bar-chart"></i> Perbandingan Per Akun</div>
+                    <div id="facebookSummaryAccountBarChart" style="height: 360px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="summary-section-card mb-3" id="facebookMonitoringCampaignCard" data-title="Monitoring Campaign" data-intro="Campaign yang overspend atau status PAUSED berdasarkan join data_ads_country dan master_ads.">
+            <div class="summary-section-title"><i class="bi bi-exclamation-triangle"></i> Monitoring Campaign (Overspend / PAUSED)</div>
+            <div class="table-responsive">
+                <table id="table_monitoring_campaign_facebook" class="table table-bordered table-striped" style="width:100%;">
+                    <thead>
+                        <tr>
+                            <th>Nama Akun</th>
+                            <th>Campaign</th>
+                            <th>Spend</th>
+                            <th>Daily Budget</th>
+                            <th>Status</th>
+                            <th>Remark</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="modal fade" id="facebookCampaignDetailModal" tabindex="-1" role="dialog" aria-labelledby="facebookCampaignDetailModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="facebookCampaignDetailModalLabel">
+                            <i class="bi bi-eye-fill"></i> Detail Campaign
+                        </h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-borderless mb-0">
+                                        <tbody>
+                                            <tr>
+                                                <th style="width: 40%;">Tanggal</th>
+                                                <td id="facebookCampaignDetailDate">-</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Account</th>
+                                                <td id="facebookCampaignDetailAccount">-</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Domain</th>
+                                                <td id="facebookCampaignDetailDomain">-</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Campaign</th>
+                                                <td id="facebookCampaignDetailCampaign">-</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-borderless mb-0">
+                                        <tbody>
+                                            <tr>
+                                                <th style="width: 45%;">Spend</th>
+                                                <td id="facebookCampaignDetailSpend" class="text-right">Rp 0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Impressions</th>
+                                                <td id="facebookCampaignDetailImpressions" class="text-right">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Reach</th>
+                                                <td id="facebookCampaignDetailReach" class="text-right">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Clicks (Hasil)</th>
+                                                <td id="facebookCampaignDetailClicks" class="text-right">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>Frequency</th>
+                                                <td id="facebookCampaignDetailFrequency" class="text-right">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>CPR</th>
+                                                <td id="facebookCampaignDetailCpr" class="text-right">Rp 0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>CPC</th>
+                                                <td id="facebookCampaignDetailCpc" class="text-right">Rp 0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>LPV</th>
+                                                <td id="facebookCampaignDetailLpv" class="text-right">0</td>
+                                            </tr>
+                                            <tr>
+                                                <th>LPV Rate</th>
+                                                <td id="facebookCampaignDetailLpvRate" class="text-right">0%</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
                         </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                            <i class="bi bi-x"></i> Tutup
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
-        <div id="container-activity" data-title="Aktivitas" data-intro="Grafik ringkasan aktivitas berdasarkan data yang dimuat."></div>
-        <br>
-        <div id="container" style="height: 100%;" data-title="Chart" data-intro="Visualisasi detail (Highcharts) untuk membantu analisa performa Facebook Ads."></div>
+        </div>
     </div>
 </div>
 {% endblock %}
 {% block more_scripts %}
-<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highcharts.min.js" onerror="console.error('Failed to load Highcharts')"></script>
-<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/treemap.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/sunburst.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/treegraph.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
-<script>
-    function loadFacebookSummaryScript() {
-        if (typeof Highcharts !== 'undefined') {
-            var script = document.createElement('script');
-            script.src = '{% static "ajax/admin/facebook_ads/summary.js" %}?v={%now "u"%}';
-            document.head.appendChild(script);
-        } else {
-            setTimeout(loadFacebookSummaryScript, 100);
-        }
-    }
-    loadFacebookSummaryScript();
-</script>
 <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highcharts.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<style>
+html[data-theme="dark"] #table_data_campaign_facebook,
+html[data-theme="dark"] #table_data_campaign_facebook > :not(caption) > * > *,
+html[data-theme="dark"] #table_monitoring_campaign_facebook,
+html[data-theme="dark"] #table_monitoring_campaign_facebook > :not(caption) > * > * {
+    background-color: #1e1e1e !important;
+    color: #e9ecef !important;
+    border-color: #2b2b2b !important;
+}
+</style>
+<script src="{% static 'ajax/admin/facebook_ads/summary.js'%}?v={%now 'u'%}"></script>
 <script>
 (function() {
     function decorateTourButtons() {
@@ -250,30 +426,26 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
         }
     }
 
-    function isVisible(el) {
-        if (!el) return false;
-        return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-    }
-
-    function startFacebookSummaryTour() {
+    function startFacebookPerCampaignTour() {
         if (typeof introJs !== 'function') return;
 
         const steps = [{
-            intro: 'Ini panduan singkat halaman Summary Facebook Ads. Klik “Lanjut” untuk mengikuti langkah-langkahnya.'
+            intro: 'Ini panduan singkat halaman Traffic Per Campaign Facebook Ads. Klik “Lanjut” untuk mengikuti langkah-langkahnya.'
         }];
 
         const selectors = [
-            '#facebookSummaryFilters',
+            '#facebookPerCampaignFilters',
             '#btn_load_data',
-            '#summary_boxes',
-            '#container-activity',
-            '#container'
+            '#facebookCampaignLastUpdate',
+            '#table_data_campaign_facebook',
+            '#facebookSummaryLineChart',
+            '#facebookSummaryAccountBarChart',
+            '#facebookMonitoringCampaignCard'
         ];
 
         selectors.forEach(function(sel) {
             const el = document.querySelector(sel);
             if (!el) return;
-            if (!isVisible(el) && (sel === '#container-activity' || sel === '#container')) return;
             steps.push({
                 element: el,
                 title: el.getAttribute('data-title') || undefined,
@@ -306,10 +478,10 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-        const btn = document.getElementById('btnFacebookSummaryTour');
+        const btn = document.getElementById('btnFacebookPerCampaignTour');
         if (!btn) return;
         btn.addEventListener('click', function() {
-            startFacebookSummaryTour();
+            startFacebookPerCampaignTour();
         });
     });
 })();
