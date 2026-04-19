@@ -1005,8 +1005,6 @@ class DashboardScoringDataView(View):
             ORDER BY entity_key, snapshot_time DESC
             """
 
-            print(f"[SQL] {sql}")
-
             def load_status_df():
                 df = query_df(sql)
 
@@ -1294,7 +1292,6 @@ class DashboardCreateScoringView(View):
                 compatibility_mode=False,
                 write_results=True,
             )
-            print(f'hasil_data_nya: {scoring_result}')
             return JsonResponse({
                 'status': True,
                 'message': 'create scoring berhasil',
@@ -1359,10 +1356,6 @@ class DashboardSyncView(View):
                     'cron_adx_country_load',
                     'cron_adsense_country_load',
                 ]
-
-            print(f'source: {source}')
-            print(f'commands: {commands}')
-
             class _LimitedStringIO:
                 def __init__(self, max_chars=20000):
                     self.max_chars = int(max_chars or 0)
@@ -1554,7 +1547,7 @@ class DashboardData(View):
             # Ambil data user
             user_data = data_mysql().data_user_by_params()
             total_users = len(user_data['data']) if user_data['status'] else 0
-            
+    
             # Ambil data login user
             login_data = data_mysql().data_login_user()
             login_users = login_data['data'] if login_data['status'] else []
@@ -2118,8 +2111,6 @@ class UpdateAccountFacebookAds(View):
                 'message': 'Account tidak ditemukan!'
             }
             return JsonResponse(hasil)
-        
-        print(req.session['hris_admin'])
         # Update data
         data_update = {
             'account_ads_id': account_ads_id,
@@ -2707,7 +2698,6 @@ class page_per_campaign_facebook(View):
             selected_account_list,
             selected_domain_list,
         )
-        print(f"db_result: {db_result}")
         # Unwrap payload (fungsi mengembalikan {'hasil': {...}})
         payload = db_result.get('hasil', {}) if isinstance(db_result, dict) else {}
         status_ok = bool(payload.get('status', False))
@@ -3093,7 +3083,6 @@ class AdxSummaryDataView(View):
                     response_data['error'] = payload['data']
             return JsonResponse(response_data)
         except Exception as e:
-            print(f"Error in AdxSummaryDataView: {str(e)}")
             return JsonResponse({
                 'status': False,
                 'error': str(e)
@@ -3110,22 +3099,14 @@ class AdxSummaryAdChangeDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         
-        # Debug: Log all GET parameters
-        print(f"[DEBUG] ===== ALL GET PARAMETERS =====")
-        for key, value in req.GET.items():
-            print(f"[DEBUG] {key}: {value}")
-        print(f"[DEBUG] ===== END ALL GET PARAMETERS =====")
-        
         # Handle site_filter - check both array format and string format
         site_filter_list = req.GET.getlist('site_filter[]')  # Array format
         site_filter_string = req.GET.get('site_filter', '')   # String format
         
         if site_filter_list:
             site_filter = ','.join(site_filter_list)
-            print(f"[DEBUG] Using array format site_filter: {site_filter}")
         else:
             site_filter = site_filter_string
-            print(f"[DEBUG] Using string format site_filter: {site_filter}")
         
         if not start_date or not end_date:
             return JsonResponse({
@@ -3442,12 +3423,6 @@ class SaveOAuthCredentialsView(View):
         return super().dispatch(request, *args, **kwargs)
     
     def post(self, req):
-        print("[SaveOAuthCredentialsView] POST request received!")
-        print(f"  Request method: {req.method}")
-        print(f"  Request path: {req.path}")
-        print(f"  Session has hris_admin: {'hris_admin' in req.session}")
-        print(f"  POST data keys: {list(req.POST.keys())}")
-        
         try:
             client_id = req.POST.get('client_id')
             client_secret = req.POST.get('client_secret')

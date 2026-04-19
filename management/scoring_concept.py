@@ -154,13 +154,13 @@ class MetricRule:
 
 
 RULES: list[MetricRule] = [
-    MetricRule("meta_spend", "meta", "control", "counter", "acquisition_cost", "adjustment_guardrail", "NEUTRAL", "HOURLY_INCREMENT_Z", 0.00, adjustment_weight=1.25, deadband_pct=0.03, family_key="meta_budget", family_rank=2, label_negative="META_SPEND_DROP", requires_source_match=True),
-    MetricRule("meta_budget_pacing_index", "meta", "control", "band", "budget_pacing", "pacing", "RANGE_GOOD", "BAND_TARGET", 0.55, 0.75, 1.10, ivt_weight=0.30, volume_gate_column="meta_daily_budget", min_volume=1, family_key="meta_budget", family_rank=1, range_low=0.70, range_high=1.30, band_dynamic=True, band_quantile_low=0.20, band_quantile_high=0.80, band_sigma=1.00, band_min_width_pct=0.08, label_positive="BUDGET_PACING_IN_RANGE", label_negative="BUDGET_PACING_OUT_OF_RANGE", requires_source_match=True),
-    MetricRule("meta_avg_cpc", "meta", "efficiency", "level", "acquisition_cost", "guardrail", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.85, 0.85, 1.05, ivt_weight=0.20, volume_gate_column="meta_clicks", min_volume=20, family_key="meta_efficiency", family_rank=1, label_positive="META_CPC_IMPROVING", label_negative="META_CPC_RISING", requires_source_match=True),
-    MetricRule("meta_clicks", "meta", "traffic", "counter", "acquisition", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.10, 0.95, 1.10, adjustment_weight=0.75, ivt_weight=0.25, deadband_pct=0.03, family_key="meta_traffic_volume", family_rank=2, label_positive="META_TRAFFIC_UP", label_negative="META_TRAFFIC_DOWN", requires_source_match=True),
-    MetricRule("meta_lpv", "meta", "traffic", "counter", "landing", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.35, 0.95, 1.15, adjustment_weight=1.00, ivt_weight=0.35, deadband_pct=0.03, family_key="meta_traffic_volume", family_rank=1, label_positive="LPV_UP", label_negative="LPV_DOWN", requires_source_match=True),
-    MetricRule("meta_lpv_rate", "meta", "efficiency", "rate", "landing_quality", "derived", "UP_GOOD", "PROPORTION_Z", 1.10, 0.90, 1.15, ivt_weight=0.55, volume_gate_column="meta_clicks", min_volume=20, denominator_column="meta_clicks", numerator_column="meta_lpv", family_key="meta_traffic_quality", family_rank=1, deadband_pct=0.04, label_positive="LPV_RATE_IMPROVING", label_negative="LPV_RATE_DROP", requires_source_match=True),
-    MetricRule("meta_frequency", "meta", "quality", "band", "fatigue", "guardrail", "RANGE_GOOD", "BAND_TARGET", 0.45, 0.70, 1.00, ivt_weight=0.65, family_key="meta_fatigue", family_rank=1, range_low=1.0, range_high=3.5, band_dynamic=True, band_quantile_low=0.20, band_quantile_high=0.80, band_sigma=1.00, band_min_width_pct=0.08, label_positive="FREQUENCY_IN_RANGE", label_negative="FREQUENCY_OUT_OF_RANGE", requires_source_match=True),
+    MetricRule("meta_spend", "meta", "control", "counter", "acquisition_cost", "adjustment_guardrail", "NEUTRAL", "HOURLY_INCREMENT_Z", 0.00, adjustment_weight=1.25, deadband_pct=0.03, family_key="meta_budget", family_rank=2, label_negative="META_SPEND_DROP", requires_source_match=False),
+    # MetricRule("meta_budget_pacing_index", "meta", "control", "band", "budget_pacing", "pacing", "RANGE_GOOD", "BAND_TARGET", 0.55, 0.75, 1.10, ivt_weight=0.30, volume_gate_column="meta_daily_budget", min_volume=1, family_key="meta_budget", family_rank=1, range_low=0.70, range_high=1.30, band_dynamic=True, band_quantile_low=0.20, band_quantile_high=0.80, band_sigma=1.00, band_min_width_pct=0.08, label_positive="BUDGET_PACING_IN_RANGE", label_negative="BUDGET_PACING_OUT_OF_RANGE", requires_source_match=True),
+    MetricRule("meta_avg_cpc", "meta", "efficiency", "level", "acquisition_cost", "guardrail", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.85, 0.85, 1.05, ivt_weight=0.20, volume_gate_column="meta_clicks", min_volume=20, family_key="meta_efficiency", family_rank=1, label_positive="META_CPC_IMPROVING", label_negative="META_CPC_RISING", requires_source_match=False),
+    MetricRule("meta_clicks", "meta", "traffic", "counter", "acquisition", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.10, 0.95, 1.10, adjustment_weight=0.75, ivt_weight=0.25, deadband_pct=0.03, family_key="meta_traffic_volume", family_rank=2, label_positive="META_TRAFFIC_UP", label_negative="META_TRAFFIC_DOWN", requires_source_match=False),
+    MetricRule("meta_lpv", "meta", "traffic", "counter", "landing", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.35, 0.95, 1.15, adjustment_weight=1.00, ivt_weight=0.35, deadband_pct=0.03, family_key="meta_traffic_volume", family_rank=1, label_positive="LPV_UP", label_negative="LPV_DOWN", requires_source_match=False),
+    MetricRule("meta_lpv_rate", "meta", "efficiency", "rate", "landing_quality", "derived", "UP_GOOD", "PROPORTION_Z", 1.10, 0.90, 1.15, ivt_weight=0.55, volume_gate_column="meta_clicks", min_volume=20, denominator_column="meta_clicks", numerator_column="meta_lpv", family_key="meta_traffic_quality", family_rank=1, deadband_pct=0.04, label_positive="LPV_RATE_IMPROVING", label_negative="LPV_RATE_DROP", requires_source_match=False),
+    MetricRule("meta_frequency", "meta", "quality", "band", "fatigue", "guardrail", "RANGE_GOOD", "BAND_TARGET", 0.45, 0.70, 1.00, ivt_weight=0.65, family_key="meta_fatigue", family_rank=1, range_low=1.0, range_high=3.5, band_dynamic=True, band_quantile_low=0.20, band_quantile_high=0.80, band_sigma=1.00, band_min_width_pct=0.08, label_positive="FREQUENCY_IN_RANGE", label_negative="FREQUENCY_OUT_OF_RANGE", requires_source_match=False),
 
     MetricRule("adsense_estimated_earnings", "adsense", "revenue", "counter", "monetization", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.70, 0.95, 1.15, adjustment_weight=1.60, ivt_weight=0.45, deadband_pct=0.03, family_key="adsense_revenue", family_rank=1, provisional_metric=True, freshness_min_confidence_factor=0.55, freshness_full_confidence_hours=8, label_positive="ADSENSE_REVENUE_UP", label_negative="ADSENSE_REVENUE_DROP"),
     MetricRule("adsense_page_views", "adsense", "traffic", "counter", "onsite_traffic", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 0.95, 0.90, 1.05, adjustment_weight=0.80, ivt_weight=0.20, deadband_pct=0.03, family_key="adsense_page_yield", family_rank=3, label_positive="PAGE_VIEWS_UP", label_negative="PAGE_VIEWS_DOWN"),
@@ -187,17 +187,17 @@ RULES: list[MetricRule] = [
     MetricRule("adx_active_view_pct_viewable", "adx", "quality", "rate", "viewability", "primary", "UP_GOOD", "PROPORTION_Z", 0.85, 0.80, 1.15, ivt_weight=0.70, volume_gate_column="adx_impressions", min_volume=500, denominator_column="adx_impressions", family_key="adx_viewability", family_rank=1, deadband_pct=0.03, label_positive="ADX_VIEWABILITY_UP", label_negative="ADX_VIEWABILITY_DROP"),
     MetricRule("adx_active_view_avg_time_sec", "adx", "quality", "level", "attention", "support", "UP_GOOD", "EWMA_LEVEL_Z", 0.55, 0.75, 1.00, ivt_weight=0.70, volume_gate_column="adx_impressions", min_volume=500, family_key="adx_attention", family_rank=1, deadband_pct=0.04, label_positive="ADX_ACTIVE_VIEW_TIME_UP", label_negative="ADX_ACTIVE_VIEW_TIME_DOWN"),
 
-    MetricRule("blended_revenue", "blended", "revenue", "counter", "monetization", "composite_primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.95, 0.95, 1.20, adjustment_weight=1.80, ivt_weight=0.55, deadband_pct=0.03, family_key="blended_revenue", family_rank=1, provisional_metric=True, freshness_min_confidence_factor=0.55, freshness_full_confidence_hours=8, label_positive="BLENDED_REVENUE_UP", label_negative="BLENDED_REVENUE_DROP", requires_source_match=True),
-    MetricRule("revenue_per_lpv", "blended", "yield", "level", "monetization_efficiency", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 1.45, 0.90, 1.15, ivt_weight=1.00, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_efficiency", family_rank=1, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="REVENUE_PER_LPV_UP", label_negative="REVENUE_PER_LPV_DOWN", requires_source_match=True),
-    MetricRule("roi_proxy", "blended", "efficiency", "level", "unit_economics", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 1.35, 0.90, 1.15, ivt_weight=0.70, volume_gate_column="meta_spend", min_volume=500, denominator_column="meta_spend", family_key="blended_efficiency", family_rank=2, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="ROI_PROXY_UP", label_negative="ROI_PROXY_DOWN", requires_source_match=True),
-    MetricRule("meta_cost_per_lpv", "blended", "efficiency", "level", "acquisition_cost", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 1.00, 0.85, 1.10, ivt_weight=0.45, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_efficiency", family_rank=3, deadband_pct=0.05, label_positive="COST_PER_LPV_DOWN", label_negative="COST_PER_LPV_UP", requires_source_match=True),
-    MetricRule("request_to_impression_eff", "blended", "delivery", "rate", "render_efficiency", "composite", "UP_GOOD", "PROPORTION_Z", 1.25, 0.90, 1.20, ivt_weight=1.10, volume_gate_column="total_requests_blended", min_volume=300, denominator_column="total_requests_blended", numerator_column="total_impressions_blended", family_key="blended_delivery", family_rank=1, deadband_pct=0.03, label_positive="REQUEST_EFFICIENCY_UP", label_negative="REQUEST_EFFICIENCY_DOWN", requires_source_match=True),
-    MetricRule("revenue_per_request_total", "blended", "yield", "level", "request_yield", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 0.75, 0.85, 1.10, ivt_weight=0.90, volume_gate_column="total_requests_blended", min_volume=300, denominator_column="total_requests_blended", family_key="blended_delivery", family_rank=2, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="REQUEST_YIELD_UP", label_negative="REQUEST_YIELD_DOWN", requires_source_match=True),
-    MetricRule("click_pressure", "blended", "quality", "level", "click_stress", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.45, 0.75, 1.00, ivt_weight=1.65, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_click_pressure", family_rank=1, deadband_pct=0.06, label_positive="CLICK_PRESSURE_DOWN", label_negative="CLICK_PRESSURE_UP", requires_source_match=True),
-    MetricRule("request_density", "blended", "quality", "level", "request_density", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.35, 0.75, 1.00, ivt_weight=1.15, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_click_pressure", family_rank=2, deadband_pct=0.06, label_positive="REQUEST_DENSITY_DOWN", label_negative="REQUEST_DENSITY_UP", requires_source_match=True),
+    MetricRule("blended_revenue", "blended", "revenue", "counter", "monetization", "composite_primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.95, 0.95, 1.20, adjustment_weight=1.80, ivt_weight=0.55, deadband_pct=0.03, family_key="blended_revenue", family_rank=1, provisional_metric=True, freshness_min_confidence_factor=0.55, freshness_full_confidence_hours=8, label_positive="BLENDED_REVENUE_UP", label_negative="BLENDED_REVENUE_DROP", requires_source_match=False),
+    MetricRule("revenue_per_lpv", "blended", "yield", "level", "monetization_efficiency", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 1.45, 0.90, 1.15, ivt_weight=1.00, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_efficiency", family_rank=1, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="REVENUE_PER_LPV_UP", label_negative="REVENUE_PER_LPV_DOWN", requires_source_match=False),
+    MetricRule("roi_proxy", "blended", "efficiency", "level", "unit_economics", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 1.35, 0.90, 1.15, ivt_weight=0.70, volume_gate_column="meta_spend", min_volume=500, denominator_column="meta_spend", family_key="blended_efficiency", family_rank=2, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="ROI_PROXY_UP", label_negative="ROI_PROXY_DOWN", requires_source_match=False),
+    MetricRule("meta_cost_per_lpv", "blended", "efficiency", "level", "acquisition_cost", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 1.00, 0.85, 1.10, ivt_weight=0.45, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_efficiency", family_rank=3, deadband_pct=0.05, label_positive="COST_PER_LPV_DOWN", label_negative="COST_PER_LPV_UP", requires_source_match=False),
+    MetricRule("request_to_impression_eff", "blended", "delivery", "rate", "render_efficiency", "composite", "UP_GOOD", "PROPORTION_Z", 1.25, 0.90, 1.20, ivt_weight=1.10, volume_gate_column="total_requests_blended", min_volume=300, denominator_column="total_requests_blended", numerator_column="total_impressions_blended", family_key="blended_delivery", family_rank=1, deadband_pct=0.03, label_positive="REQUEST_EFFICIENCY_UP", label_negative="REQUEST_EFFICIENCY_DOWN", requires_source_match=False),
+    MetricRule("revenue_per_request_total", "blended", "yield", "level", "request_yield", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 0.75, 0.85, 1.10, ivt_weight=0.90, volume_gate_column="total_requests_blended", min_volume=300, denominator_column="total_requests_blended", family_key="blended_delivery", family_rank=2, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="REQUEST_YIELD_UP", label_negative="REQUEST_YIELD_DOWN", requires_source_match=False),
+    MetricRule("click_pressure", "blended", "quality", "level", "click_stress", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.45, 0.75, 1.00, ivt_weight=1.65, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_click_pressure", family_rank=1, deadband_pct=0.06, label_positive="CLICK_PRESSURE_DOWN", label_negative="CLICK_PRESSURE_UP", requires_source_match=False),
+    MetricRule("request_density", "blended", "quality", "level", "request_density", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.35, 0.75, 1.00, ivt_weight=1.15, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_click_pressure", family_rank=2, deadband_pct=0.06, label_positive="REQUEST_DENSITY_DOWN", label_negative="REQUEST_DENSITY_UP", requires_source_match=False),
     MetricRule("attention_quality_blended", "blended", "quality", "rate", "viewability", "composite", "UP_GOOD", "PROPORTION_Z", 0.90, 0.80, 1.10, ivt_weight=0.95, volume_gate_column="total_impressions_blended", min_volume=500, denominator_column="total_impressions_blended", family_key="blended_attention", family_rank=1, deadband_pct=0.03, label_positive="ATTENTION_QUALITY_UP", label_negative="ATTENTION_QUALITY_DROP", requires_source_match=True),
-    MetricRule("active_time_blended", "blended", "quality", "level", "attention", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 0.75, 0.80, 1.00, ivt_weight=0.75, volume_gate_column="total_impressions_blended", min_volume=500, family_key="blended_attention", family_rank=2, deadband_pct=0.04, label_positive="ACTIVE_TIME_BLENDED_UP", label_negative="ACTIVE_TIME_BLENDED_DOWN", requires_source_match=True),
-    MetricRule("viewability_gap_abs", "blended", "quality", "level", "source_alignment", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.35, 0.75, 1.00, ivt_weight=0.85, volume_gate_column="total_impressions_blended", min_volume=500, family_key="blended_attention", family_rank=3, deadband_pct=0.05, label_positive="VIEWABILITY_GAP_DOWN", label_negative="VIEWABILITY_GAP_UP", requires_source_match=True),
+    MetricRule("active_time_blended", "blended", "quality", "level", "attention", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 0.75, 0.80, 1.00, ivt_weight=0.75, volume_gate_column="total_impressions_blended", min_volume=500, family_key="blended_attention", family_rank=2, deadband_pct=0.04, label_positive="ACTIVE_TIME_BLENDED_UP", label_negative="ACTIVE_TIME_BLENDED_DOWN", requires_source_match=False),
+    MetricRule("viewability_gap_abs", "blended", "quality", "level", "source_alignment", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.35, 0.75, 1.00, ivt_weight=0.85, volume_gate_column="total_impressions_blended", min_volume=500, family_key="blended_attention", family_rank=3, deadband_pct=0.05, label_positive="VIEWABILITY_GAP_DOWN", label_negative="VIEWABILITY_GAP_UP", requires_source_match=False),
 ]
 
 
@@ -543,16 +543,16 @@ def _counter_correction_columns_for_mode(source_mode: str) -> set[str]:
 
 
 def _load_join_history(target_date: date, domain: str, lookback_days: int = 35) -> pd.DataFrame:
-    print(f'hasil_target_date: {target_date}')
-    print(f'hasil_domain: {domain}')
     sql = f"""
         SELECT *
         FROM hris_trendHorizone.fact_join_hourly
         WHERE date >= toDate('{_sql_date(target_date)}') - INTERVAL {int(lookback_days)} DAY
         AND date <= toDate('{_sql_date(target_date)}')
-        AND site = '{domain}'
-        ORDER BY site, country_code, date, run_hour, run_time
     """
+    if domain:
+        sql += f" AND site = '{domain}'"
+
+    sql += " ORDER BY site, country_code, date, run_hour, run_time"
     df = query_df(sql)
     if df.empty:
         return df
@@ -616,10 +616,10 @@ def _compute_derived_features(df: pd.DataFrame) -> pd.DataFrame:
         _safe_div(s, b, 0.0) if safe_float(b) > 0 else 0.0
         for s, b in zip(col("meta_spend"), col("meta_daily_budget"))
     ]
-    out["meta_budget_pacing_index"] = [
-        _safe_div(util, progress, 0.0) if safe_float(budget) > 0 else 0.0
-        for util, progress, budget in zip(out["meta_budget_utilization"], expected_day_progress, col("meta_daily_budget"))
-    ]
+    # out["meta_budget_pacing_index"] = [
+    #     _safe_div(util, progress, 0.0) if safe_float(budget) > 0 else 0.0
+    #     for util, progress, budget in zip(out["meta_budget_utilization"], expected_day_progress, col("meta_daily_budget"))
+    # ]
 
     out["meta_cost_per_lpv"] = [
         _safe_div(s, lpv, 0.0) for s, lpv in zip(col("meta_spend"), col("meta_lpv"))
@@ -881,6 +881,7 @@ def _freshness_confidence_factor(cur: pd.Series, rule: MetricRule) -> float:
 
 
 def _event_template(cur: pd.Series, rule: MetricRule, batch_uuid: uuid.UUID) -> dict:
+    print(f"current_data: {cur}")
     return {
         "batch_id": str(batch_uuid),
         # ✅ TAMBAHKAN INI
@@ -975,17 +976,23 @@ def _evaluate_rule(cur: pd.Series, same_hour: pd.DataFrame, all_hours: pd.DataFr
     selected, baseline_source = _select_window(same_hour_scoped, cur["date"], rule, cur.get("day_type", "UNKNOWN"), "SITE_SAME_HOUR")
     if len(selected) < max(3, rule.min_history_points // 2):
         selected, baseline_source = _select_window(all_hours_scoped, cur["date"], rule, cur.get("day_type", "UNKNOWN"), "SITE_ALL_HOURS")
+    print(f"family_rank: {rule.family_rank}")
     family_factor = _family_rank_factor(rule.family_rank)
+    print(f"family_factor: {family_factor}")
     join_status = str(cur.get("join_status"))
     join_conf = 1.0 if join_status == "OK" else 0.75 if join_status.startswith("SOURCE_ONLY_NO_META") else 0.25
-
+    print(f"score_method: {rule.score_method}")
     if rule.score_method == "BAND_TARGET":
         low, high, center, width, hist_points = _band_range(selected, rule)
         dist = _band_distance(cur_value, low, high, center, width)
+        print(f"dist_data: {dist}")
         prev_dist = dist if prev_is_missing else _band_distance(prev_value, low, high, center, width)
         movement_component = 0.0 if prev_is_missing else clip(prev_dist - dist, -1.0, 1.0)
+        print(f"movement_component: {movement_component}")
         absolute_component = _band_absolute_component(dist)
+        print(f"absolute_component: {absolute_component}")
         signal_strength = clip((movement_component * 0.65) + (absolute_component * 0.35), -1.0, 1.0)
+        print(f"signal_strength: {signal_strength}")
         if dist > 0.25 and signal_strength > 0:
             signal_strength = min(signal_strength, 0.15)
 
@@ -1002,9 +1009,10 @@ def _evaluate_rule(cur: pd.Series, same_hour: pd.DataFrame, all_hours: pd.DataFr
         event["hist_points"] = hist_points
         event["signal_strength"] = signal_strength
         event["health_component"] = signal_strength * rule.base_weight * sign_weight * family_factor * event["confidence"]
+        print(f"ivt_weight: {rule.ivt_weight}")
         event["ivt_capacity"] = rule.ivt_weight * family_factor * event["confidence"]
         event["ivt_component"] = max(0.0, -signal_strength) * event["ivt_capacity"]
-
+        print(f"data_event_full: {event}")
         if signal_strength > 0.02:
             event["change_class"] = "POSITIVE"
             event["event_label"] = rule.label_positive or f"{rule.column.upper()}_IN_RANGE"
@@ -1215,7 +1223,7 @@ def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uui
     lpv = _signal_lookup(row_events, "meta_lpv")
     lpv_rate = _signal_lookup(row_events, "meta_lpv_rate")
     freq = _signal_lookup(row_events, "meta_frequency")
-    budget_pacing = _signal_lookup(row_events, "meta_budget_pacing_index")
+    # budget_pacing = _signal_lookup(row_events, "meta_budget_pacing_index")
     rev_per_lpv = _signal_lookup(row_events, "revenue_per_lpv")
     roi_proxy = _signal_lookup(row_events, "roi_proxy")
     blended_rev = _signal_lookup(row_events, "blended_revenue")
@@ -1407,19 +1415,19 @@ def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uui
         evt["note"] = "fatigue / saturation signature detected"
         push(evt)
 
-    if safe_float(budget_pacing["signal_strength"]) < -0.18 and min(safe_float(rev_per_lpv["signal_strength"]), safe_float(roi_proxy["signal_strength"])) < -0.15:
-        conf = avg_conf_items([budget_pacing, rev_per_lpv, roi_proxy])
-        evt = _composite_event_template(cur, batch_uuid, "cx_budget_pressure_without_value", composite_source_scope, "efficiency", "budget_pacing", "relationship", "DOWN_GOOD")
-        evt["confidence"] = conf
-        evt["signal_strength"] = -clip((abs(safe_float(budget_pacing["signal_strength"])) + abs(min(safe_float(rev_per_lpv["signal_strength"]), safe_float(roi_proxy["signal_strength"])))) / 2.0, 0.0, 1.0)
-        evt["health_component"] = -0.80 * abs(evt["signal_strength"]) * conf
-        evt["ivt_component"] = 0.35 * abs(evt["signal_strength"]) * conf
-        evt["ivt_capacity"] = 0.45 * conf
-        evt["change_class"] = "NEGATIVE"
-        evt["event_label"] = "BUDGET_PRESSURE_WITHOUT_VALUE"
-        evt["event_reason"] = "PACING_HOT_AND_VALUE_DOWN"
-        evt["note"] = "budget pacing moved out of band while unit economics weakened"
-        push(evt)
+    # if safe_float(budget_pacing["signal_strength"]) < -0.18 and min(safe_float(rev_per_lpv["signal_strength"]), safe_float(roi_proxy["signal_strength"])) < -0.15:
+    #     conf = avg_conf_items([budget_pacing, rev_per_lpv, roi_proxy])
+    #     evt = _composite_event_template(cur, batch_uuid, "cx_budget_pressure_without_value", composite_source_scope, "efficiency", "budget_pacing", "relationship", "DOWN_GOOD")
+    #     evt["confidence"] = conf
+    #     evt["signal_strength"] = -clip((abs(safe_float(budget_pacing["signal_strength"])) + abs(min(safe_float(rev_per_lpv["signal_strength"]), safe_float(roi_proxy["signal_strength"])))) / 2.0, 0.0, 1.0)
+    #     evt["health_component"] = -0.80 * abs(evt["signal_strength"]) * conf
+    #     evt["ivt_component"] = 0.35 * abs(evt["signal_strength"]) * conf
+    #     evt["ivt_capacity"] = 0.45 * conf
+    #     evt["change_class"] = "NEGATIVE"
+    #     evt["event_label"] = "BUDGET_PRESSURE_WITHOUT_VALUE"
+    #     evt["event_reason"] = "PACING_HOT_AND_VALUE_DOWN"
+    #     evt["note"] = "budget pacing moved out of band while unit economics weakened"
+    #     push(evt)
 
     if safe_float(primary_revenue["signal_strength"]) > 0.25 and safe_float(rev_per_lpv["signal_strength"]) > 0.15 and delivery_floor > -0.05:
         conf = avg_conf_items([primary_revenue, rev_per_lpv] + delivery_events)
@@ -1597,7 +1605,6 @@ def _clamp_score(x):
     return max(0.0, min(100.0, float(x)))
 
 def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.UUID, persistence: dict) -> dict:
-    print(f"[DEBUG] Raw events: {events}")
     positive = [e for e in events if e["change_class"] == "POSITIVE"]
     negative = [e for e in events if e["change_class"] == "NEGATIVE"]
     neutral = [e for e in events if e["change_class"] == "NEUTRAL"]
@@ -1618,8 +1625,6 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         for e in events
         if e["change_class"] != "SKIPPED"
     )
-    ivt_num = sum(max(0.0, safe_float(e.get("ivt_component"))) for e in events)
-    ivt_den = sum(max(safe_float(e.get("ivt_capacity")), 0.0) for e in events if safe_float(e.get("ivt_capacity")) > 0)
     confidence = sum(safe_float(e["confidence"]) for e in events if e["change_class"] != "SKIPPED") / max(len([e for e in events if e["change_class"] != "SKIPPED"]), 1)
     family_scores = defaultdict(list)  
     for e in events:
@@ -1647,14 +1652,21 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
     # health_num = sum(safe_float(e["health_component"]) for e in events)
     # health_den = sum(max(abs(safe_float(e["health_component"])), 0.0) for e in events if e["change_class"] in {"POSITIVE", "NEGATIVE", "NEUTRAL"})
     # health_score = 100.0 * health_num / health_den if health_den > 0 else 0.0
-    
     adjustment_score = (
         100.0 * adjustment_num / adjustment_den
         if adjustment_den > 0
         else 0.0
     ) if adjustment_den > 0 else 0.0
+    ivt_num = sum(max(0.0, safe_float(e.get("ivt_component"))) for e in events)
+    ivt_den = sum(max(safe_float(e.get("ivt_capacity")), 0.0) for e in events if safe_float(e.get("ivt_capacity")) > 0)
+    # print(f"events_data: {events}")
+    # for e in events:
+    #     print({
+    #         "metric": e.get("metric_name"),
+    #         "ivt_component": e.get("ivt_component"),
+    #         "ivt_capacity": e.get("ivt_capacity"),
+    #     })
     ivt_risk_score = clip(100.0 * ivt_num / ivt_den, 0.0, 100.0) if ivt_den > 0 else 0.0
-
     status = {
         "batch_id": str(batch_uuid),
         "run_time": cur["run_time"].to_pydatetime() if hasattr(cur["run_time"], "to_pydatetime") else cur["run_time"],
@@ -1711,6 +1723,7 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "final_label": "",
         "reason_summary": "",
     }
+    print(f"status_data: {status}")
     status["root_cause_label"] = _root_cause_label(status)
     final_label, hysteresis_applied = _apply_hysteresis(status["root_cause_label"], status, persistence)
     status["final_label"] = final_label
@@ -1729,6 +1742,55 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
     ])
     return status
 
+def _json_safe_records(df: pd.DataFrame) -> list[dict]:
+    if df is None or df.empty:
+        return []
+    out = df.copy()
+    out = out.astype(object)
+    return [
+        {k: _json_safe_value(v) for k, v in row.items()}
+        for row in out.to_dict("records")
+    ]
+
+def _json_safe_value(value):
+    if value is None:
+        return None
+
+    if isinstance(value, pd.Timestamp):
+        if pd.isna(value):
+            return None
+        return value.isoformat()
+
+    if isinstance(value, (date, datetime)):
+        return value.isoformat()
+
+    if isinstance(value, dict):
+        return {str(k): _json_safe_value(v) for k, v in value.items()}
+
+    if isinstance(value, (list, tuple, set)):
+        return [_json_safe_value(v) for v in value]
+
+    try:
+        import numpy as np
+        if isinstance(value, np.ndarray):
+            return [_json_safe_value(v) for v in value.tolist()]
+        if isinstance(value, np.generic):
+            value = value.item()
+    except Exception:
+        pass
+
+    try:
+        if pd.isna(value):
+            return None
+    except Exception:
+        pass
+
+    if isinstance(value, float):
+        if math.isnan(value) or math.isinf(value):
+            return None
+
+    return value
+
 
 def score_site_country(
     target_date: date,
@@ -1745,7 +1807,6 @@ def score_site_country(
     if history_df.empty:
         return {"ok": True, "rows_written": 0, "event_rows_written": 0, "batch_id": str(batch_uuid), "warning": "No join history for requested filter", "statuses": [], "events": []}
     current_df = history_df[history_df["is_current_batch"]].copy()
-    print(f"[DEBUG] Raw current_df_ok: {current_df}")
     if current_df.empty:
         return {"ok": True, "rows_written": 0, "batch_id": str(batch_uuid), "warning": "No current batch rows found in fact_join_hourly"}
     recent_status_df = _load_recent_status_history(target_date, lookback_days=max(7, min(max(lookback_days, 7), 21)))
@@ -1796,4 +1857,6 @@ def score_site_country(
         "event_rows_written": int(len(event_df)),
         "batch_id": str(batch_uuid),
         "compatibility_mode": bool(compatibility_mode),
+        "statuses": _json_safe_records(status_df),
+        "events": _json_safe_records(event_df),
     }
