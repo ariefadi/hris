@@ -139,11 +139,11 @@ TEMPLATES = [
 WSGI_APPLICATION = 'hris.wsgi.application'
 
 # Database Configuration - MySQL
-_db_name = os.getenv('HRIS_DB_NAME') or os.getenv('DB_NAME') or 'hris_trendHorizone'
-_db_user = os.getenv('HRIS_DB_USER') or os.getenv('DB_USER') or 'root'
-_db_password = os.getenv('HRIS_DB_PASSWORD') or os.getenv('DB_PASSWORD') or 'hris123456'
-_db_host = os.getenv('HRIS_DB_HOST') or os.getenv('DB_HOST') or '127.0.0.1'
-_db_port = os.getenv('HRIS_DB_PORT') or os.getenv('DB_PORT') or '3306'
+_db_name = os.getenv('DB_NAME')
+_db_user = os.getenv('DB_USER')
+_db_password = os.getenv('DB_PASSWORD')
+_db_host = os.getenv('DB_HOST')
+_db_port = os.getenv('DB_PORT')
 
 DATABASES = {
     'default': {
