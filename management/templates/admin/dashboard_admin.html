@@ -4747,19 +4747,20 @@ function initDashboardRecap() {
         };
     }
 
-    function keputusanBadge(meta) {
-        const d = String(meta?.decision || '').toUpperCase();
-        const label = String(meta?.label || '').trim();
-        const title = (meta?.reasons && meta.reasons.length) ? esc(meta.reasons.join(' • ')) : '';
-        if (!d) return `<div title="${title}"><span class="badge badge-light badge-pill" style="color:#6b7280;border:1px solid rgba(107,114,128,.22);">BELUM SIAP</span>${label ? `<div style="font-size:11px;opacity:.8;margin-top:4px;font-weight:800;">${esc(label)}</div>` : ''}</div>`;
-        let cls = 'badge badge-secondary badge-pill';
-        if (d === 'SCALE UP') cls = 'badge badge-success badge-pill';
-        else if (d === 'HOLD') cls = 'badge badge-primary badge-pill';
-        else if (d === 'SCALE DOWN') cls = 'badge badge-warning badge-pill text-dark';
-        else if (d === 'STOP') cls = 'badge badge-danger badge-pill';
-        const sub = label ? `<div style="font-size:11px;opacity:.8;margin-top:4px;font-weight:800;">${esc(label)}</div>` : '';
-        return `<div title="${title}"><span class="${cls}">${esc(d)}</span>${sub}</div>`;
-    }
+    // function keputusanBadge(meta) {
+    //     const d = String(meta?.decision || '').toUpperCase();
+    //     const label = String(meta?.label || '').trim();
+    //     const title = (meta?.reasons && meta.reasons.length) ? esc(meta.reasons.join(' • ')) : '';
+    //     if (!d) return `<div title="${title}"><span class="badge badge-light badge-pill" style="color:#6b7280;border:1px solid rgba(107,114,128,.22);">BELUM SIAP</span>${label ? `<div style="font-size:11px;opacity:.8;margin-top:4px;font-weight:800;">${esc(label)}</div>` : ''}</div>`;
+    //     let cls = 'badge badge-secondary badge-pill';
+    //     if (d === 'SCALE UP') cls = 'badge badge-success badge-pill';
+    //     else if (d === 'HOLD') cls = 'badge badge-primary badge-pill';
+    //     else if (d === 'SCALE DOWN') cls = 'badge badge-warning badge-pill text-dark';
+    //     else if (d === 'STOP') cls = 'badge badge-danger badge-pill';
+    //     const sub = label ? `<div style="font-size:11px;opacity:.8;margin-top:4px;font-weight:800;">${esc(label)}</div>` : '';
+    //     return `<div title="${title}"><span class="${cls}">${esc(d)}</span>${sub}</div>`;
+    // }
+    
     // These functions are now in global scope (moved before initDashboardRecap)
 
     function setScoreDetailCloseVisible(visible) {
