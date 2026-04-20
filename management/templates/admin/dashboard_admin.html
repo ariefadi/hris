@@ -3101,6 +3101,7 @@ function initDashboardRecap() {
         let updatedAt = '';
         if (raw) {
             const dt = new Date(raw.replace(' ', 'T'));
+            // console.log("dtnya : ", dt);
             updatedAt = Number.isNaN(dt.getTime()) ? raw : dt.toLocaleString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
         }
         return { value, updatedAt };
