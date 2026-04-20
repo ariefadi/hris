@@ -8242,7 +8242,7 @@ class data_mysql:
                 data.append({
                     "batch_id": ensure_uuid(),
                     "run_time": row.get("run_time"),
-                    "run_date": now.date(),
+                    "run_date": row.get("date"),
                     "run_hour": row.get("run_hour"),
                     "site": row.get("domain"),
                     "entity_key": row.get("entity_key"),

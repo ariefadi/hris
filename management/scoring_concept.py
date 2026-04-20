@@ -1834,6 +1834,26 @@ def score_site_country(
     status_df = pd.DataFrame(status_rows)
     event_df = pd.DataFrame(event_rows)
 
+    run_clock_now = datetime.now(ZoneInfo("Asia/Jakarta")).replace(microsecond=0).time()
+
+    def _align_runtime_and_rundate(df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty or "date" not in df.columns:
+            return df
+        out = df.copy()
+        date_series = pd.to_datetime(out["date"], errors="coerce")
+
+        out["run_time"] = date_series.map(
+            lambda v: datetime.combine(v.date(), run_clock_now)
+            if pd.notna(v)
+            else datetime.now(ZoneInfo("Asia/Jakarta")).replace(tzinfo=None, microsecond=0)
+        )
+        out["run_date"] = date_series.dt.date
+        out["run_hour"] = int(run_clock_now.hour)
+        return out
+
+    status_df = _align_runtime_and_rundate(status_df)
+    event_df = _align_runtime_and_rundate(event_df)
+
     if write_results:
         if not status_df.empty:
             if compatibility_mode:

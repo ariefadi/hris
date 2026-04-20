@@ -964,7 +964,7 @@ class DashboardScoringDataView(View):
             table_cols = set(getattr(scoring_module, '_get_table_columns', lambda _t: set())(status_table) or [])
             event_table_cols = set(getattr(scoring_module, '_get_table_columns', lambda _t: set())(event_table) or [])
 
-            raw_snapshot_expr = 'event_time' if 'event_time' in table_cols else ('mdd' if 'mdd' in table_cols else ('run_time' if 'run_time' in table_cols else 'toDateTime(run_date)'))
+            raw_snapshot_expr = 'event_time' if 'event_time' in table_cols else ('mdd' if 'mdd' in table_cols else ('date' if 'date' in table_cols else 'toDateTime(run_date)'))
             snapshot_expr = f"toTimeZone({raw_snapshot_expr}, 'Asia/Jakarta')"
             date_expr = 'toDate(event_date)' if 'event_date' in table_cols else ('toDate(date)' if 'date' in table_cols else 'toDate(run_date)')
             country_key_col = 'country_code' if 'country_code' in table_cols else 'country_cd'
@@ -988,7 +988,7 @@ class DashboardScoringDataView(View):
             ORDER BY entity_key, snapshot_time DESC
             """
 
-            event_snapshot_expr = 'event_time' if 'event_time' in event_table_cols else ('mdd' if 'mdd' in event_table_cols else ('run_time' if 'run_time' in event_table_cols else 'toDateTime(run_date)'))
+            event_snapshot_expr = 'event_time' if 'event_time' in event_table_cols else ('mdd' if 'mdd' in event_table_cols else ('date' if 'date' in event_table_cols else 'toDateTime(run_date)'))
             event_date_expr = 'toDate(event_date)' if 'event_date' in event_table_cols else ('toDate(date)' if 'date' in event_table_cols else 'toDate(run_date)')
             event_country_col = 'country_code' if 'country_code' in event_table_cols else 'country_cd'
             event_entity_expr = f"upper({event_country_col})" if dim == 'country' else "lower(site)"
