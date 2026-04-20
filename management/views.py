@@ -958,137 +958,75 @@ class DashboardScoringDataView(View):
             if query_df is None:
                 raise RuntimeError('query_df belum tersedia')
 
-            score_site_country = getattr(scoring_module, 'score_site_country', None)
-            status_table = getattr(scoring_module, 'STATUS_TABLE', 'hris_trendHorizone.fact_join_hourly')
+            status_table = getattr(scoring_module, 'STATUS_TABLE', 'hris_trendHorizone.fact_site_country_status_history')
+            event_table = getattr(scoring_module, 'EVENT_TABLE', 'hris_trendHorizone.fact_change_event_long')
 
             table_cols = set(getattr(scoring_module, '_get_table_columns', lambda _t: set())(status_table) or [])
+            event_table_cols = set(getattr(scoring_module, '_get_table_columns', lambda _t: set())(event_table) or [])
 
-            raw_snapshot_expr = 'event_time' if 'event_time' in table_cols else ('mdd' if 'mdd' in table_cols else 'toDateTime(run_date)')
+            raw_snapshot_expr = 'event_time' if 'event_time' in table_cols else ('mdd' if 'mdd' in table_cols else ('run_time' if 'run_time' in table_cols else 'toDateTime(run_date)'))
             snapshot_expr = f"toTimeZone({raw_snapshot_expr}, 'Asia/Jakarta')"
-
-            date_expr = (
-                'toDate(event_date)' if 'event_date' in table_cols else
-                ('toDate(date)' if 'date' in table_cols else 'toDate(run_date)')
-            )
-
+            date_expr = 'toDate(event_date)' if 'event_date' in table_cols else ('toDate(date)' if 'date' in table_cols else 'toDate(run_date)')
             country_key_col = 'country_code' if 'country_code' in table_cols else 'country_cd'
             site_key_col = 'site'
-
             entity_expr = f"upper({country_key_col})" if dim == 'country' else f"lower({site_key_col})"
-
             literals = ', '.join("'{}'".format(x.replace("'", "''")) for x in sorted(set(entities)))
 
             cols = [
-                'site', 'country_code', 'country_name', 'date',
-                'mapped_revenue_source', 'join_status',
-                'final_label', 'root_cause_label',
-                'health_score', 'adjustment_score', 'ivt_risk_score',
-                'confidence', 'decision_margin',
-                'traffic_score', 'delivery_score', 'yield_score',
-                'quality_score', 'revenue_score', 'efficiency_score',
-                'engagement_score', 'control_score',
-                'positive_signal_count', 'negative_signal_count', 'neutral_signal_count',
-                'reason_summary'
+                'site','country_code','country_name','date','mapped_revenue_source','join_status',
+                'final_label','root_cause_label','health_score','adjustment_score','ivt_risk_score',
+                'confidence','decision_margin','traffic_score','delivery_score','yield_score',
+                'quality_score','revenue_score','efficiency_score','engagement_score','control_score',
+                'ivt_click_stress_score','ivt_serving_score','ivt_attention_score','ivt_counter_score','ivt_funnel_score',
+                'positive_signal_count','negative_signal_count','neutral_signal_count','reason_summary'
             ]
-
             keep = [c for c in cols if not table_cols or c in table_cols]
-
             sql = f"""
-            SELECT
-                {entity_expr} AS entity_key,
-                {date_expr} AS scoring_date,
-                {snapshot_expr} AS snapshot_time,
-                {', '.join(keep)}
+            SELECT {entity_expr} AS entity_key, {date_expr} AS scoring_date, {snapshot_expr} AS snapshot_time, {', '.join(keep)}
             FROM {status_table}
-            WHERE {date_expr} = toDate('{target_date}')
-              AND {entity_expr} IN ({literals})
+            WHERE {date_expr} = toDate('{target_date}') AND {entity_expr} IN ({literals})
+            ORDER BY entity_key, snapshot_time DESC
+            """
+
+            event_snapshot_expr = 'event_time' if 'event_time' in event_table_cols else ('mdd' if 'mdd' in event_table_cols else ('run_time' if 'run_time' in event_table_cols else 'toDateTime(run_date)'))
+            event_date_expr = 'toDate(event_date)' if 'event_date' in event_table_cols else ('toDate(date)' if 'date' in event_table_cols else 'toDate(run_date)')
+            event_country_col = 'country_code' if 'country_code' in event_table_cols else 'country_cd'
+            event_entity_expr = f"upper({event_country_col})" if dim == 'country' else "lower(site)"
+            event_keep = [c for c in ['metric_group','change_class','event_label','ivt_component','ivt_capacity','confidence'] if (not event_table_cols or c in event_table_cols)]
+            event_sql = f"""
+            SELECT {event_entity_expr} AS entity_key, toTimeZone({event_snapshot_expr}, 'Asia/Jakarta') AS snapshot_time, {', '.join(event_keep)}
+            FROM {event_table}
+            WHERE {event_date_expr} = toDate('{target_date}') AND {event_entity_expr} IN ({literals})
             ORDER BY entity_key, snapshot_time DESC
             """
 
             def load_status_df():
                 df = query_df(sql)
-
-                # 🔥 HARD CLEAN (FIX CLICKHOUSE ERROR)
                 for c in ['scoring_date', 'date']:
                     if c in df.columns:
                         df[c] = pd.to_datetime(df[c], errors='coerce')
                         df = df.dropna(subset=[c])
                         df[c] = df[c].dt.date
-
                 if 'snapshot_time' in df.columns:
                     df['snapshot_time'] = pd.to_datetime(df['snapshot_time'], errors='coerce')
-
                 return df
 
-            auto_debug = {
-                'auto_generated': False,
-                'rows_written': 0,
-                'event_rows_written': 0,
-                'warning': '',
-            }
+            def load_event_df():
+                if not event_keep:
+                    return pd.DataFrame(columns=['entity_key'])
+                ev = query_df(event_sql)
+                if 'snapshot_time' in ev.columns:
+                    ev['snapshot_time'] = pd.to_datetime(ev['snapshot_time'], errors='coerce')
+                return ev
 
             df = load_status_df()
-
-            # =========================
-            # AUTO REGENERATE CHECK
-            # =========================
-            def should_regenerate_status(frame: pd.DataFrame) -> bool:
-                if frame is None or frame.empty:
-                    return True
-
-                tmp = frame.copy()
-
-                for c in ['positive_signal_count', 'negative_signal_count', 'neutral_signal_count']:
-                    if c not in tmp.columns:
-                        tmp[c] = 0
-                    tmp[c] = pd.to_numeric(tmp[c], errors='coerce').fillna(0)
-
-                signal_total = (
-                    tmp['positive_signal_count'] +
-                    tmp['negative_signal_count'] +
-                    tmp['neutral_signal_count']
-                ).sum()
-
-                labels = []
-                for c in ['final_label', 'root_cause_label']:
-                    if c in tmp.columns:
-                        labels.extend(
-                            [str(x).strip().upper() for x in tmp[c].tolist() if str(x).strip()]
-                        )
-
-                unique_labels = set(labels)
-                all_incomplete = bool(unique_labels) and unique_labels.issubset({'DATA_INCOMPLETE'})
-
-                return signal_total <= 0 or all_incomplete
-
-            # =========================
-            # AUTO SCORE GENERATION
-            # =========================
-            if callable(score_site_country) and should_regenerate_status(df):
-                target_dt = pd.to_datetime(target_date, errors='coerce')
-
-                if pd.notna(target_dt):
-                    auto_result = score_site_country(
-                        target_date=target_dt.date(),
-                        compatibility_mode=False,
-                        write_results=True,
-                    ) or {}
-
-                    auto_debug = {
-                        'auto_generated': True,
-                        'rows_written': int(auto_result.get('rows_written') or 0),
-                        'event_rows_written': int(auto_result.get('event_rows_written') or 0),
-                        'warning': str(auto_result.get('warning') or '').strip(),
-                    }
-
-                    df = load_status_df()
-
+            event_df = load_event_df()
             if df.empty:
                 return JsonResponse({'status': True, 'data': {}}, safe=False)
 
-            df['entity_key'] = df['entity_key'].astype(str).map(
-                lambda x: x.strip().upper() if dim == 'country' else x.strip().lower()
-            )
+            df['entity_key'] = df['entity_key'].astype(str).map(lambda x: x.strip().upper() if dim == 'country' else x.strip().lower())
+            if not event_df.empty and 'entity_key' in event_df.columns:
+                event_df['entity_key'] = event_df['entity_key'].astype(str).map(lambda x: x.strip().upper() if dim == 'country' else x.strip().lower())
 
             df['scoring_date'] = pd.to_datetime(df.get('scoring_date'), errors='coerce').dt.date
             df['snapshot_time'] = pd.to_datetime(df.get('snapshot_time'), errors='coerce')
@@ -1101,63 +1039,46 @@ class DashboardScoringDataView(View):
             def avg(frame, col, weighted=False):
                 if col not in frame.columns:
                     return 0.0
-
-                vals = pd.to_numeric(frame[col], errors='coerce')
-                vals = vals.dropna()
-
+                vals = pd.to_numeric(frame[col], errors='coerce').dropna()
                 if not len(vals):
                     return 0.0
-
                 if weighted and 'signal_total' in frame.columns:
-                    w = pd.to_numeric(frame['signal_total'], errors='coerce').fillna(0.0)
-                    return float((vals * w.loc[vals.index]).sum() / w.loc[vals.index].sum())
-
+                    w = pd.to_numeric(frame['signal_total'], errors='coerce').fillna(0.0).loc[vals.index]
+                    den = float(w.sum())
+                    if den > 0:
+                        return float((vals * w).sum() / den)
                 return float(vals.mean())
 
-            # =========================
-            # MAIN LOOP
-            # =========================
             for entity_key, part in df.groupby('entity_key', sort=False):
-
-                latest = part['snapshot_time'].dropna().max()
-                snap = part[part['snapshot_time'].eq(latest)].copy() if pd.notna(latest) else part.copy()
-
-                snap = snap.dropna(subset=['snapshot_time'])
-
+                snap = part.copy()
+                if 'country_code' in snap.columns and 'snapshot_time' in snap.columns:
+                    snap = snap.sort_values(['country_code', 'snapshot_time']).drop_duplicates(subset=['country_code'], keep='last')
                 for c in ['positive_signal_count', 'negative_signal_count', 'neutral_signal_count']:
                     if c not in snap.columns:
                         snap[c] = 0
-
-                snap['signal_total'] = (
-                    pd.to_numeric(snap['positive_signal_count'], errors='coerce').fillna(0) +
-                    pd.to_numeric(snap['negative_signal_count'], errors='coerce').fillna(0) +
-                    pd.to_numeric(snap['neutral_signal_count'], errors='coerce').fillna(0)
-                )
+                snap['signal_total'] = pd.to_numeric(snap['positive_signal_count'], errors='coerce').fillna(0) + pd.to_numeric(snap['negative_signal_count'], errors='coerce').fillna(0) + pd.to_numeric(snap['neutral_signal_count'], errors='coerce').fillna(0)
 
                 join_status_series = snap['join_status'] if 'join_status' in snap.columns else pd.Series('', index=snap.index)
                 join_status_clean = join_status_series.astype(str).str.upper().str.strip()
-                join_status_summary = ', '.join([
-                    f"{k}:{v}"
-                    for k, v in join_status_clean.value_counts().to_dict().items()
-                    if str(k).strip()
-                ])
+                join_status_summary = ', '.join([f"{k}:{v}" for k, v in join_status_clean.value_counts().to_dict().items() if str(k).strip()])
 
-                health = safe_float(snap['health_score'].iloc[0])
-                risk = safe_float(snap['ivt_risk_score'].iloc[0])
-                adj = safe_float(snap['adjustment_score'].iloc[0])
-                dm = safe_float(snap['decision_margin'].iloc[0])
-                conf = clip(safe_float(snap['confidence'].iloc[0]), 0.0, 1.0)
-                label = str(snap['final_label'].iloc[0] or snap['root_cause_label'].iloc[0] or 'STABLE').upper()
+                health = avg(snap, 'health_score', weighted=True)
+                risk = avg(snap, 'ivt_risk_score', weighted=True)
+                adj = avg(snap, 'adjustment_score', weighted=True)
+                dm = avg(snap, 'decision_margin', weighted=True)
+                conf = clip(avg(snap, 'confidence', weighted=True), 0.0, 1.0)
 
-                # Dynamic Score Calculation from DB metrics
+                labels = []
+                for c in ['final_label', 'root_cause_label']:
+                    if c in snap.columns:
+                        labels.extend([str(x).strip().upper() for x in snap[c].tolist() if str(x).strip()])
+                label = pd.Series(labels).value_counts().index[0] if labels else 'STABLE'
+
                 score = (((health + 100.0) / 2.0) * 0.45) + ((100.0 - risk) * 0.2) + (conf * 100.0 * 0.15) + (clip(dm + 50.0, 0.0, 100.0) * 0.2)
+                print(f"scorenya: ", score)
                 score = int(round(clip(score, 0.0, 100.0)))
 
-                # Dynamic Decision Logic
-                negative_labels = [
-                    "TRAFFIC_DROP", "SERVING_DROP", "YIELD_DROP", "VIEWABILITY_DROP",
-                    "EFFICIENCY_DROP", "REVENUE_DROP", "NEGATIVE_MIXED", "NEG_ADJUSTMENT"
-                ]
+                negative_labels = ["TRAFFIC_DROP","SERVING_DROP","YIELD_DROP","VIEWABILITY_DROP","EFFICIENCY_DROP","REVENUE_DROP","NEGATIVE_MIXED","NEG_ADJUSTMENT"]
                 decision = "HOLD"
                 if label.startswith("RED_FLAG") or (risk >= 85 and conf >= 0.55 and score < 45) or (dm <= -55 and health <= -18 and conf >= 0.55):
                     decision = "STOP"
@@ -1166,52 +1087,77 @@ class DashboardScoringDataView(View):
                 elif (label in negative_labels and (score < 60 or dm < -8 or health < -8 or adj < -15)) or (score < 45 and (dm < -8 or health < -10 or adj < -20 or risk >= 65)):
                     decision = "SCALE DOWN"
 
-                reason_summary = str(snap['reason_summary'].iloc[0] or '').strip() if 'reason_summary' in snap.columns else ''
-                final_label = str(snap['final_label'].iloc[0] or '').strip()
-                root_cause_label = str(snap['root_cause_label'].iloc[0] or '').strip()
-                snapshot_time = ''
-                if 'snapshot_time' in snap.columns and pd.notna(snap['snapshot_time'].iloc[0]):
-                    snapshot_time = pd.to_datetime(snap['snapshot_time'].iloc[0], errors='coerce').strftime('%Y-%m-%d %H:%M:%S')
+                reason_parts = [str(x).strip() for x in snap.get('reason_summary', pd.Series([], dtype=str)).tolist() if str(x).strip()]
+                reason_summary = ' | '.join(list(dict.fromkeys(reason_parts))[:3])
+                latest = snap['snapshot_time'].dropna().max() if 'snapshot_time' in snap.columns else None
+                snapshot_time = pd.to_datetime(latest, errors='coerce').strftime('%Y-%m-%d %H:%M:%S') if pd.notna(latest) else ''
+
+                ev = event_df[event_df['entity_key'].eq(entity_key)].copy() if (not event_df.empty and 'entity_key' in event_df.columns) else pd.DataFrame()
+                dominant_event_label = ''
+                if not ev.empty and 'event_label' in ev.columns:
+                    s = ev['event_label'].astype(str).str.strip()
+                    s = s[s != '']
+                    if not s.empty:
+                        dominant_event_label = s.value_counts().index[0]
+
+                country_details = []
+                for _, row in snap.iterrows():
+                    country_details.append({
+                        'country_code': str(row.get('country_code', '')),
+                        'country_name': str(row.get('country_name', '')),
+                        'health_score': safe_float(row.get('health_score')),
+                        'ivt_risk_score': safe_float(row.get('ivt_risk_score')),
+                        'adjustment_score': safe_float(row.get('adjustment_score')),
+                        'confidence': safe_float(row.get('confidence')),
+                        'decision_margin': safe_float(row.get('decision_margin')),
+                        'final_label': str(row.get('final_label', '')),
+                        'join_status': str(row.get('join_status', '')),
+                        'positive_signals': int(safe_float(row.get('positive_signal_count'))),
+                        'negative_signals': int(safe_float(row.get('negative_signal_count'))),
+                        'neutral_signals': int(safe_float(row.get('neutral_signal_count'))),
+                    })
 
                 out[entity_key] = {
                     'score': score,
                     'decision': decision,
                     'label': label,
-                    'reasons': [x for x in [reason_summary, label] if x],
-                    'breakdown': {
-                        'meta': {
-                            'join_status_summary': join_status_summary,
-                            'reason_summary': reason_summary,
-                            'snapshot_time': snapshot_time,
-                            'final_label': final_label or label,
-                            'root_cause_label': root_cause_label,
-                            'health_score': health,
-                            'ivt_risk_score': risk,
-                            'adjustment_score': adj,
-                            'confidence': conf,
-                            'decision_margin': dm,
-                            'traffic_score': safe_float(snap['traffic_score'].iloc[0]),
-                            'delivery_score': safe_float(snap['delivery_score'].iloc[0]),
-                            'yield_score': safe_float(snap['yield_score'].iloc[0]),
-                            'quality_score': safe_float(snap['quality_score'].iloc[0]),
-                            'revenue_score': safe_float(snap['revenue_score'].iloc[0]),
-                            'efficiency_score': safe_float(snap['efficiency_score'].iloc[0]),
-                            'engagement_score': safe_float(snap['engagement_score'].iloc[0]),
-                            'control_score': safe_float(snap['control_score'].iloc[0]),
-                            'positive_signal_count': int(safe_float(snap['positive_signal_count'].iloc[0])) if 'positive_signal_count' in snap.columns else 0,
-                            'negative_signal_count': int(safe_float(snap['negative_signal_count'].iloc[0])) if 'negative_signal_count' in snap.columns else 0,
-                            'neutral_signal_count': int(safe_float(snap['neutral_signal_count'].iloc[0])) if 'neutral_signal_count' in snap.columns else 0,
-                            'scoring_source': 'backend_scoring',
-                            'scoring_source_label': 'Backend scoring'
-                        }
-                    }
+                    'reasons': [x for x in [reason_summary, dominant_event_label, label] if x],
+                    'breakdown': {'meta': {
+                        'join_status_summary': join_status_summary,
+                        'reason_summary': reason_summary,
+                        'snapshot_time': snapshot_time,
+                        'last_update': snapshot_time,
+                        'final_label': label,
+                        'root_cause_label': label,
+                        'health_score': health,
+                        'ivt_risk_score': risk,
+                        'adjustment_score': adj,
+                        'confidence': conf,
+                        'decision_margin': dm,
+                        'traffic_score': avg(snap, 'traffic_score', weighted=True),
+                        'delivery_score': avg(snap, 'delivery_score', weighted=True),
+                        'yield_score': avg(snap, 'yield_score', weighted=True),
+                        'quality_score': avg(snap, 'quality_score', weighted=True),
+                        'revenue_score': avg(snap, 'revenue_score', weighted=True),
+                        'efficiency_score': avg(snap, 'efficiency_score', weighted=True),
+                        'engagement_score': avg(snap, 'engagement_score', weighted=True),
+                        'control_score': avg(snap, 'control_score', weighted=True),
+                        'ivt_click_stress_score': avg(snap, 'ivt_click_stress_score', weighted=True),
+                        'ivt_serving_score': avg(snap, 'ivt_serving_score', weighted=True),
+                        'ivt_attention_score': avg(snap, 'ivt_attention_score', weighted=True),
+                        'ivt_counter_score': avg(snap, 'ivt_counter_score', weighted=True),
+                        'ivt_funnel_score': avg(snap, 'ivt_funnel_score', weighted=True),
+                        'positive_signal_count': int(pd.to_numeric(snap['positive_signal_count'], errors='coerce').fillna(0).sum()),
+                        'negative_signal_count': int(pd.to_numeric(snap['negative_signal_count'], errors='coerce').fillna(0).sum()),
+                        'neutral_signal_count': int(pd.to_numeric(snap['neutral_signal_count'], errors='coerce').fillna(0).sum()),
+                        'dominant_event_label': dominant_event_label,
+                        'country_details': country_details,
+                        'scoring_source': 'status_event_aggregate',
+                        'scoring_source_label': 'Agregasi fact_site_country_status_history + fact_change_event_long'
+                    }}
                 }
 
-            return JsonResponse({
-                'status': True,
-                'data': out,
-                'debug': auto_debug
-            }, safe=False)
+            return JsonResponse({'status': True, 'data': out}, safe=False)
 
         except Exception as e:
             logger.exception('DashboardScoringDataView failed')

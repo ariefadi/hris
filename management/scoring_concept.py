@@ -30,6 +30,7 @@ from .engine_utils import (
 
 STATUS_TABLE = "hris_trendHorizone.fact_site_country_status_history"
 EVENT_TABLE = "hris_trendHorizone.fact_change_event_long"
+LOCAL_TZ = ZoneInfo("Asia/Jakarta")
 
 SCORABLE_JOIN_STATUSES = {
     "OK",
@@ -431,13 +432,26 @@ def _family_rank_factor(rank: int) -> float:
     return 1.0 / math.pow(rank, 0.8)
 
 
+def _to_local_naive_dt(value) -> datetime | None:
+    ts = pd.to_datetime(value, utc=True, errors="coerce")
+    if pd.isna(ts):
+        return None
+    return ts.tz_convert(LOCAL_TZ).tz_localize(None).to_pydatetime()
+
+
 def _coerce_insert_df(table: str, df: pd.DataFrame, columns: list[str]) -> None:
     if df.empty:
-        df["is_current_batch"] = False
-        return df
+        return
 
     keep = [c for c in columns if c in df.columns]
-    insert_df(table, df[keep])
+    if not keep:
+        return
+
+    out = df[keep].copy()
+    if "run_time" in out.columns:
+        out["run_time"] = out["run_time"].map(_to_local_naive_dt)
+
+    insert_df(table, out)
 
 
 def _counter_drop_magnitude(prev_value: float, increment: float) -> float:
@@ -886,7 +900,7 @@ def _event_template(cur: pd.Series, rule: MetricRule, batch_uuid: uuid.UUID) -> 
         "batch_id": str(batch_uuid),
         # ✅ TAMBAHKAN INI
         "family_key": rule.family_key or rule.column,
-        "run_time": cur["run_time"].to_pydatetime() if hasattr(cur["run_time"], "to_pydatetime") else cur["run_time"],
+        "run_time": _to_local_naive_dt(cur.get("run_time")),
         "run_date": cur["run_date"],
         "run_hour": int(cur["run_hour"]),
         "entity_key": cur["entity_key"],
@@ -1087,42 +1101,6 @@ def _evaluate_rule(cur: pd.Series, same_hour: pd.DataFrame, all_hours: pd.DataFr
     event["z_raw"] = z_raw
     event["directional_z"] = directional_z
     event["signal_strength"] = signal_strength
-    event["health_component"] = signal_strength * rule.base_weight * sign_weight * event["confidence"] * family_factor
-    event["ivt_capacity"] = rule.ivt_weight * event["confidence"] * family_factor
-    event["ivt_component"] = max(0.0, -signal_strength) * event["ivt_capacity"]
-
-    # if rule.adjustment_weight > 0 and rule.column in COUNTER_CORRECTION_COLUMNS and event["current_increment"] < 0 and safe_float(prev_value) > 0:
-    # if (
-    #     rule.adjustment_weight > 0
-    #     and rule.column in COUNTER_CORRECTION_COLUMNS
-    #     and event["current_increment"] < 0
-    #     and safe_float(prev_value) > 0
-    #     and _source_scope_allowed(cur, rule.source_scope)
-    #     and (
-    #         not rule.requires_source_match
-    #         or _source_has_activity(cur, rule.source_scope)
-    #     )
-    # ):
-    if (
-        rule.adjustment_weight > 0
-        and rule.column in COUNTER_CORRECTION_COLUMNS
-        and event["change_class"] == "NEGATIVE"   # ⭐ WAJIB
-        and event["event_reason"] not in {
-            "WITHIN_DEADBAND",
-            "LOW_VOLUME_GATE",
-            "SOURCE_SCOPE_SKIPPED",
-        }
-        and event["current_increment"] < 0
-        and safe_float(prev_value) > 0
-    ):
-        magnitude = max(abs(signal_strength), _counter_drop_magnitude(prev_value, event["current_increment"]))
-        event["adjustment_component"] = -magnitude * rule.adjustment_weight * event["confidence"] * family_factor
-        event["adjustment_capacity"] = (
-            rule.adjustment_weight
-            * event["confidence"]
-            * family_factor
-        )
-        event["ivt_component"] += magnitude * 0.55 * event["ivt_capacity"]
 
     if signal_strength > 0.02:
         event["change_class"] = "POSITIVE"
@@ -1133,6 +1111,25 @@ def _evaluate_rule(cur: pd.Series, same_hour: pd.DataFrame, all_hours: pd.DataFr
     else:
         event["change_class"] = "NEUTRAL"
         event["event_reason"] = "WITHIN_DEADBAND"
+
+    event["health_component"] = signal_strength * rule.base_weight * sign_weight * event["confidence"] * family_factor
+    event["ivt_capacity"] = rule.ivt_weight * event["confidence"] * family_factor
+    event["ivt_component"] = max(0.0, -signal_strength) * event["ivt_capacity"]
+
+    if (
+        rule.adjustment_weight > 0
+        and rule.column in COUNTER_CORRECTION_COLUMNS
+        and event["change_class"] == "NEGATIVE"
+        and event["event_reason"] not in {
+            "WITHIN_DEADBAND",
+            "LOW_VOLUME_GATE",
+            "SOURCE_SCOPE_SKIPPED",
+        }
+    ):
+        magnitude = max(abs(signal_strength), _counter_drop_magnitude(prev_value, event["current_increment"]))
+        event["adjustment_component"] = -magnitude * rule.adjustment_weight * event["confidence"] * family_factor
+        event["adjustment_capacity"] = rule.adjustment_weight * event["confidence"] * family_factor
+        event["ivt_component"] += magnitude * 0.55 * event["ivt_capacity"]
 
     note_parts = [
         f"baseline_source={baseline_source}",
@@ -1157,7 +1154,7 @@ def _signal_lookup(events: list[dict], header_name: str) -> dict:
 def _composite_event_template(cur: pd.Series, batch_uuid: uuid.UUID, header_name: str, source_scope: str, metric_group: str, funnel_stage: str, metric_role: str, expected_direction: str) -> dict:
     return {
         "batch_id": str(batch_uuid),
-        "run_time": cur["run_time"].to_pydatetime() if hasattr(cur["run_time"], "to_pydatetime") else cur["run_time"],
+        "run_time": _to_local_naive_dt(cur.get("run_time")),
         "run_date": cur["run_date"],
         "run_hour": int(cur["run_hour"]),
         "entity_key": cur["entity_key"],
@@ -1393,6 +1390,7 @@ def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uui
         evt["signal_strength"] = -sev
         evt["health_component"] = -1.20 * sev * conf
         evt["adjustment_component"] = -1.55 * sev * conf
+        evt["adjustment_capacity"] = 1.55 * conf
         evt["ivt_component"] = 1.35 * sev * conf
         evt["ivt_capacity"] = 1.35 * conf
         evt["change_class"] = "NEGATIVE"
@@ -1612,18 +1610,14 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
     composite_positive = [e for e in positive if int(safe_float(e.get("is_composite"))) == 1]
     composite_negative = [e for e in negative if int(safe_float(e.get("is_composite"))) == 1]
 
-    # adjustment_num = sum(safe_float(e["adjustment_component"]) for e in events)
-    # adjustment_den = sum(abs(safe_float(e["adjustment_component"])) for e in events if abs(safe_float(e["adjustment_component"])) > 0)
     adjustment_num = sum(
         safe_float(e.get("adjustment_component", 0))
         for e in events
-        if e["change_class"] != "SKIPPED"
     )
 
     adjustment_den = sum(
         safe_float(e.get("adjustment_capacity", 0))
         for e in events
-        if e["change_class"] != "SKIPPED"
     )
     confidence = sum(safe_float(e["confidence"]) for e in events if e["change_class"] != "SKIPPED") / max(len([e for e in events if e["change_class"] != "SKIPPED"]), 1)
     family_scores = defaultdict(list)  
@@ -1669,7 +1663,7 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
     ivt_risk_score = clip(100.0 * ivt_num / ivt_den, 0.0, 100.0) if ivt_den > 0 else 0.0
     status = {
         "batch_id": str(batch_uuid),
-        "run_time": cur["run_time"].to_pydatetime() if hasattr(cur["run_time"], "to_pydatetime") else cur["run_time"],
+        "run_time": _to_local_naive_dt(cur.get("run_time")),
         "run_date": cur["run_date"],
         "run_hour": int(cur["run_hour"]),
         "entity_key": cur["entity_key"],
@@ -1806,7 +1800,8 @@ def score_site_country(
         history_df = history_df[history_df["site"] == domain].copy()
     if history_df.empty:
         return {"ok": True, "rows_written": 0, "event_rows_written": 0, "batch_id": str(batch_uuid), "warning": "No join history for requested filter", "statuses": [], "events": []}
-    current_df = history_df[history_df["is_current_batch"]].copy()
+    is_current = history_df["is_current_batch"] if "is_current_batch" in history_df.columns else history_df["date"].eq(target_date)
+    current_df = history_df[is_current].copy()
     if current_df.empty:
         return {"ok": True, "rows_written": 0, "batch_id": str(batch_uuid), "warning": "No current batch rows found in fact_join_hourly"}
     recent_status_df = _load_recent_status_history(target_date, lookback_days=max(7, min(max(lookback_days, 7), 21)))
