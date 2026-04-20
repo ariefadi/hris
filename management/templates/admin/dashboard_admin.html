@@ -1252,7 +1252,7 @@ html[data-theme="dark"] .decision-detail-reason-item {
                                                 <th class="text-center">Score</th>
                                                 <th class="text-center">Keputusan</th>
                                                 <th class="text-center">Data Updated</th>
-                                                <!-- <th class="text-center">Detail</th> -->
+                                                <th class="text-center">Detail</th>
                                             </tr>
                                         </thead>
                                         <tbody id="dashboardRecapTbody"></tbody>
@@ -3097,7 +3097,7 @@ function initDashboardRecap() {
     function buildScoreCellData(meta) {
         const info = meta?.breakdown?.meta || {};
         const value = meta?.score == null ? null : Number(meta.score);
-        const raw = String(info.snapshot_time || info.last_update || '').trim();
+        const raw = String(info.last_update || '').trim();
         let updatedAt = '';
         if (raw) {
             const dt = new Date(raw.replace(' ', 'T'));
@@ -6021,7 +6021,7 @@ function initDashboardRecap() {
 
         openScoreDetailModal(
             'Create Scoring',
-            // `<div class="score-loading-state"><div class="score-loading-card"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><div class="score-loading-title">Creating Score</div><div class="score-loading-name">${esc(scoreName)}</div></div></div>`
+            `<div class="score-loading-state"><div class="score-loading-card"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><div class="score-loading-title">Creating Score</div><div class="score-loading-name">${esc(scoreName)}</div></div></div>`
         );
         setScoreDetailCloseVisible(false);
 
@@ -6270,6 +6270,7 @@ function initDashboardRecap() {
                     <td class="text-center">${renderScoreCell(row[7], 'display')}</td>
                     <td class="text-center">${row[8]}</td>
                     <td class="text-center">${row[9]}</td>
+                    <td class="text-center">${row[10]}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -6401,7 +6402,7 @@ function initDashboardRecap() {
                             return maxSec;
                         }
                     },
-                    // { targets: 10, className: 'text-center', orderable: false, searchable: false }
+                    { targets: 10, className: 'text-center', orderable: false, searchable: false }
                 ]
             });
             bindNoColumn(window.dashboardRecapDt);
