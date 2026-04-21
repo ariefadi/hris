@@ -4902,20 +4902,28 @@ class data_mysql:
         """Selalu ambil data hourly AdSense dari ClickHouse (tanpa fallback MySQL)."""
         try:
             sql = "\n".join([
-                "SELECT",
-                "    toHour(mdd) AS hour,",
-                "    log_adsense_country_cd AS country_code,",
-                "    log_adsense_country_domain,",
-                "    argMax(log_adsense_country_impresi, mdd) AS impressions,",
-                "    argMax(log_adsense_country_click, mdd) AS clicks,",
-                "    argMax(log_adsense_country_revenue, mdd) AS revenue",
-                "FROM log_adsense_country",
-                "WHERE toDate(log_adsense_country_tanggal) = toDate(%s)",
-                "GROUP BY hour, country_code, log_adsense_country_domain",
-                "ORDER BY hour ASC",
-            ])
+                    "WITH",
+                    "    lower(log_adsense_country_domain) AS d,",
+                    "    cutToFirstSignificantSubdomain(d) AS root,",
+                    "    arrayElement(splitByChar('.', d), 1) AS first_label",
+                    "SELECT",
+                    "    toHour(mdd) AS hour,",
+                    "    log_adsense_country_cd AS country_code,",
+                    "    log_adsense_country_domain,",
+                    "    argMax(log_adsense_country_impresi, mdd) AS impressions,",
+                    "    argMax(log_adsense_country_click, mdd) AS clicks,",
+                    "    argMax(log_adsense_country_revenue, mdd) AS revenue",
+                    "FROM log_adsense_country",
+                    "WHERE toDate(log_adsense_country_tanggal) = toDate(%s)",
+                    "  AND (",
+                    "        (d != root AND first_label != 'www')",
+                    "        OR",
+                    "        (d = root AND position(root, '-') > 0)",
+                    "      )",
+                    "GROUP BY hour, country_code, log_adsense_country_domain",
+                    "ORDER BY hour ASC",
+                ])
             params = [tanggal]
-
             self._ensure_report_connection()
             self.cur_hris = self.report_cur
             self.cur_hris.execute(sql, tuple(params))

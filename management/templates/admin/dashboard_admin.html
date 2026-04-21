@@ -2778,12 +2778,16 @@ function startDashboardTour() {
 window.detailKeputusanStore = window.detailKeputusanStore || {};
 window.detailKeputusanStoreCounter = window.detailKeputusanStoreCounter || 0;
 
-function keputusanBadge(meta) {
+function keputusanBadge(meta, ctx) {
     const d = String(meta?.decision || '').toUpperCase();
     const label = String(meta?.label || '').trim();
     const title = (meta?.reasons && meta.reasons.length) ? meta.reasons.join(' • '): '';
     const storeKey = 'meta_' + (++window.detailKeputusanStoreCounter);
-    window.detailKeputusanStore[storeKey] = meta || {};
+    window.detailKeputusanStore[storeKey] = {
+        meta: meta || {},
+        row: ctx?.row || null,
+        state: ctx?.state || null,
+    };
     if (!d) return `<div class="keputusan-badge-clickable" title="${title}" data-keputusan-key="${storeKey}" role="button" tabindex="0"><span class="badge badge-light badge-pill" style="color:#6b7280;border:1px solid rgba(107,114,128,.22);">BELUM SIAP</span>${label ? `<div style="font-size:11px;opacity:.8;margin-top:4px;font-weight:800;">${esc(label)}</div>` : ''}</div>`;
     let cls = 'badge badge-secondary badge-pill';
     if (d === 'SCALE UP') cls = 'badge badge-success badge-pill';
@@ -2813,11 +2817,11 @@ function renderDetailKeputusanHTML(meta) {
     const root_cause_label = String(info.root_cause_label || '').trim();
     const date = String(info.date || '').trim();
     const sourceLabel = String(info.scoring_source_label || 'Backend scoring').trim();
-    const snapshotTime = String(info.snapshot_time || '').trim();
+    const snapshotTime = String(info.date || '').trim();
     const debugPosSignals = num(info.positive_signal_count);
     const debugNegSignals = num(info.negative_signal_count);
     const debugNeutralSignals = num(info.neutral_signal_count);
-    const debugCountryRows = Array.isArray(info.country_details) ? info.country_details : [];
+    const debugCountryRows = [info.country_details, info.country_breakdown, info.countries, meta?.country_details, meta?.country_breakdown].find(function(v){ return Array.isArray(v) && v.length; }) || [];
 
     let html = '';
     html += '<div class="decision-detail-body">';
@@ -2899,21 +2903,15 @@ function renderDetailKeputusanHTML(meta) {
 }
 
 function openDetailKeputusan(storeKey) {
-    const meta = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
-    if (!meta || typeof meta !== 'object') {
-        return;
-    }
-    
+    const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
+    if (!entry || typeof entry !== 'object') return;
+
     const modal = document.getElementById('decision-detail-modal');
-    if (!modal) {
-        return;
-    }
-    
+    if (!modal) return;
+
     const body = document.getElementById('decision-detail-body');
-    if (body) {
-        body.innerHTML = renderDetailKeputusanHTML(meta);
-    }
-    
+    const meta = entry?.meta && typeof entry.meta === 'object' ? entry.meta : entry;
+    if (body) body.innerHTML = renderDetailKeputusanHTML(meta);
     modal.classList.add('active');
 }
 
@@ -3001,7 +2999,13 @@ function initDashboardRecap() {
     }
 
     async function fetchDashboardScoring(rows, state) {
-        const entities = uniqKeepOrder((rows || []).map(r => scoringLookupKey(state?.dim, r)).filter(Boolean));
+        const dim = String(state?.dim || '').toLowerCase();
+        const entities = uniqKeepOrder((rows || []).flatMap(function(r){
+            const key = scoringLookupKey(dim, r);
+            if (dim === 'country') return [key].filter(Boolean);
+            const k = String(key || '').toLowerCase();
+            return uniqKeepOrder([k, k.replace(/^www\./i, ''), baseSubdomain(k)].concat(domainCandidateKeys(k))).filter(Boolean);
+        }));
         if (!entities.length || !state?.date) return {};
         try {
             const res = await fetch('/management/admin/dashboard_scoring_data', {
@@ -3064,20 +3068,65 @@ function initDashboardRecap() {
         const merged = Object.assign({}, meta);
         const bd = Object.assign({}, merged.breakdown || {});
         const info = Object.assign({}, bd.meta || {});
-        ['join_status_summary','reason_summary','snapshot_time','final_label','root_cause_label','health_score','ivt_risk_score','adjustment_score','confidence','decision_margin','traffic_score','delivery_score','yield_score','quality_score','revenue_score','efficiency_score','engagement_score','control_score','positive_signal_count','negative_signal_count','neutral_signal_count'].forEach(function(key){
+        const pickFirst = function(obj, keys) { for (const k of keys) { if (!obj || obj[k] == null || obj[k] === '') continue; return obj[k]; } return null; };
+        const toNum = function(v) { const n = Number(v); return Number.isFinite(n) ? n : null; };
+        const metricAliases = {
+            health_score: ['health_score', 'health', 'health_index'],
+            ivt_risk_score: ['ivt_risk_score', 'risk_score', 'ivt_score', 'risk'],
+            adjustment_score: ['adjustment_score', 'adjust_score', 'adjustment'],
+            confidence: ['confidence', 'confidence_score', 'conf'],
+            decision_margin: ['decision_margin', 'margin_score', 'margin']
+        };
+        ['join_status_summary','reason_summary','date','final_label','root_cause_label','traffic_score','delivery_score','yield_score','quality_score','revenue_score','efficiency_score','engagement_score','control_score','positive_signal_count','negative_signal_count','neutral_signal_count','country_details','country_breakdown','countries','country_focus','country_fokus'].forEach(function(key){
             if (info[key] == null && merged[key] != null) info[key] = merged[key];
+            if (info[key] == null && bd[key] != null) info[key] = bd[key];
+        });
+        Object.keys(metricAliases).forEach(function(canonical){
+            const raw = pickFirst(info, metricAliases[canonical]) ?? pickFirst(merged, metricAliases[canonical]) ?? pickFirst(bd, metricAliases[canonical]);
+            if (raw != null) info[canonical] = raw;
+        });
+        const rawCountries = pickFirst(info, ['country_details', 'country_breakdown', 'countries']) || pickFirst(merged, ['country_details', 'country_breakdown', 'countries']) || pickFirst(bd, ['country_details', 'country_breakdown', 'countries']) || [];
+        const countryList = Array.isArray(rawCountries) ? rawCountries : [];
+        info.country_details = countryList.map(function(c){
+            const risk = toNum(c?.ivt_risk_score ?? c?.risk_score ?? c?.ivt_score ?? c?.risk);
+            const confRaw = toNum(c?.confidence ?? c?.confidence_score ?? c?.conf);
+            const conf = confRaw == null ? null : scxClamp(confRaw > 1 ? (confRaw / 100) : confRaw, 0, 1);
+            return Object.assign({}, c, {
+                country_code: String(c?.country_code || c?.country_cd || c?.code || '').trim(),
+                country_name: String(c?.country_name || c?.country_nm || c?.country || c?.name || '').trim(),
+                health_score: toNum(c?.health_score ?? c?.health ?? c?.health_index),
+                ivt_risk_score: risk,
+                adjustment_score: toNum(c?.adjustment_score ?? c?.adjust_score ?? c?.adjustment),
+                confidence: conf,
+                decision_margin: toNum(c?.decision_margin ?? c?.margin_score ?? c?.margin),
+            });
         });
         info.trend_windows = row?.trend_windows || info.trend_windows || {};
         info.date = String(state?.date || info.date || '').trim();
         info.last_update = row?.last_updates ? (row.last_updates.adx || row.last_updates.adsense || info.last_update || '') : (row?.last_update || info.last_update || '');
         info.scoring_source = info.scoring_source || 'backend_scoring';
         info.scoring_source_label = info.scoring_source_label || 'Backend scoring';
+        const health = toNum(info.health_score) ?? 0;
+        const risk = toNum(info.ivt_risk_score) ?? 0;
+        const adj = toNum(info.adjustment_score) ?? 0;
+        const confRaw = toNum(info.confidence);
+        const conf = confRaw == null ? 0 : scxClamp(confRaw > 1 ? (confRaw / 100) : confRaw, 0, 1);
+        const dm = toNum(info.decision_margin) ?? 0;
+        info.health_score = health;
+        info.ivt_risk_score = risk;
+        info.adjustment_score = adj;
+        info.confidence = conf;
+        info.decision_margin = dm;
         bd.meta = info;
         merged.breakdown = bd;
         if (!Array.isArray(merged.reasons)) merged.reasons = [];
         if (!merged.reasons.length && info.reason_summary) merged.reasons = [String(info.reason_summary)];
-        if (merged.score == null) merged.score = null;
-        if (!merged.decision) merged.decision = '';
+        if (merged.score == null) merged.score = Math.round(scxClamp((((health + 100) / 2) * 0.45) + ((100 - risk) * 0.2) + ((conf * 100) * 0.15) + (scxClamp(dm + 50, 0, 100) * 0.2), 0, 100));
+        if (!merged.decision) {
+            const decisionMeta = scxDeriveDecision(merged.score, String(merged.label || info.final_label || info.root_cause_label || 'STABLE'), health, risk, adj, conf, dm);
+            merged.decision = decisionMeta.decision;
+            if (!merged.reasons.length && decisionMeta.basis) merged.reasons = [decisionMeta.basis];
+        }
         if (!merged.label) merged.label = String(info.final_label || info.root_cause_label || '').trim();
         return merged;
     }
@@ -3102,12 +3151,28 @@ function initDashboardRecap() {
         return { value, updatedAt };
     }
 
-    function storedScoringForRow(row, state) {
-        const store = window.dashboardRecapStoredScoring || {};
-        const key = scoringLookupKey(state?.dim, row);
+    function lookupStoredMetaRaw(row, state, storeObj) {
+        const store = (storeObj && typeof storeObj === 'object') ? storeObj : (window.dashboardRecapStoredScoring || {});
+        const key = String(scoringLookupKey(state?.dim, row) || '').trim().toLowerCase();
         if (!key) return null;
-        const meta = store[key];
-        return meta ? summarizeDashboardScoringMeta(meta, row, state) : null;
+        const candidates = uniqKeepOrder([key, key.replace(/^www\./i, ''), baseSubdomain(key)].concat(domainCandidateKeys(key)).filter(Boolean));
+        for (const k of candidates) {
+            if (store[k]) return store[k];
+            const up = String(k || '').toUpperCase();
+            if (store[up]) return store[up];
+        }
+        return null;
+    }
+
+    function scoringMetaHasCountryDetails(meta) {
+        const info = meta?.breakdown?.meta || {};
+        const rows = [info?.country_details, info?.country_breakdown, info?.countries, meta?.country_details, meta?.country_breakdown, meta?.countries].find(function(v){ return Array.isArray(v) && v.length > 0; });
+        return Array.isArray(rows) && rows.length > 0;
+    }
+
+    function storedScoringForRow(row, state) {
+        const raw = lookupStoredMetaRaw(row, state);
+        return raw ? summarizeDashboardScoringMeta(raw, row, state) : null;
     }
 
     function renderScoreCell(data, type) {
@@ -3129,36 +3194,21 @@ function initDashboardRecap() {
         return v;
     }
 
-    async function fetchCreateScoringMeta(row, state) {
-        const payload = buildCreateScoringPayload(row, state);
-        const cache = window.dashboardRecapCreateScoringCache || (window.dashboardRecapCreateScoringCache = {});
-        const cacheKey = createScoringPayloadKey(payload);
-        if (cache[cacheKey]) return cache[cacheKey];
-
-        const run = async function() {
-            try {
-                const res = await fetch('/management/admin/dashboard_create_scoring', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin', body: JSON.stringify(payload) });
-                const json = await res.json();
-                if (!res.ok || !json || !json.status) throw new Error(json?.message || json?.error || `HTTP ${res.status}`);
-                return summarizeCreateScoringResult(json, row, state);
-            } catch (e) {
-                return { apiJson: null, score: null, decision: '', label: 'GAGAL MEMUAT', reasons: [String(e?.message || e || 'Gagal create scoring')], breakdown: { meta: { trend_windows: row?.trend_windows || {}, date: String(state?.date || '').trim() } } };
-            }
-        };
-
-        const prev = window.dashboardRecapCreateScoringQueue || Promise.resolve();
-        const next = prev.then(run, run);
-        window.dashboardRecapCreateScoringQueue = next.then(function() {}, function() {});
-        const meta = await next;
-        cache[cacheKey] = meta;
-        return meta;
-    }
     function baseSubdomain(fullString) {
-        const s = String(fullString || '').trim();
+        const s = String(fullString || '').trim().toLowerCase();
         if (!s) return '';
         const parts = s.split('.').filter(Boolean);
-        if (parts.length >= 2) return parts[0] + '.' + parts[1];
+        if (parts.length >= 2) return parts.slice(-2).join('.');
         return s;
+    }
+
+    function domainCandidateKeys(fullString) {
+        const s = String(fullString || '').trim().toLowerCase();
+        if (!s) return [];
+        const parts = s.split('.').filter(Boolean);
+        const out = [];
+        for (let i = 0; i < parts.length; i++) out.push(parts.slice(i).join('.'));
+        return uniqKeepOrder(out);
     }
 
     function uniqKeepOrder(xs) {
@@ -3478,9 +3528,12 @@ function initDashboardRecap() {
     }
 
     function scxCountryKey(obj) {
-        return String(obj?.country_cd || obj?.country_code || obj?.country_nm || obj?.country_name || '-')
-            .trim()
-            .toUpperCase();
+        const code = String(obj?.country_cd || obj?.country_code || '').trim().toUpperCase();
+        if (code) return code;
+        const name = String(obj?.country_nm || obj?.country_name || '').trim();
+        if (!name) return '-';
+        if (name.indexOf('.') >= 0) return '-';
+        return name.toUpperCase();
     }
 
     function scxCountryLabel(obj) {
@@ -3588,27 +3641,41 @@ function initDashboardRecap() {
         const statusList = Array.isArray(statuses) ? statuses : [];
         const eventList = Array.isArray(events) ? events : [];
         const seed = statusList[0] || {};
+        const usingEvents = eventList.length > 0;
+        const sum = function(list, pick) { return list.reduce(function(acc, item) { return acc + Number(pick(item) || 0); }, 0); };
+        const sAvg = function(pick, fallback = 0) {
+            if (!statusList.length) return fallback;
+            const vals = statusList.map(function(st){ return Number(pick(st)); }).filter(Number.isFinite);
+            if (!vals.length) return fallback;
+            return vals.reduce(function(a,b){ return a+b; }, 0) / vals.length;
+        };
         const counted = eventList.filter(function(ev) { return ['POSITIVE', 'NEGATIVE', 'NEUTRAL'].includes(String(ev?.change_class || '').toUpperCase()); });
         const nonSkipped = eventList.filter(function(ev) { return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; });
-        const sum = function(list, pick) { return list.reduce(function(acc, item) { return acc + Number(pick(item) || 0); }, 0); };
         const healthDen = sum(counted, function(ev) { return Math.abs(Number(ev?.health_component || 0)); });
-        const adjBase = eventList.filter(function(ev) { return Math.abs(Number(ev?.adjustment_component || 0)) > 0; });
-        const adjDen = sum(adjBase, function(ev) { return Math.abs(Number(ev?.adjustment_component || 0)); });
         const ivtScoped = eventList.filter(function(ev) { return Number(ev?.ivt_capacity || 0) > 0; });
         const ivtDen = sum(ivtScoped, function(ev) { return Math.max(Number(ev?.ivt_capacity || 0), 0); });
         const out = Object.assign({}, seed, {
             country_cd: 'ALL',
             country_nm: `${Math.max(Array.isArray(groups) ? groups.length : statusList.length, 1)} negara`,
             join_status: statusList.some(function(st) { return ['OK', 'SOURCE_ONLY_NO_META', 'SOURCE_ONLY_NO_META_ADSENSE', 'SOURCE_ONLY_NO_META_ADX'].includes(String(st?.join_status || '').toUpperCase()); }) ? 'OK' : String(seed?.join_status || 'INCOMPLETE'),
-            health_score: healthDen > 0 ? (100 * sum(eventList, function(ev) { return Number(ev?.health_component || 0); }) / healthDen) : 0,
-            adjustment_score: scxAggregateAdjustmentScore(eventList, healthDen),
-            ivt_risk_score: ivtDen > 0 ? scxClamp((100 * sum(ivtScoped, function(ev) { return Math.max(Number(ev?.ivt_component || 0), 0); })) / ivtDen, 0, 100) : 0,
-            confidence: nonSkipped.length ? scxClamp(sum(nonSkipped, function(ev) { return Number(ev?.confidence || 0); }) / nonSkipped.length, 0, 1) : 0,
-            positive_signal_count: eventList.filter(function(ev) { return String(ev?.change_class || '').toUpperCase() === 'POSITIVE'; }).length,
-            negative_signal_count: eventList.filter(function(ev) { return String(ev?.change_class || '').toUpperCase() === 'NEGATIVE'; }).length,
-            adjustment_drop_count: eventList.filter(function(ev) { return Number(ev?.adjustment_component || 0) < 0; }).length,
-            traffic_score: scxCalcGroupHealth(eventList, 'traffic'), delivery_score: scxCalcGroupHealth(eventList, 'delivery'), yield_score: scxCalcGroupHealth(eventList, 'yield'), quality_score: scxCalcGroupHealth(eventList, 'quality'), revenue_score: scxCalcGroupHealth(eventList, 'revenue'), efficiency_score: scxCalcGroupHealth(eventList, 'efficiency'),
-            ivt_click_stress_score: scxCalcGroupRisk(eventList, 'ivt_click_stress'), ivt_serving_score: scxCalcGroupRisk(eventList, 'ivt_serving'), ivt_attention_score: scxCalcGroupRisk(eventList, 'ivt_attention'), ivt_counter_score: scxCalcGroupRisk(eventList, 'ivt_counter'), ivt_funnel_score: scxCalcGroupRisk(eventList, 'ivt_funnel')
+            health_score: usingEvents ? (healthDen > 0 ? (100 * sum(eventList, function(ev) { return Number(ev?.health_component || 0); }) / healthDen) : 0) : sAvg(function(st){ return st?.health_score; }, 0),
+            adjustment_score: usingEvents ? scxAggregateAdjustmentScore(eventList, healthDen) : sAvg(function(st){ return st?.adjustment_score; }, 0),
+            ivt_risk_score: usingEvents ? (ivtDen > 0 ? scxClamp((100 * sum(ivtScoped, function(ev) { return Math.max(Number(ev?.ivt_component || 0), 0); })) / ivtDen, 0, 100) : 0) : sAvg(function(st){ return st?.ivt_risk_score; }, 0),
+            confidence: usingEvents ? (nonSkipped.length ? scxClamp(sum(nonSkipped, function(ev) { return Number(ev?.confidence || 0); }) / nonSkipped.length, 0, 1) : 0) : scxClamp(sAvg(function(st){ return st?.confidence; }, 0), 0, 1),
+            positive_signal_count: usingEvents ? eventList.filter(function(ev) { return String(ev?.change_class || '').toUpperCase() === 'POSITIVE'; }).length : Math.round(sAvg(function(st){ return st?.positive_signal_count; }, 0)),
+            negative_signal_count: usingEvents ? eventList.filter(function(ev) { return String(ev?.change_class || '').toUpperCase() === 'NEGATIVE'; }).length : Math.round(sAvg(function(st){ return st?.negative_signal_count; }, 0)),
+            adjustment_drop_count: usingEvents ? eventList.filter(function(ev) { return Number(ev?.adjustment_component || 0) < 0; }).length : Math.round(sAvg(function(st){ return st?.adjustment_drop_count; }, 0)),
+            traffic_score: usingEvents ? scxCalcGroupHealth(eventList, 'traffic') : sAvg(function(st){ return st?.traffic_score; }, 0),
+            delivery_score: usingEvents ? scxCalcGroupHealth(eventList, 'delivery') : sAvg(function(st){ return st?.delivery_score; }, 0),
+            yield_score: usingEvents ? scxCalcGroupHealth(eventList, 'yield') : sAvg(function(st){ return st?.yield_score; }, 0),
+            quality_score: usingEvents ? scxCalcGroupHealth(eventList, 'quality') : sAvg(function(st){ return st?.quality_score; }, 0),
+            revenue_score: usingEvents ? scxCalcGroupHealth(eventList, 'revenue') : sAvg(function(st){ return st?.revenue_score; }, 0),
+            efficiency_score: usingEvents ? scxCalcGroupHealth(eventList, 'efficiency') : sAvg(function(st){ return st?.efficiency_score; }, 0),
+            ivt_click_stress_score: usingEvents ? scxCalcGroupRisk(eventList, 'ivt_click_stress') : sAvg(function(st){ return st?.ivt_click_stress_score; }, 0),
+            ivt_serving_score: usingEvents ? scxCalcGroupRisk(eventList, 'ivt_serving') : sAvg(function(st){ return st?.ivt_serving_score; }, 0),
+            ivt_attention_score: usingEvents ? scxCalcGroupRisk(eventList, 'ivt_attention') : sAvg(function(st){ return st?.ivt_attention_score; }, 0),
+            ivt_counter_score: usingEvents ? scxCalcGroupRisk(eventList, 'ivt_counter') : sAvg(function(st){ return st?.ivt_counter_score; }, 0),
+            ivt_funnel_score: usingEvents ? scxCalcGroupRisk(eventList, 'ivt_funnel') : sAvg(function(st){ return st?.ivt_funnel_score; }, 0)
         });
         out.decision_margin = Number((out.health_score - out.ivt_risk_score + Math.min(0, out.adjustment_score)).toFixed(4));
         out.root_cause_label = scxAggregateRootCause(out);
@@ -3689,6 +3756,7 @@ function initDashboardRecap() {
         html += `<th class="text-end">Health</th>`;
         html += `<th class="text-end">Risk</th>`;
         html += `<th class="text-end">Decision</th>`;
+        html += `<th class="text-end">ROI</th>`;
         html += `</tr></thead><tbody>`;
 
         groups.forEach(function(group) {
@@ -3705,7 +3773,11 @@ function initDashboardRecap() {
             html += `<td><span class="scx-pill ${tone}">${esc(finalLabel)}</span></td>`;
             html += `<td class="text-end">${esc(scxNum(st?.health_score, 2))}</td>`;
             html += `<td class="text-end">${esc(scxNum(st?.ivt_risk_score, 2))}</td>`;
+            const spend = Number(st?.spend || 0);
+            const revenue = Number(st?.revenue || st?.revenue_value || 0);
+            const roi = Number.isFinite(Number(st?.roi)) ? Number(st?.roi) : (spend > 0 ? ((revenue - spend) / spend) * 100 : 0);
             html += `<td class="text-end">${esc(scxNum(st?.decision_margin, 2))}</td>`;
+            html += `<td class="text-end">${esc(scxNum(roi, 2))}%</td>`;
             html += `</tr>`;
         });
 
@@ -3812,6 +3884,21 @@ function initDashboardRecap() {
                 };
             }
 
+            const rawCountries = Array.isArray(r?.countries) ? r.countries : (Array.isArray(r?.country_details) ? r.country_details : (Array.isArray(r?.country_breakdown) ? r.country_breakdown : []));
+            const countries = rawCountries.map(function(c){
+                return {
+                    country_code: String(c?.country_code || c?.country_cd || c?.code || ''),
+                    country_name: String(c?.country_name || c?.country_nm || c?.country || c?.name || ''),
+                    spend: Number(c?.spend ?? c?.meta_spend ?? 0),
+                    revenue: Number(c?.revenue ?? c?.revenue_value ?? c?.adx_revenue ?? c?.adsense_estimated_earnings ?? 0),
+                    roi: Number(c?.roi ?? 0),
+                    health_score: Number(c?.health_score ?? 0),
+                    ivt_risk_score: Number(c?.ivt_risk_score ?? 0),
+                    confidence: Number(c?.confidence ?? 0),
+                    decision_margin: Number(c?.decision_margin ?? 0),
+                    join_status: String(c?.join_status || ''),
+                };
+            });
             return {
                 name:String(name||'-'),
                 code:String(code||''),
@@ -3822,6 +3909,8 @@ function initDashboardRecap() {
                 roi,
                 source: src,
                 last_update: lu,
+                active_days: Number(r?.active_days ?? r?.days_running ?? r?.running_days ?? 0) || 0,
+                start_date: String(r?.start_date || r?.first_seen_date || '').trim(),
                 prev_spend: prevSpend,
                 prev_revenue: prevRevenue,
                 prev_net: prevNet,
@@ -3831,7 +3920,8 @@ function initDashboardRecap() {
                 delta_net: dNet,
                 delta_roi: dRoi,
                 ml,
-                metrics
+                metrics,
+                countries
             };
         });
         out.sort((a,b) => {
@@ -4717,15 +4807,22 @@ function initDashboardRecap() {
                     freshness_score: fresh.score,
                     spend_score: spendScore,
                     roi_score: roiScore,
-                    health_score: hasBackendScoringMeta ? Number(backendInfo.health_score) : healthScore,
-                    ivt_risk_score: hasBackendScoringMeta ? Number(backendInfo.ivt_risk_score) : null,
-                    adjustment_score: hasBackendScoringMeta ? Number(backendInfo.adjustment_score) : null,
-                    confidence: hasBackendScoringMeta ? Number(backendInfo.confidence) : null,
-                    decision_margin: hasBackendScoringMeta ? Number(backendInfo.decision_margin) : null,
+                    health_score: hasBackendScoringMeta && backendInfo.health_score !== '' ? Number(backendInfo.health_score) : healthScore,
+                    ivt_risk_score: (backendInfo.ivt_risk_score != null && backendInfo.ivt_risk_score !== '') ? Number(backendInfo.ivt_risk_score) : null,
+                    adjustment_score: (backendInfo.adjustment_score != null && backendInfo.adjustment_score !== '') ? Number(backendInfo.adjustment_score) : null,
+                    confidence: (backendInfo.confidence != null && backendInfo.confidence !== '') ? Number(backendInfo.confidence) : null,
+                    decision_margin: (backendInfo.decision_margin != null && backendInfo.decision_margin !== '') ? Number(backendInfo.decision_margin) : null,
                     final_label: String(backendInfo.final_label || label || '').trim(),
                     root_cause_label: String(backendInfo.root_cause_label || '').trim(),
-                    scoring_source: hasBackendScoringMeta ? 'backend_scoring' : 'dashboard_heuristic',
-                    scoring_source_label: hasBackendScoringMeta ? 'Backend scoring + heuristik dashboard' : 'Heuristik dashboard',
+                    scoring_source: 'backend_scoring',
+                    scoring_source_label: 'Backend scoring',
+                    reason_summary: String(backendInfo.reason_summary || storedMeta?.reason_summary || '').trim(),
+                    date: String(backendInfo.date || '').trim(),
+                    positive_signal_count: (backendInfo.positive_signal_count != null && backendInfo.positive_signal_count !== '') ? Number(backendInfo.positive_signal_count) : null,
+                    negative_signal_count: (backendInfo.negative_signal_count != null && backendInfo.negative_signal_count !== '') ? Number(backendInfo.negative_signal_count) : null,
+                    neutral_signal_count: (backendInfo.neutral_signal_count != null && backendInfo.neutral_signal_count !== '') ? Number(backendInfo.neutral_signal_count) : null,
+                    country_details: Array.isArray(backendInfo.country_details) ? backendInfo.country_details : [],
+                    country_focus: String(backendInfo.country_focus || backendInfo.country_fokus || '').trim(),
                     trend_score: multiWindowScore,
                     trend_windows: trendWindows,
                     traffic_score: conceptGroups.traffic,
@@ -5806,7 +5903,8 @@ function initDashboardRecap() {
             const comparisonDates = apiJson?.comparison_dates || {};
             const parsed = pickScoringArrays(scoring);
             const groups = scxGroupScoringByCountry(parsed.statuses, parsed.events);
-            const subgroups = String(state?.dim || '').toLowerCase() === 'country' ? scxGroupScoringBySubdomain(parsed.statuses, parsed.events, row?.code || '') : [];
+            const enableSubdomainTabs = false;
+            const subgroups = (enableSubdomainTabs && String(state?.dim || '').toLowerCase() === 'country') ? scxGroupScoringBySubdomain(parsed.statuses, parsed.events, row?.code || '') : [];
             const useSubTabs = !!subgroups.length;
             const summaryTrendKeys = useSubTabs ? subgroups.map(function(it){ return it.key; }).filter(Boolean) : [];
             const primaryGroup = scxPickPrimaryCountryGroup(groups);
@@ -5852,7 +5950,7 @@ function initDashboardRecap() {
                 .slice(0, 12);
             const canAct = String(state?.dim || '').toLowerCase() === 'domain' && String(row?.account_ads || '').trim();
             const tabButtons = `<div class="mb-3" style="padding:14px;border:1px solid rgba(37,99,235,0.12);background:linear-gradient(180deg,rgba(239,246,255,0.9),rgba(255,255,255,0.95));border-radius:18px;"><div style="font-size:12px;color:#475569;margin-bottom:10px;">${useSubTabs ? 'Navigasi hasil scoring per subdomain negara aktif' : 'Navigasi hasil scoring per negara aktif'}</div><div class="dashboard-recap-tabs" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-primary" data-scx-tab-btn="summary">Kesimpulan Akhir</button>${(useSubTabs ? subgroups : groups).map(function(item, idx){ const count = Array.isArray(item?.events) ? item.events.filter(function(ev){ return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; }).length : 0; const label = useSubTabs ? String(item?.label || item?.key || '-') : String(scxCountryLabel(item?.status || { country_cd: item?.key || '-' }) || '-').toUpperCase(); return `<button type="button" class="btn btn-sm btn-light" data-scx-tab-btn="${useSubTabs ? `sub-${idx}` : `country-${idx}`}">${esc(label)} <span style="margin-left:6px;font-size:11px;opacity:0.72;">${esc(String(count))}</span></button>`; }).join('')}</div></div>`;
-            const actionPanel = canAct ? `<div class="scx-section-gap" style="padding:14px;border:1px solid rgba(15,23,42,0.08);border-radius:16px;background:#fff;"><div class="scx-title">Campaign Aktif di Subdomain</div><div class="scx-sub" style="margin-bottom:10px;">Campaign langsung dimuat otomatis untuk subdomain ini.</div><div class="dashboard-recap-tabs mb-2" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-danger" id="sdPauseSelectedBtn">Stop</button><button type="button" class="btn btn-sm btn-primary" id="sdActivateSelectedBtn">Hold</button><button type="button" class="btn btn-sm btn-success" id="sdScaleUp15Btn">Scale Up</button><button type="button" class="btn btn-sm btn-warning text-dark" id="sdOptimize10Btn">Scale Down</button></div><div id="sdCampaignStatus" class="scx-sub" style="margin-bottom:8px;"></div><div id="sdCampaignTable"></div></div>` : '';
+            const actionPanel = canAct ? `<div class="scx-section-gap" style="padding:14px;border:1px solid rgba(15,23,42,0.08);border-radius:16px;background:#fff;"><div class="scx-title">Campaign Aktif di Domain</div><div class="scx-sub" style="margin-bottom:10px;">Campaign langsung dimuat otomatis untuk domain ini.</div><div class="dashboard-recap-tabs mb-2" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-danger" id="sdPauseSelectedBtn">Stop</button><button type="button" class="btn btn-sm btn-primary" id="sdActivateSelectedBtn">Hold</button><button type="button" class="btn btn-sm btn-success" id="sdScaleUp15Btn">Scale Up</button><button type="button" class="btn btn-sm btn-warning text-dark" id="sdOptimize10Btn">Scale Down</button></div><div id="sdCampaignStatus" class="scx-sub" style="margin-bottom:8px;"></div><div id="sdCampaignTable"></div></div>` : '';
             const countryPanes = useSubTabs ? subgroups.map(function(sub, idx){ return `<div data-scx-tab-pane="sub-${idx}" style="display:none;">${scxRenderSubdomainPane(sub, `scxSubTrend${idx}`)}</div>`; }).join('') : groups.map(function(group, idx){ return `<div data-scx-tab-pane="country-${idx}" style="display:none;">${scxRenderCountryPane(group, `scxCountryTrend${idx}`)}</div>`; }).join('');
     
             let html = '';
@@ -6010,39 +6108,124 @@ function initDashboardRecap() {
             return html;
         }
     // ...existing code...
+    function buildStoredScoringApiJson(metaHint, row, state) {
+        const breakdown = metaHint?.breakdown || {};
+        const info = breakdown?.meta || {};
+        const detailsRaw = [
+            info?.country_details,
+            breakdown?.country_details,
+            metaHint?.country_details,
+            row?.countries
+        ].find(function(v){ return Array.isArray(v) && v.length; }) || [];
+        const details = Array.isArray(detailsRaw) ? detailsRaw : [];
+        const baseStatus = {
+            final_label: String(metaHint?.label || info.final_label || 'STABLE'),
+            root_cause_label: String(info.root_cause_label || info.final_label || metaHint?.label || 'STABLE'),
+            health_score: Number(info.health_score || 0),
+            ivt_risk_score: Number(info.ivt_risk_score || 0),
+            adjustment_score: Number(info.adjustment_score || 0),
+            confidence: Number(info.confidence || 0),
+            decision_margin: Number(info.decision_margin || 0),
+            reason_summary: String(info.reason_summary || ''),
+            date: String(state?.date || ''),
+            site: String(row?.name || ''),
+        };
+        const fallbackCountries = Array.isArray(row?.countries) ? row.countries : [];
+        const statuses = details.length ? details.map(function(c){
+            const spend = Number(c?.spend ?? 0);
+            const revenue = Number(c?.revenue ?? c?.revenue_value ?? 0);
+            const riskRaw = Number(c?.ivt_risk_score);
+            const confRaw = Number(c?.confidence);
+            const risk = Number.isFinite(riskRaw) && riskRaw > 0 ? riskRaw : Number(baseStatus.ivt_risk_score || 0);
+            const confidence = Number.isFinite(confRaw) && confRaw > 0 ? confRaw : Number(baseStatus.confidence || 0);
+            return Object.assign({}, baseStatus, {
+                country_cd: String(c?.country_code || c?.country_cd || ''),
+                country_code: String(c?.country_code || c?.country_cd || ''),
+                country_nm: String(c?.country_name || c?.country_nm || c?.country || ''),
+                country_name: String(c?.country_name || c?.country_nm || c?.country || ''),
+                join_status: String(c?.join_status || ''),
+                final_label: String(c?.final_label || baseStatus.final_label),
+                spend: spend,
+                revenue: revenue,
+                revenue_value: revenue,
+                roi: spend > 0 ? ((revenue - spend) / spend) * 100 : 0,
+                health_score: Number(c?.health_score ?? baseStatus.health_score),
+                ivt_risk_score: risk,
+                adjustment_score: Number(c?.adjustment_score ?? baseStatus.adjustment_score),
+                confidence: confidence,
+                decision_margin: Number(c?.decision_margin ?? baseStatus.decision_margin),
+            });
+        }).filter(function(st){ return !!scxCountryKey(st) && scxCountryKey(st) !== '-'; }) : (fallbackCountries.length ? fallbackCountries.map(function(c){
+            const spend = Number(c?.spend ?? 0);
+            const revenue = Number(c?.revenue ?? c?.revenue_value ?? 0);
+            return Object.assign({}, baseStatus, {
+                country_cd: String(c?.country_code || c?.country_cd || ''),
+                country_code: String(c?.country_code || c?.country_cd || ''),
+                country_nm: String(c?.country_name || c?.country_nm || c?.country || ''),
+                country_name: String(c?.country_name || c?.country_nm || c?.country || ''),
+                join_status: String(c?.join_status || ''),
+                spend: spend,
+                revenue: revenue,
+                revenue_value: revenue,
+                roi: spend > 0 ? ((revenue - spend) / spend) * 100 : 0,
+            });
+        }).filter(function(st){ return !!scxCountryKey(st) && scxCountryKey(st) !== '-'; }) : [Object.assign({}, baseStatus, {
+            country_cd: String(row?.code || ''),
+            country_code: String(row?.code || ''),
+            country_nm: '',
+            country_name: '',
+            join_status: '',
+            spend: Number(row?.spend ?? 0),
+            revenue: Number(row?.revenue ?? 0),
+            revenue_value: Number(row?.revenue ?? 0),
+            roi: Number(row?.spend || 0) > 0 ? ((Number(row?.revenue || 0) - Number(row?.spend || 0)) / Number(row?.spend || 1)) * 100 : 0,
+        })]);
+
+        return {
+            status: true,
+            comparison_dates: {
+                h1: ymdShift(String(state?.date || ''), -1),
+                h3: ymdShift(String(state?.date || ''), -3),
+                h7: ymdShift(String(state?.date || ''), -7),
+                h14: ymdShift(String(state?.date || ''), -14),
+            },
+            scoring: {
+                statuses: statuses,
+                events: [],
+                rows_written: statuses.length,
+                event_rows_written: 0,
+                requested_date: String(state?.date || ''),
+                effective_date: String(state?.date || ''),
+                warning: '',
+                audit: { source: 'dashboard_scoring_data' }
+            }
+        };
+    }
+
     async function createScoringFromDashboardRow(row, state, metaHint) {
-        const payload = buildCreateScoringPayload(row, state);
         const scoreName = String(row?.name || '-').trim() || '-';
 
         openScoreDetailModal(
-            'Create Scoring',
-            `<div class="score-loading-state"><div class="score-loading-card"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><div class="score-loading-title">Creating Score</div><div class="score-loading-name">${esc(scoreName)}</div></div></div>`
+            'Detail Data',
+            `<div class="score-loading-state"><div class="score-loading-card"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><div class="score-loading-title">Memuat Detail Data</div><div class="score-loading-name">${esc(scoreName)}</div></div></div>`
         );
         setScoreDetailCloseVisible(false);
 
         try {
             const trendWindows = row?.trend_windows || await getTrendWindowsForRow(row, state);
             const rowWithTrend = Object.assign({}, row, { trend_windows: trendWindows });
-            const json = metaHint?.apiJson ? metaHint.apiJson : await (async function(){
-                const res = await fetch('/management/admin/dashboard_create_scoring', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                    credentials: 'same-origin',
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                if (!res.ok || !data || !data.status) throw new Error(data?.message || data?.error || `HTTP ${res.status}`);
-                return data;
-            })();
-
+            let effectiveMeta = metaHint;
+            if (!scoringMetaHasCountryDetails(effectiveMeta)) {
+                const freshStore = await fetchDashboardScoring([row], state);
+                const freshRaw = lookupStoredMetaRaw(row, state, freshStore);
+                if (freshRaw) effectiveMeta = summarizeDashboardScoringMeta(freshRaw, row, state);
+            }
+            const json = effectiveMeta?.apiJson ? effectiveMeta.apiJson : buildStoredScoringApiJson(effectiveMeta, row, state);
             const parsedScoring = pickScoringArrays(json?.scoring || {});
             const groups = scxGroupScoringByCountry(parsedScoring.statuses, parsedScoring.events);
-            const subgroups = String(state?.dim || '').toLowerCase() === 'country' ? scxGroupScoringBySubdomain(parsedScoring.statuses, parsedScoring.events, row?.code || '') : [];
-            console.log(json)
-            console.log(rowWithTrend)
-            console.log(state)
+            const subgroups = [];
             openScoreDetailModal(
-                `Create Scoring: ${String(row?.name || '-')}`,
+                `Detail Data: ${String(row?.name || '-')}`,
                 renderCreateScoringResult(json, rowWithTrend, state)
             );
 
@@ -6081,8 +6264,8 @@ function initDashboardRecap() {
             }, 0);
         } catch (e) {
             openScoreDetailModal(
-                `Create Scoring: ${String(row?.name || '-')}`,
-                `<div class="alert alert-danger" style="margin:0;">${esc(String(e?.message || e || 'Gagal create scoring'))}</div>`
+                `Detail Data: ${String(row?.name || '-')}`,
+                `<div class="alert alert-danger" style="margin:0;">${esc(String(e?.message || e || 'Gagal memuat detail scoring backend'))}</div>`
             );
         }
     }
@@ -6106,15 +6289,8 @@ function initDashboardRecap() {
 
                 const btn = e.target && e.target.closest ? e.target.closest('.dashboard-score-detail-btn') : null;
                 if (!btn) return;
-                const key = btn.getAttribute('data-score-key') || '';
-                const payload = (window.dashboardRecapScoreDetails || {})[key];
-                if (!payload) return;
-                const meta = payload.meta || {};
-                const bd = meta.breakdown || {};
-                const r = payload.row || {};
-                const dimNow = String(payload?.state?.dim || state?.dim || dim || 'domain');
-
-                // ...existing code...
+                const detailKey = btn.getAttribute('data-detail-key') || '';
+                if (detailKey) openDetailKeputusan(detailKey);
             });
             tableEl.dataset.boundScoreDetail = '1';
         }
@@ -6141,6 +6317,10 @@ function initDashboardRecap() {
 
             const srcs = r && r.sources;
             const badges = [];
+            const activeDays = Number(r?.active_days || 0);
+            const dayBadge = activeDays > 0
+                ? `<span class="badge badge-info badge-pill ml-1">jalan ${esc(String(activeDays))} hari</span>`
+                : '';
 
             if (srcs && (srcs.adx || srcs.adsense)) {
                 if (srcs.adx) badges.push('<span class="badge badge-primary badge-pill ml-2">AdX</span>');
@@ -6151,6 +6331,7 @@ function initDashboardRecap() {
                 if (src === 'adsense') badges.push('<span class="badge badge-warning badge-pill ml-2 text-dark">AdSense</span>');
             }
 
+            if (dayBadge) badges.push(dayBadge);
             return badges.length ? (name + ' ' + badges.join('')) : name;
         }
 
@@ -6187,16 +6368,27 @@ function initDashboardRecap() {
         window.dashboardRecapScoreDetails = window.dashboardRecapScoreDetails || {};
 
         const backendScores = await fetchDashboardScoring(rows, state);
-        window.dashboardRecapStoredScoring = (backendScores && typeof backendScores === 'object') ? backendScores : {};
-        
+        const rawStore = (backendScores && typeof backendScores === 'object') ? backendScores : {};
+        const normalizedStore = Object.assign({}, rawStore);
+        Object.keys(rawStore).forEach(function(k){
+            const nk = String(k || '').trim().toLowerCase();
+            if (!nk) return;
+            normalizedStore[nk] = normalizedStore[nk] || rawStore[k];
+            const bk = baseSubdomain(nk);
+            if (bk) normalizedStore[bk] = normalizedStore[bk] || rawStore[k];
+            const wk = nk.replace(/^www\./i, '');
+            if (wk) normalizedStore[wk] = normalizedStore[wk] || rawStore[k];
+        });
+        window.dashboardRecapStoredScoring = normalizedStore;
+
         const scored = (rows || []).map(function(r) {
-            const lookupKey = scoringLookupKey(state?.dim, r);
+            const fallback = scoreAndDecision(r, state);
             const meta = storedScoringForRow(r, state) || {
-                score: null,
-                decision: '',
-                label: 'BELUM ADA HASIL',
-                reasons: ['Data scoring belum tersedia di database'],
-                breakdown: { meta: { scoring_source: 'unavailable', scoring_source_label: 'Data tidak ditemukan' } }
+                score: Number(fallback?.score ?? 0),
+                decision: String(fallback?.decision || ''),
+                label: String(fallback?.label || 'STABLE'),
+                reasons: Array.isArray(fallback?.reasons) ? fallback.reasons : ['Fallback skor lokal'],
+                breakdown: { meta: Object.assign({ scoring_source: 'fallback_local', scoring_source_label: 'Fallback lokal (client)' }, (fallback?.breakdown?.meta || {})) }
             };
             return { r, meta };
         });
@@ -6215,11 +6407,12 @@ function initDashboardRecap() {
         const data = scored.map((x, i) => {
             const r = x.r;
             const meta = x.meta;
+            console.log("data x:", x)
             const k = `${String(state?.dim || '')}\u241F${String(scoringLookupKey(dim, r) || String(r?.name || ''))}|${String(r?.code || '')}`;
             window.dashboardRecapScoreDetails[k] = { row: r, meta, state };
 
-            const keputusanHtml = `${keputusanBadge(meta)}`;
-            const detailBtn = `<button type="button" class="btn btn-sm btn-primary dashboard-create-scoring-btn" data-score-key="${esc(k)}">Create Scoring</button>`;
+            const keputusanHtml = `${keputusanBadge(meta, { row: r, state: state })}`;
+            const detailBtn = `<button type="button" class="btn btn-sm btn-primary dashboard-create-scoring-btn" data-score-key="${esc(k)}">Detail Data</button>`;
 
             return [
                 i + 1,

@@ -2010,12 +2010,10 @@ class RoiMonitoringDomainAdsenseDataView(View):
                     clicks = int(adsense_item.get('clicks', 0) or 0)
                     page_views = int(adsense_item.get('page_views', 0) or 0)
                     ad_requests = int(adsense_item.get('ad_requests', 0) or 0)
-
                     ad_requests_coverage_weighted_sum = float(adsense_item.get('ad_requests_coverage_weighted_sum', 0.0) or 0.0)
                     active_view_viewability_weighted_sum = float(adsense_item.get('active_view_viewability_weighted_sum', 0.0) or 0.0)
                     active_view_measurability_weighted_sum = float(adsense_item.get('active_view_measurability_weighted_sum', 0.0) or 0.0)
                     active_view_time_weighted_sum = float(adsense_item.get('active_view_time_weighted_sum', 0.0) or 0.0)
-
                     raw_rows_all.append({
                         'site_name': site_key,
                         'date': date_key,
@@ -2149,14 +2147,12 @@ class RoiMonitoringDomainAdsenseDataView(View):
                     clicks = int(item.get('clicks', 0) or 0)
                     page_views = int(item.get('page_views', 0) or 0)
                     ad_requests = int(item.get('ad_requests', 0) or 0)
-
                     cost_per_click = (float(revenue_val) / float(clicks)) if clicks > 0 else 0.0
                     page_views_rpm = (float(revenue_val) / float(page_views) * 1000.0) if page_views > 0 else 0.0
                     ad_requests_coverage = (float(item.get('ad_requests_coverage_weighted_sum', 0.0) or 0.0) / float(ad_requests)) if ad_requests > 0 else 0.0
                     active_view_viewability = (float(item.get('active_view_viewability_weighted_sum', 0.0) or 0.0) / float(impressions)) if impressions > 0 else 0.0
                     active_view_measurability = (float(item.get('active_view_measurability_weighted_sum', 0.0) or 0.0) / float(impressions)) if impressions > 0 else 0.0
                     active_view_time = (float(item.get('active_view_time_weighted_sum', 0.0) or 0.0) / float(impressions)) if impressions > 0 else 0.0
-
                     combined_data_all.append({
                         'site_name': item['site_name'],
                         'account_ads': item['account_ads'],
@@ -2187,14 +2183,12 @@ class RoiMonitoringDomainAdsenseDataView(View):
                     clicks = int(item.get('clicks', 0) or 0)
                     page_views = int(item.get('page_views', 0) or 0)
                     ad_requests = int(item.get('ad_requests', 0) or 0)
-
                     cost_per_click = (float(revenue_val) / float(clicks)) if clicks > 0 else 0.0
                     page_views_rpm = (float(revenue_val) / float(page_views) * 1000.0) if page_views > 0 else 0.0
                     ad_requests_coverage = (float(item.get('ad_requests_coverage_weighted_sum', 0.0) or 0.0) / float(ad_requests)) if ad_requests > 0 else 0.0
                     active_view_viewability = (float(item.get('active_view_viewability_weighted_sum', 0.0) or 0.0) / float(impressions)) if impressions > 0 else 0.0
                     active_view_measurability = (float(item.get('active_view_measurability_weighted_sum', 0.0) or 0.0) / float(impressions)) if impressions > 0 else 0.0
                     active_view_time = (float(item.get('active_view_time_weighted_sum', 0.0) or 0.0) / float(impressions)) if impressions > 0 else 0.0
-
                     combined_data_filtered.append({
                         'site_name': item['site_name'],
                         'account_ads': item['account_ads'],

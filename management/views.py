@@ -1,6 +1,7 @@
 from collections import defaultdict
 import os
 import csv
+import tldextract
 from io import StringIO
 import math
 import re
@@ -934,46 +935,99 @@ class DashboardScoringDataView(View):
         try:
             if pd is None:
                 raise RuntimeError('pandas belum tersedia')
-
             payload = json.loads((req.body or b'').decode('utf-8') or '{}')
-            print(f"[DEBUG] Raw payload: {payload}")
             target_date = str(payload.get('date') or '').strip()
             dim = str(payload.get('dim') or 'site').strip().lower()
-
             raw_entities = payload.get('entities') or []
-            entities = [
-                str(x).strip().upper() if dim == 'country' else str(x).strip().lower()
-                for x in raw_entities if str(x).strip()
-            ]
+            def normalize_site_entity(v):
+                s = str(v or '').strip().lower()
+                s = re.sub(r'^https?://', '', s)
+                s = s.split('/')[0].split('?')[0].split('#')[0]
+                s = re.sub(r'^www\.', '', s)
+                return s
+            def extract_site_base(v):
+                s = normalize_site_entity(v)
+                if not s:
+                    return ''
+                try:
+                    ext = tldextract.extract(s)
+                    if ext.domain and ext.suffix:
+                        return f"{ext.domain}.{ext.suffix}"
+                except Exception:
+                    pass
+                parts = [p for p in s.split('.') if p]
+                return '.'.join(parts[-2:]) if len(parts) >= 2 else s
 
+            if dim == 'country':
+                entities = [str(x).strip().upper() for x in raw_entities if str(x).strip()]
+            else:
+                entity_set = set()
+                for x in raw_entities:
+                    raw = str(x).strip()
+                    if not raw:
+                        continue
+                    norm = normalize_site_entity(raw)
+                    if norm:
+                        entity_set.add(norm)
+                    base = extract_site_base(raw)
+                    if base:
+                        entity_set.add(base)
+                entities = sorted(entity_set)
             if not target_date:
                 return JsonResponse({'status': False, 'error': 'date wajib diisi'}, status=400)
-
             if not entities:
                 return JsonResponse({'status': True, 'data': {}}, safe=False)
-
             scoring_module = _get_scoring_concept_module()
-
             query_df = getattr(scoring_module, 'query_df', None)
             if query_df is None:
                 raise RuntimeError('query_df belum tersedia')
-
             status_table = getattr(scoring_module, 'STATUS_TABLE', 'hris_trendHorizone.fact_site_country_status_history')
             event_table = getattr(scoring_module, 'EVENT_TABLE', 'hris_trendHorizone.fact_change_event_long')
-
-            table_cols = set(getattr(scoring_module, '_get_table_columns', lambda _t: set())(status_table) or [])
-            event_table_cols = set(getattr(scoring_module, '_get_table_columns', lambda _t: set())(event_table) or [])
-
+            source_table = getattr(scoring_module, 'SOURCE_TABLE', 'hris_trendHorizone.fact_join_hourly')
+            module_get_cols = getattr(scoring_module, '_get_table_columns', None)
+            def resolve_table_columns(table_name):
+                cols = set()
+                if callable(module_get_cols):
+                    try:
+                        cols = set(module_get_cols(table_name) or [])
+                    except Exception:
+                        cols = set()
+                if cols:
+                    return {str(c).strip() for c in cols if str(c).strip()}
+                try:
+                    schema_df = query_df(f"DESCRIBE TABLE {table_name}")
+                    for c in ['name', 'column', 'Field']:
+                        if c in schema_df.columns:
+                            return set(schema_df[c].astype(str).str.strip().tolist())
+                except Exception as ex:
+                    logger.warning('DashboardScoringDataView resolve_table_columns failed for %s: %s', table_name, ex)
+                return set()
+            table_cols = resolve_table_columns(status_table)
             raw_snapshot_expr = 'event_time' if 'event_time' in table_cols else ('mdd' if 'mdd' in table_cols else ('date' if 'date' in table_cols else 'toDateTime(run_date)'))
-            snapshot_expr = f"toTimeZone({raw_snapshot_expr}, 'Asia/Jakarta')"
+            snapshot_input_expr = f"toDateTime({raw_snapshot_expr})" if raw_snapshot_expr == 'date' else raw_snapshot_expr
+            snapshot_expr = f"toTimeZone({snapshot_input_expr}, 'Asia/Jakarta')"
             date_expr = 'toDate(event_date)' if 'event_date' in table_cols else ('toDate(date)' if 'date' in table_cols else 'toDate(run_date)')
             country_key_col = 'country_code' if 'country_code' in table_cols else 'country_cd'
+            country_name_col = 'country_name' if 'country_name' in table_cols else ('country_nm' if 'country_nm' in table_cols else 'country_name')
             site_key_col = 'site'
-            entity_expr = f"upper({country_key_col})" if dim == 'country' else f"lower({site_key_col})"
             literals = ', '.join("'{}'".format(x.replace("'", "''")) for x in sorted(set(entities)))
-
+            status_has_entity_key = 'entity_key' in table_cols
+            if dim == 'country':
+                entity_expr = "upper(entity_key)" if status_has_entity_key else f"upper({country_key_col})"
+                entity_filter_expr = f"{entity_expr} IN ({literals})"
+            else:
+                site_norm_expr = f"lower(replaceRegexpOne(replaceRegexpOne({site_key_col}, '^https?://', ''), '^www\\\\.', ''))"
+                site_host_expr = f"splitByChar('/', {site_norm_expr})[1]"
+                site_base_expr = f"arrayStringConcat(arraySlice(splitByChar('.', {site_host_expr}), -2, 2), '.')"
+                entity_expr = site_base_expr
+                entity_filter_expr = f"({site_host_expr} IN ({literals}) OR {site_base_expr} IN ({literals})"
+                if status_has_entity_key:
+                    entity_filter_expr += f" OR lower(entity_key) IN ({literals})"
+                entity_filter_expr += ")"
+            status_entity_expr = 'entity_key' if status_has_entity_key else entity_expr
             cols = [
-                'site','country_code','country_name','date','mapped_revenue_source','join_status',
+                'site','date','mapped_revenue_source','join_status','run_time','run_hour','country_code','country_name','entity_key',
+                'spend','revenue_value','meta_spend','adx_revenue','adsense_estimated_earnings',
                 'final_label','root_cause_label','health_score','adjustment_score','ivt_risk_score',
                 'confidence','decision_margin','traffic_score','delivery_score','yield_score',
                 'quality_score','revenue_score','efficiency_score','engagement_score','control_score',
@@ -981,25 +1035,135 @@ class DashboardScoringDataView(View):
                 'positive_signal_count','negative_signal_count','neutral_signal_count','reason_summary'
             ]
             keep = [c for c in cols if not table_cols or c in table_cols]
+            status_select_cols = [
+                f"{entity_expr} AS entity_key",
+                f"{status_entity_expr} AS site",
+                f"{date_expr} AS scoring_date",
+                f"{snapshot_expr} AS run_hour",
+                f"{country_key_col} AS country_code",
+            ]
+            if not table_cols or country_name_col in table_cols:
+                status_select_cols.append(f"{country_name_col} AS country_name")
+            status_select_cols.extend(keep)
             sql = f"""
-            SELECT {entity_expr} AS entity_key, {date_expr} AS scoring_date, {snapshot_expr} AS snapshot_time, {', '.join(keep)}
+            SELECT
+                site,
+                date AS scoring_date,
+                run_time,
+                run_hour,
+                country_code,
+                country_name,
+                lower(site) AS entity_key,
+                entity_key AS status_entity_key,
+                mapped_revenue_source,
+                join_status,
+                spend,
+                revenue_value,
+                final_label,
+                root_cause_label,
+                health_score,
+                adjustment_score,
+                ivt_risk_score,
+                confidence,
+                decision_margin,
+                traffic_score,
+                delivery_score,
+                yield_score,
+                quality_score,
+                revenue_score,
+                efficiency_score,
+                engagement_score,
+                control_score,
+                ivt_click_stress_score,
+                ivt_serving_score,
+                ivt_attention_score,
+                ivt_counter_score,
+                ivt_funnel_score,
+                positive_signal_count,
+                negative_signal_count,
+                neutral_signal_count,
+                reason_summary
             FROM {status_table}
-            WHERE {date_expr} = toDate('{target_date}') AND {entity_expr} IN ({literals})
-            ORDER BY entity_key, snapshot_time DESC
+            WHERE toDate(date) = toDate('{target_date}')
+              AND lower(site) IN ({literals})
+            ORDER BY date, run_hour DESC, entity_key
             """
-
-            event_snapshot_expr = 'event_time' if 'event_time' in event_table_cols else ('mdd' if 'mdd' in event_table_cols else ('date' if 'date' in event_table_cols else 'toDateTime(run_date)'))
-            event_date_expr = 'toDate(event_date)' if 'event_date' in event_table_cols else ('toDate(date)' if 'date' in event_table_cols else 'toDate(run_date)')
-            event_country_col = 'country_code' if 'country_code' in event_table_cols else 'country_cd'
-            event_entity_expr = f"upper({event_country_col})" if dim == 'country' else "lower(site)"
-            event_keep = [c for c in ['metric_group','change_class','event_label','ivt_component','ivt_capacity','confidence'] if (not event_table_cols or c in event_table_cols)]
+            event_site_like_clause = ''
+            if dim != 'country' and len(entities) > 0:
+                event_site_like = str(entities[0]).replace("'", "''")
+                event_site_like_clause = f" AND lower(site) LIKE '{event_site_like}'"
             event_sql = f"""
-            SELECT {event_entity_expr} AS entity_key, toTimeZone({event_snapshot_expr}, 'Asia/Jakarta') AS snapshot_time, {', '.join(event_keep)}
+            SELECT 
+            date AS scoring_date,
+            run_time,
+            run_hour,
+            entity_key,
+            site,
+            entity_key, 
+            country_code, 
+            country_name,
+            join_status,
+            mapped_revenue_source,
+            source_scope,
+            header_name,
+            metric_group,
+            metric_type,
+            funnel_stage,
+            metric_role,
+            rule_key,
+            score_method,
+            expected_direction,
+            prev_value,
+            cur_value,
+            delta_abs,
+            delta_pct,
+            current_increment,
+            baseline_center,
+            baseline_scale,
+            volume_gate_value,
+            volume_gate_pass,
+            denominator_value,
+            confidence,
+            signal_strength,
+            health_component,
+            adjustment_component,
+            change_class,
+            event_label,
+            event_reason,
+            note,
+            ivt_component,
+            ivt_capacity,
+            baseline_source,
+            hist_points,
+            z_raw,
+            directional_z,
+            day_type,
+            is_composite
             FROM {event_table}
-            WHERE {event_date_expr} = toDate('{target_date}') AND {event_entity_expr} IN ({literals})
-            ORDER BY entity_key, snapshot_time DESC
+            WHERE toDate(date) = toDate('{target_date}')
+              AND lower(site) IN ({literals}){event_site_like_clause}
+            ORDER BY date, run_hour DESC, entity_key
             """
-
+            source_sql = f"""
+            SELECT
+                date,
+                lower(entity_key) AS entity_key,
+                argMax(site, run_hour) AS site,
+                argMax(country_code, run_hour) AS country_code,
+                argMax(country_name, run_hour) AS country_name,
+                argMax(mapped_revenue_source, run_hour) AS mapped_revenue_source,
+                sum(meta_spend) AS meta_spend,
+                sum(adx_revenue) AS adx_revenue,
+                sum(adsense_estimated_earnings) AS adsense_estimated_earnings
+            FROM {source_table}
+            WHERE toDate(date) = toDate('{target_date}')
+            AND run_hour = (
+                  SELECT max(run_hour)
+                  FROM {source_table}
+                  WHERE toDate(date) = toDate('{target_date}')
+            )
+            GROUP BY date, entity_key, run_hour
+            """
             def load_status_df():
                 df = query_df(sql)
                 for c in ['scoring_date', 'date']:
@@ -1007,39 +1171,148 @@ class DashboardScoringDataView(View):
                         df[c] = pd.to_datetime(df[c], errors='coerce')
                         df = df.dropna(subset=[c])
                         df[c] = df[c].dt.date
-                if 'snapshot_time' in df.columns:
-                    df['snapshot_time'] = pd.to_datetime(df['snapshot_time'], errors='coerce')
+                if 'run_hour' in df.columns:
+                    df['run_hour'] = pd.to_datetime(df['run_hour'], errors='coerce')
                 return df
-
             def load_event_df():
-                if not event_keep:
-                    return pd.DataFrame(columns=['entity_key'])
                 ev = query_df(event_sql)
-                if 'snapshot_time' in ev.columns:
-                    ev['snapshot_time'] = pd.to_datetime(ev['snapshot_time'], errors='coerce')
+                if 'run_hour' in ev.columns:
+                    ev['run_hour'] = pd.to_datetime(ev['run_hour'], errors='coerce')
                 return ev
-
+            def load_source_df():
+                try:
+                    print(f"data source_sql: {source_sql}")
+                    df = query_df(source_sql)
+                except Exception as ex:
+                    logger.warning('DashboardScoringDataView source query failed: %s', ex)
+                    return pd.DataFrame()
+                if 'run_hour' in df.columns:
+                    df['run_hour'] = pd.to_datetime(df['run_hour'], errors='coerce')
+                return df
             df = load_status_df()
+            print(f"data df: {df}")
             event_df = load_event_df()
+            print(f"data event_df: {event_df}")
+            source_df = load_source_df()
+            print(f"data source_df: {source_df}")
             if df.empty:
                 return JsonResponse({'status': True, 'data': {}}, safe=False)
-
             df['entity_key'] = df['entity_key'].astype(str).map(lambda x: x.strip().upper() if dim == 'country' else x.strip().lower())
+            if 'site' in df.columns:
+                df['site'] = df['site'].astype(str).map(lambda x: x.strip().upper() if dim == 'country' else x.strip().lower())
             if not event_df.empty and 'entity_key' in event_df.columns:
                 event_df['entity_key'] = event_df['entity_key'].astype(str).map(lambda x: x.strip().upper() if dim == 'country' else x.strip().lower())
-
             df['scoring_date'] = pd.to_datetime(df.get('scoring_date'), errors='coerce').dt.date
-            df['snapshot_time'] = pd.to_datetime(df.get('snapshot_time'), errors='coerce')
+            df['run_hour'] = pd.to_datetime(df.get('run_hour'), errors='coerce')
+            source_lookup = {}
+            source_agg_lookup = {}
+            source_site_country_lookup = {}
+            def site_key_candidates(raw_key, site_value=''):
+                if dim == 'country':
+                    k = str(raw_key or '').strip().upper()
+                    return [k] if k else []
+                keys = []
+                for v in [raw_key, site_value]:
+                    s = str(v or '').strip().lower()
+                    if not s:
+                        continue
+                    s = s.split('|')[0].strip()
+                    s = normalize_site_entity(s)
+                    if s:
+                        keys.append(s)
+                        base = extract_site_base(s)
+                        if base:
+                            keys.append(base)
+                return [k for k in dict.fromkeys(keys) if k]
+            def site_country_candidates(raw_key, site_value='', country_code=''):
+                base_keys = site_key_candidates(raw_key, site_value)
+                cc = str(country_code or '').strip().upper()
+                if not cc:
+                    return base_keys
+                with_cc = [f"{k}|{cc}" for k in base_keys if k]
+                return [k for k in dict.fromkeys(with_cc + base_keys) if k]
+            if not source_df.empty and 'entity_key' in source_df.columns:
+                source_df['entity_key'] = source_df['entity_key'].astype(str).map(lambda x: x.strip().upper() if dim == 'country' else x.strip().lower())
+                if 'source_entity_key' in source_df.columns:
+                    source_df['source_entity_key'] = source_df['source_entity_key'].astype(str).map(lambda x: x.strip().upper() if dim == 'country' else x.strip().lower())
+                def _src_num(v):
+                    try:
+                        if pd.isna(v):
+                            return 0.0
+                    except Exception:
+                        pass
+                    try:
+                        return float(v)
+                    except Exception:
+                        return 0.0
+
+                def source_row_rank(r):
+                    adx = _src_num(r.get('adx_revenue'))
+                    ads = _src_num(r.get('adsense_estimated_earnings'))
+                    spend = _src_num(r.get('meta_spend'))
+                    rev = adx + ads
+                    has_src = 1.0 if str(r.get('mapped_revenue_source') or '').strip() else 0.0
+                    return (1.0 if rev > 0 else 0.0) * 1_000_000 + rev * 100 + (1.0 if spend > 0 else 0.0) * 10 + has_src
+
+                for _, srow in source_df.iterrows():
+                    row_dict = dict(srow)
+                    src_key = str(srow.get('source_entity_key') or srow.get('entity_key') or '').strip()
+                    src_site = str(srow.get('site') or '').strip()
+                    src_country = str(srow.get('country_code') or srow.get('country_cd') or '').strip().upper()
+                    norm_site = normalize_site_entity(src_site)
+                    if norm_site and src_country:
+                        sc_key = f"{norm_site}|{src_country}"
+                        sc = source_site_country_lookup.get(sc_key)
+                        if sc is None:
+                            sc = {'site': norm_site, 'country_code': src_country, 'meta_spend': 0.0, 'adx_revenue': 0.0, 'adsense_estimated_earnings': 0.0, 'mapped_revenue_source': ''}
+                            source_site_country_lookup[sc_key] = sc
+                        sc['meta_spend'] += _src_num(srow.get('meta_spend'))
+                        sc['adx_revenue'] += _src_num(srow.get('adx_revenue'))
+                        sc['adsense_estimated_earnings'] += _src_num(srow.get('adsense_estimated_earnings'))
+                        if not sc['mapped_revenue_source']:
+                            sc['mapped_revenue_source'] = str(srow.get('mapped_revenue_source') or '').strip()
+
+                    cands = site_country_candidates(src_key, src_site, src_country)
+                    for cand in cands:
+                        if not cand:
+                            continue
+                        existing = source_lookup.get(cand)
+                        if (existing is None) or (source_row_rank(row_dict) > source_row_rank(existing)):
+                            source_lookup[cand] = row_dict
+                        agg = source_agg_lookup.get(cand)
+                        if agg is None:
+                            agg = {'meta_spend': 0.0, 'adx_revenue': 0.0, 'adsense_estimated_earnings': 0.0, 'mapped_revenue_source': ''}
+                            source_agg_lookup[cand] = agg
+                        agg['meta_spend'] += _src_num(srow.get('meta_spend'))
+                        agg['adx_revenue'] += _src_num(srow.get('adx_revenue'))
+                        agg['adsense_estimated_earnings'] += _src_num(srow.get('adsense_estimated_earnings'))
+                        if not agg['mapped_revenue_source']:
+                            agg['mapped_revenue_source'] = str(srow.get('mapped_revenue_source') or '').strip()
 
             out = {}
-
-            derive_decision = getattr(scoring_module, 'derive_decision', None)
-            root_cause_fn = getattr(scoring_module, '_root_cause_label', None)
-
             def avg(frame, col, weighted=False):
                 if col not in frame.columns:
                     return 0.0
-                vals = pd.to_numeric(frame[col], errors='coerce').dropna()
+
+                def to_num(v):
+                    if pd.isna(v):
+                        return np.nan
+                    if isinstance(v, str):
+                        s = v.strip().replace('%', '')
+                        if s.count(',') == 1 and s.count('.') == 0:
+                            s = s.replace(',', '.')
+                        else:
+                            s = s.replace(',', '')
+                        try:
+                            return float(s)
+                        except Exception:
+                            return np.nan
+                    try:
+                        return float(v)
+                    except Exception:
+                        return np.nan
+
+                vals = frame[col].map(to_num).dropna()
                 if not len(vals):
                     return 0.0
                 if weighted and 'signal_total' in frame.columns:
@@ -1048,36 +1321,30 @@ class DashboardScoringDataView(View):
                     if den > 0:
                         return float((vals * w).sum() / den)
                 return float(vals.mean())
-
             for entity_key, part in df.groupby('entity_key', sort=False):
-                snap = part.copy()
-                if 'country_code' in snap.columns and 'snapshot_time' in snap.columns:
-                    snap = snap.sort_values(['country_code', 'snapshot_time']).drop_duplicates(subset=['country_code'], keep='last')
+                snap = part.copy()  
+                if 'country_code' in snap.columns and 'run_hour' in snap.columns:
+                    snap = snap.sort_values(['country_code', 'run_hour']).drop_duplicates(subset=['country_code'], keep='last')
                 for c in ['positive_signal_count', 'negative_signal_count', 'neutral_signal_count']:
                     if c not in snap.columns:
                         snap[c] = 0
                 snap['signal_total'] = pd.to_numeric(snap['positive_signal_count'], errors='coerce').fillna(0) + pd.to_numeric(snap['negative_signal_count'], errors='coerce').fillna(0) + pd.to_numeric(snap['neutral_signal_count'], errors='coerce').fillna(0)
-
                 join_status_series = snap['join_status'] if 'join_status' in snap.columns else pd.Series('', index=snap.index)
                 join_status_clean = join_status_series.astype(str).str.upper().str.strip()
                 join_status_summary = ', '.join([f"{k}:{v}" for k, v in join_status_clean.value_counts().to_dict().items() if str(k).strip()])
-
                 health = avg(snap, 'health_score', weighted=True)
                 risk = avg(snap, 'ivt_risk_score', weighted=True)
                 adj = avg(snap, 'adjustment_score', weighted=True)
                 dm = avg(snap, 'decision_margin', weighted=True)
-                conf = clip(avg(snap, 'confidence', weighted=True), 0.0, 1.0)
-
+                conf_raw = avg(snap, 'confidence', weighted=True)
+                conf = clip((conf_raw / 100.0) if conf_raw > 1.0 else conf_raw, 0.0, 1.0)
                 labels = []
                 for c in ['final_label', 'root_cause_label']:
                     if c in snap.columns:
                         labels.extend([str(x).strip().upper() for x in snap[c].tolist() if str(x).strip()])
                 label = pd.Series(labels).value_counts().index[0] if labels else 'STABLE'
-
                 score = (((health + 100.0) / 2.0) * 0.45) + ((100.0 - risk) * 0.2) + (conf * 100.0 * 0.15) + (clip(dm + 50.0, 0.0, 100.0) * 0.2)
-                print(f"scorenya: ", score)
                 score = int(round(clip(score, 0.0, 100.0)))
-
                 negative_labels = ["TRAFFIC_DROP","SERVING_DROP","YIELD_DROP","VIEWABILITY_DROP","EFFICIENCY_DROP","REVENUE_DROP","NEGATIVE_MIXED","NEG_ADJUSTMENT"]
                 decision = "HOLD"
                 if label.startswith("RED_FLAG") or (risk >= 85 and conf >= 0.55 and score < 45) or (dm <= -55 and health <= -18 and conf >= 0.55):
@@ -1086,37 +1353,139 @@ class DashboardScoringDataView(View):
                     decision = "SCALE UP"
                 elif (label in negative_labels and (score < 60 or dm < -8 or health < -8 or adj < -15)) or (score < 45 and (dm < -8 or health < -10 or adj < -20 or risk >= 65)):
                     decision = "SCALE DOWN"
-
                 reason_parts = [str(x).strip() for x in snap.get('reason_summary', pd.Series([], dtype=str)).tolist() if str(x).strip()]
                 reason_summary = ' | '.join(list(dict.fromkeys(reason_parts))[:3])
-                latest = snap['snapshot_time'].dropna().max() if 'snapshot_time' in snap.columns else None
-                snapshot_time = pd.to_datetime(latest, errors='coerce').strftime('%Y-%m-%d %H:%M:%S') if pd.notna(latest) else ''
+                latest = snap['run_hour'].dropna().max() if 'run_hour' in snap.columns else None
+                run_hour = pd.to_datetime(latest, errors='coerce').strftime('%Y-%m-%d %H:%M:%S') if pd.notna(latest) else ''
 
                 ev = event_df[event_df['entity_key'].eq(entity_key)].copy() if (not event_df.empty and 'entity_key' in event_df.columns) else pd.DataFrame()
+                if (risk <= 0.0) and (not ev.empty) and ('ivt_component' in ev.columns) and ('ivt_capacity' in ev.columns):
+                    ivt_num = pd.to_numeric(ev['ivt_component'], errors='coerce').fillna(0.0).sum()
+                    ivt_den = pd.to_numeric(ev['ivt_capacity'], errors='coerce').fillna(0.0).sum()
+                    if ivt_den > 0:
+                        risk = clip(float(100.0 * ivt_num / ivt_den), 0.0, 100.0)
+                if (adj == 0.0) and (not ev.empty) and ('adjustment_component' in ev.columns):
+                    adj = float(pd.to_numeric(ev['adjustment_component'], errors='coerce').fillna(0.0).sum())
+                if (health == 0.0) and (not ev.empty) and ('health_component' in ev.columns):
+                    health = clip(float(50.0 + pd.to_numeric(ev['health_component'], errors='coerce').fillna(0.0).sum()), 0.0, 100.0)
+                if (conf <= 0.0) and (not ev.empty) and ('confidence' in ev.columns):
+                    conf_evt = float(pd.to_numeric(ev['confidence'], errors='coerce').dropna().mean()) if len(ev.index) else 0.0
+                    conf = clip((conf_evt / 100.0) if conf_evt > 1.0 else conf_evt, 0.0, 1.0)
+                if dm == 0.0 and ((health != 0.0) or (risk != 0.0) or (adj != 0.0)):
+                    dm = float(health - risk + min(0.0, adj))
+
                 dominant_event_label = ''
                 if not ev.empty and 'event_label' in ev.columns:
                     s = ev['event_label'].astype(str).str.strip()
                     s = s[s != '']
                     if not s.empty:
                         dominant_event_label = s.value_counts().index[0]
-
+                
                 country_details = []
                 for _, row in snap.iterrows():
+                    row_entity_key = str(row.get('status_entity_key') or row.get('site') or row.get('entity_key') or '').strip()
+                    row_site_key = str(row.get('site') or '').strip()
+                    src = {}
+                    matched_cand = ''
+                    row_country = str(row.get('country_code') or row.get('country_cd') or '').strip().upper()
+                    for cand in site_country_candidates(row_entity_key, row_site_key, row_country):
+                        if cand in source_lookup:
+                            src = dict(source_lookup[cand])
+                            matched_cand = cand
+                            break
+                    row_norm_site = normalize_site_entity(row_site_key)
+                    row_country = str(row.get('country_code') or row.get('country_cd') or '').strip().upper()
+                    if row_norm_site and row_country:
+                        sc_key = f"{row_norm_site}|{row_country}"
+                        sc_src = source_site_country_lookup.get(sc_key)
+                        if sc_src:
+                            src['meta_spend'] = sc_src.get('meta_spend', src.get('meta_spend'))
+                            src['adx_revenue'] = sc_src.get('adx_revenue', src.get('adx_revenue'))
+                            src['adsense_estimated_earnings'] = sc_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
+                            if not str(src.get('mapped_revenue_source') or '').strip():
+                                src['mapped_revenue_source'] = sc_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
+
+                    if matched_cand and matched_cand in source_agg_lookup:
+                        agg_src = source_agg_lookup.get(matched_cand) or {}
+                        src['meta_spend'] = agg_src.get('meta_spend', src.get('meta_spend'))
+                        src['adx_revenue'] = agg_src.get('adx_revenue', src.get('adx_revenue'))
+                        src['adsense_estimated_earnings'] = agg_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
+                        if not str(src.get('mapped_revenue_source') or '').strip():
+                            src['mapped_revenue_source'] = agg_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
+                    meta_spend_v = safe_float(src.get('meta_spend'))
+                    if meta_spend_v <= 0:
+                        meta_spend_v = safe_float(row.get('meta_spend')) or safe_float(row.get('spend'))
+                    def nullable_float(v):
+                        if v is None:
+                            return None
+                        if isinstance(v, str):
+                            s = v.strip()
+                            if s == '':
+                                return None
+                            s = s.replace('%', '')
+                            if s.count(',') == 1 and s.count('.') == 0:
+                                s = s.replace(',', '.')
+                            else:
+                                s = s.replace(',', '')
+                            try:
+                                return float(s)
+                            except Exception:
+                                return None
+                        try:
+                            if pd.isna(v):
+                                return None
+                        except Exception:
+                            pass
+                        try:
+                            return float(v)
+                        except Exception:
+                            return None
+
+                    adx_revenue_opt = nullable_float(src.get('adx_revenue'))
+                    if adx_revenue_opt is None:
+                        adx_revenue_opt = nullable_float(row.get('adx_revenue'))
+                    adsense_revenue_opt = nullable_float(src.get('adsense_estimated_earnings'))
+                    if adsense_revenue_opt is None:
+                        adsense_revenue_opt = nullable_float(row.get('adsense_estimated_earnings'))
+
+                    adx_revenue_v = safe_float(adx_revenue_opt)
+                    adsense_estimated_earnings_v = safe_float(adsense_revenue_opt)
+                    mapped_revenue_source_v = str(src.get('mapped_revenue_source') or row.get('mapped_revenue_source') or '').strip().upper()
+
+                    row_revenue_opt = nullable_float(row.get('revenue_value'))
+                    if row_revenue_opt is None:
+                        row_revenue_opt = nullable_float(row.get('revenue'))
+                    sum_channel_revenue_v = safe_float(adx_revenue_opt) + safe_float(adsense_revenue_opt)
+
+                    if mapped_revenue_source_v == 'ADX_ONLY':
+                        revenue_v = safe_float(adx_revenue_opt if adx_revenue_opt is not None else row_revenue_opt)
+                    elif mapped_revenue_source_v == 'ADSENSE_ONLY':
+                        revenue_v = safe_float(adsense_revenue_opt if adsense_revenue_opt is not None else row_revenue_opt)
+                    else:
+                        revenue_v = sum_channel_revenue_v if sum_channel_revenue_v > 0 else safe_float(row_revenue_opt)
+
+                    roi_v = ((revenue_v - meta_spend_v) / meta_spend_v * 100.0) if meta_spend_v > 0 else 0.0
                     country_details.append({
-                        'country_code': str(row.get('country_code', '')),
-                        'country_name': str(row.get('country_name', '')),
+                        'country_code': str(row.get('country_code') or row.get('country_cd') or ''),
+                        'country_name': str(row.get('country_name') or row.get('country_nm') or ''),
                         'health_score': safe_float(row.get('health_score')),
                         'ivt_risk_score': safe_float(row.get('ivt_risk_score')),
                         'adjustment_score': safe_float(row.get('adjustment_score')),
-                        'confidence': safe_float(row.get('confidence')),
+                        'confidence': clip((safe_float(row.get('confidence')) / 100.0) if safe_float(row.get('confidence')) > 1.0 else safe_float(row.get('confidence')), 0.0, 1.0),
                         'decision_margin': safe_float(row.get('decision_margin')),
                         'final_label': str(row.get('final_label', '')),
                         'join_status': str(row.get('join_status', '')),
+                        'mapped_revenue_source': mapped_revenue_source_v,
+                        'meta_spend': meta_spend_v,
+                        'adx_revenue': adx_revenue_v,
+                        'adsense_estimated_earnings': adsense_estimated_earnings_v,
+                        'spend': meta_spend_v,
+                        'revenue': revenue_v,
+                        'roi': roi_v,
                         'positive_signals': int(safe_float(row.get('positive_signal_count'))),
                         'negative_signals': int(safe_float(row.get('negative_signal_count'))),
                         'neutral_signals': int(safe_float(row.get('neutral_signal_count'))),
                     })
-
                 out[entity_key] = {
                     'score': score,
                     'decision': decision,
@@ -1125,8 +1494,8 @@ class DashboardScoringDataView(View):
                     'breakdown': {'meta': {
                         'join_status_summary': join_status_summary,
                         'reason_summary': reason_summary,
-                        'snapshot_time': snapshot_time,
-                        'last_update': snapshot_time,
+                        'run_hour': run_hour,
+                        'last_update': run_hour,
                         'final_label': label,
                         'root_cause_label': label,
                         'health_score': health,
@@ -1493,26 +1862,21 @@ class DashboardData(View):
             # Ambil data user
             user_data = data_mysql().data_user_by_params()
             total_users = len(user_data['data']) if user_data['status'] else 0
-    
             # Ambil data login user
             login_data = data_mysql().data_login_user()
             login_users = login_data['data'] if login_data['status'] else []
-            
             # Hitung statistik login 7 hari terakhir
             today = datetime.now()
             seven_days_ago = today - timedelta(days=7)
-            
             # Filter login 7 hari terakhir
             recent_logins = []
             daily_login_stats = {}
-            
             for login in login_users:
                 # Handle both string and datetime objects
                 if isinstance(login['login_date'], str):
                     login_date = datetime.strptime(login['login_date'], '%Y-%m-%d %H:%M:%S')
                 else:
                     login_date = login['login_date']
-                
                 if login_date >= seven_days_ago:
                     recent_logins.append(login)
                     date_key = login_date.strftime('%Y-%m-%d')
@@ -6265,12 +6629,10 @@ class DashboardDomainHourlyHeatmapView(View):
                     raise ValueError(f"Tanggal tidak valid: {d}")
             tanggal_formatted = parse_date(tanggal)
             db = data_mysql()
-
             adx_resp = None
             adsense_resp = None
             adx_rows = []
             adsense_rows = []
-
             if source == 'adsense':
                 adsense_resp = db.get_all_adsense_country_hourly_by_params(tanggal_formatted)
                 adsense_rows = (adsense_resp.get('data') if isinstance(adsense_resp, dict) else []) or []
@@ -6298,10 +6660,8 @@ class DashboardDomainHourlyHeatmapView(View):
                     site_name = str((item or {}).get(key, '')).strip()
                     if site_name and site_name != 'Unknown':
                         extracted_sites.add(site_name)
-
             _collect_sites(adx_rows, 'log_adx_country_domain')
             _collect_sites(adsense_rows, 'log_adsense_country_domain')
-
             for site in extracted_sites:
                 main_domain = site
                 if "." in site:
@@ -6309,9 +6669,7 @@ class DashboardDomainHourlyHeatmapView(View):
                     if len(parts) >= 2:
                         main_domain = ".".join(parts[:2])
                 unique_name_site.append(main_domain)
-
             unique_name_site = list(set(unique_name_site))
-
             ads_resp = None
             if unique_name_site:
                 ads_resp = db.get_all_ads_country_hourly_by_params(
@@ -6321,10 +6679,8 @@ class DashboardDomainHourlyHeatmapView(View):
             ads_rows = ((ads_resp or {}).get('hasil') or {}).get('data') or []
             if not isinstance(ads_rows, list):
                 ads_rows = []
-
             rev_by_hour = {f"{h:02d}": 0.0 for h in range(24)}
             spend_by_hour = {f"{h:02d}": 0.0 for h in range(24)}
-
             def _acc_rev(rows):
                 for row in rows or []:
                     try:
@@ -6337,7 +6693,6 @@ class DashboardDomainHourlyHeatmapView(View):
                     rev_by_hour[hkey] = rev_by_hour.get(hkey, 0.0) + float(row.get('revenue', 0) or 0)
             _acc_rev(adx_rows)
             _acc_rev(adsense_rows)
-
             for row in ads_rows or []:
                 try:
                     hour = int(row.get('hour', 0) or 0)
