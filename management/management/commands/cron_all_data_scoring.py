@@ -41,18 +41,18 @@ class Command(BaseCommand):
                     "[CRON] No data to insert"
                 ))
                 return
-            # =========================
-            # 2. DELETE FACT TABLE BY DATE
-            # =========================
-            del_result = db.delete_fact_join_hourly_by_date(tanggal)
-            if not del_result.get("status"):
-                self.stdout.write(self.style.ERROR(
-                    f"[CRON] Delete failed: {del_result.get('error')}"
-                ))
-                return
-            self.stdout.write(self.style.WARNING(
-                f"[CRON] Deleted: {del_result.get('message')}"
-            ))
+            # # =========================
+            # # 2. DELETE FACT TABLE BY DATE
+            # # =========================
+            # del_result = db.delete_fact_join_hourly_by_date(tanggal)
+            # if not del_result.get("status"):
+            #     self.stdout.write(self.style.ERROR(
+            #         f"[CRON] Delete failed: {del_result.get('error')}"
+            #     ))
+            #     return
+            # self.stdout.write(self.style.WARNING(
+            #     f"[CRON] Deleted: {del_result.get('message')}"
+            # ))
             # =========================
             # 3. INSERT FACT TABLE
             # =========================
