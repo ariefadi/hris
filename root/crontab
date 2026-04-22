@@ -55,5 +55,5 @@ DJANGO_MANAGE="$VENV $APPDIR/manage.py"
 # ROI Monitoring Domain: jam 02,05,08,11,14,17,20,23 menit 59
 59 2-23/3 * * * cd $APPDIR && flock -n /var/run/hris_roi_monitoring_domain.lock -c "$DJANGO_MANAGE cron_roi_monitoring_domain_telegram >> /var/log/hris/cron_roi_monitoring_domain_telegram.log 2>&1"
 
-# Cron Create Scoring: jam 02,05,08,11,14,17,20,23 menit 55
-55 2-23/3 * * * cd $APPDIR && flock -n /var/run/hris_create_scoring.lock -c "$DJANGO_MANAGE cron_create_scoring >> /var/log/hris/cron_create_scoring.log 2>&1"
+# Cron Create Scoring: jam 02,05,08,11,14,17,20,23 menit 47
+47 2-23/3 * * * cd $APPDIR && flock -n /var/run/hris_create_scoring.lock -c "$DJANGO_MANAGE cron_create_scoring >> /var/log/hris/cron_create_scoring.log 2>&1"
