@@ -782,33 +782,6 @@ def _load_join_history(target_date: date, domain: str, lookback_days: int = 35) 
     if "blended_revenue" not in out.columns or "source_mode" not in out.columns:
         out = _compute_derived_features(out)
 
-    # revenue_value:
-    # Di STATUS_TABLE kita simpan revenue_value untuk validasi ROI (spend vs revenue).
-    # Tabel fact_join_hourly tidak punya kolom revenue_value, jadi sebelumnya terisi 0.0.
-    # Isi dengan revenue "real" dari channel:
-    # - ADX_ONLY   -> adx_revenue (fallback ke sum channel)
-    # - ADSENSE_ONLY -> adsense_estimated_earnings (fallback ke sum channel)
-    # - MIXED      -> sum(adx_revenue + adsense_estimated_earnings)
-    try:
-        rev_adx = pd.to_numeric(out.get("adx_revenue", 0.0), errors="coerce").fillna(0.0)
-        rev_ads = pd.to_numeric(out.get("adsense_estimated_earnings", 0.0), errors="coerce").fillna(0.0)
-        rev_sum = rev_adx + rev_ads
-        mapped = out.get("mapped_revenue_source", "").astype(str).str.strip().str.upper()
-        mode = out.get("source_mode", mapped).astype(str).str.strip().str.upper()
-        orig_rev = pd.to_numeric(out.get("revenue_value", 0.0), errors="coerce").fillna(0.0)
-
-        rev_val = np.where(
-            mode.eq("ADX_ONLY"),
-            np.where(rev_adx > 0, rev_adx, rev_sum),
-            np.where(mode.eq("ADSENSE_ONLY"), np.where(rev_ads > 0, rev_ads, rev_sum), rev_sum),
-        )
-        # fallback: kalau rev_sum masih 0 tapi orig_rev ada nilainya, pakai orig_rev
-        out["revenue_value"] = np.where(rev_val > 0, rev_val, orig_rev).astype(float)
-    except Exception:
-        # jangan gagalkan scoring hanya karena kolom revenue
-        if "revenue_value" not in out.columns:
-            out["revenue_value"] = 0.0
-
     out = out.sort_values(["entity_base_key", "date", "run_hour", "run_time"]).reset_index(drop=True)
     grouped = out.groupby("entity_base_key", sort=False)
     extra_cols = {}

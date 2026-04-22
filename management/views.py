@@ -8,7 +8,9 @@ import re
 import site
 import inspect
 from traceback import print_tb
-from typing import Any
+import traceback
+from typing import Any, Optional
+import traceback
 from django.conf import settings
 import pprint
 from django.shortcuts import render, redirect
@@ -1701,6 +1703,333 @@ class DashboardScoringDataView(View):
                 'error': str(e),
                 'traceback': traceback.format_exc()
             }, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DashboardScoringCompareView(View):
+    """
+    Endpoint ringan untuk kebutuhan modal "Detail Keputusan":
+    - bandingkan snapshot pada jam tertentu (current hour) vs D-1/D-3/D-7
+    - bandingkan juga snapshot harian (latest hour pada masing-masing hari)
+    Catatan: ini tidak menghitung EWMA (itu tetap di scoring_concept), tapi memakai output tabel status/events yang sudah tersimpan.
+    """
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        def safe_float(v):
+            try:
+                return float(v)
+            except Exception:
+                return 0.0
+
+        def clip(v, lo, hi):
+            return max(lo, min(hi, v))
+
+        def normalize_site_entity(v):
+            s = str(v or '').strip().lower()
+            s = re.sub(r'^https?://', '', s)
+            s = s.split('/')[0].split('?')[0].split('#')[0]
+            s = re.sub(r'^www\.', '', s)
+            return s
+
+        def hour_key(v):
+            s = str(v or '').strip()
+            if not s or s.lower() == 'nan':
+                return None
+            try:
+                h = int(float(s))
+                if 0 <= h <= 23:
+                    return h
+            except Exception:
+                pass
+            dt = pd.to_datetime(s, errors='coerce') if pd is not None else None
+            if dt is not None and pd.notna(dt):
+                return int(dt.hour)
+            return None
+
+        def derive_score_decision(health, risk, adj, conf01, dm, label):
+            # Samakan dengan DashboardScoringDataView + scxDeriveDecision di template
+            score = (((health + 100.0) / 2.0) * 0.45) + ((100.0 - risk) * 0.2) + (conf01 * 100.0 * 0.15) + (clip(dm + 50.0, 0.0, 100.0) * 0.2)
+            score = int(round(clip(score, 0.0, 100.0)))
+            negative_labels = ["TRAFFIC_DROP", "SERVING_DROP", "YIELD_DROP", "VIEWABILITY_DROP", "EFFICIENCY_DROP", "REVENUE_DROP", "NEGATIVE_MIXED", "NEG_ADJUSTMENT", "WATCH_NEGATIVE", "WATCH_DECAY"]
+            label_up = str(label or 'STABLE').strip().upper()
+            decision = "HOLD"
+            if label_up.startswith("RED_FLAG") or (risk >= 85 and conf01 >= 0.55 and score < 45) or (dm <= -55 and health <= -18 and conf01 >= 0.55):
+                decision = "STOP"
+            elif (label_up in ["POSITIVE_EXPANSION", "POSITIVE_RECOVERY", "WATCH_POSITIVE"] and score >= 65 and risk < 55 and dm >= 8 and conf01 >= 0.5) or (score >= 75 and risk < 45 and dm >= 12 and conf01 >= 0.55):
+                decision = "SCALE UP"
+            elif (label_up in negative_labels and (score < 60 or dm < -8 or health < -8 or adj < -15)) or (score < 45 and (dm < -8 or health < -10 or adj < -20 or risk >= 65)):
+                decision = "SCALE DOWN"
+            return score, decision
+
+        def aggregate_snapshot(frame: pd.DataFrame) -> dict:
+            if frame is None or frame.empty:
+                return {}
+            tmp = frame.copy()
+            # dedup per country (ambil yang terbaru berdasarkan run_time lalu run_hour)
+            if 'country_code' in tmp.columns:
+                tmp['country_code'] = tmp['country_code'].astype(str).str.strip().str.upper()
+            if 'run_time' in tmp.columns:
+                tmp['run_time_dt'] = pd.to_datetime(tmp['run_time'], errors='coerce')
+            else:
+                tmp['run_time_dt'] = pd.NaT
+            if 'run_hour' in tmp.columns:
+                tmp['run_hour_key'] = tmp['run_hour'].map(hour_key)
+            else:
+                tmp['run_hour_key'] = None
+            if 'country_code' in tmp.columns:
+                tmp = tmp.sort_values(['country_code', 'run_time_dt', 'run_hour_key']).drop_duplicates(subset=['country_code'], keep='last')
+
+            for c in ['positive_signal_count', 'negative_signal_count', 'neutral_signal_count']:
+                if c not in tmp.columns:
+                    tmp[c] = 0.0
+            tmp['signal_total'] = (
+                pd.to_numeric(tmp['positive_signal_count'], errors='coerce').fillna(0.0)
+                + pd.to_numeric(tmp['negative_signal_count'], errors='coerce').fillna(0.0)
+                + pd.to_numeric(tmp['neutral_signal_count'], errors='coerce').fillna(0.0)
+            )
+
+            def avg(col, weighted=True):
+                if col not in tmp.columns:
+                    return 0.0
+                vals = pd.to_numeric(tmp[col], errors='coerce').dropna()
+                if not len(vals):
+                    return 0.0
+                if weighted:
+                    w = pd.to_numeric(tmp.loc[vals.index, 'signal_total'], errors='coerce').fillna(0.0)
+                    den = float(w.sum())
+                    if den > 0:
+                        return float((vals * w).sum() / den)
+                return float(vals.mean())
+
+            health = avg('health_score', weighted=True)
+            risk = avg('ivt_risk_score', weighted=True)
+            adj = avg('adjustment_score', weighted=True)
+            dm = avg('decision_margin', weighted=True)
+            conf_raw = avg('confidence', weighted=True)
+            conf01 = clip((conf_raw / 100.0) if conf_raw > 1.0 else conf_raw, 0.0, 1.0)
+
+            labels = []
+            for c in ['final_label', 'root_cause_label']:
+                if c in tmp.columns:
+                    labels.extend([str(x).strip().upper() for x in tmp[c].tolist() if str(x).strip()])
+            label = pd.Series(labels).value_counts().index[0] if labels else 'STABLE'
+
+            score, decision = derive_score_decision(health, risk, adj, conf01, dm, label)
+
+            reason_parts = [str(x).strip() for x in tmp.get('reason_summary', pd.Series([], dtype=str)).tolist() if str(x).strip()]
+            reason_summary = ' | '.join(list(dict.fromkeys(reason_parts))[:3])
+
+            last_rt = ''
+            if 'run_time_dt' in tmp.columns and tmp['run_time_dt'].notna().any():
+                last_rt = tmp['run_time_dt'].max().strftime('%Y-%m-%d %H:%M:%S')
+
+            return {
+                'health_score': health,
+                'ivt_risk_score': risk,
+                'adjustment_score': adj,
+                'confidence': conf01,
+                'decision_margin': dm,
+                'score': score,
+                'decision': decision,
+                'label': label,
+                'reason_summary': reason_summary,
+                'updated_at': last_rt,
+                'countries': int(len(tmp)),
+                'positive_signal_count': int(pd.to_numeric(tmp['positive_signal_count'], errors='coerce').fillna(0).sum()),
+                'negative_signal_count': int(pd.to_numeric(tmp['negative_signal_count'], errors='coerce').fillna(0).sum()),
+                'neutral_signal_count': int(pd.to_numeric(tmp['neutral_signal_count'], errors='coerce').fillna(0).sum()),
+            }
+
+        try:
+            if pd is None:
+                raise RuntimeError('pandas belum tersedia')
+            payload = json.loads((req.body or b'').decode('utf-8') or '{}')
+            target_date_str = str(payload.get('date') or '').strip()
+            domain_raw = payload.get('domain') or payload.get('site') or ''
+            domain = normalize_site_entity(domain_raw)
+            run_hour_req = payload.get('run_hour')
+            run_hour_req = hour_key(run_hour_req)
+            if not target_date_str or not domain:
+                return JsonResponse({'status': False, 'error': 'date dan domain wajib diisi'}, status=400)
+            target_dt = pd.to_datetime(target_date_str, errors='coerce')
+            if pd.isna(target_dt):
+                return JsonResponse({'status': False, 'error': 'format date tidak valid (YYYY-MM-DD)'}, status=400)
+            target_date = target_dt.date()
+            compare_offsets = {'h1': 1, 'h3': 3, 'h7': 7}
+            compare_dates = {k: (target_date - timedelta(days=v)) for k, v in compare_offsets.items()}
+
+            scoring_module = _get_scoring_concept_module()
+            query_df_func = getattr(scoring_module, 'query_df', None)
+            if query_df_func is None:
+                query_df_func = query_df  # fallback import atas
+            status_table = getattr(scoring_module, 'STATUS_TABLE', 'hris_trendHorizone.fact_site_country_status_history')
+            source_table = getattr(scoring_module, 'SOURCE_TABLE', 'hris_trendHorizone.fact_join_hourly')
+
+            dates_in = [target_date] + list(compare_dates.values())
+            literals_dates = ', '.join([f"toDate('{d.isoformat()}')" for d in dates_in])
+
+            status_sql = f"""
+            SELECT
+                toDate(date) AS date,
+                site,
+                country_code,
+                country_name,
+                run_time,
+                run_hour,
+                mapped_revenue_source,
+                join_status,
+                final_label,
+                root_cause_label,
+                health_score,
+                adjustment_score,
+                ivt_risk_score,
+                confidence,
+                decision_margin,
+                positive_signal_count,
+                negative_signal_count,
+                neutral_signal_count,
+                reason_summary
+            FROM {status_table}
+            WHERE toDate(date) IN ({literals_dates})
+              AND lower(site) = '{domain.replace("'", "''")}'
+            """
+            sdf = query_df_func(status_sql)
+            if sdf is None or sdf.empty:
+                return JsonResponse({'status': True, 'data': {'domain': domain, 'date': target_date_str, 'empty': True}}, safe=False)
+            sdf = sdf.copy()
+            sdf['date'] = pd.to_datetime(sdf['date'], errors='coerce').dt.date
+
+            # Query sumber (spend/revenue) untuk bantu rekomendasi aksi
+            src_sql = f"""
+            SELECT
+                toDate(date) AS date,
+                run_hour,
+                sum(meta_spend) AS meta_spend,
+                sum(adx_revenue) AS adx_revenue,
+                sum(adsense_estimated_earnings) AS adsense_estimated_earnings,
+                argMax(mapped_revenue_source, mdd) AS mapped_revenue_source
+            FROM {source_table}
+            WHERE toDate(date) IN ({literals_dates})
+              AND lower(site) = '{domain.replace("'", "''")}'
+            GROUP BY date, run_hour
+            """
+            try:
+                src_df = query_df_func(src_sql)
+            except Exception:
+                src_df = pd.DataFrame()
+
+            src_map = {}
+            if src_df is not None and not src_df.empty:
+                for _, r in src_df.iterrows():
+                    d = pd.to_datetime(r.get('date'), errors='coerce')
+                    d = d.date() if pd.notna(d) else None
+                    h = hour_key(r.get('run_hour'))
+                    if d is None or h is None:
+                        continue
+                    src_map[(d, h)] = {
+                        'meta_spend': safe_float(r.get('meta_spend')),
+                        'adx_revenue': safe_float(r.get('adx_revenue')),
+                        'adsense_estimated_earnings': safe_float(r.get('adsense_estimated_earnings')),
+                        'mapped_revenue_source': str(r.get('mapped_revenue_source') or '').strip().upper(),
+                    }
+
+            def attach_financial(snap: dict, d: date, h: Optional[int]):
+                if not snap:
+                    return snap
+                if h is None:
+                    return snap
+                src = src_map.get((d, h))
+                if not src:
+                    return snap
+                spend = safe_float(src.get('meta_spend'))
+                revenue = safe_float(src.get('adx_revenue')) + safe_float(src.get('adsense_estimated_earnings'))
+                roi = ((revenue - spend) / spend * 100.0) if spend > 0 else 0.0
+                snap['meta_spend'] = spend
+                snap['revenue'] = revenue
+                snap['roi'] = roi
+                snap['mapped_revenue_source'] = str(src.get('mapped_revenue_source') or '')
+                return snap
+
+            # Tentukan latest hour per tanggal
+            sdf['run_hour_key'] = sdf['run_hour'].map(hour_key)
+            latest_hour_by_date = {}
+            for d, part in sdf.groupby('date', sort=False):
+                hrs = pd.to_numeric(part['run_hour_key'], errors='coerce')
+                hrs = hrs.dropna()
+                if len(hrs):
+                    latest_hour_by_date[d] = int(hrs.max())
+
+            # Snapshot current (jam aktif atau latest)
+            cur_hour = run_hour_req if run_hour_req is not None else latest_hour_by_date.get(target_date)
+            cur_hour = int(cur_hour) if cur_hour is not None else None
+            cur_frame = sdf[(sdf['date'] == target_date) & (sdf['run_hour_key'] == cur_hour)].copy() if cur_hour is not None else sdf[sdf['date'] == target_date].copy()
+            cur = aggregate_snapshot(cur_frame)
+            cur = attach_financial(cur, target_date, cur_hour)
+            if cur:
+                cur['date'] = target_date.isoformat()
+                cur['run_hour'] = cur_hour
+
+            by_day = {}
+            by_hour = {}
+            for key, dprev in compare_dates.items():
+                lh = latest_hour_by_date.get(dprev)
+                # daily snapshot = latest hour
+                day_frame = sdf[(sdf['date'] == dprev) & (sdf['run_hour_key'] == lh)].copy() if lh is not None else sdf[sdf['date'] == dprev].copy()
+                snap_day = aggregate_snapshot(day_frame)
+                snap_day = attach_financial(snap_day, dprev, lh)
+                if snap_day:
+                    snap_day['date'] = dprev.isoformat()
+                    snap_day['run_hour'] = lh
+                by_day[key] = snap_day or {}
+
+                # hour snapshot = same hour as current (jika ada)
+                snap_h = {}
+                if cur_hour is not None:
+                    h_frame = sdf[(sdf['date'] == dprev) & (sdf['run_hour_key'] == cur_hour)].copy()
+                    snap_h = aggregate_snapshot(h_frame)
+                    snap_h = attach_financial(snap_h, dprev, cur_hour)
+                    if snap_h:
+                        snap_h['date'] = dprev.isoformat()
+                        snap_h['run_hour'] = cur_hour
+                by_hour[key] = snap_h or {}
+
+            # rekomendasi aksi sederhana (bisa disempurnakan)
+            rec = {'action': cur.get('decision') if cur else 'HOLD', 'budget_change_pct': 0, 'reason': ''}
+            if cur:
+                dec = str(cur.get('decision') or '').upper()
+                conf = float(cur.get('confidence') or 0.0)
+                score = float(cur.get('score') or 0.0)
+                if dec == 'SCALE UP':
+                    rec['budget_change_pct'] = 15 if (score >= 75 and conf >= 0.55) else 10
+                    rec['reason'] = 'Sinyal positif kuat; pertimbangkan naikkan budget bertahap.'
+                elif dec == 'SCALE DOWN':
+                    rec['budget_change_pct'] = -15 if score < 45 else -10
+                    rec['reason'] = 'Sinyal negatif dominan; turunkan budget untuk mitigasi risiko.'
+                elif dec == 'STOP':
+                    rec['budget_change_pct'] = 0
+                    rec['reason'] = 'Red flag / risiko tinggi; pertimbangkan stop campaign sementara.'
+                else:
+                    rec['reason'] = 'Kondisi relatif stabil; lanjut monitor.'
+
+            return JsonResponse({
+                'status': True,
+                'data': {
+                    'domain': domain,
+                    'date': target_date.isoformat(),
+                    'current': cur or {},
+                    'compare_by_day': by_day,
+                    'compare_by_hour': by_hour,
+                    'recommendation': rec,
+                }
+            }, safe=False)
+        except Exception as e:
+            logger.exception('DashboardScoringCompareView failed')
+            return JsonResponse({'status': False, 'error': str(e), 'traceback': traceback.format_exc()}, status=500)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class DashboardCreateScoringView(View):
