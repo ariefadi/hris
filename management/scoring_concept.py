@@ -74,7 +74,7 @@ COUNTER_CORRECTION_COLUMNS = {
     "adx_revenue",
     "adx_impressions",
     "adx_clicks",
-    "adx_total_requests",
+    "adx_requests",
     "adx_responses_served",
     "blended_revenue",
 }
@@ -156,7 +156,7 @@ class MetricRule:
 
 RULES: list[MetricRule] = [
     MetricRule("meta_spend", "meta", "control", "counter", "acquisition_cost", "adjustment_guardrail", "NEUTRAL", "HOURLY_INCREMENT_Z", 0.00, adjustment_weight=1.25, deadband_pct=0.03, family_key="meta_budget", family_rank=2, label_negative="META_SPEND_DROP", requires_source_match=False),
-    # MetricRule("meta_budget_pacing_index", "meta", "control", "band", "budget_pacing", "pacing", "RANGE_GOOD", "BAND_TARGET", 0.55, 0.75, 1.10, ivt_weight=0.30, volume_gate_column="meta_daily_budget", min_volume=1, family_key="meta_budget", family_rank=1, range_low=0.70, range_high=1.30, band_dynamic=True, band_quantile_low=0.20, band_quantile_high=0.80, band_sigma=1.00, band_min_width_pct=0.08, label_positive="BUDGET_PACING_IN_RANGE", label_negative="BUDGET_PACING_OUT_OF_RANGE", requires_source_match=True),
+    MetricRule("meta_budget_pacing_index", "meta", "control", "band", "budget_pacing", "pacing", "RANGE_GOOD", "BAND_TARGET", 0.55, 0.75, 1.10, ivt_weight=0.30, volume_gate_column="meta_daily_budget", min_volume=1, family_key="meta_budget", family_rank=1, range_low=0.70, range_high=1.30, band_dynamic=True, band_quantile_low=0.20, band_quantile_high=0.80, band_sigma=1.00, band_min_width_pct=0.08, label_positive="BUDGET_PACING_IN_RANGE", label_negative="BUDGET_PACING_OUT_OF_RANGE", requires_source_match=True),
     MetricRule("meta_avg_cpc", "meta", "efficiency", "level", "acquisition_cost", "guardrail", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.85, 0.85, 1.05, ivt_weight=0.20, volume_gate_column="meta_clicks", min_volume=20, family_key="meta_efficiency", family_rank=1, label_positive="META_CPC_IMPROVING", label_negative="META_CPC_RISING", requires_source_match=False),
     MetricRule("meta_clicks", "meta", "traffic", "counter", "acquisition", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.10, 0.95, 1.10, adjustment_weight=0.75, ivt_weight=0.25, deadband_pct=0.03, family_key="meta_traffic_volume", family_rank=2, label_positive="META_TRAFFIC_UP", label_negative="META_TRAFFIC_DOWN", requires_source_match=False),
     MetricRule("meta_lpv", "meta", "traffic", "counter", "landing", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.35, 0.95, 1.15, adjustment_weight=1.00, ivt_weight=0.35, deadband_pct=0.03, family_key="meta_traffic_volume", family_rank=1, label_positive="LPV_UP", label_negative="LPV_DOWN", requires_source_match=False),
@@ -181,10 +181,10 @@ RULES: list[MetricRule] = [
     MetricRule("adx_clicks", "adx", "engagement", "counter", "ad_engagement", "secondary", "UP_GOOD", "HOURLY_INCREMENT_Z", 0.70, 0.85, 1.05, adjustment_weight=0.50, ivt_weight=0.75, deadband_pct=0.03, family_key="adx_click_yield", family_rank=2, label_positive="ADX_CLICKS_UP", label_negative="ADX_CLICKS_DOWN"),
     MetricRule("adx_avg_ecpm", "adx", "yield", "level", "yield", "primary", "UP_GOOD", "EWMA_LEVEL_Z", 1.35, 0.90, 1.15, ivt_weight=0.80, volume_gate_column="adx_impressions", min_volume=500, denominator_column="adx_impressions", family_key="adx_yield", family_rank=1, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="ECPM_UP", label_negative="ECPM_DOWN"),
     MetricRule("adx_cpc", "adx", "yield", "level", "click_yield", "derived", "UP_GOOD", "EWMA_LEVEL_Z", 0.80, 0.85, 1.10, ivt_weight=0.65, volume_gate_column="adx_clicks", min_volume=20, denominator_column="adx_clicks", family_key="adx_click_yield", family_rank=1, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="ADX_CPC_UP", label_negative="ADX_CPC_DOWN"),
-    MetricRule("adx_total_requests", "adx", "delivery", "counter", "request", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 0.95, 0.90, 1.05, adjustment_weight=1.00, ivt_weight=0.20, deadband_pct=0.03, family_key="adx_request_volume", family_rank=3, label_positive="ADX_REQUESTS_UP", label_negative="ADX_REQUESTS_DOWN"),
+    MetricRule("adx_requests", "adx", "delivery", "counter", "request", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 0.95, 0.90, 1.05, adjustment_weight=1.00, ivt_weight=0.20, deadband_pct=0.03, family_key="adx_request_volume", family_rank=3, label_positive="ADX_REQUESTS_UP", label_negative="ADX_REQUESTS_DOWN"),
     MetricRule("adx_responses_served", "adx", "delivery", "counter", "match", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.05, 0.90, 1.10, adjustment_weight=1.00, ivt_weight=0.35, deadband_pct=0.03, family_key="adx_request_volume", family_rank=2, label_positive="RESPONSES_SERVED_UP", label_negative="RESPONSES_SERVED_DOWN"),
-    MetricRule("adx_match_rate", "adx", "delivery", "rate", "match", "primary", "UP_GOOD", "PROPORTION_Z", 1.20, 0.80, 1.25, ivt_weight=1.00, volume_gate_column="adx_total_requests", min_volume=200, denominator_column="adx_total_requests", numerator_column="adx_responses_served", family_key="adx_request_rate", family_rank=2, deadband_pct=0.03, label_positive="MATCH_RATE_UP", label_negative="MATCH_RATE_DROP"),
-    MetricRule("adx_total_fill_rate", "adx", "delivery", "rate", "fill", "primary", "UP_GOOD", "PROPORTION_Z", 1.30, 0.80, 1.30, ivt_weight=1.05, volume_gate_column="adx_total_requests", min_volume=200, denominator_column="adx_total_requests", numerator_column="adx_impressions", family_key="adx_request_rate", family_rank=1, deadband_pct=0.03, label_positive="FILL_RATE_UP", label_negative="FILL_RATE_DROP"),
+    MetricRule("adx_match_rate", "adx", "delivery", "rate", "match", "primary", "UP_GOOD", "PROPORTION_Z", 1.20, 0.80, 1.25, ivt_weight=1.00, volume_gate_column="adx_requests", min_volume=200, denominator_column="adx_requests", numerator_column="adx_responses_served", family_key="adx_request_rate", family_rank=2, deadband_pct=0.03, label_positive="MATCH_RATE_UP", label_negative="MATCH_RATE_DROP"),
+    MetricRule("adx_total_fill_rate", "adx", "delivery", "rate", "fill", "primary", "UP_GOOD", "PROPORTION_Z", 1.30, 0.80, 1.30, ivt_weight=1.05, volume_gate_column="adx_requests", min_volume=200, denominator_column="adx_requests", numerator_column="adx_impressions", family_key="adx_request_rate", family_rank=1, deadband_pct=0.03, label_positive="FILL_RATE_UP", label_negative="FILL_RATE_DROP"),
     MetricRule("adx_active_view_pct_viewable", "adx", "quality", "rate", "viewability", "primary", "UP_GOOD", "PROPORTION_Z", 0.85, 0.80, 1.15, ivt_weight=0.70, volume_gate_column="adx_impressions", min_volume=500, denominator_column="adx_impressions", family_key="adx_viewability", family_rank=1, deadband_pct=0.03, label_positive="ADX_VIEWABILITY_UP", label_negative="ADX_VIEWABILITY_DROP"),
     MetricRule("adx_active_view_avg_time_sec", "adx", "quality", "level", "attention", "support", "UP_GOOD", "EWMA_LEVEL_Z", 0.55, 0.75, 1.00, ivt_weight=0.70, volume_gate_column="adx_impressions", min_volume=500, family_key="adx_attention", family_rank=1, deadband_pct=0.04, label_positive="ADX_ACTIVE_VIEW_TIME_UP", label_negative="ADX_ACTIVE_VIEW_TIME_DOWN"),
 
@@ -239,7 +239,7 @@ RAW_JOIN_COLUMNS = [
     "adx_clicks",
     "adx_avg_ecpm",
     "adx_cpc",
-    "adx_total_requests",
+    "adx_requests",
     "adx_responses_served",
     "adx_match_rate",
     "adx_total_fill_rate",
@@ -476,7 +476,7 @@ def _mapped_source_mode(mapped_revenue_source: str | None) -> str | None:
 
 def _source_activity_flags(row: pd.Series | dict) -> tuple[bool, bool]:
     adsense_active = any(safe_float(row.get(c)) > 0 for c in ["adsense_estimated_earnings", "adsense_page_views", "adsense_ad_requests", "adsense_impressions"])
-    adx_active = any(safe_float(row.get(c)) > 0 for c in ["adx_revenue", "adx_impressions", "adx_total_requests", "adx_responses_served"])
+    adx_active = any(safe_float(row.get(c)) > 0 for c in ["adx_revenue", "adx_impressions", "adx_requests", "adx_responses_served"])
     return adsense_active, adx_active
 
 
@@ -614,7 +614,7 @@ def _compute_derived_features(df: pd.DataFrame) -> pd.DataFrame:
 
     blended_revenue = col("adsense_estimated_earnings") + col("adx_revenue")
     total_clicks = col("adsense_clicks") + col("adx_clicks")
-    total_requests = col("adsense_ad_requests") + col("adx_total_requests")
+    total_requests = col("adsense_ad_requests") + col("adx_requests")
     total_impressions = col("adsense_impressions") + col("adx_impressions")
 
     out["blended_revenue"] = blended_revenue
@@ -625,11 +625,12 @@ def _compute_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     run_hour_series = pd.to_numeric(out.get("run_hour", 0), errors="coerce")
     if not isinstance(run_hour_series, pd.Series):
         run_hour_series = pd.Series([run_hour_series] * len(out), index=out.index)
-    expected_day_progress = ((run_hour_series.fillna(0.0).clip(lower=0.0, upper=23.0) + 1.0) / 24.0).clip(lower=(1.0 / 24.0), upper=1.0)
-    out["meta_budget_utilization"] = [
-        _safe_div(s, b, 0.0) if safe_float(b) > 0 else 0.0
-        for s, b in zip(col("meta_spend"), col("meta_daily_budget"))
-    ]
+
+    # expected_day_progress = ((run_hour_series.fillna(0.0).clip(lower=0.0, upper=23.0) + 1.0) / 24.0).clip(lower=(1.0 / 24.0), upper=1.0)
+    # out["meta_budget_utilization"] = [
+    #     _safe_div(s, b, 0.0) if safe_float(b) > 0 else 0.0
+    #     for s, b in zip(col("meta_spend"), col("meta_daily_budget"))
+    # ]
     # out["meta_budget_pacing_index"] = [
     #     _safe_div(util, progress, 0.0) if safe_float(budget) > 0 else 0.0
     #     for util, progress, budget in zip(out["meta_budget_utilization"], expected_day_progress, col("meta_daily_budget"))
@@ -1227,7 +1228,7 @@ def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uui
     ads_rev = _signal_lookup(row_events, "adsense_estimated_earnings")
     adx_rev = _signal_lookup(row_events, "adx_revenue")
     ads_req = _signal_lookup(row_events, "adsense_ad_requests")
-    adx_req = _signal_lookup(row_events, "adx_total_requests")
+    adx_req = _signal_lookup(row_events, "adx_requests")
     coverage = _signal_lookup(row_events, "adsense_ad_requests_coverage")
     match_rate = _signal_lookup(row_events, "adx_match_rate")
     fill_rate = _signal_lookup(row_events, "adx_total_fill_rate")
