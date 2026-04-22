@@ -778,38 +778,12 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
 .scx-progress.blue > span { background: linear-gradient(90deg, #2563eb, #3b82f6); }
 .scx-progress.yellow > span { background: linear-gradient(90deg, #d97706, #f59e0b); }
 
-.scx-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.scx-item {
-    border: 1px solid rgba(15, 23, 42, 0.07);
-    border-radius: 12px;
-    padding: 12px;
-    background: #fff;
-}
-
-.scx-item-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 4px;
-}
-
-.scx-item-name {
-    font-size: 13px;
-    font-weight: 700;
-    color: #0f172a;
-}
-
-.scx-item-desc {
-    font-size: 12px;
-    color: #475569;
-    line-height: 1.5;
-}
+.scx-list { display:flex; flex-direction:column; gap:8px; }
+.scx-item { border:1px solid rgba(15,23,42,.07); border-radius:10px; padding:10px; background:#fff; }
+.scx-item-top { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:2px; }
+.scx-item-name { font-size:12px; font-weight:800; color:#0f172a; }
+.scx-item-desc { font-size:11px; color:#475569; line-height:1.35; }
+.scx-impact-more { font-size:11px; color:#64748b; margin-top:2px; }
 
 .scx-impact {
     font-size: 11px;
@@ -954,6 +928,31 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
     font-size: 12px;
     color: #475569;
 }
+.scx-hero-modern { border:1px solid rgba(99,102,241,.18); border-radius:16px; padding:14px; background:linear-gradient(135deg,#eef2ff 0%,#f0f9ff 45%,#ffffff 100%); }
+.scx-chip-row { display:flex; flex-wrap:wrap; gap:8px; margin-top:10px; }
+.scx-chip { display:inline-flex; align-items:center; gap:6px; border:1px solid rgba(15,23,42,.09); background:#fff; color:#334155; border-radius:999px; padding:6px 10px; font-size:11px; font-weight:700; }
+.scx-chip b { color:#0f172a; }
+.scx-insight-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:12px; }
+@media (max-width:991.98px){ .scx-insight-grid { grid-template-columns:1fr; } }
+.scx-insight-card { border:1px solid rgba(15,23,42,.08); border-radius:12px; padding:10px 12px; background:#fff; }
+.scx-insight-k { font-size:11px; color:#64748b; text-transform:uppercase; letter-spacing:.04em; }
+.scx-insight-v { font-size:14px; font-weight:800; color:#0f172a; margin-top:2px; }
+.scx-insight-s { font-size:11px; color:#64748b; margin-top:3px; }
+.scx-section-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+.scx-section-head .left { font-size:13px; font-weight:800; color:#0f172a; }
+.scx-section-head .right { font-size:11px; color:#64748b; }
+.scx-json-scroll { max-height: 250px; overflow: auto; border: 1px solid rgba(15,23,42,.08); border-radius: 10px; background: #f8fafc; }
+.scx-json-scroll pre { margin: 0; padding: 10px 12px; font-size: 12px; white-space: pre-wrap; }
+.scx-table-scroll { max-height: 260px; overflow: auto; border: 1px solid rgba(15,23,42,.08); border-radius: 10px; background: #fff; }
+.scx-table-scroll thead th { position: sticky; top: 0; background: #f8fafc; z-index: 1; }
+.scx-roi-legend { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+.scx-roi-chip { font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; border:1px solid transparent; }
+.scx-roi-chip.red { background:rgba(220,38,38,.12); color:#b91c1c; border-color:rgba(220,38,38,.18); }
+.scx-roi-chip.yellow { background:rgba(245,158,11,.14); color:#b45309; border-color:rgba(245,158,11,.20); }
+.scx-roi-chip.green { background:rgba(22,163,74,.12); color:#15803d; border-color:rgba(22,163,74,.18); }
+.scx-roi-band.red { background:rgba(220,38,38,.08); color:#991b1b; font-weight:700; }
+.scx-roi-band.yellow { background:rgba(245,158,11,.10); color:#92400e; font-weight:700; }
+.scx-roi-band.green { background:rgba(22,163,74,.10); color:#166534; font-weight:700; }
 
 /* Modal Detail Keputusan */
 .decision-detail-modal {
@@ -1102,6 +1101,12 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
     margin-bottom: 0;
 }
 
+.decision-timeline-tabs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+.decision-timeline-tab { border:1px solid rgba(15,23,42,.12); background:#fff; color:#334155; border-radius:999px; padding:6px 10px; font-size:11px; font-weight:700; cursor:pointer; }
+.decision-timeline-tab.active { background:#0ea5e9; border-color:#0ea5e9; color:#fff; }
+.decision-timeline-pane { display:none; border:1px solid rgba(15,23,42,.08); border-radius:10px; padding:12px; background:#f8fafc; }
+.decision-timeline-pane.active { display:block; }
+
 html[data-theme="dark"] .decision-detail-modal-content {
     background: #1e293b;
     color: #e2e8f0;
@@ -1175,7 +1180,7 @@ html[data-theme="dark"] .decision-detail-reason-item {
                 <div class="loading-inner">
                     <i class="fas fa-sync-alt fa-spin" aria-hidden="true"></i>
                     <span>Memuat Data ...</span>
-                </div>
+                </div>  
             </div>
             <!-- Error Message -->
             <div id="error-message" class="error-message" style="display: none;">
@@ -1234,7 +1239,7 @@ html[data-theme="dark"] .decision-detail-reason-item {
 
                         <div class="card dashboard-card mt-3" style="border-radius:16px;">
                             <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
-                                <div style="font-weight:900;"><i class="bi bi-table me-2"></i> Detail Data</div>
+                                <div style="font-weight:900;"><i class="bi bi-table me-2"></i> Detail Scoring</div>
                                 <div class="text-muted" style="font-size:12px" id="dashboardRecapTableMeta"></div>
                             </div>
                             <div class="card-body p-0">
@@ -1494,13 +1499,13 @@ html[data-theme="dark"] .decision-detail-reason-item {
                                         <div id="roiHourlyDetailBody" style="padding:12px 16px;"></div>
                                     </div>
                                 </div>
-                                <div id="scoreDetailModal" style="position:fixed;top:0;left:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);z-index:1060;">
-                                    <div style="background:#fff;max-width:2400px;width:100vw;max-height:98vh;overflow:auto;border-radius:10px;box-shadow:0 2px 10px rgba(0,0,0,0.2);">
-                                        <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #eee;">
-                                            <h6 id="scoreDetailTitle" style="margin:0;">Detail Score</h6>
-                                            <button id="scoreDetailClose" type="button" class="btn btn-sm btn-primary" style="display:inline-flex;align-items:center;gap:6px;"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i><span>Close</span></button>
+                                <div id="scoreDetailModal" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(15,23,42,.55),rgba(15,23,42,.72));backdrop-filter:blur(2px);z-index:1060;padding:16px;">
+                                    <div style="background:#fff;max-width:1800px;width:100%;max-height:96vh;overflow:auto;border-radius:18px;border:1px solid rgba(148,163,184,.35);box-shadow:0 30px 80px rgba(2,6,23,.30);">
+                                        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(15,23,42,.08);background:linear-gradient(90deg,#eef2ff 0%,#f8fafc 50%,#ecfeff 100%);position:sticky;top:0;z-index:1;">
+                                            <h6 id="scoreDetailTitle" style="margin:0;font-weight:800;color:#0f172a;">Detail Score</h6>
+                                            <button id="scoreDetailClose" type="button" class="btn btn-sm btn-primary" style="display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 12px;"><i class="bi bi-x-lg" aria-hidden="true"></i><span>Tutup</span></button>
                                         </div>
-                                        <div id="scoreDetailBody" style="padding:12px 16px;"></div>
+                                        <div id="scoreDetailBody" style="padding:16px 18px 20px;"></div>
                                     </div>
                                 </div>
                             </div>
@@ -2798,33 +2803,60 @@ function keputusanBadge(meta, ctx) {
     return `<div class="keputusan-badge-clickable" title="${title}" data-keputusan-key="${storeKey}" role="button" tabindex="0"><span class="${cls}">${esc(d)}</span>${sub}</div>`;
 }
 
-function renderDetailKeputusanHTML(meta) {
+function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx) {
     const info = meta?.breakdown?.meta || {};
     console.log("info meta: ",info);
     const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
     const fmt2 = (v) => { const n = num(v); return n == null ? '-' : n.toFixed(2); };
     const fmtPct01 = (v) => { const n = num(v); return n == null ? '-' : `${(n * 100).toFixed(0)}%`; };
-    const decision = String(meta?.decision || '').toUpperCase() || 'BELUM ADA';
-    const label = String(meta?.label || '').trim();
-    const score = num(meta?.score);
-    const health = num(info.health_score);
-    const risk = num(info.ivt_risk_score);
-    const adjustment = num(info.adjustment_score);
-    const confidence = num(info.confidence);
-    const decision_margin = num(info.decision_margin);
-    const reasons = Array.isArray(meta?.reasons) ? meta.reasons : [];
-    const final_label = String(info.final_label || '').trim();
+    const timeline = Array.isArray(info.scoring_timeline) ? info.scoring_timeline : [];
+    const safeIdx = Math.max(0, Math.min(Number(activeTimelineIdx) || 0, Math.max(0, timeline.length - 1)));
+    const activeT = timeline[safeIdx] || null;
+    const decision = String(activeT?.decision || meta?.decision || '').toUpperCase() || 'BELUM ADA';
+    const label = String(activeT?.label || meta?.label || '').trim();
+    const score = num(activeT?.score ?? meta?.score);
+    const health = num(activeT?.health_score ?? info.health_score);
+    const risk = num(activeT?.ivt_risk_score ?? info.ivt_risk_score);
+    const adjustment = num(activeT?.adjustment_score ?? info.adjustment_score);
+    const confidence = num(activeT?.confidence ?? info.confidence);
+    const decision_margin = num(activeT?.decision_margin ?? info.decision_margin);
+    const reasons = Array.isArray(activeT?.reasons) ? activeT.reasons : (Array.isArray(meta?.reasons) ? meta.reasons : []);
+    const final_label = String(activeT?.label || info.final_label || '').trim();
     const root_cause_label = String(info.root_cause_label || '').trim();
     const date = String(info.date || '').trim();
     const sourceLabel = String(info.scoring_source_label || 'Backend scoring').trim();
-    const snapshotTime = String(info.date || '').trim();
-    const debugPosSignals = num(info.positive_signal_count);
-    const debugNegSignals = num(info.negative_signal_count);
-    const debugNeutralSignals = num(info.neutral_signal_count);
-    const debugCountryRows = [info.country_details, info.country_breakdown, info.countries, meta?.country_details, meta?.country_breakdown].find(function(v){ return Array.isArray(v) && v.length; }) || [];
+    const snapshotTime = String(activeT?.run_hour_label || activeT?.run_hour || info.snapshot_time || info.date || '').trim();
+    const timelineKey = (`tl_${String(storeKey || 'meta')}`);
+    const tabTime = (v) => {
+        const s = String(v || '').trim();
+        if (!s) return '-';
+        if (/^\d{1,2}$/.test(s)) {
+            const h = Number(s);
+            if (Number.isFinite(h) && h >= 0 && h <= 23) return `${String(h).padStart(2, '0')}:00`;
+        }
+        return s.length >= 16 ? s.slice(11, 16) : s;
+    };
+    const debugPosSignals = num(activeT?.positive_signal_count ?? info.positive_signal_count);
+    const debugNegSignals = num(activeT?.negative_signal_count ?? info.negative_signal_count);
+    const debugNeutralSignals = num(activeT?.neutral_signal_count ?? info.neutral_signal_count);
+    const rawCountryRows = [activeT?.country_details, info.country_details, info.country_breakdown, info.countries, meta?.country_details, meta?.country_breakdown, meta?.countries, meta?.breakdown?.country_details, meta?.breakdown?.meta?.country_details].find(function(v){ return (Array.isArray(v) && v.length) || (v && typeof v === 'object' && !Array.isArray(v)); }) || [];
+    const debugCountryRows = Array.isArray(rawCountryRows) ? rawCountryRows : Object.values(rawCountryRows || {});
 
     let html = '';
     html += '<div class="decision-detail-body">';
+
+    if (timeline.length) {
+        html += '<div class="decision-detail-section">';
+        html += `<div class="decision-detail-section-title">Perbandingan Snapshot 3 Jam</div>`;
+        html += `<div class="decision-timeline-tabs">`;
+        timeline.forEach(function(t, idx){
+            const tLabel = tabTime(t.run_hour_label || t.run_hour);
+            html += `<button type="button" class="decision-timeline-tab ${idx===safeIdx?'active':''}" data-store-key="${esc(String(storeKey||''))}" data-timeline-index="${idx}" onclick="switchDecisionTimelineTab(this)">${esc(tLabel)}</button>`;
+        });
+        html += `</div>`;
+        html += '</div>';
+    }
+
     html += '<div class="decision-detail-section">';
     html += `<div class="decision-detail-section-title">Keputusan</div>`;
     html += `<div style="font-size:16px;font-weight:800;color:#0f172a;margin-bottom:8px;">${esc(decision)}</div>`;
@@ -2853,19 +2885,21 @@ function renderDetailKeputusanHTML(meta) {
     }
     html += '</div>';
 
-    if (reasons.length > 0) {
+    const reasonsView = reasons.length ? reasons : [String(activeT?.reason_summary || info.reason_summary || '').trim()].filter(Boolean);
+    if (reasonsView.length > 0) {
         html += '<div class="decision-detail-section">';
         html += `<div class="decision-detail-section-title">Dasar Keputusan</div>`;
         html += '<div class="decision-detail-reasons">';
-        reasons.forEach(function(reason) {
+        reasonsView.forEach(function(reason) {
             html += `<div class="decision-detail-reason-item">• ${esc(String(reason || ''))}</div>`;
         });
         html += '</div>';
         html += '</div>';
     }
 
+
     if (snapshotTime || sourceLabel || debugPosSignals != null || debugNegSignals != null || debugNeutralSignals != null || debugCountryRows.length) {
-        html += '<div class="decision-detail-section">';
+        html += '<div class="decision-detail-section">'
         html += `<div class="decision-detail-section-title">Metadata</div>`;
         if (sourceLabel) html += `<div style="font-size:12px;color:#64748b;">Sumber Data: ${esc(sourceLabel)}</div>`;
         if (snapshotTime) html += `<div style="font-size:12px;color:#64748b;">Snapshot: ${esc(snapshotTime)}</div>`;
@@ -2890,7 +2924,10 @@ function renderDetailKeputusanHTML(meta) {
                 html += `    <div>Risk: <b>${fmt2(c.ivt_risk_score)}</b></div>`;
                 html += `    <div>Margin: <b>${fmt2(c.decision_margin)}</b></div>`;
                 html += `  </div>`;
-                html += `  <div style="margin-top:4px;font-size:10px;color:#94a3b8;">Status: ${esc(c.join_status || '-')} | Signals: ${c.positive_signals}/${c.negative_signals}/${c.neutral_signals}</div>`;
+                const posSig = Number(c.positive_signals ?? c.positive_signal_count ?? 0);
+                const negSig = Number(c.negative_signals ?? c.negative_signal_count ?? 0);
+                const neuSig = Number(c.neutral_signals ?? c.neutral_signal_count ?? 0);
+                html += `  <div style="margin-top:4px;font-size:10px;color:#94a3b8;">Status: ${esc(c.join_status || '-')} | Signals: ${posSig}/${negSig}/${neuSig}</div>`;
                 html += `</div>`;
             });
             html += '</div>';
@@ -2902,7 +2939,15 @@ function renderDetailKeputusanHTML(meta) {
     return html;
 }
 
-function openDetailKeputusan(storeKey) {
+function switchDecisionTimelineTab(btn) {
+    if (!btn) return;
+    const storeKey = String(btn.getAttribute('data-store-key') || '').trim();
+    const idx = Number(btn.getAttribute('data-timeline-index') || 0);
+    if (!storeKey) return;
+    openDetailKeputusan(storeKey, idx);
+}
+
+function openDetailKeputusan(storeKey, activeTimelineIdx) {
     const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
     if (!entry || typeof entry !== 'object') return;
 
@@ -2911,7 +2956,9 @@ function openDetailKeputusan(storeKey) {
 
     const body = document.getElementById('decision-detail-body');
     const meta = entry?.meta && typeof entry.meta === 'object' ? entry.meta : entry;
-    if (body) body.innerHTML = renderDetailKeputusanHTML(meta);
+    const idx = Number.isFinite(Number(activeTimelineIdx)) ? Number(activeTimelineIdx) : Number(entry?.activeTimelineIdx || 0);
+    entry.activeTimelineIdx = idx;
+    if (body) body.innerHTML = renderDetailKeputusanHTML(meta, storeKey, idx);
     modal.classList.add('active');
 }
 
@@ -2994,12 +3041,14 @@ function initDashboardRecap() {
     }
 
     function scoringLookupKey(dim, row) {
-        if (String(dim || '') === 'country') return String(row?.code || row?.country_cd || row?.name || '').trim().toUpperCase();
-        return String(row?.name || row?.domain || '').trim().toLowerCase();
+        if (String(dim || '') === 'country') return String(row?.code || row?.country_cd || row?.country_code || row?.name || '').trim().toUpperCase();
+        return String(row?.name || row?.domain || row?.site || row?.entity_key || '').trim().toLowerCase();
     }
 
     async function fetchDashboardScoring(rows, state) {
         const dim = String(state?.dim || '').toLowerCase();
+        window.dashboardRecapScoringReady = true;
+        window.dashboardRecapScoringReason = '';
         const entities = uniqKeepOrder((rows || []).flatMap(function(r){
             const key = scoringLookupKey(dim, r);
             if (dim === 'country') return [key].filter(Boolean);
@@ -3015,9 +3064,22 @@ function initDashboardRecap() {
                 credentials: 'same-origin'
             });
             const json = await res.json();
-            if (!res.ok || !json || !json.status) throw new Error(json?.error || `Gagal memuat scoring (HTTP ${res.status})`);
+            if (!res.ok || !json || !json.status) {
+                window.dashboardRecapScoringReady = false;
+                window.dashboardRecapScoringReason = String(json?.error || `Gagal memuat scoring (HTTP ${res.status})`);
+                return {};
+            }
+            if (json?.scoring_ready === false) {
+                window.dashboardRecapScoringReady = false;
+                window.dashboardRecapScoringReason = String(json?.reason || 'Tabel scoring belum tersedia');
+                return {};
+            }
+            window.dashboardRecapScoringReady = true;
+            window.dashboardRecapScoringReason = '';
             return (json?.data && typeof json.data === 'object') ? json.data : {};
         } catch (e) {
+            window.dashboardRecapScoringReady = false;
+            window.dashboardRecapScoringReason = String(e?.message || 'Gagal memuat scoring');
             return {};
         }
     }
@@ -3086,7 +3148,7 @@ function initDashboardRecap() {
             if (raw != null) info[canonical] = raw;
         });
         const rawCountries = pickFirst(info, ['country_details', 'country_breakdown', 'countries']) || pickFirst(merged, ['country_details', 'country_breakdown', 'countries']) || pickFirst(bd, ['country_details', 'country_breakdown', 'countries']) || [];
-        const countryList = Array.isArray(rawCountries) ? rawCountries : [];
+        const countryList = Array.isArray(rawCountries) ? rawCountries : ((rawCountries && typeof rawCountries === 'object') ? Object.values(rawCountries) : []);
         info.country_details = countryList.map(function(c){
             const risk = toNum(c?.ivt_risk_score ?? c?.risk_score ?? c?.ivt_score ?? c?.risk);
             const confRaw = toNum(c?.confidence ?? c?.confidence_score ?? c?.conf);
@@ -3099,11 +3161,16 @@ function initDashboardRecap() {
                 adjustment_score: toNum(c?.adjustment_score ?? c?.adjust_score ?? c?.adjustment),
                 confidence: conf,
                 decision_margin: toNum(c?.decision_margin ?? c?.margin_score ?? c?.margin),
+                final_label: String(c?.final_label || c?.label || '').trim(),
+                root_cause_label: String(c?.root_cause_label || c?.final_label || c?.label || '').trim(),
+                positive_signal_count: Number(c?.positive_signal_count ?? c?.positive_signals ?? c?.positive ?? 0),
+                negative_signal_count: Number(c?.negative_signal_count ?? c?.negative_signals ?? c?.negative ?? 0),
+                neutral_signal_count: Number(c?.neutral_signal_count ?? c?.neutral_signals ?? c?.neutral ?? 0),
             });
         });
         info.trend_windows = row?.trend_windows || info.trend_windows || {};
         info.date = String(state?.date || info.date || '').trim();
-        info.last_update = row?.last_updates ? (row.last_updates.adx || row.last_updates.adsense || info.last_update || '') : (row?.last_update || info.last_update || '');
+        info.last_update = String(info.last_update || info.snapshot_time || info.run_time || info.run_hour || '').trim();
         info.scoring_source = info.scoring_source || 'backend_scoring';
         info.scoring_source_label = info.scoring_source_label || 'Backend scoring';
         const health = toNum(info.health_score) ?? 0;
@@ -3141,7 +3208,7 @@ function initDashboardRecap() {
     function buildScoreCellData(meta) {
         const info = meta?.breakdown?.meta || {};
         const value = meta?.score == null ? null : Number(meta.score);
-        const raw = String(info.last_update || '').trim();
+        const raw = String(info.last_update || info.snapshot_time || info.run_time || info.run_hour || '').trim();
         let updatedAt = '';
         if (raw) {
             const dt = new Date(raw.replace(' ', 'T'));
@@ -3413,53 +3480,50 @@ function initDashboardRecap() {
     function scxTopEvents(events, mode) {
         const filtered = (Array.isArray(events) ? events : []).filter(function(ev) {
             const cls = String(ev?.change_class || '').toUpperCase();
-            return mode === 'positive' ? cls === 'POSITIVE' : cls === 'NEGATIVE';
-        });
-        const map = new Map();
-        filtered.forEach(function(ev) {
-            const key = String(ev?.header_name || ev?.rule_key || '-').trim() || '-';
             const signal = Number(ev?.signal_strength || 0);
-            const weight = Math.max(Math.abs(signal) * Math.max(Number(ev?.confidence || 0), 0.25), 0.01);
-            if (!map.has(key)) {
-                map.set(key, {
-                    name: scxMetricName(key),
-                    signal_sum: 0,
-                    weight_sum: 0,
-                    current_sum: 0,
-                    baseline_sum: 0,
-                    countries: new Set(),
+            if (mode === 'positive') {
+                if (cls === 'POSITIVE') return true;
+                if (!cls && signal > 0) return true;
+                return signal > 0 && !['NEGATIVE','NEUTRAL','SKIPPED'].includes(cls);
+            }
+            if (cls === 'NEGATIVE') return true;
+            if (!cls && signal < 0) return true;
+            return signal < 0 && !['POSITIVE','NEUTRAL','SKIPPED'].includes(cls);
+        });
+        return filtered
+            .map(function(ev) {
+                const metricKey = String(ev?.header_name || ev?.rule_key || '-').trim() || '-';
+                return {
+                    name: scxMetricName(metricKey),
+                    signal: Number(ev?.signal_strength || 0),
+                    current: Number(ev?.cur_value || 0),
+                    baseline: Number(ev?.baseline_center || 0),
+                    countries: 1,
+                    country_label: scxCountryLabel(ev),
                     label: ev?.event_label || '',
                     reason: ev?.event_reason || ''
-                });
-            }
-            const row = map.get(key);
-            row.signal_sum += signal * weight;
-            row.weight_sum += weight;
-            row.current_sum += Number(ev?.cur_value || 0) * weight;
-            row.baseline_sum += Number(ev?.baseline_center || 0) * weight;
-            row.countries.add(scxCountryKey(ev));
-            if (Math.abs(signal) >= Math.abs(Number(row.signal || 0))) {
-                row.signal = signal;
-                row.label = ev?.event_label || row.label;
-                row.reason = ev?.event_reason || row.reason;
-            }
-        });
-        return Array.from(map.values())
-            .map(function(row) {
-                const w = row.weight_sum > 0 ? row.weight_sum : 1;
-                return {
-                    name: row.name,
-                    signal: row.signal_sum / w,
-                    current: row.current_sum / w,
-                    baseline: row.baseline_sum / w,
-                    countries: row.countries.size,
-                    label: row.label,
-                    reason: row.reason,
-                    rank_score: Math.abs(row.signal_sum) * Math.max(row.countries.size, 1)
                 };
             })
-            .sort(function(a, b) { return Number(b?.rank_score || 0) - Number(a?.rank_score || 0); })
-            .slice(0, 4);
+            .sort(function(a, b) { return Math.abs(Number(b?.signal || 0)) - Math.abs(Number(a?.signal || 0)); });
+    }
+
+    function scxSummarizeEventBuckets(items, maxItems = 4) {
+        const map = new Map();
+        (Array.isArray(items) ? items : []).forEach(function(it) {
+            const name = String(it?.name || '-').trim() || '-';
+            const key = name.toUpperCase();
+            const signal = Number(it?.signal || 0);
+            const country = String(it?.country_label || '').trim();
+            if (!map.has(key)) map.set(key, { name, count: 0, signal_sum: 0, countries: new Set() });
+            const row = map.get(key);
+            row.count += 1;
+            row.signal_sum += Math.abs(signal);
+            if (country) row.countries.add(country);
+        });
+        return Array.from(map.values())
+            .sort(function(a, b) { return b.signal_sum - a.signal_sum; })
+            .slice(0, Math.max(1, Number(maxItems) || 4))
+            .map(function(x) { return `${x.name} (${x.countries.size || 1} negara)`; });
     }
 
     function scxBuildNarrative(status, events) {
@@ -3470,18 +3534,19 @@ function initDashboardRecap() {
 
         const positives = scxTopEvents(events, 'positive');
         const negatives = scxTopEvents(events, 'negative');
+        const posSummary = scxSummarizeEventBuckets(positives, 4);
+        const negSummary = scxSummarizeEventBuckets(negatives, 4);
 
         let text = '';
         text += `Status saat ini ${scxHealthLabel(health).toLowerCase()}. `;
         text += `Keputusan akhir: ${scxDecisionLabel(decision).toLowerCase()}. `;
-        text += `Tingkat keyakinan model ${scxConfidenceLabel(confidence).toLowerCase()} `;
-        text += `dengan ${scxRiskLabel(risk).toLowerCase()}. `;
+        text += `Tingkat keyakinan model ${scxConfidenceLabel(confidence).toLowerCase()} dengan ${scxRiskLabel(risk).toLowerCase()}. `;
 
-        if (positives.length) {
-            text += `Pendorong utama: ${positives.map(x => x.name).join(', ')}. `;
+        if (posSummary.length) {
+            text += `Pendorong utama lintas negara: ${posSummary.join(', ')}. `;
         }
-        if (negatives.length) {
-            text += `Hal yang perlu dipantau: ${negatives.map(x => x.name).join(', ')}.`;
+        if (negSummary.length) {
+            text += `Prioritas pemantauan lintas negara: ${negSummary.join(', ')}.`;
         }
 
         return text.trim();
@@ -3506,25 +3571,18 @@ function initDashboardRecap() {
         return 'Data masih campuran atau netral. Lanjutkan observasi sebelum mengubah strategi.';
     }
 
-    function scxRenderImpactList(items, emptyText, mode) {
-        if (!items.length) {
-            return `<div class="scx-sub">${esc(emptyText)}</div>`;
-        }
-        return `<div class="scx-list">` + items.map(function(item) {
-            const countriesText = Number(item?.countries || 0) > 1 ? ` · ${esc(String(item.countries))} negara terdampak` : '';
-            return `
-                <div class="scx-item">
-                    <div class="scx-item-top">
-                        <div class="scx-item-name">${esc(item.name)}</div>
-                        <span class="scx-impact ${mode === 'positive' ? 'up' : 'down'}">${esc(scxSignalText(item.signal))}</span>
-                    </div>
-                    <div class="scx-item-desc">
-                        Current <strong>${esc(scxNum(item.current, 2))}</strong>
-                        dibanding baseline <strong>${esc(scxNum(item.baseline, 2))}</strong>${countriesText}.
-                    </div>
-                </div>
-            `;
-        }).join('') + `</div>`;
+    function scxRenderImpactList(items, emptyText, mode, maxItems = 4) {
+        const list = Array.isArray(items) ? items : [];
+        if (!list.length) return `<div class="scx-sub">${esc(emptyText)}</div>`;
+        const shown = list.slice(0, Math.max(1, Number(maxItems) || 4));
+        const rest = Math.max(0, list.length - shown.length);
+        const body = shown.map(function(item) {
+            const where = String(item?.country_label || '').trim();
+            const rawReason = String(item?.reason || item?.label || '').trim();
+            const reason = rawReason.length > 88 ? `${rawReason.slice(0, 88)}…` : rawReason;
+            return `<div class="scx-item"><div class="scx-item-top"><div class="scx-item-name">${esc(item.name)}${where ? ` · ${esc(where)}` : ''}</div><span class="scx-impact ${mode === 'positive' ? 'up' : 'down'}">${esc(scxSignalText(item.signal))}</span></div><div class="scx-item-desc">Now <strong>${esc(scxNum(item.current,2))}</strong> vs base <strong>${esc(scxNum(item.baseline,2))}</strong>${reason ? ` · ${esc(reason)}` : ''}</div></div>`;
+        }).join('');
+        return `<div class="scx-list">${body}${rest > 0 ? `<div class="scx-impact-more">+${esc(String(rest))} sinyal lainnya. Lihat tabel event untuk detail lengkap.</div>` : ''}</div>`;
     }
 
     function scxCountryKey(obj) {
@@ -3649,8 +3707,15 @@ function initDashboardRecap() {
             if (!vals.length) return fallback;
             return vals.reduce(function(a,b){ return a+b; }, 0) / vals.length;
         };
-        const counted = eventList.filter(function(ev) { return ['POSITIVE', 'NEGATIVE', 'NEUTRAL'].includes(String(ev?.change_class || '').toUpperCase()); });
-        const nonSkipped = eventList.filter(function(ev) { return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; });
+        const counted = eventList.filter(function(ev) {
+            const cls = String(ev?.change_class || '').toUpperCase();
+            const sig = Number(ev?.signal_strength || 0);
+            return ['POSITIVE', 'NEGATIVE', 'NEUTRAL'].includes(cls) || Number.isFinite(sig);
+        });
+        const nonSkipped = eventList.filter(function(ev) {
+            const cls = String(ev?.change_class || '').toUpperCase();
+            return cls !== 'SKIPPED';
+        });
         const healthDen = sum(counted, function(ev) { return Math.abs(Number(ev?.health_component || 0)); });
         const ivtScoped = eventList.filter(function(ev) { return Number(ev?.ivt_capacity || 0) > 0; });
         const ivtDen = sum(ivtScoped, function(ev) { return Math.max(Number(ev?.ivt_capacity || 0), 0); });
@@ -3662,8 +3727,16 @@ function initDashboardRecap() {
             adjustment_score: usingEvents ? scxAggregateAdjustmentScore(eventList, healthDen) : sAvg(function(st){ return st?.adjustment_score; }, 0),
             ivt_risk_score: usingEvents ? (ivtDen > 0 ? scxClamp((100 * sum(ivtScoped, function(ev) { return Math.max(Number(ev?.ivt_component || 0), 0); })) / ivtDen, 0, 100) : 0) : sAvg(function(st){ return st?.ivt_risk_score; }, 0),
             confidence: usingEvents ? (nonSkipped.length ? scxClamp(sum(nonSkipped, function(ev) { return Number(ev?.confidence || 0); }) / nonSkipped.length, 0, 1) : 0) : scxClamp(sAvg(function(st){ return st?.confidence; }, 0), 0, 1),
-            positive_signal_count: usingEvents ? eventList.filter(function(ev) { return String(ev?.change_class || '').toUpperCase() === 'POSITIVE'; }).length : Math.round(sAvg(function(st){ return st?.positive_signal_count; }, 0)),
-            negative_signal_count: usingEvents ? eventList.filter(function(ev) { return String(ev?.change_class || '').toUpperCase() === 'NEGATIVE'; }).length : Math.round(sAvg(function(st){ return st?.negative_signal_count; }, 0)),
+            positive_signal_count: usingEvents ? eventList.filter(function(ev) {
+                const cls = String(ev?.change_class || '').toUpperCase();
+                const sig = Number(ev?.signal_strength || 0);
+                return cls === 'POSITIVE' || (cls !== 'NEGATIVE' && cls !== 'SKIPPED' && sig > 0);
+            }).length : Math.round(sAvg(function(st){ return st?.positive_signal_count; }, 0)),
+            negative_signal_count: usingEvents ? eventList.filter(function(ev) {
+                const cls = String(ev?.change_class || '').toUpperCase();
+                const sig = Number(ev?.signal_strength || 0);
+                return cls === 'NEGATIVE' || (cls !== 'POSITIVE' && cls !== 'SKIPPED' && sig < 0);
+            }).length : Math.round(sAvg(function(st){ return st?.negative_signal_count; }, 0)),
             adjustment_drop_count: usingEvents ? eventList.filter(function(ev) { return Number(ev?.adjustment_component || 0) < 0; }).length : Math.round(sAvg(function(st){ return st?.adjustment_drop_count; }, 0)),
             traffic_score: usingEvents ? scxCalcGroupHealth(eventList, 'traffic') : sAvg(function(st){ return st?.traffic_score; }, 0),
             delivery_score: usingEvents ? scxCalcGroupHealth(eventList, 'delivery') : sAvg(function(st){ return st?.delivery_score; }, 0),
@@ -3744,6 +3817,34 @@ function initDashboardRecap() {
         return scxNum(base, 2);
     }
 
+    function scxRenderBackendStatusTable(statuses) {
+        const rows = Array.isArray(statuses) ? statuses : [];
+        if (!rows.length) return `<div class="scx-sub">Status backend kosong.</div>`;
+        let html = `<div class="scx-roi-legend"><span class="scx-roi-chip red">ROI &lt; 200% = Merah</span><span class="scx-roi-chip yellow">ROI 200% - 300% = Kuning</span><span class="scx-roi-chip green">ROI &gt; 300% = Hijau</span></div>`;
+        html += `<div class="scx-table-scroll"><div class="table-responsive"><table class="table table-sm table-striped scx-country-table"><thead><tr><th>Negara</th><th>Join</th><th>Status</th><th class="text-end">Health</th><th class="text-end">Risk</th><th class="text-end">Decision</th><th class="text-end">Pos</th><th class="text-end">Neg</th><th class="text-end">Spend</th><th class="text-end">Revenue</th><th class="text-end">ROI</th></tr></thead><tbody>`;
+        rows.forEach(function(st){
+            const spend = Number(st?.spend ?? st?.meta_spend ?? 0);
+            const revenue = Number(st?.revenue ?? st?.revenue_value ?? ((Number(st?.adx_revenue||0)+Number(st?.adsense_estimated_earnings||0))));
+            const roiRaw = Number(st?.roi);
+            const roi = Number.isFinite(roiRaw) ? roiRaw : (spend > 0 ? ((revenue - spend) / spend) * 100 : NaN);
+            const pos = Number(st?.positive_signal_count ?? st?.positive_signals ?? 0);
+            const neg = Number(st?.negative_signal_count ?? st?.negative_signals ?? 0);
+            const roiClass = !Number.isFinite(roi) ? '' : (roi < 200 ? 'red' : (roi <= 300 ? 'yellow' : 'green'));
+            html += `<tr><td>${esc(scxCountryLabel(st))}</td><td>${esc(String(st?.join_status || '-'))}</td><td>${esc(String(st?.final_label || st?.root_cause_label || '-'))}</td><td class="text-end">${esc(scxNum(st?.health_score,2))}</td><td class="text-end">${esc(scxNum(st?.ivt_risk_score,2))}</td><td class="text-end">${esc(scxNum(st?.decision_margin,2))}</td><td class="text-end">${esc(scxNum(pos,0))}</td><td class="text-end">${esc(scxNum(neg,0))}</td><td class="text-end">${esc(scxNum(spend,0))}</td><td class="text-end">${esc(scxNum(revenue,0))}</td><td class="text-end scx-roi-band ${roiClass}">${Number.isFinite(roi) ? `${esc(scxNum(roi,2))}%` : '-'}</td></tr>`;
+        });
+        return html + `</tbody></table></div></div>`;
+    }
+
+    function scxRenderBackendEventTable(events) {
+        const rows = (Array.isArray(events) ? events : []).slice().sort(function(a,b){ return Math.abs(Number(b?.signal_strength||0)) - Math.abs(Number(a?.signal_strength||0)); });
+        if (!rows.length) return `<div class="scx-sub">Event backend kosong.</div>`;
+        let html = `<div class="scx-table-scroll"><div class="table-responsive"><table class="table table-sm table-striped scx-simple-table"><thead><tr><th>Negara</th><th>Group</th><th>Metric</th><th class="text-end">Prev</th><th class="text-end">Current</th><th class="text-end">Δ Abs</th><th class="text-end">Δ %</th><th class="text-end">Baseline</th><th class="text-end">Signal</th><th>Class</th><th class="text-end">Conf</th><th>Reason</th></tr></thead><tbody>`;
+        rows.forEach(function(ev){
+            html += `<tr><td>${esc(scxCountryLabel(ev))}</td><td>${esc(String(ev?.metric_group || '-'))}</td><td>${esc(scxMetricName(ev?.header_name || ev?.rule_key || '-'))}</td><td class="text-end">${esc(scxNum(ev?.prev_value,2))}</td><td class="text-end">${esc(scxNum(ev?.cur_value,2))}</td><td class="text-end">${esc(scxNum(ev?.delta_abs,2))}</td><td class="text-end">${esc(scxNum(ev?.delta_pct,2))}</td><td class="text-end">${esc(scxBaselineText(ev))}</td><td class="text-end">${esc(scxNum(ev?.signal_strength,4))}</td><td>${esc(String(ev?.change_class || '-'))}</td><td class="text-end">${esc(scxPct01(ev?.confidence,0))}</td><td>${esc(String(ev?.event_reason || ev?.event_label || '-'))}</td></tr>`;
+        });
+        return html + `</tbody></table></div></div>`;
+    }
+
     function scxCountrySummaryTable(groups) {
         if (!groups.length) {
             return `<div class="scx-sub">Tidak ada ringkasan negara.</div>`;
@@ -3773,11 +3874,14 @@ function initDashboardRecap() {
             html += `<td><span class="scx-pill ${tone}">${esc(finalLabel)}</span></td>`;
             html += `<td class="text-end">${esc(scxNum(st?.health_score, 2))}</td>`;
             html += `<td class="text-end">${esc(scxNum(st?.ivt_risk_score, 2))}</td>`;
-            const spend = Number(st?.spend || 0);
-            const revenue = Number(st?.revenue || st?.revenue_value || 0);
-            const roi = Number.isFinite(Number(st?.roi)) ? Number(st?.roi) : (spend > 0 ? ((revenue - spend) / spend) * 100 : 0);
+            const spend = Number(st?.spend ?? st?.meta_spend ?? 0);
+            const rev1 = Number(st?.revenue ?? st?.revenue_value ?? NaN);
+            const rev2 = Number(st?.adx_revenue ?? 0) + Number(st?.adsense_estimated_earnings ?? 0);
+            const revenue = Number.isFinite(rev1) ? rev1 : rev2;
+            const roiRaw = Number(st?.roi);
+            const roi = Number.isFinite(roiRaw) ? roiRaw : (spend > 0 ? ((revenue - spend) / spend) * 100 : NaN);
             html += `<td class="text-end">${esc(scxNum(st?.decision_margin, 2))}</td>`;
-            html += `<td class="text-end">${esc(scxNum(roi, 2))}%</td>`;
+            html += `<td class="text-end">${Number.isFinite(roi) ? `${esc(scxNum(roi, 2))}%` : '-'}</td>`;
             html += `</tr>`;
         });
 
@@ -3793,15 +3897,9 @@ function initDashboardRecap() {
         (Array.isArray(events) ? events : []).forEach(function(ev){ if (ck && scxCountryKey(ev) !== ck) return; const k = scxDomainKey(ev); if (!k || k === '-') return; if (!map.has(k)) map.set(k, { key:k, label:scxDomainLabel(ev), status:null, events:[ev] }); else map.get(k).events.push(ev); });
         return Array.from(map.values()).sort(function(a,b){ return Math.abs(Number(b?.status?.decision_margin || 0)) - Math.abs(Number(a?.status?.decision_margin || 0)); });
     }
-    function scxSubdomainSummaryTable(items) {
-        if (!items.length) return `<div class="scx-sub">Tidak ada ringkasan subdomain.</div>`;
-        let h = `<div class="table-responsive"><table class="table table-sm table-striped scx-country-table"><thead><tr><th>Subdomain</th><th>Status</th><th class="text-end">Health</th><th class="text-end">Risk</th><th class="text-end">Decision</th></tr></thead><tbody>`;
-        items.forEach(function(it){ const st=it?.status||{}, fl=String(st?.final_label||'UNKNOWN'), tone=(fl.includes('POSITIVE')||fl.includes('RECOVERY')||fl.includes('EXPANSION'))?'green':((fl.includes('DROP')||fl.includes('NEG')||fl.includes('RED_FLAG'))?'red':'yellow'); h += `<tr><td>${esc(String(it?.label || it?.key || '-'))}</td><td><span class="scx-pill ${tone}">${esc(fl)}</span></td><td class="text-end">${esc(scxNum(st?.health_score,2))}</td><td class="text-end">${esc(scxNum(st?.ivt_risk_score,2))}</td><td class="text-end">${esc(scxNum(st?.decision_margin,2))}</td></tr>`; });
-        return h + `</tbody></table></div>`;
-    }
     function scxRenderSubdomainPane(sub, tabKey) {
         const st=sub?.status||{}, evs=Array.isArray(sub?.events)?sub.events:[], pos=scxTopEvents(evs,'positive'), neg=scxTopEvents(evs,'negative');
-        const rows=evs.filter(function(ev){ return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; }).sort(function(a,b){ return Math.abs(Number(b?.signal_strength||0)) - Math.abs(Number(a?.signal_strength||0)); }).slice(0,8).map(function(ev){ const t=scxSignalTone(ev?.signal_strength); return `<tr><td>${esc(scxMetricName(ev?.header_name || ev?.rule_key || '-'))}</td><td class="text-end">${esc(scxNum(ev?.cur_value,2))}</td><td class="text-end">${esc(scxBaselineText(ev))}</td><td><span class="scx-impact ${t}">${esc(scxSignalText(ev?.signal_strength))}</span></td></tr>`; }).join('');
+        const rows=evs.filter(function(ev){ return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; }).sort(function(a,b){ return Math.abs(Number(b?.signal_strength||0)) - Math.abs(Number(a?.signal_strength||0)); }).map(function(ev){ const t=scxSignalTone(ev?.signal_strength); return `<tr><td>${esc(scxMetricName(ev?.header_name || ev?.rule_key || '-'))}</td><td class="text-end">${esc(scxNum(ev?.cur_value,2))}</td><td class="text-end">${esc(scxBaselineText(ev))}</td><td><span class="scx-impact ${t}">${esc(scxSignalText(ev?.signal_strength))}</span></td></tr>`; }).join('');
         const fl=String(st?.final_label||'UNKNOWN'), rl=String(st?.root_cause_label||'STABLE'), tone=(fl.includes('POSITIVE')||fl.includes('RECOVERY')||fl.includes('EXPANSION'))?'green':((fl.includes('DROP')||fl.includes('NEG')||fl.includes('RED_FLAG'))?'red':'yellow');
         return `<div class="scx-grid"><div class="scx-card"><div class="scx-hero"><div><div class="scx-title" style="margin-bottom:6px;">${esc(String(sub?.label || sub?.key || '-'))}</div><div class="scx-status"><span class="scx-pill ${tone}">${esc(fl)}</span>${rl && rl !== fl ? `<span class="scx-pill gray">${esc(rl)}</span>` : ''}</div></div></div><div class="scx-kpi-grid"><div class="scx-kpi"><div class="scx-kpi-label">Health</div><div class="scx-kpi-value">${esc(scxNum(st?.health_score,2))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Confidence</div><div class="scx-kpi-value">${esc(scxPct01(st?.confidence,0))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Risk</div><div class="scx-kpi-value">${esc(scxNum(st?.ivt_risk_score,2))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Decision</div><div class="scx-kpi-value">${esc(scxNum(st?.decision_margin,2))}</div></div></div><div class="scx-section-gap"><div class="sd-details"><summary><span>Grafik Trend</span><span class="sd-det-right" id="${esc(tabKey)}Status">Loading trend...</span></summary><div class="sd-det-body"><div class="dashboard-recap-tabs mb-3" style="display:inline-flex;"><button type="button" class="btn btn-sm btn-primary" id="${esc(tabKey)}Btn1" data-days="1">H-1</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn3" data-days="3">H-3</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn7" data-days="7">H-7</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn14" data-days="14">H-14</button></div><div style="height:320px;"><canvas id="${esc(tabKey)}Chart"></canvas></div><div id="${esc(tabKey)}Stats"></div></div></div></div></div><div class="scx-card"><div class="scx-title">Detail Teknis Singkat</div>${rows ? `<div class="table-responsive"><table class="table table-sm table-striped scx-simple-table"><thead><tr><th>Metric</th><th class="text-end">Current</th><th class="text-end">Baseline</th><th>Impact</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="scx-sub">Belum ada detail event untuk subdomain ini.</div>`}<div class="scx-section-gap"><div class="scx-title">Yang Mendorong Naik</div>${scxRenderImpactList(pos, 'Belum ada sinyal positif dominan.', 'positive')}</div><div class="scx-section-gap"><div class="scx-title">Yang Perlu Diperhatikan</div>${scxRenderImpactList(neg, 'Belum ada sinyal negatif dominan.', 'negative')}</div></div></div>`;
     }
@@ -3818,9 +3916,17 @@ function initDashboardRecap() {
     function scxRenderCountryPane(group, tabKey) {
         const st = group?.status || {};
         const evs = Array.isArray(group?.events) ? group.events : [];
-        const pos = scxTopEvents(evs, 'positive');
-        const neg = scxTopEvents(evs, 'negative');
-        const rows = evs.filter(function(ev){ return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; }).sort(function(a,b){ return Math.abs(Number(b?.signal_strength||0)) - Math.abs(Number(a?.signal_strength||0)); }).slice(0,8).map(function(ev){ const t=scxSignalTone(ev?.signal_strength); return `<tr><td>${esc(scxMetricName(ev?.header_name || ev?.rule_key || '-'))}</td><td class="text-end">${esc(scxNum(ev?.cur_value,2))}</td><td class="text-end">${esc(scxBaselineText(ev))}</td><td><span class="scx-impact ${t}">${esc(scxSignalText(ev?.signal_strength))}</span></td></tr>`; }).join('');
+        let pos = scxTopEvents(evs, 'positive');
+        let neg = scxTopEvents(evs, 'negative');
+        if (!pos.length && Number(st?.positive_signal_count || 0) > 0) pos = [{ name:'Sinyal Positif (agregat)', signal:Number(st?.positive_signal_count || 0), current:Number(st?.positive_signal_count || 0), baseline:0, countries:1 }];
+        if (!neg.length && Number(st?.negative_signal_count || 0) > 0) neg = [{ name:'Sinyal Negatif (agregat)', signal:-Number(st?.negative_signal_count || 0), current:Number(st?.negative_signal_count || 0), baseline:0, countries:1 }];
+        let rows = evs.filter(function(ev){ return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; }).sort(function(a,b){ return Math.abs(Number(b?.signal_strength||0)) - Math.abs(Number(a?.signal_strength||0)); }).map(function(ev){ const t=scxSignalTone(ev?.signal_strength); return `<tr><td>${esc(scxMetricName(ev?.header_name || ev?.rule_key || '-'))}</td><td class="text-end">${esc(scxNum(ev?.cur_value,2))}</td><td class="text-end">${esc(scxBaselineText(ev))}</td><td><span class="scx-impact ${t}">${esc(scxSignalText(ev?.signal_strength))}</span></td></tr>`; }).join('');
+        if (!rows) {
+            rows = [['TRAFFIC_SCORE', st?.traffic_score], ['DELIVERY_SCORE', st?.delivery_score], ['YIELD_SCORE', st?.yield_score], ['QUALITY_SCORE', st?.quality_score], ['REVENUE_SCORE', st?.revenue_score], ['EFFICIENCY_SCORE', st?.efficiency_score]]
+                .filter(function(pair){ return Number.isFinite(Number(pair[1])); })
+                .map(function(pair){ const v = Number(pair[1] || 0); const t = scxSignalTone(v); return `<tr><td>${esc(scxMetricName(pair[0]))}</td><td class="text-end">${esc(scxNum(v,2))}</td><td class="text-end">0.00</td><td><span class="scx-impact ${t}">${esc(scxSignalText(v))}</span></td></tr>`; })
+                .join('');
+        }
         const fl = String(st?.final_label || 'UNKNOWN');
         const rl = String(st?.root_cause_label || 'STABLE');
         const tone = (fl.includes('POSITIVE') || fl.includes('RECOVERY') || fl.includes('EXPANSION')) ? 'green' : ((fl.includes('DROP') || fl.includes('NEG') || fl.includes('RED_FLAG')) ? 'red' : 'yellow');
@@ -5897,11 +6003,66 @@ function initDashboardRecap() {
         return { statuses, events };
     }
 
+    function scxBuildSyntheticEventsFromStatuses(statuses, metaInfo) {
+        const list = Array.isArray(statuses) ? statuses : [];
+        const info = (metaInfo && typeof metaInfo === 'object') ? metaInfo : {};
+        const defs = [
+            ['traffic_score', 'TRAFFIC_SCORE', 'traffic'],
+            ['delivery_score', 'DELIVERY_SCORE', 'delivery'],
+            ['yield_score', 'YIELD_SCORE', 'yield'],
+            ['quality_score', 'QUALITY_SCORE', 'quality'],
+            ['revenue_score', 'REVENUE_SCORE', 'revenue'],
+            ['efficiency_score', 'EFFICIENCY_SCORE', 'efficiency'],
+            ['engagement_score', 'ENGAGEMENT_SCORE', 'engagement'],
+            ['control_score', 'CONTROL_SCORE', 'control']
+        ];
+        const out = [];
+        list.forEach(function(st) {
+            defs.forEach(function(def) {
+                const raw = Number(st?.[def[0]] ?? info?.[def[0]] ?? 0);
+                if (!Number.isFinite(raw) || Math.abs(raw) < 0.01) return;
+                const signal = scxClamp(raw / 100, -1, 1);
+                const metricLabel = scxMetricName(def[1]);
+                out.push({
+                    country_cd: String(st?.country_cd || st?.country_code || '').trim().toUpperCase(),
+                    country_code: String(st?.country_cd || st?.country_code || '').trim().toUpperCase(),
+                    country_nm: String(st?.country_nm || st?.country_name || '').trim(),
+                    country_name: String(st?.country_nm || st?.country_name || '').trim(),
+                    metric_group: def[2],
+                    header_name: def[1],
+                    rule_key: def[1],
+                    cur_value: raw,
+                    baseline_center: 0,
+                    signal_strength: signal,
+                    change_class: signal >= 0 ? 'POSITIVE' : 'NEGATIVE',
+                    confidence: Number(st?.confidence ?? info?.confidence ?? 0.5),
+                    event_label: signal >= 0 ? `${metricLabel} membaik` : `${metricLabel} melemah`,
+                    event_reason: `Sumber DashboardScoringDataView: ${metricLabel} ${scxNum(raw, 2)}`
+                });
+            });
+        });
+        return out;
+    }
+
         // ...existing code...
         function renderCreateScoringResult(apiJson, row, state) {
             const scoring = apiJson?.scoring || {};
             const comparisonDates = apiJson?.comparison_dates || {};
+            const fallbackComparisonDates = {
+                h1: ymdShift(String(state?.date || ''), -1),
+                h3: ymdShift(String(state?.date || ''), -3),
+                h7: ymdShift(String(state?.date || ''), -7),
+                h14: ymdShift(String(state?.date || ''), -14),
+            };
+            const effectiveComparisonDates = {
+                h1: String(comparisonDates?.h1 || fallbackComparisonDates.h1 || '-'),
+                h3: String(comparisonDates?.h3 || fallbackComparisonDates.h3 || '-'),
+                h7: String(comparisonDates?.h7 || fallbackComparisonDates.h7 || '-'),
+                h14: String(comparisonDates?.h14 || fallbackComparisonDates.h14 || '-'),
+            };
             const parsed = pickScoringArrays(scoring);
+            const eventsSource = String(scoring?._events_source || 'native');
+            const aggEvents = eventsSource === 'synthetic_status_components' ? [] : parsed.events;
             const groups = scxGroupScoringByCountry(parsed.statuses, parsed.events);
             const enableSubdomainTabs = false;
             const subgroups = (enableSubdomainTabs && String(state?.dim || '').toLowerCase() === 'country') ? scxGroupScoringBySubdomain(parsed.statuses, parsed.events, row?.code || '') : [];
@@ -5911,20 +6072,30 @@ function initDashboardRecap() {
             const focusStatus = primaryGroup?.status || {};
             const focusEvents = Array.isArray(primaryGroup?.events) ? primaryGroup.events : [];
             const events = Array.isArray(parsed?.events) ? parsed.events : [];
-            const first = scxAggregateScoring(parsed.statuses, events, groups);
+            const detailStatuses = Array.isArray(parsed?.statuses) ? parsed.statuses : [];
+            const detailCountryDetails = Array.isArray(scoring?.country_details) ? scoring.country_details : [];
+            const detailRowsForStatus = detailCountryDetails.length ? detailCountryDetails : detailStatuses;
+            const detailEvents = Array.isArray(parsed?.events) ? parsed.events : [];
+            const first = scxAggregateScoring(parsed.statuses, aggEvents, groups);
             console.log("first : ",first);
             const trendWindows = row?.trend_windows || {};
     
             const finalLabel = String(first?.final_label || 'UNKNOWN');
-            const rootLabel = String(first?.root_cause_label || 'STABLE');
+            const rootLabel = String(first?.root_cause_label || first?.final_label || 'STABLE');
             const showRootLabel = rootLabel && rootLabel !== finalLabel;
             const health = Number(first?.health_score || 0);
             const confidence = Number(first?.confidence || 0);
             const risk = Number(first?.ivt_risk_score || 0);
             const decision = Number(first?.decision_margin || 0);
     
-            const topPositive = scxTopEvents(events, 'positive');
-            const topNegative = scxTopEvents(events, 'negative');
+            let topPositive = scxTopEvents(events, 'positive');
+            let topNegative = scxTopEvents(events, 'negative');
+            if (!topPositive.length && Number(first?.positive_signal_count || 0) > 0) {
+                topPositive = [{ name: 'Sinyal Positif (agregat)', signal: Number(first?.positive_signal_count || 0), current: Number(first?.positive_signal_count || 0), baseline: 0, countries: groups.length || 1 }];
+            }
+            if (!topNegative.length && Number(first?.negative_signal_count || 0) > 0) {
+                topNegative = [{ name: 'Sinyal Negatif (agregat)', signal: -Number(first?.negative_signal_count || 0), current: Number(first?.negative_signal_count || 0), baseline: 0, countries: groups.length || 1 }];
+            }
             const narrative = scxBuildNarrative(first, events);
             const actionText = scxActionText(first);
     
@@ -5935,19 +6106,43 @@ function initDashboardRecap() {
             ) ? 'red' : 'yellow';
     
             const countryInfo = useSubTabs
-                ? `Ringkasan utama memakai agregasi seluruh ${subgroups.length} subdomain aktif di ${scxCountryLabel(focusStatus)}.`
+                ? `Ringkasan utama memakai agregasi seluruh ${subgroups.length} subdomain aktif dari semua negara pada domain ini.`
                 : groups.length > 1
-                    ? `Ringkasan utama memakai agregasi seluruh ${groups.length} negara aktif. Detail teknis di bawah tetap menampilkan negara dengan sinyal terkuat: ${scxCountryLabel(focusStatus)}.`
+                    ? `Ringkasan utama memakai agregasi seluruh ${groups.length} negara aktif pada domain ini. Semua KPI dan kesimpulan dihitung lintas negara.`
                     : `Ringkasan utama memakai seluruh data yang tersedia untuk ${scxCountryLabel(first)}.`;
+            const totalSignals = Number(first?.positive_signal_count || 0) + Number(first?.negative_signal_count || 0) + Number(first?.neutral_signal_count || 0);
+            const signalSkew = Number(first?.positive_signal_count || 0) - Number(first?.negative_signal_count || 0);
+            const dataQuality = (detailEvents.length > 0) ? 'Event Lengkap' : (eventsSource === 'synthetic_status_components' ? 'Event Sintetis' : 'Status Saja');
+            const countriesPositive = groups.filter(function(g){ return Number(g?.status?.positive_signal_count || 0) > Number(g?.status?.negative_signal_count || 0); }).length;
+            const countriesNegative = groups.filter(function(g){ return Number(g?.status?.negative_signal_count || 0) > Number(g?.status?.positive_signal_count || 0); }).length;
 
-            const simplifiedEvents = focusEvents
+            let simplifiedEvents = focusEvents
                 .filter(function(ev) {
                     return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED';
                 })
                 .sort(function(a, b) {
                     return Math.abs(Number(b?.signal_strength || 0)) - Math.abs(Number(a?.signal_strength || 0));
                 })
-                .slice(0, 12);
+                ;
+            if (!simplifiedEvents.length && events.length) {
+                simplifiedEvents = events
+                    .filter(function(ev){ return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; })
+                    .sort(function(a, b) { return Math.abs(Number(b?.signal_strength || 0)) - Math.abs(Number(a?.signal_strength || 0)); })
+                    ;
+            }
+            if (!simplifiedEvents.length) {
+                const metricFallback = [
+                    ['TRAFFIC_SCORE', first?.traffic_score],
+                    ['DELIVERY_SCORE', first?.delivery_score],
+                    ['YIELD_SCORE', first?.yield_score],
+                    ['QUALITY_SCORE', first?.quality_score],
+                    ['REVENUE_SCORE', first?.revenue_score],
+                    ['EFFICIENCY_SCORE', first?.efficiency_score]
+                ].map(function(pair){
+                    return { header_name: pair[0], cur_value: Number(pair[1] || 0), baseline_center: 0, signal_strength: Number(pair[1] || 0), change_class: Number(pair[1] || 0) >= 0 ? 'POSITIVE' : 'NEGATIVE' };
+                }).filter(function(ev){ return Number.isFinite(Number(ev?.signal_strength || 0)) && Math.abs(Number(ev?.signal_strength || 0)) > 0; });
+                simplifiedEvents = metricFallback;
+            }
             const canAct = String(state?.dim || '').toLowerCase() === 'domain' && String(row?.account_ads || '').trim();
             const tabButtons = `<div class="mb-3" style="padding:14px;border:1px solid rgba(37,99,235,0.12);background:linear-gradient(180deg,rgba(239,246,255,0.9),rgba(255,255,255,0.95));border-radius:18px;"><div style="font-size:12px;color:#475569;margin-bottom:10px;">${useSubTabs ? 'Navigasi hasil scoring per subdomain negara aktif' : 'Navigasi hasil scoring per negara aktif'}</div><div class="dashboard-recap-tabs" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-primary" data-scx-tab-btn="summary">Kesimpulan Akhir</button>${(useSubTabs ? subgroups : groups).map(function(item, idx){ const count = Array.isArray(item?.events) ? item.events.filter(function(ev){ return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; }).length : 0; const label = useSubTabs ? String(item?.label || item?.key || '-') : String(scxCountryLabel(item?.status || { country_cd: item?.key || '-' }) || '-').toUpperCase(); return `<button type="button" class="btn btn-sm btn-light" data-scx-tab-btn="${useSubTabs ? `sub-${idx}` : `country-${idx}`}">${esc(label)} <span style="margin-left:6px;font-size:11px;opacity:0.72;">${esc(String(count))}</span></button>`; }).join('')}</div></div>`;
             const actionPanel = canAct ? `<div class="scx-section-gap" style="padding:14px;border:1px solid rgba(15,23,42,0.08);border-radius:16px;background:#fff;"><div class="scx-title">Campaign Aktif di Domain</div><div class="scx-sub" style="margin-bottom:10px;">Campaign langsung dimuat otomatis untuk domain ini.</div><div class="dashboard-recap-tabs mb-2" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-danger" id="sdPauseSelectedBtn">Stop</button><button type="button" class="btn btn-sm btn-primary" id="sdActivateSelectedBtn">Hold</button><button type="button" class="btn btn-sm btn-success" id="sdScaleUp15Btn">Scale Up</button><button type="button" class="btn btn-sm btn-warning text-dark" id="sdOptimize10Btn">Scale Down</button></div><div id="sdCampaignStatus" class="scx-sub" style="margin-bottom:8px;"></div><div id="sdCampaignTable"></div></div>` : '';
@@ -5959,22 +6154,34 @@ function initDashboardRecap() {
             html += `<div class="scx-grid">`;
     
             html += `<div class="scx-card">`;
-            html += `  <div class="scx-hero">`;
+            html += `  <div class="scx-hero-modern">`;
+            html += `    <div class="scx-hero">`;
             html += `      <div>`;
             html += `          <div class="scx-title" style="margin-bottom:6px;">Ringkasan Hasil Scoring</div>`;
             html += `          <div class="scx-status">`;
             html += `              <span class="scx-pill ${statusTone}">${esc(finalLabel)}</span>`;
             if (showRootLabel) html += `              <span class="scx-pill gray">${esc(rootLabel)}</span>`;
+            html += `              <span class="scx-chip">Kualitas Data: <b>${esc(dataQuality)}</b></span>`;
             html += `          </div>`;
             html += `      </div>`;
             html += `      <div class="scx-sub">Tanggal ${esc(String(state?.date || '-'))}</div>`;
-            html += `  </div>`;
-    
-            html += `  <div class="scx-callout">`;
+            html += `    </div>`;
+            html += `    <div class="scx-callout">`;
             html += `      <strong>Kesimpulan:</strong> ${esc(narrative)}<br>`;
             html += `      <strong>Aksi yang disarankan:</strong> ${esc(actionText)}`;
+            html += `    </div>`;
+            html += `    <div class="scx-chip-row">`;
+            html += `      <span class="scx-chip">Negara Aktif: <b>${esc(String(groups.length || 0))}</b></span>`;
+            html += `      <span class="scx-chip">Negara Dominan Positif: <b>${esc(scxNum(countriesPositive,0))}</b></span>`;
+            html += `      <span class="scx-chip">Negara Dominan Negatif: <b>${esc(scxNum(countriesNegative,0))}</b></span>`;
+            html += `      <span class="scx-chip">Event Rows: <b>${esc(scxNum(detailEvents.length,0))}</b></span>`;
+            html += `    </div>`;
+            html += `    <div class="scx-insight-grid">`;
+            html += `      <div class="scx-insight-card"><div class="scx-insight-k">Dominan Positif</div><div class="scx-insight-v">${esc(scxNum(first?.positive_signal_count,0))}</div><div class="scx-insight-s">Signal yang mendorong performa naik</div></div>`;
+            html += `      <div class="scx-insight-card"><div class="scx-insight-k">Dominan Negatif</div><div class="scx-insight-v">${esc(scxNum(first?.negative_signal_count,0))}</div><div class="scx-insight-s">Signal risiko yang perlu mitigasi</div></div>`;
+            html += `      <div class="scx-insight-card"><div class="scx-insight-k">Keseimbangan Signal Global</div><div class="scx-insight-v">${esc(scxSigned(signalSkew,0))}</div><div class="scx-insight-s">Selisih total signal positif vs negatif lintas semua negara</div></div>`;
+            html += `    </div>`;
             html += `  </div>`;
-    
             html += `  <div class="scx-section-gap scx-note-box">${esc(countryInfo)}</div>`;
             html += actionPanel;
     
@@ -6031,38 +6238,10 @@ function initDashboardRecap() {
             html += `      </div>`;
             html += `  </div>`;
     
-            html += `  <div class="scx-section-gap">`;
-            html += `      <div class="scx-title">Yang Mendorong Naik</div>`;
-            html +=         scxRenderImpactList(topPositive, 'Belum ada sinyal positif dominan.', 'positive');
-            html += `  </div>`;
-    
-            html += `  <div class="scx-section-gap">`;
-            html += `      <div class="scx-title">Yang Perlu Diperhatikan</div>`;
-            html +=         scxRenderImpactList(topNegative, 'Belum ada sinyal negatif dominan.', 'negative');
-            html += `  </div>`;
-    
             html += `</div>`;
     
             html += `<div class="scx-card">`;
-            html += `  <div class="scx-title">Informasi Utama</div>`;
-            html += `  <table class="scx-info-table">`;
-            html += `      <tr><td>Domain</td><td>${esc(String(row?.name || first?.domain || '-'))}</td></tr>`;
-            html += `      <tr><td>Country Aktif</td><td>${esc(groups.length > 1 ? `${groups.length} negara` : scxCountryLabel(first))}</td></tr>`;
-            html += `      <tr><td>Country Fokus</td><td>${esc(scxCountryLabel(focusStatus))}</td></tr>`;
-            html += `      <tr><td>Source</td><td>${esc(String(state?.source || first?.mapped_revenue_source || '-'))}</td></tr>`;
-            html += `      <tr><td>Positive Signals</td><td>${esc(String(first?.positive_signal_count ?? 0))}</td></tr>`;
-            html += `      <tr><td>Negative Signals</td><td>${esc(String(first?.negative_signal_count ?? 0))}</td></tr>`;
-            html += `      <tr><td>H-1</td><td>${esc(String(comparisonDates?.h1 || '-'))}</td></tr>`;
-            html += `      <tr><td>H-3</td><td>${esc(String(comparisonDates?.h3 || '-'))}</td></tr>`;
-            html += `      <tr><td>H-7</td><td>${esc(String(comparisonDates?.h7 || '-'))}</td></tr>`;
-            html += `      <tr><td>H-14</td><td>${esc(String(comparisonDates?.h14 || '-'))}</td></tr>`;
-            html += `  </table>`;
-    
-            html += `  <div class="scx-section-gap">`;
-            html += `      <div class="scx-title">${useSubTabs ? 'Ringkasan Per Subdomain' : 'Ringkasan Per Negara'}</div>`;
-            html +=         useSubTabs ? scxSubdomainSummaryTable(subgroups) : scxCountrySummaryTable(groups);
-            html += `  </div>`;
-    
+            html += `  <div class="scx-title">Ringkasan Data Keseluruhan</div>`;
             html += `  <div class="scx-section-gap">`;
             html += `      <div class="scx-title">Arti Root Cause</div>`;
             html += `      <div class="scx-callout">${esc(scxRootCauseText(rootLabel))}</div>`;
@@ -6070,35 +6249,31 @@ function initDashboardRecap() {
             html += `  </div>`;
     
             html += `  <div class="scx-section-gap">`;
-            html += `      <div class="scx-title">Detail Teknis Singkat (${esc(scxCountryLabel(focusStatus))})</div>`;
-            html += `      <div class="scx-sub" style="margin-bottom:8px;">Baseline hanya tampil jika histori cukup. Jika belum, akan ditandai sebagai <strong>Belum cukup histori</strong>.</div>`;
-            if (simplifiedEvents.length) {
-                html += `<div class="table-responsive"><table class="table table-sm table-striped scx-simple-table">`;
-                html += `<thead><tr>`;
-                html += `<th>Metric</th>`;
-                html += `<th class="text-end">Current</th>`;
-                html += `<th class="text-end">Baseline</th>`;
-                html += `<th>Impact</th>`;
-                html += `</tr></thead><tbody>`;
-                simplifiedEvents.forEach(function(ev) {
-                    const tone = scxSignalTone(ev?.signal_strength);
-                    html += `<tr>`;
-                    html += `<td>${esc(scxMetricName(ev?.header_name || ev?.rule_key || '-'))}</td>`;
-                    html += `<td class="text-end">${esc(scxNum(ev?.cur_value, 2))}</td>`;
-                    html += `<td class="text-end">${esc(scxBaselineText(ev))}</td>`;
-                    html += `<td><span class="scx-impact ${tone}">${esc(scxSignalText(ev?.signal_strength))}</span></td>`;
-                    html += `</tr>`;
-                });
-                html += `</tbody></table></div>`;
-            } else {
-                html += `<div class="scx-sub">Tidak ada detail event.</div>`;
-            }
+            html += `      <div class="scx-section-head"><div class="left">Detail Status Backend (Semua Negara)</div><div class="right">Validasi spend • revenue • ROI</div></div>`;
+            html += `      <div class="scx-sub" style="margin-bottom:8px;">Menampilkan data status mentah dari DashboardScoringDataView.</div>`;
+            html +=         scxRenderBackendStatusTable(detailRowsForStatus);
+            html += `  </div>`;
+
+            html += `  <div class="scx-section-gap">`;
+            html += `      <div class="scx-section-head"><div class="left">Detail Event Signal Backend (Semua Event)</div><div class="right">Tanpa top-N, urut dari signal terbesar</div></div>`;
+            html += `      <div class="scx-sub" style="margin-bottom:8px;">Semua baris event ditampilkan tanpa ringkas top-N. Baseline bertanda <strong>Belum cukup histori</strong> jika data histori belum cukup.</div>`;
+            html +=         scxRenderBackendEventTable(detailEvents);
             html += `  </div>`;
     
             html += `  <details class="sd-details" style="margin-top:16px;">`;
-            html += `      <summary><span>Raw Response</span><span class="sd-det-right">JSON</span></summary>`;
-            html += `      <div class="sd-det-body"><pre style="margin:0;font-size:12px;white-space:pre-wrap;">${esc(JSON.stringify(scoring, null, 2))}</pre></div>`;
+            html += `      <summary><span>Raw Response</span><span class="sd-det-right">JSON (Scroll)</span></summary>`;
+            html += `      <div class="sd-det-body"><div class="scx-json-scroll"><pre>${esc(JSON.stringify(scoring, null, 2))}</pre></div></div>`;
             html += `  </details>`;
+
+            html += `  <div class="scx-section-gap">`;
+            html += `      <div class="scx-title">Yang Mendorong Naik (Top ${esc(String(Math.min(topPositive.length, 4)))})</div>`;
+            html +=         scxRenderImpactList(topPositive, 'Belum ada sinyal positif dominan.', 'positive', 4);
+            html += `  </div>`;
+
+            html += `  <div class="scx-section-gap">`;
+            html += `      <div class="scx-title">Yang Perlu Diperhatikan (Top ${esc(String(Math.min(topNegative.length, 4)))})</div>`;
+            html +=         scxRenderImpactList(topNegative, 'Belum ada sinyal negatif dominan.', 'negative', 4);
+            html += `  </div>`;
     
             html += `</div>`;
             html += `</div>`;
@@ -6126,6 +6301,9 @@ function initDashboardRecap() {
             adjustment_score: Number(info.adjustment_score || 0),
             confidence: Number(info.confidence || 0),
             decision_margin: Number(info.decision_margin || 0),
+            positive_signal_count: Number(info.positive_signal_count || info.positive_signals || 0),
+            negative_signal_count: Number(info.negative_signal_count || info.negative_signals || 0),
+            neutral_signal_count: Number(info.neutral_signal_count || info.neutral_signals || 0),
             reason_summary: String(info.reason_summary || ''),
             date: String(state?.date || ''),
             site: String(row?.name || ''),
@@ -6144,11 +6322,15 @@ function initDashboardRecap() {
                 country_nm: String(c?.country_name || c?.country_nm || c?.country || ''),
                 country_name: String(c?.country_name || c?.country_nm || c?.country || ''),
                 join_status: String(c?.join_status || ''),
-                final_label: String(c?.final_label || baseStatus.final_label),
+                final_label: String(c?.final_label || c?.label || baseStatus.final_label),
+                root_cause_label: String(c?.root_cause_label || c?.final_label || c?.label || baseStatus.root_cause_label),
+                positive_signal_count: Number(c?.positive_signal_count ?? c?.positive_signals ?? baseStatus.positive_signal_count ?? 0),
+                negative_signal_count: Number(c?.negative_signal_count ?? c?.negative_signals ?? baseStatus.negative_signal_count ?? 0),
+                neutral_signal_count: Number(c?.neutral_signal_count ?? c?.neutral_signals ?? baseStatus.neutral_signal_count ?? 0),
                 spend: spend,
                 revenue: revenue,
                 revenue_value: revenue,
-                roi: spend > 0 ? ((revenue - spend) / spend) * 100 : 0,
+                roi: Number.isFinite(Number(c?.roi)) ? Number(c?.roi) : (spend > 0 ? ((revenue - spend) / spend) * 100 : 0),
                 health_score: Number(c?.health_score ?? baseStatus.health_score),
                 ivt_risk_score: risk,
                 adjustment_score: Number(c?.adjustment_score ?? baseStatus.adjustment_score),
@@ -6167,7 +6349,7 @@ function initDashboardRecap() {
                 spend: spend,
                 revenue: revenue,
                 revenue_value: revenue,
-                roi: spend > 0 ? ((revenue - spend) / spend) * 100 : 0,
+                roi: Number.isFinite(Number(c?.roi)) ? Number(c?.roi) : (spend > 0 ? ((revenue - spend) / spend) * 100 : 0),
             });
         }).filter(function(st){ return !!scxCountryKey(st) && scxCountryKey(st) !== '-'; }) : [Object.assign({}, baseStatus, {
             country_cd: String(row?.code || ''),
@@ -6202,12 +6384,12 @@ function initDashboardRecap() {
         };
     }
 
-    async function createScoringFromDashboardRow(row, state, metaHint) {
+    async function openScoreDetailFromDashboardData(row, state, metaHint) {
         const scoreName = String(row?.name || '-').trim() || '-';
 
         openScoreDetailModal(
-            'Detail Data',
-            `<div class="score-loading-state"><div class="score-loading-card"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><div class="score-loading-title">Memuat Detail Data</div><div class="score-loading-name">${esc(scoreName)}</div></div></div>`
+            'Detail Scoring',
+            `<div class="score-loading-state"><div class="score-loading-card"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><div class="score-loading-title">Memuat Detail Scoring</div><div class="score-loading-name">${esc(scoreName)}</div></div></div>`
         );
         setScoreDetailCloseVisible(false);
 
@@ -6215,18 +6397,73 @@ function initDashboardRecap() {
             const trendWindows = row?.trend_windows || await getTrendWindowsForRow(row, state);
             const rowWithTrend = Object.assign({}, row, { trend_windows: trendWindows });
             let effectiveMeta = metaHint;
+            let detailMeta = null;
+            try {
+                const dim = String(state?.dim || '').toLowerCase();
+                const key = scoringLookupKey(dim, row);
+                if (key && state?.date) {
+                    const detailRes = await fetch('/management/admin/dashboard_scoring_data', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        body: JSON.stringify({ date: String(state.date || '').trim(), dim: String(state.dim || 'domain').trim(), source: String(state.source || 'all').trim(), entities: [key], include_events: true }),
+                        credentials: 'same-origin'
+                    });
+                    const detailJson = await detailRes.json();
+                    if (detailRes.ok && detailJson?.status && detailJson?.data) {
+                        const raw = lookupStoredMetaRaw(row, state, detailJson.data);
+                        if (raw) detailMeta = summarizeDashboardScoringMeta(raw, row, state);
+                    }
+                }
+            } catch (e) {}
+
+            effectiveMeta = detailMeta || effectiveMeta;
             if (!scoringMetaHasCountryDetails(effectiveMeta)) {
                 const freshStore = await fetchDashboardScoring([row], state);
                 const freshRaw = lookupStoredMetaRaw(row, state, freshStore);
                 if (freshRaw) effectiveMeta = summarizeDashboardScoringMeta(freshRaw, row, state);
             }
-            const json = effectiveMeta?.apiJson ? effectiveMeta.apiJson : buildStoredScoringApiJson(effectiveMeta, row, state);
+
+            let json = null;
+            if (effectiveMeta?.apiJson) json = effectiveMeta.apiJson;
+            else if (effectiveMeta?.scoring) json = {
+                status: true,
+                comparison_dates: {
+                    h1: ymdShift(String(state?.date || ''), -1),
+                    h3: ymdShift(String(state?.date || ''), -3),
+                    h7: ymdShift(String(state?.date || ''), -7),
+                    h14: ymdShift(String(state?.date || ''), -14),
+                },
+                scoring: effectiveMeta.scoring
+            };
+            else json = buildStoredScoringApiJson(effectiveMeta, row, state);
+
             const parsedScoring = pickScoringArrays(json?.scoring || {});
-            const groups = scxGroupScoringByCountry(parsedScoring.statuses, parsedScoring.events);
+            const statuses = Array.isArray(parsedScoring.statuses) ? parsedScoring.statuses : [];
+            const countryDetails = [
+                json?.scoring?.country_details,
+                effectiveMeta?.breakdown?.meta?.country_details,
+                effectiveMeta?.breakdown?.country_details,
+                effectiveMeta?.country_details
+            ].find(function(v){ return Array.isArray(v) && v.length; }) || [];
+            const nativeEvents = Array.isArray(parsedScoring.events) ? parsedScoring.events : [];
+            let events = nativeEvents;
+            if (!events.length) {
+                const metaInfo = effectiveMeta?.breakdown?.meta || {};
+                events = scxBuildSyntheticEventsFromStatuses(statuses, metaInfo);
+            }
+            const normalizedJson = Object.assign({}, json, {
+                scoring: Object.assign({}, json?.scoring || {}, {
+                    statuses,
+                    events,
+                    country_details: countryDetails,
+                    _events_source: nativeEvents.length ? 'native' : 'synthetic_status_components'
+                })
+            });
+            const groups = scxGroupScoringByCountry(statuses, events);
             const subgroups = [];
             openScoreDetailModal(
-                `Detail Data: ${String(row?.name || '-')}`,
-                renderCreateScoringResult(json, rowWithTrend, state)
+                `Detail Scoring: ${String(row?.name || '-')}`,
+                renderCreateScoringResult(normalizedJson, rowWithTrend, state)
             );
 
             window.setTimeout(function() {
@@ -6264,7 +6501,7 @@ function initDashboardRecap() {
             }, 0);
         } catch (e) {
             openScoreDetailModal(
-                `Detail Data: ${String(row?.name || '-')}`,
+                `Detail Scoring: ${String(row?.name || '-')}`,
                 `<div class="alert alert-danger" style="margin:0;">${esc(String(e?.message || e || 'Gagal memuat detail scoring backend'))}</div>`
             );
         }
@@ -6278,12 +6515,12 @@ function initDashboardRecap() {
         const tableEl = document.getElementById('dashboardRecapTable');
         if (tableEl && !tableEl.dataset.boundScoreDetail) {
             tableEl.addEventListener('click', function(e) {
-                const createBtn = e.target && e.target.closest ? e.target.closest('.dashboard-create-scoring-btn') : null;
-                if (createBtn) {
-                    const key = createBtn.getAttribute('data-score-key') || '';
+                const detailBtn = e.target && e.target.closest ? e.target.closest('.dashboard-open-score-detail-btn') : null;
+                if (detailBtn) {
+                    const key = detailBtn.getAttribute('data-score-key') || '';
                     const payload = (window.dashboardRecapScoreDetails || {})[key];
                     if (!payload) return;
-                    createScoringFromDashboardRow(payload.row, payload.state, payload.meta);
+                    openScoreDetailFromDashboardData(payload.row, payload.state, payload.meta);
                     return;
                 }
 
@@ -6338,12 +6575,6 @@ function initDashboardRecap() {
         function updatedCell(r, meta) {
             if (dim === 'country') return '-';
 
-            // Prioritaskan waktu dari database scoring (fact_site_country_status_history)
-            const scoringUpdate = meta?.breakdown?.meta?.last_update;
-            if (scoringUpdate) {
-                return updBadge(scoringUpdate, '');
-            }
-
             const srcs = r && r.sources;
             const lus = r && r.last_updates;
             const badges = [];
@@ -6381,15 +6612,20 @@ function initDashboardRecap() {
         });
         window.dashboardRecapStoredScoring = normalizedStore;
 
+        const scoringReady = window.dashboardRecapScoringReady !== false;
         const scored = (rows || []).map(function(r) {
-            const fallback = scoreAndDecision(r, state);
-            const meta = storedScoringForRow(r, state) || {
-                score: Number(fallback?.score ?? 0),
-                decision: String(fallback?.decision || ''),
-                label: String(fallback?.label || 'STABLE'),
-                reasons: Array.isArray(fallback?.reasons) ? fallback.reasons : ['Fallback skor lokal'],
-                breakdown: { meta: Object.assign({ scoring_source: 'fallback_local', scoring_source_label: 'Fallback lokal (client)' }, (fallback?.breakdown?.meta || {})) }
-            };
+            const stored = storedScoringForRow(r, state);
+            let meta = stored || null;
+            if (!meta && scoringReady) {
+                const fallback = scoreAndDecision(r, state);
+                meta = {
+                    score: Number(fallback?.score ?? 0),
+                    decision: String(fallback?.decision || ''),
+                    label: String(fallback?.label || 'STABLE'),
+                    reasons: Array.isArray(fallback?.reasons) ? fallback.reasons : ['Fallback skor lokal'],
+                    breakdown: { meta: Object.assign({ scoring_source: 'fallback_local', scoring_source_label: 'Fallback lokal (client)' }, (fallback?.breakdown?.meta || {})) }
+                };
+            }
             return { r, meta };
         });
 
@@ -6411,8 +6647,10 @@ function initDashboardRecap() {
             const k = `${String(state?.dim || '')}\u241F${String(scoringLookupKey(dim, r) || String(r?.name || ''))}|${String(r?.code || '')}`;
             window.dashboardRecapScoreDetails[k] = { row: r, meta, state };
 
-            const keputusanHtml = `${keputusanBadge(meta, { row: r, state: state })}`;
-            const detailBtn = `<button type="button" class="btn btn-sm btn-primary dashboard-create-scoring-btn" data-score-key="${esc(k)}">Detail Data</button>`;
+            const keputusanHtml = `${keputusanBadge(meta || {}, { row: r, state: state })}`;
+            const detailBtn = (meta && window.dashboardRecapScoringReady !== false)
+                ? `<button type="button" class="btn btn-sm btn-primary dashboard-open-score-detail-btn" data-score-key="${esc(k)}">Detail Scoring</button>`
+                : `<button type="button" class="btn btn-sm btn-secondary" disabled title="Scoring belum tersedia">Detail Scoring</button>`;
 
             return [
                 i + 1,
@@ -6486,7 +6724,7 @@ function initDashboardRecap() {
             const exportDate = String(state?.date || '').trim();
             const exportDim = String(dim || 'domain').toLowerCase();
             const exportBase = `dashboard_detail_${exportDim}${exportDate ? '_' + exportDate : ''}`;
-            const exportTitle = `Dashboard Detail Data (${exportDim === 'country' ? 'Per Negara' : 'Per Domain'})${exportDate ? ' - ' + exportDate : ''}`;
+            const exportTitle = `Dashboard Detail Scoring (${exportDim === 'country' ? 'Per Negara' : 'Per Domain'})${exportDate ? ' - ' + exportDate : ''}`;
 
             window.dashboardRecapDt = $table.DataTable({
                 data: data,
