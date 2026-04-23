@@ -8209,7 +8209,7 @@ class data_mysql:
                 ifNull(a.active_view_pct_viewable, 0) AS adx_active_view_pct_viewable,
                 ifNull(a.active_view_avg_time_sec, 0) AS adx_active_view_avg_time_sec,
                 -- ADSENSE
-                ifNull(s.revenue,0) AS adsense_revenue,
+                ifNull(s.revenue,0) AS adsense_estimated_earnings,
                 ifNull(s.page_views, 0) AS adsense_page_views,
                 ifNull(s.clicks, 0) AS adsense_clicks,
                 ifNull(s.cpc, 0) AS adsense_cost_per_click,
