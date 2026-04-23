@@ -1121,7 +1121,6 @@ class DashboardScoringDataView(View):
                 argMax(adsense_estimated_earnings, run_hour) AS adsense_estimated_earnings
             FROM {source_table}
             WHERE toDate(date) = toDate('{target_date}')
-              AND (lower(entity_key) IN ({literals}) OR lower(site) IN ({literals}))
             GROUP BY date, entity_key
             """
             timeline_hour_expr = "toHour(run_time)" if 'run_time' in table_cols else "run_hour"

@@ -4274,12 +4274,16 @@ function initDashboardRecap() {
 
             const rawCountries = Array.isArray(r?.countries) ? r.countries : (Array.isArray(r?.country_details) ? r.country_details : (Array.isArray(r?.country_breakdown) ? r.country_breakdown : []));
             const countries = rawCountries.map(function(c){
+                const cSpend = Number(c?.spend ?? c?.meta_spend ?? 0);
+                const cRevenue = Number(c?.revenue ?? c?.revenue_value ?? c?.adx_revenue ?? c?.adsense_estimated_earnings ?? 0);
+                const cRoiRaw = Number(c?.roi);
+                const cRoi = Number.isFinite(cRoiRaw) ? cRoiRaw : (cSpend > 0 ? ((cRevenue - cSpend) / cSpend) * 100 : 0);
                 return {
                     country_code: String(c?.country_code || c?.country_cd || c?.code || ''),
                     country_name: String(c?.country_name || c?.country_nm || c?.country || c?.name || ''),
-                    spend: Number(c?.spend ?? c?.meta_spend ?? 0),
-                    revenue: Number(c?.revenue ?? c?.revenue_value ?? c?.adx_revenue ?? c?.adsense_estimated_earnings ?? 0),
-                    roi: Number(c?.roi ?? 0),
+                    spend: cSpend,
+                    revenue: cRevenue,
+                    roi: cRoi,
                     health_score: Number(c?.health_score ?? 0),
                     ivt_risk_score: Number(c?.ivt_risk_score ?? 0),
                     confidence: Number(c?.confidence ?? 0),
