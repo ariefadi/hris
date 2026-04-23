@@ -8174,6 +8174,163 @@ class data_mysql:
                 "error": f"Terjadi error: {str(e)}"
             }
 
+    def get_all_data_meta_adx_adsense_country_detail_by_params_log(self, tanggal):
+        """
+        Jalankan query ClickHouse untuk mengambil data meta/adx/adsense per domain/country.
+        """
+        try:
+            sql = f"""
+            SELECT
+				m.run_date AS run_date,
+                m.run_hour AS run_hour,
+			    m.run_time AS run_time,
+			    m.domain AS domain,
+			    concat(lower(m.domain),'|',upper(m.country_cd)) AS entity_key,
+			    m.country_cd AS country_code,
+			    m.country_name AS country_name,
+			    m.date AS date,
+                -- META
+                m.spend AS meta_spend,
+                m.cpc AS meta_cpc,
+                m.clicks AS meta_clicks,
+                m.lpv AS meta_lpv,
+                m.lpv_rate AS meta_lpv_rate,
+                m.frekuensi AS meta_frequency,
+                -- ADX
+                ifNull(a.revenue,0) AS adx_revenue,
+                ifNull(a.impressions, 0) AS adx_impressions,
+                ifNull(a.clicks, 0) AS adx_clicks,
+                ifNull(a.ecpm, 0) AS adx_ecpm,
+                ifNull(a.cpc, 0) AS adx_cpc,
+                ifNull(a.requests, 0) AS adx_requests,
+                ifNull(a.responses_served, 0) AS adx_responses_served,
+                ifNull(a.match_rate, 0) AS adx_match_rate,
+                ifNull(a.fill_rate, 0) AS adx_fill_rate,
+                ifNull(a.active_view_pct_viewable, 0) AS adx_active_view_pct_viewable,
+                ifNull(a.active_view_avg_time_sec, 0) AS adx_active_view_avg_time_sec,
+                -- ADSENSE
+                ifNull(s.revenue,0) AS adsense_revenue,
+                ifNull(s.page_views, 0) AS adsense_page_views,
+                ifNull(s.clicks, 0) AS adsense_clicks,
+                ifNull(s.cpc, 0) AS adsense_cost_per_click,
+                ifNull(s.page_views_rpm, 0) AS adsense_page_views_rpm,
+                ifNull(s.requests, 0) AS adsense_ad_requests,
+                ifNull(s.requests_coverage, 0) AS adsense_ad_requests_coverage,
+                ifNull(s.impressions, 0) AS adsense_impressions,
+                ifNull(s.active_view_viewability, 0) AS adsense_active_view_viewability,
+                ifNull(s.active_view_measurability, 0) AS adsense_active_view_measurability,
+                ifNull(s.active_view_time, 0) AS adsense_active_view_time,
+                -- TOTAL
+                (ifNull(a.revenue,0) + ifNull(s.revenue,0)) AS total_revenue,
+                (ifNull(a.revenue,0) + ifNull(s.revenue,0) - m.spend) AS profit,
+                if(m.spend > 0, (ifNull(a.revenue,0) + ifNull(s.revenue,0)) / m.spend, 0) AS roas
+            FROM
+            (
+					-- META
+               		SELECT
+					 	toDate(log_ads_country_tanggal) AS run_date,
+					    toHour(toTimeZone(mdd,'Asia/Jakarta')) AS run_hour,
+					    formatDateTime( toTimeZone(argMax(mdd, mdd),'Asia/Jakarta'), '%H:%i:%S') AS run_time,
+					    lower(arrayStringConcat(arraySlice(splitByChar('.', log_ads_domain),1,2),'.')) AS domain,
+					    upper(log_ads_country_cd) AS country_cd,
+					    upper(log_ads_country_nm) AS country_name,
+					    toDate(log_ads_country_tanggal) AS date,
+					    argMax(log_ads_country_spend, mdd) AS spend,
+					    argMax(log_ads_country_cpc, mdd) AS cpc,
+					    argMax(log_ads_country_click, mdd) AS clicks,
+					    argMax(log_ads_country_lpv, mdd) AS lpv,
+					    argMax(log_ads_country_lpv_rate, mdd) AS lpv_rate,
+					    argMax(log_ads_country_frekuensi, mdd) AS frekuensi
+					FROM hris_trendHorizone.log_ads_country
+					WHERE log_ads_country_tanggal = '{tanggal}'
+					GROUP BY domain, country_cd, country_name, date, run_hour
+					ORDER BY domain, country_cd, run_hour
+            ) m
+            LEFT JOIN
+            (
+                	-- ADX
+                	SELECT
+					 	toDate(log_adx_country_tanggal) AS run_date,
+					    toHour(toTimeZone(mdd,'Asia/Jakarta')) AS run_hour,
+					    formatDateTime( toTimeZone(argMax(mdd, mdd),'Asia/Jakarta'), '%H:%i:%S') AS run_time,
+	                    lower(arrayStringConcat(arraySlice(splitByChar('.', log_adx_country_domain), 1, 2), '.')) AS domain,
+	                    upper(log_adx_country_cd) AS country_cd,
+	                    upper(log_adx_country_nm) AS country_name,
+	                    toDate(log_adx_country_tanggal) AS date,
+	                    argMax(log_adx_country_revenue, log_adx_country_tanggal) AS revenue,
+	                    argMax(log_adx_country_impresi, log_adx_country_tanggal) AS impressions,
+	                    argMax(log_adx_country_click, log_adx_country_tanggal) AS clicks,
+	                    argMax(log_adx_country_ecpm, log_adx_country_tanggal) AS ecpm,
+	                    argMax(log_adx_country_cpc, log_adx_country_tanggal) AS cpc,
+	                    argMax(log_adx_country_total_requests, log_adx_country_tanggal) AS requests,
+	                    argMax(log_adx_country_responses_served, log_adx_country_tanggal) AS responses_served,
+	                    argMax(log_adx_country_match_rate, log_adx_country_tanggal) AS match_rate,
+	                    argMax(log_adx_country_fill_rate, log_adx_country_tanggal) AS fill_rate,
+	                    argMax(log_adx_country_active_view_pct_viewable, log_adx_country_tanggal) AS active_view_pct_viewable,
+	                    argMax(log_adx_country_active_view_avg_time_sec, log_adx_country_tanggal) AS active_view_avg_time_sec
+	                FROM hris_trendHorizone.log_adx_country
+	                WHERE log_adx_country_tanggal = '{tanggal}'
+	                GROUP BY domain, country_cd, country_name, date, run_hour
+					ORDER BY domain, country_cd, run_hour
+            ) a
+            ON  m.domain=a.domain
+			AND m.country_cd=a.country_cd
+			AND m.date=a.date
+			AND m.run_hour=a.run_hour
+            LEFT JOIN
+            (
+                -- ADSENSE
+                	SELECT
+						toDate(log_adsense_country_tanggal) AS run_date,
+					    toHour(toTimeZone(mdd,'Asia/Jakarta')) AS run_hour,
+					    formatDateTime( toTimeZone(argMax(mdd, mdd),'Asia/Jakarta'), '%H:%i:%S') AS run_time,
+	                    lower(arrayStringConcat(arraySlice(splitByChar('.', log_adsense_country_domain), 1, 2), '.')) AS domain,
+	                    upper(log_adsense_country_cd) AS country_cd,
+	                    upper(log_adsense_country_nm) AS country_name,
+	                    toDate(log_adsense_country_tanggal) AS date,
+	                    argMax(log_adsense_country_revenue, log_adsense_country_tanggal) AS revenue,
+	                    argMax(log_adsense_country_page_views, log_adsense_country_tanggal) AS page_views,
+	                    argMax(log_adsense_country_click, log_adsense_country_tanggal) AS clicks,
+	                    argMax(log_adsense_country_cpc, log_adsense_country_tanggal) AS cpc,
+	                    argMax(log_adsense_country_page_views_rpm, log_adsense_country_tanggal) AS page_views_rpm,
+	                    argMax(log_adsense_country_ad_requests, log_adsense_country_tanggal) AS requests,
+	                    argMax(log_adsense_country_ad_requests_coverage, log_adsense_country_tanggal) AS requests_coverage,
+	                    argMax(log_adsense_country_impresi, log_adsense_country_tanggal) AS impressions,
+	                    argMax(log_adsense_country_active_view_viewability, log_adsense_country_tanggal) AS active_view_viewability,
+	                    argMax(log_adsense_country_active_view_measurability, log_adsense_country_tanggal) AS active_view_measurability,
+	                    argMax(log_adsense_country_active_view_time, log_adsense_country_tanggal) AS active_view_time
+	                FROM hris_trendHorizone.log_adsense_country
+	                WHERE log_adsense_country_tanggal = '{tanggal}'
+	                GROUP BY domain, country_cd, country_name, date, run_hour
+					ORDER BY domain, country_cd, run_hour
+            ) s
+            ON  m.domain=s.domain
+			AND m.country_cd=s.country_cd
+			AND m.date=s.date
+			AND m.run_hour=s.run_hour
+		    WHERE m.spend>0
+			ORDER BY m.date DESC,m.domain,m.country_cd
+            """
+            # Gunakan koneksi ClickHouse
+            if clickhouse_connect is None:
+                raise RuntimeError('clickhouse_connect library is not installed')
+            client = get_clickhouse_client()
+            result = client.query(sql)
+            rows = result.result_rows if hasattr(result, 'result_rows') else result.result_set
+            cols = result.column_names if hasattr(result, 'column_names') else []
+            data_rows = [dict(zip(cols, row)) for row in rows]
+            return {
+                "status": True,
+                "message": "Data berhasil diambil",
+                "total_rows": len(data_rows),
+                "data": data_rows
+            }
+        except Exception as e:
+            return {
+                "status": False,
+                "error": f"Terjadi error: {str(e)}"
+            }
+
     def insert_bulk_fact_domain(self, rows):
         """
         Bulk insert ke ClickHouse menggunakan clickhouse_connect.
@@ -8233,6 +8390,15 @@ class data_mysql:
                     return "SOURCE_ONLY_NO_META_ADX"
                 return "DATA_INCOMPLETE"
 
+            def _to_uint(value, default=0):
+                try:
+                    v = float(value)
+                    if pd.isna(v):
+                        return int(default)
+                    return int(max(0, v))
+                except Exception:
+                    return int(default)
+
             # =========================
             # BUILD DATAFRAME
             # =========================
@@ -8249,47 +8415,63 @@ class data_mysql:
                 # 🚨 skip data non-scorable
                 if join_status not in SCORABLE_JOIN_STATUSES:
                     continue
+                run_hour = _to_uint(row.get("run_hour", 0))
+                if run_hour > 23:
+                    run_hour = 23
+                run_time_raw = row.get("run_time")
+                run_time = str(run_time_raw).strip() if run_time_raw is not None else ""
+                if " " in run_time:
+                    run_time = run_time.split(" ")[-1]
+                if len(run_time) == 5:
+                    run_time = f"{run_time}:00"
+                if not run_time:
+                    run_time = f"{run_hour:02d}:00:00"
+
+                date_raw = row.get("run_date") or row.get("date")
+                dt = pd.to_datetime(date_raw, errors="coerce")
+                safe_date = dt.date() if pd.notna(dt) else now.date()
+
                 data.append({
                     "batch_id": ensure_uuid(),
-                    "run_time": row.get("run_time"),
-                    "run_date": row.get("date"),
-                    "run_hour": row.get("run_hour"),
+                    "run_time": run_time,
+                    "run_date": safe_date,
+                    "run_hour": run_hour,
                     "site": row.get("domain"),
                     "entity_key": row.get("entity_key"),
                     "country_code": row.get("country_code"),
                     "country_name": row.get("country_name"),
-                    "date": row.get("date"),
+                    "date": safe_date,
                     # ⭐ GENERATED FIELDS
                     "mapped_revenue_source": mapped_revenue_source,
                     "join_status": join_status,
                     # META
                     "meta_spend": float(row.get("meta_spend", 0)),
                     "meta_cpc": float(row.get("meta_cpc", 0)),
-                    "meta_clicks": int(row.get("meta_clicks", 0)),
+                    "meta_clicks": _to_uint(row.get("meta_clicks", 0)),
                     "meta_lpv": float(row.get("meta_lpv", 0)),
-                    "meta_lpv_rate": int(row.get("meta_lpv_rate", 0)),
+                    "meta_lpv_rate": _to_uint(row.get("meta_lpv_rate", 0)),
                     "meta_frequency": float(row.get("meta_frequency", 0)),
                     # ADX
                     "adx_revenue": float(row.get("adx_revenue", 0)),
-                    "adx_impressions": int(row.get("adx_impressions", 0)),
-                    "adx_clicks": int(row.get("adx_clicks", 0)),
+                    "adx_impressions": _to_uint(row.get("adx_impressions", 0)),
+                    "adx_clicks": _to_uint(row.get("adx_clicks", 0)),
                     "adx_ecpm": float(row.get("adx_ecpm", 0)),
                     "adx_cpc": float(row.get("adx_cpc", 0)),
                     "adx_requests": float(row.get("adx_requests", 0)),
                     "adx_responses_served": float(row.get("adx_responses_served", 0)),
-                    "adx_match_rate": int(row.get("adx_match_rate", 0)),
-                    "adx_fill_rate": int(row.get("adx_fill_rate", 0)),
+                    "adx_match_rate": _to_uint(row.get("adx_match_rate", 0)),
+                    "adx_fill_rate": _to_uint(row.get("adx_fill_rate", 0)),
                     "adx_active_view_pct_viewable": float(row.get("adx_active_view_pct_viewable", 0)),
                     "adx_active_view_avg_time_sec": float(row.get("adx_active_view_avg_time_sec", 0)),
                     # ADSENSE
                     "adsense_estimated_earnings": float(row.get("adsense_estimated_earnings", 0)),
-                    "adsense_page_views": int(row.get("adsense_page_views", 0)),
-                    "adsense_clicks": int(row.get("adsense_clicks", 0)),
+                    "adsense_page_views": _to_uint(row.get("adsense_page_views", 0)),
+                    "adsense_clicks": _to_uint(row.get("adsense_clicks", 0)),
                     "adsense_cost_per_click": float(row.get("adsense_cost_per_click", 0)),
                     "adsense_page_views_rpm": float(row.get("adsense_page_views_rpm", 0)),
                     "adsense_ad_requests": float(row.get("adsense_ad_requests", 0)),
-                    "adsense_impressions": int(row.get("adsense_impressions", 0)),
-                    "adsense_active_view_viewability": int(row.get("adsense_active_view_viewability", 0)),
+                    "adsense_impressions": _to_uint(row.get("adsense_impressions", 0)),
+                    "adsense_active_view_viewability": _to_uint(row.get("adsense_active_view_viewability", 0)),
                     "adsense_active_view_measurability": float(row.get("adsense_active_view_measurability", 0)),
                     "adsense_active_view_time": float(row.get("adsense_active_view_time", 0)),
                     # SUMMARY

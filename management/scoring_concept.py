@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, time
 import math
 import uuid
 from zoneinfo import ZoneInfo
@@ -573,7 +573,7 @@ def _counter_correction_columns_for_mode(source_mode: str) -> set[str]:
     return set(COUNTER_CORRECTION_COLUMNS)
 
 
-def _load_join_history(target_date: date, domain: str, lookback_days: int = 35) -> pd.DataFrame:
+def _load_join_history(target_date: date, domain: str, lookback_days: int = 35, run_hour: int | None = None) -> pd.DataFrame:
     """
     Lebih efektif:
     - Dedup latest-per-hour dilakukan di ClickHouse (argMax by mdd/run_time)
@@ -590,6 +590,14 @@ def _load_join_history(target_date: date, domain: str, lookback_days: int = 35) 
     ]
     if domain:
         where.append(f"site = '{domain}'")
+
+    run_hour_filter = None
+    if run_hour is not None:
+        try:
+            run_hour_filter = max(0, min(23, int(run_hour)))
+            where.append(f"run_hour = {run_hour_filter}")
+        except Exception:
+            run_hour_filter = None
 
     order_key = "mdd" if can_introspect and "mdd" in table_cols else "run_time"
 
@@ -659,12 +667,10 @@ def _load_join_history(target_date: date, domain: str, lookback_days: int = 35) 
 
         # day_type + is_current_batch
         outer_cols.append("if(dayOfWeek(date) >= 6, 'WEEKEND', 'WEEKDAY') AS day_type")
-        outer_cols.append(f"(date = toDate('{_sql_date(target_date)}')) AS is_current_batch")
-
-        # alias supaya cocok dengan RULES
-        outer_cols.append("meta_cpc AS meta_avg_cpc")
-        outer_cols.append("adx_ecpm AS adx_avg_ecpm")
-        outer_cols.append("adx_fill_rate AS adx_total_fill_rate")
+        if run_hour_filter is None:
+            outer_cols.append(f"(date = toDate('{_sql_date(target_date)}')) AS is_current_batch")
+        else:
+            outer_cols.append(f"(date = toDate('{_sql_date(target_date)}') AND run_hour = {int(run_hour_filter)}) AS is_current_batch")
 
         # derived (blended + ratios) mengikuti logic python saat ini
         outer_cols.append("(adsense_estimated_earnings + adx_revenue) AS blended_revenue")
@@ -1999,14 +2005,25 @@ def score_site_country(
     lookback_days: int = 35,
     compatibility_mode: bool = False,
     write_results: bool = True,
+    run_hour: int | None = None,
 ) -> dict:
     batch_uuid = ensure_uuid(batch_id)
-    history_df = _load_join_history(target_date, domain, lookback_days=lookback_days)
+    target_run_hour = None
+    if run_hour is not None:
+        try:
+            target_run_hour = max(0, min(23, int(run_hour)))
+        except Exception:
+            target_run_hour = None
+    history_df = _load_join_history(target_date, domain, lookback_days=lookback_days, run_hour=target_run_hour)
     if domain:
         history_df = history_df[history_df["site"] == domain].copy()
     if history_df.empty:
         return {"ok": True, "rows_written": 0, "event_rows_written": 0, "batch_id": str(batch_uuid), "warning": "No join history for requested filter", "statuses": [], "events": []}
-    is_current = history_df["is_current_batch"] if "is_current_batch" in history_df.columns else history_df["date"].eq(target_date)
+    if "is_current_batch" in history_df.columns:
+        is_current_raw = pd.to_numeric(history_df["is_current_batch"], errors="coerce").fillna(0)
+        is_current = is_current_raw.astype(int).eq(1)
+    else:
+        is_current = history_df["date"].eq(target_date)
     current_df = history_df[is_current].copy()
     if current_df.empty:
         return {"ok": True, "rows_written": 0, "batch_id": str(batch_uuid), "warning": "No current batch rows found in fact_join_hourly"}
@@ -2041,6 +2058,7 @@ def score_site_country(
     event_df = pd.DataFrame(event_rows)
 
     run_clock_now = datetime.now(ZoneInfo("Asia/Jakarta")).replace(microsecond=0).time()
+    fixed_run_time = time(target_run_hour, 0, 0) if target_run_hour is not None else run_clock_now
 
     def _align_runtime_and_rundate(df: pd.DataFrame) -> pd.DataFrame:
         if df.empty or "date" not in df.columns:
@@ -2049,12 +2067,15 @@ def score_site_country(
         date_series = pd.to_datetime(out["date"], errors="coerce")
 
         out["run_time"] = date_series.map(
-            lambda v: datetime.combine(v.date(), run_clock_now)
+            lambda v: datetime.combine(v.date(), fixed_run_time)
             if pd.notna(v)
             else datetime.now(ZoneInfo("Asia/Jakarta")).replace(tzinfo=None, microsecond=0)
         )
         out["run_date"] = date_series.dt.date
-        out["run_hour"] = int(run_clock_now.hour)
+        if target_run_hour is not None:
+            out["run_hour"] = int(target_run_hour)
+        else:
+            out["run_hour"] = int(run_clock_now.hour)
         return out
 
     status_df = _align_runtime_and_rundate(status_df)
