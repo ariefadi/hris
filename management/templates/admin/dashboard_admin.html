@@ -953,6 +953,8 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
 .scx-roi-band.red { background:rgba(220,38,38,.08); color:#991b1b; font-weight:700; }
 .scx-roi-band.yellow { background:rgba(245,158,11,.10); color:#92400e; font-weight:700; }
 .scx-roi-band.green { background:rgba(22,163,74,.10); color:#166534; font-weight:700; }
+.scx-table-loading { display:flex; align-items:center; gap:10px; padding:12px; border:1px dashed rgba(15,23,42,.16); border-radius:10px; background:#f8fafc; color:#334155; font-size:12px; font-weight:700; }
+.scx-table-loading .spinner-border { width:1rem; height:1rem; border-width:.15em; }
 
 /* Modal Detail Keputusan */
 .decision-detail-modal {
@@ -1008,6 +1010,23 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
     font-size: 18px;
     font-weight: 800;
     color: #0f172a;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.decision-detail-domain {
+    font-size: 13px;
+    font-weight: 700;
+    color: #1d4ed8;
+    background: rgba(37, 99, 235, 0.1);
+    border: 1px solid rgba(37, 99, 235, 0.2);
+    border-radius: 999px;
+    padding: 4px 10px;
+    max-width: 380px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .decision-detail-close {
@@ -1520,7 +1539,7 @@ html[data-theme="dark"] .decision-detail-reason-item {
     <div id="decision-detail-modal" class="decision-detail-modal">
         <div class="decision-detail-modal-content">
             <div class="decision-detail-header">
-                <div class="decision-detail-title">Detail Keputusan</div>
+                <div class="decision-detail-title">Detail Keputusan <span id="decision-detail-domain" class="decision-detail-domain" style="display:none;"></span></div>
                 <button type="button" class="decision-detail-close" id="decision-detail-close-btn" title="Tutup">
                     ✕
                 </button>
@@ -2805,7 +2824,6 @@ function keputusanBadge(meta, ctx) {
 
 function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx) {
     const info = meta?.breakdown?.meta || {};
-    console.log("info meta: ",info);
     const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
     const fmt2 = (v) => { const n = num(v); return n == null ? '-' : n.toFixed(2); };
     const fmtPct01 = (v) => { const n = num(v); return n == null ? '-' : `${(n * 100).toFixed(0)}%`; };
@@ -3033,9 +3051,31 @@ function openDetailKeputusan(storeKey, activeTimelineIdx) {
     if (!modal) return;
 
     const body = document.getElementById('decision-detail-body');
+    const domainEl = document.getElementById('decision-detail-domain');
     const meta = entry?.meta && typeof entry.meta === 'object' ? entry.meta : entry;
-    const idx = Number.isFinite(Number(activeTimelineIdx)) ? Number(activeTimelineIdx) : Number(entry?.activeTimelineIdx || 0);
+    const row = entry?.row || {};
+    const domainName = String(row?.name || row?.domain || row?.site || '').trim();
+
+    if (domainEl) {
+        if (domainName) {
+            domainEl.textContent = domainName;
+            domainEl.style.display = 'inline-flex';
+        } else {
+            domainEl.textContent = '';
+            domainEl.style.display = 'none';
+        }
+    }
+
+    const info = meta?.breakdown?.meta || {};
+    const timeline = Array.isArray(info.scoring_timeline) ? info.scoring_timeline : [];
+    const idx = Math.max(0, Math.min(Number(activeTimelineIdx) || 0, Math.max(0, timeline.length - 1)));
     entry.activeTimelineIdx = idx;
+
+    const activeT = timeline[idx] || null;
+    const runHour = activeT?.run_hour != null ? String(activeT.run_hour).trim() : '';
+    const cacheMap = (info && typeof info.decision_compare_by_hour === 'object') ? info.decision_compare_by_hour : {};
+    info.decision_compare = runHour && cacheMap[runHour] ? cacheMap[runHour] : null;
+
     if (body) body.innerHTML = renderDetailKeputusanHTML(meta, storeKey, idx);
     modal.classList.add('active');
 
@@ -3048,7 +3088,6 @@ async function ensureDecisionCompareLoaded(storeKey, activeTimelineIdx) {
     if (!entry || typeof entry !== 'object') return;
     const meta = entry?.meta && typeof entry.meta === 'object' ? entry.meta : {};
     const info = meta?.breakdown?.meta || {};
-    if (info.decision_compare) return; // sudah ada
     const row = entry?.row || {};
     const state = entry?.state || {};
     const date = String(state?.date || info.date || '').trim();
@@ -3058,7 +3097,24 @@ async function ensureDecisionCompareLoaded(storeKey, activeTimelineIdx) {
     const timeline = Array.isArray(info.scoring_timeline) ? info.scoring_timeline : [];
     const idx = Math.max(0, Math.min(Number(activeTimelineIdx) || 0, Math.max(0, timeline.length - 1)));
     const activeT = timeline[idx] || null;
-    const runHour = activeT?.run_hour != null ? String(activeT.run_hour) : '';
+    const runHour = activeT?.run_hour != null ? String(activeT.run_hour).trim() : '';
+
+    meta.breakdown = meta.breakdown || {};
+    meta.breakdown.meta = meta.breakdown.meta || {};
+    const cache = (meta.breakdown.meta.decision_compare_by_hour && typeof meta.breakdown.meta.decision_compare_by_hour === 'object')
+        ? meta.breakdown.meta.decision_compare_by_hour
+        : {};
+
+    if (runHour && cache[runHour]) {
+        meta.breakdown.meta.decision_compare = cache[runHour];
+        entry.meta = meta;
+        const modal = document.getElementById('decision-detail-modal');
+        const body = document.getElementById('decision-detail-body');
+        if (modal && modal.classList.contains('active') && body) {
+            body.innerHTML = renderDetailKeputusanHTML(meta, storeKey, idx);
+        }
+        return;
+    }
 
     try {
         const res = await fetch('/management/admin/dashboard_scoring_compare', {
@@ -3069,11 +3125,12 @@ async function ensureDecisionCompareLoaded(storeKey, activeTimelineIdx) {
         });
         const json = await res.json();
         if (!res.ok || !json || !json.status) return;
-        // sisipkan ke meta agar renderDetailKeputusanHTML bisa baca
-        meta.breakdown = meta.breakdown || {};
-        meta.breakdown.meta = meta.breakdown.meta || {};
-        meta.breakdown.meta.decision_compare = json.data || {};
+
+        if (runHour) cache[runHour] = json.data || {};
+        meta.breakdown.meta.decision_compare_by_hour = cache;
+        meta.breakdown.meta.decision_compare = (runHour && cache[runHour]) ? cache[runHour] : (json.data || {});
         entry.meta = meta;
+
         const modal = document.getElementById('decision-detail-modal');
         const body = document.getElementById('decision-detail-body');
         if (modal && modal.classList.contains('active') && body) {
@@ -3105,8 +3162,13 @@ function tryOpenScoringDetailFromDecision(storeKey) {
 
 function closeDetailKeputusan() {
     const modal = document.getElementById('decision-detail-modal');
+    const domainEl = document.getElementById('decision-detail-domain');
     if (modal) {
         modal.classList.remove('active');
+    }
+    if (domainEl) {
+        domainEl.textContent = '';
+        domainEl.style.display = 'none';
     }
 }
 // ===== END MODAL FUNCTIONS =====
@@ -3353,7 +3415,6 @@ function initDashboardRecap() {
         let updatedAt = '';
         if (raw) {
             const dt = new Date(raw.replace(' ', 'T'));
-            // console.log("dtnya : ", dt);
             updatedAt = Number.isNaN(dt.getTime()) ? raw : dt.toLocaleString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
         }
         return { value, updatedAt };
@@ -3958,14 +4019,30 @@ function initDashboardRecap() {
         return scxNum(base, 2);
     }
 
+    function scxSpendValue(row) {
+        const spend = Number(row?.spend);
+        if (Number.isFinite(spend)) return spend;
+        const legacy = Number(row?.meta_spend);
+        return Number.isFinite(legacy) ? legacy : 0;
+    }
+
+    function scxRevenueValue(row) {
+        const revenue = Number(row?.revenue);
+        if (Number.isFinite(revenue)) return revenue;
+        const legacy = Number(row?.revenue_value);
+        if (Number.isFinite(legacy)) return legacy;
+        return Number(row?.adx_revenue ?? 0) + Number(row?.adsense_estimated_earnings ?? 0);
+    }
+
     function scxRenderBackendStatusTable(statuses) {
         const rows = Array.isArray(statuses) ? statuses : [];
+        console.log(rows);
         if (!rows.length) return `<div class="scx-sub">Status backend kosong.</div>`;
         let html = `<div class="scx-roi-legend"><span class="scx-roi-chip red">ROI &lt; 200% = Merah</span><span class="scx-roi-chip yellow">ROI 200% - 300% = Kuning</span><span class="scx-roi-chip green">ROI &gt; 300% = Hijau</span><span class="scx-roi-chip" style="background:#eef2ff;color:#3730a3;border:1px solid rgba(55,48,163,.18);">Confidence tinggi = biru</span></div>`;
-        html += `<div class="scx-table-scroll"><div class="table-responsive"><table class="table table-sm table-striped scx-country-table"><thead><tr><th>Negara</th><th>Join</th><th>Source</th><th>Status</th><th class="text-end">Health</th><th class="text-end">Risk</th><th class="text-end">Adj</th><th class="text-end">Conf</th><th class="text-end">Decision</th><th class="text-end">Pos</th><th class="text-end">Neg</th><th class="text-end">Spend</th><th class="text-end">Revenue</th><th class="text-end">ROI</th><th>Updated</th></tr></thead><tbody>`;
+        html += `<div class="scx-table-scroll"><div class="table-responsive"><table class="table table-sm table-striped scx-country-table"><thead><tr><th>Negara</th><th>Join</th><th>Source</th><th>Status</th><th class="text-end">Health</th><th class="text-end">Risk</th><th class="text-end">Adj</th><th class="text-end">Conf</th><th class="text-end">Decision</th><th class="text-end">Pos</th><th class="text-end">Neg</th><th class="text-end">Spend</th><th class="text-end">Revenue</th><th class="text-end">ROI</th></tr></thead><tbody>`;
         rows.forEach(function(st){
-            const spend = Number(st?.spend ?? st?.meta_spend ?? 0);
-            const revenue = Number(st?.revenue ?? st?.revenue_value ?? ((Number(st?.adx_revenue||0)+Number(st?.adsense_estimated_earnings||0))));
+            const spend = scxSpendValue(st);
+            const revenue = scxRevenueValue(st);
             const roiRaw = Number(st?.roi);
             const roi = Number.isFinite(roiRaw) ? roiRaw : (spend > 0 ? ((revenue - spend) / spend) * 100 : NaN);
             const pos = Number(st?.positive_signal_count ?? st?.positive_signals ?? 0);
@@ -3984,8 +4061,6 @@ function initDashboardRecap() {
             const adjTone = !Number.isFinite(adj) ? 'gray' : (adj >= 10 ? 'green' : (adj <= -10 ? 'red' : 'yellow'));
             const statusLabel = String(st?.final_label || st?.root_cause_label || '-');
             const srcMode = String(st?.mapped_revenue_source || st?.source_mode || '-').toUpperCase();
-            const updatedRaw = String(st?.run_time || st?.snapshot_time || st?.last_update || st?.run_hour || '').trim();
-            const updatedText = updatedRaw ? updatedRaw.replace('T',' ').slice(0,19) : '-';
             html += `<tr>
                 <td style="font-weight:800;color:#0f172a;">${esc(scxCountryLabel(st))}</td>
                 <td>${esc(String(st?.join_status || '-'))}</td>
@@ -4001,7 +4076,6 @@ function initDashboardRecap() {
                 <td class="text-end">${esc(scxNum(spend,0))}</td>
                 <td class="text-end">${esc(scxNum(revenue,0))}</td>
                 <td class="text-end scx-roi-band ${roiClass}">${Number.isFinite(roi) ? `${esc(scxNum(roi,2))}%` : '-'}</td>
-                <td style="font-size:11px;color:#64748b;white-space:nowrap;">${esc(updatedText)}</td>
             </tr>`;
         });
         return html + `</tbody></table></div></div>`;
@@ -4010,7 +4084,7 @@ function initDashboardRecap() {
     function scxRenderBackendEventTable(events) {
         const rows = (Array.isArray(events) ? events : []).slice().sort(function(a,b){ return Math.abs(Number(b?.signal_strength||0)) - Math.abs(Number(a?.signal_strength||0)); });
         if (!rows.length) return `<div class="scx-sub">Event backend kosong.</div>`;
-        let html = `<div class="scx-table-scroll"><div class="table-responsive"><table class="table table-sm table-striped scx-simple-table"><thead><tr><th>Negara</th><th>Group</th><th>Metric</th><th class="text-end">Prev</th><th class="text-end">Current</th><th class="text-end">Δ Abs</th><th class="text-end">Δ %</th><th class="text-end">Baseline</th><th class="text-end">Signal</th><th>Class</th><th class="text-end">Conf</th><th>Reason</th></tr></thead><tbody>`;
+        let html = `<div class="scx-table-scroll"><div class="table-responsive"><table class="table table-sm table-striped scx-simple-table"><thead><tr><th>Negara</th><th>Group</th><th>Metric</th><th class="text-end">Prev</th><th class="text-end">Current</th><th class="text-end">Δ Abs</th><th class="text-end">Δ %</th><th class="text-end">Signal</th><th>Class</th><th class="text-end">Conf</th><th>Reason</th></tr></thead><tbody>`;
         rows.forEach(function(ev){
             const sig = Number(ev?.signal_strength);
             const sigTone = scxSignalTone(sig);
@@ -4028,7 +4102,6 @@ function initDashboardRecap() {
                 <td class="text-end" style="font-weight:800;">${esc(scxNum(ev?.cur_value,2))}</td>
                 <td class="text-end">${esc(scxNum(ev?.delta_abs,2))}</td>
                 <td class="text-end">${esc(scxNum(ev?.delta_pct,2))}</td>
-                <td class="text-end" title="baseline_center">${esc(scxBaselineText(ev))}</td>
                 <td class="text-end"><span class="scx-impact ${sigTone}">${esc(scxNum(sig,4))}</span></td>
                 <td><span class="scx-pill ${clsTone}">${esc(cls)}</span></td>
                 <td class="text-end"><span class="scx-pill ${conf01 >= 0.8 ? 'green' : (conf01 >= 0.55 ? 'yellow' : 'red')}">${esc(confPct)}</span></td>
@@ -4036,6 +4109,24 @@ function initDashboardRecap() {
             </tr>`;
         });
         return html + `</tbody></table></div></div>`;
+    }
+
+    function mountScoreDetailBackendTables(scoring) {
+        const parsed = pickScoringArrays(scoring || {});
+        const statuses = Array.isArray(parsed?.statuses) ? parsed.statuses : [];
+        const events = Array.isArray(parsed?.events) ? parsed.events : [];
+        const countryDetails = Array.isArray(scoring?.country_details) ? scoring.country_details : [];
+        const statusRows = countryDetails.length ? countryDetails : statuses;
+        console.log(statusRows)
+        const statusBox = document.getElementById('scxBackendStatusContent');
+        const eventBox = document.getElementById('scxBackendEventContent');
+        const statusLoading = document.getElementById('scxBackendStatusLoading');
+        const eventLoading = document.getElementById('scxBackendEventLoading');
+
+        if (statusBox) statusBox.innerHTML = scxRenderBackendStatusTable(statusRows);
+        if (eventBox) eventBox.innerHTML = scxRenderBackendEventTable(events);
+        if (statusLoading) statusLoading.style.display = 'none';
+        if (eventLoading) eventLoading.style.display = 'none';
     }
 
     function scxCountrySummaryTable(groups) {
@@ -4067,10 +4158,8 @@ function initDashboardRecap() {
             html += `<td><span class="scx-pill ${tone}">${esc(finalLabel)}</span></td>`;
             html += `<td class="text-end">${esc(scxNum(st?.health_score, 2))}</td>`;
             html += `<td class="text-end">${esc(scxNum(st?.ivt_risk_score, 2))}</td>`;
-            const spend = Number(st?.spend ?? st?.meta_spend ?? 0);
-            const rev1 = Number(st?.revenue ?? st?.revenue_value ?? NaN);
-            const rev2 = Number(st?.adx_revenue ?? 0) + Number(st?.adsense_estimated_earnings ?? 0);
-            const revenue = Number.isFinite(rev1) ? rev1 : rev2;
+            const spend = scxSpendValue(st);
+            const revenue = scxRevenueValue(st);
             const roiRaw = Number(st?.roi);
             const roi = Number.isFinite(roiRaw) ? roiRaw : (spend > 0 ? ((revenue - spend) / spend) * 100 : NaN);
             html += `<td class="text-end">${esc(scxNum(st?.decision_margin, 2))}</td>`;
@@ -5319,7 +5408,7 @@ function initDashboardRecap() {
 
             const spendVal = pickNum(r, [
                 'spend',
-                'meta_spend',
+                'spend',
                 'data_ads_country_spend'
             ]);
 
@@ -6196,9 +6285,10 @@ function initDashboardRecap() {
         return { statuses, events };
     }
 
-    function scxBuildSyntheticEventsFromStatuses(statuses, metaInfo) {
+    function scxBuildSyntheticEventsFromStatuses(statuses, metaInfo, historyByOffset) {
         const list = Array.isArray(statuses) ? statuses : [];
         const info = (metaInfo && typeof metaInfo === 'object') ? metaInfo : {};
+        const hist = (historyByOffset && typeof historyByOffset === 'object') ? historyByOffset : {};
         const defs = [
             ['traffic_score', 'TRAFFIC_SCORE', 'traffic'],
             ['delivery_score', 'DELIVERY_SCORE', 'delivery'],
@@ -6214,6 +6304,18 @@ function initDashboardRecap() {
             defs.forEach(function(def) {
                 const raw = Number(st?.[def[0]] ?? info?.[def[0]] ?? 0);
                 if (!Number.isFinite(raw) || Math.abs(raw) < 0.01) return;
+                const h1 = Number(hist?.h1?.[def[0]]);
+                const h3 = Number(hist?.h3?.[def[0]]);
+                const h7 = Number(hist?.h7?.[def[0]]);
+                const prev = Number.isFinite(h1) ? h1 : (Number.isFinite(h3) ? h3 : (Number.isFinite(h7) ? h7 : NaN));
+                let baseNum = 0;
+                let den = 0;
+                if (Number.isFinite(h1)) { baseNum += h1 * 0.5; den += 0.5; }
+                if (Number.isFinite(h3)) { baseNum += h3 * 0.3; den += 0.3; }
+                if (Number.isFinite(h7)) { baseNum += h7 * 0.2; den += 0.2; }
+                const base = den > 0 ? (baseNum / den) : NaN;
+                const deltaAbs = Number.isFinite(prev) ? (raw - prev) : NaN;
+                const deltaPct = (Number.isFinite(prev) && Math.abs(prev) > 1e-9) ? ((deltaAbs / Math.abs(prev)) * 100) : NaN;
                 const signal = scxClamp(raw / 100, -1, 1);
                 const metricLabel = scxMetricName(def[1]);
                 out.push({
@@ -6224,13 +6326,17 @@ function initDashboardRecap() {
                     metric_group: def[2],
                     header_name: def[1],
                     rule_key: def[1],
+                    prev_value: Number.isFinite(prev) ? prev : null,
                     cur_value: raw,
-                    baseline_center: 0,
+                    baseline_center: Number.isFinite(base) ? base : null,
+                    delta_abs: Number.isFinite(deltaAbs) ? deltaAbs : null,
+                    delta_pct: Number.isFinite(deltaPct) ? deltaPct : null,
+                    hist_points: [h1, h3, h7].filter(Number.isFinite).length,
                     signal_strength: signal,
                     change_class: signal >= 0 ? 'POSITIVE' : 'NEGATIVE',
                     confidence: Number(st?.confidence ?? info?.confidence ?? 0.5),
                     event_label: signal >= 0 ? `${metricLabel} membaik` : `${metricLabel} melemah`,
-                    event_reason: `Sumber DashboardScoringDataView: ${metricLabel} ${scxNum(raw, 2)}`
+                    event_reason: `Sumber DashboardScoringDataView: ${metricLabel} ${scxNum(raw, 2)} · baseline H-1/H-3/H-7`
                 });
             });
         });
@@ -6270,7 +6376,6 @@ function initDashboardRecap() {
             const detailRowsForStatus = detailCountryDetails.length ? detailCountryDetails : detailStatuses;
             const detailEvents = Array.isArray(parsed?.events) ? parsed.events : [];
             const first = scxAggregateScoring(parsed.statuses, aggEvents, groups);
-            console.log("first : ",first);
             const trendWindows = row?.trend_windows || {};
     
             const finalLabel = String(first?.final_label || 'UNKNOWN');
@@ -6444,13 +6549,15 @@ function initDashboardRecap() {
             html += `  <div class="scx-section-gap">`;
             html += `      <div class="scx-section-head"><div class="left">Detail Status Backend (Semua Negara)</div><div class="right">Validasi spend • revenue • ROI</div></div>`;
             html += `      <div class="scx-sub" style="margin-bottom:8px;">Menampilkan data status mentah dari DashboardScoringDataView.</div>`;
-            html +=         scxRenderBackendStatusTable(detailRowsForStatus);
+            html += `      <div id="scxBackendStatusLoading" class="scx-table-loading"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><span>Memuat tabel status backend...</span></div>`;
+            html += `      <div id="scxBackendStatusContent"></div>`;
             html += `  </div>`;
 
             html += `  <div class="scx-section-gap">`;
             html += `      <div class="scx-section-head"><div class="left">Detail Event Signal Backend (Semua Event)</div><div class="right">Tanpa top-N, urut dari signal terbesar</div></div>`;
             html += `      <div class="scx-sub" style="margin-bottom:8px;">Semua baris event ditampilkan tanpa ringkas top-N. Baseline bertanda <strong>Belum cukup histori</strong> jika data histori belum cukup.</div>`;
-            html +=         scxRenderBackendEventTable(detailEvents);
+            html += `      <div id="scxBackendEventLoading" class="scx-table-loading"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><span>Memuat tabel event backend...</span></div>`;
+            html += `      <div id="scxBackendEventContent"></div>`;
             html += `  </div>`;
     
             html += `  <details class="sd-details" style="margin-top:16px;">`;
@@ -6591,14 +6698,17 @@ function initDashboardRecap() {
             const rowWithTrend = Object.assign({}, row, { trend_windows: trendWindows });
             let effectiveMeta = metaHint;
             let detailMeta = null;
+            let syntheticHistoryByOffset = {};
+            const dim = String(state?.dim || '').toLowerCase();
+            const key = scoringLookupKey(dim, row);
+            const baseDate = String(state?.date || '').trim();
+            const payloadBase = { dim: String(state.dim || 'domain').trim(), source: String(state.source || 'all').trim(), entities: key ? [key] : [], include_events: true };
             try {
-                const dim = String(state?.dim || '').toLowerCase();
-                const key = scoringLookupKey(dim, row);
-                if (key && state?.date) {
+                if (key && baseDate) {
                     const detailRes = await fetch('/management/admin/dashboard_scoring_data', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                        body: JSON.stringify({ date: String(state.date || '').trim(), dim: String(state.dim || 'domain').trim(), source: String(state.source || 'all').trim(), entities: [key], include_events: true }),
+                        body: JSON.stringify(Object.assign({}, payloadBase, { date: baseDate })),
                         credentials: 'same-origin'
                     });
                     const detailJson = await detailRes.json();
@@ -6606,6 +6716,25 @@ function initDashboardRecap() {
                         const raw = lookupStoredMetaRaw(row, state, detailJson.data);
                         if (raw) detailMeta = summarizeDashboardScoringMeta(raw, row, state);
                     }
+
+                    const histFetch = async function(offsetKey, diffDays) {
+                        const d = ymdShift(baseDate, diffDays);
+                        if (!d) return [offsetKey, {}];
+                        const st = Object.assign({}, state, { date: d });
+                        const res = await fetch('/management/admin/dashboard_scoring_data', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                            body: JSON.stringify(Object.assign({}, payloadBase, { date: d })),
+                            credentials: 'same-origin'
+                        });
+                        const js = await res.json();
+                        if (!res.ok || !js?.status || !js?.data) return [offsetKey, {}];
+                        const raw = lookupStoredMetaRaw(row, st, js.data);
+                        const m = raw ? summarizeDashboardScoringMeta(raw, row, st) : null;
+                        return [offsetKey, m?.breakdown?.meta || {}];
+                    };
+                    const histRows = await Promise.all([histFetch('h1', -1), histFetch('h3', -3), histFetch('h7', -7)]);
+                    syntheticHistoryByOffset = Object.fromEntries(histRows);
                 }
             } catch (e) {}
 
@@ -6642,7 +6771,7 @@ function initDashboardRecap() {
             let events = nativeEvents;
             if (!events.length) {
                 const metaInfo = effectiveMeta?.breakdown?.meta || {};
-                events = scxBuildSyntheticEventsFromStatuses(statuses, metaInfo);
+                events = scxBuildSyntheticEventsFromStatuses(statuses, metaInfo, syntheticHistoryByOffset);
             }
             const normalizedJson = Object.assign({}, json, {
                 scoring: Object.assign({}, json?.scoring || {}, {
@@ -6661,6 +6790,7 @@ function initDashboardRecap() {
 
             window.setTimeout(function() {
                 try {
+                    mountScoreDetailBackendTables(normalizedJson?.scoring || {});
                     bindScoreCountryTabs(function(tabKey){
                         const endYmd = String(state.date || '').trim();
                         if (!endYmd) return;
@@ -6836,7 +6966,6 @@ function initDashboardRecap() {
         const data = scored.map((x, i) => {
             const r = x.r;
             const meta = x.meta;
-            console.log("data x:", x)
             const k = `${String(state?.dim || '')}\u241F${String(scoringLookupKey(dim, r) || String(r?.name || ''))}|${String(r?.code || '')}`;
             window.dashboardRecapScoreDetails[k] = { row: r, meta, state };
 
@@ -6866,7 +6995,6 @@ function initDashboardRecap() {
         const hasDt = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.DataTable === 'function');
         const hasDtButtons = !!(hasDt && jQuery.fn.dataTable && jQuery.fn.dataTable.Buttons);
         const tbody = document.getElementById('dashboardRecapTbody');
-        console.log('Info tbody:', tbody);
         if (!tableEl || !tbody) return;
 
         if (!hasDt) {
