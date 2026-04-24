@@ -178,7 +178,7 @@ class Command(BaseCommand):
                                     'log_adx_country_cpm': record.get('data_adx_country_cpm'),
                                     'log_adx_country_ecpm': record.get('data_adx_country_ecpm'),
                                     'log_adx_country_total_requests': record.get('data_adx_country_total_requests'),
-                                    'log_adx_country_response_served': record.get('data_adx_country_response_served'),
+                                    'log_adx_country_responses_served': record.get('data_adx_country_response_served'),
                                     'log_adx_country_match_rate': record.get('data_adx_country_match_rate'),
                                     'log_adx_country_fill_rate': record.get('data_adx_country_fill_rate'),
                                     'log_adx_country_active_view_pct_viewable': record.get('data_adx_country_active_view_pct_viewable'),
