@@ -3391,8 +3391,11 @@ function initDashboardRecap() {
         merged.breakdown = bd;
         if (!Array.isArray(merged.reasons)) merged.reasons = [];
         if (!merged.reasons.length && info.reason_summary) merged.reasons = [String(info.reason_summary)];
-        if (merged.score == null) merged.score = Math.round(scxClamp((((health + 100) / 2) * 0.45) + ((100 - risk) * 0.2) + ((conf * 100) * 0.15) + (scxClamp(dm + 50, 0, 100) * 0.2), 0, 100));
-        if (!merged.decision) {
+        if (merged.score == null) {
+            merged.score = null;
+            merged.decision = '';
+            if (!merged.label) merged.label = 'BELUM ADA HASIL';
+        } else if (!merged.decision) {
             const decisionMeta = scxDeriveDecision(merged.score, String(merged.label || info.final_label || info.root_cause_label || 'STABLE'), health, risk, adj, conf, dm);
             merged.decision = decisionMeta.decision;
             if (!merged.reasons.length && decisionMeta.basis) merged.reasons = [decisionMeta.basis];

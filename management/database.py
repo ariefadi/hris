@@ -8064,6 +8064,8 @@ class data_mysql:
                 m.date AS date,
                 -- META
                 m.spend AS meta_spend,
+                m.meta_budget AS meta_daily_budget,
+                m.campaign_name AS meta_campaign,
                 m.cpc AS meta_cpc,
                 m.clicks AS meta_clicks,
                 m.lpv AS meta_lpv,
@@ -8101,19 +8103,25 @@ class data_mysql:
             (
                 -- META
                 SELECT
-                    lower(arrayStringConcat(arraySlice(splitByChar('.', data_ads_domain), 1, 2), '.')) AS domain,
-                    upper(data_ads_country_cd) AS country_cd,
-                    upper(data_ads_country_nm) AS country_name,
-                    toDate(data_ads_country_tanggal) AS date,
-                    toFloat64(argMax(data_ads_country_spend, data_ads_country_tanggal)) AS spend,
-                    toFloat64(argMax(data_ads_country_cpc, data_ads_country_tanggal)) AS cpc,
-                    toFloat64(argMax(data_ads_country_click, data_ads_country_tanggal)) AS clicks,
-                    toFloat64(argMax(data_ads_country_lpv, data_ads_country_tanggal)) AS lpv,
-                    toFloat64(argMax(data_ads_country_lpv_rate, data_ads_country_tanggal)) AS lpv_rate,
-                    toFloat64(argMax(data_ads_country_frekuensi, data_ads_country_tanggal)) AS frekuensi
-                FROM hris_trendHorizone.data_ads_country
-                WHERE data_ads_country_tanggal >= '{tanggal}'
-                GROUP BY domain, country_cd, country_name, date
+				  lower(arrayStringConcat(arraySlice(splitByChar('.', a.data_ads_domain), 1, 2), '.')) AS domain,
+				  upper(a.data_ads_country_cd) AS country_cd,
+				  upper(a.data_ads_country_nm) AS country_name,
+				  toDate(a.data_ads_country_tanggal) AS date,
+				  toFloat64(argMax(a.data_ads_country_spend, a.data_ads_country_tanggal)) AS spend,
+				  lower(a.data_ads_campaign_nm) AS campaign_name,
+				  toFloat64(argMax(b.master_budget, a.data_ads_country_tanggal)) AS meta_budget,
+				  toFloat64(argMax(a.data_ads_country_cpc, a.data_ads_country_tanggal)) AS cpc,
+				  toFloat64(argMax(a.data_ads_country_click, a.data_ads_country_tanggal)) AS clicks,
+				  toFloat64(argMax(a.data_ads_country_lpv, a.data_ads_country_tanggal)) AS lpv,
+				  toFloat64(argMax(a.data_ads_country_lpv_rate, a.data_ads_country_tanggal)) AS lpv_rate,
+				  toFloat64(argMax(a.data_ads_country_frekuensi, a.data_ads_country_tanggal)) AS frekuensi
+				FROM hris_trendHorizone.data_ads_country a
+				INNER JOIN master_ads b
+				  ON lower(arrayStringConcat(arraySlice(splitByChar('.', a.data_ads_domain), 1, 2), '.'))
+				   = lower(arrayStringConcat(arraySlice(splitByChar('.', b.master_domain), 1, 2), '.'))
+				 AND a.data_ads_country_tanggal = b.master_date
+				WHERE a.data_ads_country_tanggal >= '{tanggal}'
+				GROUP BY domain, campaign_name, country_cd, country_name, date
             ) m
             LEFT JOIN
             (
@@ -8212,6 +8220,8 @@ class data_mysql:
 			    m.date AS date,
                 -- META
                 m.spend AS meta_spend,
+                m.meta_budget AS meta_daily_budget,
+                m.campaign_name AS meta_campaign,
                 m.cpc AS meta_cpc,
                 m.clicks AS meta_clicks,
                 m.lpv AS meta_lpv,
@@ -8247,25 +8257,30 @@ class data_mysql:
                 if(m.spend > 0, (ifNull(a.revenue,0) + ifNull(s.revenue,0)) / m.spend, 0) AS roas
             FROM
             (
-					-- META
-               		SELECT
-					 	toDate(log_ads_country_tanggal) AS run_date,
-					    toHour(toTimeZone(mdd,'Asia/Jakarta')) AS run_hour,
-					    formatDateTime( toTimeZone(argMax(mdd, mdd),'Asia/Jakarta'), '%H:%i:%S') AS run_time,
-					    lower(arrayStringConcat(arraySlice(splitByChar('.', log_ads_domain),1,2),'.')) AS domain,
-					    upper(log_ads_country_cd) AS country_cd,
-					    upper(log_ads_country_nm) AS country_name,
-					    toDate(log_ads_country_tanggal) AS date,
-					    argMax(log_ads_country_spend, mdd) AS spend,
-					    argMax(log_ads_country_cpc, mdd) AS cpc,
-					    argMax(log_ads_country_click, mdd) AS clicks,
-					    argMax(log_ads_country_lpv, mdd) AS lpv,
-					    argMax(log_ads_country_lpv_rate, mdd) AS lpv_rate,
-					    argMax(log_ads_country_frekuensi, mdd) AS frekuensi
-					FROM hris_trendHorizone.log_ads_country
-					WHERE log_ads_country_tanggal = '{tanggal}'
-					GROUP BY domain, country_cd, country_name, date, run_hour
-					ORDER BY domain, country_cd, run_hour
+					SELECT
+					  toDate(argMax(a.mdd, a.mdd)) AS run_date,
+					  toHour(toTimeZone(argMax(a.mdd, a.mdd), 'Asia/Jakarta')) AS run_hour,
+					  formatDateTime(toTimeZone(argMax(a.mdd, a.mdd), 'Asia/Jakarta'), '%H:%i:%S') AS run_time,
+					  lower(arrayStringConcat(arraySlice(splitByChar('.', a.log_ads_domain),1,2),'.')) AS domain,
+					  upper(a.log_ads_country_cd) AS country_cd,
+					  upper(a.log_ads_country_nm) AS country_name,
+					  toDate(a.log_ads_country_tanggal) AS date,
+					  argMax(a.log_ads_country_spend, a.mdd) AS spend,
+					  lower(a.log_ads_campaign_nm) AS campaign_name,
+					  toFloat64(argMax(b.master_budget, a.mdd)) AS meta_budget,
+					  argMax(a.log_ads_country_cpc, a.mdd) AS cpc,
+					  argMax(a.log_ads_country_click, a.mdd) AS clicks,
+					  argMax(a.log_ads_country_lpv, a.mdd) AS lpv,
+					  argMax(a.log_ads_country_lpv_rate, a.mdd) AS lpv_rate,
+					  argMax(a.log_ads_country_frekuensi, a.mdd) AS frekuensi
+					FROM hris_trendHorizone.log_ads_country a
+					INNER JOIN master_ads b
+					  ON lower(arrayStringConcat(arraySlice(splitByChar('.', a.log_ads_domain), 1, 2), '.'))
+					   = lower(arrayStringConcat(arraySlice(splitByChar('.', b.master_domain), 1, 2), '.'))
+					AND a.log_ads_country_tanggal = b.master_date
+					WHERE a.log_ads_country_tanggal = '{tanggal}'
+					GROUP BY domain, campaign_name, country_cd, country_name, date
+					ORDER BY domain, campaign_name, country_cd, run_hour
             ) m
             LEFT JOIN
             (
@@ -8330,7 +8345,7 @@ class data_mysql:
 			AND m.date=s.date
 			AND m.run_hour=s.run_hour
 		    WHERE m.spend>0
-			ORDER BY m.date DESC,m.domain,m.country_cd
+			ORDER BY m.date DESC,m.domain, m.country_cd
             """
             # Gunakan koneksi ClickHouse
             if clickhouse_connect is None:
@@ -8467,6 +8482,8 @@ class data_mysql:
                     "join_status": join_status,
                     # META
                     "meta_spend": float(row.get("meta_spend", 0)),
+                    "meta_daily_budget": float(row.get("meta_daily_budget", 0)),
+                    "meta_campaign": row.get("meta_campaign"),
                     "meta_cpc": float(row.get("meta_cpc", 0)),
                     "meta_clicks": _to_uint(row.get("meta_clicks", 0)),
                     "meta_lpv": float(row.get("meta_lpv", 0)),

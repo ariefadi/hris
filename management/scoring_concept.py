@@ -157,7 +157,7 @@ class MetricRule:
 
 RULES: list[MetricRule] = [
     MetricRule("meta_spend", "meta", "control", "counter", "acquisition_cost", "adjustment_guardrail", "NEUTRAL", "HOURLY_INCREMENT_Z", 0.00, adjustment_weight=1.25, deadband_pct=0.03, family_key="meta_budget", family_rank=2, label_negative="META_SPEND_DROP", requires_source_match=False),
-    # MetricRule("meta_budget_pacing_index", "meta", "control", "band", "budget_pacing", "pacing", "RANGE_GOOD", "BAND_TARGET", 0.55, 0.75, 1.10, ivt_weight=0.30, volume_gate_column="meta_daily_budget", min_volume=1, family_key="meta_budget", family_rank=1, range_low=0.70, range_high=1.30, band_dynamic=True, band_quantile_low=0.20, band_quantile_high=0.80, band_sigma=1.00, band_min_width_pct=0.08, label_positive="BUDGET_PACING_IN_RANGE", label_negative="BUDGET_PACING_OUT_OF_RANGE", requires_source_match=True),
+    MetricRule("meta_budget_pacing_index", "meta", "control", "band", "budget_pacing", "pacing", "RANGE_GOOD", "BAND_TARGET", 0.55, 0.75, 1.10, ivt_weight=0.30, volume_gate_column="meta_daily_budget", min_volume=1, family_key="meta_budget", family_rank=1, range_low=0.70, range_high=1.30, band_dynamic=True, band_quantile_low=0.20, band_quantile_high=0.80, band_sigma=1.00, band_min_width_pct=0.08, label_positive="BUDGET_PACING_IN_RANGE", label_negative="BUDGET_PACING_OUT_OF_RANGE", requires_source_match=True),
     MetricRule("meta_avg_cpc", "meta", "efficiency", "level", "acquisition_cost", "guardrail", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.85, 0.85, 1.05, ivt_weight=0.20, volume_gate_column="meta_clicks", min_volume=20, family_key="meta_efficiency", family_rank=1, label_positive="META_CPC_IMPROVING", label_negative="META_CPC_RISING", requires_source_match=False),
     MetricRule("meta_clicks", "meta", "traffic", "counter", "acquisition", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.10, 0.95, 1.10, adjustment_weight=0.75, ivt_weight=0.25, deadband_pct=0.03, family_key="meta_traffic_volume", family_rank=2, label_positive="META_TRAFFIC_UP", label_negative="META_TRAFFIC_DOWN", requires_source_match=False),
     MetricRule("meta_lpv", "meta", "traffic", "counter", "landing", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.35, 0.95, 1.15, adjustment_weight=1.00, ivt_weight=0.35, deadband_pct=0.03, family_key="meta_traffic_volume", family_rank=1, label_positive="LPV_UP", label_negative="LPV_DOWN", requires_source_match=False),
@@ -216,6 +216,7 @@ RAW_JOIN_COLUMNS = [
     "mapped_revenue_source",
     "revenue_value",
     "join_status",
+    "meta_campaign",
     "meta_daily_budget",
     "meta_spend",
     "meta_avg_cpc",
@@ -283,10 +284,12 @@ STATUS_COMPAT_COLUMNS = [
     "run_hour",
     "entity_key",
     "site",
+    "meta_campaign",
     "country_code",
     "country_name",
     "date",
     "mapped_revenue_source",
+    "meta_campaign",
     "join_status",
     "status_scope",
     "spend",
@@ -342,10 +345,12 @@ EVENT_COMPAT_COLUMNS = [
     "run_hour",
     "entity_key",
     "site",
+    "meta_campaign",
     "country_code",
     "country_name",
     "date",
     "mapped_revenue_source",
+    "meta_campaign",
     "join_status",
     "source_scope",
     "header_name",
@@ -611,13 +616,13 @@ def _load_join_history(target_date: date, domain: str, lookback_days: int = 35, 
         ])
         df = query_df(sql)
     else:
-        group_keys = ["site", "country_code", "entity_key", "date", "run_hour"]
+        group_keys = ["site", "meta_campaign", "country_code", "entity_key", "date", "run_hour"]
         group_keys = [c for c in group_keys if c in table_cols]
 
         # Build inner SELECT: dedup per key dengan argMax(..., order_key).
         # Untuk kolom yang tidak ada di tabel, kita emit default constant supaya outer query/metric rules tidak error.
         def _default_expr(col: str) -> str:
-            if col in {"site", "country_code", "country_name", "entity_key", "mapped_revenue_source", "join_status", "run_time"}:
+            if col in {"site", "meta_campaign", "country_code", "country_name", "entity_key", "mapped_revenue_source", "join_status", "run_time"}:
                 return f"'' AS {col}"
             if col == "batch_id":
                 return f"toUUID('00000000-0000-0000-0000-000000000000') AS {col}"
@@ -656,7 +661,7 @@ def _load_join_history(target_date: date, domain: str, lookback_days: int = 35, 
         # kolom inti untuk scoring
         for c in [
             "batch_id", "run_time", "run_date", "run_hour",
-            "entity_key", "site", "country_code", "country_name", "date",
+            "entity_key", "site", "meta_campaign", "country_code", "country_name", "date",
             "mapped_revenue_source", "join_status",
         ]:
             outer_cols.append(c)
@@ -757,6 +762,7 @@ def _load_join_history(target_date: date, domain: str, lookback_days: int = 35, 
         return df
     out = df.copy()
     out["site"] = out["site"].map(normalize_domain)
+    out["meta_campaign"] = out["meta_campaign"].map(normalize_domain)
     out["country_code"] = out["country_code"].map(normalize_country_cd)
     out["country_name"] = [normalize_country_nm(c, n) for c, n in zip(out["country_code"], out["country_name"])]
     out["entity_key"] = out["entity_key"].astype(str)
@@ -778,7 +784,7 @@ def _load_join_history(target_date: date, domain: str, lookback_days: int = 35, 
 
     for col in RAW_JOIN_COLUMNS + ["revenue_value"]:
         if col in out.columns:
-            out[col] = out[col].map(safe_float) if col not in {"batch_id", "run_time", "run_date", "entity_key", "site", "country_code", "country_name", "date", "mapped_revenue_source", "join_status"} else out[col]
+            out[col] = out[col].map(safe_float) if col not in {"batch_id", "run_time", "run_date", "entity_key", "site", "meta_campaign", "country_code", "country_name", "date", "mapped_revenue_source", "join_status"} else out[col]
         else:
             out[col] = 0.0
     for col in RAW_RATE_COLUMNS:
@@ -855,15 +861,15 @@ def _compute_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     if not isinstance(run_hour_series, pd.Series):
         run_hour_series = pd.Series([run_hour_series] * len(out), index=out.index)
 
-    # expected_day_progress = ((run_hour_series.fillna(0.0).clip(lower=0.0, upper=23.0) + 1.0) / 24.0).clip(lower=(1.0 / 24.0), upper=1.0)
-    # out["meta_budget_utilization"] = [
-    #     _safe_div(s, b, 0.0) if safe_float(b) > 0 else 0.0
-    #     for s, b in zip(col("meta_spend"), col("meta_daily_budget"))
-    # ]
-    # out["meta_budget_pacing_index"] = [
-    #     _safe_div(util, progress, 0.0) if safe_float(budget) > 0 else 0.0
-    #     for util, progress, budget in zip(out["meta_budget_utilization"], expected_day_progress, col("meta_daily_budget"))
-    # ]
+    expected_day_progress = ((run_hour_series.fillna(0.0).clip(lower=0.0, upper=23.0) + 1.0) / 24.0).clip(lower=(1.0 / 24.0), upper=1.0)
+    out["meta_budget_utilization"] = [
+        _safe_div(s, b, 0.0) if safe_float(b) > 0 else 0.0
+        for s, b in zip(col("meta_spend"), col("meta_daily_budget"))
+    ]
+    out["meta_budget_pacing_index"] = [
+        _safe_div(util, progress, 0.0) if safe_float(budget) > 0 else 0.0
+        for util, progress, budget in zip(out["meta_budget_utilization"], expected_day_progress, col("meta_daily_budget"))
+    ]
 
     # Derived metrics (vectorized, menghindari loop Python)
     meta_lpv = col("meta_lpv")
@@ -985,6 +991,7 @@ def _load_recent_status_history(target_date: date, lookback_days: int = 7) -> pd
 
     out = df.copy()
     out["site"] = out["site"].map(normalize_domain)
+    out["meta_campaign"] = out["meta_campaign"].map(normalize_domain)
     out["country_code"] = out["country_code"].map(normalize_country_cd)
     out["entity_base_key"] = out["site"] + "|" + out["country_code"]
     out["run_time"] = pd.to_datetime(out["run_time"], utc=True, errors="coerce")
@@ -1167,10 +1174,12 @@ def _event_template(cur: pd.Series, rule: MetricRule, batch_uuid: uuid.UUID) -> 
         "run_hour": int(cur["run_hour"]),
         "entity_key": cur["entity_key"],
         "site": cur["site"],
+        "meta_campaign": cur.get("meta_campaign", ""),
         "country_code": cur["country_code"],
         "country_name": cur["country_name"],
         "date": cur["date"],
         "mapped_revenue_source": cur.get("mapped_revenue_source", ""),
+        "meta_campaign": cur.get("meta_campaign", ""),
         "join_status": cur.get("join_status", ""),
         "source_mode": _get_source_mode(cur),
         "source_scope": rule.source_scope,
@@ -1421,10 +1430,12 @@ def _composite_event_template(cur: pd.Series, batch_uuid: uuid.UUID, header_name
         "run_hour": int(cur["run_hour"]),
         "entity_key": cur["entity_key"],
         "site": cur["site"],
+        "meta_campaign": cur.get("meta_campaign", ""),
         "country_code": cur["country_code"],
         "country_name": cur["country_name"],
         "date": cur["date"],
         "mapped_revenue_source": cur.get("mapped_revenue_source", ""),
+        "meta_campaign": cur.get("meta_campaign", ""),
         "join_status": cur.get("join_status", ""),
         "source_mode": _get_source_mode(cur),
         "source_scope": source_scope,
@@ -1482,7 +1493,7 @@ def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uui
     lpv = _signal_lookup(row_events, "meta_lpv")
     lpv_rate = _signal_lookup(row_events, "meta_lpv_rate")
     freq = _signal_lookup(row_events, "meta_frequency")
-    # budget_pacing = _signal_lookup(row_events, "meta_budget_pacing_index")
+    budget_pacing = _signal_lookup(row_events, "meta_budget_pacing_index")
     rev_per_lpv = _signal_lookup(row_events, "revenue_per_lpv")
     roi_proxy = _signal_lookup(row_events, "roi_proxy")
     blended_rev = _signal_lookup(row_events, "blended_revenue")
@@ -1675,19 +1686,19 @@ def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uui
         evt["note"] = "fatigue / saturation signature detected"
         push(evt)
 
-    # if safe_float(budget_pacing["signal_strength"]) < -0.18 and min(safe_float(rev_per_lpv["signal_strength"]), safe_float(roi_proxy["signal_strength"])) < -0.15:
-    #     conf = avg_conf_items([budget_pacing, rev_per_lpv, roi_proxy])
-    #     evt = _composite_event_template(cur, batch_uuid, "cx_budget_pressure_without_value", composite_source_scope, "efficiency", "budget_pacing", "relationship", "DOWN_GOOD")
-    #     evt["confidence"] = conf
-    #     evt["signal_strength"] = -clip((abs(safe_float(budget_pacing["signal_strength"])) + abs(min(safe_float(rev_per_lpv["signal_strength"]), safe_float(roi_proxy["signal_strength"])))) / 2.0, 0.0, 1.0)
-    #     evt["health_component"] = -0.80 * abs(evt["signal_strength"]) * conf
-    #     evt["ivt_component"] = 0.35 * abs(evt["signal_strength"]) * conf
-    #     evt["ivt_capacity"] = 0.45 * conf
-    #     evt["change_class"] = "NEGATIVE"
-    #     evt["event_label"] = "BUDGET_PRESSURE_WITHOUT_VALUE"
-    #     evt["event_reason"] = "PACING_HOT_AND_VALUE_DOWN"
-    #     evt["note"] = "budget pacing moved out of band while unit economics weakened"
-    #     push(evt)
+    if safe_float(budget_pacing["signal_strength"]) < -0.18 and min(safe_float(rev_per_lpv["signal_strength"]), safe_float(roi_proxy["signal_strength"])) < -0.15:
+        conf = avg_conf_items([budget_pacing, rev_per_lpv, roi_proxy])
+        evt = _composite_event_template(cur, batch_uuid, "cx_budget_pressure_without_value", composite_source_scope, "efficiency", "budget_pacing", "relationship", "DOWN_GOOD")
+        evt["confidence"] = conf
+        evt["signal_strength"] = -clip((abs(safe_float(budget_pacing["signal_strength"])) + abs(min(safe_float(rev_per_lpv["signal_strength"]), safe_float(roi_proxy["signal_strength"])))) / 2.0, 0.0, 1.0)
+        evt["health_component"] = -0.80 * abs(evt["signal_strength"]) * conf
+        evt["ivt_component"] = 0.35 * abs(evt["signal_strength"]) * conf
+        evt["ivt_capacity"] = 0.45 * conf
+        evt["change_class"] = "NEGATIVE"
+        evt["event_label"] = "BUDGET_PRESSURE_WITHOUT_VALUE"
+        evt["event_reason"] = "PACING_HOT_AND_VALUE_DOWN"
+        evt["note"] = "budget pacing moved out of band while unit economics weakened"
+        push(evt)
 
     if safe_float(primary_revenue["signal_strength"]) > 0.25 and safe_float(rev_per_lpv["signal_strength"]) > 0.15 and delivery_floor > -0.05:
         conf = avg_conf_items([primary_revenue, rev_per_lpv] + delivery_events)
@@ -1930,10 +1941,12 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "run_hour": int(cur["run_hour"]),
         "entity_key": cur["entity_key"],
         "site": cur["site"],
+        "meta_campaign": cur.get("meta_campaign", ""),
         "country_code": cur["country_code"],
         "country_name": cur["country_name"],
         "date": cur["date"],
         "mapped_revenue_source": cur.get("mapped_revenue_source", ""),
+        "meta_campaign": cur.get("meta_campaign", ""),
         "join_status": cur.get("join_status", ""),
         "source_mode": _get_source_mode(cur),
         "status_scope": "ACTIVE_DATE",
@@ -2037,7 +2050,7 @@ def score_site_country(
     same_hour_groups = {k: g.copy() for k, g in history_df.groupby(["entity_base_key", "run_hour"])}
     all_hour_groups = {k: g.copy() for k, g in history_df.groupby("entity_base_key")}
 
-    for _, cur in current_df.sort_values(["site", "country_code", "run_time"]).iterrows():
+    for _, cur in current_df.sort_values(["site", "meta_campaign", "country_code", "run_time"]).iterrows():
         base_key = cur["entity_base_key"]
         same_hour = same_hour_groups.get((base_key, int(cur["run_hour"])), pd.DataFrame())
         same_hour = same_hour[same_hour["date"] < cur["date"]].copy()

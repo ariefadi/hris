@@ -934,7 +934,7 @@ class DashboardScoringDataView(View):
                 raise RuntimeError('pandas belum tersedia')
             payload = json.loads((req.body or b'').decode('utf-8') or '{}')
             target_date = str(payload.get('date') or '').strip()
-            dim = str(payload.get('dim') or 'site').strip().lower()
+            dim = str(payload.get('dim') or 'site' or 'meta_campaign').strip().lower()
             raw_entities = payload.get('entities') or []
             include_events = bool(payload.get('include_events'))
             def normalize_site_entity(v):
@@ -1019,6 +1019,7 @@ class DashboardScoringDataView(View):
             sql = f"""
             SELECT
                 site,
+                meta_campaign,
                 date AS scoring_date,
                 run_time,
                 run_hour,
@@ -1065,6 +1066,7 @@ class DashboardScoringDataView(View):
             run_hour,
             entity_key,
             site,
+            meta_campaign,
             country_code, 
             country_name,
             join_status,
@@ -1110,9 +1112,10 @@ class DashboardScoringDataView(View):
             """
             source_sql = f"""
             SELECT
+                site,
+                meta_campaign,
                 date,
                 lower(entity_key) AS entity_key,
-                argMax(site, run_hour) AS site,
                 argMax(country_code, run_hour) AS country_code,
                 argMax(country_name, run_hour) AS country_name,
                 argMax(mapped_revenue_source, run_hour) AS mapped_revenue_source,
@@ -1178,6 +1181,8 @@ class DashboardScoringDataView(View):
             df['entity_key'] = df['entity_key'].astype(str).map(lambda x: x.strip().upper())
             if 'site' in df.columns:
                 df['site'] = df['site'].astype(str).map(lambda x: x.strip().upper())
+            if 'meta_campaign' in df.columns:
+                df['meta_campaign'] = df['meta_campaign'].astype(str).map(lambda x: x.strip().upper())
             if not event_df.empty and 'entity_key' in event_df.columns:
                 event_df['entity_key'] = event_df['entity_key'].astype(str).map(lambda x: x.strip().upper())
             df['scoring_date'] = pd.to_datetime(df.get('scoring_date'), errors='coerce').dt.date
@@ -1213,6 +1218,8 @@ class DashboardScoringDataView(View):
                 source_df['entity_key'] = source_df['entity_key'].astype(str).map(lambda x: x.strip().upper())
                 if 'site' in source_df.columns:
                     source_df['site'] = source_df['site'].astype(str).map(lambda x: x.strip().upper())
+                if 'meta_campaign' in source_df.columns:
+                    source_df['meta_campaign'] = source_df['meta_campaign'].astype(str).map(lambda x: x.strip().upper())
                 def _src_num(v):
                     try:
                         if pd.isna(v):
@@ -1234,6 +1241,7 @@ class DashboardScoringDataView(View):
                     row_dict = dict(srow)
                     src_key = str(srow.get('entity_key')).strip()
                     src_site = str(srow.get('site') or '').strip()
+                    src_meta_campaign = str(srow.get('meta_campaign') or '').strip().upper()
                     src_country = str(srow.get('country_code') or srow.get('country_cd') or '').strip().upper()
                     norm_site = normalize_site_entity(src_site)
                     row_rank = source_row_rank(row_dict)
@@ -1243,6 +1251,7 @@ class DashboardScoringDataView(View):
                         if (sc is None) or (row_rank > float(sc.get('_rank', -1e30))):
                             source_site_country_lookup[sc_key] = {
                                 'site': norm_site,
+                                'meta_campaign': src_meta_campaign,
                                 'country_code': src_country,
                                 'meta_spend': _src_num(srow.get('meta_spend')),
                                 'adx_revenue': _src_num(srow.get('adx_revenue')),
@@ -1335,16 +1344,25 @@ class DashboardScoringDataView(View):
                     if c in snap.columns:
                         labels.extend([str(x).strip().upper() for x in snap[c].tolist() if str(x).strip()])
                 label = pd.Series(labels).value_counts().index[0] if labels else 'STABLE'
-                score = (((health + 100.0) / 2.0) * 0.45) + ((100.0 - risk) * 0.2) + (conf * 100.0 * 0.15) + (clip(dm + 50.0, 0.0, 100.0) * 0.2)
-                score = int(round(clip(score, 0.0, 100.0)))
-                negative_labels = ["TRAFFIC_DROP","SERVING_DROP","YIELD_DROP","VIEWABILITY_DROP","EFFICIENCY_DROP","REVENUE_DROP","NEGATIVE_MIXED","NEG_ADJUSTMENT"]
-                decision = "HOLD"
-                if label.startswith("RED_FLAG") or (risk >= 85 and conf >= 0.55 and score < 45) or (dm <= -55 and health <= -18 and conf >= 0.55):
-                    decision = "STOP"
-                elif (label in ["POSITIVE_EXPANSION", "POSITIVE_RECOVERY"] and score >= 65 and risk < 55 and dm >= 8 and conf >= 0.5) or (score >= 75 and risk < 45 and dm >= 12 and conf >= 0.55):
-                    decision = "SCALE UP"
-                elif (label in negative_labels and (score < 60 or dm < -8 or health < -8 or adj < -15)) or (score < 45 and (dm < -8 or health < -10 or adj < -20 or risk >= 65)):
-                    decision = "SCALE DOWN"
+                total_pos = int(pd.to_numeric(snap['positive_signal_count'], errors='coerce').fillna(0).sum()) if 'positive_signal_count' in snap.columns else 0
+                total_neg = int(pd.to_numeric(snap['negative_signal_count'], errors='coerce').fillna(0).sum()) if 'negative_signal_count' in snap.columns else 0
+                total_neu = int(pd.to_numeric(snap['neutral_signal_count'], errors='coerce').fillna(0).sum()) if 'neutral_signal_count' in snap.columns else 0
+                has_scoring = (total_pos + total_neg + total_neu) > 0 and conf > 0
+                score = None
+                decision = ""
+                if has_scoring:
+                    score_raw = (((health + 100.0) / 2.0) * 0.45) + ((100.0 - risk) * 0.2) + (conf * 100.0 * 0.15) + (clip(dm + 50.0, 0.0, 100.0) * 0.2)
+                    score = int(round(clip(score_raw, 0.0, 100.0)))
+                    negative_labels = ["TRAFFIC_DROP","SERVING_DROP","YIELD_DROP","VIEWABILITY_DROP","EFFICIENCY_DROP","REVENUE_DROP","NEGATIVE_MIXED","NEG_ADJUSTMENT"]
+                    decision = "HOLD"
+                    if label.startswith("RED_FLAG") or (risk >= 85 and conf >= 0.55 and score < 45) or (dm <= -55 and health <= -18 and conf >= 0.55):
+                        decision = "STOP"
+                    elif (label in ["POSITIVE_EXPANSION", "POSITIVE_RECOVERY"] and score >= 65 and risk < 55 and dm >= 8 and conf >= 0.5) or (score >= 75 and risk < 45 and dm >= 12 and conf >= 0.55):
+                        decision = "SCALE UP"
+                    elif (label in negative_labels and (score < 60 or dm < -8 or health < -8 or adj < -15)) or (score < 45 and (dm < -8 or health < -10 or adj < -20 or risk >= 65)):
+                        decision = "SCALE DOWN"
+                else:
+                    label = "DATA_INCOMPLETE"
                 reason_parts = [str(x).strip() for x in snap.get('reason_summary', pd.Series([], dtype=str)).tolist() if str(x).strip()]
                 reason_summary = ' | '.join(list(dict.fromkeys(reason_parts))[:3])
 
@@ -1401,20 +1419,26 @@ class DashboardScoringDataView(View):
                             if c in snap_h.columns:
                                 lbl_vals.extend([str(x).strip().upper() for x in snap_h[c].tolist() if str(x).strip()])
                         lbl = pd.Series(lbl_vals).value_counts().index[0] if lbl_vals else 'STABLE'
-                        sc = int(round(clip((((h + 100.0) / 2.0) * 0.45) + ((100.0 - r) * 0.2) + (c01 * 100.0 * 0.15) + (clip(m + 50.0, 0.0, 100.0) * 0.2), 0.0, 100.0)))
-                        dec = 'HOLD'
-                        if lbl.startswith('RED_FLAG') or (r >= 85 and c01 >= 0.55 and sc < 45) or (m <= -55 and h <= -18 and c01 >= 0.55):
-                            dec = 'STOP'
-                        elif (lbl in ['POSITIVE_EXPANSION', 'POSITIVE_RECOVERY'] and sc >= 65 and r < 55 and m >= 8 and c01 >= 0.5) or (sc >= 75 and r < 45 and m >= 12 and c01 >= 0.55):
-                            dec = 'SCALE UP'
-                        elif (lbl in negative_labels and (sc < 60 or m < -8 or h < -8 or a < -15)) or (sc < 45 and (m < -8 or h < -10 or a < -20 or r >= 65)):
-                            dec = 'SCALE DOWN'
-
-                        reason_h_parts = [str(x).strip() for x in snap_h.get('reason_summary', pd.Series([], dtype=str)).tolist() if str(x).strip()]
-                        reason_h_summary = ' | '.join(list(dict.fromkeys(reason_h_parts))[:3])
                         pos_h = int(pd.to_numeric(snap_h['positive_signal_count'], errors='coerce').fillna(0).sum()) if 'positive_signal_count' in snap_h.columns else 0
                         neg_h = int(pd.to_numeric(snap_h['negative_signal_count'], errors='coerce').fillna(0).sum()) if 'negative_signal_count' in snap_h.columns else 0
                         neu_h = int(pd.to_numeric(snap_h['neutral_signal_count'], errors='coerce').fillna(0).sum()) if 'neutral_signal_count' in snap_h.columns else 0
+                        has_scoring_h = (pos_h + neg_h + neu_h) > 0 and c01 > 0
+                        sc = None
+                        dec = ''
+                        if has_scoring_h:
+                            sc = int(round(clip((((h + 100.0) / 2.0) * 0.45) + ((100.0 - r) * 0.2) + (c01 * 100.0 * 0.15) + (clip(m + 50.0, 0.0, 100.0) * 0.2), 0.0, 100.0)))
+                            dec = 'HOLD'
+                            if lbl.startswith('RED_FLAG') or (r >= 85 and c01 >= 0.55 and sc < 45) or (m <= -55 and h <= -18 and c01 >= 0.55):
+                                dec = 'STOP'
+                            elif (lbl in ['POSITIVE_EXPANSION', 'POSITIVE_RECOVERY'] and sc >= 65 and r < 55 and m >= 8 and c01 >= 0.5) or (sc >= 75 and r < 45 and m >= 12 and c01 >= 0.55):
+                                dec = 'SCALE UP'
+                            elif (lbl in negative_labels and (sc < 60 or m < -8 or h < -8 or a < -15)) or (sc < 45 and (m < -8 or h < -10 or a < -20 or r >= 65)):
+                                dec = 'SCALE DOWN'
+                        else:
+                            lbl = 'DATA_INCOMPLETE'
+
+                        reason_h_parts = [str(x).strip() for x in snap_h.get('reason_summary', pd.Series([], dtype=str)).tolist() if str(x).strip()]
+                        reason_h_summary = ' | '.join(list(dict.fromkeys(reason_h_parts))[:3])
                         country_h = []
                         for _, crow in snap_h.iterrows():
                             country_h.append({
@@ -1486,6 +1510,7 @@ class DashboardScoringDataView(View):
                 for _, row in snap.iterrows():
                     row_entity_key = str(row.get('status_entity_key') or row.get('site') or row.get('entity_key') or '').strip()
                     row_site_key = str(row.get('site') or '').strip()
+                    row_meta_campaign = str(row.get('meta_campaign') or '').strip().upper()
                     src = {}
                     matched_cand = ''
                     row_country = str(row.get('country_code') or '').strip().upper()
@@ -1615,9 +1640,9 @@ class DashboardScoringDataView(View):
                         'ivt_attention_score': avg(snap, 'ivt_attention_score', weighted=True),
                         'ivt_counter_score': avg(snap, 'ivt_counter_score', weighted=True),
                         'ivt_funnel_score': avg(snap, 'ivt_funnel_score', weighted=True),
-                        'positive_signal_count': int(pd.to_numeric(snap['positive_signal_count'], errors='coerce').fillna(0).sum()),
-                        'negative_signal_count': int(pd.to_numeric(snap['negative_signal_count'], errors='coerce').fillna(0).sum()),
-                        'neutral_signal_count': int(pd.to_numeric(snap['neutral_signal_count'], errors='coerce').fillna(0).sum()),
+                        'positive_signal_count': total_pos,
+                        'negative_signal_count': total_neg,
+                        'neutral_signal_count': total_neu,
                         'dominant_event_label': dominant_event_label,
                         'country_details': country_details,
                         'scoring_timeline': scoring_timeline,
@@ -1817,7 +1842,7 @@ class DashboardScoringCompareView(View):
                 raise RuntimeError('pandas belum tersedia')
             payload = json.loads((req.body or b'').decode('utf-8') or '{}')
             target_date_str = str(payload.get('date') or '').strip()
-            domain_raw = payload.get('domain') or payload.get('site') or ''
+            domain_raw = payload.get('domain') or payload.get('site') or payload.get('meta_campaign') or ''
             domain = normalize_site_entity(domain_raw)
             run_hour_req = payload.get('run_hour')
             run_hour_req = hour_key(run_hour_req)
@@ -2017,7 +2042,7 @@ class DashboardCreateScoringView(View):
             print(f"target_date_data: {target_date}")
             run_hour_raw = payload.get('run_hour')
             print(f"run_hour_raw_data: {run_hour_raw}")
-            domain = str(payload.get('domain') or payload.get('site') or '').strip().lower()
+            domain = str(payload.get('domain') or payload.get('site') or payload.get('meta_campaign') or '').strip().lower()
             print(f"pada_domain_data: {domain}")
             country_cd = str(payload.get('country_cd') or payload.get('country_code') or '').strip().upper()
             print(f"country_cd_data: {country_cd}")
