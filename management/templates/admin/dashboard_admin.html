@@ -3323,6 +3323,9 @@ function initDashboardRecap() {
         const groups = scxGroupScoringByCountry(parsed.statuses, parsed.events);
         const agg = scxAggregateScoring(parsed.statuses, parsed.events, groups);
         const health = Number(agg?.health_score || 0), risk = Number(agg?.ivt_risk_score || 0), adj = Number(agg?.adjustment_score || 0), conf = Number(agg?.confidence || 0), dm = Number(agg?.decision_margin || 0);
+        const sig = Number(agg?.positive_signal_count || 0) + Number(agg?.negative_signal_count || 0) + Number(agg?.neutral_signal_count || 0);
+        const hasScoring = sig > 0 && conf > 0;
+        if (!hasScoring) return { apiJson: json, score: null, decision: '', label: 'BELUM ADA HASIL', reasons: reasons.length ? reasons : ['Scoring belum valid (confidence/sinyal belum cukup)'], breakdown: { meta: Object.assign({}, agg, { trend_windows: row?.trend_windows || {}, date: String(state?.date || '').trim(), requested_date: scoring?.requested_date || '', effective_date: scoring?.effective_date || '', audit: scoring?.audit || {} }) } };
         const score = Math.round(scxClamp((((health + 100) / 2) * 0.45) + ((100 - risk) * 0.2) + ((conf * 100) * 0.15) + (scxClamp(dm + 50, 0, 100) * 0.2), 0, 100));
         const decisionMeta = scxDeriveDecision(score, String(agg?.final_label || agg?.root_cause_label || 'STABLE'), health, risk, adj, conf, dm);
         return { apiJson: json, score, decision: decisionMeta.decision, label: String(agg?.final_label || agg?.root_cause_label || 'STABLE'), reasons: reasons.concat([decisionMeta.basis, agg?.reason_summary].filter(Boolean)), breakdown: { meta: Object.assign({}, agg, { trend_windows: row?.trend_windows || {}, date: String(state?.date || '').trim(), requested_date: scoring?.requested_date || '', effective_date: scoring?.effective_date || '', audit: scoring?.audit || {} }) } };
@@ -3391,7 +3394,13 @@ function initDashboardRecap() {
         merged.breakdown = bd;
         if (!Array.isArray(merged.reasons)) merged.reasons = [];
         if (!merged.reasons.length && info.reason_summary) merged.reasons = [String(info.reason_summary)];
-        if (merged.score == null) {
+        const sig = Number(info.positive_signal_count || 0) + Number(info.negative_signal_count || 0) + Number(info.neutral_signal_count || 0);
+        const hasScoring = sig > 0 && Number(conf || 0) > 0;
+        if (!hasScoring) {
+            merged.score = null;
+            merged.decision = '';
+            merged.label = 'BELUM ADA HASIL';
+        } else if (merged.score == null) {
             merged.score = null;
             merged.decision = '';
             if (!merged.label) merged.label = 'BELUM ADA HASIL';
@@ -3958,6 +3967,15 @@ function initDashboardRecap() {
         out.decision_margin = Number((out.health_score - out.ivt_risk_score + Math.min(0, out.adjustment_score)).toFixed(4));
         out.root_cause_label = scxAggregateRootCause(out);
         out.final_label = scxAggregateFinalLabel(out.root_cause_label, out, statusList);
+        const sig = Number(out.positive_signal_count || 0) + Number(out.negative_signal_count || 0) + Number(out.neutral_signal_count || 0);
+        const hasScoring = sig > 0 && Number(out.confidence || 0) > 0;
+        if (!hasScoring) {
+            out.score = null;
+            out.decision = '';
+            out.final_label = 'BELUM ADA HASIL';
+            out.reason_summary = `Scoring belum valid (confidence/sinyal belum cukup) • Agregasi seluruh ${Math.max(Array.isArray(groups) ? groups.length : statusList.length, 1)} negara aktif.`;
+            return out;
+        }
         out.score = Math.round(scxClamp((((out.health_score + 100) / 2) * 0.45) + ((100 - out.ivt_risk_score) * 0.2) + ((out.confidence * 100) * 0.15) + (scxClamp(out.decision_margin + 50, 0, 100) * 0.2), 0, 100));
         const decisionMeta = scxDeriveDecision(out.score, out.final_label || out.root_cause_label || 'STABLE', out.health_score, out.ivt_risk_score, out.adjustment_score, out.confidence, out.decision_margin);
         out.decision = decisionMeta.decision;
@@ -4954,6 +4972,10 @@ function initDashboardRecap() {
         const hasBackendScoringMeta = ['health_score', 'ivt_risk_score', 'adjustment_score', 'confidence', 'decision_margin'].some(function(key) {
             return backendInfo[key] != null && backendInfo[key] !== '';
         });
+        const backendSig = Number(backendInfo.positive_signal_count || 0) + Number(backendInfo.negative_signal_count || 0) + Number(backendInfo.neutral_signal_count || 0);
+        const backendConfRaw = (backendInfo.confidence != null && backendInfo.confidence !== '') ? Number(backendInfo.confidence) : null;
+        const backendConf01 = backendConfRaw == null ? null : (backendConfRaw > 1 ? (backendConfRaw / 100) : backendConfRaw);
+        const backendHasReadyScore = (storedMeta?.score != null && storedMeta?.score !== '') && backendSig > 0 && Number(backendConf01 || 0) > 0;
 
         if (storedMeta?.score != null && storedMeta?.score !== '') {
             score = Number(storedMeta.score);
@@ -5180,11 +5202,16 @@ function initDashboardRecap() {
         else if (hasAdx) reasons.push('Coverage: AdX');
         else if (hasAdsense) reasons.push('Coverage: AdSense');
 
+        const finalScore = backendHasReadyScore ? Math.round(score) : null;
+        const finalDecision = backendHasReadyScore ? decision : '';
+        const finalLabel = backendHasReadyScore ? label : 'BELUM ADA HASIL';
+        const finalReasons = backendHasReadyScore ? reasons.slice(0, 4) : ['Scoring belum valid (confidence/sinyal belum cukup)'];
+
         return {
-            score: Math.round(score),
-            decision,
-            label,
-            reasons: reasons.slice(0, 4),
+            score: finalScore,
+            decision: finalDecision,
+            label: finalLabel,
+            reasons: finalReasons,
             breakdown: {
                 points: {
                     coverage: covPts,
@@ -6841,7 +6868,6 @@ function initDashboardRecap() {
         const thName = document.getElementById('dashboardRecapThName');
         const thCode = document.getElementById('dashboardRecapThCode');
         if (thName) thName.textContent = dim === 'country' ? 'Nama Negara' : 'Domain';
-
         const tableEl = document.getElementById('dashboardRecapTable');
         if (tableEl && !tableEl.dataset.boundScoreDetail) {
             tableEl.addEventListener('click', function(e) {

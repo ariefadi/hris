@@ -8258,15 +8258,15 @@ class data_mysql:
             FROM
             (
 					SELECT
-					  toDate(argMax(a.mdd, a.mdd)) AS run_date,
-					  toHour(toTimeZone(argMax(a.mdd, a.mdd), 'Asia/Jakarta')) AS run_hour,
-					  formatDateTime(toTimeZone(argMax(a.mdd, a.mdd), 'Asia/Jakarta'), '%H:%i:%S') AS run_time,
+					  toDate(a.mdd) AS run_date,
+					  toHour(toTimeZone(a.mdd, 'Asia/Jakarta')) AS run_hour,
+					  formatDateTime( toTimeZone(argMax(mdd, mdd),'Asia/Jakarta'), '%H:%i:%S') AS run_time,
 					  lower(arrayStringConcat(arraySlice(splitByChar('.', a.log_ads_domain),1,2),'.')) AS domain,
 					  upper(a.log_ads_country_cd) AS country_cd,
 					  upper(a.log_ads_country_nm) AS country_name,
 					  toDate(a.log_ads_country_tanggal) AS date,
-					  argMax(a.log_ads_country_spend, a.mdd) AS spend,
 					  lower(a.log_ads_campaign_nm) AS campaign_name,
+					  argMax(a.log_ads_country_spend, a.mdd) AS spend,
 					  toFloat64(argMax(b.master_budget, a.mdd)) AS meta_budget,
 					  argMax(a.log_ads_country_cpc, a.mdd) AS cpc,
 					  argMax(a.log_ads_country_click, a.mdd) AS clicks,
@@ -8277,10 +8277,10 @@ class data_mysql:
 					INNER JOIN master_ads b
 					  ON lower(arrayStringConcat(arraySlice(splitByChar('.', a.log_ads_domain), 1, 2), '.'))
 					   = lower(arrayStringConcat(arraySlice(splitByChar('.', b.master_domain), 1, 2), '.'))
-					AND a.log_ads_country_tanggal = b.master_date
+					 AND a.log_ads_country_tanggal = b.master_date
 					WHERE a.log_ads_country_tanggal = '{tanggal}'
-					GROUP BY domain, campaign_name, country_cd, country_name, date
-					ORDER BY domain, campaign_name, country_cd, run_hour
+					GROUP BY domain, country_cd, country_name, date, campaign_name, run_date, run_hour
+					ORDER BY domain, country_cd, run_hour
             ) m
             LEFT JOIN
             (

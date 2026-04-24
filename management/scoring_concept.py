@@ -289,7 +289,6 @@ STATUS_COMPAT_COLUMNS = [
     "country_name",
     "date",
     "mapped_revenue_source",
-    "meta_campaign",
     "join_status",
     "status_scope",
     "spend",
@@ -350,7 +349,6 @@ EVENT_COMPAT_COLUMNS = [
     "country_name",
     "date",
     "mapped_revenue_source",
-    "meta_campaign",
     "join_status",
     "source_scope",
     "header_name",
@@ -761,6 +759,9 @@ def _load_join_history(target_date: date, domain: str, lookback_days: int = 35, 
     if df.empty:
         return df
     out = df.copy()
+    for _col in ["site", "meta_campaign", "country_code", "country_name", "entity_key", "batch_id", "run_time", "run_date", "date"]:
+        if _col not in out.columns:
+            out[_col] = "" if _col in {"site", "meta_campaign", "country_code", "country_name", "entity_key", "batch_id"} else pd.NaT
     out["site"] = out["site"].map(normalize_domain)
     out["meta_campaign"] = out["meta_campaign"].map(normalize_domain)
     out["country_code"] = out["country_code"].map(normalize_country_cd)
@@ -990,6 +991,9 @@ def _load_recent_status_history(target_date: date, lookback_days: int = 7) -> pd
         return df
 
     out = df.copy()
+    for _col in ["site", "meta_campaign", "country_code", "run_time", "date", "run_hour"]:
+        if _col not in out.columns:
+            out[_col] = "" if _col in {"site", "meta_campaign", "country_code"} else 0
     out["site"] = out["site"].map(normalize_domain)
     out["meta_campaign"] = out["meta_campaign"].map(normalize_domain)
     out["country_code"] = out["country_code"].map(normalize_country_cd)
@@ -1179,7 +1183,6 @@ def _event_template(cur: pd.Series, rule: MetricRule, batch_uuid: uuid.UUID) -> 
         "country_name": cur["country_name"],
         "date": cur["date"],
         "mapped_revenue_source": cur.get("mapped_revenue_source", ""),
-        "meta_campaign": cur.get("meta_campaign", ""),
         "join_status": cur.get("join_status", ""),
         "source_mode": _get_source_mode(cur),
         "source_scope": rule.source_scope,
@@ -1435,7 +1438,6 @@ def _composite_event_template(cur: pd.Series, batch_uuid: uuid.UUID, header_name
         "country_name": cur["country_name"],
         "date": cur["date"],
         "mapped_revenue_source": cur.get("mapped_revenue_source", ""),
-        "meta_campaign": cur.get("meta_campaign", ""),
         "join_status": cur.get("join_status", ""),
         "source_mode": _get_source_mode(cur),
         "source_scope": source_scope,
@@ -1946,7 +1948,6 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "country_name": cur["country_name"],
         "date": cur["date"],
         "mapped_revenue_source": cur.get("mapped_revenue_source", ""),
-        "meta_campaign": cur.get("meta_campaign", ""),
         "join_status": cur.get("join_status", ""),
         "source_mode": _get_source_mode(cur),
         "status_scope": "ACTIVE_DATE",
