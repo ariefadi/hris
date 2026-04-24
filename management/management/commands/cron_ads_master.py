@@ -159,12 +159,13 @@ class Command(BaseCommand):
         if total_insert:
             try:
                 self.stdout.write(self.style.WARNING(
-                    f"Sync ClickHouse: master_ads since={start_date} (delete lalu insert)"
+                    f"Sync ClickHouse: master_ads since={start_date} (insert-only via --no-delete)"
                 ))
                 call_command(
                     'sync_clickhouse',
                     tables='master_ads',
                     since=start_date,
+                    no_delete=True
                 )
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"Gagal sync ClickHouse master_ads: {e}"))

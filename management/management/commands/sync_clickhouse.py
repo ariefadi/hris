@@ -49,15 +49,23 @@ class Command(BaseCommand):
         return self._default_tables()
 
     def _mysql_conn(self):
-        host = os.getenv("DB_HOST") or os.getenv("HRIS_DB_HOST", "127.0.0.1")
-        raw_port = (os.getenv("DB_PORT") or os.getenv("HRIS_DB_PORT") or "3306").strip()
+        from django.conf import settings
+        db_settings = settings.DATABASES['default']
+        
+        host = os.getenv("DB_HOST") or os.getenv("HRIS_DB_HOST") or db_settings.get('HOST', '127.0.0.1')
+        if not host:
+            host = '127.0.0.1'
+            
+        raw_port = str(os.getenv("DB_PORT") or os.getenv("HRIS_DB_PORT") or db_settings.get('PORT', '3306')).strip()
         try:
             port = int(raw_port)
         except (TypeError, ValueError):
             port = 3306
-        user = os.getenv("DB_USER") or os.getenv("HRIS_DB_USER", "root")
-        password = os.getenv("DB_PASSWORD") or os.getenv("HRIS_DB_PASSWORD", "hris123456")
-        database = os.getenv("DB_NAME") or os.getenv("HRIS_DB_NAME", "hris_trendHorizone")
+            
+        user = os.getenv("DB_USER") or os.getenv("HRIS_DB_USER") or db_settings.get('USER', 'root')
+        password = os.getenv("DB_PASSWORD") or os.getenv("HRIS_DB_PASSWORD") or db_settings.get('PASSWORD', '')
+        database = os.getenv("DB_NAME") or os.getenv("HRIS_DB_NAME") or db_settings.get('NAME', 'hris_trendHorizone')
+        
         connect_timeout = int(os.getenv("MYSQL_CONNECT_TIMEOUT", "10"))
         read_timeout = int(os.getenv("MYSQL_READ_TIMEOUT", "300"))
         write_timeout = int(os.getenv("MYSQL_WRITE_TIMEOUT", "300"))
@@ -75,15 +83,16 @@ class Command(BaseCommand):
         )
 
     def _ch_config(self):
-        host = os.getenv("CH_HOST") or os.getenv("REPORT_DB_HOST") or os.getenv("DB_REPORT_HOST") or "127.0.0.1"
-        raw_port = (os.getenv("CH_PORT") or os.getenv("REPORT_DB_PORT") or os.getenv("DB_REPORT_PORT") or "8123").strip()
+        from django.conf import settings
+        host = os.getenv("CH_HOST") or getattr(settings, 'CH_HOST', None) or os.getenv("REPORT_DB_HOST") or os.getenv("DB_REPORT_HOST") or "127.0.0.1"
+        raw_port = str(os.getenv("CH_PORT") or getattr(settings, 'CH_PORT', '') or os.getenv("REPORT_DB_PORT") or os.getenv("DB_REPORT_PORT") or "8123").strip()
         try:
             port = int(raw_port)
         except (TypeError, ValueError):
             port = 8123
-        user = os.getenv("CH_USER") or os.getenv("REPORT_DB_USER") or os.getenv("DB_REPORT_USER") or "default"
-        password = os.getenv("CH_PASSWORD") or os.getenv("REPORT_DB_PASSWORD") or os.getenv("DB_REPORT_PASSWORD") or "hris123456"
-        database = os.getenv("CH_DB") or os.getenv("REPORT_DB_NAME") or os.getenv("DB_REPORT_NAME") or ""
+        user = os.getenv("CH_USER") or getattr(settings, 'CH_USER', None) or os.getenv("REPORT_DB_USER") or os.getenv("DB_REPORT_USER") or "default"
+        password = os.getenv("CH_PASSWORD") or getattr(settings, 'CH_PASSWORD', None) or os.getenv("REPORT_DB_PASSWORD") or os.getenv("DB_REPORT_PASSWORD") or ""
+        database = os.getenv("CH_DB") or getattr(settings, 'CH_DB', None) or os.getenv("REPORT_DB_NAME") or os.getenv("DB_REPORT_NAME") or "hris_trendHorizone"
         timeout = int(os.getenv("CH_HTTP_TIMEOUT", "60"))
         return host, port, user, password, database, timeout
 
@@ -129,19 +138,43 @@ class Command(BaseCommand):
         return None
 
     def _json_row(self, row):
+        import decimal
         out = {}
         for k, v in (row or {}).items():
+            # Handle null values for known non-nullable ClickHouse columns
+            if v is None:
+                if k == 'master_date_start':
+                    out[k] = "1970-01-01 00:00:00"
+                elif k == 'master_date_end':
+                    out[k] = "2099-12-31 23:59:59"  # 2099 menandakan ongoing / tidak ada end date
+                elif k == 'master_budget':
+                    out[k] = 0
+                elif k == 'master_status':
+                    out[k] = "0"
+                else:
+                    out[k] = None
+                continue
+
             if isinstance(v, (datetime,)):
                 out[k] = v.strftime("%Y-%m-%d %H:%M:%S")
             elif isinstance(v, (date,)):
                 out[k] = v.strftime("%Y-%m-%d")
+            elif isinstance(v, decimal.Decimal):
+                out[k] = float(v)
             elif isinstance(v, (bytes, bytearray)):
                 try:
                     out[k] = v.decode("utf-8", errors="replace")
                 except Exception:
                     out[k] = str(v)
             else:
-                out[k] = v
+                # Jika mdb bernilai '0', skip saja (tidak dikirim ke JSON). 
+                # ClickHouse akan otomatis mengisi dengan default UUID (00000000-0000-0000-0000-000000000000)
+                if k == 'mdb' and str(v) == '0':
+                    continue
+                elif k == 'master_status':
+                    out[k] = str(v)
+                else:
+                    out[k] = v
         return out
 
     def handle(self, *args, **options):
@@ -214,7 +247,9 @@ class Command(BaseCommand):
                                     break
                                 lines = []
                                 for r in rows:
+                                    # JSONEachRow membutuhkan setiap objek JSON berada dalam 1 baris
                                     lines.append(json.dumps(self._json_row(r), ensure_ascii=False, default=str))
+                                # Tambahkan space pemisah antar JSON jika perlu, tapi \n sudah cukup untuk JSONEachRow
                                 payload = f"INSERT INTO {table} FORMAT JSONEachRow\n" + "\n".join(lines) + "\n"
                                 self._ch_post(payload)
                                 total += len(rows)
