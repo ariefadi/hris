@@ -2695,7 +2695,12 @@ def fetch_adx_traffic_account_by_user(user_mail, start_date, end_date, selected_
                         continue
 
                     def _fill_num(key):
-                        if _is_zero(tgt.get(key)):
+                        # Always prefer advanced data for active view metrics since base report might be 0 due to fallback
+                        if key in ['active_view_pct_viewable', 'active_view_avg_time_sec']:
+                            val = a.get(key)
+                            if val is not None and val != '' and not _is_zero(val):
+                                tgt[key] = val
+                        elif _is_zero(tgt.get(key)):
                             val = a.get(key)
                             if val is not None and val != '':
                                 tgt[key] = val
@@ -3808,6 +3813,28 @@ def _run_regular_report(client, start_date, end_date, selected_sites):
     report_service, report_version = _get_ad_manager_service(client, 'ReportService')
     last_error = None
     regular_column_combinations = [
+        [
+            'AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE', 'TOTAL_LINE_ITEM_LEVEL_CLICKS',
+            'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS', 'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS', 'ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME'
+        ],
+        [
+            'TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE', 'TOTAL_LINE_ITEM_LEVEL_CLICKS',
+            'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS', 'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS', 'ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME'
+        ],
+        [
+            'TOTAL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE', 'TOTAL_CLICKS',
+            'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS', 'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS', 'ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME'
+        ],
+        [
+            'AD_SERVER_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE', 'AD_SERVER_CLICKS',
+            'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS', 'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS', 'ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME'
+        ],
+        [
+            'TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS', 'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS', 'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS', 'ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME'
+        ],
+        [
+            'TOTAL_IMPRESSIONS', 'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS', 'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS', 'ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME'
+        ],
         ['AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE', 'TOTAL_LINE_ITEM_LEVEL_CLICKS'],
         ['AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE', 'AD_EXCHANGE_CLICKS'],
         ['AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE', 'AD_SERVER_CLICKS'],
@@ -3910,6 +3937,28 @@ def _run_ad_unit_report_to_site(client, start_date, end_date, selected_sites):
             'AD_EXCHANGE_RESPONSES_SERVED',
             'AD_EXCHANGE_MATCH_RATE',
             'AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS',
+            'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE',
+            'TOTAL_CLICKS',
+            'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS',
+            'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS',
+            'ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME',
+        ],
+        [
+            'TOTAL_AD_REQUESTS',
+            'AD_EXCHANGE_RESPONSES_SERVED',
+            'AD_EXCHANGE_MATCH_RATE',
+            'TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS',
+            'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE',
+            'TOTAL_CLICKS',
+            'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS',
+            'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS',
+            'ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME',
+        ],
+        [
+            'TOTAL_AD_REQUESTS',
+            'AD_EXCHANGE_RESPONSES_SERVED',
+            'AD_EXCHANGE_MATCH_RATE',
+            'TOTAL_IMPRESSIONS',
             'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE',
             'TOTAL_CLICKS',
             'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS',
@@ -4642,6 +4691,28 @@ def _run_regular_country_report(client, start_date, end_date, selected_sites, co
     ]
     # Use regular Ad Manager columns with more fallback options
     regular_column_combinations = [
+        [
+            'TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CLICKS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE',
+            'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS', 'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS', 'ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME'
+        ],
+        [
+            'TOTAL_IMPRESSIONS', 'TOTAL_CLICKS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE',
+            'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS', 'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS', 'ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME'
+        ],
+        [
+            'AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS', 'AD_EXCHANGE_CLICKS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE',
+            'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS', 'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS', 'ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME'
+        ],
+        [
+            'AD_SERVER_IMPRESSIONS', 'AD_SERVER_CLICKS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE',
+            'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS', 'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS', 'ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME'
+        ],
+        [
+            'TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS', 'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS', 'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS', 'ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME'
+        ],
+        [
+            'TOTAL_IMPRESSIONS', 'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS', 'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS', 'ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME'
+        ],
         ['TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS', 'TOTAL_LINE_ITEM_LEVEL_CLICKS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE'],
         ['TOTAL_IMPRESSIONS', 'TOTAL_CLICKS', 'TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE'],
         ['TOTAL_IMPRESSIONS', 'TOTAL_CLICKS'],
@@ -4752,6 +4823,22 @@ def _run_country_advanced_report(client, start_date, end_date, selected_sites, c
             'AD_EXCHANGE_RESPONSES_SERVED',
             'AD_EXCHANGE_MATCH_RATE',
             'AD_EXCHANGE_LINE_ITEM_LEVEL_IMPRESSIONS',
+            'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS',
+            'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS',
+            'ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME',
+        ],
+        [
+            'TOTAL_AD_REQUESTS',
+            'AD_EXCHANGE_RESPONSES_SERVED',
+            'TOTAL_LINE_ITEM_LEVEL_IMPRESSIONS',
+            'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS',
+            'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS',
+            'ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME',
+        ],
+        [
+            'TOTAL_AD_REQUESTS',
+            'AD_EXCHANGE_RESPONSES_SERVED',
+            'TOTAL_IMPRESSIONS',
             'ACTIVE_VIEW_VIEWABLE_IMPRESSIONS',
             'ACTIVE_VIEW_MEASURABLE_IMPRESSIONS',
             'ACTIVE_VIEW_AVERAGE_VIEWABLE_TIME',
