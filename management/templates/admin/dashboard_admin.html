@@ -4055,12 +4055,20 @@ function initDashboardRecap() {
         return Number(row?.adx_revenue ?? 0) + Number(row?.adsense_estimated_earnings ?? 0);
     }
 
+    function scxCampaignValue(row) {
+        return String(row?.meta_campaign || row?.campaign || row?.campaign_name || '').trim().toUpperCase();
+    }
+
+    function scxEntityValue(row) {
+        return String(row?.entity_key || row?.status_entity_key || row?.site || '').trim().toUpperCase();
+    }
+
     function scxRenderBackendStatusTable(statuses) {
         const rows = Array.isArray(statuses) ? statuses : [];
         console.log(rows);
         if (!rows.length) return `<div class="scx-sub">Status backend kosong.</div>`;
         let html = `<div class="scx-roi-legend"><span class="scx-roi-chip red">ROI &lt; 200% = Merah</span><span class="scx-roi-chip yellow">ROI 200% - 300% = Kuning</span><span class="scx-roi-chip green">ROI &gt; 300% = Hijau</span><span class="scx-roi-chip" style="background:#eef2ff;color:#3730a3;border:1px solid rgba(55,48,163,.18);">Confidence tinggi = biru</span></div>`;
-        html += `<div class="scx-table-scroll"><div class="table-responsive"><table class="table table-sm table-striped scx-country-table"><thead><tr><th>Negara</th><th>Join</th><th>Source</th><th>Status</th><th class="text-end">Health</th><th class="text-end">Risk</th><th class="text-end">Adj</th><th class="text-end">Conf</th><th class="text-end">Decision</th><th class="text-end">Pos</th><th class="text-end">Neg</th><th class="text-end">Spend</th><th class="text-end">Revenue</th><th class="text-end">ROI</th></tr></thead><tbody>`;
+        html += `<div class="scx-table-scroll"><div class="table-responsive"><table class="table table-sm table-striped scx-country-table"><thead><tr><th>Negara</th><th>Campaign</th><th>Join</th><th>Source</th><th>Status</th><th class="text-end">Health</th><th class="text-end">Risk</th><th class="text-end">Adj</th><th class="text-end">Conf</th><th class="text-end">Decision</th><th class="text-end">Pos</th><th class="text-end">Neg</th><th class="text-end">Spend</th><th class="text-end">Revenue</th><th class="text-end">ROI</th></tr></thead><tbody>`;
         rows.forEach(function(st){
             const spend = scxSpendValue(st);
             const revenue = scxRevenueValue(st);
@@ -4084,6 +4092,7 @@ function initDashboardRecap() {
             const srcMode = String(st?.mapped_revenue_source || st?.source_mode || '-').toUpperCase();
             html += `<tr>
                 <td style="font-weight:800;color:#0f172a;">${esc(scxCountryLabel(st))}</td>
+                <td>${esc(scxCampaignValue(st) || '-')}</td>
                 <td>${esc(String(st?.join_status || '-'))}</td>
                 <td><span class="scx-pill gray" title="mapped_revenue_source">${esc(srcMode || '-')}</span></td>
                 <td><span class="scx-pill ${healthTone}">${esc(statusLabel)}</span></td>
@@ -4102,10 +4111,26 @@ function initDashboardRecap() {
         return html + `</tbody></table></div></div>`;
     }
 
-    function scxRenderBackendEventTable(events) {
+    function scxRenderBackendEventTable(events, statuses) {
         const rows = (Array.isArray(events) ? events : []).slice().sort(function(a,b){ return Math.abs(Number(b?.signal_strength||0)) - Math.abs(Number(a?.signal_strength||0)); });
         if (!rows.length) return `<div class="scx-sub">Event backend kosong.</div>`;
-        let html = `<div class="scx-table-scroll"><div class="table-responsive"><table class="table table-sm table-striped scx-simple-table"><thead><tr><th>Negara</th><th>Group</th><th>Metric</th><th class="text-end">Prev</th><th class="text-end">Current</th><th class="text-end">Δ Abs</th><th class="text-end">Δ %</th><th class="text-end">Signal</th><th>Class</th><th class="text-end">Conf</th><th>Reason</th></tr></thead><tbody>`;
+        const statusMap = new Map();
+        const statusByCountry = new Map();
+        (Array.isArray(statuses) ? statuses : []).forEach(function(st){
+            const ck = scxCountryKey(st);
+            const camp = scxCampaignValue(st);
+            const ent = scxEntityValue(st);
+            const spend = scxSpendValue(st);
+            if (!statusByCountry.has(ck)) statusByCountry.set(ck, []);
+            statusByCountry.get(ck).push(st);
+            if (camp) statusMap.set(`${ck}|C|${camp}`, st);
+            if (ent) statusMap.set(`${ck}|E|${ent}`, st);
+        });
+        statusByCountry.forEach(function(arr, ck){
+            arr.sort(function(a,b){ return scxSpendValue(b) - scxSpendValue(a); });
+            if (arr.length) statusMap.set(`${ck}|ANY`, arr[0]);
+        });
+        let html = `<div class="scx-table-scroll"><div class="table-responsive"><table class="table table-sm table-striped scx-simple-table"><thead><tr><th>Negara</th><th>Campaign</th><th>Group</th><th>Metric</th><th class="text-end">Prev</th><th class="text-end">Current</th><th class="text-end">Δ Abs</th><th class="text-end">Δ %</th><th class="text-end">Signal</th><th>Class</th><th class="text-end">Conf</th><th class="text-end">Spend</th><th class="text-end">Revenue</th><th class="text-end">ROI</th><th>Reason</th></tr></thead><tbody>`;
         rows.forEach(function(ev){
             const sig = Number(ev?.signal_strength);
             const sigTone = scxSignalTone(sig);
@@ -4115,8 +4140,20 @@ function initDashboardRecap() {
             const conf = Number(ev?.confidence);
             const conf01 = Number.isFinite(conf) ? (conf > 1 ? (conf / 100) : conf) : NaN;
             const confPct = Number.isFinite(conf01) ? `${Math.round(scxClamp(conf01,0,1)*100)}%` : '-';
+            const campaign = scxCampaignValue(ev);
+            const ck = scxCountryKey(ev);
+            const ent = scxEntityValue(ev);
+            const mapped = (campaign ? statusMap.get(`${ck}|C|${campaign}`) : null)
+                || (ent ? statusMap.get(`${ck}|E|${ent}`) : null)
+                || statusMap.get(`${ck}|ANY`)
+                || null;
+            const spend = mapped ? scxSpendValue(mapped) : NaN;
+            const revenue = mapped ? scxRevenueValue(mapped) : NaN;
+            const roiRaw = mapped ? Number(mapped?.roi) : NaN;
+            const roi = Number.isFinite(roiRaw) ? roiRaw : (Number.isFinite(spend) && spend > 0 ? ((revenue - spend) / spend) * 100 : NaN);
             html += `<tr>
                 <td style="font-weight:800;color:#0f172a;">${esc(scxCountryLabel(ev))}</td>
+                <td>${esc(campaign || '-')}</td>
                 <td>${esc(String(ev?.metric_group || '-'))}</td>
                 <td title="${esc(String(ev?.rule_key || ev?.header_name || ''))}">${esc(scxMetricName(ev?.header_name || ev?.rule_key || '-'))}</td>
                 <td class="text-end">${esc(scxNum(ev?.prev_value,2))}</td>
@@ -4126,6 +4163,9 @@ function initDashboardRecap() {
                 <td class="text-end"><span class="scx-impact ${sigTone}">${esc(scxNum(sig,4))}</span></td>
                 <td><span class="scx-pill ${clsTone}">${esc(cls)}</span></td>
                 <td class="text-end"><span class="scx-pill ${conf01 >= 0.8 ? 'green' : (conf01 >= 0.55 ? 'yellow' : 'red')}">${esc(confPct)}</span></td>
+                <td class="text-end">${Number.isFinite(spend) ? esc(scxNum(spend,0)) : '-'}</td>
+                <td class="text-end">${Number.isFinite(revenue) ? esc(scxNum(revenue,0)) : '-'}</td>
+                <td class="text-end">${Number.isFinite(roi) ? `${esc(scxNum(roi,2))}%` : '-'}</td>
                 <td title="${esc(reason)}" style="max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(reason)}</td>
             </tr>`;
         });
@@ -4137,7 +4177,7 @@ function initDashboardRecap() {
         const statuses = Array.isArray(parsed?.statuses) ? parsed.statuses : [];
         const events = Array.isArray(parsed?.events) ? parsed.events : [];
         const countryDetails = Array.isArray(scoring?.country_details) ? scoring.country_details : [];
-        const statusRows = countryDetails.length ? countryDetails : statuses;
+        const statusRows = statuses.length ? statuses : countryDetails;
         console.log(statusRows)
         const statusBox = document.getElementById('scxBackendStatusContent');
         const eventBox = document.getElementById('scxBackendEventContent');
@@ -4145,7 +4185,7 @@ function initDashboardRecap() {
         const eventLoading = document.getElementById('scxBackendEventLoading');
 
         if (statusBox) statusBox.innerHTML = scxRenderBackendStatusTable(statusRows);
-        if (eventBox) eventBox.innerHTML = scxRenderBackendEventTable(events);
+        if (eventBox) eventBox.innerHTML = scxRenderBackendEventTable(events, statusRows);
         if (statusLoading) statusLoading.style.display = 'none';
         if (eventLoading) eventLoading.style.display = 'none';
     }
@@ -6653,6 +6693,7 @@ function initDashboardRecap() {
             return Object.assign({}, baseStatus, {
                 country_cd: String(c?.country_code || c?.country_cd || ''),
                 country_code: String(c?.country_code || c?.country_cd || ''),
+                meta_campaign: String(c?.meta_campaign || c?.campaign || ''),
                 country_nm: String(c?.country_name || c?.country_nm || c?.country || ''),
                 country_name: String(c?.country_name || c?.country_nm || c?.country || ''),
                 join_status: String(c?.join_status || ''),
@@ -6677,6 +6718,7 @@ function initDashboardRecap() {
             return Object.assign({}, baseStatus, {
                 country_cd: String(c?.country_code || c?.country_cd || ''),
                 country_code: String(c?.country_code || c?.country_cd || ''),
+                meta_campaign: String(c?.meta_campaign || c?.campaign || ''),
                 country_nm: String(c?.country_name || c?.country_nm || c?.country || ''),
                 country_name: String(c?.country_name || c?.country_nm || c?.country || ''),
                 join_status: String(c?.join_status || ''),

@@ -763,11 +763,11 @@ def _load_join_history(target_date: date, domain: str, lookback_days: int = 35, 
         if _col not in out.columns:
             out[_col] = "" if _col in {"site", "meta_campaign", "country_code", "country_name", "entity_key", "batch_id"} else pd.NaT
     out["site"] = out["site"].map(normalize_domain)
-    out["meta_campaign"] = out["meta_campaign"].map(normalize_domain)
+    out["meta_campaign"] = out["meta_campaign"].astype(str).map(lambda x: x.strip().upper())
     out["country_code"] = out["country_code"].map(normalize_country_cd)
     out["country_name"] = [normalize_country_nm(c, n) for c, n in zip(out["country_code"], out["country_name"])]
     out["entity_key"] = out["entity_key"].astype(str)
-    out["entity_base_key"] = out["site"] + "|" + out["country_code"]
+    out["entity_base_key"] = out["site"] + "|" + out["meta_campaign"] + "|" + out["country_code"]
     out["batch_id"] = out["batch_id"].astype(str)
     out["run_time"] = pd.to_datetime(out["run_time"], utc=True, errors="coerce")
     out["run_date"] = pd.to_datetime(out["run_date"], errors="coerce").dt.date
@@ -995,9 +995,9 @@ def _load_recent_status_history(target_date: date, lookback_days: int = 7) -> pd
         if _col not in out.columns:
             out[_col] = "" if _col in {"site", "meta_campaign", "country_code"} else 0
     out["site"] = out["site"].map(normalize_domain)
-    out["meta_campaign"] = out["meta_campaign"].map(normalize_domain)
+    out["meta_campaign"] = out["meta_campaign"].astype(str).map(lambda x: x.strip().upper())
     out["country_code"] = out["country_code"].map(normalize_country_cd)
-    out["entity_base_key"] = out["site"] + "|" + out["country_code"]
+    out["entity_base_key"] = out["site"] + "|" + out["meta_campaign"] + "|" + out["country_code"]
     out["run_time"] = pd.to_datetime(out["run_time"], utc=True, errors="coerce")
     out["date"] = pd.to_datetime(out["date"], errors="coerce").dt.date
     out["run_hour"] = out["run_hour"].map(lambda x: int(safe_float(x)))

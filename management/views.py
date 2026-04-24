@@ -1115,16 +1115,35 @@ class DashboardScoringDataView(View):
                 site,
                 meta_campaign,
                 date,
-                lower(entity_key) AS entity_key,
+                entity_key,
                 argMax(country_code, run_hour) AS country_code,
                 argMax(country_name, run_hour) AS country_name,
                 argMax(mapped_revenue_source, run_hour) AS mapped_revenue_source,
                 argMax(meta_spend, run_hour) AS meta_spend,
                 argMax(adx_revenue, run_hour) AS adx_revenue,
                 argMax(adsense_estimated_earnings, run_hour) AS adsense_estimated_earnings
-            FROM {source_table}
-            WHERE toDate(date) = toDate('{target_date}')
-            GROUP BY date, entity_key
+            FROM
+            (
+                SELECT
+                    site,
+                    lower(meta_campaign) AS meta_campaign,
+                    date,
+                    lower(entity_key) AS entity_key,
+                    run_hour,
+                    country_code,
+                    country_name,
+                    mapped_revenue_source,
+                    meta_spend,
+                    adx_revenue,
+                    adsense_estimated_earnings
+                FROM {source_table}
+                WHERE toDate(date) = toDate('{target_date}')
+            )
+            GROUP BY
+                site,
+                date,
+                entity_key,
+                meta_campaign;
             """
             timeline_hour_expr = "toHour(run_time)" if 'run_time' in table_cols else "run_hour"
             timeline_sql = f"""
@@ -1190,6 +1209,8 @@ class DashboardScoringDataView(View):
             source_lookup = {}
             source_agg_lookup = {}
             source_site_country_lookup = {}
+            source_site_country_campaign_lookup = {}
+            source_entity_country_lookup = {}
             def site_key_candidates(raw_key, site_value=''):
                 if dim == 'country':
                     k = str(raw_key or '').strip().upper()
@@ -1240,11 +1261,23 @@ class DashboardScoringDataView(View):
                 for _, srow in source_df.iterrows():
                     row_dict = dict(srow)
                     src_key = str(srow.get('entity_key')).strip()
+                    src_key_upper = src_key.upper()
                     src_site = str(srow.get('site') or '').strip()
                     src_meta_campaign = str(srow.get('meta_campaign') or '').strip().upper()
                     src_country = str(srow.get('country_code') or srow.get('country_cd') or '').strip().upper()
                     norm_site = normalize_site_entity(src_site)
                     row_rank = source_row_rank(row_dict)
+                    if src_key_upper and src_country:
+                        sec_key = f"{src_key_upper}|{src_country}"
+                        sec = source_entity_country_lookup.get(sec_key)
+                        if (sec is None) or (row_rank > float(sec.get('_rank', -1e30))):
+                            source_entity_country_lookup[sec_key] = {
+                                'meta_spend': _src_num(srow.get('meta_spend')),
+                                'adx_revenue': _src_num(srow.get('adx_revenue')),
+                                'adsense_estimated_earnings': _src_num(srow.get('adsense_estimated_earnings')),
+                                'mapped_revenue_source': str(srow.get('mapped_revenue_source') or '').strip(),
+                                '_rank': row_rank,
+                            }
                     if norm_site and src_country:
                         sc_key = f"{norm_site}|{src_country}"
                         sc = source_site_country_lookup.get(sc_key)
@@ -1259,6 +1292,20 @@ class DashboardScoringDataView(View):
                                 'mapped_revenue_source': str(srow.get('mapped_revenue_source') or '').strip(),
                                 '_rank': row_rank,
                             }
+                        if src_meta_campaign:
+                            scc_key = f"{norm_site}|{src_country}|{src_meta_campaign}"
+                            scc = source_site_country_campaign_lookup.get(scc_key)
+                            if (scc is None) or (row_rank > float(scc.get('_rank', -1e30))):
+                                source_site_country_campaign_lookup[scc_key] = {
+                                    'site': norm_site,
+                                    'meta_campaign': src_meta_campaign,
+                                    'country_code': src_country,
+                                    'meta_spend': _src_num(srow.get('meta_spend')),
+                                    'adx_revenue': _src_num(srow.get('adx_revenue')),
+                                    'adsense_estimated_earnings': _src_num(srow.get('adsense_estimated_earnings')),
+                                    'mapped_revenue_source': str(srow.get('mapped_revenue_source') or '').strip(),
+                                    '_rank': row_rank,
+                                }
                     cands = site_country_candidates(src_key, src_site, src_country)
                     for cand in cands:
                         if not cand:
@@ -1325,7 +1372,10 @@ class DashboardScoringDataView(View):
             for entity_key, part in df.groupby('entity_key', sort=False):
                 snap = part.copy()  
                 if 'country_code' in snap.columns and 'run_hour' in snap.columns:
-                    snap = snap.sort_values(['country_code', 'run_hour']).drop_duplicates(subset=['country_code'], keep='last')
+                    snap_keys = ['country_code']
+                    if 'meta_campaign' in snap.columns:
+                        snap_keys.append('meta_campaign')
+                    snap = snap.sort_values(snap_keys + ['run_hour']).drop_duplicates(subset=snap_keys, keep='last')
                 for c in ['positive_signal_count', 'negative_signal_count', 'neutral_signal_count']:
                     if c not in snap.columns:
                         snap[c] = 0
@@ -1507,7 +1557,13 @@ class DashboardScoringDataView(View):
                         dominant_event_label = s.value_counts().index[0]
                 
                 country_details = []
-                for _, row in snap.iterrows():
+                detail_snap = part.copy()
+                if 'country_code' in detail_snap.columns and 'run_hour' in detail_snap.columns:
+                    detail_keys = ['country_code']
+                    if 'meta_campaign' in detail_snap.columns:
+                        detail_keys.append('meta_campaign')
+                    detail_snap = detail_snap.sort_values(detail_keys + ['run_hour']).drop_duplicates(subset=detail_keys, keep='last')
+                for _, row in detail_snap.iterrows():
                     row_entity_key = str(row.get('status_entity_key') or row.get('site') or row.get('entity_key') or '').strip()
                     row_site_key = str(row.get('site') or '').strip()
                     row_meta_campaign = str(row.get('meta_campaign') or '').strip().upper()
@@ -1521,16 +1577,37 @@ class DashboardScoringDataView(View):
                             break
                     row_norm_site = normalize_site_entity(row_site_key)
                     row_country = str(row.get('country_code') or '').strip().upper()
-                    if row_norm_site and row_country:
-                        sc_key = f"{row_norm_site}|{row_country}"
-                        sc_src = source_site_country_lookup.get(sc_key)
-                        if sc_src:
-                            src['meta_spend'] = sc_src.get('meta_spend', src.get('meta_spend'))
-                            src['adx_revenue'] = sc_src.get('adx_revenue', src.get('adx_revenue'))
-                            src['adsense_estimated_earnings'] = sc_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
-                            if not str(src.get('mapped_revenue_source') or '').strip():
-                                src['mapped_revenue_source'] = sc_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
-                    if matched_cand and matched_cand in source_agg_lookup:
+                    campaign_src_applied = False
+                    row_entity_upper = str(row_entity_key or '').strip().upper()
+                    if row_entity_upper and row_country:
+                        sec_key = f"{row_entity_upper}|{row_country}"
+                        sec_src = source_entity_country_lookup.get(sec_key)
+                        if sec_src:
+                            src['meta_spend'] = sec_src.get('meta_spend', src.get('meta_spend'))
+                            src['adx_revenue'] = sec_src.get('adx_revenue', src.get('adx_revenue'))
+                            src['adsense_estimated_earnings'] = sec_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
+                            src['mapped_revenue_source'] = sec_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
+                            campaign_src_applied = True
+                    if (not campaign_src_applied) and row_norm_site and row_country:
+                        if row_meta_campaign:
+                            scc_key = f"{row_norm_site}|{row_country}|{row_meta_campaign}"
+                            scc_src = source_site_country_campaign_lookup.get(scc_key)
+                            if scc_src:
+                                src['meta_spend'] = scc_src.get('meta_spend', src.get('meta_spend'))
+                                src['adx_revenue'] = scc_src.get('adx_revenue', src.get('adx_revenue'))
+                                src['adsense_estimated_earnings'] = scc_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
+                                src['mapped_revenue_source'] = scc_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
+                                campaign_src_applied = True
+                        if not campaign_src_applied:
+                            sc_key = f"{row_norm_site}|{row_country}"
+                            sc_src = source_site_country_lookup.get(sc_key)
+                            if sc_src:
+                                src['meta_spend'] = sc_src.get('meta_spend', src.get('meta_spend'))
+                                src['adx_revenue'] = sc_src.get('adx_revenue', src.get('adx_revenue'))
+                                src['adsense_estimated_earnings'] = sc_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
+                                if not str(src.get('mapped_revenue_source') or '').strip():
+                                    src['mapped_revenue_source'] = sc_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
+                    if (not campaign_src_applied) and matched_cand and matched_cand in source_agg_lookup:
                         agg_src = source_agg_lookup.get(matched_cand) or {}
                         src['meta_spend'] = agg_src.get('meta_spend', src.get('meta_spend'))
                         src['adx_revenue'] = agg_src.get('adx_revenue', src.get('adx_revenue'))
@@ -1591,6 +1668,7 @@ class DashboardScoringDataView(View):
                     country_details.append({
                         'country_code': str(row.get('country_code') or ''),
                         'country_name': str(row.get('country_name') or ''),
+                        'meta_campaign': row_meta_campaign,
                         'health_score': safe_float(row.get('health_score')),
                         'ivt_risk_score': safe_float(row.get('ivt_risk_score')),
                         'adjustment_score': safe_float(row.get('adjustment_score')),
@@ -1677,7 +1755,8 @@ class DashboardScoringDataView(View):
                             out_row[str(k)] = _json_scalar(v)
                         return out_row
 
-                    status_records = [_row_to_json_dict(srow) for _, srow in snap.iterrows()]
+                    status_source_rows = detail_snap if 'detail_snap' in locals() else snap
+                    status_records = [_row_to_json_dict(srow) for _, srow in status_source_rows.iterrows()]
                     event_records = [_row_to_json_dict(erow) for _, erow in ev.iterrows()] if not ev.empty else []
 
                     out[entity_key]['scoring'] = {
