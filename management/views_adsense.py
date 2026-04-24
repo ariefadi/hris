@@ -2208,6 +2208,23 @@ class RoiMonitoringDomainAdsenseDataView(View):
                         'last_update': last_update_by_site.get(item['site_name'], '')
                     })
             roi_nett_summary = ((total_revenue - total_spend) / total_spend * 100) if total_spend > 0 else 0
+
+            active_days_by_site = {}
+            try:
+                sites_for_age = [str((x or {}).get('site_name') or '').strip() for x in (combined_data_all or [])]
+                age_result = data_mysql().get_fact_join_hourly_active_days_map(end_date_formatted, sites_for_age)
+                if isinstance(age_result, dict) and age_result.get('status'):
+                    active_days_by_site = (age_result.get('data') or {})
+            except Exception:
+                active_days_by_site = {}
+
+            for item in (combined_data_all or []):
+                site_key = str((item or {}).get('site_name') or '').strip().lower()
+                item['active_days'] = int(active_days_by_site.get(site_key, 0) or 0)
+            for item in (combined_data_filtered or []):
+                site_key = str((item or {}).get('site_name') or '').strip().lower()
+                item['active_days'] = int(active_days_by_site.get(site_key, 0) or 0)
+
             result = {
                 'status': True,
                 'last_update': last_update,

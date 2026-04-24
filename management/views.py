@@ -7904,9 +7904,29 @@ class RoiMonitoringDomainDataView(View):
                 ','.join(selected_account_list) if selected_account_list else '',
                 ','.join(selected_domain_list) if selected_domain_list else '',
             )
+            def _attach_active_days(payload):
+                try:
+                    rows = list((payload or {}).get('data') or [])
+                    if not rows:
+                        return payload
+                    sites_for_age = [str((x or {}).get('site_name') or '').strip() for x in rows]
+                    age_result = data_mysql().get_fact_join_hourly_active_days_map(end_date_formatted, sites_for_age)
+                    active_days_by_site = (age_result or {}).get('data') if isinstance(age_result, dict) and age_result.get('status') else {}
+                    for item in rows:
+                        site_key = str((item or {}).get('site_name') or '').strip().lower()
+                        item['active_days'] = int((active_days_by_site or {}).get(site_key, 0) or 0)
+                    rows_filtered = list((payload or {}).get('data_filtered') or [])
+                    for item in rows_filtered:
+                        site_key = str((item or {}).get('site_name') or '').strip().lower()
+                        item['active_days'] = int((active_days_by_site or {}).get(site_key, 0) or 0)
+                    payload['data'] = rows
+                    payload['data_filtered'] = rows_filtered
+                except Exception:
+                    pass
+                return payload
             cached_response = get_cached_data(response_cache_key)
             if cached_response is not None:
-                return JsonResponse(cached_response, safe=False)
+                return JsonResponse(_attach_active_days(cached_response), safe=False)
 
             # --- 3. Ambil data AdX
             adx_result = data_mysql().get_all_adx_monitoring_account_by_params(
@@ -8234,6 +8254,22 @@ class RoiMonitoringDomainDataView(View):
                 raw_rows_all.sort(key=lambda x: (str((x or {}).get('date') or ''), str((x or {}).get('site_name') or '')))
             except Exception:
                 pass
+
+            active_days_by_site = {}
+            try:
+                sites_for_age = [str((x or {}).get('site_name') or '').strip() for x in (combined_data_all or [])]
+                age_result = data_mysql().get_fact_join_hourly_active_days_map(end_date_formatted, sites_for_age)
+                if isinstance(age_result, dict) and age_result.get('status'):
+                    active_days_by_site = (age_result.get('data') or {})
+            except Exception:
+                active_days_by_site = {}
+
+            for item in (combined_data_all or []):
+                site_key = str((item or {}).get('site_name') or '').strip().lower()
+                item['active_days'] = int(active_days_by_site.get(site_key, 0) or 0)
+            for item in (combined_data_filtered or []):
+                site_key = str((item or {}).get('site_name') or '').strip().lower()
+                item['active_days'] = int(active_days_by_site.get(site_key, 0) or 0)
 
             def _clamp(v, lo, hi):
                 try:

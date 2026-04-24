@@ -6978,6 +6978,8 @@ function initDashboardRecap() {
                 ? `<button type="button" class="btn btn-sm btn-primary dashboard-open-score-detail-btn" data-score-key="${esc(k)}">Detail Scoring</button>`
                 : `<button type="button" class="btn btn-sm btn-secondary" disabled title="Scoring belum tersedia">Detail Scoring</button>`;
 
+            const activeDays = Number(r?.active_days || 0);
+
             return [
                 i + 1,
                 domainCell(r),
@@ -7007,10 +7009,9 @@ function initDashboardRecap() {
             data.forEach(row => {
                 const tr = document.createElement('tr');
 
-                const scoreVal = Number(row[7]?.value) || 0;
+                const scoreVal = Number(row[8]?.value) || 0;
                 if (hasRange && scoreVal === minScore) tr.classList.add('table-danger');
                 else if (hasRange && scoreVal === maxScore) tr.classList.add('table-info');
-
                 const codeCell = dim === 'country' ? `<td class="text-center">${row[2]}</td>` : '';
                 tr.innerHTML = `
                     <td class="text-center">${row[0]}</td>
@@ -7087,7 +7088,7 @@ function initDashboardRecap() {
 
                     const minScore = Number(tableEl.dataset.minScore);
                     const maxScore = Number(tableEl.dataset.maxScore);
-                    const sc = Number(rowData && rowData[7] && rowData[7].value) || 0;
+                    const sc = Number(rowData && rowData[8] && rowData[8].value) || 0;
 
                     if (sc === minScore) jQuery(row).addClass('table-danger');
                     else if (sc === maxScore) jQuery(row).addClass('table-info');
@@ -7166,7 +7167,8 @@ function initDashboardRecap() {
             dt.clear();
             dt.rows.add(data);
             dt.draw(false);
-            dt.column(2).visible(dim === 'country', false);
+            dt.column(2).visible(dim !== 'country', false);
+            dt.column(3).visible(dim === 'country', false);
         }
 
         if (thCode) thCode.style.display = dim === 'country' ? '' : 'none';
@@ -7599,6 +7601,7 @@ function initDashboardRecap() {
                 account_ads: String(r?.account_ads||''),
                 spend: 0,
                 revenue: 0,
+                active_days: 0,
                 sources: { adx: false, adsense: false },
                 last_updates: { adx: '', adsense: '' },
                 ml: null,
@@ -7606,10 +7609,12 @@ function initDashboardRecap() {
             };
             const spend = Number(r?.spend) || 0;
             const revenue = Number(r?.revenue) || 0;
+            const activeDays = Number(r?.active_days ?? r?.days_running ?? r?.running_days ?? 0) || 0;
             const src = String(r?.source || '').toLowerCase();
 
             cur.spend = Math.max(Number(cur.spend)||0, spend);
             cur.revenue = (Number(cur.revenue)||0) + revenue;
+            cur.active_days = Math.max(Number(cur.active_days) || 0, activeDays);
             if (src === 'adx') {
                 cur.sources.adx = true;
                 if (r && r.last_update) cur.last_updates.adx = r.last_update;
@@ -7642,6 +7647,7 @@ function initDashboardRecap() {
                 revenue,
                 net: revenue - spend,
                 roi: spend > 0 ? ((revenue - spend) / spend * 100) : 0,
+                active_days: Number(v.active_days) || 0,
                 sources: v.sources,
                 last_updates: v.last_updates,
                 ml: v.ml,

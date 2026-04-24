@@ -8534,3 +8534,97 @@ class data_mysql:
             return {"status": True, "message": f"Deleted data for date {tanggal}"}
         except Exception as e:
             return {"status": False, "error": str(e)}
+
+    def get_fact_join_hourly_active_days_map(self, end_date, sites=None):
+        """
+        Mengambil umur domain (hari aktif) dari fact_join_hourly per site.
+        """
+        try:
+            try:
+                end_ymd = datetime.strptime(str(end_date), "%Y-%m-%d").strftime("%Y-%m-%d")
+            except Exception:
+                end_ymd = datetime.now().strftime("%Y-%m-%d")
+
+            normalized_sites = []
+            seen = set()
+            for site in (sites or []):
+                s = str(site or "").strip().lower()
+                if not s or s == "unknown" or s in seen:
+                    continue
+                seen.add(s)
+                normalized_sites.append(s)
+
+            if not normalized_sites:
+                return {"status": True, "data": {}}
+
+            where_parts = []
+            for s in normalized_sites:
+                esc = str(s).replace("'", "''")
+                where_parts.append(f"lower(site) = '{esc}'")
+                where_parts.append(f"lower(site) LIKE '%.{esc}'")
+                where_parts.append(f"lower(site) LIKE '{esc}.%'")
+                where_parts.append(f"lower(site) LIKE '%.{esc}.%'")
+            where_sql = " OR ".join(where_parts) if where_parts else "1 = 0"
+            sql = f"""
+                SELECT
+                    lower(site) AS site_key,
+                    min(toDate(date)) AS first_seen_date,
+                    max(toDate(date)) AS last_seen_date
+                FROM hris_trendHorizone.fact_join_hourly
+                WHERE date <= toDate('{end_ymd}')
+                  AND site != ''
+                  AND ({where_sql})
+                GROUP BY site_key
+            """
+            try:
+                df = query_df(sql)
+            except Exception:
+                # Fallback ke HTTP cursor jika driver clickhouse_connect bermasalah.
+                host, port, user, password, database = _clickhouse_http_config()
+                cur = ClickHouseHttpCursor(host=host, port=port, user=user, password=password, database=database)
+                cur.execute(sql)
+                rows = cur.fetchall() or []
+                df = pd.DataFrame(rows)
+            first_last_by_requested = {}
+            if df is not None and not df.empty:
+                for _, row in df.iterrows():
+                    site_key = str(row.get("site_key") or "").strip().lower()
+                    if not site_key:
+                        continue
+                    first_seen = row.get("first_seen_date")
+                    last_seen = row.get("last_seen_date")
+                    for req in normalized_sites:
+                        if (
+                            site_key == req
+                            or site_key.endswith("." + req)
+                            or site_key.startswith(req + ".")
+                            or ("." + req + ".") in site_key
+                            or req.endswith("." + site_key)
+                        ):
+                            current = first_last_by_requested.get(req)
+                            if current is None:
+                                first_last_by_requested[req] = {"first_seen": first_seen, "last_seen": last_seen}
+                            else:
+                                cur_first = current.get("first_seen")
+                                cur_last = current.get("last_seen")
+                                if first_seen is not None and (cur_first is None or first_seen < cur_first):
+                                    current["first_seen"] = first_seen
+                                if last_seen is not None and (cur_last is None or last_seen > cur_last):
+                                    current["last_seen"] = last_seen
+            result = {}
+            for req in normalized_sites:
+                pair = first_last_by_requested.get(req) or {}
+                fs = pair.get("first_seen")
+                ls = pair.get("last_seen")
+                if fs is None or ls is None:
+                    result[req] = 0
+                    continue
+                try:
+                    fs_dt = fs if hasattr(fs, "year") else datetime.strptime(str(fs)[:10], "%Y-%m-%d").date()
+                    ls_dt = ls if hasattr(ls, "year") else datetime.strptime(str(ls)[:10], "%Y-%m-%d").date()
+                    result[req] = max((ls_dt - fs_dt).days, 0)
+                except Exception:
+                    result[req] = 0
+            return {"status": True, "data": result}
+        except Exception as e:
+            return {"status": False, "error": str(e), "data": {}}
