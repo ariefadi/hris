@@ -3758,6 +3758,50 @@ function initDashboardRecap() {
         };
     }
 
+    function setRecapTableLoading(message) {
+        const msg = String(message || 'Memuat detail rekap...').trim() || 'Memuat detail rekap...';
+        const tableEl = document.getElementById('dashboardRecapTable');
+        const tbody = document.getElementById('dashboardRecapTbody');
+        const metaEl = document.getElementById('dashboardRecapTableMeta');
+        if (metaEl) metaEl.textContent = msg;
+
+        const hasDt = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.DataTable === 'function');
+        if (tableEl && hasDt && jQuery.fn.DataTable.isDataTable(tableEl)) {
+            const dt = window.dashboardRecapDt || jQuery(tableEl).DataTable();
+            dt.clear().draw(false);
+            const emptyCell = tableEl.querySelector('td.dataTables_empty');
+            if (emptyCell) {
+                emptyCell.innerHTML = `<div class="scx-table-loading" style="justify-content:center;"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><span>${esc(msg)}</span></div>`;
+            }
+            return;
+        }
+
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="11" style="padding:12px;"><div class="scx-table-loading" style="justify-content:center;"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><span>${esc(msg)}</span></div></td></tr>`;
+        }
+    }
+
+    function setRecapTableEmpty(message) {
+        const msg = String(message || 'Belum ada data untuk filter ini.').trim() || 'Belum ada data untuk filter ini.';
+        const tableEl = document.getElementById('dashboardRecapTable');
+        const tbody = document.getElementById('dashboardRecapTbody');
+        const metaEl = document.getElementById('dashboardRecapTableMeta');
+        if (metaEl) metaEl.textContent = '0 baris';
+
+        const hasDt = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.DataTable === 'function');
+        if (tableEl && hasDt && jQuery.fn.DataTable.isDataTable(tableEl)) {
+            const dt = window.dashboardRecapDt || jQuery(tableEl).DataTable();
+            dt.clear().draw(false);
+            const emptyCell = tableEl.querySelector('td.dataTables_empty');
+            if (emptyCell) emptyCell.textContent = msg;
+            return;
+        }
+
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="11" class="text-center text-muted" style="padding:16px;font-size:12px;font-weight:700;">${esc(msg)}</td></tr>`;
+        }
+    }
+
     function endpointFor(source, dim, ymd, subdomain) {
         const qDomain = encodeURIComponent(String(subdomain || '').trim());
         if (source === 'adsense') {
@@ -7834,6 +7878,10 @@ function initDashboardRecap() {
         if (!hasDt) {
             if (thCode) thCode.style.display = 'none';
             tbody.innerHTML = '';
+            if (!data.length) {
+                setRecapTableEmpty('Belum ada data untuk filter ini.');
+                return;
+            }
             data.forEach(row => {
                 const tr = document.createElement('tr');
                 const scoreVal = Number(row[7]?.value) || 0;
@@ -8559,6 +8607,7 @@ function initDashboardRecap() {
         if (!st.date) return;
         if (box) box.style.display = 'none';
         if (loading) loading.style.display = 'flex';
+        setRecapTableLoading('Memuat detail rekap...');
         try {
             let rows = [];
             let summary = null;
