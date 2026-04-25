@@ -474,6 +474,72 @@ html[data-theme="dark"] .dashboard-recap-tabs .btn:hover {
 .metric-card.roi { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
 .dashboard-recap-table th, .dashboard-recap-table td { vertical-align: middle; }
 
+html[data-theme="dark"] .dashboard-recap-card {
+    background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
+    border: 1px solid rgba(148,163,184,.20);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 10px 24px rgba(2,6,23,.35);
+}
+html[data-theme="dark"] #dashboardRecapTable {
+    background: #0b1220;
+    color: #e5e7eb;
+    border-color: rgba(148,163,184,.24);
+}
+html[data-theme="dark"] #dashboardRecapTable th,
+html[data-theme="dark"] #dashboardRecapTable td {
+    border-color: rgba(148,163,184,.22) !important;
+}
+html[data-theme="dark"] #dashboardRecapTable thead th {
+    background: #162235;
+    color: #f8fafc;
+    font-weight: 800;
+}
+html[data-theme="dark"] #dashboardRecapTable tbody td {
+    color: #e2e8f0;
+}
+html[data-theme="dark"] #dashboardRecapTable.table-striped tbody tr:nth-of-type(odd) {
+    background: rgba(30,41,59,.52);
+}
+html[data-theme="dark"] #dashboardRecapTable.table-striped tbody tr:nth-of-type(even) {
+    background: rgba(15,23,42,.78);
+}
+html[data-theme="dark"] #dashboardRecapTable tbody tr {
+    transition: background-color .18s ease, box-shadow .18s ease;
+}
+html[data-theme="dark"] #dashboardRecapTable tbody tr:hover {
+    background: rgba(56,189,248,.14) !important;
+    box-shadow: inset 0 0 0 1px rgba(125,211,252,.35);
+}
+html[data-theme="dark"] #dashboardRecapTable tbody tr.table-info td,
+html[data-theme="dark"] #dashboardRecapTable tbody tr.table-danger td {
+    color: #0f172a !important;
+    border-color: rgba(15,23,42,.18) !important;
+}
+html[data-theme="dark"] #dashboardRecapTable tbody tr.table-info { background: rgba(186,230,253,.92) !important; }
+html[data-theme="dark"] #dashboardRecapTable tbody tr.table-danger { background: rgba(254,215,226,.94) !important; }
+html[data-theme="dark"] #dashboardRecapTable_wrapper .dataTables_info,
+html[data-theme="dark"] #dashboardRecapTable_wrapper .dataTables_length label,
+html[data-theme="dark"] #dashboardRecapTable_wrapper .dataTables_filter label,
+html[data-theme="dark"] #dashboardRecapTable_wrapper .dataTables_paginate {
+    color: #cbd5e1;
+}
+html[data-theme="dark"] #dashboardRecapTable_wrapper .dataTables_filter input,
+html[data-theme="dark"] #dashboardRecapTable_wrapper .dataTables_length select {
+    background: #0f172a;
+    color: #e2e8f0;
+    border: 1px solid rgba(148,163,184,.42);
+}
+html[data-theme="dark"] #dashboardRecapTable_wrapper .paginate_button {
+    border-color: rgba(148,163,184,.35) !important;
+    color: #e2e8f0 !important;
+    background: #0f172a !important;
+}
+html[data-theme="dark"] #dashboardRecapTable_wrapper .paginate_button.current,
+html[data-theme="dark"] #dashboardRecapTable_wrapper .paginate_button:hover {
+    background: #1d4ed8 !important;
+    color: #fff !important;
+    border-color: #1d4ed8 !important;
+}
+
 .sd-wrap { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
 .sd-card { flex: 1; min-width: 320px; background: #f8fafc; border: 1px solid rgba(15,23,42,0.08); border-radius: 14px; padding: 12px 14px; }
 .sd-title { font-weight: 900; font-size: 14px; margin-bottom: 8px; color: #0f172a; }
@@ -4131,8 +4197,12 @@ function initDashboardRecap() {
     function renderScoreCell(data, type) {
         const value = data && typeof data === 'object' ? data.value : data;
         const updatedAt = data && typeof data === 'object' ? String(data.updatedAt || '').trim() : '';
+        const isDark = String(document.documentElement.getAttribute('data-theme') || '').toLowerCase() === 'dark';
+        const emptyColor = isDark ? '#94a3b8' : '#6b7280';
+        const subColor = isDark ? 'rgba(203,213,225,.92)' : '#6b7280';
+        const labelColor = isDark ? 'inherit' : '#0f172a';
         if (value == null || value === '') {
-            if (type === 'display') return `<div style="min-width:92px;text-align:left;color:#6b7280;font-size:11px;font-weight:800;">Belum ada hasil</div>`;
+            if (type === 'display') return `<div style="min-width:92px;text-align:left;color:${emptyColor};font-size:11px;font-weight:800;">Belum ada hasil</div>`;
             if (type === 'filter') return '';
             return -1;
         }
@@ -4140,8 +4210,8 @@ function initDashboardRecap() {
         if (type === 'display') {
             const tone = v >= 80 ? 'success' : v >= 60 ? 'primary' : v >= 40 ? 'warning' : 'danger';
             const width = Math.max(6, Math.min(100, Math.round(v)));
-            const sub = updatedAt ? `<div style="margin-top:6px;font-size:10px;line-height:1.35;color:#6b7280;font-weight:700;">Update score<br>${esc(updatedAt)}</div>` : '';
-            return `<div style="min-width:92px;text-align:left;"><div style="display:flex;justify-content:space-between;font-size:11px;font-weight:900;margin-bottom:4px;"><span>Score</span><span>${Math.round(v)}</span></div><div class="progress" style="height:6px;border-radius:999px;"><div class="progress-bar bg-${tone}" style="width:${width}%"></div></div>${sub}</div>`;
+            const sub = updatedAt ? `<div style="margin-top:6px;font-size:10px;line-height:1.35;color:${subColor};font-weight:700;">Update score<br>${esc(updatedAt)}</div>` : '';
+            return `<div style="min-width:92px;text-align:left;"><div style="display:flex;justify-content:space-between;font-size:11px;font-weight:900;margin-bottom:4px;color:${labelColor};"><span>Score</span><span>${Math.round(v)}</span></div><div class="progress" style="height:6px;border-radius:999px;background:${isDark ? 'rgba(148,163,184,.20)' : 'rgba(15,23,42,.08)'};"><div class="progress-bar bg-${tone}" style="width:${width}%"></div></div>${sub}</div>`;
         }
         if (type === 'filter') return updatedAt ? `${v} ${updatedAt}` : String(v);
         return v;
