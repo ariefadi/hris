@@ -934,7 +934,7 @@ class DashboardScoringDataView(View):
                 raise RuntimeError('pandas belum tersedia')
             payload = json.loads((req.body or b'').decode('utf-8') or '{}')
             target_date = str(payload.get('date') or '').strip()
-            dim = str(payload.get('dim') or 'site' or 'meta_campaign').strip().lower()
+            dim = str(payload.get('dim') or 'domain').strip().lower()
             raw_entities = payload.get('entities') or []
             include_events = bool(payload.get('include_events'))
             def normalize_site_entity(v):
@@ -956,7 +956,15 @@ class DashboardScoringDataView(View):
                 parts = [p for p in s.split('.') if p]
                 return '.'.join(parts[-2:]) if len(parts) >= 2 else s
             if dim == 'country':
-                entities = [str(x).strip().upper() for x in raw_entities if str(x).strip()]
+                entities_raw = [str(x).strip().upper() for x in raw_entities if str(x).strip()]
+                entities = []
+                for e in entities_raw:
+                    if e not in entities:
+                        entities.append(e)
+                    if e == 'TR' and 'TU' not in entities:
+                        entities.append('TU')
+                    elif e == 'TU' and 'TR' not in entities:
+                        entities.append('TR')
             else:
                 entity_set = set()
                 for x in raw_entities:
@@ -1016,6 +1024,9 @@ class DashboardScoringDataView(View):
                 return set()
             table_cols = resolve_table_columns(status_table)
             literals = ', '.join("'{}'".format(x.replace("'", "''")) for x in sorted(set(entities)))
+            is_country_dim = (dim == 'country')
+            entity_key_expr = "upper(country_code)" if is_country_dim else "lower(site)"
+            status_filter_expr = f"(upper(country_code) IN ({literals}) OR upper(country_name) IN ({literals}))" if is_country_dim else f"lower(site) IN ({literals})"
             sql = f"""
             SELECT
                 site,
@@ -1025,7 +1036,7 @@ class DashboardScoringDataView(View):
                 run_hour,
                 country_code,
                 country_name,
-                lower(site) AS entity_key,
+                {entity_key_expr} AS entity_key,
                 entity_key AS status_entity_key,
                 mapped_revenue_source,
                 join_status,
@@ -1057,7 +1068,7 @@ class DashboardScoringDataView(View):
                 reason_summary
             FROM {status_table}
             WHERE toDate(date) = toDate('{target_date}')
-              AND lower(site) IN ({literals})
+              AND {status_filter_expr}
             """
             event_sql = f"""
             SELECT 
@@ -1146,13 +1157,14 @@ class DashboardScoringDataView(View):
                 meta_campaign;
             """
             timeline_hour_expr = "toHour(run_time)" if 'run_time' in table_cols else "run_hour"
+            timeline_entity_expr = "upper(country_code)" if is_country_dim else "lower(site)"
             timeline_sql = f"""
             SELECT
-                lower(site) AS entity_key,
+                {timeline_entity_expr} AS entity_key,
                 toString({timeline_hour_expr}) AS run_hour
             FROM {status_table}
             WHERE toDate(date) = toDate('{target_date}')
-              AND lower(site) IN ({literals})
+              AND {status_filter_expr}
             GROUP BY entity_key, run_hour
             ORDER BY entity_key, toInt32OrZero(run_hour) DESC, run_hour DESC
             """

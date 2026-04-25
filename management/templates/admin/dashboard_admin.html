@@ -640,8 +640,11 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
 
 .scx-grid {
     display: grid;
-    grid-template-columns: 1.2fr 0.8fr;
+    grid-template-columns: minmax(420px, 1.2fr) minmax(0, 0.8fr);
     gap: 16px;
+}
+.scx-grid > * {
+    min-width: 0;
 }
 @media (max-width: 991.98px) {
     .scx-grid {
@@ -943,7 +946,10 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
 .scx-section-head .right { font-size:11px; color:#64748b; }
 .scx-json-scroll { max-height: 250px; overflow: auto; border: 1px solid rgba(15,23,42,.08); border-radius: 10px; background: #f8fafc; }
 .scx-json-scroll pre { margin: 0; padding: 10px 12px; font-size: 12px; white-space: pre-wrap; }
-.scx-table-scroll { max-height: 260px; overflow: auto; border: 1px solid rgba(15,23,42,.08); border-radius: 10px; background: #fff; }
+.scx-table-scroll { max-height: 260px; max-width: 100%; overflow-x: auto; overflow-y: auto; border: 1px solid rgba(15,23,42,.08); border-radius: 10px; background: #fff; }
+.scx-table-scroll .table { margin-bottom: 0; width: max-content; min-width: 100%; }
+.scx-table-scroll .scx-country-table,
+.scx-table-scroll .scx-simple-table { white-space: nowrap; }
 .scx-table-scroll thead th { position: sticky; top: 0; background: #f8fafc; z-index: 1; }
 .scx-roi-legend { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
 .scx-roi-chip { font-size:11px; font-weight:700; padding:4px 10px; border-radius:999px; border:1px solid transparent; }
@@ -985,6 +991,11 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
     overflow-y: auto;
     box-shadow: 0 25px 50px rgba(15, 23, 42, 0.25);
     animation: slideIn 0.3s ease-out;
+}
+
+.decision-detail-modal-content.modal-md {
+    max-width: 860px;
+    width: 94%;
 }
 
 @keyframes slideIn {
@@ -1537,7 +1548,7 @@ html[data-theme="dark"] .decision-detail-reason-item {
 
     <!-- Modal Detail Keputusan -->
     <div id="decision-detail-modal" class="decision-detail-modal">
-        <div class="decision-detail-modal-content">
+        <div class="decision-detail-modal-content modal-md">
             <div class="decision-detail-header">
                 <div class="decision-detail-title">Detail Keputusan <span id="decision-detail-domain" class="decision-detail-domain" style="display:none;"></span></div>
                 <button type="button" class="decision-detail-close" id="decision-detail-close-btn" title="Tutup">
@@ -2822,7 +2833,7 @@ function keputusanBadge(meta, ctx) {
     return `<div class="keputusan-badge-clickable" title="${title}" data-keputusan-key="${storeKey}" role="button" tabindex="0"><span class="${cls}">${esc(d)}</span>${sub}</div>`;
 }
 
-function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx) {
+function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, rawMetaCtx) {
     const info = meta?.breakdown?.meta || {};
     const num = (v) => { const n = Number(v); return Number.isFinite(n) ? n : null; };
     const fmt2 = (v) => { const n = num(v); return n == null ? '-' : n.toFixed(2); };
@@ -2833,11 +2844,21 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx) {
     const decision = String(activeT?.decision || meta?.decision || '').toUpperCase() || 'BELUM ADA';
     const label = String(activeT?.label || meta?.label || '').trim();
     const score = num(activeT?.score ?? meta?.score);
-    const health = num(activeT?.health_score ?? info.health_score);
-    const risk = num(activeT?.ivt_risk_score ?? info.ivt_risk_score);
-    const adjustment = num(activeT?.adjustment_score ?? info.adjustment_score);
-    const confidence = num(activeT?.confidence ?? info.confidence);
-    const decision_margin = num(activeT?.decision_margin ?? info.decision_margin);
+    const pickMetricPreferNonZero = function() {
+        let zeroCandidate = null;
+        for (let i = 0; i < arguments.length; i += 1) {
+            const n = num(arguments[i]);
+            if (n == null) continue;
+            if (Math.abs(n) > 1e-9) return n;
+            if (zeroCandidate == null) zeroCandidate = n;
+        }
+        return zeroCandidate;
+    };
+    let health = null;
+    let risk = null;
+    let adjustment = null;
+    let confidence = null;
+    let decision_margin = null;
     const reasons = Array.isArray(activeT?.reasons) ? activeT.reasons : (Array.isArray(meta?.reasons) ? meta.reasons : []);
     const final_label = String(activeT?.label || info.final_label || '').trim();
     const root_cause_label = String(info.root_cause_label || '').trim();
@@ -2858,8 +2879,153 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx) {
     const debugPosSignals = num(activeT?.positive_signal_count ?? info.positive_signal_count);
     const debugNegSignals = num(activeT?.negative_signal_count ?? info.negative_signal_count);
     const debugNeutralSignals = num(activeT?.neutral_signal_count ?? info.neutral_signal_count);
-    const rawCountryRows = [activeT?.country_details, info.country_details, info.country_breakdown, info.countries, meta?.country_details, meta?.country_breakdown, meta?.countries, meta?.breakdown?.country_details, meta?.breakdown?.meta?.country_details].find(function(v){ return (Array.isArray(v) && v.length) || (v && typeof v === 'object' && !Array.isArray(v)); }) || [];
-    const debugCountryRows = Array.isArray(rawCountryRows) ? rawCountryRows : Object.values(rawCountryRows || {});
+    const countrySources = [
+        activeT?.country_details,
+        info.country_details, info.country_breakdown, info.countries,
+        meta?.country_details, meta?.country_breakdown, meta?.countries,
+        meta?.breakdown?.country_details, meta?.breakdown?.meta?.country_details,
+        meta?.apiJson?.scoring?.statuses, meta?.api_json?.scoring?.statuses,
+        rowCtx?.countries, rowCtx?.country_details, rowCtx?.country_breakdown,
+        rawMetaCtx?.breakdown?.meta?.country_details, rawMetaCtx?.breakdown?.meta?.country_breakdown, rawMetaCtx?.breakdown?.meta?.countries,
+        rawMetaCtx?.breakdown?.meta?.statuses, rawMetaCtx?.breakdown?.country_details, rawMetaCtx?.breakdown?.statuses,
+        rawMetaCtx?.country_details, rawMetaCtx?.countries, rawMetaCtx?.statuses,
+        rawMetaCtx?.scoring?.statuses, rawMetaCtx?.apiJson?.scoring?.statuses, rawMetaCtx?.api_json?.scoring?.statuses
+    ];
+    const allCountryRows = [];
+    countrySources.forEach(function(src){
+        if (Array.isArray(src)) { src.forEach(function(r){ allCountryRows.push(r || {}); }); return; }
+        if (src && typeof src === 'object') { Object.values(src).forEach(function(r){ allCountryRows.push(r || {}); }); }
+    });
+    const hasCampaignHint = function(r){
+        const c = String(r?.meta_campaign || r?.campaign || r?.campaign_name || r?.meta_campaign_name || r?.campaign_nm || r?.status_campaign || r?.meta_campaign_cd || '').trim();
+        if (c) return true;
+        const ek = String(r?.entity_key || r?.status_entity_key || r?.event_entity_key || '').trim();
+        return ek.includes('|');
+    };
+    const uniq = new Map();
+    allCountryRows.forEach(function(r){
+        const k = [String(r?.country_code || r?.country_cd || ''), String(r?.meta_campaign || r?.campaign || r?.campaign_name || r?.meta_campaign_name || ''), String(r?.entity_key || r?.status_entity_key || ''), String(r?.decision_margin || ''), String(r?.join_status || '')].join('|');
+        if (!uniq.has(k)) uniq.set(k, r || {});
+    });
+    const mergedRows = Array.from(uniq.values());
+    const rawInfo = (rawMetaCtx?.breakdown?.meta && typeof rawMetaCtx.breakdown.meta === 'object') ? rawMetaCtx.breakdown.meta : {};
+    const avgFromRows = function(keys) {
+        const arr = Array.isArray(keys) ? keys : [keys];
+        const vals = mergedRows.map(function(r){
+            for (let i = 0; i < arr.length; i += 1) {
+                const n = num(r?.[arr[i]]);
+                if (n != null) return n;
+            }
+            return null;
+        }).filter(function(v){ return v != null; });
+        if (!vals.length) return null;
+        return vals.reduce(function(a,b){ return a + b; }, 0) / vals.length;
+    };
+    health = pickMetricPreferNonZero(activeT?.health_score, info.health_score, rawInfo.health_score, avgFromRows(['health_score', 'health']));
+    risk = pickMetricPreferNonZero(activeT?.ivt_risk_score, info.ivt_risk_score, rawInfo.ivt_risk_score, avgFromRows(['ivt_risk_score', 'risk_score', 'risk']));
+    adjustment = pickMetricPreferNonZero(activeT?.adjustment_score, info.adjustment_score, rawInfo.adjustment_score, avgFromRows(['adjustment_score', 'adjust_score', 'adjustment']));
+    confidence = pickMetricPreferNonZero(activeT?.confidence, info.confidence, rawInfo.confidence, avgFromRows(['confidence', 'confidence_score', 'conf']));
+    decision_margin = pickMetricPreferNonZero(activeT?.decision_margin, info.decision_margin, rawInfo.decision_margin, avgFromRows(['decision_margin', 'margin_score', 'margin']));
+
+    const clamp01 = function(v){ const n = Number(v); if (!Number.isFinite(n)) return null; return Math.max(0, Math.min(1, n)); };
+    const clamp100 = function(v){ const n = Number(v); if (!Number.isFinite(n)) return null; return Math.max(0, Math.min(100, n)); };
+    const sigPos = Number(info?.positive_signal_count ?? rawInfo?.positive_signal_count ?? 0);
+    const sigNeg = Number(info?.negative_signal_count ?? rawInfo?.negative_signal_count ?? 0);
+    const sigNeu = Number(info?.neutral_signal_count ?? rawInfo?.neutral_signal_count ?? 0);
+    const sigTotal = Math.max(0, sigPos + sigNeg + sigNeu);
+    const ivtParts = [info?.ivt_click_stress_score, info?.ivt_serving_score, info?.ivt_attention_score, info?.ivt_counter_score, info?.ivt_funnel_score]
+        .map(function(v){ return num(v); }).filter(function(v){ return v != null; });
+    const localRisk = ivtParts.length
+        ? (ivtParts.reduce(function(a,b){ return a+b; }, 0) / ivtParts.length)
+        : clamp100(50 - (Number(health || 0) * 0.5));
+    if (risk == null) risk = localRisk;
+
+    const localAdj = pickMetricPreferNonZero(info?.adjustment_score, rawInfo?.adjustment_score, info?.efficiency_score, rawInfo?.efficiency_score);
+    if (adjustment == null) adjustment = localAdj;
+
+    if (confidence == null) {
+        const fresh = Number(info?.freshness_score ?? rawInfo?.freshness_score);
+        const cov = Number(info?.cov_score ?? rawInfo?.cov_score);
+        const signalFactor = sigTotal > 0 ? Math.min(1, sigTotal / 8) : 0;
+        const fresh01 = Number.isFinite(fresh) ? clamp01(fresh / 100) : null;
+        const cov01 = Number.isFinite(cov) ? clamp01(cov / 100) : null;
+        const blended = [fresh01, cov01, signalFactor].filter(function(v){ return v != null; });
+        confidence = blended.length ? blended.reduce(function(a,b){ return a+b; }, 0) / blended.length : null;
+    }
+
+    if (decision_margin == null && health != null && risk != null) {
+        decision_margin = Number((Number(health) - Number(risk) + Math.min(0, Number(adjustment || 0))).toFixed(2));
+    }
+
+    const debugCountryRows = mergedRows.some(hasCampaignHint) ? mergedRows.filter(hasCampaignHint) : mergedRows;
+    const decideCampaignAction = function(statusTag, margin, risk, health, joinStatus){
+        const tag = String(statusTag || '').toUpperCase();
+        const st = String(joinStatus || '').toUpperCase();
+        if (tag.includes('RED_FLAG') || tag.includes('FRAUD') || (risk != null && risk >= 85) || (margin != null && margin <= -90)) return 'STOP';
+        if (tag.includes('PAUSE') || st.includes('PAUSE') || ((risk != null && risk >= 75) && (margin != null && margin <= -60)) || ((health != null && health <= -30) && (margin != null && margin <= -45))) return 'PAUSE';
+        if (tag.includes('NEG') || tag.includes('DROP') || (margin != null && margin <= -25) || (health != null && health <= -12) || (risk != null && risk >= 65)) return 'SCALE DOWN';
+        if (tag.includes('POSITIVE') || tag.includes('RECOVERY') || tag.includes('EXPANSION') || ((margin != null && margin >= 20) && (risk != null && risk < 55) && (health != null && health >= 0))) return 'SCALE UP';
+        return 'HOLD';
+    };
+    const budgetByAction = { 'STOP': '-100%', 'PAUSE': '-100% sementara', 'SCALE DOWN': '-10%', 'HOLD': '0%', 'SCALE UP': '+10%' };
+    const campaignRows = debugCountryRows.map(function(c){
+        const country = String(c?.country_name || c?.country_nm || c?.country || c?.country_code || c?.country_cd || '-').trim();
+        const campaignDirect = String(c?.meta_campaign || c?.campaign || c?.campaign_name || c?.meta_campaign_name || c?.campaign_nm || c?.status_campaign || c?.meta_campaign_cd || '').trim();
+        const entity = String(c?.entity_key || c?.event_entity_key || c?.status_entity_key || c?.site || '').trim();
+        const campaignFromEntity = entity ? String(entity).split('|')[0].trim() : '';
+        const campaign = campaignDirect || campaignFromEntity || '-';
+        const margin = num(c?.decision_margin);
+        const risk = num(c?.ivt_risk_score);
+        const health = num(c?.health_score);
+        const joinStatus = String(c?.join_status || '-').trim();
+        const rawTag = String(c?.final_label || c?.root_cause_label || '').trim().toUpperCase();
+        const statusTag = rawTag || ((margin != null && margin <= -40) ? 'NEG_ADJUST' : ((margin != null && margin >= 20) ? 'POSITIVE_EXPANSION' : 'STABLE_HOLD'));
+        const action = decideCampaignAction(statusTag, margin, risk, health, joinStatus);
+        return { country, campaign, statusTag, action, budget: budgetByAction[action] || '0%', margin, risk, health, joinStatus };
+    }).filter(function(r){ return r.campaign && r.campaign !== '-'; });
+
+    const aggByCampaign = new Map();
+    campaignRows.forEach(function(r){
+        const key = String(r.campaign || '').trim().toLowerCase();
+        if (!key) return;
+        if (!aggByCampaign.has(key)) aggByCampaign.set(key, {
+            campaign: r.campaign,
+            countries: new Set(),
+            tags: new Map(),
+            marginSum: 0, riskSum: 0, healthSum: 0,
+            nMargin: 0, nRisk: 0, nHealth: 0
+        });
+        const a = aggByCampaign.get(key);
+        if (r.country) a.countries.add(String(r.country));
+        if (r.statusTag) {
+            const t = String(r.statusTag);
+            a.tags.set(t, Number(a.tags.get(t) || 0) + 1);
+        }
+        if (num(r.margin) != null) { a.marginSum += Number(r.margin); a.nMargin += 1; }
+        if (num(r.risk) != null) { a.riskSum += Number(r.risk); a.nRisk += 1; }
+        if (num(r.health) != null) { a.healthSum += Number(r.health); a.nHealth += 1; }
+    });
+    const campaignRecapRows = Array.from(aggByCampaign.values()).map(function(a){
+        const countries = Array.from(a.countries.values());
+        const countrySummary = countries.length <= 2 ? countries.join(', ') : `${countries.slice(0,2).join(', ')} +${countries.length - 2}`;
+        let dominantTag = 'STABLE_HOLD';
+        let dominantCount = -1;
+        a.tags.forEach(function(cnt, tag){ if (cnt > dominantCount) { dominantTag = tag; dominantCount = cnt; } });
+        const avgMargin = a.nMargin ? (a.marginSum / a.nMargin) : null;
+        const avgRisk = a.nRisk ? (a.riskSum / a.nRisk) : null;
+        const avgHealth = a.nHealth ? (a.healthSum / a.nHealth) : null;
+        const aggAction = decideCampaignAction(dominantTag, avgMargin, avgRisk, avgHealth, '');
+        return {
+            campaign: a.campaign,
+            countries: countrySummary || '-',
+            statusTag: dominantTag,
+            margin: avgMargin,
+            risk: avgRisk,
+            health: avgHealth,
+            action: aggAction,
+            budget: budgetByAction[aggAction] || '0%'
+        };
+    });
 
     let html = '';
     html += '<div class="decision-detail-body">';
@@ -2891,6 +3057,11 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx) {
     html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">Confidence</div><div class="decision-detail-kpi-value">${fmtPct01(confidence)}</div></div>`;
     html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">Decision Margin</div><div class="decision-detail-kpi-value">${fmt2(decision_margin)}</div></div>`;
     html += '</div>';
+    html += '</div>';
+
+    html += '<div class="decision-detail-section">';
+    html += `<div class="decision-detail-section-title">Score Per Jam</div>`;
+    html += `<div style="height:220px;border:1px solid #e2e8f0;border-radius:12px;padding:10px;background:#fff;"><canvas id="decision-score-hourly-chart"></canvas></div>`;
     html += '</div>';
 
     // === Compare 1/3/7 hari sebelumnya ===
@@ -2981,6 +3152,56 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx) {
     }
     html += '</div>';
 
+    if (campaignRows.length) {
+        const actionOrder = { 'STOP': 1, 'PAUSE': 2, 'SCALE DOWN': 3, 'HOLD': 4, 'SCALE UP': 5 };
+        const byAction = { 'STOP': 0, 'PAUSE': 0, 'SCALE DOWN': 0, 'HOLD': 0, 'SCALE UP': 0 };
+        campaignRecapRows.forEach(function(r){ byAction[r.action] = (byAction[r.action] || 0) + 1; });
+        const recapRows = campaignRecapRows.slice().sort(function(a,b){
+            const ao = actionOrder[a.action] || 99;
+            const bo = actionOrder[b.action] || 99;
+            if (ao !== bo) return ao - bo;
+            return Math.abs(Number(b.margin || 0)) - Math.abs(Number(a.margin || 0));
+        });
+        html += '<div class="decision-detail-section">';
+        html += `<div class="decision-detail-section-title">Rekomendasi Aksi Per Campaign</div>`;
+        html += `<div style="font-size:12px;color:#475569;margin-bottom:8px;">STOP: <b>${esc(String(byAction['STOP']||0))}</b> • PAUSE: <b>${esc(String(byAction['PAUSE']||0))}</b> • SCALE DOWN: <b>${esc(String(byAction['SCALE DOWN']||0))}</b> • HOLD: <b>${esc(String(byAction['HOLD']||0))}</b> • SCALE UP: <b>${esc(String(byAction['SCALE UP']||0))}</b></div>`;
+        html += `<div style="overflow-x:auto;overflow-y:hidden;border:1px solid #e2e8f0;border-radius:12px;background:#fff;"><table style="width:max-content;min-width:1220px;border-collapse:collapse;font-size:12px;white-space:nowrap;"><thead><tr style="background:#f8fafc;color:#0f172a;"><th style="padding:10px;text-align:left;">Aksi</th><th style="padding:10px;text-align:left;">Campaign</th><th style="padding:10px;text-align:left;">Cakupan Negara</th><th style="padding:10px;text-align:left;">Status Tag</th><th style="padding:10px;text-align:right;">Margin</th><th style="padding:10px;text-align:right;">Risk</th><th style="padding:10px;text-align:right;">Health</th><th style="padding:10px;text-align:left;">Budget</th><th style="padding:10px;text-align:center;">Eksekusi</th></tr></thead><tbody>`;
+        const inlineAll = (window.decisionCampaignInlineState && typeof window.decisionCampaignInlineState === 'object') ? window.decisionCampaignInlineState : {};
+        const inline = (inlineAll[String(storeKey || '')] && typeof inlineAll[String(storeKey || '')] === 'object') ? inlineAll[String(storeKey || '')] : {};
+        recapRows.forEach(function(r){
+            const campaignName = String(r.campaign || '').trim();
+            const rowKey = campaignName.toLowerCase();
+            const campaignEnc = encodeURIComponent(campaignName);
+            const actionEnc = encodeURIComponent(String(r.action || ''));
+            const isOpen = String(inline.openKey || '') === rowKey;
+            const targetCampaign = String(inline.targetCampaign || campaignName);
+            const targetAction = String(inline.targetAction || r.action || 'HOLD').toUpperCase();
+            const targetBudgetRaw = (inline.targetBudgetRaw != null) ? String(inline.targetBudgetRaw) : '';
+            const inlineMsg = String(inline.lastMsg || '');
+            const budgetReadonly = (targetAction === 'STOP');
+            html += `<tr><td style="padding:10px;border-top:1px solid #e2e8f0;font-weight:800;">${esc(r.action)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(campaignName)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.countries)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.statusTag)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(r.margin))}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(r.risk))}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(r.health))}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.budget)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:center;"><button type="button" class="btn btn-sm ${isOpen ? 'btn-primary' : 'btn-outline-primary'}" onclick="applyDecisionCampaignAction('${esc(String(storeKey||''))}','${esc(campaignEnc)}','${esc(actionEnc)}')">${isOpen ? 'Tutup' : 'Jalankan'}</button></td></tr>`;
+            if (isOpen) {
+                html += `<tr><td colspan="9" style="padding:10px;border-top:1px solid #e2e8f0;background:#f8fafc;">`;
+                html += `<div style="display:flex;align-items:center;gap:10px;width:100%;"><span style="font-size:12px;color:#64748b;font-weight:700;white-space:nowrap;">Target Campaign</span><span style="flex:1;padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font-size:12px;color:#0f172a;min-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(targetCampaign)}</span><span style="font-size:12px;color:#64748b;font-weight:700;white-space:nowrap;">Aksi</span><span style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font-size:12px;color:#0f172a;font-weight:800;white-space:nowrap;">${esc(targetAction)}</span><span style="font-size:12px;color:#64748b;font-weight:700;white-space:nowrap;">Daily Budget</span><input type="text" class="form-control form-control-sm" style="width:190px;min-width:190px;text-align:right;${budgetReadonly ? 'background:#e2e8f0;cursor:not-allowed;' : ''}" value="${esc(targetBudgetRaw)}" onchange="updateDecisionCampaignInlineBudget('${esc(String(storeKey||''))}', this.value)" placeholder="contoh: 500000" ${budgetReadonly ? 'readonly' : ''}><button type="button" class="btn btn-sm btn-primary" onclick="executeDecisionCampaignInline('${esc(String(storeKey||''))}')">Save</button></div>`;
+                html += budgetReadonly ? `<div style="font-size:12px;color:#64748b;margin-top:6px;">Aksi STOP: Daily Budget readonly, yang dieksekusi adalah status campaign.</div>` : '';
+                html += inlineMsg ? `<div style="font-size:12px;color:#475569;margin-top:6px;">${esc(inlineMsg)}</div>` : '';
+                html += `</td></tr>`;
+            }
+        });
+        html += `</tbody></table></div>`;
+        html += '</div>';
+
+        html += '<div class="decision-detail-section">';
+        html += `<div class="decision-detail-section-title">Status Tags Per Campaign</div>`;
+        html += `<div style="overflow-x:auto;overflow-y:hidden;border:1px solid #e2e8f0;border-radius:12px;background:#fff;"><table style="width:max-content;min-width:920px;border-collapse:collapse;font-size:12px;white-space:nowrap;"><thead><tr style="background:#f8fafc;color:#0f172a;"><th style="padding:10px;text-align:left;">Negara</th><th style="padding:10px;text-align:left;">Campaign</th><th style="padding:10px;text-align:left;">Status Tag</th><th style="padding:10px;text-align:right;">Margin</th><th style="padding:10px;text-align:left;">Aksi</th></tr></thead><tbody>`;
+        campaignRows.forEach(function(r){
+            const tone = (r.statusTag.includes('POSITIVE') || r.statusTag.includes('RECOVERY') || r.statusTag.includes('EXPANSION')) ? 'green' : ((r.statusTag.includes('DROP') || r.statusTag.includes('NEG') || r.statusTag.includes('RED_FLAG')) ? 'red' : 'yellow');
+            html += `<tr><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.country)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.campaign)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;"><span class="scx-pill ${tone}">${esc(r.statusTag)}</span></td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(r.margin))}</td><td style="padding:10px;border-top:1px solid #e2e8f0;"><b>${esc(r.action)}</b> (${esc(r.budget)})</td></tr>`;
+        });
+        html += `</tbody></table></div>`;
+        html += '</div>';
+    }
+
     const reasonsView = reasons.length ? reasons : [String(activeT?.reason_summary || info.reason_summary || '').trim()].filter(Boolean);
     if (reasonsView.length > 0) {
         html += '<div class="decision-detail-section">';
@@ -3002,30 +3223,52 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx) {
         if (debugPosSignals != null || debugNegSignals != null || debugNeutralSignals != null) html += `<div style="font-size:12px;color:#64748b;">Signals (+/-/0): ${esc(String(debugPosSignals == null ? '-' : debugPosSignals))}/${esc(String(debugNegSignals == null ? '-' : debugNegSignals))}/${esc(String(debugNeutralSignals == null ? '-' : debugNeutralSignals))}</div>`;
         
         if (debugCountryRows.length > 0) {
-            html += '<div style="margin-top:16px;font-size:12px;color:#475569;font-weight:700;border-top:1px solid #e2e8f0;padding-top:12px;">Rincian Per Negara</div>';
-            html += '<div style="margin-top:8px;display:grid;gap:8px;">';
+            html += '<div style="margin-top:16px;font-size:12px;color:#475569;font-weight:700;border-top:1px solid #e2e8f0;padding-top:12px;">Rincian Per Negara & Campaign</div>';
+            const byCountry = new Map();
             debugCountryRows.forEach(function(c) {
-                const cName = String(c.country_name || c.country_code || '-').trim();
-                const cCode = String(c.country_code || '').trim();
-                const cLabel = String(c.final_label || 'STABLE').trim();
-                const tone = (cLabel.includes('POSITIVE') || cLabel.includes('RECOVERY') || cLabel.includes('EXPANSION')) ? '#22c55e' : ((cLabel.includes('DROP') || cLabel.includes('NEG') || cLabel.includes('RED_FLAG')) ? '#ef4444' : '#eab308');
-                
+                const cCode = String(c?.country_code || c?.country_cd || '').trim().toUpperCase();
+                const cName = String(c?.country_name || c?.country_nm || c?.country || cCode || '-').trim();
+                const key = `${cName}|${cCode}`;
+                if (!byCountry.has(key)) byCountry.set(key, { cName, cCode, rows: [] });
+                byCountry.get(key).rows.push(c || {});
+            });
+
+            html += '<div style="margin-top:8px;max-width:100%;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;">';
+            html += '<div style="display:grid;gap:10px;min-width:1100px;">';
+            Array.from(byCountry.values()).forEach(function(group) {
                 html += `<div style="padding:10px;border:1px solid #e2e8f0;border-radius:8px;background:#f8fafc;">`;
-                html += `  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">`;
-                html += `    <div style="font-weight:700;color:#0f172a;">${esc(cName)} ${cCode ? `<span style="color:#64748b;font-weight:400;">(${esc(cCode)})</span>` : ''}</div>`;
-                html += `    <span style="font-size:10px;font-weight:800;color:#fff;background:${tone};padding:2px 6px;border-radius:4px;">${esc(cLabel)}</span>`;
+                html += `  <div style="font-weight:700;color:#0f172a;margin-bottom:8px;">${esc(group.cName)} ${group.cCode ? `<span style="color:#64748b;font-weight:400;">(${esc(group.cCode)})</span>` : ''}</div>`;
+                html += `  <div style="border:1px solid #e2e8f0;border-radius:8px;background:#fff;">`;
+                html += `    <table style="width:100%;border-collapse:collapse;font-size:11px;white-space:nowrap;">`;
+                html += `      <thead><tr style="background:#f8fafc;color:#0f172a;"><th style="padding:8px;text-align:left;">Campaign</th><th style="padding:8px;text-align:left;">Status</th><th style="padding:8px;text-align:right;">Health</th><th style="padding:8px;text-align:right;">Risk</th><th style="padding:8px;text-align:right;">Margin</th><th style="padding:8px;text-align:right;">Signals (+/-/0)</th></tr></thead><tbody>`;
+                const renderRows = group.rows.some(function(x){
+                    return String(x?.meta_campaign || x?.campaign || x?.campaign_name || x?.meta_campaign_name || x?.campaign_nm || x?.status_campaign || x?.meta_campaign_cd || '').trim() || String(x?.entity_key || x?.status_entity_key || x?.event_entity_key || '').includes('|');
+                }) ? group.rows.filter(function(x){
+                    return String(x?.meta_campaign || x?.campaign || x?.campaign_name || x?.meta_campaign_name || x?.campaign_nm || x?.status_campaign || x?.meta_campaign_cd || '').trim() || String(x?.entity_key || x?.status_entity_key || x?.event_entity_key || '').includes('|');
+                }) : group.rows;
+                renderRows.forEach(function(c) {
+                    const campaignDirect = String(c?.meta_campaign || c?.campaign || c?.campaign_name || c?.meta_campaign_name || c?.campaign_nm || c?.status_campaign || c?.meta_campaign_cd || '').trim();
+                    const entity = String(c?.entity_key || c?.event_entity_key || c?.status_entity_key || c?.site || '').trim();
+                    const campaignFromEntity = entity ? String(entity).split('|')[0].trim() : '';
+                    const campaign = campaignDirect || campaignFromEntity || '-';
+                    const joinStatus = String(c?.join_status || '-').trim();
+                    const posSig = Number(c?.positive_signals ?? c?.positive_signal_count ?? 0);
+                    const negSig = Number(c?.negative_signals ?? c?.negative_signal_count ?? 0);
+                    const neuSig = Number(c?.neutral_signals ?? c?.neutral_signal_count ?? 0);
+                    html += `<tr>`;
+                    html += `<td style="padding:8px;border-top:1px solid #e2e8f0;">${esc(campaign)}</td>`;
+                    html += `<td style="padding:8px;border-top:1px solid #e2e8f0;">${esc(joinStatus)}</td>`;
+                    html += `<td style="padding:8px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(c.health_score))}</td>`;
+                    html += `<td style="padding:8px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(c.ivt_risk_score))}</td>`;
+                    html += `<td style="padding:8px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(c.decision_margin))}</td>`;
+                    html += `<td style="padding:8px;border-top:1px solid #e2e8f0;text-align:right;">${esc(String(posSig))}/${esc(String(negSig))}/${esc(String(neuSig))}</td>`;
+                    html += `</tr>`;
+                });
+                html += `      </tbody></table>`;
                 html += `  </div>`;
-                html += `  <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:4px;font-size:11px;color:#475569;">`;
-                html += `    <div>Health: <b>${fmt2(c.health_score)}</b></div>`;
-                html += `    <div>Risk: <b>${fmt2(c.ivt_risk_score)}</b></div>`;
-                html += `    <div>Margin: <b>${fmt2(c.decision_margin)}</b></div>`;
-                html += `  </div>`;
-                const posSig = Number(c.positive_signals ?? c.positive_signal_count ?? 0);
-                const negSig = Number(c.negative_signals ?? c.negative_signal_count ?? 0);
-                const neuSig = Number(c.neutral_signals ?? c.neutral_signal_count ?? 0);
-                html += `  <div style="margin-top:4px;font-size:10px;color:#94a3b8;">Status: ${esc(c.join_status || '-')} | Signals: ${posSig}/${negSig}/${neuSig}</div>`;
                 html += `</div>`;
             });
+            html += '</div>';
             html += '</div>';
         }
         html += '</div>';
@@ -3043,6 +3286,80 @@ function switchDecisionTimelineTab(btn) {
     openDetailKeputusan(storeKey, idx);
 }
 
+function renderDecisionScoreHourlyChart(storeKey) {
+    const cvs = document.getElementById('decision-score-hourly-chart');
+    if (!cvs || typeof Chart === 'undefined') return;
+    const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
+    const info = entry?.meta?.breakdown?.meta || {};
+    const timeline = Array.isArray(info.scoring_timeline) ? info.scoring_timeline : [];
+    if (window.decisionScoreHourlyChart && typeof window.decisionScoreHourlyChart.destroy === 'function') {
+        try { window.decisionScoreHourlyChart.destroy(); } catch (_) {}
+    }
+    const pickScore = (t) => {
+        const vals = [t?.score, t?.final_score, t?.score_final, t?.total_score];
+        for (const v of vals) { const n = Number(v); if (Number.isFinite(n)) return n; }
+        return null;
+    };
+    const fmtHour = function(v) {
+        const s = String(v == null ? '' : v).trim();
+        if (!s) return '-';
+        if (/^\d{1,2}:\d{2}$/.test(s)) return s;
+        const n = Number(s);
+        if (Number.isFinite(n)) return `${String(Math.max(0, Math.min(23, Math.floor(n)))).padStart(2,'0')}:00`;
+        return s;
+    };
+    const points = timeline.map(function(t, i){
+        const ord = Number(t?.run_hour);
+        return { i, ord: Number.isFinite(ord) ? ord : i, label: fmtHour(t?.run_hour_label || t?.run_hour || `#${i+1}`), score: pickScore(t) };
+    }).sort(function(a,b){ return a.ord - b.ord; });
+    if (!points.length) return;
+    const labels = points.map(p => p.label);
+    const scores = points.map(p => p.score);
+    const scorePointLabelPlugin = {
+        id: 'scorePointLabelPlugin',
+        afterDatasetsDraw(chart) {
+            const { ctx } = chart;
+            const meta = chart.getDatasetMeta(0);
+            const data = chart.data.datasets?.[0]?.data || [];
+            ctx.save();
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '700 11px Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            meta.data.forEach(function(pt, i){
+                const v = Number(data[i]);
+                if (!Number.isFinite(v)) return;
+                ctx.fillText(String(Math.round(v)), pt.x, pt.y - 8);
+            });
+            ctx.restore();
+        }
+    };
+    window.decisionScoreHourlyChart = new Chart(cvs.getContext('2d'), {
+        type: 'line',
+        data: { labels, datasets: [{ label:'Score', data:scores, borderColor:'#0ea5e9', backgroundColor:'rgba(14,165,233,.14)', fill:true, tension:.35, pointRadius:4, pointHoverRadius:6, pointBackgroundColor:'#fff', pointBorderColor:'#0ea5e9', pointBorderWidth:2, borderWidth:3, spanGaps:true }] },
+        options: { responsive:true, maintainAspectRatio:false, layout:{ padding:{ top:18 } }, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:function(ctx){ const v = Number(ctx.parsed.y); return `Score: ${Number.isFinite(v) ? v.toFixed(2) : '-'}`; } } } }, scales:{ y:{ beginAtZero:false, ticks:{ precision:0 } }, x:{ grid:{ display:false } } } },
+        plugins: [scorePointLabelPlugin]
+    });
+}
+
+function getDecisionRawMeta(row, state) {
+    const store = (window.dashboardRecapStoredScoring && typeof window.dashboardRecapStoredScoring === 'object') ? window.dashboardRecapStoredScoring : {};
+    const dim = String(state?.dim || '').toLowerCase();
+    const key = dim === 'country'
+        ? String(row?.code || row?.country_cd || row?.country_code || row?.name || '').trim().toUpperCase()
+        : String(row?.name || row?.domain || row?.site || row?.entity_key || '').trim().toLowerCase();
+    if (!key) return null;
+    const candidates = [key, key.replace(/^www\./i, '')];
+    const parts = key.split('.').filter(Boolean);
+    if (parts.length >= 2) candidates.push(parts.slice(-2).join('.'));
+    for (const k of candidates) {
+        if (k && store[k]) return store[k];
+        const up = String(k || '').toUpperCase();
+        if (up && store[up]) return store[up];
+    }
+    return null;
+}
+
 function openDetailKeputusan(storeKey, activeTimelineIdx) {
     const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
     if (!entry || typeof entry !== 'object') return;
@@ -3054,6 +3371,7 @@ function openDetailKeputusan(storeKey, activeTimelineIdx) {
     const domainEl = document.getElementById('decision-detail-domain');
     const meta = entry?.meta && typeof entry.meta === 'object' ? entry.meta : entry;
     const row = entry?.row || {};
+    const rawMeta = getDecisionRawMeta(row, entry?.state || {}) || null;
     const domainName = String(row?.name || row?.domain || row?.site || '').trim();
 
     if (domainEl) {
@@ -3068,7 +3386,10 @@ function openDetailKeputusan(storeKey, activeTimelineIdx) {
 
     const info = meta?.breakdown?.meta || {};
     const timeline = Array.isArray(info.scoring_timeline) ? info.scoring_timeline : [];
-    const idx = Math.max(0, Math.min(Number(activeTimelineIdx) || 0, Math.max(0, timeline.length - 1)));
+    const preferredIdx = Number(info.scoring_timeline_active_idx);
+    const defaultIdx = Number.isFinite(preferredIdx) ? preferredIdx : 0;
+    const askedIdx = (activeTimelineIdx == null || activeTimelineIdx === '') ? defaultIdx : Number(activeTimelineIdx);
+    const idx = Math.max(0, Math.min(Number.isFinite(askedIdx) ? askedIdx : defaultIdx, Math.max(0, timeline.length - 1)));
     entry.activeTimelineIdx = idx;
 
     const activeT = timeline[idx] || null;
@@ -3076,11 +3397,125 @@ function openDetailKeputusan(storeKey, activeTimelineIdx) {
     const cacheMap = (info && typeof info.decision_compare_by_hour === 'object') ? info.decision_compare_by_hour : {};
     info.decision_compare = runHour && cacheMap[runHour] ? cacheMap[runHour] : null;
 
-    if (body) body.innerHTML = renderDetailKeputusanHTML(meta, storeKey, idx);
+    if (body) body.innerHTML = renderDetailKeputusanHTML(meta, storeKey, idx, row, rawMeta);
+    renderDecisionScoreHourlyChart(storeKey);
     modal.classList.add('active');
 
     // Load compare data async untuk 1/3/7 hari sebelumnya
     ensureDecisionCompareLoaded(storeKey, idx).catch(function(){});
+    ensureCountryDetailFromDomainScoring(storeKey, idx).catch(function(e){
+        try { console.warn('ensureCountryDetailFromDomainScoring failed:', e); } catch(_){}
+    });
+}
+
+async function ensureCountryDetailFromDomainScoring(storeKey, activeTimelineIdx) {
+    const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
+    if (!entry || typeof entry !== 'object') return;
+    const state = entry?.state || {};
+    if (String(state?.dim || '').toLowerCase() !== 'country') return;
+    const row = entry?.row || {};
+    const date = String(state?.date || '').trim();
+    const cCode = String(row?.code || row?.country_cd || row?.country_code || '').trim().toUpperCase();
+    const cName = String(row?.name || row?.country_name || row?.country_nm || '').trim().toUpperCase();
+    if (!date || (!cCode && !cName)) return;
+
+    const src = String(state?.source || 'all').toLowerCase();
+    const sub = String(state?.subdomain || '').trim();
+    const normCC = function(v){ const s = String(v || '').trim().toUpperCase(); return s === 'TU' ? 'TR' : s; };
+    const rowsFromResp = function(j){
+        if (Array.isArray(j?.data_filtered) && j.data_filtered.length) return j.data_filtered;
+        if (Array.isArray(j?.data) && j.data.length) return j.data;
+        if (Array.isArray(j?.rows) && j.rows.length) return j.rows;
+        if (Array.isArray(j?.daily_rows) && j.daily_rows.length) return j.daily_rows;
+        return [];
+    };
+    const domainNames = new Set();
+
+    const pullDomainRows = async function(source){
+        const url = endpointForRange(source, 'domain', date, date, sub);
+        const res = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        const json = await res.json();
+        rowsFromResp(json).forEach(function(r){
+            const nm = String(r?.site_name || r?.site || r?.subdomain || r?.domain || '').trim().toLowerCase();
+            if (nm) domainNames.add(nm);
+        });
+    };
+
+    try {
+        if (src === 'all') await Promise.all([pullDomainRows('adx'), pullDomainRows('adsense')]);
+        else await pullDomainRows(src === 'adsense' ? 'adsense' : 'adx');
+    } catch (e) {
+        const meta = (entry?.meta && typeof entry.meta === 'object') ? entry.meta : {};
+        meta.breakdown = meta.breakdown || {};
+        meta.breakdown.meta = Object.assign({}, meta.breakdown.meta || {}, { scoring_source_label: 'Gagal agregasi domain->negara' });
+        entry.meta = meta;
+        throw e;
+    }
+
+    const entities = Array.from(domainNames.values());
+    if (!entities.length) return;
+
+    let payload = {};
+    try {
+        const res = await fetch('/management/admin/dashboard_scoring_data', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({ date, dim: 'domain', source: src, entities, include_events: true }),
+            credentials: 'same-origin'
+        });
+        const json = await res.json();
+        if (!res.ok || !json?.status || !json?.data || typeof json.data !== 'object') return;
+        payload = json.data;
+    } catch (e) { return; }
+
+    const statuses = [];
+    const events = [];
+    Object.values(payload).forEach(function(raw){
+        const parsed = pickScoringArrays(raw?.scoring || raw || {});
+        (Array.isArray(parsed?.statuses) ? parsed.statuses : []).forEach(function(s){
+            const cc = normCC(s?.country_cd || s?.country_code || s?.code || '');
+            const nm = String(s?.country_nm || s?.country_name || s?.country || '').trim().toUpperCase();
+            if ((cCode && cc === normCC(cCode)) || (!cCode && cName && nm === cName)) statuses.push(s);
+        });
+        (Array.isArray(parsed?.events) ? parsed.events : []).forEach(function(ev){
+            const cc = normCC(ev?.country_cd || ev?.country_code || ev?.code || '');
+            const nm = String(ev?.country_nm || ev?.country_name || ev?.country || '').trim().toUpperCase();
+            if ((cCode && cc === normCC(cCode)) || (!cCode && cName && nm === cName)) events.push(ev);
+        });
+    });
+    if (!statuses.length && !events.length) return;
+
+    const groups = scxGroupScoringByCountry(statuses, events);
+    const agg = scxAggregateScoring(statuses, events, groups);
+    if (!agg || typeof agg !== 'object') return;
+
+    const meta = (entry?.meta && typeof entry.meta === 'object') ? entry.meta : {};
+    meta.breakdown = meta.breakdown || {};
+    meta.breakdown.meta = Object.assign({}, meta.breakdown.meta || {}, {
+        health_score: agg.health_score,
+        ivt_risk_score: agg.ivt_risk_score,
+        adjustment_score: agg.adjustment_score,
+        confidence: agg.confidence,
+        decision_margin: agg.decision_margin,
+        final_label: agg.final_label,
+        root_cause_label: agg.root_cause_label,
+        positive_signal_count: agg.positive_signal_count,
+        negative_signal_count: agg.negative_signal_count,
+        neutral_signal_count: agg.neutral_signal_count,
+        country_details: statuses,
+        scoring_source: 'domain_grouped_country',
+        scoring_source_label: 'Aggregasi Domain per Negara'
+    });
+    entry.meta = meta;
+
+    const modal = document.getElementById('decision-detail-modal');
+    const body = document.getElementById('decision-detail-body');
+    if (modal && modal.classList.contains('active') && body) {
+        const idx = Math.max(0, Number(activeTimelineIdx) || 0);
+        const rawMeta = getDecisionRawMeta(row, state) || null;
+        body.innerHTML = renderDetailKeputusanHTML(meta, storeKey, idx, row, rawMeta);
+        renderDecisionScoreHourlyChart(storeKey);
+    }
 }
 
 async function ensureDecisionCompareLoaded(storeKey, activeTimelineIdx) {
@@ -3090,6 +3525,7 @@ async function ensureDecisionCompareLoaded(storeKey, activeTimelineIdx) {
     const info = meta?.breakdown?.meta || {};
     const row = entry?.row || {};
     const state = entry?.state || {};
+    const rawMeta = getDecisionRawMeta(row, state) || null;
     const date = String(state?.date || info.date || '').trim();
     const domain = String(row?.name || row?.domain || row?.site || '').trim();
     if (!date || !domain) return;
@@ -3111,7 +3547,8 @@ async function ensureDecisionCompareLoaded(storeKey, activeTimelineIdx) {
         const modal = document.getElementById('decision-detail-modal');
         const body = document.getElementById('decision-detail-body');
         if (modal && modal.classList.contains('active') && body) {
-            body.innerHTML = renderDetailKeputusanHTML(meta, storeKey, idx);
+            body.innerHTML = renderDetailKeputusanHTML(meta, storeKey, idx, row, rawMeta);
+            renderDecisionScoreHourlyChart(storeKey);
         }
         return;
     }
@@ -3134,7 +3571,8 @@ async function ensureDecisionCompareLoaded(storeKey, activeTimelineIdx) {
         const modal = document.getElementById('decision-detail-modal');
         const body = document.getElementById('decision-detail-body');
         if (modal && modal.classList.contains('active') && body) {
-            body.innerHTML = renderDetailKeputusanHTML(meta, storeKey, idx);
+            body.innerHTML = renderDetailKeputusanHTML(meta, storeKey, idx, row, rawMeta);
+            renderDecisionScoreHourlyChart(storeKey);
         }
     } catch (e) {
         // ignore
@@ -3147,22 +3585,111 @@ function tryOpenScoringDetailFromDecision(storeKey) {
     const row = entry?.row || {};
     const domain = String(row?.name || row?.domain || row?.site || '').trim().toLowerCase();
     if (!domain) return;
-    // Cari tombol "Detail Scoring" yang barisnya mengandung domain tersebut
     const buttons = Array.from(document.querySelectorAll('.dashboard-open-score-detail-btn'));
     for (const b of buttons) {
         const tr = b.closest ? b.closest('tr') : null;
         if (!tr) continue;
         const t = String(tr.innerText || '').toLowerCase();
-        if (t.includes(domain)) {
-            b.click();
+        if (t.includes(domain)) { b.click(); return; }
+    }
+}
+
+function rerenderDetailKeputusanByStoreKey(storeKey) {
+    const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
+    if (!entry) return;
+    const body = document.getElementById('decision-detail-body');
+    if (!body) return;
+    const meta = entry?.meta && typeof entry.meta === 'object' ? entry.meta : entry;
+    const row = entry?.row || {};
+    const rawMeta = getDecisionRawMeta(row, entry?.state || {}) || null;
+    const idx = Number(entry?.activeTimelineIdx || 0) || 0;
+    body.innerHTML = renderDetailKeputusanHTML(meta, storeKey, idx, row, rawMeta);
+    renderDecisionScoreHourlyChart(storeKey);
+}
+
+function decisionInlineNorm(s) { return String(s || '').toLowerCase().replace(/\s+/g,'').replace(/[^a-z0-9_#.-]/g,''); }
+function getDecisionInlineState(sk) {
+    if (!window.decisionCampaignInlineState || typeof window.decisionCampaignInlineState !== 'object') window.decisionCampaignInlineState = {};
+    if (!window.decisionCampaignInlineState[sk] || typeof window.decisionCampaignInlineState[sk] !== 'object') window.decisionCampaignInlineState[sk] = {};
+    return window.decisionCampaignInlineState[sk];
+}
+function setDecisionInlineState(sk, patch, doRender=true) {
+    const cur = getDecisionInlineState(sk);
+    window.decisionCampaignInlineState[sk] = Object.assign({}, cur, patch || {});
+    if (doRender) rerenderDetailKeputusanByStoreKey(sk);
+}
+async function decisionInlineLoadCampaigns(storeKey) {
+    const sk = String(storeKey || '');
+    const entry = window.detailKeputusanStore && window.detailKeputusanStore[sk];
+    const row = entry?.row || {};
+    const ymd = String(entry?.state?.date || '').trim();
+    const accountAds = String(row?.account_ads || '').trim();
+    const siteName = String(row?.name || row?.domain || row?.site || '').trim();
+    if (!ymd || !accountAds || !siteName) throw new Error('Context domain/account/tanggal tidak valid');
+    const d = new Date(ymd + 'T00:00:00'); d.setDate(d.getDate() - 6);
+    const start = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const qs = new URLSearchParams({ account_ads: accountAds, site_name: siteName, start_date: start, end_date: ymd });
+    const resp = await fetch('/management/admin/page_monitoring_domain_campaigns?' + qs.toString(), { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    const json = await resp.json();
+    if (!json || !json.status) throw new Error(json?.error || 'Gagal memuat campaigns');
+    return { accountAds, campaigns: Array.isArray(json.campaigns) ? json.campaigns : [] };
+}
+async function applyDecisionCampaignAction(storeKey, campaignEnc, actionEnc) {
+    const sk = String(storeKey || '');
+    const campaign = decodeURIComponent(String(campaignEnc || '')).trim();
+    const action = decodeURIComponent(String(actionEnc || '')).trim().toUpperCase();
+    const rowKey = String(campaign || '').toLowerCase();
+    const st = getDecisionInlineState(sk);
+    if (st.openKey === rowKey) { setDecisionInlineState(sk, { openKey: '' }); return; }
+    setDecisionInlineState(sk, { openKey: rowKey, targetCampaign: campaign, targetAction: action, lastMsg: 'Memuat budget campaign...' });
+    try {
+        const loaded = await decisionInlineLoadCampaigns(sk);
+        const hit = loaded.campaigns.find(function(c){ return decisionInlineNorm(c?.campaign_name || c?.name || '') === decisionInlineNorm(campaign); }) || null;
+        const cid = String(hit?.campaign_id || hit?.id || '');
+        const base = Number(hit?.daily_budget || hit?.budget || 0) || 0;
+        setDecisionInlineState(sk, { accountAds: loaded.accountAds, targetCampaignId: cid, targetBudgetRaw: String(Math.round(base || 0)), lastMsg: hit ? '' : 'Campaign target tidak ditemukan di data aktif.' });
+    } catch (e) {
+        setDecisionInlineState(sk, { lastMsg: String(e?.message || e || 'Gagal memuat budget campaign') });
+    }
+}
+function updateDecisionCampaignInlineBudget(storeKey, targetBudgetRaw) {
+    const sk = String(storeKey || '');
+    setDecisionInlineState(sk, { targetBudgetRaw: String(targetBudgetRaw || '') }, false);
+}
+async function executeDecisionCampaignInline(storeKey) {
+    const sk = String(storeKey || '');
+    const st = getDecisionInlineState(sk);
+    const action = String(st.targetAction || 'HOLD').toUpperCase();
+    const cid = String(st.targetCampaignId || '');
+    const accountAds = String(st.accountAds || '');
+    if (!cid || !accountAds) { setDecisionInlineState(sk, { lastMsg: 'Campaign ID/account belum siap, buka ulang Jalankan.' }); return; }
+    const postForm = async function(url, data){ const b = new URLSearchParams(); Object.keys(data||{}).forEach(k=>b.append(k, String((data||{})[k]))); const r = await fetch(url, { method:'POST', headers:{ 'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8', 'X-Requested-With':'XMLHttpRequest' }, body:b.toString() }); return await r.json(); };
+    try {
+        if (action === 'SCALE UP' || action === 'SCALE DOWN') {
+            const raw = String(st.targetBudgetRaw || '').replace('Rp','').replace(/\./g,'').replace(/,/g,'').trim();
+            const n = parseInt(raw, 10);
+            if (!isFinite(n) || n <= 0) { setDecisionInlineState(sk, { lastMsg: 'Daily Budget tidak valid' }); return; }
+            const j = await postForm('/management/admin/update_daily_budget_monitoring_domain_campaign', { account_ads: accountAds, campaign_id: cid, daily_budget: n });
+            if (!j || !j.status) throw new Error(j?.error || 'Gagal update daily budget');
+            setDecisionInlineState(sk, { lastMsg: `OK: Daily Budget tersimpan (${n})` });
             return;
         }
+        const status = (action === 'PAUSE' || action === 'STOP') ? 'PAUSED' : 'ACTIVE';
+        const j = await postForm('/management/admin/update_campaign_status_monitoring_domain_campaign', { account_ads: accountAds, status: status, campaign_ids: JSON.stringify([cid]) });
+        if (!j || !j.status) throw new Error(j?.error || 'Gagal update status campaign');
+        setDecisionInlineState(sk, { lastMsg: `OK: status campaign ${status}` });
+    } catch (e) {
+        setDecisionInlineState(sk, { lastMsg: String(e?.message || e || 'Gagal eksekusi campaign') });
     }
 }
 
 function closeDetailKeputusan() {
     const modal = document.getElementById('decision-detail-modal');
     const domainEl = document.getElementById('decision-detail-domain');
+    if (window.decisionScoreHourlyChart && typeof window.decisionScoreHourlyChart.destroy === 'function') {
+        try { window.decisionScoreHourlyChart.destroy(); } catch (_) {}
+        window.decisionScoreHourlyChart = null;
+    }
     if (modal) {
         modal.classList.remove('active');
     }
@@ -3248,15 +3775,27 @@ function initDashboardRecap() {
         return String(row?.name || row?.domain || row?.site || row?.entity_key || '').trim().toLowerCase();
     }
 
+    function scoringLookupCandidates(dim, row) {
+        const d = String(dim || '').toLowerCase();
+        if (d === 'country') {
+            const code = String(row?.code || row?.country_cd || row?.country_code || '').trim().toUpperCase();
+            const name = String(row?.name || row?.country_name || row?.country_nm || '').trim();
+            const out = [];
+            if (code) out.push(code);
+            if (name) { out.push(name); out.push(name.toUpperCase()); out.push(name.toLowerCase()); }
+            if (code === 'TU') out.push('TR');
+            return uniqKeepOrder(out.filter(Boolean));
+        }
+        const key = String(row?.name || row?.domain || row?.site || row?.entity_key || '').trim().toLowerCase();
+        return uniqKeepOrder([key, key.replace(/^www\./i, ''), baseSubdomain(key)].concat(domainCandidateKeys(key)).filter(Boolean));
+    }
+
     async function fetchDashboardScoring(rows, state) {
         const dim = String(state?.dim || '').toLowerCase();
         window.dashboardRecapScoringReady = true;
         window.dashboardRecapScoringReason = '';
         const entities = uniqKeepOrder((rows || []).flatMap(function(r){
-            const key = scoringLookupKey(dim, r);
-            if (dim === 'country') return [key].filter(Boolean);
-            const k = String(key || '').toLowerCase();
-            return uniqKeepOrder([k, k.replace(/^www\./i, ''), baseSubdomain(k)].concat(domainCandidateKeys(k))).filter(Boolean);
+            return scoringLookupCandidates(dim, r);
         }));
         if (!entities.length || !state?.date) return {};
         try {
@@ -3376,15 +3915,52 @@ function initDashboardRecap() {
         });
         info.trend_windows = row?.trend_windows || info.trend_windows || {};
         info.date = String(state?.date || info.date || '').trim();
-        info.last_update = String(info.last_update || info.snapshot_time || info.run_time || info.run_hour || '').trim();
+
+        const timeline = Array.isArray(info.scoring_timeline) ? info.scoring_timeline : [];
+        const pickTimelineScore = function(t) {
+            const vals = [t?.score, t?.final_score, t?.score_final, t?.total_score];
+            for (const v of vals) {
+                const n = Number(v);
+                if (Number.isFinite(n)) return n;
+            }
+            return null;
+        };
+        const pickTimelineHourOrd = function(t, idx) {
+            const n = Number(t?.run_hour);
+            if (Number.isFinite(n)) return n;
+            const m = String(t?.run_hour_label || '').match(/\b(\d{1,2}):(\d{2})/);
+            if (m) {
+                const hh = Number(m[1]);
+                const mm = Number(m[2]);
+                if (Number.isFinite(hh) && Number.isFinite(mm)) return (hh * 60) + mm;
+            }
+            return idx;
+        };
+        if (timeline.length) {
+            let latest = { idx: 0, ord: -1, row: timeline[0] };
+            timeline.forEach(function(t, idx){
+                const ord = pickTimelineHourOrd(t, idx);
+                if (ord >= latest.ord) latest = { idx, ord, row: t };
+            });
+            const tl = latest.row || {};
+            const tlScore = pickTimelineScore(tl);
+            if (tlScore != null) merged.score = Math.round(tlScore);
+            if (String(tl?.decision || '').trim()) merged.decision = String(tl.decision).trim().toUpperCase();
+            if (String(tl?.label || '').trim()) merged.label = String(tl.label).trim();
+            info.scoring_timeline_active_idx = latest.idx;
+            info.last_update = String(info.last_update || tl?.run_hour_label || tl?.run_hour || info.snapshot_time || info.run_time || info.run_hour || '').trim();
+        } else {
+            info.last_update = String(info.last_update || info.snapshot_time || info.run_time || info.run_hour || '').trim();
+        }
+
         info.scoring_source = info.scoring_source || 'backend_scoring';
         info.scoring_source_label = info.scoring_source_label || 'Backend scoring';
-        const health = toNum(info.health_score) ?? 0;
-        const risk = toNum(info.ivt_risk_score) ?? 0;
-        const adj = toNum(info.adjustment_score) ?? 0;
+        const health = toNum(info.health_score);
+        const risk = toNum(info.ivt_risk_score);
+        const adj = toNum(info.adjustment_score);
         const confRaw = toNum(info.confidence);
-        const conf = confRaw == null ? 0 : scxClamp(confRaw > 1 ? (confRaw / 100) : confRaw, 0, 1);
-        const dm = toNum(info.decision_margin) ?? 0;
+        const conf = confRaw == null ? null : scxClamp(confRaw > 1 ? (confRaw / 100) : confRaw, 0, 1);
+        const dm = toNum(info.decision_margin);
         info.health_score = health;
         info.ivt_risk_score = risk;
         info.adjustment_score = adj;
@@ -3395,7 +3971,9 @@ function initDashboardRecap() {
         if (!Array.isArray(merged.reasons)) merged.reasons = [];
         if (!merged.reasons.length && info.reason_summary) merged.reasons = [String(info.reason_summary)];
         const sig = Number(info.positive_signal_count || 0) + Number(info.negative_signal_count || 0) + Number(info.neutral_signal_count || 0);
-        const hasScoring = sig > 0 && Number(conf || 0) > 0;
+        const dimNow = String(state?.dim || '').toLowerCase();
+        const hasAnyMetric = [health, risk, adj, conf, dm].some(function(v){ return v != null; });
+        const hasScoring = (sig > 0 && Number(conf || 0) > 0) || (dimNow === 'country' && hasAnyMetric);
         if (!hasScoring) {
             merged.score = null;
             merged.decision = '';
@@ -3405,7 +3983,7 @@ function initDashboardRecap() {
             merged.decision = '';
             if (!merged.label) merged.label = 'BELUM ADA HASIL';
         } else if (!merged.decision) {
-            const decisionMeta = scxDeriveDecision(merged.score, String(merged.label || info.final_label || info.root_cause_label || 'STABLE'), health, risk, adj, conf, dm);
+            const decisionMeta = scxDeriveDecision(merged.score, String(merged.label || info.final_label || info.root_cause_label || 'STABLE'), Number(health ?? 0), Number(risk ?? 0), Number(adj ?? 0), Number(conf ?? 0), Number(dm ?? 0));
             merged.decision = decisionMeta.decision;
             if (!merged.reasons.length && decisionMeta.basis) merged.reasons = [decisionMeta.basis];
         }
@@ -3434,13 +4012,20 @@ function initDashboardRecap() {
 
     function lookupStoredMetaRaw(row, state, storeObj) {
         const store = (storeObj && typeof storeObj === 'object') ? storeObj : (window.dashboardRecapStoredScoring || {});
-        const key = String(scoringLookupKey(state?.dim, row) || '').trim().toLowerCase();
-        if (!key) return null;
-        const candidates = uniqKeepOrder([key, key.replace(/^www\./i, ''), baseSubdomain(key)].concat(domainCandidateKeys(key)).filter(Boolean));
-        for (const k of candidates) {
+        const dim = String(state?.dim || '').toLowerCase();
+        const candidates = scoringLookupCandidates(dim, row);
+        for (const k0 of candidates) {
+            const k = String(k0 || '').trim();
+            if (!k) continue;
             if (store[k]) return store[k];
-            const up = String(k || '').toUpperCase();
+            const low = k.toLowerCase();
+            const up = k.toUpperCase();
+            if (store[low]) return store[low];
             if (store[up]) return store[up];
+        }
+        if (dim === 'country') {
+            const vals = Object.values(store).filter(function(v){ return v && typeof v === 'object'; });
+            if (vals.length === 1) return vals[0];
         }
         return null;
     }
@@ -3451,9 +4036,52 @@ function initDashboardRecap() {
         return Array.isArray(rows) && rows.length > 0;
     }
 
+    function summarizeCountryScoringFromPayload(payloadLike, row, state) {
+        const normCC = function(v){ const s = String(v || '').trim().toUpperCase(); return s === 'TU' ? 'TR' : s; };
+        const code = normCC(row?.code || row?.country_cd || row?.country_code || '');
+        const name = String(row?.name || row?.country_name || row?.country_nm || '').trim().toUpperCase();
+        const src = (payloadLike && typeof payloadLike === 'object') ? payloadLike : {};
+        const parsed = pickScoringArrays(src?.scoring || src);
+        const statuses = Array.isArray(parsed?.statuses) ? parsed.statuses : [];
+        const events = Array.isArray(parsed?.events) ? parsed.events : [];
+        const match = function(o){
+            const cc = normCC(o?.country_cd || o?.country_code || o?.code || '');
+            const nm = String(o?.country_nm || o?.country_name || o?.country || '').trim().toUpperCase();
+            if (code && cc) return cc === code;
+            if (code && !cc) return false;
+            return !!name && nm === name;
+        };
+        const stSel = statuses.filter(match);
+        const evSel = events.filter(match);
+        if (!stSel.length && !evSel.length) return null;
+        const groups = scxGroupScoringByCountry(stSel, evSel);
+        const agg = scxAggregateScoring(stSel, evSel, groups);
+        if (!agg || typeof agg !== 'object') return null;
+        const scoreNum = Number(agg?.score);
+        const score = Number.isFinite(scoreNum) ? Math.round(scoreNum) : null;
+        const posCnt = Number.isFinite(Number(agg?.positive_signal_count)) ? Number(agg?.positive_signal_count) : evSel.filter(function(e){ return Number(e?.signal_strength || 0) > 0; }).length;
+        const negCnt = Number.isFinite(Number(agg?.negative_signal_count)) ? Number(agg?.negative_signal_count) : evSel.filter(function(e){ return Number(e?.signal_strength || 0) < 0; }).length;
+        const neuCnt = Number.isFinite(Number(agg?.neutral_signal_count)) ? Number(agg?.neutral_signal_count) : Math.max(0, evSel.length - posCnt - negCnt);
+        const confRaw = Number(agg?.confidence);
+        const conf = Number.isFinite(confRaw) ? confRaw : (stSel.length || evSel.length ? 0.6 : 0);
+        const dec = scxDeriveDecision(score == null ? 0 : score, String(agg?.final_label || agg?.root_cause_label || 'STABLE'), Number(agg?.health_score || 0), Number(agg?.ivt_risk_score || 0), Number(agg?.adjustment_score || 0), Number(conf || 0), Number(agg?.decision_margin || 0));
+        return {
+            score,
+            decision: String(agg?.decision || dec?.decision || '').toUpperCase(),
+            label: String(agg?.final_label || agg?.root_cause_label || 'STABLE'),
+            reasons: [agg?.reason_summary, dec?.basis].filter(Boolean),
+            breakdown: { meta: Object.assign({}, agg, { confidence: conf, positive_signal_count: posCnt, negative_signal_count: negCnt, neutral_signal_count: neuCnt, date: String(state?.date || ''), scoring_source: 'backend_scoring', scoring_source_label: 'Backend scoring', country_details: Array.isArray(agg?.country_details) ? agg.country_details : stSel }) }
+        };
+    }
+
     function storedScoringForRow(row, state) {
         const raw = lookupStoredMetaRaw(row, state);
-        return raw ? summarizeDashboardScoringMeta(raw, row, state) : null;
+        if (raw) return summarizeDashboardScoringMeta(raw, row, state);
+        if (String(state?.dim || '').toLowerCase() === 'country') {
+            const fromPayload = summarizeCountryScoringFromPayload(window.dashboardRecapStoredScoring || {}, row, state);
+            if (fromPayload) return summarizeDashboardScoringMeta(fromPayload, row, state);
+        }
+        return null;
     }
 
     function renderScoreCell(data, type) {
@@ -4056,11 +4684,18 @@ function initDashboardRecap() {
     }
 
     function scxCampaignValue(row) {
-        return String(row?.meta_campaign || row?.campaign || row?.campaign_name || '').trim().toUpperCase();
+        const direct = String(row?.meta_campaign || row?.campaign || row?.campaign_name || row?.meta_campaign_name || row?.status_campaign || '').trim();
+        if (direct) return direct.toUpperCase();
+        const ek = String(row?.entity_key || row?.event_entity_key || row?.status_entity_key || '').trim();
+        if (ek) {
+            const head = String(ek).split('|')[0].trim();
+            if (head) return head.toUpperCase();
+        }
+        return '';
     }
 
     function scxEntityValue(row) {
-        return String(row?.entity_key || row?.status_entity_key || row?.site || '').trim().toUpperCase();
+        return String(row?.entity_key || row?.event_entity_key || row?.status_entity_key || row?.site || '').trim().toUpperCase();
     }
 
     function scxRenderBackendStatusTable(statuses) {
@@ -4147,13 +4782,14 @@ function initDashboardRecap() {
                 || (ent ? statusMap.get(`${ck}|E|${ent}`) : null)
                 || statusMap.get(`${ck}|ANY`)
                 || null;
+            const displayCampaign = campaign || (mapped ? scxCampaignValue(mapped) : '') || '-';
             const spend = mapped ? scxSpendValue(mapped) : NaN;
             const revenue = mapped ? scxRevenueValue(mapped) : NaN;
             const roiRaw = mapped ? Number(mapped?.roi) : NaN;
             const roi = Number.isFinite(roiRaw) ? roiRaw : (Number.isFinite(spend) && spend > 0 ? ((revenue - spend) / spend) * 100 : NaN);
             html += `<tr>
                 <td style="font-weight:800;color:#0f172a;">${esc(scxCountryLabel(ev))}</td>
-                <td>${esc(campaign || '-')}</td>
+                <td>${esc(displayCampaign)}</td>
                 <td>${esc(String(ev?.metric_group || '-'))}</td>
                 <td title="${esc(String(ev?.rule_key || ev?.header_name || ''))}">${esc(scxMetricName(ev?.header_name || ev?.rule_key || '-'))}</td>
                 <td class="text-end">${esc(scxNum(ev?.prev_value,2))}</td>
@@ -4232,8 +4868,30 @@ function initDashboardRecap() {
         return html;
     }
 
-    function scxDomainKey(obj) { return String(obj?.domain || obj?.site || obj?.site_name || obj?.subdomain || '-').trim().toLowerCase(); }
-    function scxDomainLabel(obj) { return String(obj?.domain || obj?.site || obj?.site_name || obj?.subdomain || '-').trim() || '-'; }
+    function scxDomainKey(obj) {
+        const direct = String(obj?.domain || obj?.site || obj?.site_name || obj?.subdomain || '').trim();
+        if (direct) return direct.toLowerCase();
+        const ek = String(obj?.entity_key || obj?.status_entity_key || obj?.event_entity_key || '').trim();
+        if (ek.includes('|')) {
+            const p = ek.split('|');
+            const s = String(p[p.length - 1] || '').trim();
+            if (s) return s.toLowerCase();
+        }
+        return '-';
+    }
+    function scxDomainLabel(obj) {
+        const direct = String(obj?.domain || obj?.site || obj?.site_name || obj?.subdomain || '').trim();
+        if (direct) return direct;
+        const ek = String(obj?.entity_key || obj?.status_entity_key || obj?.event_entity_key || '').trim();
+        if (ek.includes('|')) {
+            const p = ek.split('|');
+            const campaign = String(p[0] || '').trim();
+            const sub = String(p[p.length - 1] || '').trim();
+            if (campaign && sub) return `${campaign} | ${sub}`;
+            if (sub) return sub;
+        }
+        return '-';
+    }
     function scxGroupScoringBySubdomain(statuses, events, countryKey) {
         const ck = String(countryKey || '').trim().toUpperCase(), map = new Map();
         (Array.isArray(statuses) ? statuses : []).forEach(function(st){ if (ck && scxCountryKey(st) !== ck) return; const k = scxDomainKey(st); if (!k || k === '-') return; if (!map.has(k)) map.set(k, { key:k, label:scxDomainLabel(st), status:st, events:[] }); else map.get(k).status = st; });
@@ -4284,10 +4942,16 @@ function initDashboardRecap() {
             const revenue = Number(r?.revenue)||0;
             const net = (r && r.net_profit != null) ? (Number(r.net_profit)||0) : (revenue - spend);
             const roi = (r && r.roi != null) ? (Number(r.roi)||0) : (spend>0 ? ((revenue-spend)/spend*100) : 0);
-            const name = dim === 'country' ? (r?.country||'-') : (r?.site_name||r?.site||r?.subdomain||'-');
-            const code = dim === 'country' ? (r?.country_code||'') : '';
+            const name = dim === 'country'
+                ? (r?.country || r?.country_name || r?.country_nm || r?.name || '-')
+                : (r?.site_name || r?.site || r?.subdomain || '-');
+            const code = dim === 'country'
+                ? (r?.country_code || r?.country_cd || r?.code || '')
+                : '';
             const src = String(sourceTag || '').trim().toLowerCase();
-            const lu = (r && (r.last_update != null)) ? r.last_update : lastUpdate;
+            const lu = (r && (r.last_update != null && String(r.last_update).trim() !== ''))
+                ? r.last_update
+                : (r?.snapshot_time || r?.run_time || r?.run_hour || lastUpdate);
             const accountAds = (r && r.account_ads != null) ? String(r.account_ads || '') : '';
             const prevSpend = (r && r.prev_spend != null) ? (Number(r.prev_spend)||0) : null;
             const prevRevenue = (r && r.prev_revenue != null) ? (Number(r.prev_revenue)||0) : null;
@@ -5015,7 +5679,11 @@ function initDashboardRecap() {
         const backendSig = Number(backendInfo.positive_signal_count || 0) + Number(backendInfo.negative_signal_count || 0) + Number(backendInfo.neutral_signal_count || 0);
         const backendConfRaw = (backendInfo.confidence != null && backendInfo.confidence !== '') ? Number(backendInfo.confidence) : null;
         const backendConf01 = backendConfRaw == null ? null : (backendConfRaw > 1 ? (backendConfRaw / 100) : backendConfRaw);
-        const backendHasReadyScore = (storedMeta?.score != null && storedMeta?.score !== '') && backendSig > 0 && Number(backendConf01 || 0) > 0;
+        const dimNow = String(state?.dim || '').toLowerCase();
+        const hasStoredScore = storedMeta?.score != null && storedMeta?.score !== '' && Number.isFinite(Number(storedMeta?.score));
+        const backendSignalReady = backendSig > 0 || (dimNow === 'country' && hasBackendScoringMeta);
+        const backendConfReady = Number(backendConf01 || 0) > 0 || (dimNow === 'country' && hasStoredScore);
+        const backendHasReadyScore = hasStoredScore && (backendSignalReady || hasBackendLabel || hasBackendScoringMeta) && backendConfReady;
 
         if (storedMeta?.score != null && storedMeta?.score !== '') {
             score = Number(storedMeta.score);
@@ -5242,10 +5910,14 @@ function initDashboardRecap() {
         else if (hasAdx) reasons.push('Coverage: AdX');
         else if (hasAdsense) reasons.push('Coverage: AdSense');
 
-        const finalScore = backendHasReadyScore ? Math.round(score) : null;
-        const finalDecision = backendHasReadyScore ? decision : '';
-        const finalLabel = backendHasReadyScore ? label : 'BELUM ADA HASIL';
-        const finalReasons = backendHasReadyScore ? reasons.slice(0, 4) : ['Scoring belum valid (confidence/sinyal belum cukup)'];
+        const dimNow2 = String(state?.dim || '').toLowerCase();
+        const hasLocalBasis = Number(spend) > 0 || Number(revenue) > 0 || Number(roi) !== 0;
+        const allowLocalCountry = dimNow2 === 'country' && hasLocalBasis;
+        const canPublish = backendHasReadyScore || allowLocalCountry;
+        const finalScore = canPublish ? Math.round(score) : null;
+        const finalDecision = canPublish ? decision : '';
+        const finalLabel = canPublish ? (label || 'STABLE') : 'BELUM ADA HASIL';
+        const finalReasons = canPublish ? reasons.slice(0, 4) : ['Scoring belum valid (confidence/sinyal belum cukup)'];
 
         return {
             score: finalScore,
@@ -6164,6 +6836,21 @@ function initDashboardRecap() {
         const start = end ? ymdShift(end, -6) : '';
 
         const st = { campaigns: [] };
+        const norm = function(s){ return String(s || '').toLowerCase().replace(/\s+/g,'').replace(/[^a-z0-9_#.-]/g,''); };
+        const applyTargetSelection = function(targetName) {
+            const target = norm(targetName);
+            let hit = 0;
+            wrapEl.querySelectorAll('tbody tr').forEach(function(tr){
+                const nameCell = tr.children && tr.children[1] ? String(tr.children[1].innerText || '').trim() : '';
+                const cb = tr.querySelector('input.sd-camp-cb[type="checkbox"][data-cid]');
+                if (!cb) return;
+                const n = norm(nameCell);
+                const ok = !!target && (n === target || n.includes(target) || target.includes(n));
+                cb.checked = ok;
+                if (ok) hit += 1;
+            });
+            if (targetName) setStatus(hit ? `Target campaign dipilih: ${targetName} (${hit} baris)` : `Target campaign tidak ditemukan: ${targetName}`);
+        };
 
         function setStatus(msg) {
             if (statusEl) statusEl.textContent = String(msg || '');
@@ -6223,7 +6910,17 @@ function initDashboardRecap() {
                 return;
             }
 
+            const pending = (window.sdDecisionPendingTarget && typeof window.sdDecisionPendingTarget === 'object') ? window.sdDecisionPendingTarget : {};
             let h = '';
+            h += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">';
+            h += '<div style="font-size:12px;color:#475569;font-weight:700;">Campaign tujuan eksekusi</div>';
+            h += '<select id="sdTargetCampaignSelect" class="form-control form-control-sm" style="max-width:420px;">';
+            h += '<option value="">-- pilih campaign --</option>';
+            rows.forEach(function(c){ const nm = String(c?.campaign_name || c?.name || '-'); h += `<option value="${esc(nm)}">${esc(nm)}</option>`; });
+            h += '</select>';
+            h += '<button type="button" class="btn btn-sm btn-outline-primary" id="sdApplyTargetCampaignBtn">Pilih</button>';
+            if (pending?.action) h += `<span style="font-size:12px;color:#64748b;">Aksi rekomendasi: <b>${esc(String(pending.action))}</b></span>`;
+            h += '</div>';
             h += '<div class="table-responsive">';
             h += '<table class="table table-sm table-striped" style="margin:0;">';
             h += '<thead><tr>';
@@ -6252,6 +6949,18 @@ function initDashboardRecap() {
 
             h += '</tbody></table></div>';
             wrapEl.innerHTML = h;
+
+            const sel = document.getElementById('sdTargetCampaignSelect');
+            const pendingName = String((window.sdDecisionPendingTarget && window.sdDecisionPendingTarget.campaign) || '').trim();
+            if (sel && pendingName) {
+                const opts = Array.from(sel.options || []);
+                const hit = opts.find(function(o){
+                    const v = norm(o.value), p = norm(pendingName);
+                    return p && v && (v === p || v.includes(p) || p.includes(v));
+                });
+                if (hit) sel.value = hit.value;
+                applyTargetSelection(sel.value || pendingName);
+            }
         }
 
         async function refresh() {
@@ -6309,10 +7018,20 @@ function initDashboardRecap() {
             if (t.id === 'sdCampCheckAll') {
                 const on = !!t.checked;
                 wrapEl.querySelectorAll('input.sd-camp-cb[type="checkbox"][data-cid]').forEach(function(cb){ cb.checked = on; });
+                return;
+            }
+            if (t.id === 'sdTargetCampaignSelect') {
+                applyTargetSelection(String(t.value || ''));
             }
         });
 
         wrapEl.addEventListener('click', async function(e) {
+            const pickBtn = e.target && e.target.closest ? e.target.closest('#sdApplyTargetCampaignBtn') : null;
+            if (pickBtn) {
+                const sel = document.getElementById('sdTargetCampaignSelect');
+                applyTargetSelection(String(sel ? sel.value : ''));
+                return;
+            }
             const btn = e.target && e.target.closest ? e.target.closest('.sd-camp-upd') : null;
             if (!btn) return;
             const cid = String(btn.getAttribute('data-cid') || '');
@@ -6437,8 +7156,8 @@ function initDashboardRecap() {
             const eventsSource = String(scoring?._events_source || 'native');
             const aggEvents = eventsSource === 'synthetic_status_components' ? [] : parsed.events;
             const groups = scxGroupScoringByCountry(parsed.statuses, parsed.events);
-            const enableSubdomainTabs = false;
-            const subgroups = (enableSubdomainTabs && String(state?.dim || '').toLowerCase() === 'country') ? scxGroupScoringBySubdomain(parsed.statuses, parsed.events, row?.code || '') : [];
+            const enableSubdomainTabs = String(state?.dim || '').toLowerCase() === 'country';
+            const subgroups = (enableSubdomainTabs) ? scxGroupScoringBySubdomain(parsed.statuses, parsed.events, row?.code || '') : [];
             const useSubTabs = !!subgroups.length;
             const summaryTrendKeys = useSubTabs ? subgroups.map(function(it){ return it.key; }).filter(Boolean) : [];
             const primaryGroup = scxPickPrimaryCountryGroup(groups);
@@ -6693,7 +7412,9 @@ function initDashboardRecap() {
             return Object.assign({}, baseStatus, {
                 country_cd: String(c?.country_code || c?.country_cd || ''),
                 country_code: String(c?.country_code || c?.country_cd || ''),
-                meta_campaign: String(c?.meta_campaign || c?.campaign || ''),
+                meta_campaign: String(c?.meta_campaign || c?.campaign || c?.campaign_name || ''),
+                entity_key: String((c?.meta_campaign || c?.campaign || c?.campaign_name || '') && (c?.site || c?.domain || c?.subdomain || c?.entity_key || '') ? `${String(c?.meta_campaign || c?.campaign || c?.campaign_name || '').trim()}|${String(c?.site || c?.domain || c?.subdomain || c?.entity_key || '').trim()}` : (c?.entity_key || c?.site || c?.domain || c?.subdomain || c?.meta_campaign || c?.campaign || c?.campaign_name || '')).trim(),
+                site: String(c?.site || c?.domain || c?.subdomain || ''),
                 country_nm: String(c?.country_name || c?.country_nm || c?.country || ''),
                 country_name: String(c?.country_name || c?.country_nm || c?.country || ''),
                 join_status: String(c?.join_status || ''),
@@ -6777,8 +7498,9 @@ function initDashboardRecap() {
             let syntheticHistoryByOffset = {};
             const dim = String(state?.dim || '').toLowerCase();
             const key = scoringLookupKey(dim, row);
+            const entities = scoringLookupCandidates(dim, row);
             const baseDate = String(state?.date || '').trim();
-            const payloadBase = { dim: String(state.dim || 'domain').trim(), source: String(state.source || 'all').trim(), entities: key ? [key] : [], include_events: true };
+            const payloadBase = { dim: String(state.dim || 'domain').trim(), source: String(state.source || 'all').trim(), entities: entities.length ? entities : (key ? [key] : []), include_events: true };
             try {
                 if (key && baseDate) {
                     const detailRes = await fetch('/management/admin/dashboard_scoring_data', {
@@ -6789,8 +7511,15 @@ function initDashboardRecap() {
                     });
                     const detailJson = await detailRes.json();
                     if (detailRes.ok && detailJson?.status && detailJson?.data) {
-                        const raw = lookupStoredMetaRaw(row, state, detailJson.data);
+                        let raw = lookupStoredMetaRaw(row, state, detailJson.data);
+                        if (!raw && detailJson.data && typeof detailJson.data === 'object') {
+                            for (const c of (entities || [])) { if (detailJson.data[c] || detailJson.data[String(c).toLowerCase()] || detailJson.data[String(c).toUpperCase()]) { raw = detailJson.data[c] || detailJson.data[String(c).toLowerCase()] || detailJson.data[String(c).toUpperCase()]; break; } }
+                        }
                         if (raw) detailMeta = summarizeDashboardScoringMeta(raw, row, state);
+                        else if (dim === 'country') {
+                            const cm = summarizeCountryScoringFromPayload(detailJson.data, row, state);
+                            if (cm) detailMeta = summarizeDashboardScoringMeta(cm, row, state);
+                        }
                     }
 
                     const histFetch = async function(offsetKey, diffDays) {
@@ -6805,8 +7534,15 @@ function initDashboardRecap() {
                         });
                         const js = await res.json();
                         if (!res.ok || !js?.status || !js?.data) return [offsetKey, {}];
-                        const raw = lookupStoredMetaRaw(row, st, js.data);
-                        const m = raw ? summarizeDashboardScoringMeta(raw, row, st) : null;
+                        let raw = lookupStoredMetaRaw(row, st, js.data);
+                        if (!raw && js.data && typeof js.data === 'object') {
+                            for (const c of (entities || [])) { if (js.data[c] || js.data[String(c).toLowerCase()] || js.data[String(c).toUpperCase()]) { raw = js.data[c] || js.data[String(c).toLowerCase()] || js.data[String(c).toUpperCase()]; break; } }
+                        }
+                        let m = raw ? summarizeDashboardScoringMeta(raw, row, st) : null;
+                        if (!m && dim === 'country') {
+                            const cm = summarizeCountryScoringFromPayload(js.data, row, st);
+                            if (cm) m = summarizeDashboardScoringMeta(cm, row, st);
+                        }
                         return [offsetKey, m?.breakdown?.meta || {}];
                     };
                     const histRows = await Promise.all([histFetch('h1', -1), histFetch('h3', -3), histFetch('h7', -7)]);
@@ -6836,13 +7572,28 @@ function initDashboardRecap() {
             else json = buildStoredScoringApiJson(effectiveMeta, row, state);
 
             const parsedScoring = pickScoringArrays(json?.scoring || {});
-            const statuses = Array.isArray(parsedScoring.statuses) ? parsedScoring.statuses : [];
+            let statuses = Array.isArray(parsedScoring.statuses) ? parsedScoring.statuses : [];
             const countryDetails = [
                 json?.scoring?.country_details,
                 effectiveMeta?.breakdown?.meta?.country_details,
                 effectiveMeta?.breakdown?.country_details,
                 effectiveMeta?.country_details
             ].find(function(v){ return Array.isArray(v) && v.length; }) || [];
+            if (!statuses.length && Array.isArray(countryDetails) && countryDetails.length) {
+                statuses = countryDetails.map(function(c){
+                    return Object.assign({}, c, {
+                        country_cd: String(c?.country_cd || c?.country_code || row?.code || '').trim().toUpperCase(),
+                        country_code: String(c?.country_cd || c?.country_code || row?.code || '').trim().toUpperCase(),
+                        country_nm: String(c?.country_nm || c?.country_name || row?.name || '').trim(),
+                        country_name: String(c?.country_nm || c?.country_name || row?.name || '').trim(),
+                        entity_key: String(c?.entity_key || c?.status_entity_key || c?.event_entity_key || c?.site || c?.domain || c?.subdomain || '').trim(),
+                        site: String(c?.site || c?.domain || c?.subdomain || '').trim(),
+                        domain: String(c?.domain || c?.site || c?.subdomain || '').trim(),
+                        subdomain: String(c?.subdomain || c?.site || c?.domain || '').trim(),
+                        meta_campaign: String(c?.meta_campaign || c?.campaign || c?.campaign_name || '').trim()
+                    });
+                });
+            }
             const nativeEvents = Array.isArray(parsedScoring.events) ? parsedScoring.events : [];
             let events = nativeEvents;
             if (!events.length) {
@@ -6948,7 +7699,11 @@ function initDashboardRecap() {
 
         function domainCell(r) {
             const name = esc(r?.name);
-            if (dim === 'country') return name;
+            if (dim === 'country') {
+                const cc = String(r?.code || '').trim().toUpperCase();
+                const badge = cc ? ` <span class="badge badge-secondary badge-pill ml-1">${esc(cc)}</span>` : '';
+                return `${name}${badge}`;
+            }
 
             const srcs = r && r.sources;
             const badges = [];
@@ -6971,8 +7726,6 @@ function initDashboardRecap() {
         }
 
         function updatedCell(r, meta) {
-            if (dim === 'country') return '-';
-
             const srcs = r && r.sources;
             const lus = r && r.last_updates;
             const badges = [];
@@ -6986,8 +7739,12 @@ function initDashboardRecap() {
                     const b = updBadge(lus && lus.adsense, badges.length ? 'ml-1' : '');
                     if (b) badges.push(b);
                 }
-            } else {
-                const b = updBadge(r && r.last_update, '');
+            }
+
+            if (!badges.length) {
+                const rawMetaLu = meta?.breakdown?.meta?.last_update;
+                const fallbackLu = (r && r.last_update) || rawMetaLu || '';
+                const b = updBadge(fallbackLu, '');
                 if (b) badges.push(b);
             }
 
@@ -7014,12 +7771,12 @@ function initDashboardRecap() {
         const scored = (rows || []).map(function(r) {
             const stored = storedScoringForRow(r, state);
             let meta = stored || null;
-            if (!meta && scoringReady) {
+            if (!meta) {
                 const fallback = scoreAndDecision(r, state);
                 meta = {
-                    score: Number(fallback?.score ?? 0),
+                    score: (fallback?.score == null || fallback?.score === '') ? null : Number(fallback?.score),
                     decision: String(fallback?.decision || ''),
-                    label: String(fallback?.label || 'STABLE'),
+                    label: String(fallback?.label || 'BELUM ADA HASIL'),
                     reasons: Array.isArray(fallback?.reasons) ? fallback.reasons : ['Fallback skor lokal'],
                     breakdown: { meta: Object.assign({ scoring_source: 'fallback_local', scoring_source_label: 'Fallback lokal (client)' }, (fallback?.breakdown?.meta || {})) }
                 };
@@ -7045,7 +7802,7 @@ function initDashboardRecap() {
             window.dashboardRecapScoreDetails[k] = { row: r, meta, state };
 
             const keputusanHtml = `${keputusanBadge(meta || {}, { row: r, state: state })}`;
-            const detailBtn = (meta && window.dashboardRecapScoringReady !== false)
+            const detailBtn = (meta)
                 ? `<button type="button" class="btn btn-sm btn-primary dashboard-open-score-detail-btn" data-score-key="${esc(k)}">Detail Scoring</button>`
                 : `<button type="button" class="btn btn-sm btn-secondary" disabled title="Scoring belum tersedia">Detail Scoring</button>`;
 
@@ -7075,19 +7832,16 @@ function initDashboardRecap() {
         if (!tableEl || !tbody) return;
 
         if (!hasDt) {
-            if (thCode) thCode.style.display = dim === 'country' ? '' : 'none';
+            if (thCode) thCode.style.display = 'none';
             tbody.innerHTML = '';
             data.forEach(row => {
                 const tr = document.createElement('tr');
-
-                const scoreVal = Number(row[8]?.value) || 0;
+                const scoreVal = Number(row[7]?.value) || 0;
                 if (hasRange && scoreVal === minScore) tr.classList.add('table-danger');
                 else if (hasRange && scoreVal === maxScore) tr.classList.add('table-info');
-                const codeCell = dim === 'country' ? `<td class="text-center">${row[2]}</td>` : '';
                 tr.innerHTML = `
                     <td class="text-center">${row[0]}</td>
                     <td>${row[1]}</td>
-                    ${codeCell}
                     <td class="text-end">${fmtIdr(row[3])}</td>
                     <td class="text-end">${fmtIdr(row[4])}</td>
                     <td class="text-end">${fmtIdr(row[5])}</td>
@@ -7159,7 +7913,7 @@ function initDashboardRecap() {
 
                     const minScore = Number(tableEl.dataset.minScore);
                     const maxScore = Number(tableEl.dataset.maxScore);
-                    const sc = Number(rowData && rowData[8] && rowData[8].value) || 0;
+                    const sc = Number(rowData && rowData[7] && rowData[7].value) || 0;
 
                     if (sc === minScore) jQuery(row).addClass('table-danger');
                     else if (sc === maxScore) jQuery(row).addClass('table-info');
@@ -7178,7 +7932,7 @@ function initDashboardRecap() {
                         }
                     },
                     { targets: 1, orderable: true },
-                    { targets: 2, className: 'text-center', width: '90px', visible: (dim === 'country') },
+                    { targets: 2, className: 'text-center', width: '90px', visible: false },
                     {
                         targets: [3,4,5],
                         className: 'text-end',
@@ -7238,8 +7992,8 @@ function initDashboardRecap() {
             dt.clear();
             dt.rows.add(data);
             dt.draw(false);
-            dt.column(2).visible(dim !== 'country', false);
-            dt.column(3).visible(dim === 'country', false);
+            dt.column(2).visible(false, false);
+            dt.column(3).visible(true, false);
         }
 
         if (thCode) thCode.style.display = dim === 'country' ? '' : 'none';
