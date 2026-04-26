@@ -11,7 +11,7 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument('--date', type=str, help='YYYY-MM-DD')
         parser.add_argument('--domain', type=str, help='domain')
-        parser.add_argument('--run-hour', type=int, help='0-23, contoh: 3, 6, 9')
+        parser.add_argument('--run-hour', type=int, help='0-23, contoh: 3, 6, 9, 12, 15, 18, 21, 23')
 
     def handle(self, *args, **options):
         try:
