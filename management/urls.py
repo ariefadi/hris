@@ -51,6 +51,7 @@ urlpatterns = [
     path('admin/per_campaign_facebook', views.PerCampaignFacebookAds.as_view(), name='per_campaign_facebook'),
     # path('admin/get_campaign_per_account', views.get_campaign_per_account.as_view()),
     path('admin/page_per_campaign_facebook', views.page_per_campaign_facebook.as_view()),
+    path('admin/page_per_campaign_facebook_detail', views.page_per_campaign_facebook_detail.as_view()),
     # Menu Per Country Facebook Ads
     path('admin/per_country_facebook', views.PerCountryFacebookAds.as_view(), name='per_country_facebook'),
     path('admin/page_per_country_facebook', views.page_per_country_facebook.as_view()),

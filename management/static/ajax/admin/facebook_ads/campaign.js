@@ -9,6 +9,414 @@ function normalizeDomainFilter(selected_domain) {
     return String(selected_domain || '').trim();
 }
 
+window.facebookCampaignDetailXhr = null;
+window.facebookCampaignDetailReqKey = '';
+window.facebookCampaignAssetsCache = [];
+window.facebookCampaignDetailPayload = {};
+window.facebookCampaignSelectedAssetIndex = 0;
+window.facebookCampaignSelectedNode = { type: 'campaign', assetIndex: 0, variantIndex: 0 };
+
+function fmtInt(v) { return (Number(v || 0)).toLocaleString('id-ID'); }
+function fmtIdr(v) { return 'Rp ' + Math.round(Number(v || 0)).toLocaleString('id-ID'); }
+
+function resetCampaignAssetPanel(message) {
+    $('#facebookCampaignApiStatus').text(message || 'Memuat detail asset iklan...').removeClass('text-danger').addClass('text-muted');
+    $('#facebookCampaignAdAssetList').html('');
+    $('#facebookCampaignAdAssetMeta').text('-');
+    $('#facebookCampaignTree').html('');
+    $('#facebookCampaignLivePreview').html('<div class="text-muted">Pilih ad di panel kiri untuk melihat preview.</div>');
+    window.facebookCampaignAssetsCache = [];
+    window.facebookCampaignSelectedAssetIndex = 0;
+    window.facebookCampaignSelectedNode = { type: 'campaign', assetIndex: 0, variantIndex: 0 };
+}
+
+function _esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]; }); }
+function _toText(v) {
+    if (v == null) return '';
+    if (Array.isArray(v)) return v.join(', ');
+    if (typeof v === 'object') return '';
+    return String(v);
+}
+function _isUrl(v) { return /^https?:\/\//i.test(String(v || '').trim()); }
+function _csv(v) { return String(v || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean); }
+function _guessField(label, value) {
+    var k = String(label || '').toLowerCase();
+    if (typeof value === 'boolean') return { mode: 'select', options: ['true', 'false'] };
+    if (/description|message|body|caption|notes?|text/.test(k)) return { mode: 'textarea' };
+    if (/country|gender|status|objective|platform|position|type|event|goal|strategy/.test(k)) return { mode: 'select' };
+    if (/image|video|thumbnail|file|upload|asset/.test(k)) return { mode: 'file' };
+    if (/date|time/.test(k)) return { mode: 'text' };
+    if (typeof value === 'number' || /^\d+(\.\d+)?$/.test(String(value || ''))) return { mode: 'number' };
+    if (_isUrl(value)) return { mode: 'url' };
+    return { mode: 'text' };
+}
+function _formInput(label, value) {
+    var val = _toText(value);
+    var g = _guessField(label, value);
+    var html = '<div class="form-group fb-smart-field"><label class="form-label">' + _esc(label) + '</label>';
+    if (g.mode === 'textarea') {
+        html += '<textarea rows="3" class="form-control">' + _esc(val) + '</textarea>';
+    } else if (g.mode === 'select') {
+        var options = [];
+        if (/country/.test(String(label).toLowerCase())) options = ['ID', 'MY', 'SG', 'PH', 'TH', 'VN'];
+        if (/gender/.test(String(label).toLowerCase())) options = ['1', '2'];
+        if (/status/.test(String(label).toLowerCase())) options = ['ACTIVE', 'PAUSED', 'ARCHIVED'];
+        var selected = _csv(val);
+        if (!options.length) options = selected.slice();
+        selected.forEach(function (x) { if (options.indexOf(x) < 0) options.push(x); });
+        html += '<select class="custom-select js-fb-select2" ' + (selected.length > 1 ? 'multiple' : '') + '>';
+        for (var i = 0; i < options.length; i++) {
+            var o = String(options[i] || '');
+            html += '<option ' + (selected.indexOf(o) >= 0 ? 'selected' : '') + '>' + _esc(o) + '</option>';
+        }
+        html += '</select>';
+    } else if (g.mode === 'file') {
+        var isVideo = /video/i.test(String(label));
+        html += '<div class="fb-upload-card">';
+        html += isVideo ? '<video class="fb-upload-video js-fb-file-preview" ' + (_isUrl(val) ? 'src="' + _esc(val) + '"' : 'style="display:none"') + ' controls></video>' : '<img class="fb-upload-preview js-fb-file-preview" ' + (_isUrl(val) ? 'src="' + _esc(val) + '"' : 'style="display:none"') + ' alt="asset">';
+        html += '<input type="url" class="form-control mb-1 js-fb-file-url" value="' + _esc(val) + '" placeholder="https://...">';
+        html += '<input type="file" class="form-control-file js-fb-file-input" data-media="' + (isVideo ? 'video' : 'image') + '" ' + (isVideo ? 'accept="video/*"' : 'accept="image/*"') + '>';
+        html += '</div>';
+    } else {
+        var t = g.mode === 'number' ? 'number' : (g.mode === 'url' ? 'url' : 'text');
+        html += '<input type="' + t + '" class="form-control" value="' + _esc(val) + '">';
+    }
+    html += '</div>';
+    return html;
+}
+function _flatRows(obj, prefix, rows, depth) {
+    if (rows.length >= 180 || depth > 5) return;
+    if (obj == null) {
+        rows.push({ key: prefix, value: '' });
+        return;
+    }
+    if (Array.isArray(obj)) {
+        if (!obj.length) {
+            rows.push({ key: prefix, value: '' });
+            return;
+        }
+        var allPrimitive = obj.every(function (x) { return x == null || ['string', 'number', 'boolean'].indexOf(typeof x) >= 0; });
+        if (allPrimitive) {
+            rows.push({ key: prefix, value: obj.join(', ') });
+            return;
+        }
+        for (var i = 0; i < obj.length; i++) _flatRows(obj[i], prefix + '[' + i + ']', rows, depth + 1);
+        return;
+    }
+    if (typeof obj === 'object') {
+        var keys = Object.keys(obj);
+        if (!keys.length) {
+            rows.push({ key: prefix, value: '' });
+            return;
+        }
+        for (var k = 0; k < keys.length; k++) {
+            var key = keys[k];
+            var next = prefix ? (prefix + '.' + key) : key;
+            _flatRows(obj[key], next, rows, depth + 1);
+            if (rows.length >= 180) break;
+        }
+        return;
+    }
+    rows.push({ key: prefix, value: obj });
+}
+function _dynamicSection(title, obj) {
+    var rows = [];
+    _flatRows(obj || {}, '', rows, 0);
+    if (!rows.length) return '';
+    var html = '<div class="border rounded p-2 mb-2"><div class="fb-section-title">' + _esc(title) + '</div><div class="row">';
+    for (var i = 0; i < rows.length; i++) {
+        if (!rows[i].key) continue;
+        html += '<div class="col-md-6">' + _formInput(rows[i].key, rows[i].value) + '</div>';
+    }
+    html += '</div></div>';
+    return html;
+}
+
+function _advantageForm(adv) {
+    var a = (adv && typeof adv === 'object') ? adv : {};
+    var html = '<div class="border rounded p-2 mb-2"><div class="fb-form-note mb-2">Pemirsa Advantage</div>';
+    html += _formInput('Status Advantage Audience', a.advantage_audience);
+    html += _formInput('Targeting Automation', a.targeting_automation);
+    html += _formInput('Catatan', a.note || '');
+    html += '</div>';
+    return html;
+}
+function _targetingForm(t) {
+    var x = (t && typeof t === 'object') ? t : {};
+    var interests = ((x.flexible_spec || [])[0] || {}).interests || [];
+    var behaviors = ((x.flexible_spec || [])[0] || {}).behaviors || [];
+    var html = '<div class="border rounded p-2 mb-2"><div class="fb-section-title">Audience</div><div class="row">';
+    html += '<div class="col-md-6">' + _formInput('Usia Minimum', x.age_min) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Usia Maksimum', x.age_max) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Gender', Array.isArray(x.genders) ? x.genders.join(', ') : '') + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Negara', ((x.geo_locations || {}).countries || []).join(', ')) + '</div>';
+    html += '<div class="col-md-12">' + _formInput('Minat (Interests)', interests.map(function (i) { return i.name || i.id; }).join(', ')) + '</div>';
+    html += '<div class="col-md-12">' + _formInput('Perilaku (Behaviors)', behaviors.map(function (b) { return b.name || b.id; }).join(', ')) + '</div>';
+    html += '</div></div>';
+    return html;
+}
+function _placementForm(t) {
+    var x = (t && typeof t === 'object') ? t : {};
+    var html = '<div class="border rounded p-2 mb-2"><div class="fb-section-title">Placement</div><div class="row">';
+    html += '<div class="col-md-6">' + _formInput('Platform Publisher', (x.publisher_platforms || []).join(', ')) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Posisi Facebook', (x.facebook_positions || []).join(', ')) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Posisi Instagram', (x.instagram_positions || []).join(', ')) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Device Platform', (x.device_platforms || []).join(', ')) + '</div>';
+    html += '</div></div>';
+    return html;
+}
+function _campaignForm(c) {
+    var x = (c && typeof c === 'object') ? c : {};
+    var html = '<div class="border rounded p-2 mb-2"><div class="fb-section-title">Campaign</div><div class="row">';
+    html += '<div class="col-md-6">' + _formInput('Nama Campaign', x.name) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Status Campaign', x.status || x.effective_status) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Tujuan Campaign', x.objective) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Tipe Pembelian', x.buying_type) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Budget Harian', x.daily_budget) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Budget Lifetime', x.lifetime_budget) + '</div>';
+    html += '</div></div>';
+    return html;
+}
+function _adsetForm(s) {
+    var x = (s && typeof s === 'object') ? s : {};
+    var html = '<div class="border rounded p-2 mb-2"><div class="fb-section-title">Ad Set</div><div class="row">';
+    html += '<div class="col-md-6">' + _formInput('Nama Ad Set', x.name) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Status Ad Set', x.status || x.effective_status) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Optimization Goal', x.optimization_goal) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Billing Event', x.billing_event) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Bid Strategy', x.bid_strategy) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Bid Amount', x.bid_amount) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Start Time', x.start_time) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('End Time', x.end_time) + '</div>';
+    html += '</div></div>';
+    return html;
+}
+function _jsonPretty(v) { try { return JSON.stringify(v || {}, null, 2); } catch (e) { return '{}'; } }
+function _technicalPanel(ad, material) {
+    return '<details class="mb-2"><summary class="fb-form-note" style="cursor:pointer;">Data Teknis (Opsional)</summary>'
+        + '<div class="mt-2"><label class="form-label">Raw Ad JSON</label><textarea class="form-control" rows="4">' + _esc(_jsonPretty(ad || {})) + '</textarea></div>'
+        + '<div class="mt-2"><label class="form-label">Raw Creative JSON</label><textarea class="form-control" rows="4">' + _esc(_jsonPretty(material || {})) + '</textarea></div>'
+        + '</details>';
+}
+function _pickFirst() {
+    for (var i = 0; i < arguments.length; i++) {
+        var v = arguments[i];
+        if (v !== undefined && v !== null && String(v).trim() !== '') return v;
+    }
+    return '';
+}
+function _assetText(arr) {
+    if (!Array.isArray(arr) || !arr.length) return '';
+    var first = arr[0] || {};
+    return _pickFirst(first.text, first.name, first.value, '');
+}
+function _assetUrl(arr) {
+    if (!Array.isArray(arr) || !arr.length) return '';
+    var first = arr[0] || {};
+    return _pickFirst(first.website_url, first.url, first.link, '');
+}
+function _assetAt(arr, i, keys) {
+    if (!Array.isArray(arr) || !arr.length) return '';
+    var idx = Math.min(Math.max(Number(i || 0), 0), arr.length - 1);
+    var x = arr[idx] || {};
+    for (var k = 0; k < keys.length; k++) {
+        var v = x[keys[k]];
+        if (v !== undefined && v !== null && String(v).trim() !== '') return v;
+    }
+    return '';
+}
+function _materialVariants(m) {
+    var x = (m && typeof m === 'object') ? m : {};
+    var afs = x.asset_feed_spec || {};
+    var maxLen = Math.max(1, (afs.titles || []).length, (afs.bodies || []).length, (afs.descriptions || []).length, (afs.images || []).length);
+    var out = [];
+    for (var i = 0; i < maxLen; i++) {
+        out.push({
+            title: _assetAt(afs.titles, i, ['text', 'name']) || '',
+            body: _assetAt(afs.bodies, i, ['text']) || '',
+            description: _assetAt(afs.descriptions, i, ['text']) || '',
+            image_hash: _assetAt(afs.images, i, ['hash']) || ''
+        });
+    }
+    return out;
+}
+function _materialForm(m, selectedVariantIdx) {
+    var x = (m && typeof m === 'object') ? m : {};
+    var os = x.object_story_spec || {};
+    var ld = os.link_data || {};
+    var vd = os.video_data || {};
+    var td = os.template_data || {};
+    var cta = (((vd || {}).call_to_action || {}).value || {});
+    var afs = x.asset_feed_spec || {};
+    var variants = _materialVariants(x);
+    var vi = Math.min(Math.max(Number(selectedVariantIdx || 0), 0), Math.max(variants.length - 1, 0));
+    var vv = variants[vi] || {};
+    var titleVal = _pickFirst(vv.title, x.title, ld.name, vd.title, td.name, _assetText(afs.titles));
+    var bodyVal = _pickFirst(vv.body, x.body, ld.message, vd.message, td.message, _assetText(afs.bodies));
+    var descVal = _pickFirst(vv.description, bodyVal);
+    var linkVal = _pickFirst(ld.link, cta.link, td.link, x.link_url, _assetUrl(afs.link_urls));
+    var imageVal = _pickFirst(_assetAt(afs.images, vi, ['url', 'image_url', 'src']), x.image_url, x.thumbnail_url, ld.picture, (vd.image_url || ''), (td.picture || ''), _assetUrl(afs.images));
+    var videoVal = _pickFirst(vd.video_id, x.video_id, _assetUrl(afs.videos));
+
+    var html = '<div class="border rounded p-2 mb-2 fb-material-panel"><div class="fb-section-title">Materi Iklan</div>';
+    if (variants.length > 1) html += '<div class="fb-form-note mb-2">Menampilkan Varian ' + (vi + 1) + ' dari ' + variants.length + '</div>';
+    html += '<div class="row">';
+    html += '<div class="col-md-8"><div class="row fb-material-grid">';
+    html += '<div class="col-md-6">' + _formInput('Creative ID', x.id) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Object Type', x.object_type) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Nama Creative', x.name) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Page ID', os.page_id || x.page_id) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Judul', titleVal) + '</div>';
+    html += '<div class="col-md-6">' + _formInput('Link URL', linkVal) + '</div>';
+    html += '<div class="col-12">' + _formInput('Pesan/Body', bodyVal) + '</div>';
+    html += '<div class="col-12">' + _formInput('Deskripsi', descVal) + '</div>';
+    if (vv.image_hash) html += '<div class="col-12">' + _formInput('Image Hash (Varian)', vv.image_hash) + '</div>';
+    html += '</div></div>';
+    html += '<div class="col-md-4">'
+    html += '<div class="fb-upload-card"><div class="fb-upload-title">Asset Gambar</div>';
+    html += '<img class="fb-upload-preview js-fb-file-preview" ' + (imageVal ? 'src="' + _esc(imageVal) + '"' : 'style="display:none"') + ' alt="image">';
+    html += '<input type="url" class="form-control mb-1 js-fb-file-url" value="' + _esc(imageVal) + '" placeholder="URL gambar">';
+    html += '<input type="file" class="form-control-file js-fb-file-input" data-media="image" accept="image/*"></div>';
+    html += '<div class="fb-upload-card"><div class="fb-upload-title">Asset Video</div>';
+    html += '<video class="fb-upload-video js-fb-file-preview" ' + (videoVal ? 'src="' + _esc(videoVal) + '"' : 'style="display:none"') + ' controls></video>';
+    html += '<input type="url" class="form-control mb-1 js-fb-file-url" value="' + _esc(videoVal) + '" placeholder="URL video">';
+    html += '<input type="file" class="form-control-file js-fb-file-input" data-media="video" accept="video/*"></div>';
+    html += '</div></div></div>';
+    return html;
+}
+function _imageFromMaterial(m) {
+    if (!m || typeof m !== 'object') return '';
+    if (m.thumbnail_url) return String(m.thumbnail_url);
+    if (m.image_url) return String(m.image_url);
+    try {
+        var os = m.object_story_spec || {};
+        if (os.link_data && os.link_data.picture) return String(os.link_data.picture);
+        if (os.photo_data && os.photo_data.image_url) return String(os.photo_data.image_url);
+    } catch (e) {}
+    return '';
+}
+
+function _renderCampaignPreview(ad, variantIdx) {
+    var material = (ad || {}).material || {};
+    var variants = _materialVariants(material);
+    var vi = Math.min(Math.max(Number(variantIdx || 0), 0), Math.max(variants.length - 1, 0));
+    var vv = variants[vi] || {};
+    var img = _imageFromMaterial(material);
+    var t = _pickFirst(vv.title, material.title, ((material.object_story_spec || {}).link_data || {}).name, 'Preview Iklan');
+    var d = _pickFirst(vv.body, ((material.object_story_spec || {}).link_data || {}).message, '-');
+    var h = '<div><div class="font-weight-bold mb-1">' + _esc(ad.ad_name || '-') + '</div>';
+    h += '<div class="text-muted small mb-2">' + _esc((ad.platforms || []).join(', ') || '-') + ' | Varian ' + (vi + 1) + '</div>';
+    if (img) h += '<img src="' + _esc(img) + '" class="fb-asset-preview mb-2" alt="preview">';
+    h += '<div class="font-weight-bold">' + _esc(t) + '</div><div class="small text-muted">' + _esc(d) + '</div></div>';
+    $('#facebookCampaignLivePreview').html(h);
+}
+
+function _renderSelectedCampaignAsset() {
+    var node = window.facebookCampaignSelectedNode || { type: 'campaign', assetIndex: 0, variantIndex: 0 };
+    var i = Number(node.assetIndex || 0);
+    var vi = Number(node.variantIndex || 0);
+    var ad = (window.facebookCampaignAssetsCache || [])[i] || {};
+    var payload = window.facebookCampaignDetailPayload || {};
+    var material = ad.material || {};
+    var iden = ad.identity || {};
+
+    if (node.type === 'campaign') {
+        var c = payload.campaign || {};
+        var ov = '<div class="fb-asset-item"><div class="fb-section-title">Campaign Overview</div>';
+        ov += '<div class="row"><div class="col-md-6">' + _formInput('Nama Campaign', c.name) + '</div><div class="col-md-6">' + _formInput('Objective', c.objective) + '</div></div>';
+        ov += '<div class="fb-form-note">Pilih node Iklan/Varian di panel kiri untuk edit materi.</div></div>';
+        $('#facebookCampaignAdAssetList').html(ov);
+        $('#facebookCampaignLivePreview').html('<div class="text-muted">Pilih Iklan/Varian di panel kiri untuk melihat preview.</div>');
+        return;
+    }
+
+    var html = '<div class="fb-asset-item">';
+    html += '<div class="mb-2"><span class="fb-asset-tag">Ad ID: ' + _esc(ad.ad_id || '-') + '</span><span class="fb-asset-tag">Campaign ID: ' + _esc(iden.campaign_id || '-') + '</span><span class="fb-asset-tag">Adset: ' + _esc(iden.adset_name || '-') + '</span></div>';
+    html += '<div class="form-group"><label class="form-label">Nama Iklan</label><input type="text" class="form-control" value="' + _esc(ad.ad_name || '') + '"></div>';
+    html += _campaignForm(ad.campaign || payload.campaign || {});
+    html += _adsetForm(ad.adset || {});
+    html += _advantageForm(ad.advantage_audience || {});
+    html += _targetingForm(ad.targeting || {});
+    html += _placementForm(ad.targeting || {});
+    html += _materialForm(material, vi);
+    html += _technicalPanel(ad, material);
+    html += '</div>';
+    $('#facebookCampaignAdAssetList').html(html);
+    $('#facebookCampaignAdAssetList .js-fb-select2').each(function () {
+        var $el = $(this);
+        if ($el.hasClass('select2-hidden-accessible')) return;
+        $el.select2({ width: '100%', theme: 'bootstrap4', dropdownParent: $('#facebookCampaignDetailModal') });
+    });
+    _renderCampaignPreview(ad, vi);
+}
+
+function renderCampaignAssetPanel(detailResp) {
+    var payload = (detailResp && detailResp.data) ? detailResp.data : {};
+    var assets = Array.isArray(payload.ad_assets) ? payload.ad_assets : [];
+    var platforms = Array.isArray(payload.platforms) ? payload.platforms : [];
+    $('#facebookCampaignAdAssetMeta').text('Asset: ' + assets.length + ' | Platform: ' + (platforms.join(', ') || '-'));
+    if (!assets.length) {
+        $('#facebookCampaignApiStatus').text('Detail iklan belum tersedia untuk campaign ini.').removeClass('text-muted').addClass('text-warning');
+        return;
+    }
+    window.facebookCampaignDetailPayload = payload;
+    window.facebookCampaignAssetsCache = assets;
+    window.facebookCampaignSelectedAssetIndex = 0;
+    window.facebookCampaignSelectedNode = { type: 'campaign', assetIndex: 0, variantIndex: 0 };
+    $('#facebookCampaignApiStatus').html('Mode editor mirip Ads Manager aktif. <span class="fb-form-note">Pilih item di panel kiri.</span>').removeClass('text-danger').addClass('text-success');
+    var tree = '';
+    tree += '<div class="list-group-item active js-fb-tree-item" data-node-type="campaign" data-asset-index="0" data-variant-index="0"><strong>Campaign</strong><br><small>' + _esc((payload.campaign || {}).name || '-') + '</small></div>';
+    $.each(assets, function (i, ad) {
+        tree += '<div class="list-group-item js-fb-tree-item" data-node-type="ad" data-asset-index="' + i + '" data-variant-index="0"><strong>Iklan ' + (i + 1) + '</strong><br><small>' + _esc(ad.ad_name || ad.ad_id || '-') + '</small></div>';
+        var vCount = _materialVariants((ad || {}).material || {}).length;
+        if (vCount > 1) {
+            for (var j = 0; j < vCount; j++) tree += '<div class="list-group-item js-fb-tree-item pl-4" data-node-type="variant" data-asset-index="' + i + '" data-variant-index="' + j + '"><small>Varian ' + (j + 1) + '</small></div>';
+        }
+    });
+    $('#facebookCampaignTree').html(tree);
+    _renderSelectedCampaignAsset();
+}
+
+function loadCampaignAssetDetail(row) {
+    var accountId = String((row && row.account_id) || '').trim();
+    var campaignName = String((row && row.campaign) || '').trim();
+    var startDate = String($('#tanggal_dari').val() || '').trim();
+    var endDate = String($('#tanggal_sampai').val() || '').trim();
+    if (!accountId || !campaignName) {
+        $('#facebookCampaignApiStatus').text('Detail iklan tidak bisa dimuat: account_id / campaign kosong. Silakan muat ulang data tabel.').removeClass('text-muted').addClass('text-danger');
+        return;
+    }
+
+    if (window.facebookCampaignDetailXhr && window.facebookCampaignDetailXhr.readyState !== 4) {
+        window.facebookCampaignDetailXhr.abort();
+    }
+    var reqKey = [accountId, campaignName, startDate, endDate, Date.now()].join('|');
+    window.facebookCampaignDetailReqKey = reqKey;
+
+    resetCampaignAssetPanel('Memuat detail asset iklan dari API...');
+    window.facebookCampaignDetailXhr = $.ajax({
+        url: '/management/admin/page_per_campaign_facebook_detail',
+        type: 'GET',
+        cache: false,
+        dataType: 'json',
+        data: { account_id: accountId, campaign_name: campaignName, start_date: startDate, end_date: endDate },
+        headers: { 'X-CSRFToken': csrftoken },
+        success: function (resp) {
+            if (window.facebookCampaignDetailReqKey !== reqKey) return;
+            if (!resp || resp.status === false) {
+                $('#facebookCampaignApiStatus').text((resp && resp.error) || 'Gagal mengambil detail iklan.').removeClass('text-muted').addClass('text-danger');
+                return;
+            }
+            renderCampaignAssetPanel(resp);
+        },
+        error: function (xhr, textStatus) {
+            if (textStatus === 'abort') return;
+            if (window.facebookCampaignDetailReqKey !== reqKey) return;
+            $('#facebookCampaignApiStatus').text('Gagal memuat detail API: ' + (xhr && xhr.status ? xhr.status : 'unknown')).removeClass('text-muted').addClass('text-danger');
+        }
+    });
+}
+
 $().ready(function () {
     report_eror = function (jqXHR, exception) {
         var msg = '';
@@ -54,6 +462,38 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     });
+
+    $(document).on('change', '.js-fb-file-input', function () {
+        var file = (this.files || [])[0];
+        if (!file) return;
+        var url = URL.createObjectURL(file);
+        var $card = $(this).closest('.fb-upload-card, .fb-smart-field');
+        var $preview = $card.find('.js-fb-file-preview').first();
+        var $urlInput = $card.find('.js-fb-file-url').first();
+        if ($urlInput.length) $urlInput.val(url);
+        if ($preview.length) $preview.attr('src', url).show();
+    });
+
+    $(document).on('input', '.js-fb-file-url', function () {
+        var url = String($(this).val() || '').trim();
+        var $card = $(this).closest('.fb-upload-card, .fb-smart-field');
+        var $preview = $card.find('.js-fb-file-preview').first();
+        if (!$preview.length) return;
+        if (!url) { $preview.hide().attr('src', ''); return; }
+        $preview.attr('src', url).show();
+    });
+
+    $(document).on('click', '.js-fb-tree-item', function () {
+        var idx = Number($(this).data('asset-index') || 0);
+        var vi = Number($(this).data('variant-index') || 0);
+        var nt = String($(this).data('node-type') || 'ad');
+        window.facebookCampaignSelectedAssetIndex = idx;
+        window.facebookCampaignSelectedNode = { type: nt, assetIndex: idx, variantIndex: vi };
+        $('.js-fb-tree-item').removeClass('active');
+        $(this).addClass('active');
+        _renderSelectedCampaignAsset();
+    });
+
     // select_domain sekarang freetext input (tanpa select2)
     $('#btn_load_data').click(function (e) {
         e.preventDefault();
@@ -257,19 +697,10 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                     var idx = parseInt($(this).attr('data-row-index') || '0', 10);
                     var row = (window.__facebookCampaignRows || [])[idx] || {};
 
-                    function fmtInt(v) {
-                        return (Number(v || 0)).toLocaleString('id-ID');
-                    }
-                    function fmtIdr(v) {
-                        var n = Number(v || 0);
-                        return 'Rp ' + Math.round(n).toLocaleString('id-ID');
-                    }
-
                     $('#facebookCampaignDetailDate').text(row.date || '-');
                     $('#facebookCampaignDetailAccount').text(row.account_name || '-');
                     $('#facebookCampaignDetailDomain').text(row.domain || '-');
                     $('#facebookCampaignDetailCampaign').text(row.campaign || '-');
-
                     $('#facebookCampaignDetailSpend').text(fmtIdr(row.spend));
                     $('#facebookCampaignDetailImpressions').text(fmtInt(row.impressions));
                     $('#facebookCampaignDetailReach').text(fmtInt(row.reach));
@@ -277,15 +708,15 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
 
                     var freq = Number(row.frequency || 0);
                     $('#facebookCampaignDetailFrequency').text(isNaN(freq) ? '0' : freq.toFixed(1));
-
                     $('#facebookCampaignDetailCpr').text(fmtIdr(row.cpr));
                     $('#facebookCampaignDetailCpc').text(fmtIdr(row.cpc));
-
                     $('#facebookCampaignDetailLpv').text(fmtInt(row.lpv));
                     var lr = Number(row.lpv_rate || 0);
                     $('#facebookCampaignDetailLpvRate').text((isNaN(lr) ? 0 : lr).toFixed(2) + '%');
 
+                    resetCampaignAssetPanel('Memuat detail asset iklan...');
                     $('#facebookCampaignDetailModal').modal('show');
+                    loadCampaignAssetDetail(row);
                 });
         },
     });

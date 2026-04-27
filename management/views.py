@@ -2657,6 +2657,7 @@ class page_summary_facebook(View):
 
             normalized_rows.append({
                 'date': row.get('date'),
+                'account_id': row.get('account_id'),
                 'account_name': account_name,
                 'domain': domain,
                 'campaign': campaign,
@@ -3598,6 +3599,7 @@ class page_per_campaign_facebook(View):
 
             normalized_rows.append({
                 'date': row.get('date'),
+                'account_id': row.get('account_id'),
                 'account_name': account_name,
                 'domain': domain,
                 'campaign': campaign,
@@ -3640,6 +3642,116 @@ class page_per_campaign_facebook(View):
         if not status_ok:
             response_data['error'] = payload.get('data') or payload.get('message') or 'Gagal mengambil data campaign'
         return JsonResponse(response_data)
+
+class page_per_campaign_facebook_detail(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super(page_per_campaign_facebook_detail, self).dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        account_id = str(req.GET.get('account_id') or '').strip()
+        campaign_name = str(req.GET.get('campaign_name') or '').strip()
+        start_date = str(req.GET.get('start_date') or '').strip()
+        end_date = str(req.GET.get('end_date') or '').strip()
+        if not account_id or not campaign_name:
+            return JsonResponse({'status': False, 'error': 'account_id dan campaign_name wajib diisi', 'data': {}})
+
+        acc = data_mysql().master_account_ads_by_id({'data_account': account_id})
+        acc_data = (acc or {}).get('data') if isinstance(acc, dict) else None
+        if not isinstance(acc_data, dict):
+            return JsonResponse({'status': False, 'error': 'Account tidak ditemukan', 'data': {}})
+
+        token = str(acc_data.get('access_token') or '').strip()
+        real_account_id = str(acc_data.get('account_id') or account_id).replace('act_', '').strip()
+        if not token or not real_account_id:
+            return JsonResponse({'status': False, 'error': 'Token atau account_id tidak valid', 'data': {}})
+
+        def _graph(path, params=None):
+            q = {'access_token': token}
+            if isinstance(params, dict): q.update(params)
+            resp = requests.get(f"https://graph.facebook.com/v22.0/{str(path).lstrip('/')}", params=q, timeout=45)
+            data = resp.json() if resp.text else {}
+            if resp.status_code >= 400 or (isinstance(data, dict) and data.get('error')):
+                msg = (data.get('error') or {}).get('message') if isinstance(data, dict) else f'HTTP {resp.status_code}'
+                return {'ok': False, 'data': {}, 'error': msg or 'Graph API error'}
+            return {'ok': True, 'data': data, 'error': ''}
+
+        camp_rs = _graph(f'act_{real_account_id}/campaigns', {'fields': 'id,name,status,objective,daily_budget,lifetime_budget,buying_type,special_ad_categories', 'limit': 200})
+        campaigns = (camp_rs.get('data') or {}).get('data', []) if isinstance(camp_rs.get('data'), dict) else []
+        name_lc = campaign_name.lower()
+        selected = next((c for c in campaigns if str((c or {}).get('name') or '').strip().lower() == name_lc), None)
+        if selected is None:
+            selected = next((c for c in campaigns if name_lc in str((c or {}).get('name') or '').strip().lower()), None)
+        if not selected:
+            return JsonResponse({'status': True, 'data': {'campaign': {'name': campaign_name}, 'platforms': [], 'ad_assets': [], 'adsets': []}, 'warning': 'Campaign tidak ditemukan pada API account ini'})
+
+        campaign_id = str(selected.get('id') or '').strip()
+        camp_meta = _graph(campaign_id, {
+            'fields': 'id,name,status,effective_status,objective,buying_type,daily_budget,lifetime_budget,budget_remaining,start_time,stop_time,created_time,updated_time,special_ad_categories,special_ad_category_country,smart_promotion_type'
+        })
+        adsets_rs = _graph(f'{campaign_id}/adsets', {
+            'fields': 'id,name,status,effective_status,optimization_goal,billing_event,bid_strategy,bid_amount,daily_budget,lifetime_budget,budget_remaining,start_time,end_time,destination_type,attribution_spec,promoted_object,targeting,frequency_control_specs',
+            'limit': 500
+        })
+        ads_rs = _graph(f'{campaign_id}/ads', {
+            'fields': 'id,name,status,effective_status,configured_status,conversion_domain,source_ad_id,tracking_specs,adset{id,name,status,effective_status},creative{id,name,title,body,object_story_spec,asset_feed_spec,url_tags,thumbnail_url,image_url,object_type,call_to_action_type,instagram_actor_id,effective_instagram_story_id}',
+            'limit': 500
+        })
+
+        insight_params = {'fields': 'publisher_platform,platform_position,impressions,reach,clicks,spend', 'breakdowns': 'publisher_platform,platform_position', 'limit': 500}
+        if start_date and end_date:
+            insight_params['time_range'] = json.dumps({'since': start_date, 'until': end_date})
+        insights_rs = _graph(f'{campaign_id}/insights', insight_params)
+
+        adsets = ((adsets_rs.get('data') or {}).get('data', []) if isinstance(adsets_rs.get('data'), dict) else [])
+        ads = ((ads_rs.get('data') or {}).get('data', []) if isinstance(ads_rs.get('data'), dict) else [])
+        insights = ((insights_rs.get('data') or {}).get('data', []) if isinstance(insights_rs.get('data'), dict) else [])
+        adset_map = {str((x or {}).get('id') or ''): x for x in adsets}
+
+        platforms = []
+        seen_platform = set()
+        for it in insights:
+            pp = str((it or {}).get('publisher_platform') or '').strip()
+            pos = str((it or {}).get('platform_position') or '').strip()
+            label = ' / '.join([x for x in [pp, pos] if x])
+            if label and label not in seen_platform:
+                seen_platform.add(label)
+                platforms.append(label)
+
+        campaign_full = (camp_meta.get('data') if isinstance(camp_meta.get('data'), dict) else selected) or {}
+        ad_assets = []
+        for ad in ads:
+            adset_obj = (ad or {}).get('adset') or {}
+            adset_id = str(adset_obj.get('id') or '')
+            adset_meta = adset_map.get(adset_id, {})
+            targeting = adset_meta.get('targeting') or {}
+            advantage = targeting.get('targeting_automation') if isinstance(targeting, dict) else None
+            creative = (ad or {}).get('creative') or {}
+            ad_assets.append({
+                'ad_id': ad.get('id'),
+                'ad_name': ad.get('name'),
+                'identity': {'account_id': real_account_id, 'campaign_id': campaign_id, 'adset_id': adset_id, 'adset_name': adset_obj.get('name') or adset_meta.get('name')},
+                'platforms': platforms,
+                'objective': campaign_full.get('objective') or selected.get('objective'),
+                'advantage_audience': advantage,
+                'targeting': targeting,
+                'campaign': campaign_full,
+                'adset': adset_meta,
+                'ad': {
+                    'id': ad.get('id'),
+                    'name': ad.get('name'),
+                    'status': ad.get('status'),
+                    'effective_status': ad.get('effective_status'),
+                    'configured_status': ad.get('configured_status'),
+                    'conversion_domain': ad.get('conversion_domain'),
+                    'source_ad_id': ad.get('source_ad_id'),
+                    'tracking_specs': ad.get('tracking_specs')
+                },
+                'material': creative
+            })
+
+        return JsonResponse({'status': True, 'data': {'campaign': campaign_full, 'platforms': platforms, 'adsets': adsets, 'ad_assets': ad_assets}})
     
 class PerCountryFacebookAds(View):
     def dispatch(self, request, *args, **kwargs):
