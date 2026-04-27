@@ -328,60 +328,43 @@ def get_country_name_from_code(code):
         return code
 
 def build_country_filter_from_codes(countries_list):
-    """Build country filter from list of country codes"""
-    print(f"[DEBUG] build_country_filter_from_codes called with: {countries_list} (type: {type(countries_list)})")
-    
+    """Build country filter from list of country codes"""    
     if not countries_list:
         return ""
-    
     # Handle case where countries_list itself might be a set
     if isinstance(countries_list, set):
-        print(f"[DEBUG] Converting set countries_list to list: {countries_list}")
         countries_list = list(countries_list)
     elif countries_list is None:
         return ""
     
     country_names = []
-    for i, code in enumerate(countries_list):
-        print(f"[DEBUG] Processing code[{i}]: {code} (type: {type(code)})")
-        
+    for i, code in enumerate(countries_list):        
         # Handle different data types for code
         if isinstance(code, set):
-            print(f"[DEBUG] Received set object as country code: {code}")
             continue
         elif not isinstance(code, str):
-            print(f"[DEBUG] Converting non-string code to string: {code} (type: {type(code)})")
             code = str(code)
-            
-        name = get_country_name_from_code(code)
-        print(f"[DEBUG] get_country_name_from_code({code}) returned: {name} (type: {type(name)})")
-        
+        name = get_country_name_from_code(code)        
         if name:
             # Handle different data types that might be returned
             if isinstance(name, set):
                 # Convert set to string representation or skip
-                print(f"[DEBUG] Received set object for country code {code}: {name}")
                 continue
             elif not isinstance(name, str):
                 # Convert other types to string
-                print(f"[DEBUG] Converting non-string name to string: {name} (type: {type(name)})")
                 name = str(name)
             
             # Escape single quotes if needed
-            print(f"[DEBUG] About to call replace() on name: '{name}' (type: {type(name)})")
             try:
                 name = name.replace("'", "''")
                 country_names.append(f"'{name}'")
-                print(f"[DEBUG] Successfully processed country: {name}")
             except Exception as e:
-                print(f"[ERROR] Failed to call replace() on name: {name} (type: {type(name)}), error: {e}")
                 continue
         else:
             print(f"[DEBUG] Invalid country code: {code}")
     
     if country_names:
         result = f"COUNTRY_NAME IN ({', '.join(country_names)})"
-        print(f"[DEBUG] Final country filter: {result}")
         return result
     
     print(f"[DEBUG] No valid countries found, returning empty filter")
@@ -460,20 +443,15 @@ def cache_facebook_insights(func):
         # Try to get from cache first
         cached_result = get_cached_data(cache_key)
         if cached_result is not None:
-            print(f"Cache hit for {func.__name__}")
             return cached_result
         
         # If not in cache, call the function
-        print(f"Cache miss for {func.__name__}, fetching fresh data")
         try:
             result = func(*args, **kwargs)
-            
             # Cache the result for 30 minutes
             set_cached_data(cache_key, result, timeout=1800)
-            
             return result
         except Exception as e:
-            print(f"Error in cached function {func.__name__}: {e}")
             # Return empty result structure to prevent crashes
             return {
                 'status': False,
@@ -507,8 +485,6 @@ def invalidate_facebook_cache(account_ids=None, date_range=None):
         
         for pattern in patterns:
             invalidate_cache_pattern(pattern)
-            
-        print(f"Invalidated cache patterns: {patterns}")
         
     except Exception as e:
         print(f"Error invalidating Facebook cache: {e}")
@@ -519,7 +495,6 @@ def clear_all_facebook_cache():
     """
     try:
         invalidate_cache_pattern("fb_insights_*")
-        print("Cleared all Facebook cache")
     except Exception as e:
         print(f"Error clearing Facebook cache: {e}")
 
@@ -546,8 +521,6 @@ def invalidate_cache_on_data_update(account_id, campaign_id=None, event_type='up
         
         for pattern in patterns:
             invalidate_cache_pattern(pattern)
-        
-        print(f"Cache invalidated for {event_type} on account {account_id}")
         
     except Exception as e:
         print(f"Error invalidating cache on data update: {e}")
@@ -1254,7 +1227,6 @@ def fetch_data_insights_account(tanggal, access_token, account_id, data_sub_doma
         ],
         params=params
     )
-    print(insights)
     for row in insights:
         campaign_id = row.get('campaign_id')
         if not campaign_id:
@@ -1491,11 +1463,9 @@ def fetch_status_per_campaign(access_token, campaign_id, status):
         }
     except FacebookRequestError as e:
         error_msg = f"Facebook API Error: {e.api_error_message()}"
-        print(error_msg)
         return {'error': error_msg}
     except Exception as e:
         error_msg = f"General Error: {str(e)}"
-        print(error_msg)
         return {'error': error_msg}
 
 @cache_facebook_insights
@@ -1619,13 +1589,6 @@ def fetch_data_insights_campaign_filter_sub_domain(start_date, end_date, rs_acco
             else:
                 total_frequency = 0.0
             total_cpr += agg['cpr']
-    print(total_budget)
-    print(total_spend)
-    print(total_impressions)
-    print(total_reach)
-    print(total_clicks)
-    print(total_frequency)
-    print(total_cpr)        
     total.append({
         'total_budget': total_budget,
         'total_spend': total_spend,
@@ -1931,7 +1894,6 @@ def fetch_data_country_facebook_ads(tanggal_dari, tanggal_sampai, access_token, 
     except (FacebookRequestError, requests.exceptions.RequestException, urllib3.exceptions.HTTPError, Exception) as e:
         print(f"[ERROR] Gagal mengambil insights Facebook: {e}")
         return []
-    print(f"Account access : {insights}")
     # Memproses hasil insights
     for item in insights:
         country_code = item.get('country')
@@ -1965,7 +1927,6 @@ def fetch_data_country_facebook_ads(tanggal_dari, tanggal_sampai, access_token, 
             'clicks': data['clicks']  # Hasil klik per negara
         })
     # Debug output
-    print(f"[DEBUG] result: {result}")
     return result
 
 def fetch_data_insights_by_country_filter_account(start_date, end_date, access_token, account_id, data_sub_domain):
@@ -1975,7 +1936,6 @@ def fetch_data_insights_by_country_filter_account(start_date, end_date, access_t
         FacebookAdsApi.init(access_token=access_token)
         account = AdAccount(account_id)
     except Exception as e:
-        print(f"[ERROR] Inisialisasi FacebookAdsApi gagal: {e}")
         return {
             'data': [],
             'total': [{
@@ -2020,8 +1980,7 @@ def fetch_data_insights_by_country_filter_account(start_date, end_date, access_t
     try:
         insights = account.get_insights(fields=fields, params=params)
     except (FacebookRequestError, requests.exceptions.RequestException, urllib3.exceptions.HTTPError, Exception) as e:
-        print(f"[ERROR] Gagal mengambil insights Facebook: {e}")
-        insights = []
+        return []
 
     # Agregasi per negara
     aggregates = defaultdict(lambda: {
@@ -2131,7 +2090,6 @@ def create_dynamic_googleads_yaml():
         
         # Check if service account key file exists
         if key_file and os.path.exists(key_file):
-            print(f"[INFO] Using service account authentication: {key_file}")
             yaml_content = f"""ad_manager:
   application_name: "AdX Manager Dashboard"
   network_code: {network_code}
@@ -2145,12 +2103,9 @@ use_proto_plus: true
             yaml_file.close()
             return yaml_file.name
         else:
-            print(f"[ERROR] Service account key file not found: {key_file}")
-            print(f"[INFO] Service account authentication is required for Ad Manager API")
             return None
 
     except Exception as e:
-        print(f"Error creating Google Ads YAML: {e}")
         return None
 
 
@@ -2170,7 +2125,6 @@ def get_ad_manager_client():
         
         return client
     except Exception as e:
-        print(f"Error initializing Ad Manager client: {e}")
         return None
 
 def fetch_ad_manager_reports(start_date, end_date, report_type='HISTORICAL'):
@@ -2188,9 +2142,6 @@ def fetch_ad_manager_reports(start_date, end_date, report_type='HISTORICAL'):
         if isinstance(end_date, str):
             end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
             
-        print(f"[DEBUG] After conversion - start_date: {start_date} (type: {type(start_date)})")
-        print(f"[DEBUG] After conversion - end_date: {end_date} (type: {type(end_date)})")
-        
         # Configure report
         report_job = {
             'reportQuery': {
@@ -2215,7 +2166,6 @@ def fetch_ad_manager_reports(start_date, end_date, report_type='HISTORICAL'):
         report_job_id = report_job['id']
         
         # Wait for completion
-        print(f"[DEBUG] Attempting to connect with API version {report_version}")
         report_downloader, _downloader_version = _get_ad_manager_downloader(client)
         report_downloader.WaitForReport(report_job)
         
@@ -2459,10 +2409,8 @@ def fetch_adx_summary_data(user_mail, start_date, end_date):
             return client_result
             
         client = client_result['client']
-        print(f"[DEBUG] clientnya: {client}")
 
         report_service, report_version = _get_ad_manager_service(client, 'ReportService')
-        print(f"[DEBUG] Using Ad Manager API version {report_version}")
         
         # Convert string dates to datetime.date objects
         if isinstance(start_date, str):
@@ -2501,10 +2449,8 @@ def fetch_adx_summary_data(user_mail, start_date, end_date):
         
         # Download and parse results
         report_file = tempfile.NamedTemporaryFile(suffix='.csv.gz', delete=False)
-        print(f"[DEBUG] About to download report to file: {report_file.name}")
         report_downloader.DownloadReportToFile(report_job_id, report_file, 'CSV_DUMP')
         report_file.close()
-        print(f"[DEBUG] Report downloaded successfully")
         
         # Parse CSV data
         data = []
@@ -2592,11 +2538,8 @@ def fetch_adx_summary_data(user_mail, start_date, end_date):
         }
         
     except Exception as e:
-        print(f"[ERROR] fetch_adx_summary_data: {str(e)}")
-        
         # Handle specific GoogleAds library bug
         if "argument should be integer or bytes-like object, not 'str'" in str(e):
-            print(f"[WARNING] GoogleAds library bug detected in fetch_adx_summary_data for {user_mail}. Returning empty data as workaround.")
             return {
                 'status': True,
                 'data': [],
@@ -2734,7 +2677,6 @@ def fetch_adx_traffic_account_by_user(user_mail, start_date, end_date, selected_
             
             
     except Exception as e:
-        print(f"[ERROR] fetch_adx_traffic_account_by_user failed: {e}")
         return {
             'status': False,
             'error': f'Failed to fetch traffic data: {str(e)}'
@@ -2869,7 +2811,6 @@ def fetch_user_sites_list(user_mail):
         
         if traffic_result['status']:
             traffic_data = traffic_result['data']
-            print(f"[DEBUG] Found {len(traffic_data)} traffic records")
             
             # Extract unique site names from traffic data
             for record in traffic_data:
@@ -2880,23 +2821,16 @@ def fetch_user_sites_list(user_mail):
                     if clean_site_name.startswith('www.'):
                         clean_site_name = clean_site_name[4:]
                     sites.add(clean_site_name)
-                    print(f"[DEBUG] Added site from traffic data: {clean_site_name}")
         else:
             print(f"[DEBUG] Failed to fetch traffic data: {traffic_result.get('error', 'Unknown error')}")
         
         # Convert set to sorted list
         sites_list = sorted(list(sites))
-        
-        print(f"[DEBUG] Final sites list: {sites_list}")
-        
         return {
             'status': True,
             'data': sites_list
         }
     except Exception as e:
-        print(f"[DEBUG] Error in fetch_user_sites_list: {str(e)}")
-        import traceback
-        print(f"[DEBUG] Traceback: {traceback.format_exc()}")
         return {
             'status': False,
             'error': str(e)
@@ -2957,8 +2891,6 @@ def fetch_adx_account_data():
                 }
             }
         except TypeError as e:
-            print(f"TypeError in getCurrentNetwork (attempting workaround): {e}")
-            
             # Workaround 1: Try with explicit empty parameters
             try:
                 current_network = network_service.getCurrentNetwork({})
@@ -2972,8 +2904,6 @@ def fetch_adx_account_data():
                     }
                 }
             except (TypeError, Exception) as e2:
-                print(f"Workaround 1 failed: {e2}")
-                
                 # Workaround 2: Use network code from database
                 try:
                     # Try to get network by code using getAllNetworks
@@ -3018,7 +2948,6 @@ def fetch_adx_account_data():
                         }
                     }
     except Exception as e:
-        print(f"[ERROR] fetch_adx_account_data failed: {e}")
         return {
             'status': False,
             'error': str(e)
@@ -3032,13 +2961,10 @@ def fetch_user_adx_account_data(user_mail):
         client = client_result['client']
         # Get Network Service
         network_service, _network_version = _get_ad_manager_service(client, 'NetworkService')
-        print(f"DEBUG network_service: {network_service}")
         # Get current network information
         current_network = network_service.getCurrentNetwork()
-        print(f"DEBUG current_network: {current_network}")
         # Get User Service for additional account details
         user_service, _user_version = _get_ad_manager_service(client, 'UserService')
-        print(f"DEBUG user_service: {user_service}")
         # Get current user information
         current_user = None
         try:
@@ -3156,7 +3082,6 @@ def check_email_in_ad_manager(user_mail):
             # Handle the specific GoogleAds library bug
             error_msg = str(soap_error)
             if "argument should be integer or bytes-like object, not 'str'" in error_msg:
-                print(f"[DEBUG] Known GoogleAds library bug encountered for {user_mail}. Assuming user exists to allow login.")
                 # Return success with exists=True as workaround for the library bug
                 return {
                     'status': True,
@@ -3223,7 +3148,6 @@ def validate_oauth_email(user_mail):
         
         if not refresh_token or not developer_token:
             # If Google Ads credentials are not configured, allow login based on database only
-            print(f"[DEBUG] Google Ads credentials not configured, allowing login based on database only for {user_mail}")
             return {
                 'status': True,
                 'database': db_result,
@@ -3241,7 +3165,6 @@ def validate_oauth_email(user_mail):
                 'invalid_grant', 'bad request', 'authentication', 'permission', 
                 'soap request failed', 'unauthorized', 'access denied'
             ]):
-                print(f"[DEBUG] Ad Manager check failed ({error_msg}), allowing login based on database only for {user_mail}")
                 return {
                     'status': True,
                     'database': db_result,
@@ -3250,7 +3173,6 @@ def validate_oauth_email(user_mail):
                 }
             else:
                 # For other types of errors, still allow login based on database
-                print(f"[DEBUG] Ad Manager check failed with unknown error ({error_msg}), allowing login based on database only for {user_mail}")
                 return {
                     'status': True,
                     'database': db_result,
@@ -3802,7 +3724,6 @@ def fetch_adx_traffic_campaign_by_user(user_mail, start_date, end_date, site_fil
         }
         
     except Exception as e:
-        print(f"[ERROR] fetch_adx_traffic_campaign_by_user: {str(e)}")
         return {
             'status': False,
             'error': f'Error mengambil data AdX: {str(e)}'
@@ -3857,7 +3778,6 @@ def _run_regular_report(client, start_date, end_date, selected_sites):
     for dimensions in dimension_combinations:
         for columns in regular_column_combinations:
             try:
-                print(f"[DEBUG] Trying dimensions: {dimensions}, columns: {columns}")
                 report_query = {
                     'reportQuery': {
                         'dimensions': dimensions,
@@ -3882,10 +3802,8 @@ def _run_regular_report(client, start_date, end_date, selected_sites):
                     report_job = report_service.runReportJob(report_query)
                 finally:
                     socket.setdefaulttimeout(old_timeout)
-                print(f"[DEBUG] Regular report created successfully with dimensions: {dimensions}, columns: {columns}")
                 # Wait for completion and download
                 raw_result = _wait_and_download_report(client, report_job['id'])
-                print(f"[DEBUG] Raw result: {raw_result}")
                 # Process the raw CSV data to match expected frontend format
                 if raw_result.get('status'):
                     processed_data = _process_regular_csv_data(raw_result.get('data') or [])
@@ -3914,7 +3832,6 @@ def _run_regular_report(client, start_date, end_date, selected_sites):
             except Exception as e:
                 error_msg = str(e)
                 last_error = error_msg
-                print(f"[DEBUG] Combination dimensions: {dimensions}, columns: {columns} failed: {error_msg}")
                 # If NOT_NULL error, try next combination
                 if 'NOT_NULL' in error_msg:
                     continue
@@ -4003,7 +3920,6 @@ def _run_ad_unit_report_to_site(client, start_date, end_date, selected_sites):
     for dimensions in dimension_combinations:
         for columns in ad_unit_column_combinations:
             try:
-                print(f"[DEBUG] Trying ad-unit dimensions: {dimensions}, columns: {columns}")
                 report_query = {
                     'reportQuery': {
                         'dimensions': dimensions,
@@ -4044,7 +3960,6 @@ def _run_ad_unit_report_to_site(client, start_date, end_date, selected_sites):
             except Exception as e:
                 error_msg = str(e)
                 last_error = error_msg
-                print(f"[DEBUG] Ad-unit combination dimensions: {dimensions}, columns: {columns} failed: {error_msg}")
                 if 'NOT_SUPPORTED' in error_msg or 'COLUMNS_NOT_SUPPORTED_FOR_REQUESTED_DIMENSIONS' in error_msg:
                     continue
                 if 'PERMISSION' in error_msg.upper():
@@ -4340,11 +4255,7 @@ def _wait_and_download_report(client, report_job_id):
         for attempt in range(max_attempts):
             try:
                 status = report_service.getReportJobStatus(report_job_id)
-                print(f"[DEBUG] Report status check {attempt + 1}: {status}")
-
                 if status == 'COMPLETED':
-                    print(f"[DEBUG] Report completed, downloading...")
-
                     # Download report using DownloadReportToFile
                     # Create temporary file for report data
                     import tempfile
@@ -4360,12 +4271,7 @@ def _wait_and_download_report(client, report_job_id):
                                 report_data = gz_file.read()
 
                         except Exception as download_error:
-                            print(f"[DEBUG] DownloadReportToFile failed: {download_error}")
                             raise download_error
-
-                    import csv
-                    import io
-
                     rows = list(csv.reader(io.StringIO(report_data)))
                     if len(rows) <= 1:
                         return {
@@ -4382,8 +4288,6 @@ def _wait_and_download_report(client, report_job_id):
                         row = dict(zip(headers, values))
                         if row:
                             data.append(row)
-
-                    print(f"[DEBUG] Successfully downloaded {len(data)} rows")
                     return {
                         'status': True,
                         'data': data,
@@ -4399,7 +4303,6 @@ def _wait_and_download_report(client, report_job_id):
                 time.sleep(5)
 
             except Exception as e:
-                print(f"[DEBUG] Status check failed: {e}")
                 time.sleep(5)
 
         return {
@@ -4467,12 +4370,9 @@ def _process_regular_csv_data(raw_data):
             revenue = 0.0
             if 'Column.TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE' in row:
                 revenue_micro = _to_float(row.get('Column.TOTAL_LINE_ITEM_LEVEL_CPM_AND_CPC_REVENUE'))
-                print(f"[DEBUG] Revenue before conversion: {revenue_micro}")
                 revenue = revenue_micro / 1000000
-                print(f"[DEBUG] Revenue after conversion: {revenue}")
             elif 'Column.AD_EXCHANGE_TOTAL_EARNINGS' in row:
                 revenue = _to_float(row.get('Column.AD_EXCHANGE_TOTAL_EARNINGS'))
-                print(f"[DEBUG] AdX Revenue (no conversion): {revenue}")
             
             # Handle pre-calculated metrics from AdX if available
             cpc = 0.0
@@ -4588,7 +4488,6 @@ def fetch_adx_traffic_per_country(start_date, end_date, user_mail, selected_site
     try:
         client_result = get_user_ad_manager_client(user_mail)
         if not client_result.get('status', False):
-            print(f"[ERROR] Gagal mendapatkan client Ad Manager: {client_result.get('error', 'Unknown error')}")
             return {
                 'status': False,
                 'error': f"Gagal mendapatkan client Ad Manager: {client_result.get('error', 'Unknown error')}",
@@ -4673,7 +4572,6 @@ def _wait_and_download_country_report(client, report_job):
         # Process the CSV data
         return _process_country_csv_data(report_data)
     except Exception as e:
-        print(f"[ERROR] Error waiting/downloading country report: {e}")
         return {
             'status': False,
             'error': f'Error waiting/downloading country report: {str(e)}'
@@ -4940,9 +4838,6 @@ def _run_country_advanced_report(client, start_date, end_date, selected_sites, c
 
 def _process_country_csv_data(raw_data):
     """Process CSV data for country traffic"""
-    print(f"[DEBUG] ===== _process_country_csv_data START =====")
-    print(f"[DEBUG] Raw data length: {len(raw_data) if raw_data else 0}")
-    
     try:
         # Parse CSV data
         csv_reader = csv.DictReader(io.StringIO(raw_data))
@@ -5075,12 +4970,6 @@ def _process_country_csv_data(raw_data):
             row_data['site_name'] = site_name
             data.append(row_data)
         
-        print(f"[DEBUG] Processing summary:")
-        print(f"[DEBUG] - Total rows in CSV: {row_count}")
-        print(f"[DEBUG] - Rows processed: {processed_count}")
-        print(f"[DEBUG] - Rows filtered out: {filtered_count}")
-        print(f"[DEBUG] - Final data rows: {len(data)}")
-        
         # Agregasi data per negara+site (jika site tersedia) untuk hindari duplikasi
         aggregated = {}
         for row in data:
@@ -5168,10 +5057,6 @@ def _process_country_csv_data(raw_data):
             'total_responses_served': total_responses_served_sum,
             'total_ctr': total_ctr
         }
-
-        print(f"[DEBUG] Final summary: {summary}")
-        print(f"[DEBUG] ===== _process_country_csv_data END =====")
-
         return {
             'status': True,
             'data': aggregated_data,
@@ -5179,9 +5064,6 @@ def _process_country_csv_data(raw_data):
         }
         
     except Exception as e:
-        print(f"[ERROR] Error processing country CSV data: {e}")
-        import traceback
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
         return {
             'status': False,
             'error': f'Error processing country data: {str(e)}'
@@ -5199,7 +5081,6 @@ def _get_country_code_from_name(country_name):
         # Fallback to first two letters uppercase
         return country_name[:2].upper() if len(country_name) >= 2 else 'XX'
     except Exception as e:
-        print(f"[DEBUG] Error getting country code for {country_name}: {e}")
         return 'XX'
 
 # ===== ROI API Functions =====
@@ -5223,7 +5104,6 @@ def fetch_roi_per_country(start_date, end_date, user_mail, selected_sites=None, 
         # Use user-specific Ad Manager client
         client_result = get_user_ad_manager_client(user_mail)
         if not client_result.get('status', False):
-            print(f"[ERROR] Gagal mendapatkan client Ad Manager: {client_result.get('error', 'Unknown error')}")
             return {
                 'status': False,
                 'error': f"Gagal mendapatkan client Ad Manager: {client_result.get('error', 'Unknown error')}",
@@ -5237,7 +5117,6 @@ def fetch_roi_per_country(start_date, end_date, user_mail, selected_sites=None, 
             end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
         
         # Jalankan report ROI Country
-        print(f"[DEBUG] Running ROI country report with caching key {cache_key}")
         result = _run_regular_roi_country_report(client, start_date, end_date, selected_sites, countries_list)
 
         # Simpan ke cache (TTL 15 menit) jika berhasil
@@ -5249,7 +5128,6 @@ def fetch_roi_per_country(start_date, end_date, user_mail, selected_sites=None, 
         return result
         
     except Exception as e:
-        print(f"[ERROR] fetch_roi_per_country: {str(e)}")
         return {
             'status': False,
             'error': f'Error mengambil data traffic per country: {str(e)}'
@@ -5267,7 +5145,6 @@ def _wait_and_download_roi_country_report(client, report_job):
                 report_data = gz_file.read()
         return _process_roi_country_csv_data(report_data)
     except Exception as e:
-        print(f"[ERROR] Error waiting/downloading ROI country report: {e}")
         return {
             'status': False,
             'error': f'Error waiting/downloading ROI country report: {str(e)}'
@@ -5319,7 +5196,6 @@ def _run_regular_roi_country_report(client, start_date, end_date, selected_sites
             # Jika hasil benar-benar kosong, coba kolom berikutnya
             if not result.get('status') or not result.get('data'):
                 last_error = result.get('error')
-                print(f"[DEBUG] Columns {columns} returned empty; trying next fallback")
                 continue
 
             # Post-filter by site di aplikasi
@@ -5368,7 +5244,6 @@ def _run_regular_roi_country_report(client, start_date, end_date, selected_sites
 
         except Exception as e:
             last_error = str(e)
-            print(f"[DEBUG] ROI country report columns {columns} failed: {e}")
             continue
 
     # Semua fallback gagal atau kosong
@@ -5754,8 +5629,6 @@ def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, 
     else:
         site_filter = '%'
     site_filter = site_filter.replace('.com', '')
-    print(f"DEBUG: Original selected_sites: {selected_sites}")
-    print(f"DEBUG: Processed site_filter: {site_filter}")
     # Build sites_to_match list for multi/single site cases
     sites_to_match = []
     if site_filter != '%':
@@ -5807,7 +5680,6 @@ def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, 
                 if len(sites_to_match) > 1:
                     filtered_ids = [c['id'] for c in filtered_campaigns]
                     if not filtered_ids:
-                        print("DEBUG: No campaigns matched site keywords; skipping insights fetch for this account")
                         continue
                     params['filtering'] = [{
                         'field': 'campaign.id',
@@ -5826,9 +5698,7 @@ def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, 
                 campaign_id = item.get('campaign_id')
                 if not campaign_id:
                     continue
-                campaign_name = item.get('campaign_name', '')
-                print(f"DEBUG: Processing campaign: {campaign_name}")
-                
+                campaign_name = item.get('campaign_name', '')                
                 campaign_config = campaign_map.get(campaign_id, {})
                 daily_budget = float(campaign_config.get('daily_budget', 0))
                 date_start = item.get('date_start')
@@ -5849,7 +5719,6 @@ def fetch_data_insights_by_date_subdomain_roi(rs_account, start_date_formatted, 
                         break
                 agg['daily_budget'] += daily_budget
     except Exception as e:
-        print(f"Error in fetch_data_insights_by_date_subdomain_roi: {e}")
         return {
             'status': False,
             'data': [],
@@ -5950,7 +5819,6 @@ def _run_roi_report_with_fallback(client, start_date, end_date, site_filter):
     ]
     for columns in roi_column_combinations:
         try:
-            print(f"[DEBUG] Trying ROI columns: {columns}")
             report_query = {
                 'reportQuery': {
                     'dimensions': ['DATE', 'AD_EXCHANGE_SITE_NAME'],
@@ -5984,14 +5852,11 @@ def _run_roi_report_with_fallback(client, start_date, end_date, site_filter):
                         'values': [site_filter]
                     }]
             # Try to run the report job
-            report_job = report_service.runReportJob(report_query)
-            print(f"[DEBUG] AdX report created successfully with columns: {columns}")
-            
+            report_job = report_service.runReportJob(report_query)            
             # Wait for completion and download
             return _wait_and_download_report(client, report_job['id'])
         except Exception as e:
             error_msg = str(e)
-            print(f"[DEBUG] AdX combination {columns} failed: {error_msg}")
             # If NOT_NULL error, try next combination
             if 'NOT_NULL' in error_msg:
                 continue

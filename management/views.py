@@ -593,7 +593,6 @@ def get_countries_facebook_ads(request):
             data_account,
             selected_domain_list
         )
-        print(f"[DEBUG] Raw negara_OK: {result}")
         # Validasi struktur result
         if not result['hasil']['data']:
             return JsonResponse({
@@ -602,7 +601,6 @@ def get_countries_facebook_ads(request):
                 'countries': []
             })
         if not isinstance(result['hasil'], dict):
-            print(f"[WARNING] Result['hasil'] is not a dict: {type(result['hasil'])}")
             return JsonResponse({
                 'status': 'error',
                 'message': 'Format data tidak valid.',
@@ -611,7 +609,6 @@ def get_countries_facebook_ads(request):
         
         # Periksa apakah ada key 'data' dalam result['hasil']
         if 'data' not in result['hasil']:
-            print(f"[WARNING] No 'data' key in result['hasil']. Available keys: {list(result['hasil'].keys())}")
             return JsonResponse({
                 'status': 'error',
                 'message': 'Data negara tidak tersedia.',
@@ -620,7 +617,6 @@ def get_countries_facebook_ads(request):
         
         # Periksa apakah data adalah list
         if not isinstance(result['hasil']['data'], list):
-            print(f"[WARNING] result['hasil']['data'] is not a list: {type(result['hasil']['data'])}")
             return JsonResponse({
                 'status': 'error',
                 'message': 'Format data negara tidak valid.',
@@ -632,7 +628,6 @@ def get_countries_facebook_ads(request):
         seen = set()
         for country_data in result['hasil']['data']:
             if not isinstance(country_data, dict):
-                print(f"[WARNING] Country data is not a dict: {type(country_data)}")
                 continue
             country_name = (country_data.get('country_name') or '').strip()
             country_code = (country_data.get('country_code') or '').strip().upper()
@@ -664,9 +659,6 @@ def get_countries_facebook_ads(request):
         })
         
     except Exception as e:
-        print(f"[ERROR] Gagal mengambil data negara: {e}")
-        import traceback
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
         return JsonResponse({
             'status': 'error',
             'message': 'Gagal mengambil data negara.',
@@ -689,7 +681,6 @@ def get_countries_adx(request):
         if selected_domains:
             selected_domain_list = [str(s).strip() for s in selected_domains.split(',') if s.strip()]
         # Gunakan cache untuk menghindari pemanggilan API berulang
-        print(f"[DEBUG] Request params: start_date={start_date}, end_date={end_date}, selected_account={selected_account}, selected_domain_list={selected_domain_list}")
         try:
             cache_key = generate_cache_key(
                 'countries_adx',
@@ -713,10 +704,8 @@ def get_countries_adx(request):
             selected_account,
             selected_domain_list,
         )
-        print(f"[DEBUG] Raw result: {result}")
         # Validasi struktur result
         if not result['hasil']['data']:
-            print("[WARNING] Result is None or empty")
             return JsonResponse({
                 'status': 'error',
                 'message': 'Tidak ada data yang tersedia.',
@@ -724,7 +713,6 @@ def get_countries_adx(request):
             })
         
         if not isinstance(result['hasil'], dict):
-            print(f"[WARNING] Result['hasil'] is not a dict: {type(result['hasil'])}")
             return JsonResponse({
                 'status': 'error',
                 'message': 'Format data tidak valid.',
@@ -733,7 +721,6 @@ def get_countries_adx(request):
         
         # Periksa apakah ada key 'data' dalam result['hasil']
         if 'data' not in result['hasil']:
-            print(f"[WARNING] No 'data' key in result['hasil']. Available keys: {list(result['hasil'].keys())}")
             return JsonResponse({
                 'status': 'error',
                 'message': 'Data negara tidak tersedia.',
@@ -742,7 +729,6 @@ def get_countries_adx(request):
         
         # Periksa apakah data adalah list
         if not isinstance(result['hasil']['data'], list):
-            print(f"[WARNING] result['hasil']['data'] is not a list: {type(result['hasil']['data'])}")
             return JsonResponse({
                 'status': 'error',
                 'message': 'Format data negara tidak valid.',
@@ -754,7 +740,6 @@ def get_countries_adx(request):
         seen = set()
         for country_data in result['hasil']['data']:
             if not isinstance(country_data, dict):
-                print(f"[WARNING] Country data is not a dict: {type(country_data)}")
                 continue
             country_name = (country_data.get('country_name') or '').strip()
             country_code = (country_data.get('country_code') or '').strip().upper()
@@ -786,9 +771,6 @@ def get_countries_adx(request):
         })
         
     except Exception as e:
-        print(f"[ERROR] Gagal mengambil data negara: {e}")
-        import traceback
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
         return JsonResponse({
             'status': 'error',
             'message': 'Gagal mengambil data negara.',
@@ -864,7 +846,6 @@ class ForgotPasswordView(View):
             try:
                 send_mail(to=[email], subject=subject, template='emails/simple.html', context=context)
             except Exception as e:
-                print(f"[ERROR] Failed to send reset password email: {e}")
                 messages.warning(req, 'Password has been reset, but email failed to send.')
                 return redirect('admin_login')
 
@@ -872,9 +853,6 @@ class ForgotPasswordView(View):
             return redirect('admin_login')
 
         except Exception as e:
-            print(f"[ERROR] ForgotPasswordView: {e}")
-            import traceback
-            print(traceback.format_exc())
             messages.error(req, 'An error occurred while processing your request.')
             return redirect('forgot_password')
 
@@ -2128,15 +2106,10 @@ class DashboardCreateScoringView(View):
         try:
             payload = json.loads((req.body or b'').decode('utf-8') or '{}')
             batch_id = str(payload.get('batch_id'))
-            print(f"batch_id_data: {batch_id}")
             target_date = str(payload.get('date') or '').strip()
-            print(f"target_date_data: {target_date}")
             run_hour_raw = payload.get('run_hour')
-            print(f"run_hour_raw_data: {run_hour_raw}")
             domain = str(payload.get('domain') or payload.get('site') or payload.get('meta_campaign') or '').strip().lower()
-            print(f"pada_domain_data: {domain}")
             country_cd = str(payload.get('country_cd') or payload.get('country_code') or '').strip().upper()
-            print(f"country_cd_data: {country_cd}")
             mapped_revenue_source = str(payload.get('mapped_revenue_source') or '').strip().lower()
 
             if not target_date:
@@ -3783,7 +3756,6 @@ class page_per_country_facebook(View):
             }
         # Filter data berdasarkan negara yang dipilih
         if selected_countries and len(selected_countries) > 0:
-            print(f"DEBUG - Filtering by countries: {selected_countries}")
             filtered_data = []
             for country_data in data['data']:
                 # Ekstrak country code dari format "Country Name (CODE)"
@@ -4048,12 +4020,9 @@ class AdxSummaryAdChangeDataView(View):
                         'avg_ecpm': 0,
                         'avg_cpc': 0
                     }
-            
-            print(f"fetch_adx_ad_change_data returned: {result}")
             return JsonResponse(result)
             
         except Exception as e:
-            print(f"Error in AdxSummaryAdChangeDataView: {str(e)}")
             return JsonResponse({
                 'status': False,
                 'error': str(e)
@@ -4070,11 +4039,9 @@ class AdxActiveSitesView(View):
         try:
             from .utils import fetch_adx_active_sites
             result = fetch_adx_active_sites()
-            print(f"fetch_adx_active_sites returned: {result}")
             return JsonResponse(result)
             
         except Exception as e:
-            print(f"Error in AdxActiveSitesView: {str(e)}")
             return JsonResponse({
                 'status': False,
                 'error': str(e)
@@ -4255,7 +4222,6 @@ class GenerateRefreshTokenView(View):
         try:
             # Ambil user_mail dari session
             user_mail = req.session.get('hris_admin', {}).get('user_mail')
-            print(f"DEBUG Generate Refresh Token - Email data from DB: {user_mail}")
             if not user_mail:
                 return JsonResponse({
                     'status': False,
@@ -4264,7 +4230,6 @@ class GenerateRefreshTokenView(View):
             # Ambil data user dari database
             db = data_mysql()
             user_data = db.get_user_by_mail(user_mail)
-            print(f"DEBUG Generate Refresh Token - User data from DB: {user_data}")
             if not user_data['status'] or not user_data['data']:
                 return JsonResponse({
                     'status': False,
@@ -4317,15 +4282,6 @@ class SaveOAuthCredentialsView(View):
             network_code = req.POST.get('network_code')
             user_mail = req.POST.get('user_mail')
             admin = req.session.get('hris_admin', {})
-            
-            # Debug logging
-            print("[SaveOAuthCredentialsView] Received data:")
-            print(f"  client_id: {client_id}")
-            print(f"  client_secret: {'(provided)' if client_secret else '(empty)'}")
-            print(f"  network_code: {network_code}")
-            print(f"  user_mail: {user_mail}")
-            print(f"  admin session: {admin}")
-
             # Validasi input minimal
             if not client_id or not client_secret or not user_mail:
                 return JsonResponse({
@@ -4363,17 +4319,14 @@ class SaveOAuthCredentialsView(View):
             final_network_code = network_code or existing_network_code
 
             exists = db.check_app_credentials_exist(user_mail)
-            print(f"[SaveOAuthCredentialsView] Database check result: {exists}")
             
             if isinstance(exists, dict) and not exists.get('status', True):
-                print(f"[SaveOAuthCredentialsView] Database check failed: {exists}")
                 return JsonResponse({
                     'status': False,
                     'error': 'Gagal mengecek app_credentials di database'
                 })
 
             if isinstance(exists, int) and exists > 0:
-                print(f"[SaveOAuthCredentialsView] Updating existing credentials for {user_mail}")
                 result = db.update_app_credentials(
                     user_mail,
                     account_name,
@@ -4386,9 +4339,7 @@ class SaveOAuthCredentialsView(View):
                     mdb_name,
                     '1'
                 )
-                print(f"[SaveOAuthCredentialsView] Update result: {result}")
             else:
-                print(f"[SaveOAuthCredentialsView] Inserting new credentials for {user_mail}")
                 result = db.insert_app_credentials(
                     account_name,
                     user_mail,
@@ -4400,10 +4351,8 @@ class SaveOAuthCredentialsView(View):
                     mdb,
                     mdb_name
                 )
-                print(f"[SaveOAuthCredentialsView] Insert result: {result}")
 
             if isinstance(result, dict) and result.get('status'):
-                print(f"[SaveOAuthCredentialsView] SUCCESS: Credentials saved successfully")
                 return JsonResponse({
                     'status': True,
                     'message': 'Kredensial berhasil disimpan ke app_credentials',
@@ -4415,7 +4364,6 @@ class SaveOAuthCredentialsView(View):
                     }
                 })
             else:
-                print(f"[SaveOAuthCredentialsView] FAILED: Database operation failed - {result}")
                 return JsonResponse({
                     'status': False,
                     'error': (result.get('error') if isinstance(result, dict) else 'Gagal menyimpan app_credentials')
@@ -4469,7 +4417,6 @@ class AdxAccountOAuthStartView(View):
 
     def get(self, req):
         try:
-            print("DEBUG: AdxAccountOAuthStartView called")
             logger.info(f"OAuth Start - GET parameters: {dict(req.GET)}")
             current_user = req.session.get('hris_admin', {})
             # Izinkan target email via query (?email=xxx); jika tidak ada, JANGAN paksa fallback ke email session
@@ -4590,9 +4537,6 @@ class AdxAccountOAuthCallbackView(View):
         logger.info(f"OAuth Callback - User mail from session: {req.session.get('user_mail')}")
         logger.info(f"OAuth Callback - Client ID from session: {req.session.get('client_id')}")
         logger.info(f"OAuth Callback - Developer token from session: {req.session.get('developer_token')}")
-        
-        print("[DEBUG] OAuth Callback - Method called!")
-        print(f"[DEBUG] OAuth Callback - State: {req.GET.get('state')}, Code present: {bool(req.GET.get('code'))}")
         try:
             state = req.GET.get('state')
             code = req.GET.get('code')
@@ -4742,10 +4686,7 @@ class AdxAccountOAuthCallbackView(View):
             logger.info(f"OAuth Callback - Network code: {network_code} (type: {type(network_code)})")
             logger.info(f"OAuth Callback - Developer token length: {len(developer_token) if developer_token else 0}")
             logger.info(f"OAuth Callback - MDB: {mdb}, MDB Name: {mdb_name}")
-            
-            print(f"[DEBUG] OAuth Callback - Attempting to save credentials for user: {user_mail}")
-            print(f"[DEBUG] OAuth Callback - Network code detected: {network_code}")
-            print(f"[DEBUG] OAuth Callback - Existing credentials check result: {exists}")
+    
             logger.info(f"OAuth Callback - Attempting to save credentials for user: {user_mail}")
             logger.info(f"OAuth Callback - Network code detected: {network_code}")
             logger.info(f"OAuth Callback - Existing credentials check result: {exists}")
@@ -4954,7 +4895,6 @@ class AdxSitesListView(View):
         selected_account_list = []
         if selected_accounts:
             selected_account_list = [str(s).strip() for s in selected_accounts.split(',') if s.strip()]
-        print(f"[DEBUG] AdxSitesListView - selected_account_list: {selected_account_list}")
         if selected_account_list:
             user_mail = data_mysql().fetch_user_mail_by_account(selected_account_list)    
         else:
@@ -5023,7 +4963,6 @@ class AdxAccountListView(View):
                 start_date.strftime('%Y-%m-%d'), 
                 end_date.strftime('%Y-%m-%d')
             )
-            print(f"[DEBUG] AdxAccountListView - result: {result}")
             # Simpan ke cache untuk permintaan berikutnya
             try:
                 # Cache selama 6 jam; daftar akun jarang berubah
@@ -5435,7 +5374,6 @@ class RoiTrafficPerCountryDataView(View):
 
                             extracted_names.append(main_domain)
                         unique_name_site = list(set(extracted_names))
-                        print(f"unique_name_site_coba: {unique_name_site}")
                     fb_future = executor.submit(
                         data_mysql().get_all_ads_roi_country_detail_by_params,
                         start_date,
@@ -5468,7 +5406,6 @@ class RoiTrafficPerCountryDataView(View):
                                 continue
                             seen_sites.add(site_name)
                             unique_name_site.append(site_name)
-                        print(f"unique_name_site_ok: {unique_name_site}")
                     fb_future = executor.submit(
                         data_mysql().get_all_ads_roi_country_detail_by_params,
                         start_date,
@@ -5523,7 +5460,6 @@ class RoiTrafficPerCountryDataView(View):
                         else:
                             data_facebook = None
                 except Exception as e:
-                    print(f"[DEBUG] Facebook fetch (all domains) failed: {e}; continue without FB data")
                     data_facebook = None
             # Ringkas data Facebook untuk diagnosa
             try:
@@ -5568,7 +5504,6 @@ class RoiTrafficPerCountryDataView(View):
                     country_matched = False
                     for filter_country in parsed_filter_countries:
                         if country_name == filter_country or country_code == filter_country:
-                            print(f"[DEBUG ROI] ✓ MATCH FOUND: '{country_name}' matches '{filter_country}'")
                             country_matched = True
                             break
                     # Only add to filtered_data if country_matched is True
@@ -5945,7 +5880,6 @@ def process_roi_monitoring_country_data(data_adx, data_facebook):
             date_key = str(fb_item.get('date', '') or '')
             domain = str(fb_item.get('domain', '') or '')
             base_subdomain = extract_base_subdomain(domain)
-            print(f"[DEBUG ROI] Base subdomain fb_adx: {base_subdomain}")
             country_code = normalize_country_code(fb_item.get('country_code', '') or '')
             country_name = fb_item.get('country_name', '') or ''
             spend = float(fb_item.get('spend', 0) or 0)
@@ -6323,7 +6257,6 @@ class RoiTrafficPerDomainDataView(View):
                 selected_account_list,
                 domain_terms
             )
-            print(f"adx_result_domain: {adx_result}")
             # --- 4. Proses Facebook data
             facebook_data = None
             unique_name_site = []
@@ -6941,7 +6874,6 @@ class MonitoringScoringBaselineHourlyView(View):
 
             # Panggil scoring engine (fungsi sudah ada di bawah file ini)
             result = scoring_engine(meta, adx, adsense)
-            print("Scoring Result:", result)  # Debug print
             return JsonResponse({
                 'status': True,
                 'meta': meta,
@@ -8910,7 +8842,6 @@ class RoiMonitoringCountryDataView(View):
                         sites_for_fb = sites_result['hasil']['data']
                         # Hapus semua 'Unknown'
                         sites_for_fb = [site for site in sites_for_fb if site != 'Unknown']
-                        print(f"[DEBUG ROI] Sites for FB filter: {sites_for_fb}")
                     else:
                         print(f"[DEBUG ROI] No sites derived for FB filter: {sites_result['hasil']['data']}")
                 except Exception as _sites_err:
@@ -8963,7 +8894,6 @@ class RoiMonitoringCountryDataView(View):
 
                             extracted_names.append(main_domain)
                         unique_name_site = list(set(extracted_names))
-                        print(f"unique_name_site_coba: {unique_name_site}")
                     fb_future = executor.submit(
                         data_mysql().get_all_ads_roi_country_detail_by_params,
                         start_date,
@@ -8996,7 +8926,6 @@ class RoiMonitoringCountryDataView(View):
                                 continue
                             seen_sites.add(site_name)
                             unique_name_site.append(site_name)
-                        print(f"unique_name_site_ok: {unique_name_site}")
                     fb_future = executor.submit(
                         data_mysql().get_all_ads_roi_country_detail_by_params,
                         start_date,
@@ -9051,7 +8980,6 @@ class RoiMonitoringCountryDataView(View):
                         else:
                             data_facebook = None
                 except Exception as e:
-                    print(f"[DEBUG] Facebook fetch (all domains) failed: {e}; continue without FB data")
                     data_facebook = None
             # Ringkas data Facebook untuk diagnosa
             try:
@@ -9311,7 +9239,6 @@ class RoiMonitoringCountryDataView(View):
                     country_matched = False
                     for filter_country in parsed_filter_countries:
                         if country_name == filter_country or country_code == filter_country:
-                            print(f"[DEBUG ROI] ✓ MATCH FOUND: '{country_name}' matches '{filter_country}'")
                             country_matched = True
                             break
                     # Only add to filtered_data if country_matched is True

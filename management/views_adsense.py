@@ -199,7 +199,7 @@ class AdsenseTrafficAccountDataView(View):
                 result_rows.append({
                     'date': item['date'],
                     'account_name': item['account_name'],
-                    'site_name': item['site_name'] + '.com',
+                    'site_name': item['site_name'],
                     'impressions_adsense': item['impressions_adsense'],
                     'clicks_adsense': item['clicks_adsense'],
                     'cpc_adsense': round(cpc_adsense, 2),
@@ -253,7 +253,6 @@ class AdsenseSitesListView(View):
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
         selected_accounts = req.GET.get('selected_accounts')
-        print(f"selected_accounts: {selected_accounts}")
         selected_account_list = []
         if selected_accounts:
             selected_account_list = [str(s).strip() for s in selected_accounts.split(',') if s.strip()]
@@ -324,7 +323,6 @@ class AdsenseAccountListView(View):
                 start_date,
                 end_date,
             )
-            print(f"[DEBUG] AdsenseAccountListView - result: {result}")
             # Simpan ke cache untuk permintaan berikutnya
             try:
                 # Cache selama 6 jam; daftar akun jarang berubah
@@ -349,7 +347,6 @@ def get_countries_adsense(request):
         start_date = end_date - timedelta(days=7)
         selected_account = request.GET.get('selected_accounts')
         # Gunakan cache untuk menghindari pemanggilan API berulang
-        print(f"[DEBUG] Request params: start_date={start_date}, end_date={end_date}, selected_account={selected_account}")
         try:
             cache_key = generate_cache_key_adsense(
                 'countries_adsense',
@@ -371,10 +368,8 @@ def get_countries_adsense(request):
             end_date.strftime('%Y-%m-%d'),
             selected_account,
         )
-        print(f"[DEBUG] Raw adsense countries result: {result}")
         # Validasi struktur result
         if not result['hasil']['data']:
-            print("[WARNING] Adsense countries result is None or empty")
             return JsonResponse({
                 'status': 'error',
                 'message': 'Tidak ada data adsense country yang tersedia.',
@@ -382,7 +377,6 @@ def get_countries_adsense(request):
             })
         
         if not isinstance(result['hasil'], dict):
-            print(f"[WARNING] Adsense countries result['hasil'] is not a dict: {type(result['hasil'])}")
             return JsonResponse({
                 'status': 'error',
                 'message': 'Format data adsense country tidak valid.',
@@ -391,7 +385,6 @@ def get_countries_adsense(request):
         
         # Periksa apakah ada key 'data' dalam result['hasil']
         if 'data' not in result['hasil']:
-            print(f"[WARNING] Adsense countries result['hasil'] has no 'data' key. Available keys: {list(result['hasil'].keys())}")
             return JsonResponse({
                 'status': 'error',
                 'message': 'Data adsense country tidak tersedia.',
@@ -400,7 +393,6 @@ def get_countries_adsense(request):
         
         # Periksa apakah data adalah list
         if not isinstance(result['hasil']['data'], list):
-            print(f"[WARNING] Adsense countries result['hasil']['data'] is not a list: {type(result['hasil']['data'])}")
             return JsonResponse({
                 'status': 'error',
                 'message': 'Format data adsense country tidak valid.',
@@ -412,7 +404,6 @@ def get_countries_adsense(request):
         seen = set()
         for country_data in result['hasil']['data']:
             if not isinstance(country_data, dict):
-                print(f"[WARNING] Adsense countries result['hasil']['data'] country data is not a dict: {type(country_data)}")
                 continue
             country_name = (country_data.get('country_name') or '').strip()
             country_code = (country_data.get('country_code') or '').strip().upper()
@@ -442,9 +433,6 @@ def get_countries_adsense(request):
         })
         
     except Exception as e:
-        print(f"[ERROR] Adsense countries failed to fetch countries_adsense: {e}")
-        import traceback
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
         return JsonResponse({
             'status': 'error',
             'message': 'Gagal mengambil data adsense country.',
