@@ -133,13 +133,17 @@ urlpatterns = [
     # Menu ROI Monitoring Domain
     path('admin/monitoring_domain', views.RoiMonitoringDomainView.as_view(), name='roi_monitoring_domain'),
     path('admin/page_monitoring_domain', views.RoiMonitoringDomainDataView.as_view()),
-    path('admin/page_monitoring_domain_hourly_heatmap', views.RoiMonitoringDomainHourlyHeatmapView.as_view()),
     path('admin/page_monitoring_domain_campaigns', views.RoiMonitoringDomainCampaignsView.as_view()),
+    path('admin/page_monitoring_domain_campaign_breakdown', views.RoiMonitoringDomainCampaignBreakdownView.as_view()),
     path('admin/update_daily_budget_monitoring_domain_campaign', views.RoiMonitoringDomainUpdateDailyBudgetCampaignView.as_view()),
     path('admin/update_campaign_status_monitoring_domain_campaign', views.RoiMonitoringDomainUpdateCampaignStatusCampaignView.as_view()),
     # Menu ROI Monitoring Country
     path('admin/monitoring_country', views.RoiMonitoringCountryView.as_view(), name='roi_monitoring_country'),
     path('admin/page_monitoring_country', views.RoiMonitoringCountryDataView.as_view()),
+    path('admin/page_monitoring_country_breakdown', views.RoiMonitoringCountryBreakdownView.as_view()),
+    path('admin/page_monitoring_country_breakdown/', views.RoiMonitoringCountryBreakdownView.as_view()),
+    path('page_monitoring_country_breakdown', views.RoiMonitoringCountryBreakdownView.as_view()),
+    path('page_monitoring_country_breakdown/', views.RoiMonitoringCountryBreakdownView.as_view()),
     path('admin/page_monitoring_country_hourly_heatmap', views.RoiMonitoringCountryHourlyHeatmapView.as_view()),
     path('admin/page_monitoring_scoring_baseline_hourly', views.MonitoringScoringBaselineHourlyView.as_view()),
     # Menu ROI Rekapitulasi
@@ -158,9 +162,11 @@ urlpatterns = [
     # Menu Rekap Monitoring Domain Adsense
     path('admin/monitor_domain_adsense', views_adsense.RoiMonitoringDomainAdsenseView.as_view(), name='monitor_domain_adsense'),
     path('admin/page_monitoring_domain_adsense', views_adsense.RoiMonitoringDomainAdsenseDataView.as_view()),
+    path('admin/page_monitoring_domain_adsense_campaign_breakdown', views_adsense.RoiMonitoringDomainAdsenseCampaignBreakdownView.as_view()),
     # Menu Rekap Monitoring Country Adsense
     path('admin/monitor_country_adsense', views_adsense.RoiMonitoringCountryAdsenseView.as_view(), name='monitor_country_adsense'),
     path('admin/page_monitoring_country_adsense', views_adsense.RoiMonitoringCountryAdsenseDataView.as_view()),
+    path('admin/page_monitoring_country_adsense_breakdown', views_adsense.RoiMonitoringCountryAdsenseBreakdownView.as_view()),
     # Menu Report Adsense Rekapitulasi
     path('admin/earning_adsense', views_adsense.AdsenseRekapitulasiView.as_view(), name='rekapitulasi_adsense'),
     path('admin/page_earning_adsense', views_adsense.AdsenseRekapitulasiDataView.as_view()),

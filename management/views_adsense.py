@@ -2230,6 +2230,89 @@ class RoiMonitoringDomainAdsenseDataView(View):
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
 
+
+class RoiMonitoringDomainAdsenseCampaignBreakdownView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            site_name = str(req.GET.get('site_name') or '').strip().lower()
+            start_date = str(req.GET.get('start_date') or '').strip()
+            end_date = str(req.GET.get('end_date') or '').strip()
+
+            if not site_name:
+                return JsonResponse({'status': False, 'error': 'site_name wajib diisi', 'data': []}, safe=False)
+
+            if not end_date:
+                end_date = datetime.now().strftime('%Y-%m-%d')
+            if not start_date:
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+                start_date = (end_dt - timedelta(days=6)).strftime('%Y-%m-%d')
+
+            rs = data_mysql().get_monitoring_domain_campaign_breakdown_by_params(start_date, end_date, site_name)
+            if not (isinstance(rs, dict) and rs.get('status')):
+                return JsonResponse({'status': False, 'error': (rs or {}).get('error', 'Gagal mengambil data breakdown'), 'data': []}, safe=False)
+
+            return JsonResponse({
+                'status': True,
+                'site_name': site_name,
+                'start_date': start_date,
+                'end_date': end_date,
+                'data': rs.get('data', [])
+            }, safe=False)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e), 'data': []}, safe=False)
+
+class RoiMonitoringCountryAdsenseBreakdownView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            country_code = str(req.GET.get('country_code') or '').strip().upper()
+            start_date = str(req.GET.get('start_date') or '').strip()
+            end_date = str(req.GET.get('end_date') or '').strip()
+            selected_domains = str(req.GET.get('selected_domains') or '').strip()
+
+            if not country_code:
+                return JsonResponse({'status': False, 'error': 'country_code wajib diisi', 'data': []}, safe=False)
+
+            if not end_date:
+                end_date = datetime.now().strftime('%Y-%m-%d')
+            if not start_date:
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+                start_date = (end_dt - timedelta(days=6)).strftime('%Y-%m-%d')
+
+            selected_domain_list = [s.strip() for s in selected_domains.split(',') if s.strip()] if selected_domains else []
+            rs = data_mysql().get_monitoring_country_subdomain_campaign_breakdown_by_params(
+                start_date,
+                end_date,
+                country_code,
+                selected_domain_list
+            )
+
+            if not (isinstance(rs, dict) and rs.get('status')):
+                return JsonResponse({
+                    'status': False,
+                    'error': (rs or {}).get('error', 'Gagal mengambil data breakdown'),
+                    'data': []
+                }, safe=False)
+
+            return JsonResponse({
+                'status': True,
+                'country_code': country_code,
+                'start_date': start_date,
+                'end_date': end_date,
+                'data': rs.get('data', [])
+            }, safe=False)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e), 'data': []}, safe=False)
+
 # ===== ROI Monitoring Country =====
 class RoiMonitoringCountryAdsenseView(View):
     """View untuk ROI Summary - menampilkan ringkasan data ROI"""

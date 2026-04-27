@@ -216,6 +216,14 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
   #table_traffic_country tbody tr.selected-row {
       background-color: rgba(13, 110, 253, 0.08) !important;
   }
+  .country-detail-pill { border-radius: 999px; font-size: 12px; padding: 4px 10px; font-weight: 700; }
+  .country-detail-kpi { border-radius: 12px; padding: 10px 12px; color: #fff; }
+  .country-detail-kpi .label { font-size: 11px; opacity: .9; }
+  .country-detail-kpi .value { font-size: 15px; font-weight: 700; }
+  .country-detail-kpi.spend { background: linear-gradient(135deg,#ef4444,#f97316); }
+  .country-detail-kpi.revenue { background: linear-gradient(135deg,#22c55e,#16a34a); }
+  .country-detail-kpi.net { background: linear-gradient(135deg,#3b82f6,#2563eb); }
+  .country-detail-kpi.roi { background: linear-gradient(135deg,#8b5cf6,#7c3aed); }
 </style>
 <div class="card">
     <div class="card-header">
@@ -352,14 +360,27 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         <!-- Kolom baru untuk checklist -->
                         <th class="text-center" style="width: 20%;">Nama Negara</th>
                         <th class="text-center" style="width: 10%;">Kode Negara</th>
-                        <th class="text-center" style="width: 20%;">Spend (Rp)</th>
-                        <th class="text-center" style="width: 20%;">Pendapatan (Rp)</th>
-                        <th class="text-center" style="width: 20%;">ROI (%)</th>
+                        <th class="text-center" style="width: 18%;">Spend (Rp)</th>
+                        <th class="text-center" style="width: 18%;">Pendapatan (Rp)</th>
+                        <th class="text-center" style="width: 14%;">ROI (%)</th>
+                        <th class="text-center" style="width: 8%;">Detail</th>
                     </tr>
                 </thead>
                 <tbody>
                 </tbody>
             </table>
+        </div>
+
+        <div class="modal fade" id="countryDetailModal" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+                <div class="modal-content" style="border-radius:16px; overflow:hidden;">
+                    <div class="modal-header text-white" style="background:linear-gradient(135deg,#1d4ed8,#7c3aed);">
+                        <h5 class="modal-title mb-0" id="countryDetailModalTitle">Detail Negara</h5>
+                        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    </div>
+                    <div class="modal-body" id="countryDetailModalBody"></div>
+                </div>
+            </div>
         </div>
     </div>
 </div>

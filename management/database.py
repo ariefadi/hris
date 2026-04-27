@@ -7994,6 +7994,100 @@ class data_mysql:
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            if use_clickhouse:
+                params_now = [start_date, end_date]
+                sql_now = [
+                    "SELECT",
+                    "\tb.account_id AS account_id,",
+                    "\tSUM(b.data_adx_country_revenue) AS pendapatan",
+                    "FROM data_adx_country b",
+                    "WHERE toDate(b.data_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
+                ]
+                if data_account_list:
+                    like_account_ch = " OR ".join(["toString(b.account_id) LIKE %s"] * len(data_account_list))
+                    sql_now.append(f"AND ({like_account_ch})")
+                    params_now.extend([f"{account}%" for account in data_account_list])
+                if data_domain_list:
+                    like_domain_ch = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+                    sql_now.append(f"AND ({like_domain_ch})")
+                    params_now.extend([f"%{domain}%" for domain in data_domain_list])
+                sql_now.append("GROUP BY b.account_id")
+
+                if not self.execute_query("\n".join(sql_now), tuple(params_now)):
+                    raise pymysql.Error("Failed to get all adx monitoring account (now) by params")
+                now_rows = self.fetch_all() or []
+
+                params_last = [past_start_date, past_end_date]
+                sql_last = [
+                    "SELECT",
+                    "\tb.account_id AS account_id,",
+                    "\tSUM(b.data_adx_country_revenue) AS pendapatan",
+                    "FROM data_adx_country b",
+                    "WHERE toDate(b.data_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
+                ]
+                if data_account_list:
+                    like_account_ch = " OR ".join(["toString(b.account_id) LIKE %s"] * len(data_account_list))
+                    sql_last.append(f"AND ({like_account_ch})")
+                    params_last.extend([f"{account}%" for account in data_account_list])
+                if data_domain_list:
+                    like_domain_ch = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+                    sql_last.append(f"AND ({like_domain_ch})")
+                    params_last.extend([f"%{domain}%" for domain in data_domain_list])
+                sql_last.append("GROUP BY b.account_id")
+
+                if not self.execute_query("\n".join(sql_last), tuple(params_last)):
+                    raise pymysql.Error("Failed to get all adx monitoring account (last) by params")
+                last_rows = self.fetch_all() or []
+
+                last_map = {}
+                for r in last_rows:
+                    aid = str((r or {}).get('account_id') or '').strip()
+                    if not aid:
+                        continue
+                    try:
+                        last_map[aid] = float((r or {}).get('pendapatan') or 0)
+                    except Exception:
+                        last_map[aid] = 0.0
+
+                data = []
+                account_ids = []
+                for r in now_rows:
+                    aid = str((r or {}).get('account_id') or '').strip()
+                    if not aid:
+                        continue
+                    try:
+                        now_val = float((r or {}).get('pendapatan') or 0)
+                    except Exception:
+                        now_val = 0.0
+                    last_val = float(last_map.get(aid) or 0.0)
+                    data.append({
+                        'account_id': aid,
+                        'account_name': '',
+                        'pendapatan_last': last_val,
+                        'pendapatan_now': now_val,
+                        'pendapatan_selisih': round(now_val - last_val),
+                        'pendapatan_persen': round(((now_val - last_val) / now_val * 100) if now_val else 0, 2),
+                    })
+                    account_ids.append(aid)
+
+                if account_ids:
+                    try:
+                        placeholders = ','.join(['%s'] * len(account_ids))
+                        sql_name = f"SELECT account_id, MAX(account_name) AS account_name FROM app_credentials WHERE account_id IN ({placeholders}) GROUP BY account_id"
+                        if self.execute_query(sql_name, tuple(account_ids)):
+                            name_rows = self.fetch_all() or []
+                            name_map = {str((n or {}).get('account_id') or '').strip(): ((n or {}).get('account_name') or '') for n in name_rows}
+                            for row in data:
+                                row['account_name'] = name_map.get(str(row.get('account_id') or '').strip(), '')
+                    except Exception:
+                        pass
+
+                return {'hasil': {"status": True, "message": "Data adx monitoring account berhasil diambil", "data": data}}
+
             # --- 2. Buat kondisi LIKE untuk setiap domain
             like_conditions_domain_now = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
             like_params_domain_now = [f"%{domain}%" for domain in data_domain_list] 
@@ -8476,6 +8570,163 @@ class data_mysql:
                 "status": False,
                 "error": f"Terjadi error: {str(e)}"
             }
+
+    def get_monitoring_domain_campaign_breakdown_by_params(self, start_date, end_date, site_name):
+        try:
+            domain = str(site_name or '').strip().lower()
+            if not domain:
+                return {"status": False, "error": "site_name wajib diisi", "data": []}
+
+            sql = """
+            SELECT
+                ifNull(nullIf(m.campaign_name, ''), 'unknown_campaign') AS campaign,
+                round(sum(m.spend), 0) AS spend,
+                round(sum(m.lpv_weight * (ifNull(a.revenue, 0) + ifNull(s.revenue, 0))), 0) AS revenue,
+                round(sum(m.lpv_weight * (ifNull(a.revenue, 0) + ifNull(s.revenue, 0))) - sum(m.spend), 0) AS net_profit,
+                if(sum(m.spend) > 0,
+                   round(((sum(m.lpv_weight * (ifNull(a.revenue, 0) + ifNull(s.revenue, 0))) - sum(m.spend)) / sum(m.spend)) * 100, 2),
+                   0) AS roi
+            FROM
+            (
+                SELECT
+                    base.*,
+                    base.lpv / nullIf(sum(base.lpv) OVER (PARTITION BY base.date, base.domain, base.country_cd), 0) AS lpv_weight
+                FROM
+                (
+                    SELECT
+                        lower(arrayStringConcat(arraySlice(splitByChar('.', a.log_ads_domain), 1, 2), '.')) AS domain,
+                        upper(a.log_ads_country_cd) AS country_cd,
+                        toDate(a.log_ads_country_tanggal) AS date,
+                        lower(a.log_ads_campaign_nm) AS campaign_name,
+                        argMax(a.log_ads_country_spend, a.mdd) AS spend,
+                        argMax(a.log_ads_country_lpv, a.mdd) AS lpv
+                    FROM hris_trendHorizone.log_ads_country a
+                    WHERE toDate(a.log_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)
+                      AND lower(arrayStringConcat(arraySlice(splitByChar('.', a.log_ads_domain), 1, 2), '.')) = lower(%s)
+                    GROUP BY domain, country_cd, date, campaign_name
+                ) base
+            ) m
+            LEFT JOIN
+            (
+                SELECT lower(arrayStringConcat(arraySlice(splitByChar('.', data_adx_country_domain), 1, 2), '.')) AS domain,
+                       upper(data_adx_country_cd) AS country_cd,
+                       toDate(data_adx_country_tanggal) AS date,
+                       argMax(data_adx_country_revenue, data_adx_country_tanggal) AS revenue
+                FROM hris_trendHorizone.data_adx_country
+                WHERE toDate(data_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)
+                GROUP BY domain, country_cd, date
+            ) a ON m.domain = a.domain AND m.country_cd = a.country_cd AND m.date = a.date
+            LEFT JOIN
+            (
+                SELECT lower(arrayStringConcat(arraySlice(splitByChar('.', data_adsense_country_domain), 1, 2), '.')) AS domain,
+                       upper(data_adsense_country_cd) AS country_cd,
+                       toDate(data_adsense_country_tanggal) AS date,
+                       argMax(data_adsense_country_revenue, data_adsense_country_tanggal) AS revenue
+                FROM hris_trendHorizone.data_adsense_country
+                WHERE toDate(data_adsense_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)
+                GROUP BY domain, country_cd, date
+            ) s ON m.domain = s.domain AND m.country_cd = s.country_cd AND m.date = s.date
+            GROUP BY campaign
+            ORDER BY spend DESC
+            """
+
+            params = (start_date, end_date, domain, start_date, end_date, start_date, end_date)
+            self._ensure_report_connection()
+            self.cur_hris = self.report_cur
+            self.cur_hris.execute(sql, params)
+            rows = self.fetch_all() or []
+            return {"status": True, "data": rows}
+        except Exception as e:
+            return {"status": False, "error": f"Terjadi error: {e}", "data": []}
+
+    def get_monitoring_country_subdomain_campaign_breakdown_by_params(self, start_date, end_date, country_code, selected_domain_list=None):
+        try:
+            cc = str(country_code or '').strip().upper()
+            if cc == 'TU':
+                cc = 'TR'
+            if not cc:
+                return {"status": False, "error": "country_code wajib diisi", "data": []}
+
+            domains = []
+            for d in (selected_domain_list or []):
+                s = str(d or '').strip().lower()
+                if not s:
+                    continue
+                ps = [x for x in s.split('.') if x]
+                if len(ps) >= 2:
+                    s = '.'.join(ps[:2])
+                if s and s not in domains:
+                    domains.append(s)
+
+            domain_filter_sql = ''
+            domain_params = []
+            if domains:
+                domain_filter_sql = ' AND lower(arrayStringConcat(arraySlice(splitByChar(\'.\', a.log_ads_domain), 1, 2), \'\.\')) IN (' + ','.join(['%s'] * len(domains)) + ') '
+                domain_params = domains
+
+            sql = f"""
+            SELECT
+                m.domain AS subdomain,
+                ifNull(nullIf(m.campaign_name, ''), 'unknown_campaign') AS campaign,
+                round(sum(m.spend), 0) AS spend,
+                round(sum(m.lpv_weight * (ifNull(a.revenue, 0) + ifNull(s.revenue, 0))), 0) AS revenue,
+                round(sum(m.lpv_weight * (ifNull(a.revenue, 0) + ifNull(s.revenue, 0))) - sum(m.spend), 0) AS net_profit,
+                if(sum(m.spend) > 0,
+                   round(((sum(m.lpv_weight * (ifNull(a.revenue, 0) + ifNull(s.revenue, 0))) - sum(m.spend)) / sum(m.spend)) * 100, 2),
+                   0) AS roi
+            FROM
+            (
+                SELECT
+                    base.*,
+                    base.lpv / nullIf(sum(base.lpv) OVER (PARTITION BY base.date, base.domain, base.country_cd), 0) AS lpv_weight
+                FROM
+                (
+                    SELECT
+                        lower(arrayStringConcat(arraySlice(splitByChar('.', a.log_ads_domain), 1, 2), '.')) AS domain,
+                        upper(a.log_ads_country_cd) AS country_cd,
+                        toDate(a.log_ads_country_tanggal) AS date,
+                        lower(a.log_ads_campaign_nm) AS campaign_name,
+                        argMax(a.log_ads_country_spend, a.mdd) AS spend,
+                        argMax(a.log_ads_country_lpv, a.mdd) AS lpv
+                    FROM hris_trendHorizone.log_ads_country a
+                    WHERE toDate(a.log_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)
+                      AND upper(a.log_ads_country_cd) IN (%s, if(%s='TR','TU',''))
+                      {domain_filter_sql}
+                    GROUP BY domain, country_cd, date, campaign_name
+                ) base
+            ) m
+            LEFT JOIN
+            (
+                SELECT lower(arrayStringConcat(arraySlice(splitByChar('.', data_adx_country_domain), 1, 2), '.')) AS domain,
+                       upper(data_adx_country_cd) AS country_cd,
+                       toDate(data_adx_country_tanggal) AS date,
+                       argMax(data_adx_country_revenue, data_adx_country_tanggal) AS revenue
+                FROM hris_trendHorizone.data_adx_country
+                WHERE toDate(data_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)
+                GROUP BY domain, country_cd, date
+            ) a ON m.domain = a.domain AND m.country_cd = a.country_cd AND m.date = a.date
+            LEFT JOIN
+            (
+                SELECT lower(arrayStringConcat(arraySlice(splitByChar('.', data_adsense_country_domain), 1, 2), '.')) AS domain,
+                       upper(data_adsense_country_cd) AS country_cd,
+                       toDate(data_adsense_country_tanggal) AS date,
+                       argMax(data_adsense_country_revenue, data_adsense_country_tanggal) AS revenue
+                FROM hris_trendHorizone.data_adsense_country
+                WHERE toDate(data_adsense_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)
+                GROUP BY domain, country_cd, date
+            ) s ON m.domain = s.domain AND m.country_cd = s.country_cd AND m.date = s.date
+            GROUP BY subdomain, campaign
+            ORDER BY spend DESC
+            """
+
+            params = [start_date, end_date, cc, cc] + domain_params + [start_date, end_date, start_date, end_date]
+            self._ensure_report_connection()
+            self.cur_hris = self.report_cur
+            self.cur_hris.execute(sql, tuple(params))
+            rows = self.fetch_all() or []
+            return {"status": True, "data": rows}
+        except Exception as e:
+            return {"status": False, "error": f"Terjadi error: {e}", "data": []}
 
     def get_all_data_meta_adx_adsense_country_detail_by_params_log(self, tanggal):
         """
