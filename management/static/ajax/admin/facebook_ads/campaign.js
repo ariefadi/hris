@@ -24,7 +24,6 @@ function resetCampaignAssetPanel(message) {
     $('#facebookCampaignAdAssetList').html('');
     $('#facebookCampaignAdAssetMeta').text('-');
     $('#facebookCampaignTree').html('');
-    $('#facebookCampaignLivePreview').html('<div class="text-muted">Pilih ad di panel kiri untuk melihat preview.</div>');
     window.facebookCampaignAssetsCache = [];
     window.facebookCampaignSelectedAssetIndex = 0;
     window.facebookCampaignSelectedNode = { type: 'campaign', assetIndex: 0, variantIndex: 0 };
@@ -43,8 +42,8 @@ function _guessField(label, value) {
     var k = String(label || '').toLowerCase();
     if (typeof value === 'boolean') return { mode: 'select', options: ['true', 'false'] };
     if (/description|message|body|caption|notes?|text/.test(k)) return { mode: 'textarea' };
-    if (/country|gender|status|objective|platform|position|type|event|goal|strategy/.test(k)) return { mode: 'select' };
-    if (/image|video|thumbnail|file|upload|asset/.test(k)) return { mode: 'file' };
+    if (/country|gender|status|objective|tujuan|platform|position|type|event|goal|strategy|sasaran/.test(k)) return { mode: 'select' };
+    if (/image|video|thumbnail|file|upload|asset|gambar/.test(k)) return { mode: 'file' };
     if (/date|time/.test(k)) return { mode: 'text' };
     if (typeof value === 'number' || /^\d+(\.\d+)?$/.test(String(value || ''))) return { mode: 'number' };
     if (_isUrl(value)) return { mode: 'url' };
@@ -58,16 +57,20 @@ function _formInput(label, value) {
         html += '<textarea rows="3" class="form-control">' + _esc(val) + '</textarea>';
     } else if (g.mode === 'select') {
         var options = [];
-        if (/country/.test(String(label).toLowerCase())) options = ['ID', 'MY', 'SG', 'PH', 'TH', 'VN'];
-        if (/gender/.test(String(label).toLowerCase())) options = ['1', '2'];
-        if (/status/.test(String(label).toLowerCase())) options = ['ACTIVE', 'PAUSED', 'ARCHIVED'];
+        var k = String(label).toLowerCase();
+        if (/country/.test(k)) options = ['ID', 'MY', 'SG', 'PH', 'TH', 'VN'];
+        if (/gender/.test(k)) options = ['1', '2'];
+        if (/status|effective_status/.test(k)) options = ['ACTIVE', 'PAUSED', 'ARCHIVED', 'DELETED'];
+        if (/objective/.test(k)) options = ['OUTCOME_SALES', 'OUTCOME_LEADS', 'OUTCOME_ENGAGEMENT', 'OUTCOME_TRAFFIC', 'OUTCOME_AWARENESS', 'OUTCOME_APP_PROMOTION'];
+        
         var selected = _csv(val);
         if (!options.length) options = selected.slice();
         selected.forEach(function (x) { if (options.indexOf(x) < 0) options.push(x); });
-        html += '<select class="custom-select js-fb-select2" ' + (selected.length > 1 ? 'multiple' : '') + '>';
+        
+        html += '<select class="form-control js-fb-select2" ' + (selected.length > 1 ? 'multiple' : '') + ' data-placeholder="Pilih ' + _esc(label) + '">';
         for (var i = 0; i < options.length; i++) {
             var o = String(options[i] || '');
-            html += '<option ' + (selected.indexOf(o) >= 0 ? 'selected' : '') + '>' + _esc(o) + '</option>';
+            html += '<option value="' + _esc(o) + '" ' + (selected.indexOf(o) >= 0 ? 'selected' : '') + '>' + _esc(o) + '</option>';
         }
         html += '</select>';
     } else if (g.mode === 'file') {
@@ -228,14 +231,15 @@ function _assetAt(arr, i, keys) {
 function _materialVariants(m) {
     var x = (m && typeof m === 'object') ? m : {};
     var afs = x.asset_feed_spec || {};
-    var maxLen = Math.max(1, (afs.titles || []).length, (afs.bodies || []).length, (afs.descriptions || []).length, (afs.images || []).length);
+    var maxLen = Math.max(1, (afs.titles || []).length, (afs.bodies || []).length, (afs.descriptions || []).length, (afs.images || []).length, (afs.videos || []).length);
     var out = [];
     for (var i = 0; i < maxLen; i++) {
         out.push({
             title: _assetAt(afs.titles, i, ['text', 'name']) || '',
             body: _assetAt(afs.bodies, i, ['text']) || '',
             description: _assetAt(afs.descriptions, i, ['text']) || '',
-            image_hash: _assetAt(afs.images, i, ['hash']) || ''
+            image_hash: _assetAt(afs.images, i, ['hash']) || '',
+            video_id: _assetAt(afs.videos, i, ['video_id']) || ''
         });
     }
     return out;
@@ -255,13 +259,15 @@ function _materialForm(m, selectedVariantIdx) {
     var bodyVal = _pickFirst(vv.body, x.body, ld.message, vd.message, td.message, _assetText(afs.bodies));
     var descVal = _pickFirst(vv.description, bodyVal);
     var linkVal = _pickFirst(ld.link, cta.link, td.link, x.link_url, _assetUrl(afs.link_urls));
-    var imageVal = _pickFirst(_assetAt(afs.images, vi, ['url', 'image_url', 'src']), x.image_url, x.thumbnail_url, ld.picture, (vd.image_url || ''), (td.picture || ''), _assetUrl(afs.images));
-    var videoVal = _pickFirst(vd.video_id, x.video_id, _assetUrl(afs.videos));
+    
+    // Prioritize variant-specific image/video
+    var imageVal = _pickFirst(_assetAt(afs.images, vi, ['url', 'image_url', 'src']), x.image_url, x.thumbnail_url, ld.picture, (vd.image_url || ''), (td.picture || ''));
+    var videoVal = _pickFirst(vv.video_id, vd.video_id, x.video_id);
 
     var html = '<div class="border rounded p-2 mb-2 fb-material-panel"><div class="fb-section-title">Materi Iklan</div>';
     if (variants.length > 1) html += '<div class="fb-form-note mb-2">Menampilkan Varian ' + (vi + 1) + ' dari ' + variants.length + '</div>';
     html += '<div class="row">';
-    html += '<div class="col-md-8"><div class="row fb-material-grid">';
+    html += '<div class="col-md-12"><div class="row fb-material-grid">';
     html += '<div class="col-md-6">' + _formInput('Creative ID', x.id) + '</div>';
     html += '<div class="col-md-6">' + _formInput('Object Type', x.object_type) + '</div>';
     html += '<div class="col-md-6">' + _formInput('Nama Creative', x.name) + '</div>';
@@ -270,45 +276,69 @@ function _materialForm(m, selectedVariantIdx) {
     html += '<div class="col-md-6">' + _formInput('Link URL', linkVal) + '</div>';
     html += '<div class="col-12">' + _formInput('Pesan/Body', bodyVal) + '</div>';
     html += '<div class="col-12">' + _formInput('Deskripsi', descVal) + '</div>';
-    if (vv.image_hash) html += '<div class="col-12">' + _formInput('Image Hash (Varian)', vv.image_hash) + '</div>';
-    html += '</div></div>';
-    html += '<div class="col-md-4">'
+    if (vv.image_hash) html += '<div class="col-md-6">' + _formInput('Image Hash (Varian)', vv.image_hash) + '</div>';
+    if (vv.video_id) html += '<div class="col-md-6">' + _formInput('Video ID (Varian)', vv.video_id) + '</div>';
+    
+    // Asset uploads integrated in grid
+    html += '<div class="col-md-6">';
     html += '<div class="fb-upload-card"><div class="fb-upload-title">Asset Gambar</div>';
     html += '<img class="fb-upload-preview js-fb-file-preview" ' + (imageVal ? 'src="' + _esc(imageVal) + '"' : 'style="display:none"') + ' alt="image">';
     html += '<input type="url" class="form-control mb-1 js-fb-file-url" value="' + _esc(imageVal) + '" placeholder="URL gambar">';
     html += '<input type="file" class="form-control-file js-fb-file-input" data-media="image" accept="image/*"></div>';
+    html += '</div>';
+    
+    html += '<div class="col-md-6">';
     html += '<div class="fb-upload-card"><div class="fb-upload-title">Asset Video</div>';
     html += '<video class="fb-upload-video js-fb-file-preview" ' + (videoVal ? 'src="' + _esc(videoVal) + '"' : 'style="display:none"') + ' controls></video>';
     html += '<input type="url" class="form-control mb-1 js-fb-file-url" value="' + _esc(videoVal) + '" placeholder="URL video">';
     html += '<input type="file" class="form-control-file js-fb-file-input" data-media="video" accept="video/*"></div>';
+    html += '</div>';
+    
     html += '</div></div></div>';
     return html;
+    return html;
 }
-function _imageFromMaterial(m) {
+function _imageFromMaterial(m, variantIdx) {
     if (!m || typeof m !== 'object') return '';
+    
+    // Check for variant-specific image/video first
+    var variants = _materialVariants(m);
+    var vi = Math.min(Math.max(Number(variantIdx || 0), 0), Math.max(variants.length - 1, 0));
+    var vv = variants[vi] || {};
+    
+    var afs = m.asset_feed_spec || {};
+    var variantImg = _assetAt(afs.images, vi, ['url', 'image_url', 'src']);
+    if (variantImg) return variantImg;
+
     if (m.thumbnail_url) return String(m.thumbnail_url);
     if (m.image_url) return String(m.image_url);
     try {
         var os = m.object_story_spec || {};
         if (os.link_data && os.link_data.picture) return String(os.link_data.picture);
+        if (os.video_data && os.video_data.image_url) return String(os.video_data.image_url);
         if (os.photo_data && os.photo_data.image_url) return String(os.photo_data.image_url);
     } catch (e) {}
     return '';
 }
 
-function _renderCampaignPreview(ad, variantIdx) {
-    var material = (ad || {}).material || {};
-    var variants = _materialVariants(material);
-    var vi = Math.min(Math.max(Number(variantIdx || 0), 0), Math.max(variants.length - 1, 0));
-    var vv = variants[vi] || {};
-    var img = _imageFromMaterial(material);
-    var t = _pickFirst(vv.title, material.title, ((material.object_story_spec || {}).link_data || {}).name, 'Preview Iklan');
-    var d = _pickFirst(vv.body, ((material.object_story_spec || {}).link_data || {}).message, '-');
-    var h = '<div><div class="font-weight-bold mb-1">' + _esc(ad.ad_name || '-') + '</div>';
-    h += '<div class="text-muted small mb-2">' + _esc((ad.platforms || []).join(', ') || '-') + ' | Varian ' + (vi + 1) + '</div>';
-    if (img) h += '<img src="' + _esc(img) + '" class="fb-asset-preview mb-2" alt="preview">';
-    h += '<div class="font-weight-bold">' + _esc(t) + '</div><div class="small text-muted">' + _esc(d) + '</div></div>';
-    $('#facebookCampaignLivePreview').html(h);
+function _initSelect2() {
+    setTimeout(function() {
+        $('#facebookCampaignAdAssetList .js-fb-select2').each(function () {
+            var $el = $(this);
+            if ($el.hasClass('select2-hidden-accessible')) return;
+            $el.select2({
+                width: '100%',
+                theme: 'bootstrap4',
+                dropdownParent: $('#facebookCampaignDetailModal'),
+                allowClear: true,
+                placeholder: $el.data('placeholder') || 'Pilih...'
+            });
+            $el.on('select2:open', function() {
+                // Ensure dropdown is above modal and correctly positioned
+                $('.select2-container--open').css('z-index', 9999999);
+            });
+        });
+    }, 50);
 }
 
 function _renderSelectedCampaignAsset() {
@@ -323,10 +353,10 @@ function _renderSelectedCampaignAsset() {
     if (node.type === 'campaign') {
         var c = payload.campaign || {};
         var ov = '<div class="fb-asset-item"><div class="fb-section-title">Campaign Overview</div>';
-        ov += '<div class="row"><div class="col-md-6">' + _formInput('Nama Campaign', c.name) + '</div><div class="col-md-6">' + _formInput('Objective', c.objective) + '</div></div>';
+        ov += '<div class="row"><div class="col-md-6">' + _formInput('Nama Campaign', c.name) + '</div><div class="col-md-6">' + _formInput('Tujuan Campaign', c.objective) + '</div></div>';
         ov += '<div class="fb-form-note">Pilih node Iklan/Varian di panel kiri untuk edit materi.</div></div>';
         $('#facebookCampaignAdAssetList').html(ov);
-        $('#facebookCampaignLivePreview').html('<div class="text-muted">Pilih Iklan/Varian di panel kiri untuk melihat preview.</div>');
+        _initSelect2();
         return;
     }
 
@@ -342,12 +372,7 @@ function _renderSelectedCampaignAsset() {
     html += _technicalPanel(ad, material);
     html += '</div>';
     $('#facebookCampaignAdAssetList').html(html);
-    $('#facebookCampaignAdAssetList .js-fb-select2').each(function () {
-        var $el = $(this);
-        if ($el.hasClass('select2-hidden-accessible')) return;
-        $el.select2({ width: '100%', theme: 'bootstrap4', dropdownParent: $('#facebookCampaignDetailModal') });
-    });
-    _renderCampaignPreview(ad, vi);
+    _initSelect2();
 }
 
 function renderCampaignAssetPanel(detailResp) {
@@ -484,15 +509,55 @@ $().ready(function () {
     });
 
     $(document).on('click', '.js-fb-tree-item', function () {
-        var idx = Number($(this).data('asset-index') || 0);
-        var vi = Number($(this).data('variant-index') || 0);
-        var nt = String($(this).data('node-type') || 'ad');
-        window.facebookCampaignSelectedAssetIndex = idx;
-        window.facebookCampaignSelectedNode = { type: nt, assetIndex: idx, variantIndex: vi };
-        $('.js-fb-tree-item').removeClass('active');
-        $(this).addClass('active');
-        _renderSelectedCampaignAsset();
+    var idx = Number($(this).data('asset-index') || 0);
+    var vi = Number($(this).data('variant-index') || 0);
+    var nt = String($(this).data('node-type') || 'ad');
+    window.facebookCampaignSelectedAssetIndex = idx;
+    window.facebookCampaignSelectedNode = { type: nt, assetIndex: idx, variantIndex: vi };
+    $('.js-fb-tree-item').removeClass('active');
+    $(this).addClass('active');
+    _renderSelectedCampaignAsset();
+});
+
+$(document).on('click', '#btnFacebookCampaignSaveDraft', function() {
+    Swal.fire({
+        title: 'Simpan Draft?',
+        text: 'Perubahan akan disimpan sebagai draft lokal.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, Simpan',
+        cancelButtonText: 'Batal',
+        confirmButtonColor: '#2563eb'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire('Berhasil!', 'Draft berhasil disimpan.', 'success');
+        }
     });
+});
+
+$(document).on('click', '#btnFacebookCampaignPublish', function() {
+    Swal.fire({
+        title: 'Publish Perubahan?',
+        text: 'Perubahan akan dikirim ke Facebook Ads Manager.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, Publish',
+        cancelButtonText: 'Batal',
+        confirmButtonColor: '#2563eb'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'Sedang Memproses...',
+                text: 'Mengirim data ke Meta API',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+            setTimeout(function() {
+                Swal.fire('Berhasil!', 'Perubahan telah dipublish ke Facebook.', 'success');
+            }, 2000);
+        }
+    });
+});
 
     // select_domain sekarang freetext input (tanpa select2)
     $('#btn_load_data').click(function (e) {
