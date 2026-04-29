@@ -907,11 +907,145 @@ class DashboardScoringDataView(View):
             except: return 0.0
         def clip(v, lo, hi):
             return max(lo, min(hi, v))
+        def normalize_conf(v):
+            raw = safe_float(v)
+            return clip((raw / 100.0) if raw > 1.0 else raw, 0.0, 1.0)
+        def derive_anomaly_cards(traffic, delivery, yield_score, revenue_score, risk, adj):
+            cards = []
+            if delivery <= -45: cards.append('AD_REQUEST_FILL_ISSUE')
+            if yield_score <= -45: cards.append('ECPM_YIELD_DROP')
+            if revenue_score <= -35: cards.append('REVENUE_DROP')
+            if traffic <= -35: cards.append('TRAFFIC_DROP')
+            if risk >= 70: cards.append('IVT_RISK')
+            if adj <= -60: cards.append('NEG_ADJUSTMENT')
+            return cards
+        def campaign_maturity_profile(frame):
+            if frame is None or frame.empty:
+                return {
+                    'campaign_count': 0,
+                    'mature_campaign_count': 0,
+                    'mature_campaign_ratio': 0.0,
+                    'mature_spend_share': 0.0,
+                }
+            if 'days_active' not in frame.columns:
+                return {
+                    'campaign_count': 0,
+                    'mature_campaign_count': 0,
+                    'mature_campaign_ratio': 0.0,
+                    'mature_spend_share': 0.0,
+                }
+
+            days_vals = pd.to_numeric(frame['days_active'], errors='coerce').fillna(0.0)
+            spend_vals = pd.to_numeric(frame.get('spend', pd.Series([0.0] * len(frame), index=frame.index)), errors='coerce').fillna(0.0)
+            revenue_vals = pd.to_numeric(frame.get('revenue_value', pd.Series([0.0] * len(frame), index=frame.index)), errors='coerce').fillna(0.0)
+            signal_vals = pd.to_numeric(frame.get('signal_total', pd.Series([0.0] * len(frame), index=frame.index)), errors='coerce').fillna(0.0)
+            label_vals = frame.get('final_label', frame.get('root_cause_label', pd.Series([''] * len(frame), index=frame.index))).astype(str).str.strip().str.upper()
+            learning_labels = {'', 'LEARNING', 'DATA_INCOMPLETE', 'BELUM ADA HASIL'}
+            non_learning_vals = (~label_vals.isin(learning_labels)).astype(int)
+            camp = pd.Series([''] * len(frame), index=frame.index, dtype=object)
+            if 'meta_campaign' in frame.columns:
+                camp = frame['meta_campaign'].astype(str).str.strip().str.upper()
+            if 'entity_key' in frame.columns:
+                ek_camp = frame['entity_key'].astype(str).str.split('|').str[1].fillna('').astype(str).str.strip().str.upper()
+                camp = camp.where(camp.ne(''), ek_camp)
+            camp = camp.where(camp.ne(''), '__UNKNOWN__')
+
+            date_col = None
+            if 'scoring_date' in frame.columns:
+                date_col = 'scoring_date'
+            elif 'date' in frame.columns:
+                date_col = 'date'
+
+            base_df = pd.DataFrame({'campaign': camp, 'days_active': days_vals, 'spend': spend_vals, 'revenue_value': revenue_vals, 'signal_total': signal_vals, 'non_learning': non_learning_vals}, index=frame.index)
+            if date_col is not None:
+                base_df['maturity_date'] = pd.to_datetime(frame[date_col], errors='coerce').dt.date
+
+            grp = base_df.groupby('campaign', dropna=False).agg(days_active=('days_active', 'max'), spend=('spend', 'sum'), revenue_value=('revenue_value', 'sum'), signal_total=('signal_total', 'sum'), non_learning=('non_learning', 'sum'))
+            if date_col is not None:
+                days_by_campaign = base_df.groupby('campaign', dropna=False)['maturity_date'].nunique(dropna=True)
+                grp['history_days'] = pd.to_numeric(days_by_campaign, errors='coerce').fillna(0.0)
+                grp['maturity_days'] = grp[['days_active', 'history_days']].max(axis=1)
+            else:
+                grp['maturity_days'] = grp['days_active']
+
+            campaign_count = int(len(grp))
+            if campaign_count <= 0:
+                return {
+                    'campaign_count': 0,
+                    'mature_campaign_count': 0,
+                    'mature_campaign_ratio': 0.0,
+                    'mature_spend_share': 0.0,
+                }
+
+            grp['is_running'] = (grp['spend'] > 0) | (grp['revenue_value'] > 0) | (grp['signal_total'] > 0)
+            mature_mask = (grp['maturity_days'] >= 3) | (grp['is_running'] & (grp['non_learning'] > 0))
+            mature_campaign_count = int(mature_mask.sum())
+            mature_campaign_ratio = float(mature_campaign_count / campaign_count)
+            total_spend = float(pd.to_numeric(grp['spend'], errors='coerce').fillna(0.0).sum())
+            mature_spend = float(pd.to_numeric(grp.loc[mature_mask, 'spend'], errors='coerce').fillna(0.0).sum()) if mature_campaign_count > 0 else 0.0
+            mature_spend_share = float(mature_spend / total_spend) if total_spend > 0 else mature_campaign_ratio
+            return {
+                'campaign_count': campaign_count,
+                'mature_campaign_count': mature_campaign_count,
+                'mature_campaign_ratio': mature_campaign_ratio,
+                'mature_spend_share': mature_spend_share,
+            }
+        def filter_running_non_learning_campaign_rows(frame):
+            if frame is None or frame.empty:
+                return frame
+            camp = pd.Series([''] * len(frame), index=frame.index, dtype=object)
+            if 'meta_campaign' in frame.columns:
+                camp = frame['meta_campaign'].astype(str).str.strip().str.upper()
+            if 'entity_key' in frame.columns:
+                ek_camp = frame['entity_key'].astype(str).str.split('|').str[1].fillna('').astype(str).str.strip().str.upper()
+                camp = camp.where(camp.ne(''), ek_camp)
+            camp = camp.where(camp.ne(''), '__UNKNOWN__')
+            days_vals = pd.to_numeric(frame.get('days_active', pd.Series([0.0] * len(frame), index=frame.index)), errors='coerce').fillna(0.0)
+            spend_vals = pd.to_numeric(frame.get('spend', pd.Series([0.0] * len(frame), index=frame.index)), errors='coerce').fillna(0.0)
+            revenue_vals = pd.to_numeric(frame.get('revenue_value', pd.Series([0.0] * len(frame), index=frame.index)), errors='coerce').fillna(0.0)
+            signal_vals = pd.to_numeric(frame.get('signal_total', pd.Series([0.0] * len(frame), index=frame.index)), errors='coerce').fillna(0.0)
+            label_vals = frame.get('final_label', frame.get('root_cause_label', pd.Series([''] * len(frame), index=frame.index))).astype(str).str.strip().str.upper()
+            learning_labels = {'', 'LEARNING', 'DATA_INCOMPLETE', 'BELUM ADA HASIL'}
+            non_learning_vals = (~label_vals.isin(learning_labels)).astype(int)
+            grp = pd.DataFrame({'campaign': camp, 'days_active': days_vals, 'spend': spend_vals, 'revenue_value': revenue_vals, 'signal_total': signal_vals, 'non_learning': non_learning_vals}).groupby('campaign', dropna=False).agg(days_active=('days_active', 'max'), spend=('spend', 'sum'), revenue_value=('revenue_value', 'sum'), signal_total=('signal_total', 'sum'), non_learning=('non_learning', 'sum'))
+            grp['is_running'] = (grp['spend'] > 0) | (grp['revenue_value'] > 0) | (grp['signal_total'] > 0)
+            grp['is_learning'] = (grp['days_active'] < 3) & (grp['non_learning'] <= 0)
+            eligible_campaigns = grp.index[(grp['is_running']) & (~grp['is_learning'])].tolist()
+            if not eligible_campaigns:
+                return frame
+            return frame.loc[camp.isin(eligible_campaigns)].copy()
+
+        def derive_score_decision(health, risk, adj, conf, dm, label, profit_strong, anomaly_cards, roi_value=0.0, source_mode='BLENDED'):
+            negative_labels = ["TRAFFIC_DROP","SERVING_DROP","YIELD_DROP","VIEWABILITY_DROP","EFFICIENCY_DROP","REVENUE_DROP","NEGATIVE_MIXED","NEG_ADJUSTMENT"]
+            label_up = str(label or '').strip().upper()
+            source_mode_key = str(source_mode or 'BLENDED').strip().upper()
+            single_source = source_mode_key in ["ADX_ONLY", "ADSENSE_ONLY"]
+            down_score_cut = 52 if single_source else 55
+            down_dm_cut = -12 if single_source else -10
+            down_anomaly_cut = 3 if single_source else 2
+            profit_component = clip((float(roi_value) + 1.0) * 50.0, 0.0, 100.0)
+            score_raw = (((health + 100.0) / 2.0) * 0.25) + ((100.0 - risk) * 0.2) + (conf * 100.0 * 0.1) + (clip(dm + 50.0, 0.0, 100.0) * 0.15) + (profit_component * 0.30)
+            score = int(round(clip(score_raw, 0.0, 100.0)))
+            decision = "HOLD"
+            severe_anomaly = label_up.startswith("RED_FLAG") or (risk >= 85 and conf >= 0.60) or (dm <= -70 and health <= -25) or ('IVT_RISK' in anomaly_cards)
+            anomaly_pressure = len(anomaly_cards)
+            if severe_anomaly or (risk >= 90 and conf >= 0.60 and score < 40) or (dm <= -65 and health <= -25 and conf >= 0.60):
+                decision = "STOP"
+            elif (label_up in ["POSITIVE_EXPANSION", "POSITIVE_RECOVERY"] and score >= 62 and risk < 60 and dm >= 6 and conf >= 0.45) or (score >= 72 and risk < 50 and dm >= 10 and conf >= 0.50):
+                decision = "SCALE UP"
+            elif ((label_up in negative_labels and ((score < down_score_cut and dm < down_dm_cut) or (health < -12 and adj < -18))) or (score < 40 and dm < -12 and (health < -15 or risk >= 72)) or (anomaly_pressure >= down_anomaly_cut and score < 62)) and (not (profit_strong and anomaly_pressure <= 1 and not severe_anomaly)):
+                decision = "SCALE DOWN"
+
+            profit_guard_hold = profit_strong and (risk < (45 if single_source else 40)) and (label_up in ["WATCH_DECAY", "WATCH_NEGATIVE"]) and (decision == "SCALE_DOWN" or decision == "SCALE DOWN")
+            if profit_guard_hold:
+                decision = "HOLD"
+            return score, decision
         try:
             if pd is None:
                 raise RuntimeError('pandas belum tersedia')
             payload = json.loads((req.body or b'').decode('utf-8') or '{}')
             target_date = str(payload.get('date') or '').strip()
+            target_date_obj = pd.to_datetime(target_date, errors='coerce').date() if str(target_date).strip() else None
             dim = str(payload.get('dim') or 'domain').strip().lower()
             raw_entities = payload.get('entities') or []
             include_events = bool(payload.get('include_events'))
@@ -1047,7 +1181,7 @@ class DashboardScoringDataView(View):
                 reason_summary,
                 {days_active_expr} AS days_active
             FROM {status_table}
-            WHERE toDate(date) BETWEEN toDate('{target_date}') - INTERVAL 7 DAY AND toDate('{target_date}')
+            WHERE toDate(date) = toDate('{target_date}')
               AND {status_filter_expr}
             """
             event_sql = f"""
@@ -1098,7 +1232,7 @@ class DashboardScoringDataView(View):
             day_type,
             is_composite
             FROM {event_table}
-            WHERE toDate(date) BETWEEN toDate('{target_date}') - INTERVAL 7 DAY AND toDate('{target_date}')
+            WHERE toDate(date) = toDate('{target_date}')
               AND lower(site) IN ({literals})
             """
             source_sql = f"""
@@ -1128,13 +1262,13 @@ class DashboardScoringDataView(View):
                     adx_revenue,
                     adsense_estimated_earnings
                 FROM {source_table}
-                WHERE toDate(date) BETWEEN toDate('{target_date}') - INTERVAL 7 DAY AND toDate('{target_date}')
+                WHERE toDate(date) = toDate('{target_date}')
             )
             GROUP BY
                 site,
                 date,
                 entity_key,
-                meta_campaign;
+                meta_campaign
             """
             timeline_hour_expr = "toHour(run_time)" if 'run_time' in table_cols else "run_hour"
             timeline_entity_expr = "upper(country_code)" if is_country_dim else "lower(site)"
@@ -1143,7 +1277,7 @@ class DashboardScoringDataView(View):
                 {timeline_entity_expr} AS entity_key,
                 toString({timeline_hour_expr}) AS run_hour
             FROM {status_table}
-            WHERE toDate(date) BETWEEN toDate('{target_date}') - INTERVAL 7 DAY AND toDate('{target_date}')
+            WHERE toDate(date) = toDate('{target_date}')
               AND {status_filter_expr}
             GROUP BY entity_key, run_hour
             ORDER BY entity_key, toInt32OrZero(run_hour) DESC, run_hour DESC
@@ -1159,14 +1293,14 @@ class DashboardScoringDataView(View):
                     df['run_time'] = pd.to_datetime(df['run_time'], errors='coerce')
                 if 'run_hour' in df.columns:
                     df['run_hour_raw'] = df['run_hour']
-                    df['run_hour'] = pd.to_datetime(df['run_hour'], errors='coerce')
+                    df['run_hour'] = pd.to_numeric(df['run_hour'], errors='coerce').fillna(0).astype(int)
                 return df
             def load_event_df():
                 if not include_events:
                     return pd.DataFrame()
                 ev = query_df(event_sql)
                 if 'run_hour' in ev.columns:
-                    ev['run_hour'] = pd.to_datetime(ev['run_hour'], errors='coerce')
+                    ev['run_hour'] = pd.to_numeric(ev['run_hour'], errors='coerce').fillna(0).astype(int)
                 return ev
             def load_source_df():
                 try:
@@ -1197,7 +1331,8 @@ class DashboardScoringDataView(View):
             if not event_df.empty and 'entity_key' in event_df.columns:
                 event_df['entity_key'] = event_df['entity_key'].astype(str).map(lambda x: x.strip().upper())
             df['scoring_date'] = pd.to_datetime(df.get('scoring_date'), errors='coerce').dt.date
-            df['run_hour'] = pd.to_datetime(df.get('run_hour'), errors='coerce')
+            if 'run_hour' in df.columns:
+                df['run_hour'] = pd.to_numeric(df.get('run_hour'), errors='coerce').fillna(0).astype(int)
             source_lookup = {}
             source_agg_lookup = {}
             source_site_country_lookup = {}
@@ -1370,63 +1505,86 @@ class DashboardScoringDataView(View):
                                        pd.to_numeric(part['negative_signal_count'], errors='coerce').fillna(0) + \
                                        pd.to_numeric(part['neutral_signal_count'], errors='coerce').fillna(0)
 
-                snap = part.copy()  
+                part_eval = filter_running_non_learning_campaign_rows(part)
+                if part_eval is None or part_eval.empty:
+                    part_eval = part
+
+                snap = part_eval.copy()  
                 if 'country_code' in snap.columns and 'run_hour' in snap.columns:
                     snap_keys = ['country_code']
                     if 'meta_campaign' in snap.columns:
                         snap_keys.append('meta_campaign')
-                    
-                    # Sort by date and run_hour to get the truly latest snapshot across 7 days
-                    sort_cols = snap_keys + ['run_hour']
-                    if 'date' in snap.columns:
-                        sort_cols = snap_keys + ['date', 'run_hour']
+                    sort_cols = list(snap_keys)
+                    if 'scoring_date' in snap.columns:
+                        sort_cols.append('scoring_date')
+                    elif 'date' in snap.columns:
+                        sort_cols.append('date')
+                    if 'run_time' in snap.columns:
+                        sort_cols.append('run_time')
+                    sort_cols.append('run_hour')
                     snap = snap.sort_values(sort_cols).drop_duplicates(subset=snap_keys, keep='last')
+                if target_date_obj is not None and 'scoring_date' in snap.columns:
+                    snap_on_target = snap[snap['scoring_date'].eq(target_date_obj)].copy()
+                    if not snap_on_target.empty:
+                        snap = snap_on_target
 
                 join_status_series = snap['join_status'] if 'join_status' in snap.columns else pd.Series('', index=snap.index)
                 join_status_clean = join_status_series.astype(str).str.upper().str.strip()
                 join_status_summary = ', '.join([f"{k}:{v}" for k, v in join_status_clean.value_counts().to_dict().items() if str(k).strip()])
                 
-                # Averaged metrics from the entire 7-day part
-                health = avg(part, 'health_score', weighted=True)
-                risk = avg(part, 'ivt_risk_score', weighted=True)
-                adj = avg(part, 'adjustment_score', weighted=True)
-                dm = avg(part, 'decision_margin', weighted=True)
-                conf_raw = avg(part, 'confidence', weighted=True)
-                conf = clip((conf_raw / 100.0) if conf_raw > 1.0 else conf_raw, 0.0, 1.0)
-                
+                # Averaged metrics from campaign aktif non-learning (fallback: semua campaign)
+                health = avg(part_eval, 'health_score', weighted=True)
+                risk = avg(part_eval, 'ivt_risk_score', weighted=True)
+                adj = avg(part_eval, 'adjustment_score', weighted=True)
+                dm = avg(part_eval, 'decision_margin', weighted=True)
+                conf_raw = avg(part_eval, 'confidence', weighted=True)
+                conf = normalize_conf(conf_raw)
+
                 labels = []
                 for c in ['final_label', 'root_cause_label']:
                     if c in snap.columns:
                         labels.extend([str(x).strip().upper() for x in snap[c].tolist() if str(x).strip()])
                 label = pd.Series(labels).value_counts().index[0] if labels else 'STABLE'
-                
+
                 # Totals from the entire 7-day part
-                negative_labels = ["TRAFFIC_DROP","SERVING_DROP","YIELD_DROP","VIEWABILITY_DROP","EFFICIENCY_DROP","REVENUE_DROP","NEGATIVE_MIXED","NEG_ADJUSTMENT"]
-                total_pos = int(pd.to_numeric(part['positive_signal_count'], errors='coerce').fillna(0).sum()) if 'positive_signal_count' in part.columns else 0
-                total_neg = int(pd.to_numeric(part['negative_signal_count'], errors='coerce').fillna(0).sum()) if 'negative_signal_count' in part.columns else 0
-                total_neu = int(pd.to_numeric(part['neutral_signal_count'], errors='coerce').fillna(0).sum()) if 'neutral_signal_count' in part.columns else 0
-                has_scoring = (total_pos + total_neg + total_neu) > 0 and conf > 0
-                days_series = part['scoring_date'] if 'scoring_date' in part.columns else (part['date'] if 'date' in part.columns else pd.Series([], dtype=object))
+                total_pos = int(pd.to_numeric(part_eval['positive_signal_count'], errors='coerce').fillna(0).sum()) if 'positive_signal_count' in part_eval.columns else 0
+                total_neg = int(pd.to_numeric(part_eval['negative_signal_count'], errors='coerce').fillna(0).sum()) if 'negative_signal_count' in part_eval.columns else 0
+                total_neu = int(pd.to_numeric(part_eval['neutral_signal_count'], errors='coerce').fillna(0).sum()) if 'neutral_signal_count' in part_eval.columns else 0
+                has_scoring = (total_pos + total_neg + total_neu) > 0 and conf >= 0.05
+                spend_total = float(pd.to_numeric(part_eval['spend'], errors='coerce').fillna(0).sum()) if 'spend' in part_eval.columns else 0.0
+                revenue_total = float(pd.to_numeric(part_eval['revenue_value'], errors='coerce').fillna(0).sum()) if 'revenue_value' in part_eval.columns else 0.0
+                roi_total = ((revenue_total - spend_total) / spend_total) if spend_total > 0 else 0.0
+                profit_strong = (revenue_total > spend_total) and (roi_total >= 0.30)
+                traffic_now = avg(part_eval, 'traffic_score', weighted=True)
+                delivery_now = avg(part_eval, 'delivery_score', weighted=True)
+                yield_now = avg(part_eval, 'yield_score', weighted=True)
+                revenue_now = avg(part_eval, 'revenue_score', weighted=True)
+                anomaly_cards = derive_anomaly_cards(traffic_now, delivery_now, yield_now, revenue_now, risk, adj)
+                days_series = part_eval['scoring_date'] if 'scoring_date' in part_eval.columns else (part_eval['date'] if 'date' in part_eval.columns else pd.Series([], dtype=object))
                 days_hist = int(pd.to_datetime(days_series, errors='coerce').dropna().dt.date.nunique())
-                days_flag = int(pd.to_numeric(part.get('days_active', pd.Series([], dtype=float)), errors='coerce').fillna(0).max()) if 'days_active' in part.columns else 0
+                days_flag = int(pd.to_numeric(part_eval.get('days_active', pd.Series([], dtype=float)), errors='coerce').fillna(0).max()) if 'days_active' in part_eval.columns else 0
                 active_days_effective = max(days_hist, days_flag)
+                maturity_profile = campaign_maturity_profile(part_eval)
+                mature_campaign_ratio = float(maturity_profile.get('mature_campaign_ratio', 0.0))
+                mature_spend_share = float(maturity_profile.get('mature_spend_share', 0.0))
+                mature_campaign_count = int(maturity_profile.get('mature_campaign_count', 0))
+                campaign_count = int(maturity_profile.get('campaign_count', 0))
+                source_mode = 'BLENDED'
+                if 'mapped_revenue_source' in snap.columns:
+                    src_vals = snap['mapped_revenue_source'].astype(str).str.strip().str.upper()
+                    src_vals = src_vals[src_vals.ne('')]
+                    if not src_vals.empty:
+                        source_mode = str(src_vals.value_counts().index[0])
                 score = None
                 decision = ""
-                if active_days_effective < 3:
+                learning_gate = (active_days_effective < 2) and (mature_campaign_count <= 0) and (mature_campaign_ratio < 0.60) and (mature_spend_share < 0.55)
+                if learning_gate:
                     label = "LEARNING"
                     decision = "LEARNING"
                 elif has_scoring:
-                    if label == "LEARNING":
+                    if label == "LEARNING" and (mature_campaign_count > 0 or mature_campaign_ratio >= 0.60 or mature_spend_share >= 0.55):
                         label = "STABLE"
-                    score_raw = (((health + 100.0) / 2.0) * 0.45) + ((100.0 - risk) * 0.2) + (conf * 100.0 * 0.15) + (clip(dm + 50.0, 0.0, 100.0) * 0.2)
-                    score = int(round(clip(score_raw, 0.0, 100.0)))
-                    decision = "HOLD"
-                    if label.startswith("RED_FLAG") or (risk >= 85 and conf >= 0.55 and score < 45) or (dm <= -55 and health <= -18 and conf >= 0.55):
-                        decision = "STOP"
-                    elif (label in ["POSITIVE_EXPANSION", "POSITIVE_RECOVERY"] and score >= 65 and risk < 55 and dm >= 8 and conf >= 0.5) or (score >= 75 and risk < 45 and dm >= 12 and conf >= 0.55):
-                        decision = "SCALE UP"
-                    elif (label in negative_labels and (score < 60 or dm < -8 or health < -8 or adj < -15)) or (score < 45 and (dm < -8 or health < -10 or adj < -20 or risk >= 65)):
-                        decision = "SCALE DOWN"
+                    score, decision = derive_score_decision(health, risk, adj, conf, dm, label, profit_strong, anomaly_cards, roi_total, source_mode)
                 else:
                     label = "DATA_INCOMPLETE"
                 reason_parts = [str(x).strip() for x in snap.get('reason_summary', pd.Series([], dtype=str)).tolist() if str(x).strip()]
@@ -1468,8 +1626,18 @@ class DashboardScoringDataView(View):
                 if run_hours:
                     for rh in run_hours[:8]:
                         snap_h = part.loc[part_hour_key.astype(str).eq(str(rh))].copy()
+                        if target_date_obj is not None and 'scoring_date' in snap_h.columns:
+                            snap_h_target = snap_h[snap_h['scoring_date'].eq(target_date_obj)].copy()
+                            if not snap_h_target.empty:
+                                snap_h = snap_h_target
                         if 'country_code' in snap_h.columns and 'run_hour' in snap_h.columns:
-                            snap_h = snap_h.sort_values(['country_code', 'run_hour']).drop_duplicates(subset=['country_code'], keep='last')
+                            sort_cols_h = ['country_code']
+                            if 'scoring_date' in snap_h.columns:
+                                sort_cols_h.append('scoring_date')
+                            if 'run_time' in snap_h.columns:
+                                sort_cols_h.append('run_time')
+                            sort_cols_h.append('run_hour')
+                            snap_h = snap_h.sort_values(sort_cols_h).drop_duplicates(subset=['country_code'], keep='last')
                         for c in ['positive_signal_count', 'negative_signal_count', 'neutral_signal_count']:
                             if c not in snap_h.columns:
                                 snap_h[c] = 0
@@ -1479,7 +1647,7 @@ class DashboardScoringDataView(View):
                         a = avg(snap_h, 'adjustment_score', weighted=True)
                         m = avg(snap_h, 'decision_margin', weighted=True)
                         c_raw = avg(snap_h, 'confidence', weighted=True)
-                        c01 = clip((c_raw / 100.0) if c_raw > 1.0 else c_raw, 0.0, 1.0)
+                        c01 = normalize_conf(c_raw)
                         lbl_vals = []
                         for c in ['final_label', 'root_cause_label']:
                             if c in snap_h.columns:
@@ -1488,27 +1656,40 @@ class DashboardScoringDataView(View):
                         pos_h = int(pd.to_numeric(snap_h['positive_signal_count'], errors='coerce').fillna(0).sum()) if 'positive_signal_count' in snap_h.columns else 0
                         neg_h = int(pd.to_numeric(snap_h['negative_signal_count'], errors='coerce').fillna(0).sum()) if 'negative_signal_count' in snap_h.columns else 0
                         neu_h = int(pd.to_numeric(snap_h['neutral_signal_count'], errors='coerce').fillna(0).sum()) if 'neutral_signal_count' in snap_h.columns else 0
-                        has_scoring_h = (pos_h + neg_h + neu_h) > 0 and c01 > 0
+                        has_scoring_h = (pos_h + neg_h + neu_h) > 0 and c01 >= 0.05
+                        spend_h = float(pd.to_numeric(snap_h['spend'], errors='coerce').fillna(0).sum()) if 'spend' in snap_h.columns else 0.0
+                        revenue_h = float(pd.to_numeric(snap_h['revenue_value'], errors='coerce').fillna(0).sum()) if 'revenue_value' in snap_h.columns else 0.0
+                        roi_h = ((revenue_h - spend_h) / spend_h) if spend_h > 0 else 0.0
+                        profit_strong_h = (revenue_h > spend_h) and (roi_h >= 0.30)
                         days_series_h = snap_h['scoring_date'] if 'scoring_date' in snap_h.columns else (snap_h['date'] if 'date' in snap_h.columns else pd.Series([], dtype=object))
                         days_hist_h = int(pd.to_datetime(days_series_h, errors='coerce').dropna().dt.date.nunique())
                         days_flag_h = int(pd.to_numeric(snap_h.get('days_active', pd.Series([], dtype=float)), errors='coerce').fillna(0).max()) if 'days_active' in snap_h.columns else 0
                         active_days_effective_h = max(days_hist_h, days_flag_h)
+                        maturity_profile_h = campaign_maturity_profile(snap_h)
+                        mature_campaign_ratio_h = float(maturity_profile_h.get('mature_campaign_ratio', 0.0))
+                        mature_spend_share_h = float(maturity_profile_h.get('mature_spend_share', 0.0))
+                        mature_campaign_count_h = int(maturity_profile_h.get('mature_campaign_count', 0))
                         sc = None
                         dec = ''
-                        if active_days_effective_h < 3:
+                        learning_gate_h = (active_days_effective_h < 2) and (mature_campaign_count_h <= 0) and (mature_campaign_ratio_h < 0.60) and (mature_spend_share_h < 0.55)
+                        if learning_gate_h:
                             lbl = 'LEARNING'
                             dec = 'LEARNING'
                         elif has_scoring_h:
-                            if lbl == 'LEARNING':
+                            if lbl == 'LEARNING' and (mature_campaign_count_h > 0 or mature_campaign_ratio_h >= 0.60 or mature_spend_share_h >= 0.55):
                                 lbl = 'STABLE'
-                            sc = int(round(clip((((h + 100.0) / 2.0) * 0.45) + ((100.0 - r) * 0.2) + (c01 * 100.0 * 0.15) + (clip(m + 50.0, 0.0, 100.0) * 0.2), 0.0, 100.0)))
-                            dec = 'HOLD'
-                            if lbl.startswith('RED_FLAG') or (r >= 85 and c01 >= 0.55 and sc < 45) or (m <= -55 and h <= -18 and c01 >= 0.55):
-                                dec = 'STOP'
-                            elif (lbl in ['POSITIVE_EXPANSION', 'POSITIVE_RECOVERY'] and sc >= 65 and r < 55 and m >= 8 and c01 >= 0.5) or (sc >= 75 and r < 45 and m >= 12 and c01 >= 0.55):
-                                dec = 'SCALE UP'
-                            elif (lbl in negative_labels and (sc < 60 or m < -8 or h < -8 or a < -15)) or (sc < 45 and (m < -8 or h < -10 or a < -20 or r >= 65)):
-                                dec = 'SCALE DOWN'
+                            traffic_h = avg(snap_h, 'traffic_score', weighted=True)
+                            delivery_h = avg(snap_h, 'delivery_score', weighted=True)
+                            yield_h = avg(snap_h, 'yield_score', weighted=True)
+                            revenue_hs = avg(snap_h, 'revenue_score', weighted=True)
+                            anomaly_cards_h = derive_anomaly_cards(traffic_h, delivery_h, yield_h, revenue_hs, r, a)
+                            source_mode_h = source_mode
+                            if 'mapped_revenue_source' in snap_h.columns:
+                                src_vals_h = snap_h['mapped_revenue_source'].astype(str).str.strip().str.upper()
+                                src_vals_h = src_vals_h[src_vals_h.ne('')]
+                                if not src_vals_h.empty:
+                                    source_mode_h = str(src_vals_h.value_counts().index[0])
+                            sc, dec = derive_score_decision(h, r, a, c01, m, lbl, profit_strong_h, anomaly_cards_h, roi_h, source_mode_h)
                         else:
                             lbl = 'DATA_INCOMPLETE'
 
@@ -1519,6 +1700,8 @@ class DashboardScoringDataView(View):
                             country_h.append({
                                 'country_code': str(crow.get('country_code') or ''),
                                 'country_name': str(crow.get('country_name') or ''),
+                                'meta_campaign': str(crow.get('meta_campaign') or ''),
+                                'days_active': int(safe_float(crow.get('days_active'))),
                                 'health_score': safe_float(crow.get('health_score')),
                                 'ivt_risk_score': safe_float(crow.get('ivt_risk_score')),
                                 'adjustment_score': safe_float(crow.get('adjustment_score')),
@@ -1584,11 +1767,21 @@ class DashboardScoringDataView(View):
                 
                 country_details = []
                 detail_snap = part.copy()
+                if target_date_obj is not None and 'scoring_date' in detail_snap.columns:
+                    detail_target = detail_snap[detail_snap['scoring_date'].eq(target_date_obj)].copy()
+                    if not detail_target.empty:
+                        detail_snap = detail_target
                 if 'country_code' in detail_snap.columns and 'run_hour' in detail_snap.columns:
                     detail_keys = ['country_code']
                     if 'meta_campaign' in detail_snap.columns:
                         detail_keys.append('meta_campaign')
-                    detail_snap = detail_snap.sort_values(detail_keys + ['run_hour']).drop_duplicates(subset=detail_keys, keep='last')
+                    detail_sort = list(detail_keys)
+                    if 'scoring_date' in detail_snap.columns:
+                        detail_sort.append('scoring_date')
+                    if 'run_time' in detail_snap.columns:
+                        detail_sort.append('run_time')
+                    detail_sort.append('run_hour')
+                    detail_snap = detail_snap.sort_values(detail_sort).drop_duplicates(subset=detail_keys, keep='last')
                 for _, row in detail_snap.iterrows():
                     row_entity_key = str(row.get('status_entity_key') or row.get('site') or row.get('entity_key') or '').strip()
                     row_site_key = str(row.get('site') or '').strip()
@@ -1695,6 +1888,7 @@ class DashboardScoringDataView(View):
                         'country_code': str(row.get('country_code') or ''),
                         'country_name': str(row.get('country_name') or ''),
                         'meta_campaign': row_meta_campaign,
+                        'days_active': int(safe_float(row.get('days_active'))),
                         'health_score': safe_float(row.get('health_score')),
                         'ivt_risk_score': safe_float(row.get('ivt_risk_score')),
                         'adjustment_score': safe_float(row.get('adjustment_score')),
@@ -1732,6 +1926,12 @@ class DashboardScoringDataView(View):
                         'confidence': conf,
                         'decision_margin': dm,
                         'days_active': int(active_days_effective),
+                        'learning_gate': bool(learning_gate),
+                        'campaign_count': int(campaign_count),
+                        'mature_campaign_count': int(mature_campaign_count),
+                        'mature_campaign_ratio': float(round(mature_campaign_ratio, 4)),
+                        'mature_spend_share': float(round(mature_spend_share, 4)),
+                        'anomaly_cards': anomaly_cards,
                         'traffic_score': avg(snap, 'traffic_score', weighted=True),
                         'delivery_score': avg(snap, 'delivery_score', weighted=True),
                         'yield_score': avg(snap, 'yield_score', weighted=True),
@@ -1849,18 +2049,34 @@ class DashboardScoringCompareView(View):
                 return int(dt.hour)
             return None
 
-        def derive_score_decision(health, risk, adj, conf01, dm, label):
-            # Samakan dengan DashboardScoringDataView + scxDeriveDecision di template
-            score = (((health + 100.0) / 2.0) * 0.45) + ((100.0 - risk) * 0.2) + (conf01 * 100.0 * 0.15) + (clip(dm + 50.0, 0.0, 100.0) * 0.2)
+        def derive_score_decision(health, risk, adj, conf01, dm, label, roi_value=0.0, source_mode='BLENDED'):
+            # Samakan dengan DashboardScoringDataView + scxDeriveDecision di template (profit-first)
+            source_mode_key = str(source_mode or 'BLENDED').strip().upper()
+            single_source = source_mode_key in ["ADX_ONLY", "ADSENSE_ONLY"]
+            down_score_cut = 52 if single_source else 55
+            down_dm_cut = -12 if single_source else -10
+            down_anomaly_cut = 3 if single_source else 2
+            profit_component = clip((float(roi_value) + 1.0) * 50.0, 0.0, 100.0)
+            score = (((health + 100.0) / 2.0) * 0.25) + ((100.0 - risk) * 0.2) + (conf01 * 100.0 * 0.1) + (clip(dm + 50.0, 0.0, 100.0) * 0.15) + (profit_component * 0.30)
             score = int(round(clip(score, 0.0, 100.0)))
             negative_labels = ["TRAFFIC_DROP", "SERVING_DROP", "YIELD_DROP", "VIEWABILITY_DROP", "EFFICIENCY_DROP", "REVENUE_DROP", "NEGATIVE_MIXED", "NEG_ADJUSTMENT", "WATCH_NEGATIVE", "WATCH_DECAY"]
             label_up = str(label or 'STABLE').strip().upper()
+            anomaly_cards = []
+            if risk >= 70: anomaly_cards.append('IVT_RISK')
+            if adj <= -60: anomaly_cards.append('NEG_ADJUSTMENT')
+            if dm <= -50: anomaly_cards.append('MARGIN_CRASH')
+            severe_anomaly = label_up.startswith("RED_FLAG") or ('IVT_RISK' in anomaly_cards)
             decision = "HOLD"
-            if label_up.startswith("RED_FLAG") or (risk >= 85 and conf01 >= 0.55 and score < 45) or (dm <= -55 and health <= -18 and conf01 >= 0.55):
+            if severe_anomaly or (risk >= 90 and conf01 >= 0.60 and score < 40) or (dm <= -65 and health <= -25 and conf01 >= 0.60):
                 decision = "STOP"
-            elif (label_up in ["POSITIVE_EXPANSION", "POSITIVE_RECOVERY", "WATCH_POSITIVE"] and score >= 65 and risk < 55 and dm >= 8 and conf01 >= 0.5) or (score >= 75 and risk < 45 and dm >= 12 and conf01 >= 0.55):
+            elif (label_up in ["POSITIVE_EXPANSION", "POSITIVE_RECOVERY", "WATCH_POSITIVE"] and score >= 62 and risk < 60 and dm >= 6 and conf01 >= 0.45) or (score >= 72 and risk < 50 and dm >= 10 and conf01 >= 0.50):
                 decision = "SCALE UP"
-            elif (label_up in negative_labels and (score < 60 or dm < -8 or health < -8 or adj < -15)) or (score < 45 and (dm < -8 or health < -10 or adj < -20 or risk >= 65)):
+            elif (label_up in negative_labels and ((score < down_score_cut and dm < down_dm_cut) or (health < -12 and adj < -18))) or (score < 40 and dm < -12 and (health < -15 or risk >= 72)) or (len(anomaly_cards) >= down_anomaly_cut and score < 62):
+                decision = "SCALE_DOWN"
+
+            if (decision == "SCALE_DOWN") and (label_up in ["WATCH_DECAY", "WATCH_NEGATIVE"]) and (risk < 40) and (score >= 45):
+                decision = "HOLD"
+            if decision == "SCALE_DOWN":
                 decision = "SCALE DOWN"
             return score, decision
 
@@ -1917,7 +2133,16 @@ class DashboardScoringCompareView(View):
                     labels.extend([str(x).strip().upper() for x in tmp[c].tolist() if str(x).strip()])
             label = pd.Series(labels).value_counts().index[0] if labels else 'STABLE'
 
-            score, decision = derive_score_decision(health, risk, adj, conf01, dm, label)
+            spend_total = float(pd.to_numeric(tmp['spend'], errors='coerce').fillna(0.0).sum()) if 'spend' in tmp.columns else 0.0
+            revenue_total = float(pd.to_numeric(tmp['revenue_value'], errors='coerce').fillna(0.0).sum()) if 'revenue_value' in tmp.columns else 0.0
+            roi_total = ((revenue_total - spend_total) / spend_total) if spend_total > 0 else 0.0
+            source_mode = 'BLENDED'
+            if 'mapped_revenue_source' in tmp.columns:
+                src_vals = tmp['mapped_revenue_source'].astype(str).str.strip().str.upper()
+                src_vals = src_vals[src_vals.ne('')]
+                if not src_vals.empty:
+                    source_mode = str(src_vals.value_counts().index[0])
+            score, decision = derive_score_decision(health, risk, adj, conf01, dm, label, roi_total, source_mode)
 
             reason_parts = [str(x).strip() for x in tmp.get('reason_summary', pd.Series([], dtype=str)).tolist() if str(x).strip()]
             reason_summary = ' | '.join(list(dict.fromkeys(reason_parts))[:3])

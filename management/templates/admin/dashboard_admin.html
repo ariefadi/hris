@@ -1171,6 +1171,22 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
+.kpi-tip-wrap { position: relative; display: inline-flex; align-items: center; gap: 6px; }
+.kpi-tip-btn {
+    width: 16px; height: 16px; border-radius: 999px; border: 1px solid rgba(59,130,246,.5);
+    background: #eff6ff; color: #1d4ed8; font-size: 10px; font-weight: 800; line-height: 14px;
+    text-align: center; cursor: help; padding: 0;
+}
+.kpi-tip-btn:hover { background: #dbeafe; }
+.kpi-tip-bubble {
+    display: none; position: absolute; left: 0; top: calc(100% + 8px); z-index: 30;
+    min-width: 260px; max-width: 420px; padding: 10px 12px; border-radius: 10px;
+    border: 1px solid rgba(15,23,42,.15); background: #0f172a; color: #f8fafc;
+    box-shadow: 0 10px 28px rgba(2, 6, 23, 0.28); text-transform: none; letter-spacing: normal;
+    font-size: 11px; line-height: 1.45; font-weight: 600; white-space: normal;
+}
+.kpi-tip-wrap:hover .kpi-tip-bubble,
+.kpi-tip-wrap:focus-within .kpi-tip-bubble { display: block; }
 
 .decision-detail-kpi-value {
     font-size: 18px;
@@ -1232,6 +1248,16 @@ html[data-theme="dark"] .decision-detail-kpi-item {
 
 html[data-theme="dark"] .decision-detail-kpi-label {
     color: #94a3b8;
+}
+html[data-theme="dark"] .kpi-tip-btn {
+    background: rgba(30,64,175,.35);
+    border-color: rgba(96,165,250,.55);
+    color: #bfdbfe;
+}
+html[data-theme="dark"] .kpi-tip-bubble {
+    background: #020617;
+    border-color: rgba(148,163,184,.3);
+    color: #e2e8f0;
 }
 
 html[data-theme="dark"] .decision-detail-kpi-value {
@@ -3023,6 +3049,10 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
         decision_margin = Number((Number(health) - Number(risk) + Math.min(0, Number(adjustment || 0))).toFixed(2));
     }
 
+    const domainDaysCandidates = [activeT?.days_active, info?.days_active, rawInfo?.days_active, rowCtx?.days_active];
+    const domainDaysVals = domainDaysCandidates.map(function(v){ return Number(v); }).filter(function(v){ return Number.isFinite(v) && v >= 0; });
+    const domainDaysActive = domainDaysVals.length ? Math.max.apply(null, domainDaysVals.map(function(v){ return Math.floor(v); })) : null;
+
     const debugCountryRows = mergedRows.some(hasCampaignHint) ? mergedRows.filter(hasCampaignHint) : mergedRows;
     const decideCampaignAction = function(statusTag, margin, risk, health, joinStatus){
         const tag = String(statusTag || '').toUpperCase();
@@ -3043,11 +3073,16 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
         const margin = num(c?.decision_margin);
         const risk = num(c?.ivt_risk_score);
         const health = num(c?.health_score);
+        const daysActiveRaw = Number(c?.days_active);
+        const daysActiveLocal = Number.isFinite(daysActiveRaw) ? Math.max(0, Math.floor(daysActiveRaw)) : null;
+        const daysActive = Number.isFinite(Number(domainDaysActive))
+            ? (daysActiveLocal == null ? Number(domainDaysActive) : Math.max(daysActiveLocal, Number(domainDaysActive)))
+            : daysActiveLocal;
         const joinStatus = String(c?.join_status || '-').trim();
         const rawTag = String(c?.final_label || c?.root_cause_label || '').trim().toUpperCase();
         const statusTag = rawTag || ((margin != null && margin <= -40) ? 'NEG_ADJUST' : ((margin != null && margin >= 20) ? 'POSITIVE_EXPANSION' : 'STABLE_HOLD'));
         const action = decideCampaignAction(statusTag, margin, risk, health, joinStatus);
-        return { country, campaign, statusTag, action, budget: budgetByAction[action] || '0%', margin, risk, health, joinStatus };
+        return { country, campaign, statusTag, action, budget: budgetByAction[action] || '0%', margin, risk, health, daysActive, joinStatus };
     }).filter(function(r){ return r.campaign && r.campaign !== '-'; });
 
     const aggByCampaign = new Map();
@@ -3059,7 +3094,8 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
             countries: new Set(),
             tags: new Map(),
             marginSum: 0, riskSum: 0, healthSum: 0,
-            nMargin: 0, nRisk: 0, nHealth: 0
+            nMargin: 0, nRisk: 0, nHealth: 0,
+            maxDaysActive: null
         });
         const a = aggByCampaign.get(key);
         if (r.country) a.countries.add(String(r.country));
@@ -3070,6 +3106,10 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
         if (num(r.margin) != null) { a.marginSum += Number(r.margin); a.nMargin += 1; }
         if (num(r.risk) != null) { a.riskSum += Number(r.risk); a.nRisk += 1; }
         if (num(r.health) != null) { a.healthSum += Number(r.health); a.nHealth += 1; }
+        if (Number.isFinite(Number(r.daysActive))) {
+            const d = Math.max(0, Math.floor(Number(r.daysActive)));
+            a.maxDaysActive = (a.maxDaysActive == null) ? d : Math.max(Number(a.maxDaysActive), d);
+        }
     });
     const campaignRecapRows = Array.from(aggByCampaign.values()).map(function(a){
         const countries = Array.from(a.countries.values());
@@ -3089,9 +3129,16 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
             risk: avgRisk,
             health: avgHealth,
             action: aggAction,
-            budget: budgetByAction[aggAction] || '0%'
+            budget: budgetByAction[aggAction] || '0%',
+            daysActive: Number.isFinite(Number(a.maxDaysActive)) ? Number(a.maxDaysActive) : null
         };
     });
+    const recapActionCount = { 'STOP': 0, 'PAUSE': 0, 'SCALE DOWN': 0, 'HOLD': 0, 'SCALE UP': 0 };
+    campaignRecapRows.forEach(function(r){ recapActionCount[r.action] = (recapActionCount[r.action] || 0) + 1; });
+    const recapTotal = Math.max(1, campaignRecapRows.length);
+    const stopRatio = Number((Number(recapActionCount['STOP'] || 0) / recapTotal).toFixed(4));
+    const heavyRedFlagCount = campaignRecapRows.filter(function(r){ return String(r.statusTag || '').toUpperCase().includes('RED_FLAG'); }).length;
+    const majorityAction = Object.entries(recapActionCount).sort(function(a,b){ return Number(b[1]||0) - Number(a[1]||0); })[0]?.[0] || 'HOLD';
 
     let html = '';
     html += '<div class="decision-detail-body">';
@@ -3113,15 +3160,20 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
     html += `<div style="font-size:16px;font-weight:800;color:#0f172a;margin-bottom:8px;">${esc(decision)}</div>`;
     if (label) html += `<div style="font-size:13px;color:#475569;">${esc(label)}</div>`;
     html += '</div>';
+    const kpiLabel = function(text, formula){
+        const t = esc(String(text || ''));
+        const f = esc(String(formula || ''));
+        return `<span class="kpi-tip-wrap"><span>${t}</span><button type="button" class="kpi-tip-btn" aria-label="Lihat rumus ${t}">i</button><span class="kpi-tip-bubble">${f}</span></span>`;
+    };
     html += '<div class="decision-detail-section">';
     html += `<div class="decision-detail-section-title">Komponen Penilaian</div>`;
     html += '<div class="decision-detail-kpi-grid">';
-    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">Score Akhir</div><div class="decision-detail-kpi-value">${score == null ? '-' : score}</div></div>`;
-    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">Health Score</div><div class="decision-detail-kpi-value">${fmt2(health)}</div></div>`;
-    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">IVT Risk Score</div><div class="decision-detail-kpi-value">${fmt2(risk)}</div></div>`;
-    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">Adjustment Score</div><div class="decision-detail-kpi-value">${fmt2(adjustment)}</div></div>`;
-    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">Confidence</div><div class="decision-detail-kpi-value">${fmtPct01(confidence)}</div></div>`;
-    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">Decision Margin</div><div class="decision-detail-kpi-value">${fmt2(decision_margin)}</div></div>`;
+    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">${kpiLabel('Score Akhir','score = 0.25*((health+100)/2) + 0.20*(100-risk) + 0.10*(confidence*100) + 0.15*clamp(margin+50,0,100) + 0.30*profit_component; profit_component=clamp((ROI+1)*50,0,100)')}</div><div class="decision-detail-kpi-value">${score == null ? '-' : score}</div></div>`;
+    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">${kpiLabel('Health Score','health = clamp(0.7*prev_health + 0.3*(100*avg(active_family_ratio)), -100, 100); hanya event non-SKIPPED & health_component!=0')}</div><div class="decision-detail-kpi-value">${fmt2(health)}</div></div>`;
+    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">${kpiLabel('IVT Risk Score','ivt_risk = clamp(100 * sum(max(ivt_component,0)) / sum(ivt_capacity), 0, 100)')}</div><div class="decision-detail-kpi-value">${fmt2(risk)}</div></div>`;
+    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">${kpiLabel('Adjustment Score','adjustment = 100 * sum(adjustment_component) / sum(adjustment_capacity)')}</div><div class="decision-detail-kpi-value">${fmt2(adjustment)}</div></div>`;
+    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">${kpiLabel('Confidence','confidence = rata-rata confidence event non-SKIPPED (0..1)')}</div><div class="decision-detail-kpi-value">${fmtPct01(confidence)}</div></div>`;
+    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">${kpiLabel('Decision Margin','margin = health_score - ivt_risk_score + min(0, adjustment_score)')}</div><div class="decision-detail-kpi-value">${fmt2(decision_margin)}</div></div>`;
     html += '</div>';
     html += '</div>';
 
@@ -3198,15 +3250,24 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
 
         // Rekomendasi aksi singkat
         if (rec && typeof rec === 'object') {
-            const act = String(rec.action || decision).toUpperCase();
-            const pct = Number(rec.budget_change_pct || 0);
+            const tableDecision = String(decision || '').toUpperCase();
+            let act = tableDecision || String(rec.action || '').toUpperCase() || 'HOLD';
+            if (campaignRecapRows.length) {
+                const allowGlobalStop = (stopRatio >= 0.30) || (heavyRedFlagCount >= 2);
+                if (act === 'STOP' && !allowGlobalStop) act = 'HOLD';
+            }
+            const pctMap = { 'STOP': -100, 'PAUSE': -100, 'SCALE DOWN': -10, 'HOLD': 0, 'SCALE UP': 10 };
+            const pct = Number.isFinite(Number(rec.budget_change_pct)) ? Number(rec.budget_change_pct) : Number(pctMap[act] || 0);
             const pctTxt = (pct === 0) ? '0%' : `${pct > 0 ? '+' : ''}${pct}%`;
             html += `<div style="margin-top:12px;padding:12px;border:1px solid rgba(15,23,42,0.08);border-radius:12px;background:linear-gradient(180deg,#ffffff,#f8fafc);">`;
             html += `<div style="font-size:12px;color:#64748b;font-weight:800;margin-bottom:6px;">Rekomendasi Aksi</div>`;
             html += `<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">`;
             html += `<div style="font-weight:900;color:#0f172a;">${esc(act)}</div>`;
             html += `<div style="font-size:12px;color:#475569;">Budget change: <b>${esc(pctTxt)}</b></div>`;
-            if (rec.reason) html += `<div style="font-size:12px;color:#475569;">${esc(String(rec.reason))}</div>`;
+            const recReason = rec.reason ? String(rec.reason) : '';
+            const fairnessNote = campaignRecapRows.length ? `Source: keputusan tabel (${tableDecision || '-'}) · Majority: ${majorityAction} · STOP ratio: ${(stopRatio*100).toFixed(0)}%` : `Source: keputusan tabel (${tableDecision || '-'})`;
+            if (recReason) html += `<div style="font-size:12px;color:#475569;">${esc(recReason)}</div>`;
+            if (fairnessNote) html += `<div style="font-size:12px;color:#64748b;">${esc(fairnessNote)}</div>`;
             html += `</div>`;
             // tombol untuk membuka modal detail scoring (di sana ada aksi campaign)
             html += `<div style="margin-top:10px;">`;
@@ -3252,6 +3313,8 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
         const inline = (inlineAll[String(storeKey || '')] && typeof inlineAll[String(storeKey || '')] === 'object') ? inlineAll[String(storeKey || '')] : {};
         recapRows.forEach(function(r){
             const campaignName = String(r.campaign || '').trim();
+            const isBad = ['STOP','PAUSE','SCALE DOWN'].includes(String(r.action || '').toUpperCase());
+            const rowBg = isBad ? 'background:#fff1f2;' : '';
             const rowKey = campaignName.toLowerCase();
             const campaignEnc = encodeURIComponent(campaignName);
             const actionEnc = encodeURIComponent(String(r.action || ''));
@@ -3261,7 +3324,8 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
             const targetBudgetRaw = (inline.targetBudgetRaw != null) ? String(inline.targetBudgetRaw) : '';
             const inlineMsg = String(inline.lastMsg || '');
             const budgetReadonly = (targetAction === 'STOP');
-            html += `<tr><td style="padding:10px;border-top:1px solid #e2e8f0;font-weight:800;">${esc(r.action)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(campaignName)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.countries)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.statusTag)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(r.margin))}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(r.risk))}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(r.health))}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.budget)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:center;"><button type="button" class="btn btn-sm ${isOpen ? 'btn-primary' : 'btn-outline-primary'}" onclick="applyDecisionCampaignAction('${esc(String(storeKey||''))}','${esc(campaignEnc)}','${esc(actionEnc)}')">${isOpen ? 'Tutup' : 'Jalankan'}</button></td></tr>`;
+            const daysBadge = Number.isFinite(Number(r.daysActive)) ? `<span class="scx-pill gray" style="margin-left:6px;">jalan ${esc(String(Math.max(0, Math.floor(Number(r.daysActive)))))} hari</span>` : '';
+            html += `<tr style="${rowBg}"><td style="padding:10px;border-top:1px solid #e2e8f0;font-weight:800;">${esc(r.action)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(campaignName)} ${daysBadge}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.countries)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.statusTag)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(r.margin))}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(r.risk))}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(r.health))}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.budget)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:center;"><button type="button" class="btn btn-sm ${isOpen ? 'btn-primary' : 'btn-outline-primary'}" onclick="applyDecisionCampaignAction('${esc(String(storeKey||''))}','${esc(campaignEnc)}','${esc(actionEnc)}')">${isOpen ? 'Tutup' : 'Jalankan'}</button></td></tr>`;
             if (isOpen) {
                 html += `<tr><td colspan="9" style="padding:10px;border-top:1px solid #e2e8f0;background:#f8fafc;">`;
                 html += `<div style="display:flex;align-items:center;gap:10px;width:100%;"><span style="font-size:12px;color:#64748b;font-weight:700;white-space:nowrap;">Target Campaign</span><span style="flex:1;padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font-size:12px;color:#0f172a;min-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(targetCampaign)}</span><span style="font-size:12px;color:#64748b;font-weight:700;white-space:nowrap;">Aksi</span><span style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font-size:12px;color:#0f172a;font-weight:800;white-space:nowrap;">${esc(targetAction)}</span><span style="font-size:12px;color:#64748b;font-weight:700;white-space:nowrap;">Daily Budget</span><input type="text" class="form-control form-control-sm" style="width:190px;min-width:190px;text-align:right;${budgetReadonly ? 'background:#e2e8f0;cursor:not-allowed;' : ''}" value="${esc(targetBudgetRaw)}" onchange="updateDecisionCampaignInlineBudget('${esc(String(storeKey||''))}', this.value)" placeholder="contoh: 500000" ${budgetReadonly ? 'readonly' : ''}><button type="button" class="btn btn-sm btn-primary" onclick="executeDecisionCampaignInline('${esc(String(storeKey||''))}')">Save</button></div>`;
@@ -3278,7 +3342,9 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
         html += `<div style="overflow-x:auto;overflow-y:hidden;border:1px solid #e2e8f0;border-radius:12px;background:#fff;"><table style="width:max-content;min-width:920px;border-collapse:collapse;font-size:12px;white-space:nowrap;"><thead><tr style="background:#f8fafc;color:#0f172a;"><th style="padding:10px;text-align:left;">Negara</th><th style="padding:10px;text-align:left;">Campaign</th><th style="padding:10px;text-align:left;">Status Tag</th><th style="padding:10px;text-align:right;">Margin</th><th style="padding:10px;text-align:left;">Aksi</th></tr></thead><tbody>`;
         campaignRows.forEach(function(r){
             const tone = (r.statusTag.includes('POSITIVE') || r.statusTag.includes('RECOVERY') || r.statusTag.includes('EXPANSION')) ? 'green' : ((r.statusTag.includes('DROP') || r.statusTag.includes('NEG') || r.statusTag.includes('RED_FLAG')) ? 'red' : 'yellow');
-            html += `<tr><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.country)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.campaign)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;"><span class="scx-pill ${tone}">${esc(r.statusTag)}</span></td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(r.margin))}</td><td style="padding:10px;border-top:1px solid #e2e8f0;"><b>${esc(r.action)}</b> (${esc(r.budget)})</td></tr>`;
+            const rowBad = ['STOP','PAUSE','SCALE DOWN'].includes(String(r.action || '').toUpperCase());
+            const rowBg = rowBad ? 'background:#fff1f2;' : '';
+            html += `<tr style="${rowBg}"><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.country)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.campaign)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;"><span class="scx-pill ${tone}">${esc(r.statusTag)}</span></td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(r.margin))}</td><td style="padding:10px;border-top:1px solid #e2e8f0;"><b>${esc(r.action)}</b> (${esc(r.budget)})</td></tr>`;
         });
         html += `</tbody></table></div>`;
         html += '</div>';
@@ -4072,10 +4138,14 @@ function initDashboardRecap() {
         const agg = scxAggregateScoring(parsed.statuses, parsed.events, groups);
         const health = Number(agg?.health_score || 0), risk = Number(agg?.ivt_risk_score || 0), adj = Number(agg?.adjustment_score || 0), conf = Number(agg?.confidence || 0), dm = Number(agg?.decision_margin || 0);
         const sig = Number(agg?.positive_signal_count || 0) + Number(agg?.negative_signal_count || 0) + Number(agg?.neutral_signal_count || 0);
-        const hasScoring = sig > 0 && conf > 0;
+        const hasScoring = sig > 0 && conf >= 0.05;
         if (!hasScoring) return { apiJson: json, score: null, decision: '', label: 'BELUM ADA HASIL', reasons: reasons.length ? reasons : ['Scoring belum valid (confidence/sinyal belum cukup)'], breakdown: { meta: Object.assign({}, agg, { trend_windows: row?.trend_windows || {}, date: String(state?.date || '').trim(), requested_date: scoring?.requested_date || '', effective_date: scoring?.effective_date || '', audit: scoring?.audit || {} }) } };
         const score = Math.round(scxClamp((((health + 100) / 2) * 0.45) + ((100 - risk) * 0.2) + ((conf * 100) * 0.15) + (scxClamp(dm + 50, 0, 100) * 0.2), 0, 100));
-        const decisionMeta = scxDeriveDecision(score, String(agg?.final_label || agg?.root_cause_label || 'STABLE'), health, risk, adj, conf, dm);
+        const spendAgg = Number(agg?.spend || row?.spend || 0);
+        const revenueAgg = Number(agg?.revenue_value || row?.revenue || 0);
+        const roiAgg = spendAgg > 0 ? ((revenueAgg - spendAgg) / spendAgg) : 0;
+        const profitStrong = revenueAgg > spendAgg && roiAgg >= 0.30;
+        const decisionMeta = scxDeriveDecision(score, String(agg?.final_label || agg?.root_cause_label || 'STABLE'), health, risk, adj, conf, dm, profitStrong, String(agg?.mapped_revenue_source || agg?.source_mode || 'BLENDED'));
         return { apiJson: json, score, decision: decisionMeta.decision, label: String(agg?.final_label || agg?.root_cause_label || 'STABLE'), reasons: reasons.concat([decisionMeta.basis, agg?.reason_summary].filter(Boolean)), breakdown: { meta: Object.assign({}, agg, { trend_windows: row?.trend_windows || {}, date: String(state?.date || '').trim(), requested_date: scoring?.requested_date || '', effective_date: scoring?.effective_date || '', audit: scoring?.audit || {} }) } };
     }
 
@@ -4182,7 +4252,7 @@ function initDashboardRecap() {
         const sig = Number(info.positive_signal_count || 0) + Number(info.negative_signal_count || 0) + Number(info.neutral_signal_count || 0);
         const dimNow = String(state?.dim || '').toLowerCase();
         const hasAnyMetric = [health, risk, adj, conf, dm].some(function(v){ return v != null; });
-        const hasScoring = (sig > 0 && Number(conf || 0) > 0) || (dimNow === 'country' && hasAnyMetric);
+        const hasScoring = (sig > 0 && Number(conf || 0) >= 0.05) || (dimNow === 'country' && hasAnyMetric);
         if (!hasScoring) {
             merged.score = null;
             merged.decision = '';
@@ -4192,9 +4262,7 @@ function initDashboardRecap() {
             merged.decision = '';
             if (!merged.label) merged.label = 'BELUM ADA HASIL';
         } else if (!merged.decision) {
-            const decisionMeta = scxDeriveDecision(merged.score, String(merged.label || info.final_label || info.root_cause_label || 'STABLE'), Number(health ?? 0), Number(risk ?? 0), Number(adj ?? 0), Number(conf ?? 0), Number(dm ?? 0));
-            merged.decision = decisionMeta.decision;
-            if (!merged.reasons.length && decisionMeta.basis) merged.reasons = [decisionMeta.basis];
+            merged.decision = '';
         }
         if (!merged.label) merged.label = String(info.final_label || info.root_cause_label || '').trim();
         return merged;
@@ -4216,43 +4284,52 @@ function initDashboardRecap() {
             const dt = new Date(raw.replace(' ', 'T'));
             updatedAt = Number.isNaN(dt.getTime()) ? raw : dt.toLocaleString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
         }
-        return { value, updatedAt };
+        const anomalyCards = Array.isArray(info.anomaly_cards) ? info.anomaly_cards.map(function(x){ return String(x || '').trim(); }).filter(Boolean) : [];
+        return { value, updatedAt, anomalyCards };
     }
 
     function lookupStoredMetaRaw(row, state, storeObj) {
         const store = (storeObj && typeof storeObj === 'object') ? storeObj : (window.dashboardRecapStoredScoring || {});
         const dim = String(state?.dim || '').toLowerCase();
         const candidates = scoringLookupCandidates(dim, row);
+        const floorTs = Date.parse(`${String(state?.date || '').trim()}T00:00:00`);
+        let picked = null;
+        let pickedTs = -1;
+        let pickedFresh = null;
+        let pickedFreshTs = -1;
+
+        const consider = function(sv){
+            if (!sv || typeof sv !== 'object') return;
+            const meta = (sv?.breakdown?.meta && typeof sv.breakdown.meta === 'object') ? sv.breakdown.meta : {};
+            const tsRaw = String(meta.last_update || meta.snapshot_time || meta.run_time || '').trim();
+            const ts = Date.parse(tsRaw.replace(' ', 'T'));
+            const ord = Number.isFinite(ts) ? ts : 0;
+            if (picked == null || ord >= pickedTs) { picked = sv; pickedTs = ord; }
+            const isFresh = !Number.isFinite(floorTs) || floorTs <= 0 || ord === 0 || ord >= floorTs;
+            if (isFresh && (pickedFresh == null || ord >= pickedFreshTs)) { pickedFresh = sv; pickedFreshTs = ord; }
+        };
+
         for (const k0 of candidates) {
             const k = String(k0 || '').trim();
             if (!k) continue;
-            if (store[k]) return store[k];
+            consider(store[k]);
             const low = k.toLowerCase();
             const up = k.toUpperCase();
-            if (store[low]) return store[low];
-            if (store[up]) return store[up];
+            consider(store[low]);
+            consider(store[up]);
         }
         if (dim === 'domain') {
             const siteKeys = candidates.map(function(x){ return String(x || '').trim().toLowerCase(); }).filter(function(x){ return x && !x.includes('|'); });
-            let picked = null;
-            let pickedTs = -1;
             Object.entries(store).forEach(function(entry){
                 const sk = String(entry[0] || '').trim().toLowerCase();
                 const sv = entry[1];
-                if (!sv || typeof sv !== 'object') return;
                 const hit = siteKeys.some(function(site){ return sk === site || sk.startsWith(site + '|'); });
                 if (!hit) return;
-                const meta = (sv?.breakdown?.meta && typeof sv.breakdown.meta === 'object') ? sv.breakdown.meta : {};
-                const tsRaw = String(meta.last_update || meta.snapshot_time || meta.run_time || '').trim();
-                const ts = Date.parse(tsRaw.replace(' ', 'T'));
-                const ord = Number.isFinite(ts) ? ts : 0;
-                if (picked == null || ord >= pickedTs) {
-                    picked = sv;
-                    pickedTs = ord;
-                }
+                consider(sv);
             });
-            if (picked) return picked;
         }
+        if (pickedFresh) return pickedFresh;
+        if (picked) return picked;
         if (dim === 'country') {
             const vals = Object.values(store).filter(function(v){ return v && typeof v === 'object'; });
             if (vals.length === 1) return vals[0];
@@ -4294,7 +4371,11 @@ function initDashboardRecap() {
         const neuCnt = Number.isFinite(Number(agg?.neutral_signal_count)) ? Number(agg?.neutral_signal_count) : Math.max(0, evSel.length - posCnt - negCnt);
         const confRaw = Number(agg?.confidence);
         const conf = Number.isFinite(confRaw) ? confRaw : (stSel.length || evSel.length ? 0.6 : 0);
-        const dec = scxDeriveDecision(score == null ? 0 : score, String(agg?.final_label || agg?.root_cause_label || 'STABLE'), Number(agg?.health_score || 0), Number(agg?.ivt_risk_score || 0), Number(agg?.adjustment_score || 0), Number(conf || 0), Number(agg?.decision_margin || 0));
+        const spendAgg = Number(agg?.spend || row?.spend || 0);
+        const revenueAgg = Number(agg?.revenue_value || row?.revenue || 0);
+        const roiAgg = spendAgg > 0 ? ((revenueAgg - spendAgg) / spendAgg) : 0;
+        const profitStrong = revenueAgg > spendAgg && roiAgg >= 0.30;
+        const dec = scxDeriveDecision(score == null ? 0 : score, String(agg?.final_label || agg?.root_cause_label || 'STABLE'), Number(agg?.health_score || 0), Number(agg?.ivt_risk_score || 0), Number(agg?.adjustment_score || 0), Number(conf || 0), Number(agg?.decision_margin || 0), profitStrong, String(agg?.mapped_revenue_source || agg?.source_mode || 'BLENDED'));
         return {
             score,
             decision: String(agg?.decision || dec?.decision || '').toUpperCase(),
@@ -4317,6 +4398,7 @@ function initDashboardRecap() {
     function renderScoreCell(data, type) {
         const value = data && typeof data === 'object' ? data.value : data;
         const updatedAt = data && typeof data === 'object' ? String(data.updatedAt || '').trim() : '';
+        const anomalyCards = (data && typeof data === 'object' && Array.isArray(data.anomalyCards)) ? data.anomalyCards : [];
         const isDark = String(document.documentElement.getAttribute('data-theme') || '').toLowerCase() === 'dark';
         const emptyColor = isDark ? '#94a3b8' : '#6b7280';
         const subColor = isDark ? 'rgba(203,213,225,.92)' : '#6b7280';
@@ -4331,7 +4413,8 @@ function initDashboardRecap() {
             const tone = v >= 80 ? 'success' : v >= 60 ? 'primary' : v >= 40 ? 'warning' : 'danger';
             const width = Math.max(6, Math.min(100, Math.round(v)));
             const sub = updatedAt ? `<div style="margin-top:6px;font-size:10px;line-height:1.35;color:${subColor};font-weight:700;">Update score<br>${esc(updatedAt)}</div>` : '';
-            return `<div style="min-width:92px;text-align:left;"><div style="display:flex;justify-content:space-between;font-size:11px;font-weight:900;margin-bottom:4px;color:${labelColor};"><span>Score</span><span>${Math.round(v)}</span></div><div class="progress" style="height:6px;border-radius:999px;background:${isDark ? 'rgba(148,163,184,.20)' : 'rgba(15,23,42,.08)'};"><div class="progress-bar bg-${tone}" style="width:${width}%"></div></div>${sub}</div>`;
+            const anomaly = anomalyCards.length ? `<div style="margin-top:4px;font-size:10px;line-height:1.3;color:${subColor};font-weight:700;">Anomaly: ${esc(anomalyCards.slice(0,2).join(', '))}${anomalyCards.length > 2 ? ' +' + String(anomalyCards.length - 2) : ''}</div>` : '';
+            return `<div style="min-width:92px;text-align:left;"><div style="display:flex;justify-content:space-between;font-size:11px;font-weight:900;margin-bottom:4px;color:${labelColor};"><span>Score</span><span>${Math.round(v)}</span></div><div class="progress" style="height:6px;border-radius:999px;background:${isDark ? 'rgba(148,163,184,.20)' : 'rgba(15,23,42,.08)'};"><div class="progress-bar bg-${tone}" style="width:${width}%"></div></div>${sub}${anomaly}</div>`;
         }
         if (type === 'filter') return updatedAt ? `${v} ${updatedAt}` : String(v);
         return v;
@@ -4524,15 +4607,27 @@ function initDashboardRecap() {
         return 'Tunggu data tambahan';
     }
 
-    function scxDeriveDecision(score, label, health, risk, adj, conf, dm) {
+    function scxDeriveDecision(score, label, health, risk, adj, conf, dm, profitStrong, sourceMode) {
         const scoreValue = scxClamp(Number(score || 0), 0, 100);
         const labelKey = String(label || 'STABLE').toUpperCase();
+        const modeKey = String(sourceMode || 'BLENDED').toUpperCase();
+        const singleSource = (modeKey === 'ADX_ONLY' || modeKey === 'ADSENSE_ONLY');
+        const downScoreCut = singleSource ? 52 : 55;
+        const downDmCut = singleSource ? -12 : -10;
+        const downAnomalyCut = singleSource ? 3 : 2;
         const negativeLabels = ['TRAFFIC_DROP', 'SERVING_DROP', 'YIELD_DROP', 'VIEWABILITY_DROP', 'EFFICIENCY_DROP', 'REVENUE_DROP', 'NEGATIVE_MIXED', 'NEG_ADJUSTMENT', 'WATCH_NEGATIVE', 'WATCH_DECAY'];
+        const anomalyCards = [];
+        if (Number(risk) >= 70) anomalyCards.push('IVT_RISK');
+        if (Number(adj) <= -60) anomalyCards.push('NEG_ADJUSTMENT');
+        if (Number(dm) <= -50) anomalyCards.push('MARGIN_CRASH');
+        const severeAnomaly = labelKey.startsWith('RED_FLAG') || anomalyCards.includes('IVT_RISK');
         let decision = 'HOLD';
-        if (labelKey.startsWith('RED_FLAG') || (risk >= 85 && conf >= 0.55 && scoreValue < 45) || (dm <= -55 && health <= -18 && conf >= 0.55)) decision = 'STOP';
-        else if ((['POSITIVE_EXPANSION', 'POSITIVE_RECOVERY', 'WATCH_POSITIVE'].includes(labelKey) && scoreValue >= 65 && risk < 55 && dm >= 8 && conf >= 0.5) || (scoreValue >= 75 && risk < 45 && dm >= 12 && conf >= 0.55)) decision = 'SCALE UP';
-        else if ((negativeLabels.includes(labelKey) && (scoreValue < 60 || dm < -8 || health < -8 || adj < -15)) || (scoreValue < 45 && (dm < -8 || health < -10 || adj < -20 || risk >= 65))) decision = 'SCALE DOWN';
-        return { decision, basis: `Dasar keputusan: ${decision} | score ${Math.round(scoreValue)} | label ${labelKey} | risk ${risk.toFixed(1)} | margin ${dm.toFixed(1)} | confidence ${Math.round(conf * 100)}%` };
+        if (severeAnomaly || (risk >= 90 && conf >= 0.60 && scoreValue < 40) || (dm <= -65 && health <= -25 && conf >= 0.60)) decision = 'STOP';
+        else if ((['POSITIVE_EXPANSION', 'POSITIVE_RECOVERY', 'WATCH_POSITIVE'].includes(labelKey) && scoreValue >= 62 && risk < 60 && dm >= 6 && conf >= 0.45) || (scoreValue >= 72 && risk < 50 && dm >= 10 && conf >= 0.50)) decision = 'SCALE UP';
+        else if ((negativeLabels.includes(labelKey) && ((scoreValue < downScoreCut && dm < downDmCut) || (health < -12 && adj < -18))) || (scoreValue < 40 && dm < -12 && (health < -15 || risk >= 72)) || (anomalyCards.length >= downAnomalyCut && scoreValue < 62)) decision = 'SCALE DOWN';
+        const pStrong = !!profitStrong;
+        if (decision === 'SCALE DOWN' && pStrong && Number(risk) < (singleSource ? 45 : 40) && ['WATCH_DECAY','WATCH_NEGATIVE'].includes(labelKey)) decision = 'HOLD';
+        return { decision, basis: `Dasar keputusan: ${decision} | score ${Math.round(scoreValue)} | label ${labelKey} | source ${modeKey} | risk ${risk.toFixed(1)} | margin ${dm.toFixed(1)} | confidence ${Math.round(conf * 100)}% | anomaly ${anomalyCards.join(', ') || '-'}` };
     }
 
     function scxRootCauseText(label) {
@@ -4830,7 +4925,7 @@ function initDashboardRecap() {
         out.root_cause_label = scxAggregateRootCause(out);
         out.final_label = scxAggregateFinalLabel(out.root_cause_label, out, statusList);
         const sig = Number(out.positive_signal_count || 0) + Number(out.negative_signal_count || 0) + Number(out.neutral_signal_count || 0);
-        const hasScoring = sig > 0 && Number(out.confidence || 0) > 0;
+        const hasScoring = sig > 0 && Number(out.confidence || 0) >= 0.05;
         if (!hasScoring) {
             out.score = null;
             out.decision = '';
@@ -8024,13 +8119,12 @@ function initDashboardRecap() {
             const stored = storedScoringForRow(r, state);
             let meta = stored || null;
             if (!meta) {
-                const fallback = scoreAndDecision(r, state);
                 meta = {
-                    score: (fallback?.score == null || fallback?.score === '') ? null : Number(fallback?.score),
-                    decision: String(fallback?.decision || ''),
-                    label: String(fallback?.label || 'BELUM ADA HASIL'),
-                    reasons: Array.isArray(fallback?.reasons) ? fallback.reasons : ['Fallback skor lokal'],
-                    breakdown: { meta: Object.assign({ scoring_source: 'fallback_local', scoring_source_label: 'Fallback lokal (client)' }, (fallback?.breakdown?.meta || {})) }
+                    score: null,
+                    decision: '',
+                    label: 'BELUM ADA HASIL',
+                    reasons: ['Data scoring backend belum tersedia'],
+                    breakdown: { meta: { scoring_source: 'backend_required', scoring_source_label: 'Menunggu data backend' } }
                 };
             }
             return { r, meta };
@@ -8055,8 +8149,8 @@ function initDashboardRecap() {
 
             const keputusanHtml = `${keputusanBadge(meta || {}, { row: r, state: state })}`;
             const detailBtn = (meta)
-                ? `<button type="button" class="btn btn-sm btn-primary dashboard-open-score-detail-btn" data-score-key="${esc(k)}">Detail Scoring</button>`
-                : `<button type="button" class="btn btn-sm btn-secondary" disabled title="Scoring belum tersedia">Detail Scoring</button>`;
+                ? `<button type="button" class="btn btn-sm btn-primary dashboard-open-score-detail-btn" data-score-key="${esc(k)}">Detail</button>`
+                : `<button type="button" class="btn btn-sm btn-secondary" disabled title="Scoring belum tersedia">Detail</button>`;
 
             const activeDays = Number(r?.active_days || 0);
 
@@ -8471,6 +8565,7 @@ function initDashboardRecap() {
             const qs = new URLSearchParams({
                 tanggal: ymd,
                 source: String(source || 'adx'),
+                domain: String(domain || '').trim().toLowerCase(),
             });
             const resp = await fetch('/management/admin/dashboard_hourly_heatmap?' + qs.toString(), {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' }

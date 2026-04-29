@@ -23,12 +23,12 @@ class Command(BaseCommand):
                 target_dt = target_dt - timedelta(days=1)
             result = score_site_country(
                 target_date=target_dt,
-                domain=domain if domain else None,  # 🔥 FIX
+                domain=domain if domain else None,
                 compatibility_mode=False,
                 write_results=True,
             )
 
-            self.stdout.write(self.style.SUCCESS(f"[DONE] scoring selesai"))
+            self.stdout.write(self.style.SUCCESS("[DONE] scoring selesai (mode=profit_first)"))
             self.stdout.write(json.dumps(result, indent=2, default=str))
 
         except Exception as e:

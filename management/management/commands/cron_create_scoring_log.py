@@ -35,7 +35,7 @@ class Command(BaseCommand):
                 run_hour=run_hour,
             )
 
-            self.stdout.write(self.style.SUCCESS(f"[DONE] scoring selesai (date={target_dt}, run_hour={run_hour})"))
+            self.stdout.write(self.style.SUCCESS(f"[DONE] scoring selesai (date={target_dt}, run_hour={run_hour}, mode=profit_first)"))
             self.stdout.write(json.dumps(result, indent=2, default=str))
 
         except Exception as e:
