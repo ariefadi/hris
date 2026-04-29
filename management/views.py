@@ -1005,6 +1005,7 @@ class DashboardScoringDataView(View):
             is_country_dim = (dim == 'country')
             entity_key_expr = "upper(country_code)" if is_country_dim else "lower(site)"
             status_filter_expr = f"(upper(country_code) IN ({literals}) OR upper(country_name) IN ({literals}))" if is_country_dim else f"lower(site) IN ({literals})"
+            days_active_expr = "toInt32(days_active)" if 'days_active' in table_cols else "toInt32(0)"
             sql = f"""
             SELECT
                 site,
@@ -1043,9 +1044,10 @@ class DashboardScoringDataView(View):
                 positive_signal_count,
                 negative_signal_count,
                 neutral_signal_count,
-                reason_summary
+                reason_summary,
+                {days_active_expr} AS days_active
             FROM {status_table}
-            WHERE toDate(date) = toDate('{target_date}')
+            WHERE toDate(date) BETWEEN toDate('{target_date}') - INTERVAL 7 DAY AND toDate('{target_date}')
               AND {status_filter_expr}
             """
             event_sql = f"""
@@ -1096,7 +1098,7 @@ class DashboardScoringDataView(View):
             day_type,
             is_composite
             FROM {event_table}
-            WHERE toDate(date) = toDate('{target_date}')
+            WHERE toDate(date) BETWEEN toDate('{target_date}') - INTERVAL 7 DAY AND toDate('{target_date}')
               AND lower(site) IN ({literals})
             """
             source_sql = f"""
@@ -1126,7 +1128,7 @@ class DashboardScoringDataView(View):
                     adx_revenue,
                     adsense_estimated_earnings
                 FROM {source_table}
-                WHERE toDate(date) = toDate('{target_date}')
+                WHERE toDate(date) BETWEEN toDate('{target_date}') - INTERVAL 7 DAY AND toDate('{target_date}')
             )
             GROUP BY
                 site,
@@ -1141,7 +1143,7 @@ class DashboardScoringDataView(View):
                 {timeline_entity_expr} AS entity_key,
                 toString({timeline_hour_expr}) AS run_hour
             FROM {status_table}
-            WHERE toDate(date) = toDate('{target_date}')
+            WHERE toDate(date) BETWEEN toDate('{target_date}') - INTERVAL 7 DAY AND toDate('{target_date}')
               AND {status_filter_expr}
             GROUP BY entity_key, run_hour
             ORDER BY entity_key, toInt32OrZero(run_hour) DESC, run_hour DESC
@@ -1360,40 +1362,64 @@ class DashboardScoringDataView(View):
                         return float((vals * w).sum() / den)
                 return float(vals.mean())
             for entity_key, part in df.groupby('entity_key', sort=False):
+                # Ensure signal_total is available in part for weighted averages
+                for c in ['positive_signal_count', 'negative_signal_count', 'neutral_signal_count']:
+                    if c not in part.columns:
+                        part[c] = 0
+                part['signal_total'] = pd.to_numeric(part['positive_signal_count'], errors='coerce').fillna(0) + \
+                                       pd.to_numeric(part['negative_signal_count'], errors='coerce').fillna(0) + \
+                                       pd.to_numeric(part['neutral_signal_count'], errors='coerce').fillna(0)
+
                 snap = part.copy()  
                 if 'country_code' in snap.columns and 'run_hour' in snap.columns:
                     snap_keys = ['country_code']
                     if 'meta_campaign' in snap.columns:
                         snap_keys.append('meta_campaign')
-                    snap = snap.sort_values(snap_keys + ['run_hour']).drop_duplicates(subset=snap_keys, keep='last')
-                for c in ['positive_signal_count', 'negative_signal_count', 'neutral_signal_count']:
-                    if c not in snap.columns:
-                        snap[c] = 0
-                snap['signal_total'] = pd.to_numeric(snap['positive_signal_count'], errors='coerce').fillna(0) + pd.to_numeric(snap['negative_signal_count'], errors='coerce').fillna(0) + pd.to_numeric(snap['neutral_signal_count'], errors='coerce').fillna(0)
+                    
+                    # Sort by date and run_hour to get the truly latest snapshot across 7 days
+                    sort_cols = snap_keys + ['run_hour']
+                    if 'date' in snap.columns:
+                        sort_cols = snap_keys + ['date', 'run_hour']
+                    snap = snap.sort_values(sort_cols).drop_duplicates(subset=snap_keys, keep='last')
+
                 join_status_series = snap['join_status'] if 'join_status' in snap.columns else pd.Series('', index=snap.index)
                 join_status_clean = join_status_series.astype(str).str.upper().str.strip()
                 join_status_summary = ', '.join([f"{k}:{v}" for k, v in join_status_clean.value_counts().to_dict().items() if str(k).strip()])
-                health = avg(snap, 'health_score', weighted=True)
-                risk = avg(snap, 'ivt_risk_score', weighted=True)
-                adj = avg(snap, 'adjustment_score', weighted=True)
-                dm = avg(snap, 'decision_margin', weighted=True)
-                conf_raw = avg(snap, 'confidence', weighted=True)
+                
+                # Averaged metrics from the entire 7-day part
+                health = avg(part, 'health_score', weighted=True)
+                risk = avg(part, 'ivt_risk_score', weighted=True)
+                adj = avg(part, 'adjustment_score', weighted=True)
+                dm = avg(part, 'decision_margin', weighted=True)
+                conf_raw = avg(part, 'confidence', weighted=True)
                 conf = clip((conf_raw / 100.0) if conf_raw > 1.0 else conf_raw, 0.0, 1.0)
+                
                 labels = []
                 for c in ['final_label', 'root_cause_label']:
                     if c in snap.columns:
                         labels.extend([str(x).strip().upper() for x in snap[c].tolist() if str(x).strip()])
                 label = pd.Series(labels).value_counts().index[0] if labels else 'STABLE'
-                total_pos = int(pd.to_numeric(snap['positive_signal_count'], errors='coerce').fillna(0).sum()) if 'positive_signal_count' in snap.columns else 0
-                total_neg = int(pd.to_numeric(snap['negative_signal_count'], errors='coerce').fillna(0).sum()) if 'negative_signal_count' in snap.columns else 0
-                total_neu = int(pd.to_numeric(snap['neutral_signal_count'], errors='coerce').fillna(0).sum()) if 'neutral_signal_count' in snap.columns else 0
+                
+                # Totals from the entire 7-day part
+                negative_labels = ["TRAFFIC_DROP","SERVING_DROP","YIELD_DROP","VIEWABILITY_DROP","EFFICIENCY_DROP","REVENUE_DROP","NEGATIVE_MIXED","NEG_ADJUSTMENT"]
+                total_pos = int(pd.to_numeric(part['positive_signal_count'], errors='coerce').fillna(0).sum()) if 'positive_signal_count' in part.columns else 0
+                total_neg = int(pd.to_numeric(part['negative_signal_count'], errors='coerce').fillna(0).sum()) if 'negative_signal_count' in part.columns else 0
+                total_neu = int(pd.to_numeric(part['neutral_signal_count'], errors='coerce').fillna(0).sum()) if 'neutral_signal_count' in part.columns else 0
                 has_scoring = (total_pos + total_neg + total_neu) > 0 and conf > 0
+                days_series = part['scoring_date'] if 'scoring_date' in part.columns else (part['date'] if 'date' in part.columns else pd.Series([], dtype=object))
+                days_hist = int(pd.to_datetime(days_series, errors='coerce').dropna().dt.date.nunique())
+                days_flag = int(pd.to_numeric(part.get('days_active', pd.Series([], dtype=float)), errors='coerce').fillna(0).max()) if 'days_active' in part.columns else 0
+                active_days_effective = max(days_hist, days_flag)
                 score = None
                 decision = ""
-                if has_scoring:
+                if active_days_effective < 3:
+                    label = "LEARNING"
+                    decision = "LEARNING"
+                elif has_scoring:
+                    if label == "LEARNING":
+                        label = "STABLE"
                     score_raw = (((health + 100.0) / 2.0) * 0.45) + ((100.0 - risk) * 0.2) + (conf * 100.0 * 0.15) + (clip(dm + 50.0, 0.0, 100.0) * 0.2)
                     score = int(round(clip(score_raw, 0.0, 100.0)))
-                    negative_labels = ["TRAFFIC_DROP","SERVING_DROP","YIELD_DROP","VIEWABILITY_DROP","EFFICIENCY_DROP","REVENUE_DROP","NEGATIVE_MIXED","NEG_ADJUSTMENT"]
                     decision = "HOLD"
                     if label.startswith("RED_FLAG") or (risk >= 85 and conf >= 0.55 and score < 45) or (dm <= -55 and health <= -18 and conf >= 0.55):
                         decision = "STOP"
@@ -1463,9 +1489,18 @@ class DashboardScoringDataView(View):
                         neg_h = int(pd.to_numeric(snap_h['negative_signal_count'], errors='coerce').fillna(0).sum()) if 'negative_signal_count' in snap_h.columns else 0
                         neu_h = int(pd.to_numeric(snap_h['neutral_signal_count'], errors='coerce').fillna(0).sum()) if 'neutral_signal_count' in snap_h.columns else 0
                         has_scoring_h = (pos_h + neg_h + neu_h) > 0 and c01 > 0
+                        days_series_h = snap_h['scoring_date'] if 'scoring_date' in snap_h.columns else (snap_h['date'] if 'date' in snap_h.columns else pd.Series([], dtype=object))
+                        days_hist_h = int(pd.to_datetime(days_series_h, errors='coerce').dropna().dt.date.nunique())
+                        days_flag_h = int(pd.to_numeric(snap_h.get('days_active', pd.Series([], dtype=float)), errors='coerce').fillna(0).max()) if 'days_active' in snap_h.columns else 0
+                        active_days_effective_h = max(days_hist_h, days_flag_h)
                         sc = None
                         dec = ''
-                        if has_scoring_h:
+                        if active_days_effective_h < 3:
+                            lbl = 'LEARNING'
+                            dec = 'LEARNING'
+                        elif has_scoring_h:
+                            if lbl == 'LEARNING':
+                                lbl = 'STABLE'
                             sc = int(round(clip((((h + 100.0) / 2.0) * 0.45) + ((100.0 - r) * 0.2) + (c01 * 100.0 * 0.15) + (clip(m + 50.0, 0.0, 100.0) * 0.2), 0.0, 100.0)))
                             dec = 'HOLD'
                             if lbl.startswith('RED_FLAG') or (r >= 85 and c01 >= 0.55 and sc < 45) or (m <= -55 and h <= -18 and c01 >= 0.55):
@@ -1515,6 +1550,7 @@ class DashboardScoringDataView(View):
                             'negative_signal_count': neg_h,
                             'neutral_signal_count': neu_h,
                             'country_details': country_h,
+                            'days_active': int(active_days_effective_h),
                         })
 
                 latest_run_time = snap['run_time'].dropna().max() if 'run_time' in snap.columns else None
@@ -1695,6 +1731,7 @@ class DashboardScoringDataView(View):
                         'adjustment_score': adj,
                         'confidence': conf,
                         'decision_margin': dm,
+                        'days_active': int(active_days_effective),
                         'traffic_score': avg(snap, 'traffic_score', weighted=True),
                         'delivery_score': avg(snap, 'delivery_score', weighted=True),
                         'yield_score': avg(snap, 'yield_score', weighted=True),
@@ -2295,7 +2332,7 @@ class DashboardSyncView(View):
                         scoring_result = score_site_country(
                             target_date=target_date,
                             domain_data=domain_data,
-                            compatibility_mode=True,
+                            compatibility_mode=False,
                             write_results=True
                         )
                         scoring_step['status'] = bool(scoring_result.get('ok'))
@@ -2314,7 +2351,7 @@ class DashboardSyncView(View):
                 score_site_country = _get_scoring_concept_module().score_site_country
                 scoring_result = score_site_country(
                     target_date=target_date,
-                    compatibility_mode=True,
+                    compatibility_mode=False,
                     write_results=True
                 )
             # ...existing code...

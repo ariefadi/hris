@@ -3125,8 +3125,24 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
     html += '</div>';
     html += '</div>';
 
+    const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
+    const activeMetric = entry?.activeMetric || 'score';
+
     html += '<div class="decision-detail-section">';
-    html += `<div class="decision-detail-section-title">Score Per Jam</div>`;
+    html += `<div class="decision-detail-section-title">Grafik Metrik Snapshot</div>`;
+    html += `<div class="decision-timeline-tabs">`;
+    const metricOptions = [
+        { key: 'score', label: 'Score' },
+        { key: 'health_score', label: 'Health' },
+        { key: 'ivt_risk_score', label: 'IVT Risk' },
+        { key: 'adjustment_score', label: 'Adjustment' },
+        { key: 'confidence', label: 'Confidence' },
+        { key: 'decision_margin', label: 'Margin' }
+    ];
+    metricOptions.forEach(function(m){
+        html += `<button type="button" class="decision-timeline-tab ${activeMetric===m.key?'active':''}" data-metric="${m.key}" onclick="switchDecisionMetricTab('${esc(storeKey)}', '${m.key}')">${esc(m.label)}</button>`;
+    });
+    html += `</div>`;
     html += `<div style="height:220px;border:1px solid #e2e8f0;border-radius:12px;padding:10px;background:#fff;"><canvas id="decision-score-hourly-chart"></canvas></div>`;
     html += '</div>';
 
@@ -3352,20 +3368,39 @@ function switchDecisionTimelineTab(btn) {
     openDetailKeputusan(storeKey, idx);
 }
 
+function switchDecisionMetricTab(storeKey, metricKey) {
+    const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
+    if (!entry) return;
+    entry.activeMetric = metricKey;
+    openDetailKeputusan(storeKey, entry.activeTimelineIdx || 0);
+}
+
 function renderDecisionScoreHourlyChart(storeKey) {
     const cvs = document.getElementById('decision-score-hourly-chart');
     if (!cvs || typeof Chart === 'undefined') return;
     const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
     const info = entry?.meta?.breakdown?.meta || {};
     const timeline = Array.isArray(info.scoring_timeline) ? info.scoring_timeline : [];
+    const activeMetric = entry?.activeMetric || 'score';
+
     if (window.decisionScoreHourlyChart && typeof window.decisionScoreHourlyChart.destroy === 'function') {
         try { window.decisionScoreHourlyChart.destroy(); } catch (_) {}
     }
-    const pickScore = (t) => {
-        const vals = [t?.score, t?.final_score, t?.score_final, t?.total_score];
-        for (const v of vals) { const n = Number(v); if (Number.isFinite(n)) return n; }
-        return null;
+
+    const pickVal = (t, key) => {
+        if (key === 'score') {
+            const vals = [t?.score, t?.final_score, t?.score_final, t?.total_score];
+            for (const v of vals) { const n = Number(v); if (Number.isFinite(n)) return n; }
+            return null;
+        }
+        if (key === 'confidence') {
+            const v = Number(t?.[key]);
+            return Number.isFinite(v) ? v * 100 : null; // Convert to percentage
+        }
+        const v = Number(t?.[key]);
+        return Number.isFinite(v) ? v : null;
     };
+
     const fmtHour = function(v) {
         const s = String(v == null ? '' : v).trim();
         if (!s) return '-';
@@ -3374,13 +3409,31 @@ function renderDecisionScoreHourlyChart(storeKey) {
         if (Number.isFinite(n)) return `${String(Math.max(0, Math.min(23, Math.floor(n)))).padStart(2,'0')}:00`;
         return s;
     };
+
     const points = timeline.map(function(t, i){
         const ord = Number(t?.run_hour);
-        return { i, ord: Number.isFinite(ord) ? ord : i, label: fmtHour(t?.run_hour_label || t?.run_hour || `#${i+1}`), score: pickScore(t) };
+        return { 
+            i, 
+            ord: Number.isFinite(ord) ? ord : i, 
+            label: fmtHour(t?.run_hour_label || t?.run_hour || `#${i+1}`), 
+            val: pickVal(t, activeMetric) 
+        };
     }).sort(function(a,b){ return a.ord - b.ord; });
+
     if (!points.length) return;
     const labels = points.map(p => p.label);
-    const scores = points.map(p => p.score);
+    const values = points.map(p => p.val);
+    
+    const metricLabels = {
+        'score': 'Score',
+        'health_score': 'Health',
+        'ivt_risk_score': 'IVT Risk',
+        'adjustment_score': 'Adjustment',
+        'confidence': 'Confidence (%)',
+        'decision_margin': 'Margin'
+    };
+    const currentLabel = metricLabels[activeMetric] || 'Value';
+
     const scorePointLabelPlugin = {
         id: 'scorePointLabelPlugin',
         afterDatasetsDraw(chart) {
@@ -3395,15 +3448,55 @@ function renderDecisionScoreHourlyChart(storeKey) {
             meta.data.forEach(function(pt, i){
                 const v = Number(data[i]);
                 if (!Number.isFinite(v)) return;
-                ctx.fillText(String(Math.round(v)), pt.x, pt.y - 8);
+                ctx.fillText(v % 1 === 0 ? String(v) : v.toFixed(1), pt.x, pt.y - 8);
             });
             ctx.restore();
         }
     };
+
     window.decisionScoreHourlyChart = new Chart(cvs.getContext('2d'), {
         type: 'line',
-        data: { labels, datasets: [{ label:'Score', data:scores, borderColor:'#0ea5e9', backgroundColor:'rgba(14,165,233,.14)', fill:true, tension:.35, pointRadius:4, pointHoverRadius:6, pointBackgroundColor:'#fff', pointBorderColor:'#0ea5e9', pointBorderWidth:2, borderWidth:3, spanGaps:true }] },
-        options: { responsive:true, maintainAspectRatio:false, layout:{ padding:{ top:18 } }, plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:function(ctx){ const v = Number(ctx.parsed.y); return `Score: ${Number.isFinite(v) ? v.toFixed(2) : '-'}`; } } } }, scales:{ y:{ beginAtZero:false, ticks:{ precision:0 } }, x:{ grid:{ display:false } } } },
+        data: { 
+            labels, 
+            datasets: [{ 
+                label: currentLabel, 
+                data: values, 
+                borderColor: '#0ea5e9', 
+                backgroundColor: 'rgba(14,165,233,.14)', 
+                fill: true, 
+                tension: .35, 
+                pointRadius: 4, 
+                pointHoverRadius: 6, 
+                pointBackgroundColor: '#fff', 
+                pointBorderColor: '#0ea5e9', 
+                pointBorderWidth: 2, 
+                borderWidth: 3, 
+                spanGaps: true 
+            }] 
+        },
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            layout: { padding: { top: 18 } }, 
+            plugins: { 
+                legend: { display: false }, 
+                tooltip: { 
+                    callbacks: { 
+                        label: function(ctx) { 
+                            const v = Number(ctx.parsed.y); 
+                            return `${currentLabel}: ${Number.isFinite(v) ? v.toFixed(2) : '-'}`; 
+                        } 
+                    } 
+                } 
+            }, 
+            scales: { 
+                y: { 
+                    beginAtZero: activeMetric === 'confidence' || activeMetric === 'ivt_risk_score',
+                    ticks: { precision: 1 } 
+                }, 
+                x: { grid: { display: false } } 
+            } 
+        },
         plugins: [scorePointLabelPlugin]
     });
 }
@@ -3897,7 +3990,13 @@ function initDashboardRecap() {
             return uniqKeepOrder(out.filter(Boolean));
         }
         const key = String(row?.name || row?.domain || row?.site || row?.entity_key || '').trim().toLowerCase();
-        return uniqKeepOrder([key, key.replace(/^www\./i, ''), baseSubdomain(key)].concat(domainCandidateKeys(key)).filter(Boolean));
+        const site = key.replace(/^www\./i, '');
+        const campaign = String(row?.meta_campaign || row?.campaign || row?.campaign_name || row?.meta_campaign_name || row?.status_campaign || '').trim().toUpperCase();
+        const country = String(row?.code || row?.country_cd || row?.country_code || '').trim().toUpperCase();
+        const out = [key, site, baseSubdomain(site)].concat(domainCandidateKeys(site));
+        if (site && campaign && country) out.push(`${site}|${campaign}|${country}`);
+        if (site && country) out.push(`${site}||${country}`);
+        return uniqKeepOrder(out.filter(Boolean));
     }
 
     async function fetchDashboardScoring(rows, state) {
@@ -4132,6 +4231,27 @@ function initDashboardRecap() {
             const up = k.toUpperCase();
             if (store[low]) return store[low];
             if (store[up]) return store[up];
+        }
+        if (dim === 'domain') {
+            const siteKeys = candidates.map(function(x){ return String(x || '').trim().toLowerCase(); }).filter(function(x){ return x && !x.includes('|'); });
+            let picked = null;
+            let pickedTs = -1;
+            Object.entries(store).forEach(function(entry){
+                const sk = String(entry[0] || '').trim().toLowerCase();
+                const sv = entry[1];
+                if (!sv || typeof sv !== 'object') return;
+                const hit = siteKeys.some(function(site){ return sk === site || sk.startsWith(site + '|'); });
+                if (!hit) return;
+                const meta = (sv?.breakdown?.meta && typeof sv.breakdown.meta === 'object') ? sv.breakdown.meta : {};
+                const tsRaw = String(meta.last_update || meta.snapshot_time || meta.run_time || '').trim();
+                const ts = Date.parse(tsRaw.replace(' ', 'T'));
+                const ord = Number.isFinite(ts) ? ts : 0;
+                if (picked == null || ord >= pickedTs) {
+                    picked = sv;
+                    pickedTs = ord;
+                }
+            });
+            if (picked) return picked;
         }
         if (dim === 'country') {
             const vals = Object.values(store).filter(function(v){ return v && typeof v === 'object'; });
@@ -4802,14 +4922,32 @@ function initDashboardRecap() {
         if (direct) return direct.toUpperCase();
         const ek = String(row?.entity_key || row?.event_entity_key || row?.status_entity_key || '').trim();
         if (ek) {
-            const head = String(ek).split('|')[0].trim();
-            if (head) return head.toUpperCase();
+            const parts = String(ek).split('|').map(function(x){ return String(x || '').trim(); }).filter(Boolean);
+            if (parts.length >= 3 && parts[1]) return parts[1].toUpperCase();
+            if (parts.length >= 2 && parts[1]) return parts[1].toUpperCase();
         }
         return '';
     }
 
     function scxEntityValue(row) {
-        return String(row?.entity_key || row?.event_entity_key || row?.status_entity_key || row?.site || '').trim().toUpperCase();
+        const raw = String(row?.entity_key || row?.event_entity_key || row?.status_entity_key || '').trim();
+        if (raw) {
+            const parts = raw.split('|').map(function(x){ return String(x || '').trim(); }).filter(Boolean);
+            if (parts.length >= 3) {
+                const site = String(parts[0] || '').toLowerCase();
+                const campaign = String(parts[1] || '').toUpperCase();
+                const country = String(parts[2] || '').toUpperCase();
+                if (site && country) return `${site}|${campaign}|${country}`.toUpperCase();
+            }
+        }
+
+        const siteRaw = String(row?.site || '').trim().toLowerCase();
+        const site = siteRaw ? siteRaw.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0] : '';
+        const campaign = String(row?.meta_campaign || row?.campaign || row?.campaign_name || row?.meta_campaign_name || row?.status_campaign || '').trim().toUpperCase();
+        const country = String(row?.country_code || row?.country_cd || '').trim().toUpperCase();
+        if (site && country) return `${site}|${campaign}|${country}`.toUpperCase();
+
+        return String(raw || row?.site || '').trim().toUpperCase();
     }
 
     function scxRenderBackendStatusTable(statuses) {

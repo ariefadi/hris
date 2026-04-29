@@ -2712,6 +2712,7 @@ class data_mysql:
                             master_ads.master_date,
                             master_ads.account_ads_id,
                             master_ads.master_domain,
+                            master_ads.master_campaign_id,
                             master_ads.master_campaign_nm,
                             master_ads.master_budget,
                             master_ads.master_date_start,
@@ -2733,6 +2734,7 @@ class data_mysql:
                             %s,
                             %s,
                             %s,
+                            %s,
                             %s
                         )
                 """
@@ -2740,6 +2742,7 @@ class data_mysql:
                 data['master_date'],
                 data['account_ads_id'],
                 data['master_domain'],
+                data['master_campaign_id'],
                 data['master_campaign_nm'],
                 data['master_budget'],
                 data['master_date_start'],
@@ -8373,7 +8376,7 @@ class data_mysql:
             toHour(toTimeZone(now(), 'Asia/Jakarta')) AS run_hour,
             formatDateTime(toTimeZone(now(), 'Asia/Jakarta'), '%H:%i:%S') AS run_time,
             m.domain AS domain,
-            lower(m.domain) || '|' || upper(m.country_cd) AS entity_key,
+            lower(m.domain) || '|' || lower(m.campaign_name) || '|' || upper(m.country_cd) AS entity_key,
             m.country_cd AS country_code,
             m.country_name AS country_name,
             m.date AS date,
@@ -8739,7 +8742,7 @@ class data_mysql:
             m.run_hour AS run_hour,
 		    m.run_time AS run_time,
 		    m.domain AS domain,
-		    concat(lower(m.domain),'|',upper(m.country_cd)) AS entity_key,
+		    concat(lower(m.domain),'|',lower(m.campaign_name),'|',upper(m.country_cd)) AS entity_key,
 			m.country_cd AS country_code,
 		    m.country_name AS country_name,
 		    m.date AS date,

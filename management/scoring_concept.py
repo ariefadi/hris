@@ -326,6 +326,7 @@ STATUS_EXTENDED_COLUMNS = STATUS_COMPAT_COLUMNS + [
     "adjustment_streak",
     "ivt_streak",
     "persistence_score",
+    "days_active",
     "hysteresis_applied",
     "persistence_label",
     "composite_positive_count",
@@ -960,7 +961,7 @@ def _compute_derived_features(df: pd.DataFrame) -> pd.DataFrame:
 def _load_recent_status_history(target_date: date, lookback_days: int = 7) -> pd.DataFrame:
     sql_candidates = [
         f"""
-        SELECT batch_id, run_time, run_date, run_hour, entity_key, site, country_code, date,
+        SELECT batch_id, run_time, run_date, run_hour, entity_key, site, meta_campaign, country_code, date,
                health_score, adjustment_score, ivt_risk_score, confidence,
                final_label, root_cause_label,
                positive_streak, negative_streak, adjustment_streak, ivt_streak
@@ -1743,7 +1744,35 @@ def _rolling_streak(records: list[dict], predicate) -> int:
     return n
 
 
-def _compute_persistence(cur: pd.Series, recent_status_df: pd.DataFrame) -> dict:
+def _days_active_from_join_history(cur: pd.Series, recent_join_df: pd.DataFrame | None) -> int:
+    if recent_join_df is None or recent_join_df.empty:
+        return 0
+
+    base_key = str(cur.get("entity_base_key", "") or "").strip()
+    same_entity = recent_join_df[recent_join_df["entity_base_key"] == base_key].copy() if base_key else pd.DataFrame()
+
+    if same_entity.empty:
+        site_key = normalize_domain(cur.get("site", ""))
+        country_key = normalize_country_cd(cur.get("country_code", ""))
+        legacy_key = f"{site_key}||{country_key}"
+        same_entity = recent_join_df[recent_join_df["entity_base_key"] == legacy_key].copy()
+
+    if same_entity.empty:
+        return 0
+
+    cur_date = cur.get("date")
+    same_entity = same_entity[same_entity["date"] <= cur_date]
+    if same_entity.empty:
+        return 0
+
+    days_active = int(same_entity["date"].nunique())
+    if cur_date not in same_entity["date"].values:
+        days_active += 1
+    return int(days_active)
+
+
+def _compute_persistence(cur: pd.Series, recent_status_df: pd.DataFrame, recent_join_df: pd.DataFrame | None = None) -> dict:
+    fallback_days_active = _days_active_from_join_history(cur, recent_join_df)
     if recent_status_df.empty:
         return {
             "positive_streak": 0,
@@ -1751,11 +1780,19 @@ def _compute_persistence(cur: pd.Series, recent_status_df: pd.DataFrame) -> dict
             "adjustment_streak": 0,
             "ivt_streak": 0,
             "persistence_score": 0.0,
+            "days_active": int(fallback_days_active),
             "label": "NONE",
         }
 
     base_key = cur["entity_base_key"]
     same_entity = recent_status_df[recent_status_df["entity_base_key"] == base_key].copy()
+    if same_entity.empty:
+        # Fallback untuk histori lama yang belum menyimpan meta_campaign
+        site_key = normalize_domain(cur.get("site", ""))
+        country_key = normalize_country_cd(cur.get("country_code", ""))
+        legacy_key = f"{site_key}||{country_key}"
+        same_entity = recent_status_df[recent_status_df["entity_base_key"] == legacy_key].copy()
+
     if same_entity.empty:
         return {
             "positive_streak": 0,
@@ -1763,6 +1800,7 @@ def _compute_persistence(cur: pd.Series, recent_status_df: pd.DataFrame) -> dict
             "adjustment_streak": 0,
             "ivt_streak": 0,
             "persistence_score": 0.0,
+            "days_active": int(fallback_days_active),
             "label": "NONE",
         }
 
@@ -1780,6 +1818,13 @@ def _compute_persistence(cur: pd.Series, recent_status_df: pd.DataFrame) -> dict
     ivt_streak = _rolling_streak(records, lambda r: safe_float(r.get("ivt_risk_score")) >= 55 or str(r.get("final_label", "")).startswith("RED_FLAG") or str(r.get("root_cause_label", "")) == "NEG_ADJUSTMENT")
 
     persistence_score = clip((positive_streak * 16.0) - (negative_streak * 16.0) - (adjustment_streak * 12.0) - (ivt_streak * 18.0), -100.0, 100.0)
+
+    # Calculate unique days active (including current day)
+    days_active = same_entity["date"].nunique()
+    if cur["date"] not in same_entity["date"].values:
+        days_active += 1
+    days_active = max(int(days_active), int(fallback_days_active))
+
     if ivt_streak >= 2:
         label = "IVT_STREAK"
     elif adjustment_streak >= 2:
@@ -1797,6 +1842,7 @@ def _compute_persistence(cur: pd.Series, recent_status_df: pd.DataFrame) -> dict
         "adjustment_streak": int(adjustment_streak),
         "ivt_streak": int(ivt_streak),
         "persistence_score": float(persistence_score),
+        "days_active": int(days_active),
         "label": label,
     }
 
@@ -1853,6 +1899,10 @@ def _root_cause_label(status: dict) -> str:
 
 
 def _apply_hysteresis(root_label: str, status: dict, persistence: dict) -> tuple[str, int]:
+    # Jika domain masih baru (kurang dari 3 hari), beri label LEARNING
+    if persistence.get("days_active", 0) < 3:
+        return "LEARNING", 0
+
     final_label = root_label
     hysteresis_applied = 0
 
@@ -1908,33 +1958,17 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
     if not family_health:
         health_score = persistence.get("health_score", 50.0)
     else:
-        health_score = 100 * sum(family_health.values()) / len(family_health)
-    health_score = 100 * sum(family_health.values()) / max(len(family_health), 1)
-    # ⭐ TAMBAHKAN
+        health_score = 100 * sum(family_health.values()) / max(len(family_health), 1)
+
     health_score = max(0.0, min(100.0, health_score))
     prev_health = persistence.get("health_score", health_score)
-    prev_health = persistence.get("health_score", 50.0)
     health_score = 0.7 * prev_health + 0.3 * health_score
-    # ⭐ WAJIB ADA
-    health_score = max(0.0, min(100.0, health_score))
     health_score = _clamp_score(health_score)
-    # health_num = sum(safe_float(e["health_component"]) for e in events)
-    # health_den = sum(max(abs(safe_float(e["health_component"])), 0.0) for e in events if e["change_class"] in {"POSITIVE", "NEGATIVE", "NEUTRAL"})
-    # health_score = 100.0 * health_num / health_den if health_den > 0 else 0.0
-    adjustment_score = (
-        100.0 * adjustment_num / adjustment_den
-        if adjustment_den > 0
-        else 0.0
-    ) if adjustment_den > 0 else 0.0
+
+    adjustment_score = (100.0 * adjustment_num / adjustment_den) if adjustment_den > 0 else 0.0
+
     ivt_num = sum(max(0.0, safe_float(e.get("ivt_component"))) for e in events)
     ivt_den = sum(max(safe_float(e.get("ivt_capacity")), 0.0) for e in events if safe_float(e.get("ivt_capacity")) > 0)
-    # print(f"events_data: {events}")
-    # for e in events:
-    #     print({
-    #         "metric": e.get("metric_name"),
-    #         "ivt_component": e.get("ivt_component"),
-    #         "ivt_capacity": e.get("ivt_capacity"),
-    #     })
     ivt_risk_score = clip(100.0 * ivt_num / ivt_den, 0.0, 100.0) if ivt_den > 0 else 0.0
     status = {
         "batch_id": str(batch_uuid),
@@ -1984,6 +2018,7 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "ivt_streak": persistence["ivt_streak"],
         "persistence_score": persistence["persistence_score"],
         "persistence_label": persistence["label"],
+        "days_active": persistence.get("days_active", 0),
         "hysteresis_applied": 0,
         "top_positive_labels": pick_top_labels(e["event_label"] for e in positive),
         "top_negative_labels": pick_top_labels(e["event_label"] for e in negative),
@@ -2063,7 +2098,7 @@ def score_site_country(
             row_events.append(evt)
 
         row_events.extend(_evaluate_composite_events(cur, row_events, batch_uuid))
-        persistence = _compute_persistence(cur, recent_status_df)
+        persistence = _compute_persistence(cur, recent_status_df, history_df)
         status = _summarize_current_row(cur, row_events, batch_uuid, persistence)
         status_rows.append(status)
         event_rows.extend(row_events)
@@ -2097,10 +2132,15 @@ def score_site_country(
 
     if write_results:
         if not status_df.empty:
+            status_table_cols = _describe_table_columns(STATUS_TABLE)
             if compatibility_mode:
                 _coerce_insert_df(STATUS_TABLE, status_df, STATUS_COMPAT_COLUMNS)
             else:
-                insert_df(STATUS_TABLE, status_df[STATUS_EXTENDED_COLUMNS])
+                status_cols = [c for c in STATUS_EXTENDED_COLUMNS if c in status_df.columns]
+                if status_table_cols:
+                    status_cols = [c for c in status_cols if c in status_table_cols]
+                if status_cols:
+                    insert_df(STATUS_TABLE, status_df[status_cols])
         if not event_df.empty:
             if compatibility_mode:
                 _coerce_insert_df(EVENT_TABLE, event_df, EVENT_COMPAT_COLUMNS)

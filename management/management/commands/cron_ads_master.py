@@ -92,6 +92,7 @@ class Command(BaseCommand):
                 ])
                 campaign_map = {
                     c['id']: {
+                        'id': c['id'],
                         'name': c.get('name'),
                         'status': c.get('status'),
                         'daily_budget': float(c.get('daily_budget') or 0),
@@ -101,6 +102,7 @@ class Command(BaseCommand):
                 }
 
                 campaign_aggregates = defaultdict(lambda: {
+                    'id': '',
                     'status': '',
                     'start_time': '',
                     'stop_time': '',
@@ -116,13 +118,14 @@ class Command(BaseCommand):
                     ],
                     params=params,
                 )
-
+                print(insights)
                 for row in insights:
                     campaign_id = row.get('campaign_id')
                     if not campaign_id:
                         continue
                     config = campaign_map.get(campaign_id, {})
                     agg = campaign_aggregates[campaign_id]
+                    agg['campaign_id'] = campaign_id
                     agg['campaign_name'] = row.get('campaign_name')
                     if not agg['status']:
                         agg['status'] = config.get('status')
@@ -135,6 +138,7 @@ class Command(BaseCommand):
                         'master_date': today,
                         'account_ads_id': account_data['account_id'],
                         'master_domain': (agg['campaign_name'] or '').split('_')[0],
+                        'master_campaign_id': agg['campaign_id'],
                         'master_campaign_nm': agg['campaign_name'],
                         'master_budget': agg.get('daily_budget', 0.0),
                         'master_date_start': self.normalize_fb_datetime(agg.get('start_time')),
