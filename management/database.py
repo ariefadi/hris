@@ -8372,187 +8372,182 @@ class data_mysql:
         """
         try:
             sql = f"""
-            SELECT
-            toHour(toTimeZone(now(), 'Asia/Jakarta')) AS run_hour,
-            formatDateTime(toTimeZone(now(), 'Asia/Jakarta'), '%H:%i:%S') AS run_time,
-            m.domain AS domain,
-            lower(m.domain) || '|' || lower(m.campaign_name) || '|' || upper(m.country_cd) AS entity_key,
-            m.country_cd AS country_code,
-            m.country_name AS country_name,
-            m.date AS date,
+            		SELECT
+                    toHour(toTimeZone(now(), 'Asia/Jakarta')) AS run_hour,
+                    formatDateTime(toTimeZone(now(), 'Asia/Jakarta'), '%H:%i:%S') AS run_time,
+                    m.domain AS domain,
+                    lower(m.domain) || '|' || lower(m.campaign_name) || '|' || upper(m.country_cd) AS entity_key,
+                    m.country_cd AS country_code,
+                    m.country_name AS country_name,
+                    m.date AS date,
+                    /* ================= META ================= */
+                    m.spend AS meta_spend,
+                    m.meta_budget AS meta_daily_budget,
+                    m.campaign_name AS meta_campaign,
+                    m.cpc AS meta_cpc,
+                    m.clicks AS meta_clicks,
+                    m.lpv AS meta_lpv,
+                    m.lpv_rate AS meta_lpv_rate,
+                    m.frekuensi AS meta_frequency,
+                    /* ================= ADX ================= */
+                    round(m.lpv_weight * ifNull(a.revenue,0),0) AS adx_revenue,
+                    round(m.lpv_weight * ifNull(a.impressions,0),0) AS adx_impressions,
+                    round(m.lpv_weight * ifNull(a.clicks,0),0) AS adx_clicks,
+                    ifNull(a.ecpm,0) AS adx_ecpm,
+                    ifNull(a.cpc,0) AS adx_cpc,
+                    round(m.lpv_weight * ifNull(a.requests,0),0) AS adx_requests,
+                    round(m.lpv_weight * ifNull(a.responses_served,0),0) AS adx_responses_served,
+                    ifNull(a.match_rate,0) AS adx_match_rate,
+                    ifNull(a.fill_rate,0) AS adx_fill_rate,
+                    ifNull(a.active_view_pct_viewable,0) AS adx_active_view_pct_viewable,
+                    ifNull(a.active_view_avg_time_sec,0) AS adx_active_view_avg_time_sec,
+                    /* ================= ADSENSE ================= */
+                    round(m.lpv_weight * ifNull(s.revenue,0),0) AS adsense_estimated_earnings,
+                    round(m.lpv_weight * ifNull(s.page_views,0),0) AS adsense_page_views,
+                    round(m.lpv_weight * ifNull(s.clicks,0),0) AS adsense_clicks,
+                    ifNull(s.cpc,0) AS adsense_cost_per_click,
+                    ifNull(s.page_views_rpm,0) AS adsense_page_views_rpm,
+                    round(m.lpv_weight * ifNull(s.requests,0),0) AS adsense_ad_requests,
+                    ifNull(s.requests_coverage,0) AS adsense_ad_requests_coverage,
+                    round(m.lpv_weight * ifNull(s.impressions,0),0) AS adsense_impressions,
+                    ifNull(s.active_view_viewability,0) AS adsense_active_view_viewability,
+                    ifNull(s.active_view_measurability,0) AS adsense_active_view_measurability,
+                    ifNull(s.active_view_time,0) AS adsense_active_view_time,
+                    /* ================= TOTAL ================= */
+                    round(
+                        m.lpv_weight *
+                        (ifNull(a.revenue,0)+ifNull(s.revenue,0)),
+                    0) AS total_revenue,
+                    round(
+                        (m.lpv_weight *
+                        (ifNull(a.revenue,0)+ifNull(s.revenue,0)))
+                        - m.spend,
+                    0) AS profit,
+                    if(
+                        m.spend>0,
+                        round(
+                            (m.lpv_weight *
+                            (ifNull(a.revenue,0)+ifNull(s.revenue,0)))
+                            / m.spend,
+                        3),
+                        0
+                    ) AS roas
+                FROM
+                (
+                    /* ================= META SOURCE ================= */
+                    SELECT
+                        base.*,
+                        base.lpv /
+                        nullIf(
+                            sum(base.lpv) OVER (
+                                PARTITION BY
+                                    base.date,
+                                    base.domain,
+                                    base.country_cd
+                            ),0
+                        ) AS lpv_weight
+                    FROM
+                    (
+                        WITH lower(
+                                arrayStringConcat(
+                                    arraySlice(splitByChar('.',data_ads_domain),1,2),
+                                    '.'
+                                )
+                            ) AS domain
+                        SELECT
+                            domain,
+                            upper(a.data_ads_country_cd) AS country_cd,
+                            upper(a.data_ads_country_nm) AS country_name,
+                            toDate(a.data_ads_country_tanggal) AS date,
+                            lower(a.data_ads_campaign_nm) AS campaign_name,
+                            argMax(a.data_ads_country_spend,a.mdd) AS spend,
+                            toFloat64(argMax(b.master_budget,a.mdd)) AS meta_budget,
+                            argMax(a.data_ads_country_cpc,a.mdd) AS cpc,
+                            argMax(a.data_ads_country_click,a.mdd) AS clicks,
+                            argMax(a.data_ads_country_lpv,a.mdd) AS lpv,
+                            argMax(a.data_ads_country_lpv_rate,a.mdd) AS lpv_rate,
+                            argMax(a.data_ads_country_frekuensi,a.mdd) AS frekuensi
+                        FROM hris_trendHorizone.data_ads_country a
+                        INNER JOIN (
+                            SELECT
+                                master_date,
+                                lower(arrayStringConcat(
+                                    arraySlice(splitByChar('.',master_domain),1,2),'.'
+                                )) AS master_domain,
+                                max(master_budget) AS master_budget
+                            FROM hris_trendHorizone.master_ads
+                            GROUP BY master_date, master_domain
+                        ) b
+                        ON domain = b.master_domain
+                        AND toDate(a.data_ads_country_tanggal) = b.master_date
+                        WHERE a.data_ads_country_tanggal >= '{tanggal}'
+                        GROUP BY
+                            domain,
+                            country_cd,
+                            country_name,
+                            date,
+                            campaign_name
+                    ) base
+                ) m
 
-            /* ================= META ================= */
-            m.spend AS meta_spend,
-            m.meta_budget AS meta_daily_budget,
-            m.campaign_name AS meta_campaign,
-            m.cpc AS meta_cpc,
-            m.clicks AS meta_clicks,
-            m.lpv AS meta_lpv,
-            m.lpv_rate AS meta_lpv_rate,
-            m.frekuensi AS meta_frequency,
+                /* ================= ADX ================= */
+                LEFT JOIN
+                (
+                    SELECT
+                        lower(arrayStringConcat(arraySlice(splitByChar('.', data_adx_country_domain),1,2),'.')) AS domain,
+                        upper(data_adx_country_cd) AS country_cd,
+                        toDate(data_adx_country_tanggal) AS date,
+                        argMax(data_adx_country_revenue,data_adx_country_tanggal) AS revenue,
+                        argMax(data_adx_country_impresi,data_adx_country_tanggal) AS impressions,
+                        argMax(data_adx_country_click,data_adx_country_tanggal) AS clicks,
+                        argMax(data_adx_country_ecpm,data_adx_country_tanggal) AS ecpm,
+                        argMax(data_adx_country_cpc,data_adx_country_tanggal) AS cpc,
+                        argMax(data_adx_country_total_requests,data_adx_country_tanggal) AS requests,
+                        argMax(data_adx_country_responses_served,data_adx_country_tanggal) AS responses_served,
+                        argMax(data_adx_country_match_rate,data_adx_country_tanggal) AS match_rate,
+                        argMax(data_adx_country_fill_rate,data_adx_country_tanggal) AS fill_rate,
+                        argMax(data_adx_country_active_view_pct_viewable,data_adx_country_tanggal) AS active_view_pct_viewable,
+                        argMax(data_adx_country_active_view_avg_time_sec,data_adx_country_tanggal) AS active_view_avg_time_sec
+                    FROM hris_trendHorizone.data_adx_country
+                    WHERE data_adx_country_tanggal >= '{tanggal}'
+                    GROUP BY domain,country_cd,date
+                ) a
+                ON m.domain=a.domain
+                AND m.country_cd=a.country_cd
+                AND m.date=a.date
 
-            /* ================= ADX ================= */
-            round(m.lpv_weight * ifNull(a.revenue,0),0) AS adx_revenue,
-            round(m.lpv_weight * ifNull(a.impressions,0),0) AS adx_impressions,
-            round(m.lpv_weight * ifNull(a.clicks,0),0) AS adx_clicks,
-            ifNull(a.ecpm,0) AS adx_ecpm,
-            ifNull(a.cpc,0) AS adx_cpc,
-            round(m.lpv_weight * ifNull(a.requests,0),0) AS adx_requests,
-            round(m.lpv_weight * ifNull(a.responses_served,0),0) AS adx_responses_served,
-            ifNull(a.match_rate,0) AS adx_match_rate,
-            ifNull(a.fill_rate,0) AS adx_fill_rate,
-            ifNull(a.active_view_pct_viewable,0) AS adx_active_view_pct_viewable,
-            ifNull(a.active_view_avg_time_sec,0) AS adx_active_view_avg_time_sec,
-
-            /* ================= ADSENSE ================= */
-            round(m.lpv_weight * ifNull(s.revenue,0),0) AS adsense_estimated_earnings,
-            round(m.lpv_weight * ifNull(s.page_views,0),0) AS adsense_page_views,
-            round(m.lpv_weight * ifNull(s.clicks,0),0) AS adsense_clicks,
-            ifNull(s.cpc,0) AS adsense_cost_per_click,
-            ifNull(s.page_views_rpm,0) AS adsense_page_views_rpm,
-            round(m.lpv_weight * ifNull(s.requests,0),0) AS adsense_ad_requests,
-            ifNull(s.requests_coverage,0) AS adsense_ad_requests_coverage,
-            round(m.lpv_weight * ifNull(s.impressions,0),0) AS adsense_impressions,
-            ifNull(s.active_view_viewability,0) AS adsense_active_view_viewability,
-            ifNull(s.active_view_measurability,0) AS adsense_active_view_measurability,
-            ifNull(s.active_view_time,0) AS adsense_active_view_time,
-
-            /* ================= TOTAL ================= */
-            round(
-                m.lpv_weight *
-                (ifNull(a.revenue,0)+ifNull(s.revenue,0)),
-            0) AS total_revenue,
-
-            round(
-                (m.lpv_weight *
-                (ifNull(a.revenue,0)+ifNull(s.revenue,0)))
-                - m.spend,
-            0) AS profit,
-
-            if(
-                m.spend>0,
-                round(
-                    (m.lpv_weight *
-                    (ifNull(a.revenue,0)+ifNull(s.revenue,0)))
-                    / m.spend,
-                3),
-                0
-            ) AS roas
-
-        FROM
-        (
-            /* ================= META SOURCE ================= */
-            SELECT
-                base.*,
-
-                base.lpv /
-                nullIf(
-                    sum(base.lpv) OVER (
-                        PARTITION BY
-                            base.date,
-                            base.domain,
-                            base.country_cd
-                    ),0
-                ) AS lpv_weight
-
-            FROM
-            (
-                SELECT
-                    lower(arrayStringConcat(arraySlice(splitByChar('.',a.log_ads_domain),1,2),'.')) AS domain,
-                    upper(a.log_ads_country_cd) AS country_cd,
-                    upper(a.log_ads_country_nm) AS country_name,
-                    toDate(a.log_ads_country_tanggal) AS date,
-                    lower(a.log_ads_campaign_nm) AS campaign_name,
-
-                    argMax(a.log_ads_country_spend,a.mdd) AS spend,
-                    toFloat64(argMax(b.master_budget,a.mdd)) AS meta_budget,
-                    argMax(a.log_ads_country_cpc,a.mdd) AS cpc,
-                    argMax(a.log_ads_country_click,a.mdd) AS clicks,
-                    argMax(a.log_ads_country_lpv,a.mdd) AS lpv,
-                    argMax(a.log_ads_country_lpv_rate,a.mdd) AS lpv_rate,
-                    argMax(a.log_ads_country_frekuensi,a.mdd) AS frekuensi
-
-                FROM hris_trendHorizone.log_ads_country a
-                INNER JOIN master_ads b
-                    ON lower(arrayStringConcat(arraySlice(splitByChar('.',a.log_ads_domain),1,2),'.'))
-                    = lower(arrayStringConcat(arraySlice(splitByChar('.',b.master_domain),1,2),'.'))
-                    AND a.log_ads_country_tanggal = b.master_date
-
-                WHERE a.log_ads_country_tanggal >= '{tanggal}'
-
-                GROUP BY
-                    domain,
-                    country_cd,
-                    country_name,
-                    date,
-                    campaign_name
-            ) base
-        ) m
-
-        /* ================= ADX ================= */
-        LEFT JOIN
-        (
-            SELECT
-                lower(arrayStringConcat(arraySlice(splitByChar('.', data_adx_country_domain),1,2),'.')) AS domain,
-                upper(data_adx_country_cd) AS country_cd,
-                toDate(data_adx_country_tanggal) AS date,
-
-                argMax(data_adx_country_revenue,data_adx_country_tanggal) AS revenue,
-                argMax(data_adx_country_impresi,data_adx_country_tanggal) AS impressions,
-                argMax(data_adx_country_click,data_adx_country_tanggal) AS clicks,
-                argMax(data_adx_country_ecpm,data_adx_country_tanggal) AS ecpm,
-                argMax(data_adx_country_cpc,data_adx_country_tanggal) AS cpc,
-                argMax(data_adx_country_total_requests,data_adx_country_tanggal) AS requests,
-                argMax(data_adx_country_responses_served,data_adx_country_tanggal) AS responses_served,
-                argMax(data_adx_country_match_rate,data_adx_country_tanggal) AS match_rate,
-                argMax(data_adx_country_fill_rate,data_adx_country_tanggal) AS fill_rate,
-                argMax(data_adx_country_active_view_pct_viewable,data_adx_country_tanggal) AS active_view_pct_viewable,
-                argMax(data_adx_country_active_view_avg_time_sec,data_adx_country_tanggal) AS active_view_avg_time_sec
-
-            FROM hris_trendHorizone.data_adx_country
-            WHERE data_adx_country_tanggal >= '{tanggal}'
-            GROUP BY domain,country_cd,date
-        ) a
-        ON m.domain=a.domain
-        AND m.country_cd=a.country_cd
-        AND m.date=a.date
-
-        /* ================= ADSENSE ================= */
-        LEFT JOIN
-        (
-            SELECT
-                lower(arrayStringConcat(arraySlice(splitByChar('.', data_adsense_country_domain),1,2),'.')) AS domain,
-                upper(data_adsense_country_cd) AS country_cd,
-                toDate(data_adsense_country_tanggal) AS date,
-
-                argMax(data_adsense_country_revenue,data_adsense_country_tanggal) AS revenue,
-                argMax(data_adsense_country_page_views,data_adsense_country_tanggal) AS page_views,
-                argMax(data_adsense_country_click,data_adsense_country_tanggal) AS clicks,
-                argMax(data_adsense_country_cpc,data_adsense_country_tanggal) AS cpc,
-                argMax(data_adsense_country_page_views_rpm,data_adsense_country_tanggal) AS page_views_rpm,
-                argMax(data_adsense_country_ad_requests,data_adsense_country_tanggal) AS requests,
-                argMax(data_adsense_country_ad_requests_coverage,data_adsense_country_tanggal) AS requests_coverage,
-                argMax(data_adsense_country_impresi,data_adsense_country_tanggal) AS impressions,
-                argMax(data_adsense_country_active_view_viewability,data_adsense_country_tanggal) AS active_view_viewability,
-                argMax(data_adsense_country_active_view_measurability,data_adsense_country_tanggal) AS active_view_measurability,
-                argMax(data_adsense_country_active_view_time,data_adsense_country_tanggal) AS active_view_time
-
-            FROM hris_trendHorizone.data_adsense_country
-            WHERE data_adsense_country_tanggal >= '{tanggal}'
-            GROUP BY domain,country_cd,date
-        ) s
-        ON m.domain=s.domain
-        AND m.country_cd=s.country_cd
-        AND m.date=s.date
-
-        WHERE m.domain IS NOT NULL
-        AND m.spend>0
-        AND (
-            ifNull(a.revenue,0)>0
-            OR ifNull(s.revenue,0)>0
-        )
-
-        ORDER BY m.date DESC,m.domain ASC
+                /* ================= ADSENSE ================= */
+                LEFT JOIN
+                (
+                    SELECT
+                        lower(arrayStringConcat(arraySlice(splitByChar('.', data_adsense_country_domain),1,2),'.')) AS domain,
+                        upper(data_adsense_country_cd) AS country_cd,
+                        toDate(data_adsense_country_tanggal) AS date,
+                        argMax(data_adsense_country_revenue,data_adsense_country_tanggal) AS revenue,
+                        argMax(data_adsense_country_page_views,data_adsense_country_tanggal) AS page_views,
+                        argMax(data_adsense_country_click,data_adsense_country_tanggal) AS clicks,
+                        argMax(data_adsense_country_cpc,data_adsense_country_tanggal) AS cpc,
+                        argMax(data_adsense_country_page_views_rpm,data_adsense_country_tanggal) AS page_views_rpm,
+                        argMax(data_adsense_country_ad_requests,data_adsense_country_tanggal) AS requests,
+                        argMax(data_adsense_country_ad_requests_coverage,data_adsense_country_tanggal) AS requests_coverage,
+                        argMax(data_adsense_country_impresi,data_adsense_country_tanggal) AS impressions,
+                        argMax(data_adsense_country_active_view_viewability,data_adsense_country_tanggal) AS active_view_viewability,
+                        argMax(data_adsense_country_active_view_measurability,data_adsense_country_tanggal) AS active_view_measurability,
+                        argMax(data_adsense_country_active_view_time,data_adsense_country_tanggal) AS active_view_time
+                    FROM hris_trendHorizone.data_adsense_country
+                    WHERE data_adsense_country_tanggal >= '{tanggal}'
+                    GROUP BY domain,country_cd,date
+                ) s
+                ON m.domain=s.domain
+                AND m.country_cd=s.country_cd
+                AND m.date=s.date
+                WHERE m.domain IS NOT NULL
+                AND m.spend>0
+                AND (
+                    ifNull(a.revenue,0)>0
+                    OR ifNull(s.revenue,0)>0
+                )
+                ORDER BY m.date DESC,m.domain ASC
             """
             # Gunakan koneksi ClickHouse
             if clickhouse_connect is None:
@@ -8737,94 +8732,26 @@ class data_mysql:
         """
         try:
             sql = f"""
-            SELECT
-            m.run_date AS run_date,
-            m.run_hour AS run_hour,
-		    m.run_time AS run_time,
-		    m.domain AS domain,
-		    concat(lower(m.domain),'|',lower(m.campaign_name),'|',upper(m.country_cd)) AS entity_key,
-			m.country_cd AS country_code,
-		    m.country_name AS country_name,
-		    m.date AS date,
-            -- ================= META =================
-            m.spend AS meta_spend,
-            m.meta_budget AS meta_daily_budget,
-            m.campaign_name AS meta_campaign,
-            m.cpc AS meta_cpc,
-            m.clicks AS meta_clicks,
-            m.lpv AS meta_lpv,
-            m.lpv_rate AS meta_lpv_rate,
-            m.frekuensi AS meta_frequency,
-            -- ================= ADX (LPV ATTRIBUTION) =================
-            round(
-                (
-                    m.lpv /
-                    nullIf(
-                        sum(m.lpv) OVER (
-                            PARTITION BY
-                                m.date,
-                                m.domain,
-                                m.country_cd,
-                                m.run_hour
-                        ),
-                    0)
-                ) * ifNull(a.revenue,0),
-            0) AS adx_revenue,
-            round(lpv_weight * ifNull(a.impressions,0),0) AS adx_impressions,
-            round(lpv_weight * ifNull(a.clicks,0),0) AS adx_clicks,
-            ifNull(a.ecpm,0) AS adx_ecpm,
-            ifNull(a.cpc,0) AS adx_cpc,
-            round(lpv_weight * ifNull(a.requests,0),0) AS adx_requests,
-            round(lpv_weight * ifNull(a.responses_served,0),0) AS adx_responses_served,
-            ifNull(a.match_rate,0) AS adx_match_rate,
-            ifNull(a.fill_rate,0) AS adx_fill_rate,
-            ifNull(a.active_view_pct_viewable,0) AS adx_active_view_pct_viewable,
-            ifNull(a.active_view_avg_time_sec,0) AS adx_active_view_avg_time_sec,
-            -- ================= ADSENSE =================
-            round(
-            (
-                m.lpv /
-                nullIf(
-                    sum(m.lpv) OVER (
-                        PARTITION BY
-                            m.date,
-                            m.domain,
-                            m.country_cd,
-                            m.run_hour
-                    ),
-                0)
-            ) * ifNull(s.revenue,0),
-            0) AS adsense_estimated_earnings,
-            round(lpv_weight * ifNull(s.page_views,0),0) AS adsense_page_views,
-            round(lpv_weight * ifNull(s.clicks,0),0) AS adsense_clicks,
-            ifNull(s.cpc,0) AS adsense_cost_per_click,
-            ifNull(s.page_views_rpm,0) AS adsense_page_views_rpm,
-            round(lpv_weight * ifNull(s.requests,0),0) AS adsense_ad_requests,
-            ifNull(s.requests_coverage,0) AS adsense_ad_requests_coverage,
-            round(lpv_weight * ifNull(s.impressions,0),0) AS adsense_impressions,
-            ifNull(s.active_view_viewability,0) AS adsense_active_view_viewability,
-            ifNull(s.active_view_measurability,0) AS adsense_active_view_measurability,
-            ifNull(s.active_view_time,0) AS adsense_active_view_time,
-            -- ================= TOTAL =================
-            round(
-                (
-                    (
-                        m.lpv /
-                        nullIf(
-                            sum(m.lpv) OVER (
-                                PARTITION BY
-                                    m.date,
-                                    m.domain,
-                                    m.country_cd,
-                                    m.run_hour
-                            ),
-                        0)
-                    ) * ifNull(a.revenue,0)
-                ) + ifNull(s.revenue,0),
-            0) AS total_revenue,
-            round(
-                (
-                    (
+            		SELECT
+                    m.run_date AS run_date,
+                    m.run_hour AS run_hour,
+                    m.run_time AS run_time,
+                    m.domain AS domain,
+                    concat(lower(m.domain),'|',lower(m.campaign_name),'|',upper(m.country_cd)) AS entity_key,
+                    m.country_cd AS country_code,
+                    m.country_name AS country_name,
+                    m.date AS date,
+                    -- ================= META =================
+                    m.spend AS meta_spend,
+                    m.meta_budget AS meta_daily_budget,
+                    m.campaign_name AS meta_campaign,
+                    m.cpc AS meta_cpc,
+                    m.clicks AS meta_clicks,
+                    m.lpv AS meta_lpv,
+                    m.lpv_rate AS meta_lpv_rate,
+                    m.frekuensi AS meta_frequency,
+                    -- ================= ADX (LPV ATTRIBUTION) =================
+                    round(
                         (
                             m.lpv /
                             nullIf(
@@ -8836,14 +8763,45 @@ class data_mysql:
                                         m.run_hour
                                 ),
                             0)
-                        ) * ifNull(a.revenue,0)
-                    ) + ifNull(s.revenue,0)
-                ) - m.spend,
-            0) AS profit,
-            if(
-                m.spend > 0,
-                round(
+                        ) * ifNull(a.revenue,0),
+                    0) AS adx_revenue,
+                    round(lpv_weight * ifNull(a.impressions,0),0) AS adx_impressions,
+                    round(lpv_weight * ifNull(a.clicks,0),0) AS adx_clicks,
+                    ifNull(a.ecpm,0) AS adx_ecpm,
+                    ifNull(a.cpc,0) AS adx_cpc,
+                    round(lpv_weight * ifNull(a.requests,0),0) AS adx_requests,
+                    round(lpv_weight * ifNull(a.responses_served,0),0) AS adx_responses_served,
+                    ifNull(a.match_rate,0) AS adx_match_rate,
+                    ifNull(a.fill_rate,0) AS adx_fill_rate,
+                    ifNull(a.active_view_pct_viewable,0) AS adx_active_view_pct_viewable,
+                    ifNull(a.active_view_avg_time_sec,0) AS adx_active_view_avg_time_sec,
+                    -- ================= ADSENSE =================
+                    round(
                     (
+                        m.lpv /
+                        nullIf(
+                            sum(m.lpv) OVER (
+                                PARTITION BY
+                                    m.date,
+                                    m.domain,
+                                    m.country_cd,
+                                    m.run_hour
+                            ),
+                        0)
+                    ) * ifNull(s.revenue,0),
+                    0) AS adsense_estimated_earnings,
+                    round(lpv_weight * ifNull(s.page_views,0),0) AS adsense_page_views,
+                    round(lpv_weight * ifNull(s.clicks,0),0) AS adsense_clicks,
+                    ifNull(s.cpc,0) AS adsense_cost_per_click,
+                    ifNull(s.page_views_rpm,0) AS adsense_page_views_rpm,
+                    round(lpv_weight * ifNull(s.requests,0),0) AS adsense_ad_requests,
+                    ifNull(s.requests_coverage,0) AS adsense_ad_requests_coverage,
+                    round(lpv_weight * ifNull(s.impressions,0),0) AS adsense_impressions,
+                    ifNull(s.active_view_viewability,0) AS adsense_active_view_viewability,
+                    ifNull(s.active_view_measurability,0) AS adsense_active_view_measurability,
+                    ifNull(s.active_view_time,0) AS adsense_active_view_time,
+                    -- ================= TOTAL =================
+                    round(
                         (
                             (
                                 m.lpv /
@@ -8857,131 +8815,169 @@ class data_mysql:
                                     ),
                                 0)
                             ) * ifNull(a.revenue,0)
-                        ) + ifNull(s.revenue,0)
-                    ) / m.spend,
-                0),
-                0
-            ) AS roas
-        FROM
-        (
-            SELECT
-                m.*,
+                        ) + ifNull(s.revenue,0),
+                    0) AS total_revenue,
+                    round(
+                        (
+                            (
+                                (
+                                    m.lpv /
+                                    nullIf(
+                                        sum(m.lpv) OVER (
+                                            PARTITION BY
+                                                m.date,
+                                                m.domain,
+                                                m.country_cd,
+                                                m.run_hour
+                                        ),
+                                    0)
+                                ) * ifNull(a.revenue,0)
+                            ) + ifNull(s.revenue,0)
+                        ) - m.spend,
+                    0) AS profit,
+                    if(
+                        m.spend > 0,
+                        round(
+                            (
+                                (
+                                    (
+                                        m.lpv /
+                                        nullIf(
+                                            sum(m.lpv) OVER (
+                                                PARTITION BY
+                                                    m.date,
+                                                    m.domain,
+                                                    m.country_cd,
+                                                    m.run_hour
+                                            ),
+                                        0)
+                                    ) * ifNull(a.revenue,0)
+                                ) + ifNull(s.revenue,0)
+                            ) / m.spend,
+                        0),
+                        0
+                    ) AS roas
+                FROM
+                (
+                    SELECT
+                        m.*,
 
-                m.lpv /
-                nullIf(
-                    sum(m.lpv) OVER (
-                        PARTITION BY
-                            m.date,
-                            m.domain,
-                            m.country_cd,
-                            m.run_hour
-                    ),
-                0) AS lpv_weight
+                        m.lpv /
+                        nullIf(
+                            sum(m.lpv) OVER (
+                                PARTITION BY
+                                    m.date,
+                                    m.domain,
+                                    m.country_cd,
+                                    m.run_hour
+                            ),
+                        0) AS lpv_weight
 
-            FROM
-            (
-                -- META SOURCE (QUERY m KAMU)
-                SELECT
-                    toDate(a.mdd) AS run_date,
-                    toHour(toTimeZone(a.mdd,'Asia/Jakarta')) AS run_hour,
-                    formatDateTime(toTimeZone(argMax(mdd,mdd),'Asia/Jakarta'),'%H:%i:%S') AS run_time,
-                    lower(arrayStringConcat(arraySlice(splitByChar('.',a.log_ads_domain),1,2),'.')) AS domain,
-                    upper(a.log_ads_country_cd) AS country_cd,
-                    upper(a.log_ads_country_nm) AS country_name,
-                    toDate(a.log_ads_country_tanggal) AS date,
-                    lower(a.log_ads_campaign_nm) AS campaign_name,
-
-                    argMax(a.log_ads_country_spend,a.mdd) AS spend,
-                    toFloat64(argMax(b.master_budget,a.mdd)) AS meta_budget,
-                    argMax(a.log_ads_country_cpc,a.mdd) AS cpc,
-                    argMax(a.log_ads_country_click,a.mdd) AS clicks,
-                    argMax(a.log_ads_country_lpv,a.mdd) AS lpv,
-                    argMax(a.log_ads_country_lpv_rate,a.mdd) AS lpv_rate,
-                    argMax(a.log_ads_country_frekuensi,a.mdd) AS frekuensi
-
-                FROM hris_trendHorizone.log_ads_country a
-                INNER JOIN master_ads b
-                    ON lower(arrayStringConcat(arraySlice(splitByChar('.',a.log_ads_domain),1,2),'.'))
-                    = lower(arrayStringConcat(arraySlice(splitByChar('.',b.master_domain),1,2),'.'))
-                    AND a.log_ads_country_tanggal = b.master_date
-
-                WHERE a.log_ads_country_tanggal = '{tanggal}'
-
-                GROUP BY
-                    domain,
-                    country_cd,
-                    country_name,
-                    date,
-                    campaign_name,
-                    run_date,
-                    run_hour
-            ) m
-        ) m
-
-        -- ================= ADX =================
-        LEFT JOIN
-        (
-            SELECT
-                lower(arrayStringConcat(arraySlice(splitByChar('.',log_adx_country_domain),1,2),'.')) AS domain,
-                upper(log_adx_country_cd) AS country_cd,
-                toDate(log_adx_country_tanggal) AS date,
-                toHour(toTimeZone(mdd,'Asia/Jakarta')) AS run_hour,
-
-                argMax(log_adx_country_revenue,mdd) AS revenue,
-                argMax(log_adx_country_impresi,mdd) AS impressions,
-                argMax(log_adx_country_click,mdd) AS clicks,
-                argMax(log_adx_country_ecpm,mdd) AS ecpm,
-                argMax(log_adx_country_cpc,mdd) AS cpc,
-                argMax(log_adx_country_total_requests,mdd) AS requests,
-                argMax(log_adx_country_responses_served,mdd) AS responses_served,
-                argMax(log_adx_country_match_rate,mdd) AS match_rate,
-                argMax(log_adx_country_fill_rate,mdd) AS fill_rate,
-                argMax(log_adx_country_active_view_pct_viewable,mdd) AS active_view_pct_viewable,
-                argMax(log_adx_country_active_view_avg_time_sec,mdd) AS active_view_avg_time_sec
-
-            FROM hris_trendHorizone.log_adx_country
-            WHERE log_adx_country_tanggal = '{tanggal}'
-
-            GROUP BY domain,country_cd,date,run_hour
-        ) a
-        ON m.domain=a.domain
-        AND m.country_cd=a.country_cd
-        AND m.date=a.date
-        AND m.run_hour=a.run_hour
-
-        -- ================= ADSENSE =================
-        LEFT JOIN
-        (
-            SELECT
-                lower(arrayStringConcat(arraySlice(splitByChar('.',log_adsense_country_domain),1,2),'.')) AS domain,
-                upper(log_adsense_country_cd) AS country_cd,
-                toDate(log_adsense_country_tanggal) AS date,
-                toHour(toTimeZone(mdd,'Asia/Jakarta')) AS run_hour,
-
-                argMax(log_adsense_country_revenue,mdd) AS revenue,
-                argMax(log_adsense_country_page_views,mdd) AS page_views,
-                argMax(log_adsense_country_click,mdd) AS clicks,
-                argMax(log_adsense_country_cpc,mdd) AS cpc,
-                argMax(log_adsense_country_page_views_rpm,mdd) AS page_views_rpm,
-                argMax(log_adsense_country_ad_requests,mdd) AS requests,
-                argMax(log_adsense_country_ad_requests_coverage,mdd) AS requests_coverage,
-                argMax(log_adsense_country_impresi,mdd) AS impressions,
-                argMax(log_adsense_country_active_view_viewability,mdd) AS active_view_viewability,
-                argMax(log_adsense_country_active_view_measurability,mdd) AS active_view_measurability,
-                argMax(log_adsense_country_active_view_time,mdd) AS active_view_time
-
-            FROM hris_trendHorizone.log_adsense_country
-            WHERE log_adsense_country_tanggal = '{tanggal}'
-
-            GROUP BY domain,country_cd,date,run_hour
-        ) s
-        ON m.domain=s.domain
-        AND m.country_cd=s.country_cd
-        AND m.date=s.date
-        AND m.run_hour=s.run_hour
-
-        WHERE m.spend > 0
-        ORDER BY m.date DESC, m.domain, m.country_cd
+                    FROM
+                    (
+                        -- META SOURCE (QUERY m KAMU)
+                        WITH lower(
+                                arrayStringConcat(
+                                    arraySlice(splitByChar('.',a.log_ads_domain),1,2),
+                                    '.'
+                                )
+                            ) AS domain
+                        
+                        SELECT
+                            toDate(a.mdd) AS run_date,
+                            toHour(toTimeZone(a.mdd,'Asia/Jakarta')) AS run_hour,
+                            formatDateTime(toTimeZone(max(a.mdd),'Asia/Jakarta'),'%H:%i:%S') AS run_time,
+                            domain,
+                            upper(a.log_ads_country_cd) AS country_cd,
+                            upper(a.log_ads_country_nm) AS country_name,
+                            toDate(a.log_ads_country_tanggal) AS date,
+                            lower(a.log_ads_campaign_nm) AS campaign_name,
+                            argMax(a.log_ads_country_spend,a.mdd) AS spend,
+                            toFloat64(argMax(b.master_budget,a.mdd)) AS meta_budget,
+                            argMax(a.log_ads_country_cpc,a.mdd) AS cpc,
+                            argMax(a.log_ads_country_click,a.mdd) AS clicks,
+                            argMax(a.log_ads_country_lpv,a.mdd) AS lpv,
+                            argMax(a.log_ads_country_lpv_rate,a.mdd) AS lpv_rate,
+                            argMax(a.log_ads_country_frekuensi,a.mdd) AS frekuensi
+                        FROM hris_trendHorizone.log_ads_country a
+                        INNER JOIN (
+                            SELECT
+                                master_date,
+                                lower(arrayStringConcat(
+                                    arraySlice(splitByChar('.',master_domain),1,2),'.'
+                                )) AS domain,
+                                max(master_budget) AS master_budget
+                            FROM hris_trendHorizone.master_ads
+                            GROUP BY master_date, domain
+                        ) b
+                        ON domain = b.domain
+                        WHERE a.log_ads_country_tanggal = '{tanggal}'
+                        GROUP BY
+                            domain,
+                            country_cd,
+                            country_name,
+                            date,
+                            campaign_name,
+                            run_date,
+                            run_hour
+                    ) m
+                ) m
+                -- ================= ADX =================
+                LEFT JOIN
+                (
+                    SELECT
+                        lower(arrayStringConcat(arraySlice(splitByChar('.',log_adx_country_domain),1,2),'.')) AS domain,
+                        upper(log_adx_country_cd) AS country_cd,
+                        toDate(log_adx_country_tanggal) AS date,
+                        toHour(toTimeZone(mdd,'Asia/Jakarta')) AS run_hour,
+                        argMax(log_adx_country_revenue,mdd) AS revenue,
+                        argMax(log_adx_country_impresi,mdd) AS impressions,
+                        argMax(log_adx_country_click,mdd) AS clicks,
+                        argMax(log_adx_country_ecpm,mdd) AS ecpm,
+                        argMax(log_adx_country_cpc,mdd) AS cpc,
+                        argMax(log_adx_country_total_requests,mdd) AS requests,
+                        argMax(log_adx_country_responses_served,mdd) AS responses_served,
+                        argMax(log_adx_country_match_rate,mdd) AS match_rate,
+                        argMax(log_adx_country_fill_rate,mdd) AS fill_rate,
+                        argMax(log_adx_country_active_view_pct_viewable,mdd) AS active_view_pct_viewable,
+                        argMax(log_adx_country_active_view_avg_time_sec,mdd) AS active_view_avg_time_sec
+                    FROM hris_trendHorizone.log_adx_country
+                    WHERE log_adx_country_tanggal = '{tanggal}'
+                    GROUP BY domain,country_cd,date,run_hour
+                ) a
+                ON m.domain=a.domain
+                AND m.country_cd=a.country_cd
+                AND m.date=a.date
+                AND m.run_hour=a.run_hour
+                -- ================= ADSENSE =================
+                LEFT JOIN
+                (
+                    SELECT
+                        lower(arrayStringConcat(arraySlice(splitByChar('.',log_adsense_country_domain),1,2),'.')) AS domain,
+                        upper(log_adsense_country_cd) AS country_cd,
+                        toDate(log_adsense_country_tanggal) AS date,
+                        toHour(toTimeZone(mdd,'Asia/Jakarta')) AS run_hour,
+                        argMax(log_adsense_country_revenue,mdd) AS revenue,
+                        argMax(log_adsense_country_page_views,mdd) AS page_views,
+                        argMax(log_adsense_country_click,mdd) AS clicks,
+                        argMax(log_adsense_country_cpc,mdd) AS cpc,
+                        argMax(log_adsense_country_page_views_rpm,mdd) AS page_views_rpm,
+                        argMax(log_adsense_country_ad_requests,mdd) AS requests,
+                        argMax(log_adsense_country_ad_requests_coverage,mdd) AS requests_coverage,
+                        argMax(log_adsense_country_impresi,mdd) AS impressions,
+                        argMax(log_adsense_country_active_view_viewability,mdd) AS active_view_viewability,
+                        argMax(log_adsense_country_active_view_measurability,mdd) AS active_view_measurability,
+                        argMax(log_adsense_country_active_view_time,mdd) AS active_view_time
+                    FROM hris_trendHorizone.log_adsense_country
+                    WHERE log_adsense_country_tanggal = '{tanggal}'
+                    GROUP BY domain,country_cd,date,run_hour
+                ) s
+                ON m.domain=s.domain
+                AND m.country_cd=s.country_cd
+                AND m.date=s.date
+                AND m.run_hour=s.run_hour
+                WHERE m.spend > 0
+                ORDER BY m.date DESC, m.domain, m.country_cd
             """
             # Gunakan koneksi ClickHouse
             if clickhouse_connect is None:
