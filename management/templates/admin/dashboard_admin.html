@@ -2957,6 +2957,14 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
     const date = String(info.date || '').trim();
     const sourceLabel = String(info.scoring_source_label || 'Backend scoring').trim();
     const snapshotTime = String(activeT?.run_hour_label || activeT?.run_hour || info.snapshot_time || info.date || '').trim();
+    const forecastDirection = String(activeT?.forecast_direction || info?.forecast_direction || 'STABLE_OUTLOOK').trim().toUpperCase();
+    const forecastConfidence = num(activeT?.forecast_confidence ?? info?.forecast_confidence);
+    const forecastHorizon = Math.max(1, Number(activeT?.forecast_horizon_hours ?? info?.forecast_horizon_hours ?? 24) || 24);
+    const forecastReason = String(activeT?.forecast_reason || info?.forecast_reason || '').trim();
+    const recoAction = String(activeT?.recommended_action || info?.recommended_action || 'HOLD').trim().toUpperCase();
+    const recoPct = num(activeT?.recommended_budget_change_pct ?? info?.recommended_budget_change_pct);
+    const recoTarget = num(activeT?.recommended_budget_target ?? info?.recommended_budget_target);
+    const recoReason = String(activeT?.budget_reco_reason || info?.budget_reco_reason || '').trim();
     const decisionCompare = (info && typeof info === 'object') ? (info.decision_compare || info.compare || null) : null;
     const timelineKey = (`tl_${String(storeKey || 'meta')}`);
     const tabTime = (v) => {
@@ -3064,6 +3072,40 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
         return 'HOLD';
     };
     const budgetByAction = { 'STOP': '-100%', 'PAUSE': '-100% sementara', 'SCALE DOWN': '-10%', 'HOLD': '0%', 'SCALE UP': '+10%' };
+    const campaignRecoPctByAction = {
+        'STOP': -100,
+        'PAUSE': -100,
+        'SCALE DOWN': -12,
+        'HOLD': 0,
+        'SCALE UP': 8
+    };
+    const fmtBudgetPct = function(pct){
+        const n = Number(pct);
+        if (!Number.isFinite(n)) return '0%';
+        return `${n > 0 ? '+' : ''}${n.toFixed(2)}%`;
+    };
+    const deriveCampaignForecast = function(statusTag, margin, risk, health){
+        const tag = String(statusTag || '').toUpperCase();
+        const m = num(margin);
+        const r = num(risk);
+        const h = num(health);
+        let direction = 'STABLE_OUTLOOK';
+        if (tag.includes('RED_FLAG') || tag.includes('DROP') || tag.includes('NEG') || (r != null && r >= 70) || (m != null && m <= -25) || (h != null && h <= -10)) direction = 'UPCOMING_DOWN';
+        else if (tag.includes('POSITIVE') || tag.includes('RECOVERY') || tag.includes('EXPANSION') || ((m != null && m >= 18) && (r != null && r < 55) && (h != null && h >= 0))) direction = 'UPCOMING_UP';
+        const horizonHours = direction === 'STABLE_OUTLOOK' ? 48 : 24;
+        const confBase = direction === 'STABLE_OUTLOOK' ? 0.58 : 0.64;
+        const mPow = Math.min(1, Math.abs(Number(m || 0)) / 60);
+        const rPow = Math.min(1, Math.abs(Number((r == null ? 50 : r) - 50)) / 50);
+        const hPow = Math.min(1, Math.abs(Number(h || 0)) / 100);
+        const confidence = Math.max(0.45, Math.min(0.95, confBase + (0.20 * mPow) + (0.08 * rPow) + (0.08 * hPow)));
+        const summary = direction === 'UPCOMING_DOWN'
+            ? 'Berisiko turun jika tren risk/margin saat ini berlanjut.'
+            : (direction === 'UPCOMING_UP'
+                ? 'Berpotensi naik jika momentum health/margin tetap terjaga.'
+                : 'Cenderung stabil, belum ada tekanan kuat naik/turun.');
+        const detail = `horizon=${horizonHours}j | margin=${fmt2(m)} | risk=${fmt2(r)} | health=${fmt2(h)} | conf=${fmtPct01(confidence)}`;
+        return { direction, horizonHours, confidence, summary, detail };
+    };
     const campaignRows = debugCountryRows.map(function(c){
         const country = String(c?.country_name || c?.country_nm || c?.country || c?.country_code || c?.country_cd || '-').trim();
         const campaignDirect = String(c?.meta_campaign || c?.campaign || c?.campaign_name || c?.meta_campaign_name || c?.campaign_nm || c?.status_campaign || c?.meta_campaign_cd || '').trim();
@@ -3121,6 +3163,8 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
         const avgRisk = a.nRisk ? (a.riskSum / a.nRisk) : null;
         const avgHealth = a.nHealth ? (a.healthSum / a.nHealth) : null;
         const aggAction = decideCampaignAction(dominantTag, avgMargin, avgRisk, avgHealth, '');
+        const recoPct = Number(campaignRecoPctByAction[aggAction]);
+        const f = deriveCampaignForecast(dominantTag, avgMargin, avgRisk, avgHealth);
         return {
             campaign: a.campaign,
             countries: countrySummary || '-',
@@ -3129,7 +3173,13 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
             risk: avgRisk,
             health: avgHealth,
             action: aggAction,
-            budget: budgetByAction[aggAction] || '0%',
+            forecastDirection: f.direction,
+            forecastHorizonHours: f.horizonHours,
+            forecastConfidence: f.confidence,
+            forecastSummary: f.summary,
+            forecastDetail: f.detail,
+            recommendedBudgetPct: Number.isFinite(recoPct) ? recoPct : 0,
+            budget: fmtBudgetPct(Number.isFinite(recoPct) ? recoPct : 0),
             daysActive: Number.isFinite(Number(a.maxDaysActive)) ? Number(a.maxDaysActive) : null
         };
     });
@@ -3165,6 +3215,17 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
         const f = esc(String(formula || ''));
         return `<span class="kpi-tip-wrap"><span>${t}</span><button type="button" class="kpi-tip-btn" aria-label="Lihat rumus ${t}">i</button><span class="kpi-tip-bubble">${f}</span></span>`;
     };
+    html += '<div class="decision-detail-section">';
+    html += `<div class="decision-detail-section-title">Prediksi Kedepan</div>`;
+    const fcTone = (forecastDirection === 'UPCOMING_UP') ? 'green' : (forecastDirection === 'UPCOMING_DOWN' ? 'red' : 'yellow');
+    html += `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">`;
+    html += `<span class="scx-pill ${fcTone}">${esc(forecastDirection)}</span>`;
+    html += `<span class="scx-pill gray">Horizon ${esc(String(forecastHorizon))} jam</span>`;
+    html += `<span class="scx-pill gray">Confidence ${esc(fmtPct01(forecastConfidence))}</span>`;
+    html += `</div>`;
+    if (forecastReason) html += `<div style="font-size:12px;color:#334155;margin-bottom:4px;">${esc(forecastReason)}</div>`;
+    html += '</div>';
+
     html += '<div class="decision-detail-section">';
     html += `<div class="decision-detail-section-title">Komponen Penilaian</div>`;
     html += '<div class="decision-detail-kpi-grid">';
@@ -3308,7 +3369,7 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
         html += '<div class="decision-detail-section">';
         html += `<div class="decision-detail-section-title">Rekomendasi Aksi Per Campaign</div>`;
         html += `<div style="font-size:12px;color:#475569;margin-bottom:8px;">STOP: <b>${esc(String(byAction['STOP']||0))}</b> • PAUSE: <b>${esc(String(byAction['PAUSE']||0))}</b> • SCALE DOWN: <b>${esc(String(byAction['SCALE DOWN']||0))}</b> • HOLD: <b>${esc(String(byAction['HOLD']||0))}</b> • SCALE UP: <b>${esc(String(byAction['SCALE UP']||0))}</b></div>`;
-        html += `<div style="overflow-x:auto;overflow-y:hidden;border:1px solid #e2e8f0;border-radius:12px;background:#fff;"><table style="width:max-content;min-width:1220px;border-collapse:collapse;font-size:12px;white-space:nowrap;"><thead><tr style="background:#f8fafc;color:#0f172a;"><th style="padding:10px;text-align:left;">Aksi</th><th style="padding:10px;text-align:left;">Campaign</th><th style="padding:10px;text-align:left;">Cakupan Negara</th><th style="padding:10px;text-align:left;">Status Tag</th><th style="padding:10px;text-align:right;">Margin</th><th style="padding:10px;text-align:right;">Risk</th><th style="padding:10px;text-align:right;">Health</th><th style="padding:10px;text-align:left;">Budget</th><th style="padding:10px;text-align:center;">Eksekusi</th></tr></thead><tbody>`;
+        html += `<div style="overflow-x:auto;overflow-y:hidden;border:1px solid #e2e8f0;border-radius:12px;background:#fff;"><table style="width:max-content;min-width:1520px;border-collapse:collapse;font-size:12px;white-space:nowrap;"><thead><tr style="background:#f8fafc;color:#0f172a;"><th style="padding:10px;text-align:left;">Aksi</th><th style="padding:10px;text-align:left;">Campaign</th><th style="padding:10px;text-align:left;">Cakupan Negara</th><th style="padding:10px;text-align:left;">Status Tag</th><th style="padding:10px;text-align:right;">Margin</th><th style="padding:10px;text-align:right;">Risk</th><th style="padding:10px;text-align:right;">Health</th><th style="padding:10px;text-align:left;">Prediksi</th><th style="padding:10px;text-align:right;">Rekomendasi %</th><th style="padding:10px;text-align:left;">Budget</th><th style="padding:10px;text-align:center;">Eksekusi</th></tr></thead><tbody>`;
         const inlineAll = (window.decisionCampaignInlineState && typeof window.decisionCampaignInlineState === 'object') ? window.decisionCampaignInlineState : {};
         const inline = (inlineAll[String(storeKey || '')] && typeof inlineAll[String(storeKey || '')] === 'object') ? inlineAll[String(storeKey || '')] : {};
         recapRows.forEach(function(r){
@@ -3325,10 +3386,20 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
             const inlineMsg = String(inline.lastMsg || '');
             const budgetReadonly = (targetAction === 'STOP');
             const daysBadge = Number.isFinite(Number(r.daysActive)) ? `<span class="scx-pill gray" style="margin-left:6px;">jalan ${esc(String(Math.max(0, Math.floor(Number(r.daysActive)))))} hari</span>` : '';
-            html += `<tr style="${rowBg}"><td style="padding:10px;border-top:1px solid #e2e8f0;font-weight:800;">${esc(r.action)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(campaignName)} ${daysBadge}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.countries)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.statusTag)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(r.margin))}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(r.risk))}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(r.health))}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.budget)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:center;"><button type="button" class="btn btn-sm ${isOpen ? 'btn-primary' : 'btn-outline-primary'}" onclick="applyDecisionCampaignAction('${esc(String(storeKey||''))}','${esc(campaignEnc)}','${esc(actionEnc)}')">${isOpen ? 'Tutup' : 'Jalankan'}</button></td></tr>`;
+            const recoPct = Number.isFinite(Number(r.recommendedBudgetPct)) ? Number(r.recommendedBudgetPct) : 0;
+            const recoPctTxt = `${recoPct > 0 ? '+' : ''}${recoPct.toFixed(2)}%`;
+            const fcDir = String(r.forecastDirection || 'STABLE_OUTLOOK');
+            const fcToneRow = (fcDir === 'UPCOMING_UP') ? 'green' : (fcDir === 'UPCOMING_DOWN' ? 'red' : 'yellow');
+            const fcHorizon = Number.isFinite(Number(r.forecastHorizonHours)) ? Number(r.forecastHorizonHours) : 24;
+            const fcConf = Number.isFinite(Number(r.forecastConfidence)) ? Number(r.forecastConfidence) : 0.55;
+            const fcSummary = String(r.forecastSummary || 'Belum ada sinyal dominan.').trim();
+            const fcDetail = String(r.forecastDetail || '').trim();
+            html += `<tr style="${rowBg}"><td style="padding:10px;border-top:1px solid #e2e8f0;font-weight:800;">${esc(r.action)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(campaignName)} ${daysBadge}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.countries)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.statusTag)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(r.margin))}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(r.risk))}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(r.health))}</td><td style="padding:10px;border-top:1px solid #e2e8f0;min-width:310px;"><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:4px;"><span class="scx-pill ${fcToneRow}">${esc(fcDir)}</span><span class="scx-pill gray">${esc(String(fcHorizon))} jam</span><span class="scx-pill gray">${esc(fmtPct01(fcConf))}</span></div><div style="font-size:11px;color:#475569;line-height:1.35;">${esc(fcSummary)}</div></td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;font-weight:800;">${esc(recoPctTxt)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(r.budget)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:center;"><button type="button" class="btn btn-sm ${isOpen ? 'btn-primary' : 'btn-outline-primary'}" onclick="applyDecisionCampaignAction('${esc(String(storeKey||''))}','${esc(campaignEnc)}','${esc(actionEnc)}')">${isOpen ? 'Tutup' : 'Jalankan'}</button></td></tr>`;
             if (isOpen) {
-                html += `<tr><td colspan="9" style="padding:10px;border-top:1px solid #e2e8f0;background:#f8fafc;">`;
-                html += `<div style="display:flex;align-items:center;gap:10px;width:100%;"><span style="font-size:12px;color:#64748b;font-weight:700;white-space:nowrap;">Target Campaign</span><span style="flex:1;padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font-size:12px;color:#0f172a;min-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(targetCampaign)}</span><span style="font-size:12px;color:#64748b;font-weight:700;white-space:nowrap;">Aksi</span><span style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font-size:12px;color:#0f172a;font-weight:800;white-space:nowrap;">${esc(targetAction)}</span><span style="font-size:12px;color:#64748b;font-weight:700;white-space:nowrap;">Daily Budget</span><input type="text" class="form-control form-control-sm" style="width:190px;min-width:190px;text-align:right;${budgetReadonly ? 'background:#e2e8f0;cursor:not-allowed;' : ''}" value="${esc(targetBudgetRaw)}" onchange="updateDecisionCampaignInlineBudget('${esc(String(storeKey||''))}', this.value)" placeholder="contoh: 500000" ${budgetReadonly ? 'readonly' : ''}><button type="button" class="btn btn-sm btn-primary" onclick="executeDecisionCampaignInline('${esc(String(storeKey||''))}')">Save</button></div>`;
+                html += `<tr><td colspan="11" style="padding:10px;border-top:1px solid #e2e8f0;background:#f8fafc;">`;
+                html += `<div style="display:flex;align-items:center;gap:10px;width:100%;"><span style="font-size:12px;color:#64748b;font-weight:700;white-space:nowrap;">Target Campaign</span><span style="flex:1;padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font-size:12px;color:#0f172a;min-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(targetCampaign)}</span><span style="font-size:12px;color:#64748b;font-weight:700;white-space:nowrap;">Aksi</span><span style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font-size:12px;color:#0f172a;font-weight:800;white-space:nowrap;">${esc(targetAction)}</span><span style="font-size:12px;color:#64748b;font-weight:700;white-space:nowrap;">Rekomendasi %</span><span style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font-size:12px;color:#0f172a;font-weight:800;white-space:nowrap;">${esc(recoPctTxt)}</span><span style="font-size:12px;color:#64748b;font-weight:700;white-space:nowrap;">Daily Budget</span><input type="text" class="form-control form-control-sm" style="width:190px;min-width:190px;text-align:right;${budgetReadonly ? 'background:#e2e8f0;cursor:not-allowed;' : ''}" value="${esc(targetBudgetRaw)}" onchange="updateDecisionCampaignInlineBudget('${esc(String(storeKey||''))}', this.value)" placeholder="contoh: 500000" ${budgetReadonly ? 'readonly' : ''}><button type="button" class="btn btn-sm btn-primary" onclick="executeDecisionCampaignInline('${esc(String(storeKey||''))}')">Save</button></div>`;
+                html += `<div style="font-size:12px;color:#334155;margin-top:8px;"><b>Prediksi campaign:</b> ${esc(fcSummary)}</div>`;
+                html += fcDetail ? `<div style="font-size:12px;color:#64748b;margin-top:4px;">${esc(fcDetail)}</div>` : '';
                 html += budgetReadonly ? `<div style="font-size:12px;color:#64748b;margin-top:6px;">Aksi STOP: Daily Budget readonly, yang dieksekusi adalah status campaign.</div>` : '';
                 html += inlineMsg ? `<div style="font-size:12px;color:#475569;margin-top:6px;">${esc(inlineMsg)}</div>` : '';
                 html += `</td></tr>`;
@@ -3872,7 +3943,25 @@ async function applyDecisionCampaignAction(storeKey, campaignEnc, actionEnc) {
         const hit = loaded.campaigns.find(function(c){ return decisionInlineNorm(c?.campaign_name || c?.name || '') === decisionInlineNorm(campaign); }) || null;
         const cid = String(hit?.campaign_id || hit?.id || '');
         const base = Number(hit?.daily_budget || hit?.budget || 0) || 0;
-        setDecisionInlineState(sk, { accountAds: loaded.accountAds, targetCampaignId: cid, targetBudgetRaw: String(Math.round(base || 0)), lastMsg: hit ? '' : 'Campaign target tidak ditemukan di data aktif.' });
+        const entry = window.detailKeputusanStore && window.detailKeputusanStore[sk];
+        const meta = entry?.meta && typeof entry.meta === 'object' ? entry.meta : {};
+        const rows = Array.isArray(meta?.country_details) ? meta.country_details : [];
+        const cKey = decisionInlineNorm(campaign);
+        const rel = rows.filter(function(r){ return decisionInlineNorm(r?.meta_campaign || r?.campaign || r?.campaign_name || '') === cKey; });
+        const deriveAction = function(tag, margin, risk, health, joinStatus){
+            const t = String(tag || '').toUpperCase();
+            const st = String(joinStatus || '').toUpperCase();
+            if (t.includes('RED_FLAG') || t.includes('FRAUD') || (risk != null && risk >= 85) || (margin != null && margin <= -90)) return 'STOP';
+            if (t.includes('PAUSE') || st.includes('PAUSE') || ((risk != null && risk >= 75) && (margin != null && margin <= -60)) || ((health != null && health <= -30) && (margin != null && margin <= -45))) return 'PAUSE';
+            if (t.includes('NEG') || t.includes('DROP') || (margin != null && margin <= -25) || (health != null && health <= -12) || (risk != null && risk >= 65)) return 'SCALE DOWN';
+            if (t.includes('POSITIVE') || t.includes('RECOVERY') || t.includes('EXPANSION') || ((margin != null && margin >= 20) && (risk != null && risk < 55) && (health != null && health >= 0))) return 'SCALE UP';
+            return 'HOLD';
+        };
+        const act = String(action || '').toUpperCase();
+        const defaultPctByAction = { 'STOP': -100, 'PAUSE': -100, 'SCALE DOWN': -12, 'HOLD': 0, 'SCALE UP': 8 };
+        const pct = Number(defaultPctByAction[act] || 0);
+        const suggested = (act === 'STOP' || act === 'PAUSE') ? base : Math.max(0, Math.round(base * (1 + (pct / 100))));
+        setDecisionInlineState(sk, { accountAds: loaded.accountAds, targetCampaignId: cid, targetBudgetRaw: String(Math.round(suggested || base || 0)), lastMsg: hit ? '' : 'Campaign target tidak ditemukan di data aktif.' });
     } catch (e) {
         setDecisionInlineState(sk, { lastMsg: String(e?.message || e || 'Gagal memuat budget campaign') });
     }
@@ -7167,7 +7256,7 @@ function initDashboardRecap() {
         run(14);
     }
 
-    function bindScoreCampaignControls(row, ymd) {
+    function bindScoreCampaignControls(row, ymd, scoringData) {
         const pauseBtn = document.getElementById('sdPauseSelectedBtn');
         const actBtn = document.getElementById('sdActivateSelectedBtn');
         const scaleBtn = document.getElementById('sdScaleUp15Btn');
@@ -7184,6 +7273,33 @@ function initDashboardRecap() {
 
         const st = { campaigns: [] };
         const norm = function(s){ return String(s || '').toLowerCase().replace(/\s+/g,'').replace(/[^a-z0-9_#.-]/g,''); };
+        const details = Array.isArray(scoringData?.country_details) ? scoringData.country_details : (Array.isArray(scoringData?.statuses) ? scoringData.statuses : []);
+        const recoMap = new Map();
+        const aggMap = new Map();
+        details.forEach(function(d){
+            const k = norm(d?.meta_campaign || d?.campaign || d?.campaign_name || '');
+            if (!k) return;
+            if (!aggMap.has(k)) aggMap.set(k, { mSum:0, rSum:0, hSum:0, nM:0, nR:0, nH:0, tags:new Map() });
+            const a = aggMap.get(k);
+            const m = Number(d?.decision_margin), r = Number(d?.ivt_risk_score), h = Number(d?.health_score);
+            if (Number.isFinite(m)) { a.mSum += m; a.nM += 1; }
+            if (Number.isFinite(r)) { a.rSum += r; a.nR += 1; }
+            if (Number.isFinite(h)) { a.hSum += h; a.nH += 1; }
+            const t = String(d?.final_label || d?.root_cause_label || '').toUpperCase().trim();
+            if (t) a.tags.set(t, Number(a.tags.get(t) || 0) + 1);
+        });
+        aggMap.forEach(function(a, k){
+            const m = a.nM ? (a.mSum / a.nM) : 0;
+            const r = a.nR ? (a.rSum / a.nR) : 0;
+            const h = a.nH ? (a.hSum / a.nH) : 0;
+            let tag = 'STABLE_HOLD', cnt = -1;
+            a.tags.forEach(function(v, t){ if (v > cnt) { tag = t; cnt = v; } });
+            const action = (tag.includes('RED_FLAG') || tag.includes('FRAUD') || r >= 85 || m <= -90) ? 'STOP' : ((tag.includes('PAUSE') || (r >= 75 && m <= -60)) ? 'PAUSE' : ((tag.includes('NEG') || tag.includes('DROP') || m <= -25 || r >= 65 || h <= -12) ? 'SCALE DOWN' : ((tag.includes('POSITIVE') || tag.includes('RECOVERY') || tag.includes('EXPANSION') || (m >= 20 && r < 55 && h >= 0)) ? 'SCALE UP' : 'HOLD')));
+            const pctByAction = { 'STOP': -100, 'PAUSE': -100, 'SCALE DOWN': -12, 'HOLD': 0, 'SCALE UP': 8 };
+            const pct = Number(pctByAction[action] || 0);
+            const fdir = (action === 'STOP' || action === 'PAUSE' || action === 'SCALE DOWN') ? 'UPCOMING_DOWN' : ((action === 'SCALE UP') ? 'UPCOMING_UP' : 'STABLE_OUTLOOK');
+            recoMap.set(k, { action, pct, fdir, horizon: fdir === 'STABLE_OUTLOOK' ? 48 : 24, conf: Math.max(0.5, Math.min(0.93, 0.6 + Math.min(1, Math.abs(m)/60) * 0.2 + Math.min(1, Math.abs(r-50)/50) * 0.1)), summary: fdir === 'UPCOMING_DOWN' ? 'Berisiko turun jika tren saat ini berlanjut.' : (fdir === 'UPCOMING_UP' ? 'Berpotensi naik jika momentum tetap terjaga.' : 'Cenderung stabil, pantau sinyal baru.') });
+        });
         const applyTargetSelection = function(targetName) {
             const target = norm(targetName);
             let hit = 0;
@@ -7252,6 +7368,10 @@ function initDashboardRecap() {
 
         function render() {
             const rows = Array.isArray(st.campaigns) ? st.campaigns : [];
+            const fmtBudgetInput = function(v){
+                const n = Math.max(0, Math.round(Number(v) || 0));
+                return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+            };
             if (!rows.length) {
                 wrapEl.innerHTML = '<div class="text-muted" style="font-size:12px;">Belum ada data campaign.</div>';
                 return;
@@ -7269,13 +7389,16 @@ function initDashboardRecap() {
             if (pending?.action) h += `<span style="font-size:12px;color:#64748b;">Aksi rekomendasi: <b>${esc(String(pending.action))}</b></span>`;
             h += '</div>';
             h += '<div class="table-responsive">';
-            h += '<table class="table table-sm table-striped" style="margin:0;">';
+            h += '<table class="table table-sm table-striped" style="margin:0;font-size:12px;table-layout:fixed;">';
             h += '<thead><tr>';
             h += '<th style="width:34px;" class="text-center"><input type="checkbox" id="sdCampCheckAll"></th>';
-            h += '<th>Campaign</th>';
-            h += '<th class="text-end" style="width:120px;">Spend</th>';
-            h += '<th class="text-end" style="width:160px;">Daily Budget</th>';
-            h += '<th style="width:96px;" class="text-center">Update</th>';
+            h += '<th style="min-width:280px;">Campaign</th>';
+            h += '<th class="text-end" style="width:100px;">Spend</th>';
+            h += '<th style="min-width:220px;">Prediksi Campaign</th>';
+            h += '<th style="width:110px;">Status Aksi</th>';
+            h += '<th class="text-end" style="width:100px;">Prosentase <br> Rekomendasi</th>';
+            h += '<th class="text-end" style="width:150px;">Daily Budget</th>';
+            h += '<th style="width:82px;" class="text-center">Update</th>';
             h += '</tr></thead><tbody>';
 
             rows.forEach(function(c){
@@ -7284,13 +7407,23 @@ function initDashboardRecap() {
                 const spend = Number(c?.spend || 0) || 0;
                 const bud = Number(c?.daily_budget || c?.budget || 0) || 0;
                 const inputId = `sdBud_${cid}`;
-
+                const rec = recoMap.get(norm(name)) || { action: 'HOLD', pct: 0, fdir: 'STABLE_OUTLOOK', horizon: 48, conf: 0.55, summary: 'Cenderung stabil, pantau sinyal baru.' };
+                const recPct = Number(rec.pct || 0);
+                const recPctTxt = `${recPct > 0 ? '+' : ''}${recPct.toFixed(2)}%`;
+                const fcTone = (rec.fdir === 'UPCOMING_UP') ? 'green' : ((rec.fdir === 'UPCOMING_DOWN') ? 'red' : 'yellow');
+                const action = String(rec.action || 'HOLD').toUpperCase();
+                const actionTone = (action === 'SCALE UP') ? 'green' : ((action === 'SCALE DOWN' || action === 'PAUSE' || action === 'STOP') ? 'red' : 'gray');
+                const isStatusAction = (action === 'STOP' || action === 'PAUSE');
+                const suggestedBudget = isStatusAction ? bud : Math.max(1, Math.round(bud * (1 + (recPct / 100))));
                 h += '<tr>';
                 h += `<td class="text-center"><input class="sd-camp-cb" type="checkbox" data-cid="${esc(cid)}"></td>`;
-                h += `<td style="font-weight:400;color:#0f172a;">${esc(name)}</td>`;
-                h += `<td class="text-end">${fmtIdr(spend)}</td>`;
-                h += `<td class="text-end"><input id="${esc(inputId)}" type="text" class="form-control form-control-sm" value="${esc(String(Math.round(bud)))}" style="text-align:right;"></td>`;
-                h += `<td class="text-center"><button type="button" class="btn btn-sm btn-outline-primary sd-camp-upd" data-cid="${esc(cid)}">Save</button></td>`;
+                h += `<td style="font-weight:500;color:#0f172a;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(name)}">${esc(name)}</td>`;
+                h += `<td class="text-end" style="white-space:nowrap;">${fmtIdr(spend)}</td>`;
+                h += `<td><div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-bottom:3px;"><span class="scx-pill ${fcTone}" style="font-size:10px;padding:2px 8px;">${esc(rec.fdir)}</span><span class="scx-pill gray" style="font-size:10px;padding:2px 8px;">${esc(String(rec.horizon))} jam</span><span class="scx-pill gray" style="font-size:10px;padding:2px 8px;">${esc(scxPct01(rec.conf,0))}</span></div><div style="font-size:11px;color:#475569;line-height:1.3;">${esc(rec.summary)}</div></td>`;
+                h += `<td><span class="scx-pill ${actionTone}" style="font-size:10px;padding:2px 8px;">${esc(action)}</span></td>`;
+                h += `<td class="text-end" style="font-weight:700;white-space:nowrap;">${esc(recPctTxt)}</td>`;
+                h += `<td class="text-end"><input id="${esc(inputId)}" type="text" class="form-control form-control-sm" value="${esc(fmtBudgetInput(suggestedBudget))}" style="text-align:right;width:132px;min-width:132px;margin-left:auto;padding:2px 8px;height:30px;${isStatusAction ? 'background:#e2e8f0;cursor:not-allowed;' : ''}" ${isStatusAction ? 'readonly' : ''}></td>`;
+                h += `<td class="text-center"><button type="button" class="btn btn-sm btn-outline-primary sd-camp-upd" data-cid="${esc(cid)}" data-action="${esc(action)}" style="padding:2px 10px;height:30px;">Save</button></td>`;
                 h += '</tr>';
             });
 
@@ -7382,15 +7515,25 @@ function initDashboardRecap() {
             const btn = e.target && e.target.closest ? e.target.closest('.sd-camp-upd') : null;
             if (!btn) return;
             const cid = String(btn.getAttribute('data-cid') || '');
-            const inp = document.getElementById(`sdBud_${cid}`);
-            const raw = String(inp ? inp.value : '').trim();
-            const cleaned = raw.replace('Rp','').replace(/\./g,'').replace(/,/g,'').trim();
-            const n = parseInt(cleaned, 10);
-            if (!cid || !isFinite(n) || n <= 0) { setStatus('daily budget tidak valid'); return; }
-            setStatus('Updating daily budget...');
+            const action = String(btn.getAttribute('data-action') || 'HOLD').toUpperCase();
             btn.disabled = true;
-            try { await updateBudget(cid, n); setStatus(`OK: update daily budget (${cid})`); }
-            catch (er) { setStatus(String(er?.message || er || 'Gagal update daily budget')); }
+            try {
+                if (action === 'STOP' || action === 'PAUSE') {
+                    const status = (action === 'STOP' || action === 'PAUSE') ? 'PAUSED' : 'ACTIVE';
+                    setStatus('Updating status campaign...');
+                    await updateStatus([cid], status);
+                    setStatus(`OK: status campaign ${status} (${cid})`);
+                } else {
+                    const inp = document.getElementById(`sdBud_${cid}`);
+                    const raw = String(inp ? inp.value : '').trim();
+                    const cleaned = raw.replace('Rp','').replace(/\./g,'').replace(/,/g,'').trim();
+                    const n = parseInt(cleaned, 10);
+                    if (!cid || !isFinite(n) || n <= 0) { setStatus('daily budget tidak valid'); return; }
+                    setStatus('Updating daily budget...');
+                    await updateBudget(cid, n);
+                    setStatus(`OK: update daily budget (${cid})`);
+                }
+            } catch (er) { setStatus(String(er?.message || er || 'Gagal eksekusi campaign')); }
             finally { btn.disabled = false; }
         });
 
@@ -7525,6 +7668,10 @@ function initDashboardRecap() {
             const confidence = Number(first?.confidence || 0);
             const risk = Number(first?.ivt_risk_score || 0);
             const decision = Number(first?.decision_margin || 0);
+            const forecastDirection = String(first?.forecast_direction || ((decision <= -20 || risk >= 70) ? 'UPCOMING_DOWN' : ((decision >= 18 && risk < 55) ? 'UPCOMING_UP' : 'STABLE_OUTLOOK')));
+            const forecastHorizon = Number(first?.forecast_horizon_hours || (forecastDirection === 'STABLE_OUTLOOK' ? 48 : 24));
+            const forecastConfidence = Number.isFinite(Number(first?.forecast_confidence)) ? Number(first?.forecast_confidence) : Math.max(0.5, Math.min(0.92, 0.58 + (Math.min(1, Math.abs(decision)/60) * 0.24)));
+            const forecastReason = String(first?.forecast_reason || ((forecastDirection === 'UPCOMING_DOWN') ? 'Risiko penurunan terdeteksi dari kombinasi margin/risk.' : ((forecastDirection === 'UPCOMING_UP') ? 'Momentum positif terdeteksi dari kombinasi health/margin.' : 'Sinyal campuran, proyeksi cenderung stabil.')));
     
             let topPositive = scxTopEvents(events, 'positive');
             let topNegative = scxTopEvents(events, 'negative');
@@ -7607,6 +7754,12 @@ function initDashboardRecap() {
             html += `    <div class="scx-callout">`;
             html += `      <strong>Kesimpulan:</strong> ${esc(narrative)}<br>`;
             html += `      <strong>Aksi yang disarankan:</strong> ${esc(actionText)}`;
+            html += `    </div>`;
+            const fcTone = (forecastDirection === 'UPCOMING_UP') ? 'green' : ((forecastDirection === 'UPCOMING_DOWN') ? 'red' : 'yellow');
+            html += `    <div class="scx-section-gap" style="padding:10px 12px;border:1px solid rgba(15,23,42,0.08);border-radius:12px;background:#fff;">`;
+            html += `      <div class="scx-title" style="margin-bottom:6px;">Prediksi Kedepan</div>`;
+            html += `      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;"><span class="scx-pill ${fcTone}">${esc(forecastDirection)}</span><span class="scx-pill gray">Horizon ${esc(String(forecastHorizon))} jam</span><span class="scx-pill gray">Confidence ${esc(scxPct01(forecastConfidence,0))}</span></div>`;
+            html += `      <div class="scx-sub">${esc(forecastReason)}</div>`;
             html += `    </div>`;
             html += `    <div class="scx-chip-row">`;
             html += `      <span class="scx-chip">Negara Aktif: <b>${esc(String(groups.length || 0))}</b></span>`;
@@ -7993,7 +8146,7 @@ function initDashboardRecap() {
                         const trendKey = String(st?.country_cd || st?.country_code || '').trim();
                         if (trendKey) bindScoreTrendControls(trendKey, endYmd, Object.assign({}, state, { dim: 'country' }), { btn1Id: `scxCountryTrend${idx}Btn1`, btn3Id: `scxCountryTrend${idx}Btn3`, btn7Id: `scxCountryTrend${idx}Btn7`, btn14Id: `scxCountryTrend${idx}Btn14`, statusId: `scxCountryTrend${idx}Status`, statsId: `scxCountryTrend${idx}Stats`, canvasId: `scxCountryTrend${idx}Chart`, chartKey: `scxCountryTrendChart${idx}` });
                     });
-                    if (String(state?.dim || '').toLowerCase() === 'domain' && rowWithTrend?.account_ads && state?.date) bindScoreCampaignControls(rowWithTrend, String(state.date || '').trim());
+                    if (String(state?.dim || '').toLowerCase() === 'domain' && rowWithTrend?.account_ads && state?.date) bindScoreCampaignControls(rowWithTrend, String(state.date || '').trim(), normalizedJson?.scoring || {});
                 } catch (e) {}
             }, 0);
         } catch (e) {

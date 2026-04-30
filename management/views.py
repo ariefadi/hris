@@ -1141,6 +1141,14 @@ class DashboardScoringDataView(View):
             entity_key_expr = "upper(country_code)" if is_country_dim else "lower(site)"
             status_filter_expr = f"(upper(country_code) IN ({literals}) OR upper(country_name) IN ({literals}))" if is_country_dim else f"lower(site) IN ({literals})"
             days_active_expr = "toInt32(days_active)" if 'days_active' in table_cols else "toInt32(0)"
+            forecast_horizon_expr = "toInt32(forecast_horizon_hours)" if 'forecast_horizon_hours' in table_cols else "toInt32(24)"
+            forecast_direction_expr = "toString(forecast_direction)" if 'forecast_direction' in table_cols else "'STABLE_OUTLOOK'"
+            forecast_conf_expr = "toFloat64(forecast_confidence)" if 'forecast_confidence' in table_cols else "toFloat64(0)"
+            forecast_reason_expr = "toString(forecast_reason)" if 'forecast_reason' in table_cols else "''"
+            reco_action_expr = "toString(recommended_action)" if 'recommended_action' in table_cols else "'HOLD'"
+            reco_pct_expr = "toFloat64(recommended_budget_change_pct)" if 'recommended_budget_change_pct' in table_cols else "toFloat64(0)"
+            reco_target_expr = "toFloat64(recommended_budget_target)" if 'recommended_budget_target' in table_cols else "toFloat64(0)"
+            reco_reason_expr = "toString(budget_reco_reason)" if 'budget_reco_reason' in table_cols else "''"
             sql = f"""
             SELECT
                 site,
@@ -1180,7 +1188,15 @@ class DashboardScoringDataView(View):
                 negative_signal_count,
                 neutral_signal_count,
                 reason_summary,
-                {days_active_expr} AS days_active
+                {days_active_expr} AS days_active,
+                {forecast_horizon_expr} AS forecast_horizon_hours,
+                {forecast_direction_expr} AS forecast_direction,
+                {forecast_conf_expr} AS forecast_confidence,
+                {forecast_reason_expr} AS forecast_reason,
+                {reco_action_expr} AS recommended_action,
+                {reco_pct_expr} AS recommended_budget_change_pct,
+                {reco_target_expr} AS recommended_budget_target,
+                {reco_reason_expr} AS budget_reco_reason
             FROM {status_table}
             WHERE toDate(date) = toDate('{target_date}')
               AND {status_filter_expr}
@@ -1497,6 +1513,17 @@ class DashboardScoringDataView(View):
                     if den > 0:
                         return float((vals * w).sum() / den)
                 return float(vals.mean())
+            def dominant_text(frame, col, default=''):
+                try:
+                    if frame is None or frame.empty or col not in frame.columns:
+                        return default
+                    vals = frame[col].astype(str).str.strip()
+                    vals = vals[(vals != '') & (vals.str.lower() != 'nan')]
+                    if vals.empty:
+                        return default
+                    return str(vals.value_counts().index[0])
+                except Exception:
+                    return default
             for entity_key, part in df.groupby('entity_key', sort=False):
                 # Ensure signal_total is available in part for weighted averages
                 for c in ['positive_signal_count', 'negative_signal_count', 'neutral_signal_count']:
@@ -1735,6 +1762,14 @@ class DashboardScoringDataView(View):
                             'neutral_signal_count': neu_h,
                             'country_details': country_h,
                             'days_active': int(active_days_effective_h),
+                            'forecast_horizon_hours': int(safe_float(avg(snap_h, 'forecast_horizon_hours', weighted=False)) or 24),
+                            'forecast_direction': dominant_text(snap_h, 'forecast_direction', 'STABLE_OUTLOOK'),
+                            'forecast_confidence': float(round(avg(snap_h, 'forecast_confidence', weighted=True), 4)),
+                            'forecast_reason': dominant_text(snap_h, 'forecast_reason', ''),
+                            'recommended_action': dominant_text(snap_h, 'recommended_action', 'HOLD'),
+                            'recommended_budget_change_pct': float(round(avg(snap_h, 'recommended_budget_change_pct', weighted=True), 2)),
+                            'recommended_budget_target': float(round(spend_h * (1.0 + (avg(snap_h, 'recommended_budget_change_pct', weighted=True) / 100.0)), 2)) if spend_h > 0 else 0.0,
+                            'budget_reco_reason': dominant_text(snap_h, 'budget_reco_reason', ''),
                         })
 
                 latest_run_time = snap['run_time'].dropna().max() if 'run_time' in snap.columns else None
@@ -1932,6 +1967,14 @@ class DashboardScoringDataView(View):
                         'mature_campaign_count': int(mature_campaign_count),
                         'mature_campaign_ratio': float(round(mature_campaign_ratio, 4)),
                         'mature_spend_share': float(round(mature_spend_share, 4)),
+                        'forecast_horizon_hours': int(safe_float(avg(snap, 'forecast_horizon_hours', weighted=False)) or 24),
+                        'forecast_direction': dominant_text(snap, 'forecast_direction', 'STABLE_OUTLOOK'),
+                        'forecast_confidence': float(round(avg(snap, 'forecast_confidence', weighted=True), 4)),
+                        'forecast_reason': dominant_text(snap, 'forecast_reason', ''),
+                        'recommended_action': dominant_text(snap, 'recommended_action', 'HOLD'),
+                        'recommended_budget_change_pct': float(round(avg(snap, 'recommended_budget_change_pct', weighted=True), 2)),
+                        'recommended_budget_target': float(round(spend_total * (1.0 + (avg(snap, 'recommended_budget_change_pct', weighted=True) / 100.0)), 2)) if spend_total > 0 else 0.0,
+                        'budget_reco_reason': dominant_text(snap, 'budget_reco_reason', ''),
                         'anomaly_cards': anomaly_cards,
                         'traffic_score': avg(snap, 'traffic_score', weighted=True),
                         'delivery_score': avg(snap, 'delivery_score', weighted=True),
