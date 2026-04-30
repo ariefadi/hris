@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import date, datetime
 import math
 import uuid
 from zoneinfo import ZoneInfo
@@ -60,15 +61,6 @@ POSITIVE_ROOT_LABELS = {
     "POSITIVE_EXPANSION",
     "POSITIVE_RECOVERY",
 }
-
-# Balanced mode thresholds (lebih mudah dipahami untuk operasional)
-LEARNING_MIN_DAYS = 2
-NEGATIVE_HEALTH_DROP_THRESHOLD = -22
-NEG_ADJUSTMENT_DROP_MIN_COUNT = 3
-NEG_ADJUSTMENT_SCORE_THRESHOLD = -45
-RED_FLAG_IVT_THRESHOLD = 75
-PROFIT_FIRST_ROI_THRESHOLD = 0.30
-PROFIT_FIRST_RISK_CAP = 45
 
 COUNTER_CORRECTION_COLUMNS = {
     "meta_spend",
@@ -165,7 +157,7 @@ class MetricRule:
 
 RULES: list[MetricRule] = [
     MetricRule("meta_spend", "meta", "control", "counter", "acquisition_cost", "adjustment_guardrail", "NEUTRAL", "HOURLY_INCREMENT_Z", 0.00, adjustment_weight=1.25, deadband_pct=0.03, family_key="meta_budget", family_rank=2, label_negative="META_SPEND_DROP", requires_source_match=False),
-    MetricRule("meta_budget_pacing_index", "meta", "control", "band", "budget_pacing", "pacing", "RANGE_GOOD", "BAND_TARGET", 0.55, 0.75, 1.10, ivt_weight=0.30, volume_gate_column="meta_daily_budget", min_volume=1, family_key="meta_budget", family_rank=1, range_low=0.70, range_high=1.30, band_dynamic=True, band_quantile_low=0.20, band_quantile_high=0.80, band_sigma=1.00, band_min_width_pct=0.08, label_positive="BUDGET_PACING_IN_RANGE", label_negative="BUDGET_PACING_OUT_OF_RANGE", requires_source_match=True),
+    # MetricRule("meta_budget_pacing_index", "meta", "control", "band", "budget_pacing", "pacing", "RANGE_GOOD", "BAND_TARGET", 0.55, 0.75, 1.10, ivt_weight=0.30, volume_gate_column="meta_daily_budget", min_volume=1, family_key="meta_budget", family_rank=1, range_low=0.70, range_high=1.30, band_dynamic=True, band_quantile_low=0.20, band_quantile_high=0.80, band_sigma=1.00, band_min_width_pct=0.08, label_positive="BUDGET_PACING_IN_RANGE", label_negative="BUDGET_PACING_OUT_OF_RANGE", requires_source_match=True),
     MetricRule("meta_avg_cpc", "meta", "efficiency", "level", "acquisition_cost", "guardrail", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.85, 0.85, 1.05, ivt_weight=0.20, volume_gate_column="meta_clicks", min_volume=20, family_key="meta_efficiency", family_rank=1, label_positive="META_CPC_IMPROVING", label_negative="META_CPC_RISING", requires_source_match=False),
     MetricRule("meta_clicks", "meta", "traffic", "counter", "acquisition", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.10, 0.95, 1.10, adjustment_weight=0.75, ivt_weight=0.25, deadband_pct=0.03, family_key="meta_traffic_volume", family_rank=2, label_positive="META_TRAFFIC_UP", label_negative="META_TRAFFIC_DOWN", requires_source_match=False),
     MetricRule("meta_lpv", "meta", "traffic", "counter", "landing", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.35, 0.95, 1.15, adjustment_weight=1.00, ivt_weight=0.35, deadband_pct=0.03, family_key="meta_traffic_volume", family_rank=1, label_positive="LPV_UP", label_negative="LPV_DOWN", requires_source_match=False),
@@ -210,20 +202,6 @@ RULES: list[MetricRule] = [
     MetricRule("viewability_gap_abs", "blended", "quality", "level", "source_alignment", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.35, 0.75, 1.00, ivt_weight=0.85, volume_gate_column="total_impressions_blended", min_volume=500, family_key="blended_attention", family_rank=3, deadband_pct=0.05, label_positive="VIEWABILITY_GAP_DOWN", label_negative="VIEWABILITY_GAP_UP", requires_source_match=False),
 ]
 
-PROFIT_FIRST_RULE_COLUMNS = [
-    "blended_revenue", "revenue_per_lpv", "roi_proxy", "meta_cost_per_lpv",
-    "adsense_estimated_earnings", "adsense_page_views_rpm", "adsense_ad_requests_coverage",
-    "adx_revenue", "adx_avg_ecpm", "adx_total_fill_rate",
-    "request_to_impression_eff", "click_pressure", "attention_quality_blended",
-]
-
-def _resolve_rules_for_profile() -> tuple[str, list[MetricRule]]:
-    by_col = {r.column: r for r in RULES}
-    selected = [by_col[c] for c in PROFIT_FIRST_RULE_COLUMNS if c in by_col]
-    if selected:
-        return "profit_first", selected
-    return "profit_first", list(RULES)
-
 
 RAW_JOIN_COLUMNS = [
     "batch_id",
@@ -238,7 +216,6 @@ RAW_JOIN_COLUMNS = [
     "mapped_revenue_source",
     "revenue_value",
     "join_status",
-    "meta_campaign",
     "meta_daily_budget",
     "meta_spend",
     "meta_avg_cpc",
@@ -271,15 +248,14 @@ RAW_JOIN_COLUMNS = [
     "adx_active_view_avg_time_sec",
 ]
 
-ACTIVE_PROFILE_KEY, ACTIVE_RULES = _resolve_rules_for_profile()
-RATE_RULE_COLUMNS = {r.column for r in ACTIVE_RULES if r.score_method == "PROPORTION_Z"}
+RATE_RULE_COLUMNS = {r.column for r in RULES if r.score_method == "PROPORTION_Z"}
 RAW_RATE_COLUMNS = sorted(set(RATE_RULE_COLUMNS) & set(RAW_JOIN_COLUMNS))
-DERIVED_COLUMNS = sorted({r.column for r in ACTIVE_RULES if r.column not in RAW_JOIN_COLUMNS})
+DERIVED_COLUMNS = sorted({r.column for r in RULES if r.column not in RAW_JOIN_COLUMNS})
 REQUIRED_METRIC_COLUMNS = sorted(
-    {r.column for r in ACTIVE_RULES}
-    | {r.volume_gate_column for r in ACTIVE_RULES if r.volume_gate_column}
-    | {r.denominator_column for r in ACTIVE_RULES if r.denominator_column}
-    | {r.numerator_column for r in ACTIVE_RULES if r.numerator_column}
+    {r.column for r in RULES}
+    | {r.volume_gate_column for r in RULES if r.volume_gate_column}
+    | {r.denominator_column for r in RULES if r.denominator_column}
+    | {r.numerator_column for r in RULES if r.numerator_column}
     | {
         "blended_revenue",
         "total_clicks_blended",
@@ -298,7 +274,7 @@ REQUIRED_METRIC_COLUMNS = sorted(
     }
 )
 
-COUNTER_RULES = {r.column for r in ACTIVE_RULES if r.score_method == "HOURLY_INCREMENT_Z"}
+COUNTER_RULES = {r.column for r in RULES if r.score_method == "HOURLY_INCREMENT_Z"}
 
 STATUS_COMPAT_COLUMNS = [
     "batch_id",
@@ -307,7 +283,6 @@ STATUS_COMPAT_COLUMNS = [
     "run_hour",
     "entity_key",
     "site",
-    "meta_campaign",
     "country_code",
     "country_name",
     "date",
@@ -349,7 +324,6 @@ STATUS_EXTENDED_COLUMNS = STATUS_COMPAT_COLUMNS + [
     "adjustment_streak",
     "ivt_streak",
     "persistence_score",
-    "days_active",
     "hysteresis_applied",
     "persistence_label",
     "composite_positive_count",
@@ -368,7 +342,6 @@ EVENT_COMPAT_COLUMNS = [
     "run_hour",
     "entity_key",
     "site",
-    "meta_campaign",
     "country_code",
     "country_name",
     "date",
@@ -600,7 +573,7 @@ def _counter_correction_columns_for_mode(source_mode: str) -> set[str]:
     return set(COUNTER_CORRECTION_COLUMNS)
 
 
-def _load_join_history(target_date: date, domain: str, lookback_days: int = 35, run_hour: int | None = None) -> pd.DataFrame:
+def _load_join_history(target_date: date, domain: str, lookback_days: int = 35) -> pd.DataFrame:
     """
     Lebih efektif:
     - Dedup latest-per-hour dilakukan di ClickHouse (argMax by mdd/run_time)
@@ -618,14 +591,6 @@ def _load_join_history(target_date: date, domain: str, lookback_days: int = 35, 
     if domain:
         where.append(f"site = '{domain}'")
 
-    run_hour_filter = None
-    if run_hour is not None:
-        try:
-            run_hour_filter = max(0, min(23, int(run_hour)))
-            where.append(f"run_hour = {run_hour_filter}")
-        except Exception:
-            run_hour_filter = None
-
     order_key = "mdd" if can_introspect and "mdd" in table_cols else "run_time"
 
     if not can_introspect:
@@ -638,13 +603,13 @@ def _load_join_history(target_date: date, domain: str, lookback_days: int = 35, 
         ])
         df = query_df(sql)
     else:
-        group_keys = ["site", "meta_campaign", "country_code", "entity_key", "date", "run_hour"]
+        group_keys = ["site", "country_code", "entity_key", "date", "run_hour"]
         group_keys = [c for c in group_keys if c in table_cols]
 
         # Build inner SELECT: dedup per key dengan argMax(..., order_key).
         # Untuk kolom yang tidak ada di tabel, kita emit default constant supaya outer query/metric rules tidak error.
         def _default_expr(col: str) -> str:
-            if col in {"site", "meta_campaign", "country_code", "country_name", "entity_key", "mapped_revenue_source", "join_status", "run_time"}:
+            if col in {"site", "country_code", "country_name", "entity_key", "mapped_revenue_source", "join_status", "run_time"}:
                 return f"'' AS {col}"
             if col == "batch_id":
                 return f"toUUID('00000000-0000-0000-0000-000000000000') AS {col}"
@@ -683,7 +648,7 @@ def _load_join_history(target_date: date, domain: str, lookback_days: int = 35, 
         # kolom inti untuk scoring
         for c in [
             "batch_id", "run_time", "run_date", "run_hour",
-            "entity_key", "site", "meta_campaign", "country_code", "country_name", "date",
+            "entity_key", "site", "country_code", "country_name", "date",
             "mapped_revenue_source", "join_status",
         ]:
             outer_cols.append(c)
@@ -694,10 +659,12 @@ def _load_join_history(target_date: date, domain: str, lookback_days: int = 35, 
 
         # day_type + is_current_batch
         outer_cols.append("if(dayOfWeek(date) >= 6, 'WEEKEND', 'WEEKDAY') AS day_type")
-        if run_hour_filter is None:
-            outer_cols.append(f"(date = toDate('{_sql_date(target_date)}')) AS is_current_batch")
-        else:
-            outer_cols.append(f"(date = toDate('{_sql_date(target_date)}') AND run_hour = {int(run_hour_filter)}) AS is_current_batch")
+        outer_cols.append(f"(date = toDate('{_sql_date(target_date)}')) AS is_current_batch")
+
+        # alias supaya cocok dengan RULES
+        outer_cols.append("meta_cpc AS meta_avg_cpc")
+        outer_cols.append("adx_ecpm AS adx_avg_ecpm")
+        outer_cols.append("adx_fill_rate AS adx_total_fill_rate")
 
         # derived (blended + ratios) mengikuti logic python saat ini
         outer_cols.append("(adsense_estimated_earnings + adx_revenue) AS blended_revenue")
@@ -783,15 +750,11 @@ def _load_join_history(target_date: date, domain: str, lookback_days: int = 35, 
     if df.empty:
         return df
     out = df.copy()
-    for _col in ["site", "meta_campaign", "country_code", "country_name", "entity_key", "batch_id", "run_time", "run_date", "date"]:
-        if _col not in out.columns:
-            out[_col] = "" if _col in {"site", "meta_campaign", "country_code", "country_name", "entity_key", "batch_id"} else pd.NaT
     out["site"] = out["site"].map(normalize_domain)
-    out["meta_campaign"] = out["meta_campaign"].astype(str).map(lambda x: x.strip().upper())
     out["country_code"] = out["country_code"].map(normalize_country_cd)
     out["country_name"] = [normalize_country_nm(c, n) for c, n in zip(out["country_code"], out["country_name"])]
     out["entity_key"] = out["entity_key"].astype(str)
-    out["entity_base_key"] = out["site"] + "|" + out["meta_campaign"] + "|" + out["country_code"]
+    out["entity_base_key"] = out["site"] + "|" + out["country_code"]
     out["batch_id"] = out["batch_id"].astype(str)
     out["run_time"] = pd.to_datetime(out["run_time"], utc=True, errors="coerce")
     out["run_date"] = pd.to_datetime(out["run_date"], errors="coerce").dt.date
@@ -809,7 +772,7 @@ def _load_join_history(target_date: date, domain: str, lookback_days: int = 35, 
 
     for col in RAW_JOIN_COLUMNS + ["revenue_value"]:
         if col in out.columns:
-            out[col] = out[col].map(safe_float) if col not in {"batch_id", "run_time", "run_date", "entity_key", "site", "meta_campaign", "country_code", "country_name", "date", "mapped_revenue_source", "join_status"} else out[col]
+            out[col] = out[col].map(safe_float) if col not in {"batch_id", "run_time", "run_date", "entity_key", "site", "country_code", "country_name", "date", "mapped_revenue_source", "join_status"} else out[col]
         else:
             out[col] = 0.0
     for col in RAW_RATE_COLUMNS:
@@ -818,33 +781,6 @@ def _load_join_history(target_date: date, domain: str, lookback_days: int = 35, 
     # Derived features + source_mode sudah dari SQL, tapi jika fallback SELECT * maka compute di pandas.
     if "blended_revenue" not in out.columns or "source_mode" not in out.columns:
         out = _compute_derived_features(out)
-
-    # revenue_value:
-    # Di STATUS_TABLE kita simpan revenue_value untuk validasi ROI (spend vs revenue).
-    # Tabel fact_join_hourly tidak punya kolom revenue_value, jadi sebelumnya terisi 0.0.
-    # Isi dengan revenue "real" dari channel:
-    # - ADX_ONLY   -> adx_revenue (fallback ke sum channel)
-    # - ADSENSE_ONLY -> adsense_estimated_earnings (fallback ke sum channel)
-    # - MIXED      -> sum(adx_revenue + adsense_estimated_earnings)
-    try:
-        rev_adx = pd.to_numeric(out.get("adx_revenue", 0.0), errors="coerce").fillna(0.0)
-        rev_ads = pd.to_numeric(out.get("adsense_estimated_earnings", 0.0), errors="coerce").fillna(0.0)
-        rev_sum = rev_adx + rev_ads
-        mapped = out.get("mapped_revenue_source", "").astype(str).str.strip().str.upper()
-        mode = out.get("source_mode", mapped).astype(str).str.strip().str.upper()
-        orig_rev = pd.to_numeric(out.get("revenue_value", 0.0), errors="coerce").fillna(0.0)
-
-        rev_val = np.where(
-            mode.eq("ADX_ONLY"),
-            np.where(rev_adx > 0, rev_adx, rev_sum),
-            np.where(mode.eq("ADSENSE_ONLY"), np.where(rev_ads > 0, rev_ads, rev_sum), rev_sum),
-        )
-        # fallback: kalau rev_sum masih 0 tapi orig_rev ada nilainya, pakai orig_rev
-        out["revenue_value"] = np.where(rev_val > 0, rev_val, orig_rev).astype(float)
-    except Exception:
-        # jangan gagalkan scoring hanya karena kolom revenue
-        if "revenue_value" not in out.columns:
-            out["revenue_value"] = 0.0
 
     out = out.sort_values(["entity_base_key", "date", "run_hour", "run_time"]).reset_index(drop=True)
     grouped = out.groupby("entity_base_key", sort=False)
@@ -886,15 +822,15 @@ def _compute_derived_features(df: pd.DataFrame) -> pd.DataFrame:
     if not isinstance(run_hour_series, pd.Series):
         run_hour_series = pd.Series([run_hour_series] * len(out), index=out.index)
 
-    expected_day_progress = ((run_hour_series.fillna(0.0).clip(lower=0.0, upper=23.0) + 1.0) / 24.0).clip(lower=(1.0 / 24.0), upper=1.0)
-    out["meta_budget_utilization"] = [
-        _safe_div(s, b, 0.0) if safe_float(b) > 0 else 0.0
-        for s, b in zip(col("meta_spend"), col("meta_daily_budget"))
-    ]
-    out["meta_budget_pacing_index"] = [
-        _safe_div(util, progress, 0.0) if safe_float(budget) > 0 else 0.0
-        for util, progress, budget in zip(out["meta_budget_utilization"], expected_day_progress, col("meta_daily_budget"))
-    ]
+    # expected_day_progress = ((run_hour_series.fillna(0.0).clip(lower=0.0, upper=23.0) + 1.0) / 24.0).clip(lower=(1.0 / 24.0), upper=1.0)
+    # out["meta_budget_utilization"] = [
+    #     _safe_div(s, b, 0.0) if safe_float(b) > 0 else 0.0
+    #     for s, b in zip(col("meta_spend"), col("meta_daily_budget"))
+    # ]
+    # out["meta_budget_pacing_index"] = [
+    #     _safe_div(util, progress, 0.0) if safe_float(budget) > 0 else 0.0
+    #     for util, progress, budget in zip(out["meta_budget_utilization"], expected_day_progress, col("meta_daily_budget"))
+    # ]
 
     # Derived metrics (vectorized, menghindari loop Python)
     meta_lpv = col("meta_lpv")
@@ -984,7 +920,7 @@ def _compute_derived_features(df: pd.DataFrame) -> pd.DataFrame:
 def _load_recent_status_history(target_date: date, lookback_days: int = 7) -> pd.DataFrame:
     sql_candidates = [
         f"""
-        SELECT batch_id, run_time, run_date, run_hour, entity_key, site, meta_campaign, country_code, date,
+        SELECT batch_id, run_time, run_date, run_hour, entity_key, site, country_code, date,
                health_score, adjustment_score, ivt_risk_score, confidence,
                final_label, root_cause_label,
                positive_streak, negative_streak, adjustment_streak, ivt_streak
@@ -1015,13 +951,9 @@ def _load_recent_status_history(target_date: date, lookback_days: int = 7) -> pd
         return df
 
     out = df.copy()
-    for _col in ["site", "meta_campaign", "country_code", "run_time", "date", "run_hour"]:
-        if _col not in out.columns:
-            out[_col] = "" if _col in {"site", "meta_campaign", "country_code"} else 0
     out["site"] = out["site"].map(normalize_domain)
-    out["meta_campaign"] = out["meta_campaign"].astype(str).map(lambda x: x.strip().upper())
     out["country_code"] = out["country_code"].map(normalize_country_cd)
-    out["entity_base_key"] = out["site"] + "|" + out["meta_campaign"] + "|" + out["country_code"]
+    out["entity_base_key"] = out["site"] + "|" + out["country_code"]
     out["run_time"] = pd.to_datetime(out["run_time"], utc=True, errors="coerce")
     out["date"] = pd.to_datetime(out["date"], errors="coerce").dt.date
     out["run_hour"] = out["run_hour"].map(lambda x: int(safe_float(x)))
@@ -1192,15 +1124,16 @@ def _freshness_confidence_factor(cur: pd.Series, rule: MetricRule) -> float:
 
 
 def _event_template(cur: pd.Series, rule: MetricRule, batch_uuid: uuid.UUID) -> dict:
+    print(f"current_data: {cur}")
     return {
         "batch_id": str(batch_uuid),
+        # ✅ TAMBAHKAN INI
         "family_key": rule.family_key or rule.column,
         "run_time": _to_local_naive_dt(cur.get("run_time")),
         "run_date": cur["run_date"],
         "run_hour": int(cur["run_hour"]),
         "entity_key": cur["entity_key"],
         "site": cur["site"],
-        "meta_campaign": cur.get("meta_campaign", ""),
         "country_code": cur["country_code"],
         "country_name": cur["country_name"],
         "date": cur["date"],
@@ -1286,16 +1219,23 @@ def _evaluate_rule(cur: pd.Series, same_hour: pd.DataFrame, all_hours: pd.DataFr
     selected, baseline_source = _select_window(same_hour_scoped, cur["date"], rule, cur.get("day_type", "UNKNOWN"), "SITE_SAME_HOUR")
     if len(selected) < max(3, rule.min_history_points // 2):
         selected, baseline_source = _select_window(all_hours_scoped, cur["date"], rule, cur.get("day_type", "UNKNOWN"), "SITE_ALL_HOURS")
+    print(f"family_rank: {rule.family_rank}")
     family_factor = _family_rank_factor(rule.family_rank)
+    print(f"family_factor: {family_factor}")
     join_status = str(cur.get("join_status"))
     join_conf = 1.0 if join_status == "OK" else 0.75 if join_status.startswith("SOURCE_ONLY_NO_META") else 0.25
+    print(f"score_method: {rule.score_method}")
     if rule.score_method == "BAND_TARGET":
         low, high, center, width, hist_points = _band_range(selected, rule)
         dist = _band_distance(cur_value, low, high, center, width)
+        print(f"dist_data: {dist}")
         prev_dist = dist if prev_is_missing else _band_distance(prev_value, low, high, center, width)
         movement_component = 0.0 if prev_is_missing else clip(prev_dist - dist, -1.0, 1.0)
+        print(f"movement_component: {movement_component}")
         absolute_component = _band_absolute_component(dist)
+        print(f"absolute_component: {absolute_component}")
         signal_strength = clip((movement_component * 0.65) + (absolute_component * 0.35), -1.0, 1.0)
+        print(f"signal_strength: {signal_strength}")
         if dist > 0.25 and signal_strength > 0:
             signal_strength = min(signal_strength, 0.15)
 
@@ -1312,8 +1252,10 @@ def _evaluate_rule(cur: pd.Series, same_hour: pd.DataFrame, all_hours: pd.DataFr
         event["hist_points"] = hist_points
         event["signal_strength"] = signal_strength
         event["health_component"] = signal_strength * rule.base_weight * sign_weight * family_factor * event["confidence"]
+        print(f"ivt_weight: {rule.ivt_weight}")
         event["ivt_capacity"] = rule.ivt_weight * family_factor * event["confidence"]
         event["ivt_component"] = max(0.0, -signal_strength) * event["ivt_capacity"]
+        print(f"data_event_full: {event}")
         if signal_strength > 0.02:
             event["change_class"] = "POSITIVE"
             event["event_label"] = rule.label_positive or f"{rule.column.upper()}_IN_RANGE"
@@ -1343,6 +1285,7 @@ def _evaluate_rule(cur: pd.Series, same_hour: pd.DataFrame, all_hours: pd.DataFr
         return event
 
     if rule.score_method == "HOURLY_INCREMENT_Z":
+        print(f"[DEBUG] Raw rule: {rule}")
         center, scale, hist_points = _counter_baseline(selected, rule)
         raw_delta = event["current_increment"] - center
         deadband = max(abs(center) * rule.deadband_pct, rule.deadband_abs, 1e-6)
@@ -1445,7 +1388,6 @@ def _composite_event_template(cur: pd.Series, batch_uuid: uuid.UUID, header_name
         "run_hour": int(cur["run_hour"]),
         "entity_key": cur["entity_key"],
         "site": cur["site"],
-        "meta_campaign": cur.get("meta_campaign", ""),
         "country_code": cur["country_code"],
         "country_name": cur["country_name"],
         "date": cur["date"],
@@ -1507,7 +1449,7 @@ def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uui
     lpv = _signal_lookup(row_events, "meta_lpv")
     lpv_rate = _signal_lookup(row_events, "meta_lpv_rate")
     freq = _signal_lookup(row_events, "meta_frequency")
-    budget_pacing = _signal_lookup(row_events, "meta_budget_pacing_index")
+    # budget_pacing = _signal_lookup(row_events, "meta_budget_pacing_index")
     rev_per_lpv = _signal_lookup(row_events, "revenue_per_lpv")
     roi_proxy = _signal_lookup(row_events, "roi_proxy")
     blended_rev = _signal_lookup(row_events, "blended_revenue")
@@ -1700,19 +1642,19 @@ def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uui
         evt["note"] = "fatigue / saturation signature detected"
         push(evt)
 
-    if safe_float(budget_pacing["signal_strength"]) < -0.18 and min(safe_float(rev_per_lpv["signal_strength"]), safe_float(roi_proxy["signal_strength"])) < -0.15:
-        conf = avg_conf_items([budget_pacing, rev_per_lpv, roi_proxy])
-        evt = _composite_event_template(cur, batch_uuid, "cx_budget_pressure_without_value", composite_source_scope, "efficiency", "budget_pacing", "relationship", "DOWN_GOOD")
-        evt["confidence"] = conf
-        evt["signal_strength"] = -clip((abs(safe_float(budget_pacing["signal_strength"])) + abs(min(safe_float(rev_per_lpv["signal_strength"]), safe_float(roi_proxy["signal_strength"])))) / 2.0, 0.0, 1.0)
-        evt["health_component"] = -0.80 * abs(evt["signal_strength"]) * conf
-        evt["ivt_component"] = 0.35 * abs(evt["signal_strength"]) * conf
-        evt["ivt_capacity"] = 0.45 * conf
-        evt["change_class"] = "NEGATIVE"
-        evt["event_label"] = "BUDGET_PRESSURE_WITHOUT_VALUE"
-        evt["event_reason"] = "PACING_HOT_AND_VALUE_DOWN"
-        evt["note"] = "budget pacing moved out of band while unit economics weakened"
-        push(evt)
+    # if safe_float(budget_pacing["signal_strength"]) < -0.18 and min(safe_float(rev_per_lpv["signal_strength"]), safe_float(roi_proxy["signal_strength"])) < -0.15:
+    #     conf = avg_conf_items([budget_pacing, rev_per_lpv, roi_proxy])
+    #     evt = _composite_event_template(cur, batch_uuid, "cx_budget_pressure_without_value", composite_source_scope, "efficiency", "budget_pacing", "relationship", "DOWN_GOOD")
+    #     evt["confidence"] = conf
+    #     evt["signal_strength"] = -clip((abs(safe_float(budget_pacing["signal_strength"])) + abs(min(safe_float(rev_per_lpv["signal_strength"]), safe_float(roi_proxy["signal_strength"])))) / 2.0, 0.0, 1.0)
+    #     evt["health_component"] = -0.80 * abs(evt["signal_strength"]) * conf
+    #     evt["ivt_component"] = 0.35 * abs(evt["signal_strength"]) * conf
+    #     evt["ivt_capacity"] = 0.45 * conf
+    #     evt["change_class"] = "NEGATIVE"
+    #     evt["event_label"] = "BUDGET_PRESSURE_WITHOUT_VALUE"
+    #     evt["event_reason"] = "PACING_HOT_AND_VALUE_DOWN"
+    #     evt["note"] = "budget pacing moved out of band while unit economics weakened"
+    #     push(evt)
 
     if safe_float(primary_revenue["signal_strength"]) > 0.25 and safe_float(rev_per_lpv["signal_strength"]) > 0.15 and delivery_floor > -0.05:
         conf = avg_conf_items([primary_revenue, rev_per_lpv] + delivery_events)
@@ -1755,35 +1697,7 @@ def _rolling_streak(records: list[dict], predicate) -> int:
     return n
 
 
-def _days_active_from_join_history(cur: pd.Series, recent_join_df: pd.DataFrame | None) -> int:
-    if recent_join_df is None or recent_join_df.empty:
-        return 0
-
-    base_key = str(cur.get("entity_base_key", "") or "").strip()
-    same_entity = recent_join_df[recent_join_df["entity_base_key"] == base_key].copy() if base_key else pd.DataFrame()
-
-    if same_entity.empty:
-        site_key = normalize_domain(cur.get("site", ""))
-        country_key = normalize_country_cd(cur.get("country_code", ""))
-        legacy_key = f"{site_key}||{country_key}"
-        same_entity = recent_join_df[recent_join_df["entity_base_key"] == legacy_key].copy()
-
-    if same_entity.empty:
-        return 0
-
-    cur_date = cur.get("date")
-    same_entity = same_entity[same_entity["date"] <= cur_date]
-    if same_entity.empty:
-        return 0
-
-    days_active = int(same_entity["date"].nunique())
-    if cur_date not in same_entity["date"].values:
-        days_active += 1
-    return int(days_active)
-
-
-def _compute_persistence(cur: pd.Series, recent_status_df: pd.DataFrame, recent_join_df: pd.DataFrame | None = None) -> dict:
-    fallback_days_active = _days_active_from_join_history(cur, recent_join_df)
+def _compute_persistence(cur: pd.Series, recent_status_df: pd.DataFrame) -> dict:
     if recent_status_df.empty:
         return {
             "positive_streak": 0,
@@ -1791,19 +1705,11 @@ def _compute_persistence(cur: pd.Series, recent_status_df: pd.DataFrame, recent_
             "adjustment_streak": 0,
             "ivt_streak": 0,
             "persistence_score": 0.0,
-            "days_active": int(fallback_days_active),
             "label": "NONE",
         }
 
     base_key = cur["entity_base_key"]
     same_entity = recent_status_df[recent_status_df["entity_base_key"] == base_key].copy()
-    if same_entity.empty:
-        # Fallback untuk histori lama yang belum menyimpan meta_campaign
-        site_key = normalize_domain(cur.get("site", ""))
-        country_key = normalize_country_cd(cur.get("country_code", ""))
-        legacy_key = f"{site_key}||{country_key}"
-        same_entity = recent_status_df[recent_status_df["entity_base_key"] == legacy_key].copy()
-
     if same_entity.empty:
         return {
             "positive_streak": 0,
@@ -1811,7 +1717,6 @@ def _compute_persistence(cur: pd.Series, recent_status_df: pd.DataFrame, recent_
             "adjustment_streak": 0,
             "ivt_streak": 0,
             "persistence_score": 0.0,
-            "days_active": int(fallback_days_active),
             "label": "NONE",
         }
 
@@ -1829,13 +1734,6 @@ def _compute_persistence(cur: pd.Series, recent_status_df: pd.DataFrame, recent_
     ivt_streak = _rolling_streak(records, lambda r: safe_float(r.get("ivt_risk_score")) >= 55 or str(r.get("final_label", "")).startswith("RED_FLAG") or str(r.get("root_cause_label", "")) == "NEG_ADJUSTMENT")
 
     persistence_score = clip((positive_streak * 16.0) - (negative_streak * 16.0) - (adjustment_streak * 12.0) - (ivt_streak * 18.0), -100.0, 100.0)
-
-    # Calculate unique days active (including current day)
-    days_active = same_entity["date"].nunique()
-    if cur["date"] not in same_entity["date"].values:
-        days_active += 1
-    days_active = max(int(days_active), int(fallback_days_active))
-
     if ivt_streak >= 2:
         label = "IVT_STREAK"
     elif adjustment_streak >= 2:
@@ -1853,7 +1751,6 @@ def _compute_persistence(cur: pd.Series, recent_status_df: pd.DataFrame, recent_
         "adjustment_streak": int(adjustment_streak),
         "ivt_streak": int(ivt_streak),
         "persistence_score": float(persistence_score),
-        "days_active": int(days_active),
         "label": label,
     }
 
@@ -1879,7 +1776,7 @@ def _group_risk_score(events: list[dict], group_name: str) -> float:
 def _root_cause_label(status: dict) -> str:
     if status["join_status"] not in SCORABLE_JOIN_STATUSES and status["negative_signal_count"] == 0 and status["positive_signal_count"] == 0:
         return "DATA_INCOMPLETE"
-    if status["ivt_risk_score"] >= RED_FLAG_IVT_THRESHOLD:
+    if status["ivt_risk_score"] >= 70:
         ivt_groups = {
             "RED_FLAG_CLICK_STRESS": status["ivt_click_stress_score"],
             "RED_FLAG_SERVING_SUPPRESSION": status["ivt_serving_score"],
@@ -1889,19 +1786,13 @@ def _root_cause_label(status: dict) -> str:
         }
         label, value = max(ivt_groups.items(), key=lambda x: x[1])
         return label if value >= 45 else "RED_FLAG_IVT"
-    if status["adjustment_drop_count"] >= NEG_ADJUSTMENT_DROP_MIN_COUNT and status["adjustment_score"] <= NEG_ADJUSTMENT_SCORE_THRESHOLD:
-        spend = safe_float(status.get("spend"))
-        revenue = safe_float(status.get("revenue_value"))
-        roi = ((revenue - spend) / spend) if spend > 0 else 0.0
-        profit_strong = (revenue > spend) and (roi >= PROFIT_FIRST_ROI_THRESHOLD)
-        if profit_strong and status.get("ivt_risk_score", 0) < PROFIT_FIRST_RISK_CAP and status.get("health_score", 0) > -8:
-            return "WATCH_DECAY"
+    if status["adjustment_drop_count"] >= 2 and status["adjustment_score"] <= -35:
         return "NEG_ADJUSTMENT"
     if status["health_score"] >= 18 and status["ivt_risk_score"] < 35 and status["positive_signal_count"] >= status["negative_signal_count"]:
         return "POSITIVE_EXPANSION"
     if status["health_score"] >= 10 and status["ivt_risk_score"] < 45 and status["positive_signal_count"] > status["negative_signal_count"]:
         return "POSITIVE_RECOVERY"
-    if status["health_score"] <= NEGATIVE_HEALTH_DROP_THRESHOLD:
+    if status["health_score"] <= -18:
         groups = {
             "TRAFFIC_DROP": status["traffic_score"],
             "SERVING_DROP": status["delivery_score"],
@@ -1916,14 +1807,10 @@ def _root_cause_label(status: dict) -> str:
 
 
 def _apply_hysteresis(root_label: str, status: dict, persistence: dict) -> tuple[str, int]:
-    # Jika domain masih baru (kurang dari 2 hari), beri label LEARNING
-    if persistence.get("days_active", 0) < LEARNING_MIN_DAYS:
-        return "LEARNING", 0
-
     final_label = root_label
     hysteresis_applied = 0
 
-    if status["ivt_risk_score"] >= RED_FLAG_IVT_THRESHOLD or (status["ivt_risk_score"] >= 60 and persistence["ivt_streak"] >= 2):
+    if status["ivt_risk_score"] >= 70 or (status["ivt_risk_score"] >= 55 and persistence["ivt_streak"] >= 2):
         if not final_label.startswith("RED_FLAG"):
             final_label = "RED_FLAG_IVT"
             hysteresis_applied = 1
@@ -1944,79 +1831,6 @@ def _apply_hysteresis(root_label: str, status: dict, persistence: dict) -> tuple
 def _clamp_score(x):
     return max(0.0, min(100.0, float(x)))
 
-
-# Rata-rata confidence hanya dari event yang benar-benar dinilai (bukan SKIPPED).
-def _compute_status_confidence(events: list[dict]) -> float:
-    active_events = [e for e in events if e["change_class"] != "SKIPPED"]
-    return sum(safe_float(e["confidence"]) for e in active_events) / max(len(active_events), 1)
-
-
-# Agregasi health lintas family aktif saja (non-SKIPPED dan health_component != 0), lalu smoothing dengan health sebelumnya.
-def _compute_health_score(events: list[dict], persistence: dict) -> float:
-    family_scores = defaultdict(list)
-    for e in events:
-        if str(e.get("change_class", "")).upper() == "SKIPPED":
-            continue
-        hc = safe_float(e.get("health_component"))
-        if abs(hc) <= 1e-12:
-            continue
-        family_key = e.get("family_key") or e.get("rule_key") or "unknown"
-        family_scores[family_key].append(e)
-
-    family_health: dict[str, float] = {}
-    for family, evts in family_scores.items():
-        num = sum(safe_float(e.get("health_component")) for e in evts)
-        den = sum(abs(safe_float(e.get("health_component"))) for e in evts)
-        if den > 0:
-            family_health[family] = num / den
-
-    if not family_health:
-        score = persistence.get("health_score", 50.0)
-    else:
-        score = 100 * sum(family_health.values()) / float(len(family_health))
-
-    score = _clamp_score(score)
-    prev_health = persistence.get("health_score", score)
-    score = _clamp_score((0.7 * prev_health) + (0.3 * score))
-    return score
-
-
-def _health_activity_stats(events: list[dict]) -> tuple[int, int]:
-    active_events = [
-        e for e in events
-        if str(e.get("change_class", "")).upper() != "SKIPPED"
-        and abs(safe_float(e.get("health_component"))) > 1e-12
-    ]
-    families = {str(e.get("family_key") or e.get("rule_key") or "unknown") for e in active_events}
-    return int(len(active_events)), int(len(families))
-
-
-# Tetapkan root cause lalu stabilkan label dengan hysteresis/persistence.
-def _apply_status_labeling(status: dict, persistence: dict) -> None:
-    status["root_cause_label"] = _root_cause_label(status)
-    final_label, hysteresis_applied = _apply_hysteresis(status["root_cause_label"], status, persistence)
-    status["final_label"] = final_label
-    status["hysteresis_applied"] = hysteresis_applied
-
-
-# Ringkasan singkat untuk audit/debug di dashboard detail.
-def _build_reason_summary(status: dict) -> str:
-    return "; ".join([
-        f"health={status['health_score']:.2f}",
-        f"ivt={status['ivt_risk_score']:.2f}",
-        f"adjust={status['adjustment_score']:.2f}",
-        f"traffic={status['traffic_score']:.2f}",
-        f"delivery={status['delivery_score']:.2f}",
-        f"yield={status['yield_score']:.2f}",
-        f"quality={status['quality_score']:.2f}",
-        f"source_mode={status['source_mode']}",
-        f"persistence={status['persistence_score']:.2f}",
-        f"streaks=+{status['positive_streak']}/-{status['negative_streak']}/ivt{status['ivt_streak']}",
-        f"active_events={int(status.get('active_health_event_count', 0))}",
-        f"active_families={int(status.get('active_family_count', 0))}",
-    ])
-
-
 def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.UUID, persistence: dict) -> dict:
     positive = [e for e in events if e["change_class"] == "POSITIVE"]
     negative = [e for e in events if e["change_class"] == "NEGATIVE"]
@@ -2034,14 +1848,47 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         safe_float(e.get("adjustment_capacity", 0))
         for e in events
     )
-    confidence = _compute_status_confidence(events)
-    active_health_event_count, active_family_count = _health_activity_stats(events)
-    health_score = _compute_health_score(events, persistence)
-
-    adjustment_score = (100.0 * adjustment_num / adjustment_den) if adjustment_den > 0 else 0.0
-
+    confidence = sum(safe_float(e["confidence"]) for e in events if e["change_class"] != "SKIPPED") / max(len([e for e in events if e["change_class"] != "SKIPPED"]), 1)
+    family_scores = defaultdict(list)  
+    for e in events:
+        # family_scores[e["family_key"]].append(e)
+        family_key = e.get("family_key") or e.get("rule_key") or "unknown"
+        family_scores[family_key].append(e)
+    family_health = {}
+    for family, evts in family_scores.items():
+        num = sum(e["health_component"] for e in evts)
+        den = sum(abs(e["health_component"]) for e in evts)
+        family_health[family] = num / den if den > 0 else 0
+    if not family_health:
+        health_score = persistence.get("health_score", 50.0)
+    else:
+        health_score = 100 * sum(family_health.values()) / len(family_health)
+    health_score = 100 * sum(family_health.values()) / max(len(family_health), 1)
+    # ⭐ TAMBAHKAN
+    health_score = max(0.0, min(100.0, health_score))
+    prev_health = persistence.get("health_score", health_score)
+    prev_health = persistence.get("health_score", 50.0)
+    health_score = 0.7 * prev_health + 0.3 * health_score
+    # ⭐ WAJIB ADA
+    health_score = max(0.0, min(100.0, health_score))
+    health_score = _clamp_score(health_score)
+    # health_num = sum(safe_float(e["health_component"]) for e in events)
+    # health_den = sum(max(abs(safe_float(e["health_component"])), 0.0) for e in events if e["change_class"] in {"POSITIVE", "NEGATIVE", "NEUTRAL"})
+    # health_score = 100.0 * health_num / health_den if health_den > 0 else 0.0
+    adjustment_score = (
+        100.0 * adjustment_num / adjustment_den
+        if adjustment_den > 0
+        else 0.0
+    ) if adjustment_den > 0 else 0.0
     ivt_num = sum(max(0.0, safe_float(e.get("ivt_component"))) for e in events)
     ivt_den = sum(max(safe_float(e.get("ivt_capacity")), 0.0) for e in events if safe_float(e.get("ivt_capacity")) > 0)
+    # print(f"events_data: {events}")
+    # for e in events:
+    #     print({
+    #         "metric": e.get("metric_name"),
+    #         "ivt_component": e.get("ivt_component"),
+    #         "ivt_capacity": e.get("ivt_capacity"),
+    #     })
     ivt_risk_score = clip(100.0 * ivt_num / ivt_den, 0.0, 100.0) if ivt_den > 0 else 0.0
     status = {
         "batch_id": str(batch_uuid),
@@ -2050,7 +1897,6 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "run_hour": int(cur["run_hour"]),
         "entity_key": cur["entity_key"],
         "site": cur["site"],
-        "meta_campaign": cur.get("meta_campaign", ""),
         "country_code": cur["country_code"],
         "country_name": cur["country_name"],
         "date": cur["date"],
@@ -2091,10 +1937,7 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "ivt_streak": persistence["ivt_streak"],
         "persistence_score": persistence["persistence_score"],
         "persistence_label": persistence["label"],
-        "days_active": persistence.get("days_active", 0),
         "hysteresis_applied": 0,
-        "active_health_event_count": int(active_health_event_count),
-        "active_family_count": int(active_family_count),
         "top_positive_labels": pick_top_labels(e["event_label"] for e in positive),
         "top_negative_labels": pick_top_labels(e["event_label"] for e in negative),
         "top_positive_headers": pick_top_labels(e["header_name"] for e in positive),
@@ -2103,86 +1946,24 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "final_label": "",
         "reason_summary": "",
     }
-    _apply_status_labeling(status, persistence)
-    status["reason_summary"] = _build_reason_summary(status)
+    print(f"status_data: {status}")
+    status["root_cause_label"] = _root_cause_label(status)
+    final_label, hysteresis_applied = _apply_hysteresis(status["root_cause_label"], status, persistence)
+    status["final_label"] = final_label
+    status["hysteresis_applied"] = hysteresis_applied
+    status["reason_summary"] = "; ".join([
+        f"health={status['health_score']:.2f}",
+        f"ivt={status['ivt_risk_score']:.2f}",
+        f"adjust={status['adjustment_score']:.2f}",
+        f"traffic={status['traffic_score']:.2f}",
+        f"delivery={status['delivery_score']:.2f}",
+        f"yield={status['yield_score']:.2f}",
+        f"quality={status['quality_score']:.2f}",
+        f"source_mode={status['source_mode']}",
+        f"persistence={status['persistence_score']:.2f}",
+        f"streaks=+{status['positive_streak']}/-{status['negative_streak']}/ivt{status['ivt_streak']}",
+    ])
     return status
-
-# Jalankan evaluasi semua rule untuk batch saat ini dan bentuk DataFrame status/event.
-def _evaluate_current_batch(
-    current_df: pd.DataFrame,
-    history_df: pd.DataFrame,
-    recent_status_df: pd.DataFrame,
-    active_rules: list[MetricRule],
-    batch_uuid: uuid.UUID,
-    profile_key: str,
-) -> tuple[pd.DataFrame, pd.DataFrame]:
-    status_rows: list[dict] = []
-    event_rows: list[dict] = []
-
-    history_df = history_df.sort_values(["entity_base_key", "date", "run_hour", "run_time"]).reset_index(drop=True)
-    same_hour_groups = {k: g.copy() for k, g in history_df.groupby(["entity_base_key", "run_hour"])}
-    all_hour_groups = {k: g.copy() for k, g in history_df.groupby("entity_base_key")}
-
-    for _, cur in current_df.sort_values(["site", "meta_campaign", "country_code", "run_time"]).iterrows():
-        base_key = cur["entity_base_key"]
-        same_hour = same_hour_groups.get((base_key, int(cur["run_hour"])), pd.DataFrame())
-        same_hour = same_hour[same_hour["date"] < cur["date"]].copy()
-        all_hours = all_hour_groups.get(base_key, pd.DataFrame())
-        all_hours = all_hours[all_hours["date"] < cur["date"]].copy()
-
-        row_events: list[dict] = []
-        for rule in active_rules:
-            row_events.append(_evaluate_rule(cur, same_hour, all_hours, rule, batch_uuid))
-
-        row_events.extend(_evaluate_composite_events(cur, row_events, batch_uuid))
-        persistence = _compute_persistence(cur, recent_status_df, history_df)
-        status_rows.append(_summarize_current_row(cur, row_events, batch_uuid, persistence))
-
-        if profile_key == "lite":
-            event_rows.extend([e for e in row_events if str(e.get("change_class", "")).upper() != "SKIPPED"])
-        else:
-            event_rows.extend(row_events)
-
-    return pd.DataFrame(status_rows), pd.DataFrame(event_rows)
-
-
-# Samakan kolom runtime agar konsisten saat persist (run_time/run_date/run_hour).
-def _align_runtime_and_rundate(df: pd.DataFrame, target_run_hour: int | None) -> pd.DataFrame:
-    if df.empty or "date" not in df.columns:
-        return df
-    out = df.copy()
-    run_clock_now = datetime.now(ZoneInfo("Asia/Jakarta")).replace(microsecond=0).time()
-    fixed_run_time = time(target_run_hour, 0, 0) if target_run_hour is not None else run_clock_now
-    date_series = pd.to_datetime(out["date"], errors="coerce")
-
-    out["run_time"] = date_series.map(
-        lambda v: datetime.combine(v.date(), fixed_run_time)
-        if pd.notna(v)
-        else datetime.now(ZoneInfo("Asia/Jakarta")).replace(tzinfo=None, microsecond=0)
-    )
-    out["run_date"] = date_series.dt.date
-    out["run_hour"] = int(target_run_hour) if target_run_hour is not None else int(run_clock_now.hour)
-    return out
-
-
-# Simpan hasil scoring ke tabel status/event dengan fallback mode compatibility.
-def _persist_scoring_results(status_df: pd.DataFrame, event_df: pd.DataFrame, compatibility_mode: bool) -> None:
-    if not status_df.empty:
-        status_table_cols = _describe_table_columns(STATUS_TABLE)
-        if compatibility_mode:
-            _coerce_insert_df(STATUS_TABLE, status_df, STATUS_COMPAT_COLUMNS)
-        else:
-            status_cols = [c for c in STATUS_EXTENDED_COLUMNS if c in status_df.columns]
-            if status_table_cols:
-                status_cols = [c for c in status_cols if c in status_table_cols]
-            if status_cols:
-                insert_df(STATUS_TABLE, status_df[status_cols])
-    if not event_df.empty:
-        if compatibility_mode:
-            _coerce_insert_df(EVENT_TABLE, event_df, EVENT_COMPAT_COLUMNS)
-        else:
-            insert_df(EVENT_TABLE, event_df[EVENT_EXTENDED_COLUMNS])
-
 
 def score_site_country(
     target_date: date,
@@ -2191,48 +1972,78 @@ def score_site_country(
     lookback_days: int = 35,
     compatibility_mode: bool = False,
     write_results: bool = True,
-    run_hour: int | None = None,
-    scoring_profile: str | None = None,
 ) -> dict:
     batch_uuid = ensure_uuid(batch_id)
-    target_run_hour = None
-    if run_hour is not None:
-        try:
-            target_run_hour = max(0, min(23, int(run_hour)))
-        except Exception:
-            target_run_hour = None
-    profile_key, active_rules = ACTIVE_PROFILE_KEY, list(ACTIVE_RULES)
-    history_df = _load_join_history(target_date, domain, lookback_days=lookback_days, run_hour=target_run_hour)
+    history_df = _load_join_history(target_date, domain, lookback_days=lookback_days)
     if domain:
         history_df = history_df[history_df["site"] == domain].copy()
     if history_df.empty:
-        return {"ok": True, "rows_written": 0, "event_rows_written": 0, "batch_id": str(batch_uuid), "warning": "No join history for requested filter", "statuses": [], "events": [], "scoring_profile": profile_key, "rules_evaluated": 0}
-    if "is_current_batch" in history_df.columns:
-        is_current_raw = pd.to_numeric(history_df["is_current_batch"], errors="coerce").fillna(0)
-        is_current = is_current_raw.astype(int).eq(1)
-    else:
-        is_current = history_df["date"].eq(target_date)
+        return {"ok": True, "rows_written": 0, "event_rows_written": 0, "batch_id": str(batch_uuid), "warning": "No join history for requested filter", "statuses": [], "events": []}
+    is_current = history_df["is_current_batch"] if "is_current_batch" in history_df.columns else history_df["date"].eq(target_date)
     current_df = history_df[is_current].copy()
     if current_df.empty:
-        return {"ok": True, "rows_written": 0, "batch_id": str(batch_uuid), "warning": "No current batch rows found in fact_join_hourly", "scoring_profile": profile_key, "rules_evaluated": len(active_rules)}
+        return {"ok": True, "rows_written": 0, "batch_id": str(batch_uuid), "warning": "No current batch rows found in fact_join_hourly"}
     recent_status_df = _load_recent_status_history(target_date, lookback_days=max(7, min(max(lookback_days, 7), 21)))
-    if not recent_status_df.empty and domain:
-        recent_status_df = recent_status_df[recent_status_df["site"] == domain].copy()
+    if not recent_status_df.empty:
+        if domain:
+            recent_status_df = recent_status_df[recent_status_df["site"] == domain].copy()
+    status_rows: list[dict] = []
+    event_rows: list[dict] = []
+    history_df = history_df.sort_values(["entity_base_key", "date", "run_hour", "run_time"]).reset_index(drop=True)
+    same_hour_groups = {k: g.copy() for k, g in history_df.groupby(["entity_base_key", "run_hour"])}
+    all_hour_groups = {k: g.copy() for k, g in history_df.groupby("entity_base_key")}
 
-    status_df, event_df = _evaluate_current_batch(
-        current_df=current_df,
-        history_df=history_df,
-        recent_status_df=recent_status_df,
-        active_rules=active_rules,
-        batch_uuid=batch_uuid,
-        profile_key=profile_key,
-    )
+    for _, cur in current_df.sort_values(["site", "country_code", "run_time"]).iterrows():
+        base_key = cur["entity_base_key"]
+        same_hour = same_hour_groups.get((base_key, int(cur["run_hour"])), pd.DataFrame())
+        same_hour = same_hour[same_hour["date"] < cur["date"]].copy()
+        all_hours = all_hour_groups.get(base_key, pd.DataFrame())
+        all_hours = all_hours[all_hours["date"] < cur["date"]].copy()
+        row_events: list[dict] = []
+        for rule in RULES:
+            evt = _evaluate_rule(cur, same_hour, all_hours, rule, batch_uuid)
+            row_events.append(evt)
 
-    status_df = _align_runtime_and_rundate(status_df, target_run_hour)
-    event_df = _align_runtime_and_rundate(event_df, target_run_hour)
+        row_events.extend(_evaluate_composite_events(cur, row_events, batch_uuid))
+        persistence = _compute_persistence(cur, recent_status_df)
+        status = _summarize_current_row(cur, row_events, batch_uuid, persistence)
+        status_rows.append(status)
+        event_rows.extend(row_events)
+
+    status_df = pd.DataFrame(status_rows)
+    event_df = pd.DataFrame(event_rows)
+
+    run_clock_now = datetime.now(ZoneInfo("Asia/Jakarta")).replace(microsecond=0).time()
+
+    def _align_runtime_and_rundate(df: pd.DataFrame) -> pd.DataFrame:
+        if df.empty or "date" not in df.columns:
+            return df
+        out = df.copy()
+        date_series = pd.to_datetime(out["date"], errors="coerce")
+
+        out["run_time"] = date_series.map(
+            lambda v: datetime.combine(v.date(), run_clock_now)
+            if pd.notna(v)
+            else datetime.now(ZoneInfo("Asia/Jakarta")).replace(tzinfo=None, microsecond=0)
+        )
+        out["run_date"] = date_series.dt.date
+        out["run_hour"] = int(run_clock_now.hour)
+        return out
+
+    status_df = _align_runtime_and_rundate(status_df)
+    event_df = _align_runtime_and_rundate(event_df)
 
     if write_results:
-        _persist_scoring_results(status_df, event_df, compatibility_mode)
+        if not status_df.empty:
+            if compatibility_mode:
+                _coerce_insert_df(STATUS_TABLE, status_df, STATUS_COMPAT_COLUMNS)
+            else:
+                insert_df(STATUS_TABLE, status_df[STATUS_EXTENDED_COLUMNS])
+        if not event_df.empty:
+            if compatibility_mode:
+                _coerce_insert_df(EVENT_TABLE, event_df, EVENT_COMPAT_COLUMNS)
+            else:
+                insert_df(EVENT_TABLE, event_df[EVENT_EXTENDED_COLUMNS])
 
     return {
         "ok": True,
@@ -2240,8 +2051,6 @@ def score_site_country(
         "event_rows_written": int(len(event_df)),
         "batch_id": str(batch_uuid),
         "compatibility_mode": bool(compatibility_mode),
-        "scoring_profile": profile_key,
-        "rules_evaluated": int(len(active_rules)),
         "statuses": _json_safe_records(status_df),
         "events": _json_safe_records(event_df),
     }

@@ -2,6 +2,19 @@
  * Reference Ajax Traffic Per Country Js
  */
 
+function normalizeDomainFilter(selected_domain) {
+    if (Array.isArray(selected_domain)) {
+        return selected_domain.map(function (s) { return String(s || '').trim(); }).filter(function (s) { return s; }).join(',');
+    }
+    return String(selected_domain || '').trim();
+}
+
+function normalizeCsvOrWildcard(val) {
+    if (Array.isArray(val)) return val.join(',');
+    const s = String(val || '').trim();
+    return s || '%';
+}
+
 $().ready(function () {
     report_eror = function (jqXHR, exception) {
         var msg = '';
@@ -47,15 +60,6 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     });
-    let allAccountOptions = $('#select_account').html();
-    $('#select_domain').select2({
-        placeholder: '-- Pilih Domain --',
-        allowClear: true,
-        width: '100%',
-        height: '100%',
-        theme: 'bootstrap4'
-    });
-    let allDomainOptions = $('#select_domain').html();  
     $('#select_country').select2({
         placeholder: '-- Pilih Negara --',
         allowClear: true,
@@ -64,125 +68,24 @@ $().ready(function () {
         theme: 'bootstrap4',
         multiple: true
     });
-    // Flag untuk mencegah infinite loop saat update filter
-    var isUpdating = false;
     $('#btn_load_data').click(function (e) {
         e.preventDefault();
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
-        var selected_account = $("#select_account").val() || '%';
-        var data_account = selected_account ? selected_account : '%';
-        var selected_domain = $("#select_domain").val() || '%';
-        var data_domain = selected_domain ? selected_domain : '%';
+        var data_account = normalizeCsvOrWildcard($("#select_account").val());
+        var data_domain = normalizeCsvOrWildcard(normalizeDomainFilter($("#select_domain").val()));
         if (tanggal_dari !== '' && tanggal_sampai !== '') {
             load_country_options(data_account, data_domain);
             destroy_table_data_per_country_facebook();
             table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain);
         }
     });
-    $('#select_account').on('change', function () {
-        if (isUpdating) return;
-        let account = $(this).val();
-        if (account && account.length > 0) {
-            ads_site_list(); // filter domain by account
-        } else {
-            // restore semua domain dari template
-            isUpdating = true;
-            $('#select_domain')
-                .html(allDomainOptions)
-                .val(null)
-                .trigger('change.select2');
-            isUpdating = false;
-        }
-    });
-    function ads_site_list() {
-        var selected_account = $("#select_account").val();
-        if (selected_account) {
-            selected_account = selected_account.join(',');
-        }
-        console.log(selected_account);
-        return $.ajax({
-            url: '/management/admin/ads_sites_list',
-            type: 'GET',
-            data: {
-                selected_accounts: selected_account
-            },
-            headers: {
-                'X-CSRFToken': csrftoken
-            },
-            success: function (response) {
-                if (response && response.status) {
-                    let $domain = $('#select_domain');
-                    let currentSelected = $domain.val(); // Simpan pilihan saat ini
-                    isUpdating = true;
-                    // 1. Kosongkan option lama
-                    $domain.empty();
-                    // 2. Tambahkan option baru
-                    response.data.forEach(function (domain) {
-                        let isSelected = currentSelected && currentSelected.includes(domain);
-                        let option = new Option(domain, domain, isSelected, isSelected);
-                        $domain.append(option);
-                    });
-                    // 3. Refresh select2
-                    $domain.trigger('change.select2');
-                    isUpdating = false;
-                }
-            },
-            error: function (xhr, status, error) {
-                report_eror(xhr, error);
-            }
-        });
-    }
-    $('#select_domain').on('change', function () {
-        if (isUpdating) return;
-        let domain = $(this).val();
-        if (domain && domain.length > 0) {
-            ads_account_list(); // filter account by domain
-        } else {
-            // restore semua account dari template
-            isUpdating = true;
-            $('#select_account')
-                .html(allAccountOptions)
-                .val(null)
-                .trigger('change.select2');
-            isUpdating = false;
-        }
-    });
-    function ads_account_list() {
-        var selected_domain = $("#select_domain").val();
-        if (selected_domain) {
-            selected_domain = selected_domain.join(',');
-        }
-        return $.ajax({
-            url: '/management/admin/ads_account_list',
-            type: 'GET',
-            data: {
-                selected_domains: selected_domain
-            },
-            headers: {
-                'X-CSRFToken': csrftoken
-            },
-            success: function (response) {
-                if (response && response.status) {
-                    let $account = $('#select_account');
-                    let suggested = (response.data || []).map(function (a) { return String(a.account_id); });
-                    isUpdating = true;
-                    $account.html(allAccountOptions);
-                    $account.val(suggested).trigger('change.select2');
-                    isUpdating = false;
-                }
-            },
-            error: function (xhr, status, error) {
-                report_eror(xhr, error);
-            }
-        });
-    }
+    // Filter silang account-domain dinonaktifkan karena domain menggunakan freetext.
 });
 // Fungsi untuk memuat opsi negara ke select2
 function load_country_options(data_account, data_domain) {
-    if (data_domain) {
-        data_domain = data_domain.join(',');
-    }
+    data_account = normalizeCsvOrWildcard(data_account);
+    data_domain = normalizeCsvOrWildcard(normalizeDomainFilter(data_domain));
     // Simpan pilihan country yang sudah dipilih sebelumnya
     var previouslySelected = $("#select_country").val() || [];
     $.ajax({
@@ -227,14 +130,8 @@ function load_country_options(data_account, data_domain) {
 function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain) {
     var selected_countries = $('#select_country').val() || [];
     // Convert array to comma-separated string for backend
-    var accountFilter = '';
-    if (data_account && data_account.length > 0) {
-        accountFilter = data_account.join(',');
-    }
-    var domainFilter = '';
-    if (data_domain && data_domain.length > 0) {
-        domainFilter = data_domain.join(',');
-    }
+    var accountFilter = normalizeCsvOrWildcard(data_account);
+    var domainFilter = normalizeCsvOrWildcard(normalizeDomainFilter(data_domain));
     $.ajax({
         url: '/management/admin/page_per_country_facebook',
         type: 'POST',

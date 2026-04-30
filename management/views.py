@@ -1,13 +1,16 @@
 from collections import defaultdict
 import os
 import csv
+import tldextract
 from io import StringIO
 import math
 import re
 import site
 import inspect
 from traceback import print_tb
-from typing import Any
+import traceback
+from typing import Any, Optional
+import traceback
 from django.conf import settings
 import pprint
 from django.shortcuts import render, redirect
@@ -20,6 +23,8 @@ from django import template
 from datetime import datetime, date, timedelta
 from django.http import HttpResponse, JsonResponse, QueryDict
 from django.core.management import call_command
+
+from management.database import insert_df, query_df
 try:
     from .database import data_mysql
 except Exception:
@@ -589,7 +594,6 @@ def get_countries_facebook_ads(request):
             data_account,
             selected_domain_list
         )
-        print(f"[DEBUG] Raw negara_OK: {result}")
         # Validasi struktur result
         if not result['hasil']['data']:
             return JsonResponse({
@@ -598,7 +602,6 @@ def get_countries_facebook_ads(request):
                 'countries': []
             })
         if not isinstance(result['hasil'], dict):
-            print(f"[WARNING] Result['hasil'] is not a dict: {type(result['hasil'])}")
             return JsonResponse({
                 'status': 'error',
                 'message': 'Format data tidak valid.',
@@ -607,7 +610,6 @@ def get_countries_facebook_ads(request):
         
         # Periksa apakah ada key 'data' dalam result['hasil']
         if 'data' not in result['hasil']:
-            print(f"[WARNING] No 'data' key in result['hasil']. Available keys: {list(result['hasil'].keys())}")
             return JsonResponse({
                 'status': 'error',
                 'message': 'Data negara tidak tersedia.',
@@ -616,7 +618,6 @@ def get_countries_facebook_ads(request):
         
         # Periksa apakah data adalah list
         if not isinstance(result['hasil']['data'], list):
-            print(f"[WARNING] result['hasil']['data'] is not a list: {type(result['hasil']['data'])}")
             return JsonResponse({
                 'status': 'error',
                 'message': 'Format data negara tidak valid.',
@@ -628,7 +629,6 @@ def get_countries_facebook_ads(request):
         seen = set()
         for country_data in result['hasil']['data']:
             if not isinstance(country_data, dict):
-                print(f"[WARNING] Country data is not a dict: {type(country_data)}")
                 continue
             country_name = (country_data.get('country_name') or '').strip()
             country_code = (country_data.get('country_code') or '').strip().upper()
@@ -660,9 +660,6 @@ def get_countries_facebook_ads(request):
         })
         
     except Exception as e:
-        print(f"[ERROR] Gagal mengambil data negara: {e}")
-        import traceback
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
         return JsonResponse({
             'status': 'error',
             'message': 'Gagal mengambil data negara.',
@@ -685,7 +682,6 @@ def get_countries_adx(request):
         if selected_domains:
             selected_domain_list = [str(s).strip() for s in selected_domains.split(',') if s.strip()]
         # Gunakan cache untuk menghindari pemanggilan API berulang
-        print(f"[DEBUG] Request params: start_date={start_date}, end_date={end_date}, selected_account={selected_account}, selected_domain_list={selected_domain_list}")
         try:
             cache_key = generate_cache_key(
                 'countries_adx',
@@ -709,10 +705,8 @@ def get_countries_adx(request):
             selected_account,
             selected_domain_list,
         )
-        print(f"[DEBUG] Raw result: {result}")
         # Validasi struktur result
         if not result['hasil']['data']:
-            print("[WARNING] Result is None or empty")
             return JsonResponse({
                 'status': 'error',
                 'message': 'Tidak ada data yang tersedia.',
@@ -720,7 +714,6 @@ def get_countries_adx(request):
             })
         
         if not isinstance(result['hasil'], dict):
-            print(f"[WARNING] Result['hasil'] is not a dict: {type(result['hasil'])}")
             return JsonResponse({
                 'status': 'error',
                 'message': 'Format data tidak valid.',
@@ -729,7 +722,6 @@ def get_countries_adx(request):
         
         # Periksa apakah ada key 'data' dalam result['hasil']
         if 'data' not in result['hasil']:
-            print(f"[WARNING] No 'data' key in result['hasil']. Available keys: {list(result['hasil'].keys())}")
             return JsonResponse({
                 'status': 'error',
                 'message': 'Data negara tidak tersedia.',
@@ -738,7 +730,6 @@ def get_countries_adx(request):
         
         # Periksa apakah data adalah list
         if not isinstance(result['hasil']['data'], list):
-            print(f"[WARNING] result['hasil']['data'] is not a list: {type(result['hasil']['data'])}")
             return JsonResponse({
                 'status': 'error',
                 'message': 'Format data negara tidak valid.',
@@ -750,7 +741,6 @@ def get_countries_adx(request):
         seen = set()
         for country_data in result['hasil']['data']:
             if not isinstance(country_data, dict):
-                print(f"[WARNING] Country data is not a dict: {type(country_data)}")
                 continue
             country_name = (country_data.get('country_name') or '').strip()
             country_code = (country_data.get('country_code') or '').strip().upper()
@@ -782,9 +772,6 @@ def get_countries_adx(request):
         })
         
     except Exception as e:
-        print(f"[ERROR] Gagal mengambil data negara: {e}")
-        import traceback
-        print(f"[ERROR] Traceback: {traceback.format_exc()}")
         return JsonResponse({
             'status': 'error',
             'message': 'Gagal mengambil data negara.',
@@ -860,7 +847,6 @@ class ForgotPasswordView(View):
             try:
                 send_mail(to=[email], subject=subject, template='emails/simple.html', context=context)
             except Exception as e:
-                print(f"[ERROR] Failed to send reset password email: {e}")
                 messages.warning(req, 'Password has been reset, but email failed to send.')
                 return redirect('admin_login')
 
@@ -868,9 +854,6 @@ class ForgotPasswordView(View):
             return redirect('admin_login')
 
         except Exception as e:
-            print(f"[ERROR] ForgotPasswordView: {e}")
-            import traceback
-            print(traceback.format_exc())
             messages.error(req, 'An error occurred while processing your request.')
             return redirect('forgot_password')
 
@@ -912,12 +895,6 @@ class DashboardAdmin(View):
         }
         return render(req, 'admin/dashboard_admin.html', data)
     
-# ...existing code...
-import traceback
-import logging
-
-logger = logging.getLogger(__name__)
-# ...existing code...
 @method_decorator(csrf_exempt, name='dispatch')
 class DashboardScoringDataView(View):
     def dispatch(self, request, *args, **kwargs):
@@ -926,14 +903,194 @@ class DashboardScoringDataView(View):
         return super().dispatch(request, *args, **kwargs)
 
     def post(self, req):
+        def safe_float(v):
+            try: return float(v)
+            except: return 0.0
+        def clip(v, lo, hi):
+            return max(lo, min(hi, v))
+        def normalize_conf(v):
+            raw = safe_float(v)
+            return clip((raw / 100.0) if raw > 1.0 else raw, 0.0, 1.0)
+        def derive_anomaly_cards(traffic, delivery, yield_score, revenue_score, risk, adj):
+            cards = []
+            if delivery <= -45: cards.append('AD_REQUEST_FILL_ISSUE')
+            if yield_score <= -45: cards.append('ECPM_YIELD_DROP')
+            if revenue_score <= -35: cards.append('REVENUE_DROP')
+            if traffic <= -35: cards.append('TRAFFIC_DROP')
+            if risk >= 70: cards.append('IVT_RISK')
+            if adj <= -60: cards.append('NEG_ADJUSTMENT')
+            return cards
+        def campaign_maturity_profile(frame):
+            if frame is None or frame.empty:
+                return {
+                    'campaign_count': 0,
+                    'mature_campaign_count': 0,
+                    'mature_campaign_ratio': 0.0,
+                    'mature_spend_share': 0.0,
+                }
+            if 'days_active' not in frame.columns:
+                return {
+                    'campaign_count': 0,
+                    'mature_campaign_count': 0,
+                    'mature_campaign_ratio': 0.0,
+                    'mature_spend_share': 0.0,
+                }
+
+            days_vals = pd.to_numeric(frame['days_active'], errors='coerce').fillna(0.0)
+            spend_vals = pd.to_numeric(frame.get('spend', pd.Series([0.0] * len(frame), index=frame.index)), errors='coerce').fillna(0.0)
+            revenue_vals = pd.to_numeric(frame.get('revenue_value', pd.Series([0.0] * len(frame), index=frame.index)), errors='coerce').fillna(0.0)
+            signal_vals = pd.to_numeric(frame.get('signal_total', pd.Series([0.0] * len(frame), index=frame.index)), errors='coerce').fillna(0.0)
+            label_vals = frame.get('final_label', frame.get('root_cause_label', pd.Series([''] * len(frame), index=frame.index))).astype(str).str.strip().str.upper()
+            learning_labels = {'', 'LEARNING', 'DATA_INCOMPLETE', 'BELUM ADA HASIL'}
+            non_learning_vals = (~label_vals.isin(learning_labels)).astype(int)
+            camp = pd.Series([''] * len(frame), index=frame.index, dtype=object)
+            if 'meta_campaign' in frame.columns:
+                camp = frame['meta_campaign'].astype(str).str.strip().str.upper()
+            if 'entity_key' in frame.columns:
+                ek_camp = frame['entity_key'].astype(str).str.split('|').str[1].fillna('').astype(str).str.strip().str.upper()
+                camp = camp.where(camp.ne(''), ek_camp)
+            camp = camp.where(camp.ne(''), '__UNKNOWN__')
+
+            date_col = None
+            if 'scoring_date' in frame.columns:
+                date_col = 'scoring_date'
+            elif 'date' in frame.columns:
+                date_col = 'date'
+
+            base_df = pd.DataFrame({'campaign': camp, 'days_active': days_vals, 'spend': spend_vals, 'revenue_value': revenue_vals, 'signal_total': signal_vals, 'non_learning': non_learning_vals}, index=frame.index)
+            if date_col is not None:
+                base_df['maturity_date'] = pd.to_datetime(frame[date_col], errors='coerce').dt.date
+
+            grp = base_df.groupby('campaign', dropna=False).agg(days_active=('days_active', 'max'), spend=('spend', 'sum'), revenue_value=('revenue_value', 'sum'), signal_total=('signal_total', 'sum'), non_learning=('non_learning', 'sum'))
+            if date_col is not None:
+                days_by_campaign = base_df.groupby('campaign', dropna=False)['maturity_date'].nunique(dropna=True)
+                grp['history_days'] = pd.to_numeric(days_by_campaign, errors='coerce').fillna(0.0)
+                grp['maturity_days'] = grp[['days_active', 'history_days']].max(axis=1)
+            else:
+                grp['maturity_days'] = grp['days_active']
+
+            campaign_count = int(len(grp))
+            if campaign_count <= 0:
+                return {
+                    'campaign_count': 0,
+                    'mature_campaign_count': 0,
+                    'mature_campaign_ratio': 0.0,
+                    'mature_spend_share': 0.0,
+                }
+
+            grp['is_running'] = (grp['spend'] > 0) | (grp['revenue_value'] > 0) | (grp['signal_total'] > 0)
+            mature_mask = (grp['maturity_days'] >= 3) | (grp['is_running'] & (grp['non_learning'] > 0))
+            mature_campaign_count = int(mature_mask.sum())
+            mature_campaign_ratio = float(mature_campaign_count / campaign_count)
+            total_spend = float(pd.to_numeric(grp['spend'], errors='coerce').fillna(0.0).sum())
+            mature_spend = float(pd.to_numeric(grp.loc[mature_mask, 'spend'], errors='coerce').fillna(0.0).sum()) if mature_campaign_count > 0 else 0.0
+            mature_spend_share = float(mature_spend / total_spend) if total_spend > 0 else mature_campaign_ratio
+            return {
+                'campaign_count': campaign_count,
+                'mature_campaign_count': mature_campaign_count,
+                'mature_campaign_ratio': mature_campaign_ratio,
+                'mature_spend_share': mature_spend_share,
+            }
+        def filter_running_non_learning_campaign_rows(frame):
+            if frame is None or frame.empty:
+                return frame
+            camp = pd.Series([''] * len(frame), index=frame.index, dtype=object)
+            if 'meta_campaign' in frame.columns:
+                camp = frame['meta_campaign'].astype(str).str.strip().str.upper()
+            if 'entity_key' in frame.columns:
+                ek_camp = frame['entity_key'].astype(str).str.split('|').str[1].fillna('').astype(str).str.strip().str.upper()
+                camp = camp.where(camp.ne(''), ek_camp)
+            camp = camp.where(camp.ne(''), '__UNKNOWN__')
+            days_vals = pd.to_numeric(frame.get('days_active', pd.Series([0.0] * len(frame), index=frame.index)), errors='coerce').fillna(0.0)
+            spend_vals = pd.to_numeric(frame.get('spend', pd.Series([0.0] * len(frame), index=frame.index)), errors='coerce').fillna(0.0)
+            revenue_vals = pd.to_numeric(frame.get('revenue_value', pd.Series([0.0] * len(frame), index=frame.index)), errors='coerce').fillna(0.0)
+            signal_vals = pd.to_numeric(frame.get('signal_total', pd.Series([0.0] * len(frame), index=frame.index)), errors='coerce').fillna(0.0)
+            label_vals = frame.get('final_label', frame.get('root_cause_label', pd.Series([''] * len(frame), index=frame.index))).astype(str).str.strip().str.upper()
+            learning_labels = {'', 'LEARNING', 'DATA_INCOMPLETE', 'BELUM ADA HASIL'}
+            non_learning_vals = (~label_vals.isin(learning_labels)).astype(int)
+            grp = pd.DataFrame({'campaign': camp, 'days_active': days_vals, 'spend': spend_vals, 'revenue_value': revenue_vals, 'signal_total': signal_vals, 'non_learning': non_learning_vals}).groupby('campaign', dropna=False).agg(days_active=('days_active', 'max'), spend=('spend', 'sum'), revenue_value=('revenue_value', 'sum'), signal_total=('signal_total', 'sum'), non_learning=('non_learning', 'sum'))
+            grp['is_running'] = (grp['spend'] > 0) | (grp['revenue_value'] > 0) | (grp['signal_total'] > 0)
+            grp['is_learning'] = (grp['days_active'] < 3) & (grp['non_learning'] <= 0)
+            eligible_campaigns = grp.index[(grp['is_running']) & (~grp['is_learning'])].tolist()
+            if not eligible_campaigns:
+                return frame
+            return frame.loc[camp.isin(eligible_campaigns)].copy()
+
+        def derive_score_decision(health, risk, adj, conf, dm, label, profit_strong, anomaly_cards, roi_value=0.0, source_mode='BLENDED'):
+            negative_labels = ["TRAFFIC_DROP","SERVING_DROP","YIELD_DROP","VIEWABILITY_DROP","EFFICIENCY_DROP","REVENUE_DROP","NEGATIVE_MIXED","NEG_ADJUSTMENT"]
+            label_up = str(label or '').strip().upper()
+            source_mode_key = str(source_mode or 'BLENDED').strip().upper()
+            single_source = source_mode_key in ["ADX_ONLY", "ADSENSE_ONLY"]
+            down_score_cut = 52 if single_source else 55
+            down_dm_cut = -12 if single_source else -10
+            down_anomaly_cut = 3 if single_source else 2
+            profit_component = clip((float(roi_value) + 1.0) * 50.0, 0.0, 100.0)
+            score_raw = (((health + 100.0) / 2.0) * 0.25) + ((100.0 - risk) * 0.2) + (conf * 100.0 * 0.1) + (clip(dm + 50.0, 0.0, 100.0) * 0.15) + (profit_component * 0.30)
+            score = int(round(clip(score_raw, 0.0, 100.0)))
+            decision = "HOLD"
+            severe_anomaly = label_up.startswith("RED_FLAG") or (risk >= 85 and conf >= 0.60) or (dm <= -70 and health <= -25) or ('IVT_RISK' in anomaly_cards)
+            anomaly_pressure = len(anomaly_cards)
+            if severe_anomaly or (risk >= 90 and conf >= 0.60 and score < 40) or (dm <= -65 and health <= -25 and conf >= 0.60):
+                decision = "STOP"
+            elif (label_up in ["POSITIVE_EXPANSION", "POSITIVE_RECOVERY"] and score >= 62 and risk < 60 and dm >= 6 and conf >= 0.45) or (score >= 72 and risk < 50 and dm >= 10 and conf >= 0.50):
+                decision = "SCALE UP"
+            elif ((label_up in negative_labels and ((score < down_score_cut and dm < down_dm_cut) or (health < -12 and adj < -18))) or (score < 40 and dm < -12 and (health < -15 or risk >= 72)) or (anomaly_pressure >= down_anomaly_cut and score < 62)) and (not (profit_strong and anomaly_pressure <= 1 and not severe_anomaly)):
+                decision = "SCALE DOWN"
+
+            profit_guard_hold = profit_strong and (risk < (45 if single_source else 40)) and (label_up in ["WATCH_DECAY", "WATCH_NEGATIVE"]) and (decision == "SCALE_DOWN" or decision == "SCALE DOWN")
+            if profit_guard_hold:
+                decision = "HOLD"
+            return score, decision
         try:
             if pd is None:
                 raise RuntimeError('pandas belum tersedia')
             payload = json.loads((req.body or b'').decode('utf-8') or '{}')
             target_date = str(payload.get('date') or '').strip()
+            target_date_obj = pd.to_datetime(target_date, errors='coerce').date() if str(target_date).strip() else None
             dim = str(payload.get('dim') or 'domain').strip().lower()
             raw_entities = payload.get('entities') or []
-            entities = [str(x).strip().upper() if dim == 'country' else str(x).strip().lower() for x in raw_entities if str(x).strip()]
+            include_events = bool(payload.get('include_events'))
+            def normalize_site_entity(v):
+                s = str(v or '').strip().lower()
+                s = re.sub(r'^https?://', '', s)
+                s = s.split('/')[0].split('?')[0].split('#')[0]
+                s = re.sub(r'^www\.', '', s)
+                return s
+            def extract_site_base(v):
+                s = normalize_site_entity(v)
+                if not s:
+                    return ''
+                try:
+                    ext = tldextract.extract(s)
+                    if ext.domain and ext.suffix:
+                        return f"{ext.domain}.{ext.suffix}"
+                except Exception:
+                    pass
+                parts = [p for p in s.split('.') if p]
+                return '.'.join(parts[-2:]) if len(parts) >= 2 else s
+            if dim == 'country':
+                entities_raw = [str(x).strip().upper() for x in raw_entities if str(x).strip()]
+                entities = []
+                for e in entities_raw:
+                    if e not in entities:
+                        entities.append(e)
+                    if e == 'TR' and 'TU' not in entities:
+                        entities.append('TU')
+                    elif e == 'TU' and 'TR' not in entities:
+                        entities.append('TR')
+            else:
+                entity_set = set()
+                for x in raw_entities:
+                    raw = str(x).strip()
+                    if not raw:
+                        continue
+                    norm = normalize_site_entity(raw)
+                    if norm:
+                        entity_set.add(norm)
+                    base = extract_site_base(raw)
+                    if base:
+                        entity_set.add(base)
+                entities = sorted(entity_set)
             if not target_date:
                 return JsonResponse({'status': False, 'error': 'date wajib diisi'}, status=400)
             if not entities:
@@ -942,46 +1099,1260 @@ class DashboardScoringDataView(View):
             query_df = getattr(scoring_module, 'query_df', None)
             if query_df is None:
                 raise RuntimeError('query_df belum tersedia')
-            status_table = getattr(scoring_module, 'STATUS_TABLE', 'hris_trendHorizone.fact_domain_country_status_history')
-            table_cols = set(getattr(scoring_module, '_get_table_columns', lambda _t: set())(status_table) or [])
-            raw_snapshot_expr = 'event_time' if 'event_time' in table_cols else ('mdd' if 'mdd' in table_cols else 'toDateTime(run_date)')
-            snapshot_expr = f"toTimeZone({raw_snapshot_expr}, 'Asia/Jakarta')"
-            date_expr = 'toDate(event_date)' if 'event_date' in table_cols else ('toDate(date)' if 'date' in table_cols else 'toDate(run_date)')
-            entity_expr = 'upper(country_cd)' if dim == 'country' else 'lower(domain)'
+            status_table = getattr(scoring_module, 'STATUS_TABLE', 'hris_trendHorizone.fact_site_country_status_history')
+            event_table = getattr(scoring_module, 'EVENT_TABLE', 'hris_trendHorizone.fact_change_event_long')
+            source_table = getattr(scoring_module, 'SOURCE_TABLE', 'hris_trendHorizone.fact_join_hourly')
+            def table_exists(table_name):
+                try:
+                    q = query_df(f"EXISTS TABLE {table_name}")
+                    if q is None or q.empty:
+                        return False
+                    first_col = q.columns[0]
+                    return bool(int(q.iloc[0][first_col]))
+                except Exception as ex:
+                    logger.warning('DashboardScoringDataView table_exists failed for %s: %s', table_name, ex)
+                    return False
+            if not table_exists(status_table):
+                return JsonResponse({
+                    'status': True,
+                    'data': {},
+                    'scoring_ready': False,
+                    'reason': 'Tabel scoring status belum tersedia'
+                }, safe=False)
+            if include_events and (not table_exists(event_table)):
+                return JsonResponse({
+                    'status': True,
+                    'data': {},
+                    'scoring_ready': False,
+                    'reason': 'Tabel scoring event belum tersedia'
+                }, safe=False)
+            def resolve_table_columns(table_name):
+                try:
+                    schema_df = query_df(f"DESCRIBE TABLE {table_name}")
+                    for c in ['name', 'column', 'Field']:
+                        if c in schema_df.columns:
+                            return set(schema_df[c].astype(str).str.strip().tolist())
+                except Exception as ex:
+                    logger.warning('DashboardScoringDataView resolve_table_columns failed for %s: %s', table_name, ex)
+                return set()
+            table_cols = resolve_table_columns(status_table)
             literals = ', '.join("'{}'".format(x.replace("'", "''")) for x in sorted(set(entities)))
-            cols = ['domain', 'country_cd', 'country_nm', 'date', 'event_date', 'mapped_revenue_source', 'join_status', 'final_label', 'root_cause_label', 'decision', 'score', 'health_score', 'adjustment_score', 'ivt_risk_score', 'confidence', 'decision_margin']
-            keep = [c for c in cols if not table_cols or c in table_cols]
-            sql = f"SELECT {entity_expr} AS entity_key, {date_expr} AS scoring_date, {snapshot_expr} AS snapshot_time, {', '.join(keep)} FROM {status_table} WHERE {date_expr} = toDate('{target_date}') AND {entity_expr} IN ({literals}) ORDER BY entity_key, snapshot_time DESC"
-            df = query_df(sql)
+            is_country_dim = (dim == 'country')
+            entity_key_expr = "upper(country_code)" if is_country_dim else "lower(site)"
+            status_filter_expr = f"(upper(country_code) IN ({literals}) OR upper(country_name) IN ({literals}))" if is_country_dim else f"lower(site) IN ({literals})"
+            days_active_expr = "toInt32(days_active)" if 'days_active' in table_cols else "toInt32(0)"
+            sql = f"""
+            SELECT
+                site,
+                meta_campaign,
+                date AS scoring_date,
+                run_time,
+                run_hour,
+                country_code,
+                country_name,
+                {entity_key_expr} AS entity_key,
+                entity_key AS status_entity_key,
+                mapped_revenue_source,
+                join_status,
+                spend,
+                revenue_value,
+                final_label,
+                root_cause_label,
+                health_score,
+                adjustment_score,
+                ivt_risk_score,
+                confidence,
+                decision_margin,
+                traffic_score,
+                delivery_score,
+                yield_score,
+                quality_score,
+                revenue_score,
+                efficiency_score,
+                engagement_score,
+                control_score,
+                ivt_click_stress_score,
+                ivt_serving_score,
+                ivt_attention_score,
+                ivt_counter_score,
+                ivt_funnel_score,
+                positive_signal_count,
+                negative_signal_count,
+                neutral_signal_count,
+                reason_summary,
+                {days_active_expr} AS days_active
+            FROM {status_table}
+            WHERE toDate(date) = toDate('{target_date}')
+              AND {status_filter_expr}
+            """
+            event_sql = f"""
+            SELECT 
+            date AS scoring_date,
+            run_time,
+            run_hour,
+            entity_key,
+            site,
+            meta_campaign,
+            country_code, 
+            country_name,
+            join_status,
+            mapped_revenue_source,
+            source_scope,
+            header_name,
+            metric_group,
+            metric_type,
+            funnel_stage,
+            metric_role,
+            rule_key,
+            score_method,
+            expected_direction,
+            prev_value,
+            cur_value,
+            delta_abs,
+            delta_pct,
+            current_increment,
+            baseline_center,
+            baseline_scale,
+            volume_gate_value,
+            volume_gate_pass,
+            denominator_value,
+            confidence,
+            signal_strength,
+            health_component,
+            adjustment_component,
+            change_class,
+            event_label,
+            event_reason,
+            note,
+            ivt_component,
+            ivt_capacity,
+            baseline_source,
+            hist_points,
+            z_raw,
+            directional_z,
+            day_type,
+            is_composite
+            FROM {event_table}
+            WHERE toDate(date) = toDate('{target_date}')
+              AND lower(site) IN ({literals})
+            """
+            source_sql = f"""
+            SELECT
+                site,
+                meta_campaign,
+                date,
+                entity_key,
+                argMax(country_code, run_hour) AS country_code,
+                argMax(country_name, run_hour) AS country_name,
+                argMax(mapped_revenue_source, run_hour) AS mapped_revenue_source,
+                argMax(meta_spend, run_hour) AS meta_spend,
+                argMax(adx_revenue, run_hour) AS adx_revenue,
+                argMax(adsense_estimated_earnings, run_hour) AS adsense_estimated_earnings
+            FROM
+            (
+                SELECT
+                    site,
+                    lower(meta_campaign) AS meta_campaign,
+                    date,
+                    lower(entity_key) AS entity_key,
+                    run_hour,
+                    country_code,
+                    country_name,
+                    mapped_revenue_source,
+                    meta_spend,
+                    adx_revenue,
+                    adsense_estimated_earnings
+                FROM {source_table}
+                WHERE toDate(date) = toDate('{target_date}')
+            )
+            GROUP BY
+                site,
+                date,
+                entity_key,
+                meta_campaign
+            """
+            timeline_hour_expr = "toHour(run_time)" if 'run_time' in table_cols else "run_hour"
+            timeline_entity_expr = "upper(country_code)" if is_country_dim else "lower(site)"
+            timeline_sql = f"""
+            SELECT
+                {timeline_entity_expr} AS entity_key,
+                toString({timeline_hour_expr}) AS run_hour
+            FROM {status_table}
+            WHERE toDate(date) = toDate('{target_date}')
+              AND {status_filter_expr}
+            GROUP BY entity_key, run_hour
+            ORDER BY entity_key, toInt32OrZero(run_hour) DESC, run_hour DESC
+            """
+            def load_status_df():
+                df = query_df(sql)
+                for c in ['scoring_date', 'date']:
+                    if c in df.columns:
+                        df[c] = pd.to_datetime(df[c], errors='coerce')
+                        df = df.dropna(subset=[c])
+                        df[c] = df[c].dt.date
+                if 'run_time' in df.columns:
+                    df['run_time'] = pd.to_datetime(df['run_time'], errors='coerce')
+                if 'run_hour' in df.columns:
+                    df['run_hour_raw'] = df['run_hour']
+                    df['run_hour'] = pd.to_numeric(df['run_hour'], errors='coerce').fillna(0).astype(int)
+                return df
+            def load_event_df():
+                if not include_events:
+                    return pd.DataFrame()
+                ev = query_df(event_sql)
+                if 'run_hour' in ev.columns:
+                    ev['run_hour'] = pd.to_numeric(ev['run_hour'], errors='coerce').fillna(0).astype(int)
+                return ev
+            def load_source_df():
+                try:
+                    return query_df(source_sql)
+                except Exception as ex:
+                    logger.warning('DashboardScoringDataView source query failed: %s', ex)
+                    return pd.DataFrame()
+            def load_timeline_df():
+                try:
+                    tdf = query_df(timeline_sql)
+                except Exception as ex:
+                    logger.warning('DashboardScoringDataView timeline query failed: %s', ex)
+                    return pd.DataFrame()
+                if 'entity_key' in tdf.columns:
+                    tdf['entity_key'] = tdf['entity_key'].astype(str).map(lambda x: x.strip().upper())
+                return tdf
+            df = load_status_df()
+            event_df = load_event_df()
+            source_df = load_source_df()
+            timeline_df = load_timeline_df()
             if df.empty:
                 return JsonResponse({'status': True, 'data': {}}, safe=False)
-            df['entity_key'] = df['entity_key'].astype(str).map(lambda x: x.strip().upper() if dim == 'country' else x.strip().lower())
+            df['entity_key'] = df['entity_key'].astype(str).map(lambda x: x.strip().upper())
+            if 'site' in df.columns:
+                df['site'] = df['site'].astype(str).map(lambda x: x.strip().upper())
+            if 'meta_campaign' in df.columns:
+                df['meta_campaign'] = df['meta_campaign'].astype(str).map(lambda x: x.strip().upper())
+            if not event_df.empty and 'entity_key' in event_df.columns:
+                event_df['entity_key'] = event_df['entity_key'].astype(str).map(lambda x: x.strip().upper())
             df['scoring_date'] = pd.to_datetime(df.get('scoring_date'), errors='coerce').dt.date
-            df['snapshot_time'] = pd.to_datetime(df.get('snapshot_time'), errors='coerce')
+            if 'run_hour' in df.columns:
+                df['run_hour'] = pd.to_numeric(df.get('run_hour'), errors='coerce').fillna(0).astype(int)
+            source_lookup = {}
+            source_agg_lookup = {}
+            source_site_country_lookup = {}
+            source_site_country_campaign_lookup = {}
+            source_entity_country_lookup = {}
+            def site_key_candidates(raw_key, site_value=''):
+                if dim == 'country':
+                    k = str(raw_key or '').strip().upper()
+                    return [k] if k else []
+                keys = []
+                for v in [raw_key, site_value]:
+                    s = str(v or '').strip().lower()
+                    if not s:
+                        continue
+                    s = s.split('|')[0].strip()
+                    s = normalize_site_entity(s)
+                    if s:
+                        keys.append(s)
+                        base = extract_site_base(s)
+                        if base:
+                            keys.append(base)
+                return [k for k in dict.fromkeys(keys) if k]
+            def site_country_candidates(raw_key, site_value='', country_code=''):
+                base_keys = site_key_candidates(raw_key, site_value)
+                cc = str(country_code or '').strip().upper()
+                if not cc:
+                    return base_keys
+                with_cc = [f"{k}|{cc}" for k in base_keys if k]
+                return [k for k in dict.fromkeys(with_cc + base_keys) if k]
+            if not source_df.empty and 'entity_key' in source_df.columns:
+                source_df['entity_key'] = source_df['entity_key'].astype(str).map(lambda x: x.strip().upper())
+                if 'site' in source_df.columns:
+                    source_df['site'] = source_df['site'].astype(str).map(lambda x: x.strip().upper())
+                if 'meta_campaign' in source_df.columns:
+                    source_df['meta_campaign'] = source_df['meta_campaign'].astype(str).map(lambda x: x.strip().upper())
+                def _src_num(v):
+                    try:
+                        if pd.isna(v):
+                            return 0.0
+                    except Exception:
+                        pass
+                    try:
+                        return float(v)
+                    except Exception:
+                        return 0.0
+                def source_row_rank(r):
+                    adx = _src_num(r.get('adx_revenue'))
+                    ads = _src_num(r.get('adsense_estimated_earnings'))
+                    spend = _src_num(r.get('meta_spend'))
+                    rev = adx + ads
+                    has_src = 1.0 if str(r.get('mapped_revenue_source') or '').strip() else 0.0
+                    return (1.0 if rev > 0 else 0.0) * 1_000_000 + rev * 100 + (1.0 if spend > 0 else 0.0) * 10 + has_src
+                for _, srow in source_df.iterrows():
+                    row_dict = dict(srow)
+                    src_key = str(srow.get('entity_key')).strip()
+                    src_key_upper = src_key.upper()
+                    src_site = str(srow.get('site') or '').strip()
+                    src_meta_campaign = str(srow.get('meta_campaign') or '').strip().upper()
+                    src_country = str(srow.get('country_code') or srow.get('country_cd') or '').strip().upper()
+                    norm_site = normalize_site_entity(src_site)
+                    row_rank = source_row_rank(row_dict)
+                    if src_key_upper and src_country:
+                        sec_key = f"{src_key_upper}|{src_country}"
+                        sec = source_entity_country_lookup.get(sec_key)
+                        if (sec is None) or (row_rank > float(sec.get('_rank', -1e30))):
+                            source_entity_country_lookup[sec_key] = {
+                                'meta_spend': _src_num(srow.get('meta_spend')),
+                                'adx_revenue': _src_num(srow.get('adx_revenue')),
+                                'adsense_estimated_earnings': _src_num(srow.get('adsense_estimated_earnings')),
+                                'mapped_revenue_source': str(srow.get('mapped_revenue_source') or '').strip(),
+                                '_rank': row_rank,
+                            }
+                    if norm_site and src_country:
+                        sc_key = f"{norm_site}|{src_country}"
+                        sc = source_site_country_lookup.get(sc_key)
+                        if (sc is None) or (row_rank > float(sc.get('_rank', -1e30))):
+                            source_site_country_lookup[sc_key] = {
+                                'site': norm_site,
+                                'meta_campaign': src_meta_campaign,
+                                'country_code': src_country,
+                                'meta_spend': _src_num(srow.get('meta_spend')),
+                                'adx_revenue': _src_num(srow.get('adx_revenue')),
+                                'adsense_estimated_earnings': _src_num(srow.get('adsense_estimated_earnings')),
+                                'mapped_revenue_source': str(srow.get('mapped_revenue_source') or '').strip(),
+                                '_rank': row_rank,
+                            }
+                        if src_meta_campaign:
+                            scc_key = f"{norm_site}|{src_country}|{src_meta_campaign}"
+                            scc = source_site_country_campaign_lookup.get(scc_key)
+                            if (scc is None) or (row_rank > float(scc.get('_rank', -1e30))):
+                                source_site_country_campaign_lookup[scc_key] = {
+                                    'site': norm_site,
+                                    'meta_campaign': src_meta_campaign,
+                                    'country_code': src_country,
+                                    'meta_spend': _src_num(srow.get('meta_spend')),
+                                    'adx_revenue': _src_num(srow.get('adx_revenue')),
+                                    'adsense_estimated_earnings': _src_num(srow.get('adsense_estimated_earnings')),
+                                    'mapped_revenue_source': str(srow.get('mapped_revenue_source') or '').strip(),
+                                    '_rank': row_rank,
+                                }
+                    cands = site_country_candidates(src_key, src_site, src_country)
+                    for cand in cands:
+                        if not cand:
+                            continue
+                        existing = source_lookup.get(cand)
+                        if (existing is None) or (row_rank > source_row_rank(existing)):
+                            source_lookup[cand] = row_dict
+                        agg = source_agg_lookup.get(cand)
+                        if (agg is None) or (row_rank > float(agg.get('_rank', -1e30))):
+                            source_agg_lookup[cand] = {
+                                'meta_spend': _src_num(srow.get('meta_spend')),
+                                'adx_revenue': _src_num(srow.get('adx_revenue')),
+                                'adsense_estimated_earnings': _src_num(srow.get('adsense_estimated_earnings')),
+                                'mapped_revenue_source': str(srow.get('mapped_revenue_source') or '').strip(),
+                                '_rank': row_rank,
+                            }
+
+            timeline_map = {}
+            if not timeline_df.empty and 'entity_key' in timeline_df.columns and 'run_hour' in timeline_df.columns:
+                for ekey, tpart in timeline_df.groupby('entity_key', sort=False):
+                    hs = tpart['run_hour'].astype(str).str.strip()
+                    hs = hs[(hs != '') & (hs.str.lower() != 'nan')]
+                    hs = hs.map(lambda x: f"{int(float(x)):02d}" if str(x).replace('.', '', 1).isdigit() else str(x))
+                    if not hs.empty:
+                        nums = pd.to_numeric(hs, errors='coerce')
+                        if nums.notna().any():
+                            ordered = hs.to_frame('h').assign(n=nums).sort_values(['n', 'h'], ascending=[False, False])
+                            timeline_map[str(ekey).strip().upper()] = ordered['h'].drop_duplicates().tolist()
+                        else:
+                            timeline_map[str(ekey).strip().upper()] = hs.drop_duplicates().tolist()
+
             out = {}
-            derive_decision = getattr(scoring_module, 'derive_decision', None)
+            def avg(frame, col, weighted=False):
+                if col not in frame.columns:
+                    return 0.0
+
+                def to_num(v):
+                    if pd.isna(v):
+                        return np.nan
+                    if isinstance(v, str):
+                        s = v.strip().replace('%', '')
+                        if s.count(',') == 1 and s.count('.') == 0:
+                            s = s.replace(',', '.')
+                        else:
+                            s = s.replace(',', '')
+                        try:
+                            return float(s)
+                        except Exception:
+                            return np.nan
+                    try:
+                        return float(v)
+                    except Exception:
+                        return np.nan
+
+                vals = frame[col].map(to_num).dropna()
+                if not len(vals):
+                    return 0.0
+                if weighted and 'signal_total' in frame.columns:
+                    w = pd.to_numeric(frame['signal_total'], errors='coerce').fillna(0.0).loc[vals.index]
+                    den = float(w.sum())
+                    if den > 0:
+                        return float((vals * w).sum() / den)
+                return float(vals.mean())
             for entity_key, part in df.groupby('entity_key', sort=False):
-                latest = part['snapshot_time'].dropna().max()
-                snap = part[part['snapshot_time'].eq(latest)].copy() if pd.notna(latest) else part.copy()
-                avg = lambda c: float(pd.to_numeric(snap[c], errors='coerce').dropna().mean()) if c in snap.columns and pd.to_numeric(snap[c], errors='coerce').dropna().size else 0.0
-                health, risk, conf, dm, adj = avg('health_score'), avg('ivt_risk_score'), avg('confidence'), avg('decision_margin'), avg('adjustment_score')
-                score_values = pd.to_numeric(snap['score'], errors='coerce').dropna() if 'score' in snap.columns else pd.Series(dtype=float)
-                if score_values.size:
-                    score = int(round(max(0.0, min(100.0, float(score_values.mean())))))
-                    score_source = 'stored_score'
+                # Ensure signal_total is available in part for weighted averages
+                for c in ['positive_signal_count', 'negative_signal_count', 'neutral_signal_count']:
+                    if c not in part.columns:
+                        part[c] = 0
+                part['signal_total'] = pd.to_numeric(part['positive_signal_count'], errors='coerce').fillna(0) + \
+                                       pd.to_numeric(part['negative_signal_count'], errors='coerce').fillna(0) + \
+                                       pd.to_numeric(part['neutral_signal_count'], errors='coerce').fillna(0)
+
+                part_eval = filter_running_non_learning_campaign_rows(part)
+                if part_eval is None or part_eval.empty:
+                    part_eval = part
+
+                snap = part_eval.copy()  
+                if 'country_code' in snap.columns and 'run_hour' in snap.columns:
+                    snap_keys = ['country_code']
+                    if 'meta_campaign' in snap.columns:
+                        snap_keys.append('meta_campaign')
+                    sort_cols = list(snap_keys)
+                    if 'scoring_date' in snap.columns:
+                        sort_cols.append('scoring_date')
+                    elif 'date' in snap.columns:
+                        sort_cols.append('date')
+                    if 'run_time' in snap.columns:
+                        sort_cols.append('run_time')
+                    sort_cols.append('run_hour')
+                    snap = snap.sort_values(sort_cols).drop_duplicates(subset=snap_keys, keep='last')
+                if target_date_obj is not None and 'scoring_date' in snap.columns:
+                    snap_on_target = snap[snap['scoring_date'].eq(target_date_obj)].copy()
+                    if not snap_on_target.empty:
+                        snap = snap_on_target
+
+                join_status_series = snap['join_status'] if 'join_status' in snap.columns else pd.Series('', index=snap.index)
+                join_status_clean = join_status_series.astype(str).str.upper().str.strip()
+                join_status_summary = ', '.join([f"{k}:{v}" for k, v in join_status_clean.value_counts().to_dict().items() if str(k).strip()])
+                
+                # Averaged metrics from campaign aktif non-learning (fallback: semua campaign)
+                health = avg(part_eval, 'health_score', weighted=True)
+                risk = avg(part_eval, 'ivt_risk_score', weighted=True)
+                adj = avg(part_eval, 'adjustment_score', weighted=True)
+                dm = avg(part_eval, 'decision_margin', weighted=True)
+                conf_raw = avg(part_eval, 'confidence', weighted=True)
+                conf = normalize_conf(conf_raw)
+
+                labels = []
+                for c in ['final_label', 'root_cause_label']:
+                    if c in snap.columns:
+                        labels.extend([str(x).strip().upper() for x in snap[c].tolist() if str(x).strip()])
+                label = pd.Series(labels).value_counts().index[0] if labels else 'STABLE'
+
+                # Totals from the entire 7-day part
+                total_pos = int(pd.to_numeric(part_eval['positive_signal_count'], errors='coerce').fillna(0).sum()) if 'positive_signal_count' in part_eval.columns else 0
+                total_neg = int(pd.to_numeric(part_eval['negative_signal_count'], errors='coerce').fillna(0).sum()) if 'negative_signal_count' in part_eval.columns else 0
+                total_neu = int(pd.to_numeric(part_eval['neutral_signal_count'], errors='coerce').fillna(0).sum()) if 'neutral_signal_count' in part_eval.columns else 0
+                has_scoring = (total_pos + total_neg + total_neu) > 0 and conf >= 0.05
+                spend_total = float(pd.to_numeric(part_eval['spend'], errors='coerce').fillna(0).sum()) if 'spend' in part_eval.columns else 0.0
+                revenue_total = float(pd.to_numeric(part_eval['revenue_value'], errors='coerce').fillna(0).sum()) if 'revenue_value' in part_eval.columns else 0.0
+                roi_total = ((revenue_total - spend_total) / spend_total) if spend_total > 0 else 0.0
+                profit_strong = (revenue_total > spend_total) and (roi_total >= 0.30)
+                traffic_now = avg(part_eval, 'traffic_score', weighted=True)
+                delivery_now = avg(part_eval, 'delivery_score', weighted=True)
+                yield_now = avg(part_eval, 'yield_score', weighted=True)
+                revenue_now = avg(part_eval, 'revenue_score', weighted=True)
+                anomaly_cards = derive_anomaly_cards(traffic_now, delivery_now, yield_now, revenue_now, risk, adj)
+                days_series = part_eval['scoring_date'] if 'scoring_date' in part_eval.columns else (part_eval['date'] if 'date' in part_eval.columns else pd.Series([], dtype=object))
+                days_hist = int(pd.to_datetime(days_series, errors='coerce').dropna().dt.date.nunique())
+                days_flag = int(pd.to_numeric(part_eval.get('days_active', pd.Series([], dtype=float)), errors='coerce').fillna(0).max()) if 'days_active' in part_eval.columns else 0
+                active_days_effective = max(days_hist, days_flag)
+                maturity_profile = campaign_maturity_profile(part_eval)
+                mature_campaign_ratio = float(maturity_profile.get('mature_campaign_ratio', 0.0))
+                mature_spend_share = float(maturity_profile.get('mature_spend_share', 0.0))
+                mature_campaign_count = int(maturity_profile.get('mature_campaign_count', 0))
+                campaign_count = int(maturity_profile.get('campaign_count', 0))
+                source_mode = 'BLENDED'
+                if 'mapped_revenue_source' in snap.columns:
+                    src_vals = snap['mapped_revenue_source'].astype(str).str.strip().str.upper()
+                    src_vals = src_vals[src_vals.ne('')]
+                    if not src_vals.empty:
+                        source_mode = str(src_vals.value_counts().index[0])
+                score = None
+                decision = ""
+                learning_gate = (active_days_effective < 2) and (mature_campaign_count <= 0) and (mature_campaign_ratio < 0.60) and (mature_spend_share < 0.55)
+                if learning_gate:
+                    label = "LEARNING"
+                    decision = "LEARNING"
+                elif has_scoring:
+                    if label == "LEARNING" and (mature_campaign_count > 0 or mature_campaign_ratio >= 0.60 or mature_spend_share >= 0.55):
+                        label = "STABLE"
+                    score, decision = derive_score_decision(health, risk, adj, conf, dm, label, profit_strong, anomaly_cards, roi_total, source_mode)
                 else:
-                    score = int(round(max(0.0, min(100.0, (((health + 100.0) / 2.0) * 0.45) + ((100.0 - risk) * 0.2) + ((conf * 100.0) * 0.15) + (max(0.0, min(100.0, dm + 50.0)) * 0.2)))))
-                    score_source = 'derived_formula'
-                labels = [str(x).strip() for x in snap.get('final_label', pd.Series(dtype=str)).tolist() if str(x).strip()]
-                label = sorted(labels, key=lambda x: (0 if x.upper().startswith('RED_FLAG') else 1 if ('DROP' in x.upper() or x.upper().startswith('NEG')) else 2 if x.upper().startswith('WATCH') else 3 if x.upper() == 'STABLE' else 4, x))[0] if labels else ''
-                if callable(derive_decision):
-                    decision, decision_basis = derive_decision(score, label or 'STABLE', health, risk, adj, dm, conf)
-                else:
-                    decision, decision_basis = 'HOLD', ''
-                out[entity_key] = {'score': score, 'decision': decision, 'label': label or 'STABLE', 'reasons': [f"Snapshot terakhir {latest.strftime('%Y-%m-%d %H:%M:%S') if pd.notna(latest) else target_date}", f"{int(len(snap))} baris status", f"Sumber score: {score_source}", decision_basis], 'breakdown': {'meta': {'date': target_date, 'snapshot_time': latest.strftime('%Y-%m-%d %H:%M:%S') if pd.notna(latest) else '', 'health_score': round(health, 4), 'ivt_risk_score': round(risk, 4), 'adjustment_score': round(adj, 4), 'confidence': round(conf, 4), 'decision_margin': round(dm, 4), 'row_count': int(len(snap)), 'score_source': score_source, 'score_row_count': int(score_values.size)}}}
-            return JsonResponse({'status': True, 'data': out}, safe=False, json_dumps_params={'allow_nan': False})
+                    label = "DATA_INCOMPLETE"
+                reason_parts = [str(x).strip() for x in snap.get('reason_summary', pd.Series([], dtype=str)).tolist() if str(x).strip()]
+                reason_summary = ' | '.join(list(dict.fromkeys(reason_parts))[:3])
+
+                scoring_timeline = []
+                def _hour_key(v):
+                    s = str(v or '').strip()
+                    if not s or s.lower() == 'nan':
+                        return None
+                    try:
+                        h = int(float(s))
+                        if 0 <= h <= 23:
+                            return f"{h:02d}"
+                    except Exception:
+                        pass
+                    dt = pd.to_datetime(s, errors='coerce')
+                    if pd.notna(dt):
+                        return f"{int(dt.hour):02d}"
+                    return None
+                def _fmt_run_hour_label(v):
+                    k = _hour_key(v)
+                    return f"{k}:00" if k else ''
+
+                base_hour_series = part['run_hour_raw'] if 'run_hour_raw' in part.columns else part.get('run_hour')
+                part_hour_key = pd.Series([None] * len(part), index=part.index, dtype=object)
+                if base_hour_series is not None:
+                    part_hour_key = base_hour_series.map(_hour_key)
+                if 'run_time' in part.columns:
+                    rt_key = part['run_time'].map(_hour_key)
+                    part_hour_key = part_hour_key.where(part_hour_key.notna(), rt_key)
+
+                run_hours = []
+                map_hours = list(timeline_map.get(str(entity_key).strip().upper(), []) or [])
+                run_hours.extend([_hour_key(x) for x in map_hours if _hour_key(x) is not None])
+                run_hours.extend([x for x in part_hour_key.dropna().astype(str).tolist() if x])
+                run_hours = sorted(list(dict.fromkeys(run_hours)), reverse=True)
+
+                if run_hours:
+                    for rh in run_hours[:8]:
+                        snap_h = part.loc[part_hour_key.astype(str).eq(str(rh))].copy()
+                        if target_date_obj is not None and 'scoring_date' in snap_h.columns:
+                            snap_h_target = snap_h[snap_h['scoring_date'].eq(target_date_obj)].copy()
+                            if not snap_h_target.empty:
+                                snap_h = snap_h_target
+                        if 'country_code' in snap_h.columns and 'run_hour' in snap_h.columns:
+                            sort_cols_h = ['country_code']
+                            if 'scoring_date' in snap_h.columns:
+                                sort_cols_h.append('scoring_date')
+                            if 'run_time' in snap_h.columns:
+                                sort_cols_h.append('run_time')
+                            sort_cols_h.append('run_hour')
+                            snap_h = snap_h.sort_values(sort_cols_h).drop_duplicates(subset=['country_code'], keep='last')
+                        for c in ['positive_signal_count', 'negative_signal_count', 'neutral_signal_count']:
+                            if c not in snap_h.columns:
+                                snap_h[c] = 0
+                        snap_h['signal_total'] = pd.to_numeric(snap_h['positive_signal_count'], errors='coerce').fillna(0) + pd.to_numeric(snap_h['negative_signal_count'], errors='coerce').fillna(0) + pd.to_numeric(snap_h['neutral_signal_count'], errors='coerce').fillna(0)
+                        h = avg(snap_h, 'health_score', weighted=True)
+                        r = avg(snap_h, 'ivt_risk_score', weighted=True)
+                        a = avg(snap_h, 'adjustment_score', weighted=True)
+                        m = avg(snap_h, 'decision_margin', weighted=True)
+                        c_raw = avg(snap_h, 'confidence', weighted=True)
+                        c01 = normalize_conf(c_raw)
+                        lbl_vals = []
+                        for c in ['final_label', 'root_cause_label']:
+                            if c in snap_h.columns:
+                                lbl_vals.extend([str(x).strip().upper() for x in snap_h[c].tolist() if str(x).strip()])
+                        lbl = pd.Series(lbl_vals).value_counts().index[0] if lbl_vals else 'STABLE'
+                        pos_h = int(pd.to_numeric(snap_h['positive_signal_count'], errors='coerce').fillna(0).sum()) if 'positive_signal_count' in snap_h.columns else 0
+                        neg_h = int(pd.to_numeric(snap_h['negative_signal_count'], errors='coerce').fillna(0).sum()) if 'negative_signal_count' in snap_h.columns else 0
+                        neu_h = int(pd.to_numeric(snap_h['neutral_signal_count'], errors='coerce').fillna(0).sum()) if 'neutral_signal_count' in snap_h.columns else 0
+                        has_scoring_h = (pos_h + neg_h + neu_h) > 0 and c01 >= 0.05
+                        spend_h = float(pd.to_numeric(snap_h['spend'], errors='coerce').fillna(0).sum()) if 'spend' in snap_h.columns else 0.0
+                        revenue_h = float(pd.to_numeric(snap_h['revenue_value'], errors='coerce').fillna(0).sum()) if 'revenue_value' in snap_h.columns else 0.0
+                        roi_h = ((revenue_h - spend_h) / spend_h) if spend_h > 0 else 0.0
+                        profit_strong_h = (revenue_h > spend_h) and (roi_h >= 0.30)
+                        days_series_h = snap_h['scoring_date'] if 'scoring_date' in snap_h.columns else (snap_h['date'] if 'date' in snap_h.columns else pd.Series([], dtype=object))
+                        days_hist_h = int(pd.to_datetime(days_series_h, errors='coerce').dropna().dt.date.nunique())
+                        days_flag_h = int(pd.to_numeric(snap_h.get('days_active', pd.Series([], dtype=float)), errors='coerce').fillna(0).max()) if 'days_active' in snap_h.columns else 0
+                        active_days_effective_h = max(days_hist_h, days_flag_h)
+                        maturity_profile_h = campaign_maturity_profile(snap_h)
+                        mature_campaign_ratio_h = float(maturity_profile_h.get('mature_campaign_ratio', 0.0))
+                        mature_spend_share_h = float(maturity_profile_h.get('mature_spend_share', 0.0))
+                        mature_campaign_count_h = int(maturity_profile_h.get('mature_campaign_count', 0))
+                        sc = None
+                        dec = ''
+                        learning_gate_h = (active_days_effective_h < 2) and (mature_campaign_count_h <= 0) and (mature_campaign_ratio_h < 0.60) and (mature_spend_share_h < 0.55)
+                        if learning_gate_h:
+                            lbl = 'LEARNING'
+                            dec = 'LEARNING'
+                        elif has_scoring_h:
+                            if lbl == 'LEARNING' and (mature_campaign_count_h > 0 or mature_campaign_ratio_h >= 0.60 or mature_spend_share_h >= 0.55):
+                                lbl = 'STABLE'
+                            traffic_h = avg(snap_h, 'traffic_score', weighted=True)
+                            delivery_h = avg(snap_h, 'delivery_score', weighted=True)
+                            yield_h = avg(snap_h, 'yield_score', weighted=True)
+                            revenue_hs = avg(snap_h, 'revenue_score', weighted=True)
+                            anomaly_cards_h = derive_anomaly_cards(traffic_h, delivery_h, yield_h, revenue_hs, r, a)
+                            source_mode_h = source_mode
+                            if 'mapped_revenue_source' in snap_h.columns:
+                                src_vals_h = snap_h['mapped_revenue_source'].astype(str).str.strip().str.upper()
+                                src_vals_h = src_vals_h[src_vals_h.ne('')]
+                                if not src_vals_h.empty:
+                                    source_mode_h = str(src_vals_h.value_counts().index[0])
+                            sc, dec = derive_score_decision(h, r, a, c01, m, lbl, profit_strong_h, anomaly_cards_h, roi_h, source_mode_h)
+                        else:
+                            lbl = 'DATA_INCOMPLETE'
+
+                        reason_h_parts = [str(x).strip() for x in snap_h.get('reason_summary', pd.Series([], dtype=str)).tolist() if str(x).strip()]
+                        reason_h_summary = ' | '.join(list(dict.fromkeys(reason_h_parts))[:3])
+                        country_h = []
+                        for _, crow in snap_h.iterrows():
+                            country_h.append({
+                                'country_code': str(crow.get('country_code') or ''),
+                                'country_name': str(crow.get('country_name') or ''),
+                                'meta_campaign': str(crow.get('meta_campaign') or ''),
+                                'days_active': int(safe_float(crow.get('days_active'))),
+                                'health_score': safe_float(crow.get('health_score')),
+                                'ivt_risk_score': safe_float(crow.get('ivt_risk_score')),
+                                'adjustment_score': safe_float(crow.get('adjustment_score')),
+                                'confidence': clip((safe_float(crow.get('confidence')) / 100.0) if safe_float(crow.get('confidence')) > 1.0 else safe_float(crow.get('confidence')), 0.0, 1.0),
+                                'decision_margin': safe_float(crow.get('decision_margin')),
+                                'final_label': str(crow.get('final_label', '')),
+                                'join_status': str(crow.get('join_status', '')),
+                                'positive_signals': int(safe_float(crow.get('positive_signal_count'))),
+                                'negative_signals': int(safe_float(crow.get('negative_signal_count'))),
+                                'neutral_signals': int(safe_float(crow.get('neutral_signal_count'))),
+                            })
+
+                        scoring_timeline.append({
+                            'run_hour': str(rh),
+                            'run_hour_label': _fmt_run_hour_label(rh),
+                            'run_time': '',
+                            'snapshot_time': '',
+                            'score': sc,
+                            'decision': dec,
+                            'label': lbl,
+                            'health_score': h,
+                            'ivt_risk_score': r,
+                            'adjustment_score': a,
+                            'confidence': c01,
+                            'decision_margin': m,
+                            'reason_summary': reason_h_summary,
+                            'reasons': [x for x in [reason_h_summary, lbl] if x],
+                            'positive_signal_count': pos_h,
+                            'negative_signal_count': neg_h,
+                            'neutral_signal_count': neu_h,
+                            'country_details': country_h,
+                            'days_active': int(active_days_effective_h),
+                        })
+
+                latest_run_time = snap['run_time'].dropna().max() if 'run_time' in snap.columns else None
+                latest_run_hour = snap['run_hour'].dropna().max() if 'run_hour' in snap.columns else None
+                latest_snapshot = latest_run_time if pd.notna(latest_run_time) else latest_run_hour
+                run_hour = pd.to_datetime(latest_run_hour, errors='coerce').strftime('%Y-%m-%d %H:%M:%S') if pd.notna(latest_run_hour) else ''
+                update_score_time = pd.to_datetime(latest_snapshot, errors='coerce').strftime('%Y-%m-%d %H:%M:%S') if pd.notna(latest_snapshot) else ''
+
+                ev = event_df[event_df['entity_key'].eq(entity_key)].copy() if (include_events and not event_df.empty and 'entity_key' in event_df.columns) else pd.DataFrame()
+                if (risk <= 0.0) and (not ev.empty) and ('ivt_component' in ev.columns) and ('ivt_capacity' in ev.columns):
+                    ivt_num = pd.to_numeric(ev['ivt_component'], errors='coerce').fillna(0.0).sum()
+                    ivt_den = pd.to_numeric(ev['ivt_capacity'], errors='coerce').fillna(0.0).sum()
+                    if ivt_den > 0:
+                        risk = clip(float(100.0 * ivt_num / ivt_den), 0.0, 100.0)
+                if (adj == 0.0) and (not ev.empty) and ('adjustment_component' in ev.columns):
+                    adj = float(pd.to_numeric(ev['adjustment_component'], errors='coerce').fillna(0.0).sum())
+                if (health == 0.0) and (not ev.empty) and ('health_component' in ev.columns):
+                    health = clip(float(50.0 + pd.to_numeric(ev['health_component'], errors='coerce').fillna(0.0).sum()), 0.0, 100.0)
+                if (conf <= 0.0) and (not ev.empty) and ('confidence' in ev.columns):
+                    conf_evt = float(pd.to_numeric(ev['confidence'], errors='coerce').dropna().mean()) if len(ev.index) else 0.0
+                    conf = clip((conf_evt / 100.0) if conf_evt > 1.0 else conf_evt, 0.0, 1.0)
+                if dm == 0.0 and ((health != 0.0) or (risk != 0.0) or (adj != 0.0)):
+                    dm = float(health - risk + min(0.0, adj))
+
+                dominant_event_label = ''
+                if not ev.empty and 'event_label' in ev.columns:
+                    s = ev['event_label'].astype(str).str.strip()
+                    s = s[s != '']
+                    if not s.empty:
+                        dominant_event_label = s.value_counts().index[0]
+                
+                country_details = []
+                detail_snap = part.copy()
+                if target_date_obj is not None and 'scoring_date' in detail_snap.columns:
+                    detail_target = detail_snap[detail_snap['scoring_date'].eq(target_date_obj)].copy()
+                    if not detail_target.empty:
+                        detail_snap = detail_target
+                if 'country_code' in detail_snap.columns and 'run_hour' in detail_snap.columns:
+                    detail_keys = ['country_code']
+                    if 'meta_campaign' in detail_snap.columns:
+                        detail_keys.append('meta_campaign')
+                    detail_sort = list(detail_keys)
+                    if 'scoring_date' in detail_snap.columns:
+                        detail_sort.append('scoring_date')
+                    if 'run_time' in detail_snap.columns:
+                        detail_sort.append('run_time')
+                    detail_sort.append('run_hour')
+                    detail_snap = detail_snap.sort_values(detail_sort).drop_duplicates(subset=detail_keys, keep='last')
+                for _, row in detail_snap.iterrows():
+                    row_entity_key = str(row.get('status_entity_key') or row.get('site') or row.get('entity_key') or '').strip()
+                    row_site_key = str(row.get('site') or '').strip()
+                    row_meta_campaign = str(row.get('meta_campaign') or '').strip().upper()
+                    src = {}
+                    matched_cand = ''
+                    row_country = str(row.get('country_code') or '').strip().upper()
+                    for cand in site_country_candidates(row_entity_key, row_site_key, row_country):
+                        if cand in source_lookup:
+                            src = dict(source_lookup[cand])
+                            matched_cand = cand
+                            break
+                    row_norm_site = normalize_site_entity(row_site_key)
+                    row_country = str(row.get('country_code') or '').strip().upper()
+                    campaign_src_applied = False
+                    row_entity_upper = str(row_entity_key or '').strip().upper()
+                    if row_entity_upper and row_country:
+                        sec_key = f"{row_entity_upper}|{row_country}"
+                        sec_src = source_entity_country_lookup.get(sec_key)
+                        if sec_src:
+                            src['meta_spend'] = sec_src.get('meta_spend', src.get('meta_spend'))
+                            src['adx_revenue'] = sec_src.get('adx_revenue', src.get('adx_revenue'))
+                            src['adsense_estimated_earnings'] = sec_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
+                            src['mapped_revenue_source'] = sec_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
+                            campaign_src_applied = True
+                    if (not campaign_src_applied) and row_norm_site and row_country:
+                        if row_meta_campaign:
+                            scc_key = f"{row_norm_site}|{row_country}|{row_meta_campaign}"
+                            scc_src = source_site_country_campaign_lookup.get(scc_key)
+                            if scc_src:
+                                src['meta_spend'] = scc_src.get('meta_spend', src.get('meta_spend'))
+                                src['adx_revenue'] = scc_src.get('adx_revenue', src.get('adx_revenue'))
+                                src['adsense_estimated_earnings'] = scc_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
+                                src['mapped_revenue_source'] = scc_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
+                                campaign_src_applied = True
+                        if not campaign_src_applied:
+                            sc_key = f"{row_norm_site}|{row_country}"
+                            sc_src = source_site_country_lookup.get(sc_key)
+                            if sc_src:
+                                src['meta_spend'] = sc_src.get('meta_spend', src.get('meta_spend'))
+                                src['adx_revenue'] = sc_src.get('adx_revenue', src.get('adx_revenue'))
+                                src['adsense_estimated_earnings'] = sc_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
+                                if not str(src.get('mapped_revenue_source') or '').strip():
+                                    src['mapped_revenue_source'] = sc_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
+                    if (not campaign_src_applied) and matched_cand and matched_cand in source_agg_lookup:
+                        agg_src = source_agg_lookup.get(matched_cand) or {}
+                        src['meta_spend'] = agg_src.get('meta_spend', src.get('meta_spend'))
+                        src['adx_revenue'] = agg_src.get('adx_revenue', src.get('adx_revenue'))
+                        src['adsense_estimated_earnings'] = agg_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
+                        if not str(src.get('mapped_revenue_source') or '').strip():
+                            src['mapped_revenue_source'] = agg_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
+                    meta_spend_v = safe_float(src.get('meta_spend'))
+                    def nullable_float(v):
+                        if v is None:
+                            return None
+                        if isinstance(v, str):
+                            s = v.strip()
+                            if s == '':
+                                return None
+                            s = s.replace('%', '')
+                            if s.count(',') == 1 and s.count('.') == 0:
+                                s = s.replace(',', '.')
+                            else:
+                                s = s.replace(',', '')
+                            try:
+                                return float(s)
+                            except Exception:
+                                return None
+                        try:
+                            if pd.isna(v):
+                                return None
+                        except Exception:
+                            pass
+                        try:
+                            return float(v)
+                        except Exception:
+                            return None
+
+                    adx_revenue_opt = nullable_float(src.get('adx_revenue'))
+                    if adx_revenue_opt is None:
+                        adx_revenue_opt = nullable_float(row.get('adx_revenue'))
+                    adsense_revenue_opt = nullable_float(src.get('adsense_estimated_earnings'))
+                    if adsense_revenue_opt is None:
+                        adsense_revenue_opt = nullable_float(row.get('adsense_estimated_earnings'))
+
+                    adx_revenue_v = safe_float(adx_revenue_opt)
+                    adsense_estimated_earnings_v = safe_float(adsense_revenue_opt)
+                    mapped_revenue_source_v = str(src.get('mapped_revenue_source') or row.get('mapped_revenue_source') or '').strip().upper()
+                    row_revenue_opt = nullable_float(row.get('revenue_value'))
+                    if row_revenue_opt is None:
+                        row_revenue_opt = nullable_float(row.get('revenue'))
+                    sum_channel_revenue_v = safe_float(adx_revenue_opt) + safe_float(adsense_revenue_opt)
+                    row_revenue_v = safe_float(row_revenue_opt)
+                    if mapped_revenue_source_v == 'ADX_ONLY':
+                        adx_v = safe_float(adx_revenue_opt)
+                        revenue_v = adx_v if adx_v > 0 else row_revenue_v
+                    elif mapped_revenue_source_v == 'ADSENSE_ONLY':
+                        ads_v = safe_float(adsense_revenue_opt)
+                        revenue_v = ads_v if ads_v > 0 else row_revenue_v
+                    else:
+                        revenue_v = sum_channel_revenue_v if sum_channel_revenue_v > 0 else row_revenue_v
+                    roi_v = ((revenue_v - meta_spend_v) / meta_spend_v * 100.0) if meta_spend_v > 0 else 0.0
+                    country_details.append({
+                        'country_code': str(row.get('country_code') or ''),
+                        'country_name': str(row.get('country_name') or ''),
+                        'meta_campaign': row_meta_campaign,
+                        'days_active': int(safe_float(row.get('days_active'))),
+                        'health_score': safe_float(row.get('health_score')),
+                        'ivt_risk_score': safe_float(row.get('ivt_risk_score')),
+                        'adjustment_score': safe_float(row.get('adjustment_score')),
+                        'confidence': clip((safe_float(row.get('confidence')) / 100.0) if safe_float(row.get('confidence')) > 1.0 else safe_float(row.get('confidence')), 0.0, 1.0),
+                        'decision_margin': safe_float(row.get('decision_margin')),
+                        'final_label': str(row.get('final_label', '')),
+                        'join_status': str(row.get('join_status', '')),
+                        'mapped_revenue_source': mapped_revenue_source_v,
+                        'adx_revenue': adx_revenue_v,
+                        'adsense_estimated_earnings': adsense_estimated_earnings_v,
+                        'spend': meta_spend_v,
+                        'revenue': revenue_v,
+                        'roi': roi_v,
+                        'positive_signals': int(safe_float(row.get('positive_signal_count'))),
+                        'negative_signals': int(safe_float(row.get('negative_signal_count'))),
+                        'neutral_signals': int(safe_float(row.get('neutral_signal_count'))),
+                    })
+                out[entity_key] = {
+                    'score': score,
+                    'decision': decision,
+                    'label': label,
+                    'reasons': [x for x in [reason_summary, dominant_event_label, label] if x],
+                    'breakdown': {'meta': {
+                        'join_status_summary': join_status_summary,
+                        'reason_summary': reason_summary,
+                        'run_hour': run_hour,
+                        'run_time': update_score_time,
+                        'snapshot_time': update_score_time,
+                        'last_update': update_score_time,
+                        'final_label': label,
+                        'root_cause_label': label,
+                        'health_score': health,
+                        'ivt_risk_score': risk,
+                        'adjustment_score': adj,
+                        'confidence': conf,
+                        'decision_margin': dm,
+                        'days_active': int(active_days_effective),
+                        'learning_gate': bool(learning_gate),
+                        'campaign_count': int(campaign_count),
+                        'mature_campaign_count': int(mature_campaign_count),
+                        'mature_campaign_ratio': float(round(mature_campaign_ratio, 4)),
+                        'mature_spend_share': float(round(mature_spend_share, 4)),
+                        'anomaly_cards': anomaly_cards,
+                        'traffic_score': avg(snap, 'traffic_score', weighted=True),
+                        'delivery_score': avg(snap, 'delivery_score', weighted=True),
+                        'yield_score': avg(snap, 'yield_score', weighted=True),
+                        'quality_score': avg(snap, 'quality_score', weighted=True),
+                        'revenue_score': avg(snap, 'revenue_score', weighted=True),
+                        'efficiency_score': avg(snap, 'efficiency_score', weighted=True),
+                        'engagement_score': avg(snap, 'engagement_score', weighted=True),
+                        'control_score': avg(snap, 'control_score', weighted=True),
+                        'ivt_click_stress_score': avg(snap, 'ivt_click_stress_score', weighted=True),
+                        'ivt_serving_score': avg(snap, 'ivt_serving_score', weighted=True),
+                        'ivt_attention_score': avg(snap, 'ivt_attention_score', weighted=True),
+                        'ivt_counter_score': avg(snap, 'ivt_counter_score', weighted=True),
+                        'ivt_funnel_score': avg(snap, 'ivt_funnel_score', weighted=True),
+                        'positive_signal_count': total_pos,
+                        'negative_signal_count': total_neg,
+                        'neutral_signal_count': total_neu,
+                        'dominant_event_label': dominant_event_label,
+                        'country_details': country_details,
+                        'scoring_timeline': scoring_timeline,
+                        'scoring_source': 'status_event_aggregate',
+                        'scoring_source_label': 'Agregasi fact_site_country_status_history + fact_change_event_long'
+                    }}
+                }
+                if include_events:
+                    def _json_scalar(v):
+                        try:
+                            if pd.isna(v):
+                                return None
+                        except Exception:
+                            pass
+                        try:
+                            if hasattr(v, 'isoformat'):
+                                return v.isoformat(sep=' ')
+                        except Exception:
+                            pass
+                        try:
+                            if isinstance(v, np.generic):
+                                return v.item()
+                        except Exception:
+                            pass
+                        if isinstance(v, (dict, list, str, int, float, bool)) or v is None:
+                            return v
+                        return str(v)
+
+                    def _row_to_json_dict(row_obj):
+                        out_row = {}
+                        for k, v in dict(row_obj).items():
+                            out_row[str(k)] = _json_scalar(v)
+                        return out_row
+
+                    status_source_rows = detail_snap if 'detail_snap' in locals() else snap
+                    status_records = [_row_to_json_dict(srow) for _, srow in status_source_rows.iterrows()]
+                    event_records = [_row_to_json_dict(erow) for _, erow in ev.iterrows()] if not ev.empty else []
+
+                    out[entity_key]['scoring'] = {
+                        'statuses': status_records,
+                        'events': event_records,
+                        'rows_written': len(status_records),
+                        'event_rows_written': len(event_records),
+                        'source': 'dashboard_scoring_data_raw'
+                    }
+            return JsonResponse({'status': True, 'data': out}, safe=False)
         except Exception as e:
             logger.exception('DashboardScoringDataView failed')
+            return JsonResponse({
+                'status': False,
+                'error': str(e),
+                'traceback': traceback.format_exc()
+            }, status=500)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DashboardScoringCompareView(View):
+    """
+    Endpoint ringan untuk kebutuhan modal "Detail Keputusan":
+    - bandingkan snapshot pada jam tertentu (current hour) vs D-1/D-3/D-7
+    - bandingkan juga snapshot harian (latest hour pada masing-masing hari)
+    Catatan: ini tidak menghitung EWMA (itu tetap di scoring_concept), tapi memakai output tabel status/events yang sudah tersimpan.
+    """
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        def safe_float(v):
+            try:
+                return float(v)
+            except Exception:
+                return 0.0
+
+        def clip(v, lo, hi):
+            return max(lo, min(hi, v))
+
+        def normalize_site_entity(v):
+            s = str(v or '').strip().lower()
+            s = re.sub(r'^https?://', '', s)
+            s = s.split('/')[0].split('?')[0].split('#')[0]
+            s = re.sub(r'^www\.', '', s)
+            return s
+
+        def hour_key(v):
+            s = str(v or '').strip()
+            if not s or s.lower() == 'nan':
+                return None
+            try:
+                h = int(float(s))
+                if 0 <= h <= 23:
+                    return h
+            except Exception:
+                pass
+            dt = pd.to_datetime(s, errors='coerce') if pd is not None else None
+            if dt is not None and pd.notna(dt):
+                return int(dt.hour)
+            return None
+
+        def derive_score_decision(health, risk, adj, conf01, dm, label, roi_value=0.0, source_mode='BLENDED'):
+            # Samakan dengan DashboardScoringDataView + scxDeriveDecision di template (profit-first)
+            source_mode_key = str(source_mode or 'BLENDED').strip().upper()
+            single_source = source_mode_key in ["ADX_ONLY", "ADSENSE_ONLY"]
+            down_score_cut = 52 if single_source else 55
+            down_dm_cut = -12 if single_source else -10
+            down_anomaly_cut = 3 if single_source else 2
+            profit_component = clip((float(roi_value) + 1.0) * 50.0, 0.0, 100.0)
+            score = (((health + 100.0) / 2.0) * 0.25) + ((100.0 - risk) * 0.2) + (conf01 * 100.0 * 0.1) + (clip(dm + 50.0, 0.0, 100.0) * 0.15) + (profit_component * 0.30)
+            score = int(round(clip(score, 0.0, 100.0)))
+            negative_labels = ["TRAFFIC_DROP", "SERVING_DROP", "YIELD_DROP", "VIEWABILITY_DROP", "EFFICIENCY_DROP", "REVENUE_DROP", "NEGATIVE_MIXED", "NEG_ADJUSTMENT", "WATCH_NEGATIVE", "WATCH_DECAY"]
+            label_up = str(label or 'STABLE').strip().upper()
+            anomaly_cards = []
+            if risk >= 70: anomaly_cards.append('IVT_RISK')
+            if adj <= -60: anomaly_cards.append('NEG_ADJUSTMENT')
+            if dm <= -50: anomaly_cards.append('MARGIN_CRASH')
+            severe_anomaly = label_up.startswith("RED_FLAG") or ('IVT_RISK' in anomaly_cards)
+            decision = "HOLD"
+            if severe_anomaly or (risk >= 90 and conf01 >= 0.60 and score < 40) or (dm <= -65 and health <= -25 and conf01 >= 0.60):
+                decision = "STOP"
+            elif (label_up in ["POSITIVE_EXPANSION", "POSITIVE_RECOVERY", "WATCH_POSITIVE"] and score >= 62 and risk < 60 and dm >= 6 and conf01 >= 0.45) or (score >= 72 and risk < 50 and dm >= 10 and conf01 >= 0.50):
+                decision = "SCALE UP"
+            elif (label_up in negative_labels and ((score < down_score_cut and dm < down_dm_cut) or (health < -12 and adj < -18))) or (score < 40 and dm < -12 and (health < -15 or risk >= 72)) or (len(anomaly_cards) >= down_anomaly_cut and score < 62):
+                decision = "SCALE_DOWN"
+
+            if (decision == "SCALE_DOWN") and (label_up in ["WATCH_DECAY", "WATCH_NEGATIVE"]) and (risk < 40) and (score >= 45):
+                decision = "HOLD"
+            if decision == "SCALE_DOWN":
+                decision = "SCALE DOWN"
+            return score, decision
+
+        def aggregate_snapshot(frame: pd.DataFrame) -> dict:
+            if frame is None or frame.empty:
+                return {}
+            tmp = frame.copy()
+            # dedup per country (ambil yang terbaru berdasarkan run_time lalu run_hour)
+            if 'country_code' in tmp.columns:
+                tmp['country_code'] = tmp['country_code'].astype(str).str.strip().str.upper()
+            if 'run_time' in tmp.columns:
+                tmp['run_time_dt'] = pd.to_datetime(tmp['run_time'], errors='coerce')
+            else:
+                tmp['run_time_dt'] = pd.NaT
+            if 'run_hour' in tmp.columns:
+                tmp['run_hour_key'] = tmp['run_hour'].map(hour_key)
+            else:
+                tmp['run_hour_key'] = None
+            if 'country_code' in tmp.columns:
+                tmp = tmp.sort_values(['country_code', 'run_time_dt', 'run_hour_key']).drop_duplicates(subset=['country_code'], keep='last')
+
+            for c in ['positive_signal_count', 'negative_signal_count', 'neutral_signal_count']:
+                if c not in tmp.columns:
+                    tmp[c] = 0.0
+            tmp['signal_total'] = (
+                pd.to_numeric(tmp['positive_signal_count'], errors='coerce').fillna(0.0)
+                + pd.to_numeric(tmp['negative_signal_count'], errors='coerce').fillna(0.0)
+                + pd.to_numeric(tmp['neutral_signal_count'], errors='coerce').fillna(0.0)
+            )
+
+            def avg(col, weighted=True):
+                if col not in tmp.columns:
+                    return 0.0
+                vals = pd.to_numeric(tmp[col], errors='coerce').dropna()
+                if not len(vals):
+                    return 0.0
+                if weighted:
+                    w = pd.to_numeric(tmp.loc[vals.index, 'signal_total'], errors='coerce').fillna(0.0)
+                    den = float(w.sum())
+                    if den > 0:
+                        return float((vals * w).sum() / den)
+                return float(vals.mean())
+
+            health = avg('health_score', weighted=True)
+            risk = avg('ivt_risk_score', weighted=True)
+            adj = avg('adjustment_score', weighted=True)
+            dm = avg('decision_margin', weighted=True)
+            conf_raw = avg('confidence', weighted=True)
+            conf01 = clip((conf_raw / 100.0) if conf_raw > 1.0 else conf_raw, 0.0, 1.0)
+
+            labels = []
+            for c in ['final_label', 'root_cause_label']:
+                if c in tmp.columns:
+                    labels.extend([str(x).strip().upper() for x in tmp[c].tolist() if str(x).strip()])
+            label = pd.Series(labels).value_counts().index[0] if labels else 'STABLE'
+
+            spend_total = float(pd.to_numeric(tmp['spend'], errors='coerce').fillna(0.0).sum()) if 'spend' in tmp.columns else 0.0
+            revenue_total = float(pd.to_numeric(tmp['revenue_value'], errors='coerce').fillna(0.0).sum()) if 'revenue_value' in tmp.columns else 0.0
+            roi_total = ((revenue_total - spend_total) / spend_total) if spend_total > 0 else 0.0
+            source_mode = 'BLENDED'
+            if 'mapped_revenue_source' in tmp.columns:
+                src_vals = tmp['mapped_revenue_source'].astype(str).str.strip().str.upper()
+                src_vals = src_vals[src_vals.ne('')]
+                if not src_vals.empty:
+                    source_mode = str(src_vals.value_counts().index[0])
+            score, decision = derive_score_decision(health, risk, adj, conf01, dm, label, roi_total, source_mode)
+
+            reason_parts = [str(x).strip() for x in tmp.get('reason_summary', pd.Series([], dtype=str)).tolist() if str(x).strip()]
+            reason_summary = ' | '.join(list(dict.fromkeys(reason_parts))[:3])
+
+            last_rt = ''
+            if 'run_time_dt' in tmp.columns and tmp['run_time_dt'].notna().any():
+                last_rt = tmp['run_time_dt'].max().strftime('%Y-%m-%d %H:%M:%S')
+
+            return {
+                'health_score': health,
+                'ivt_risk_score': risk,
+                'adjustment_score': adj,
+                'confidence': conf01,
+                'decision_margin': dm,
+                'score': score,
+                'decision': decision,
+                'label': label,
+                'reason_summary': reason_summary,
+                'updated_at': last_rt,
+                'countries': int(len(tmp)),
+                'positive_signal_count': int(pd.to_numeric(tmp['positive_signal_count'], errors='coerce').fillna(0).sum()),
+                'negative_signal_count': int(pd.to_numeric(tmp['negative_signal_count'], errors='coerce').fillna(0).sum()),
+                'neutral_signal_count': int(pd.to_numeric(tmp['neutral_signal_count'], errors='coerce').fillna(0).sum()),
+            }
+
+        try:
+            if pd is None:
+                raise RuntimeError('pandas belum tersedia')
+            payload = json.loads((req.body or b'').decode('utf-8') or '{}')
+            target_date_str = str(payload.get('date') or '').strip()
+            domain_raw = payload.get('domain') or payload.get('site') or payload.get('meta_campaign') or ''
+            domain = normalize_site_entity(domain_raw)
+            run_hour_req = payload.get('run_hour')
+            run_hour_req = hour_key(run_hour_req)
+            if not target_date_str or not domain:
+                return JsonResponse({'status': False, 'error': 'date dan domain wajib diisi'}, status=400)
+            target_dt = pd.to_datetime(target_date_str, errors='coerce')
+            if pd.isna(target_dt):
+                return JsonResponse({'status': False, 'error': 'format date tidak valid (YYYY-MM-DD)'}, status=400)
+            target_date = target_dt.date()
+            compare_offsets = {'h1': 1, 'h3': 3, 'h7': 7}
+            compare_dates = {k: (target_date - timedelta(days=v)) for k, v in compare_offsets.items()}
+
+            scoring_module = _get_scoring_concept_module()
+            query_df_func = getattr(scoring_module, 'query_df', None)
+            if query_df_func is None:
+                query_df_func = query_df  # fallback import atas
+            status_table = getattr(scoring_module, 'STATUS_TABLE', 'hris_trendHorizone.fact_site_country_status_history')
+            source_table = getattr(scoring_module, 'SOURCE_TABLE', 'hris_trendHorizone.fact_join_hourly')
+
+            dates_in = [target_date] + list(compare_dates.values())
+            literals_dates = ', '.join([f"toDate('{d.isoformat()}')" for d in dates_in])
+
+            status_sql = f"""
+            SELECT
+                toDate(date) AS date,
+                site,
+                country_code,
+                country_name,
+                run_time,
+                run_hour,
+                mapped_revenue_source,
+                join_status,
+                final_label,
+                root_cause_label,
+                health_score,
+                adjustment_score,
+                ivt_risk_score,
+                confidence,
+                decision_margin,
+                positive_signal_count,
+                negative_signal_count,
+                neutral_signal_count,
+                reason_summary
+            FROM {status_table}
+            WHERE toDate(date) IN ({literals_dates})
+              AND lower(site) = '{domain.replace("'", "''")}'
+            """
+            sdf = query_df_func(status_sql)
+            if sdf is None or sdf.empty:
+                return JsonResponse({'status': True, 'data': {'domain': domain, 'date': target_date_str, 'empty': True}}, safe=False)
+            sdf = sdf.copy()
+            sdf['date'] = pd.to_datetime(sdf['date'], errors='coerce').dt.date
+
+            # Query sumber (spend/revenue) untuk bantu rekomendasi aksi
+            src_sql = f"""
+            SELECT
+                toDate(date) AS date,
+                run_hour,
+                sum(meta_spend) AS meta_spend,
+                sum(adx_revenue) AS adx_revenue,
+                sum(adsense_estimated_earnings) AS adsense_estimated_earnings,
+                argMax(mapped_revenue_source, mdd) AS mapped_revenue_source
+            FROM {source_table}
+            WHERE toDate(date) IN ({literals_dates})
+              AND lower(site) = '{domain.replace("'", "''")}'
+            GROUP BY date, run_hour
+            """
+            try:
+                src_df = query_df_func(src_sql)
+            except Exception:
+                src_df = pd.DataFrame()
+
+            src_map = {}
+            if src_df is not None and not src_df.empty:
+                for _, r in src_df.iterrows():
+                    d = pd.to_datetime(r.get('date'), errors='coerce')
+                    d = d.date() if pd.notna(d) else None
+                    h = hour_key(r.get('run_hour'))
+                    if d is None or h is None:
+                        continue
+                    src_map[(d, h)] = {
+                        'meta_spend': safe_float(r.get('meta_spend')),
+                        'adx_revenue': safe_float(r.get('adx_revenue')),
+                        'adsense_estimated_earnings': safe_float(r.get('adsense_estimated_earnings')),
+                        'mapped_revenue_source': str(r.get('mapped_revenue_source') or '').strip().upper(),
+                    }
+
+            def attach_financial(snap: dict, d: date, h: Optional[int]):
+                if not snap:
+                    return snap
+                if h is None:
+                    return snap
+                src = src_map.get((d, h))
+                if not src:
+                    return snap
+                spend = safe_float(src.get('meta_spend'))
+                revenue = safe_float(src.get('adx_revenue')) + safe_float(src.get('adsense_estimated_earnings'))
+                roi = ((revenue - spend) / spend * 100.0) if spend > 0 else 0.0
+                snap['meta_spend'] = spend
+                snap['revenue'] = revenue
+                snap['roi'] = roi
+                snap['mapped_revenue_source'] = str(src.get('mapped_revenue_source') or '')
+                return snap
+
+            # Tentukan latest hour per tanggal
+            sdf['run_hour_key'] = sdf['run_hour'].map(hour_key)
+            latest_hour_by_date = {}
+            for d, part in sdf.groupby('date', sort=False):
+                hrs = pd.to_numeric(part['run_hour_key'], errors='coerce')
+                hrs = hrs.dropna()
+                if len(hrs):
+                    latest_hour_by_date[d] = int(hrs.max())
+
+            # Snapshot current (jam aktif atau latest)
+            cur_hour = run_hour_req if run_hour_req is not None else latest_hour_by_date.get(target_date)
+            cur_hour = int(cur_hour) if cur_hour is not None else None
+            cur_frame = sdf[(sdf['date'] == target_date) & (sdf['run_hour_key'] == cur_hour)].copy() if cur_hour is not None else sdf[sdf['date'] == target_date].copy()
+            cur = aggregate_snapshot(cur_frame)
+            cur = attach_financial(cur, target_date, cur_hour)
+            if cur:
+                cur['date'] = target_date.isoformat()
+                cur['run_hour'] = cur_hour
+
+            by_day = {}
+            by_hour = {}
+            for key, dprev in compare_dates.items():
+                lh = latest_hour_by_date.get(dprev)
+                # daily snapshot = latest hour
+                day_frame = sdf[(sdf['date'] == dprev) & (sdf['run_hour_key'] == lh)].copy() if lh is not None else sdf[sdf['date'] == dprev].copy()
+                snap_day = aggregate_snapshot(day_frame)
+                snap_day = attach_financial(snap_day, dprev, lh)
+                if snap_day:
+                    snap_day['date'] = dprev.isoformat()
+                    snap_day['run_hour'] = lh
+                by_day[key] = snap_day or {}
+
+                # hour snapshot = same hour as current (jika ada)
+                snap_h = {}
+                if cur_hour is not None:
+                    h_frame = sdf[(sdf['date'] == dprev) & (sdf['run_hour_key'] == cur_hour)].copy()
+                    snap_h = aggregate_snapshot(h_frame)
+                    snap_h = attach_financial(snap_h, dprev, cur_hour)
+                    if snap_h:
+                        snap_h['date'] = dprev.isoformat()
+                        snap_h['run_hour'] = cur_hour
+                by_hour[key] = snap_h or {}
+
+            # rekomendasi aksi sederhana (bisa disempurnakan)
+            rec = {'action': cur.get('decision') if cur else 'HOLD', 'budget_change_pct': 0, 'reason': ''}
+            if cur:
+                dec = str(cur.get('decision') or '').upper()
+                conf = float(cur.get('confidence') or 0.0)
+                score = float(cur.get('score') or 0.0)
+                if dec == 'SCALE UP':
+                    rec['budget_change_pct'] = 15 if (score >= 75 and conf >= 0.55) else 10
+                    rec['reason'] = 'Sinyal positif kuat; pertimbangkan naikkan budget bertahap.'
+                elif dec == 'SCALE DOWN':
+                    rec['budget_change_pct'] = -15 if score < 45 else -10
+                    rec['reason'] = 'Sinyal negatif dominan; turunkan budget untuk mitigasi risiko.'
+                elif dec == 'STOP':
+                    rec['budget_change_pct'] = 0
+                    rec['reason'] = 'Red flag / risiko tinggi; pertimbangkan stop campaign sementara.'
+                else:
+                    rec['reason'] = 'Kondisi relatif stabil; lanjut monitor.'
+
+            return JsonResponse({
+                'status': True,
+                'data': {
+                    'domain': domain,
+                    'date': target_date.isoformat(),
+                    'current': cur or {},
+                    'compare_by_day': by_day,
+                    'compare_by_hour': by_hour,
+                    'recommendation': rec,
+                }
+            }, safe=False)
+        except Exception as e:
+            logger.exception('DashboardScoringCompareView failed')
             return JsonResponse({'status': False, 'error': str(e), 'traceback': traceback.format_exc()}, status=500)
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -997,10 +2368,10 @@ class DashboardCreateScoringView(View):
     def post(self, req):
         try:
             payload = json.loads((req.body or b'').decode('utf-8') or '{}')
-
+            batch_id = str(payload.get('batch_id'))
             target_date = str(payload.get('date') or '').strip()
             run_hour_raw = payload.get('run_hour')
-            domain = str(payload.get('domain') or payload.get('site') or '').strip().lower()
+            domain = str(payload.get('domain') or payload.get('site') or payload.get('meta_campaign') or '').strip().lower()
             country_cd = str(payload.get('country_cd') or payload.get('country_code') or '').strip().upper()
             mapped_revenue_source = str(payload.get('mapped_revenue_source') or '').strip().lower()
 
@@ -1042,12 +2413,13 @@ class DashboardCreateScoringView(View):
             }
 
             scoring_module = _get_scoring_concept_module()
+            scoring_module.query_df = query_df
+            scoring_module.insert_df = insert_df
             scoring_result = scoring_module.score_site_country(
                 target_date=target_dt,
+                domain = domain,
                 compatibility_mode=False,
                 write_results=True,
-                domain=domain or None,
-                country_cd=country_cd or None,
             )
             return JsonResponse({
                 'status': True,
@@ -1113,10 +2485,6 @@ class DashboardSyncView(View):
                     'cron_adx_country_load',
                     'cron_adsense_country_load',
                 ]
-
-            print(f'source: {source}')
-            print(f'commands: {commands}')
-
             class _LimitedStringIO:
                 def __init__(self, max_chars=20000):
                     self.max_chars = int(max_chars or 0)
@@ -1189,7 +2557,8 @@ class DashboardSyncView(View):
                         score_site_country = _get_scoring_concept_module().score_site_country
                         scoring_result = score_site_country(
                             target_date=target_date,
-                            compatibility_mode=True,
+                            domain_data=domain_data,
+                            compatibility_mode=False,
                             write_results=True
                         )
                         scoring_step['status'] = bool(scoring_result.get('ok'))
@@ -1208,7 +2577,7 @@ class DashboardSyncView(View):
                 score_site_country = _get_scoring_concept_module().score_site_country
                 scoring_result = score_site_country(
                     target_date=target_date,
-                    compatibility_mode=True,
+                    compatibility_mode=False,
                     write_results=True
                 )
             # ...existing code...
@@ -1307,26 +2676,21 @@ class DashboardData(View):
             # Ambil data user
             user_data = data_mysql().data_user_by_params()
             total_users = len(user_data['data']) if user_data['status'] else 0
-            
             # Ambil data login user
             login_data = data_mysql().data_login_user()
             login_users = login_data['data'] if login_data['status'] else []
-            
             # Hitung statistik login 7 hari terakhir
             today = datetime.now()
             seven_days_ago = today - timedelta(days=7)
-            
             # Filter login 7 hari terakhir
             recent_logins = []
             daily_login_stats = {}
-            
             for login in login_users:
                 # Handle both string and datetime objects
                 if isinstance(login['login_date'], str):
                     login_date = datetime.strptime(login['login_date'], '%Y-%m-%d %H:%M:%S')
                 else:
                     login_date = login['login_date']
-                
                 if login_date >= seven_days_ago:
                     recent_logins.append(login)
                     date_key = login_date.strftime('%Y-%m-%d')
@@ -1481,14 +2845,14 @@ class SummaryFacebookAds(View):
         return super().dispatch(request, *args, **kwargs)
     def get(self, req):
         data_account = data_mysql().master_account_ads()['data']
-        today = datetime.now().strftime('%Y-%m-%d')
-        seven_days_ago = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+        data_domain = data_mysql().master_domain_ads()['data']
+        last_update = data_mysql().get_last_update_ads_traffic_per_domain()['data']['last_update']
         data = {
-            'title': 'Data Summaryt Facebook Ads',
+            'title': 'Data Summary Facebook Ads',
+            'user': req.session['hris_admin'],  
+            'last_update': last_update,
             'data_account': data_account,
-            'today': today,
-            'seven_days_ago': seven_days_ago,
-            'user': req.session['hris_admin'],
+            'data_domain': data_domain,
         }
         return render(req, 'admin/facebook_ads/summary/index.html', data)
     
@@ -1503,25 +2867,169 @@ class page_summary_facebook(View):
         tanggal_dari = req.GET.get('tanggal_dari')
         tanggal_sampai = req.GET.get('tanggal_sampai')
         data_account = req.GET.get('data_account')
-        rs_account = data_mysql().master_account_ads()
-        if data_account != '%':
-            rs_data_account = data_mysql().master_account_ads_by_id({
-                'data_account': data_account,
-            })['data']
-            data = fetch_data_all_insights(str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(rs_data_account['account_name']),  str(tanggal_dari), str(tanggal_sampai))
-            total = fetch_data_all_insights_total(str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(tanggal_dari), str(tanggal_sampai))
-            jumlah = fetch_data_insights_account_range(str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(tanggal_dari), str(tanggal_sampai))
+        selected_account_list = []
+        if data_account:
+            selected_account_list = [str(s).strip() for s in data_account.split(',') if s.strip()]
+        data_domain = req.GET.get('data_domain')
+        selected_domain_list = []
+        if data_domain:
+            selected_domain_list = [str(s).strip() for s in data_domain.split(',') if s.strip()]
+        # Panggil ke database layer dengan argumen positional sesuai definisi fungsi
+        db_result = data_mysql().get_all_ads_traffic_campaign_by_params(
+            tanggal_dari,
+            tanggal_sampai,
+            selected_account_list,
+            selected_domain_list,
+        )
+        # Unwrap payload (fungsi mengembalikan {'hasil': {...}})
+        payload = db_result.get('hasil', {}) if isinstance(db_result, dict) else {}
+        status_ok = bool(payload.get('status', False))
+        raw_rows = payload.get('data', []) if status_ok else []
+        # Normalisasi kolom agar cocok dengan harapan di management/static/ajax/admin/facebook_ads/campaign.js
+        normalized_rows = []
+        total_spend = 0.0
+        total_impressions = 0
+        total_reach = 0
+        total_clicks = 0
+        for row in raw_rows or []:
+            account_name = row.get('account_name')
+            domain = row.get('domain')
+            campaign = row.get('campaign')
+
+            spend = float(row.get('spend', 0) or 0)
+            impressions = int(row.get('impressions', 0) or 0)
+            reach = int(row.get('reach', 0) or 0)
+            clicks = int(row.get('clicks', 0) or 0)
+            cpr = float(row.get('cpr', 0) or 0)
+            cpc = float(row.get('cpc', 0) or 0)
+
+            frequency_val = row.get('frequency', None)
+            if frequency_val in [None, '']:
+                if reach == 0:
+                    frequency = 0
+                else:
+                    frequency = float(format(impressions / reach, '.1f'))
+            else:
+                try:
+                    frequency = float(frequency_val)
+                except Exception:
+                    frequency = 0
+
+            lpv = float(row.get('lpv', 0) or 0)
+            lpv_rate = float(row.get('lpv_rate', 0) or 0)
+
+            normalized_rows.append({
+                'date': row.get('date'),
+                'account_id': row.get('account_id'),
+                'account_name': account_name,
+                'domain': domain,
+                'campaign': campaign,
+                'spend': spend,
+                'impressions': impressions,
+                'reach': reach,
+                'clicks': clicks,
+                'frequency': frequency,
+                'cpr': cpr,
+                'cpc': cpc,
+                'lpv': lpv,
+                'lpv_rate': lpv_rate,
+            })
+            # Akumulasi untuk total
+            total_spend += spend
+            total_impressions += impressions
+            total_reach += reach
+            total_clicks += clicks
+        # Agregasi total: frequency total sebagai (impressions/reach)*100, CPR total sebagai spend/clicks
+        if total_reach == 0:
+            total_frequency = 0
         else:
-            data = fetch_data_all_insights_data_all(rs_account['data'], str(tanggal_dari), str(tanggal_sampai))
-            total = fetch_data_all_insights_total_all(rs_account['data'], str(tanggal_dari), str(tanggal_sampai))
-            jumlah = fetch_data_insights_account_range_all(rs_account['data'], str(tanggal_dari), str(tanggal_sampai))
-        hasil = {
-            'hasil': "Data Summary Facebook Ads",
-            'data_summary': data,
-            'data_total' : total,
-            'data_jumlah' : jumlah
+            total_frequency = format(total_impressions / total_reach, '.1f')
+        rata_cpr = round(sum([row['cpr'] for row in normalized_rows]) / len(normalized_rows), 0) if normalized_rows else 0.0
+        rata_cpc = round(sum([row['cpc'] for row in normalized_rows]) / len(normalized_rows), 0) if normalized_rows else 0.0
+        monitor_rows = []
+        try:
+            domain_filter_for_api = str(data_domain or '%') if 'data_domain' in locals() else '%'
+            accounts_all = data_mysql().master_account_ads().get('data', [])
+
+            # Pilih account sesuai filter (jika tidak ada -> semua account)
+            if selected_account_list:
+                selected_set = set([str(x) for x in selected_account_list])
+                accounts_target = [a for a in accounts_all if str(a.get('account_id')) in selected_set]
+            else:
+                accounts_target = accounts_all
+
+            api_rows = []
+            if not selected_account_list or len(accounts_target) > 1:
+                api_rs = fetch_data_insights_all_accounts_by_subdomain(
+                    str(tanggal_dari),
+                    accounts_target,
+                    domain_filter_for_api,
+                    str(tanggal_sampai),
+                )
+                api_rows = (api_rs or {}).get('data', []) if isinstance(api_rs, dict) else []
+            elif accounts_target:
+                acc = accounts_target[0]
+                api_rs = fetch_data_insights_account(
+                    str(tanggal_dari),
+                    str(acc.get('access_token', '')),
+                    str(acc.get('account_id', '')),
+                    domain_filter_for_api,
+                    str(acc.get('account_name', '')),
+                    str(tanggal_sampai),
+                )
+                api_rows = (api_rs or {}).get('data', []) if isinstance(api_rs, dict) else []
+
+            for r in api_rows or []:
+                spend_v = float(r.get('spend', 0) or 0)
+                budget_v = float(r.get('daily_budget', 0) or 0)
+                status_v = str(r.get('status', '') or 'UNKNOWN').upper()
+
+                is_paused = (status_v == 'PAUSED')
+                is_overspend = (spend_v > budget_v)
+
+                if not (is_paused or is_overspend):
+                    continue
+
+                remark_v = 'Paused' if is_paused else 'Overspend'
+                monitor_rows.append({
+                    'account_name': r.get('account_name') or '-',
+                    'campaign': r.get('campaign_name') or '-',
+                    'spend': spend_v,
+                    'daily_budget': budget_v,
+                    'campaign_status': status_v,
+                    'remark': remark_v,
+                })
+
+            monitor_rows = sorted(monitor_rows, key=lambda x: float(x.get('spend', 0) or 0), reverse=True)
+        except Exception:
+            # fallback query DB lama jika API gagal
+            monitor_result = data_mysql().get_monitoring_campaign_facebook_by_params(
+                tanggal_dari,
+                tanggal_sampai,
+                selected_account_list,
+                selected_domain_list,
+            )
+            monitor_payload = monitor_result.get('hasil', {}) if isinstance(monitor_result, dict) else {}
+            monitor_rows = monitor_payload.get('data', []) if bool(monitor_payload.get('status', False)) else []
+
+        response_data = {
+            'hasil': "Data Traffic Per Campaign",
+            'data_campaign': normalized_rows,
+            'total_campaign': [{
+                'total_spend': total_spend,
+                'total_impressions': total_impressions,
+                'total_reach': total_reach,
+                'total_click': total_clicks,
+                'total_frequency': total_frequency,
+                'total_cpr': format(rata_cpr, '.0f'),
+                'total_cpc': format(rata_cpc, '.0f'),
+            }],
+            'monitoring_campaign': monitor_rows,
         }
-        return JsonResponse(hasil)
+        # Jika terjadi kegagalan di layer DB, kirimkan respons kosong agar frontend tidak error
+        if not status_ok:
+            response_data['error'] = payload.get('data') or payload.get('message') or 'Gagal mengambil data campaign'
+        return JsonResponse(response_data)
 
 class AccountFacebookAds(View):
     def dispatch(self, request, *args, **kwargs):
@@ -1728,8 +3236,6 @@ class UpdateAccountFacebookAds(View):
                 'message': 'Account tidak ditemukan!'
             }
             return JsonResponse(hasil)
-        
-        print(req.session['hris_admin'])
         # Update data
         data_update = {
             'account_ads_id': account_ads_id,
@@ -2317,7 +3823,6 @@ class page_per_campaign_facebook(View):
             selected_account_list,
             selected_domain_list,
         )
-        print(f"db_result: {db_result}")
         # Unwrap payload (fungsi mengembalikan {'hasil': {...}})
         payload = db_result.get('hasil', {}) if isinstance(db_result, dict) else {}
         status_ok = bool(payload.get('status', False))
@@ -2357,6 +3862,7 @@ class page_per_campaign_facebook(View):
 
             normalized_rows.append({
                 'date': row.get('date'),
+                'account_id': row.get('account_id'),
                 'account_name': account_name,
                 'domain': domain,
                 'campaign': campaign,
@@ -2399,6 +3905,116 @@ class page_per_campaign_facebook(View):
         if not status_ok:
             response_data['error'] = payload.get('data') or payload.get('message') or 'Gagal mengambil data campaign'
         return JsonResponse(response_data)
+
+class page_per_campaign_facebook_detail(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super(page_per_campaign_facebook_detail, self).dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        account_id = str(req.GET.get('account_id') or '').strip()
+        campaign_name = str(req.GET.get('campaign_name') or '').strip()
+        start_date = str(req.GET.get('start_date') or '').strip()
+        end_date = str(req.GET.get('end_date') or '').strip()
+        if not account_id or not campaign_name:
+            return JsonResponse({'status': False, 'error': 'account_id dan campaign_name wajib diisi', 'data': {}})
+
+        acc = data_mysql().master_account_ads_by_id({'data_account': account_id})
+        acc_data = (acc or {}).get('data') if isinstance(acc, dict) else None
+        if not isinstance(acc_data, dict):
+            return JsonResponse({'status': False, 'error': 'Account tidak ditemukan', 'data': {}})
+
+        token = str(acc_data.get('access_token') or '').strip()
+        real_account_id = str(acc_data.get('account_id') or account_id).replace('act_', '').strip()
+        if not token or not real_account_id:
+            return JsonResponse({'status': False, 'error': 'Token atau account_id tidak valid', 'data': {}})
+
+        def _graph(path, params=None):
+            q = {'access_token': token}
+            if isinstance(params, dict): q.update(params)
+            resp = requests.get(f"https://graph.facebook.com/v22.0/{str(path).lstrip('/')}", params=q, timeout=45)
+            data = resp.json() if resp.text else {}
+            if resp.status_code >= 400 or (isinstance(data, dict) and data.get('error')):
+                msg = (data.get('error') or {}).get('message') if isinstance(data, dict) else f'HTTP {resp.status_code}'
+                return {'ok': False, 'data': {}, 'error': msg or 'Graph API error'}
+            return {'ok': True, 'data': data, 'error': ''}
+
+        camp_rs = _graph(f'act_{real_account_id}/campaigns', {'fields': 'id,name,status,objective,daily_budget,lifetime_budget,buying_type,special_ad_categories', 'limit': 200})
+        campaigns = (camp_rs.get('data') or {}).get('data', []) if isinstance(camp_rs.get('data'), dict) else []
+        name_lc = campaign_name.lower()
+        selected = next((c for c in campaigns if str((c or {}).get('name') or '').strip().lower() == name_lc), None)
+        if selected is None:
+            selected = next((c for c in campaigns if name_lc in str((c or {}).get('name') or '').strip().lower()), None)
+        if not selected:
+            return JsonResponse({'status': True, 'data': {'campaign': {'name': campaign_name}, 'platforms': [], 'ad_assets': [], 'adsets': []}, 'warning': 'Campaign tidak ditemukan pada API account ini'})
+
+        campaign_id = str(selected.get('id') or '').strip()
+        camp_meta = _graph(campaign_id, {
+            'fields': 'id,name,status,effective_status,objective,buying_type,daily_budget,lifetime_budget,budget_remaining,start_time,stop_time,created_time,updated_time,special_ad_categories,special_ad_category_country,smart_promotion_type'
+        })
+        adsets_rs = _graph(f'{campaign_id}/adsets', {
+            'fields': 'id,name,status,effective_status,optimization_goal,billing_event,bid_strategy,bid_amount,daily_budget,lifetime_budget,budget_remaining,start_time,end_time,destination_type,attribution_spec,promoted_object,targeting,frequency_control_specs',
+            'limit': 500
+        })
+        ads_rs = _graph(f'{campaign_id}/ads', {
+            'fields': 'id,name,status,effective_status,configured_status,conversion_domain,source_ad_id,tracking_specs,adset{id,name,status,effective_status},creative{id,name,title,body,object_story_spec,asset_feed_spec,url_tags,thumbnail_url,image_url,object_type,call_to_action_type,instagram_actor_id,effective_instagram_story_id}',
+            'limit': 500
+        })
+
+        insight_params = {'fields': 'publisher_platform,platform_position,impressions,reach,clicks,spend', 'breakdowns': 'publisher_platform,platform_position', 'limit': 500}
+        if start_date and end_date:
+            insight_params['time_range'] = json.dumps({'since': start_date, 'until': end_date})
+        insights_rs = _graph(f'{campaign_id}/insights', insight_params)
+
+        adsets = ((adsets_rs.get('data') or {}).get('data', []) if isinstance(adsets_rs.get('data'), dict) else [])
+        ads = ((ads_rs.get('data') or {}).get('data', []) if isinstance(ads_rs.get('data'), dict) else [])
+        insights = ((insights_rs.get('data') or {}).get('data', []) if isinstance(insights_rs.get('data'), dict) else [])
+        adset_map = {str((x or {}).get('id') or ''): x for x in adsets}
+
+        platforms = []
+        seen_platform = set()
+        for it in insights:
+            pp = str((it or {}).get('publisher_platform') or '').strip()
+            pos = str((it or {}).get('platform_position') or '').strip()
+            label = ' / '.join([x for x in [pp, pos] if x])
+            if label and label not in seen_platform:
+                seen_platform.add(label)
+                platforms.append(label)
+
+        campaign_full = (camp_meta.get('data') if isinstance(camp_meta.get('data'), dict) else selected) or {}
+        ad_assets = []
+        for ad in ads:
+            adset_obj = (ad or {}).get('adset') or {}
+            adset_id = str(adset_obj.get('id') or '')
+            adset_meta = adset_map.get(adset_id, {})
+            targeting = adset_meta.get('targeting') or {}
+            advantage = targeting.get('targeting_automation') if isinstance(targeting, dict) else None
+            creative = (ad or {}).get('creative') or {}
+            ad_assets.append({
+                'ad_id': ad.get('id'),
+                'ad_name': ad.get('name'),
+                'identity': {'account_id': real_account_id, 'campaign_id': campaign_id, 'adset_id': adset_id, 'adset_name': adset_obj.get('name') or adset_meta.get('name')},
+                'platforms': platforms,
+                'objective': campaign_full.get('objective') or selected.get('objective'),
+                'advantage_audience': advantage,
+                'targeting': targeting,
+                'campaign': campaign_full,
+                'adset': adset_meta,
+                'ad': {
+                    'id': ad.get('id'),
+                    'name': ad.get('name'),
+                    'status': ad.get('status'),
+                    'effective_status': ad.get('effective_status'),
+                    'configured_status': ad.get('configured_status'),
+                    'conversion_domain': ad.get('conversion_domain'),
+                    'source_ad_id': ad.get('source_ad_id'),
+                    'tracking_specs': ad.get('tracking_specs')
+                },
+                'material': creative
+            })
+
+        return JsonResponse({'status': True, 'data': {'campaign': campaign_full, 'platforms': platforms, 'adsets': adsets, 'ad_assets': ad_assets}})
     
 class PerCountryFacebookAds(View):
     def dispatch(self, request, *args, **kwargs):
@@ -2515,7 +4131,6 @@ class page_per_country_facebook(View):
             }
         # Filter data berdasarkan negara yang dipilih
         if selected_countries and len(selected_countries) > 0:
-            print(f"DEBUG - Filtering by countries: {selected_countries}")
             filtered_data = []
             for country_data in data['data']:
                 # Ekstrak country code dari format "Country Name (CODE)"
@@ -2703,7 +4318,6 @@ class AdxSummaryDataView(View):
                     response_data['error'] = payload['data']
             return JsonResponse(response_data)
         except Exception as e:
-            print(f"Error in AdxSummaryDataView: {str(e)}")
             return JsonResponse({
                 'status': False,
                 'error': str(e)
@@ -2720,22 +4334,14 @@ class AdxSummaryAdChangeDataView(View):
         start_date = req.GET.get('start_date')
         end_date = req.GET.get('end_date')
         
-        # Debug: Log all GET parameters
-        print(f"[DEBUG] ===== ALL GET PARAMETERS =====")
-        for key, value in req.GET.items():
-            print(f"[DEBUG] {key}: {value}")
-        print(f"[DEBUG] ===== END ALL GET PARAMETERS =====")
-        
         # Handle site_filter - check both array format and string format
         site_filter_list = req.GET.getlist('site_filter[]')  # Array format
         site_filter_string = req.GET.get('site_filter', '')   # String format
         
         if site_filter_list:
             site_filter = ','.join(site_filter_list)
-            print(f"[DEBUG] Using array format site_filter: {site_filter}")
         else:
             site_filter = site_filter_string
-            print(f"[DEBUG] Using string format site_filter: {site_filter}")
         
         if not start_date or not end_date:
             return JsonResponse({
@@ -2789,12 +4395,9 @@ class AdxSummaryAdChangeDataView(View):
                         'avg_ecpm': 0,
                         'avg_cpc': 0
                     }
-            
-            print(f"fetch_adx_ad_change_data returned: {result}")
             return JsonResponse(result)
             
         except Exception as e:
-            print(f"Error in AdxSummaryAdChangeDataView: {str(e)}")
             return JsonResponse({
                 'status': False,
                 'error': str(e)
@@ -2811,11 +4414,9 @@ class AdxActiveSitesView(View):
         try:
             from .utils import fetch_adx_active_sites
             result = fetch_adx_active_sites()
-            print(f"fetch_adx_active_sites returned: {result}")
             return JsonResponse(result)
             
         except Exception as e:
-            print(f"Error in AdxActiveSitesView: {str(e)}")
             return JsonResponse({
                 'status': False,
                 'error': str(e)
@@ -2996,7 +4597,6 @@ class GenerateRefreshTokenView(View):
         try:
             # Ambil user_mail dari session
             user_mail = req.session.get('hris_admin', {}).get('user_mail')
-            print(f"DEBUG Generate Refresh Token - Email data from DB: {user_mail}")
             if not user_mail:
                 return JsonResponse({
                     'status': False,
@@ -3005,7 +4605,6 @@ class GenerateRefreshTokenView(View):
             # Ambil data user dari database
             db = data_mysql()
             user_data = db.get_user_by_mail(user_mail)
-            print(f"DEBUG Generate Refresh Token - User data from DB: {user_data}")
             if not user_data['status'] or not user_data['data']:
                 return JsonResponse({
                     'status': False,
@@ -3052,27 +4651,12 @@ class SaveOAuthCredentialsView(View):
         return super().dispatch(request, *args, **kwargs)
     
     def post(self, req):
-        print("[SaveOAuthCredentialsView] POST request received!")
-        print(f"  Request method: {req.method}")
-        print(f"  Request path: {req.path}")
-        print(f"  Session has hris_admin: {'hris_admin' in req.session}")
-        print(f"  POST data keys: {list(req.POST.keys())}")
-        
         try:
             client_id = req.POST.get('client_id')
             client_secret = req.POST.get('client_secret')
             network_code = req.POST.get('network_code')
             user_mail = req.POST.get('user_mail')
             admin = req.session.get('hris_admin', {})
-            
-            # Debug logging
-            print("[SaveOAuthCredentialsView] Received data:")
-            print(f"  client_id: {client_id}")
-            print(f"  client_secret: {'(provided)' if client_secret else '(empty)'}")
-            print(f"  network_code: {network_code}")
-            print(f"  user_mail: {user_mail}")
-            print(f"  admin session: {admin}")
-
             # Validasi input minimal
             if not client_id or not client_secret or not user_mail:
                 return JsonResponse({
@@ -3110,17 +4694,14 @@ class SaveOAuthCredentialsView(View):
             final_network_code = network_code or existing_network_code
 
             exists = db.check_app_credentials_exist(user_mail)
-            print(f"[SaveOAuthCredentialsView] Database check result: {exists}")
             
             if isinstance(exists, dict) and not exists.get('status', True):
-                print(f"[SaveOAuthCredentialsView] Database check failed: {exists}")
                 return JsonResponse({
                     'status': False,
                     'error': 'Gagal mengecek app_credentials di database'
                 })
 
             if isinstance(exists, int) and exists > 0:
-                print(f"[SaveOAuthCredentialsView] Updating existing credentials for {user_mail}")
                 result = db.update_app_credentials(
                     user_mail,
                     account_name,
@@ -3133,9 +4714,7 @@ class SaveOAuthCredentialsView(View):
                     mdb_name,
                     '1'
                 )
-                print(f"[SaveOAuthCredentialsView] Update result: {result}")
             else:
-                print(f"[SaveOAuthCredentialsView] Inserting new credentials for {user_mail}")
                 result = db.insert_app_credentials(
                     account_name,
                     user_mail,
@@ -3147,10 +4726,8 @@ class SaveOAuthCredentialsView(View):
                     mdb,
                     mdb_name
                 )
-                print(f"[SaveOAuthCredentialsView] Insert result: {result}")
 
             if isinstance(result, dict) and result.get('status'):
-                print(f"[SaveOAuthCredentialsView] SUCCESS: Credentials saved successfully")
                 return JsonResponse({
                     'status': True,
                     'message': 'Kredensial berhasil disimpan ke app_credentials',
@@ -3162,7 +4739,6 @@ class SaveOAuthCredentialsView(View):
                     }
                 })
             else:
-                print(f"[SaveOAuthCredentialsView] FAILED: Database operation failed - {result}")
                 return JsonResponse({
                     'status': False,
                     'error': (result.get('error') if isinstance(result, dict) else 'Gagal menyimpan app_credentials')
@@ -3216,7 +4792,6 @@ class AdxAccountOAuthStartView(View):
 
     def get(self, req):
         try:
-            print("DEBUG: AdxAccountOAuthStartView called")
             logger.info(f"OAuth Start - GET parameters: {dict(req.GET)}")
             current_user = req.session.get('hris_admin', {})
             # Izinkan target email via query (?email=xxx); jika tidak ada, JANGAN paksa fallback ke email session
@@ -3251,7 +4826,7 @@ class AdxAccountOAuthStartView(View):
                 # Scope untuk Google AdSense
                 'https://www.googleapis.com/auth/adsense',
                 # Scope untuk sinkronisasi Gmail AdSense policy events
-                'https://www.googleapis.com/auth/gmail.readonly'
+                # 'https://www.googleapis.com/auth/gmail.readonly'
             ]
             flow = Flow.from_client_config(client_config, scopes=scopes)
             flow.redirect_uri = redirect_uri
@@ -3337,9 +4912,6 @@ class AdxAccountOAuthCallbackView(View):
         logger.info(f"OAuth Callback - User mail from session: {req.session.get('user_mail')}")
         logger.info(f"OAuth Callback - Client ID from session: {req.session.get('client_id')}")
         logger.info(f"OAuth Callback - Developer token from session: {req.session.get('developer_token')}")
-        
-        print("[DEBUG] OAuth Callback - Method called!")
-        print(f"[DEBUG] OAuth Callback - State: {req.GET.get('state')}, Code present: {bool(req.GET.get('code'))}")
         try:
             state = req.GET.get('state')
             code = req.GET.get('code')
@@ -3374,7 +4946,7 @@ class AdxAccountOAuthCallbackView(View):
                 # Scope untuk Google AdSense
                 'https://www.googleapis.com/auth/adsense',
                 # Scope untuk sinkronisasi Gmail AdSense policy events
-                'https://www.googleapis.com/auth/gmail.readonly'
+                # 'https://www.googleapis.com/auth/gmail.readonly'
             ]
 
             flow = Flow.from_client_config(client_config, scopes=scopes)
@@ -3489,10 +5061,7 @@ class AdxAccountOAuthCallbackView(View):
             logger.info(f"OAuth Callback - Network code: {network_code} (type: {type(network_code)})")
             logger.info(f"OAuth Callback - Developer token length: {len(developer_token) if developer_token else 0}")
             logger.info(f"OAuth Callback - MDB: {mdb}, MDB Name: {mdb_name}")
-            
-            print(f"[DEBUG] OAuth Callback - Attempting to save credentials for user: {user_mail}")
-            print(f"[DEBUG] OAuth Callback - Network code detected: {network_code}")
-            print(f"[DEBUG] OAuth Callback - Existing credentials check result: {exists}")
+    
             logger.info(f"OAuth Callback - Attempting to save credentials for user: {user_mail}")
             logger.info(f"OAuth Callback - Network code detected: {network_code}")
             logger.info(f"OAuth Callback - Existing credentials check result: {exists}")
@@ -3701,7 +5270,6 @@ class AdxSitesListView(View):
         selected_account_list = []
         if selected_accounts:
             selected_account_list = [str(s).strip() for s in selected_accounts.split(',') if s.strip()]
-        print(f"[DEBUG] AdxSitesListView - selected_account_list: {selected_account_list}")
         if selected_account_list:
             user_mail = data_mysql().fetch_user_mail_by_account(selected_account_list)    
         else:
@@ -3770,7 +5338,6 @@ class AdxAccountListView(View):
                 start_date.strftime('%Y-%m-%d'), 
                 end_date.strftime('%Y-%m-%d')
             )
-            print(f"[DEBUG] AdxAccountListView - result: {result}")
             # Simpan ke cache untuk permintaan berikutnya
             try:
                 # Cache selama 6 jam; daftar akun jarang berubah
@@ -4116,9 +5683,7 @@ class RoiTrafficPerCountryDataView(View):
                         seen.add(x)
                         uniq.append(x)
                 return uniq
-
             countries_list_query = expand_country_codes_filter(countries_list)
-
             # agar FB mengikuti domain yang ada di akun AdX terpilih
             sites_for_fb = None
             if not selected_domain or not selected_domain.strip():
@@ -4151,7 +5716,7 @@ class RoiTrafficPerCountryDataView(View):
                 return JsonResponse(cached_response, safe=False)
             data_facebook = None
             # Jalankan paralel jika selected_domain sudah ada (menghindari fetch FB yang terlalu lebar)
-            if selected_domain_list:
+            if selected_account_list and not selected_domain_list:
                 with ThreadPoolExecutor(max_workers=2) as executor:
                     adx_future = executor.submit(
                         data_mysql().get_all_adx_roi_country_detail_by_params,
@@ -4161,26 +5726,61 @@ class RoiTrafficPerCountryDataView(View):
                         selected_domain_list,
                         countries_list_query
                     )
-                    # Pastikan selected_sites adalah list
-                    if isinstance(selected_domain_list, str):
-                        selected_domain_list = [s.strip() for s in selected_domain_list.split(",") if s.strip()]
-                    if selected_domain_list:
+                    data_adx = adx_future.result()
+                    unique_name_site = []
+                    if data_adx.get("status") and data_adx.get("data"):
                         unique_sites = set()
-                        for site_item in selected_domain_list:
-                            site_name = site_item.strip()
-                            if site_name and site_name != 'Unknown':
-                                unique_sites.add(site_name)
+                        for row in data_adx["data"]:
+                            site_name = (row.get("site_name") or "").strip().lower()
+                            if not site_name or site_name == "unknown":
+                                continue
+                            unique_sites.add(site_name)
                         extracted_names = []
                         for site in unique_sites:
                             if "." not in site:
                                 continue
-                            parts = site.split(".")       # pisah berdasarkan titik
+
+                            parts = site.split(".")
+
                             if len(parts) >= 2:
-                                main_domain = ".".join(parts[:2])
+                                main_domain = ".".join(parts[:2])   # ✅ ambil depan
                             else:
                                 main_domain = site
+
                             extracted_names.append(main_domain)
                         unique_name_site = list(set(extracted_names))
+                    fb_future = executor.submit(
+                        data_mysql().get_all_ads_roi_country_detail_by_params,
+                        start_date,
+                        end_date,
+                        unique_name_site,
+                        countries_list_query
+                    )
+                    data_adx = adx_future.result()
+                    try:
+                        # Hapus timeout: tunggu hingga FB selesai agar data lengkap
+                        data_facebook = fb_future.result()
+                    except Exception as e:
+                        data_facebook = None
+            elif selected_domain_list :
+                with ThreadPoolExecutor(max_workers=2) as executor:
+                    adx_future = executor.submit(
+                        data_mysql().get_all_adx_roi_country_detail_by_params,
+                        start_date,
+                        end_date,
+                        selected_account_list,
+                        selected_domain_list,
+                        countries_list_query
+                    )
+                    unique_name_site = []
+                    if selected_domain_list:
+                        seen_sites = set()
+                        for site_item in selected_domain_list:
+                            site_name = str(site_item or '').strip().strip("\"'")
+                            if not site_name or site_name == 'Unknown' or site_name in seen_sites:
+                                continue
+                            seen_sites.add(site_name)
+                            unique_name_site.append(site_name)
                     fb_future = executor.submit(
                         data_mysql().get_all_ads_roi_country_detail_by_params,
                         start_date,
@@ -4226,7 +5826,6 @@ class RoiTrafficPerCountryDataView(View):
                                     if main_domain and main_domain != 'Unknown':
                                         extracted_names.append(main_domain)
                                 unique_name_site = list(set(extracted_names))
-
                         if unique_name_site:
                             fb_future = executor.submit(
                                 data_mysql().get_all_ads_roi_country_detail_by_params,
@@ -4236,7 +5835,6 @@ class RoiTrafficPerCountryDataView(View):
                         else:
                             data_facebook = None
                 except Exception as e:
-                    print(f"[DEBUG] Facebook fetch (all domains) failed: {e}; continue without FB data")
                     data_facebook = None
             # Ringkas data Facebook untuk diagnosa
             try:
@@ -4281,7 +5879,6 @@ class RoiTrafficPerCountryDataView(View):
                     country_matched = False
                     for filter_country in parsed_filter_countries:
                         if country_name == filter_country or country_code == filter_country:
-                            print(f"[DEBUG ROI] ✓ MATCH FOUND: '{country_name}' matches '{filter_country}'")
                             country_matched = True
                             break
                     # Only add to filtered_data if country_matched is True
@@ -4329,8 +5926,11 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
             return c
 
         # Normalisasi AdX: date + base_subdomain + country_code
-        adx_items = data_adx.get('data') if isinstance(data_adx, dict) else []
+        adx_items_raw = data_adx.get('data') if isinstance(data_adx, dict) else []
+        adx_items = adx_items_raw if isinstance(adx_items_raw, list) else []
         for adx_item in (adx_items or []):
+            if not isinstance(adx_item, dict):
+                continue
             date_key = str(adx_item.get('date', '') or '')
             site_name = str(adx_item.get('site_name', '') or '')
             base_subdomain = extract_base_subdomain(site_name)
@@ -4352,8 +5952,11 @@ def process_roi_traffic_country_data(data_adx, data_facebook):
 
         # Normalisasi FB: date + base_subdomain + country_code
         fb_payload = data_facebook if isinstance(data_facebook, dict) else {'status': True, 'data': []}
-        fb_items = fb_payload.get('data') or []
+        fb_items_raw = fb_payload.get('data') if isinstance(fb_payload, dict) else []
+        fb_items = fb_items_raw if isinstance(fb_items_raw, list) else []
         for fb_item in fb_items:
+            if not isinstance(fb_item, dict):
+                continue
             date_key = str(fb_item.get('date', '') or '')
             domain = str(fb_item.get('domain', '') or '')
             base_subdomain = extract_base_subdomain(domain)
@@ -4592,8 +6195,11 @@ def process_roi_monitoring_country_data(data_adx, data_facebook):
             return alias.get(c, c)
 
         # Normalisasi AdX: date + base_subdomain + country_code
-        adx_items = data_adx.get('data') if isinstance(data_adx, dict) else []
+        adx_items_raw = data_adx.get('data') if isinstance(data_adx, dict) else []
+        adx_items = adx_items_raw if isinstance(adx_items_raw, list) else []
         for adx_item in (adx_items or []):
+            if not isinstance(adx_item, dict):
+                continue
             date_key = str(adx_item.get('date', '') or '')
             site_name = str(adx_item.get('site_name', '') or '')
             base_subdomain = extract_base_subdomain(site_name)
@@ -4641,12 +6247,14 @@ def process_roi_monitoring_country_data(data_adx, data_facebook):
 
         # Normalisasi FB: date + base_subdomain + country_code
         fb_payload = data_facebook if isinstance(data_facebook, dict) else {'status': True, 'data': []}
-        fb_items = fb_payload.get('data') or []
+        fb_items_raw = fb_payload.get('data') if isinstance(fb_payload, dict) else []
+        fb_items = fb_items_raw if isinstance(fb_items_raw, list) else []
         for fb_item in fb_items:
+            if not isinstance(fb_item, dict):
+                continue
             date_key = str(fb_item.get('date', '') or '')
             domain = str(fb_item.get('domain', '') or '')
             base_subdomain = extract_base_subdomain(domain)
-            print(f"[DEBUG ROI] Base subdomain fb_adx: {base_subdomain}")
             country_code = normalize_country_code(fb_item.get('country_code', '') or '')
             country_name = fb_item.get('country_name', '') or ''
             spend = float(fb_item.get('spend', 0) or 0)
@@ -4799,8 +6407,10 @@ def build_roi_monitoring_country_daily_rows(data_adx, data_facebook):
             }
             return alias.get(c, c)
 
-        adx_items = data_adx.get('data') if isinstance(data_adx, dict) else []
-        fb_items = (data_facebook.get('data') if isinstance(data_facebook, dict) else []) or []
+        adx_items_raw = data_adx.get('data') if isinstance(data_adx, dict) else []
+        adx_items = adx_items_raw if isinstance(adx_items_raw, list) else []
+        fb_items_raw = (data_facebook.get('data') if isinstance(data_facebook, dict) else []) or []
+        fb_items = fb_items_raw if isinstance(fb_items_raw, list) else []
 
         country_name_by_code = {}
         rev_map = {}
@@ -4808,6 +6418,8 @@ def build_roi_monitoring_country_daily_rows(data_adx, data_facebook):
         adx_metrics_map = {}
 
         for adx_item in (adx_items or []):
+            if not isinstance(adx_item, dict):
+                continue
             date_key = str(adx_item.get('date', '') or '')
             site_name = str(adx_item.get('site_name', '') or '')
             base_subdomain = extract_base_subdomain(site_name)
@@ -4846,6 +6458,8 @@ def build_roi_monitoring_country_daily_rows(data_adx, data_facebook):
             adx_metrics_map[k] = entry
 
         for fb_item in (fb_items or []):
+            if not isinstance(fb_item, dict):
+                continue
             date_key = str(fb_item.get('date', '') or '')
             domain = str(fb_item.get('domain', '') or '')
             base_subdomain = extract_base_subdomain(domain)
@@ -5240,7 +6854,7 @@ class RoiTrafficPerDomainDataView(View):
                 selected_accounts = ",".join(account_ids)
             else:
                 selected_accounts = req.GET.get('selected_account_adx', '')
-            selected_domains = req.GET.get('selected_domains')
+            selected_domain_filter = str(req.GET.get('selected_domains') or '').strip()
             selected_account_ads = req.GET.get('selected_account_ads')
             # --- 1. Parse tanggal aman
             def parse_date(d):
@@ -5255,29 +6869,25 @@ class RoiTrafficPerDomainDataView(View):
             selected_account_list = []
             if selected_accounts:
                 selected_account_list = [str(s).strip() for s in selected_accounts.split(',') if s.strip()]
-            selected_domain_list = []
-            if selected_domains:
-                selected_domain_list = [str(s).strip() for s in selected_domains.split(',') if s.strip()]
+            domain_terms = [str(s).strip().strip("\"'") for s in selected_domain_filter.split(',') if str(s).strip().strip("\"'")]
             # --- 3. Ambil data AdX
             adx_result = data_mysql().get_all_adx_traffic_account_by_params(
                 start_date_formatted,
                 end_date_formatted,
                 selected_account_list,
-                selected_domain_list
+                domain_terms
             )
             # --- 4. Proses Facebook data
             facebook_data = None
             unique_name_site = []
-            if selected_domain_list:
-                for site in selected_domain_list:
-                    site = str(site).strip()
-                    if "." in site:
-                        parts = site.split(".")       # pisah berdasarkan titik
-                        if len(parts) >= 2:
-                            main_domain = ".".join(parts[:2])
-                        else:
-                            main_domain = site
-                        unique_name_site.append(main_domain)
+            if domain_terms:
+                seen_sites = set()
+                for site in domain_terms:
+                    site_name = str(site or '').strip().strip("\"'")
+                    if not site_name or site_name == 'Unknown' or site_name in seen_sites:
+                        continue
+                    seen_sites.add(site_name)
+                    unique_name_site.append(site_name)
             elif adx_result:
                 # Ambil unique site dari AdX
                 extracted_sites = set()
@@ -5884,7 +7494,6 @@ class MonitoringScoringBaselineHourlyView(View):
 
             # Panggil scoring engine (fungsi sudah ada di bawah file ini)
             result = scoring_engine(meta, adx, adsense)
-            print("Scoring Result:", result)  # Debug print
             return JsonResponse({
                 'status': True,
                 'meta': meta,
@@ -6150,12 +7759,10 @@ class DashboardDomainHourlyHeatmapView(View):
                     raise ValueError(f"Tanggal tidak valid: {d}")
             tanggal_formatted = parse_date(tanggal)
             db = data_mysql()
-
             adx_resp = None
             adsense_resp = None
             adx_rows = []
             adsense_rows = []
-
             if source == 'adsense':
                 adsense_resp = db.get_all_adsense_country_hourly_by_params(tanggal_formatted)
                 adsense_rows = (adsense_resp.get('data') if isinstance(adsense_resp, dict) else []) or []
@@ -6183,10 +7790,8 @@ class DashboardDomainHourlyHeatmapView(View):
                     site_name = str((item or {}).get(key, '')).strip()
                     if site_name and site_name != 'Unknown':
                         extracted_sites.add(site_name)
-
             _collect_sites(adx_rows, 'log_adx_country_domain')
             _collect_sites(adsense_rows, 'log_adsense_country_domain')
-
             for site in extracted_sites:
                 main_domain = site
                 if "." in site:
@@ -6194,9 +7799,7 @@ class DashboardDomainHourlyHeatmapView(View):
                     if len(parts) >= 2:
                         main_domain = ".".join(parts[:2])
                 unique_name_site.append(main_domain)
-
             unique_name_site = list(set(unique_name_site))
-
             ads_resp = None
             if unique_name_site:
                 ads_resp = db.get_all_ads_country_hourly_by_params(
@@ -6206,10 +7809,8 @@ class DashboardDomainHourlyHeatmapView(View):
             ads_rows = ((ads_resp or {}).get('hasil') or {}).get('data') or []
             if not isinstance(ads_rows, list):
                 ads_rows = []
-
             rev_by_hour = {f"{h:02d}": 0.0 for h in range(24)}
             spend_by_hour = {f"{h:02d}": 0.0 for h in range(24)}
-
             def _acc_rev(rows):
                 for row in rows or []:
                     try:
@@ -6222,7 +7823,6 @@ class DashboardDomainHourlyHeatmapView(View):
                     rev_by_hour[hkey] = rev_by_hour.get(hkey, 0.0) + float(row.get('revenue', 0) or 0)
             _acc_rev(adx_rows)
             _acc_rev(adsense_rows)
-
             for row in ads_rows or []:
                 try:
                     hour = int(row.get('hour', 0) or 0)
@@ -6972,9 +8572,29 @@ class RoiMonitoringDomainDataView(View):
                 ','.join(selected_account_list) if selected_account_list else '',
                 ','.join(selected_domain_list) if selected_domain_list else '',
             )
+            def _attach_active_days(payload):
+                try:
+                    rows = list((payload or {}).get('data') or [])
+                    if not rows:
+                        return payload
+                    sites_for_age = [str((x or {}).get('site_name') or '').strip() for x in rows]
+                    age_result = data_mysql().get_fact_join_hourly_active_days_map(end_date_formatted, sites_for_age)
+                    active_days_by_site = (age_result or {}).get('data') if isinstance(age_result, dict) and age_result.get('status') else {}
+                    for item in rows:
+                        site_key = str((item or {}).get('site_name') or '').strip().lower()
+                        item['active_days'] = int((active_days_by_site or {}).get(site_key, 0) or 0)
+                    rows_filtered = list((payload or {}).get('data_filtered') or [])
+                    for item in rows_filtered:
+                        site_key = str((item or {}).get('site_name') or '').strip().lower()
+                        item['active_days'] = int((active_days_by_site or {}).get(site_key, 0) or 0)
+                    payload['data'] = rows
+                    payload['data_filtered'] = rows_filtered
+                except Exception:
+                    pass
+                return payload
             cached_response = get_cached_data(response_cache_key)
             if cached_response is not None:
-                return JsonResponse(cached_response, safe=False)
+                return JsonResponse(_attach_active_days(cached_response), safe=False)
 
             # --- 3. Ambil data AdX
             adx_result = data_mysql().get_all_adx_monitoring_account_by_params(
@@ -7303,6 +8923,22 @@ class RoiMonitoringDomainDataView(View):
             except Exception:
                 pass
 
+            active_days_by_site = {}
+            try:
+                sites_for_age = [str((x or {}).get('site_name') or '').strip() for x in (combined_data_all or [])]
+                age_result = data_mysql().get_fact_join_hourly_active_days_map(end_date_formatted, sites_for_age)
+                if isinstance(age_result, dict) and age_result.get('status'):
+                    active_days_by_site = (age_result.get('data') or {})
+            except Exception:
+                active_days_by_site = {}
+
+            for item in (combined_data_all or []):
+                site_key = str((item or {}).get('site_name') or '').strip().lower()
+                item['active_days'] = int(active_days_by_site.get(site_key, 0) or 0)
+            for item in (combined_data_filtered or []):
+                site_key = str((item or {}).get('site_name') or '').strip().lower()
+                item['active_days'] = int(active_days_by_site.get(site_key, 0) or 0)
+
             def _clamp(v, lo, hi):
                 try:
                     x = float(v)
@@ -7549,6 +9185,39 @@ class RoiMonitoringDomainCampaignsView(View):
             return JsonResponse({'status': True, 'campaigns': campaigns, 'start_date': start_date, 'end_date': end_date}, safe=False)
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e), 'campaigns': []}, safe=False)
+
+class RoiMonitoringDomainCampaignBreakdownView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            site_name = (req.GET.get('site_name') or '').strip().lower()
+            start_date = (req.GET.get('start_date') or '').strip()
+            end_date = (req.GET.get('end_date') or '').strip()
+
+            if not site_name:
+                return JsonResponse({'status': False, 'error': 'site_name wajib diisi', 'data': []}, safe=False)
+
+            if not end_date:
+                end_date = datetime.now().strftime('%Y-%m-%d')
+            if not start_date:
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+                start_date = (end_dt - timedelta(days=6)).strftime('%Y-%m-%d')
+
+            parts = [p for p in site_name.split('.') if p]
+            if len(parts) >= 2:
+                site_name = '.'.join(parts[:2])
+
+            rs = data_mysql().get_monitoring_domain_campaign_breakdown_by_params(start_date, end_date, site_name)
+            if not (isinstance(rs, dict) and rs.get('status')):
+                return JsonResponse({'status': False, 'error': (rs or {}).get('error', 'Gagal mengambil data'), 'data': []}, safe=False)
+
+            return JsonResponse({'status': True, 'site_name': site_name, 'start_date': start_date, 'end_date': end_date, 'data': rs.get('data', [])}, safe=False)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e), 'data': []}, safe=False)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class RoiMonitoringDomainUpdateDailyBudgetCampaignView(View):
@@ -7826,14 +9495,13 @@ class RoiMonitoringCountryDataView(View):
                         sites_for_fb = sites_result['hasil']['data']
                         # Hapus semua 'Unknown'
                         sites_for_fb = [site for site in sites_for_fb if site != 'Unknown']
-                        print(f"[DEBUG ROI] Sites for FB filter: {sites_for_fb}")
                     else:
                         print(f"[DEBUG ROI] No sites derived for FB filter: {sites_result['hasil']['data']}")
                 except Exception as _sites_err:
                     print(f"[DEBUG ROI] Unable to derive sites_for_fb: {_sites_err}")
             # ===== Response-level cache (meng-cache hasil akhir penggabungan) =====
             response_cache_key = generate_cache_key(
-                'roi_country_response_v2',
+                'roi_country_response_v3',
                 start_date,
                 end_date,
                 selected_account or '',
@@ -7846,35 +9514,41 @@ class RoiMonitoringCountryDataView(View):
                 return JsonResponse(cached_response, safe=False)
             data_facebook = None
             # Jalankan paralel jika selected_domain sudah ada (menghindari fetch FB yang terlalu lebar)
-            if selected_domain_list:
+            if selected_account_list and not selected_domain_list:
                 with ThreadPoolExecutor(max_workers=2) as executor:
                     adx_future = executor.submit(
-                        data_mysql().get_all_adx_country_detail_by_params,
+                        data_mysql().get_all_adx_roi_country_detail_by_params,
                         start_date,
                         end_date,
                         selected_account_list,
                         selected_domain_list,
                         countries_list_query
                     )
-                    # Normalisasi domain FB
-                    if isinstance(selected_domain_list, str):
-                        selected_domain_list = [s.strip() for s in selected_domain_list.split(",") if s.strip()]
-                    unique_sites = set()
-                    for site_item in selected_domain_list:
-                        site_name = site_item.strip()
-                        if site_name and site_name != 'Unknown':
+                    data_adx = adx_future.result()
+                    unique_name_site = []
+                    if data_adx.get("status") and data_adx.get("data"):
+                        unique_sites = set()
+                        for row in data_adx["data"]:
+                            site_name = (row.get("site_name") or "").strip().lower()
+                            if not site_name or site_name == "unknown":
+                                continue
                             unique_sites.add(site_name)
-                    extracted_names = []
-                    for site in unique_sites:
-                        if "." not in site:
-                            continue
-                        parts = site.split(".")
-                        main_domain = ".".join(parts[:2]) if len(parts) >= 2 else site
-                        extracted_names.append(main_domain)
-                    unique_name_site = list(set(extracted_names))
+                        extracted_names = []
+                        for site in unique_sites:
+                            if "." not in site:
+                                continue
 
+                            parts = site.split(".")
+
+                            if len(parts) >= 2:
+                                main_domain = ".".join(parts[:2])   # ✅ ambil depan
+                            else:
+                                main_domain = site
+
+                            extracted_names.append(main_domain)
+                        unique_name_site = list(set(extracted_names))
                     fb_future = executor.submit(
-                        data_mysql().get_all_ads_country_detail_by_params,
+                        data_mysql().get_all_ads_roi_country_detail_by_params,
                         start_date,
                         end_date,
                         unique_name_site,
@@ -7882,38 +9556,83 @@ class RoiMonitoringCountryDataView(View):
                     )
                     data_adx = adx_future.result()
                     try:
+                        # Hapus timeout: tunggu hingga FB selesai agar data lengkap
                         data_facebook = fb_future.result()
-                    except Exception:
+                    except Exception as e:
+                        data_facebook = None
+            elif selected_domain_list :
+                with ThreadPoolExecutor(max_workers=2) as executor:
+                    adx_future = executor.submit(
+                        data_mysql().get_all_adx_roi_country_detail_by_params,
+                        start_date,
+                        end_date,
+                        selected_account_list,
+                        selected_domain_list,
+                        countries_list_query
+                    )
+                    unique_name_site = []
+                    if selected_domain_list:
+                        seen_sites = set()
+                        for site_item in selected_domain_list:
+                            site_name = str(site_item or '').strip().strip("\"'")
+                            if not site_name or site_name == 'Unknown' or site_name in seen_sites:
+                                continue
+                            seen_sites.add(site_name)
+                            unique_name_site.append(site_name)
+                    fb_future = executor.submit(
+                        data_mysql().get_all_ads_roi_country_detail_by_params,
+                        start_date,
+                        end_date,
+                        unique_name_site,
+                        countries_list_query
+                    )
+                    data_adx = adx_future.result()
+                    try:
+                        # Hapus timeout: tunggu hingga FB selesai agar data lengkap
+                        data_facebook = fb_future.result()
+                    except Exception as e:
                         data_facebook = None
             else:
-                data_adx = data_mysql().get_all_adx_country_detail_by_params(
-                    start_date,
-                    end_date,
-                    selected_account_list,
-                    selected_domain_list,
+                # Filter Domain kosong: tampilkan data semua domain dari akun AdX terpilih
+                data_adx = data_mysql().get_all_adx_roi_country_detail_by_params(
+                    start_date, 
+                    end_date, 
+                    selected_account_list, 
+                    selected_domain_list, 
                     countries_list_query
                 )
                 try:
                     unique_name_site = []
-                    if sites_for_fb:
-                        unique_sites = set(site.strip() for site in sites_for_fb if site.strip() and site.strip() != 'Unknown')
-                        extracted_names = []
-                        for site in unique_sites:
-                            main_domain = ".".join(site.split(".")[:2]) if "." in site else site
-                            extracted_names.append(main_domain)
-                        unique_name_site = list(set(extracted_names))
-                    print(f"[DEBUG ROI] Unique name site adx: {unique_name_site}")
-                    if unique_name_site:
-                        data_facebook = data_mysql().get_all_ads_country_detail_by_params(
-                            start_date,
-                            end_date,
-                            unique_name_site,
-                            countries_list_query
-                        )
-                    else:
-                        data_facebook = None
+                    with ThreadPoolExecutor(max_workers=1) as executor:
+                        if sites_for_fb:
+                            unique_sites = set(site.strip() for site in sites_for_fb if site.strip() and site.strip() != 'Unknown')
+                            extracted_names = []
+                            for site in unique_sites:
+                                main_domain = extract_base_subdomain(site.strip())
+                                if main_domain and main_domain != 'Unknown':
+                                    extracted_names.append(main_domain)
+                            unique_name_site = list(set(extracted_names))
+
+                        if not unique_name_site:
+                            adx_payload_tmp = data_adx.get('hasil') if isinstance(data_adx, dict) and data_adx.get('hasil') else data_adx
+                            adx_items_tmp = adx_payload_tmp.get('data') if isinstance(adx_payload_tmp, dict) else []
+                            if adx_items_tmp:
+                                extracted_names = []
+                                for adx_item in (adx_items_tmp or []):
+                                    site_name = str(adx_item.get('site_name', '') or '')
+                                    main_domain = extract_base_subdomain(site_name.strip())
+                                    if main_domain and main_domain != 'Unknown':
+                                        extracted_names.append(main_domain)
+                                unique_name_site = list(set(extracted_names))
+                        if unique_name_site:
+                            fb_future = executor.submit(
+                                data_mysql().get_all_ads_roi_country_detail_by_params,
+                                start_date, end_date, unique_name_site, countries_list_query
+                            )
+                            data_facebook = fb_future.result()
+                        else:
+                            data_facebook = None
                 except Exception as e:
-                    print(f"[DEBUG] Facebook fetch (all domains) failed: {e}; continue without FB data")
                     data_facebook = None
             # Ringkas data Facebook untuk diagnosa
             try:
@@ -7938,6 +9657,52 @@ class RoiMonitoringCountryDataView(View):
             adx_payload = data_adx.get('hasil') if isinstance(data_adx, dict) and data_adx.get('hasil') else data_adx
             fb_payload = (data_facebook.get('hasil') if isinstance(data_facebook, dict) and data_facebook.get('hasil') else {'status': True, 'data': []})
             result = process_roi_monitoring_country_data(adx_payload, fb_payload)
+
+            # Konsistensi summary spend dengan menu monitoring_domain (campaign-level FB)
+            campaign_total_spend = None
+            try:
+                # Ikuti logika monitoring_domain: ambil domain dari payload AdX pada periode aktif
+                campaign_sites = []
+                if selected_domain_list:
+                    campaign_sites = [extract_base_subdomain(s) for s in selected_domain_list if str(s or '').strip()]
+                else:
+                    adx_items_for_sites = adx_payload.get('data') if isinstance(adx_payload, dict) else []
+                    if isinstance(adx_items_for_sites, list):
+                        campaign_sites = [extract_base_subdomain((it or {}).get('site_name', '')) for it in adx_items_for_sites if isinstance(it, dict)]
+
+                campaign_sites = sorted(set([str(s).strip() for s in campaign_sites if str(s).strip() and str(s).strip() != 'Unknown']))
+
+                if campaign_sites:
+                    fb_campaign = data_mysql().get_all_ads_roi_monitoring_campaign_by_params(
+                        start_date,
+                        end_date,
+                        campaign_sites
+                    )
+                    fb_campaign_items = (((fb_campaign or {}).get('hasil') or {}).get('data') or [])
+                    campaign_total_spend = round(sum(float((it or {}).get('spend', 0) or 0) for it in fb_campaign_items if isinstance(it, dict)), 2)
+            except Exception:
+                campaign_total_spend = None
+
+            if campaign_total_spend is not None and not countries_list_query:
+                def _override_summary_spend(sum_obj):
+                    if not isinstance(sum_obj, dict):
+                        return sum_obj
+                    try:
+                        total_revenue = float(sum_obj.get('total_revenue', 0) or 0)
+                    except Exception:
+                        total_revenue = 0.0
+                    total_spend = float(campaign_total_spend or 0)
+                    total_net_profit = total_revenue - total_spend
+                    roi_nett = ((total_net_profit / total_spend) * 100) if total_spend > 0 else 0.0
+                    sum_obj['total_spend'] = round(total_spend, 2)
+                    sum_obj['total_net_profit'] = round(total_net_profit, 2)
+                    sum_obj['roi_nett'] = round(roi_nett, 2)
+                    sum_obj['total_roi'] = round(roi_nett, 2)
+                    sum_obj['spend_source'] = 'facebook_campaign_level'
+                    return sum_obj
+
+                result['summary_all'] = _override_summary_spend(result.get('summary_all'))
+                result['summary_filtered'] = _override_summary_spend(result.get('summary_filtered'))
 
             # Tambahkan daily_rows
             try:
@@ -8127,7 +9892,6 @@ class RoiMonitoringCountryDataView(View):
                     country_matched = False
                     for filter_country in parsed_filter_countries:
                         if country_name == filter_country or country_code == filter_country:
-                            print(f"[DEBUG ROI] ✓ MATCH FOUND: '{country_name}' matches '{filter_country}'")
                             country_matched = True
                             break
                     # Only add to filtered_data if country_matched is True
@@ -8149,6 +9913,54 @@ class RoiMonitoringCountryDataView(View):
                 'status': False,
                 'error': str(e)
             })
+
+
+class RoiMonitoringCountryBreakdownView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            country_code = str(req.GET.get('country_code') or '').strip().upper()
+            start_date = str(req.GET.get('start_date') or '').strip()
+            end_date = str(req.GET.get('end_date') or '').strip()
+            selected_domains = str(req.GET.get('selected_domains') or '').strip()
+
+            if not country_code:
+                return JsonResponse({'status': False, 'error': 'country_code wajib diisi', 'data': []}, safe=False)
+
+            if not end_date:
+                end_date = datetime.now().strftime('%Y-%m-%d')
+            if not start_date:
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
+                start_date = (end_dt - timedelta(days=6)).strftime('%Y-%m-%d')
+
+            selected_domain_list = [s.strip() for s in selected_domains.split(',') if s.strip()] if selected_domains else []
+            rs = data_mysql().get_monitoring_country_subdomain_campaign_breakdown_by_params(
+                start_date,
+                end_date,
+                country_code,
+                selected_domain_list
+            )
+
+            if not (isinstance(rs, dict) and rs.get('status')):
+                return JsonResponse({
+                    'status': False,
+                    'error': (rs or {}).get('error', 'Gagal mengambil data breakdown'),
+                    'data': []
+                }, safe=False)
+
+            return JsonResponse({
+                'status': True,
+                'country_code': country_code,
+                'start_date': start_date,
+                'end_date': end_date,
+                'data': rs.get('data', [])
+            }, safe=False)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e), 'data': []}, safe=False)
 
 # ===== ROI Rekapitulasi =====
 

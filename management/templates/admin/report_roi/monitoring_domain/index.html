@@ -147,39 +147,11 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
       max-width: 240px;
   }
 
-  #table_traffic_account th:nth-child(5),
-  #table_traffic_account td:nth-child(5),
-  #table_traffic_account th:nth-child(8),
-  #table_traffic_account td:nth-child(8),
-  #table_traffic_account th:nth-child(10),
-  #table_traffic_account td:nth-child(10) {
-      min-width: 170px;
-  }
-
-  .spark-eff,
-  .spark-earning,
-  .spark-esp {
-      width: 150px;
-      height: 54px;
-      margin: 0 auto;
-  }
-
   @media (max-width: 768px) {
       #table_traffic_account td:nth-child(2),
       #table_traffic_account td:nth-child(3) {
           max-width: 180px;
       }
-      #table_traffic_account th:nth-child(5),
-      #table_traffic_account td:nth-child(5),
-      #table_traffic_account th:nth-child(8),
-      #table_traffic_account td:nth-child(8),
-      #table_traffic_account th:nth-child(10),
-      #table_traffic_account td:nth-child(10) {
-          min-width: 140px;
-      }
-      .spark-eff,
-      .spark-earning,
-      .spark-esp { width: 120px; }
   }
 
   #roiTemporalHeatmapSection .roi-heatmap-title {
@@ -573,12 +545,8 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 </select>
             </div>
             <div class="col-md-5">
-                <label>Filter Domain</label>
-                <select class="form-control select2 select2-multiple" id="domain_filter" multiple>
-                    {% for domain in data_domain_adx %}
-                    <option value="{{ domain.data_adx_domain }}">{{ domain.data_adx_domain }}</option>
-                    {% endfor %}
-                </select>
+                <label>Filter Subdomain</label>
+                <input type="text" class="form-control" id="domain_filter" placeholder="contoh: handsome.uaetiming.com" />
             </div>
             <div class="col-md-1">
                 <label>Tanpa Spends</label>
@@ -706,30 +674,6 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 </div>
             </div>
         </div>
-        <div class="row mt-3" id="roiTemporalHeatmapSection" style="display:none;">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-header">
-                        <div class="roi-heatmap-title">
-                            <span class="dot" aria-hidden="true"></span>
-                            <span>TEMPORAL ROI HEATMAP (PER JAM - <span id="roiTemporalHeatmapLabel">HARI INI</span>)</span>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div id="roiTemporalHeatmapTooltip" class="roi-heatmap-tooltip"></div>
-                        <div id="roiTemporalHeatmapGrid" class="roi-heatmap-grid"></div>
-                        <div class="roi-heatmap-foot">
-                            <div class="roi-heatmap-note">* darker nodes represent peak performance windows</div>
-                            <div class="roi-heatmap-legend">
-                                <span><span class="roi-heatmap-swatch" style="background:#e6f0ff"></span> Low</span>
-                                <span><span class="roi-heatmap-swatch" style="background:#93c5fd"></span> Target</span>
-                                <span><span class="roi-heatmap-swatch" style="background:#1d4ed8"></span> Peak</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
         <!-- Data Table -->
         <div class="dt-responsive-table mt-3 table-responsive">
             <table id="table_traffic_account" class="table table-bordered table-striped" style="width:100%" data-title="Tabel" data-intro="Tabel monitoring subdomain berisi spend, pendapatan, dan ROI. Gunakan sort/filter DataTables (jika aktif) untuk analisis.">
@@ -743,12 +687,9 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         <th class="text-center" style="width: 16%;">Subdomain</th>
                         <th class="text-center" style="width: 14%;">Account Ads</th>
                         <th class="text-center" style="width: 12%;">Spend (Rp)</th>
-                        <th class="text-center" style="width: 12%;">Pergerakan Earning</th>
                         <th class="text-center" style="width: 12%;">Pendapatan (Rp)</th>
                         <th class="text-center" style="width: 12%;">Net Profit (Rp)</th>
-                        <th class="text-center" style="width: 14%;">Earning/Spend/Net</th>
                         <th class="text-center" style="width: 10%;">ROI (%)</th>
-                        <th class="text-center" style="width: 12%;">Efisiensi ROI</th>
                         <th class="text-center" style="width: 6%;">Detail</th>
                     </tr>
                 </thead>

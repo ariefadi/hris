@@ -1,3 +1,10 @@
+function normalizeDomainFilter(selected_domain) {
+    if (Array.isArray(selected_domain)) {
+        return selected_domain.map(function (s) { return String(s || '').trim(); }).filter(function (s) { return s; }).join(',');
+    }
+    return String(selected_domain || '').trim();
+}
+
 $(document).ready(function () {
     // Simpan data terakhir untuk re-render cepat saat toggle berubah
     window.lastRoiData = null;
@@ -26,16 +33,7 @@ $(document).ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     });
-    let allAccountOptions = $('#account_filter').html();
-    // Initialize Select2 for site filter
-    $('#domain_filter').select2({
-        placeholder: '-- Pilih Domain --',
-        allowClear: true,
-        width: '100%',
-        height: '100%',
-        theme: 'bootstrap4'
-    });
-    let allDomainOptions = $('#domain_filter').html();  
+    // domain_filter sekarang freetext input (tanpa select2)
     // Inisialisasi Select2 untuk country filter
     $('#country_filter').select2({
         placeholder: '-- Pilih Negara --',
@@ -57,7 +55,7 @@ $(document).ready(function () {
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
         var selected_account = $("#account_filter").val();
-        var selected_domain = $("#domain_filter").val();
+        var selected_domain = normalizeDomainFilter($("#domain_filter").val());
         if (tanggal_dari != "" && tanggal_sampai != "") {
             e.preventDefault();
             $('#overlay').show();
@@ -67,109 +65,11 @@ $(document).ready(function () {
             alert('Silakan pilih tanggal dari dan sampai');
         }
     });
-    // Flag untuk mencegah infinite loop saat update filter
-    var isUpdating = false;
-    $('#account_filter').on('change', function () {
-        if (isUpdating) return;
-        let account = $(this).val();
-        if (account && account.length > 0) {
-            adx_site_list(); // filter domain by account
-        } else {
-            // restore semua domain dari template
-            isUpdating = true;
-            $('#domain_filter')
-                .html(allDomainOptions)
-                .val(null)
-                .trigger('change.select2');
-            isUpdating = false;
-        }
-    });
-    function adx_site_list() {
-        var selected_account = $("#account_filter").val();
-        if (selected_account) {
-            selected_account = selected_account.join(',');
-        }
-        return $.ajax({
-            url: '/management/admin/adx_sites_list',
-            type: 'GET',
-            data: {
-                selected_accounts: selected_account
-            },
-            headers: {
-                'X-CSRFToken': csrftoken
-            },
-            success: function (response) {
-                if (response && response.status) {
-                    let $domain = $('#domain_filter');
-                    let currentSelected = $domain.val(); // Simpan pilihan saat ini
-
-                    isUpdating = true;
-                    // 1. Kosongkan option lama
-                    $domain.empty();
-
-                    // 2. Tambahkan option baru
-                    response.data.forEach(function (domain) {
-                        let isSelected = currentSelected && currentSelected.includes(domain);
-                        let option = new Option(domain, domain, isSelected, isSelected);
-                        $domain.append(option);
-                    });
-
-                    // 3. Refresh select2
-                    $domain.trigger('change.select2');
-                    isUpdating = false;
-                }
-            },
-            error: function (xhr, status, error) {
-                report_eror(xhr, error);
-            }
-        });
-    }
-    $('#domain_filter').on('change', function () {
-        if (isUpdating) return;
-        let domain = $(this).val();
-        if (domain && domain.length > 0) {
-            adx_account_list();
-        } else {
-            isUpdating = true;
-            $('#account_filter')
-                .html(allAccountOptions)
-                .val(null)
-                .trigger('change.select2');
-            isUpdating = false;
-        }
-    });
-    function adx_account_list() {
-        var selected_domain = $("#domain_filter").val();
-        if (selected_domain) {
-            selected_domain = selected_domain.join(',');
-        }
-        return $.ajax({
-            url: '/management/admin/adx_accounts_list',
-            type: 'GET',
-            data: {
-                selected_domains: selected_domain
-            },
-            headers: {
-                'X-CSRFToken': csrftoken
-            },
-            success: function (response) {
-                if (response && response.status) {
-                    let $account = $('#account_filter');
-                    let suggested = (response.data || []).map(function (a) { return String(a.account_id); });
-                    isUpdating = true;
-                    $account.html(allAccountOptions);
-                    $account.val(suggested).trigger('change.select2');
-                    isUpdating = false;
-                }
-            },
-            error: function (xhr, status, error) {
-                report_eror(xhr, error);
-            }
-        });
-    }
+    // Filter silang account-domain dinonaktifkan karena domain menggunakan freetext.
     // Load data saat halaman pertama kali dibuka
     function load_country_options(selected_account, selected_domain) {
         var selectedAccounts = selected_account;
+        var selectedDomains = normalizeDomainFilter(selected_domain);
         // Simpan pilihan negara yang sudah dipilih sebelumnya
         var previouslySelected = $('#country_filter').val() || [];
         $.ajax({
@@ -178,7 +78,7 @@ $(document).ready(function () {
             dataType: 'json',
             data: {
                 'selected_accounts': selectedAccounts,
-                'selected_domains': selected_domain
+                'selected_domains': selectedDomains
             },
             success: function (response) {
                 console.log(response);
@@ -218,6 +118,10 @@ $(document).ready(function () {
     function getSelectedTextList(selector) { 
         var $el = $(selector);
         var items = [];
+        if (selector === '#domain_filter') {
+            var raw = String($el.val() || '').trim();
+            return raw ? raw.split(',').map(function (d) { return String(d || '').trim(); }).filter(function (d) { return d; }) : [];
+        }
         try {
             var s2 = $el.select2('data');
             if (Array.isArray(s2) && s2.length) {
@@ -328,10 +232,7 @@ $(document).ready(function () {
             accountFilter = selected_account.join(',');
         }
         // Convert array to comma-separated string for backend
-        var domainFilter = '';
-        if (selected_domain && selected_domain.length > 0) {
-            domainFilter = selected_domain.join(',');
-        }
+        var domainFilter = normalizeDomainFilter(selected_domain);
         // Convert array to comma-separated string for backend
         var countryFilter = '';
         if (selectedCountries && selectedCountries.length > 0) {

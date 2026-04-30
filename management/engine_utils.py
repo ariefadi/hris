@@ -43,14 +43,22 @@ def robust_scale(value, values):
     """
     Robust scaling using median & MAD (Median Absolute Deviation)
     """
+    # 🔥 FIX: pastikan values iterable
+    if values is None:
+        return 0.0
+
+    if not isinstance(values, (list, tuple)):
+        values = [values]
+
     vals = [safe_float(v) for v in values if v is not None]
+
     if not vals:
         return 0.0
 
     med = median(vals)
     mad = median([abs(v - med) for v in vals]) or 1e-9
 
-    return (value - med) / mad
+    return (safe_float(value) - med) / mad
 
 
 # ---------------------------
@@ -115,10 +123,12 @@ def normalize_country_cd(code):
     return str(code).strip().upper()
 
 
-def normalize_country_nm(name):
-    if not name:
-        return "unknown"
-    return str(name).strip().lower()
+def normalize_country_nm(name, code):
+    if code:
+        return str(code).strip().lower()
+    if name:
+        return str(name).strip().lower()
+    return "unknown"
 
 
 def normalize_domain(domain):
@@ -143,17 +153,13 @@ def normalize_domain(domain):
 # LABEL / TAGGING
 # ---------------------------
 
-def pick_top_labels(scores: dict, top_n=3):
-    """
-    Example:
-    {
-        "profit": 0.8,
-        "ctr": 0.6,
-        "rpm": 0.9
-    }
-    """
-    if not scores:
+def pick_top_labels(labels, top_n=3):
+    if not labels:
         return []
 
-    sorted_items = sorted(scores.items(), key=lambda x: x[1], reverse=True)
-    return [k for k, _ in sorted_items[:top_n]]
+    from collections import Counter
+
+    counter = Counter(labels)
+    sorted_items = counter.most_common(top_n)
+
+    return [k for k, _ in sorted_items]
