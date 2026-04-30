@@ -349,7 +349,7 @@ class data_mysql:
                 print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
                 port = 3306
             user = os.getenv('DB_USER') or 'root'
-            password = os.getenv('DB_PASSWORD') or 'hris123456'
+            password = os.getenv('DB_PASSWORD') or ''
             database = os.getenv('DB_NAME') or 'hris_trendHorizone'
 
             self.db_hris = pymysql.connect(
@@ -1806,6 +1806,50 @@ class data_mysql:
                 'data': 'Terjadi error {!r}, error nya {}'.format(e, e.args[0])
             }
         return hasil
+
+    def get_master_ads_campaign_name_map(self, campaign_ids):
+        """Get campaign_id -> campaign_name from master_ads for provided ids."""
+        try:
+            normalized_ids = []
+            seen_ids = set()
+            for raw_id in (campaign_ids or []):
+                cid = str(raw_id or '').strip()
+                if cid and cid not in seen_ids:
+                    seen_ids.add(cid)
+                    normalized_ids.append(cid)
+
+            if not normalized_ids:
+                return {"status": True, "data": {}}
+
+            placeholders = ','.join(['%s'] * len(normalized_ids))
+            sql = f"""
+                SELECT master_campaign_id, master_campaign_nm, mdd
+                FROM master_ads
+                WHERE master_campaign_id IN ({placeholders})
+                ORDER BY mdd DESC
+            """
+
+            if not self.execute_query(sql, tuple(normalized_ids)):
+                raise pymysql.Error("Failed to fetch campaign name map from master_ads")
+
+            rows = self.cur_hris.fetchall() or []
+            name_map = {}
+            for row in rows:
+                cid = str((row or {}).get('master_campaign_id') or '').strip()
+                cname = str((row or {}).get('master_campaign_nm') or '').strip()
+                if not cid:
+                    continue
+                if cid in name_map:
+                    continue
+                if cname:
+                    name_map[cid] = cname
+
+            return {"status": True, "data": name_map}
+        except pymysql.Error as e:
+            return {
+                "status": False,
+                "data": f"Terjadi error {e!r}, error nya {e.args[0] if e.args else e}"
+            }
 
     def master_domain_ads(self):
         sql = '''

@@ -1,0 +1,771 @@
+{% extends "admin_base.html" %}
+{% load static %}
+{% block page_title %}Traffic Per Campaign{% endblock %}
+{% block page_heading %}Traffic Per Campaign{% endblock %}
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">Report Traffic</li>
+{% endblock %}
+{% block more_stylesheet %}
+<style>
+.traffic-kpi-card .card-body {
+    border-radius: 10px;
+    color: #fff;
+    min-height: 84px;
+}
+.traffic-kpi-1 .card-body { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+.traffic-kpi-2 .card-body { background: linear-gradient(135deg, #0ea5e9, #0284c7); }
+.traffic-kpi-3 .card-body { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+.traffic-kpi-4 .card-body { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.traffic-kpi-title { font-size: 11px; font-weight: 700; text-transform: uppercase; opacity: 0.95; margin-bottom: 4px; }
+.traffic-kpi-value { font-size: 22px; font-weight: 700; line-height: 1.1; margin: 0; }
+.traffic-muted {
+    font-size: 12px;
+    color: #64748b;
+}
+#trafficChartWrap {
+    position: relative;
+    min-height: 340px;
+}
+#trafficChartLoading {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.72);
+    z-index: 5;
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title mb-0"><i class="bi bi-bar-chart"></i> Traffic Report Per Campaign</h3>
+    </div>
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-2">
+                <label for="campaign_filter">Campaign</label>
+                <select class="form-control select2" id="campaign_filter"></select>
+            </div>
+            <div class="col-md-4">
+                <label for="domain_filter">Domain</label>
+                <select class="form-control select2 select2-multiple" multiple id="domain_filter"></select>
+            </div>
+            <div class="col-md-2">
+                <label for="select_range">Report Range</label>
+                <select class="form-control" id="select_range">
+                    <option value="today">Today</option>
+                    <option value="7days">Last 7 Days</option>
+                    <option value="30days">Last 30 Days</option>
+                    <option value="90days">Last 90 Days</option>
+                </select>
+            </div>
+            <div class="col-md-4 text-md-right">
+                <button type="button" class="btn btn-primary" id="btn_load_data">
+                    <i class="fas fa-sync-alt"></i> Load Traffic
+                </button>
+                <button type="button" class="btn btn-outline-secondary" id="btn_refresh_campaign">
+                    Refresh Campaign List
+                </button>
+            </div>
+        </div>
+        <div class="mt-2">
+            <span class="traffic-muted">Last update: <b id="trafficLastUpdate">-</b></span>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3 mb-3">
+        <div class="card traffic-kpi-card traffic-kpi-1">
+            <div class="card-body">
+                <div class="traffic-kpi-title">Total Visitors</div>
+                <p class="traffic-kpi-value" id="totalVisitors">0</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card traffic-kpi-card traffic-kpi-2">
+            <div class="card-body">
+                <div class="traffic-kpi-title">Unique Visitors</div>
+                <p class="traffic-kpi-value" id="totalUniqueVisitors">0</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card traffic-kpi-card traffic-kpi-3">
+            <div class="card-body">
+                <div class="traffic-kpi-title">Total Pageviews</div>
+                <p class="traffic-kpi-value" id="totalPageviews">0</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card traffic-kpi-card traffic-kpi-4">
+            <div class="card-body">
+                <div class="traffic-kpi-title">Total Ad Click</div>
+                <p class="traffic-kpi-value" id="totalAdClicks">0</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card" id="loop_this_by_domain">
+    <div class="card-header">
+        <h3 class="card-title mb-0">Traffic for Domain <span id="domain_name">N/A</span></h3>
+    </div>
+    <div class="card-body">
+        <div id="trafficChartWrap">
+            <div id="trafficChartLoading">
+                <div class="spinner-border text-primary" role="status"></div>
+            </div>
+            <canvas id="chart_traffic"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function () {
+    var CAMPAIGN_LIST_ENDPOINT = "{% url 'traffic_campaign_list' %}";
+    var TRAFFIC_STATS_ENDPOINT = "https://api-tracker.kiwipixel.com/v1/traffic-stats";
+    var CAMPAIGN_CACHE_KEY = "traffic_campaign_list_cache_v1";
+    var CAMPAIGN_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+    var TRAFFIC_CACHE_KEY = "traffic_campaign_last_load_cache_v1";
+    var TRAFFIC_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+    var chartInstances = {};
+    var campaignMap = {};
+    var lastUpdateTimestampMs = null;
+    var isApplyingCachedState = false;
+
+    function normalizeStats(rows) {
+        if (!Array.isArray(rows)) return [];
+        return rows.map(function (row) {
+            return {
+                time: String((row && row.time) || ""),
+                totalVisitors: Number((row && (row.total_visitors || row.total)) || 0),
+                uniqueVisitors: Number((row && (row.total_unique_visitors || row.unique)) || 0),
+                pageviews: Number((row && row.total_pageviews) || 0),
+                adClick: Number((row && row.total_ad_click) || 0)
+            };
+        });
+    }
+
+    function renderLoadingState(domains, currentIndex) {
+        clearDomainCharts();
+        var container = document.getElementById("loop_this_by_domain");
+        if (!container) return;
+        var list = Array.isArray(domains) ? domains : [];
+        if (!list.length) {
+            container.innerHTML = '' +
+                '<div class="card mb-0">' +
+                    '<div class="card-body text-center py-4">' +
+                        '<div class="spinner-border text-primary" role="status"></div>' +
+                        '<div class="mt-2 text-muted">Loading traffic...</div>' +
+                    '</div>' +
+                '</div>';
+            return;
+        }
+        var html = list.map(function (domain, idx) {
+            var statusText = "Waiting...";
+            if (idx < currentIndex) statusText = "Loaded";
+            else if (idx === currentIndex) statusText = "Loading...";
+            return '' +
+                '<div class="card mb-3">' +
+                    '<div class="card-header"><h3 class="card-title mb-0">Traffic for Domain ' + domain + '</h3></div>' +
+                    '<div class="card-body text-center py-4">' +
+                        '<div class="spinner-border text-primary" role="status"></div>' +
+                        '<div class="mt-2 text-muted">' + statusText + '</div>' +
+                    '</div>' +
+                '</div>';
+        }).join("");
+        container.innerHTML = html;
+    }
+
+    function setLoading(isLoading, domains, currentIndex) {
+        if (isLoading) {
+            renderLoadingState(domains, Number(currentIndex) || 0);
+        }
+    }
+
+    function formatDateTime(ms) {
+        return new Date(ms).toLocaleString("id-ID", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false
+        });
+    }
+
+    function formatAge(ms) {
+        var diffSec = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+        var days = Math.floor(diffSec / 86400);
+        var hours = Math.floor((diffSec % 86400) / 3600);
+        var minutes = Math.floor((diffSec % 3600) / 60);
+        if (days > 0) return days + "d " + hours + "h ago";
+        if (hours > 0) return hours + "h " + minutes + "m ago";
+        return minutes + "m ago";
+    }
+
+    function setLastUpdate(timestampMs) {
+        var el = document.getElementById("trafficLastUpdate");
+        if (!el) return;
+        if (!timestampMs) {
+            el.textContent = "-";
+            return;
+        }
+        lastUpdateTimestampMs = Number(timestampMs);
+        el.textContent = formatDateTime(lastUpdateTimestampMs) + " (" + formatAge(lastUpdateTimestampMs) + ")";
+    }
+
+    function updateKpi(aggregatedRows) {
+        var totals = aggregatedRows.reduce(function (acc, row) {
+            acc.visitors += row.totalVisitors;
+            acc.unique += row.uniqueVisitors;
+            acc.pageviews += row.pageviews;
+            acc.click += row.adClick;
+            return acc;
+        }, { visitors: 0, unique: 0, pageviews: 0, click: 0 });
+
+        document.getElementById("totalVisitors").textContent = totals.visitors.toLocaleString("id-ID");
+        document.getElementById("totalUniqueVisitors").textContent = totals.unique.toLocaleString("id-ID");
+        document.getElementById("totalPageviews").textContent = totals.pageviews.toLocaleString("id-ID");
+        document.getElementById("totalAdClicks").textContent = totals.click.toLocaleString("id-ID");
+    }
+
+    function clearDomainCharts() {
+        Object.keys(chartInstances).forEach(function (key) {
+            try { chartInstances[key].destroy(); } catch (e) {}
+        });
+        chartInstances = {};
+        var container = document.getElementById("loop_this_by_domain");
+        if (container) container.innerHTML = "";
+    }
+
+    function clearTrafficView() {
+        updateKpi([]);
+        clearDomainCharts();
+        setLastUpdate(null);
+    }
+
+    function createChartConfig(rows) {
+        var labels = rows.map(function (row) { return row.time; });
+        var visitors = rows.map(function (row) { return row.totalVisitors; });
+        var unique = rows.map(function (row) { return row.uniqueVisitors; });
+        var pageviews = rows.map(function (row) { return row.pageviews; });
+        var adClick = rows.map(function (row) { return row.adClick; });
+        return {
+            type: "bar",
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: "Total Visitors", data: visitors, backgroundColor: "rgba(37, 99, 235, 0.7)", stack: "traffic" },
+                    { label: "Unique Visitors", data: unique, backgroundColor: "rgba(14, 165, 233, 0.7)", stack: "traffic" },
+                    { label: "Pageviews", data: pageviews, backgroundColor: "rgba(139, 92, 246, 0.7)", stack: "traffic" },
+                    { label: "Ad Click", data: adClick, backgroundColor: "rgba(245, 158, 11, 0.7)", stack: "traffic" }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: "index", intersect: false },
+                scales: {
+                    x: { stacked: true },
+                    y: { stacked: true, beginAtZero: true }
+                }
+            }
+        };
+    }
+
+    function renderDomainCharts(domainSeriesMap, orderedDomains) {
+        clearDomainCharts();
+        var container = document.getElementById("loop_this_by_domain");
+        if (!container) return;
+
+        var domains = Array.isArray(orderedDomains) && orderedDomains.length
+            ? orderedDomains
+            : Object.keys(domainSeriesMap || {});
+
+        if (!domains.length) {
+            container.innerHTML = '<div class="alert alert-light border mb-0">No chart data. Select domain and click Load Traffic.</div>';
+            return;
+        }
+
+        var html = domains.map(function (domain, idx) {
+            return '' +
+                '<div class="card mb-3">' +
+                    '<div class="card-header"><h3 class="card-title mb-0">Traffic for Domain ' + domain + '</h3></div>' +
+                    '<div class="card-body">' +
+                        '<div style="position:relative; min-height:320px;">' +
+                            '<canvas id="chart_traffic_' + idx + '"></canvas>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+        }).join("");
+        container.innerHTML = html;
+
+        domains.forEach(function (domain, idx) {
+            var canvas = document.getElementById("chart_traffic_" + idx);
+            if (!canvas) return;
+            var rows = (domainSeriesMap && domainSeriesMap[domain]) ? domainSeriesMap[domain] : [];
+            chartInstances[domain] = new Chart(canvas, createChartConfig(rows));
+        });
+    }
+
+    function aggregateSeries(seriesList) {
+        var byTime = {};
+        seriesList.forEach(function (rows) {
+            rows.forEach(function (row) {
+                if (!byTime[row.time]) {
+                    byTime[row.time] = { time: row.time, totalVisitors: 0, uniqueVisitors: 0, pageviews: 0, adClick: 0 };
+                }
+                byTime[row.time].totalVisitors += row.totalVisitors;
+                byTime[row.time].uniqueVisitors += row.uniqueVisitors;
+                byTime[row.time].pageviews += row.pageviews;
+                byTime[row.time].adClick += row.adClick;
+            });
+        });
+        return Object.keys(byTime).sort().map(function (k) { return byTime[k]; });
+    }
+
+    function getCachedCampaigns() {
+        try {
+            var raw = localStorage.getItem(CAMPAIGN_CACHE_KEY);
+            if (!raw) return null;
+            var parsed = JSON.parse(raw);
+            if (!parsed || !Array.isArray(parsed.campaigns)) return null;
+            if (!parsed.savedAt || (Date.now() - Number(parsed.savedAt)) > CAMPAIGN_CACHE_TTL_MS) return null;
+            return parsed.campaigns;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function cacheCampaigns(campaigns) {
+        try {
+            localStorage.setItem(CAMPAIGN_CACHE_KEY, JSON.stringify({
+                campaigns: campaigns,
+                savedAt: Date.now()
+            }));
+        } catch (e) {}
+    }
+
+    function readTrafficCacheStore() {
+        try {
+            var raw = localStorage.getItem(TRAFFIC_CACHE_KEY);
+            if (!raw) return { entries: {} };
+            var parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== "object") return { entries: {} };
+            if (!parsed.entries || typeof parsed.entries !== "object") return { entries: {} };
+            return parsed;
+        } catch (e) {
+            return { entries: {} };
+        }
+    }
+
+    function buildTrafficCacheEntryKey(report, campaignId, domains) {
+        var safeDomains = Array.isArray(domains) ? domains : [];
+        var normalizedDomains = safeDomains
+            .map(function (d) { return String(d || "").trim(); })
+            .filter(Boolean)
+            .sort();
+        return String(report || "today") + "::" + String(campaignId || "") + "::" + normalizedDomains.join("|");
+    }
+
+    function getCachedTrafficBySelection(report, campaignId, selectedDomains) {
+        var store = readTrafficCacheStore();
+        var key = buildTrafficCacheEntryKey(report, campaignId, selectedDomains);
+        var entry = store.entries[key] || null;
+        if (!entry || !Array.isArray(entry.aggregatedRows)) return null;
+        if (!entry.savedAt || (Date.now() - Number(entry.savedAt)) > TRAFFIC_CACHE_TTL_MS) return null;
+        return entry;
+    }
+
+    function cacheTraffic(report, campaignId, selectedDomains, payload) {
+        try {
+            var store = readTrafficCacheStore();
+            var key = buildTrafficCacheEntryKey(report, campaignId, selectedDomains);
+            store.entries[key] = {
+                aggregatedRows: payload.aggregatedRows || [],
+                perDomainSeries: payload.perDomainSeries || {},
+                campaignId: campaignId || "",
+                selectedDomains: payload.selectedDomains || [],
+                report: report || "today",
+                savedAt: Date.now(),
+                lastUpdateAt: payload.lastUpdateAt || Date.now()
+            };
+            localStorage.setItem(TRAFFIC_CACHE_KEY, JSON.stringify(store));
+        } catch (e) {}
+    }
+
+    function populateCampaignSelect(campaignRows) {
+        var select = document.getElementById("campaign_filter");
+        if (!select) return;
+        select.innerHTML = "";
+        campaignMap = {};
+
+        campaignRows.forEach(function (item) {
+            if (!item || !item.utm_id) return;
+            var campaignId = String(item.utm_id);
+            var rawDomains = String(item.domains || "");
+            var domains = rawDomains.split(",").map(function (d) { return d.trim(); }).filter(Boolean);
+            campaignMap[campaignId] = domains;
+
+            var opt = document.createElement("option");
+            opt.value = campaignId;
+            var campaignName = String(item.campaign_name || item.name || campaignId);
+            opt.textContent = campaignId + " - " + campaignName;
+            select.appendChild(opt);
+        });
+
+        if (window.jQuery && jQuery.fn.select2) {
+            jQuery("#campaign_filter").select2({
+                placeholder: "-- Select Campaign --",
+                allowClear: true,
+                width: "100%",
+                theme: "bootstrap4"
+            });
+        }
+    }
+
+    function populateDomainSelect(domains) {
+        var select = document.getElementById("domain_filter");
+        if (!select) return;
+        select.innerHTML = "";
+        domains.forEach(function (domain) {
+            var opt = document.createElement("option");
+            opt.value = domain;
+            opt.textContent = domain;
+            select.appendChild(opt);
+        });
+        if (window.jQuery && jQuery.fn.select2) {
+            jQuery("#domain_filter").select2({
+                placeholder: "-- Select Domain --",
+                allowClear: true,
+                width: "100%",
+                theme: "bootstrap4"
+            });
+        }
+    }
+
+    function getSelectedCampaignId() {
+        if (window.jQuery) {
+            var selected = jQuery("#campaign_filter").val();
+            if (selected === null || selected === undefined) return "";
+            return String(selected);
+        }
+        var select = document.getElementById("campaign_filter");
+        return select ? String(select.value || "") : "";
+    }
+
+    function getDomainsFromCampaign(campaignId) {
+        return campaignMap[campaignId] || [];
+    }
+
+    function applyDomainsFromSelectedCampaign() {
+        var campaignId = getSelectedCampaignId();
+        var domains = getDomainsFromCampaign(campaignId);
+        populateDomainSelect(domains);
+    }
+
+    function loadCampaignList(forceRefresh) {
+        if (!forceRefresh) {
+            var cached = getCachedCampaigns();
+            if (cached && cached.length) {
+                populateCampaignSelect(cached);
+                return Promise.resolve(cached);
+            }
+        }
+
+        var endpoint = CAMPAIGN_LIST_ENDPOINT;
+        if (forceRefresh) {
+            endpoint += (endpoint.indexOf("?") === -1 ? "?" : "&") + "refresh=1";
+        }
+        return fetch(endpoint, { method: "GET" })
+            .then(function (resp) {
+                if (!resp.ok) throw new Error("Failed fetching campaign list");
+                return resp.json();
+            })
+            .then(function (json) {
+                var campaigns = (json && Array.isArray(json.campaigns)) ? json.campaigns : [];
+                if (forceRefresh && json && json.stale) {
+                    console.warn("Campaign refresh returned stale cache:", json.warning || "");
+                    alert("Campaign list refresh failed from source API. Showing last cached data.");
+                }
+                cacheCampaigns(campaigns);
+                populateCampaignSelect(campaigns);
+                return campaigns;
+            });
+    }
+
+    function setCampaignRefreshLoading(isLoading, totalCampaign, checkedDone) {
+        var btn = document.getElementById("btn_refresh_campaign");
+        if (!btn) return;
+        if (isLoading) {
+            btn.disabled = true;
+            var progressText = "";
+            var total = Number(totalCampaign || 0);
+            var done = Number(checkedDone || 0);
+            if (total > 0) {
+                progressText = " (" + total + " / " + done + ")";
+            }
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm mr-1" role="status" aria-hidden="true"></span> Refreshing...' + progressText;
+        } else {
+            btn.disabled = false;
+            btn.textContent = "Refresh Campaign List";
+        }
+    }
+
+    function refreshCampaignListWithProgress() {
+        var startUrl = CAMPAIGN_LIST_ENDPOINT + (CAMPAIGN_LIST_ENDPOINT.indexOf("?") === -1 ? "?" : "&") + "refresh=1&async=1";
+        return fetch(startUrl, { method: "GET" })
+            .then(function (resp) {
+                if (!resp.ok) throw new Error("Failed start refresh job");
+                return resp.json();
+            })
+            .then(function (startJson) {
+                var jobId = startJson && startJson.job_id;
+                if (!jobId) throw new Error("Invalid refresh job id");
+
+                return new Promise(function (resolve, reject) {
+                    var poll = function () {
+                        var statusUrl = CAMPAIGN_LIST_ENDPOINT + (CAMPAIGN_LIST_ENDPOINT.indexOf("?") === -1 ? "?" : "&") + "job_id=" + encodeURIComponent(jobId);
+                        fetch(statusUrl, { method: "GET" })
+                            .then(function (resp) {
+                                if (!resp.ok) throw new Error("Failed polling refresh status");
+                                return resp.json();
+                            })
+                            .then(function (statusJson) {
+                                var totalCampaign = Number(statusJson.total_campaign || 0);
+                                var checkedDone = Number(statusJson.checked_done || 0);
+                                setCampaignRefreshLoading(true, totalCampaign, checkedDone);
+
+                                if (statusJson.running) {
+                                    window.setTimeout(poll, 1000);
+                                    return;
+                                }
+                                if (!statusJson.status) {
+                                    reject(new Error(statusJson.error || "Refresh job failed"));
+                                    return;
+                                }
+
+                                var payload = statusJson.payload || {};
+                                var campaigns = Array.isArray(payload.campaigns) ? payload.campaigns : [];
+                                if (payload.stale) {
+                                    console.warn("Campaign refresh returned stale cache:", payload.warning || "");
+                                    alert("Campaign list refresh failed from source API. Showing last cached data.");
+                                }
+                                cacheCampaigns(campaigns);
+                                populateCampaignSelect(campaigns);
+                                resolve(campaigns);
+                            })
+                            .catch(reject);
+                    };
+                    poll();
+                });
+            });
+    }
+
+    function setSelectedDomains(domains) {
+        var values = Array.isArray(domains) ? domains : [];
+        var selectEl = document.getElementById("domain_filter");
+        var isMultiple = !!(selectEl && selectEl.multiple);
+        isApplyingCachedState = true;
+        if (window.jQuery && jQuery.fn.select2) {
+            jQuery("#domain_filter").val(isMultiple ? values : (values[0] || "")).trigger("change");
+            isApplyingCachedState = false;
+            return;
+        }
+        var select = selectEl;
+        if (!select) {
+            isApplyingCachedState = false;
+            return;
+        }
+        for (var i = 0; i < select.options.length; i++) {
+            if (isMultiple) {
+                select.options[i].selected = values.indexOf(select.options[i].value) !== -1;
+            } else {
+                select.options[i].selected = (select.options[i].value === (values[0] || ""));
+            }
+        }
+        isApplyingCachedState = false;
+    }
+
+    function applyCachedTrafficToView(cacheObj) {
+        if (!cacheObj || !Array.isArray(cacheObj.aggregatedRows)) return;
+        updateKpi(cacheObj.aggregatedRows);
+        if (cacheObj.report) {
+            document.getElementById("select_range").value = cacheObj.report;
+        }
+        if (Array.isArray(cacheObj.selectedDomains)) {
+            setSelectedDomains(cacheObj.selectedDomains);
+        }
+        renderDomainCharts(cacheObj.perDomainSeries || {}, cacheObj.selectedDomains || []);
+        setLastUpdate(cacheObj.lastUpdateAt || cacheObj.savedAt);
+    }
+
+    function applyCachedTrafficForCurrentSelection() {
+        var report = document.getElementById("select_range").value || "today";
+        var campaignId = getSelectedCampaignId();
+        var selectedDomains = getSelectedDomains();
+        var cachedTraffic = getCachedTrafficBySelection(report, campaignId, selectedDomains);
+        if (cachedTraffic) {
+            applyCachedTrafficToView(cachedTraffic);
+            return true;
+        }
+        clearTrafficView();
+        return false;
+    }
+
+    function handleDomainSelectionChanged() {
+        if (isApplyingCachedState) return;
+        // Ensure Select2 has already synced its value back to the select element.
+        window.setTimeout(function () {
+            applyCachedTrafficForCurrentSelection();
+        }, 0);
+    }
+
+    function getSelectedDomains() {
+        if (window.jQuery) {
+            var selected = jQuery("#domain_filter").val();
+            if (Array.isArray(selected)) {
+                return selected.filter(Boolean);
+            }
+            if (selected === null || selected === undefined || selected === "") {
+                return [];
+            }
+            return [String(selected)];
+        }
+        var select = document.getElementById("domain_filter");
+        if (!select) return [];
+        var out = [];
+        for (var i = 0; i < select.options.length; i++) {
+            if (select.options[i].selected) out.push(select.options[i].value);
+        }
+        return out;
+    }
+
+    function loadTrafficByDomain() {
+        var report = document.getElementById("select_range").value || "today";
+        var campaignId = getSelectedCampaignId();
+        var selectedDomains = getSelectedDomains();
+        if (!campaignId) {
+            alert("Please select campaign.");
+            return;
+        }
+        if (!selectedDomains.length) {
+            alert("Please select at least one domain.");
+            return;
+        }
+
+        setLoading(true, selectedDomains, 0);
+
+        var allSeriesWithDomain = [];
+        var runSequential = function (idx) {
+            if (idx >= selectedDomains.length) {
+                return Promise.resolve(allSeriesWithDomain);
+            }
+            var domain = selectedDomains[idx];
+            setLoading(true, selectedDomains, idx);
+            var url = TRAFFIC_STATS_ENDPOINT + "?web=" + encodeURIComponent(domain) + "&report=" + encodeURIComponent(report);
+            return fetch(url, { method: "GET" })
+                .then(function (resp) {
+                    if (!resp.ok) throw new Error("Failed traffic request for " + domain);
+                    return resp.json();
+                })
+                .then(function (json) {
+                    allSeriesWithDomain.push({
+                        domain: domain,
+                        rows: normalizeStats((json && json.stats) || [])
+                    });
+                    return runSequential(idx + 1);
+                });
+        };
+
+        runSequential(0)
+            .then(function (allSeriesWithDomain) {
+                var perDomainSeries = {};
+                allSeriesWithDomain.forEach(function (item) {
+                    perDomainSeries[item.domain] = item.rows;
+                });
+                var allSeries = allSeriesWithDomain.map(function (item) { return item.rows; });
+                var aggregatedRows = aggregateSeries(allSeries);
+                var nowTs = Date.now();
+                updateKpi(aggregatedRows);
+                renderDomainCharts(perDomainSeries, selectedDomains);
+                setLastUpdate(nowTs);
+                cacheTraffic(report, campaignId, selectedDomains, {
+                    aggregatedRows: aggregatedRows,
+                    perDomainSeries: perDomainSeries,
+                    selectedDomains: selectedDomains,
+                    lastUpdateAt: nowTs
+                });
+            })
+            .catch(function (err) {
+                console.error(err);
+                clearTrafficView();
+                alert("Failed loading traffic data.");
+            })
+            .finally(function () {
+                setLoading(false, [], 0);
+            });
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        loadCampaignList(false).then(function () {
+            applyDomainsFromSelectedCampaign();
+            applyCachedTrafficForCurrentSelection();
+        }).catch(function () {
+            alert("Failed loading campaign list.");
+            applyCachedTrafficForCurrentSelection();
+        });
+
+        document.getElementById("btn_load_data").addEventListener("click", loadTrafficByDomain);
+        document.getElementById("select_range").addEventListener("change", function () {
+            if (isApplyingCachedState) return;
+            applyCachedTrafficForCurrentSelection();
+        });
+        document.getElementById("domain_filter").addEventListener("change", handleDomainSelectionChanged);
+        if (window.jQuery) {
+            jQuery("#domain_filter").on("change select2:select select2:clear", handleDomainSelectionChanged);
+            jQuery("#campaign_filter").on("change select2:select select2:clear", function () {
+                if (isApplyingCachedState) return;
+                applyDomainsFromSelectedCampaign();
+                clearTrafficView();
+                applyCachedTrafficForCurrentSelection();
+            });
+        }
+        document.getElementById("campaign_filter").addEventListener("change", function () {
+            if (isApplyingCachedState) return;
+            applyDomainsFromSelectedCampaign();
+            clearTrafficView();
+            applyCachedTrafficForCurrentSelection();
+        });
+        document.getElementById("btn_refresh_campaign").addEventListener("click", function () {
+            setCampaignRefreshLoading(true);
+            refreshCampaignListWithProgress().then(function () {
+                applyDomainsFromSelectedCampaign();
+                clearTrafficView();
+                applyCachedTrafficForCurrentSelection();
+            }).catch(function () {
+                alert("Failed refreshing campaign list.");
+            }).finally(function () {
+                setCampaignRefreshLoading(false);
+            });
+        });
+        window.setInterval(function () {
+            if (lastUpdateTimestampMs) {
+                setLastUpdate(lastUpdateTimestampMs);
+            }
+        }, 60000);
+    });
+})();
+</script>
+{% endblock %}

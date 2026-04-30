@@ -38,6 +38,7 @@ from hris.mail import send_mail
 from argon2 import PasswordHasher
 import random
 import numpy as np
+import time
 # Pandas can fail to import if numpy binary is incompatible; avoid crashing at module load
 try:
     import pandas as pd
@@ -4953,6 +4954,251 @@ class RoiTrafficPerDomainView(View):
             'last_update': last_update
         }
         return render(req, 'admin/report_roi/per_domain/index.html', data)
+
+class TrafficPerDomainReportView(View):
+    """View untuk Traffic Per Domain"""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        data = {
+            'title': 'Traffic Per Domain',
+            'user': req.session['hris_admin']
+        }
+        return render(req, 'admin/report_traffic/per_domain/index.html', data)
+
+class TrafficPerCampaignReportView(View):
+    """View untuk Traffic Per Campaign"""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        data = {
+            'title': 'Traffic Per Campaign',
+            'user': req.session['hris_admin']
+        }
+        return render(req, 'admin/report_traffic/per_campaign/index.html', data)
+
+class TrafficCampaignListView(View):
+    """AJAX endpoint campaign list + campaign name Facebook (cached 6 jam)"""
+    CACHE_KEY = generate_cache_key('traffic_campaign_list_with_name_v1')
+    NAME_MAP_KEY = generate_cache_key('traffic_campaign_name_map_v1')
+    CACHE_TTL_SECONDS = 6 * 60 * 60
+    JOB_TTL_SECONDS = 10 * 60
+
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    @classmethod
+    def _job_cache_key(cls, job_id):
+        return generate_cache_key('traffic_campaign_refresh_job_v1', job_id)
+
+    @classmethod
+    def _set_job_state(cls, job_id, state):
+        set_cached_data(cls._job_cache_key(job_id), state, cls.JOB_TTL_SECONDS)
+
+    @classmethod
+    def _get_job_state(cls, job_id):
+        state = get_cached_data(cls._job_cache_key(job_id))
+        return state if isinstance(state, dict) else None
+
+    @staticmethod
+    def _is_invalid_campaign_name(value):
+        if not isinstance(value, str):
+            return True
+        cleaned = value.strip()
+        if not cleaned:
+            return True
+        return cleaned.lower() in ('not found', 'failed')
+
+    @classmethod
+    def _resolve_campaign_payload(cls, progress_callback=None):
+        cached_payload = get_cached_data(cls.CACHE_KEY)
+        tracker_resp = None
+        tracker_error = None
+        try:
+            tracker_resp = requests.get(
+                "https://api-tracker.kiwipixel.com/v1/campaign?token=tgh-app",
+                timeout=30,
+                headers={
+                    "Accept": "application/json",
+                    "User-Agent": "hris-management/1.0"
+                }
+            )
+        except Exception as req_err:
+            tracker_error = str(req_err)
+
+        if tracker_resp is None or tracker_resp.status_code != 200:
+            if isinstance(cached_payload, dict) and isinstance(cached_payload.get('campaigns'), list):
+                cached_copy = dict(cached_payload)
+                cached_copy['stale'] = True
+                cached_copy['warning'] = tracker_error or f"refresh_failed_status_{getattr(tracker_resp, 'status_code', 'no_response')}"
+                return cached_copy
+            return {
+                'status': True,
+                'filters': {},
+                'campaigns': [],
+                'stale': True,
+                'warning': tracker_error or f'source_unavailable_status_{getattr(tracker_resp, "status_code", "no_response")}'
+            }
+
+        tracker_json = tracker_resp.json() if tracker_resp.content else {}
+        if not isinstance(tracker_json, dict):
+            tracker_json = {}
+        tracker_campaigns = tracker_json.get('campaigns') or []
+        if not isinstance(tracker_campaigns, list):
+            tracker_campaigns = []
+
+        campaign_name_map = get_cached_data(cls.NAME_MAP_KEY) or {}
+        if not isinstance(campaign_name_map, dict):
+            campaign_name_map = {}
+        if isinstance(cached_payload, dict) and isinstance(cached_payload.get('campaigns'), list):
+            for cached_item in cached_payload.get('campaigns'):
+                if not isinstance(cached_item, dict):
+                    continue
+                cached_id = str(cached_item.get('utm_id') or '').strip()
+                cached_name = cached_item.get('campaign_name')
+                if cached_id and isinstance(cached_name, str) and cached_name.strip():
+                    if cached_name.strip().lower() not in ('not found', 'failed'):
+                        campaign_name_map[cached_id] = cached_name.strip()
+
+        # Progress denominator = only campaigns that need DB check/recheck
+        # (exclude campaigns that already have valid cached names).
+        total_campaign = 0
+        ids_to_check = []
+        for item in tracker_campaigns:
+            row = item if isinstance(item, dict) else {}
+            campaign_id = str(row.get('utm_id') or '').strip()
+            if not campaign_id:
+                continue
+            cached_name = str(campaign_name_map.get(campaign_id) or '').strip()
+            if cls._is_invalid_campaign_name(cached_name):
+                total_campaign += 1
+                ids_to_check.append(campaign_id)
+
+        db_name_map = {}
+        if ids_to_check:
+            rs_name_map = data_mysql().get_master_ads_campaign_name_map(ids_to_check)
+            if isinstance(rs_name_map, dict) and rs_name_map.get('status'):
+                db_name_map = rs_name_map.get('data') or {}
+            if not isinstance(db_name_map, dict):
+                db_name_map = {}
+
+        checked_done = 0
+        enriched_campaigns = []
+
+        for item in tracker_campaigns:
+            row = item if isinstance(item, dict) else {}
+            campaign_id = str(row.get('utm_id') or '').strip()
+            domains = str(row.get('domains') or '').strip()
+            if not campaign_id:
+                continue
+
+            campaign_name = str(campaign_name_map.get(campaign_id) or '').strip()
+            if cls._is_invalid_campaign_name(campaign_name):
+                campaign_name = str(db_name_map.get(campaign_id) or '').strip()
+                checked_done += 1
+                if not campaign_name:
+                    campaign_name = 'Not Found'
+
+            if campaign_name:
+                campaign_name_map[campaign_id] = campaign_name
+
+            enriched_campaigns.append({
+                'utm_id': campaign_id,
+                'domains': domains,
+                'campaign_name': campaign_name or campaign_id
+            })
+
+            if callable(progress_callback):
+                progress_callback(total_campaign, checked_done)
+
+        payload = {
+            'filters': tracker_json.get('filters') if isinstance(tracker_json.get('filters'), dict) else {},
+            'campaigns': enriched_campaigns,
+            'total_campaign': total_campaign,
+            'checked_done': checked_done
+        }
+        set_cached_data(cls.CACHE_KEY, payload, cls.CACHE_TTL_SECONDS)
+        set_cached_data(cls.NAME_MAP_KEY, campaign_name_map, cls.CACHE_TTL_SECONDS)
+        return payload
+
+    @classmethod
+    def _run_refresh_job(cls, job_id):
+        try:
+            def on_progress(total_campaign, checked_done):
+                current = cls._get_job_state(job_id) or {}
+                current.update({
+                    'status': True,
+                    'running': True,
+                    'total_campaign': int(total_campaign or 0),
+                    'checked_done': int(checked_done or 0),
+                })
+                cls._set_job_state(job_id, current)
+
+            payload = cls._resolve_campaign_payload(progress_callback=on_progress)
+            cls._set_job_state(job_id, {
+                'status': True,
+                'running': False,
+                'total_campaign': int(payload.get('total_campaign') or 0),
+                'checked_done': int(payload.get('checked_done') or 0),
+                'payload': payload
+            })
+        except Exception as e:
+            cls._set_job_state(job_id, {
+                'status': False,
+                'running': False,
+                'error': str(e)
+            })
+
+    def get(self, req):
+        try:
+            refresh = str(req.GET.get('refresh', '')).strip().lower() in ('1', 'true', 'yes')
+            async_mode = str(req.GET.get('async', '')).strip().lower() in ('1', 'true', 'yes')
+            job_id = str(req.GET.get('job_id') or '').strip()
+            cached_payload = get_cached_data(self.CACHE_KEY)
+
+            if job_id:
+                state = self._get_job_state(job_id)
+                if not state:
+                    return JsonResponse({'status': False, 'error': 'job_not_found'}, status=404)
+                return JsonResponse(state)
+
+            if refresh and async_mode:
+                new_job_id = uuid.uuid4().hex
+                self._set_job_state(new_job_id, {
+                    'status': True,
+                    'running': True,
+                    'total_campaign': 0,
+                    'checked_done': 0
+                })
+                import threading
+                worker = threading.Thread(target=self._run_refresh_job, args=(new_job_id,), daemon=True)
+                worker.start()
+                return JsonResponse({
+                    'status': True,
+                    'job_id': new_job_id,
+                    'running': True,
+                    'total_campaign': 0,
+                    'checked_done': 0
+                })
+
+            if not refresh:
+                if isinstance(cached_payload, dict) and isinstance(cached_payload.get('campaigns'), list):
+                    return JsonResponse(cached_payload)
+            payload = self._resolve_campaign_payload()
+            return JsonResponse(payload)
+        except Exception as e:
+            return JsonResponse({
+                'status': False,
+                'error': str(e)
+            }, status=500)
 
 class RoiTrafficPerDomainDataView(View):
     """AJAX endpoint untuk data ROI Traffic Per Domain"""

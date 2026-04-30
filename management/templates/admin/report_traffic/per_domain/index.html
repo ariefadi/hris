@@ -1,0 +1,530 @@
+{% extends "admin_base.html" %}
+{% load static %}
+{% block page_title %}Traffic Per Domain{% endblock %}
+{% block page_heading %}Traffic Per Domain{% endblock %}
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">Report Traffic</li>
+{% endblock %}
+{% block more_stylesheet %}
+<style>
+.traffic-kpi-card .card-body {
+    border-radius: 10px;
+    color: #fff;
+    min-height: 84px;
+}
+.traffic-kpi-1 .card-body { background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+.traffic-kpi-2 .card-body { background: linear-gradient(135deg, #0ea5e9, #0284c7); }
+.traffic-kpi-3 .card-body { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+.traffic-kpi-4 .card-body { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.traffic-kpi-title { font-size: 11px; font-weight: 700; text-transform: uppercase; opacity: 0.95; margin-bottom: 4px; }
+.traffic-kpi-value { font-size: 22px; font-weight: 700; line-height: 1.1; margin: 0; }
+.traffic-muted {
+    font-size: 12px;
+    color: #64748b;
+}
+#trafficChartWrap {
+    position: relative;
+    min-height: 340px;
+}
+#trafficChartLoading {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.72);
+    z-index: 5;
+}
+</style>
+{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title mb-0"><i class="bi bi-bar-chart"></i> Traffic Report Per Domain</h3>
+    </div>
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label for="domain_filter">Domain</label>
+                <select class="form-control select2" id="domain_filter"></select>
+            </div>
+            <div class="col-md-3">
+                <label for="select_range">Report Range</label>
+                <select class="form-control" id="select_range">
+                    <option value="today">Today</option>
+                    <option value="7days">Last 7 Days</option>
+                    <option value="30days">Last 30 Days</option>
+                    <option value="90days">Last 90 Days</option>
+                </select>
+            </div>
+            <div class="col-md-4 text-md-right">
+                <button type="button" class="btn btn-primary" id="btn_load_data">
+                    <i class="fas fa-sync-alt"></i> Load Traffic
+                </button>
+                <button type="button" class="btn btn-outline-secondary" id="btn_refresh_domains">
+                    Refresh Domain List
+                </button>
+            </div>
+        </div>
+        <div class="mt-2">
+            <span class="traffic-muted">Last update: <b id="trafficLastUpdate">-</b></span>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-3 mb-3">
+        <div class="card traffic-kpi-card traffic-kpi-1">
+            <div class="card-body">
+                <div class="traffic-kpi-title">Total Visitors</div>
+                <p class="traffic-kpi-value" id="totalVisitors">0</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card traffic-kpi-card traffic-kpi-2">
+            <div class="card-body">
+                <div class="traffic-kpi-title">Unique Visitors</div>
+                <p class="traffic-kpi-value" id="totalUniqueVisitors">0</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card traffic-kpi-card traffic-kpi-3">
+            <div class="card-body">
+                <div class="traffic-kpi-title">Total Pageviews</div>
+                <p class="traffic-kpi-value" id="totalPageviews">0</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card traffic-kpi-card traffic-kpi-4">
+            <div class="card-body">
+                <div class="traffic-kpi-title">Total Ad Click</div>
+                <p class="traffic-kpi-value" id="totalAdClicks">0</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title mb-0">Traffic Chart</h3>
+    </div>
+    <div class="card-body">
+        <div id="trafficChartWrap">
+            <div id="trafficChartLoading">
+                <div class="spinner-border text-primary" role="status"></div>
+            </div>
+            <canvas id="chart_traffic"></canvas>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function () {
+    var DOMAIN_LIST_ENDPOINT = "https://api-tracker.kiwipixel.com/v1/domain_list";
+    var TRAFFIC_STATS_ENDPOINT = "https://api-tracker.kiwipixel.com/v1/traffic-stats";
+    var DOMAIN_CACHE_KEY = "traffic_domain_list_cache_v1";
+    var DOMAIN_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+    var TRAFFIC_CACHE_KEY = "traffic_last_load_cache_v2";
+    var TRAFFIC_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+    var trafficChart = null;
+    var lastUpdateTimestampMs = null;
+    var isApplyingCachedState = false;
+
+    function normalizeStats(rows) {
+        if (!Array.isArray(rows)) return [];
+        return rows.map(function (row) {
+            return {
+                time: String((row && row.time) || ""),
+                totalVisitors: Number((row && (row.total_visitors || row.total)) || 0),
+                uniqueVisitors: Number((row && (row.total_unique_visitors || row.unique)) || 0),
+                pageviews: Number((row && row.total_pageviews) || 0),
+                adClick: Number((row && row.total_ad_click) || 0)
+            };
+        });
+    }
+
+    function setLoading(isLoading) {
+        var loading = document.getElementById("trafficChartLoading");
+        if (!loading) return;
+        loading.style.display = isLoading ? "flex" : "none";
+    }
+
+    function formatDateTime(ms) {
+        return new Date(ms).toLocaleString("id-ID", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false
+        });
+    }
+
+    function formatAge(ms) {
+        var diffSec = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+        var days = Math.floor(diffSec / 86400);
+        var hours = Math.floor((diffSec % 86400) / 3600);
+        var minutes = Math.floor((diffSec % 3600) / 60);
+        if (days > 0) return days + "d " + hours + "h ago";
+        if (hours > 0) return hours + "h " + minutes + "m ago";
+        return minutes + "m ago";
+    }
+
+    function setLastUpdate(timestampMs) {
+        var el = document.getElementById("trafficLastUpdate");
+        if (!el) return;
+        if (!timestampMs) {
+            el.textContent = "-";
+            return;
+        }
+        lastUpdateTimestampMs = Number(timestampMs);
+        el.textContent = formatDateTime(lastUpdateTimestampMs) + " (" + formatAge(lastUpdateTimestampMs) + ")";
+    }
+
+    function updateKpi(aggregatedRows) {
+        var totals = aggregatedRows.reduce(function (acc, row) {
+            acc.visitors += row.totalVisitors;
+            acc.unique += row.uniqueVisitors;
+            acc.pageviews += row.pageviews;
+            acc.click += row.adClick;
+            return acc;
+        }, { visitors: 0, unique: 0, pageviews: 0, click: 0 });
+
+        document.getElementById("totalVisitors").textContent = totals.visitors.toLocaleString("id-ID");
+        document.getElementById("totalUniqueVisitors").textContent = totals.unique.toLocaleString("id-ID");
+        document.getElementById("totalPageviews").textContent = totals.pageviews.toLocaleString("id-ID");
+        document.getElementById("totalAdClicks").textContent = totals.click.toLocaleString("id-ID");
+    }
+
+    function clearTrafficView() {
+        updateKpi([]);
+        renderChart([]);
+        setLastUpdate(null);
+    }
+
+    function renderChart(aggregatedRows) {
+        var labels = aggregatedRows.map(function (row) { return row.time; });
+        var visitors = aggregatedRows.map(function (row) { return row.totalVisitors; });
+        var unique = aggregatedRows.map(function (row) { return row.uniqueVisitors; });
+        var pageviews = aggregatedRows.map(function (row) { return row.pageviews; });
+        var adClick = aggregatedRows.map(function (row) { return row.adClick; });
+
+        var ctx = document.getElementById("chart_traffic");
+        if (!ctx) return;
+        if (trafficChart) {
+            trafficChart.destroy();
+        }
+
+        trafficChart = new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: "Total Visitors", data: visitors, backgroundColor: "rgba(37, 99, 235, 0.7)", stack: "traffic" },
+                    { label: "Unique Visitors", data: unique, backgroundColor: "rgba(14, 165, 233, 0.7)", stack: "traffic" },
+                    { label: "Pageviews", data: pageviews, backgroundColor: "rgba(139, 92, 246, 0.7)", stack: "traffic" },
+                    { label: "Ad Click", data: adClick, backgroundColor: "rgba(245, 158, 11, 0.7)", stack: "traffic" }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: "index", intersect: false },
+                scales: {
+                    x: { stacked: true },
+                    y: { stacked: true, beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    function aggregateSeries(seriesList) {
+        var byTime = {};
+        seriesList.forEach(function (rows) {
+            rows.forEach(function (row) {
+                if (!byTime[row.time]) {
+                    byTime[row.time] = { time: row.time, totalVisitors: 0, uniqueVisitors: 0, pageviews: 0, adClick: 0 };
+                }
+                byTime[row.time].totalVisitors += row.totalVisitors;
+                byTime[row.time].uniqueVisitors += row.uniqueVisitors;
+                byTime[row.time].pageviews += row.pageviews;
+                byTime[row.time].adClick += row.adClick;
+            });
+        });
+        return Object.keys(byTime).sort().map(function (k) { return byTime[k]; });
+    }
+
+    function getCachedDomains() {
+        try {
+            var raw = localStorage.getItem(DOMAIN_CACHE_KEY);
+            if (!raw) return null;
+            var parsed = JSON.parse(raw);
+            if (!parsed || !Array.isArray(parsed.domains)) return null;
+            if (!parsed.savedAt || (Date.now() - Number(parsed.savedAt)) > DOMAIN_CACHE_TTL_MS) return null;
+            return parsed.domains;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function cacheDomains(domains) {
+        try {
+            localStorage.setItem(DOMAIN_CACHE_KEY, JSON.stringify({
+                domains: domains,
+                savedAt: Date.now()
+            }));
+        } catch (e) {}
+    }
+
+    function readTrafficCacheStore() {
+        try {
+            var raw = localStorage.getItem(TRAFFIC_CACHE_KEY);
+            if (!raw) return { entries: {} };
+            var parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== "object") return { entries: {} };
+            if (!parsed.entries || typeof parsed.entries !== "object") return { entries: {} };
+            return parsed;
+        } catch (e) {
+            return { entries: {} };
+        }
+    }
+
+    function buildTrafficCacheEntryKey(report, domains) {
+        var safeDomains = Array.isArray(domains) ? domains : [];
+        var normalizedDomains = safeDomains
+            .map(function (d) { return String(d || "").trim(); })
+            .filter(Boolean)
+            .sort();
+        return String(report || "today") + "::" + normalizedDomains.join("|");
+    }
+
+    function getCachedTrafficBySelection(report, selectedDomains) {
+        var store = readTrafficCacheStore();
+        var key = buildTrafficCacheEntryKey(report, selectedDomains);
+        var entry = store.entries[key] || null;
+        // Backward compatibility with old cache format (range only)
+        // Only use this fallback when no domain is selected.
+        if (!entry && (!selectedDomains || !selectedDomains.length)) {
+            entry = store.entries[report] || null;
+        }
+        if (!entry || !Array.isArray(entry.aggregatedRows)) return null;
+        if (!entry.savedAt || (Date.now() - Number(entry.savedAt)) > TRAFFIC_CACHE_TTL_MS) return null;
+        return entry;
+    }
+
+    function cacheTraffic(report, selectedDomains, payload) {
+        try {
+            var store = readTrafficCacheStore();
+            var key = buildTrafficCacheEntryKey(report, selectedDomains);
+            store.entries[key] = {
+                aggregatedRows: payload.aggregatedRows || [],
+                selectedDomains: payload.selectedDomains || [],
+                report: report || "today",
+                savedAt: Date.now(),
+                lastUpdateAt: payload.lastUpdateAt || Date.now()
+            };
+            localStorage.setItem(TRAFFIC_CACHE_KEY, JSON.stringify(store));
+        } catch (e) {}
+    }
+
+    function populateDomainSelect(domains) {
+        var select = document.getElementById("domain_filter");
+        if (!select) return;
+        select.innerHTML = "";
+        domains.forEach(function (domain) {
+            var opt = document.createElement("option");
+            opt.value = domain;
+            opt.textContent = domain;
+            select.appendChild(opt);
+        });
+        if (window.jQuery && jQuery.fn.select2) {
+            jQuery("#domain_filter").select2({
+                placeholder: "-- Select Domain --",
+                allowClear: true,
+                width: "100%",
+                theme: "bootstrap4"
+            });
+        }
+    }
+
+    function loadDomainList(forceRefresh) {
+        if (!forceRefresh) {
+            var cached = getCachedDomains();
+            if (cached && cached.length) {
+                populateDomainSelect(cached);
+                return Promise.resolve(cached);
+            }
+        }
+
+        return fetch(DOMAIN_LIST_ENDPOINT, { method: "GET" })
+            .then(function (resp) {
+                if (!resp.ok) throw new Error("Failed fetching domain list");
+                return resp.json();
+            })
+            .then(function (json) {
+                var domains = (json && Array.isArray(json.domains)) ? json.domains : [];
+                cacheDomains(domains);
+                populateDomainSelect(domains);
+                return domains;
+            });
+    }
+
+    function setSelectedDomains(domains) {
+        var values = Array.isArray(domains) ? domains : [];
+        var selectEl = document.getElementById("domain_filter");
+        var isMultiple = !!(selectEl && selectEl.multiple);
+        isApplyingCachedState = true;
+        if (window.jQuery && jQuery.fn.select2) {
+            jQuery("#domain_filter").val(isMultiple ? values : (values[0] || "")).trigger("change");
+            isApplyingCachedState = false;
+            return;
+        }
+        var select = selectEl;
+        if (!select) {
+            isApplyingCachedState = false;
+            return;
+        }
+        for (var i = 0; i < select.options.length; i++) {
+            if (isMultiple) {
+                select.options[i].selected = values.indexOf(select.options[i].value) !== -1;
+            } else {
+                select.options[i].selected = (select.options[i].value === (values[0] || ""));
+            }
+        }
+        isApplyingCachedState = false;
+    }
+
+    function applyCachedTrafficToView(cacheObj) {
+        if (!cacheObj || !Array.isArray(cacheObj.aggregatedRows)) return;
+        updateKpi(cacheObj.aggregatedRows);
+        renderChart(cacheObj.aggregatedRows);
+        if (cacheObj.report) {
+            document.getElementById("select_range").value = cacheObj.report;
+        }
+        if (Array.isArray(cacheObj.selectedDomains)) {
+            setSelectedDomains(cacheObj.selectedDomains);
+        }
+        setLastUpdate(cacheObj.lastUpdateAt || cacheObj.savedAt);
+    }
+
+    function applyCachedTrafficForCurrentSelection() {
+        var report = document.getElementById("select_range").value || "today";
+        var selectedDomains = getSelectedDomains();
+        var cachedTraffic = getCachedTrafficBySelection(report, selectedDomains);
+        if (cachedTraffic) {
+            applyCachedTrafficToView(cachedTraffic);
+            return true;
+        }
+        clearTrafficView();
+        return false;
+    }
+
+    function handleDomainSelectionChanged() {
+        if (isApplyingCachedState) return;
+        // Ensure Select2 has already synced its value back to the select element.
+        window.setTimeout(function () {
+            applyCachedTrafficForCurrentSelection();
+        }, 0);
+    }
+
+    function getSelectedDomains() {
+        if (window.jQuery) {
+            var selected = jQuery("#domain_filter").val();
+            if (Array.isArray(selected)) {
+                return selected.filter(Boolean);
+            }
+            if (selected === null || selected === undefined || selected === "") {
+                return [];
+            }
+            return [String(selected)];
+        }
+        var select = document.getElementById("domain_filter");
+        if (!select) return [];
+        var out = [];
+        for (var i = 0; i < select.options.length; i++) {
+            if (select.options[i].selected) out.push(select.options[i].value);
+        }
+        return out;
+    }
+
+    function loadTrafficByDomain() {
+        var report = document.getElementById("select_range").value || "today";
+        var selectedDomains = getSelectedDomains();
+        if (!selectedDomains.length) {
+            alert("Please select at least one domain.");
+            return;
+        }
+
+        setLoading(true);
+        var requests = selectedDomains.map(function (domain) {
+            var url = TRAFFIC_STATS_ENDPOINT + "?web=" + encodeURIComponent(domain) + "&report=" + encodeURIComponent(report);
+            return fetch(url, { method: "GET" })
+                .then(function (resp) {
+                    if (!resp.ok) throw new Error("Failed traffic request for " + domain);
+                    return resp.json();
+                })
+                .then(function (json) {
+                    return normalizeStats((json && json.stats) || []);
+                });
+        });
+
+        Promise.all(requests)
+            .then(function (allSeries) {
+                var aggregatedRows = aggregateSeries(allSeries);
+                var nowTs = Date.now();
+                updateKpi(aggregatedRows);
+                renderChart(aggregatedRows);
+                setLastUpdate(nowTs);
+                cacheTraffic(report, selectedDomains, {
+                    aggregatedRows: aggregatedRows,
+                    selectedDomains: selectedDomains,
+                    lastUpdateAt: nowTs
+                });
+            })
+            .catch(function (err) {
+                console.error(err);
+                alert("Failed loading traffic data.");
+            })
+            .finally(function () {
+                setLoading(false);
+            });
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        loadDomainList(false).then(function () {
+            applyCachedTrafficForCurrentSelection();
+        }).catch(function () {
+            alert("Failed loading domain list.");
+            applyCachedTrafficForCurrentSelection();
+        });
+        document.getElementById("btn_load_data").addEventListener("click", loadTrafficByDomain);
+        document.getElementById("select_range").addEventListener("change", function () {
+            if (isApplyingCachedState) return;
+            applyCachedTrafficForCurrentSelection();
+        });
+        document.getElementById("domain_filter").addEventListener("change", handleDomainSelectionChanged);
+        if (window.jQuery) {
+            jQuery("#domain_filter").on("change select2:select select2:clear", handleDomainSelectionChanged);
+        }
+        document.getElementById("btn_refresh_domains").addEventListener("click", function () {
+            loadDomainList(true).catch(function () {
+                alert("Failed refreshing domain list.");
+            });
+        });
+        window.setInterval(function () {
+            if (lastUpdateTimestampMs) {
+                setLastUpdate(lastUpdateTimestampMs);
+            }
+        }, 60000);
+    });
+})();
+</script>
+{% endblock %}
