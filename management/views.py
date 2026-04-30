@@ -1041,6 +1041,73 @@ class DashboardScoringDataView(View):
             if profit_guard_hold:
                 decision = "HOLD"
             return score, decision
+
+        def derive_campaign_action(status_tag, margin, risk, health, join_status=''):
+            tag = str(status_tag or '').strip().upper()
+            st = str(join_status or '').strip().upper()
+            m = safe_float(margin)
+            r = safe_float(risk)
+            h = safe_float(health)
+            if tag.startswith('RED_FLAG') or ('FRAUD' in tag) or (r >= 85) or (m <= -90):
+                return 'STOP'
+            if ('PAUSE' in tag) or ('PAUSE' in st) or ((r >= 75) and (m <= -60)) or ((h <= -30) and (m <= -45)):
+                return 'PAUSE'
+            if ('NEG' in tag) or ('DROP' in tag) or (m <= -25) or (h <= -12) or (r >= 65):
+                return 'SCALE DOWN'
+            if ('POSITIVE' in tag) or ('RECOVERY' in tag) or ('EXPANSION' in tag) or ((m >= 20) and (r < 55) and (h >= 0)):
+                return 'SCALE UP'
+            return 'HOLD'
+
+        def apply_campaign_consistency_guard(decision, country_details):
+            base = str(decision or '').strip().upper()
+            if base in ['', 'LEARNING', 'DATA_INCOMPLETE']:
+                return decision, {'campaign_total': 0, 'stop_ratio': 0.0, 'pause_ratio': 0.0, 'majority_action': 'HOLD'}
+            rows = country_details if isinstance(country_details, list) else []
+            agg = {}
+            for row in rows:
+                camp = str(row.get('meta_campaign') or '').strip().upper()
+                if not camp:
+                    continue
+                if camp not in agg:
+                    agg[camp] = {'m': 0.0, 'r': 0.0, 'h': 0.0, 'n': 0, 'tags': {}, 'join_status': ''}
+                rec = agg[camp]
+                rec['m'] += safe_float(row.get('decision_margin'))
+                rec['r'] += safe_float(row.get('ivt_risk_score'))
+                rec['h'] += safe_float(row.get('health_score'))
+                rec['n'] += 1
+                t = str(row.get('final_label') or '').strip().upper()
+                if t:
+                    rec['tags'][t] = int(rec['tags'].get(t, 0)) + 1
+                rec['join_status'] = str(row.get('join_status') or rec.get('join_status') or '').strip().upper()
+            if not agg:
+                return decision, {'campaign_total': 0, 'stop_ratio': 0.0, 'pause_ratio': 0.0, 'majority_action': 'HOLD'}
+            counts = {'STOP': 0, 'PAUSE': 0, 'SCALE DOWN': 0, 'HOLD': 0, 'SCALE UP': 0}
+            for _, rec in agg.items():
+                n = max(1, int(rec.get('n', 0)))
+                m = float(rec.get('m', 0.0)) / n
+                r = float(rec.get('r', 0.0)) / n
+                h = float(rec.get('h', 0.0)) / n
+                tags = rec.get('tags') or {}
+                dom_tag = max(tags.items(), key=lambda kv: kv[1])[0] if tags else ''
+                act = derive_campaign_action(dom_tag, m, r, h, rec.get('join_status', ''))
+                counts[act] = int(counts.get(act, 0)) + 1
+            total = max(1, sum(counts.values()))
+            stop_ratio = float(counts.get('STOP', 0) / total)
+            pause_ratio = float(counts.get('PAUSE', 0) / total)
+            majority_action = max(counts.items(), key=lambda kv: kv[1])[0]
+            final_decision = base
+            if stop_ratio >= 0.80:
+                final_decision = 'STOP'
+            elif (stop_ratio >= 0.50) and (base != 'STOP'):
+                final_decision = 'SCALE DOWN'
+            elif (stop_ratio >= 0.30) and (base == 'HOLD'):
+                final_decision = 'SCALE DOWN'
+            return final_decision, {
+                'campaign_total': int(total),
+                'stop_ratio': float(round(stop_ratio, 4)),
+                'pause_ratio': float(round(pause_ratio, 4)),
+                'majority_action': str(majority_action)
+            }
         try:
             if pd is None:
                 raise RuntimeError('pandas belum tersedia')
@@ -1742,13 +1809,14 @@ class DashboardScoringDataView(View):
                                 'neutral_signals': int(safe_float(crow.get('neutral_signal_count'))),
                             })
 
+                        dec_final_h, campaign_guard_h = apply_campaign_consistency_guard(dec, country_h)
                         scoring_timeline.append({
                             'run_hour': str(rh),
                             'run_hour_label': _fmt_run_hour_label(rh),
                             'run_time': '',
                             'snapshot_time': '',
                             'score': sc,
-                            'decision': dec,
+                            'decision': dec_final_h,
                             'label': lbl,
                             'health_score': h,
                             'ivt_risk_score': r,
@@ -1770,6 +1838,8 @@ class DashboardScoringDataView(View):
                             'recommended_budget_change_pct': float(round(avg(snap_h, 'recommended_budget_change_pct', weighted=True), 2)),
                             'recommended_budget_target': float(round(spend_h * (1.0 + (avg(snap_h, 'recommended_budget_change_pct', weighted=True) / 100.0)), 2)) if spend_h > 0 else 0.0,
                             'budget_reco_reason': dominant_text(snap_h, 'budget_reco_reason', ''),
+                            'campaign_stop_ratio': float(campaign_guard_h.get('stop_ratio', 0.0)),
+                            'campaign_majority_action': str(campaign_guard_h.get('majority_action', 'HOLD')),
                         })
 
                 latest_run_time = snap['run_time'].dropna().max() if 'run_time' in snap.columns else None
@@ -1942,9 +2012,10 @@ class DashboardScoringDataView(View):
                         'negative_signals': int(safe_float(row.get('negative_signal_count'))),
                         'neutral_signals': int(safe_float(row.get('neutral_signal_count'))),
                     })
+                decision_final, campaign_guard = apply_campaign_consistency_guard(decision, country_details)
                 out[entity_key] = {
                     'score': score,
-                    'decision': decision,
+                    'decision': decision_final,
                     'label': label,
                     'reasons': [x for x in [reason_summary, dominant_event_label, label] if x],
                     'breakdown': {'meta': {
@@ -1967,6 +2038,10 @@ class DashboardScoringDataView(View):
                         'mature_campaign_count': int(mature_campaign_count),
                         'mature_campaign_ratio': float(round(mature_campaign_ratio, 4)),
                         'mature_spend_share': float(round(mature_spend_share, 4)),
+                        'campaign_total': int(campaign_guard.get('campaign_total', 0)),
+                        'campaign_stop_ratio': float(campaign_guard.get('stop_ratio', 0.0)),
+                        'campaign_pause_ratio': float(campaign_guard.get('pause_ratio', 0.0)),
+                        'campaign_majority_action': str(campaign_guard.get('majority_action', 'HOLD')),
                         'forecast_horizon_hours': int(safe_float(avg(snap, 'forecast_horizon_hours', weighted=False)) or 24),
                         'forecast_direction': dominant_text(snap, 'forecast_direction', 'STABLE_OUTLOOK'),
                         'forecast_confidence': float(round(avg(snap, 'forecast_confidence', weighted=True), 4)),
