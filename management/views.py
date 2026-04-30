@@ -1600,9 +1600,9 @@ class DashboardScoringDataView(View):
                                        pd.to_numeric(part['negative_signal_count'], errors='coerce').fillna(0) + \
                                        pd.to_numeric(part['neutral_signal_count'], errors='coerce').fillna(0)
 
-                part_eval = filter_running_non_learning_campaign_rows(part)
-                if part_eval is None or part_eval.empty:
-                    part_eval = part
+                # Score domain selalu dihitung dari seluruh campaign (termasuk yang masih LEARNING)
+                # agar agregasi tidak bias ke campaign non-learning saja.
+                part_eval = part.copy()
 
                 snap = part_eval.copy()  
                 if 'country_code' in snap.columns and 'run_hour' in snap.columns:
@@ -1641,15 +1641,20 @@ class DashboardScoringDataView(View):
                         labels.extend([str(x).strip().upper() for x in snap[c].tolist() if str(x).strip()])
                 label = pd.Series(labels).value_counts().index[0] if labels else 'STABLE'
 
-                # Totals from the entire 7-day part
+                # Totals from evaluation frame + continuity guard from full frame
                 total_pos = int(pd.to_numeric(part_eval['positive_signal_count'], errors='coerce').fillna(0).sum()) if 'positive_signal_count' in part_eval.columns else 0
                 total_neg = int(pd.to_numeric(part_eval['negative_signal_count'], errors='coerce').fillna(0).sum()) if 'negative_signal_count' in part_eval.columns else 0
                 total_neu = int(pd.to_numeric(part_eval['neutral_signal_count'], errors='coerce').fillna(0).sum()) if 'neutral_signal_count' in part_eval.columns else 0
-                has_scoring = (total_pos + total_neg + total_neu) > 0 and conf >= 0.05
                 spend_total = float(pd.to_numeric(part_eval['spend'], errors='coerce').fillna(0).sum()) if 'spend' in part_eval.columns else 0.0
                 revenue_total = float(pd.to_numeric(part_eval['revenue_value'], errors='coerce').fillna(0).sum()) if 'revenue_value' in part_eval.columns else 0.0
                 roi_total = ((revenue_total - spend_total) / spend_total) if spend_total > 0 else 0.0
                 profit_strong = (revenue_total > spend_total) and (roi_total >= 0.30)
+                full_spend_total = float(pd.to_numeric(part['spend'], errors='coerce').fillna(0).sum()) if 'spend' in part.columns else spend_total
+                full_revenue_total = float(pd.to_numeric(part['revenue_value'], errors='coerce').fillna(0).sum()) if 'revenue_value' in part.columns else revenue_total
+                continuity_running = (full_spend_total > 0) or (full_revenue_total > 0)
+                has_signal = (total_pos + total_neg + total_neu) > 0
+                has_metric_surface = any([abs(safe_float(health)) > 0.0, abs(safe_float(risk)) > 0.0, abs(safe_float(adj)) > 0.0, abs(safe_float(dm)) > 0.0])
+                has_scoring = (has_signal and conf >= 0.05) or (continuity_running and has_metric_surface and conf >= 0.03)
                 traffic_now = avg(part_eval, 'traffic_score', weighted=True)
                 delivery_now = avg(part_eval, 'delivery_score', weighted=True)
                 yield_now = avg(part_eval, 'yield_score', weighted=True)
@@ -1659,7 +1664,7 @@ class DashboardScoringDataView(View):
                 days_hist = int(pd.to_datetime(days_series, errors='coerce').dropna().dt.date.nunique())
                 days_flag = int(pd.to_numeric(part_eval.get('days_active', pd.Series([], dtype=float)), errors='coerce').fillna(0).max()) if 'days_active' in part_eval.columns else 0
                 active_days_effective = max(days_hist, days_flag)
-                maturity_profile = campaign_maturity_profile(part_eval)
+                maturity_profile = campaign_maturity_profile(part)
                 mature_campaign_ratio = float(maturity_profile.get('mature_campaign_ratio', 0.0))
                 mature_spend_share = float(maturity_profile.get('mature_spend_share', 0.0))
                 mature_campaign_count = int(maturity_profile.get('mature_campaign_count', 0))
@@ -1672,16 +1677,18 @@ class DashboardScoringDataView(View):
                         source_mode = str(src_vals.value_counts().index[0])
                 score = None
                 decision = ""
-                learning_gate = (active_days_effective < 2) and (mature_campaign_count <= 0) and (mature_campaign_ratio < 0.60) and (mature_spend_share < 0.55)
+                continuity_mature = continuity_running and ((mature_campaign_count > 0) or (mature_campaign_ratio >= 0.35) or (mature_spend_share >= 0.35) or (full_revenue_total > full_spend_total and full_spend_total > 0))
+                learning_gate = (active_days_effective < 2) and (mature_campaign_count <= 0) and (mature_campaign_ratio < 0.60) and (mature_spend_share < 0.55) and (not continuity_mature)
                 if learning_gate:
                     label = "LEARNING"
                     decision = "LEARNING"
                 elif has_scoring:
-                    if label == "LEARNING" and (mature_campaign_count > 0 or mature_campaign_ratio >= 0.60 or mature_spend_share >= 0.55):
+                    if label == "LEARNING" and (mature_campaign_count > 0 or mature_campaign_ratio >= 0.35 or mature_spend_share >= 0.35 or continuity_mature):
                         label = "STABLE"
                     score, decision = derive_score_decision(health, risk, adj, conf, dm, label, profit_strong, anomaly_cards, roi_total, source_mode)
                 else:
-                    label = "DATA_INCOMPLETE"
+                    label = "STABLE" if continuity_mature else "DATA_INCOMPLETE"
+                    decision = "HOLD" if continuity_mature else decision
                 reason_parts = [str(x).strip() for x in snap.get('reason_summary', pd.Series([], dtype=str)).tolist() if str(x).strip()]
                 reason_summary = ' | '.join(list(dict.fromkeys(reason_parts))[:3])
 
@@ -1751,27 +1758,31 @@ class DashboardScoringDataView(View):
                         pos_h = int(pd.to_numeric(snap_h['positive_signal_count'], errors='coerce').fillna(0).sum()) if 'positive_signal_count' in snap_h.columns else 0
                         neg_h = int(pd.to_numeric(snap_h['negative_signal_count'], errors='coerce').fillna(0).sum()) if 'negative_signal_count' in snap_h.columns else 0
                         neu_h = int(pd.to_numeric(snap_h['neutral_signal_count'], errors='coerce').fillna(0).sum()) if 'neutral_signal_count' in snap_h.columns else 0
-                        has_scoring_h = (pos_h + neg_h + neu_h) > 0 and c01 >= 0.05
                         spend_h = float(pd.to_numeric(snap_h['spend'], errors='coerce').fillna(0).sum()) if 'spend' in snap_h.columns else 0.0
                         revenue_h = float(pd.to_numeric(snap_h['revenue_value'], errors='coerce').fillna(0).sum()) if 'revenue_value' in snap_h.columns else 0.0
                         roi_h = ((revenue_h - spend_h) / spend_h) if spend_h > 0 else 0.0
                         profit_strong_h = (revenue_h > spend_h) and (roi_h >= 0.30)
+                        continuity_running_h = (spend_h > 0) or (revenue_h > 0)
+                        has_signal_h = (pos_h + neg_h + neu_h) > 0
+                        has_metric_surface_h = any([abs(safe_float(h)) > 0.0, abs(safe_float(r)) > 0.0, abs(safe_float(a)) > 0.0, abs(safe_float(m)) > 0.0])
+                        has_scoring_h = (has_signal_h and c01 >= 0.05) or (continuity_running_h and has_metric_surface_h and c01 >= 0.03)
                         days_series_h = snap_h['scoring_date'] if 'scoring_date' in snap_h.columns else (snap_h['date'] if 'date' in snap_h.columns else pd.Series([], dtype=object))
                         days_hist_h = int(pd.to_datetime(days_series_h, errors='coerce').dropna().dt.date.nunique())
                         days_flag_h = int(pd.to_numeric(snap_h.get('days_active', pd.Series([], dtype=float)), errors='coerce').fillna(0).max()) if 'days_active' in snap_h.columns else 0
                         active_days_effective_h = max(days_hist_h, days_flag_h)
-                        maturity_profile_h = campaign_maturity_profile(snap_h)
+                        maturity_profile_h = campaign_maturity_profile(part)
                         mature_campaign_ratio_h = float(maturity_profile_h.get('mature_campaign_ratio', 0.0))
                         mature_spend_share_h = float(maturity_profile_h.get('mature_spend_share', 0.0))
                         mature_campaign_count_h = int(maturity_profile_h.get('mature_campaign_count', 0))
                         sc = None
                         dec = ''
-                        learning_gate_h = (active_days_effective_h < 2) and (mature_campaign_count_h <= 0) and (mature_campaign_ratio_h < 0.60) and (mature_spend_share_h < 0.55)
+                        continuity_mature_h = continuity_running_h and ((mature_campaign_count_h > 0) or (mature_campaign_ratio_h >= 0.35) or (mature_spend_share_h >= 0.35) or (revenue_h > spend_h and spend_h > 0))
+                        learning_gate_h = (active_days_effective_h < 2) and (mature_campaign_count_h <= 0) and (mature_campaign_ratio_h < 0.60) and (mature_spend_share_h < 0.55) and (not continuity_mature_h)
                         if learning_gate_h:
                             lbl = 'LEARNING'
                             dec = 'LEARNING'
                         elif has_scoring_h:
-                            if lbl == 'LEARNING' and (mature_campaign_count_h > 0 or mature_campaign_ratio_h >= 0.60 or mature_spend_share_h >= 0.55):
+                            if lbl == 'LEARNING' and (mature_campaign_count_h > 0 or mature_campaign_ratio_h >= 0.35 or mature_spend_share_h >= 0.35 or continuity_mature_h):
                                 lbl = 'STABLE'
                             traffic_h = avg(snap_h, 'traffic_score', weighted=True)
                             delivery_h = avg(snap_h, 'delivery_score', weighted=True)
@@ -1786,7 +1797,8 @@ class DashboardScoringDataView(View):
                                     source_mode_h = str(src_vals_h.value_counts().index[0])
                             sc, dec = derive_score_decision(h, r, a, c01, m, lbl, profit_strong_h, anomaly_cards_h, roi_h, source_mode_h)
                         else:
-                            lbl = 'DATA_INCOMPLETE'
+                            lbl = 'STABLE' if continuity_mature_h else 'DATA_INCOMPLETE'
+                            dec = 'HOLD' if continuity_mature_h else dec
 
                         reason_h_parts = [str(x).strip() for x in snap_h.get('reason_summary', pd.Series([], dtype=str)).tolist() if str(x).strip()]
                         reason_h_summary = ' | '.join(list(dict.fromkeys(reason_h_parts))[:3])
