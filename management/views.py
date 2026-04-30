@@ -2481,7 +2481,10 @@ class DashboardCreateScoringView(View):
                 'status': False,
                 'message': 'Unauthorized'
             }, status=401)
-        return super().dispatch(request, *args, **kwargs)
+        return JsonResponse({
+            'status': False,
+            'message': 'Dashboard create scoring dinonaktifkan. Gunakan cron terjadwal.'
+        }, status=403)
 
     def post(self, req):
         try:
@@ -2523,6 +2526,15 @@ class DashboardCreateScoringView(View):
                         'message': 'run_hour harus integer'
                     }, status=400)
 
+            allowed_scoring_hours = {3, 6, 9, 12, 15, 18, 21, 23}
+            if run_hour is None:
+                run_hour = int(datetime.now().hour)
+            if run_hour not in allowed_scoring_hours:
+                return JsonResponse({
+                    'status': False,
+                    'message': 'Scoring manual hanya diizinkan pada jam 03,06,09,12,15,18,21,23 (WIB).'
+                }, status=400)
+
             comparison_dates = {
                 'h1': (target_dt - timedelta(days=1)).isoformat(),
                 'h3': (target_dt - timedelta(days=3)).isoformat(),
@@ -2538,6 +2550,7 @@ class DashboardCreateScoringView(View):
                 domain = domain,
                 compatibility_mode=False,
                 write_results=True,
+                run_hour=run_hour,
             )
             return JsonResponse({
                 'status': True,
@@ -2570,7 +2583,10 @@ class DashboardSyncView(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
             return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
-        return super().dispatch(request, *args, **kwargs)
+        return JsonResponse({
+            'status': False,
+            'message': 'Dashboard sync/scoring manual dinonaktifkan. Gunakan cron terjadwal.'
+        }, status=403)
 
     def post(self, req):
         try:
@@ -2671,20 +2687,27 @@ class DashboardSyncView(View):
                         scoring_step['skipped'] = True
                         scoring_step['warning'] = 'Scoring dilewati karena masih ada job sinkronisasi yang gagal.'
                     else:
-                        target_date = datetime.strptime(tanggal, '%Y-%m-%d').date()
-                        score_site_country = _get_scoring_concept_module().score_site_country
-                        scoring_result = score_site_country(
-                            target_date=target_date,
-                            domain_data=domain_data,
-                            compatibility_mode=False,
-                            write_results=True
-                        )
-                        scoring_step['status'] = bool(scoring_result.get('ok'))
-                        scoring_step['rows_written'] = int(scoring_result.get('rows_written') or 0)
-                        scoring_step['event_rows_written'] = int(scoring_result.get('event_rows_written') or 0)
-                        if scoring_result.get('warning'):
-                            scoring_step['warning'] = str(scoring_result.get('warning'))
-                        scoring_step['result'] = scoring_result
+                        allowed_scoring_hours = {3, 6, 9, 12, 15, 18, 21, 23}
+                        run_hour_now = int(datetime.now().hour)
+                        if run_hour_now not in allowed_scoring_hours:
+                            scoring_step['status'] = True
+                            scoring_step['skipped'] = True
+                            scoring_step['warning'] = 'Scoring dashboard dilewati karena di luar jam cron resmi (03,06,09,12,15,18,21,23 WIB).'
+                        else:
+                            target_date = datetime.strptime(tanggal, '%Y-%m-%d').date()
+                            score_site_country = _get_scoring_concept_module().score_site_country
+                            scoring_result = score_site_country(
+                                target_date=target_date,
+                                compatibility_mode=False,
+                                write_results=True,
+                                run_hour=run_hour_now,
+                            )
+                            scoring_step['status'] = bool(scoring_result.get('ok'))
+                            scoring_step['rows_written'] = int(scoring_result.get('rows_written') or 0)
+                            scoring_step['event_rows_written'] = int(scoring_result.get('event_rows_written') or 0)
+                            if scoring_result.get('warning'):
+                                scoring_step['warning'] = str(scoring_result.get('warning'))
+                            scoring_step['result'] = scoring_result
                 except Exception as e:
                     scoring_step['status'] = False
                     scoring_step['error'] = str(e)
