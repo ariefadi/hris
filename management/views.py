@@ -2826,70 +2826,23 @@ class DashboardData(View):
     
     def get(self, req):
         try:
-            # Ambil data user
-            user_data = data_mysql().data_user_by_params()
-            total_users = len(user_data['data']) if user_data['status'] else 0
-            # Ambil data login user
-            login_data = data_mysql().data_login_user()
-            login_users = login_data['data'] if login_data['status'] else []
-            # Hitung statistik login 7 hari terakhir
-            today = datetime.now()
-            seven_days_ago = today - timedelta(days=7)
-            # Filter login 7 hari terakhir
-            recent_logins = []
-            daily_login_stats = {}
-            for login in login_users:
-                # Handle both string and datetime objects
-                if isinstance(login['login_date'], str):
-                    login_date = datetime.strptime(login['login_date'], '%Y-%m-%d %H:%M:%S')
-                else:
-                    login_date = login['login_date']
-                if login_date >= seven_days_ago:
-                    recent_logins.append(login)
-                    date_key = login_date.strftime('%Y-%m-%d')
-                    if date_key not in daily_login_stats:
-                        daily_login_stats[date_key] = {'count': 0, 'unique_users': set()}
-                    daily_login_stats[date_key]['count'] += 1
-                    daily_login_stats[date_key]['unique_users'].add(login['user_id'])
-            
-            # Konversi set ke count untuk JSON serialization
-            for date_key in daily_login_stats:
-                daily_login_stats[date_key]['unique_users'] = len(daily_login_stats[date_key]['unique_users'])
-            
-            # Hitung user aktif (login dalam 7 hari terakhir)
-            active_users = len(set([login['user_id'] for login in recent_logins]))
-            
-            # Siapkan data untuk chart
-            chart_labels = []
-            chart_login_counts = []
-            chart_unique_users = []
-            
-            for i in range(7):
-                date = (today - timedelta(days=6-i)).strftime('%Y-%m-%d')
-                chart_labels.append((today - timedelta(days=6-i)).strftime('%d/%m'))
-                
-                if date in daily_login_stats:
-                    chart_login_counts.append(daily_login_stats[date]['count'])
-                    chart_unique_users.append(daily_login_stats[date]['unique_users'])
-                else:
-                    chart_login_counts.append(0)
-                    chart_unique_users.append(0)
-            
+            # Statistik user/login tidak dipakai lagi di dashboard utama.
+            # Tetap kirim struktur default agar frontend lama tetap aman.
             dashboard_data = {
                 'user_stats': {
-                    'total_users': total_users,
-                    'active_users': active_users,
-                    'total_logins_7days': len(recent_logins),
-                    'activity_rate': round((active_users / total_users * 100) if total_users > 0 else 0, 1)
+                    'total_users': 0,
+                    'active_users': 0,
+                    'total_logins_7days': 0,
+                    'activity_rate': 0
                 },
                 'charts': {
                     'login_activity': {
-                        'labels': chart_labels,
-                        'login_counts': chart_login_counts,
-                        'unique_users': chart_unique_users
+                        'labels': [],
+                        'login_counts': [],
+                        'unique_users': []
                     }
                 },
-                'recent_logins': recent_logins[:10]  # 10 login terakhir
+                'recent_logins': []
             }
             # Tambah statistik akun Ads & AdX + daftar akun AdX untuk filter
             try:
@@ -2934,8 +2887,7 @@ class DashboardData(View):
 
             try:
                 end_dt = datetime.now().date()
-                start_dt = end_dt - timedelta(days=6)
-                start_date_7 = start_dt.strftime('%Y-%m-%d')
+                start_date_7 = (end_dt - timedelta(days=6)).strftime('%Y-%m-%d')
                 end_date_7 = end_dt.strftime('%Y-%m-%d')
 
                 rs_adx = data_mysql().get_all_adx_traffic_account_by_params(start_date_7, end_date_7, None, None)

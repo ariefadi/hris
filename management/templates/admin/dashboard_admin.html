@@ -1445,47 +1445,7 @@ html[data-theme="dark"] .decision-detail-reason-item {
                         <i class="bi bi-question-circle me-1" aria-hidden="true"></i> User Manual
                     </button>
                 </div>
-                <div class="row" id="metric-cards" data-title="User Management" data-intro="Summary user management yang mana menjelaskan : Total User Terdaftar, User Aktif (7 hari) Terakhir dan Tingkat Aktivitas User Hari Ini.">
-                    <div class="col-12 col-sm-6 col-md-4">
-                        <div class="metric-card users">
-                            <div class="metric-card-inner">
-                                <div>
-                                    <div class="metric-label">Total Users</div>
-                                    <div class="metric-value" id="total-users">0</div>
-                                </div>
-                                <div class="metric-card-icon" aria-hidden="true">
-                                    <i class="bi bi-people-fill"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-12 col-sm-6 col-md-4">
-                        <div class="metric-card logins">
-                            <div class="metric-card-inner">
-                                <div>
-                                    <div class="metric-label">Active Users (7 days)</div>
-                                    <div class="metric-value" id="active-users">0</div>
-                                </div>
-                                <div class="metric-card-icon" aria-hidden="true">
-                                    <i class="bi bi-person-check-fill"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-12 col-sm-6 col-md-4">
-                        <div class="metric-card activity">
-                            <div class="metric-card-inner">
-                                <div>
-                                    <div class="metric-label">Activity Rate</div>
-                                    <div class="metric-value" id="activity-rate">0%</div>
-                                </div>
-                                <div class="metric-card-icon" aria-hidden="true">
-                                    <i class="bi bi-graph-up"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <!-- User management cards removed: dashboard utama tidak lagi menggunakan metrik user/login -->
                 <!-- Metrik Akun Ads & Adx -->
                 <div class="row mt-2" id="ads-adx-cards" data-title="Akun Ads & AdX" data-intro="Ringkasan Jumlah Akun Ads dan AdX yang terdaftar di dalam sistem.">
                     <div class="col-12 col-sm-6 col-md-6">
@@ -1779,11 +1739,6 @@ function updateDashboard(data) {
     document.getElementById('dashboard-content').style.display = 'block';
 
     try {
-        if (data.user_stats) {
-        document.getElementById('total-users').textContent = data.user_stats.total_users;
-        document.getElementById('active-users').textContent = data.user_stats.active_users;
-        document.getElementById('activity-rate').textContent = data.user_stats.activity_rate + '%';
-    }
     if (data.account_stats) {
         document.getElementById('ads-accounts-count').textContent = data.account_stats.ads_accounts_count ?? 0;
         document.getElementById('adx-accounts-count').textContent = data.account_stats.adx_accounts_count ?? 0;
@@ -1795,19 +1750,7 @@ function updateDashboard(data) {
     if (data.charts && data.charts.earnings_comparison) {
         updateEarningsComparisonChart(data.charts.earnings_comparison);
     }
-    if (data.charts && data.charts.login_activity) {
-        if (typeof updateLoginChart === 'function') {
-            updateLoginChart(data.charts.login_activity);
-        }
-        if (typeof updateUserChart === 'function') {
-            updateUserChart(data.user_stats);
-        }
-    }
-        if (data.recent_logins) {
-            if (typeof updateRecentLogins === 'function') {
-                updateRecentLogins(data.recent_logins);
-            }
-        }
+    /* login/user charts disabled: dashboard tidak lagi pakai statistik user */
     } finally {
         try {
             renderClockGauge();

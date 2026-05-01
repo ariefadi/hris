@@ -5165,7 +5165,6 @@ class data_mysql:
                 like_conditions = " OR ".join(["log_adsense_country_domain LIKE %s"] * len(data_domain_list))
                 like_clause = f"AND ({like_conditions})"
                 like_params = [f"%{d}%" for d in data_domain_list]
-
             sql = "\n".join([
                 "SELECT",
                 "    toDate(log_adsense_country_tanggal) AS date,",
@@ -9105,7 +9104,18 @@ class data_mysql:
                         return default
                 except Exception:
                     pass
-                return str(value).strip()
+                if isinstance(value, (bytes, bytearray)):
+                    try:
+                        s = value.decode("utf-8", errors="ignore")
+                    except Exception:
+                        s = str(value)
+                else:
+                    s = str(value)
+                s = s.strip()
+                m = re.match(r"^[bB][\"\'](.*)[\"\']$", s)
+                if m:
+                    s = m.group(1).strip()
+                return s or default
 
             def _derive_site(row):
                 s = _to_str(row.get("domain")) or _to_str(row.get("site"))
