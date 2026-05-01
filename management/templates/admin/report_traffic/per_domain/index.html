@@ -23,6 +23,10 @@
     font-size: 12px;
     color: #64748b;
 }
+#countryChartWrap {
+    position: relative;
+    min-height: 360px;
+}
 #trafficChartWrap {
     position: relative;
     min-height: 340px;
@@ -121,6 +125,16 @@
         </div>
     </div>
 </div>
+<div class="card mt-3">
+    <div class="card-header">
+        <h3 class="card-title mb-0">Traffic by Country (Top 15)</h3>
+    </div>
+    <div class="card-body">
+        <div id="countryChartWrap">
+            <canvas id="chart_country"></canvas>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block more_scripts %}
@@ -134,6 +148,7 @@
     var TRAFFIC_CACHE_KEY = "traffic_last_load_cache_v2";
     var TRAFFIC_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
     var trafficChart = null;
+    var countryChart = null;
     var lastUpdateTimestampMs = null;
     var isApplyingCachedState = false;
 
@@ -207,6 +222,7 @@
     function clearTrafficView() {
         updateKpi([]);
         renderChart([]);
+        renderCountryChart([]);
         setLastUpdate(null);
     }
 
@@ -241,6 +257,77 @@
                 scales: {
                     x: { stacked: true },
                     y: { stacked: true, beginAtZero: true }
+                }
+            }
+        });
+    }
+
+    function normalizeCountries(rows) {
+        if (!Array.isArray(rows)) return [];
+        return rows.map(function (row) {
+            return {
+                country: String((row && row.country) || "Unknown"),
+                totalVisitors: Number((row && row.total_visitors) || 0),
+                uniqueVisitors: Number((row && row.total_unique_visitors) || 0),
+                pageviews: Number((row && row.total_pageviews) || 0)
+            };
+        });
+    }
+
+    function aggregateCountries(countriesList, maxItems) {
+        var byCountry = {};
+        (countriesList || []).forEach(function (rows) {
+            (rows || []).forEach(function (row) {
+                var countryKey = String(row.country || "Unknown").trim() || "Unknown";
+                if (!byCountry[countryKey]) {
+                    byCountry[countryKey] = {
+                        country: countryKey,
+                        totalVisitors: 0,
+                        uniqueVisitors: 0,
+                        pageviews: 0
+                    };
+                }
+                byCountry[countryKey].totalVisitors += Number(row.totalVisitors || 0);
+                byCountry[countryKey].uniqueVisitors += Number(row.uniqueVisitors || 0);
+                byCountry[countryKey].pageviews += Number(row.pageviews || 0);
+            });
+        });
+        var list = Object.keys(byCountry).map(function (k) { return byCountry[k]; });
+        list.sort(function (a, b) { return b.totalVisitors - a.totalVisitors; });
+        return list.slice(0, Math.max(1, Number(maxItems || 15)));
+    }
+
+    function renderCountryChart(countryRows) {
+        var rows = Array.isArray(countryRows) ? countryRows : [];
+        var labels = rows.map(function (row) { return row.country; });
+        var visitors = rows.map(function (row) { return row.totalVisitors; });
+        var unique = rows.map(function (row) { return row.uniqueVisitors; });
+        var pageviews = rows.map(function (row) { return row.pageviews; });
+
+        var ctx = document.getElementById("chart_country");
+        if (!ctx) return;
+        if (countryChart) {
+            countryChart.destroy();
+        }
+
+        countryChart = new Chart(ctx, {
+            type: "bar",
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: "Total Visitors", data: visitors, backgroundColor: "rgba(37, 99, 235, 0.75)" },
+                    { label: "Unique Visitors", data: unique, backgroundColor: "rgba(14, 165, 233, 0.75)" },
+                    { label: "Pageviews", data: pageviews, backgroundColor: "rgba(139, 92, 246, 0.75)" }
+                ]
+            },
+            options: {
+                indexAxis: "y",
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: "index", intersect: false },
+                scales: {
+                    x: { beginAtZero: true },
+                    y: { ticks: { autoSkip: false } }
                 }
             }
         });
@@ -326,6 +413,7 @@
             var key = buildTrafficCacheEntryKey(report, selectedDomains);
             store.entries[key] = {
                 aggregatedRows: payload.aggregatedRows || [],
+                aggregatedCountries: payload.aggregatedCountries || [],
                 selectedDomains: payload.selectedDomains || [],
                 report: report || "today",
                 savedAt: Date.now(),
@@ -406,6 +494,7 @@
         if (!cacheObj || !Array.isArray(cacheObj.aggregatedRows)) return;
         updateKpi(cacheObj.aggregatedRows);
         renderChart(cacheObj.aggregatedRows);
+        renderCountryChart(cacheObj.aggregatedCountries || []);
         if (cacheObj.report) {
             document.getElementById("select_range").value = cacheObj.report;
         }
@@ -472,19 +561,27 @@
                     return resp.json();
                 })
                 .then(function (json) {
-                    return normalizeStats((json && json.stats) || []);
+                    return {
+                        stats: normalizeStats((json && json.stats) || []),
+                        countries: normalizeCountries((json && json.countries) || [])
+                    };
                 });
         });
 
         Promise.all(requests)
-            .then(function (allSeries) {
+            .then(function (allResult) {
+                var allSeries = allResult.map(function (item) { return item.stats || []; });
+                var allCountries = allResult.map(function (item) { return item.countries || []; });
                 var aggregatedRows = aggregateSeries(allSeries);
+                var aggregatedCountries = aggregateCountries(allCountries, 15);
                 var nowTs = Date.now();
                 updateKpi(aggregatedRows);
                 renderChart(aggregatedRows);
+                renderCountryChart(aggregatedCountries);
                 setLastUpdate(nowTs);
                 cacheTraffic(report, selectedDomains, {
                     aggregatedRows: aggregatedRows,
+                    aggregatedCountries: aggregatedCountries,
                     selectedDomains: selectedDomains,
                     lastUpdateAt: nowTs
                 });

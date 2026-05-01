@@ -138,6 +138,7 @@
     var TRAFFIC_CACHE_KEY = "traffic_campaign_last_load_cache_v1";
     var TRAFFIC_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
     var chartInstances = {};
+    var countryChartInstances = {};
     var campaignMap = {};
     var lastUpdateTimestampMs = null;
     var isApplyingCachedState = false;
@@ -153,6 +154,27 @@
                 adClick: Number((row && row.total_ad_click) || 0)
             };
         });
+    }
+
+    function normalizeCountries(rows) {
+        if (!Array.isArray(rows)) return [];
+        return rows.map(function (row) {
+            return {
+                country: String((row && row.country) || "Unknown"),
+                totalVisitors: Number((row && row.total_visitors) || 0),
+                uniqueVisitors: Number((row && row.total_unique_visitors) || 0),
+                pageviews: Number((row && row.total_pageviews) || 0)
+            };
+        });
+    }
+
+    function topCountries(rows, limit) {
+        var safeRows = Array.isArray(rows) ? rows : [];
+        var n = Math.max(1, Number(limit || 15));
+        return safeRows
+            .slice()
+            .sort(function (a, b) { return Number(b.totalVisitors || 0) - Number(a.totalVisitors || 0); })
+            .slice(0, n);
     }
 
     function renderLoadingState(domains, currentIndex) {
@@ -244,7 +266,11 @@
         Object.keys(chartInstances).forEach(function (key) {
             try { chartInstances[key].destroy(); } catch (e) {}
         });
+        Object.keys(countryChartInstances).forEach(function (key) {
+            try { countryChartInstances[key].destroy(); } catch (e) {}
+        });
         chartInstances = {};
+        countryChartInstances = {};
         var container = document.getElementById("loop_this_by_domain");
         if (container) container.innerHTML = "";
     }
@@ -284,7 +310,35 @@
         };
     }
 
-    function renderDomainCharts(domainSeriesMap, orderedDomains) {
+    function createCountryChartConfig(rows) {
+        var labels = rows.map(function (row) { return row.country; });
+        var visitors = rows.map(function (row) { return row.totalVisitors; });
+        var unique = rows.map(function (row) { return row.uniqueVisitors; });
+        var pageviews = rows.map(function (row) { return row.pageviews; });
+        return {
+            type: "bar",
+            data: {
+                labels: labels,
+                datasets: [
+                    { label: "Total Visitors", data: visitors, backgroundColor: "rgba(37, 99, 235, 0.75)" },
+                    { label: "Unique Visitors", data: unique, backgroundColor: "rgba(14, 165, 233, 0.75)" },
+                    { label: "Pageviews", data: pageviews, backgroundColor: "rgba(139, 92, 246, 0.75)" }
+                ]
+            },
+            options: {
+                indexAxis: "y",
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: "index", intersect: false },
+                scales: {
+                    x: { beginAtZero: true },
+                    y: { ticks: { autoSkip: false } }
+                }
+            }
+        };
+    }
+
+    function renderDomainCharts(domainSeriesMap, domainCountriesMap, orderedDomains) {
         clearDomainCharts();
         var container = document.getElementById("loop_this_by_domain");
         if (!container) return;
@@ -303,8 +357,13 @@
                 '<div class="card mb-3">' +
                     '<div class="card-header"><h3 class="card-title mb-0">Traffic for Domain ' + domain + '</h3></div>' +
                     '<div class="card-body">' +
-                        '<div style="position:relative; min-height:320px;">' +
+                        '<div style="position:relative; min-height:280px;">' +
                             '<canvas id="chart_traffic_' + idx + '"></canvas>' +
+                        '</div>' +
+                        '<hr />' +
+                        '<div class="mb-2 text-muted small">Top Countries</div>' +
+                        '<div style="position:relative; min-height:340px;">' +
+                            '<canvas id="chart_country_' + idx + '"></canvas>' +
                         '</div>' +
                     '</div>' +
                 '</div>';
@@ -316,6 +375,12 @@
             if (!canvas) return;
             var rows = (domainSeriesMap && domainSeriesMap[domain]) ? domainSeriesMap[domain] : [];
             chartInstances[domain] = new Chart(canvas, createChartConfig(rows));
+
+            var countryCanvas = document.getElementById("chart_country_" + idx);
+            if (countryCanvas) {
+                var countryRows = (domainCountriesMap && domainCountriesMap[domain]) ? domainCountriesMap[domain] : [];
+                countryChartInstances[domain] = new Chart(countryCanvas, createCountryChartConfig(countryRows));
+            }
         });
     }
 
@@ -395,6 +460,7 @@
             store.entries[key] = {
                 aggregatedRows: payload.aggregatedRows || [],
                 perDomainSeries: payload.perDomainSeries || {},
+                perDomainCountries: payload.perDomainCountries || {},
                 campaignId: campaignId || "",
                 selectedDomains: payload.selectedDomains || [],
                 report: report || "today",
@@ -607,7 +673,7 @@
         if (Array.isArray(cacheObj.selectedDomains)) {
             setSelectedDomains(cacheObj.selectedDomains);
         }
-        renderDomainCharts(cacheObj.perDomainSeries || {}, cacheObj.selectedDomains || []);
+        renderDomainCharts(cacheObj.perDomainSeries || {}, cacheObj.perDomainCountries || {}, cacheObj.selectedDomains || []);
         setLastUpdate(cacheObj.lastUpdateAt || cacheObj.savedAt);
     }
 
@@ -683,7 +749,8 @@
                 .then(function (json) {
                     allSeriesWithDomain.push({
                         domain: domain,
-                        rows: normalizeStats((json && json.stats) || [])
+                        rows: normalizeStats((json && json.stats) || []),
+                        countries: topCountries(normalizeCountries((json && json.countries) || []), 15)
                     });
                     return runSequential(idx + 1);
                 });
@@ -692,18 +759,21 @@
         runSequential(0)
             .then(function (allSeriesWithDomain) {
                 var perDomainSeries = {};
+                var perDomainCountries = {};
                 allSeriesWithDomain.forEach(function (item) {
                     perDomainSeries[item.domain] = item.rows;
+                    perDomainCountries[item.domain] = item.countries || [];
                 });
                 var allSeries = allSeriesWithDomain.map(function (item) { return item.rows; });
                 var aggregatedRows = aggregateSeries(allSeries);
                 var nowTs = Date.now();
                 updateKpi(aggregatedRows);
-                renderDomainCharts(perDomainSeries, selectedDomains);
+                renderDomainCharts(perDomainSeries, perDomainCountries, selectedDomains);
                 setLastUpdate(nowTs);
                 cacheTraffic(report, campaignId, selectedDomains, {
                     aggregatedRows: aggregatedRows,
                     perDomainSeries: perDomainSeries,
+                    perDomainCountries: perDomainCountries,
                     selectedDomains: selectedDomains,
                     lastUpdateAt: nowTs
                 });

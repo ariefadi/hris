@@ -1,7 +1,6 @@
 from collections import defaultdict
 import os
 import csv
-import tldextract
 from io import StringIO
 import math
 import re
@@ -63,6 +62,10 @@ import uuid
 from datetime import datetime
 from django.http import JsonResponse
 # Optional dependencies: guard imports to prevent module-level crashes
+try:
+    import tldextract
+except Exception:
+    tldextract = None
 try:
     from geopy.geocoders import Nominatim
 except Exception:
