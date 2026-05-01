@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import os
 from management.database import data_mysql
 from management.utils import fetch_user_adx_account_data
-from management.utils_adsense import fetch_adsense_traffic_per_country_domain_advanced
+from management.utils_adsense import get_user_adsense_client, extract_domain_from_ad_unit, fetch_adsense_traffic_per_country_domain_advanced
 
 def convert_to_idr(amount, currency_code):
     try:
@@ -45,23 +45,6 @@ def force_usd_by_domain(domain):
         return False
     usd_domains = ('sharpdrivers', 'uaetiming', 'valoranewspekanbaru')
     return any(k in d for k in usd_domains)
-
-
-def _to_float(val):
-    try:
-        s = str(val or '').replace(',', '').replace('%', '').strip()
-        if not s:
-            return 0.0
-        return float(s)
-    except Exception:
-        return 0.0
-
-
-def _pct_to_int(val):
-    v = _to_float(val)
-    if 0 < v <= 1:
-        v = v * 100.0
-    return int(round(v))
 
 
 class Command(BaseCommand):
@@ -106,20 +89,6 @@ class Command(BaseCommand):
         total_insert = 0
         total_error = 0
 
-        currency_by_user = {}
-        for cred in rows:
-            um = str(cred.get('user_mail') or '').strip()
-            if not um:
-                continue
-            ccode = 'IDR'
-            try:
-                acct_info = fetch_user_adx_account_data(um)
-                if isinstance(acct_info, dict) and acct_info.get('status'):
-                    ccode = (acct_info.get('data', {}) or {}).get('currency_code') or 'IDR'
-            except Exception:
-                pass
-            currency_by_user[um] = str(ccode or 'IDR').strip().upper()
-
         start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
         end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
         day_count = (end_dt - start_dt).days + 1
@@ -136,16 +105,11 @@ class Command(BaseCommand):
                     account_name = cred.get('account_name')
                     if not user_mail or not account_id:
                         continue
-                    currency_code = currency_by_user.get(str(user_mail).strip(), 'IDR')
-
-                    try:
-                        db.execute_query(
-                            "DELETE FROM data_adsense_country WHERE account_id=%s AND DATE(data_adsense_country_tanggal)=%s",
-                            (account_id, day_str)
-                        )
-                        db.commit()
-                    except Exception as de:
-                        self.stdout.write(self.style.ERROR(f"Gagal pre-delete data_adsense_country {user_mail} {day_str}: {de}"))
+                    acct_info = fetch_user_adx_account_data(user_mail)
+                    currency_code = 'IDR'
+                    if isinstance(acct_info, dict) and acct_info.get('status'):
+                        currency_code = (acct_info.get('data', {}) or {}).get('currency_code') or 'IDR'
+                    currency_code = (currency_code or 'IDR').strip().upper()
 
                     res = fetch_adsense_traffic_per_country_domain(user_mail, day_str, day_str, site_filter='%')
                     if not res or not res.get('status'):
@@ -165,6 +129,21 @@ class Command(BaseCommand):
                         currency_code = res_currency
                     for item in res.get('data', []) or []:
                         try:
+                            def _to_float(val):
+                                try:
+                                    s = str(val or '').replace(',', '').replace('%', '').strip()
+                                    if not s:
+                                        return 0.0
+                                    return float(s)
+                                except Exception:
+                                    return 0.0
+
+                            def _pct_to_int(val):
+                                v = _to_float(val)
+                                if 0 < v <= 1:
+                                    v = v * 100.0
+                                return int(round(v))
+
                             country_cd = (item.get('country_code') or '').upper()
                             country_nm = item.get('country') or ''
                             domain = item.get('domain') or '-'
@@ -193,7 +172,6 @@ class Command(BaseCommand):
                             if (not ad_requests_coverage) and ad_requests > 0:
                                 ad_requests_coverage = (float(impressions) / float(ad_requests)) * 100.0
 
-                            now_ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                             record = {
                                 'account_id': account_id,
                                 'data_adsense_country_tanggal': day_str,
@@ -215,8 +193,28 @@ class Command(BaseCommand):
                                 'data_adsense_country_revenue': int(round(revenue_idr)),
                                 'mdb': '0',
                                 'mdb_name': 'Cron Job',
-                                'mdd': now_ts,
+                                'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                             }
+                            try:
+                                sql_del = (
+                                    "DELETE FROM data_adsense_country "
+                                    "WHERE account_id=%s "
+                                    "AND DATE(data_adsense_country_tanggal)=%s "
+                                    "AND data_adsense_country_cd=%s "
+                                    "AND data_adsense_country_domain=%s"
+                                )
+                                if db.execute_query(sql_del, (account_id, day_str, country_cd, domain)):
+                                    affected = db.cur_hris.rowcount if db.cur_hris else 0
+                                    if db.commit():
+                                        if affected:
+                                            self.stdout.write(
+                                                self.style.WARNING(
+                                                    f"Membersihkan data existing AdSense ({affected} baris) untuk {day_str}."
+                                                )
+                                            )
+                            except Exception as e:
+                                self.stdout.write(self.style.ERROR(f"Error saat menghapus data existing AdSense: {e}"))
+
                             ins = db.insert_data_adsense_country(record)
                             if ins.get('hasil', {}).get('status'):
                                 total_insert += 1
@@ -241,7 +239,7 @@ class Command(BaseCommand):
                                     'log_adsense_country_revenue': record.get('data_adsense_country_revenue'),
                                     'mdb': '0',
                                     'mdb_name': 'Log Snapshot',
-                                    'mdd': now_ts,
+                                    'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                                 }
                                 try:
                                     db.insert_log_adsense_country_log(params_log_new)

@@ -1117,6 +1117,8 @@ class DashboardScoringDataView(View):
             dim = str(payload.get('dim') or 'domain').strip().lower()
             raw_entities = payload.get('entities') or []
             include_events = bool(payload.get('include_events'))
+            include_source = bool(payload.get('include_source', True))
+            include_timeline = bool(payload.get('include_timeline', True))
             def normalize_site_entity(v):
                 s = str(v or '').strip().lower()
                 s = re.sub(r'^https?://', '', s)
@@ -1347,6 +1349,7 @@ class DashboardScoringDataView(View):
                     adsense_estimated_earnings
                 FROM {source_table}
                 WHERE toDate(date) = toDate('{target_date}')
+                  AND {status_filter_expr}
             )
             GROUP BY
                 site,
@@ -1387,12 +1390,16 @@ class DashboardScoringDataView(View):
                     ev['run_hour'] = pd.to_numeric(ev['run_hour'], errors='coerce').fillna(0).astype(int)
                 return ev
             def load_source_df():
+                if not include_source:
+                    return pd.DataFrame()
                 try:
                     return query_df(source_sql)
                 except Exception as ex:
                     logger.warning('DashboardScoringDataView source query failed: %s', ex)
                     return pd.DataFrame()
             def load_timeline_df():
+                if not include_timeline:
+                    return pd.DataFrame()
                 try:
                     tdf = query_df(timeline_sql)
                 except Exception as ex:
@@ -1951,7 +1958,6 @@ class DashboardScoringDataView(View):
                         src['adsense_estimated_earnings'] = agg_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
                         if not str(src.get('mapped_revenue_source') or '').strip():
                             src['mapped_revenue_source'] = agg_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
-                    meta_spend_v = safe_float(src.get('meta_spend'))
                     def nullable_float(v):
                         if v is None:
                             return None
@@ -1977,6 +1983,13 @@ class DashboardScoringDataView(View):
                             return float(v)
                         except Exception:
                             return None
+
+                    meta_spend_opt = nullable_float(src.get('meta_spend'))
+                    if meta_spend_opt is None:
+                        meta_spend_opt = nullable_float(row.get('meta_spend'))
+                    if meta_spend_opt is None:
+                        meta_spend_opt = nullable_float(row.get('spend'))
+                    meta_spend_v = safe_float(meta_spend_opt)
 
                     adx_revenue_opt = nullable_float(src.get('adx_revenue'))
                     if adx_revenue_opt is None:
@@ -7856,6 +7869,27 @@ class DashboardDomainHourlyHeatmapView(View):
         try:
             tanggal = req.GET.get('tanggal', '')
             source = (req.GET.get('source') or 'adx').strip().lower()
+            domains_raw = (req.GET.get('domains') or req.GET.get('selected_domains') or req.GET.get('domain') or '').strip()
+            selected_domains = [str(x).strip().lower() for x in domains_raw.split(',') if str(x).strip()]
+            selected_domain_set = set(selected_domains)
+
+            def _norm_site(v):
+                s = str(v or '').strip().lower()
+                s = re.sub(r'^https?://', '', s)
+                s = s.split('/')[0].split('?')[0].split('#')[0]
+                s = re.sub(r'^www\.', '', s)
+                return s
+
+            def _site_match(site_value):
+                if not selected_domain_set:
+                    return True
+                site = _norm_site(site_value)
+                if not site:
+                    return False
+                for d in selected_domain_set:
+                    if site == d or site.endswith('.' + d) or d in site:
+                        return True
+                return False
             # --- 1. Parse tanggal aman
             def parse_date(d):
                 try:
@@ -7887,6 +7921,10 @@ class DashboardDomainHourlyHeatmapView(View):
                 adx_rows = (adx_resp.get('data') if isinstance(adx_resp, dict) else []) or []
                 if not isinstance(adx_rows, list):
                     adx_rows = []
+
+            if selected_domain_set:
+                adx_rows = [r for r in (adx_rows or []) if _site_match((r or {}).get('log_adx_country_domain', ''))]
+                adsense_rows = [r for r in (adsense_rows or []) if _site_match((r or {}).get('log_adsense_country_domain', ''))]
 
             unique_name_site = []
             extracted_sites = set[Any]()
