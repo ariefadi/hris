@@ -1,7 +1,7 @@
 # Module imports & helper
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from management.database import data_mysql
 from management.utils import fetch_adx_traffic_per_country
 from management.utils import fetch_user_adx_account_data
@@ -30,20 +30,6 @@ def convert_to_idr(amount, currency_code):
         return base * rate if rate else base
     except Exception:
         return float(amount or 0.0)
-
-
-def _to_float(val):
-    try:
-        s = str(val or '').replace(',', '').replace('%', '').strip()
-        if not s:
-            return 0.0
-        return float(s)
-    except Exception:
-        return 0.0
-
-
-def _to_int(val):
-    return int(_to_float(val))
 
 class Command(BaseCommand):
     help = "Tarik dan simpan data Ad Manager (AdX) per negara ke data_adx, default 7 hari terakhir. Kredensial diambil dari app_credentials."
@@ -81,21 +67,6 @@ class Command(BaseCommand):
             return
         total_insert = 0
         total_error = 0
-
-        currency_by_user = {}
-        for cred in rows:
-            um = str(cred.get('user_mail') or '').strip()
-            if not um:
-                continue
-            ccode = 'IDR'
-            try:
-                acct_info = fetch_user_adx_account_data(um)
-                if isinstance(acct_info, dict) and acct_info.get('status'):
-                    ccode = (acct_info.get('data', {}) or {}).get('currency_code') or 'IDR'
-            except Exception:
-                pass
-            currency_by_user[um] = str(ccode or 'IDR').strip().upper()
-
         # Loop per hari agar data per tanggal tersimpan akurat
         start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
         end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
@@ -110,17 +81,11 @@ class Command(BaseCommand):
                     account_name = cred.get('account_name')
                     if not user_mail:
                         continue
-                    currency_code = currency_by_user.get(str(user_mail).strip(), 'IDR')
-
-                    try:
-                        db.execute_query(
-                            "DELETE FROM data_adx_country WHERE account_id=%s AND DATE(data_adx_country_tanggal)=%s",
-                            (cred.get('account_id') or '', day_str)
-                        )
-                        db.commit()
-                    except Exception as de:
-                        self.stdout.write(self.style.ERROR(f"Gagal pre-delete data_adx_country {user_mail} {day_str}: {de}"))
-
+                    # Ambil currency code akun user
+                    acct_info = fetch_user_adx_account_data(user_mail)
+                    currency_code = 'IDR'
+                    if isinstance(acct_info, dict) and acct_info.get('status'):
+                        currency_code = (acct_info.get('data', {}) or {}).get('currency_code') or 'IDR'
                     # Ambil data AdX per negara untuk 1 hari (start=end)
                     res = fetch_adx_traffic_per_country(day_dt, day_dt, user_mail, selected_sites=None, countries_list=None)
                     if not res or not res.get('status'):
@@ -131,6 +96,18 @@ class Command(BaseCommand):
                         continue
                     for item in res.get('data', []):
                         try:
+                            def _to_float(val):
+                                try:
+                                    s = str(val or '').replace(',', '').replace('%', '').strip()
+                                    if not s:
+                                        return 0.0
+                                    return float(s)
+                                except Exception:
+                                    return 0.0
+
+                            def _to_int(val):
+                                return int(_to_float(val))
+
                             impressions = _to_int(item.get('impressions', 0))
                             clicks = _to_int(item.get('clicks', 0))
                             revenue = _to_float(item.get('revenue', 0.0))
@@ -153,7 +130,6 @@ class Command(BaseCommand):
                             active_view_pct_viewable = _to_float(item.get('active_view_pct_viewable', 0.0))
                             active_view_avg_time_sec = _to_float(item.get('active_view_avg_time_sec', 0.0))
 
-                            now_ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                             record = {
                                 'account_id': cred.get('account_id') or '',
                                 'data_adx_country_tanggal': day_str,
@@ -175,8 +151,22 @@ class Command(BaseCommand):
                                 'data_adx_country_revenue': int(round(revenue_idr)),
                                 'mdb': '0',
                                 'mdb_name': 'Cron Job',
-                                'mdd': now_ts,
+                                'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                             }
+                            # Bersihkan data existing untuk range per account agar idempotent
+                            try:
+                                del_res = db.delete_data_adx_country_by_date(cred.get('account_id'), day_str, country_cd, site_name)
+                                if del_res.get('hasil', {}).get('status'):
+                                    affected = del_res.get('hasil', {}).get('affected', 0)
+                                    self.stdout.write(self.style.WARNING(
+                                        f"Membersihkan data existing AdX ({affected} baris) untuk range {start_date} s/d {end_date}."
+                                    ))
+                                else:
+                                    self.stdout.write(self.style.ERROR(
+                                        f"Gagal menghapus data existing AdX untuk {user_mail} ({account_name}): {del_res.get('hasil', {}).get('data')}"
+                                    ))
+                            except Exception as e:
+                                self.stdout.write(self.style.ERROR(f"Error saat menghapus data existing AdX: {e}"))
                             ins = db.insert_data_adx_country(record)
                             if ins.get('hasil', {}).get('status'):
                                 total_insert += 1

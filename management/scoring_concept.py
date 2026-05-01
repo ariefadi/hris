@@ -210,19 +210,10 @@ RULES: list[MetricRule] = [
     MetricRule("viewability_gap_abs", "blended", "quality", "level", "source_alignment", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.35, 0.75, 1.00, ivt_weight=0.85, volume_gate_column="total_impressions_blended", min_volume=500, family_key="blended_attention", family_rank=3, deadband_pct=0.05, label_positive="VIEWABILITY_GAP_DOWN", label_negative="VIEWABILITY_GAP_UP", requires_source_match=False),
 ]
 
-PROFIT_FIRST_RULE_COLUMNS = [
-    "blended_revenue", "revenue_per_lpv", "roi_proxy", "meta_cost_per_lpv",
-    "adsense_estimated_earnings", "adsense_page_views_rpm", "adsense_ad_requests_coverage",
-    "adx_revenue", "adx_avg_ecpm", "adx_total_fill_rate",
-    "request_to_impression_eff", "click_pressure", "attention_quality_blended",
-]
-
 def _resolve_rules_for_profile() -> tuple[str, list[MetricRule]]:
-    by_col = {r.column: r for r in RULES}
-    selected = [by_col[c] for c in PROFIT_FIRST_RULE_COLUMNS if c in by_col]
-    if selected:
-        return "profit_first", selected
-    return "profit_first", list(RULES)
+    # Full metrics aktif semua, tanpa switching profile.
+    # Profit-first tetap dijaga di layer scoring/labeling/recommendation logic.
+    return "full_profit_first", list(RULES)
 
 
 RAW_JOIN_COLUMNS = [
@@ -359,6 +350,14 @@ STATUS_EXTENDED_COLUMNS = STATUS_COMPAT_COLUMNS + [
     "ivt_attention_score",
     "ivt_counter_score",
     "ivt_funnel_score",
+    "forecast_horizon_hours",
+    "forecast_direction",
+    "forecast_confidence",
+    "forecast_reason",
+    "recommended_action",
+    "recommended_budget_change_pct",
+    "recommended_budget_target",
+    "budget_reco_reason",
 ]
 
 EVENT_COMPAT_COLUMNS = [
@@ -1991,6 +1990,93 @@ def _health_activity_stats(events: list[dict]) -> tuple[int, int]:
     return int(len(active_events)), int(len(families))
 
 
+def _compute_forecast_and_budget_reco(status: dict, persistence: dict) -> dict:
+    spend = max(0.0, safe_float(status.get("spend")))
+    revenue = max(0.0, safe_float(status.get("revenue_value")))
+    roi = ((revenue - spend) / spend) if spend > 0 else 0.0
+    conf = clip(safe_float(status.get("confidence")), 0.0, 1.0)
+    risk = clip(safe_float(status.get("ivt_risk_score")), 0.0, 100.0)
+    health = clip(safe_float(status.get("health_score")), -100.0, 100.0)
+    margin = safe_float(status.get("decision_margin"))
+    adj = safe_float(status.get("adjustment_score"))
+
+    pos_streak = int(safe_float(persistence.get("positive_streak", 0)))
+    neg_streak = int(safe_float(persistence.get("negative_streak", 0)))
+    ivt_streak = int(safe_float(persistence.get("ivt_streak", 0)))
+    days_active = int(safe_float(persistence.get("days_active", 0)))
+
+    down_pressure = clip(
+        (max(0.0, -margin) / 45.0) * 0.30
+        + (risk / 100.0) * 0.25
+        + (max(0.0, -health) / 100.0) * 0.20
+        + (max(0.0, -adj) / 100.0) * 0.10
+        + (min(3, neg_streak) / 3.0) * 0.10
+        + (min(2, ivt_streak) / 2.0) * 0.05,
+        0.0,
+        1.0,
+    )
+    up_strength = clip(
+        (max(0.0, margin) / 45.0) * 0.30
+        + (max(0.0, health) / 100.0) * 0.25
+        + (max(0.0, roi) / 0.60) * 0.20
+        + (max(0.0, 60.0 - risk) / 60.0) * 0.15
+        + (min(3, pos_streak) / 3.0) * 0.10,
+        0.0,
+        1.0,
+    )
+    volatility = clip((abs(adj) / 100.0) * 0.55 + (abs(margin) / 120.0) * 0.45, 0.0, 1.0)
+
+    delta = up_strength - down_pressure
+    if delta >= 0.15:
+        forecast_direction = "UPCOMING_UP"
+        forecast_reason = "Momentum positif (margin/ROI/health) lebih dominan dibanding tekanan risiko"
+    elif delta <= -0.15:
+        forecast_direction = "UPCOMING_DOWN"
+        forecast_reason = "Tekanan turun meningkat (risk naik, margin/health melemah, streak negatif)"
+    else:
+        forecast_direction = "STABLE_OUTLOOK"
+        forecast_reason = "Sinyal campuran, outlook cenderung stabil dalam horizon pendek"
+
+    forecast_confidence = clip((0.50 * conf) + (0.30 * (1.0 - volatility)) + (0.20 * max(up_strength, down_pressure)), 0.0, 1.0)
+
+    cap_up = 20.0
+    cap_down = 30.0
+    if conf < 0.35 or days_active < 3:
+        cap_up = min(cap_up, 10.0)
+        cap_down = min(cap_down, 15.0)
+    if roi >= 0.50 and risk < 45 and conf >= 0.60:
+        cap_up = 25.0
+    if risk >= 75 or str(status.get("final_label", "")).upper().startswith("RED_FLAG"):
+        cap_down = 35.0
+
+    recommended_action = "HOLD"
+    recommended_budget_change_pct = 0.0
+    if forecast_direction == "UPCOMING_UP" and risk < 65:
+        up_pct = clip(3.0 + (14.0 * up_strength * conf) - (6.0 * volatility), 3.0, cap_up)
+        recommended_action = "SCALE UP"
+        recommended_budget_change_pct = float(round(up_pct, 2))
+    elif (forecast_direction == "UPCOMING_DOWN") or risk >= 70 or margin <= -20:
+        down_pct = clip(6.0 + (22.0 * down_pressure * conf) + (4.0 * volatility), 6.0, cap_down)
+        recommended_action = "PAUSE" if risk >= 85 else "SCALE DOWN"
+        recommended_budget_change_pct = float(round(-down_pct, 2))
+
+    recommended_budget_target = float(round(max(0.0, spend * (1.0 + (recommended_budget_change_pct / 100.0))), 2)) if spend > 0 else 0.0
+    budget_reco_reason = (
+        f"{recommended_action} {recommended_budget_change_pct:+.2f}% | ROI={roi:.2f} | risk={risk:.1f} | margin={margin:.1f} | conf={conf:.2f}"
+    )
+
+    return {
+        "forecast_horizon_hours": 24,
+        "forecast_direction": forecast_direction,
+        "forecast_confidence": float(round(forecast_confidence, 4)),
+        "forecast_reason": forecast_reason,
+        "recommended_action": recommended_action,
+        "recommended_budget_change_pct": float(recommended_budget_change_pct),
+        "recommended_budget_target": recommended_budget_target,
+        "budget_reco_reason": budget_reco_reason,
+    }
+
+
 # Tetapkan root cause lalu stabilkan label dengan hysteresis/persistence.
 def _apply_status_labeling(status: dict, persistence: dict) -> None:
     status["root_cause_label"] = _root_cause_label(status)
@@ -2014,6 +2100,8 @@ def _build_reason_summary(status: dict) -> str:
         f"streaks=+{status['positive_streak']}/-{status['negative_streak']}/ivt{status['ivt_streak']}",
         f"active_events={int(status.get('active_health_event_count', 0))}",
         f"active_families={int(status.get('active_family_count', 0))}",
+        f"forecast={status.get('forecast_direction', '-')}",
+        f"reco={status.get('recommended_action', 'HOLD')}({safe_float(status.get('recommended_budget_change_pct', 0)):+.2f}%)",
     ])
 
 
@@ -2095,6 +2183,14 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "hysteresis_applied": 0,
         "active_health_event_count": int(active_health_event_count),
         "active_family_count": int(active_family_count),
+        "forecast_horizon_hours": 24,
+        "forecast_direction": "STABLE_OUTLOOK",
+        "forecast_confidence": 0.0,
+        "forecast_reason": "",
+        "recommended_action": "HOLD",
+        "recommended_budget_change_pct": 0.0,
+        "recommended_budget_target": safe_float(cur.get("meta_spend")),
+        "budget_reco_reason": "",
         "top_positive_labels": pick_top_labels(e["event_label"] for e in positive),
         "top_negative_labels": pick_top_labels(e["event_label"] for e in negative),
         "top_positive_headers": pick_top_labels(e["header_name"] for e in positive),
@@ -2104,6 +2200,7 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "reason_summary": "",
     }
     _apply_status_labeling(status, persistence)
+    status.update(_compute_forecast_and_budget_reco(status, persistence))
     status["reason_summary"] = _build_reason_summary(status)
     return status
 
@@ -2195,6 +2292,7 @@ def score_site_country(
     scoring_profile: str | None = None,
 ) -> dict:
     batch_uuid = ensure_uuid(batch_id)
+    _ = scoring_profile  # dipertahankan untuk backward compatibility, saat ini tidak digunakan
     target_run_hour = None
     if run_hour is not None:
         try:

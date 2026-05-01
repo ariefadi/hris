@@ -1,10 +1,9 @@
 # Module imports & helper
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 from management.database import data_mysql
 from management.utils import fetch_adx_traffic_per_country
-from management.utils import fetch_user_adx_account_data
 import os
 
 def convert_to_idr(amount, currency_code):
@@ -28,6 +27,20 @@ def convert_to_idr(amount, currency_code):
         return base * rate if rate else base
     except Exception:
         return float(amount or 0.0)
+
+
+def _to_float(val):
+    try:
+        s = str(val or '').replace(',', '').replace('%', '').strip()
+        if not s:
+            return 0.0
+        return float(s)
+    except Exception:
+        return 0.0
+
+
+def _to_int(val):
+    return int(_to_float(val))
 
 
 class Command(BaseCommand):
@@ -79,9 +92,16 @@ class Command(BaseCommand):
                     account_name = cred.get('account_name')
                     if not user_mail:
                         continue
-                    # Ambil currency code akun user (hari ini)
-                    acct_info = fetch_user_adx_account_data(user_mail)
                     currency_code = 'IDR'
+
+                    try:
+                        db.execute_query(
+                            "DELETE FROM data_adx_country WHERE account_id=%s AND DATE(data_adx_country_tanggal)=%s",
+                            (cred.get('account_id') or '', day_str)
+                        )
+                        db.commit()
+                    except Exception as de:
+                        self.stdout.write(self.style.ERROR(f"Gagal pre-delete data_adx_country {user_mail} {day_str}: {de}"))
 
                     res = fetch_adx_traffic_per_country(day_dt, day_dt, user_mail, selected_sites=None, countries_list=None)
                     if not res or not res.get('status'):
@@ -92,18 +112,6 @@ class Command(BaseCommand):
                         continue
                     for item in res.get('data', []):
                         try:
-                            def _to_float(val):
-                                try:
-                                    s = str(val or '').replace(',', '').replace('%', '').strip()
-                                    if not s:
-                                        return 0.0
-                                    return float(s)
-                                except Exception:
-                                    return 0.0
-                
-                            def _to_int(val):
-                                return int(_to_float(val))
-
                             impressions = _to_int(item.get('impressions', 0))
                             clicks = _to_int(item.get('clicks', 0))
                             revenue = _to_float(item.get('revenue', 0.0))
@@ -125,6 +133,7 @@ class Command(BaseCommand):
                             if not country_cd or not site_name:
                                 continue
 
+                            now_ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                             record = {
                                 'account_id': cred.get('account_id') or '',
                                 'data_adx_country_tanggal': day_str,
@@ -146,22 +155,8 @@ class Command(BaseCommand):
                                 'data_adx_country_revenue': int(round(revenue_idr)),
                                 'mdb': '0',
                                 'mdb_name': 'Cron Job',
-                                'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                'mdd': now_ts,
                             }
-                            try:
-                                # Bersihkan data existing untuk range agar idempotent
-                                del_res = db.delete_data_adx_country_by_date(cred.get('account_id'), day_str, record.get('data_adx_country_cd'), record.get('data_adx_country_domain'))
-                                if del_res.get('hasil', {}).get('status'):
-                                    affected = del_res.get('hasil', {}).get('affected', 0)
-                                    self.stdout.write(self.style.WARNING(
-                                        f"Membersihkan data existing AdX ({affected} baris) untuk range {start_date} s/d {end_date}."
-                                    ))
-                                else:
-                                    self.stdout.write(self.style.ERROR(
-                                        f"Gagal menghapus data existing AdX: {del_res.get('hasil', {}).get('data')}"
-                                    ))
-                            except Exception as e:
-                                self.stdout.write(self.style.ERROR(f"Error saat menghapus data existing AdX: {e}"))
                             ins = db.insert_data_adx_country(record)
                             if ins.get('hasil', {}).get('status'):
                                 total_insert += 1
@@ -186,7 +181,7 @@ class Command(BaseCommand):
                                     'log_adx_country_revenue': record.get('data_adx_country_revenue'),
                                     'mdb': '0',
                                     'mdb_name': 'Log Snapshot',
-                                    'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                    'mdd': now_ts,
                                 }
                                 try:
                                     db.insert_log_adx_country_log(params_log_new)

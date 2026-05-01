@@ -1,7 +1,7 @@
 # Module imports & helper
 from django.core.management.base import BaseCommand
 from django.core.management import call_command
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from management.database import data_mysql
 from management.utils import fetch_adx_traffic_per_country
 from management.utils import fetch_user_adx_account_data
@@ -13,12 +13,10 @@ def convert_to_idr(amount, currency_code):
         base = float(amount or 0.0)
         if code == 'IDR':
             return base
-        # Prioritas: EXCHANGE_RATE_<CODE>_IDR
         env_key = f'EXCHANGE_RATE_{code}_IDR'
         if os.getenv(env_key):
             rate = float(os.getenv(env_key))
             return base * rate
-        # Fallback populer (bisa di-override via env)
         default_rates = {
             'USD': float(os.getenv('USD_IDR_RATE', '16000')),
             'EUR': float(os.getenv('EUR_IDR_RATE', '17500')),
@@ -32,41 +30,27 @@ def convert_to_idr(amount, currency_code):
         return float(amount or 0.0)
 
 
-def _to_float(val):
-    try:
-        s = str(val or '').replace(',', '').replace('%', '').strip()
-        if not s:
-            return 0.0
-        return float(s)
-    except Exception:
-        return 0.0
-
-
-def _to_int(val):
-    return int(_to_float(val))
-
 class Command(BaseCommand):
-    help = "Tarik dan simpan data Ad Manager (AdX) per negara ke data_adx, default 7 hari terakhir. Kredensial diambil dari app_credentials."
+    help = "Tarik dan simpan data Ad Manager (AdX) per negara ke data_adx, default hari ini. Kredensial diambil dari app_credentials."
     def add_arguments(self, parser):
         parser.add_argument(
             '--tanggal',
             type=str,
             default='%',
-            help='Tanggal tunggal (YYYY-MM-DD) atau kosong untuk default 7 hari terakhir.'
+            help='Tanggal tunggal (YYYY-MM-DD) atau kosong untuk default hari ini.'
         )
 
     def handle(self, *args, **kwargs):
-        tanggal = kwargs.get('tanggal')
-        # Hitung range tanggal: default 7 hari terakhir (termasuk hari ini)
-        if tanggal and tanggal != '%':
-            start_date = tanggal
-            end_date = tanggal
-        else:
-            today_dt = datetime.now().date()
-            start_date = (today_dt - timedelta(days=3)).strftime('%Y-%m-%d')
-            end_date = today_dt.strftime('%Y-%m-%d')
+        tanggal_arg = str(kwargs.get('tanggal') or '').strip()
+        today_dt = datetime.now().date()
+        start_date = today_dt.strftime('%Y-%m-%d')
+        end_date = today_dt.strftime('%Y-%m-%d')
+        if tanggal_arg and tanggal_arg != '%':
+            start_date = tanggal_arg
+            end_date = tanggal_arg
+
         self.stdout.write(self.style.WARNING(
-            f"Menarik dan menyimpan AdX per negara untuk range {start_date} s/d {end_date} (7 hari)."
+            f"Menarik dan menyimpan AdX per negara untuk range {start_date} s/d {end_date}."
         ))
         db = data_mysql()
         # Ambil semua kredensial dari app_credentials
@@ -74,27 +58,12 @@ class Command(BaseCommand):
         if not creds.get('status'):
             self.stdout.write(self.style.ERROR(f"Gagal mengambil kredensial: {creds.get('error')}"))
             return
-
         rows = creds.get('data') or []
         if not rows:
             self.stdout.write(self.style.ERROR("Tidak ada kredensial aktif di app_credentials."))
             return
         total_insert = 0
         total_error = 0
-
-        currency_by_user = {}
-        for cred in rows:
-            um = str(cred.get('user_mail') or '').strip()
-            if not um:
-                continue
-            ccode = 'IDR'
-            try:
-                acct_info = fetch_user_adx_account_data(um)
-                if isinstance(acct_info, dict) and acct_info.get('status'):
-                    ccode = (acct_info.get('data', {}) or {}).get('currency_code') or 'IDR'
-            except Exception:
-                pass
-            currency_by_user[um] = str(ccode or 'IDR').strip().upper()
 
         # Loop per hari agar data per tanggal tersimpan akurat
         start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
@@ -110,18 +79,10 @@ class Command(BaseCommand):
                     account_name = cred.get('account_name')
                     if not user_mail:
                         continue
-                    currency_code = currency_by_user.get(str(user_mail).strip(), 'IDR')
+                    # Ambil currency code akun user (hari ini)
+                    acct_info = fetch_user_adx_account_data(user_mail)
+                    currency_code = 'IDR'
 
-                    try:
-                        db.execute_query(
-                            "DELETE FROM data_adx_country WHERE account_id=%s AND DATE(data_adx_country_tanggal)=%s",
-                            (cred.get('account_id') or '', day_str)
-                        )
-                        db.commit()
-                    except Exception as de:
-                        self.stdout.write(self.style.ERROR(f"Gagal pre-delete data_adx_country {user_mail} {day_str}: {de}"))
-
-                    # Ambil data AdX per negara untuk 1 hari (start=end)
                     res = fetch_adx_traffic_per_country(day_dt, day_dt, user_mail, selected_sites=None, countries_list=None)
                     if not res or not res.get('status'):
                         total_error += 1
@@ -131,15 +92,21 @@ class Command(BaseCommand):
                         continue
                     for item in res.get('data', []):
                         try:
+                            def _to_float(val):
+                                try:
+                                    s = str(val or '').replace(',', '').replace('%', '').strip()
+                                    if not s:
+                                        return 0.0
+                                    return float(s)
+                                except Exception:
+                                    return 0.0
+                
+                            def _to_int(val):
+                                return int(_to_float(val))
+
                             impressions = _to_int(item.get('impressions', 0))
                             clicks = _to_int(item.get('clicks', 0))
                             revenue = _to_float(item.get('revenue', 0.0))
-
-                            country_cd = (item.get('country_code') or '').upper().strip()
-                            site_name = (item.get('site_name') or '').strip()
-                            if not country_cd or not site_name:
-                                continue
-
                             revenue_idr = convert_to_idr(revenue, currency_code)
 
                             ctr = _to_float(item.get('ctr', 0.0) or (clicks / impressions * 100 if impressions > 0 else 0.0))
@@ -153,7 +120,11 @@ class Command(BaseCommand):
                             active_view_pct_viewable = _to_float(item.get('active_view_pct_viewable', 0.0))
                             active_view_avg_time_sec = _to_float(item.get('active_view_avg_time_sec', 0.0))
 
-                            now_ts = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                            country_cd = (item.get('country_code') or '').upper().strip()
+                            site_name = (item.get('site_name') or '').strip()
+                            if not country_cd or not site_name:
+                                continue
+
                             record = {
                                 'account_id': cred.get('account_id') or '',
                                 'data_adx_country_tanggal': day_str,
@@ -175,11 +146,52 @@ class Command(BaseCommand):
                                 'data_adx_country_revenue': int(round(revenue_idr)),
                                 'mdb': '0',
                                 'mdb_name': 'Cron Job',
-                                'mdd': now_ts,
+                                'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                             }
+                            try:
+                                # Bersihkan data existing untuk range agar idempotent
+                                del_res = db.delete_data_adx_country_by_date(cred.get('account_id'), day_str, record.get('data_adx_country_cd'), record.get('data_adx_country_domain'))
+                                if del_res.get('hasil', {}).get('status'):
+                                    affected = del_res.get('hasil', {}).get('affected', 0)
+                                    self.stdout.write(self.style.WARNING(
+                                        f"Membersihkan data existing AdX ({affected} baris) untuk range {start_date} s/d {end_date}."
+                                    ))
+                                else:
+                                    self.stdout.write(self.style.ERROR(
+                                        f"Gagal menghapus data existing AdX: {del_res.get('hasil', {}).get('data')}"
+                                    ))
+                            except Exception as e:
+                                self.stdout.write(self.style.ERROR(f"Error saat menghapus data existing AdX: {e}"))
                             ins = db.insert_data_adx_country(record)
                             if ins.get('hasil', {}).get('status'):
                                 total_insert += 1
+                                params_log_new = {
+                                    'account_id': record.get('account_id'),
+                                    'log_adx_country_tanggal': record.get('data_adx_country_tanggal'),
+                                    'log_adx_country_cd': record.get('data_adx_country_cd'),
+                                    'log_adx_country_nm': record.get('data_adx_country_nm'),
+                                    'log_adx_country_domain': record.get('data_adx_country_domain'),
+                                    'log_adx_country_impresi': record.get('data_adx_country_impresi'),
+                                    'log_adx_country_click': record.get('data_adx_country_click'),
+                                    'log_adx_country_ctr': record.get('data_adx_country_ctr'),
+                                    'log_adx_country_cpc': record.get('data_adx_country_cpc'),
+                                    'log_adx_country_cpm': record.get('data_adx_country_cpm'),
+                                    'log_adx_country_ecpm': record.get('data_adx_country_ecpm'),
+                                    'log_adx_country_total_requests': record.get('data_adx_country_total_requests'),
+                                    'log_adx_country_responses_served': record.get('data_adx_country_response_served'),
+                                    'log_adx_country_match_rate': record.get('data_adx_country_match_rate'),
+                                    'log_adx_country_fill_rate': record.get('data_adx_country_fill_rate'),
+                                    'log_adx_country_active_view_pct_viewable': record.get('data_adx_country_active_view_pct_viewable'),
+                                    'log_adx_country_active_view_avg_time_sec': record.get('data_adx_country_active_view_avg_time_sec'),
+                                    'log_adx_country_revenue': record.get('data_adx_country_revenue'),
+                                    'mdb': '0',
+                                    'mdb_name': 'Log Snapshot',
+                                    'mdd': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                                }
+                                try:
+                                    db.insert_log_adx_country_log(params_log_new)
+                                except Exception:
+                                    pass
                             else:
                                 total_error += 1
                                 self.stdout.write(self.style.ERROR(
@@ -195,6 +207,7 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.ERROR(
                         f"Gagal memproses kredensial {cred.get('user_mail','Unknown')}: {e}"
                     ))
+
         if total_insert:
             try:
                 self.stdout.write(self.style.WARNING(
@@ -207,6 +220,18 @@ class Command(BaseCommand):
                 )
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"Gagal sync ClickHouse data_adx_country: {e}"))
+
+            try:
+                self.stdout.write(self.style.WARNING(
+                    f"Sync ClickHouse: log_adx_country since={start_date} (delete lalu insert)"
+                ))
+                call_command(
+                    'sync_clickhouse',
+                    tables='log_adx_country',
+                    since=start_date,
+                )
+            except Exception as e:
+                self.stdout.write(self.style.ERROR(f"Gagal sync ClickHouse log_adx_country: {e}"))
 
         self.stdout.write(self.style.SUCCESS(
             f"Selesai. Berhasil insert: {total_insert}, gagal: {total_error}."

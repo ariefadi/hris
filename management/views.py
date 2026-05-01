@@ -1044,6 +1044,73 @@ class DashboardScoringDataView(View):
             if profit_guard_hold:
                 decision = "HOLD"
             return score, decision
+
+        def derive_campaign_action(status_tag, margin, risk, health, join_status=''):
+            tag = str(status_tag or '').strip().upper()
+            st = str(join_status or '').strip().upper()
+            m = safe_float(margin)
+            r = safe_float(risk)
+            h = safe_float(health)
+            if tag.startswith('RED_FLAG') or ('FRAUD' in tag) or (r >= 85) or (m <= -90):
+                return 'STOP'
+            if ('PAUSE' in tag) or ('PAUSE' in st) or ((r >= 75) and (m <= -60)) or ((h <= -30) and (m <= -45)):
+                return 'PAUSE'
+            if ('NEG' in tag) or ('DROP' in tag) or (m <= -25) or (h <= -12) or (r >= 65):
+                return 'SCALE DOWN'
+            if ('POSITIVE' in tag) or ('RECOVERY' in tag) or ('EXPANSION' in tag) or ((m >= 20) and (r < 55) and (h >= 0)):
+                return 'SCALE UP'
+            return 'HOLD'
+
+        def apply_campaign_consistency_guard(decision, country_details):
+            base = str(decision or '').strip().upper()
+            if base in ['', 'LEARNING', 'DATA_INCOMPLETE']:
+                return decision, {'campaign_total': 0, 'stop_ratio': 0.0, 'pause_ratio': 0.0, 'majority_action': 'HOLD'}
+            rows = country_details if isinstance(country_details, list) else []
+            agg = {}
+            for row in rows:
+                camp = str(row.get('meta_campaign') or '').strip().upper()
+                if not camp:
+                    continue
+                if camp not in agg:
+                    agg[camp] = {'m': 0.0, 'r': 0.0, 'h': 0.0, 'n': 0, 'tags': {}, 'join_status': ''}
+                rec = agg[camp]
+                rec['m'] += safe_float(row.get('decision_margin'))
+                rec['r'] += safe_float(row.get('ivt_risk_score'))
+                rec['h'] += safe_float(row.get('health_score'))
+                rec['n'] += 1
+                t = str(row.get('final_label') or '').strip().upper()
+                if t:
+                    rec['tags'][t] = int(rec['tags'].get(t, 0)) + 1
+                rec['join_status'] = str(row.get('join_status') or rec.get('join_status') or '').strip().upper()
+            if not agg:
+                return decision, {'campaign_total': 0, 'stop_ratio': 0.0, 'pause_ratio': 0.0, 'majority_action': 'HOLD'}
+            counts = {'STOP': 0, 'PAUSE': 0, 'SCALE DOWN': 0, 'HOLD': 0, 'SCALE UP': 0}
+            for _, rec in agg.items():
+                n = max(1, int(rec.get('n', 0)))
+                m = float(rec.get('m', 0.0)) / n
+                r = float(rec.get('r', 0.0)) / n
+                h = float(rec.get('h', 0.0)) / n
+                tags = rec.get('tags') or {}
+                dom_tag = max(tags.items(), key=lambda kv: kv[1])[0] if tags else ''
+                act = derive_campaign_action(dom_tag, m, r, h, rec.get('join_status', ''))
+                counts[act] = int(counts.get(act, 0)) + 1
+            total = max(1, sum(counts.values()))
+            stop_ratio = float(counts.get('STOP', 0) / total)
+            pause_ratio = float(counts.get('PAUSE', 0) / total)
+            majority_action = max(counts.items(), key=lambda kv: kv[1])[0]
+            final_decision = base
+            if stop_ratio >= 0.80:
+                final_decision = 'STOP'
+            elif (stop_ratio >= 0.50) and (base != 'STOP'):
+                final_decision = 'SCALE DOWN'
+            elif (stop_ratio >= 0.30) and (base == 'HOLD'):
+                final_decision = 'SCALE DOWN'
+            return final_decision, {
+                'campaign_total': int(total),
+                'stop_ratio': float(round(stop_ratio, 4)),
+                'pause_ratio': float(round(pause_ratio, 4)),
+                'majority_action': str(majority_action)
+            }
         try:
             if pd is None:
                 raise RuntimeError('pandas belum tersedia')
@@ -1053,6 +1120,8 @@ class DashboardScoringDataView(View):
             dim = str(payload.get('dim') or 'domain').strip().lower()
             raw_entities = payload.get('entities') or []
             include_events = bool(payload.get('include_events'))
+            include_source = bool(payload.get('include_source', True))
+            include_timeline = bool(payload.get('include_timeline', True))
             def normalize_site_entity(v):
                 s = str(v or '').strip().lower()
                 s = re.sub(r'^https?://', '', s)
@@ -1144,6 +1213,14 @@ class DashboardScoringDataView(View):
             entity_key_expr = "upper(country_code)" if is_country_dim else "lower(site)"
             status_filter_expr = f"(upper(country_code) IN ({literals}) OR upper(country_name) IN ({literals}))" if is_country_dim else f"lower(site) IN ({literals})"
             days_active_expr = "toInt32(days_active)" if 'days_active' in table_cols else "toInt32(0)"
+            forecast_horizon_expr = "toInt32(forecast_horizon_hours)" if 'forecast_horizon_hours' in table_cols else "toInt32(24)"
+            forecast_direction_expr = "toString(forecast_direction)" if 'forecast_direction' in table_cols else "'STABLE_OUTLOOK'"
+            forecast_conf_expr = "toFloat64(forecast_confidence)" if 'forecast_confidence' in table_cols else "toFloat64(0)"
+            forecast_reason_expr = "toString(forecast_reason)" if 'forecast_reason' in table_cols else "''"
+            reco_action_expr = "toString(recommended_action)" if 'recommended_action' in table_cols else "'HOLD'"
+            reco_pct_expr = "toFloat64(recommended_budget_change_pct)" if 'recommended_budget_change_pct' in table_cols else "toFloat64(0)"
+            reco_target_expr = "toFloat64(recommended_budget_target)" if 'recommended_budget_target' in table_cols else "toFloat64(0)"
+            reco_reason_expr = "toString(budget_reco_reason)" if 'budget_reco_reason' in table_cols else "''"
             sql = f"""
             SELECT
                 site,
@@ -1183,7 +1260,15 @@ class DashboardScoringDataView(View):
                 negative_signal_count,
                 neutral_signal_count,
                 reason_summary,
-                {days_active_expr} AS days_active
+                {days_active_expr} AS days_active,
+                {forecast_horizon_expr} AS forecast_horizon_hours,
+                {forecast_direction_expr} AS forecast_direction,
+                {forecast_conf_expr} AS forecast_confidence,
+                {forecast_reason_expr} AS forecast_reason,
+                {reco_action_expr} AS recommended_action,
+                {reco_pct_expr} AS recommended_budget_change_pct,
+                {reco_target_expr} AS recommended_budget_target,
+                {reco_reason_expr} AS budget_reco_reason
             FROM {status_table}
             WHERE toDate(date) = toDate('{target_date}')
               AND {status_filter_expr}
@@ -1267,6 +1352,7 @@ class DashboardScoringDataView(View):
                     adsense_estimated_earnings
                 FROM {source_table}
                 WHERE toDate(date) = toDate('{target_date}')
+                  AND {status_filter_expr}
             )
             GROUP BY
                 site,
@@ -1307,12 +1393,16 @@ class DashboardScoringDataView(View):
                     ev['run_hour'] = pd.to_numeric(ev['run_hour'], errors='coerce').fillna(0).astype(int)
                 return ev
             def load_source_df():
+                if not include_source:
+                    return pd.DataFrame()
                 try:
                     return query_df(source_sql)
                 except Exception as ex:
                     logger.warning('DashboardScoringDataView source query failed: %s', ex)
                     return pd.DataFrame()
             def load_timeline_df():
+                if not include_timeline:
+                    return pd.DataFrame()
                 try:
                     tdf = query_df(timeline_sql)
                 except Exception as ex:
@@ -1500,6 +1590,17 @@ class DashboardScoringDataView(View):
                     if den > 0:
                         return float((vals * w).sum() / den)
                 return float(vals.mean())
+            def dominant_text(frame, col, default=''):
+                try:
+                    if frame is None or frame.empty or col not in frame.columns:
+                        return default
+                    vals = frame[col].astype(str).str.strip()
+                    vals = vals[(vals != '') & (vals.str.lower() != 'nan')]
+                    if vals.empty:
+                        return default
+                    return str(vals.value_counts().index[0])
+                except Exception:
+                    return default
             for entity_key, part in df.groupby('entity_key', sort=False):
                 # Ensure signal_total is available in part for weighted averages
                 for c in ['positive_signal_count', 'negative_signal_count', 'neutral_signal_count']:
@@ -1509,9 +1610,9 @@ class DashboardScoringDataView(View):
                                        pd.to_numeric(part['negative_signal_count'], errors='coerce').fillna(0) + \
                                        pd.to_numeric(part['neutral_signal_count'], errors='coerce').fillna(0)
 
-                part_eval = filter_running_non_learning_campaign_rows(part)
-                if part_eval is None or part_eval.empty:
-                    part_eval = part
+                # Score domain selalu dihitung dari seluruh campaign (termasuk yang masih LEARNING)
+                # agar agregasi tidak bias ke campaign non-learning saja.
+                part_eval = part.copy()
 
                 snap = part_eval.copy()  
                 if 'country_code' in snap.columns and 'run_hour' in snap.columns:
@@ -1550,15 +1651,20 @@ class DashboardScoringDataView(View):
                         labels.extend([str(x).strip().upper() for x in snap[c].tolist() if str(x).strip()])
                 label = pd.Series(labels).value_counts().index[0] if labels else 'STABLE'
 
-                # Totals from the entire 7-day part
+                # Totals from evaluation frame + continuity guard from full frame
                 total_pos = int(pd.to_numeric(part_eval['positive_signal_count'], errors='coerce').fillna(0).sum()) if 'positive_signal_count' in part_eval.columns else 0
                 total_neg = int(pd.to_numeric(part_eval['negative_signal_count'], errors='coerce').fillna(0).sum()) if 'negative_signal_count' in part_eval.columns else 0
                 total_neu = int(pd.to_numeric(part_eval['neutral_signal_count'], errors='coerce').fillna(0).sum()) if 'neutral_signal_count' in part_eval.columns else 0
-                has_scoring = (total_pos + total_neg + total_neu) > 0 and conf >= 0.05
                 spend_total = float(pd.to_numeric(part_eval['spend'], errors='coerce').fillna(0).sum()) if 'spend' in part_eval.columns else 0.0
                 revenue_total = float(pd.to_numeric(part_eval['revenue_value'], errors='coerce').fillna(0).sum()) if 'revenue_value' in part_eval.columns else 0.0
                 roi_total = ((revenue_total - spend_total) / spend_total) if spend_total > 0 else 0.0
                 profit_strong = (revenue_total > spend_total) and (roi_total >= 0.30)
+                full_spend_total = float(pd.to_numeric(part['spend'], errors='coerce').fillna(0).sum()) if 'spend' in part.columns else spend_total
+                full_revenue_total = float(pd.to_numeric(part['revenue_value'], errors='coerce').fillna(0).sum()) if 'revenue_value' in part.columns else revenue_total
+                continuity_running = (full_spend_total > 0) or (full_revenue_total > 0)
+                has_signal = (total_pos + total_neg + total_neu) > 0
+                has_metric_surface = any([abs(safe_float(health)) > 0.0, abs(safe_float(risk)) > 0.0, abs(safe_float(adj)) > 0.0, abs(safe_float(dm)) > 0.0])
+                has_scoring = (has_signal and conf >= 0.05) or (continuity_running and has_metric_surface and conf >= 0.03)
                 traffic_now = avg(part_eval, 'traffic_score', weighted=True)
                 delivery_now = avg(part_eval, 'delivery_score', weighted=True)
                 yield_now = avg(part_eval, 'yield_score', weighted=True)
@@ -1568,7 +1674,7 @@ class DashboardScoringDataView(View):
                 days_hist = int(pd.to_datetime(days_series, errors='coerce').dropna().dt.date.nunique())
                 days_flag = int(pd.to_numeric(part_eval.get('days_active', pd.Series([], dtype=float)), errors='coerce').fillna(0).max()) if 'days_active' in part_eval.columns else 0
                 active_days_effective = max(days_hist, days_flag)
-                maturity_profile = campaign_maturity_profile(part_eval)
+                maturity_profile = campaign_maturity_profile(part)
                 mature_campaign_ratio = float(maturity_profile.get('mature_campaign_ratio', 0.0))
                 mature_spend_share = float(maturity_profile.get('mature_spend_share', 0.0))
                 mature_campaign_count = int(maturity_profile.get('mature_campaign_count', 0))
@@ -1581,16 +1687,18 @@ class DashboardScoringDataView(View):
                         source_mode = str(src_vals.value_counts().index[0])
                 score = None
                 decision = ""
-                learning_gate = (active_days_effective < 2) and (mature_campaign_count <= 0) and (mature_campaign_ratio < 0.60) and (mature_spend_share < 0.55)
+                continuity_mature = continuity_running and ((mature_campaign_count > 0) or (mature_campaign_ratio >= 0.35) or (mature_spend_share >= 0.35) or (full_revenue_total > full_spend_total and full_spend_total > 0))
+                learning_gate = (active_days_effective < 2) and (mature_campaign_count <= 0) and (mature_campaign_ratio < 0.60) and (mature_spend_share < 0.55) and (not continuity_mature)
                 if learning_gate:
                     label = "LEARNING"
                     decision = "LEARNING"
                 elif has_scoring:
-                    if label == "LEARNING" and (mature_campaign_count > 0 or mature_campaign_ratio >= 0.60 or mature_spend_share >= 0.55):
+                    if label == "LEARNING" and (mature_campaign_count > 0 or mature_campaign_ratio >= 0.35 or mature_spend_share >= 0.35 or continuity_mature):
                         label = "STABLE"
                     score, decision = derive_score_decision(health, risk, adj, conf, dm, label, profit_strong, anomaly_cards, roi_total, source_mode)
                 else:
-                    label = "DATA_INCOMPLETE"
+                    label = "STABLE" if continuity_mature else "DATA_INCOMPLETE"
+                    decision = "HOLD" if continuity_mature else decision
                 reason_parts = [str(x).strip() for x in snap.get('reason_summary', pd.Series([], dtype=str)).tolist() if str(x).strip()]
                 reason_summary = ' | '.join(list(dict.fromkeys(reason_parts))[:3])
 
@@ -1660,27 +1768,31 @@ class DashboardScoringDataView(View):
                         pos_h = int(pd.to_numeric(snap_h['positive_signal_count'], errors='coerce').fillna(0).sum()) if 'positive_signal_count' in snap_h.columns else 0
                         neg_h = int(pd.to_numeric(snap_h['negative_signal_count'], errors='coerce').fillna(0).sum()) if 'negative_signal_count' in snap_h.columns else 0
                         neu_h = int(pd.to_numeric(snap_h['neutral_signal_count'], errors='coerce').fillna(0).sum()) if 'neutral_signal_count' in snap_h.columns else 0
-                        has_scoring_h = (pos_h + neg_h + neu_h) > 0 and c01 >= 0.05
                         spend_h = float(pd.to_numeric(snap_h['spend'], errors='coerce').fillna(0).sum()) if 'spend' in snap_h.columns else 0.0
                         revenue_h = float(pd.to_numeric(snap_h['revenue_value'], errors='coerce').fillna(0).sum()) if 'revenue_value' in snap_h.columns else 0.0
                         roi_h = ((revenue_h - spend_h) / spend_h) if spend_h > 0 else 0.0
                         profit_strong_h = (revenue_h > spend_h) and (roi_h >= 0.30)
+                        continuity_running_h = (spend_h > 0) or (revenue_h > 0)
+                        has_signal_h = (pos_h + neg_h + neu_h) > 0
+                        has_metric_surface_h = any([abs(safe_float(h)) > 0.0, abs(safe_float(r)) > 0.0, abs(safe_float(a)) > 0.0, abs(safe_float(m)) > 0.0])
+                        has_scoring_h = (has_signal_h and c01 >= 0.05) or (continuity_running_h and has_metric_surface_h and c01 >= 0.03)
                         days_series_h = snap_h['scoring_date'] if 'scoring_date' in snap_h.columns else (snap_h['date'] if 'date' in snap_h.columns else pd.Series([], dtype=object))
                         days_hist_h = int(pd.to_datetime(days_series_h, errors='coerce').dropna().dt.date.nunique())
                         days_flag_h = int(pd.to_numeric(snap_h.get('days_active', pd.Series([], dtype=float)), errors='coerce').fillna(0).max()) if 'days_active' in snap_h.columns else 0
                         active_days_effective_h = max(days_hist_h, days_flag_h)
-                        maturity_profile_h = campaign_maturity_profile(snap_h)
+                        maturity_profile_h = campaign_maturity_profile(part)
                         mature_campaign_ratio_h = float(maturity_profile_h.get('mature_campaign_ratio', 0.0))
                         mature_spend_share_h = float(maturity_profile_h.get('mature_spend_share', 0.0))
                         mature_campaign_count_h = int(maturity_profile_h.get('mature_campaign_count', 0))
                         sc = None
                         dec = ''
-                        learning_gate_h = (active_days_effective_h < 2) and (mature_campaign_count_h <= 0) and (mature_campaign_ratio_h < 0.60) and (mature_spend_share_h < 0.55)
+                        continuity_mature_h = continuity_running_h and ((mature_campaign_count_h > 0) or (mature_campaign_ratio_h >= 0.35) or (mature_spend_share_h >= 0.35) or (revenue_h > spend_h and spend_h > 0))
+                        learning_gate_h = (active_days_effective_h < 2) and (mature_campaign_count_h <= 0) and (mature_campaign_ratio_h < 0.60) and (mature_spend_share_h < 0.55) and (not continuity_mature_h)
                         if learning_gate_h:
                             lbl = 'LEARNING'
                             dec = 'LEARNING'
                         elif has_scoring_h:
-                            if lbl == 'LEARNING' and (mature_campaign_count_h > 0 or mature_campaign_ratio_h >= 0.60 or mature_spend_share_h >= 0.55):
+                            if lbl == 'LEARNING' and (mature_campaign_count_h > 0 or mature_campaign_ratio_h >= 0.35 or mature_spend_share_h >= 0.35 or continuity_mature_h):
                                 lbl = 'STABLE'
                             traffic_h = avg(snap_h, 'traffic_score', weighted=True)
                             delivery_h = avg(snap_h, 'delivery_score', weighted=True)
@@ -1695,7 +1807,8 @@ class DashboardScoringDataView(View):
                                     source_mode_h = str(src_vals_h.value_counts().index[0])
                             sc, dec = derive_score_decision(h, r, a, c01, m, lbl, profit_strong_h, anomaly_cards_h, roi_h, source_mode_h)
                         else:
-                            lbl = 'DATA_INCOMPLETE'
+                            lbl = 'STABLE' if continuity_mature_h else 'DATA_INCOMPLETE'
+                            dec = 'HOLD' if continuity_mature_h else dec
 
                         reason_h_parts = [str(x).strip() for x in snap_h.get('reason_summary', pd.Series([], dtype=str)).tolist() if str(x).strip()]
                         reason_h_summary = ' | '.join(list(dict.fromkeys(reason_h_parts))[:3])
@@ -1718,13 +1831,14 @@ class DashboardScoringDataView(View):
                                 'neutral_signals': int(safe_float(crow.get('neutral_signal_count'))),
                             })
 
+                        dec_final_h, campaign_guard_h = apply_campaign_consistency_guard(dec, country_h)
                         scoring_timeline.append({
                             'run_hour': str(rh),
                             'run_hour_label': _fmt_run_hour_label(rh),
                             'run_time': '',
                             'snapshot_time': '',
                             'score': sc,
-                            'decision': dec,
+                            'decision': dec_final_h,
                             'label': lbl,
                             'health_score': h,
                             'ivt_risk_score': r,
@@ -1738,6 +1852,16 @@ class DashboardScoringDataView(View):
                             'neutral_signal_count': neu_h,
                             'country_details': country_h,
                             'days_active': int(active_days_effective_h),
+                            'forecast_horizon_hours': int(safe_float(avg(snap_h, 'forecast_horizon_hours', weighted=False)) or 24),
+                            'forecast_direction': dominant_text(snap_h, 'forecast_direction', 'STABLE_OUTLOOK'),
+                            'forecast_confidence': float(round(avg(snap_h, 'forecast_confidence', weighted=True), 4)),
+                            'forecast_reason': dominant_text(snap_h, 'forecast_reason', ''),
+                            'recommended_action': dominant_text(snap_h, 'recommended_action', 'HOLD'),
+                            'recommended_budget_change_pct': float(round(avg(snap_h, 'recommended_budget_change_pct', weighted=True), 2)),
+                            'recommended_budget_target': float(round(spend_h * (1.0 + (avg(snap_h, 'recommended_budget_change_pct', weighted=True) / 100.0)), 2)) if spend_h > 0 else 0.0,
+                            'budget_reco_reason': dominant_text(snap_h, 'budget_reco_reason', ''),
+                            'campaign_stop_ratio': float(campaign_guard_h.get('stop_ratio', 0.0)),
+                            'campaign_majority_action': str(campaign_guard_h.get('majority_action', 'HOLD')),
                         })
 
                 latest_run_time = snap['run_time'].dropna().max() if 'run_time' in snap.columns else None
@@ -1837,7 +1961,6 @@ class DashboardScoringDataView(View):
                         src['adsense_estimated_earnings'] = agg_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
                         if not str(src.get('mapped_revenue_source') or '').strip():
                             src['mapped_revenue_source'] = agg_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
-                    meta_spend_v = safe_float(src.get('meta_spend'))
                     def nullable_float(v):
                         if v is None:
                             return None
@@ -1863,6 +1986,13 @@ class DashboardScoringDataView(View):
                             return float(v)
                         except Exception:
                             return None
+
+                    meta_spend_opt = nullable_float(src.get('meta_spend'))
+                    if meta_spend_opt is None:
+                        meta_spend_opt = nullable_float(row.get('meta_spend'))
+                    if meta_spend_opt is None:
+                        meta_spend_opt = nullable_float(row.get('spend'))
+                    meta_spend_v = safe_float(meta_spend_opt)
 
                     adx_revenue_opt = nullable_float(src.get('adx_revenue'))
                     if adx_revenue_opt is None:
@@ -1910,9 +2040,10 @@ class DashboardScoringDataView(View):
                         'negative_signals': int(safe_float(row.get('negative_signal_count'))),
                         'neutral_signals': int(safe_float(row.get('neutral_signal_count'))),
                     })
+                decision_final, campaign_guard = apply_campaign_consistency_guard(decision, country_details)
                 out[entity_key] = {
                     'score': score,
-                    'decision': decision,
+                    'decision': decision_final,
                     'label': label,
                     'reasons': [x for x in [reason_summary, dominant_event_label, label] if x],
                     'breakdown': {'meta': {
@@ -1935,6 +2066,18 @@ class DashboardScoringDataView(View):
                         'mature_campaign_count': int(mature_campaign_count),
                         'mature_campaign_ratio': float(round(mature_campaign_ratio, 4)),
                         'mature_spend_share': float(round(mature_spend_share, 4)),
+                        'campaign_total': int(campaign_guard.get('campaign_total', 0)),
+                        'campaign_stop_ratio': float(campaign_guard.get('stop_ratio', 0.0)),
+                        'campaign_pause_ratio': float(campaign_guard.get('pause_ratio', 0.0)),
+                        'campaign_majority_action': str(campaign_guard.get('majority_action', 'HOLD')),
+                        'forecast_horizon_hours': int(safe_float(avg(snap, 'forecast_horizon_hours', weighted=False)) or 24),
+                        'forecast_direction': dominant_text(snap, 'forecast_direction', 'STABLE_OUTLOOK'),
+                        'forecast_confidence': float(round(avg(snap, 'forecast_confidence', weighted=True), 4)),
+                        'forecast_reason': dominant_text(snap, 'forecast_reason', ''),
+                        'recommended_action': dominant_text(snap, 'recommended_action', 'HOLD'),
+                        'recommended_budget_change_pct': float(round(avg(snap, 'recommended_budget_change_pct', weighted=True), 2)),
+                        'recommended_budget_target': float(round(spend_total * (1.0 + (avg(snap, 'recommended_budget_change_pct', weighted=True) / 100.0)), 2)) if spend_total > 0 else 0.0,
+                        'budget_reco_reason': dominant_text(snap, 'budget_reco_reason', ''),
                         'anomaly_cards': anomaly_cards,
                         'traffic_score': avg(snap, 'traffic_score', weighted=True),
                         'delivery_score': avg(snap, 'delivery_score', weighted=True),
@@ -2366,7 +2509,10 @@ class DashboardCreateScoringView(View):
                 'status': False,
                 'message': 'Unauthorized'
             }, status=401)
-        return super().dispatch(request, *args, **kwargs)
+        return JsonResponse({
+            'status': False,
+            'message': 'Dashboard create scoring dinonaktifkan. Gunakan cron terjadwal.'
+        }, status=403)
 
     def post(self, req):
         try:
@@ -2408,6 +2554,15 @@ class DashboardCreateScoringView(View):
                         'message': 'run_hour harus integer'
                     }, status=400)
 
+            allowed_scoring_hours = {3, 6, 9, 12, 15, 18, 21, 23}
+            if run_hour is None:
+                run_hour = int(datetime.now().hour)
+            if run_hour not in allowed_scoring_hours:
+                return JsonResponse({
+                    'status': False,
+                    'message': 'Scoring manual hanya diizinkan pada jam 03,06,09,12,15,18,21,23 (WIB).'
+                }, status=400)
+
             comparison_dates = {
                 'h1': (target_dt - timedelta(days=1)).isoformat(),
                 'h3': (target_dt - timedelta(days=3)).isoformat(),
@@ -2423,6 +2578,7 @@ class DashboardCreateScoringView(View):
                 domain = domain,
                 compatibility_mode=False,
                 write_results=True,
+                run_hour=run_hour,
             )
             return JsonResponse({
                 'status': True,
@@ -2455,7 +2611,10 @@ class DashboardSyncView(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
             return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
-        return super().dispatch(request, *args, **kwargs)
+        return JsonResponse({
+            'status': False,
+            'message': 'Dashboard sync/scoring manual dinonaktifkan. Gunakan cron terjadwal.'
+        }, status=403)
 
     def post(self, req):
         try:
@@ -2556,20 +2715,27 @@ class DashboardSyncView(View):
                         scoring_step['skipped'] = True
                         scoring_step['warning'] = 'Scoring dilewati karena masih ada job sinkronisasi yang gagal.'
                     else:
-                        target_date = datetime.strptime(tanggal, '%Y-%m-%d').date()
-                        score_site_country = _get_scoring_concept_module().score_site_country
-                        scoring_result = score_site_country(
-                            target_date=target_date,
-                            domain_data=domain_data,
-                            compatibility_mode=False,
-                            write_results=True
-                        )
-                        scoring_step['status'] = bool(scoring_result.get('ok'))
-                        scoring_step['rows_written'] = int(scoring_result.get('rows_written') or 0)
-                        scoring_step['event_rows_written'] = int(scoring_result.get('event_rows_written') or 0)
-                        if scoring_result.get('warning'):
-                            scoring_step['warning'] = str(scoring_result.get('warning'))
-                        scoring_step['result'] = scoring_result
+                        allowed_scoring_hours = {3, 6, 9, 12, 15, 18, 21, 23}
+                        run_hour_now = int(datetime.now().hour)
+                        if run_hour_now not in allowed_scoring_hours:
+                            scoring_step['status'] = True
+                            scoring_step['skipped'] = True
+                            scoring_step['warning'] = 'Scoring dashboard dilewati karena di luar jam cron resmi (03,06,09,12,15,18,21,23 WIB).'
+                        else:
+                            target_date = datetime.strptime(tanggal, '%Y-%m-%d').date()
+                            score_site_country = _get_scoring_concept_module().score_site_country
+                            scoring_result = score_site_country(
+                                target_date=target_date,
+                                compatibility_mode=False,
+                                write_results=True,
+                                run_hour=run_hour_now,
+                            )
+                            scoring_step['status'] = bool(scoring_result.get('ok'))
+                            scoring_step['rows_written'] = int(scoring_result.get('rows_written') or 0)
+                            scoring_step['event_rows_written'] = int(scoring_result.get('event_rows_written') or 0)
+                            if scoring_result.get('warning'):
+                                scoring_step['warning'] = str(scoring_result.get('warning'))
+                            scoring_step['result'] = scoring_result
                 except Exception as e:
                     scoring_step['status'] = False
                     scoring_step['error'] = str(e)
@@ -2676,70 +2842,23 @@ class DashboardData(View):
     
     def get(self, req):
         try:
-            # Ambil data user
-            user_data = data_mysql().data_user_by_params()
-            total_users = len(user_data['data']) if user_data['status'] else 0
-            # Ambil data login user
-            login_data = data_mysql().data_login_user()
-            login_users = login_data['data'] if login_data['status'] else []
-            # Hitung statistik login 7 hari terakhir
-            today = datetime.now()
-            seven_days_ago = today - timedelta(days=7)
-            # Filter login 7 hari terakhir
-            recent_logins = []
-            daily_login_stats = {}
-            for login in login_users:
-                # Handle both string and datetime objects
-                if isinstance(login['login_date'], str):
-                    login_date = datetime.strptime(login['login_date'], '%Y-%m-%d %H:%M:%S')
-                else:
-                    login_date = login['login_date']
-                if login_date >= seven_days_ago:
-                    recent_logins.append(login)
-                    date_key = login_date.strftime('%Y-%m-%d')
-                    if date_key not in daily_login_stats:
-                        daily_login_stats[date_key] = {'count': 0, 'unique_users': set()}
-                    daily_login_stats[date_key]['count'] += 1
-                    daily_login_stats[date_key]['unique_users'].add(login['user_id'])
-            
-            # Konversi set ke count untuk JSON serialization
-            for date_key in daily_login_stats:
-                daily_login_stats[date_key]['unique_users'] = len(daily_login_stats[date_key]['unique_users'])
-            
-            # Hitung user aktif (login dalam 7 hari terakhir)
-            active_users = len(set([login['user_id'] for login in recent_logins]))
-            
-            # Siapkan data untuk chart
-            chart_labels = []
-            chart_login_counts = []
-            chart_unique_users = []
-            
-            for i in range(7):
-                date = (today - timedelta(days=6-i)).strftime('%Y-%m-%d')
-                chart_labels.append((today - timedelta(days=6-i)).strftime('%d/%m'))
-                
-                if date in daily_login_stats:
-                    chart_login_counts.append(daily_login_stats[date]['count'])
-                    chart_unique_users.append(daily_login_stats[date]['unique_users'])
-                else:
-                    chart_login_counts.append(0)
-                    chart_unique_users.append(0)
-            
+            # Statistik user/login tidak dipakai lagi di dashboard utama.
+            # Tetap kirim struktur default agar frontend lama tetap aman.
             dashboard_data = {
                 'user_stats': {
-                    'total_users': total_users,
-                    'active_users': active_users,
-                    'total_logins_7days': len(recent_logins),
-                    'activity_rate': round((active_users / total_users * 100) if total_users > 0 else 0, 1)
+                    'total_users': 0,
+                    'active_users': 0,
+                    'total_logins_7days': 0,
+                    'activity_rate': 0
                 },
                 'charts': {
                     'login_activity': {
-                        'labels': chart_labels,
-                        'login_counts': chart_login_counts,
-                        'unique_users': chart_unique_users
+                        'labels': [],
+                        'login_counts': [],
+                        'unique_users': []
                     }
                 },
-                'recent_logins': recent_logins[:10]  # 10 login terakhir
+                'recent_logins': []
             }
             # Tambah statistik akun Ads & AdX + daftar akun AdX untuk filter
             try:
@@ -2784,8 +2903,7 @@ class DashboardData(View):
 
             try:
                 end_dt = datetime.now().date()
-                start_dt = end_dt - timedelta(days=6)
-                start_date_7 = start_dt.strftime('%Y-%m-%d')
+                start_date_7 = (end_dt - timedelta(days=6)).strftime('%Y-%m-%d')
                 end_date_7 = end_dt.strftime('%Y-%m-%d')
 
                 rs_adx = data_mysql().get_all_adx_traffic_account_by_params(start_date_7, end_date_7, None, None)
@@ -7754,6 +7872,27 @@ class DashboardDomainHourlyHeatmapView(View):
         try:
             tanggal = req.GET.get('tanggal', '')
             source = (req.GET.get('source') or 'adx').strip().lower()
+            domains_raw = (req.GET.get('domains') or req.GET.get('selected_domains') or req.GET.get('domain') or '').strip()
+            selected_domains = [str(x).strip().lower() for x in domains_raw.split(',') if str(x).strip()]
+            selected_domain_set = set(selected_domains)
+
+            def _norm_site(v):
+                s = str(v or '').strip().lower()
+                s = re.sub(r'^https?://', '', s)
+                s = s.split('/')[0].split('?')[0].split('#')[0]
+                s = re.sub(r'^www\.', '', s)
+                return s
+
+            def _site_match(site_value):
+                if not selected_domain_set:
+                    return True
+                site = _norm_site(site_value)
+                if not site:
+                    return False
+                for d in selected_domain_set:
+                    if site == d or site.endswith('.' + d) or d in site:
+                        return True
+                return False
             # --- 1. Parse tanggal aman
             def parse_date(d):
                 try:
@@ -7785,6 +7924,10 @@ class DashboardDomainHourlyHeatmapView(View):
                 adx_rows = (adx_resp.get('data') if isinstance(adx_resp, dict) else []) or []
                 if not isinstance(adx_rows, list):
                     adx_rows = []
+
+            if selected_domain_set:
+                adx_rows = [r for r in (adx_rows or []) if _site_match((r or {}).get('log_adx_country_domain', ''))]
+                adsense_rows = [r for r in (adsense_rows or []) if _site_match((r or {}).get('log_adsense_country_domain', ''))]
 
             unique_name_site = []
             extracted_sites = set[Any]()

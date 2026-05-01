@@ -117,17 +117,37 @@ def apply_direction(value, direction="higher_better"):
 # STRING NORMALIZATION
 # ---------------------------
 
+def _coerce_text(value):
+    if value is None:
+        return ""
+    if isinstance(value, (bytes, bytearray)):
+        try:
+            s = value.decode("utf-8", errors="ignore")
+        except Exception:
+            s = str(value)
+    else:
+        s = str(value)
+    s = s.strip()
+    m = re.match(r"^[bB][\"\'](.*)[\"\']$", s)
+    if m:
+        s = m.group(1).strip()
+    return s
+
+
 def normalize_country_cd(code):
-    if not code:
+    cc = _coerce_text(code).upper()
+    if not cc:
         return "UNKNOWN"
-    return str(code).strip().upper()
+    if cc == "TU":
+        cc = "TR"
+    return cc
 
 
 def normalize_country_nm(name, code):
     if code:
-        return str(code).strip().lower()
+        return _coerce_text(code).lower()
     if name:
-        return str(name).strip().lower()
+        return _coerce_text(name).lower()
     return "unknown"
 
 
