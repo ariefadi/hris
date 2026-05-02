@@ -60,6 +60,7 @@ class Command(BaseCommand):
                 ])
                 campaign_map = {
                     c['id']: {
+                        'id': c['id'],
                         'name': c.get('name'),
                         'status': c.get('status'),
                         'daily_budget': float(c.get('daily_budget') or 0)
@@ -96,6 +97,7 @@ class Command(BaseCommand):
                         continue
                     key = (campaign_id, tanggal_row)
                     agg = campaign_aggregates.setdefault(key, {
+                        'id': '',
                         'campaign_name': '',
                         'spend': 0.0,
                         'reach': 0,
@@ -108,6 +110,7 @@ class Command(BaseCommand):
                         'tanggal': tanggal_row,
                         'status': config.get('status'),
                     })
+                    agg['campaign_id'] = campaign_id
                     agg['campaign_name'] = item.get('campaign_name')
                     agg['spend'] += float(item.get('spend', 0) or 0)
                     agg['reach'] += int(item.get('reach', 0) or 0)
@@ -158,6 +161,7 @@ class Command(BaseCommand):
                     record = {
                         'account_ads_id': account_data['account_id'],
                         'data_ads_domain': (agg['campaign_name'] or '').split('_')[0],
+                        'data_ads_campaign_id': agg['campaign_id'] or '',
                         'data_ads_campaign_nm': agg['campaign_name'] or '',
                         'data_ads_tanggal': agg['tanggal'],
                         'data_ads_spend': round(spend, 2),
@@ -175,7 +179,7 @@ class Command(BaseCommand):
                     }
                     # Hapus data existing pada rentang tanggal agar ditimpa data baru
                     try:
-                        del_res = data_mysql().delete_data_ads_campaign_by_date_account(account_data['account_id'], (agg['campaign_name'] or '').split('_')[0], agg['campaign_name'], agg['tanggal'])
+                        del_res = data_mysql().delete_data_ads_campaign_by_date_account(account_data['account_id'], agg['campaign_id'], (agg['campaign_name'] or '').split('_')[0], agg['campaign_name'], agg['tanggal'])
                         if del_res.get('hasil', {}).get('status'):
                             affected = del_res.get('hasil', {}).get('affected', 0)
                             self.stdout.write(self.style.WARNING(

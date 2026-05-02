@@ -46,6 +46,9 @@ urlpatterns = [
     path('admin/page_per_account_facebook', views.page_per_account_facebook.as_view()),
     path('admin/update_daily_budget_per_campaign', views.update_daily_budget_per_campaign.as_view()),
     path('admin/update_switch_campaign', views.update_switch_campaign.as_view()),
+    path('admin/create_campaign_per_account', views.create_campaign_per_account.as_view()),
+    path('admin/create_campaign_fullstack_per_account', views.create_campaign_fullstack_per_account.as_view()),
+    path('admin/create_adset_ad_per_account', views.create_adset_ad_per_account.as_view()),
     path('admin/facebook_ads/bulk_update_campaign_status/', views.bulk_update_campaign_status.as_view()),
     # Menu Per Campaign Facebook Ads
     path('admin/per_campaign_facebook', views.PerCampaignFacebookAds.as_view(), name='per_campaign_facebook'),

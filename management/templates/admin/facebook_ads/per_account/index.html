@@ -78,17 +78,47 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 {% endblock %}
 {% block content %}  
 <style>
-  .dt-buttons {
-      margin-bottom: 20px;
-  }
+  .dt-buttons { margin-bottom: 20px; }
+  .meta-modal .modal-dialog{max-width:1560px;margin:12px auto}
+  .meta-modal .modal-content{border:0;border-radius:14px;overflow:hidden}
+  .meta-modal .modal-header{background:#0f172a;color:#fff;border-bottom:0;padding:12px 16px}
+  .meta-builder{display:grid;grid-template-columns:270px 1fr 330px;gap:12px;min-height:640px}
+  .meta-left{background:#0f172a;color:#cbd5e1;padding:14px;border-radius:10px}
+  .meta-center{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px}
+  .meta-right{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px}
+  .meta-step-chip{display:block;width:100%;padding:10px 12px;border-radius:10px;background:#1e293b;color:#cbd5e1;font-weight:700;font-size:13px;margin-bottom:8px;border:1px solid transparent}
+  .meta-step-chip.active{background:#eff6ff;color:#0f172a;border-color:#93c5fd}
+  .meta-pane{display:none}.meta-pane.active{display:block}
+  .meta-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:10px}
+  .meta-card h6{font-weight:800;margin-bottom:10px}
+  .meta-card .form-row{row-gap:10px}
+  .meta-card label{font-size:12px;font-weight:700;margin-bottom:4px}
+  .meta-card .form-control{height:38px}
+  .meta-card textarea.form-control{height:auto;min-height:80px}
+  .meta-modal .select2-container{width:100% !important}
+  .meta-modal .select2-container .select2-selection--single{height:38px !important;border:1px solid #ced4da;border-radius:6px}
+  .meta-modal .select2-container .select2-selection__rendered{line-height:36px !important;padding-left:12px}
+  .meta-modal .select2-container .select2-selection__arrow{height:36px !important}
+  .meta-actions{display:flex;justify-content:space-between;align-items:center;width:100%}
+  .meta-result{display:block;margin-top:8px}
+  .meta-guide{background:#ecfeff;border:1px solid #a5f3fc;color:#0f172a;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:10px}
+  .meta-progress{height:8px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:6px}
+  .meta-progress > span{display:block;height:100%;background:#22c55e;width:0%}
+  html[data-theme="dark"] .meta-center,html[data-theme="dark"] .meta-right{background:#111827;border-color:#374151}
+  html[data-theme="dark"] .meta-card{background:#1f2937;border-color:#374151;color:#e5e7eb}
 </style>
 <div class="card">
     <div class="card-header">
         <div class="d-flex align-items-center justify-content-between w-100">
             <h3 class="card-title mb-0">Data Traffic Per Account</h3>
-            <button type="button" class="btn btn-sm hris-tour-launch-btn" id="btnFacebookPerAccountTour">
-                <i class="far fa-question-circle" aria-hidden="true"></i> User Manual
-            </button>
+            <div class="d-flex align-items-center" style="gap:8px;">
+                <button type="button" class="btn btn-sm btn-primary" id="btnOpenCreateCampaignModal">
+                    <i class="fas fa-bullhorn"></i> Create Campaign
+                </button>
+                <button type="button" class="btn btn-sm hris-tour-launch-btn" id="btnFacebookPerAccountTour">
+                    <i class="far fa-question-circle" aria-hidden="true"></i> User Manual
+                </button>
+            </div>
         </div>
     </div> <!-- /.card-header -->
     <div class="card-body">
@@ -120,6 +150,141 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     <i class="fas fa-search"></i> Muat Data
                 </button>
             </div>
+        </div>
+
+        <hr>
+        <div class="form-row" id="facebookCreateCampaignForm" data-title="Create Campaign" data-intro="Buat campaign baru langsung ke Meta Ads berdasarkan account yang dipilih." style="display:none;">
+            <div class="col-md-3">
+                <label>Account Tujuan</label>
+                <select class="form-control select2" id="create_campaign_account">
+                    <option value=""></option>
+                    {% for data_account in data_account %}
+                    <option value="{{data_account.account_id}}">{{data_account.account_name}}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label>Nama Campaign</label>
+                <input type="text" class="form-control" id="create_campaign_name" placeholder="contoh: MYDOMAIN_26NEGARA_STABLE" />
+            </div>
+            <div class="col-md-2">
+                <label>Objective</label>
+                <select class="form-control" id="create_campaign_objective">
+                    <option value="OUTCOME_TRAFFIC">OUTCOME_TRAFFIC</option>
+                    <option value="OUTCOME_LEADS">OUTCOME_LEADS</option>
+                    <option value="OUTCOME_SALES">OUTCOME_SALES</option>
+                    <option value="OUTCOME_ENGAGEMENT">OUTCOME_ENGAGEMENT</option>
+                    <option value="OUTCOME_AWARENESS">OUTCOME_AWARENESS</option>
+                    <option value="OUTCOME_APP_PROMOTION">OUTCOME_APP_PROMOTION</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label>Status Awal</label>
+                <select class="form-control" id="create_campaign_status">
+                    <option value="PAUSED">PAUSED</option>
+                    <option value="ACTIVE">ACTIVE</option>
+                </select>
+            </div>
+            <div class="col-md-1">
+                <label>&nbsp;</label>
+                <button type="button" class="btn btn-success form-control" id="btn_create_campaign">
+                    <i class="fas fa-plus"></i> Buat
+                </button>
+            </div>
+            <div class="col-md-2 mt-2">
+                <label>Daily Budget</label>
+                <input type="number" class="form-control" id="create_adset_daily_budget" value="50000" min="1000" />
+            </div>
+            <div class="col-md-2 mt-2">
+                <label>Negara (CSV)</label>
+                <input type="text" class="form-control" id="create_adset_countries" value="ID" placeholder="ID,MY" />
+            </div>
+            <div class="col-md-1 mt-2">
+                <label>Age Min</label>
+                <input type="number" class="form-control" id="create_adset_age_min" value="18" min="13" max="65" />
+            </div>
+            <div class="col-md-1 mt-2">
+                <label>Age Max</label>
+                <input type="number" class="form-control" id="create_adset_age_max" value="65" min="13" max="65" />
+            </div>
+            <div class="col-md-2 mt-2">
+                <label>Page ID</label>
+                <input type="text" class="form-control" id="create_ad_page_id" placeholder="contoh: 123456789" />
+            </div>
+            <div class="col-md-4 mt-2">
+                <label>Website URL</label>
+                <input type="text" class="form-control" id="create_ad_website_url" placeholder="https://domain.com/landing" />
+            </div>
+            <div class="col-md-4 mt-2">
+                <label>Primary Text</label>
+                <input type="text" class="form-control" id="create_ad_primary_text" placeholder="Teks iklan" />
+            </div>
+            <div class="col-md-3 mt-2">
+                <label>Headline</label>
+                <input type="text" class="form-control" id="create_ad_headline" placeholder="Headline iklan" />
+            </div>
+            <div class="col-md-2 mt-2">
+                <label>CTA</label>
+                <select class="form-control" id="create_ad_cta_type">
+                    <option value="LEARN_MORE">LEARN_MORE</option>
+                    <option value="SHOP_NOW">SHOP_NOW</option>
+                    <option value="SIGN_UP">SIGN_UP</option>
+                    <option value="CONTACT_US">CONTACT_US</option>
+                </select>
+            </div>
+            <div class="col-md-2 mt-2">
+                <label>Pixel ID (opsional)</label>
+                <input type="text" class="form-control" id="create_ad_pixel_id" placeholder="opsional" />
+            </div>
+            <div class="col-md-1 mt-2">
+                <label>&nbsp;</label>
+                <button type="button" class="btn btn-warning form-control" id="btn_create_campaign_full">
+                    <i class="fas fa-layer-group"></i> Full
+                </button>
+            </div>
+            <div class="col-md-12 mt-2">
+                <small id="create_campaign_result" class="text-muted"></small>
+            </div>
+        </div>
+
+        <div class="modal fade meta-modal" id="modalCreateMetaCampaign" tabindex="-1" role="dialog" aria-hidden="true">
+          <div class="modal-dialog" role="document"><div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title mb-0"><i class="fas fa-bullhorn"></i> Ads Builder</h5><button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button></div>
+            <div class="modal-body">
+              <div class="meta-builder">
+                <div class="meta-left">
+                  <div class="meta-step-chip active" id="chip1">1. Campaign</div>
+                  <div class="meta-step-chip" id="chip2">2. Ad Set</div>
+                  <div class="meta-step-chip" id="chip3">3. Ad</div>
+                </div>
+                <div class="meta-center">
+                  <div class="meta-guide" id="metaStepGuide">Lengkapi field wajib di step ini lalu klik tombol aksi.</div>
+                  <div id="pane1" class="meta-pane active">
+                    <div class="meta-card"><h6>Campaign Setup</h6><div class="form-row"><div class="col-md-4"><label>Nama Campaign</label><input id="modal_campaign_name" class="form-control" type="text" placeholder="contoh: AFFILIATE_ID_TRAFFIC"></div><div class="col-md-4"><label>Account</label><select class="form-control select2" id="modal_account"><option value=""></option>{% for data_account in data_account %}<option value="{{data_account.account_id}}">{{data_account.account_name}}</option>{% endfor %}</select></div><div class="col-md-2"><label>Objective</label><select id="modal_objective" class="form-control"><option value="OUTCOME_TRAFFIC">Traffic</option><option value="OUTCOME_LEADS">Leads</option><option value="OUTCOME_SALES">Sales</option><option value="OUTCOME_AWARENESS">Awareness</option></select></div><div class="col-md-2"><label>Status</label><select id="modal_status" class="form-control"><option value="PAUSED">Draft</option><option value="ACTIVE">Active</option></select></div></div></div>
+                    <div class="meta-card"><h6>Detail Campaign</h6><div class="form-row"><div class="col-md-3"><label>Jenis Pembelian</label><select id="modal_campaign_buying_type" class="form-control"><option value="AUCTION">Auction</option></select></div><div class="col-md-3"><label>Kategori Iklan Khusus</label><select id="modal_campaign_special_category" class="form-control"><option value="NONE">None</option><option value="HOUSING">Housing</option><option value="EMPLOYMENT">Employment</option><option value="CREDIT">Credit</option><option value="ISSUES_ELECTIONS_POLITICS">Issues/Elections/Politics</option></select></div><div class="col-md-3"><label>Tipe Budget Campaign</label><select id="modal_campaign_budget_type" class="form-control"><option value="none">Tanpa CBO</option><option value="daily">Daily Budget</option><option value="lifetime">Lifetime Budget</option></select></div><div class="col-md-3"><label>Campaign Spend Cap</label><input id="modal_campaign_spend_cap" class="form-control" type="number" min="0" placeholder="opsional"></div><div class="col-md-3 mt-2"><label>Campaign Daily Budget</label><input id="modal_campaign_daily_budget" class="form-control" type="number" min="0" placeholder="opsional"></div><div class="col-md-3 mt-2"><label>Campaign Lifetime Budget</label><input id="modal_campaign_lifetime_budget" class="form-control" type="number" min="0" placeholder="opsional"></div></div></div>
+                  </div>
+                  <div id="pane2" class="meta-pane">
+                    <div class="meta-card"><h6>Ad Set Setup</h6><div class="form-row"><div class="col-md-4"><label>Nama Set Iklan</label><input id="modal_adset_name" class="form-control" type="text"></div><div class="col-md-3"><label>Konversi</label><select id="modal_conversion_location" class="form-control"><option value="WEBSITE">Website</option><option value="APP">App</option><option value="MESSAGING">Messaging</option></select></div><div class="col-md-3"><label>Target Kinerja</label><select id="modal_optimization_goal" class="form-control"><option value="LINK_CLICKS">Link Clicks</option><option value="LANDING_PAGE_VIEWS">Landing Page Views</option><option value="IMPRESSIONS">Impressions</option><option value="REACH">Reach</option></select></div><div class="col-md-2"><label>Target Biaya/Hasil</label><input id="modal_bid_amount" class="form-control" type="number" min="0" placeholder="opsional"></div></div></div>
+                    <div class="meta-card"><h6>Bidding & Atribusi</h6><div class="form-row"><div class="col-md-4"><label>Aturan Nilai</label><select id="modal_bid_strategy" class="form-control"><option value="LOWEST_COST_WITHOUT_CAP">Lowest Cost</option><option value="LOWEST_COST_WITH_BID_CAP">Bid Cap</option><option value="COST_CAP">Cost Cap</option></select></div><div class="col-md-3"><label>Model Atribusi</label><select id="modal_attribution_window" class="form-control"><option value="7d_click_1d_view">7d Click / 1d View</option><option value="1d_click">1d Click</option><option value="7d_click">7d Click</option></select></div><div class="col-md-3"><label>Materi Iklan Dinamis</label><select id="modal_dynamic_creative" class="form-control"><option value="0">Nonaktif</option><option value="1">Aktif</option></select></div></div></div>
+                    <div class="meta-card"><h6>Anggaran & Jadwal</h6><div class="form-row"><div class="col-md-3"><label>Tipe Anggaran</label><select id="modal_budget_type" class="form-control"><option value="daily">Daily Budget</option><option value="lifetime">Lifetime Budget</option></select></div><div class="col-md-2"><label>Daily Budget</label><input id="modal_daily_budget" class="form-control" type="number" value="50000"></div><div class="col-md-2"><label>Lifetime Budget</label><input id="modal_lifetime_budget" class="form-control" type="number" placeholder="opsional"></div><div class="col-md-2"><label>Mulai</label><input id="modal_start_time" class="form-control" type="datetime-local"></div><div class="col-md-2"><label>Selesai</label><input id="modal_end_time" class="form-control" type="datetime-local"></div></div></div>
+                    <div class="meta-card"><h6>Kontrol Pemirsa & Placement</h6><div class="form-row"><div class="col-md-2"><label>Countries</label><input id="modal_countries" class="form-control" type="text" value="ID"></div><div class="col-md-2"><label>Age Min</label><input id="modal_age_min" class="form-control" type="number" value="18"></div><div class="col-md-2"><label>Age Max</label><input id="modal_age_max" class="form-control" type="number" value="65"></div><div class="col-md-2"><label>Gender</label><select id="modal_gender" class="form-control"><option value="all">All</option><option value="male">Male</option><option value="female">Female</option></select></div><div class="col-md-2"><label>Pemirsa Advantage+</label><select id="modal_advantage" class="form-control"><option value="0">Nonaktif</option><option value="1">Aktif</option></select></div><div class="col-md-2"><label>Penempatan</label><select id="modal_placement_mode" class="form-control"><option value="auto">Advantage+ (Auto)</option><option value="manual">Manual</option></select></div></div></div>
+                  </div>
+                  <div id="pane3" class="meta-pane">
+                    <div class="meta-card"><h6>Identitas & Tujuan</h6><div class="form-row"><div class="col-md-3"><label>Nama Ad</label><input id="modal_ad_name" class="form-control" type="text"></div><div class="col-md-2"><label>Page ID</label><input id="modal_page_id" class="form-control" type="text"></div><div class="col-md-2"><label>Instagram Actor ID</label><input id="modal_instagram_actor_id" class="form-control" type="text" placeholder="opsional"></div><div class="col-md-3"><label>Website URL</label><input id="modal_website_url" class="form-control" type="text" placeholder="https://domain.com"></div><div class="col-md-2"><label>CTA</label><select id="modal_cta" class="form-control"><option value="LEARN_MORE">LEARN_MORE</option><option value="SHOP_NOW">SHOP_NOW</option><option value="SIGN_UP">SIGN_UP</option><option value="CONTACT_US">CONTACT_US</option></select></div></div></div>
+                    <div class="meta-card"><h6>Materi Iklan</h6><div class="form-row"><div class="col-md-4"><label>Mode Creative</label><select id="modal_use_existing_post" class="form-control"><option value="0">Buat Creative Baru</option><option value="1">Pakai Existing Post</option></select></div><div class="col-md-4" id="modal_existing_post_wrap" style="display:none;"><label>Existing Post ID</label><input id="modal_existing_post_id" class="form-control" type="text" placeholder="pageid_postid"></div><div class="col-md-2"><label>Display Link</label><input id="modal_display_link" class="form-control" type="text" placeholder="domain.com"></div><div class="col-md-2"><label>Caption</label><input id="modal_caption" class="form-control" type="text" placeholder="opsional"></div><div class="col-md-6 mt-2"><label>Primary Text</label><textarea id="modal_primary_text" class="form-control" rows="3"></textarea></div><div class="col-md-3 mt-2"><label>Headline</label><input id="modal_headline" class="form-control" type="text"></div><div class="col-md-3 mt-2"><label>Description</label><input id="modal_description" class="form-control" type="text" placeholder="opsional"></div></div></div>
+                    <div class="meta-card"><h6>Tracking & URL</h6><div class="form-row"><div class="col-md-6"><label>URL Tags</label><input id="modal_url_tags" class="form-control" type="text" placeholder="utm_source=meta&utm_medium=cpc"></div><div class="col-md-3"><label>Pixel ID</label><input id="modal_pixel_id" class="form-control" type="text" placeholder="opsional"></div></div></div>
+                  </div>
+                </div>
+                <div class="meta-right">
+                  <div class="meta-card"><h6>Ringkasan</h6><div class="small text-muted">Campaign ID</div><div id="metaSummaryCampaignId" class="font-weight-bold">-</div><hr><div class="small text-muted">Status Proses</div><small id="modal_create_result" class="meta-result text-muted"></small></div>
+                  <div class="meta-card"><h6>Kelengkapan Step</h6><div class="small text-muted" id="metaStepProgressLabel">0% lengkap</div><div class="meta-progress"><span id="metaStepProgressBar"></span></div><div class="small mt-2 text-muted" id="metaStepMissing">Field wajib belum lengkap.</div></div>
+                  <div class="meta-card"><h6>Tips</h6><ul class="small mb-0 pl-3"><li>Buat Campaign dulu.</li><li>Lanjutkan ke Ad Set.</li><li>Terakhir publish Ad.</li></ul></div>
+                </div>
+              </div>
+              <input type="hidden" id="modal_campaign_id" />
+            </div>
+            <div class="modal-footer"><div class="meta-actions"><div><button class="btn btn-outline-secondary" type="button" id="btnWizardPrev">Back</button> <button class="btn btn-outline-secondary" type="button" id="btnWizardNext">Next</button></div><div><button class="btn btn-success" type="button" id="btnWizardCreateCampaign">Buat Campaign</button> <button class="btn btn-primary" type="button" id="btnWizardCreateAdsetAd">Buat Ad Set + Ad</button></div></div></div>
+          </div></div>
         </div>
     </div><!-- /.card-body -->
 </div>
