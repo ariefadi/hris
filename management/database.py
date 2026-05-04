@@ -4187,7 +4187,7 @@ class data_mysql:
                     country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
             if country_codes:
                 placeholders = ','.join(['%s'] * len(country_codes))
-                base_sql.append(f"AND b.data_adsense_country_cd IN ({placeholders})")
+                base_sql.append(f"AND b.data_adx_country_cd IN ({placeholders})")
                 params.extend(country_codes)
             base_sql.append("GROUP BY b.data_adsense_country_cd, b.data_adsense_country_nm")
             base_sql.append("ORDER BY revenue DESC")
@@ -4744,7 +4744,7 @@ class data_mysql:
             engine = (self._report_engine() or '').strip().lower()
             use_clickhouse = engine in ('clickhouse', 'ch')
 
-            like_account_col = "b.account_id" if use_clickhouse else "a.account_id"
+            like_account_col = "b.account_id"
             like_conditions_account = " OR ".join([f"{like_account_col} LIKE %s"] * len(data_account_list))
             like_params_account = [f"%{account}%" for account in data_account_list] 
             # --- 1. Pastikan selected_domain_list adalah list string
@@ -4812,16 +4812,33 @@ class data_mysql:
                     country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
             if country_codes:
                 placeholders = ','.join(['%s'] * len(country_codes))
-                base_sql.append(f"AND b.data_adsense_country_cd IN ({placeholders})")
+                base_sql.append(f"AND b.data_adx_country_cd IN ({placeholders})")
                 params.extend(country_codes)
             base_sql.append("GROUP BY b.data_adx_country_cd, b.data_adx_country_nm")
             base_sql.append("ORDER BY revenue DESC")
             sql = "\n".join(base_sql)
-            if not self.execute_query(sql, tuple(params)):
-                raise pymysql.Error("Failed to get all adx traffic country by params")
-            data_rows = self.fetch_all()
-            if not self.commit():
-                raise pymysql.Error("Failed to commit get all adx traffic country by params")
+            data_rows = []
+            if use_clickhouse:
+                try:
+                    self._ensure_report_connection()
+                    self.cur_hris = self.report_cur
+                    self.cur_hris.execute(sql, tuple(params))
+                    data_rows = self.fetch_all()
+                except Exception as ch_err:
+                    # Fallback ke MySQL jika ClickHouse error (mis. HTTP 500)
+                    if not self.ensure_connection():
+                        raise pymysql.Error(f"Failed to get all adx traffic country by params: {ch_err}")
+                    self.cur_hris = self.mysql_cur
+                    self.cur_hris.execute(sql, tuple(params))
+                    data_rows = self.fetch_all()
+                    if not self.commit():
+                        raise pymysql.Error("Failed to commit get all adx traffic country by params")
+            else:
+                if not self.execute_query(sql, tuple(params)):
+                    raise pymysql.Error(f"Failed to get all adx traffic country by params: {self.last_error}")
+                data_rows = self.fetch_all()
+                if not self.commit():
+                    raise pymysql.Error("Failed to commit get all adx traffic country by params")
             # Build summary
             total_impressions = sum((row.get('impressions') or 0) for row in data_rows) if data_rows else 0
             total_clicks = sum((row.get('clicks') or 0) for row in data_rows) if data_rows else 0
