@@ -4701,6 +4701,122 @@ class AdxSummaryView(View):
         }
         return render(req, 'admin/adx_manager/summary/index.html', data)
 
+class AdxDomainSuggestView(View):
+    """AJAX endpoint suggest subdomain AdX (Select2)"""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        q = str(req.GET.get('q') or '').strip()
+        start_date = str(req.GET.get('start_date') or '').strip()
+        end_date = str(req.GET.get('end_date') or '').strip()
+        selected_account = str(req.GET.get('selected_account') or '').strip()
+        admin = req.session.get('hris_admin', {})
+
+        if not q:
+            return JsonResponse({'results': []})
+
+        # Default range jika tidak dikirim
+        if not start_date or not end_date:
+            today = datetime.now().strftime('%Y-%m-%d')
+            start_date = start_date or today
+            end_date = end_date or today
+
+        # Jika tidak pilih account, pakai semua account yang boleh diakses user
+        if selected_account == '':
+            rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id')) if admin.get('super_st') == '0' else data_mysql().get_all_adx_account_data()
+            rows = (rs_account or {}).get('data') if isinstance(rs_account, dict) else []
+            if not isinstance(rows, list):
+                rows = []
+            account_ids = [str((r or {}).get('account_id') or '').strip() for r in rows if str((r or {}).get('account_id') or '').strip()]
+            selected_account = ','.join(account_ids)
+
+        account_list = [s.strip() for s in selected_account.split(',') if s.strip()]
+        like = f"%{q.strip()}%"
+        limit = 100
+
+        account_tokens = []
+        for a in account_list:
+            v = str(a or '').strip()
+            if not v:
+                continue
+            account_tokens.append(v)
+            if v.lower().startswith('act_'):
+                account_tokens.append(v[4:])
+            else:
+                account_tokens.append(f"act_{v}")
+        account_tokens = list(dict.fromkeys([x for x in account_tokens if x]))
+
+        db = data_mysql()
+        rows = []
+
+        # ClickHouse-first
+        try:
+            db._ensure_report_connection()
+            db.cur_hris = db.report_cur
+            where = [
+                "toDate(b.data_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
+                "lowerUTF8(b.data_adx_country_domain) LIKE lowerUTF8(%s)",
+            ]
+            params = [start_date, end_date, like]
+            if account_tokens:
+                acc_like = " OR ".join(["toString(b.account_id) LIKE %s"] * len(account_tokens))
+                where.append(f"({acc_like})")
+                params.extend([f"%{a}%" for a in account_tokens])
+            sql = "\n".join([
+                "SELECT DISTINCT b.data_adx_country_domain AS site_name",
+                "FROM data_adx_country b",
+                "WHERE " + " AND ".join(where),
+                "ORDER BY site_name ASC",
+                f"LIMIT {limit}",
+            ])
+            db.cur_hris.execute(sql, tuple(params))
+            rows = db.fetch_all()
+        except Exception:
+            # Fallback MySQL
+            try:
+                if db.ensure_connection():
+                    db.cur_hris = db.mysql_cur
+                    where = [
+                        "b.data_adx_country_tanggal BETWEEN %s AND %s",
+                        "b.data_adx_country_domain LIKE %s",
+                    ]
+                    params = [start_date, end_date, like]
+                    if account_tokens:
+                        acc_like = " OR ".join(["b.account_id LIKE %s"] * len(account_tokens))
+                        where.append(f"({acc_like})")
+                        params.extend([f"%{a}%" for a in account_tokens])
+                    sql = "\n".join([
+                        "SELECT DISTINCT b.data_adx_country_domain AS site_name",
+                        "FROM data_adx_country b",
+                        "WHERE " + " AND ".join(where),
+                        "ORDER BY site_name ASC",
+                        f"LIMIT {limit}",
+                    ])
+                    db.cur_hris.execute(sql, tuple(params))
+                    rows = db.fetch_all()
+            except Exception:
+                rows = []
+
+        results = []
+        seen = set()
+        for r in (rows or []):
+            site = str((r or {}).get('site_name') or '').strip()
+            if not site:
+                continue
+            k = site.lower()
+            if k in seen:
+                continue
+            seen.add(k)
+            results.append({'id': site, 'text': site})
+            if len(results) >= limit:
+                break
+
+        return JsonResponse({'results': results})
+
+
 class AdxSummaryDataView(View):
     """AJAX endpoint untuk data AdX Summary"""
     def dispatch(self, request, *args, **kwargs):
@@ -4748,7 +4864,7 @@ class AdxSummaryDataView(View):
                 'error': 'Start date and end date are required'
             })
         try:
-            result = data_mysql().get_all_adx_traffic_account_by_params(start_date, end_date, account_list, selected_domain_list)
+            result = data_mysql().get_all_adx_traffic_account_by_params(start_date, end_date, account_list, selected_domain_list, force_clickhouse=True)
             # Unwrap format lama { 'hasil': ... } dan siapkan data
             payload = result['hasil'] if isinstance(result, dict) and 'hasil' in result else result
             data_rows = payload.get('data') if isinstance(payload, dict) else []
@@ -4762,7 +4878,7 @@ class AdxSummaryDataView(View):
             avg_ctr = ((float(total_clicks) / float(total_impressions)) * 100.0) if total_impressions else 0.0
             # Tambahkan data traffic hari ini
             today = datetime.now().strftime('%Y-%m-%d')
-            today_result = data_mysql().get_all_adx_traffic_account_by_params(today, today, selected_account, selected_domain_list)
+            today_result = data_mysql().get_all_adx_traffic_account_by_params(today, today, selected_account, selected_domain_list, force_clickhouse=True)
             today_payload = today_result['hasil'] if isinstance(today_result, dict) and 'hasil' in today_result else today_result
             today_rows = today_payload.get('data') if isinstance(today_payload, dict) else []
             if not isinstance(today_rows, list):
@@ -4771,11 +4887,27 @@ class AdxSummaryDataView(View):
             today_clicks = sum((row.get('clicks_adx') or 0) for row in today_rows) if today_rows else 0
             today_revenue = sum((row.get('revenue') or 0) for row in today_rows) if today_rows else 0.0
             today_ctr = ((float(today_clicks) / float(today_impressions)) * 100.0) if today_impressions else 0.0
+            domain_suggestions = []
+            seen_domains = set()
+            for row in data_rows:
+                try:
+                    site = str((row or {}).get('site_name') or '').strip()
+                except Exception:
+                    site = ''
+                if not site:
+                    continue
+                key = site.lower()
+                if key in seen_domains:
+                    continue
+                seen_domains.add(key)
+                domain_suggestions.append(site)
+
             # Bangun respons konsisten untuk frontend
             response_data = {
                 'status': bool(payload.get('status')) if isinstance(payload, dict) else True,
                 'message': payload.get('message', 'Data adx summary berhasil diambil') if isinstance(payload, dict) else 'Data adx summary berhasil diambil',
                 'data': data_rows,
+                'domain_suggestions': domain_suggestions,
                 'summary': {
                     'total_impressions': total_impressions,
                     'total_clicks': total_clicks,
@@ -5975,7 +6107,7 @@ class AdxTrafficPerCountryDataView(View):
             else:
                 print("[DEBUG] No countries selected, will fetch all countries")
             # result = fetch_adx_traffic_per_country(start_date_formatted, end_date_formatted, user_mail, selected_sites, countries_list)    
-            result = data_mysql().get_all_adx_traffic_country_by_params(start_date_formatted, end_date_formatted, selected_account_list, selected_domain_list, countries_list)
+            result = data_mysql().get_all_adx_traffic_country_by_params(start_date_formatted, end_date_formatted, selected_account_list, selected_domain_list, countries_list, force_clickhouse=True)
             if isinstance(result, dict):
                 if 'data' in result:
                     if result['data']:

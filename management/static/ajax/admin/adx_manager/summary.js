@@ -49,8 +49,39 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     });
-    let allAccountOptions = $('#account_filter').html();  
-    // domain_filter sekarang freetext input (tanpa select2)
+    // Select2 untuk Filter Subdomain: searchable + freetext (tagging) + AJAX suggest (ClickHouse)
+    $('#domain_filter').select2({
+        placeholder: 'ketik subdomain…',
+        allowClear: true,
+        width: '100%',
+        theme: 'bootstrap4',
+        tags: true,
+        tokenSeparators: [','],
+        minimumInputLength: 1,
+        ajax: {
+            url: '/management/admin/adx_domain_suggest',
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                var selected_account = $('#account_filter').val() || [];
+                return {
+                    q: params.term || '',
+                    start_date: $('#tanggal_dari').val() || '',
+                    end_date: $('#tanggal_sampai').val() || '',
+                    selected_account: (selected_account && selected_account.length) ? selected_account.join(',') : ''
+                };
+            },
+            processResults: function (data) {
+                return { results: (data && data.results) ? data.results : [] };
+            },
+            cache: true
+        },
+        createTag: function (params) {
+            var term = $.trim(params.term || '');
+            if (!term) return null;
+            return { id: term, text: term, newTag: true };
+        }
+    });
     // Set default dates (last 7 days)
     var today = new Date();
     var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -94,6 +125,9 @@ $().ready(function () {
             },
             success: function (response) {
                 if (response && response.status) {
+                if (Array.isArray(response.domain_suggestions) && response.domain_suggestions.length) {
+                    applyDomainSuggestions(response.domain_suggestions);
+                }
                     // Generate charts if data available
                     if (response.data && response.data.length > 0) {
                         generateTrafficCountryCharts(response.data);
@@ -125,6 +159,26 @@ $().ready(function () {
         });
     }
 });
+function applyDomainSuggestions(domains) {
+    var $domain = $('#domain_filter');
+    if (!$domain.length || !Array.isArray(domains)) return;
+    var currentVals = $domain.val() || [];
+    var selectedMap = {};
+    currentVals.forEach(function(v){ selectedMap[String(v)] = true; });
+    var uniq = {};
+    domains.forEach(function (d) {
+        var v = String(d || '').trim();
+        if (!v) return;
+        var k = v.toLowerCase();
+        if (uniq[k]) return;
+        uniq[k] = true;
+        if ($domain.find('option[value="' + v.replace(/"/g, '\\"') + '"]').length === 0) {
+            $domain.append(new Option(v, v, false, !!selectedMap[v]));
+        }
+    });
+    $domain.trigger('change.select2');
+}
+
 function load_adx_summary_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain) {
     // Convert array to comma-separated string for backend
     var accountFilter = '';

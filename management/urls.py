@@ -69,6 +69,7 @@ urlpatterns = [
     # Menu AdX Summary
     path('admin/adx_summary', views.AdxSummaryView.as_view(), name='adx_summary'),
     path('admin/page_adx_summary', views.AdxSummaryDataView.as_view(), name='adx_summary_data'),
+    path('admin/adx_domain_suggest', views.AdxDomainSuggestView.as_view(), name='adx_domain_suggest'),
     path('admin/page_adx_ad_change_data', views.AdxSummaryAdChangeDataView.as_view(), name='adx_ad_change_data'),
     path('admin/page_adx_active_sites', views.AdxActiveSitesView.as_view(), name='adx_active_sites'),
     # Menu AdX Account Data
