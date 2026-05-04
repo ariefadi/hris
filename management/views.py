@@ -3675,6 +3675,364 @@ class update_switch_campaign(View):
                 'message': f'Terjadi kesalahan: {str(e)}'
             })
 
+@method_decorator(csrf_exempt, name='dispatch')
+class create_campaign_per_account(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=401)
+        return super(create_campaign_per_account, self).dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        try:
+            account_id = str(req.POST.get('account_id') or '').strip()
+            campaign_name = str(req.POST.get('campaign_name') or '').strip()
+            objective = str(req.POST.get('objective') or 'OUTCOME_TRAFFIC').strip().upper()
+            status = str(req.POST.get('status') or 'PAUSED').strip().upper()
+            buying_type = str(req.POST.get('buying_type') or 'AUCTION').strip().upper()
+            special_ad_category = str(req.POST.get('special_ad_category') or 'NONE').strip().upper()
+            campaign_budget_type = str(req.POST.get('campaign_budget_type') or 'none').strip().lower()
+            campaign_daily_budget = str(req.POST.get('campaign_daily_budget') or '').strip()
+            campaign_lifetime_budget = str(req.POST.get('campaign_lifetime_budget') or '').strip()
+            campaign_spend_cap = str(req.POST.get('campaign_spend_cap') or '').strip()
+
+            if not account_id:
+                return JsonResponse({'success': False, 'message': 'Account wajib dipilih'})
+            if not campaign_name:
+                return JsonResponse({'success': False, 'message': 'Nama campaign wajib diisi'})
+
+            allowed_status = {'PAUSED', 'ACTIVE'}
+            if status not in allowed_status:
+                status = 'PAUSED'
+
+            rs = data_mysql().master_account_ads_by_id({'data_account': account_id})
+            acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+            if not isinstance(acc, dict):
+                return JsonResponse({'success': False, 'message': 'Account tidak ditemukan'})
+
+            token = str(acc.get('access_token') or '').strip()
+            real_account_id = str(acc.get('account_id') or account_id).replace('act_', '').strip()
+            if not token or not real_account_id:
+                return JsonResponse({'success': False, 'message': 'Token atau Account ID tidak valid'})
+
+            url = f"https://graph.facebook.com/v22.0/act_{real_account_id}/campaigns"
+            special_ad_categories = [] if special_ad_category in ('', 'NONE') else [special_ad_category]
+            payload = {
+                'access_token': token,
+                'name': campaign_name,
+                'objective': objective,
+                'status': status,
+                'buying_type': buying_type,
+                'special_ad_categories': json.dumps(special_ad_categories),
+            }
+            if campaign_budget_type == 'daily' and campaign_daily_budget:
+                payload['daily_budget'] = str(max(1000, int(float(campaign_daily_budget or 0))))
+            elif campaign_budget_type == 'lifetime' and campaign_lifetime_budget:
+                payload['lifetime_budget'] = str(max(1000, int(float(campaign_lifetime_budget or 0))))
+            if campaign_spend_cap:
+                payload['spend_cap'] = str(max(0, int(float(campaign_spend_cap or 0))))
+            resp = requests.post(url, data=payload, timeout=45)
+            body = resp.json() if resp.text else {}
+
+            if resp.status_code >= 400 or (isinstance(body, dict) and body.get('error')):
+                err = (body.get('error') or {}).get('message') if isinstance(body, dict) else ''
+                return JsonResponse({'success': False, 'message': err or f'Graph API error ({resp.status_code})'})
+
+            campaign_id = str((body or {}).get('id') or '').strip()
+            return JsonResponse({
+                'success': True,
+                'message': 'Campaign berhasil dibuat',
+                'campaign_id': campaign_id,
+                'campaign_name': campaign_name,
+                'objective': objective,
+                'status': status,
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': f'Gagal membuat campaign: {str(e)}'})
+
+@method_decorator(csrf_exempt, name='dispatch')
+class create_campaign_fullstack_per_account(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=401)
+        return super(create_campaign_fullstack_per_account, self).dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        try:
+            account_id = str(req.POST.get('account_id') or '').strip()
+            campaign_name = str(req.POST.get('campaign_name') or '').strip()
+            objective = str(req.POST.get('objective') or 'OUTCOME_TRAFFIC').strip().upper()
+            status = str(req.POST.get('status') or 'PAUSED').strip().upper()
+            buying_type = str(req.POST.get('buying_type') or 'AUCTION').strip().upper()
+            adset_name = str(req.POST.get('adset_name') or f'{campaign_name} - ADSET 1').strip()
+            ad_name = str(req.POST.get('ad_name') or f'{campaign_name} - AD 1').strip()
+            page_id = str(req.POST.get('page_id') or '').strip()
+            website_url = str(req.POST.get('website_url') or '').strip()
+            primary_text = str(req.POST.get('primary_text') or '').strip()
+            headline = str(req.POST.get('headline') or '').strip()
+            description = str(req.POST.get('description') or '').strip()
+            caption = str(req.POST.get('caption') or '').strip()
+            display_link = str(req.POST.get('display_link') or '').strip()
+            url_tags = str(req.POST.get('url_tags') or '').strip()
+            instagram_actor_id = str(req.POST.get('instagram_actor_id') or '').strip()
+            use_existing_post = str(req.POST.get('use_existing_post') or '0').strip()
+            existing_post_id = str(req.POST.get('existing_post_id') or '').strip()
+            cta_type = str(req.POST.get('cta_type') or 'LEARN_MORE').strip().upper()
+            countries_raw = str(req.POST.get('countries') or 'ID').strip()
+            pixel_id = str(req.POST.get('pixel_id') or '').strip()
+
+            try:
+                daily_budget = int(float(req.POST.get('daily_budget') or 50000))
+            except Exception:
+                daily_budget = 50000
+            try:
+                age_min = int(req.POST.get('age_min') or 18)
+            except Exception:
+                age_min = 18
+            try:
+                age_max = int(req.POST.get('age_max') or 65)
+            except Exception:
+                age_max = 65
+
+            if not account_id or not campaign_name:
+                return JsonResponse({'success': False, 'message': 'Account dan nama campaign wajib diisi'})
+            if not page_id:
+                return JsonResponse({'success': False, 'message': 'Page ID wajib diisi untuk membuat ad'})
+            if not website_url:
+                return JsonResponse({'success': False, 'message': 'Website URL wajib diisi untuk membuat ad'})
+
+            rs = data_mysql().master_account_ads_by_id({'data_account': account_id})
+            acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+            if not isinstance(acc, dict):
+                return JsonResponse({'success': False, 'message': 'Account tidak ditemukan'})
+
+            token = str(acc.get('access_token') or '').strip()
+            real_account_id = str(acc.get('account_id') or account_id).replace('act_', '').strip()
+            if not token or not real_account_id:
+                return JsonResponse({'success': False, 'message': 'Token atau Account ID tidak valid'})
+
+            countries = [str(x).strip().upper() for x in countries_raw.split(',') if str(x).strip()]
+            if not countries:
+                countries = ['ID']
+
+            def _graph_post(path, payload):
+                p = dict(payload or {})
+                p['access_token'] = token
+                resp = requests.post(f"https://graph.facebook.com/v22.0/{str(path).lstrip('/')}", data=p, timeout=45)
+                body = resp.json() if resp.text else {}
+                if resp.status_code >= 400 or (isinstance(body, dict) and body.get('error')):
+                    err = (body.get('error') or {}).get('message') if isinstance(body, dict) else ''
+                    return {'ok': False, 'data': body, 'error': err or f'Graph API error ({resp.status_code})'}
+                return {'ok': True, 'data': body, 'error': ''}
+
+            camp_rs = _graph_post(f'act_{real_account_id}/campaigns', {
+                'name': campaign_name,
+                'objective': objective,
+                'status': status,
+                'buying_type': buying_type,
+                'special_ad_categories': '[]',
+            })
+            if not camp_rs['ok']:
+                return JsonResponse({'success': False, 'step': 'campaign', 'message': camp_rs['error']})
+            campaign_id = str((camp_rs['data'] or {}).get('id') or '').strip()
+
+            targeting = {'geo_locations': {'countries': countries}, 'age_min': max(13, age_min), 'age_max': max(age_min, age_max)}
+            adset_payload = {
+                'name': adset_name,
+                'campaign_id': campaign_id,
+                'daily_budget': str(max(1000, daily_budget)),
+                'billing_event': 'IMPRESSIONS',
+                'optimization_goal': 'LINK_CLICKS',
+                'bid_strategy': 'LOWEST_COST_WITHOUT_CAP',
+                'status': status,
+                'targeting': json.dumps(targeting),
+            }
+            if pixel_id:
+                adset_payload['promoted_object'] = json.dumps({'pixel_id': pixel_id, 'custom_event_type': 'PAGE_VIEW'})
+
+            adset_rs = _graph_post(f'act_{real_account_id}/adsets', adset_payload)
+            if not adset_rs['ok']:
+                return JsonResponse({'success': False, 'step': 'adset', 'campaign_id': campaign_id, 'message': adset_rs['error']})
+            adset_id = str((adset_rs['data'] or {}).get('id') or '').strip()
+
+            link_data = {'link': website_url, 'call_to_action': {'type': cta_type, 'value': {'link': website_url}}}
+            if primary_text:
+                link_data['message'] = primary_text
+            if headline:
+                link_data['name'] = headline
+            creative_rs = _graph_post(f'act_{real_account_id}/adcreatives', {
+                'name': f'{ad_name} - CREATIVE',
+                'object_story_spec': json.dumps({'page_id': page_id, 'link_data': link_data}),
+            })
+            if not creative_rs['ok']:
+                return JsonResponse({'success': False, 'step': 'creative', 'campaign_id': campaign_id, 'adset_id': adset_id, 'message': creative_rs['error']})
+            creative_id = str((creative_rs['data'] or {}).get('id') or '').strip()
+
+            ad_rs = _graph_post(f'act_{real_account_id}/ads', {
+                'name': ad_name,
+                'adset_id': adset_id,
+                'creative': json.dumps({'creative_id': creative_id}),
+                'status': status,
+            })
+            if not ad_rs['ok']:
+                return JsonResponse({'success': False, 'step': 'ad', 'campaign_id': campaign_id, 'adset_id': adset_id, 'creative_id': creative_id, 'message': ad_rs['error']})
+            ad_id = str((ad_rs['data'] or {}).get('id') or '').strip()
+
+            return JsonResponse({
+                'success': True,
+                'message': 'Campaign + Ad Set + Ad berhasil dibuat',
+                'campaign_id': campaign_id,
+                'adset_id': adset_id,
+                'creative_id': creative_id,
+                'ad_id': ad_id,
+            })
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': f'Gagal create full stack: {str(e)}'})
+
+@method_decorator(csrf_exempt, name='dispatch')
+class create_adset_ad_per_account(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=401)
+        return super(create_adset_ad_per_account, self).dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        try:
+            account_id = str(req.POST.get('account_id') or '').strip()
+            campaign_id = str(req.POST.get('campaign_id') or '').strip()
+            status = str(req.POST.get('status') or 'PAUSED').strip().upper()
+            adset_name = str(req.POST.get('adset_name') or f'ADSET {campaign_id}').strip()
+            ad_name = str(req.POST.get('ad_name') or f'AD {campaign_id}').strip()
+            page_id = str(req.POST.get('page_id') or '').strip()
+            website_url = str(req.POST.get('website_url') or '').strip()
+            primary_text = str(req.POST.get('primary_text') or '').strip()
+            headline = str(req.POST.get('headline') or '').strip()
+            cta_type = str(req.POST.get('cta_type') or 'LEARN_MORE').strip().upper()
+            countries_raw = str(req.POST.get('countries') or 'ID').strip()
+            pixel_id = str(req.POST.get('pixel_id') or '').strip()
+            daily_budget = int(float(req.POST.get('daily_budget') or 50000))
+            lifetime_budget_raw = str(req.POST.get('lifetime_budget') or '').strip()
+            budget_type = str(req.POST.get('budget_type') or 'daily').strip().lower()
+            start_time = str(req.POST.get('start_time') or '').strip()
+            end_time = str(req.POST.get('end_time') or '').strip()
+            conversion_location = str(req.POST.get('conversion_location') or 'WEBSITE').strip().upper()
+            optimization_goal = str(req.POST.get('optimization_goal') or 'LINK_CLICKS').strip().upper()
+            bid_strategy = str(req.POST.get('bid_strategy') or 'LOWEST_COST_WITHOUT_CAP').strip().upper()
+            bid_amount_raw = str(req.POST.get('bid_amount') or '').strip()
+            attribution_window = str(req.POST.get('attribution_window') or '7d_click_1d_view').strip().lower()
+            dynamic_creative = str(req.POST.get('dynamic_creative') or '0').strip()
+            gender = str(req.POST.get('gender') or 'all').strip().lower()
+            advantage = str(req.POST.get('advantage') or '0').strip()
+            placement_mode = str(req.POST.get('placement_mode') or 'auto').strip().lower()
+            age_min = int(req.POST.get('age_min') or 18)
+            age_max = int(req.POST.get('age_max') or 65)
+
+            if not account_id or not campaign_id:
+                return JsonResponse({'success': False, 'message': 'Account dan Campaign ID wajib diisi'})
+            if not page_id or not website_url:
+                return JsonResponse({'success': False, 'message': 'Page ID dan Website URL wajib diisi'})
+
+            rs = data_mysql().master_account_ads_by_id({'data_account': account_id})
+            acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+            if not isinstance(acc, dict):
+                return JsonResponse({'success': False, 'message': 'Account tidak ditemukan'})
+            token = str(acc.get('access_token') or '').strip()
+            real_account_id = str(acc.get('account_id') or account_id).replace('act_', '').strip()
+
+            countries = [str(x).strip().upper() for x in countries_raw.split(',') if str(x).strip()] or ['ID']
+            targeting = {'geo_locations': {'countries': countries}, 'age_min': max(13, age_min), 'age_max': max(age_min, age_max)}
+            if gender == 'male':
+                targeting['genders'] = [1]
+            elif gender == 'female':
+                targeting['genders'] = [2]
+            if placement_mode == 'manual':
+                targeting['publisher_platforms'] = ['facebook', 'instagram', 'audience_network', 'messenger']
+            if advantage == '1':
+                targeting['targeting_automation'] = {'advantage_audience': 1}
+
+            def _post(path, payload):
+                p = dict(payload or {}); p['access_token'] = token
+                r = requests.post(f"https://graph.facebook.com/v22.0/{str(path).lstrip('/')}", data=p, timeout=45)
+                b = r.json() if r.text else {}
+                if r.status_code >= 400 or (isinstance(b, dict) and b.get('error')):
+                    return False, (b.get('error') or {}).get('message') if isinstance(b, dict) else f'Graph API error ({r.status_code})', b
+                return True, '', b
+
+            adset_payload = {
+                'name': adset_name,
+                'campaign_id': campaign_id,
+                'billing_event': 'IMPRESSIONS',
+                'optimization_goal': optimization_goal,
+                'bid_strategy': bid_strategy,
+                'status': status,
+                'targeting': json.dumps(targeting),
+                'destination_type': conversion_location,
+            }
+            if budget_type == 'lifetime' and lifetime_budget_raw:
+                adset_payload['lifetime_budget'] = str(max(1000, int(float(lifetime_budget_raw or 0))))
+            else:
+                adset_payload['daily_budget'] = str(max(1000, daily_budget))
+            if start_time:
+                adset_payload['start_time'] = start_time
+            if end_time:
+                adset_payload['end_time'] = end_time
+            if bid_amount_raw:
+                adset_payload['bid_amount'] = str(int(float(bid_amount_raw)))
+            if attribution_window in ('1d_click', '7d_click', '7d_click_1d_view'):
+                if attribution_window == '1d_click':
+                    adset_payload['attribution_spec'] = json.dumps([{'event_type': 'CLICK_THROUGH', 'window_days': 1}])
+                elif attribution_window == '7d_click':
+                    adset_payload['attribution_spec'] = json.dumps([{'event_type': 'CLICK_THROUGH', 'window_days': 7}])
+                else:
+                    adset_payload['attribution_spec'] = json.dumps([
+                        {'event_type': 'CLICK_THROUGH', 'window_days': 7},
+                        {'event_type': 'VIEW_THROUGH', 'window_days': 1}
+                    ])
+            if dynamic_creative == '1':
+                adset_payload['is_dynamic_creative'] = 'true'
+            if pixel_id:
+                adset_payload['promoted_object'] = json.dumps({'pixel_id': pixel_id, 'custom_event_type': 'PAGE_VIEW'})
+
+            ok, err, adset_rs = _post(f'act_{real_account_id}/adsets', adset_payload)
+            if not ok:
+                return JsonResponse({'success': False, 'step': 'adset', 'message': err})
+            adset_id = str((adset_rs or {}).get('id') or '').strip()
+
+            creative_payload = {'name': f'{ad_name} - CREATIVE'}
+            if url_tags:
+                creative_payload['url_tags'] = url_tags
+            if use_existing_post == '1' and existing_post_id:
+                creative_payload['object_story_id'] = existing_post_id
+            else:
+                link_data = {'link': website_url, 'call_to_action': {'type': cta_type, 'value': {'link': website_url}}}
+                if primary_text:
+                    link_data['message'] = primary_text
+                if headline:
+                    link_data['name'] = headline
+                if description:
+                    link_data['description'] = description
+                if caption:
+                    link_data['caption'] = caption
+                if display_link:
+                    link_data['display_link'] = display_link
+                object_story_spec = {'page_id': page_id, 'link_data': link_data}
+                if instagram_actor_id:
+                    object_story_spec['instagram_actor_id'] = instagram_actor_id
+                creative_payload['object_story_spec'] = json.dumps(object_story_spec)
+            ok, err, creative_rs = _post(f'act_{real_account_id}/adcreatives', creative_payload)
+            if not ok:
+                return JsonResponse({'success': False, 'step': 'creative', 'adset_id': adset_id, 'message': err})
+            creative_id = str((creative_rs or {}).get('id') or '').strip()
+
+            ok, err, ad_rs = _post(f'act_{real_account_id}/ads', {
+                'name': ad_name, 'adset_id': adset_id, 'creative': json.dumps({'creative_id': creative_id}), 'status': status
+            })
+            if not ok:
+                return JsonResponse({'success': False, 'step': 'ad', 'adset_id': adset_id, 'creative_id': creative_id, 'message': err})
+
+            return JsonResponse({'success': True, 'message': 'Ad Set + Ad berhasil dibuat', 'campaign_id': campaign_id, 'adset_id': adset_id, 'creative_id': creative_id, 'ad_id': str((ad_rs or {}).get('id') or '')})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': f'Gagal membuat adset/ad: {str(e)}'})
+
 class bulk_update_campaign_status(View):
     def post(self, req):
         try:

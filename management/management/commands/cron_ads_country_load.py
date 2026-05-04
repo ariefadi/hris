@@ -47,6 +47,7 @@ class Command(BaseCommand):
                 account = AdAccount(account_data['account_id'])
 
                 fields = [
+                    AdsInsights.Field.campaign_id,
                     AdsInsights.Field.campaign_name,
                     AdsInsights.Field.spend,
                     AdsInsights.Field.reach,
@@ -111,7 +112,7 @@ class Command(BaseCommand):
                         tanggal_row = item.get('date_start')
                         if not tanggal_row:
                             continue
-
+                        campaign_id = item.get('campaign_id') or '' 
                         campaign_name = item.get('campaign_name') or ''
                         domain_value = (campaign_name.split('_')[0] if campaign_name else '')
                         if domain_filter and str(domain_filter).strip() != '%':
@@ -154,6 +155,7 @@ class Command(BaseCommand):
                             'data_ads_domain': domain_value,
                             'data_ads_country_cd': country_code_val,
                             'data_ads_country_nm': country_name_val,
+                            'data_ads_campaign_id': campaign_id,
                             'data_ads_campaign_nm': campaign_name,
                             'data_ads_country_tanggal': tanggal_row,
                             'data_ads_country_spend': round(spend, 2),
@@ -177,6 +179,7 @@ class Command(BaseCommand):
                                 'log_ads_country_cd': record.get('data_ads_country_cd'),
                                 'log_ads_country_nm': record.get('data_ads_country_nm'),
                                 'log_ads_domain': record.get('data_ads_domain'),
+                                'log_ads_campaign_id': record.get('data_ads_campaign_id'),
                                 'log_ads_campaign_nm': record.get('data_ads_campaign_nm'),
                                 'log_ads_country_tanggal': record.get('data_ads_country_tanggal'),
                                 'log_ads_country_spend': record.get('data_ads_country_spend'),

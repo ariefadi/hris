@@ -59,6 +59,7 @@ class Command(BaseCommand):
                 ])
                 campaign_map = {
                     c['id']: {
+                        'id': c['id'],
                         'name': c.get('name'),
                         'status': c.get('status'),
                         'daily_budget': float(c.get('daily_budget') or 0)
@@ -95,6 +96,7 @@ class Command(BaseCommand):
                         continue
                     key = (campaign_id, tanggal_row)
                     agg = campaign_aggregates.setdefault(key, {
+                        'campaign_id': '',
                         'campaign_name': '',
                         'spend': 0.0,
                         'reach': 0,
@@ -107,6 +109,7 @@ class Command(BaseCommand):
                         'tanggal': tanggal_row,
                         'status': config.get('status'),
                     })
+                    agg['campaign_id'] = campaign_id
                     agg['campaign_name'] = item.get('campaign_name')
                     agg['spend'] += float(item.get('spend', 0) or 0)
                     agg['reach'] += int(item.get('reach', 0) or 0)
@@ -157,6 +160,7 @@ class Command(BaseCommand):
                     record = {
                         'account_ads_id': account_data['account_id'],
                         'data_ads_domain': (agg['campaign_name'] or '').split('_')[0],
+                        'data_ads_campaign_id': agg['campaign_id'] or '',
                         'data_ads_campaign_nm': agg['campaign_name'] or '',
                         'data_ads_tanggal': agg['tanggal'],
                         'data_ads_spend': round(spend, 2),
@@ -175,6 +179,7 @@ class Command(BaseCommand):
                     try:
                         del_res = db.delete_data_ads_campaign_by_date_account(
                             account_data['account_id'],
+                            agg['campaign_id'] or '',
                             (agg['campaign_name'] or '').split('_')[0],
                             agg['campaign_name'],
                             agg['tanggal'],
@@ -200,6 +205,7 @@ class Command(BaseCommand):
                             'log_ads_id': str(uuid.uuid4()),
                             'account_ads_id': record.get('account_ads_id'),
                             'log_ads_domain': record.get('data_ads_domain'),
+                            'log_ads_campaign_id': record.get('data_ads_campaign_id'),
                             'log_ads_campaign_nm': record.get('data_ads_campaign_nm'),
                             'log_ads_tanggal': record.get('data_ads_tanggal'),
                             'log_ads_spend': int(round(float(record.get('data_ads_spend') or 0))),

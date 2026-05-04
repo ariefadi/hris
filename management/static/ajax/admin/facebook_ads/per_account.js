@@ -47,6 +47,45 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     })
+    $('#create_campaign_account').select2({
+        placeholder: '-- Pilih Account --',
+        allowClear: true,
+        width: '100%',
+        theme: 'bootstrap4'
+    })
+    $('#modalCreateMetaCampaign').on('shown.bs.modal', function () {
+        const $modal = $('#modalCreateMetaCampaign');
+        $('#modal_account').select2({
+            placeholder: '-- Pilih Account --',
+            allowClear: true,
+            width: '100%',
+            theme: 'bootstrap4',
+            dropdownParent: $modal
+        });
+        $('#modal_objective').select2({
+            minimumResultsForSearch: Infinity,
+            width: '100%',
+            theme: 'bootstrap4',
+            dropdownParent: $modal
+        });
+        $('#modal_status').select2({ minimumResultsForSearch: Infinity, width: '100%', theme: 'bootstrap4', dropdownParent: $modal });
+        ['#modal_objective','#modal_status','#modal_campaign_buying_type','#modal_campaign_special_category','#modal_campaign_budget_type','#modal_conversion_location','#modal_optimization_goal','#modal_bid_strategy','#modal_attribution_window','#modal_dynamic_creative','#modal_budget_type','#modal_gender','#modal_advantage','#modal_placement_mode','#modal_cta','#modal_use_existing_post']
+            .forEach(function(sel){ $(sel).select2({ minimumResultsForSearch: Infinity, width:'100%', theme:'bootstrap4', dropdownParent:$modal }); });
+        $('#modal_use_existing_post').off('change.meta').on('change.meta', function(){
+            const useExisting = String($(this).val() || '0') === '1';
+            $('#modal_existing_post_wrap').toggle(useExisting);
+            updateStepProgress();
+        }).trigger('change.meta');
+        $('#modal_campaign_budget_type').off('change.meta').on('change.meta', function(){
+            syncCampaignBudgetFields();
+            updateStepProgress();
+        });
+        syncCampaignBudgetFields();
+        $('#modalCreateMetaCampaign').find('input,select,textarea').off('input.meta change.metaProgress').on('input.meta change.metaProgress', function(){
+            updateStepProgress();
+        });
+        updateStepProgress();
+    });
     // select_domain sekarang freetext input (tanpa select2)
 
     $('#btn_load_data').click(function (e) {
@@ -62,6 +101,226 @@ $().ready(function () {
             table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain)
         }    
     });
+    $('#btn_create_campaign').click(function (e) {
+        e.preventDefault();
+        const accountId = String($('#create_campaign_account').val() || '').trim();
+        const campaignName = String($('#create_campaign_name').val() || '').trim();
+        const objective = String($('#create_campaign_objective').val() || 'OUTCOME_TRAFFIC').trim();
+        const status = String($('#create_campaign_status').val() || 'PAUSED').trim();
+
+        if (!accountId) { alert('Pilih account tujuan terlebih dahulu.'); return; }
+        if (!campaignName) { alert('Nama campaign wajib diisi.'); return; }
+
+        const formData = new FormData();
+        formData.append('account_id', accountId);
+        formData.append('campaign_name', campaignName);
+        formData.append('objective', objective);
+        formData.append('status', status);
+
+        $('#create_campaign_result').removeClass('text-danger text-success').addClass('text-muted').text('Membuat campaign...');
+
+        $.ajax({
+            url: '/management/admin/create_campaign_per_account', method: 'POST', data: formData,
+            headers: { "X-CSRFToken": csrftoken }, processData: false, contentType: false, dataType: 'json',
+            success: function (res) {
+                if (res && res.success) {
+                    const cid = String(res.campaign_id || '-');
+                    $('#create_campaign_result').removeClass('text-muted text-danger').addClass('text-success').text(`Campaign berhasil dibuat. ID: ${cid}`);
+                    $('#create_campaign_name').val('');
+                } else {
+                    const msg = (res && res.message) ? res.message : 'Gagal membuat campaign';
+                    $('#create_campaign_result').removeClass('text-muted text-success').addClass('text-danger').text(msg);
+                }
+            },
+            error: function (xhr) {
+                let msg = 'Terjadi kesalahan saat membuat campaign';
+                try { const r = JSON.parse(xhr.responseText || '{}'); if (r && r.message) msg = r.message; } catch (err) {}
+                $('#create_campaign_result').removeClass('text-muted text-success').addClass('text-danger').text(msg);
+            }
+        });
+    });
+
+    $('#btn_create_campaign_full').click(function (e) {
+        e.preventDefault();
+        const accountId = String($('#create_campaign_account').val() || '').trim();
+        const campaignName = String($('#create_campaign_name').val() || '').trim();
+        const objective = String($('#create_campaign_objective').val() || 'OUTCOME_TRAFFIC').trim();
+        const status = String($('#create_campaign_status').val() || 'PAUSED').trim();
+        const pageId = String($('#create_ad_page_id').val() || '').trim();
+        const websiteUrl = String($('#create_ad_website_url').val() || '').trim();
+
+        if (!accountId) { alert('Pilih account tujuan terlebih dahulu.'); return; }
+        if (!campaignName) { alert('Nama campaign wajib diisi.'); return; }
+        if (!pageId) { alert('Page ID wajib diisi.'); return; }
+        if (!websiteUrl) { alert('Website URL wajib diisi.'); return; }
+
+        const formData = new FormData();
+        formData.append('account_id', accountId);
+        formData.append('campaign_name', campaignName);
+        formData.append('objective', objective);
+        formData.append('status', status);
+        formData.append('adset_name', `${campaignName} - ADSET 1`);
+        formData.append('ad_name', `${campaignName} - AD 1`);
+        formData.append('daily_budget', String($('#create_adset_daily_budget').val() || '50000'));
+        formData.append('countries', String($('#create_adset_countries').val() || 'ID'));
+        formData.append('age_min', String($('#create_adset_age_min').val() || '18'));
+        formData.append('age_max', String($('#create_adset_age_max').val() || '65'));
+        formData.append('page_id', pageId);
+        formData.append('website_url', websiteUrl);
+        formData.append('primary_text', String($('#create_ad_primary_text').val() || ''));
+        formData.append('headline', String($('#create_ad_headline').val() || ''));
+        formData.append('cta_type', String($('#create_ad_cta_type').val() || 'LEARN_MORE'));
+        formData.append('pixel_id', String($('#create_ad_pixel_id').val() || ''));
+
+        $('#create_campaign_result').removeClass('text-danger text-success').addClass('text-muted').text('Membuat campaign + ad set + ad...');
+
+        $.ajax({
+            url: '/management/admin/create_campaign_fullstack_per_account', method: 'POST', data: formData,
+            headers: { "X-CSRFToken": csrftoken }, processData: false, contentType: false, dataType: 'json',
+            success: function (res) {
+                if (res && res.success) {
+                    $('#create_campaign_result').removeClass('text-muted text-danger').addClass('text-success')
+                        .text(`Berhasil. Campaign: ${res.campaign_id || '-'} | AdSet: ${res.adset_id || '-'} | Ad: ${res.ad_id || '-'}`);
+                    $('#create_campaign_name').val('');
+                } else {
+                    const step = (res && res.step) ? ` [step: ${res.step}]` : '';
+                    const msg = (res && res.message) ? res.message : 'Gagal create full stack';
+                    $('#create_campaign_result').removeClass('text-muted text-success').addClass('text-danger').text(msg + step);
+                }
+            },
+            error: function (xhr) {
+                let msg = 'Terjadi kesalahan saat create full stack';
+                try { const r = JSON.parse(xhr.responseText || '{}'); if (r && r.message) msg = r.message; } catch (err) {}
+                $('#create_campaign_result').removeClass('text-muted text-success').addClass('text-danger').text(msg);
+            }
+        });
+    });
+
+    let wizardStep = 1;
+    const stepGuide = {
+        1: 'Isi data Campaign terlebih dahulu: nama, account, objective, dan status.',
+        2: 'Lengkapi Ad Set: budget, audience, optimization, dan jadwal.',
+        3: 'Lengkapi Ad Creative: identity, konten iklan, dan URL tracking.'
+    };
+    const requiredByStep = {
+        1: ['#modal_campaign_name','#modal_account','#modal_objective','#modal_status'],
+        2: ['#modal_adset_name','#modal_conversion_location','#modal_optimization_goal','#modal_daily_budget','#modal_countries'],
+        3: ['#modal_ad_name','#modal_page_id','#modal_website_url','#modal_cta']
+    };
+    const fieldLabel = {
+        '#modal_campaign_name':'Nama Campaign','#modal_account':'Account','#modal_objective':'Objective','#modal_status':'Status',
+        '#modal_adset_name':'Nama Set Iklan','#modal_conversion_location':'Konversi','#modal_optimization_goal':'Target Kinerja','#modal_daily_budget':'Daily Budget','#modal_countries':'Countries',
+        '#modal_ad_name':'Nama Ad','#modal_page_id':'Page ID','#modal_website_url':'Website URL','#modal_cta':'CTA'
+    };
+    const updateStepProgress = function(){
+        const req = requiredByStep[wizardStep] || [];
+        let filled = 0; const missing = [];
+        req.forEach(function(sel){
+            const v = String($(sel).val() || '').trim();
+            if(v) filled += 1; else missing.push(fieldLabel[sel] || sel);
+        });
+        const pct = req.length ? Math.round((filled/req.length)*100) : 0;
+        $('#metaStepProgressLabel').text(pct + '% lengkap');
+        $('#metaStepProgressBar').css('width', pct + '%');
+        $('#metaStepMissing').text(missing.length ? ('Belum lengkap: ' + missing.join(', ')) : 'Semua field wajib sudah lengkap.');
+        $('#metaStepGuide').text(stepGuide[wizardStep] || 'Lengkapi field wajib di step ini lalu klik tombol aksi.');
+    };
+    const syncCampaignBudgetFields = function(){
+        const type = String($('#modal_campaign_budget_type').val() || 'none');
+        $('#modal_campaign_daily_budget').prop('disabled', type !== 'daily');
+        $('#modal_campaign_lifetime_budget').prop('disabled', type !== 'lifetime');
+    };
+    const setWizardStep = function (step) {
+        wizardStep = Math.max(1, Math.min(3, Number(step) || 1));
+        ['1','2','3'].forEach(function (n) {
+            $('#chip'+n).toggleClass('active', Number(n) === wizardStep);
+            $('#pane'+n).toggleClass('active', Number(n) === wizardStep);
+        });
+        $('#btnWizardPrev').prop('disabled', wizardStep === 1);
+        $('#btnWizardNext').prop('disabled', wizardStep === 3);
+        $('#btnWizardCreateCampaign').toggle(wizardStep === 1);
+        $('#btnWizardCreateAdsetAd').toggle(wizardStep >= 2);
+        updateStepProgress();
+    };
+
+    $('#btnOpenCreateCampaignModal').click(function(){
+        setWizardStep(1);
+        $('#modal_campaign_id').val('');
+        $('#metaSummaryCampaignId').text('-');
+        $('#modal_create_result').removeClass('text-danger text-success').addClass('text-muted').text('Isi form campaign untuk mulai.');
+        $('#modalCreateMetaCampaign').modal('show');
+        setTimeout(function(){ updateStepProgress(); }, 150);
+    });
+    $('#btnWizardPrev').click(function(){ setWizardStep(wizardStep - 1); });
+    $('#btnWizardNext').click(function(){ setWizardStep(wizardStep + 1); });
+
+    $('#btnWizardCreateCampaign').click(function(){
+        const accountId = String($('#modal_account').val() || '').trim();
+        const campaignName = String($('#modal_campaign_name').val() || '').trim();
+        const objective = String($('#modal_objective').val() || 'OUTCOME_TRAFFIC').trim();
+        const status = String($('#modal_status').val() || 'PAUSED').trim();
+        const buyingType = String($('#modal_campaign_buying_type').val() || 'AUCTION').trim();
+        const specialCategory = String($('#modal_campaign_special_category').val() || 'NONE').trim();
+        const campaignBudgetType = String($('#modal_campaign_budget_type').val() || 'none').trim();
+        const campaignDailyBudget = String($('#modal_campaign_daily_budget').val() || '').trim();
+        const campaignLifetimeBudget = String($('#modal_campaign_lifetime_budget').val() || '').trim();
+        const campaignSpendCap = String($('#modal_campaign_spend_cap').val() || '').trim();
+        if (!accountId || !campaignName) { alert('Account dan nama campaign wajib diisi.'); return; }
+        const fd = new FormData();
+        fd.append('account_id', accountId); fd.append('campaign_name', campaignName); fd.append('objective', objective); fd.append('status', status);
+        fd.append('buying_type', buyingType); fd.append('special_ad_category', specialCategory);
+        fd.append('campaign_budget_type', campaignBudgetType); fd.append('campaign_daily_budget', campaignDailyBudget);
+        fd.append('campaign_lifetime_budget', campaignLifetimeBudget); fd.append('campaign_spend_cap', campaignSpendCap);
+        $('#modal_create_result').removeClass('text-danger text-success').addClass('text-muted').text('Membuat campaign...');
+        $.ajax({url:'/management/admin/create_campaign_per_account',method:'POST',data:fd,headers:{"X-CSRFToken": csrftoken},processData:false,contentType:false,dataType:'json',
+            success:function(res){
+                if(res&&res.success){
+                    const cid = String(res.campaign_id||'');
+                    $('#modal_campaign_id').val(cid);
+                    if(!$('#modal_adset_name').val()) $('#modal_adset_name').val(campaignName + ' - ADSET 1');
+                    if(!$('#modal_ad_name').val()) $('#modal_ad_name').val(campaignName + ' - AD 1');
+                    $('#modal_create_result').removeClass('text-muted text-danger').addClass('text-success').text('Campaign berhasil dibuat. Lanjutkan ke Ad Set.');
+                    $('#metaSummaryCampaignId').text(cid || '-');
+                    setWizardStep(2);
+                } else {
+                    $('#modal_create_result').removeClass('text-muted text-success').addClass('text-danger').text((res&&res.message)?res.message:'Gagal membuat campaign');
+                }
+            },
+            error:function(xhr){ let m='Terjadi kesalahan saat membuat campaign'; try{const r=JSON.parse(xhr.responseText||'{}'); if(r&&r.message)m=r.message;}catch(e){} $('#modal_create_result').removeClass('text-muted text-success').addClass('text-danger').text(m); }
+        });
+    });
+
+    $('#btnWizardCreateAdsetAd').click(function(){
+        const accountId = String($('#modal_account').val() || '').trim();
+        const campaignId = String($('#modal_campaign_id').val() || '').trim();
+        if (!accountId || !campaignId) { alert('Buat campaign dulu pada Step 1.'); return; }
+        const fd = new FormData();
+        fd.append('account_id', accountId); fd.append('campaign_id', campaignId); fd.append('status', String($('#modal_status').val()||'PAUSED'));
+        fd.append('adset_name', String($('#modal_adset_name').val()||'')); fd.append('ad_name', String($('#modal_ad_name').val()||''));
+        fd.append('daily_budget', String($('#modal_daily_budget').val()||'50000')); fd.append('lifetime_budget', String($('#modal_lifetime_budget').val()||''));
+        fd.append('budget_type', String($('#modal_budget_type').val()||'daily')); fd.append('start_time', String($('#modal_start_time').val()||'')); fd.append('end_time', String($('#modal_end_time').val()||''));
+        fd.append('countries', String($('#modal_countries').val()||'ID')); fd.append('age_min', String($('#modal_age_min').val()||'18')); fd.append('age_max', String($('#modal_age_max').val()||'65'));
+        fd.append('gender', String($('#modal_gender').val()||'all')); fd.append('advantage', String($('#modal_advantage').val()||'0')); fd.append('placement_mode', String($('#modal_placement_mode').val()||'auto'));
+        fd.append('conversion_location', String($('#modal_conversion_location').val()||'WEBSITE')); fd.append('optimization_goal', String($('#modal_optimization_goal').val()||'LINK_CLICKS'));
+        fd.append('bid_strategy', String($('#modal_bid_strategy').val()||'LOWEST_COST_WITHOUT_CAP')); fd.append('bid_amount', String($('#modal_bid_amount').val()||''));
+        fd.append('attribution_window', String($('#modal_attribution_window').val()||'7d_click_1d_view')); fd.append('dynamic_creative', String($('#modal_dynamic_creative').val()||'0'));
+        fd.append('page_id', String($('#modal_page_id').val()||'')); fd.append('website_url', String($('#modal_website_url').val()||''));
+        fd.append('instagram_actor_id', String($('#modal_instagram_actor_id').val()||''));
+        fd.append('use_existing_post', String($('#modal_use_existing_post').val()||'0')); fd.append('existing_post_id', String($('#modal_existing_post_id').val()||''));
+        fd.append('primary_text', String($('#modal_primary_text').val()||'')); fd.append('headline', String($('#modal_headline').val()||''));
+        fd.append('description', String($('#modal_description').val()||'')); fd.append('display_link', String($('#modal_display_link').val()||'')); fd.append('caption', String($('#modal_caption').val()||''));
+        fd.append('url_tags', String($('#modal_url_tags').val()||''));
+        fd.append('cta_type', String($('#modal_cta').val()||'LEARN_MORE')); fd.append('pixel_id', String($('#modal_pixel_id').val()||''));
+        $('#modal_create_result').removeClass('text-danger text-success').addClass('text-muted').text('Membuat ad set + ad...');
+        $.ajax({url:'/management/admin/create_adset_ad_per_account',method:'POST',data:fd,headers:{"X-CSRFToken": csrftoken},processData:false,contentType:false,dataType:'json',
+            success:function(res){
+                if(res&&res.success){ $('#modal_create_result').removeClass('text-muted text-danger').addClass('text-success').text('Berhasil publish. AdSet: '+(res.adset_id||'-')+' | Ad: '+(res.ad_id||'-')); setWizardStep(3); }
+                else { const step=(res&&res.step)?(' [step: '+res.step+']'):''; $('#modal_create_result').removeClass('text-muted text-success').addClass('text-danger').text(((res&&res.message)?res.message:'Gagal')+step); }
+            },
+            error:function(xhr){ let m='Terjadi kesalahan saat membuat ad set + ad'; try{const r=JSON.parse(xhr.responseText||'{}'); if(r&&r.message)m=r.message;}catch(e){} $('#modal_create_result').removeClass('text-muted text-success').addClass('text-danger').text(m); }
+        });
+    });
+
     // Filter silang account-domain dinonaktifkan karena domain menggunakan freetext.
 });
 

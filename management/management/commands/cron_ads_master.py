@@ -118,7 +118,6 @@ class Command(BaseCommand):
                     ],
                     params=params,
                 )
-                print(insights)
                 for row in insights:
                     campaign_id = row.get('campaign_id')
                     if not campaign_id:

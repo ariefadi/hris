@@ -1453,16 +1453,17 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def delete_data_ads_campaign_by_date_account(self, account, domain, campaign_name, tanggal):
+    def delete_data_ads_campaign_by_date_account(self, account, campaign_id, domain, campaign_name, tanggal):
         try:
             sql_delete = """
                         DELETE FROM data_ads_campaign
                         WHERE account_ads_id = %s
+                        AND data_ads_campaign_id = %s
                         AND data_ads_domain = %s
                         AND data_ads_campaign_nm = %s
                         AND data_ads_tanggal = %s
                 """
-            if not self.execute_query(sql_delete, (account, domain, campaign_name, tanggal)):
+            if not self.execute_query(sql_delete, (account, campaign_id, domain, campaign_name, tanggal)):
                 raise pymysql.Error("Failed to delete data ads campaign by date range")
 
             affected = self.cur_hris.rowcount if self.cur_hris else 0
@@ -1523,6 +1524,7 @@ class data_mysql:
                             log_ads_country.log_ads_country_cd,
                             log_ads_country.log_ads_country_nm,
                             log_ads_country.log_ads_domain,
+                            log_ads_country.log_ads_campaign_id,
                             log_ads_country.log_ads_campaign_nm,
                             log_ads_country.log_ads_country_tanggal,
                             log_ads_country.log_ads_country_spend,
@@ -1557,6 +1559,7 @@ class data_mysql:
                             %s,
                             %s,
                             %s,
+                            %s,
                             %s
                         )
                 """
@@ -1565,6 +1568,7 @@ class data_mysql:
                 data['log_ads_country_cd'],
                 data['log_ads_country_nm'],
                 data['log_ads_domain'],
+                data['log_ads_campaign_id'],
                 data['log_ads_campaign_nm'],
                 data['log_ads_country_tanggal'],
                 data['log_ads_country_spend'],
@@ -1615,6 +1619,7 @@ class data_mysql:
                             log_ads_campaign.log_ads_id,
                             log_ads_campaign.account_ads_id,
                             log_ads_campaign.log_ads_domain,
+                            log_ads_campaign.log_ads_campaign_id,
                             log_ads_campaign.log_ads_campaign_nm,
                             log_ads_campaign.log_ads_tanggal,
                             log_ads_campaign.log_ads_spend,
@@ -1648,6 +1653,8 @@ class data_mysql:
                             %s,
                             %s,
                             %s,
+                            %s,
+                            %s,
                             %s
                         )
                 """
@@ -1655,6 +1662,7 @@ class data_mysql:
                 data['log_ads_id'],
                 data['account_ads_id'],
                 data['log_ads_domain'],
+                data['log_ads_campaign_id'],
                 data['log_ads_campaign_nm'],
                 data['log_ads_tanggal'],
                 data['log_ads_spend'],
@@ -2915,6 +2923,7 @@ class data_mysql:
                         (
                             data_ads_campaign.account_ads_id,
                             data_ads_campaign.data_ads_domain,
+                            data_ads_campaign.data_ads_campaign_id,
                             data_ads_campaign.data_ads_campaign_nm,
                             data_ads_campaign.data_ads_tanggal,
                             data_ads_campaign.data_ads_spend,
@@ -2947,12 +2956,14 @@ class data_mysql:
                             %s,
                             %s,
                             %s,
+                            %s,
                             %s
                         )
                 """
             if not self.execute_query(sql_insert, (
                 data['account_ads_id'],
                 data['data_ads_domain'],
+                data['data_ads_campaign_id'],
                 data['data_ads_campaign_nm'],
                 data['data_ads_tanggal'],
                 data['data_ads_spend'],
@@ -2992,6 +3003,7 @@ class data_mysql:
                             data_ads_country.data_ads_country_cd,
                             data_ads_country.data_ads_country_nm,
                             data_ads_country.data_ads_domain,
+                            data_ads_country.data_ads_campaign_id,
                             data_ads_country.data_ads_campaign_nm,
                             data_ads_country.data_ads_country_tanggal,
                             data_ads_country.data_ads_country_spend,
@@ -3026,6 +3038,7 @@ class data_mysql:
                             %s,
                             %s,
                             %s,
+                            %s,
                             %s
                         )
                 """
@@ -3034,6 +3047,7 @@ class data_mysql:
                 data['data_ads_country_cd'],
                 data['data_ads_country_nm'],
                 data['data_ads_domain'],
+                data['data_ads_campaign_id'],
                 data['data_ads_campaign_nm'],
                 data['data_ads_country_tanggal'],
                 data['data_ads_country_spend'],
