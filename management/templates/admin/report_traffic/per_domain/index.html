@@ -78,7 +78,7 @@
 </div>
 
 <div class="row">
-    <div class="col-md-3 mb-3">
+    <div class="col-md-2 mb-3">
         <div class="card traffic-kpi-card traffic-kpi-1">
             <div class="card-body">
                 <div class="traffic-kpi-title">Total Visitors</div>
@@ -86,7 +86,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-3">
+    <div class="col-md-2 mb-3">
         <div class="card traffic-kpi-card traffic-kpi-2">
             <div class="card-body">
                 <div class="traffic-kpi-title">Unique Visitors</div>
@@ -94,7 +94,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-3">
+    <div class="col-md-2 mb-3">
         <div class="card traffic-kpi-card traffic-kpi-3">
             <div class="card-body">
                 <div class="traffic-kpi-title">Total Pageviews</div>
@@ -102,11 +102,27 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-3">
+    <div class="col-md-2 mb-3">
         <div class="card traffic-kpi-card traffic-kpi-4">
             <div class="card-body">
                 <div class="traffic-kpi-title">Total Ad Click</div>
                 <p class="traffic-kpi-value" id="totalAdClicks">0</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card traffic-kpi-card traffic-kpi-1">
+            <div class="card-body">
+                <div class="traffic-kpi-title">Total Ad Spend</div>
+                <p class="traffic-kpi-value" id="totalAdSpend">Rp0</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2 mb-3">
+        <div class="card traffic-kpi-card traffic-kpi-2">
+            <div class="card-body">
+                <div class="traffic-kpi-title">Revenue</div>
+                <p class="traffic-kpi-value" id="totalRevenue">Rp0</p>
             </div>
         </div>
     </div>
@@ -143,6 +159,7 @@
 (function () {
     var DOMAIN_LIST_ENDPOINT = "https://api-tracker.kiwipixel.com/v1/domain_list";
     var TRAFFIC_STATS_ENDPOINT = "https://api-tracker.kiwipixel.com/v1/traffic-stats";
+    var AD_SPEND_ENDPOINT = "{% url 'traffic_per_domain_ad_spend' %}";
     var DOMAIN_CACHE_KEY = "traffic_domain_list_cache_v1";
     var DOMAIN_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
     var TRAFFIC_CACHE_KEY = "traffic_last_load_cache_v2";
@@ -204,7 +221,16 @@
         el.textContent = formatDateTime(lastUpdateTimestampMs) + " (" + formatAge(lastUpdateTimestampMs) + ")";
     }
 
-    function updateKpi(aggregatedRows) {
+    function formatCurrency(value) {
+        var amount = Number(value || 0);
+        return amount.toLocaleString("id-ID", {
+            style: "currency",
+            currency: "IDR",
+            maximumFractionDigits: 0
+        });
+    }
+
+    function updateKpi(aggregatedRows, totalAdSpend, totalRevenue) {
         var totals = aggregatedRows.reduce(function (acc, row) {
             acc.visitors += row.totalVisitors;
             acc.unique += row.uniqueVisitors;
@@ -217,21 +243,25 @@
         document.getElementById("totalUniqueVisitors").textContent = totals.unique.toLocaleString("id-ID");
         document.getElementById("totalPageviews").textContent = totals.pageviews.toLocaleString("id-ID");
         document.getElementById("totalAdClicks").textContent = totals.click.toLocaleString("id-ID");
+        document.getElementById("totalAdSpend").textContent = formatCurrency(totalAdSpend || 0);
+        document.getElementById("totalRevenue").textContent = formatCurrency(totalRevenue || 0);
     }
 
     function clearTrafficView() {
-        updateKpi([]);
-        renderChart([]);
+        updateKpi([], 0, 0);
+        renderChart([], 0, 0);
         renderCountryChart([]);
         setLastUpdate(null);
     }
 
-    function renderChart(aggregatedRows) {
+    function renderChart(aggregatedRows, totalAdSpend, totalRevenue) {
         var labels = aggregatedRows.map(function (row) { return row.time; });
         var visitors = aggregatedRows.map(function (row) { return row.totalVisitors; });
         var unique = aggregatedRows.map(function (row) { return row.uniqueVisitors; });
         var pageviews = aggregatedRows.map(function (row) { return row.pageviews; });
         var adClick = aggregatedRows.map(function (row) { return row.adClick; });
+        var spendSeries = labels.map(function () { return Number(totalAdSpend || 0); });
+        var revenueSeries = labels.map(function () { return Number(totalRevenue || 0); });
 
         var ctx = document.getElementById("chart_traffic");
         if (!ctx) return;
@@ -247,7 +277,27 @@
                     { label: "Total Visitors", data: visitors, backgroundColor: "rgba(37, 99, 235, 0.7)", stack: "traffic" },
                     { label: "Unique Visitors", data: unique, backgroundColor: "rgba(14, 165, 233, 0.7)", stack: "traffic" },
                     { label: "Pageviews", data: pageviews, backgroundColor: "rgba(139, 92, 246, 0.7)", stack: "traffic" },
-                    { label: "Ad Click", data: adClick, backgroundColor: "rgba(245, 158, 11, 0.7)", stack: "traffic" }
+                    { label: "Ad Click", data: adClick, backgroundColor: "rgba(245, 158, 11, 0.7)", stack: "traffic" },
+                    {
+                        label: "Ad Spend",
+                        data: spendSeries,
+                        type: "line",
+                        borderColor: "rgba(220, 38, 38, 0.9)",
+                        backgroundColor: "rgba(220, 38, 38, 0.2)",
+                        yAxisID: "y1",
+                        pointRadius: 2,
+                        tension: 0.2
+                    },
+                    {
+                        label: "Revenue",
+                        data: revenueSeries,
+                        type: "line",
+                        borderColor: "rgba(22, 163, 74, 0.9)",
+                        backgroundColor: "rgba(22, 163, 74, 0.2)",
+                        yAxisID: "y1",
+                        pointRadius: 2,
+                        tension: 0.2
+                    }
                 ]
             },
             options: {
@@ -256,7 +306,12 @@
                 interaction: { mode: "index", intersect: false },
                 scales: {
                     x: { stacked: true },
-                    y: { stacked: true, beginAtZero: true }
+                    y: { stacked: true, beginAtZero: true },
+                    y1: {
+                        position: "right",
+                        beginAtZero: true,
+                        grid: { drawOnChartArea: false }
+                    }
                 }
             }
         });
@@ -414,6 +469,8 @@
             store.entries[key] = {
                 aggregatedRows: payload.aggregatedRows || [],
                 aggregatedCountries: payload.aggregatedCountries || [],
+                totalAdSpend: Number(payload.totalAdSpend || 0),
+                totalRevenue: Number(payload.totalRevenue || 0),
                 selectedDomains: payload.selectedDomains || [],
                 report: report || "today",
                 savedAt: Date.now(),
@@ -492,8 +549,8 @@
 
     function applyCachedTrafficToView(cacheObj) {
         if (!cacheObj || !Array.isArray(cacheObj.aggregatedRows)) return;
-        updateKpi(cacheObj.aggregatedRows);
-        renderChart(cacheObj.aggregatedRows);
+        updateKpi(cacheObj.aggregatedRows, Number(cacheObj.totalAdSpend || 0), Number(cacheObj.totalRevenue || 0));
+        renderChart(cacheObj.aggregatedRows, Number(cacheObj.totalAdSpend || 0), Number(cacheObj.totalRevenue || 0));
         renderCountryChart(cacheObj.aggregatedCountries || []);
         if (cacheObj.report) {
             document.getElementById("select_range").value = cacheObj.report;
@@ -574,17 +631,34 @@
                 var allCountries = allResult.map(function (item) { return item.countries || []; });
                 var aggregatedRows = aggregateSeries(allSeries);
                 var aggregatedCountries = aggregateCountries(allCountries, 15);
-                var nowTs = Date.now();
-                updateKpi(aggregatedRows);
-                renderChart(aggregatedRows);
-                renderCountryChart(aggregatedCountries);
-                setLastUpdate(nowTs);
-                cacheTraffic(report, selectedDomains, {
-                    aggregatedRows: aggregatedRows,
-                    aggregatedCountries: aggregatedCountries,
-                    selectedDomains: selectedDomains,
-                    lastUpdateAt: nowTs
-                });
+                var spendUrl = AD_SPEND_ENDPOINT +
+                    "?report=" + encodeURIComponent(report) +
+                    "&domains=" + encodeURIComponent(selectedDomains.join(","));
+                return fetch(spendUrl, { method: "GET" })
+                    .then(function (resp) {
+                        if (!resp.ok) return { status: false, total_ad_spend: 0 };
+                        return resp.json();
+                    })
+                    .catch(function () {
+                        return { status: false, total_ad_spend: 0, total_revenue: 0 };
+                    })
+                    .then(function (spendJson) {
+                        var totalAdSpend = Number((spendJson && spendJson.total_ad_spend) || 0);
+                        var totalRevenue = Number((spendJson && spendJson.total_revenue) || 0);
+                        var nowTs = Date.now();
+                        updateKpi(aggregatedRows, totalAdSpend, totalRevenue);
+                        renderChart(aggregatedRows, totalAdSpend, totalRevenue);
+                        renderCountryChart(aggregatedCountries);
+                        setLastUpdate(nowTs);
+                        cacheTraffic(report, selectedDomains, {
+                            aggregatedRows: aggregatedRows,
+                            aggregatedCountries: aggregatedCountries,
+                            totalAdSpend: totalAdSpend,
+                            totalRevenue: totalRevenue,
+                            selectedDomains: selectedDomains,
+                            lastUpdateAt: nowTs
+                        });
+                    });
             })
             .catch(function (err) {
                 console.error(err);

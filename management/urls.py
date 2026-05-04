@@ -127,6 +127,7 @@ urlpatterns = [
     path('admin/page_roi_traffic_domain', views.RoiTrafficPerDomainDataView.as_view()),
     # Menu Traffic Per Domain
     path('admin/traffic_per_domain', views.TrafficPerDomainReportView.as_view(), name='report_traffic_domain'),
+    path('admin/traffic_per_domain_ad_spend', views.TrafficPerDomainAdSpendView.as_view(), name='traffic_per_domain_ad_spend'),
     path('admin/traffic_per_campaign', views.TrafficPerCampaignReportView.as_view(), name='report_traffic_campaign'),
     path('admin/traffic_campaign_list', views.TrafficCampaignListView.as_view(), name='traffic_campaign_list'),
     # Menu ROI Per Country

@@ -6704,6 +6704,77 @@ class TrafficPerDomainReportView(View):
         }
         return render(req, 'admin/report_traffic/per_domain/index.html', data)
 
+class TrafficPerDomainAdSpendView(View):
+    """AJAX endpoint total ad spend for selected domain(s) + report range."""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    @staticmethod
+    def _to_domain_key(domain_value):
+        s = str(domain_value or '').strip().lower()
+        if not s:
+            return ''
+        parts = [p for p in s.split('.') if p]
+        if len(parts) >= 2:
+            return parts[0] + '.' + parts[1]
+        return s
+
+    @staticmethod
+    def _range_to_dates(report):
+        today = datetime.now().date()
+        r = str(report or 'today').strip().lower()
+        if r == '7days':
+            start = today - timedelta(days=6)
+        elif r == '30days':
+            start = today - timedelta(days=29)
+        elif r == '90days':
+            start = today - timedelta(days=89)
+        else:
+            start = today
+        return start.strftime('%Y-%m-%d'), today.strftime('%Y-%m-%d')
+
+    def get(self, req):
+        try:
+            report = req.GET.get('report', 'today')
+            domains_csv = str(req.GET.get('domains') or '').strip()
+            raw_domains = [d.strip() for d in domains_csv.split(',') if d.strip()]
+            domain_keys = []
+            seen = set()
+            for raw in raw_domains:
+                key = self._to_domain_key(raw)
+                if key and key not in seen:
+                    seen.add(key)
+                    domain_keys.append(key)
+
+            start_date, end_date = self._range_to_dates(report)
+            rs_spend = data_mysql().get_total_ads_spend_by_domain_keys_and_date(domain_keys, start_date, end_date)
+            if not isinstance(rs_spend, dict) or not rs_spend.get('status'):
+                return JsonResponse({
+                    'status': False,
+                    'error': (rs_spend or {}).get('data') if isinstance(rs_spend, dict) else 'Failed query ad spend'
+                }, status=500)
+
+            rs_revenue = data_mysql().get_total_adx_revenue_by_domains_and_date(raw_domains, start_date, end_date)
+            if not isinstance(rs_revenue, dict) or not rs_revenue.get('status'):
+                return JsonResponse({
+                    'status': False,
+                    'error': (rs_revenue or {}).get('data') if isinstance(rs_revenue, dict) else 'Failed query revenue'
+                }, status=500)
+
+            total_ad_spend = float(((rs_spend.get('data') or {}).get('total_ad_spend')) or 0)
+            total_revenue = float(((rs_revenue.get('data') or {}).get('total_revenue')) or 0)
+            return JsonResponse({
+                'status': True,
+                'total_ad_spend': total_ad_spend,
+                'total_revenue': total_revenue,
+                'start_date': start_date,
+                'end_date': end_date
+            })
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)}, status=500)
+
 class TrafficPerCampaignReportView(View):
     """View untuk Traffic Per Campaign"""
     def dispatch(self, request, *args, **kwargs):

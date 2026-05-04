@@ -360,7 +360,7 @@ class data_mysql:
                 print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
                 port = 3306
             user = os.getenv('DB_USER') or 'root'
-            password = os.getenv('DB_PASSWORD') or 'hris123456'
+            password = os.getenv('DB_PASSWORD') or ''
             database = os.getenv('DB_NAME') or 'hris_trendHorizone'
 
             self.db_hris = pymysql.connect(
@@ -1819,7 +1819,11 @@ class data_mysql:
         return hasil
 
     def get_master_ads_campaign_name_map(self, campaign_ids):
-        """Get campaign_id -> campaign_name from master_ads for provided ids."""
+        """
+        Get latest campaign_id -> campaign_name by combining:
+        - master_ads (master_campaign_id, master_campaign_nm)
+        - data_ads_campaign (data_ads_campaign_id, data_ads_campaign_nm)
+        """
         try:
             normalized_ids = []
             seen_ids = set()
@@ -1834,20 +1838,37 @@ class data_mysql:
 
             placeholders = ','.join(['%s'] * len(normalized_ids))
             sql = f"""
-                SELECT master_campaign_id, master_campaign_nm, mdd
-                FROM master_ads
-                WHERE master_campaign_id IN ({placeholders})
-                ORDER BY mdd DESC
+                SELECT campaign_id, campaign_name, updated_at, source_priority
+                FROM (
+                    SELECT 
+                        CAST(m.master_campaign_id AS CHAR) AS campaign_id,
+                        m.master_campaign_nm AS campaign_name,
+                        COALESCE(m.mdd, m.master_date_end, m.master_date_start, m.master_date) AS updated_at,
+                        2 AS source_priority
+                    FROM master_ads m
+                    WHERE CAST(m.master_campaign_id AS CHAR) IN ({placeholders})
+
+                    UNION ALL
+
+                    SELECT 
+                        CAST(d.data_ads_campaign_id AS CHAR) AS campaign_id,
+                        d.data_ads_campaign_nm AS campaign_name,
+                        COALESCE(d.mdd, d.data_ads_tanggal) AS updated_at,
+                        1 AS source_priority
+                    FROM data_ads_campaign d
+                    WHERE CAST(d.data_ads_campaign_id AS CHAR) IN ({placeholders})
+                ) x
+                WHERE COALESCE(campaign_id, '') <> ''
+                  AND COALESCE(campaign_name, '') <> ''
+                ORDER BY campaign_id ASC, updated_at DESC, source_priority ASC
             """
-
-            if not self.execute_query(sql, tuple(normalized_ids)):
-                raise pymysql.Error("Failed to fetch campaign name map from master_ads")
-
+            params = tuple(normalized_ids + normalized_ids)
+            self.cur_hris.execute(sql, params)
             rows = self.cur_hris.fetchall() or []
             name_map = {}
             for row in rows:
-                cid = str((row or {}).get('master_campaign_id') or '').strip()
-                cname = str((row or {}).get('master_campaign_nm') or '').strip()
+                cid = str((row or {}).get('campaign_id') or '').strip()
+                cname = str((row or {}).get('campaign_name') or '').strip()
                 if not cid:
                     continue
                 if cid in name_map:
@@ -1856,6 +1877,82 @@ class data_mysql:
                     name_map[cid] = cname
 
             return {"status": True, "data": name_map}
+        except pymysql.Error as e:
+            return {
+                "status": False,
+                "data": f"Terjadi error {e!r}, error nya {e.args[0] if e.args else e}"
+            }
+
+    def get_total_ads_spend_by_domain_keys_and_date(self, domain_keys, start_date, end_date):
+        """Sum data_ads_spend where first 2 dot segments of data_ads_domain match domain keys."""
+        try:
+            def normalize_domain_key(raw_value):
+                s = str(raw_value or '').strip().lower()
+                if not s:
+                    return ''
+                parts = [p for p in s.split('.') if p]
+                # remove TLD by taking only first 2 labels from the left
+                # ex: mavon.missagendalimon.com -> mavon.missagendalimon
+                # ex: mavon.missagendalimon -> mavon.missagendalimon
+                if len(parts) >= 2:
+                    return parts[0] + '.' + parts[1]
+                return s
+
+            keys = []
+            seen = set()
+            for raw in (domain_keys or []):
+                key = normalize_domain_key(raw)
+                if key and key not in seen:
+                    seen.add(key)
+                    keys.append(key)
+
+            if not keys:
+                return {"status": True, "data": {"total_ad_spend": 0.0}}
+
+            placeholders = ','.join(['%s'] * len(keys))
+            sql = f"""
+                SELECT COALESCE(SUM(CAST(a.data_ads_spend AS DECIMAL(18,2))), 0) AS total_ad_spend
+                FROM data_ads_campaign a
+                WHERE DATE(a.data_ads_tanggal) BETWEEN %s AND %s
+                  AND LOWER(SUBSTRING_INDEX(a.data_ads_domain, '.', 2)) IN ({placeholders})
+            """
+            params = [start_date, end_date] + keys
+            self.cur_hris.execute(sql, tuple(params))
+            row = self.cur_hris.fetchone() or {}
+            total = float(row.get('total_ad_spend') or 0)
+            return {"status": True, "data": {"total_ad_spend": total}}
+        except pymysql.Error as e:
+            return {
+                "status": False,
+                "data": f"Terjadi error {e!r}, error nya {e.args[0] if e.args else e}"
+            }
+
+    def get_total_adx_revenue_by_domains_and_date(self, domains, start_date, end_date):
+        """Sum data_adx_domain_revenue by selected domains within date range."""
+        try:
+            normalized_domains = []
+            seen_domains = set()
+            for raw in (domains or []):
+                domain = str(raw or '').strip().lower()
+                if domain and domain not in seen_domains:
+                    seen_domains.add(domain)
+                    normalized_domains.append(domain)
+
+            if not normalized_domains:
+                return {"status": True, "data": {"total_revenue": 0.0}}
+
+            placeholders = ','.join(['%s'] * len(normalized_domains))
+            sql = f"""
+                SELECT COALESCE(SUM(CAST(a.data_adx_domain_revenue AS DECIMAL(18,2))), 0) AS total_revenue
+                FROM data_adx_domain a
+                WHERE DATE(a.data_adx_domain_tanggal) BETWEEN %s AND %s
+                  AND LOWER(a.data_adx_domain) IN ({placeholders})
+            """
+            params = [start_date, end_date] + normalized_domains
+            self.cur_hris.execute(sql, tuple(params))
+            row = self.cur_hris.fetchone() or {}
+            total = float(row.get('total_revenue') or 0)
+            return {"status": True, "data": {"total_revenue": total}}
         except pymysql.Error as e:
             return {
                 "status": False,
