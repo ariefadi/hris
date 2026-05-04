@@ -6970,8 +6970,8 @@ class data_mysql:
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
-            # --- 2. Buat kondisi LIKE untuk setiap domain
-            like_conditions = " OR ".join(["b.data_ads_domain LIKE %s"] * len(data_domain_list))
+            # --- 2. Buat kondisi LIKE untuk setiap domain (kolom AdX)
+            like_conditions = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
             like_params = [f"%{domain}%" for domain in data_domain_list] 
             base_sql = [
                 "SELECT",
@@ -6985,9 +6985,24 @@ class data_mysql:
             params = []
             base_sql.append("b.data_adx_country_tanggal BETWEEN %s AND %s")
             params.extend([start_date, end_date])
-            if selected_account:
-                base_sql.append(f"\tAND b.account_id LIKE %s")
-                params.append(f"{selected_account}%")
+            account_list = []
+            if isinstance(selected_account, str):
+                account_list = [s.strip() for s in selected_account.split(',') if s.strip()]
+            elif isinstance(selected_account, (list, tuple, set)):
+                account_list = [str(s).strip() for s in selected_account if str(s).strip()]
+
+            if account_list:
+                account_tokens = []
+                for a in account_list:
+                    account_tokens.append(a)
+                    if a.lower().startswith('act_'):
+                        account_tokens.append(a[4:])
+                    else:
+                        account_tokens.append(f"act_{a}")
+                account_tokens = list(dict.fromkeys([x for x in account_tokens if x]))
+                like_conditions_account = " OR ".join(["b.account_id LIKE %s"] * len(account_tokens))
+                base_sql.append(f"\tAND ({like_conditions_account})")
+                params.extend([f"%{a}%" for a in account_tokens])
             if data_domain_list:
                 base_sql.append(f"\tAND ({like_conditions})")
                 params.extend(like_params)

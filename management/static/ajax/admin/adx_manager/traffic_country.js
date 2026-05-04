@@ -87,6 +87,12 @@ $(document).ready(function () {
     // Fungsi untuk memuat opsi negara ke select2
     function load_country_options(selected_account, selectedDomains) {
         selectedDomains = normalizeDomainFilter(selectedDomains);
+        var accountFilter = '';
+        if (Array.isArray(selected_account)) {
+            accountFilter = selected_account.map(function (s) { return String(s || '').trim(); }).filter(function (s) { return s; }).join(',');
+        } else {
+            accountFilter = String(selected_account || '').trim();
+        }
         // Simpan pilihan country yang sudah dipilih sebelumnya
         var previouslySelected = $("#country_filter").val() || [];
         $.ajax({
@@ -94,7 +100,7 @@ $(document).ready(function () {
             type: 'GET',
             dataType: 'json',
             data: {
-                'selected_account': selected_account,
+                'selected_accounts': accountFilter,
                 'selected_domains': selectedDomains
             },
             headers: {
@@ -102,7 +108,7 @@ $(document).ready(function () {
                 'X-CSRFToken': csrftoken
             },
             success: function (response) {
-                if (response.status) {
+                if (response && (response.status === true || response.status === 'success')) {
                     var select_country = $('#country_filter');
                     select_country.empty();
 
