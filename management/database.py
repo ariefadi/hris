@@ -4087,7 +4087,7 @@ class data_mysql:
             data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
 
             engine = (self._report_engine() or '').strip().lower()
-            use_clickhouse = engine in ('clickhouse', 'ch')
+            use_clickhouse = bool(force_clickhouse) or (engine in ('clickhouse', 'ch'))
 
             like_account_col = "toString(b.account_id)" if use_clickhouse else "a.account_id"
             like_conditions_account = " OR ".join([f"{like_account_col} LIKE %s"] * len(data_account_list))
@@ -4331,9 +4331,21 @@ class data_mysql:
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
 
-            params = [start_date, end_date]
+            account_tokens = []
+            for a in (data_account_list or []):
+                v = str(a or '').strip()
+                if not v:
+                    continue
+                account_tokens.append(v)
+                if v.lower().startswith('act_'):
+                    account_tokens.append(v[4:])
+                else:
+                    account_tokens.append(f"act_{v}")
+            account_tokens = list(dict.fromkeys([x for x in account_tokens if x]))
 
             if use_clickhouse:
+                # ClickHouse query (pakai report cursor langsung, tanpa commit)
+                params = [start_date, end_date]
                 account_col = "toString(b.account_id)"
                 base_sql = [
                     "SELECT",
@@ -4354,19 +4366,27 @@ class data_mysql:
                     "\tSUM(b.data_adx_country_revenue) AS revenue",
                     "FROM data_adx_country b",
                     "WHERE",
-                    "\tb.data_adx_country_tanggal BETWEEN %s AND %s",
+                    "\ttoDate(b.data_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
                 ]
-                if data_account_list:
-                    like_conditions_account = " OR ".join([f"{account_col} LIKE %s"] * len(data_account_list))
+                if account_tokens:
+                    like_conditions_account = " OR ".join([f"{account_col} LIKE %s"] * len(account_tokens))
                     base_sql.append(f"\tAND ({like_conditions_account})")
-                    params.extend([f"%{account}%" for account in data_account_list])
+                    params.extend([f"%{account}%" for account in account_tokens])
                 if data_domain_list:
-                    like_conditions_domain = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
+                    like_conditions_domain = " OR ".join(["lowerUTF8(b.data_adx_country_domain) LIKE lowerUTF8(%s)"] * len(data_domain_list))
                     base_sql.append(f"\tAND ({like_conditions_domain})")
                     params.extend([f"%{domain}%" for domain in data_domain_list])
                 base_sql.append("GROUP BY b.account_id, toDate(b.data_adx_country_tanggal), b.data_adx_country_domain, b.data_adx_country_cd")
                 base_sql.append("ORDER BY date ASC")
+
+                sql = "\n".join(base_sql)
+                self._ensure_report_connection()
+                self.cur_hris = self.report_cur
+                self.cur_hris.execute(sql, tuple(params))
+                data = self.fetch_all()
             else:
+                # MySQL query
+                params = [start_date, end_date]
                 like_conditions_account = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
                 like_conditions_domain = " OR ".join(["b.data_adx_country_domain LIKE %s"] * len(data_domain_list))
                 base_sql = [
@@ -4398,12 +4418,12 @@ class data_mysql:
                 base_sql.append("GROUP BY a.account_id, a.account_name, a.user_mail, b.data_adx_country_tanggal, b.data_adx_country_domain, b.data_adx_country_cd")
                 base_sql.append("ORDER BY b.data_adx_country_tanggal ASC")
 
-            sql = "\n".join(base_sql)
-            if not self.execute_query(sql, tuple(params)):
-                raise pymysql.Error("Failed to get all adx traffic account by params")
-            data = self.fetch_all()
-            if not self.commit():
-                raise pymysql.Error("Failed to commit get all adx traffic account by params")
+                sql = "\n".join(base_sql)
+                if not self.execute_query(sql, tuple(params)):
+                    raise pymysql.Error(f"Failed to get all adx traffic account by params: {self.last_error}")
+                data = self.fetch_all()
+                if not self.commit():
+                    raise pymysql.Error("Failed to commit get all adx traffic account by params")
             hasil = {
                 "status": True,
                 "message": "Data adx traffic account berhasil diambil",
@@ -4744,9 +4764,21 @@ class data_mysql:
             engine = (self._report_engine() or '').strip().lower()
             use_clickhouse = bool(force_clickhouse) or (engine in ('clickhouse', 'ch'))
 
-            like_account_col = "b.account_id"
-            like_conditions_account = " OR ".join([f"{like_account_col} LIKE %s"] * len(data_account_list))
-            like_params_account = [f"%{account}%" for account in data_account_list] 
+            account_tokens = []
+            for a in (data_account_list or []):
+                v = str(a or '').strip()
+                if not v:
+                    continue
+                account_tokens.append(v)
+                if v.lower().startswith('act_'):
+                    account_tokens.append(v[4:])
+                else:
+                    account_tokens.append(f"act_{v}")
+            account_tokens = list(dict.fromkeys([x for x in account_tokens if x]))
+
+            like_account_col = "toString(b.account_id)" if use_clickhouse else "b.account_id"
+            like_conditions_account = " OR ".join([f"{like_account_col} LIKE %s"] * len(account_tokens))
+            like_params_account = [f"%{account}%" for account in account_tokens] 
             # --- 1. Pastikan selected_domain_list adalah list string
             if isinstance(selected_domain_list, str):
                 selected_domain_list = [selected_domain_list.strip()]

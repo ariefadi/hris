@@ -5742,8 +5742,8 @@ class AdxTrafficPerAccountDataView(View):
         end_date = req.GET.get('end_date')
         selected_account = req.GET.get('selected_account')
         admin = req.session.get('hris_admin', {})
-        if selected_account == '':
-            rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+        if not selected_account:
+            rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id')) if admin.get('super_st') == '0' else data_mysql().get_all_adx_account_data()
             account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
             selected_account = ",".join(account_ids)
         else:
@@ -5765,7 +5765,13 @@ class AdxTrafficPerAccountDataView(View):
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
             end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')  
             # Gunakan fungsi baru yang mengambil data berdasarkan kredensial user
-            rs_result = data_mysql().get_all_adx_traffic_account_by_params(start_date_formatted, end_date_formatted, selected_account_list, selected_domain_list)
+            rs_result = data_mysql().get_all_adx_traffic_account_by_params(
+                start_date_formatted,
+                end_date_formatted,
+                selected_account_list,
+                selected_domain_list,
+                force_clickhouse=True
+            )
             rows_map = {}
             if rs_result and rs_result['hasil']['data']:
                 for rs in rs_result['hasil']['data']:
@@ -6082,8 +6088,8 @@ class AdxTrafficPerCountryDataView(View):
         end_date = req.GET.get('end_date')
         selected_account = req.GET.get('selected_account')
         admin = req.session.get('hris_admin', {})
-        if selected_account == '':
-            rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+        if not selected_account:
+            rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id')) if admin.get('super_st') == '0' else data_mysql().get_all_adx_account_data()
             account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
             selected_account = ",".join(account_ids)
         else:
