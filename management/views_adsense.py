@@ -62,17 +62,22 @@ class AdsenseTrafficAccountView(View):
         admin = req.session.get('hris_admin', {})
         if admin.get('super_st') == '0':
             data_account_adsense = data_mysql().get_all_adsense_account_data_user(admin.get('user_id'))
+            data_domain_adsense = data_mysql().get_all_adsense_domain_data_user(admin.get('user_id'))
         else:
             data_account_adsense = data_mysql().get_all_adsense_account_data()
+            data_domain_adsense = data_mysql().get_all_adsense_domain_data()
         if not data_account_adsense['status']:
             return JsonResponse({
                 'status': False,
                 'error': data_account_adsense['data']
             })
+        if not data_domain_adsense.get('status'):
+            data_domain_adsense = {'status': True, 'data': []}
         data = {
             'title': 'AdSense Traffic Per Account',
             'user': req.session['hris_admin'],
-            'data_account_adsense': data_account_adsense['data']
+            'data_account_adsense': data_account_adsense['data'],
+            'data_domain_adsense': data_domain_adsense.get('data', [])
         }
         return render(req, 'admin/adsense_manager/traffic_account/index.html', data)
 
@@ -451,19 +456,140 @@ class AdsenseSummaryView(View):
         admin = req.session.get('hris_admin', {})
         if admin.get('super_st') == '0':
             data_account_adsense = data_mysql().get_all_adsense_account_data_user(admin.get('user_id'))
+            data_domain_adsense = data_mysql().get_all_adsense_domain_data_user(admin.get('user_id'))
         else:
             data_account_adsense = data_mysql().get_all_adsense_account_data()
+            data_domain_adsense = data_mysql().get_all_adsense_domain_data()
         if not data_account_adsense.get('status'):
             return JsonResponse({
                 'status': False,
                 'error': data_account_adsense.get('data')
             })
+        if not data_domain_adsense.get('status'):
+            data_domain_adsense = {'status': True, 'data': []}
         data = {
             'title': 'AdSense Summary Dashboard',
             'user': req.session['hris_admin'],
-            'data_account_adsense': data_account_adsense.get('data', [])
+            'data_account_adsense': data_account_adsense.get('data', []),
+            'data_domain_adsense': data_domain_adsense.get('data', [])
         }
         return render(req, 'admin/adsense_manager/summary/index.html', data)
+
+class AdsenseDomainSuggestView(View):
+    """AJAX endpoint suggest subdomain AdSense (Select2)"""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        q = str(req.GET.get('q') or '').strip()
+        start_date = str(req.GET.get('start_date') or '').strip()
+        end_date = str(req.GET.get('end_date') or '').strip()
+        selected_account = str(req.GET.get('selected_account') or '').strip()
+        admin = req.session.get('hris_admin', {})
+
+        if not q:
+            return JsonResponse({'results': []})
+
+        # Default range jika tidak dikirim
+        if not start_date or not end_date:
+            today = datetime.now().strftime('%Y-%m-%d')
+            start_date = start_date or today
+            end_date = end_date or today
+
+        # Jika tidak pilih account, pakai semua account yang boleh diakses user
+        if selected_account == '':
+            rs_account = data_mysql().get_all_adsense_account_data_user(admin.get('user_id')) if admin.get('super_st') == '0' else data_mysql().get_all_adsense_account_data()
+            rows = (rs_account or {}).get('data') if isinstance(rs_account, dict) else []
+            if not isinstance(rows, list):
+                rows = []
+            account_ids = [str((r or {}).get('account_id') or '').strip() for r in rows if str((r or {}).get('account_id') or '').strip()]
+            selected_account = ','.join(account_ids)
+
+        account_list = [s.strip() for s in selected_account.split(',') if s.strip()]
+        like = f"%{q.strip()}%"
+        limit = 100
+
+        account_tokens = []
+        for a in account_list:
+            v = str(a or '').strip()
+            if not v:
+                continue
+            account_tokens.append(v)
+            if v.lower().startswith('act_'):
+                account_tokens.append(v[4:])
+            else:
+                account_tokens.append(f"act_{v}")
+        account_tokens = list(dict.fromkeys([x for x in account_tokens if x]))
+
+        db = data_mysql()
+        rows = []
+
+        # ClickHouse-first
+        try:
+            db._ensure_report_connection()
+            db.cur_hris = db.report_cur
+            where = [
+                "toDate(b.data_adsense_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
+                "lowerUTF8(b.data_adsense_country_domain) LIKE lowerUTF8(%s)",
+            ]
+            params = [start_date, end_date, like]
+            if account_tokens:
+                acc_like = " OR ".join(["toString(b.account_id) LIKE %s"] * len(account_tokens))
+                where.append(f"({acc_like})")
+                params.extend([f"%{a}%" for a in account_tokens])
+            sql = "\n".join([
+                "SELECT DISTINCT b.data_adsense_country_domain AS site_name",
+                "FROM data_adsense_country b",
+                "WHERE " + " AND ".join(where),
+                "ORDER BY site_name ASC",
+                f"LIMIT {limit}",
+            ])
+            db.cur_hris.execute(sql, tuple(params))
+            rows = db.fetch_all()
+        except Exception:
+            # Fallback MySQL
+            try:
+                if db.ensure_connection():
+                    db.cur_hris = db.mysql_cur
+                    where = [
+                        "b.data_adsense_country_tanggal BETWEEN %s AND %s",
+                        "b.data_adsense_country_domain LIKE %s",
+                    ]
+                    params = [start_date, end_date, like]
+                    if account_tokens:
+                        acc_like = " OR ".join(["b.account_id LIKE %s"] * len(account_tokens))
+                        where.append(f"({acc_like})")
+                        params.extend([f"%{a}%" for a in account_tokens])
+                    sql = "\n".join([
+                        "SELECT DISTINCT b.data_adsense_country_domain AS site_name",
+                        "FROM data_adsense_country b",
+                        "WHERE " + " AND ".join(where),
+                        "ORDER BY site_name ASC",
+                        f"LIMIT {limit}",
+                    ])
+                    db.cur_hris.execute(sql, tuple(params))
+                    rows = db.fetch_all()
+            except Exception:
+                rows = []
+
+        results = []
+        seen = set()
+        for r in (rows or []):
+            site = str((r or {}).get('site_name') or '').strip()
+            if not site:
+                continue
+            k = site.lower()
+            if k in seen:
+                continue
+            seen.add(k)
+            results.append({'id': site, 'text': site})
+            if len(results) >= limit:
+                break
+
+        return JsonResponse({'results': results})
+
 
 class AdsenseSummaryDataView(View):
     """AJAX endpoint untuk data Summary AdSense (dibuka untuk preview)."""
@@ -537,18 +663,23 @@ class AdsenseTrafficPerCountryView(View):
         admin = req.session.get('hris_admin', {})
         if admin.get('super_st') == '0':
             data_account_adsense = data_mysql().get_all_adsense_account_data_user(admin.get('user_id'))
+            data_domain_adsense = data_mysql().get_all_adsense_domain_data_user(admin.get('user_id'))
         else:
             data_account_adsense = data_mysql().get_all_adsense_account_data()
+            data_domain_adsense = data_mysql().get_all_adsense_domain_data()
         if not data_account_adsense['status']:
             return JsonResponse({
                 'status': False,
                 'error': data_account_adsense['data']
             })
+        if not data_domain_adsense.get('status'):
+            data_domain_adsense = {'status': True, 'data': []}
         last_update = data_mysql().get_last_update_adsense_traffic_country()['data']['last_update']
         data = {
             'title': 'AdSense Traffic Per Country',
             'user': req.session['hris_admin'],
             'data_account_adsense': data_account_adsense['data'],
+            'data_domain_adsense': data_domain_adsense.get('data', []),
             'last_update': last_update,
         }
         return render(req, 'admin/adsense_manager/traffic_country/index.html', data)

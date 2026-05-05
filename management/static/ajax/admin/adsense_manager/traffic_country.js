@@ -1,14 +1,28 @@
 /**
  * Reference Ajax AdSense Traffic Per Country
  */
+function normalizeDomainFilter(selected_domain) {
+    if (Array.isArray(selected_domain)) {
+        return selected_domain.map(function (s) { return String(s || '').trim(); }).filter(function (s) { return s; }).join(',');
+    }
+    return String(selected_domain || '').trim();
+}
+
 $(document).ready(function () {
     report_eror = function (jqXHR, exception) {
+        // Support pemanggilan report_eror("pesan")
+        if (typeof jqXHR === 'string') {
+            alert(jqXHR);
+            return;
+        }
+
         var msg = '';
-        if (jqXHR.status === 0) {
+        var status = (jqXHR && typeof jqXHR.status !== 'undefined') ? jqXHR.status : null;
+        if (status === 0) {
             msg = 'TIDAK ADA KONEKSI.\n TOLONG HUBUNGI DEVELOPER';
-        } else if (jqXHR.status == 404) {
+        } else if (status == 404) {
             msg = 'Requested page not found. [404]';
-        } else if (jqXHR.status == 500) {
+        } else if (status == 500) {
             msg = 'Internal Server Error [500].';
         } else if (exception === 'parsererror') {
             msg = 'Requested JSON parse failed.';
@@ -17,7 +31,13 @@ $(document).ready(function () {
         } else if (exception === 'abort') {
             msg = 'Ajax request aborted.';
         } else {
-            msg = 'Uncaught Error.\n' + jqXHR.responseText;
+            var detail = '';
+            try {
+                detail = (jqXHR && jqXHR.responseText) ? jqXHR.responseText : '';
+            } catch (e) {
+                detail = '';
+            }
+            msg = 'Uncaught Error.\n' + (detail || exception || 'Unknown error');
         }
         alert(msg);
     };
@@ -54,6 +74,40 @@ $(document).ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     });
+
+    // Select2 untuk Filter Subdomain: searchable + freetext (tagging) + AJAX suggest
+    $('#domain_filter').select2({
+        placeholder: 'ketik subdomain…',
+        allowClear: true,
+        width: '100%',
+        theme: 'bootstrap4',
+        tags: true,
+        tokenSeparators: [','],
+        minimumInputLength: 1,
+        ajax: {
+            url: '/management/admin/adsense_domain_suggest',
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                var selected_account = $('#account_filter').val() || [];
+                return {
+                    q: params.term || '',
+                    start_date: $('#tanggal_dari').val() || '',
+                    end_date: $('#tanggal_sampai').val() || '',
+                    selected_account: (selected_account && selected_account.length) ? selected_account.join(',') : ''
+                };
+            },
+            processResults: function (data) {
+                return { results: (data && data.results) ? data.results : [] };
+            },
+            cache: true
+        },
+        createTag: function (params) {
+            var term = $.trim(params.term || '');
+            if (!term) return null;
+            return { id: term, text: term, newTag: true };
+        }
+    });
     let allAccountOptions = $('#account_filter').html();  
     // Initialize Select2 for country filter (multi-select with tags)
     $('#country_filter').select2({
@@ -72,7 +126,7 @@ $(document).ready(function () {
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
         var selected_account = $("#account_filter").val();
-        var selected_domains = String($("#domain_filter").val() || '').trim();
+        var selected_domains = normalizeDomainFilter($("#domain_filter").val());
         if (tanggal_dari != "" && tanggal_sampai != "") {
             e.preventDefault();
             $('#adsenseTrafficCountryMap').hide();
@@ -88,19 +142,25 @@ $(document).ready(function () {
     function load_country_options(selected_account) {
         // Simpan pilihan country yang sudah dipilih sebelumnya
         var previouslySelected = $("#country_filter").val() || [];
+        var accountFilter = '';
+        if (Array.isArray(selected_account)) {
+            accountFilter = selected_account.map(function (s) { return String(s || '').trim(); }).filter(function (s) { return s; }).join(',');
+        } else {
+            accountFilter = String(selected_account || '').trim();
+        }
         $.ajax({
             url: '/management/admin/get_countries_adsense',
             type: 'GET',
             dataType: 'json',
             data: {
-                'selected_account': selected_account
+                'selected_accounts': accountFilter
             },
             headers: {
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRFToken': csrftoken
             },
             success: function (response) {
-                if (response.status) {
+                if (response && (response.status === true || response.status === 'success')) {
                     var select_country = $('#country_filter');
                     select_country.empty();
 
@@ -188,10 +248,11 @@ $(document).ready(function () {
                 console.error('[DEBUG] AJAX Error:', {
                     xhr: xhr,
                     status: status,
-                    error: error
+                    error: error,
+                    responseText: (xhr && xhr.responseText) ? xhr.responseText : null
                 });
                 $('#overlay').hide();
-                report_eror('Terjadi kesalahan saat memuat data: ' + error);
+                report_eror(xhr, status || error);
             }
         });
     }

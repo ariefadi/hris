@@ -90,6 +90,53 @@ document.addEventListener('DOMContentLoaded', () => {
     return accountSelect.value || '';
   };
 
+  const initDomainSelect2 = () => {
+    if (!domainInput) return;
+
+    // Jika Select2 tidak ada, hindari tampilan listbox tinggi (native multiple)
+    try {
+      if (domainInput.hasAttribute('size')) domainInput.removeAttribute('size');
+      domainInput.style.height = '';
+    } catch (e) {}
+
+    if (typeof $ === 'undefined' || !$.fn || !$.fn.select2) return;
+
+    try {
+      $(domainInput).select2({
+        placeholder: 'ketik subdomain…',
+        allowClear: true,
+        width: '100%',
+        theme: 'bootstrap4',
+        tags: true,
+        tokenSeparators: [','],
+        minimumInputLength: 1,
+        ajax: {
+          url: '/management/admin/adsense_domain_suggest',
+          dataType: 'json',
+          delay: 250,
+          data: function (params) {
+            const selected_accounts = getSelectedAccountsCsv();
+            return {
+              q: (params && params.term) ? params.term : '',
+              start_date: (startInput && startInput.value) ? startInput.value : '',
+              end_date: (endInput && endInput.value) ? endInput.value : '',
+              selected_account: selected_accounts
+            };
+          },
+          processResults: function (data) {
+            return { results: (data && data.results) ? data.results : [] };
+          },
+          cache: true
+        },
+        createTag: function (params) {
+          const term = String((params && params.term) ? params.term : '').trim();
+          if (!term) return null;
+          return { id: term, text: term, newTag: true };
+        }
+      });
+    } catch (e) {}
+  };
+
   const getSelectedCountriesCsv = () => {
     try {
       const v = (typeof $ !== 'undefined' && countrySelect) ? $(countrySelect).val() : null;
@@ -101,7 +148,25 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const getSelectedDomainsCsv = () => {
-    const raw = String((domainInput && domainInput.value) || '').trim();
+    if (!domainInput) return '';
+
+    // Jika domain_filter adalah <select multiple> (Select2), ambil dari val()
+    try {
+      if (typeof $ !== 'undefined') {
+        const v = $(domainInput).val();
+        if (Array.isArray(v) && v.length) return v.join(',');
+      }
+    } catch (e) {}
+
+    try {
+      const tag = String(domainInput.tagName || '').toLowerCase();
+      if (tag === 'select' && domainInput.multiple) {
+        const vals = Array.from(domainInput.selectedOptions || []).map(o => o.value).filter(Boolean);
+        return vals.join(',');
+      }
+    } catch (e) {}
+
+    const raw = String(domainInput.value || '').trim();
     if (!raw) return '';
     return raw.split(',').map(s => String(s || '').trim()).filter(Boolean).join(',');
   };
@@ -400,6 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  initDomainSelect2();
   loadAccounts();
   loadCountryOptions();
 });

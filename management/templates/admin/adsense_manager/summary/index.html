@@ -148,9 +148,13 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
             {% endfor %}
           </select>
         </div>
-        <div class="col-md-3">
+        <div class="col-md-3 d-flex flex-column">
           <label for="domain_filter" class="form-label">Filter Subdomain</label>
-          <input type="text" id="domain_filter" class="form-control" placeholder="contoh: handsome.uaetiming.com" />
+          <select id="domain_filter" class="form-control" multiple>
+            {% for domain in data_domain_adsense %}
+            <option value="{{ domain.data_adsense_domain|default:'' }}">{{ domain.data_adsense_domain|default:'' }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="col-md-2">
           <label for="country_filter" class="form-label">Filter Country</label>

@@ -54,7 +54,32 @@ $().ready(function () {
         theme: 'bootstrap4'
     });
     let allAccountOptions = $('#account_filter').html();  
-    // domain_filter sekarang freetext input (tanpa select2)
+    $('#domain_filter').select2({
+        placeholder: 'ketik subdomain AdX...',
+        allowClear: true,
+        width: '100%',
+        theme: 'bootstrap4',
+        tags: true,
+        tokenSeparators: [','],
+        ajax: {
+            url: '/management/admin/adx_domain_suggest',
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                var selectedAccount = $('#account_filter').val();
+                if (Array.isArray(selectedAccount)) selectedAccount = selectedAccount.join(',');
+                return {
+                    q: params.term || '',
+                    start_date: $('#tanggal_dari').val() || '',
+                    end_date: $('#tanggal_sampai').val() || '',
+                    selected_account: selectedAccount || ''
+                };
+            },
+            processResults: function (data) {
+                return { results: (data && data.results) ? data.results : [] };
+            }
+        }
+    });
     $('#select_account').select2({
         placeholder: '-- Pilih Account --',
         allowClear: true,

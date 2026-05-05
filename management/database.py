@@ -2132,7 +2132,7 @@ class data_mysql:
             data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
 
             engine = (self._report_engine() or '').strip().lower()
-            use_clickhouse = bool(force_clickhouse) or (engine in ('clickhouse', 'ch'))
+            use_clickhouse = (engine in ('clickhouse', 'ch'))
 
             account_col = "toString(b.account_id)" if use_clickhouse else "b.account_id"
             like_conditions_account = " OR ".join([f"{account_col} LIKE %s"] * len(data_account_list))
@@ -2183,7 +2183,7 @@ class data_mysql:
             data_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
 
             engine = (self._report_engine() or '').strip().lower()
-            use_clickhouse = bool(force_clickhouse) or (engine in ('clickhouse', 'ch'))
+            use_clickhouse = (engine in ('clickhouse', 'ch'))
 
             account_col = "toString(b.account_id)" if use_clickhouse else "b.account_id"
             like_conditions_account = " OR ".join([f"{account_col} LIKE %s"] * len(data_account_list))
@@ -2242,7 +2242,7 @@ class data_mysql:
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
 
             engine = (self._report_engine() or '').strip().lower()
-            use_clickhouse = bool(force_clickhouse) or (engine in ('clickhouse', 'ch'))
+            use_clickhouse = (engine in ('clickhouse', 'ch'))
 
             account_col = "toString(b.account_id)" if use_clickhouse else "b.account_id"
             like_conditions_account = " OR ".join([f"{account_col} LIKE %s"] * len(data_account_list))
@@ -2313,7 +2313,7 @@ class data_mysql:
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
 
             engine = (self._report_engine() or '').strip().lower()
-            use_clickhouse = bool(force_clickhouse) or (engine in ('clickhouse', 'ch'))
+            use_clickhouse = (engine in ('clickhouse', 'ch'))
 
             account_col = "toString(b.account_id)" if use_clickhouse else "b.account_id"
             like_conditions_account = " OR ".join([f"{account_col} LIKE %s"] * len(data_account_list))
@@ -3919,7 +3919,7 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def get_all_adsense_traffic_account_by_params(self, start_date, end_date, account_list = None, selected_domain_list = None):
+    def get_all_adsense_traffic_account_by_params(self, start_date, end_date, account_list = None, selected_domain_list = None, force_clickhouse: bool = False):
         try:
             if isinstance(account_list, str):
                 account_list = [account_list.strip()]
@@ -4075,7 +4075,7 @@ class data_mysql:
             }
         return {'hasil': hasil}
 
-    def get_all_adsense_traffic_country_by_params(self, start_date, end_date, selected_account_list = None, countries_list = None, selected_domain_list = None):
+    def get_all_adsense_traffic_country_by_params(self, start_date, end_date, selected_account_list = None, countries_list = None, selected_domain_list = None, force_clickhouse: bool = False):
         try:
             # --- 0. Pastikan selected_account_list adalah list string
             if isinstance(selected_account_list, str):
@@ -4187,7 +4187,7 @@ class data_mysql:
                     country_codes = [str(c).strip() for c in countries_list if str(c).strip()]
             if country_codes:
                 placeholders = ','.join(['%s'] * len(country_codes))
-                base_sql.append(f"AND b.data_adx_country_cd IN ({placeholders})")
+                base_sql.append(f"AND b.data_adsense_country_cd IN ({placeholders})")
                 params.extend(country_codes)
             base_sql.append("GROUP BY b.data_adsense_country_cd, b.data_adsense_country_nm")
             base_sql.append("ORDER BY revenue DESC")

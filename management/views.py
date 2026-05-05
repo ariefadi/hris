@@ -670,6 +670,116 @@ def get_countries_facebook_ads(request):
             'countries': []
         }, status=500)
 
+class FacebookDomainSuggestView(View):
+    """AJAX endpoint suggest subdomain Facebook Ads (Select2)"""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        q = str(req.GET.get('q') or '').strip()
+        start_date = str(req.GET.get('start_date') or '').strip()
+        end_date = str(req.GET.get('end_date') or '').strip()
+        selected_account = str(req.GET.get('selected_account') or '').strip()
+
+        if not q:
+            return JsonResponse({'results': []})
+
+        if not start_date or not end_date:
+            today = datetime.now().strftime('%Y-%m-%d')
+            start_date = start_date or today
+            end_date = end_date or today
+
+        if selected_account == '':
+            rs_account = data_mysql().master_account_ads()
+            rows = (rs_account or {}).get('data') if isinstance(rs_account, dict) else []
+            if not isinstance(rows, list):
+                rows = []
+            account_ids = [str((r or {}).get('account_id') or '').strip() for r in rows if str((r or {}).get('account_id') or '').strip()]
+            selected_account = ','.join(account_ids)
+
+        account_list = [s.strip() for s in selected_account.split(',') if s.strip()]
+        like = f"%{q}%"
+        limit = 100
+
+        account_tokens = []
+        for a in account_list:
+            v = str(a or '').strip()
+            if not v:
+                continue
+            account_tokens.append(v)
+            if v.lower().startswith('act_'):
+                account_tokens.append(v[4:])
+            else:
+                account_tokens.append(f"act_{v}")
+        account_tokens = list(dict.fromkeys([x for x in account_tokens if x]))
+
+        db = data_mysql()
+        rows = []
+
+        try:
+            db._ensure_report_connection()
+            db.cur_hris = db.report_cur
+            where = [
+                "toDate(b.data_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
+                "lowerUTF8(b.data_ads_domain) LIKE lowerUTF8(%s)",
+            ]
+            params = [start_date, end_date, like]
+            if account_tokens:
+                acc_like = " OR ".join(["replaceRegexpAll(lowerUTF8(toString(b.account_ads_id)), '^act_', '') LIKE %s"] * len(account_tokens))
+                where.append(f"({acc_like})")
+                params.extend([f"%{str(a).lower().removeprefix('act_')}%" for a in account_tokens])
+            sql = "\n".join([
+                "SELECT DISTINCT b.data_ads_domain AS site_name",
+                "FROM data_ads_country b",
+                "WHERE " + " AND ".join(where),
+                "ORDER BY site_name ASC",
+                f"LIMIT {limit}",
+            ])
+            db.cur_hris.execute(sql, tuple(params))
+            rows = db.fetch_all()
+        except Exception:
+            try:
+                if db.ensure_connection():
+                    db.cur_hris = db.mysql_cur
+                    where = [
+                        "b.data_ads_country_tanggal BETWEEN %s AND %s",
+                        "b.data_ads_domain LIKE %s",
+                    ]
+                    params = [start_date, end_date, like]
+                    if account_tokens:
+                        acc_like = " OR ".join(["b.account_ads_id LIKE %s"] * len(account_tokens))
+                        where.append(f"({acc_like})")
+                        params.extend([f"%{a}%" for a in account_tokens])
+                    sql = "\n".join([
+                        "SELECT DISTINCT b.data_ads_domain AS site_name",
+                        "FROM data_ads_country b",
+                        "WHERE " + " AND ".join(where),
+                        "ORDER BY site_name ASC",
+                        f"LIMIT {limit}",
+                    ])
+                    db.cur_hris.execute(sql, tuple(params))
+                    rows = db.fetch_all()
+            except Exception:
+                rows = []
+
+        results = []
+        seen = set()
+        for r in (rows or []):
+            site = str((r or {}).get('site_name') or '').strip()
+            if not site:
+                continue
+            k = site.lower()
+            if k in seen:
+                continue
+            seen.add(k)
+            results.append({'id': site, 'text': site})
+            if len(results) >= limit:
+                break
+
+        return JsonResponse({'results': results})
+
 @csrf_exempt
 def get_countries_adx(request):
     """Endpoint untuk mendapatkan daftar negara yang tersedia"""

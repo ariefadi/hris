@@ -86,7 +86,41 @@ $().ready(function () {
         });
         updateStepProgress();
     });
-    // select_domain sekarang freetext input (tanpa select2)
+    $('#select_domain').select2({
+        placeholder: 'ketik subdomain…',
+        allowClear: true,
+        width: '100%',
+        theme: 'bootstrap4',
+        tags: true,
+        tokenSeparators: [','],
+        minimumInputLength: 1,
+        ajax: {
+            url: '/management/admin/facebook_domain_suggest',
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                var selected_account = $('#select_account').val();
+                var selected_account_csv = Array.isArray(selected_account)
+                    ? selected_account.join(',')
+                    : (selected_account || '');
+                return {
+                    q: params.term || '',
+                    start_date: $('#tanggal_dari').val() || '',
+                    end_date: $('#tanggal_sampai').val() || '',
+                    selected_account: selected_account_csv
+                };
+            },
+            processResults: function (data) {
+                return { results: (data && data.results) ? data.results : [] };
+            },
+            cache: true
+        },
+        createTag: function (params) {
+            var term = $.trim(params.term || '');
+            if (!term) return null;
+            return { id: term, text: term, newTag: true };
+        }
+    });
 
     $('#btn_load_data').click(function (e) {
         e.preventDefault();
@@ -435,7 +469,7 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
                                 setTimeout(function () {
                                     var tanggal_dari = $("#tanggal_dari").val();
                                     var tanggal_sampai = $("#tanggal_sampai").val();
-                                    var data_sub_domain = $("#select_domain").val() || '%';
+                                    var data_sub_domain = normalizeDomainFilter($("#select_domain").val()) || '%';
                                     table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_account, data_sub_domain);
                                 }, 1000);;
                             }
@@ -493,7 +527,7 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
                                         var tanggal_dari = $("#tanggal_dari").val();
                                         var tanggal_sampai = $("#tanggal_sampai").val();
                                         var data_account = $("#select_account option:selected").val() || '%';
-                                        var data_sub_domain = $("#select_domain").val() || '%';
+                                        var data_sub_domain = normalizeDomainFilter($("#select_domain").val()) || '%';
                                         table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_account, data_sub_domain);
                                         // Update header switch after individual switch update
                                         updateHeaderSwitch();
@@ -832,7 +866,7 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
                                 var tanggal_dari = $("#tanggal_dari").val();
                                 var tanggal_sampai = $("#tanggal_sampai").val();
                                 var data_account = $("#select_account option:selected").val() || '%';
-                                var data_sub_domain = $("#select_domain").val() || '%';
+                                var data_sub_domain = normalizeDomainFilter($("#select_domain").val()) || '%';
                                 table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_account, data_sub_domain);
                                 // Update header switch after bulk update
                                 updateHeaderSwitch();

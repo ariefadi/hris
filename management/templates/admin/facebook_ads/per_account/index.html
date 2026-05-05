@@ -142,7 +142,12 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
             </div>
             <div class="col-md-4">
                 <label>Filter Subdomain</label>
-                <input type="text" class="form-control" id="select_domain" placeholder="contoh: handsome.uaetiming.com" />
+                <select class="form-control" id="select_domain" multiple>
+                    {% for domain in data_domain %}
+                    <option value="{{ domain.site_name|default:domain.data_ads_domain|default:'' }}">{{ domain.site_name|default:domain.data_ads_domain|default:'' }}</option>
+                    {% endfor %}
+                </select>
+                <small class="text-muted">Ketik untuk mencari atau tambah subdomain baru.</small>
             </div>
             <div class="col-md-1">
                 <label>&nbsp;</label>
