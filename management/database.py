@@ -2249,8 +2249,11 @@ class data_mysql:
             like_params_account = [f"{account}%" for account in data_account_list]
 
             site_expr = "concat(arrayElement(splitByChar('.', b.data_adx_country_domain), 1), '.', arrayElement(splitByChar('.', b.data_adx_country_domain), 2))" if use_clickhouse else "SUBSTRING_INDEX(b.data_adx_country_domain, '.', 2)"
-            like_conditions_domain = " OR ".join([f"{site_expr} LIKE %s"] * len(data_domain_list))
-            like_params_domain = [f"%{domain}%" for domain in data_domain_list]
+            like_conditions_domain = " OR ".join([f"(b.data_adsense_country_domain LIKE %s OR {site_expr} LIKE %s)"] * len(data_domain_list))
+            like_params_domain = []
+            for domain in data_domain_list:
+                d = str(domain or '').strip()
+                like_params_domain.extend([f"%{d}%", f"%{d}%"])
 
             base_sql = [
                 "SELECT",
@@ -3939,6 +3942,19 @@ class data_mysql:
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+            expanded_domain_tokens = []
+            for _d in data_domain_list:
+                s = str(_d or '').strip().lower().strip('.')
+                if not s:
+                    continue
+                parts = [p for p in s.split('.') if p]
+                cands = [s]
+                if len(parts) >= 2:
+                    cands.append('.'.join(parts[:2]))
+                    cands.append('.'.join(parts[-2:]))
+                for c in cands:
+                    if c and c not in expanded_domain_tokens:
+                        expanded_domain_tokens.append(c)
 
             params = [start_date, end_date]
             if use_clickhouse:
@@ -4456,6 +4472,19 @@ class data_mysql:
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+            expanded_domain_tokens = []
+            for _d in data_domain_list:
+                s = str(_d or '').strip().lower().strip('.')
+                if not s:
+                    continue
+                parts = [p for p in s.split('.') if p]
+                cands = [s]
+                if len(parts) >= 2:
+                    cands.append('.'.join(parts[:2]))
+                    cands.append('.'.join(parts[-2:]))
+                for c in cands:
+                    if c and c not in expanded_domain_tokens:
+                        expanded_domain_tokens.append(c)
 
             params = [start_date, end_date]
 
@@ -4482,17 +4511,22 @@ class data_mysql:
                     like_conditions_account = " OR ".join(["b.account_id LIKE %s"] * len(data_account_list))
                     base_sql.append(f"\tAND ({like_conditions_account})")
                     params.extend([f"%{account}%" for account in data_account_list])
-                if data_domain_list:
-                    like_conditions_domain = " OR ".join([f"{site_expr} LIKE %s"] * len(data_domain_list))
+                if expanded_domain_tokens:
+                    like_conditions_domain = " OR ".join([f"(b.data_adsense_country_domain LIKE %s OR {site_expr} LIKE %s)"] * len(expanded_domain_tokens))
                     base_sql.append(f"\tAND ({like_conditions_domain})")
-                    params.extend([f"%{domain}%" for domain in data_domain_list])
+                    for domain in expanded_domain_tokens:
+                        d = str(domain or '').strip()
+                        params.extend([f"%{d}%", f"%{d}%"]) 
                 base_sql.append(f"GROUP BY b.account_id, toDate(b.data_adsense_country_tanggal), {site_expr}, b.data_adsense_country_cd")
                 base_sql.append("ORDER BY date ASC")
             else:
                 like_conditions_account = " OR ".join(["a.account_id LIKE %s"] * len(data_account_list))
                 like_params_account = [f"%{account}%" for account in data_account_list]
-                like_conditions_domain = " OR ".join(["SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 2) LIKE %s"] * len(data_domain_list))
-                like_params_domain = [f"%{domain}%" for domain in data_domain_list]
+                like_conditions_domain = " OR ".join(["(b.data_adsense_country_domain LIKE %s OR SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 2) LIKE %s)"] * len(expanded_domain_tokens))
+                like_params_domain = []
+                for domain in expanded_domain_tokens:
+                    d = str(domain or '').strip()
+                    like_params_domain.extend([f"%{d}%", f"%{d}%"]) 
                 base_sql = [
                     "SELECT",
                     "\ta.account_id, a.account_name, a.user_mail,",
@@ -4689,12 +4723,28 @@ class data_mysql:
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+            expanded_domain_tokens = []
+            for _d in data_domain_list:
+                s = str(_d or '').strip().lower().strip('.')
+                if not s:
+                    continue
+                parts = [p for p in s.split('.') if p]
+                cands = [s]
+                if len(parts) >= 2:
+                    cands.append('.'.join(parts[:2]))
+                    cands.append('.'.join(parts[-2:]))
+                for c in cands:
+                    if c and c not in expanded_domain_tokens:
+                        expanded_domain_tokens.append(c)
 
             site_expr = "concat(arrayElement(splitByChar('.', b.data_adsense_country_domain), 1), '.', arrayElement(splitByChar('.', b.data_adsense_country_domain), 2))" if use_clickhouse else "SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 2)"
             date_expr = "toDate(b.data_adsense_country_tanggal)" if use_clickhouse else "DATE(b.data_adsense_country_tanggal)"
 
-            like_conditions_domain = " OR ".join([f"{site_expr} LIKE %s"] * len(data_domain_list))
-            like_params_domain = [f"%{domain}%" for domain in data_domain_list]
+            like_conditions_domain = " OR ".join([f"(b.data_adsense_country_domain LIKE %s OR {site_expr} LIKE %s)"] * len(expanded_domain_tokens))
+            like_params_domain = []
+            for domain in expanded_domain_tokens:
+                d = str(domain or '').strip()
+                like_params_domain.extend([f"%{d}%", f"%{d}%"])
 
             base_sql = [
                 "SELECT",

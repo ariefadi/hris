@@ -8407,6 +8407,30 @@ function initDashboardRecap() {
         });
         window.dashboardRecapStoredScoring = normalizedStore;
 
+        const sourceNow = String(state?.source || '').toLowerCase();
+        const dimNow = String(state?.dim || '').toLowerCase();
+        const shouldOverrideSpendFromScoring = (sourceNow === 'adsense' && dimNow === 'domain');
+
+        if (shouldOverrideSpendFromScoring) {
+            (rows || []).forEach(function(r) {
+                const meta = storedScoringForRow(r, state);
+                const details = Array.isArray(meta?.breakdown?.meta?.country_details) ? meta.breakdown.meta.country_details : [];
+                if (!details.length) return;
+
+                const spendScoring = details.reduce(function(acc, cd){ return acc + (Number(scxSpendValue(cd)) || 0); }, 0);
+                const revenueScoring = details.reduce(function(acc, cd){ return acc + (Number(scxRevenueValue(cd)) || 0); }, 0);
+
+                if (spendScoring > 0) r.spend = spendScoring;
+                if (revenueScoring > 0) r.revenue = revenueScoring;
+                const spendNow = Number(r.spend) || 0;
+                const revenueNow = Number(r.revenue) || 0;
+                r.net = revenueNow - spendNow;
+                r.roi = spendNow > 0 ? ((revenueNow - spendNow) / spendNow * 100) : 0;
+            });
+
+            renderSummary(summarize(rows));
+        }
+
         const scoringReady = window.dashboardRecapScoringReady !== false;
         const scored = (rows || []).map(function(r) {
             const stored = storedScoringForRow(r, state);

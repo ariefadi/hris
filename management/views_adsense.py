@@ -24,11 +24,14 @@ except Exception:
 from google.oauth2.credentials import Credentials
 try:
     from .database import data_mysql
+    from . import database as database_main
 except Exception:
     try:
         from management.database import data_mysql
+        from management import database as database_main
     except Exception:
         from settings.database import data_mysql
+        from settings import database as database_main
 from .utils_adsense import (
     fetch_adsense_traffic_account_data,
     fetch_adsense_summary_data,
@@ -949,7 +952,7 @@ class RekapTrafficPerDomainDataView(View):
                 selected_account_list = [str(s).strip() for s in selected_accounts.split(',') if s.strip()]
             selected_domain_list = build_adsense_domain_terms(selected_domains)
             # --- 3. Ambil data AdX
-            adsense_result = data_mysql().get_all_rekap_adsense_traffic_account_by_params(
+            adsense_result = database_main.data_mysql().get_all_rekap_adsense_traffic_account_by_params(
                 start_date_formatted,
                 end_date_formatted,
                 selected_account_list,
@@ -958,7 +961,7 @@ class RekapTrafficPerDomainDataView(View):
             try:
                 ads_rows = ((adsense_result or {}).get('hasil') or {}).get('data') or []
                 if selected_domain_list and not ads_rows:
-                    adsense_result_all = data_mysql().get_all_rekap_adsense_traffic_account_by_params(
+                    adsense_result_all = database_main.data_mysql().get_all_rekap_adsense_traffic_account_by_params(
                         start_date_formatted,
                         end_date_formatted,
                         selected_account_list,
@@ -994,7 +997,7 @@ class RekapTrafficPerDomainDataView(View):
                     unique_name_site.append(main_domain)
             unique_name_site = list(set(unique_name_site))
             if unique_name_site:
-                facebook_data = data_mysql().get_all_ads_adsense_roi_traffic_campaign_by_params(
+                facebook_data = database_main.data_mysql().get_all_ads_adsense_roi_traffic_campaign_by_params(
                     start_date_formatted,
                     end_date_formatted,
                     unique_name_site
@@ -1003,7 +1006,7 @@ class RekapTrafficPerDomainDataView(View):
                 ads_rows_fb = (((adsense_result or {}).get('hasil') or {}).get('data') or [])
                 fallback_sites = extract_fb_sites_from_adsense_rows(ads_rows_fb)
                 if fallback_sites:
-                    facebook_data = data_mysql().get_all_ads_adsense_roi_traffic_campaign_by_params(
+                    facebook_data = database_main.data_mysql().get_all_ads_adsense_roi_traffic_campaign_by_params(
                         start_date_formatted,
                         end_date_formatted,
                         fallback_sites
@@ -1036,9 +1039,15 @@ class RekapTrafficPerDomainDataView(View):
                 s = str(v or '').strip().lower().strip('.')
                 if not s:
                     return ''
+                try:
+                    base = extract_base_subdomain_fb_adsense(s)
+                    if base:
+                        return str(base).strip().lower().strip('.')
+                except Exception:
+                    pass
                 parts = [p for p in s.split('.') if p]
                 if len(parts) >= 2:
-                    return f"{parts[-2]}.{parts[-1]}"
+                    return f"{parts[0]}.{parts[1]}"
                 return s
 
             facebook_map = {}
@@ -1125,7 +1134,19 @@ class RekapTrafficPerDomainDataView(View):
                 grouped_all = {}
                 grouped_filtered = {}
                 seen_fb_keys = set()
-                for adsense_item in adsense_result['hasil']['data']:
+                adsense_rows = adsense_result['hasil']['data']
+                adsense_rows_per_domain_day = {}
+                adsense_rows_per_exact_key = {}
+                for _a in adsense_rows:
+                    _date = str((_a or {}).get('date', ''))
+                    _site = str((_a or {}).get('site_name', '')).strip()
+                    _base = normalize_join_domain_key(_site)
+                    _country = normalize_country_code((_a or {}).get('country_code', ''))
+                    _k = f"{_date}_{_base}"
+                    _k_exact = f"{_date}_{_base}_{_country}"
+                    adsense_rows_per_domain_day[_k] = adsense_rows_per_domain_day.get(_k, 0) + 1
+                    adsense_rows_per_exact_key[_k_exact] = adsense_rows_per_exact_key.get(_k_exact, 0) + 1
+                for adsense_item in adsense_rows:
                     date_key = str(adsense_item.get('date', ''))
                     subdomain = str(adsense_item.get('site_name', '')).strip()
                     fb_base = normalize_join_domain_key(subdomain)
@@ -1134,13 +1155,21 @@ class RekapTrafficPerDomainDataView(View):
                     fb_key = f"{date_key}_{fb_base}_{country_code}"
                     seen_fb_keys.add(fb_key)
                     fb_data = facebook_map.get(fb_key)
+                    fb_source = 'exact'
                     if not fb_data:
                         fb_data = facebook_map_by_domain.get(f"{date_key}_{fb_base}")
+                        fb_source = 'domain_day' if fb_data else fb_source
                     if not fb_data:
                         fb_data = facebook_map_by_domain_country.get(f"{fb_base}_{country_code}")
+                        fb_source = 'domain_country' if fb_data else fb_source
                     day_div = 1
                     if fb_data and isinstance(fb_data, dict) and isinstance(fb_data.get('days'), set) and len(fb_data.get('days')) > 0:
                         day_div = len(fb_data.get('days'))
+                    if fb_source == 'domain_day':
+                        day_div = max(1, int(adsense_rows_per_domain_day.get(f"{date_key}_{fb_base}", 1)))
+                    else:
+                        exact_cnt = int(adsense_rows_per_exact_key.get(f"{date_key}_{fb_base}_{country_code}", 1))
+                        day_div = max(1, day_div * exact_cnt)
                     spend = (float(fb_data.get('spend') or 0) / day_div) if fb_data else 0
                     impressions_fb = (float(fb_data.get('impressions_fb') or 0) / day_div) if fb_data else 0
                     clicks_fb = (float(fb_data.get('clicks_fb') or 0) / day_div) if fb_data else 0
@@ -1433,6 +1462,32 @@ class RekapTrafficPerDomainDataView(View):
                         'revenue': revenue_val,
                         'roi': roi
                     })
+            # Sinkronisasi spend dengan menu Monitoring Domain (campaign-level)
+            campaign_total_spend = None
+            try:
+                if unique_name_site:
+                    fb_campaign = database_main.data_mysql().get_all_adsense_roi_monitoring_campaign_by_params(
+                        start_date_formatted,
+                        end_date_formatted,
+                        unique_name_site
+                    )
+                    fb_campaign_items = (((fb_campaign or {}).get('hasil') or {}).get('data') or [])
+                    campaign_total_spend = float(sum(float((it or {}).get('spend', 0) or 0) for it in fb_campaign_items if isinstance(it, dict)))
+            except Exception:
+                campaign_total_spend = None
+
+            if campaign_total_spend is not None and total_spend > 0:
+                scale = campaign_total_spend / total_spend
+                for row in combined_data_all:
+                    row_spend = float(row.get('spend', 0) or 0) * scale
+                    row['spend'] = row_spend
+                    row['roi'] = ((float(row.get('revenue', 0) or 0) - row_spend) / row_spend * 100) if row_spend > 0 else 0
+                for row in combined_data_filtered:
+                    row_spend = float(row.get('spend', 0) or 0) * scale
+                    row['spend'] = row_spend
+                    row['roi'] = ((float(row.get('revenue', 0) or 0) - row_spend) / row_spend * 100) if row_spend > 0 else 0
+                total_spend = float(sum(float((r or {}).get('spend', 0) or 0) for r in combined_data_all))
+
             roi_nett_summary = ((total_revenue - total_spend) / total_spend * 100) if total_spend > 0 else 0
             result = {
                 'status': True,
@@ -1469,24 +1524,20 @@ def build_adsense_domain_terms(selected_domains):
     terms = []
     seen = set()
     for item in raw_items:
-        token = str(item or '').strip().strip("\"'").lower()
+        token = str(item or '').strip().strip("\"'").lower().strip('.')
         if not token or token == 'unknown':
             continue
 
-        candidates = [token]
         parts = [p for p in token.split('.') if p]
+        candidates = [token]
+        if len(parts) >= 2:
+            candidates.append('.'.join(parts[:2]))
+            candidates.append('.'.join(parts[-2:]))
         if token and not token.endswith('.com'):
             candidates.append(f"{token}.com")
-        if len(parts) >= 2:
-            first_two = f"{parts[0]}.{parts[1]}"
-            if not first_two.endswith('.com'):
-                first_two = f"{first_two}.com"
-            candidates.append(first_two)
-            candidates.append('.'.join(parts[-2:]))
-            candidates.append(f"{parts[-1]}.com")
 
         for cand in candidates:
-            key = str(cand or '').strip().lower()
+            key = str(cand or '').strip().lower().strip('.')
             if not key or key in seen:
                 continue
             seen.add(key)
@@ -1512,12 +1563,11 @@ def build_domain_variants(value):
         return set()
     parts = [p for p in s.split('.') if p]
     out = {s}
+    if len(parts) >= 2:
+        out.add('.'.join(parts[:2]))
+        out.add('.'.join(parts[-2:]))
     if not s.endswith('.com'):
         out.add(f"{s}.com")
-    if len(parts) >= 2:
-        out.add('.'.join(parts[-2:]))
-        out.add(f"{parts[0]}.{parts[1]}.com")
-        out.add(f"{parts[-1]}.com")
     return {x for x in out if x}
 
 
@@ -1704,7 +1754,7 @@ class RekapTrafficPerCountryAdsenseDataView(View):
                         ads_payload = (data_adsense.get('hasil') if isinstance(data_adsense, dict) and isinstance(data_adsense.get('hasil'), dict) else data_adsense)
                         ads_rows = (ads_payload.get('data') if isinstance(ads_payload, dict) else []) or []
                         if selected_domain_list and not ads_rows:
-                            adsense_result_all = data_mysql().get_all_adsense_rekap_country_detail_by_params(
+                            adsense_result_all = database_main.data_mysql().get_all_adsense_rekap_country_detail_by_params(
                                 start_date,
                                 end_date,
                                 selected_account_list,
@@ -1725,7 +1775,7 @@ class RekapTrafficPerCountryAdsenseDataView(View):
                         data_facebook = None
             else:
                 # Filter Domain kosong: tampilkan data semua domain dari akun AdSense terpilih
-                data_adsense = data_mysql().get_all_adsense_rekap_country_detail_by_params(
+                data_adsense = database_main.data_mysql().get_all_adsense_rekap_country_detail_by_params(
                     start_date, 
                     end_date, 
                     selected_account_list, 
@@ -1779,7 +1829,7 @@ class RekapTrafficPerCountryAdsenseDataView(View):
                 fallback_sites = extract_fb_sites_from_adsense_rows(ads_rows_fallback or [])
                 if fallback_sites:
                     try:
-                        data_facebook = data_mysql().get_all_ads_roi_country_detail_adsense_by_params(
+                        data_facebook = database_main.data_mysql().get_all_ads_roi_country_detail_adsense_by_params(
                             start_date,
                             end_date,
                             fallback_sites,
@@ -1844,7 +1894,7 @@ class RekapTrafficPerCountryAdsenseDataView(View):
             campaign_total_spend = None
             try:
                 if unique_name_site:
-                    fb_campaign = data_mysql().get_all_ads_adsense_roi_traffic_campaign_by_params(
+                    fb_campaign = database_main.data_mysql().get_all_ads_adsense_roi_traffic_campaign_by_params(
                         start_date,
                         end_date,
                         unique_name_site
@@ -2225,7 +2275,7 @@ class RoiMonitoringDomainAdsenseDataView(View):
                 selected_account_list = [str(s).strip() for s in selected_accounts.split(',') if s.strip()]
             selected_domain_list = build_adsense_domain_terms(selected_domains)
             # --- 3. Ambil data AdSense
-            adsense_result = data_mysql().get_all_adsense_monitoring_account_by_params(
+            adsense_result = database_main.data_mysql().get_all_adsense_monitoring_account_by_params(
                 start_date_formatted,
                 end_date_formatted,
                 selected_account_list,
@@ -2234,7 +2284,7 @@ class RoiMonitoringDomainAdsenseDataView(View):
             try:
                 ads_rows = (((adsense_result or {}).get('hasil') or {}).get('data') or [])
                 if selected_domain_list and not ads_rows:
-                    adsense_all = data_mysql().get_all_adsense_monitoring_account_by_params(
+                    adsense_all = database_main.data_mysql().get_all_adsense_monitoring_account_by_params(
                         start_date_formatted,
                         end_date_formatted,
                         selected_account_list,
@@ -2323,9 +2373,11 @@ class RoiMonitoringDomainAdsenseDataView(View):
                 return c
             facebook_map = {}
             facebook_map_by_domain = {}
+            facebook_spend_lookup = {}
+            facebook_account_lookup = {}
             if facebook_data and facebook_data['hasil']['data']:
                 for fb_item in facebook_data['hasil']['data']:
-                    subdomain = str(fb_item.get('domain', '') or '').strip()
+                    subdomain = str(fb_item.get('domain', '') or '').strip().lower()
                     country_code = normalize_country_code(fb_item.get('country_code', '') or '')
                     base_subdomain = extract_base_subdomain_fb_adsense(subdomain) if subdomain else ''
                     key = f"{base_subdomain}_{country_code}"
@@ -2338,6 +2390,14 @@ class RoiMonitoringDomainAdsenseDataView(View):
                         prev['cpr'] = float((fb_item or {}).get('cpr', 0) or 0)
                         prev['cpc_fb'] = float((fb_item or {}).get('cpc_fb', 0) or 0)
                         facebook_map_by_domain[base_subdomain] = prev
+
+                    spend_fb = float((fb_item or {}).get('spend', 0) or 0)
+                    account_fb = str((fb_item or {}).get('account_name', '') or '')
+                    lookup_keys = {k for k in [subdomain, base_subdomain] if k}
+                    for lk in lookup_keys:
+                        facebook_spend_lookup[lk] = float(facebook_spend_lookup.get(lk, 0) or 0) + spend_fb
+                        if account_fb and not facebook_account_lookup.get(lk):
+                            facebook_account_lookup[lk] = account_fb
             if adsense_result and adsense_result['hasil']['data']:
                 # --- NEW: siapkan raw_rows + dua grup agregasi
                 grouped_all = {}
@@ -2355,7 +2415,7 @@ class RoiMonitoringDomainAdsenseDataView(View):
                     if not fb_data:
                         fb_data = facebook_map_by_domain.get(base_subdomain)
                     account_ads = str((fb_data or {}).get('account_name', '') or '')
-                    spend = float((fb_data or {}).get('spend', 0))
+                    spend = 0.0
                     revenue = float(adsense_item.get('revenue', 0))
                     impressions = int(adsense_item.get('impressions', 0) or 0)
                     clicks = int(adsense_item.get('clicks', 0) or 0)
@@ -2407,33 +2467,7 @@ class RoiMonitoringDomainAdsenseDataView(View):
                     grouped_all[site_key]['active_view_viewability_weighted_sum'] += active_view_viewability_weighted_sum
                     grouped_all[site_key]['active_view_measurability_weighted_sum'] += active_view_measurability_weighted_sum
                     grouped_all[site_key]['active_view_time_weighted_sum'] += active_view_time_weighted_sum
-                    if spend > 0:
-                        if site_key not in grouped_filtered:
-                            grouped_filtered[site_key] = {
-                                'site_name': site_key,
-                                'account_ads': account_ads,
-                                'spend': 0.0,
-                                'revenue': 0.0,
-                                'impressions': 0,
-                                'clicks': 0,
-                                'page_views': 0,
-                                'ad_requests': 0,
-                                'ad_requests_coverage_weighted_sum': 0.0,
-                                'active_view_viewability_weighted_sum': 0.0,
-                                'active_view_measurability_weighted_sum': 0.0,
-                                'active_view_time_weighted_sum': 0.0,
-                            }
-                            grouped_filtered[site_key]['account_ads'] = account_ads
-                            grouped_filtered[site_key]['spend'] += spend
-                        grouped_filtered[site_key]['revenue'] += revenue
-                        grouped_filtered[site_key]['impressions'] += impressions
-                        grouped_filtered[site_key]['clicks'] += clicks
-                        grouped_filtered[site_key]['page_views'] += page_views
-                        grouped_filtered[site_key]['ad_requests'] += ad_requests
-                        grouped_filtered[site_key]['ad_requests_coverage_weighted_sum'] += ad_requests_coverage_weighted_sum
-                        grouped_filtered[site_key]['active_view_viewability_weighted_sum'] += active_view_viewability_weighted_sum
-                        grouped_filtered[site_key]['active_view_measurability_weighted_sum'] += active_view_measurability_weighted_sum
-                        grouped_filtered[site_key]['active_view_time_weighted_sum'] += active_view_time_weighted_sum
+                    # grouped_filtered dibentuk dari hasil agregasi final agar tidak duplikasi spend
                 # Tambahkan baris FB yang tidak punya pasangan AdSense hanya saat filter domain kosong
                 if not selected_domain_list:
                     for fb_key, fb_item in (facebook_map or {}).items():
@@ -2492,7 +2526,9 @@ class RoiMonitoringDomainAdsenseDataView(View):
                 total_spend = 0
                 total_revenue = 0
                 for item in grouped_all.values():
-                    spend_val = item['spend']
+                    site_name = str(item.get('site_name', '') or '').strip().lower()
+                    site_base = extract_base_subdomain_fb_adsense(site_name) if site_name else ''
+                    spend_val = float(facebook_spend_lookup.get(site_name, facebook_spend_lookup.get(site_base, 0)) or 0)
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
                     impressions = int(item.get('impressions', 0) or 0)
@@ -2507,7 +2543,7 @@ class RoiMonitoringDomainAdsenseDataView(View):
                     active_view_time = (float(item.get('active_view_time_weighted_sum', 0.0) or 0.0) / float(impressions)) if impressions > 0 else 0.0
                     combined_data_all.append({
                         'site_name': item['site_name'],
-                        'account_ads': item['account_ads'],
+                        'account_ads': facebook_account_lookup.get(site_name, facebook_account_lookup.get(site_base, item['account_ads'])),
                         'spend': spend_val,
                         'revenue': revenue_val,
                         'roi': roi,
@@ -2526,39 +2562,7 @@ class RoiMonitoringDomainAdsenseDataView(View):
                     total_spend += spend_val
                     total_revenue += revenue_val
 
-                combined_data_filtered = []
-                for item in grouped_filtered.values():
-                    spend_val = item['spend']
-                    revenue_val = item['revenue']
-                    roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
-                    impressions = int(item.get('impressions', 0) or 0)
-                    clicks = int(item.get('clicks', 0) or 0)
-                    page_views = int(item.get('page_views', 0) or 0)
-                    ad_requests = int(item.get('ad_requests', 0) or 0)
-                    cost_per_click = (float(revenue_val) / float(clicks)) if clicks > 0 else 0.0
-                    page_views_rpm = (float(revenue_val) / float(page_views) * 1000.0) if page_views > 0 else 0.0
-                    ad_requests_coverage = (float(item.get('ad_requests_coverage_weighted_sum', 0.0) or 0.0) / float(ad_requests)) if ad_requests > 0 else 0.0
-                    active_view_viewability = (float(item.get('active_view_viewability_weighted_sum', 0.0) or 0.0) / float(impressions)) if impressions > 0 else 0.0
-                    active_view_measurability = (float(item.get('active_view_measurability_weighted_sum', 0.0) or 0.0) / float(impressions)) if impressions > 0 else 0.0
-                    active_view_time = (float(item.get('active_view_time_weighted_sum', 0.0) or 0.0) / float(impressions)) if impressions > 0 else 0.0
-                    combined_data_filtered.append({
-                        'site_name': item['site_name'],
-                        'account_ads': item['account_ads'],
-                        'spend': spend_val,
-                        'revenue': revenue_val,
-                        'roi': roi,
-                        'impressions': impressions,
-                        'clicks': clicks,
-                        'page_views': page_views,
-                        'page_views_rpm': round(page_views_rpm, 2),
-                        'ad_requests': ad_requests,
-                        'ad_requests_coverage': round(ad_requests_coverage, 2),
-                        'active_view_viewability': round(active_view_viewability, 2),
-                        'active_view_measurability': round(active_view_measurability, 2),
-                        'active_view_time': round(active_view_time, 2),
-                        'cost_per_click': round(cost_per_click, 2),
-                        'last_update': last_update_by_site.get(item['site_name'], '')
-                    })
+                combined_data_filtered = [x for x in combined_data_all if float((x or {}).get('spend', 0) or 0) > 0]
             roi_nett_summary = ((total_revenue - total_spend) / total_spend * 100) if total_spend > 0 else 0
 
             active_days_by_site = {}
@@ -2816,7 +2820,7 @@ class RoiMonitoringCountryAdsenseDataView(View):
             if selected_domain_list:
                 with ThreadPoolExecutor(max_workers=2) as executor:
                     adsense_future = executor.submit(
-                        data_mysql().get_all_adsense_country_detail_by_params,
+                        database_main.data_mysql().get_all_adsense_country_detail_by_params,
                         start_date,
                         end_date,
                         selected_account_list,
@@ -2845,7 +2849,7 @@ class RoiMonitoringCountryAdsenseDataView(View):
                         ads_payload = (data_adsense.get('hasil') if isinstance(data_adsense, dict) and isinstance(data_adsense.get('hasil'), dict) else data_adsense)
                         ads_rows = (ads_payload.get('data') if isinstance(ads_payload, dict) else []) or []
                         if selected_domain_list and not ads_rows:
-                            adsense_all = data_mysql().get_all_adsense_country_detail_by_params(
+                            adsense_all = database_main.data_mysql().get_all_adsense_country_detail_by_params(
                                 start_date, end_date, selected_account_list, [], countries_list_query
                             )
                             all_payload = (adsense_all.get('hasil') if isinstance(adsense_all, dict) and isinstance(adsense_all.get('hasil'), dict) else adsense_all)
@@ -2860,7 +2864,7 @@ class RoiMonitoringCountryAdsenseDataView(View):
                     except Exception:
                         data_facebook = None
             else:
-                data_adsense = data_mysql().get_all_adsense_country_detail_by_params(
+                data_adsense = database_main.data_mysql().get_all_adsense_country_detail_by_params(
                     start_date,
                     end_date,
                     selected_account_list,

@@ -1440,7 +1440,7 @@ class DashboardScoringDataView(View):
                 meta_campaign,
                 date,
                 entity_key,
-                argMax(country_code, run_hour) AS country_code,
+                country_code,
                 argMax(country_name, run_hour) AS country_name,
                 argMax(mapped_revenue_source, run_hour) AS mapped_revenue_source,
                 argMax(meta_spend, run_hour) AS meta_spend,
@@ -1453,9 +1453,9 @@ class DashboardScoringDataView(View):
                     lower(meta_campaign) AS meta_campaign,
                     date,
                     lower(entity_key) AS entity_key,
-                    run_hour,
-                    country_code,
+                    upper(country_code) AS country_code,
                     country_name,
+                    run_hour,
                     mapped_revenue_source,
                     meta_spend,
                     adx_revenue,
@@ -1468,7 +1468,8 @@ class DashboardScoringDataView(View):
                 site,
                 date,
                 entity_key,
-                meta_campaign
+                meta_campaign,
+                country_code
             """
             timeline_hour_expr = "toHour(run_time)" if 'run_time' in table_cols else "run_hour"
             timeline_entity_expr = "upper(country_code)" if is_country_dim else "lower(site)"
@@ -1600,43 +1601,39 @@ class DashboardScoringDataView(View):
                     row_rank = source_row_rank(row_dict)
                     if src_key_upper and src_country:
                         sec_key = f"{src_key_upper}|{src_country}"
-                        sec = source_entity_country_lookup.get(sec_key)
-                        if (sec is None) or (row_rank > float(sec.get('_rank', -1e30))):
-                            source_entity_country_lookup[sec_key] = {
-                                'meta_spend': _src_num(srow.get('meta_spend')),
-                                'adx_revenue': _src_num(srow.get('adx_revenue')),
-                                'adsense_estimated_earnings': _src_num(srow.get('adsense_estimated_earnings')),
-                                'mapped_revenue_source': str(srow.get('mapped_revenue_source') or '').strip(),
-                                '_rank': row_rank,
-                            }
+                        sec = source_entity_country_lookup.get(sec_key) or {
+                            'meta_spend': 0.0, 'adx_revenue': 0.0, 'adsense_estimated_earnings': 0.0, 'mapped_revenue_source': ''
+                        }
+                        sec['meta_spend'] = float(sec.get('meta_spend', 0.0)) + _src_num(srow.get('meta_spend'))
+                        sec['adx_revenue'] = float(sec.get('adx_revenue', 0.0)) + _src_num(srow.get('adx_revenue'))
+                        sec['adsense_estimated_earnings'] = float(sec.get('adsense_estimated_earnings', 0.0)) + _src_num(srow.get('adsense_estimated_earnings'))
+                        if not str(sec.get('mapped_revenue_source') or '').strip():
+                            sec['mapped_revenue_source'] = str(srow.get('mapped_revenue_source') or '').strip()
+                        source_entity_country_lookup[sec_key] = sec
                     if norm_site and src_country:
                         sc_key = f"{norm_site}|{src_country}"
-                        sc = source_site_country_lookup.get(sc_key)
-                        if (sc is None) or (row_rank > float(sc.get('_rank', -1e30))):
-                            source_site_country_lookup[sc_key] = {
-                                'site': norm_site,
-                                'meta_campaign': src_meta_campaign,
-                                'country_code': src_country,
-                                'meta_spend': _src_num(srow.get('meta_spend')),
-                                'adx_revenue': _src_num(srow.get('adx_revenue')),
-                                'adsense_estimated_earnings': _src_num(srow.get('adsense_estimated_earnings')),
-                                'mapped_revenue_source': str(srow.get('mapped_revenue_source') or '').strip(),
-                                '_rank': row_rank,
-                            }
+                        sc = source_site_country_lookup.get(sc_key) or {
+                            'site': norm_site, 'meta_campaign': src_meta_campaign, 'country_code': src_country,
+                            'meta_spend': 0.0, 'adx_revenue': 0.0, 'adsense_estimated_earnings': 0.0, 'mapped_revenue_source': ''
+                        }
+                        sc['meta_spend'] = float(sc.get('meta_spend', 0.0)) + _src_num(srow.get('meta_spend'))
+                        sc['adx_revenue'] = float(sc.get('adx_revenue', 0.0)) + _src_num(srow.get('adx_revenue'))
+                        sc['adsense_estimated_earnings'] = float(sc.get('adsense_estimated_earnings', 0.0)) + _src_num(srow.get('adsense_estimated_earnings'))
+                        if not str(sc.get('mapped_revenue_source') or '').strip():
+                            sc['mapped_revenue_source'] = str(srow.get('mapped_revenue_source') or '').strip()
+                        source_site_country_lookup[sc_key] = sc
                         if src_meta_campaign:
                             scc_key = f"{norm_site}|{src_country}|{src_meta_campaign}"
-                            scc = source_site_country_campaign_lookup.get(scc_key)
-                            if (scc is None) or (row_rank > float(scc.get('_rank', -1e30))):
-                                source_site_country_campaign_lookup[scc_key] = {
-                                    'site': norm_site,
-                                    'meta_campaign': src_meta_campaign,
-                                    'country_code': src_country,
-                                    'meta_spend': _src_num(srow.get('meta_spend')),
-                                    'adx_revenue': _src_num(srow.get('adx_revenue')),
-                                    'adsense_estimated_earnings': _src_num(srow.get('adsense_estimated_earnings')),
-                                    'mapped_revenue_source': str(srow.get('mapped_revenue_source') or '').strip(),
-                                    '_rank': row_rank,
-                                }
+                            scc = source_site_country_campaign_lookup.get(scc_key) or {
+                                'site': norm_site, 'meta_campaign': src_meta_campaign, 'country_code': src_country,
+                                'meta_spend': 0.0, 'adx_revenue': 0.0, 'adsense_estimated_earnings': 0.0, 'mapped_revenue_source': ''
+                            }
+                            scc['meta_spend'] = float(scc.get('meta_spend', 0.0)) + _src_num(srow.get('meta_spend'))
+                            scc['adx_revenue'] = float(scc.get('adx_revenue', 0.0)) + _src_num(srow.get('adx_revenue'))
+                            scc['adsense_estimated_earnings'] = float(scc.get('adsense_estimated_earnings', 0.0)) + _src_num(srow.get('adsense_estimated_earnings'))
+                            if not str(scc.get('mapped_revenue_source') or '').strip():
+                                scc['mapped_revenue_source'] = str(srow.get('mapped_revenue_source') or '').strip()
+                            source_site_country_campaign_lookup[scc_key] = scc
                     cands = site_country_candidates(src_key, src_site, src_country)
                     for cand in cands:
                         if not cand:
@@ -1644,15 +1641,15 @@ class DashboardScoringDataView(View):
                         existing = source_lookup.get(cand)
                         if (existing is None) or (row_rank > source_row_rank(existing)):
                             source_lookup[cand] = row_dict
-                        agg = source_agg_lookup.get(cand)
-                        if (agg is None) or (row_rank > float(agg.get('_rank', -1e30))):
-                            source_agg_lookup[cand] = {
-                                'meta_spend': _src_num(srow.get('meta_spend')),
-                                'adx_revenue': _src_num(srow.get('adx_revenue')),
-                                'adsense_estimated_earnings': _src_num(srow.get('adsense_estimated_earnings')),
-                                'mapped_revenue_source': str(srow.get('mapped_revenue_source') or '').strip(),
-                                '_rank': row_rank,
-                            }
+                        agg = source_agg_lookup.get(cand) or {
+                            'meta_spend': 0.0, 'adx_revenue': 0.0, 'adsense_estimated_earnings': 0.0, 'mapped_revenue_source': ''
+                        }
+                        agg['meta_spend'] = float(agg.get('meta_spend', 0.0)) + _src_num(srow.get('meta_spend'))
+                        agg['adx_revenue'] = float(agg.get('adx_revenue', 0.0)) + _src_num(srow.get('adx_revenue'))
+                        agg['adsense_estimated_earnings'] = float(agg.get('adsense_estimated_earnings', 0.0)) + _src_num(srow.get('adsense_estimated_earnings'))
+                        if not str(agg.get('mapped_revenue_source') or '').strip():
+                            agg['mapped_revenue_source'] = str(srow.get('mapped_revenue_source') or '').strip()
+                        source_agg_lookup[cand] = agg
 
             timeline_map = {}
             if not timeline_df.empty and 'entity_key' in timeline_df.columns and 'run_hour' in timeline_df.columns:
@@ -2036,7 +2033,32 @@ class DashboardScoringDataView(View):
                     row_country = str(row.get('country_code') or '').strip().upper()
                     campaign_src_applied = False
                     row_entity_upper = str(row_entity_key or '').strip().upper()
-                    if row_entity_upper and row_country:
+
+                    # Prioritas 1: site+country+campaign (paling spesifik)
+                    if row_norm_site and row_country and row_meta_campaign:
+                        scc_key = f"{row_norm_site}|{row_country}|{row_meta_campaign}"
+                        scc_src = source_site_country_campaign_lookup.get(scc_key)
+                        if scc_src:
+                            src['meta_spend'] = scc_src.get('meta_spend', src.get('meta_spend'))
+                            src['adx_revenue'] = scc_src.get('adx_revenue', src.get('adx_revenue'))
+                            src['adsense_estimated_earnings'] = scc_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
+                            src['mapped_revenue_source'] = scc_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
+                            campaign_src_applied = True
+
+                    # Prioritas 2: site+country
+                    if (not campaign_src_applied) and row_norm_site and row_country:
+                        sc_key = f"{row_norm_site}|{row_country}"
+                        sc_src = source_site_country_lookup.get(sc_key)
+                        if sc_src:
+                            src['meta_spend'] = sc_src.get('meta_spend', src.get('meta_spend'))
+                            src['adx_revenue'] = sc_src.get('adx_revenue', src.get('adx_revenue'))
+                            src['adsense_estimated_earnings'] = sc_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
+                            if not str(src.get('mapped_revenue_source') or '').strip():
+                                src['mapped_revenue_source'] = sc_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
+                            campaign_src_applied = True
+
+                    # Prioritas 3: entity+country (lebih agregat)
+                    if (not campaign_src_applied) and row_entity_upper and row_country:
                         sec_key = f"{row_entity_upper}|{row_country}"
                         sec_src = source_entity_country_lookup.get(sec_key)
                         if sec_src:
@@ -2045,25 +2067,8 @@ class DashboardScoringDataView(View):
                             src['adsense_estimated_earnings'] = sec_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
                             src['mapped_revenue_source'] = sec_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
                             campaign_src_applied = True
-                    if (not campaign_src_applied) and row_norm_site and row_country:
-                        if row_meta_campaign:
-                            scc_key = f"{row_norm_site}|{row_country}|{row_meta_campaign}"
-                            scc_src = source_site_country_campaign_lookup.get(scc_key)
-                            if scc_src:
-                                src['meta_spend'] = scc_src.get('meta_spend', src.get('meta_spend'))
-                                src['adx_revenue'] = scc_src.get('adx_revenue', src.get('adx_revenue'))
-                                src['adsense_estimated_earnings'] = scc_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
-                                src['mapped_revenue_source'] = scc_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
-                                campaign_src_applied = True
-                        if not campaign_src_applied:
-                            sc_key = f"{row_norm_site}|{row_country}"
-                            sc_src = source_site_country_lookup.get(sc_key)
-                            if sc_src:
-                                src['meta_spend'] = sc_src.get('meta_spend', src.get('meta_spend'))
-                                src['adx_revenue'] = sc_src.get('adx_revenue', src.get('adx_revenue'))
-                                src['adsense_estimated_earnings'] = sc_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
-                                if not str(src.get('mapped_revenue_source') or '').strip():
-                                    src['mapped_revenue_source'] = sc_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
+
+                    # Prioritas 4: fallback agregat kandidat
                     if (not campaign_src_applied) and matched_cand and matched_cand in source_agg_lookup:
                         agg_src = source_agg_lookup.get(matched_cand) or {}
                         src['meta_spend'] = agg_src.get('meta_spend', src.get('meta_spend'))
@@ -2097,12 +2102,28 @@ class DashboardScoringDataView(View):
                         except Exception:
                             return None
 
-                    meta_spend_opt = nullable_float(src.get('meta_spend'))
-                    if meta_spend_opt is None:
-                        meta_spend_opt = nullable_float(row.get('meta_spend'))
-                    if meta_spend_opt is None:
-                        meta_spend_opt = nullable_float(row.get('spend'))
+                    # Prioritaskan spend dari source table agar tidak undercount saat status row masih parsial
+                    status_spend_opt = nullable_float(row.get('spend'))
+                    status_meta_spend_opt = nullable_float(row.get('meta_spend'))
+                    source_spend_opt = nullable_float(src.get('meta_spend'))
+
+                    if source_spend_opt is not None:
+                        meta_spend_opt = source_spend_opt
+                        spend_source = 'source_meta_spend'
+                    elif status_spend_opt is not None:
+                        meta_spend_opt = status_spend_opt
+                        spend_source = 'status_spend'
+                    elif status_meta_spend_opt is not None:
+                        meta_spend_opt = status_meta_spend_opt
+                        spend_source = 'status_meta_spend'
+                    else:
+                        meta_spend_opt = None
+                        spend_source = 'none'
+
                     meta_spend_v = safe_float(meta_spend_opt)
+                    status_spend_v = safe_float(status_spend_opt)
+                    status_meta_spend_v = safe_float(status_meta_spend_opt)
+                    source_spend_v = safe_float(source_spend_opt)
 
                     adx_revenue_opt = nullable_float(src.get('adx_revenue'))
                     if adx_revenue_opt is None:
@@ -2144,6 +2165,10 @@ class DashboardScoringDataView(View):
                         'adx_revenue': adx_revenue_v,
                         'adsense_estimated_earnings': adsense_estimated_earnings_v,
                         'spend': meta_spend_v,
+                        'spend_source': spend_source,
+                        'spend_status_raw': status_spend_v,
+                        'spend_status_meta': status_meta_spend_v,
+                        'spend_source_meta': source_spend_v,
                         'revenue': revenue_v,
                         'roi': roi_v,
                         'positive_signals': int(safe_float(row.get('positive_signal_count'))),
@@ -2240,15 +2265,29 @@ class DashboardScoringDataView(View):
                         return out_row
 
                     status_source_rows = detail_snap if 'detail_snap' in locals() else snap
-                    status_records = [_row_to_json_dict(srow) for _, srow in status_source_rows.iterrows()]
+                    status_records_raw = [_row_to_json_dict(srow) for _, srow in status_source_rows.iterrows()]
+                    status_records = [_row_to_json_dict(srow) for srow in (country_details if isinstance(country_details, list) else [])]
+                    if not status_records:
+                        status_records = status_records_raw
                     event_records = [_row_to_json_dict(erow) for _, erow in ev.iterrows()] if not ev.empty else []
+                    statuses_spend_sum = float(sum(safe_float((r or {}).get('spend')) for r in status_records))
+                    statuses_raw_spend_sum = float(sum(safe_float((r or {}).get('spend')) for r in status_records_raw))
+                    country_details_spend_sum = float(sum(safe_float((r or {}).get('spend')) for r in (country_details if isinstance(country_details, list) else [])))
 
                     out[entity_key]['scoring'] = {
                         'statuses': status_records,
+                        'statuses_raw': status_records_raw,
                         'events': event_records,
                         'rows_written': len(status_records),
                         'event_rows_written': len(event_records),
-                        'source': 'dashboard_scoring_data_raw'
+                        'source': 'dashboard_scoring_data_raw',
+                        'spend_audit': {
+                            'statuses_spend_sum': statuses_spend_sum,
+                            'statuses_raw_spend_sum': statuses_raw_spend_sum,
+                            'country_details_spend_sum': country_details_spend_sum,
+                            'statuses_count': len(status_records),
+                            'statuses_raw_count': len(status_records_raw)
+                        }
                     }
             return JsonResponse({'status': True, 'data': out}, safe=False)
         except Exception as e:
