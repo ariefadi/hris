@@ -6360,9 +6360,8 @@ class RoiTrafficPerCountryDataView(View):
         if selected_account:
             selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
         selected_domain = req.GET.get('selected_domains')
-        selected_domain_list = []
-        if selected_domain:
-            selected_domain_list = [str(s).strip() for s in selected_domain.split(',') if s.strip()]
+        selected_domain_list = build_domain_filter_terms(selected_domain, include_original=True, include_base=True)
+        selected_domain_list_fb = build_domain_filter_terms(selected_domain, include_original=False, include_base=True)
         selected_account_ads = req.GET.get('selected_account_ads', '')
         selected_countries = req.GET.get('selected_countries', '')
         try:
@@ -6500,9 +6499,9 @@ class RoiTrafficPerCountryDataView(View):
                         countries_list_query
                     )
                     unique_name_site = []
-                    if selected_domain_list:
+                    if selected_domain_list_fb:
                         seen_sites = set()
-                        for site_item in selected_domain_list:
+                        for site_item in selected_domain_list_fb:
                             site_name = str(site_item or '').strip().strip("\"'")
                             if not site_name or site_name == 'Unknown' or site_name in seen_sites:
                                 continue
@@ -7654,6 +7653,8 @@ class RoiTrafficPerDomainDataView(View):
                 selected_accounts = req.GET.get('selected_account_adx', '')
             selected_domain_filter = str(req.GET.get('selected_domains') or '').strip()
             selected_account_ads = req.GET.get('selected_account_ads')
+            domain_terms = build_domain_filter_terms(selected_domain_filter, include_original=True, include_base=True)
+            domain_terms_fb = build_domain_filter_terms(selected_domain_filter, include_original=False, include_base=True)
             # --- 1. Parse tanggal aman
             def parse_date(d):
                 s = str(d or '').strip()
@@ -7667,7 +7668,6 @@ class RoiTrafficPerDomainDataView(View):
             selected_account_list = []
             if selected_accounts:
                 selected_account_list = [str(s).strip() for s in selected_accounts.split(',') if s.strip()]
-            domain_terms = [str(s).strip().strip("\"'") for s in selected_domain_filter.split(',') if str(s).strip().strip("\"'")]
             # --- 3. Ambil data AdX
             adx_result = data_mysql().get_all_adx_traffic_account_by_params(
                 start_date_formatted,
@@ -7678,9 +7678,9 @@ class RoiTrafficPerDomainDataView(View):
             # --- 4. Proses Facebook data
             facebook_data = None
             unique_name_site = []
-            if domain_terms:
+            if domain_terms_fb:
                 seen_sites = set()
-                for site in domain_terms:
+                for site in domain_terms_fb:
                     site_name = str(site or '').strip().strip("\"'")
                     if not site_name or site_name == 'Unknown' or site_name in seen_sites:
                         continue
@@ -8087,6 +8087,42 @@ def extract_base_subdomain(full_string):
         main_domain = full_string
     # jika tidak ada titik, kembalikan string asli
     return main_domain
+
+
+def build_domain_filter_terms(selected_domains, include_original=True, include_base=True):
+    """Normalisasi filter domain dari UI (string CSV / list) menjadi list domain unik.
+    Mendukung input FQDN dan base-subdomain agar query LIKE tetap match lintas sumber data.
+    """
+    raw_items = []
+    if isinstance(selected_domains, str):
+        raw_items = [s for s in selected_domains.split(',')]
+    elif isinstance(selected_domains, (list, tuple, set)):
+        for item in selected_domains:
+            raw_items.extend(str(item or '').split(','))
+
+    terms = []
+    seen = set()
+    for item in raw_items:
+        token = str(item or '').strip().strip("\"'")
+        if not token:
+            continue
+
+        candidates = []
+        if include_original:
+            candidates.append(token)
+        if include_base:
+            base = extract_base_subdomain(token)
+            if base:
+                candidates.append(base)
+
+        for cand in candidates:
+            key = str(cand or '').strip().lower()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            terms.append(str(cand).strip())
+
+    return terms
 
 def normalize_score(val, min_val, max_val):
     try:
@@ -10253,9 +10289,8 @@ class RoiMonitoringCountryDataView(View):
         selected_account_list = []
         if selected_account:
             selected_account_list = [str(a).strip() for a in selected_account.split(',') if a.strip()]
-        selected_domain_list = []
-        if selected_domain:
-            selected_domain_list = [str(s).strip() for s in selected_domain.split(',') if s.strip()]
+        selected_domain_list = build_domain_filter_terms(selected_domain, include_original=True, include_base=True)
+        selected_domain_list_fb = build_domain_filter_terms(selected_domain, include_original=False, include_base=True)
         selected_countries = req.GET.get('selected_countries', '')
         include_subdomains = str(req.GET.get('include_subdomains') or '').strip().lower() in ('1', 'true', 'yes')
         try:
@@ -10394,9 +10429,9 @@ class RoiMonitoringCountryDataView(View):
                         countries_list_query
                     )
                     unique_name_site = []
-                    if selected_domain_list:
+                    if selected_domain_list_fb:
                         seen_sites = set()
-                        for site_item in selected_domain_list:
+                        for site_item in selected_domain_list_fb:
                             site_name = str(site_item or '').strip().strip("\"'")
                             if not site_name or site_name == 'Unknown' or site_name in seen_sites:
                                 continue
