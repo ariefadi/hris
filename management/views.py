@@ -670,6 +670,116 @@ def get_countries_facebook_ads(request):
             'countries': []
         }, status=500)
 
+class FacebookDomainSuggestView(View):
+    """AJAX endpoint suggest subdomain Facebook Ads (Select2)"""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        q = str(req.GET.get('q') or '').strip()
+        start_date = str(req.GET.get('start_date') or '').strip()
+        end_date = str(req.GET.get('end_date') or '').strip()
+        selected_account = str(req.GET.get('selected_account') or '').strip()
+
+        if not q:
+            return JsonResponse({'results': []})
+
+        if not start_date or not end_date:
+            today = datetime.now().strftime('%Y-%m-%d')
+            start_date = start_date or today
+            end_date = end_date or today
+
+        if selected_account == '':
+            rs_account = data_mysql().master_account_ads()
+            rows = (rs_account or {}).get('data') if isinstance(rs_account, dict) else []
+            if not isinstance(rows, list):
+                rows = []
+            account_ids = [str((r or {}).get('account_id') or '').strip() for r in rows if str((r or {}).get('account_id') or '').strip()]
+            selected_account = ','.join(account_ids)
+
+        account_list = [s.strip() for s in selected_account.split(',') if s.strip()]
+        like = f"%{q}%"
+        limit = 100
+
+        account_tokens = []
+        for a in account_list:
+            v = str(a or '').strip()
+            if not v:
+                continue
+            account_tokens.append(v)
+            if v.lower().startswith('act_'):
+                account_tokens.append(v[4:])
+            else:
+                account_tokens.append(f"act_{v}")
+        account_tokens = list(dict.fromkeys([x for x in account_tokens if x]))
+
+        db = data_mysql()
+        rows = []
+
+        try:
+            db._ensure_report_connection()
+            db.cur_hris = db.report_cur
+            where = [
+                "toDate(b.data_ads_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
+                "lowerUTF8(b.data_ads_domain) LIKE lowerUTF8(%s)",
+            ]
+            params = [start_date, end_date, like]
+            if account_tokens:
+                acc_like = " OR ".join(["replaceRegexpAll(lowerUTF8(toString(b.account_ads_id)), '^act_', '') LIKE %s"] * len(account_tokens))
+                where.append(f"({acc_like})")
+                params.extend([f"%{str(a).lower().removeprefix('act_')}%" for a in account_tokens])
+            sql = "\n".join([
+                "SELECT DISTINCT b.data_ads_domain AS site_name",
+                "FROM data_ads_country b",
+                "WHERE " + " AND ".join(where),
+                "ORDER BY site_name ASC",
+                f"LIMIT {limit}",
+            ])
+            db.cur_hris.execute(sql, tuple(params))
+            rows = db.fetch_all()
+        except Exception:
+            try:
+                if db.ensure_connection():
+                    db.cur_hris = db.mysql_cur
+                    where = [
+                        "b.data_ads_country_tanggal BETWEEN %s AND %s",
+                        "b.data_ads_domain LIKE %s",
+                    ]
+                    params = [start_date, end_date, like]
+                    if account_tokens:
+                        acc_like = " OR ".join(["b.account_ads_id LIKE %s"] * len(account_tokens))
+                        where.append(f"({acc_like})")
+                        params.extend([f"%{a}%" for a in account_tokens])
+                    sql = "\n".join([
+                        "SELECT DISTINCT b.data_ads_domain AS site_name",
+                        "FROM data_ads_country b",
+                        "WHERE " + " AND ".join(where),
+                        "ORDER BY site_name ASC",
+                        f"LIMIT {limit}",
+                    ])
+                    db.cur_hris.execute(sql, tuple(params))
+                    rows = db.fetch_all()
+            except Exception:
+                rows = []
+
+        results = []
+        seen = set()
+        for r in (rows or []):
+            site = str((r or {}).get('site_name') or '').strip()
+            if not site:
+                continue
+            k = site.lower()
+            if k in seen:
+                continue
+            seen.add(k)
+            results.append({'id': site, 'text': site})
+            if len(results) >= limit:
+                break
+
+        return JsonResponse({'results': results})
+
 @csrf_exempt
 def get_countries_adx(request):
     """Endpoint untuk mendapatkan daftar negara yang tersedia"""
@@ -1330,7 +1440,7 @@ class DashboardScoringDataView(View):
                 meta_campaign,
                 date,
                 entity_key,
-                argMax(country_code, run_hour) AS country_code,
+                country_code,
                 argMax(country_name, run_hour) AS country_name,
                 argMax(mapped_revenue_source, run_hour) AS mapped_revenue_source,
                 argMax(meta_spend, run_hour) AS meta_spend,
@@ -1343,9 +1453,9 @@ class DashboardScoringDataView(View):
                     lower(meta_campaign) AS meta_campaign,
                     date,
                     lower(entity_key) AS entity_key,
-                    run_hour,
-                    country_code,
+                    upper(country_code) AS country_code,
                     country_name,
+                    run_hour,
                     mapped_revenue_source,
                     meta_spend,
                     adx_revenue,
@@ -1358,7 +1468,8 @@ class DashboardScoringDataView(View):
                 site,
                 date,
                 entity_key,
-                meta_campaign
+                meta_campaign,
+                country_code
             """
             timeline_hour_expr = "toHour(run_time)" if 'run_time' in table_cols else "run_hour"
             timeline_entity_expr = "upper(country_code)" if is_country_dim else "lower(site)"
@@ -1490,43 +1601,39 @@ class DashboardScoringDataView(View):
                     row_rank = source_row_rank(row_dict)
                     if src_key_upper and src_country:
                         sec_key = f"{src_key_upper}|{src_country}"
-                        sec = source_entity_country_lookup.get(sec_key)
-                        if (sec is None) or (row_rank > float(sec.get('_rank', -1e30))):
-                            source_entity_country_lookup[sec_key] = {
-                                'meta_spend': _src_num(srow.get('meta_spend')),
-                                'adx_revenue': _src_num(srow.get('adx_revenue')),
-                                'adsense_estimated_earnings': _src_num(srow.get('adsense_estimated_earnings')),
-                                'mapped_revenue_source': str(srow.get('mapped_revenue_source') or '').strip(),
-                                '_rank': row_rank,
-                            }
+                        sec = source_entity_country_lookup.get(sec_key) or {
+                            'meta_spend': 0.0, 'adx_revenue': 0.0, 'adsense_estimated_earnings': 0.0, 'mapped_revenue_source': ''
+                        }
+                        sec['meta_spend'] = float(sec.get('meta_spend', 0.0)) + _src_num(srow.get('meta_spend'))
+                        sec['adx_revenue'] = float(sec.get('adx_revenue', 0.0)) + _src_num(srow.get('adx_revenue'))
+                        sec['adsense_estimated_earnings'] = float(sec.get('adsense_estimated_earnings', 0.0)) + _src_num(srow.get('adsense_estimated_earnings'))
+                        if not str(sec.get('mapped_revenue_source') or '').strip():
+                            sec['mapped_revenue_source'] = str(srow.get('mapped_revenue_source') or '').strip()
+                        source_entity_country_lookup[sec_key] = sec
                     if norm_site and src_country:
                         sc_key = f"{norm_site}|{src_country}"
-                        sc = source_site_country_lookup.get(sc_key)
-                        if (sc is None) or (row_rank > float(sc.get('_rank', -1e30))):
-                            source_site_country_lookup[sc_key] = {
-                                'site': norm_site,
-                                'meta_campaign': src_meta_campaign,
-                                'country_code': src_country,
-                                'meta_spend': _src_num(srow.get('meta_spend')),
-                                'adx_revenue': _src_num(srow.get('adx_revenue')),
-                                'adsense_estimated_earnings': _src_num(srow.get('adsense_estimated_earnings')),
-                                'mapped_revenue_source': str(srow.get('mapped_revenue_source') or '').strip(),
-                                '_rank': row_rank,
-                            }
+                        sc = source_site_country_lookup.get(sc_key) or {
+                            'site': norm_site, 'meta_campaign': src_meta_campaign, 'country_code': src_country,
+                            'meta_spend': 0.0, 'adx_revenue': 0.0, 'adsense_estimated_earnings': 0.0, 'mapped_revenue_source': ''
+                        }
+                        sc['meta_spend'] = float(sc.get('meta_spend', 0.0)) + _src_num(srow.get('meta_spend'))
+                        sc['adx_revenue'] = float(sc.get('adx_revenue', 0.0)) + _src_num(srow.get('adx_revenue'))
+                        sc['adsense_estimated_earnings'] = float(sc.get('adsense_estimated_earnings', 0.0)) + _src_num(srow.get('adsense_estimated_earnings'))
+                        if not str(sc.get('mapped_revenue_source') or '').strip():
+                            sc['mapped_revenue_source'] = str(srow.get('mapped_revenue_source') or '').strip()
+                        source_site_country_lookup[sc_key] = sc
                         if src_meta_campaign:
                             scc_key = f"{norm_site}|{src_country}|{src_meta_campaign}"
-                            scc = source_site_country_campaign_lookup.get(scc_key)
-                            if (scc is None) or (row_rank > float(scc.get('_rank', -1e30))):
-                                source_site_country_campaign_lookup[scc_key] = {
-                                    'site': norm_site,
-                                    'meta_campaign': src_meta_campaign,
-                                    'country_code': src_country,
-                                    'meta_spend': _src_num(srow.get('meta_spend')),
-                                    'adx_revenue': _src_num(srow.get('adx_revenue')),
-                                    'adsense_estimated_earnings': _src_num(srow.get('adsense_estimated_earnings')),
-                                    'mapped_revenue_source': str(srow.get('mapped_revenue_source') or '').strip(),
-                                    '_rank': row_rank,
-                                }
+                            scc = source_site_country_campaign_lookup.get(scc_key) or {
+                                'site': norm_site, 'meta_campaign': src_meta_campaign, 'country_code': src_country,
+                                'meta_spend': 0.0, 'adx_revenue': 0.0, 'adsense_estimated_earnings': 0.0, 'mapped_revenue_source': ''
+                            }
+                            scc['meta_spend'] = float(scc.get('meta_spend', 0.0)) + _src_num(srow.get('meta_spend'))
+                            scc['adx_revenue'] = float(scc.get('adx_revenue', 0.0)) + _src_num(srow.get('adx_revenue'))
+                            scc['adsense_estimated_earnings'] = float(scc.get('adsense_estimated_earnings', 0.0)) + _src_num(srow.get('adsense_estimated_earnings'))
+                            if not str(scc.get('mapped_revenue_source') or '').strip():
+                                scc['mapped_revenue_source'] = str(srow.get('mapped_revenue_source') or '').strip()
+                            source_site_country_campaign_lookup[scc_key] = scc
                     cands = site_country_candidates(src_key, src_site, src_country)
                     for cand in cands:
                         if not cand:
@@ -1534,15 +1641,15 @@ class DashboardScoringDataView(View):
                         existing = source_lookup.get(cand)
                         if (existing is None) or (row_rank > source_row_rank(existing)):
                             source_lookup[cand] = row_dict
-                        agg = source_agg_lookup.get(cand)
-                        if (agg is None) or (row_rank > float(agg.get('_rank', -1e30))):
-                            source_agg_lookup[cand] = {
-                                'meta_spend': _src_num(srow.get('meta_spend')),
-                                'adx_revenue': _src_num(srow.get('adx_revenue')),
-                                'adsense_estimated_earnings': _src_num(srow.get('adsense_estimated_earnings')),
-                                'mapped_revenue_source': str(srow.get('mapped_revenue_source') or '').strip(),
-                                '_rank': row_rank,
-                            }
+                        agg = source_agg_lookup.get(cand) or {
+                            'meta_spend': 0.0, 'adx_revenue': 0.0, 'adsense_estimated_earnings': 0.0, 'mapped_revenue_source': ''
+                        }
+                        agg['meta_spend'] = float(agg.get('meta_spend', 0.0)) + _src_num(srow.get('meta_spend'))
+                        agg['adx_revenue'] = float(agg.get('adx_revenue', 0.0)) + _src_num(srow.get('adx_revenue'))
+                        agg['adsense_estimated_earnings'] = float(agg.get('adsense_estimated_earnings', 0.0)) + _src_num(srow.get('adsense_estimated_earnings'))
+                        if not str(agg.get('mapped_revenue_source') or '').strip():
+                            agg['mapped_revenue_source'] = str(srow.get('mapped_revenue_source') or '').strip()
+                        source_agg_lookup[cand] = agg
 
             timeline_map = {}
             if not timeline_df.empty and 'entity_key' in timeline_df.columns and 'run_hour' in timeline_df.columns:
@@ -1926,7 +2033,32 @@ class DashboardScoringDataView(View):
                     row_country = str(row.get('country_code') or '').strip().upper()
                     campaign_src_applied = False
                     row_entity_upper = str(row_entity_key or '').strip().upper()
-                    if row_entity_upper and row_country:
+
+                    # Prioritas 1: site+country+campaign (paling spesifik)
+                    if row_norm_site and row_country and row_meta_campaign:
+                        scc_key = f"{row_norm_site}|{row_country}|{row_meta_campaign}"
+                        scc_src = source_site_country_campaign_lookup.get(scc_key)
+                        if scc_src:
+                            src['meta_spend'] = scc_src.get('meta_spend', src.get('meta_spend'))
+                            src['adx_revenue'] = scc_src.get('adx_revenue', src.get('adx_revenue'))
+                            src['adsense_estimated_earnings'] = scc_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
+                            src['mapped_revenue_source'] = scc_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
+                            campaign_src_applied = True
+
+                    # Prioritas 2: site+country
+                    if (not campaign_src_applied) and row_norm_site and row_country:
+                        sc_key = f"{row_norm_site}|{row_country}"
+                        sc_src = source_site_country_lookup.get(sc_key)
+                        if sc_src:
+                            src['meta_spend'] = sc_src.get('meta_spend', src.get('meta_spend'))
+                            src['adx_revenue'] = sc_src.get('adx_revenue', src.get('adx_revenue'))
+                            src['adsense_estimated_earnings'] = sc_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
+                            if not str(src.get('mapped_revenue_source') or '').strip():
+                                src['mapped_revenue_source'] = sc_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
+                            campaign_src_applied = True
+
+                    # Prioritas 3: entity+country (lebih agregat)
+                    if (not campaign_src_applied) and row_entity_upper and row_country:
                         sec_key = f"{row_entity_upper}|{row_country}"
                         sec_src = source_entity_country_lookup.get(sec_key)
                         if sec_src:
@@ -1935,25 +2067,8 @@ class DashboardScoringDataView(View):
                             src['adsense_estimated_earnings'] = sec_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
                             src['mapped_revenue_source'] = sec_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
                             campaign_src_applied = True
-                    if (not campaign_src_applied) and row_norm_site and row_country:
-                        if row_meta_campaign:
-                            scc_key = f"{row_norm_site}|{row_country}|{row_meta_campaign}"
-                            scc_src = source_site_country_campaign_lookup.get(scc_key)
-                            if scc_src:
-                                src['meta_spend'] = scc_src.get('meta_spend', src.get('meta_spend'))
-                                src['adx_revenue'] = scc_src.get('adx_revenue', src.get('adx_revenue'))
-                                src['adsense_estimated_earnings'] = scc_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
-                                src['mapped_revenue_source'] = scc_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
-                                campaign_src_applied = True
-                        if not campaign_src_applied:
-                            sc_key = f"{row_norm_site}|{row_country}"
-                            sc_src = source_site_country_lookup.get(sc_key)
-                            if sc_src:
-                                src['meta_spend'] = sc_src.get('meta_spend', src.get('meta_spend'))
-                                src['adx_revenue'] = sc_src.get('adx_revenue', src.get('adx_revenue'))
-                                src['adsense_estimated_earnings'] = sc_src.get('adsense_estimated_earnings', src.get('adsense_estimated_earnings'))
-                                if not str(src.get('mapped_revenue_source') or '').strip():
-                                    src['mapped_revenue_source'] = sc_src.get('mapped_revenue_source', src.get('mapped_revenue_source'))
+
+                    # Prioritas 4: fallback agregat kandidat
                     if (not campaign_src_applied) and matched_cand and matched_cand in source_agg_lookup:
                         agg_src = source_agg_lookup.get(matched_cand) or {}
                         src['meta_spend'] = agg_src.get('meta_spend', src.get('meta_spend'))
@@ -1987,12 +2102,28 @@ class DashboardScoringDataView(View):
                         except Exception:
                             return None
 
-                    meta_spend_opt = nullable_float(src.get('meta_spend'))
-                    if meta_spend_opt is None:
-                        meta_spend_opt = nullable_float(row.get('meta_spend'))
-                    if meta_spend_opt is None:
-                        meta_spend_opt = nullable_float(row.get('spend'))
+                    # Prioritaskan spend dari source table agar tidak undercount saat status row masih parsial
+                    status_spend_opt = nullable_float(row.get('spend'))
+                    status_meta_spend_opt = nullable_float(row.get('meta_spend'))
+                    source_spend_opt = nullable_float(src.get('meta_spend'))
+
+                    if source_spend_opt is not None:
+                        meta_spend_opt = source_spend_opt
+                        spend_source = 'source_meta_spend'
+                    elif status_spend_opt is not None:
+                        meta_spend_opt = status_spend_opt
+                        spend_source = 'status_spend'
+                    elif status_meta_spend_opt is not None:
+                        meta_spend_opt = status_meta_spend_opt
+                        spend_source = 'status_meta_spend'
+                    else:
+                        meta_spend_opt = None
+                        spend_source = 'none'
+
                     meta_spend_v = safe_float(meta_spend_opt)
+                    status_spend_v = safe_float(status_spend_opt)
+                    status_meta_spend_v = safe_float(status_meta_spend_opt)
+                    source_spend_v = safe_float(source_spend_opt)
 
                     adx_revenue_opt = nullable_float(src.get('adx_revenue'))
                     if adx_revenue_opt is None:
@@ -2034,6 +2165,10 @@ class DashboardScoringDataView(View):
                         'adx_revenue': adx_revenue_v,
                         'adsense_estimated_earnings': adsense_estimated_earnings_v,
                         'spend': meta_spend_v,
+                        'spend_source': spend_source,
+                        'spend_status_raw': status_spend_v,
+                        'spend_status_meta': status_meta_spend_v,
+                        'spend_source_meta': source_spend_v,
                         'revenue': revenue_v,
                         'roi': roi_v,
                         'positive_signals': int(safe_float(row.get('positive_signal_count'))),
@@ -2130,15 +2265,29 @@ class DashboardScoringDataView(View):
                         return out_row
 
                     status_source_rows = detail_snap if 'detail_snap' in locals() else snap
-                    status_records = [_row_to_json_dict(srow) for _, srow in status_source_rows.iterrows()]
+                    status_records_raw = [_row_to_json_dict(srow) for _, srow in status_source_rows.iterrows()]
+                    status_records = [_row_to_json_dict(srow) for srow in (country_details if isinstance(country_details, list) else [])]
+                    if not status_records:
+                        status_records = status_records_raw
                     event_records = [_row_to_json_dict(erow) for _, erow in ev.iterrows()] if not ev.empty else []
+                    statuses_spend_sum = float(sum(safe_float((r or {}).get('spend')) for r in status_records))
+                    statuses_raw_spend_sum = float(sum(safe_float((r or {}).get('spend')) for r in status_records_raw))
+                    country_details_spend_sum = float(sum(safe_float((r or {}).get('spend')) for r in (country_details if isinstance(country_details, list) else [])))
 
                     out[entity_key]['scoring'] = {
                         'statuses': status_records,
+                        'statuses_raw': status_records_raw,
                         'events': event_records,
                         'rows_written': len(status_records),
                         'event_rows_written': len(event_records),
-                        'source': 'dashboard_scoring_data_raw'
+                        'source': 'dashboard_scoring_data_raw',
+                        'spend_audit': {
+                            'statuses_spend_sum': statuses_spend_sum,
+                            'statuses_raw_spend_sum': statuses_raw_spend_sum,
+                            'country_details_spend_sum': country_details_spend_sum,
+                            'statuses_count': len(status_records),
+                            'statuses_raw_count': len(status_records_raw)
+                        }
                     }
             return JsonResponse({'status': True, 'data': out}, safe=False)
         except Exception as e:
@@ -4701,6 +4850,122 @@ class AdxSummaryView(View):
         }
         return render(req, 'admin/adx_manager/summary/index.html', data)
 
+class AdxDomainSuggestView(View):
+    """AJAX endpoint suggest subdomain AdX (Select2)"""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        q = str(req.GET.get('q') or '').strip()
+        start_date = str(req.GET.get('start_date') or '').strip()
+        end_date = str(req.GET.get('end_date') or '').strip()
+        selected_account = str(req.GET.get('selected_account') or '').strip()
+        admin = req.session.get('hris_admin', {})
+
+        if not q:
+            return JsonResponse({'results': []})
+
+        # Default range jika tidak dikirim
+        if not start_date or not end_date:
+            today = datetime.now().strftime('%Y-%m-%d')
+            start_date = start_date or today
+            end_date = end_date or today
+
+        # Jika tidak pilih account, pakai semua account yang boleh diakses user
+        if selected_account == '':
+            rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id')) if admin.get('super_st') == '0' else data_mysql().get_all_adx_account_data()
+            rows = (rs_account or {}).get('data') if isinstance(rs_account, dict) else []
+            if not isinstance(rows, list):
+                rows = []
+            account_ids = [str((r or {}).get('account_id') or '').strip() for r in rows if str((r or {}).get('account_id') or '').strip()]
+            selected_account = ','.join(account_ids)
+
+        account_list = [s.strip() for s in selected_account.split(',') if s.strip()]
+        like = f"%{q.strip()}%"
+        limit = 100
+
+        account_tokens = []
+        for a in account_list:
+            v = str(a or '').strip()
+            if not v:
+                continue
+            account_tokens.append(v)
+            if v.lower().startswith('act_'):
+                account_tokens.append(v[4:])
+            else:
+                account_tokens.append(f"act_{v}")
+        account_tokens = list(dict.fromkeys([x for x in account_tokens if x]))
+
+        db = data_mysql()
+        rows = []
+
+        # ClickHouse-first
+        try:
+            db._ensure_report_connection()
+            db.cur_hris = db.report_cur
+            where = [
+                "toDate(b.data_adx_country_tanggal) BETWEEN toDate(%s) AND toDate(%s)",
+                "lowerUTF8(b.data_adx_country_domain) LIKE lowerUTF8(%s)",
+            ]
+            params = [start_date, end_date, like]
+            if account_tokens:
+                acc_like = " OR ".join(["toString(b.account_id) LIKE %s"] * len(account_tokens))
+                where.append(f"({acc_like})")
+                params.extend([f"%{a}%" for a in account_tokens])
+            sql = "\n".join([
+                "SELECT DISTINCT b.data_adx_country_domain AS site_name",
+                "FROM data_adx_country b",
+                "WHERE " + " AND ".join(where),
+                "ORDER BY site_name ASC",
+                f"LIMIT {limit}",
+            ])
+            db.cur_hris.execute(sql, tuple(params))
+            rows = db.fetch_all()
+        except Exception:
+            # Fallback MySQL
+            try:
+                if db.ensure_connection():
+                    db.cur_hris = db.mysql_cur
+                    where = [
+                        "b.data_adx_country_tanggal BETWEEN %s AND %s",
+                        "b.data_adx_country_domain LIKE %s",
+                    ]
+                    params = [start_date, end_date, like]
+                    if account_tokens:
+                        acc_like = " OR ".join(["b.account_id LIKE %s"] * len(account_tokens))
+                        where.append(f"({acc_like})")
+                        params.extend([f"%{a}%" for a in account_tokens])
+                    sql = "\n".join([
+                        "SELECT DISTINCT b.data_adx_country_domain AS site_name",
+                        "FROM data_adx_country b",
+                        "WHERE " + " AND ".join(where),
+                        "ORDER BY site_name ASC",
+                        f"LIMIT {limit}",
+                    ])
+                    db.cur_hris.execute(sql, tuple(params))
+                    rows = db.fetch_all()
+            except Exception:
+                rows = []
+
+        results = []
+        seen = set()
+        for r in (rows or []):
+            site = str((r or {}).get('site_name') or '').strip()
+            if not site:
+                continue
+            k = site.lower()
+            if k in seen:
+                continue
+            seen.add(k)
+            results.append({'id': site, 'text': site})
+            if len(results) >= limit:
+                break
+
+        return JsonResponse({'results': results})
+
+
 class AdxSummaryDataView(View):
     """AJAX endpoint untuk data AdX Summary"""
     def dispatch(self, request, *args, **kwargs):
@@ -4748,7 +5013,7 @@ class AdxSummaryDataView(View):
                 'error': 'Start date and end date are required'
             })
         try:
-            result = data_mysql().get_all_adx_traffic_account_by_params(start_date, end_date, account_list, selected_domain_list)
+            result = data_mysql().get_all_adx_traffic_account_by_params(start_date, end_date, account_list, selected_domain_list, force_clickhouse=True)
             # Unwrap format lama { 'hasil': ... } dan siapkan data
             payload = result['hasil'] if isinstance(result, dict) and 'hasil' in result else result
             data_rows = payload.get('data') if isinstance(payload, dict) else []
@@ -4762,7 +5027,7 @@ class AdxSummaryDataView(View):
             avg_ctr = ((float(total_clicks) / float(total_impressions)) * 100.0) if total_impressions else 0.0
             # Tambahkan data traffic hari ini
             today = datetime.now().strftime('%Y-%m-%d')
-            today_result = data_mysql().get_all_adx_traffic_account_by_params(today, today, selected_account, selected_domain_list)
+            today_result = data_mysql().get_all_adx_traffic_account_by_params(today, today, selected_account, selected_domain_list, force_clickhouse=True)
             today_payload = today_result['hasil'] if isinstance(today_result, dict) and 'hasil' in today_result else today_result
             today_rows = today_payload.get('data') if isinstance(today_payload, dict) else []
             if not isinstance(today_rows, list):
@@ -4771,11 +5036,27 @@ class AdxSummaryDataView(View):
             today_clicks = sum((row.get('clicks_adx') or 0) for row in today_rows) if today_rows else 0
             today_revenue = sum((row.get('revenue') or 0) for row in today_rows) if today_rows else 0.0
             today_ctr = ((float(today_clicks) / float(today_impressions)) * 100.0) if today_impressions else 0.0
+            domain_suggestions = []
+            seen_domains = set()
+            for row in data_rows:
+                try:
+                    site = str((row or {}).get('site_name') or '').strip()
+                except Exception:
+                    site = ''
+                if not site:
+                    continue
+                key = site.lower()
+                if key in seen_domains:
+                    continue
+                seen_domains.add(key)
+                domain_suggestions.append(site)
+
             # Bangun respons konsisten untuk frontend
             response_data = {
                 'status': bool(payload.get('status')) if isinstance(payload, dict) else True,
                 'message': payload.get('message', 'Data adx summary berhasil diambil') if isinstance(payload, dict) else 'Data adx summary berhasil diambil',
                 'data': data_rows,
+                'domain_suggestions': domain_suggestions,
                 'summary': {
                     'total_impressions': total_impressions,
                     'total_clicks': total_clicks,
@@ -5610,8 +5891,8 @@ class AdxTrafficPerAccountDataView(View):
         end_date = req.GET.get('end_date')
         selected_account = req.GET.get('selected_account')
         admin = req.session.get('hris_admin', {})
-        if selected_account == '':
-            rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+        if not selected_account:
+            rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id')) if admin.get('super_st') == '0' else data_mysql().get_all_adx_account_data()
             account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
             selected_account = ",".join(account_ids)
         else:
@@ -5633,7 +5914,13 @@ class AdxTrafficPerAccountDataView(View):
             start_date_formatted = datetime.strptime(start_date, '%Y-%m-%d').strftime('%Y-%m-%d')
             end_date_formatted = datetime.strptime(end_date, '%Y-%m-%d').strftime('%Y-%m-%d')  
             # Gunakan fungsi baru yang mengambil data berdasarkan kredensial user
-            rs_result = data_mysql().get_all_adx_traffic_account_by_params(start_date_formatted, end_date_formatted, selected_account_list, selected_domain_list)
+            rs_result = data_mysql().get_all_adx_traffic_account_by_params(
+                start_date_formatted,
+                end_date_formatted,
+                selected_account_list,
+                selected_domain_list,
+                force_clickhouse=True
+            )
             rows_map = {}
             if rs_result and rs_result['hasil']['data']:
                 for rs in rs_result['hasil']['data']:
@@ -5950,8 +6237,8 @@ class AdxTrafficPerCountryDataView(View):
         end_date = req.GET.get('end_date')
         selected_account = req.GET.get('selected_account')
         admin = req.session.get('hris_admin', {})
-        if selected_account == '':
-            rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id'))
+        if not selected_account:
+            rs_account = data_mysql().get_all_adx_account_data_user(admin.get('user_id')) if admin.get('super_st') == '0' else data_mysql().get_all_adx_account_data()
             account_ids = [str(item['account_id']) for item in rs_account.get('data', [])]
             selected_account = ",".join(account_ids)
         else:
@@ -5975,7 +6262,7 @@ class AdxTrafficPerCountryDataView(View):
             else:
                 print("[DEBUG] No countries selected, will fetch all countries")
             # result = fetch_adx_traffic_per_country(start_date_formatted, end_date_formatted, user_mail, selected_sites, countries_list)    
-            result = data_mysql().get_all_adx_traffic_country_by_params(start_date_formatted, end_date_formatted, selected_account_list, selected_domain_list, countries_list)
+            result = data_mysql().get_all_adx_traffic_country_by_params(start_date_formatted, end_date_formatted, selected_account_list, selected_domain_list, countries_list, force_clickhouse=True)
             if isinstance(result, dict):
                 if 'data' in result:
                     if result['data']:
@@ -6112,9 +6399,8 @@ class RoiTrafficPerCountryDataView(View):
         if selected_account:
             selected_account_list = [str(s).strip() for s in selected_account.split(',') if s.strip()]
         selected_domain = req.GET.get('selected_domains')
-        selected_domain_list = []
-        if selected_domain:
-            selected_domain_list = [str(s).strip() for s in selected_domain.split(',') if s.strip()]
+        selected_domain_list = build_domain_filter_terms(selected_domain, include_original=True, include_base=True)
+        selected_domain_list_fb = build_domain_filter_terms(selected_domain, include_original=False, include_base=True)
         selected_account_ads = req.GET.get('selected_account_ads', '')
         selected_countries = req.GET.get('selected_countries', '')
         try:
@@ -6252,9 +6538,9 @@ class RoiTrafficPerCountryDataView(View):
                         countries_list_query
                     )
                     unique_name_site = []
-                    if selected_domain_list:
+                    if selected_domain_list_fb:
                         seen_sites = set()
-                        for site_item in selected_domain_list:
+                        for site_item in selected_domain_list_fb:
                             site_name = str(site_item or '').strip().strip("\"'")
                             if not site_name or site_name == 'Unknown' or site_name in seen_sites:
                                 continue
@@ -7424,6 +7710,8 @@ class RoiTrafficPerDomainDataView(View):
                 selected_accounts = req.GET.get('selected_account_adx', '')
             selected_domain_filter = str(req.GET.get('selected_domains') or '').strip()
             selected_account_ads = req.GET.get('selected_account_ads')
+            domain_terms = build_domain_filter_terms(selected_domain_filter, include_original=True, include_base=True)
+            domain_terms_fb = build_domain_filter_terms(selected_domain_filter, include_original=False, include_base=True)
             # --- 1. Parse tanggal aman
             def parse_date(d):
                 s = str(d or '').strip()
@@ -7437,7 +7725,6 @@ class RoiTrafficPerDomainDataView(View):
             selected_account_list = []
             if selected_accounts:
                 selected_account_list = [str(s).strip() for s in selected_accounts.split(',') if s.strip()]
-            domain_terms = [str(s).strip().strip("\"'") for s in selected_domain_filter.split(',') if str(s).strip().strip("\"'")]
             # --- 3. Ambil data AdX
             adx_result = data_mysql().get_all_adx_traffic_account_by_params(
                 start_date_formatted,
@@ -7448,9 +7735,9 @@ class RoiTrafficPerDomainDataView(View):
             # --- 4. Proses Facebook data
             facebook_data = None
             unique_name_site = []
-            if domain_terms:
+            if domain_terms_fb:
                 seen_sites = set()
-                for site in domain_terms:
+                for site in domain_terms_fb:
                     site_name = str(site or '').strip().strip("\"'")
                     if not site_name or site_name == 'Unknown' or site_name in seen_sites:
                         continue
@@ -7857,6 +8144,42 @@ def extract_base_subdomain(full_string):
         main_domain = full_string
     # jika tidak ada titik, kembalikan string asli
     return main_domain
+
+
+def build_domain_filter_terms(selected_domains, include_original=True, include_base=True):
+    """Normalisasi filter domain dari UI (string CSV / list) menjadi list domain unik.
+    Mendukung input FQDN dan base-subdomain agar query LIKE tetap match lintas sumber data.
+    """
+    raw_items = []
+    if isinstance(selected_domains, str):
+        raw_items = [s for s in selected_domains.split(',')]
+    elif isinstance(selected_domains, (list, tuple, set)):
+        for item in selected_domains:
+            raw_items.extend(str(item or '').split(','))
+
+    terms = []
+    seen = set()
+    for item in raw_items:
+        token = str(item or '').strip().strip("\"'")
+        if not token:
+            continue
+
+        candidates = []
+        if include_original:
+            candidates.append(token)
+        if include_base:
+            base = extract_base_subdomain(token)
+            if base:
+                candidates.append(base)
+
+        for cand in candidates:
+            key = str(cand or '').strip().lower()
+            if not key or key in seen:
+                continue
+            seen.add(key)
+            terms.append(str(cand).strip())
+
+    return terms
 
 def normalize_score(val, min_val, max_val):
     try:
@@ -10023,9 +10346,8 @@ class RoiMonitoringCountryDataView(View):
         selected_account_list = []
         if selected_account:
             selected_account_list = [str(a).strip() for a in selected_account.split(',') if a.strip()]
-        selected_domain_list = []
-        if selected_domain:
-            selected_domain_list = [str(s).strip() for s in selected_domain.split(',') if s.strip()]
+        selected_domain_list = build_domain_filter_terms(selected_domain, include_original=True, include_base=True)
+        selected_domain_list_fb = build_domain_filter_terms(selected_domain, include_original=False, include_base=True)
         selected_countries = req.GET.get('selected_countries', '')
         include_subdomains = str(req.GET.get('include_subdomains') or '').strip().lower() in ('1', 'true', 'yes')
         try:
@@ -10164,9 +10486,9 @@ class RoiMonitoringCountryDataView(View):
                         countries_list_query
                     )
                     unique_name_site = []
-                    if selected_domain_list:
+                    if selected_domain_list_fb:
                         seen_sites = set()
-                        for site_item in selected_domain_list:
+                        for site_item in selected_domain_list_fb:
                             site_name = str(site_item or '').strip().strip("\"'")
                             if not site_name or site_name == 'Unknown' or site_name in seen_sites:
                                 continue

@@ -26,7 +26,39 @@ $(document).ready(function () {
         theme: 'bootstrap4'
     });
     let allAccountOptions = $('#account_filter').html();  
-    // domain_filter sekarang freetext input (tanpa select2)
+    // Select2 untuk Filter Subdomain: searchable + freetext (tagging) + AJAX suggest
+    $('#domain_filter').select2({
+        placeholder: 'ketik subdomain…',
+        allowClear: true,
+        width: '100%',
+        theme: 'bootstrap4',
+        tags: true,
+        tokenSeparators: [','],
+        minimumInputLength: 1,
+        ajax: {
+            url: '/management/admin/adx_domain_suggest',
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                var selected_account = $('#account_filter').val() || [];
+                return {
+                    q: params.term || '',
+                    start_date: $('#tanggal_dari').val() || '',
+                    end_date: $('#tanggal_sampai').val() || '',
+                    selected_account: (selected_account && selected_account.length) ? selected_account.join(',') : ''
+                };
+            },
+            processResults: function (data) {
+                return { results: (data && data.results) ? data.results : [] };
+            },
+            cache: true
+        },
+        createTag: function (params) {
+            var term = $.trim(params.term || '');
+            if (!term) return null;
+            return { id: term, text: term, newTag: true };
+        }
+    });
     // Inisialisasi Select2 untuk country filter
     $('#country_filter').select2({
         placeholder: '-- Pilih Negara --',
@@ -55,6 +87,12 @@ $(document).ready(function () {
     // Fungsi untuk memuat opsi negara ke select2
     function load_country_options(selected_account, selectedDomains) {
         selectedDomains = normalizeDomainFilter(selectedDomains);
+        var accountFilter = '';
+        if (Array.isArray(selected_account)) {
+            accountFilter = selected_account.map(function (s) { return String(s || '').trim(); }).filter(function (s) { return s; }).join(',');
+        } else {
+            accountFilter = String(selected_account || '').trim();
+        }
         // Simpan pilihan country yang sudah dipilih sebelumnya
         var previouslySelected = $("#country_filter").val() || [];
         $.ajax({
@@ -62,7 +100,7 @@ $(document).ready(function () {
             type: 'GET',
             dataType: 'json',
             data: {
-                'selected_account': selected_account,
+                'selected_accounts': accountFilter,
                 'selected_domains': selectedDomains
             },
             headers: {
@@ -70,7 +108,7 @@ $(document).ready(function () {
                 'X-CSRFToken': csrftoken
             },
             success: function (response) {
-                if (response.status) {
+                if (response && (response.status === true || response.status === 'success')) {
                     var select_country = $('#country_filter');
                     select_country.empty();
 

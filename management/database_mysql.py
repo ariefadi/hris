@@ -2868,9 +2868,14 @@ class data_mysql:
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
-            # --- 2. Buat kondisi LIKE untuk setiap domain
-            like_conditions_domain = " OR ".join(["CONCAT(SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 2), '.com') LIKE %s"] * len(data_domain_list))
-            like_params_domain = [f"%{domain}%" for domain in data_domain_list] 
+            # --- 2. Buat kondisi LIKE fleksibel untuk setiap domain
+            like_conditions_domain = " OR ".join([
+                "(b.data_adsense_country_domain LIKE %s OR CONCAT(SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 2), '.com') LIKE %s OR SUBSTRING_INDEX(b.data_adsense_country_domain, '.', -2) LIKE %s)"
+            ] * len(data_domain_list))
+            like_params_domain = []
+            for domain in data_domain_list:
+                d = str(domain or '').strip()
+                like_params_domain.extend([f"%{d}%", f"%{d}%", f"%{d}%"]) 
             base_sql = [
                 "SELECT",
                 "\ta.account_id, a.account_name, a.user_mail,",
@@ -3027,9 +3032,14 @@ class data_mysql:
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
-            # --- 2. Buat kondisi LIKE untuk setiap domain
-            like_conditions_domain = " OR ".join(["b.data_adsense_country_domain LIKE %s"] * len(data_domain_list))
-            like_params_domain = [f"%{domain}%" for domain in data_domain_list] 
+            # --- 2. Buat kondisi LIKE fleksibel untuk setiap domain
+            like_conditions_domain = " OR ".join([
+                "(b.data_adsense_country_domain LIKE %s OR CONCAT(SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 2), '.com') LIKE %s OR SUBSTRING_INDEX(b.data_adsense_country_domain, '.', -2) LIKE %s)"
+            ] * len(data_domain_list))
+            like_params_domain = []
+            for domain in data_domain_list:
+                d = str(domain or '').strip()
+                like_params_domain.extend([f"%{d}%", f"%{d}%", f"%{d}%"]) 
             base_sql = [
                 "SELECT",
                 "\tb.data_adsense_country_domain AS 'site_name',",
@@ -4167,9 +4177,14 @@ class data_mysql:
                 data_sub_domain = list(data_sub_domain)
             if not data_sub_domain:
                 raise ValueError("data_sub_domain is required and cannot be empty")
-            # --- 2. Buat kondisi LIKE untuk tiap domain
-            like_conditions = " OR ".join(["CONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') LIKE %s"] * len(data_sub_domain))
-            like_params = [f"%{d}%" for d in data_sub_domain]  # tambahkan % supaya match '.com'
+            # --- 2. Buat kondisi LIKE fleksibel untuk tiap domain
+            like_conditions = " OR ".join([
+                "(b.data_ads_domain LIKE %s OR CONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') LIKE %s OR SUBSTRING_INDEX(b.data_ads_domain, '.', -2) LIKE %s)"
+            ] * len(data_sub_domain))
+            like_params = []
+            for d in data_sub_domain:
+                s = str(d or '').strip()
+                like_params.extend([f"%{s}%", f"%{s}%", f"%{s}%"])
             # --- 3. Susun query
             base_sql = [
                 "SELECT",
@@ -4240,8 +4255,13 @@ class data_mysql:
             if not data_sub_domain:
                 raise ValueError("data_sub_domain is required and cannot be empty")
             # --- 2. Buat kondisi LIKE untuk tiap domain
-            like_conditions = " OR ".join(["CONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') LIKE %s"] * len(data_sub_domain))
-            like_params = [f"%{d}%" for d in data_sub_domain]  # tambahkan % supaya match '.com'
+            like_conditions = " OR ".join([
+                "(b.data_ads_domain LIKE %s OR CONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') LIKE %s OR SUBSTRING_INDEX(b.data_ads_domain, '.', -2) LIKE %s)"
+            ] * len(data_sub_domain))
+            like_params = []
+            for d in data_sub_domain:
+                s = str(d or '').strip()
+                like_params.extend([f"%{s}%", f"%{s}%", f"%{s}%"])  # tambahkan % supaya match '.com'
             # --- 3. Susun query
             base_sql = [
                 "SELECT",
@@ -4779,8 +4799,13 @@ class data_mysql:
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
-            like_conditions_domain = " OR ".join(["CONCAT(SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 2), '.com') LIKE %s"] * len(data_domain_list))
-            like_params_domain = [f"%{domain}%" for domain in data_domain_list]
+            like_conditions_domain = " OR ".join([
+                "(b.data_adsense_country_domain LIKE %s OR CONCAT(SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 2), '.com') LIKE %s OR SUBSTRING_INDEX(b.data_adsense_country_domain, '.', -2) LIKE %s)"
+            ] * len(data_domain_list))
+            like_params_domain = []
+            for domain in data_domain_list:
+                d = str(domain or '').strip()
+                like_params_domain.extend([f"%{d}%", f"%{d}%", f"%{d}%"])
 
             base_sql = [
                 "SELECT",
@@ -5060,8 +5085,13 @@ class data_mysql:
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
             data_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
-            like_conditions_domain = " OR ".join(["b.data_adsense_country_domain LIKE %s"] * len(data_domain_list))
-            like_params_domain = [f"%{domain}%" for domain in data_domain_list]
+            like_conditions_domain = " OR ".join([
+                "(b.data_adsense_country_domain LIKE %s OR CONCAT(SUBSTRING_INDEX(b.data_adsense_country_domain, '.', 2), '.com') LIKE %s OR SUBSTRING_INDEX(b.data_adsense_country_domain, '.', -2) LIKE %s)"
+            ] * len(data_domain_list))
+            like_params_domain = []
+            for domain in data_domain_list:
+                d = str(domain or '').strip()
+                like_params_domain.extend([f"%{d}%", f"%{d}%", f"%{d}%"])
             base_sql = [
                 "SELECT",
                 "\tb.data_adsense_country_tanggal AS 'date',",

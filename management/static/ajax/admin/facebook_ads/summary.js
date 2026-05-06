@@ -54,7 +54,38 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     });
-    // select_domain sekarang freetext input (tanpa select2)
+    $('#select_domain').select2({
+        placeholder: 'ketik subdomain…',
+        allowClear: true,
+        width: '100%',
+        theme: 'bootstrap4',
+        tags: true,
+        tokenSeparators: [','],
+        minimumInputLength: 1,
+        ajax: {
+            url: '/management/admin/facebook_domain_suggest',
+            dataType: 'json',
+            delay: 250,
+            data: function (params) {
+                var selected_account = $('#select_account').val() || [];
+                return {
+                    q: params.term || '',
+                    start_date: $('#tanggal_dari').val() || '',
+                    end_date: $('#tanggal_sampai').val() || '',
+                    selected_account: (selected_account && selected_account.length) ? selected_account.join(',') : ''
+                };
+            },
+            processResults: function (data) {
+                return { results: (data && data.results) ? data.results : [] };
+            },
+            cache: true
+        },
+        createTag: function (params) {
+            var term = $.trim(params.term || '');
+            if (!term) return null;
+            return { id: term, text: term, newTag: true };
+        }
+    });
     $('#btn_load_data').click(function (e) {
         e.preventDefault();
         var tanggal_dari = $("#tanggal_dari").val();

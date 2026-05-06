@@ -155,7 +155,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" data-date-orientation="bottom auto" placeholder="Tanggal Sampai"/>
                 <input class="form-control datepicker-input" type="text" id="bulan_sampai" size="7" value="" data-mask="9999-99" data-date-orientation="bottom auto" placeholder="Bulan Sampai" style="display:none"/>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label>Filter Adsense Account</label>
                 <select class="form-control select2-multiple" id="account_filter" multiple>
                     {% for account in data_account_adsense %}
@@ -163,7 +163,12 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
+                <label>Filter Subdomain</label>
+                <select class="form-control" id="domain_filter" multiple></select>
+                <small class="text-muted">Ketik untuk mencari atau tambah subdomain AdSense.</small>
+            </div>
+            <div class="col-md-1">
                 <label>&nbsp;</label>
                 <button type="button" class="btn btn-primary form-control" id="btn_load_data" data-title="Muat Data" data-intro="Mengambil data rekapitulasi earning sesuai filter, lalu menampilkan ringkasan dan tabel.">
                     <i class="fas fa-search"></i> Muat Data

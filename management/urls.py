@@ -59,6 +59,7 @@ urlpatterns = [
     path('admin/per_country_facebook', views.PerCountryFacebookAds.as_view(), name='per_country_facebook'),
     path('admin/page_per_country_facebook', views.page_per_country_facebook.as_view()),
     path('admin/get_countries_facebook_ads', views.get_countries_facebook_ads, name='get_countries_facebook_ads'),
+    path('admin/facebook_domain_suggest', views.FacebookDomainSuggestView.as_view(), name='facebook_domain_suggest'),
     # Cache Management
     path('admin/cache_stats', views.CacheStatsView.as_view(), name='cache_stats'),
     path('admin/ads_sites_list', views.AdsSitesListView.as_view(), name='ads_sites_list'),
@@ -69,6 +70,7 @@ urlpatterns = [
     # Menu AdX Summary
     path('admin/adx_summary', views.AdxSummaryView.as_view(), name='adx_summary'),
     path('admin/page_adx_summary', views.AdxSummaryDataView.as_view(), name='adx_summary_data'),
+    path('admin/adx_domain_suggest', views.AdxDomainSuggestView.as_view(), name='adx_domain_suggest'),
     path('admin/page_adx_ad_change_data', views.AdxSummaryAdChangeDataView.as_view(), name='adx_ad_change_data'),
     path('admin/page_adx_active_sites', views.AdxActiveSitesView.as_view(), name='adx_active_sites'),
     # Menu AdX Account Data
@@ -112,6 +114,7 @@ urlpatterns = [
     path('admin/adsense_traffic_country', views_adsense.AdsenseTrafficPerCountryView.as_view(), name='adsense_traffic_country'),
     path('admin/adsense_traffic_country_data', views_adsense.AdsenseTrafficPerCountryDataView.as_view(), name='adsense_traffic_country_data'),
     path('admin/get_countries_adsense', views_adsense.get_countries_adsense, name='get_countries_adsense'),
+    path('admin/adsense_domain_suggest', views_adsense.AdsenseDomainSuggestView.as_view(), name='adsense_domain_suggest'),
     # Menu AdSense Policy Events (Gmail)
     path('admin/adsense_policy_events', views_adsense.AdsensePolicyEventsView.as_view(), name='adsense_policy_events'),
     path('admin/adsense_policy_events_sync', views_adsense.AdsensePolicyEventsSyncView.as_view(), name='adsense_policy_events_sync'),
