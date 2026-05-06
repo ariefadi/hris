@@ -309,14 +309,27 @@
         setLastUpdate(null);
     }
 
-    function createChartConfig(rows, totalAdSpend, totalRevenue) {
+    function buildFinanceSeries(labels, dailyMap, fallbackValue) {
+        var mapObj = (dailyMap && typeof dailyMap === "object") ? dailyMap : {};
+        var isDateLabel = labels.every(function (lb) { return /^\d{4}-\d{2}-\d{2}$/.test(String(lb || "")); });
+        if (isDateLabel) {
+            var mapped = labels.map(function (lb) {
+                return Number(mapObj[String(lb)] || 0);
+            });
+            var hasAny = mapped.some(function (v) { return Number(v || 0) !== 0; });
+            if (hasAny) return mapped;
+        }
+        return labels.map(function () { return Number(fallbackValue || 0); });
+    }
+
+    function createChartConfig(rows, totalAdSpend, totalRevenue, dailyAdSpend, dailyRevenue) {
         var labels = rows.map(function (row) { return row.time; });
         var visitors = rows.map(function (row) { return row.totalVisitors; });
         var unique = rows.map(function (row) { return row.uniqueVisitors; });
         var pageviews = rows.map(function (row) { return row.pageviews; });
         var adClick = rows.map(function (row) { return row.adClick; });
-        var spendSeries = labels.map(function () { return Number(totalAdSpend || 0); });
-        var revenueSeries = labels.map(function () { return Number(totalRevenue || 0); });
+        var spendSeries = buildFinanceSeries(labels, dailyAdSpend, totalAdSpend);
+        var revenueSeries = buildFinanceSeries(labels, dailyRevenue, totalRevenue);
         return {
             type: "bar",
             data: {
@@ -432,7 +445,13 @@
             var finance = (domainFinanceMap && domainFinanceMap[domain]) ? domainFinanceMap[domain] : {};
             chartInstances[domain] = new Chart(
                 canvas,
-                createChartConfig(rows, Number(finance.totalAdSpend || 0), Number(finance.totalRevenue || 0))
+                createChartConfig(
+                    rows,
+                    Number(finance.totalAdSpend || 0),
+                    Number(finance.totalRevenue || 0),
+                    finance.dailyAdSpend || {},
+                    finance.dailyRevenue || {}
+                )
             );
 
             var countryCanvas = document.getElementById("chart_country_" + idx);
@@ -833,7 +852,11 @@
                                 rows: stats,
                                 countries: countries,
                                 totalAdSpend: Number((spendJson && spendJson.total_ad_spend) || 0),
-                                totalRevenue: Number((spendJson && spendJson.total_revenue) || 0)
+                                totalRevenue: Number((spendJson && spendJson.total_revenue) || 0),
+                                dailyAdSpend: (spendJson && spendJson.daily_ad_spend && typeof spendJson.daily_ad_spend === "object")
+                                    ? spendJson.daily_ad_spend : {},
+                                dailyRevenue: (spendJson && spendJson.daily_revenue && typeof spendJson.daily_revenue === "object")
+                                    ? spendJson.daily_revenue : {}
                             });
                             return runSequential(idx + 1);
                         });
@@ -850,7 +873,9 @@
                     perDomainCountries[item.domain] = item.countries || [];
                     perDomainFinance[item.domain] = {
                         totalAdSpend: Number(item.totalAdSpend || 0),
-                        totalRevenue: Number(item.totalRevenue || 0)
+                        totalRevenue: Number(item.totalRevenue || 0),
+                        dailyAdSpend: item.dailyAdSpend || {},
+                        dailyRevenue: item.dailyRevenue || {}
                     };
                 });
                 var allSeries = allSeriesWithDomain.map(function (item) { return item.rows; });

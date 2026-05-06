@@ -249,19 +249,32 @@
 
     function clearTrafficView() {
         updateKpi([], 0, 0);
-        renderChart([], 0, 0);
+        renderChart([], 0, 0, {}, {});
         renderCountryChart([]);
         setLastUpdate(null);
     }
 
-    function renderChart(aggregatedRows, totalAdSpend, totalRevenue) {
+    function buildFinanceSeries(labels, dailyMap, fallbackValue) {
+        var mapObj = (dailyMap && typeof dailyMap === "object") ? dailyMap : {};
+        var isDateLabel = labels.every(function (lb) { return /^\d{4}-\d{2}-\d{2}$/.test(String(lb || "")); });
+        if (isDateLabel) {
+            var mapped = labels.map(function (lb) {
+                return Number(mapObj[String(lb)] || 0);
+            });
+            var hasAny = mapped.some(function (v) { return Number(v || 0) !== 0; });
+            if (hasAny) return mapped;
+        }
+        return labels.map(function () { return Number(fallbackValue || 0); });
+    }
+
+    function renderChart(aggregatedRows, totalAdSpend, totalRevenue, dailyAdSpend, dailyRevenue) {
         var labels = aggregatedRows.map(function (row) { return row.time; });
         var visitors = aggregatedRows.map(function (row) { return row.totalVisitors; });
         var unique = aggregatedRows.map(function (row) { return row.uniqueVisitors; });
         var pageviews = aggregatedRows.map(function (row) { return row.pageviews; });
         var adClick = aggregatedRows.map(function (row) { return row.adClick; });
-        var spendSeries = labels.map(function () { return Number(totalAdSpend || 0); });
-        var revenueSeries = labels.map(function () { return Number(totalRevenue || 0); });
+        var spendSeries = buildFinanceSeries(labels, dailyAdSpend, totalAdSpend);
+        var revenueSeries = buildFinanceSeries(labels, dailyRevenue, totalRevenue);
 
         var ctx = document.getElementById("chart_traffic");
         if (!ctx) return;
@@ -471,6 +484,8 @@
                 aggregatedCountries: payload.aggregatedCountries || [],
                 totalAdSpend: Number(payload.totalAdSpend || 0),
                 totalRevenue: Number(payload.totalRevenue || 0),
+                dailyAdSpend: payload.dailyAdSpend || {},
+                dailyRevenue: payload.dailyRevenue || {},
                 selectedDomains: payload.selectedDomains || [],
                 report: report || "today",
                 savedAt: Date.now(),
@@ -550,7 +565,13 @@
     function applyCachedTrafficToView(cacheObj) {
         if (!cacheObj || !Array.isArray(cacheObj.aggregatedRows)) return;
         updateKpi(cacheObj.aggregatedRows, Number(cacheObj.totalAdSpend || 0), Number(cacheObj.totalRevenue || 0));
-        renderChart(cacheObj.aggregatedRows, Number(cacheObj.totalAdSpend || 0), Number(cacheObj.totalRevenue || 0));
+        renderChart(
+            cacheObj.aggregatedRows,
+            Number(cacheObj.totalAdSpend || 0),
+            Number(cacheObj.totalRevenue || 0),
+            cacheObj.dailyAdSpend || {},
+            cacheObj.dailyRevenue || {}
+        );
         renderCountryChart(cacheObj.aggregatedCountries || []);
         if (cacheObj.report) {
             document.getElementById("select_range").value = cacheObj.report;
@@ -645,9 +666,13 @@
                     .then(function (spendJson) {
                         var totalAdSpend = Number((spendJson && spendJson.total_ad_spend) || 0);
                         var totalRevenue = Number((spendJson && spendJson.total_revenue) || 0);
+                        var dailyAdSpend = (spendJson && spendJson.daily_ad_spend && typeof spendJson.daily_ad_spend === "object")
+                            ? spendJson.daily_ad_spend : {};
+                        var dailyRevenue = (spendJson && spendJson.daily_revenue && typeof spendJson.daily_revenue === "object")
+                            ? spendJson.daily_revenue : {};
                         var nowTs = Date.now();
                         updateKpi(aggregatedRows, totalAdSpend, totalRevenue);
-                        renderChart(aggregatedRows, totalAdSpend, totalRevenue);
+                        renderChart(aggregatedRows, totalAdSpend, totalRevenue, dailyAdSpend, dailyRevenue);
                         renderCountryChart(aggregatedCountries);
                         setLastUpdate(nowTs);
                         cacheTraffic(report, selectedDomains, {
@@ -655,6 +680,8 @@
                             aggregatedCountries: aggregatedCountries,
                             totalAdSpend: totalAdSpend,
                             totalRevenue: totalRevenue,
+                            dailyAdSpend: dailyAdSpend,
+                            dailyRevenue: dailyRevenue,
                             selectedDomains: selectedDomains,
                             lastUpdateAt: nowTs
                         });

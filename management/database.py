@@ -360,7 +360,7 @@ class data_mysql:
                 print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
                 port = 3306
             user = os.getenv('DB_USER') or 'root'
-            password = os.getenv('DB_PASSWORD') or 'hris123456'
+            password = os.getenv('DB_PASSWORD') or ''
             database = os.getenv('DB_NAME') or 'hris_trendHorizone'
 
             self.db_hris = pymysql.connect(
@@ -1935,13 +1935,69 @@ class data_mysql:
                 "data": f"Terjadi error {e!r}, error nya {e.args[0] if e.args else e}"
             }
 
+    def get_daily_ads_spend_by_domain_keys_and_date(self, domain_keys, start_date, end_date):
+        """Daily sum of data_ads_spend keyed by YYYY-MM-DD date."""
+        try:
+            def normalize_domain_key(raw_value):
+                s = str(raw_value or '').strip().lower()
+                if not s:
+                    return ''
+                parts = [p for p in s.split('.') if p]
+                if len(parts) >= 2:
+                    return parts[0] + '.' + parts[1]
+                return s
+
+            keys = []
+            seen = set()
+            for raw in (domain_keys or []):
+                key = normalize_domain_key(raw)
+                if key and key not in seen:
+                    seen.add(key)
+                    keys.append(key)
+
+            if not keys:
+                return {"status": True, "data": {}}
+
+            placeholders = ','.join(['%s'] * len(keys))
+            sql = f"""
+                SELECT DATE(a.data_ads_tanggal) AS d, COALESCE(SUM(CAST(a.data_ads_spend AS DECIMAL(18,2))), 0) AS v
+                FROM data_ads_campaign a
+                WHERE DATE(a.data_ads_tanggal) BETWEEN %s AND %s
+                  AND LOWER(SUBSTRING_INDEX(a.data_ads_domain, '.', 2)) IN ({placeholders})
+                GROUP BY DATE(a.data_ads_tanggal)
+                ORDER BY DATE(a.data_ads_tanggal) ASC
+            """
+            params = [start_date, end_date] + keys
+            self.cur_hris.execute(sql, tuple(params))
+            rows = self.cur_hris.fetchall() or []
+            out = {}
+            for row in rows:
+                d = str((row or {}).get('d') or '').strip()
+                if d:
+                    out[d] = float((row or {}).get('v') or 0)
+            return {"status": True, "data": out}
+        except pymysql.Error as e:
+            return {
+                "status": False,
+                "data": f"Terjadi error {e!r}, error nya {e.args[0] if e.args else e}"
+            }
+
     def get_total_adx_revenue_by_domains_and_date(self, domains, start_date, end_date):
         """Sum data_adx_domain_revenue by selected domains within date range."""
         try:
+            def normalize_domain_key(raw_value):
+                s = str(raw_value or '').strip().lower()
+                if not s:
+                    return ''
+                parts = [p for p in s.split('.') if p]
+                if len(parts) >= 2:
+                    return parts[0] + '.' + parts[1]
+                return s
+
             normalized_domains = []
             seen_domains = set()
             for raw in (domains or []):
-                domain = str(raw or '').strip().lower()
+                domain = normalize_domain_key(raw)
                 if domain and domain not in seen_domains:
                     seen_domains.add(domain)
                     normalized_domains.append(domain)
@@ -1954,13 +2010,60 @@ class data_mysql:
                 SELECT COALESCE(SUM(CAST(a.data_adx_domain_revenue AS DECIMAL(18,2))), 0) AS total_revenue
                 FROM data_adx_domain a
                 WHERE DATE(a.data_adx_domain_tanggal) BETWEEN %s AND %s
-                  AND LOWER(a.data_adx_domain) IN ({placeholders})
+                  AND LOWER(SUBSTRING_INDEX(a.data_adx_domain, '.', 2)) IN ({placeholders})
             """
             params = [start_date, end_date] + normalized_domains
             self.cur_hris.execute(sql, tuple(params))
             row = self.cur_hris.fetchone() or {}
             total = float(row.get('total_revenue') or 0)
             return {"status": True, "data": {"total_revenue": total}}
+        except pymysql.Error as e:
+            return {
+                "status": False,
+                "data": f"Terjadi error {e!r}, error nya {e.args[0] if e.args else e}"
+            }
+
+    def get_daily_adx_revenue_by_domains_and_date(self, domains, start_date, end_date):
+        """Daily sum of data_adx_domain_revenue keyed by YYYY-MM-DD date."""
+        try:
+            def normalize_domain_key(raw_value):
+                s = str(raw_value or '').strip().lower()
+                if not s:
+                    return ''
+                parts = [p for p in s.split('.') if p]
+                if len(parts) >= 2:
+                    return parts[0] + '.' + parts[1]
+                return s
+
+            normalized_domains = []
+            seen_domains = set()
+            for raw in (domains or []):
+                domain = normalize_domain_key(raw)
+                if domain and domain not in seen_domains:
+                    seen_domains.add(domain)
+                    normalized_domains.append(domain)
+
+            if not normalized_domains:
+                return {"status": True, "data": {}}
+
+            placeholders = ','.join(['%s'] * len(normalized_domains))
+            sql = f"""
+                SELECT DATE(a.data_adx_domain_tanggal) AS d, COALESCE(SUM(CAST(a.data_adx_domain_revenue AS DECIMAL(18,2))), 0) AS v
+                FROM data_adx_domain a
+                WHERE DATE(a.data_adx_domain_tanggal) BETWEEN %s AND %s
+                  AND LOWER(SUBSTRING_INDEX(a.data_adx_domain, '.', 2)) IN ({placeholders})
+                GROUP BY DATE(a.data_adx_domain_tanggal)
+                ORDER BY DATE(a.data_adx_domain_tanggal) ASC
+            """
+            params = [start_date, end_date] + normalized_domains
+            self.cur_hris.execute(sql, tuple(params))
+            rows = self.cur_hris.fetchall() or []
+            out = {}
+            for row in rows:
+                d = str((row or {}).get('d') or '').strip()
+                if d:
+                    out[d] = float((row or {}).get('v') or 0)
+            return {"status": True, "data": out}
         except pymysql.Error as e:
             return {
                 "status": False,

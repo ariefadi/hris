@@ -7121,12 +7121,30 @@ class TrafficPerDomainAdSpendView(View):
                     'error': (rs_revenue or {}).get('data') if isinstance(rs_revenue, dict) else 'Failed query revenue'
                 }, status=500)
 
+            rs_spend_daily = data_mysql().get_daily_ads_spend_by_domain_keys_and_date(domain_keys, start_date, end_date)
+            if not isinstance(rs_spend_daily, dict) or not rs_spend_daily.get('status'):
+                return JsonResponse({
+                    'status': False,
+                    'error': (rs_spend_daily or {}).get('data') if isinstance(rs_spend_daily, dict) else 'Failed query daily ad spend'
+                }, status=500)
+
+            rs_revenue_daily = data_mysql().get_daily_adx_revenue_by_domains_and_date(raw_domains, start_date, end_date)
+            if not isinstance(rs_revenue_daily, dict) or not rs_revenue_daily.get('status'):
+                return JsonResponse({
+                    'status': False,
+                    'error': (rs_revenue_daily or {}).get('data') if isinstance(rs_revenue_daily, dict) else 'Failed query daily revenue'
+                }, status=500)
+
+            daily_ad_spend = (rs_spend_daily.get('data') or {}) if isinstance(rs_spend_daily.get('data'), dict) else {}
+            daily_revenue = (rs_revenue_daily.get('data') or {}) if isinstance(rs_revenue_daily.get('data'), dict) else {}
             total_ad_spend = float(((rs_spend.get('data') or {}).get('total_ad_spend')) or 0)
             total_revenue = float(((rs_revenue.get('data') or {}).get('total_revenue')) or 0)
             return JsonResponse({
                 'status': True,
                 'total_ad_spend': total_ad_spend,
                 'total_revenue': total_revenue,
+                'daily_ad_spend': daily_ad_spend,
+                'daily_revenue': daily_revenue,
                 'start_date': start_date,
                 'end_date': end_date
             })
