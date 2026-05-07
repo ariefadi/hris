@@ -1388,27 +1388,33 @@ class DashboardScoringDataView(View):
             return frame.loc[camp.isin(eligible_campaigns)].copy()
 
         def derive_score_decision(health, risk, adj, conf, dm, label, profit_strong, anomaly_cards, roi_value=0.0, source_mode='BLENDED'):
-            negative_labels = ["TRAFFIC_DROP","SERVING_DROP","YIELD_DROP","VIEWABILITY_DROP","EFFICIENCY_DROP","REVENUE_DROP","NEGATIVE_MIXED","NEG_ADJUSTMENT"]
+            negative_labels = ["TRAFFIC_DROP","SERVING_DROP","YIELD_DROP","VIEWABILITY_DROP","EFFICIENCY_DROP","REVENUE_DROP","NEGATIVE_MIXED","NEG_ADJUSTMENT","WATCH_NEGATIVE","WATCH_DECAY","WATCH_IVT","IVT_DOMINANT_RISK","PROFIT_OK_BUT_UNSAFE","TRAFFIC_QUALITY_MISMATCH"]
+            pause_labels = ["NEG_ADJUSTMENT","WATCH_NEGATIVE","WATCH_DECAY","WATCH_IVT","IVT_DOMINANT_RISK","PROFIT_OK_BUT_UNSAFE","TRAFFIC_QUALITY_MISMATCH"]
             label_up = str(label or '').strip().upper()
             source_mode_key = str(source_mode or 'BLENDED').strip().upper()
             single_source = source_mode_key in ["ADX_ONLY", "ADSENSE_ONLY"]
-            down_score_cut = 52 if single_source else 55
-            down_dm_cut = -12 if single_source else -10
-            down_anomaly_cut = 3 if single_source else 2
+            down_score_cut = 56 if single_source else 58
+            down_dm_cut = -10 if single_source else -8
+            down_anomaly_cut = 2
             profit_component = clip((float(roi_value) + 1.0) * 50.0, 0.0, 100.0)
-            score_raw = (((health + 100.0) / 2.0) * 0.25) + ((100.0 - risk) * 0.2) + (conf * 100.0 * 0.1) + (clip(dm + 50.0, 0.0, 100.0) * 0.15) + (profit_component * 0.30)
+            score_raw = (((health + 100.0) / 2.0) * 0.27) + ((100.0 - risk) * 0.33) + (conf * 100.0 * 0.12) + (clip(dm + 50.0, 0.0, 100.0) * 0.18) + (profit_component * 0.10)
             score = int(round(clip(score_raw, 0.0, 100.0)))
             decision = "HOLD"
-            severe_anomaly = label_up.startswith("RED_FLAG") or (risk >= 85 and conf >= 0.60) or (dm <= -70 and health <= -25) or ('IVT_RISK' in anomaly_cards)
             anomaly_pressure = len(anomaly_cards)
-            if severe_anomaly or (risk >= 90 and conf >= 0.60 and score < 40) or (dm <= -65 and health <= -25 and conf >= 0.60):
+            red_flag_stop = label_up.startswith("RED_FLAG")
+            pause_signal = (label_up in pause_labels) and ((risk >= 60) or (dm <= -20) or (adj <= -20) or (health <= -10) or anomaly_pressure > 0)
+            if red_flag_stop:
                 decision = "STOP"
-            elif (label_up in ["POSITIVE_EXPANSION", "POSITIVE_RECOVERY"] and score >= 62 and risk < 60 and dm >= 6 and conf >= 0.45) or (score >= 72 and risk < 50 and dm >= 10 and conf >= 0.50):
+            elif pause_signal or ((risk >= 82) and (conf >= 0.50)) or ((dm <= -55) and (health <= -18) and (conf >= 0.50)):
+                decision = "PAUSE"
+            elif risk >= 68 or (anomaly_pressure >= down_anomaly_cut and risk >= 58):
+                decision = "SCALE DOWN"
+            elif (label_up in ["POSITIVE_EXPANSION", "POSITIVE_RECOVERY"] and score >= 66 and risk < 42 and dm >= 8 and conf >= 0.50 and health >= 8) or (score >= 76 and risk < 38 and dm >= 12 and conf >= 0.55 and health >= 12):
                 decision = "SCALE UP"
-            elif ((label_up in negative_labels and ((score < down_score_cut and dm < down_dm_cut) or (health < -12 and adj < -18))) or (score < 40 and dm < -12 and (health < -15 or risk >= 72)) or (anomaly_pressure >= down_anomaly_cut and score < 62)) and (not (profit_strong and anomaly_pressure <= 1 and not severe_anomaly)):
+            elif (label_up in negative_labels and ((score < down_score_cut and dm < down_dm_cut) or (health < -10 and adj < -15))) or (score < 48 and (health < -10 or risk >= 60)):
                 decision = "SCALE DOWN"
 
-            profit_guard_hold = profit_strong and (risk < (45 if single_source else 40)) and (label_up in ["WATCH_DECAY", "WATCH_NEGATIVE"]) and (decision == "SCALE_DOWN" or decision == "SCALE DOWN")
+            profit_guard_hold = profit_strong and risk < 35 and anomaly_pressure == 0 and (label_up in ["WATCH_DECAY", "WATCH_NEGATIVE"]) and (decision in ["SCALE_DOWN", "SCALE DOWN", "PAUSE"])
             if profit_guard_hold:
                 decision = "HOLD"
             return score, decision
@@ -2604,31 +2610,38 @@ class DashboardScoringCompareView(View):
             return None
 
         def derive_score_decision(health, risk, adj, conf01, dm, label, roi_value=0.0, source_mode='BLENDED'):
-            # Samakan dengan DashboardScoringDataView + scxDeriveDecision di template (profit-first)
+            # Safety / IVT first, profit sebagai optimizer sekunder
             source_mode_key = str(source_mode or 'BLENDED').strip().upper()
             single_source = source_mode_key in ["ADX_ONLY", "ADSENSE_ONLY"]
-            down_score_cut = 52 if single_source else 55
-            down_dm_cut = -12 if single_source else -10
-            down_anomaly_cut = 3 if single_source else 2
+            down_score_cut = 56 if single_source else 58
+            down_dm_cut = -10 if single_source else -8
+            down_anomaly_cut = 2
             profit_component = clip((float(roi_value) + 1.0) * 50.0, 0.0, 100.0)
-            score = (((health + 100.0) / 2.0) * 0.25) + ((100.0 - risk) * 0.2) + (conf01 * 100.0 * 0.1) + (clip(dm + 50.0, 0.0, 100.0) * 0.15) + (profit_component * 0.30)
+            score = (((health + 100.0) / 2.0) * 0.27) + ((100.0 - risk) * 0.33) + (conf01 * 100.0 * 0.12) + (clip(dm + 50.0, 0.0, 100.0) * 0.18) + (profit_component * 0.10)
             score = int(round(clip(score, 0.0, 100.0)))
-            negative_labels = ["TRAFFIC_DROP", "SERVING_DROP", "YIELD_DROP", "VIEWABILITY_DROP", "EFFICIENCY_DROP", "REVENUE_DROP", "NEGATIVE_MIXED", "NEG_ADJUSTMENT", "WATCH_NEGATIVE", "WATCH_DECAY"]
+            negative_labels = ["TRAFFIC_DROP", "SERVING_DROP", "YIELD_DROP", "VIEWABILITY_DROP", "EFFICIENCY_DROP", "REVENUE_DROP", "NEGATIVE_MIXED", "NEG_ADJUSTMENT", "WATCH_NEGATIVE", "WATCH_DECAY", "WATCH_IVT", "IVT_DOMINANT_RISK", "PROFIT_OK_BUT_UNSAFE", "TRAFFIC_QUALITY_MISMATCH"]
+            pause_labels = ["NEG_ADJUSTMENT", "WATCH_NEGATIVE", "WATCH_DECAY", "WATCH_IVT", "IVT_DOMINANT_RISK", "PROFIT_OK_BUT_UNSAFE", "TRAFFIC_QUALITY_MISMATCH"]
             label_up = str(label or 'STABLE').strip().upper()
             anomaly_cards = []
             if risk >= 70: anomaly_cards.append('IVT_RISK')
             if adj <= -60: anomaly_cards.append('NEG_ADJUSTMENT')
             if dm <= -50: anomaly_cards.append('MARGIN_CRASH')
-            severe_anomaly = label_up.startswith("RED_FLAG") or ('IVT_RISK' in anomaly_cards)
+            anomaly_pressure = len(anomaly_cards)
+            red_flag_stop = label_up.startswith("RED_FLAG")
+            pause_signal = (label_up in pause_labels) and ((risk >= 60) or (dm <= -20) or (adj <= -20) or (health <= -10) or anomaly_pressure > 0)
             decision = "HOLD"
-            if severe_anomaly or (risk >= 90 and conf01 >= 0.60 and score < 40) or (dm <= -65 and health <= -25 and conf01 >= 0.60):
+            if red_flag_stop:
                 decision = "STOP"
-            elif (label_up in ["POSITIVE_EXPANSION", "POSITIVE_RECOVERY", "WATCH_POSITIVE"] and score >= 62 and risk < 60 and dm >= 6 and conf01 >= 0.45) or (score >= 72 and risk < 50 and dm >= 10 and conf01 >= 0.50):
+            elif pause_signal or ((risk >= 82) and (conf01 >= 0.50)) or ((dm <= -55) and (health <= -18) and (conf01 >= 0.50)):
+                decision = "PAUSE"
+            elif risk >= 68 or ((anomaly_pressure >= down_anomaly_cut) and risk >= 58):
+                decision = "SCALE_DOWN"
+            elif (label_up in ["POSITIVE_EXPANSION", "POSITIVE_RECOVERY", "WATCH_POSITIVE"] and score >= 66 and risk < 42 and dm >= 8 and conf01 >= 0.50 and health >= 8) or (score >= 76 and risk < 38 and dm >= 12 and conf01 >= 0.55 and health >= 12):
                 decision = "SCALE UP"
-            elif (label_up in negative_labels and ((score < down_score_cut and dm < down_dm_cut) or (health < -12 and adj < -18))) or (score < 40 and dm < -12 and (health < -15 or risk >= 72)) or (len(anomaly_cards) >= down_anomaly_cut and score < 62):
+            elif (label_up in negative_labels and ((score < down_score_cut and dm < down_dm_cut) or (health < -10 and adj < -15))) or (score < 48 and (health < -10 or risk >= 60)):
                 decision = "SCALE_DOWN"
 
-            if (decision == "SCALE_DOWN") and (label_up in ["WATCH_DECAY", "WATCH_NEGATIVE"]) and (risk < 40) and (score >= 45):
+            if (decision in ["SCALE_DOWN", "PAUSE"]) and (label_up in ["WATCH_DECAY", "WATCH_NEGATIVE"]) and (risk < 35) and (score >= 45) and (anomaly_pressure == 0):
                 decision = "HOLD"
             if decision == "SCALE_DOWN":
                 decision = "SCALE DOWN"

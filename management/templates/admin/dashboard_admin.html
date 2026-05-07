@@ -1362,7 +1362,15 @@ html[data-theme="dark"] .decision-detail-reason-item {
                         <div class="card dashboard-card mt-3" style="border-radius:16px;">
                             <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
                                 <div style="font-weight:900;"><i class="bi bi-table me-2"></i> Detail Scoring</div>
-                                <div class="text-muted" style="font-size:12px" id="dashboardRecapTableMeta"></div>
+                                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                                    <div class="text-muted" style="font-size:12px" id="dashboardRecapTableMeta"></div>
+                                    <div class="dashboard-recap-tabs" id="dashboardRecapAlertTabs" style="display:flex;gap:8px;flex-wrap:wrap;">
+                                        <button type="button" class="btn btn-sm btn-primary" data-alert-filter="all">Semua</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="normal">Normal</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="waspada">Waspada</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="kritis">Kritis</button>
+                                    </div>
+                                </div>
                             </div>
                             <div class="card-body p-0">
                                 <div style="padding:10px 14px 4px 14px;">
@@ -2903,8 +2911,8 @@ window.detailKeputusanStore = window.detailKeputusanStore || {};
 window.detailKeputusanStoreCounter = window.detailKeputusanStoreCounter || 0;
 
 function keputusanBadge(meta, ctx) {
-    const d = String(meta?.decision || '').toUpperCase();
     const label = String(meta?.label || '').trim();
+    const d = scxNormalizeDecisionForDisplay(meta?.decision || '', label);
     const title = (meta?.reasons && meta.reasons.length) ? meta.reasons.join(' • '): '';
     const storeKey = 'meta_' + (++window.detailKeputusanStoreCounter);
     window.detailKeputusanStore[storeKey] = {
@@ -2912,14 +2920,65 @@ function keputusanBadge(meta, ctx) {
         row: ctx?.row || null,
         state: ctx?.state || null,
     };
-    if (!d) return `<div class="keputusan-badge-clickable" title="${title}" data-keputusan-key="${storeKey}" role="button" tabindex="0"><span class="badge badge-light badge-pill" style="color:#6b7280;border:1px solid rgba(107,114,128,.22);">BELUM SIAP</span>${label ? `<div style="font-size:11px;opacity:.8;margin-top:4px;font-weight:800;">${esc(label)}</div>` : ''}</div>`;
+    const causeText = label ? `Penyebab: ${scxFriendlyLabelGlobal(label)}` : '';
+    if (!d) return `<div class="keputusan-badge-clickable" title="${title}" data-keputusan-key="${storeKey}" role="button" tabindex="0"><span class="badge badge-light badge-pill" style="color:#6b7280;border:1px solid rgba(107,114,128,.22);">BELUM SIAP</span>${causeText ? `<div style="font-size:11px;opacity:.85;margin-top:4px;font-weight:700;line-height:1.3;">${esc(causeText)}</div>` : ''}</div>`;
     let cls = 'badge badge-secondary badge-pill';
+    let badgeStyle = '';
     if (d === 'SCALE UP') cls = 'badge badge-success badge-pill';
     else if (d === 'HOLD') cls = 'badge badge-primary badge-pill';
+    else if (d === 'PAUSE') {
+        cls = 'badge badge-pill';
+        badgeStyle = 'background:#64748b;color:#fff;border:1px solid rgba(100,116,139,.28);';
+    }
     else if (d === 'SCALE DOWN') cls = 'badge badge-warning badge-pill text-dark';
     else if (d === 'STOP') cls = 'badge badge-danger badge-pill';
-    const sub = label ? `<div style="font-size:11px;opacity:.8;margin-top:4px;font-weight:800;">${esc(label)}</div>` : '';
-    return `<div class="keputusan-badge-clickable" title="${title}" data-keputusan-key="${storeKey}" role="button" tabindex="0"><span class="${cls}">${esc(d)}</span>${sub}</div>`;
+    const sub = causeText ? `<div style="font-size:11px;opacity:.85;margin-top:4px;font-weight:700;line-height:1.3;">${esc(causeText)}</div>` : '';
+    return `<div class="keputusan-badge-clickable" title="${title}" data-keputusan-key="${storeKey}" role="button" tabindex="0"><span class="${cls}"${badgeStyle ? ` style="${badgeStyle}"` : ''}>${esc(d)}</span>${sub}</div>`;
+}
+
+function scxFriendlyLabelGlobal(label) {
+    const map = {
+        POSITIVE_EXPANSION: 'Ekspansi Positif', POSITIVE_RECOVERY: 'Pemulihan Positif', WATCH_POSITIVE: 'Pantau Positif', WATCH_RECOVERY: 'Pantau Pemulihan', WATCH_NEGATIVE: 'Pantau Negatif', WATCH_DECAY: 'Sinyal Melemah', WATCH_IVT: 'Pantau Risiko IVT', IVT_DOMINANT_RISK: 'Risiko IVT Dominan', PROFIT_OK_BUT_UNSAFE: 'Profit Baik, Tapi Tidak Aman', TRAFFIC_QUALITY_MISMATCH: 'Kualitas Traffic Tidak Selaras', TRAFFIC_DROP: 'Traffic Turun', SERVING_DROP: 'Serving Turun', YIELD_DROP: 'Yield Turun', VIEWABILITY_DROP: 'Viewability Turun', EFFICIENCY_DROP: 'Efisiensi Turun', REVENUE_DROP: 'Revenue Turun', NEG_ADJUSTMENT: 'Adjustment Negatif', RED_FLAG_IVT: 'Red Flag IVT', RED_FLAG_CLICK_STRESS: 'Red Flag Click Stress', RED_FLAG_SERVING_SUPPRESSION: 'Red Flag Serving Suppression', RED_FLAG_ATTENTION_COLLAPSE: 'Red Flag Attention Collapse', RED_FLAG_COUNTER_CORRECTION: 'Red Flag Counter Correction', RED_FLAG_FUNNEL_DIVERGENCE: 'Red Flag Funnel Divergence', STABLE: 'Stabil'
+    };
+    const key = String(label || '').toUpperCase();
+    return map[key] || String(label || '-').replaceAll('_', ' ');
+}
+
+function scxDecisionLabelGlobal(v) {
+    const key = String(v || '').toUpperCase();
+    if (key === 'STOP') return 'Stop';
+    if (key === 'PAUSE') return 'Pause';
+    if (key === 'SCALE DOWN') return 'Scale down';
+    if (key === 'HOLD') return 'Hold';
+    if (key === 'SCALE UP') return 'Scale up';
+    return 'Belum ada keputusan';
+}
+
+function scxNormalizeDecisionForDisplay(decision, label) {
+    const d = String(decision || '').toUpperCase().replaceAll('_', ' ');
+    const l = String(label || '').toUpperCase();
+    if (d !== 'STOP') return d;
+    return l.startsWith('RED_FLAG') ? 'STOP' : 'PAUSE';
+}
+
+function scxDecisionReasonText(decision, label, risk, margin, health, confidence) {
+    const d = String(decision || '').toUpperCase();
+    const l = String(label || '').toUpperCase();
+    const r = Number(risk || 0);
+    const m = Number(margin || 0);
+    const h = Number(health || 0);
+    const c = Number(confidence || 0);
+    if (d === 'STOP') {
+        return 'Dihentikan karena terdeteksi red flag yang membutuhkan tindakan final.';
+    }
+    if (d === 'PAUSE') {
+        if (l === 'NEG_ADJUSTMENT') return 'Dijeda sementara agar ada waktu perbaikan karena adjustment sedang negatif.';
+        if (l === 'WATCH_DECAY') return 'Dijeda sementara karena performa melemah dan perlu observasi sebelum dilanjutkan.';
+        return 'Dijeda sementara agar ada ruang evaluasi dan perbaikan sebelum tindakan yang lebih keras.';
+    }
+    if (d === 'SCALE DOWN') return 'Budget diturunkan karena ada tekanan risiko atau performa mulai melemah.';
+    if (d === 'SCALE UP') return 'Budget layak dinaikkan karena sinyal kesehatan dan margin relatif kuat.';
+    return 'Dipertahankan sambil dipantau karena sinyal belum cukup kuat untuk naik atau turun agresif.';
 }
 
 function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, rawMetaCtx) {
@@ -2930,7 +2989,7 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
     const timeline = Array.isArray(info.scoring_timeline) ? info.scoring_timeline : [];
     const safeIdx = Math.max(0, Math.min(Number(activeTimelineIdx) || 0, Math.max(0, timeline.length - 1)));
     const activeT = timeline[safeIdx] || null;
-    const decision = String(activeT?.decision || meta?.decision || '').toUpperCase() || 'BELUM ADA';
+    const decision = scxNormalizeDecisionForDisplay(activeT?.decision || meta?.decision || '', activeT?.label || meta?.label || info.final_label || info.root_cause_label || '') || 'BELUM ADA';
     const label = String(activeT?.label || meta?.label || '').trim();
     const score = num(activeT?.score ?? meta?.score);
     const pickMetricPreferNonZero = function() {
@@ -3202,10 +3261,17 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
         html += '</div>';
     }
 
+    const decisionSource = activeT?.decision ? 'Snapshot scoring terbaru' : (meta?.decision ? 'Ringkasan scoring backend' : 'Turunan scoring dashboard');
+    const friendlyCause = scxFriendlyLabelGlobal(label || final_label || root_cause_label || '-');
+    const decisionReason = scxDecisionReasonText(decision, label || final_label || root_cause_label || '', risk, decision_margin, health, confidence);
     html += '<div class="decision-detail-section">';
     html += `<div class="decision-detail-section-title">Keputusan</div>`;
-    html += `<div style="font-size:16px;font-weight:800;color:#0f172a;margin-bottom:8px;">${esc(decision)}</div>`;
-    if (label) html += `<div style="font-size:13px;color:#475569;">${esc(label)}</div>`;
+    html += `<div style="display:grid;gap:8px;">`;
+    html += `<div><div style="font-size:11px;font-weight:800;letter-spacing:.04em;color:#64748b;text-transform:uppercase;">Aksi Final</div><div style="font-size:16px;font-weight:800;color:#0f172a;">${esc(scxDecisionLabelGlobal(decision))}</div></div>`;
+    html += `<div><div style="font-size:11px;font-weight:800;letter-spacing:.04em;color:#64748b;text-transform:uppercase;">Penyebab Utama</div><div style="font-size:13px;color:#334155;font-weight:700;">${esc(friendlyCause)}</div></div>`;
+    html += `<div><div style="font-size:11px;font-weight:800;letter-spacing:.04em;color:#64748b;text-transform:uppercase;">Alasan</div><div style="font-size:12px;color:#475569;line-height:1.45;">${esc(decisionReason)}</div></div>`;
+    html += `<div><div style="font-size:11px;font-weight:800;letter-spacing:.04em;color:#64748b;text-transform:uppercase;">Sumber Keputusan</div><div style="font-size:12px;color:#475569;">${esc(decisionSource)} • ${esc(sourceLabel)}</div></div>`;
+    html += `</div>`;
     html += '</div>';
     const kpiLabel = function(text, formula){
         const t = esc(String(text || ''));
@@ -3226,12 +3292,12 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
     html += '<div class="decision-detail-section">';
     html += `<div class="decision-detail-section-title">Komponen Penilaian</div>`;
     html += '<div class="decision-detail-kpi-grid">';
-    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">${kpiLabel('Score Akhir','score = 0.25*((health+100)/2) + 0.20*(100-risk) + 0.10*(confidence*100) + 0.15*clamp(margin+50,0,100) + 0.30*profit_component; profit_component=clamp((ROI+1)*50,0,100)')}</div><div class="decision-detail-kpi-value">${score == null ? '-' : score}</div></div>`;
-    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">${kpiLabel('Health Score','health = clamp(0.7*prev_health + 0.3*(100*avg(active_family_ratio)), -100, 100); hanya event non-SKIPPED & health_component!=0')}</div><div class="decision-detail-kpi-value">${fmt2(health)}</div></div>`;
-    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">${kpiLabel('IVT Risk Score','ivt_risk = clamp(100 * sum(max(ivt_component,0)) / sum(ivt_capacity), 0, 100)')}</div><div class="decision-detail-kpi-value">${fmt2(risk)}</div></div>`;
-    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">${kpiLabel('Adjustment Score','adjustment = 100 * sum(adjustment_component) / sum(adjustment_capacity)')}</div><div class="decision-detail-kpi-value">${fmt2(adjustment)}</div></div>`;
-    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">${kpiLabel('Confidence','confidence = rata-rata confidence event non-SKIPPED (0..1)')}</div><div class="decision-detail-kpi-value">${fmtPct01(confidence)}</div></div>`;
-    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">${kpiLabel('Decision Margin','margin = health_score - ivt_risk_score + min(0, adjustment_score)')}</div><div class="decision-detail-kpi-value">${fmt2(decision_margin)}</div></div>`;
+    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">${kpiLabel('Score Akhir','Ringkasan akhir dari seluruh komponen utama. Nilai ini melihat kesehatan performa, risiko IVT, confidence data, margin keputusan, dan dukungan profit secara bersamaan.')}</div><div class="decision-detail-kpi-value">${score == null ? '-' : score}</div></div>`;
+    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">${kpiLabel('Health Score','Menggambarkan seberapa sehat performa domain saat ini dibanding pola normalnya. Semakin tinggi, performa makin sehat.')}</div><div class="decision-detail-kpi-value">${fmt2(health)}</div></div>`;
+    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">${kpiLabel('IVT Risk Score','Menggambarkan tingkat risiko kualitas traffic atau indikasi IVT. Semakin tinggi, risikonya makin besar.')}</div><div class="decision-detail-kpi-value">${fmt2(risk)}</div></div>`;
+    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">${kpiLabel('Adjustment Score','Menunjukkan seberapa besar tekanan dari adjustment atau koreksi data. Nilai negatif besar berarti perlu perhatian lebih.')}</div><div class="decision-detail-kpi-value">${fmt2(adjustment)}</div></div>`;
+    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">${kpiLabel('Confidence','Menunjukkan tingkat keyakinan model terhadap hasil scoring yang muncul. Semakin tinggi, hasilnya makin layak dipercaya.')}</div><div class="decision-detail-kpi-value">${fmtPct01(confidence)}</div></div>`;
+    html += `<div class="decision-detail-kpi-item"><div class="decision-detail-kpi-label">${kpiLabel('Decision Margin','Menunjukkan selisih kekuatan sinyal sehat dibanding tekanan risiko. Jika nilainya negatif besar, keputusan cenderung lebih defensif.')}</div><div class="decision-detail-kpi-value">${fmt2(decision_margin)}</div></div>`;
     html += '</div>';
     html += '</div>';
 
@@ -3345,11 +3411,11 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
     html += '<div class="decision-detail-section">';
     html += `<div class="decision-detail-section-title">Status Tags</div>`;
     if (final_label) {
-        const tone = (final_label.includes('POSITIVE') || final_label.includes('RECOVERY') || final_label.includes('EXPANSION')) ? 'green' : ((final_label.includes('DROP') || final_label.includes('NEG') || final_label.includes('RED_FLAG')) ? 'red' : 'yellow');
-        html += `<span class="scx-pill ${tone}" style="margin-right:4px;">${esc(final_label)}</span>`;
+        const tone = (final_label.includes('POSITIVE') || final_label.includes('RECOVERY') || final_label.includes('EXPANSION')) ? 'green' : ((final_label.includes('DROP') || final_label.includes('NEG') || final_label.includes('RED_FLAG') || final_label.includes('UNSAFE') || final_label.includes('IVT')) ? 'red' : 'yellow');
+        html += `<span class="scx-pill ${tone}" style="margin-right:4px;" title="${esc(final_label)}">${esc(scxFriendlyLabelGlobal(final_label))}</span>`;
     }
     if (root_cause_label && root_cause_label !== final_label) {
-        html += `<span class="scx-pill gray">${esc(root_cause_label)}</span>`;
+        html += `<span class="scx-pill gray" title="${esc(root_cause_label)}">${esc(scxFriendlyLabelGlobal(root_cause_label))}</span>`;
     }
     html += '</div>';
 
@@ -4009,6 +4075,45 @@ function closeDetailKeputusan() {
         domainEl.style.display = 'none';
     }
 }
+
+function initDetailKeputusanModal() {
+    const modal = document.getElementById('decision-detail-modal');
+    const closeBtn = document.getElementById('decision-detail-close-btn');
+    if (closeBtn && !closeBtn.dataset.boundCloseDecision) {
+        closeBtn.onclick = closeDetailKeputusan;
+        closeBtn.dataset.boundCloseDecision = '1';
+    }
+    if (modal && !modal.dataset.boundCloseDecision) {
+        modal.addEventListener('click', function(e) {
+            if (e.target && e.target.id === 'decision-detail-modal') {
+                closeDetailKeputusan();
+            }
+        });
+        modal.dataset.boundCloseDecision = '1';
+    }
+    if (!document.body.dataset.boundOpenDecision) {
+        document.body.addEventListener('click', function(e) {
+            const trigger = e.target && e.target.closest ? e.target.closest('.keputusan-badge-clickable[data-keputusan-key]') : null;
+            if (!trigger) return;
+            const storeKey = String(trigger.getAttribute('data-keputusan-key') || '').trim();
+            if (!storeKey) return;
+            openDetailKeputusan(storeKey, 0);
+        });
+        document.body.addEventListener('keydown', function(e) {
+            const trigger = e.target && e.target.closest ? e.target.closest('.keputusan-badge-clickable[data-keputusan-key]') : null;
+            if (!trigger) {
+                if (e.key === 'Escape') closeDetailKeputusan();
+                return;
+            }
+            if (e.key !== 'Enter' && e.key !== ' ') return;
+            e.preventDefault();
+            const storeKey = String(trigger.getAttribute('data-keputusan-key') || '').trim();
+            if (!storeKey) return;
+            openDetailKeputusan(storeKey, 0);
+        });
+        document.body.dataset.boundOpenDecision = '1';
+    }
+}
 // ===== END MODAL FUNCTIONS =====
 
 function initDashboardRecap() {
@@ -4024,6 +4129,8 @@ function initDashboardRecap() {
 
     if (!root || !dateEl || !sourceEl) return showError('UI rekap tidak lengkap');
     if (typeof Chart === 'undefined') return showError('Chart.js library is not loaded.');
+    initDetailKeputusanModal();
+    bindDashboardRecapAlertTabs();
 
     const fmtIdr = (v) => (Math.round(Number(v)||0)).toLocaleString('id-ID', { style:'currency', currency:'IDR', maximumFractionDigits:0 });
     const fmtPct = (v) => `${(Number(v)||0).toFixed(2)}%`;
@@ -4059,6 +4166,8 @@ function initDashboardRecap() {
 
     // ...existing code...
 
+    window.dashboardRecapAlertFilter = window.dashboardRecapAlertFilter || 'all';
+
     function getState() {
         const dBtn = document.querySelector('#dashboardRecapDimTabs button.btn-primary');
         return {
@@ -4067,6 +4176,97 @@ function initDashboardRecap() {
             date: String(dateEl.value||'').trim(),
             subdomain: String(subdomainEl?.value || '').trim()
         };
+    }
+
+    function computeAlertLevelForTableRow(tr) {
+        const cells = tr && tr.children ? tr.children : [];
+        const state = getState();
+        const rowLike = String(state?.dim || '').toLowerCase() === 'country'
+            ? { name: String(cells[1]?.innerText || '').trim(), code: String(cells[2]?.innerText || '').trim() }
+            : { name: String(cells[1]?.innerText || '').trim() };
+        const meta = storedScoringForRow(rowLike, state);
+        const info = meta?.breakdown?.meta || {};
+        return scxAlertMeta(meta?.label || info.final_label || '', info.root_cause_label || '', Number(info.ivt_risk_score || 0), String(info.forecast_direction || 'STABLE_OUTLOOK'), Number(info.forecast_confidence || 0));
+    }
+
+    function syncDashboardRecapAlertUi(dt, tableEl) {
+        const metaEl = document.getElementById('dashboardRecapTableMeta');
+        const wrapper = document.getElementById('dashboardRecapTable_wrapper') || tableEl?.closest('.dataTables_wrapper');
+        const paginateEl = wrapper ? wrapper.querySelector('.dataTables_paginate') : null;
+        if (!dt || !tableEl) return;
+        const info = (typeof dt.page === 'function' && typeof dt.page.info === 'function') ? dt.page.info() : null;
+        const total = Number(info?.recordsDisplay || 0);
+        const pages = Number(info?.pages || 0);
+        if (metaEl) metaEl.textContent = `${total} baris`;
+        if (paginateEl) paginateEl.style.display = pages > 1 ? '' : 'none';
+    }
+
+    function ensureDashboardRecapAlertDtFilter() {
+        const tableEl = document.getElementById('dashboardRecapTable');
+        const hasDt = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.DataTable === 'function');
+        if (!tableEl || !hasDt || !jQuery.fn.DataTable.isDataTable(tableEl)) return;
+        const dt = window.dashboardRecapDt || jQuery(tableEl).DataTable();
+        if (!dt || dt._dashboardAlertFilterBound) return;
+        const filterFn = function(settings, _data, dataIndex) {
+            if (!settings || settings.nTable !== tableEl) return true;
+            const target = String(window.dashboardRecapAlertFilter || 'all').toLowerCase();
+            if (target === 'all') return true;
+            const rowNode = settings.aoData && settings.aoData[dataIndex] ? settings.aoData[dataIndex].nTr : null;
+            const level = String(rowNode?.dataset?.alertLevel || 'normal').toLowerCase();
+            return level === target;
+        };
+        jQuery.fn.dataTable.ext.search.push(filterFn);
+        dt._dashboardAlertFilterBound = true;
+        dt._dashboardAlertFilterFn = filterFn;
+        dt.on('draw.dashboardAlertFilter page.dashboardAlertFilter order.dashboardAlertFilter search.dashboardAlertFilter length.dashboardAlertFilter', function(){
+            syncDashboardRecapAlertUi(dt, tableEl);
+        });
+    }
+
+    function applyDashboardRecapAlertFilter() {
+        const tableEl = document.getElementById('dashboardRecapTable');
+        const tbody = document.getElementById('dashboardRecapTbody');
+        const metaEl = document.getElementById('dashboardRecapTableMeta');
+        const target = String(window.dashboardRecapAlertFilter || 'all').toLowerCase();
+        const hasDt = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.DataTable === 'function');
+        if (tableEl && hasDt && jQuery.fn.DataTable.isDataTable(tableEl)) {
+            const dt = window.dashboardRecapDt || jQuery(tableEl).DataTable();
+            ensureDashboardRecapAlertDtFilter();
+            dt.page('first').draw(false);
+            syncDashboardRecapAlertUi(dt, tableEl);
+            return;
+        }
+        if (!tbody) return;
+        let visible = 0;
+        Array.from(tbody.querySelectorAll('tr')).forEach(function(tr) {
+            if (tr.querySelector('td.dataTables_empty')) return;
+            const level = String(tr.dataset.alertLevel || 'normal').toLowerCase();
+            const show = (target === 'all' || level === target);
+            tr.style.display = show ? '' : 'none';
+            if (show) visible += 1;
+        });
+        if (metaEl) metaEl.textContent = `${visible} baris`;
+    }
+
+    function bindDashboardRecapAlertTabs() {
+        const rootTabs = document.getElementById('dashboardRecapAlertTabs');
+        if (!rootTabs) return;
+        rootTabs.querySelectorAll('button[data-alert-filter]').forEach(function(btn){
+            const key = String(btn.getAttribute('data-alert-filter') || 'all').toLowerCase();
+            const on = key === String(window.dashboardRecapAlertFilter || 'all').toLowerCase();
+            btn.classList.toggle('btn-primary', on);
+            btn.classList.toggle('btn-outline-primary', !on);
+            btn.onclick = function(){
+                window.dashboardRecapAlertFilter = key;
+                rootTabs.querySelectorAll('button[data-alert-filter]').forEach(function(x){
+                    const active = String(x.getAttribute('data-alert-filter') || 'all').toLowerCase() === key;
+                    x.classList.toggle('btn-primary', active);
+                    x.classList.toggle('btn-outline-primary', !active);
+                });
+                applyDashboardRecapAlertFilter();
+            };
+        });
+        ensureDashboardRecapAlertDtFilter();
     }
 
     function setRecapTableLoading(message) {
@@ -4338,6 +4538,7 @@ function initDashboardRecap() {
             if (tlScore != null) merged.score = Math.round(tlScore);
             if (String(tl?.decision || '').trim()) merged.decision = String(tl.decision).trim().toUpperCase();
             if (String(tl?.label || '').trim()) merged.label = String(tl.label).trim();
+            merged.decision = scxNormalizeDecisionForDisplay(merged.decision || '', merged.label || info.final_label || info.root_cause_label || '');
             info.scoring_timeline_active_idx = latest.idx;
             info.last_update = String(info.last_update || tl?.run_hour_label || tl?.run_hour || info.snapshot_time || info.run_time || info.run_hour || '').trim();
         } else {
@@ -4397,7 +4598,8 @@ function initDashboardRecap() {
             updatedAt = Number.isNaN(dt.getTime()) ? raw : dt.toLocaleString('id-ID', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' });
         }
         const anomalyCards = Array.isArray(info.anomaly_cards) ? info.anomaly_cards.map(function(x){ return String(x || '').trim(); }).filter(Boolean) : [];
-        return { value, updatedAt, anomalyCards };
+        const alertMeta = scxAlertMeta(meta?.label || info.final_label || '', info.root_cause_label || '', Number(info.ivt_risk_score || 0), String(info.forecast_direction || 'STABLE_OUTLOOK'), Number(info.forecast_confidence || 0));
+        return { value, updatedAt, anomalyCards, alertLevel: String(alertMeta?.label || 'Normal').toLowerCase() };
     }
 
     function lookupStoredMetaRaw(row, state, storeObj) {
@@ -4707,9 +4909,10 @@ function initDashboardRecap() {
     function scxDecisionLabel(v) {
         const key = String(v || '').toUpperCase();
         if (key === 'STOP') return 'Stop';
-        if (key === 'SCALE DOWN') return 'Scale down';
-        if (key === 'HOLD') return 'Hold';
-        if (key === 'SCALE UP') return 'Scale up';
+    if (key === 'PAUSE') return 'Pause';
+    if (key === 'SCALE DOWN') return 'Scale down';
+    if (key === 'HOLD') return 'Hold';
+    if (key === 'SCALE UP') return 'Scale up';
         const n = Number(v);
         if (!Number.isFinite(n)) return 'Belum ada keputusan';
         if (n >= 35) return 'Layak dipertahankan';
@@ -4727,37 +4930,108 @@ function initDashboardRecap() {
         const downScoreCut = singleSource ? 52 : 55;
         const downDmCut = singleSource ? -12 : -10;
         const downAnomalyCut = singleSource ? 3 : 2;
-        const negativeLabels = ['TRAFFIC_DROP', 'SERVING_DROP', 'YIELD_DROP', 'VIEWABILITY_DROP', 'EFFICIENCY_DROP', 'REVENUE_DROP', 'NEGATIVE_MIXED', 'NEG_ADJUSTMENT', 'WATCH_NEGATIVE', 'WATCH_DECAY'];
+        const negativeLabels = ['TRAFFIC_DROP', 'SERVING_DROP', 'YIELD_DROP', 'VIEWABILITY_DROP', 'EFFICIENCY_DROP', 'REVENUE_DROP', 'NEGATIVE_MIXED', 'NEG_ADJUSTMENT', 'WATCH_NEGATIVE', 'WATCH_DECAY', 'WATCH_IVT', 'IVT_DOMINANT_RISK', 'PROFIT_OK_BUT_UNSAFE', 'TRAFFIC_QUALITY_MISMATCH'];
+        const pauseLabels = ['NEG_ADJUSTMENT', 'WATCH_NEGATIVE', 'WATCH_DECAY', 'WATCH_IVT', 'IVT_DOMINANT_RISK', 'PROFIT_OK_BUT_UNSAFE', 'TRAFFIC_QUALITY_MISMATCH'];
         const anomalyCards = [];
         if (Number(risk) >= 70) anomalyCards.push('IVT_RISK');
         if (Number(adj) <= -60) anomalyCards.push('NEG_ADJUSTMENT');
         if (Number(dm) <= -50) anomalyCards.push('MARGIN_CRASH');
-        const severeAnomaly = labelKey.startsWith('RED_FLAG') || anomalyCards.includes('IVT_RISK');
+        const redFlagStop = labelKey.startsWith('RED_FLAG');
         let decision = 'HOLD';
-        if (severeAnomaly || (risk >= 90 && conf >= 0.60 && scoreValue < 40) || (dm <= -65 && health <= -25 && conf >= 0.60)) decision = 'STOP';
-        else if ((['POSITIVE_EXPANSION', 'POSITIVE_RECOVERY', 'WATCH_POSITIVE'].includes(labelKey) && scoreValue >= 62 && risk < 60 && dm >= 6 && conf >= 0.45) || (scoreValue >= 72 && risk < 50 && dm >= 10 && conf >= 0.50)) decision = 'SCALE UP';
-        else if ((negativeLabels.includes(labelKey) && ((scoreValue < downScoreCut && dm < downDmCut) || (health < -12 && adj < -18))) || (scoreValue < 40 && dm < -12 && (health < -15 || risk >= 72)) || (anomalyCards.length >= downAnomalyCut && scoreValue < 62)) decision = 'SCALE DOWN';
+        if (redFlagStop) decision = 'STOP';
+        else if (pauseLabels.includes(labelKey) && (Number(risk) >= 60 || Number(dm) <= -20 || Number(adj) <= -20 || Number(health) <= -10 || anomalyCards.length > 0)) decision = 'PAUSE';
+        else if ((Number(risk) >= 82 && Number(conf) >= 0.50) || (Number(dm) <= -55 && Number(health) <= -18 && Number(conf) >= 0.50)) decision = 'PAUSE';
+        else if ((['POSITIVE_EXPANSION', 'POSITIVE_RECOVERY', 'WATCH_POSITIVE'].includes(labelKey) && scoreValue >= 66 && risk < 42 && dm >= 8 && conf >= 0.50 && health >= 8) || (scoreValue >= 76 && risk < 38 && dm >= 12 && conf >= 0.55 && health >= 12)) decision = 'SCALE UP';
+        else if (risk >= 68 || (negativeLabels.includes(labelKey) && ((scoreValue < downScoreCut && dm < downDmCut) || (health < -10 && adj < -15))) || (scoreValue < 48 && (health < -10 || risk >= 60)) || (anomalyCards.length >= downAnomalyCut && scoreValue < 62)) decision = 'SCALE DOWN';
         const pStrong = !!profitStrong;
-        if (decision === 'SCALE DOWN' && pStrong && Number(risk) < (singleSource ? 45 : 40) && ['WATCH_DECAY','WATCH_NEGATIVE'].includes(labelKey)) decision = 'HOLD';
+        if ((decision === 'SCALE DOWN' || decision === 'PAUSE') && pStrong && Number(risk) < 35 && anomalyCards.length === 0 && ['WATCH_DECAY','WATCH_NEGATIVE'].includes(labelKey)) decision = 'HOLD';
         return { decision, basis: `Dasar keputusan: ${decision} | score ${Math.round(scoreValue)} | label ${labelKey} | source ${modeKey} | risk ${risk.toFixed(1)} | margin ${dm.toFixed(1)} | confidence ${Math.round(conf * 100)}% | anomaly ${anomalyCards.join(', ') || '-'}` };
+    }
+
+    function scxFriendlyLabel(label) {
+        const map = {
+            POSITIVE_EXPANSION: 'Ekspansi Positif',
+            POSITIVE_RECOVERY: 'Pemulihan Positif',
+            WATCH_POSITIVE: 'Pantau Positif',
+            WATCH_RECOVERY: 'Pantau Pemulihan',
+            WATCH_NEGATIVE: 'Pantau Negatif',
+            WATCH_DECAY: 'Sinyal Melemah',
+            WATCH_IVT: 'Pantau Risiko IVT',
+            IVT_DOMINANT_RISK: 'Risiko IVT Dominan',
+            PROFIT_OK_BUT_UNSAFE: 'Profit Baik, Traffic Tidak Aman',
+            TRAFFIC_QUALITY_MISMATCH: 'Kualitas Traffic Tidak Selaras',
+            TRAFFIC_DROP: 'Traffic Turun',
+            SERVING_DROP: 'Serving Turun',
+            YIELD_DROP: 'Yield Turun',
+            VIEWABILITY_DROP: 'Viewability Turun',
+            EFFICIENCY_DROP: 'Efisiensi Turun',
+            REVENUE_DROP: 'Revenue Turun',
+            NEG_ADJUSTMENT: 'Adjustment Negatif',
+            RED_FLAG_IVT: 'Red Flag IVT',
+            RED_FLAG_CLICK_STRESS: 'Red Flag Click Stress',
+            RED_FLAG_SERVING_SUPPRESSION: 'Red Flag Serving Suppression',
+            RED_FLAG_ATTENTION_COLLAPSE: 'Red Flag Attention Collapse',
+            RED_FLAG_COUNTER_CORRECTION: 'Red Flag Counter Correction',
+            RED_FLAG_FUNNEL_DIVERGENCE: 'Red Flag Funnel Divergence',
+            STABLE: 'Stabil'
+        };
+        const key = String(label || '').toUpperCase();
+        return map[key] || String(label || '-').replaceAll('_', ' ');
     }
 
     function scxRootCauseText(label) {
         const map = {
-            POSITIVE_EXPANSION: 'Performa tumbuh dan sinyal positif lebih dominan.',
-            POSITIVE_RECOVERY: 'Ada pemulihan dibanding baseline historis.',
-            TRAFFIC_DROP: 'Traffic menurun dibanding pola normal.',
-            SERVING_DROP: 'Distribusi iklan / serving melemah.',
-            YIELD_DROP: 'Yield monetisasi menurun.',
-            VIEWABILITY_DROP: 'Kualitas viewability melemah.',
-            EFFICIENCY_DROP: 'Efisiensi biaya atau monetisasi memburuk.',
-            REVENUE_DROP: 'Revenue turun dibanding baseline.',
-            NEG_ADJUSTMENT: 'Ada indikasi koreksi data / adjustment.',
-            RED_FLAG_IVT: 'Ada indikasi risiko traffic atau kualitas tidak sehat.',
-            STABLE: 'Belum ada perubahan besar terhadap baseline.'
+            POSITIVE_EXPANSION: 'Performa sedang kuat dan masih layak didorong secara terukur.',
+            POSITIVE_RECOVERY: 'Performa mulai pulih, tetapi tetap perlu dijaga konsistensinya.',
+            WATCH_POSITIVE: 'Ada sinyal membaik, namun belum cukup kuat untuk ekspansi agresif.',
+            WATCH_RECOVERY: 'Pemulihan sudah terlihat, tetapi belum stabil sepenuhnya.',
+            WATCH_NEGATIVE: 'Mulai ada tekanan negatif yang perlu dipantau lebih ketat.',
+            WATCH_DECAY: 'Performa mulai melemah dan sebaiknya tidak langsung diekspansi.',
+            WATCH_IVT: 'Risiko IVT mulai muncul dan perlu diawasi sebelum membesar.',
+            IVT_DOMINANT_RISK: 'Risiko IVT sudah menjadi faktor utama yang menekan performa.',
+            PROFIT_OK_BUT_UNSAFE: 'Profit masih terlihat baik, tetapi kualitas traffic belum cukup aman.',
+            TRAFFIC_QUALITY_MISMATCH: 'Hasil monetisasi masih berjalan, tetapi kualitas traffic tidak sehat.',
+            TRAFFIC_DROP: 'Traffic turun dibanding pola normal.',
+            SERVING_DROP: 'Distribusi iklan melemah sehingga potensi tayang ikut tertekan.',
+            YIELD_DROP: 'Nilai hasil monetisasi menurun dibanding pola normal.',
+            VIEWABILITY_DROP: 'Kualitas viewability menurun dan bisa mengurangi nilai traffic.',
+            EFFICIENCY_DROP: 'Efisiensi performa memburuk dan perlu evaluasi.',
+            REVENUE_DROP: 'Revenue turun dibanding pola biasanya.',
+            NEG_ADJUSTMENT: 'Ada koreksi negatif yang perlu dicek sebelum dilanjutkan agresif.',
+            DATA_INCOMPLETE: 'Data scoring belum cukup lengkap untuk membaca penyebab utama secara akurat.',
+            'BELUM ADA HASIL': 'Data scoring belum cukup lengkap untuk membaca penyebab utama secara akurat.',
+            RED_FLAG_IVT: 'Ada red flag pada kualitas traffic dan perlu tindakan cepat.',
+            RED_FLAG_CLICK_STRESS: 'Ada pola klik tidak wajar yang berisiko memicu pembatasan.',
+            RED_FLAG_SERVING_SUPPRESSION: 'Distribusi iklan terlihat ditekan dan perlu pemeriksaan cepat.',
+            RED_FLAG_ATTENTION_COLLAPSE: 'Kualitas perhatian traffic turun tajam dan berisiko tinggi.',
+            RED_FLAG_COUNTER_CORRECTION: 'Ada pola koreksi data yang mengarah ke traffic tidak sehat.',
+            RED_FLAG_FUNNEL_DIVERGENCE: 'Alur funnel traffic tidak selaras dan mengindikasikan masalah kualitas.',
+            STABLE: 'Kondisi relatif stabil, belum ada perubahan besar yang perlu tindakan khusus.'
         };
         const key = String(label || '').toUpperCase();
         return map[key] || String(label || '-').replaceAll('_', ' ');
+    }
+
+    function scxAlertMeta(finalLabel, rootLabel, risk, forecastDirection, forecastConfidence) {
+        const labels = [String(finalLabel || '').toUpperCase(), String(rootLabel || '').toUpperCase()];
+        const r = Number(risk || 0);
+        const fc = Number(forecastConfidence || 0);
+        const dir = String(forecastDirection || '').toUpperCase();
+        const hasCritical = labels.some(function(x){ return x.startsWith('RED_FLAG'); }) || r >= 68 || (dir === 'UPCOMING_DOWN' && fc >= 0.75);
+        if (hasCritical) {
+            return { tone: 'red', label: 'Kritis', icon: '⛔', text: 'Prioritas tinggi. Risiko IVT / shutdown / penurunan performa perlu tindakan cepat.' };
+        }
+        const warnLabels = ['WATCH_IVT','IVT_DOMINANT_RISK','PROFIT_OK_BUT_UNSAFE','TRAFFIC_QUALITY_MISMATCH','WATCH_NEGATIVE','WATCH_DECAY','NEG_ADJUSTMENT'];
+        const hasWarning = labels.some(function(x){ return warnLabels.includes(x); }) || r >= 52 || dir === 'UPCOMING_DOWN';
+        if (hasWarning) {
+            return { tone: 'yellow', label: 'Waspada', icon: '▲', text: 'Perlu pemantauan ketat. Hindari ekspansi agresif sampai sinyal risiko membaik.' };
+        }
+        return { tone: 'green', label: 'Normal', icon: '●', text: 'Kondisi relatif aman. Tetap pantau health, quality, dan IVT secara berkala.' };
+    }
+
+    function scxAlertBadgeHtml(meta) {
+        const m = meta || { tone:'green', label:'Normal', icon:'●' };
+        return `<span class="scx-pill ${esc(m.tone)}" title="${esc(m.label)}">${esc(m.icon)} Alert ${esc(m.label)}</span>`;
     }
 
     function scxTopEvents(events, mode) {
@@ -4939,16 +5213,35 @@ function initDashboardRecap() {
     function scxAggregateRootCause(status) {
         const scorable = ['OK', 'SOURCE_ONLY_NO_META', 'SOURCE_ONLY_NO_META_ADSENSE', 'SOURCE_ONLY_NO_META_ADX'];
         if (!scorable.includes(String(status?.join_status || '').toUpperCase()) && Number(status?.negative_signal_count || 0) === 0 && Number(status?.positive_signal_count || 0) === 0) return 'DATA_INCOMPLETE';
-        if (Number(status?.ivt_risk_score || 0) >= 70) {
+        const risk = Number(status?.ivt_risk_score || 0);
+        const health = Number(status?.health_score || 0);
+        const traffic = Number(status?.traffic_score || 0);
+        const quality = Number(status?.quality_score || 0);
+        const spend = Number(status?.spend || 0);
+        const revenue = Number(status?.revenue_value || 0);
+        const roi = spend > 0 ? ((revenue - spend) / spend) : 0;
+        const profitSupport = revenue > spend && roi >= 0.20;
+        if (risk >= 68) {
             const ivt = [['RED_FLAG_CLICK_STRESS', Number(status?.ivt_click_stress_score || 0)], ['RED_FLAG_SERVING_SUPPRESSION', Number(status?.ivt_serving_score || 0)], ['RED_FLAG_ATTENTION_COLLAPSE', Number(status?.ivt_attention_score || 0)], ['RED_FLAG_COUNTER_CORRECTION', Number(status?.ivt_counter_score || 0)], ['RED_FLAG_FUNNEL_DIVERGENCE', Number(status?.ivt_funnel_score || 0)]].sort(function(a, b) { return b[1] - a[1]; });
             return ivt[0][1] >= 45 ? ivt[0][0] : 'RED_FLAG_IVT';
         }
-        const totalSignals = Math.max(Number(status?.positive_signal_count || 0) + Number(status?.negative_signal_count || 0) + Number(status?.neutral_signal_count || 0), 1);
+        if (risk >= 52 && profitSupport) return 'PROFIT_OK_BUT_UNSAFE';
+        if (risk >= 52) return 'IVT_DOMINANT_RISK';
+        if (profitSupport && (quality <= -8 || traffic <= -8 || health <= -6)) return 'TRAFFIC_QUALITY_MISMATCH';
+        const posSig = Number(status?.positive_signal_count || 0);
+        const negSig = Number(status?.negative_signal_count || 0);
+        const neuSig = Number(status?.neutral_signal_count || 0);
+        const totalSignals = Math.max(posSig + negSig + neuSig, 1);
+        const signalDelta = posSig - negSig;
+        const adjustmentScore = Number(status?.adjustment_score || 0);
+        const decisionMargin = Number(status?.decision_margin || (health - risk + Math.min(0, adjustmentScore)) || 0);
         const adjustmentShare = Number(status?.adjustment_drop_count || 0) / totalSignals;
-        if (Number(status?.adjustment_drop_count || 0) >= 3 && adjustmentShare >= 0.35 && Number(status?.adjustment_score || 0) <= -45) return 'NEG_ADJUSTMENT';
-        if (Number(status?.health_score || 0) >= 18 && Number(status?.ivt_risk_score || 0) < 35 && Number(status?.positive_signal_count || 0) >= Number(status?.negative_signal_count || 0)) return 'POSITIVE_EXPANSION';
-        if (Number(status?.health_score || 0) >= 10 && Number(status?.ivt_risk_score || 0) < 45 && Number(status?.positive_signal_count || 0) > Number(status?.negative_signal_count || 0)) return 'POSITIVE_RECOVERY';
-        if (Number(status?.health_score || 0) <= -18) {
+        if (Number(status?.adjustment_drop_count || 0) >= 2 && adjustmentShare >= 0.25 && adjustmentScore <= -32) return 'NEG_ADJUSTMENT';
+        if ((Number(status?.adjustment_drop_count || 0) >= 1 && adjustmentScore <= -18) || (health <= -8 && signalDelta <= 0 && risk < 52)) return 'WATCH_DECAY';
+        if ((negSig > posSig && (health < 8 || traffic <= -6 || quality <= -6 || Number(status?.revenue_score || 0) <= -6 || decisionMargin < 0)) || (health < 0 && signalDelta < 0)) return 'WATCH_NEGATIVE';
+        if (health >= 22 && risk < 42 && posSig >= negSig) return 'POSITIVE_EXPANSION';
+        if (health >= 14 && risk < 50 && posSig > negSig) return 'POSITIVE_RECOVERY';
+        if (health <= -18) {
             const groups = [['TRAFFIC_DROP', Number(status?.traffic_score || 0)], ['SERVING_DROP', Number(status?.delivery_score || 0)], ['YIELD_DROP', Number(status?.yield_score || 0)], ['VIEWABILITY_DROP', Number(status?.quality_score || 0)], ['EFFICIENCY_DROP', Number(status?.efficiency_score || 0)], ['REVENUE_DROP', Number(status?.revenue_score || 0)]].sort(function(a, b) { return a[1] - b[1]; });
             return groups[0][1] <= -8 ? groups[0][0] : 'NEGATIVE_MIXED';
         }
@@ -4963,7 +5256,9 @@ function initDashboardRecap() {
         const negShare = list.length ? (negStreak / list.length) : 0;
         const posShare = list.length ? (posStreak / list.length) : 0;
 
-        if (Number(status?.ivt_risk_score || 0) >= 70 || (Number(status?.ivt_risk_score || 0) >= 55 && ivtStreak >= 1)) return 'RED_FLAG_IVT';
+        if (Number(status?.ivt_risk_score || 0) >= 68 || (Number(status?.ivt_risk_score || 0) >= 60 && ivtStreak >= 1)) return 'RED_FLAG_IVT';
+        if (['PROFIT_OK_BUT_UNSAFE','IVT_DOMINANT_RISK','WATCH_IVT'].includes(rootLabel) && ivtStreak >= 1) return 'WATCH_IVT';
+        if (rootLabel === 'TRAFFIC_QUALITY_MISMATCH' && negShare >= 0.15) return 'WATCH_NEGATIVE';
         if (rootLabel === 'POSITIVE_EXPANSION' && negShare >= 0.25 && Number(status?.health_score || 0) < 30) return 'WATCH_RECOVERY';
         if (rootLabel === 'POSITIVE_RECOVERY' && negShare >= 0.25 && Number(status?.health_score || 0) < 18) return 'WATCH_RECOVERY';
         if (['TRAFFIC_DROP', 'SERVING_DROP', 'YIELD_DROP', 'VIEWABILITY_DROP', 'EFFICIENCY_DROP', 'REVENUE_DROP', 'NEGATIVE_MIXED', 'NEG_ADJUSTMENT'].includes(rootLabel) && posShare >= 0.25 && Number(status?.health_score || 0) > -12 && Number(status?.ivt_risk_score || 0) < 55) return 'WATCH_DECAY';
@@ -4990,6 +5285,12 @@ function initDashboardRecap() {
             if (!vals.length) return fallback;
             return vals.reduce(function(a,b){ return a+b; }, 0) / vals.length;
         };
+        const sSum = function(pick, fallback = 0) {
+            if (!statusList.length) return fallback;
+            const vals = statusList.map(function(st){ return Number(pick(st)); }).filter(Number.isFinite);
+            if (!vals.length) return fallback;
+            return vals.reduce(function(a,b){ return a+b; }, 0);
+        };
         const counted = eventList.filter(function(ev) {
             const cls = String(ev?.change_class || '').toUpperCase();
             const sig = Number(ev?.signal_strength || 0);
@@ -5002,6 +5303,26 @@ function initDashboardRecap() {
         const healthDen = sum(counted, function(ev) { return Math.abs(Number(ev?.health_component || 0)); });
         const ivtScoped = eventList.filter(function(ev) { return Number(ev?.ivt_capacity || 0) > 0; });
         const ivtDen = sum(ivtScoped, function(ev) { return Math.max(Number(ev?.ivt_capacity || 0), 0); });
+        const eventPos = eventList.filter(function(ev) {
+            const cls = String(ev?.change_class || '').toUpperCase();
+            const sig = Number(ev?.signal_strength || 0);
+            return cls === 'POSITIVE' || (cls !== 'NEGATIVE' && cls !== 'SKIPPED' && sig > 0);
+        }).length;
+        const eventNeg = eventList.filter(function(ev) {
+            const cls = String(ev?.change_class || '').toUpperCase();
+            const sig = Number(ev?.signal_strength || 0);
+            return cls === 'NEGATIVE' || (cls !== 'POSITIVE' && cls !== 'SKIPPED' && sig < 0);
+        }).length;
+        const eventNeu = eventList.filter(function(ev) {
+            const cls = String(ev?.change_class || '').toUpperCase();
+            const sig = Number(ev?.signal_strength || 0);
+            return cls === 'NEUTRAL' || (cls !== 'POSITIVE' && cls !== 'NEGATIVE' && cls !== 'SKIPPED' && Number.isFinite(sig) && sig === 0);
+        }).length;
+        const statusPos = Math.round(sSum(function(st){ return st?.positive_signal_count ?? st?.positive_signals ?? st?.positive; }, 0));
+        const statusNeg = Math.round(sSum(function(st){ return st?.negative_signal_count ?? st?.negative_signals ?? st?.negative; }, 0));
+        const statusNeu = Math.round(sSum(function(st){ return st?.neutral_signal_count ?? st?.neutral_signals ?? st?.neutral; }, 0));
+        const classifiedEventSignals = eventPos + eventNeg + eventNeu;
+        const useEventSignalCounts = usingEvents && classifiedEventSignals > 0;
         const out = Object.assign({}, seed, {
             country_cd: 'ALL',
             country_nm: `${Math.max(Array.isArray(groups) ? groups.length : statusList.length, 1)} negara`,
@@ -5010,16 +5331,9 @@ function initDashboardRecap() {
             adjustment_score: usingEvents ? scxAggregateAdjustmentScore(eventList, healthDen) : sAvg(function(st){ return st?.adjustment_score; }, 0),
             ivt_risk_score: usingEvents ? (ivtDen > 0 ? scxClamp((100 * sum(ivtScoped, function(ev) { return Math.max(Number(ev?.ivt_component || 0), 0); })) / ivtDen, 0, 100) : 0) : sAvg(function(st){ return st?.ivt_risk_score; }, 0),
             confidence: usingEvents ? (nonSkipped.length ? scxClamp(sum(nonSkipped, function(ev) { return Number(ev?.confidence || 0); }) / nonSkipped.length, 0, 1) : 0) : scxClamp(sAvg(function(st){ return st?.confidence; }, 0), 0, 1),
-            positive_signal_count: usingEvents ? eventList.filter(function(ev) {
-                const cls = String(ev?.change_class || '').toUpperCase();
-                const sig = Number(ev?.signal_strength || 0);
-                return cls === 'POSITIVE' || (cls !== 'NEGATIVE' && cls !== 'SKIPPED' && sig > 0);
-            }).length : Math.round(sAvg(function(st){ return st?.positive_signal_count; }, 0)),
-            negative_signal_count: usingEvents ? eventList.filter(function(ev) {
-                const cls = String(ev?.change_class || '').toUpperCase();
-                const sig = Number(ev?.signal_strength || 0);
-                return cls === 'NEGATIVE' || (cls !== 'POSITIVE' && cls !== 'SKIPPED' && sig < 0);
-            }).length : Math.round(sAvg(function(st){ return st?.negative_signal_count; }, 0)),
+            positive_signal_count: useEventSignalCounts ? eventPos : statusPos,
+            negative_signal_count: useEventSignalCounts ? eventNeg : statusNeg,
+            neutral_signal_count: useEventSignalCounts ? eventNeu : statusNeu,
             adjustment_drop_count: usingEvents ? eventList.filter(function(ev) { return Number(ev?.adjustment_component || 0) < 0; }).length : Math.round(sAvg(function(st){ return st?.adjustment_drop_count; }, 0)),
             traffic_score: usingEvents ? scxCalcGroupHealth(eventList, 'traffic') : sAvg(function(st){ return st?.traffic_score; }, 0),
             delivery_score: usingEvents ? scxCalcGroupHealth(eventList, 'delivery') : sAvg(function(st){ return st?.delivery_score; }, 0),
@@ -7127,16 +7441,28 @@ function initDashboardRecap() {
         return { d1: summarizeTrendWindow(series, 1), d3: summarizeTrendWindow(series, 3), d7: summarizeTrendWindow(series, 7), d14: summarizeTrendWindow(series, 14) };
     }
 
+    function resolveTrendState(baseState, rowLike) {
+        const out = Object.assign({}, baseState || {});
+        if (String(out?.source || '').toLowerCase() !== 'all') return out;
+        const hasSources = rowLike && rowLike.sources && (rowLike.sources.adx || rowLike.sources.adsense);
+        const hasAdx = hasSources ? !!rowLike.sources.adx : (String(rowLike?.source || '') === 'adx');
+        const hasAdsense = hasSources ? !!rowLike.sources.adsense : (String(rowLike?.source || '') === 'adsense');
+        if (hasAdsense && !hasAdx) out.source = 'adsense';
+        else if (hasAdx && !hasAdsense) out.source = 'adx';
+        return out;
+    }
+
     async function getTrendWindowsForRow(row, state) {
-        const ymd = String(state?.date || '').trim();
-        const dim = String(state?.dim || 'domain').trim();
+        const trendState = resolveTrendState(state, row);
+        const ymd = String(trendState?.date || '').trim();
+        const dim = String(trendState?.dim || 'domain').trim();
         const key = dim === 'country' ? String(row?.code || '').trim() : String(row?.name || '').trim();
         if (!ymd || !key) return {};
-        const cacheKey = [dim, String(state?.source || 'all'), ymd, key].join('|');
+        const cacheKey = [dim, String(trendState?.source || 'all'), ymd, key].join('|');
         const store = window.dashboardTrendWindowCache = window.dashboardTrendWindowCache || {};
         if (store[cacheKey]) return store[cacheKey];
         try {
-            const out = summarizeTrendWindows(await buildTrendSeries(key, ymd, state, 13));
+            const out = summarizeTrendWindows(await buildTrendSeries(key, ymd, trendState, 13));
             store[cacheKey] = out;
             return out;
         } catch (e) {
@@ -7169,7 +7495,7 @@ function initDashboardRecap() {
             }, 0);
         }
 
-        function renderTrendStats(series) {
+        function renderTrendStats(series, trendState) {
             const el = document.getElementById(o.statsId || 'sdTrendStats');
             if (!el) return;
 
@@ -7181,7 +7507,7 @@ function initDashboardRecap() {
             const revenue = Array.isArray(series?.revenue) ? series.revenue : [];
             const roi = Array.isArray(series?.roi) ? series.roi : [];
             const metrics = (series && typeof series.metrics === 'object' && series.metrics) ? series.metrics : {};
-            const source = String(state?.source || '').toLowerCase();
+            const source = String(trendState?.source || '').toLowerCase();
 
             const totalSpend = sumArr(spend);
             const totalRev = sumArr(revenue);
@@ -7242,12 +7568,13 @@ function initDashboardRecap() {
 
         async function run(days) {
             const back = (Number(days) === 1) ? 1 : (Math.max(2, Number(days) || 14) - 1);
+            const trendState = resolveTrendState(state, o.row || null);
             setActive(days);
             if (st) st.textContent = 'Loading trend...';
             try {
-                const series = await buildTrendSeriesMulti((o.domainKeys && o.domainKeys.length) ? o.domainKeys : domainKey, endYmd, state, back);
-                renderScoreTrendChart(series, state, o);
-                renderTrendStats(series);
+                const series = await buildTrendSeriesMulti((o.domainKeys && o.domainKeys.length) ? o.domainKeys : domainKey, endYmd, trendState, back);
+                renderScoreTrendChart(series, trendState, o);
+                renderTrendStats(series, trendState);
                 const n = (series && series.dates) ? series.dates.length : 0;
                 const roi = (series && series.roi) ? series.roi : [];
                 const spend = (series && series.spend) ? series.spend : [];
@@ -7263,13 +7590,13 @@ function initDashboardRecap() {
                 const sign = (x) => (safeNum(x) >= 0 ? '+' : '');
                 const parts = [];
                 parts.push(`${n} hari`);
-                if (n && String(state?.source || '').toLowerCase() === 'adsense') {
+                if (n && String(trendState?.source || '').toLowerCase() === 'adsense') {
                     parts.push(`Revenue ${fmtIdr(safeNum(revenue[n - 1], 0))}`);
                 } else if (n) {
                     parts.push(`ROI ${safeFixed(lastRoi, 2, '0.00')}% (${sign(dRoi)}${safeFixed(dRoi, 2, '0.00')}pp)`);
                 }
                 if (dRevPct != null) parts.push(`Rev ${sign(dRevPct)}${safeFixed(dRevPct, 1, '0.0')}%`);
-                if (dSpendPct != null && String(state?.source || '').toLowerCase() !== 'adsense') {
+                if (dSpendPct != null && String(trendState?.source || '').toLowerCase() !== 'adsense') {
                     parts.push(`Spend ${sign(dSpendPct)}${safeFixed(dSpendPct, 1, '0.0')}%`);
                 }
 
@@ -7745,8 +8072,9 @@ function initDashboardRecap() {
             const first = scxAggregateScoring(parsed.statuses, aggEvents, groups);
             const trendWindows = row?.trend_windows || {};
     
-            const finalLabel = String(first?.final_label || 'UNKNOWN');
-            const rootLabel = String(first?.root_cause_label || first?.final_label || 'STABLE');
+            const finalLabel = String(first?.final_label || 'UNKNOWN').trim();
+            const rawRootLabel = String(first?.root_cause_label || '').trim();
+            const rootLabel = ['BELUM ADA HASIL', 'DATA_INCOMPLETE'].includes(finalLabel.toUpperCase()) ? finalLabel : String(rawRootLabel || finalLabel || 'STABLE');
             const showRootLabel = rootLabel && rootLabel !== finalLabel;
             const health = Number(first?.health_score || 0);
             const confidence = Number(first?.confidence || 0);
@@ -7756,6 +8084,16 @@ function initDashboardRecap() {
             const forecastHorizon = Number(first?.forecast_horizon_hours || (forecastDirection === 'STABLE_OUTLOOK' ? 48 : 24));
             const forecastConfidence = Number.isFinite(Number(first?.forecast_confidence)) ? Number(first?.forecast_confidence) : Math.max(0.5, Math.min(0.92, 0.58 + (Math.min(1, Math.abs(decision)/60) * 0.24)));
             const forecastReason = String(first?.forecast_reason || ((forecastDirection === 'UPCOMING_DOWN') ? 'Risiko penurunan terdeteksi dari kombinasi margin/risk.' : ((forecastDirection === 'UPCOMING_UP') ? 'Momentum positif terdeteksi dari kombinasi health/margin.' : 'Sinyal campuran, proyeksi cenderung stabil.')));
+            const forecastTitle = forecastDirection === 'UPCOMING_DOWN' ? 'Waspada Penurunan' : (forecastDirection === 'UPCOMING_UP' ? 'Peluang Naik' : 'Outlook Stabil');
+            const metaRiskWarning = (['PROFIT_OK_BUT_UNSAFE','WATCH_IVT','IVT_DOMINANT_RISK','RED_FLAG_IVT','RED_FLAG_CLICK_STRESS','RED_FLAG_SERVING_SUPPRESSION','RED_FLAG_ATTENTION_COLLAPSE','RED_FLAG_COUNTER_CORRECTION','RED_FLAG_FUNNEL_DIVERGENCE'].includes(String(finalLabel || '').toUpperCase()) || ['PROFIT_OK_BUT_UNSAFE','WATCH_IVT','IVT_DOMINANT_RISK','RED_FLAG_IVT','RED_FLAG_CLICK_STRESS','RED_FLAG_SERVING_SUPPRESSION','RED_FLAG_ATTENTION_COLLAPSE','RED_FLAG_COUNTER_CORRECTION','RED_FLAG_FUNNEL_DIVERGENCE'].includes(String(rootLabel || '').toUpperCase()));
+            const alertMeta = scxAlertMeta(finalLabel, rootLabel, risk, forecastDirection, forecastConfidence);
+            const forecastWarning = metaRiskWarning
+                ? 'Early warning: profit bisa tetap terlihat baik, tetapi ada risiko pembatasan atau pemadaman Meta jika sinyal IVT / kualitas traffic memburuk.'
+                : (forecastDirection === 'UPCOMING_DOWN'
+                    ? 'Early warning: jika tren negatif berlanjut, domain ini berpotensi turun dalam horizon pendek.'
+                    : (forecastDirection === 'UPCOMING_UP'
+                        ? 'Momentum terlihat sehat, tetapi tetap jaga quality dan IVT sebelum ekspansi.'
+                        : 'Belum ada tekanan ekstrem, namun domain tetap perlu dipantau karena sinyal dapat berubah cepat.'));
     
             let topPositive = scxTopEvents(events, 'positive');
             let topNegative = scxTopEvents(events, 'negative');
@@ -7779,11 +8117,34 @@ function initDashboardRecap() {
                 : groups.length > 1
                     ? `Ringkasan utama memakai agregasi seluruh ${groups.length} negara aktif pada domain ini. Semua KPI dan kesimpulan dihitung lintas negara.`
                     : `Ringkasan utama memakai seluruh data yang tersedia untuk ${scxCountryLabel(first)}.`;
-            const totalSignals = Number(first?.positive_signal_count || 0) + Number(first?.negative_signal_count || 0) + Number(first?.neutral_signal_count || 0);
-            const signalSkew = Number(first?.positive_signal_count || 0) - Number(first?.negative_signal_count || 0);
+            const aggregateSignalCount = function(primaryValue, keys) {
+                const firstVal = Number(primaryValue);
+                if (Number.isFinite(firstVal) && firstVal > 0) return firstVal;
+                const fromGroups = groups.reduce(function(acc, g) {
+                    const st = g?.status || {};
+                    for (let i = 0; i < keys.length; i += 1) {
+                        const n = Number(st?.[keys[i]]);
+                        if (Number.isFinite(n)) return acc + n;
+                    }
+                    return acc;
+                }, 0);
+                if (fromGroups > 0) return fromGroups;
+                return detailRowsForStatus.reduce(function(acc, row) {
+                    for (let i = 0; i < keys.length; i += 1) {
+                        const n = Number(row?.[keys[i]]);
+                        if (Number.isFinite(n)) return acc + n;
+                    }
+                    return acc;
+                }, 0);
+            };
+            const totalPositiveSignals = aggregateSignalCount(first?.positive_signal_count, ['positive_signal_count', 'positive_signals', 'positive']);
+            const totalNegativeSignals = aggregateSignalCount(first?.negative_signal_count, ['negative_signal_count', 'negative_signals', 'negative']);
+            const totalNeutralSignals = aggregateSignalCount(first?.neutral_signal_count, ['neutral_signal_count', 'neutral_signals', 'neutral']);
+            const totalSignals = totalPositiveSignals + totalNegativeSignals + totalNeutralSignals;
+            const signalSkew = totalPositiveSignals - totalNegativeSignals;
             const dataQuality = (detailEvents.length > 0) ? 'Event Lengkap' : (eventsSource === 'synthetic_status_components' ? 'Event Sintetis' : 'Status Saja');
-            const countriesPositive = groups.filter(function(g){ return Number(g?.status?.positive_signal_count || 0) > Number(g?.status?.negative_signal_count || 0); }).length;
-            const countriesNegative = groups.filter(function(g){ return Number(g?.status?.negative_signal_count || 0) > Number(g?.status?.positive_signal_count || 0); }).length;
+            const countriesPositive = groups.filter(function(g){ return Number(g?.status?.positive_signal_count ?? g?.status?.positive_signals ?? 0) > Number(g?.status?.negative_signal_count ?? g?.status?.negative_signals ?? 0); }).length;
+            const countriesNegative = groups.filter(function(g){ return Number(g?.status?.negative_signal_count ?? g?.status?.negative_signals ?? 0) > Number(g?.status?.positive_signal_count ?? g?.status?.positive_signals ?? 0); }).length;
 
             let simplifiedEvents = focusEvents
                 .filter(function(ev) {
@@ -7828,8 +8189,9 @@ function initDashboardRecap() {
             html += `      <div>`;
             html += `          <div class="scx-title" style="margin-bottom:6px;">Ringkasan Hasil Scoring</div>`;
             html += `          <div class="scx-status">`;
-            html += `              <span class="scx-pill ${statusTone}">${esc(finalLabel)}</span>`;
-            if (showRootLabel) html += `              <span class="scx-pill gray">${esc(rootLabel)}</span>`;
+            html += `              <span class="scx-pill ${statusTone}" title="${esc(finalLabel)}">${esc(scxFriendlyLabel(finalLabel))}</span>`;
+            if (showRootLabel) html += `              <span class="scx-pill gray" title="${esc(rootLabel)}">${esc(scxFriendlyLabel(rootLabel))}</span>`;
+            html += `              ${scxAlertBadgeHtml(alertMeta)}`;
             html += `              <span class="scx-chip">Kualitas Data: <b>${esc(dataQuality)}</b></span>`;
             html += `          </div>`;
             html += `      </div>`;
@@ -7842,8 +8204,9 @@ function initDashboardRecap() {
             const fcTone = (forecastDirection === 'UPCOMING_UP') ? 'green' : ((forecastDirection === 'UPCOMING_DOWN') ? 'red' : 'yellow');
             html += `    <div class="scx-section-gap" style="padding:10px 12px;border:1px solid rgba(15,23,42,0.08);border-radius:12px;background:#fff;">`;
             html += `      <div class="scx-title" style="margin-bottom:6px;">Prediksi Kedepan</div>`;
-            html += `      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;"><span class="scx-pill ${fcTone}">${esc(forecastDirection)}</span><span class="scx-pill gray">Horizon ${esc(String(forecastHorizon))} jam</span><span class="scx-pill gray">Confidence ${esc(scxPct01(forecastConfidence,0))}</span></div>`;
-            html += `      <div class="scx-sub">${esc(forecastReason)}</div>`;
+            html += `      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px;"><span class="scx-pill ${fcTone}" title="${esc(forecastDirection)}">${esc(forecastTitle)}</span>${scxAlertBadgeHtml(alertMeta)}<span class="scx-pill gray">Horizon ${esc(String(forecastHorizon))} jam</span><span class="scx-pill gray">Confidence ${esc(scxPct01(forecastConfidence,0))}</span></div>`;
+            html += `      <div class="scx-sub" style="margin-bottom:8px;">${esc(forecastReason)}</div>`;
+            html += `      <div class="scx-callout" style="margin-top:0;border-color:${alertMeta.tone === 'red' ? 'rgba(220,38,38,0.18)' : (alertMeta.tone === 'yellow' ? 'rgba(245,158,11,0.22)' : 'rgba(34,197,94,0.18)')};background:${alertMeta.tone === 'red' ? 'linear-gradient(180deg,#fff5f5,#fff)' : (alertMeta.tone === 'yellow' ? 'linear-gradient(180deg,#fffbeb,#fff)' : 'linear-gradient(180deg,#f0fdf4,#fff)')};"><strong>Early Warning:</strong> ${esc(forecastWarning)}<br><strong>Tingkat Alert:</strong> ${esc(alertMeta.text)}</div>`;
             html += `    </div>`;
             html += `    <div class="scx-chip-row">`;
             html += `      <span class="scx-chip">Negara Aktif: <b>${esc(String(groups.length || 0))}</b></span>`;
@@ -7852,8 +8215,8 @@ function initDashboardRecap() {
             html += `      <span class="scx-chip">Event Rows: <b>${esc(scxNum(detailEvents.length,0))}</b></span>`;
             html += `    </div>`;
             html += `    <div class="scx-insight-grid">`;
-            html += `      <div class="scx-insight-card"><div class="scx-insight-k">Dominan Positif</div><div class="scx-insight-v">${esc(scxNum(first?.positive_signal_count,0))}</div><div class="scx-insight-s">Signal yang mendorong performa naik</div></div>`;
-            html += `      <div class="scx-insight-card"><div class="scx-insight-k">Dominan Negatif</div><div class="scx-insight-v">${esc(scxNum(first?.negative_signal_count,0))}</div><div class="scx-insight-s">Signal risiko yang perlu mitigasi</div></div>`;
+            html += `      <div class="scx-insight-card"><div class="scx-insight-k">Dominan Positif</div><div class="scx-insight-v">${esc(scxNum(totalPositiveSignals,0))}</div><div class="scx-insight-s">Signal yang mendorong performa naik</div></div>`;
+            html += `      <div class="scx-insight-card"><div class="scx-insight-k">Dominan Negatif</div><div class="scx-insight-v">${esc(scxNum(totalNegativeSignals,0))}</div><div class="scx-insight-s">Signal risiko yang perlu mitigasi</div></div>`;
             html += `      <div class="scx-insight-card"><div class="scx-insight-k">Keseimbangan Signal Global</div><div class="scx-insight-v">${esc(scxSigned(signalSkew,0))}</div><div class="scx-insight-s">Selisih total signal positif vs negatif lintas semua negara</div></div>`;
             html += `    </div>`;
             html += `  </div>`;
@@ -7930,7 +8293,7 @@ function initDashboardRecap() {
             html += `  <div class="scx-title">Ringkasan Data Keseluruhan</div>`;
             html += `  <div class="scx-section-gap">`;
             html += `      <div class="scx-title">Arti Root Cause</div>`;
-            html += `      <div class="scx-callout">${esc(scxRootCauseText(rootLabel))}</div>`;
+            html += `      <div class="scx-callout"><strong>${esc(scxFriendlyLabel(rootLabel))}:</strong> ${esc(scxRootCauseText(rootLabel))}</div>`;
             html += `      <div class="scx-mini-muted">${esc(String(first?.reason_summary || ''))} ${groups.length > 1 ? `Negara fokus teknis: ${scxCountryLabel(focusStatus)}.` : ''}</div>`;
             html += `  </div>`;
     
@@ -8248,7 +8611,7 @@ function initDashboardRecap() {
                                 if (winsEl) buildTrendSeriesMulti(summaryKeys, endYmd, trendState, 27).then(function(series){ winsEl.innerHTML = scxRenderTrendWindows(summarizeTrendWindows(series)); }).catch(function(){});
                             } else {
                                 const trendKey = String(state?.dim === 'country' ? (row?.code || '') : (row?.name || '')).trim();
-                                if (trendKey) bindScoreTrendControls(trendKey, endYmd, state);
+                                if (trendKey) bindScoreTrendControls(trendKey, endYmd, state, { row: row });
                             }
                             return;
                         }
@@ -8600,6 +8963,7 @@ function initDashboardRecap() {
             data.forEach(row => {
                 const tr = document.createElement('tr');
                 const scoreVal = Number(row[7]?.value) || 0;
+                tr.dataset.alertLevel = String(row[7]?.alertLevel || 'normal').toLowerCase();
                 if (hasRange && scoreVal === minScore) tr.classList.add('table-danger');
                 else if (hasRange && scoreVal === maxScore) tr.classList.add('table-info');
                 tr.innerHTML = `
@@ -8671,6 +9035,7 @@ function initDashboardRecap() {
                 },
                 rowCallback: function(row, rowData) {
                     const hasRange = !!(tableEl && tableEl.dataset && tableEl.dataset.hasRange === '1');
+                    row.dataset.alertLevel = String(rowData && rowData[7] && rowData[7].alertLevel || 'normal').toLowerCase();
                     jQuery(row).removeClass('table-danger table-info');
                     if (!hasRange) return;
 
@@ -8748,13 +9113,17 @@ function initDashboardRecap() {
                 ]
             });
             bindNoColumn(window.dashboardRecapDt);
+            ensureDashboardRecapAlertDtFilter();
             window.dashboardRecapDt.draw(false);
+            applyDashboardRecapAlertFilter();
         } else {
             const dt = window.dashboardRecapDt || $table.DataTable();
             bindNoColumn(dt);
+            ensureDashboardRecapAlertDtFilter();
             dt.clear();
             dt.rows.add(data);
             dt.draw(false);
+            applyDashboardRecapAlertFilter();
             dt.column(2).visible(false, false);
             dt.column(3).visible(true, false);
         }
