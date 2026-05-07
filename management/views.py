@@ -780,6 +780,264 @@ class FacebookDomainSuggestView(View):
 
         return JsonResponse({'results': results})
 
+class FacebookLanguageSuggestView(View):
+    """AJAX endpoint suggest bahasa (adlocale) dari Meta Ads"""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        q = str(req.GET.get('q') or '').strip()
+        selected_account = str(req.GET.get('selected_account') or '').strip()
+        if not q or not selected_account:
+            return JsonResponse({'results': []})
+        try:
+            rs = data_mysql().master_account_ads_by_id({'data_account': selected_account})
+            acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+            token = str((acc or {}).get('access_token') or '').strip()
+            if not token:
+                return JsonResponse({'results': []})
+            resp = requests.get('https://graph.facebook.com/v22.0/search', params={
+                'type': 'adlocale', 'q': q, 'limit': 50, 'access_token': token,
+            }, timeout=20)
+            body = resp.json() if resp.text else {}
+            rows = (body or {}).get('data') if isinstance(body, dict) else []
+            results, seen = [], set()
+            for r in (rows or []):
+                key = str((r or {}).get('key') or (r or {}).get('id') or '').strip()
+                name = str((r or {}).get('name') or '').strip()
+                if not key:
+                    continue
+                d = f"{key}|{name}".lower()
+                if d in seen:
+                    continue
+                seen.add(d)
+                results.append({'id': key, 'text': (f'{name} (key: {key})' if name else f'key: {key}')})
+            return JsonResponse({'results': results})
+        except Exception:
+            return JsonResponse({'results': []})
+
+class FacebookLocationSuggestView(View):
+    """AJAX endpoint suggest lokasi (negara/wilayah/kota) dari Meta Ads"""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        q = str(req.GET.get('q') or '').strip()
+        selected_account = str(req.GET.get('selected_account') or '').strip()
+        location_type = str(req.GET.get('location_type') or 'country').strip().lower()
+        if len(q) < 2 or not selected_account:
+            return JsonResponse({'results': []})
+        type_map = {'country': 'country', 'region': 'region', 'city': 'city'}
+        api_loc = type_map.get(location_type, 'country')
+        try:
+            rs = data_mysql().master_account_ads_by_id({'data_account': selected_account})
+            acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+            token = str((acc or {}).get('access_token') or '').strip()
+            if not token:
+                return JsonResponse({'results': []})
+            resp = requests.get('https://graph.facebook.com/v22.0/search', params={
+                'type': 'adgeolocation',
+                'q': q,
+                'location_types': json.dumps([api_loc]),
+                'limit': 30,
+                'access_token': token,
+            }, timeout=20)
+            body = resp.json() if resp.text else {}
+            rows = (body or {}).get('data') if isinstance(body, dict) else []
+            results, seen = [], set()
+            for r in (rows or []):
+                key = str((r or {}).get('key') or '').strip()
+                name = str((r or {}).get('name') or '').strip()
+                cc = str((r or {}).get('country_code') or '').strip().upper()
+                region = str((r or {}).get('region') or '').strip()
+                token_val = cc if api_loc == 'country' and cc else key
+                if not token_val:
+                    continue
+                dedup = f'{token_val}|{name}|{cc}|{region}'.lower()
+                if dedup in seen:
+                    continue
+                seen.add(dedup)
+                suffix = f' - {cc}' if cc else ''
+                if region and region.lower() != name.lower():
+                    suffix += f' ({region})'
+                results.append({
+                    'id': token_val,
+                    'token': token_val,
+                    'text': f'{name}{suffix}'.strip(),
+                    'key': key,
+                    'country_code': cc,
+                    'location_type': api_loc,
+                })
+            return JsonResponse({'results': results})
+        except Exception:
+            return JsonResponse({'results': results})
+
+class FacebookLanguageSuggestView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        q = str(req.GET.get('q') or '').strip().lower()
+        selected_account = str(req.GET.get('selected_account') or '').strip()
+
+        fallback_locales = [
+            ('42', 'Bahasa Indonesia'), ('6', 'English (All)'), ('1002', 'English (US)'),
+            ('1001', 'English (UK)'), ('3', 'Spanish'), ('10', 'Arabic'), ('35', 'Malay'),
+            ('52', 'Thai'), ('53', 'Vietnamese'), ('7', 'French'), ('5', 'German'), ('8', 'Italian'),
+            ('9', 'Portuguese'), ('11', 'Japanese'), ('12', 'Korean'), ('13', 'Chinese (Simplified)'),
+            ('14', 'Chinese (Traditional)')
+        ]
+
+        def _filter_fallback(query_text):
+            rows = []
+            for key, name in fallback_locales:
+                raw = f"{key} {name}".lower()
+                if query_text and query_text not in raw:
+                    continue
+                rows.append({'id': key, 'text': f'{name} (key: {key})'})
+            return rows[:50]
+
+        token = ''
+        try:
+            if selected_account:
+                rs = data_mysql().master_account_ads_by_id({'data_account': selected_account})
+                acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+                token = str((acc or {}).get('access_token') or '').strip()
+            if not token:
+                rs_all = data_mysql().master_account_ads()
+                first = ((rs_all or {}).get('data') or [{}])[0]
+                token = str((first or {}).get('access_token') or '').strip()
+        except Exception:
+            token = ''
+
+        if not token:
+            return JsonResponse({'results': _filter_fallback(q)})
+
+        try:
+            params = {'type': 'adlocale', 'q': (q or 'english'), 'limit': 50, 'access_token': token}
+            resp = requests.get('https://graph.facebook.com/v22.0/search', params=params, timeout=20)
+            body = resp.json() if resp.text else {}
+            rows = (body or {}).get('data') if isinstance(body, dict) else []
+            results = []
+            seen = set()
+            for r in (rows or []):
+                key = str((r or {}).get('key') or (r or {}).get('id') or '').strip()
+                name = str((r or {}).get('name') or '').strip()
+                if not key:
+                    continue
+                dedup = f"{key}|{name}".lower()
+                if dedup in seen:
+                    continue
+                seen.add(dedup)
+                results.append({'id': key, 'text': (f'{name} (key: {key})' if name else f'key: {key}')})
+            if results:
+                if q:
+                    results = [x for x in results if q in str(x.get('text', '')).lower()]
+                return JsonResponse({'results': results[:50]})
+            return JsonResponse({'results': _filter_fallback(q)})
+        except Exception:
+            return JsonResponse({'results': _filter_fallback(q)})
+
+class FacebookLocationSuggestView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        q = str(req.GET.get('q') or '').strip()
+        selected_account = str(req.GET.get('selected_account') or '').strip()
+        location_type = str(req.GET.get('location_type') or 'country').strip().lower()
+        if len(q) < 2 or not selected_account:
+            return JsonResponse({'results': []})
+        type_map = {'country': 'country', 'region': 'region', 'city': 'city'}
+        api_loc = type_map.get(location_type, 'country')
+        try:
+            rs = data_mysql().master_account_ads_by_id({'data_account': selected_account})
+            acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+            token = str((acc or {}).get('access_token') or '').strip()
+            if not token:
+                return JsonResponse({'results': []})
+            resp = requests.get('https://graph.facebook.com/v22.0/search', params={
+                'type': 'adgeolocation',
+                'q': q,
+                'location_types': json.dumps([api_loc]),
+                'limit': 30,
+                'access_token': token,
+            }, timeout=20)
+            body = resp.json() if resp.text else {}
+            rows = (body or {}).get('data') if isinstance(body, dict) else []
+            results = []
+            seen = set()
+            for r in (rows or []):
+                key = str((r or {}).get('key') or '').strip()
+                name = str((r or {}).get('name') or '').strip()
+                cc = str((r or {}).get('country_code') or '').strip().upper()
+                region = str((r or {}).get('region') or '').strip()
+                token_val = cc if api_loc == 'country' and cc else key
+                if not token_val:
+                    continue
+                dedup = f"{token_val}|{name}|{cc}|{region}".lower()
+                if dedup in seen:
+                    continue
+                seen.add(dedup)
+                suffix = f' - {cc}' if cc else ''
+                if region and region.lower() != name.lower():
+                    suffix += f' ({region})'
+                results.append({'id': token_val, 'token': token_val, 'text': f'{name}{suffix}'.strip()})
+            return JsonResponse({'results': results})
+        except Exception:
+            return JsonResponse({'results': []})
+
+class FacebookDetailedTargetingSuggestView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        q = str(req.GET.get('q') or '').strip()
+        selected_account = str(req.GET.get('selected_account') or '').strip()
+        if len(q) < 2 or not selected_account:
+            return JsonResponse({'results': []})
+        try:
+            rs = data_mysql().master_account_ads_by_id({'data_account': selected_account})
+            acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+            token = str((acc or {}).get('access_token') or '').strip()
+            if not token:
+                return JsonResponse({'results': []})
+            resp = requests.get('https://graph.facebook.com/v22.0/search', params={
+                'type': 'adinterest',
+                'q': q,
+                'limit': 25,
+                'access_token': token,
+            }, timeout=20)
+            body = resp.json() if resp.text else {}
+            rows = (body or {}).get('data') if isinstance(body, dict) else []
+            results = []
+            seen = set()
+            for r in (rows or []):
+                rid = str((r or {}).get('id') or '').strip()
+                name = str((r or {}).get('name') or '').strip()
+                audience_size = (r or {}).get('audience_size')
+                if not rid or not name:
+                    continue
+                key = f"{rid}|{name}".lower()
+                if key in seen:
+                    continue
+                seen.add(key)
+                suffix = f" (audience: {audience_size})" if audience_size else ''
+                results.append({'id': rid, 'text': f'{name}{suffix}'})
+            return JsonResponse({'results': results})
+        except Exception:
+            return JsonResponse({'results': []})
+
 @csrf_exempt
 def get_countries_adx(request):
     """Endpoint untuk mendapatkan daftar negara yang tersedia"""
@@ -2289,7 +2547,7 @@ class DashboardScoringDataView(View):
                             'statuses_raw_count': len(status_records_raw)
                         }
                     }
-            return JsonResponse({'status': True, 'data': out}, safe=False)
+            return JsonResponse({'status': True, 'data': out, 'debug': {'target_date': target_date, 'requested_entities': entities, 'returned_entity_keys': list(out.keys())}}, safe=False)
         except Exception as e:
             logger.exception('DashboardScoringDataView failed')
             return JsonResponse({
@@ -2481,6 +2739,7 @@ class DashboardScoringCompareView(View):
             target_date = target_dt.date()
             compare_offsets = {'h1': 1, 'h3': 3, 'h7': 7}
             compare_dates = {k: (target_date - timedelta(days=v)) for k, v in compare_offsets.items()}
+            days_back = max(0, min(int(payload.get('days_back') or 0), 30))
 
             scoring_module = _get_scoring_concept_module()
             query_df_func = getattr(scoring_module, 'query_df', None)
@@ -2490,7 +2749,12 @@ class DashboardScoringCompareView(View):
             source_table = getattr(scoring_module, 'SOURCE_TABLE', 'hris_trendHorizone.fact_join_hourly')
 
             dates_in = [target_date] + list(compare_dates.values())
-            literals_dates = ', '.join([f"toDate('{d.isoformat()}')" for d in dates_in])
+            history_dates = [(target_date - timedelta(days=i)) for i in range(days_back, -1, -1)] if days_back > 0 else []
+            all_dates = []
+            for d in (dates_in + history_dates):
+                if d not in all_dates:
+                    all_dates.append(d)
+            literals_dates = ', '.join([f"toDate('{d.isoformat()}')" for d in all_dates])
 
             status_sql = f"""
             SELECT
@@ -2635,6 +2899,17 @@ class DashboardScoringCompareView(View):
                 else:
                     rec['reason'] = 'Kondisi relatif stabil; lanjut monitor.'
 
+            history_by_day = []
+            if days_back > 0:
+                for dh in history_dates:
+                    lh = latest_hour_by_date.get(dh)
+                    day_frame = sdf[(sdf['date'] == dh) & (sdf['run_hour_key'] == lh)].copy() if lh is not None else sdf[sdf['date'] == dh].copy()
+                    snap_day = aggregate_snapshot(day_frame)
+                    snap_day = attach_financial(snap_day, dh, lh)
+                    row_hist = {'date': dh.isoformat(), 'run_hour': lh}
+                    if snap_day:
+                        row_hist.update(snap_day)
+                    history_by_day.append(row_hist)
             return JsonResponse({
                 'status': True,
                 'data': {
@@ -2643,6 +2918,7 @@ class DashboardScoringCompareView(View):
                     'current': cur or {},
                     'compare_by_day': by_day,
                     'compare_by_hour': by_hour,
+                    'history_by_day': history_by_day,
                     'recommendation': rec,
                 }
             }, safe=False)
@@ -3162,7 +3438,9 @@ class page_summary_facebook(View):
         total_reach = 0
         total_clicks = 0
         for row in raw_rows or []:
-            account_name = row.get('account_name')
+            account_name = str(row.get('account_name') or '').strip()
+            if not account_name:
+                account_name = str(row.get('account_id') or row.get('account_email') or '-').strip()
             domain = row.get('domain')
             campaign = row.get('campaign')
 
@@ -3853,6 +4131,9 @@ class create_campaign_per_account(View):
             if status not in allowed_status:
                 status = 'PAUSED'
 
+            if campaign_budget_type == 'daily' and not campaign_daily_budget:
+                return JsonResponse({'success': False, 'message': 'Anggaran Harian Kampanye wajib diisi jika tipe anggaran Harian'})
+
             rs = data_mysql().master_account_ads_by_id({'data_account': account_id})
             acc = (rs or {}).get('data') if isinstance(rs, dict) else None
             if not isinstance(acc, dict):
@@ -3874,17 +4155,60 @@ class create_campaign_per_account(View):
                 'special_ad_categories': json.dumps(special_ad_categories),
             }
             if campaign_budget_type == 'daily' and campaign_daily_budget:
-                payload['daily_budget'] = str(max(1000, int(float(campaign_daily_budget or 0))))
+                try:
+                    payload['daily_budget'] = str(max(1000, int(float(campaign_daily_budget or 0))))
+                except Exception:
+                    return JsonResponse({'success': False, 'message': 'Anggaran Harian Kampanye tidak valid'})
             elif campaign_budget_type == 'lifetime' and campaign_lifetime_budget:
                 payload['lifetime_budget'] = str(max(1000, int(float(campaign_lifetime_budget or 0))))
             if campaign_spend_cap:
                 payload['spend_cap'] = str(max(0, int(float(campaign_spend_cap or 0))))
             resp = requests.post(url, data=payload, timeout=45)
-            body = resp.json() if resp.text else {}
+            try:
+                body = resp.json() if resp.text else {}
+            except Exception:
+                body = {}
 
             if resp.status_code >= 400 or (isinstance(body, dict) and body.get('error')):
-                err = (body.get('error') or {}).get('message') if isinstance(body, dict) else ''
-                return JsonResponse({'success': False, 'message': err or f'Graph API error ({resp.status_code})'})
+                error_obj = (body.get('error') or {}) if isinstance(body, dict) else {}
+                err_msg = str(error_obj.get('message') or '').strip()
+                err_code = error_obj.get('code')
+                err_subcode = error_obj.get('error_subcode')
+                fbtrace_id = error_obj.get('fbtrace_id')
+                user_title = str(error_obj.get('error_user_title') or '').strip()
+                user_msg = str(error_obj.get('error_user_msg') or '').strip()
+
+                detail_parts = []
+                if err_code is not None:
+                    detail_parts.append(f"code={err_code}")
+                if err_subcode is not None:
+                    detail_parts.append(f"subcode={err_subcode}")
+                if fbtrace_id:
+                    detail_parts.append(f"fbtrace_id={fbtrace_id}")
+
+                base_msg = user_title or err_msg or f'Graph API error ({resp.status_code})'
+                if user_msg:
+                    base_msg = f"{base_msg}. {user_msg}"
+                if detail_parts:
+                    base_msg = f"{base_msg} [{' | '.join(detail_parts)}]"
+
+                return JsonResponse({
+                    'success': False,
+                    'message': base_msg,
+                    'error': {
+                        'code': err_code,
+                        'subcode': err_subcode,
+                        'fbtrace_id': fbtrace_id,
+                        'raw_message': err_msg,
+                        'user_title': user_title,
+                        'user_message': user_msg,
+                    },
+                    'account_debug': {
+                        'selected_account_id': account_id,
+                        'resolved_account_id': real_account_id,
+                        'graph_act_id': f'act_{real_account_id}',
+                    }
+                })
 
             campaign_id = str((body or {}).get('id') or '').strip()
             return JsonResponse({
@@ -3927,6 +4251,12 @@ class create_campaign_fullstack_per_account(View):
             existing_post_id = str(req.POST.get('existing_post_id') or '').strip()
             cta_type = str(req.POST.get('cta_type') or 'LEARN_MORE').strip().upper()
             countries_raw = str(req.POST.get('countries') or 'ID').strip()
+            location_include_countries_raw = str(req.POST.get('location_include_countries') or countries_raw or 'ID').strip()
+            location_exclude_countries_raw = str(req.POST.get('location_exclude_countries') or '').strip()
+            location_include_regions_raw = str(req.POST.get('location_include_regions') or '').strip()
+            location_include_cities_raw = str(req.POST.get('location_include_cities') or '').strip()
+            location_exclude_regions_raw = str(req.POST.get('location_exclude_regions') or '').strip()
+            location_exclude_cities_raw = str(req.POST.get('location_exclude_cities') or '').strip()
             pixel_id = str(req.POST.get('pixel_id') or '').strip()
 
             try:
@@ -4057,6 +4387,14 @@ class create_adset_ad_per_account(View):
             headline = str(req.POST.get('headline') or '').strip()
             cta_type = str(req.POST.get('cta_type') or 'LEARN_MORE').strip().upper()
             countries_raw = str(req.POST.get('countries') or 'ID').strip()
+            location_include_countries_raw = str(req.POST.get('location_include_countries') or countries_raw or 'ID').strip()
+            location_exclude_countries_raw = str(req.POST.get('location_exclude_countries') or '').strip()
+            location_include_regions_raw = str(req.POST.get('location_include_regions') or '').strip()
+            location_include_cities_raw = str(req.POST.get('location_include_cities') or '').strip()
+            location_exclude_regions_raw = str(req.POST.get('location_exclude_regions') or '').strip()
+            location_exclude_cities_raw = str(req.POST.get('location_exclude_cities') or '').strip()
+            languages_raw = str(req.POST.get('languages') or '').strip()
+            detailed_targeting_raw = str(req.POST.get('detailed_targeting') or '').strip()
             pixel_id = str(req.POST.get('pixel_id') or '').strip()
             daily_budget = int(float(req.POST.get('daily_budget') or 50000))
             lifetime_budget_raw = str(req.POST.get('lifetime_budget') or '').strip()
@@ -4072,6 +4410,10 @@ class create_adset_ad_per_account(View):
             gender = str(req.POST.get('gender') or 'all').strip().lower()
             advantage = str(req.POST.get('advantage') or '0').strip()
             placement_mode = str(req.POST.get('placement_mode') or 'auto').strip().lower()
+            placement_device_mode = str(req.POST.get('placement_device_mode') or 'all').strip().lower()
+            placement_platforms_raw = str(req.POST.get('placement_platforms') or '').strip()
+            placement_positions_raw = str(req.POST.get('placement_positions') or '').strip()
+            asset_customization = str(req.POST.get('asset_customization') or '0').strip()
             age_min = int(req.POST.get('age_min') or 18)
             age_max = int(req.POST.get('age_max') or 65)
 
@@ -4087,14 +4429,126 @@ class create_adset_ad_per_account(View):
             token = str(acc.get('access_token') or '').strip()
             real_account_id = str(acc.get('account_id') or account_id).replace('act_', '').strip()
 
-            countries = [str(x).strip().upper() for x in countries_raw.split(',') if str(x).strip()] or ['ID']
-            targeting = {'geo_locations': {'countries': countries}, 'age_min': max(13, age_min), 'age_max': max(age_min, age_max)}
+            def _parse_csv(raw, upper=False):
+                vals = [str(x).strip() for x in str(raw or '').split(',') if str(x).strip()]
+                out = []
+                for v in vals:
+                    vv = v.upper() if upper else v
+                    if vv not in out:
+                        out.append(vv)
+                return out
+
+            include_countries = _parse_csv(location_include_countries_raw or countries_raw or 'ID', upper=True) or ['ID']
+            exclude_countries = _parse_csv(location_exclude_countries_raw, upper=True)
+            include_regions = [{'key': v} for v in _parse_csv(location_include_regions_raw)]
+            include_cities = [{'key': v} for v in _parse_csv(location_include_cities_raw)]
+            exclude_regions = [{'key': v} for v in _parse_csv(location_exclude_regions_raw)]
+            exclude_cities = [{'key': v} for v in _parse_csv(location_exclude_cities_raw)]
+
+            geo_locations = {'countries': include_countries}
+            if include_regions:
+                geo_locations['regions'] = include_regions
+            if include_cities:
+                geo_locations['cities'] = include_cities
+
+            targeting = {'geo_locations': geo_locations, 'age_min': max(13, age_min), 'age_max': max(age_min, age_max)}
+            excluded_geo_locations = {}
+            if exclude_countries:
+                excluded_geo_locations['countries'] = exclude_countries
+            if exclude_regions:
+                excluded_geo_locations['regions'] = exclude_regions
+            if exclude_cities:
+                excluded_geo_locations['cities'] = exclude_cities
+            if excluded_geo_locations:
+                targeting['excluded_geo_locations'] = excluded_geo_locations
+
+            language_keys = []
+            if languages_raw:
+                try:
+                    parsed_lang = json.loads(languages_raw)
+                    if not isinstance(parsed_lang, list):
+                        parsed_lang = [parsed_lang]
+                except Exception:
+                    parsed_lang = [x.strip() for x in languages_raw.split(',') if x.strip()]
+                for lv in parsed_lang:
+                    sv = str(lv or '').strip()
+                    if sv.isdigit():
+                        iv = int(sv)
+                        if iv not in language_keys:
+                            language_keys.append(iv)
+            if language_keys:
+                targeting['locales'] = language_keys
+
+            detailed_interests = []
+            if detailed_targeting_raw:
+                try:
+                    parsed_dt = json.loads(detailed_targeting_raw)
+                    if not isinstance(parsed_dt, list):
+                        parsed_dt = [parsed_dt]
+                except Exception:
+                    parsed_dt = []
+                for item in parsed_dt:
+                    if isinstance(item, dict):
+                        iid = str(item.get('id') or '').strip()
+                        iname = str(item.get('name') or '').strip()
+                    else:
+                        iid = str(item or '').strip()
+                        iname = ''
+                    if not iid:
+                        continue
+                    it = {'id': iid}
+                    if iname:
+                        it['name'] = iname
+                    detailed_interests.append(it)
+                if detailed_interests:
+                    targeting['flexible_spec'] = [{'interests': detailed_interests}]
+
             if gender == 'male':
                 targeting['genders'] = [1]
             elif gender == 'female':
                 targeting['genders'] = [2]
+
             if placement_mode == 'manual':
-                targeting['publisher_platforms'] = ['facebook', 'instagram', 'audience_network', 'messenger']
+                try:
+                    parsed_platforms = json.loads(placement_platforms_raw) if placement_platforms_raw else []
+                    if not isinstance(parsed_platforms, list):
+                        parsed_platforms = []
+                except Exception:
+                    parsed_platforms = []
+                allowed_platforms = ['facebook', 'instagram', 'audience_network', 'messenger']
+                selected_platforms = [p for p in [str(x).strip().lower() for x in parsed_platforms] if p in allowed_platforms]
+                if not selected_platforms:
+                    selected_platforms = ['facebook', 'instagram', 'audience_network', 'messenger']
+                targeting['publisher_platforms'] = selected_platforms
+
+                if placement_device_mode == 'mobile':
+                    targeting['device_platforms'] = ['mobile']
+                elif placement_device_mode == 'desktop':
+                    targeting['device_platforms'] = ['desktop']
+                else:
+                    targeting['device_platforms'] = ['mobile', 'desktop']
+
+                try:
+                    parsed_positions = json.loads(placement_positions_raw) if placement_positions_raw else {}
+                    if not isinstance(parsed_positions, dict):
+                        parsed_positions = {}
+                except Exception:
+                    parsed_positions = {}
+
+                pos_field_map = {
+                    'facebook': 'facebook_positions',
+                    'instagram': 'instagram_positions',
+                    'audience_network': 'audience_network_positions',
+                    'messenger': 'messenger_positions',
+                }
+                for p in selected_platforms:
+                    vals = parsed_positions.get(p) or []
+                    if not isinstance(vals, list):
+                        vals = []
+                    vals = [str(v).strip() for v in vals if str(v).strip()]
+                    if vals and p in pos_field_map:
+                        targeting[pos_field_map[p]] = vals
+
             if advantage == '1':
                 targeting['targeting_automation'] = {'advantage_audience': 1}
 
@@ -4462,7 +4916,9 @@ class page_per_campaign_facebook(View):
         total_reach = 0
         total_clicks = 0
         for row in raw_rows or []:
-            account_name = row.get('account_name')
+            account_name = str(row.get('account_name') or '').strip()
+            if not account_name:
+                account_name = str(row.get('account_id') or row.get('account_email') or '-').strip()
             domain = row.get('domain')
             campaign = row.get('campaign')
 

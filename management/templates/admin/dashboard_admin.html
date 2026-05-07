@@ -6479,6 +6479,10 @@ function initDashboardRecap() {
 
     function closeScoreDetailModal() {
         const modal = document.getElementById('scoreDetailModal');
+        if (window.sdMetric14Chart && typeof window.sdMetric14Chart.destroy === 'function') {
+            try { window.sdMetric14Chart.destroy(); } catch (_) {}
+            window.sdMetric14Chart = null;
+        }
         if (modal) modal.style.display = 'none';
     }
 
@@ -6613,12 +6617,18 @@ function initDashboardRecap() {
 
             const spendVal = pickNum(r, [
                 'spend',
-                'spend',
-                'data_ads_country_spend'
+                'meta_spend',
+                'data_ads_country_spend',
+                'total_cost',
+                'cost',
+                'amount_spent'
             ]);
 
             const revenueVal = pickNum(r, [
                 'revenue',
+                'revenue_value',
+                'blended_revenue',
+                'total_revenue',
                 'estimated_earnings',
                 'estimated_earning',
                 'earnings',
@@ -7279,6 +7289,57 @@ function initDashboardRecap() {
         run(14);
     }
 
+    function bindScoreMetric14Tabs(rows) {
+        const tabs = document.getElementById('sdMetric14Tabs');
+        const cvs = document.getElementById('sdMetric14Chart');
+        const st = document.getElementById('sdMetric14Status');
+        if (!tabs || !cvs || typeof Chart === 'undefined') return;
+        const defs = {score:['Score','#2563eb',''],health_score:['Health Score','#10b981',''],ivt_risk_score:['IVT Risk Score','#ef4444',''],adjustment_score:['Adjustment Score','#f59e0b',''],confidence:['Confidence','#7c3aed','%'],decision_margin:['Decision Margin','#0ea5e9','']};
+        const draw = function(k){
+            const d = defs[k] || defs.score;
+            const formatAxisDate = function(v){
+                const s = String(v || '').trim();
+                if (!s) return '-';
+                const dt = new Date(`${s}T00:00:00`);
+                if (Number.isNaN(dt.getTime())) return s;
+                return dt.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+            };
+            const valueLabelPlugin = {
+                id: 'sdMetric14ValueLabels',
+                afterDatasetsDraw(chart){
+                    const { ctx } = chart;
+                    const meta = chart.getDatasetMeta(0);
+                    const data = chart.data.datasets[0]?.data || [];
+                    ctx.save();
+                    ctx.fillStyle = '#1f2937';
+                    ctx.font = '600 12px Inter, Arial, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'bottom';
+                    meta.data.forEach(function(point, i){
+                        const v = data[i];
+                        if (v === null || v === undefined || !Number.isFinite(Number(v))) return;
+                        ctx.fillText(Number(v).toFixed(0), point.x, point.y - 8);
+                    });
+                    ctx.restore();
+                }
+            };
+            const labels = (rows||[]).map(x => formatAxisDate(x?.date));
+            const vals = (rows||[]).map(function(x){
+                const raw = x ? x[k] : null;
+                if (raw === null || raw === undefined || raw === '') return null;
+                const num = Number(raw);
+                return Number.isFinite(num) ? num : null;
+            });
+            const validCount = vals.filter(v => v !== null).length;
+            if (window.sdMetric14Chart && typeof window.sdMetric14Chart.destroy === 'function') try { window.sdMetric14Chart.destroy(); } catch (_) {}
+            window.sdMetric14Chart = new Chart(cvs.getContext('2d'), {type:'line',data:{labels,datasets:[{label:d[0],data:vals,borderColor:d[1],backgroundColor:'rgba(37,99,235,.10)',fill:true,tension:.3,borderWidth:3,pointRadius:4,pointHoverRadius:5,spanGaps:false}]},plugins:[valueLabelPlugin],options:{layout:{padding:{top:18}},responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{callbacks:{label:(c)=>`${d[0]}: ${Number.isFinite(Number(c.parsed?.y))?Number(c.parsed.y).toFixed(2):'-'}${d[2]}`}}},scales:{x:{grid:{display:false},ticks:{maxRotation:55,minRotation:55,autoSkip:false}},y:{beginAtZero:k==='confidence'||k==='ivt_risk_score'}}}});
+            if (st) st.textContent = `${labels.length} hari (H-13 s/d hari ini) • ${validCount} titik valid`;
+            tabs.querySelectorAll('button[data-metric]').forEach(b=>{ const on = b.getAttribute('data-metric')===k; b.classList.toggle('btn-primary', on); b.classList.toggle('btn-outline-primary', !on); });
+        };
+        tabs.querySelectorAll('button[data-metric]').forEach(b => b.onclick = () => draw(String(b.getAttribute('data-metric')||'score')));
+        draw('score');
+    }
+
     function bindScoreCampaignControls(row, ymd, scoringData) {
         const pauseBtn = document.getElementById('sdPauseSelectedBtn');
         const actBtn = document.getElementById('sdActivateSelectedBtn');
@@ -7832,6 +7893,17 @@ function initDashboardRecap() {
             html += `  </div>`;
     
             html += `  <div class="scx-section-gap">`;
+            html += `      <div class="sd-details">`;
+            html += `          <summary><span>Grafik Score/Metrik 14 Hari</span><span class="sd-det-right" id="sdMetric14Status">Loading...</span></summary>`;
+            html += `          <div class="sd-det-body">`;
+            html += `              <div class="dashboard-recap-tabs mb-3" id="sdMetric14Tabs" style="display:flex;gap:8px;flex-wrap:wrap;">`;
+            html += `                  <button type="button" class="btn btn-sm btn-primary" data-metric="score">Score</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="health_score">Health Score</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="ivt_risk_score">IVT Risk Score</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="adjustment_score">Adjustment Score</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="confidence">Confidence</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="decision_margin">Decision Margin</button>`;
+            html += `              </div>`;
+            html += `              <div style="height:320px;"><canvas id="sdMetric14Chart"></canvas></div>`;
+            html += `          </div>`;
+            html += `      </div>`;
+            html += `  </div>`;
+            html += `  <div class="scx-section-gap">`;
             html += `      <div class="scx-title">Trend Historis yang Dipakai Scoring</div>`;
             html +=         `<div id="scxSummaryTrendWindows">${scxRenderTrendWindows(trendWindows)}</div>`;
             html += `  </div>`;
@@ -8019,11 +8091,22 @@ function initDashboardRecap() {
             let effectiveMeta = metaHint;
             let detailMeta = null;
             let syntheticHistoryByOffset = {};
+            let metricDailySeries = [];
             const dim = String(state?.dim || '').toLowerCase();
             const key = scoringLookupKey(dim, row);
             const entities = scoringLookupCandidates(dim, row);
             const baseDate = String(state?.date || '').trim();
-            const payloadBase = { dim: String(state.dim || 'domain').trim(), source: String(state.source || 'all').trim(), entities: entities.length ? entities : (key ? [key] : []), include_events: true };
+            const strictEntities = (dim === 'country')
+                ? uniqKeepOrder([String(row?.code || row?.country_cd || row?.country_code || key || '').trim().toUpperCase()].filter(Boolean))
+                : uniqKeepOrder([String(row?.name || row?.domain || row?.site || key || '').trim().toLowerCase().replace(/^www\./,'')].filter(Boolean));
+            const pickDailyRaw = function(dataObj, st){
+                const store = (dataObj && typeof dataObj === 'object') ? dataObj : {};
+                let raw = lookupStoredMetaRaw(row, st, store);
+                if (raw) return raw;
+                const vals = Object.values(store || {}).filter(function(v){ return v && typeof v === 'object'; });
+                return vals.length === 1 ? vals[0] : null;
+            };
+            const payloadBase = { dim: String(state.dim || 'domain').trim(), source: String(state.source || 'all').trim(), entities: strictEntities.length ? strictEntities : (entities.length ? entities : (key ? [key] : [])), include_events: true };
             try {
                 if (key && baseDate) {
                     const detailRes = await fetch('/management/admin/dashboard_scoring_data', {
@@ -8057,10 +8140,7 @@ function initDashboardRecap() {
                         });
                         const js = await res.json();
                         if (!res.ok || !js?.status || !js?.data) return [offsetKey, {}];
-                        let raw = lookupStoredMetaRaw(row, st, js.data);
-                        if (!raw && js.data && typeof js.data === 'object') {
-                            for (const c of (entities || [])) { if (js.data[c] || js.data[String(c).toLowerCase()] || js.data[String(c).toUpperCase()]) { raw = js.data[c] || js.data[String(c).toLowerCase()] || js.data[String(c).toUpperCase()]; break; } }
-                        }
+                        const raw = pickDailyRaw(js.data, st);
                         let m = raw ? summarizeDashboardScoringMeta(raw, row, st) : null;
                         if (!m && dim === 'country') {
                             const cm = summarizeCountryScoringFromPayload(js.data, row, st);
@@ -8070,6 +8150,20 @@ function initDashboardRecap() {
                     };
                     const histRows = await Promise.all([histFetch('h1', -1), histFetch('h3', -3), histFetch('h7', -7)]);
                     syntheticHistoryByOffset = Object.fromEntries(histRows);
+                    const toRow = function(meta, d){ const m = meta || {}; const i = m?.breakdown?.meta || {}; const c = Number(i.confidence); return { date:d, score:Number.isFinite(Number(m.score))?Number(m.score):null, health_score:Number.isFinite(Number(i.health_score))?Number(i.health_score):null, ivt_risk_score:Number.isFinite(Number(i.ivt_risk_score))?Number(i.ivt_risk_score):null, adjustment_score:Number.isFinite(Number(i.adjustment_score))?Number(i.adjustment_score):null, confidence:Number.isFinite(c)?(c>1?c:c*100):null, decision_margin:Number.isFinite(Number(i.decision_margin))?Number(i.decision_margin):null }; };
+                    if (dim === 'domain') {
+                        const cmpRes = await fetch('/management/admin/dashboard_scoring_compare', {
+                            method:'POST', headers:{ 'Content-Type':'application/json', 'X-Requested-With':'XMLHttpRequest' },
+                            body: JSON.stringify({ date: baseDate, domain: String(row?.name || row?.domain || row?.site || '').trim(), days_back: 13 }), credentials:'same-origin'
+                        });
+                        const cmpJson = await cmpRes.json();
+                        const hist = Array.isArray(cmpJson?.data?.history_by_day) ? cmpJson.data.history_by_day : [];
+                        metricDailySeries = hist.map(function(it){ return { date:String(it?.date || ''), score:Number.isFinite(Number(it?.score))?Number(it.score):null, health_score:Number.isFinite(Number(it?.health_score))?Number(it.health_score):null, ivt_risk_score:Number.isFinite(Number(it?.ivt_risk_score))?Number(it.ivt_risk_score):null, adjustment_score:Number.isFinite(Number(it?.adjustment_score))?Number(it.adjustment_score):null, confidence:Number.isFinite(Number(it?.confidence))?(Number(it.confidence) > 1 ? Number(it.confidence) : Number(it.confidence) * 100):null, decision_margin:Number.isFinite(Number(it?.decision_margin))?Number(it.decision_margin):null }; });
+                    } else {
+                        const dates = []; for (let i=13;i>=0;i--) dates.push(ymdShift(baseDate, -i));
+                        const daily = await Promise.all(dates.map(async function(d){ try { const st = Object.assign({}, state, { date:d }); const r = await fetch('/management/admin/dashboard_scoring_data', { method:'POST', headers:{ 'Content-Type':'application/json', 'X-Requested-With':'XMLHttpRequest' }, body: JSON.stringify(Object.assign({}, payloadBase, { date:d })), credentials:'same-origin' }); const j = await r.json(); if (!r.ok || !j?.status || !j?.data) return { date:d }; const raw = pickDailyRaw(j.data, st); const m = raw ? summarizeDashboardScoringMeta(raw, row, st) : null; return toRow(m, d); } catch(_) { return { date:d }; } }));
+                        metricDailySeries = daily;
+                    }
                 }
             } catch (e) {}
 
@@ -8141,7 +8235,8 @@ function initDashboardRecap() {
             window.setTimeout(function() {
                 try {
                     mountScoreDetailBackendTables(normalizedJson?.scoring || {});
-                    bindScoreCountryTabs(function(tabKey){
+                    bindScoreMetric14Tabs(metricDailySeries);
+                    bindScoreCountryTabs(function(tabKey){ 
                         const endYmd = String(state.date || '').trim();
                         if (!endYmd) return;
                         if (tabKey === 'summary') {

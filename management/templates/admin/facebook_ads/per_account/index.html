@@ -9,8 +9,11 @@
     <li class="breadcrumb-item active">Facebook Ads</li>
 {% endblock %}
 {% block more_stylesheet %}
+<meta name="google-maps-api-key" content="{{ google_maps_api_key|default:'' }}">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" referrerpolicy="no-referrer">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css">
+
 <style>
 :root {
     --tour-bg: rgba(241, 245, 249, 0.92);
@@ -80,32 +83,54 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 <style>
   .dt-buttons { margin-bottom: 20px; }
   .meta-modal .modal-dialog{max-width:1560px;margin:12px auto}
-  .meta-modal .modal-content{border:0;border-radius:14px;overflow:hidden}
-  .meta-modal .modal-header{background:#0f172a;color:#fff;border-bottom:0;padding:12px 16px}
-  .meta-builder{display:grid;grid-template-columns:270px 1fr 330px;gap:12px;min-height:640px}
-  .meta-left{background:#0f172a;color:#cbd5e1;padding:14px;border-radius:10px}
-  .meta-center{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px}
-  .meta-right{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px}
-  .meta-step-chip{display:block;width:100%;padding:10px 12px;border-radius:10px;background:#1e293b;color:#cbd5e1;font-weight:700;font-size:13px;margin-bottom:8px;border:1px solid transparent}
-  .meta-step-chip.active{background:#eff6ff;color:#0f172a;border-color:#93c5fd}
+  .meta-modal .modal-content{border:0;border-radius:16px;overflow:hidden;background:linear-gradient(180deg,#f8fbff,#f1f5f9);box-shadow:0 18px 50px rgba(2,6,23,.18)}
+  .meta-modal .modal-header{background:linear-gradient(90deg,#0f172a,#1e3a8a 60%,#2563eb);color:#fff;border-bottom:0;padding:12px 16px}
+  .meta-builder{display:grid;grid-template-columns:270px 1fr 330px;gap:14px;min-height:640px}
+  .meta-left{background:linear-gradient(180deg,#0f172a,#1e293b);color:#cbd5e1;padding:14px;border-radius:12px;box-shadow:inset 0 0 0 1px rgba(148,163,184,.18)}
+  .meta-center,.meta-right{background:rgba(255,255,255,.84);backdrop-filter:blur(6px);border:1px solid #dbe5f4;border-radius:12px;padding:14px}
+  .meta-step-chip{display:block;width:100%;padding:11px 12px;border-radius:10px;background:rgba(148,163,184,.12);color:#cbd5e1;font-weight:700;font-size:13px;margin-bottom:8px;border:1px solid rgba(148,163,184,.18);transition:.2s}
+  .meta-step-chip:hover{transform:translateY(-1px);border-color:#93c5fd}
+  .meta-step-chip.active{background:linear-gradient(90deg,#e0ecff,#eff6ff);color:#0f172a;border-color:#93c5fd;box-shadow:0 8px 18px rgba(37,99,235,.18)}
   .meta-pane{display:none}.meta-pane.active{display:block}
-  .meta-card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:10px}
-  .meta-card h6{font-weight:800;margin-bottom:10px}
+  .meta-card{position:relative;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:13px;margin-bottom:11px;box-shadow:0 6px 20px rgba(15,23,42,.05)}
+  .meta-card:before{content:"";position:absolute;left:0;top:0;right:0;height:3px;border-radius:12px 12px 0 0;background:linear-gradient(90deg,#38bdf8,#6366f1,#22c55e)}
+  .meta-card h6{font-weight:800;margin-bottom:10px;color:#0f172a}
   .meta-card .form-row{row-gap:10px}
-  .meta-card label{font-size:12px;font-weight:700;margin-bottom:4px}
-  .meta-card .form-control{height:38px}
+  .meta-card label{font-size:12px;font-weight:700;margin-bottom:4px;color:#334155}
+  .meta-card .form-control{height:38px;border-color:#cbd5e1;border-radius:9px}
+  .meta-card .form-control:focus{border-color:#60a5fa;box-shadow:0 0 0 .18rem rgba(37,99,235,.15)}
   .meta-card textarea.form-control{height:auto;min-height:80px}
   .meta-modal .select2-container{width:100% !important}
-  .meta-modal .select2-container .select2-selection--single{height:38px !important;border:1px solid #ced4da;border-radius:6px}
+  .meta-modal .select2-container .select2-selection--single{height:38px !important;border:1px solid #cbd5e1;border-radius:9px}
   .meta-modal .select2-container .select2-selection__rendered{line-height:36px !important;padding-left:12px}
   .meta-modal .select2-container .select2-selection__arrow{height:36px !important}
+  #modal_languages_wrap .select2-container--default .select2-selection--multiple{min-height:38px !important;height:auto !important;border:1px solid #cbd5e1;border-radius:9px;padding:2px 8px;background:#fff}
+  #modal_languages_wrap .select2-container--default .select2-selection--multiple .select2-selection__rendered{display:flex;flex-wrap:wrap;gap:4px;padding:0}
+  #modal_languages_wrap .select2-container--default .select2-selection--multiple .select2-selection__choice{margin:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .meta-actions{display:flex;justify-content:space-between;align-items:center;width:100%}
   .meta-result{display:block;margin-top:8px}
-  .meta-guide{background:#ecfeff;border:1px solid #a5f3fc;color:#0f172a;padding:10px 12px;border-radius:8px;font-size:12px;margin-bottom:10px}
+  .meta-guide{background:linear-gradient(90deg,#ecfeff,#eef2ff);border:1px solid #a5b4fc;color:#1e293b;padding:10px 12px;border-radius:9px;font-size:12px;margin-bottom:10px}
   .meta-progress{height:8px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:6px}
-  .meta-progress > span{display:block;height:100%;background:#22c55e;width:0%}
+  .meta-progress > span{display:block;height:100%;background:linear-gradient(90deg,#22c55e,#14b8a6);width:0%}
+  .meta-loc-results{max-height:180px;overflow:auto;border:1px solid #dbe5f4;border-radius:10px;background:#fff;padding:8px}
+  .meta-loc-item{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:6px;background:#f8fafc}
+  .meta-loc-item:last-child{margin-bottom:0}
+  .meta-loc-map{width:100%;height:280px;border:1px solid #dbe5f4;border-radius:10px;background:#eef2ff}
+  .mp-grid{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:8px}
+  .mp-grid-2{grid-template-columns:repeat(2,minmax(170px,1fr))}
+  .mp-item{border:1px solid #dbe5f4;border-radius:10px;padding:8px;background:#f8fafc;display:flex;align-items:center;gap:8px;min-height:42px}
+  .mp-item input{transform:scale(1.1)}
+  .mp-section{border:1px solid #dbe5f4;border-radius:10px;background:#fff;padding:8px 10px;margin-bottom:8px}
+  .mp-section-title{font-weight:800;font-size:14px;color:#0f172a;margin-bottom:4px}
+  .mp-section-desc{font-size:12px;color:#64748b;margin-bottom:8px}
+  .mp-preview{border:1px solid #dbe5f4;border-radius:10px;padding:10px;background:#fff}
+  .mp-preview-media{width:100%;max-height:320px;object-fit:cover;border-radius:10px;border:1px solid #e2e8f0;background:#0f172a}
+  .mp-preview-media.is-vertical{max-width:360px;aspect-ratio:9/16;height:auto;margin:0 auto;display:block}
+  .mp-preview-media.is-feed{max-width:560px;aspect-ratio:4/5;height:auto;margin:0 auto;display:block}
+  @media (max-width: 1280px){.meta-builder{grid-template-columns:220px 1fr;}.meta-right{grid-column:1 / -1}.mp-grid{grid-template-columns:repeat(2,minmax(160px,1fr));}.mp-grid-2{grid-template-columns:repeat(2,minmax(150px,1fr));}}
   html[data-theme="dark"] .meta-center,html[data-theme="dark"] .meta-right{background:#111827;border-color:#374151}
   html[data-theme="dark"] .meta-card{background:#1f2937;border-color:#374151;color:#e5e7eb}
+  html[data-theme="dark"] .meta-card h6,html[data-theme="dark"] .meta-card label{color:#e5e7eb}
 </style>
 <div class="card">
     <div class="card-header">
@@ -173,21 +198,21 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 <input type="text" class="form-control" id="create_campaign_name" placeholder="contoh: MYDOMAIN_26NEGARA_STABLE" />
             </div>
             <div class="col-md-2">
-                <label>Objective</label>
+                <label>Tujuan Kampanye</label>
                 <select class="form-control" id="create_campaign_objective">
-                    <option value="OUTCOME_TRAFFIC">OUTCOME_TRAFFIC</option>
-                    <option value="OUTCOME_LEADS">OUTCOME_LEADS</option>
-                    <option value="OUTCOME_SALES">OUTCOME_SALES</option>
-                    <option value="OUTCOME_ENGAGEMENT">OUTCOME_ENGAGEMENT</option>
-                    <option value="OUTCOME_AWARENESS">OUTCOME_AWARENESS</option>
-                    <option value="OUTCOME_APP_PROMOTION">OUTCOME_APP_PROMOTION</option>
+                    <option value="OUTCOME_TRAFFIC">Lalu Lintas</option>
+                    <option value="OUTCOME_LEADS">Prospek</option>
+                    <option value="OUTCOME_SALES">Penjualan</option>
+                    <option value="OUTCOME_ENGAGEMENT">Interaksi</option>
+                    <option value="OUTCOME_AWARENESS">Kesadaran</option>
+                    <option value="OUTCOME_APP_PROMOTION">Promosi Aplikasi</option>
                 </select>
             </div>
             <div class="col-md-2">
                 <label>Status Awal</label>
                 <select class="form-control" id="create_campaign_status">
-                    <option value="PAUSED">PAUSED</option>
-                    <option value="ACTIVE">ACTIVE</option>
+                    <option value="PAUSED">Draft</option>
+                    <option value="ACTIVE">Aktif</option>
                 </select>
             </div>
             <div class="col-md-1">
@@ -258,21 +283,21 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
             <div class="modal-body">
               <div class="meta-builder">
                 <div class="meta-left">
-                  <div class="meta-step-chip active" id="chip1">1. Campaign</div>
-                  <div class="meta-step-chip" id="chip2">2. Ad Set</div>
-                  <div class="meta-step-chip" id="chip3">3. Ad</div>
+                  <div class="meta-step-chip active" id="chip1">1. Kampanye</div>
+                  <div class="meta-step-chip" id="chip2">2. Set Iklan</div>
+                  <div class="meta-step-chip" id="chip3">3. Iklan</div>
                 </div>
                 <div class="meta-center">
                   <div class="meta-guide" id="metaStepGuide">Lengkapi field wajib di step ini lalu klik tombol aksi.</div>
                   <div id="pane1" class="meta-pane active">
-                    <div class="meta-card"><h6>Campaign Setup</h6><div class="form-row"><div class="col-md-4"><label>Nama Campaign</label><input id="modal_campaign_name" class="form-control" type="text" placeholder="contoh: AFFILIATE_ID_TRAFFIC"></div><div class="col-md-4"><label>Account</label><select class="form-control select2" id="modal_account"><option value=""></option>{% for data_account in data_account %}<option value="{{data_account.account_id}}">{{data_account.account_name}}</option>{% endfor %}</select></div><div class="col-md-2"><label>Objective</label><select id="modal_objective" class="form-control"><option value="OUTCOME_TRAFFIC">Traffic</option><option value="OUTCOME_LEADS">Leads</option><option value="OUTCOME_SALES">Sales</option><option value="OUTCOME_AWARENESS">Awareness</option></select></div><div class="col-md-2"><label>Status</label><select id="modal_status" class="form-control"><option value="PAUSED">Draft</option><option value="ACTIVE">Active</option></select></div></div></div>
-                    <div class="meta-card"><h6>Detail Campaign</h6><div class="form-row"><div class="col-md-3"><label>Jenis Pembelian</label><select id="modal_campaign_buying_type" class="form-control"><option value="AUCTION">Auction</option></select></div><div class="col-md-3"><label>Kategori Iklan Khusus</label><select id="modal_campaign_special_category" class="form-control"><option value="NONE">None</option><option value="HOUSING">Housing</option><option value="EMPLOYMENT">Employment</option><option value="CREDIT">Credit</option><option value="ISSUES_ELECTIONS_POLITICS">Issues/Elections/Politics</option></select></div><div class="col-md-3"><label>Tipe Budget Campaign</label><select id="modal_campaign_budget_type" class="form-control"><option value="none">Tanpa CBO</option><option value="daily">Daily Budget</option><option value="lifetime">Lifetime Budget</option></select></div><div class="col-md-3"><label>Campaign Spend Cap</label><input id="modal_campaign_spend_cap" class="form-control" type="number" min="0" placeholder="opsional"></div><div class="col-md-3 mt-2"><label>Campaign Daily Budget</label><input id="modal_campaign_daily_budget" class="form-control" type="number" min="0" placeholder="opsional"></div><div class="col-md-3 mt-2"><label>Campaign Lifetime Budget</label><input id="modal_campaign_lifetime_budget" class="form-control" type="number" min="0" placeholder="opsional"></div></div></div>
+                    <div class="meta-card"><h6>Pengaturan Kampanye</h6><div class="form-row"><div class="col-md-4"><label>Nama Kampanye</label><input id="modal_campaign_name" class="form-control" type="text" placeholder="contoh: AFFILIATE_ID_TRAFFIC"></div><div class="col-md-4"><label>Akun</label><select class="form-control select2" id="modal_account"><option value=""></option>{% for data_account in data_account %}<option value="{{data_account.account_id}}">{{data_account.account_name}}</option>{% endfor %}</select></div><div class="col-md-2"><label>Tujuan</label><select id="modal_objective" class="form-control"><option value="OUTCOME_TRAFFIC">Lalu Lintas</option><option value="OUTCOME_LEADS">Prospek</option><option value="OUTCOME_SALES">Penjualan</option><option value="OUTCOME_ENGAGEMENT">Interaksi</option><option value="OUTCOME_AWARENESS">Kesadaran</option><option value="OUTCOME_APP_PROMOTION">Promosi Aplikasi</option></select></div><div class="col-md-2"><label>Status</label><select id="modal_status" class="form-control"><option value="PAUSED">Draft</option><option value="ACTIVE">Aktif</option></select></div></div></div>
+                    <div class="meta-card"><h6>Detail Kampanye</h6><div class="form-row"><div class="col-md-3"><label>Jenis Pembelian</label><select id="modal_campaign_buying_type" class="form-control"><option value="AUCTION">Lelang (Auction)</option><option value="RESERVED">Jangkauan & Frekuensi (Reserved)</option></select><small class="text-muted">Catatan: opsi Reserved hanya muncul valid jika akun Meta mendukung.</small></div><div class="col-md-3"><label>Kategori Iklan Khusus</label><select id="modal_campaign_special_category" class="form-control"><option value="NONE">Tidak ada</option><option value="CREDIT">Produk dan layanan keuangan</option><option value="EMPLOYMENT">Pekerjaan</option><option value="HOUSING">Perumahan</option><option value="ISSUES_ELECTIONS_POLITICS">Isu sosial, pemilu, atau politik</option></select></div><div class="col-md-3"><label>Tipe Anggaran Kampanye</label><select id="modal_campaign_budget_type" class="form-control"><option value="none">Tanpa CBO</option><option value="daily">Anggaran Harian</option><option value="lifetime">Anggaran Total</option></select></div><div class="col-md-3"><label>Batas Belanja Kampanye</label><input id="modal_campaign_spend_cap" class="form-control" type="number" min="0" placeholder="opsional"></div><div class="col-md-3 mt-2"><label>Anggaran Harian Kampanye</label><input id="modal_campaign_daily_budget" class="form-control" type="number" min="0" placeholder="opsional"></div><div class="col-md-3 mt-2"><label>Anggaran Total Kampanye</label><input id="modal_campaign_lifetime_budget" class="form-control" type="number" min="0" placeholder="opsional"></div></div></div>
                   </div>
                   <div id="pane2" class="meta-pane">
                     <div class="meta-card"><h6>Ad Set Setup</h6><div class="form-row"><div class="col-md-4"><label>Nama Set Iklan</label><input id="modal_adset_name" class="form-control" type="text"></div><div class="col-md-3"><label>Konversi</label><select id="modal_conversion_location" class="form-control"><option value="WEBSITE">Website</option><option value="APP">App</option><option value="MESSAGING">Messaging</option></select></div><div class="col-md-3"><label>Target Kinerja</label><select id="modal_optimization_goal" class="form-control"><option value="LINK_CLICKS">Link Clicks</option><option value="LANDING_PAGE_VIEWS">Landing Page Views</option><option value="IMPRESSIONS">Impressions</option><option value="REACH">Reach</option></select></div><div class="col-md-2"><label>Target Biaya/Hasil</label><input id="modal_bid_amount" class="form-control" type="number" min="0" placeholder="opsional"></div></div></div>
                     <div class="meta-card"><h6>Bidding & Atribusi</h6><div class="form-row"><div class="col-md-4"><label>Aturan Nilai</label><select id="modal_bid_strategy" class="form-control"><option value="LOWEST_COST_WITHOUT_CAP">Lowest Cost</option><option value="LOWEST_COST_WITH_BID_CAP">Bid Cap</option><option value="COST_CAP">Cost Cap</option></select></div><div class="col-md-3"><label>Model Atribusi</label><select id="modal_attribution_window" class="form-control"><option value="7d_click_1d_view">7d Click / 1d View</option><option value="1d_click">1d Click</option><option value="7d_click">7d Click</option></select></div><div class="col-md-3"><label>Materi Iklan Dinamis</label><select id="modal_dynamic_creative" class="form-control"><option value="0">Nonaktif</option><option value="1">Aktif</option></select></div></div></div>
                     <div class="meta-card"><h6>Anggaran & Jadwal</h6><div class="form-row"><div class="col-md-3"><label>Tipe Anggaran</label><select id="modal_budget_type" class="form-control"><option value="daily">Daily Budget</option><option value="lifetime">Lifetime Budget</option></select></div><div class="col-md-2"><label>Daily Budget</label><input id="modal_daily_budget" class="form-control" type="number" value="50000"></div><div class="col-md-2"><label>Lifetime Budget</label><input id="modal_lifetime_budget" class="form-control" type="number" placeholder="opsional"></div><div class="col-md-2"><label>Mulai</label><input id="modal_start_time" class="form-control" type="datetime-local"></div><div class="col-md-2"><label>Selesai</label><input id="modal_end_time" class="form-control" type="datetime-local"></div></div></div>
-                    <div class="meta-card"><h6>Kontrol Pemirsa & Placement</h6><div class="form-row"><div class="col-md-2"><label>Countries</label><input id="modal_countries" class="form-control" type="text" value="ID"></div><div class="col-md-2"><label>Age Min</label><input id="modal_age_min" class="form-control" type="number" value="18"></div><div class="col-md-2"><label>Age Max</label><input id="modal_age_max" class="form-control" type="number" value="65"></div><div class="col-md-2"><label>Gender</label><select id="modal_gender" class="form-control"><option value="all">All</option><option value="male">Male</option><option value="female">Female</option></select></div><div class="col-md-2"><label>Pemirsa Advantage+</label><select id="modal_advantage" class="form-control"><option value="0">Nonaktif</option><option value="1">Aktif</option></select></div><div class="col-md-2"><label>Penempatan</label><select id="modal_placement_mode" class="form-control"><option value="auto">Advantage+ (Auto)</option><option value="manual">Manual</option></select></div></div></div>
+                    <div class="meta-card"><h6>Kontrol Pemirsa & Placement</h6><div class="form-row"><div class="col-md-6"><label>Lokasi Termasuk - Negara (CSV)</label><input id="modal_location_include_countries" class="form-control" type="text" value="ID" placeholder="ID,MY,PH"><small class="text-muted">Gunakan kode negara ISO (contoh: ID, MY).</small></div><div class="col-md-6"><label>Lokasi Dikecualikan - Negara (CSV)</label><input id="modal_location_exclude_countries" class="form-control" type="text" placeholder="contoh: SG"><small class="text-muted">Negara yang tidak ingin ditarget.</small></div><div class="col-md-8"><label>Pencarian Lokasi</label><div class="input-group"><div class="input-group-prepend"><select id="modal_location_mode" class="form-control"><option value="include">Termasuk</option><option value="exclude">Dikecualikan</option></select></div><div class="input-group-prepend"><select id="modal_location_type" class="form-control"><option value="country">Negara</option><option value="region">Wilayah</option><option value="city">Kota</option></select></div><input id="modal_location_query" class="form-control" type="text" placeholder="Cari lokasi..."><div class="input-group-append"><button id="modal_location_search_btn" class="btn btn-primary" type="button"><i class="fas fa-search"></i> Cari</button></div></div><small class="text-muted">Pilih mode dan tipe, lalu cari lokasi untuk ditambahkan otomatis.</small><div id="modal_location_search_results" class="meta-loc-results mt-2"><div class="text-muted small">Belum ada hasil pencarian.</div></div></div><div class="col-md-4"><label>Peta Lokasi</label><iframe id="modal_location_map_iframe" class="meta-loc-map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?q=Indonesia&output=embed"></iframe><div class="mt-1"><a id="modal_location_map_link" class="btn btn-outline-info btn-sm" href="https://www.google.com/maps/search/Indonesia" target="_blank" rel="noopener">Buka di Peta</a></div></div><input id="modal_location_include_regions" type="hidden" value=""><input id="modal_location_include_cities" type="hidden" value=""><input id="modal_location_exclude_regions" type="hidden" value=""><input id="modal_location_exclude_cities" type="hidden" value=""><div class="col-md-4 mt-2" id="modal_languages_wrap"><label>Bahasa</label><select id="modal_languages" class="form-control" multiple="multiple"></select><small class="text-muted">Cari dan pilih bahasa.</small></div><div class="col-md-2"><label>Age Min</label><input id="modal_age_min" class="form-control" type="number" value="18"></div><div class="col-md-2"><label>Age Max</label><input id="modal_age_max" class="form-control" type="number" value="65"></div><div class="col-md-2"><label>Gender</label><select id="modal_gender" class="form-control"><option value="all">All</option><option value="male">Male</option><option value="female">Female</option></select></div><div class="col-md-2"><label>Pemirsa Advantage+</label><select id="modal_advantage" class="form-control"><option value="0">Nonaktif</option><option value="1">Aktif</option></select></div><div class="col-md-2"><label>Penempatan</label><select id="modal_placement_mode" class="form-control"><option value="auto">Advantage+ (Auto)</option><option value="manual">Manual</option></select></div></div></div>
                   </div>
                   <div id="pane3" class="meta-pane">
                     <div class="meta-card"><h6>Identitas & Tujuan</h6><div class="form-row"><div class="col-md-3"><label>Nama Ad</label><input id="modal_ad_name" class="form-control" type="text"></div><div class="col-md-2"><label>Page ID</label><input id="modal_page_id" class="form-control" type="text"></div><div class="col-md-2"><label>Instagram Actor ID</label><input id="modal_instagram_actor_id" class="form-control" type="text" placeholder="opsional"></div><div class="col-md-3"><label>Website URL</label><input id="modal_website_url" class="form-control" type="text" placeholder="https://domain.com"></div><div class="col-md-2"><label>CTA</label><select id="modal_cta" class="form-control"><option value="LEARN_MORE">LEARN_MORE</option><option value="SHOP_NOW">SHOP_NOW</option><option value="SIGN_UP">SIGN_UP</option><option value="CONTACT_US">CONTACT_US</option></select></div></div></div>
@@ -288,7 +313,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
               </div>
               <input type="hidden" id="modal_campaign_id" />
             </div>
-            <div class="modal-footer"><div class="meta-actions"><div><button class="btn btn-outline-secondary" type="button" id="btnWizardPrev">Back</button> <button class="btn btn-outline-secondary" type="button" id="btnWizardNext">Next</button></div><div><button class="btn btn-success" type="button" id="btnWizardCreateCampaign">Buat Campaign</button> <button class="btn btn-primary" type="button" id="btnWizardCreateAdsetAd">Buat Ad Set + Ad</button></div></div></div>
+            <div class="modal-footer"><div class="meta-actions"><div><button class="btn btn-outline-secondary" type="button" id="btnWizardPrev">Kembali</button> <button class="btn btn-outline-secondary" type="button" id="btnWizardNext">Lanjut</button></div><div><button class="btn btn-success" type="button" id="btnWizardCreateCampaign">Buat Kampanye</button> <button class="btn btn-primary" type="button" id="btnWizardCreateAdsetAd">Buat Set Iklan + Iklan</button></div></div></div>
           </div></div>
         </div>
     </div><!-- /.card-body -->
@@ -365,6 +390,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 {% endblock %}
 {% block more_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" type="text/css" href="{% static 'css/datatable-responsive.css' %}">
 <style>

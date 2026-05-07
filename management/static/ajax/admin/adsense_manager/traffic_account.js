@@ -31,11 +31,10 @@ $(document).ready(function () {
     };
     // Initialize date pickers (Flatpickr first, fallback ke jQuery datepicker)
     var today = new Date();
-    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     if (typeof flatpickr !== 'undefined') {
         flatpickr('#tanggal_dari', {
             dateFormat: 'Y-m-d',
-            defaultDate: lastWeek
+            defaultDate: today
         });
         flatpickr('#tanggal_sampai', {
             dateFormat: 'Y-m-d',
@@ -47,7 +46,7 @@ $(document).ready(function () {
             format: 'yyyy-mm-dd',
             autoclose: true,
             todayHighlight: true
-        }).datepicker('setDate', lastWeek);
+        }).datepicker('setDate', today);
         $('#tanggal_sampai').datepicker({
             format: 'yyyy-mm-dd',
             autoclose: true,

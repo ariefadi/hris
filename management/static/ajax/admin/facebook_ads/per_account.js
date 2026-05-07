@@ -9,6 +9,13 @@ function normalizeDomainFilter(selected_domain) {
     return String(selected_domain || '').trim();
 }
 
+function appendCsvUnique(currentValue, item) {
+    const list = String(currentValue || '').split(',').map(function(v){ return String(v || '').trim().toUpperCase(); }).filter(Boolean);
+    const token = String(item || '').trim().toUpperCase();
+    if (token && list.indexOf(token) < 0) list.push(token);
+    return list.join(',');
+}
+
 $().ready(function () {
     report_eror = function (jqXHR, exception) {
         var msg = '';
@@ -30,16 +37,17 @@ $().ready(function () {
         alert(msg);
     };
     $('.select2').select2()
+    var today = new Date();
     $('#tanggal_dari').datepicker({
       format: 'yyyy-mm-dd',
       autoclose: true,
       todayHighlight: true
-    });
+    }).datepicker('setDate', today);
     $('#tanggal_sampai').datepicker({
       format: 'yyyy-mm-dd',
       autoclose: true,
       todayHighlight: true
-    });
+    }).datepicker('setDate', today);
     $('#select_account').select2({
         placeholder: '-- Pilih Account --',
         allowClear: true,
@@ -69,8 +77,220 @@ $().ready(function () {
             dropdownParent: $modal
         });
         $('#modal_status').select2({ minimumResultsForSearch: Infinity, width: '100%', theme: 'bootstrap4', dropdownParent: $modal });
-        ['#modal_objective','#modal_status','#modal_campaign_buying_type','#modal_campaign_special_category','#modal_campaign_budget_type','#modal_conversion_location','#modal_optimization_goal','#modal_bid_strategy','#modal_attribution_window','#modal_dynamic_creative','#modal_budget_type','#modal_gender','#modal_advantage','#modal_placement_mode','#modal_cta','#modal_use_existing_post']
+        ['#modal_objective','#modal_status','#modal_campaign_buying_type','#modal_campaign_special_category','#modal_campaign_budget_type','#modal_conversion_location','#modal_optimization_goal','#modal_bid_strategy','#modal_attribution_window','#modal_dynamic_creative','#modal_budget_type','#modal_cta','#modal_use_existing_post']
             .forEach(function(sel){ $(sel).select2({ minimumResultsForSearch: Infinity, width:'100%', theme:'bootstrap4', dropdownParent:$modal }); });
+        ['#modal_gender','#modal_advantage','#modal_placement_mode'].forEach(function(sel){
+            const $el = $(sel);
+            if ($el.data('select2')) $el.select2('destroy');
+            const $parent = $el.closest('[class^="col-md-"]');
+            $el.select2({ minimumResultsForSearch: Infinity, width:'100%', theme:'bootstrap4', dropdownParent: $parent.length ? $parent : $modal });
+        });
+        const $langWrap = $('#modal_languages_wrap');
+        $langWrap.removeClass('col-md-2 col-md-4').addClass('col-md-12');
+
+        $('#modal_languages').select2({
+            placeholder: 'Cari Bahasa',
+            allowClear: true,
+            width: '100%',
+            theme: 'bootstrap4',
+            dropdownParent: $('#modal_languages_wrap'),
+            minimumInputLength: 0,
+            ajax: {
+                url: '/management/admin/facebook_language_suggest',
+                dataType: 'json',
+                delay: 300,
+                data: function (params) {
+                    return {
+                        q: params.term || '',
+                        selected_account: String($('#modal_account').val() || '').trim()
+                    };
+                },
+                processResults: function (data) {
+                    return { results: (data && data.results) ? data.results : [] };
+                },
+                cache: true
+            }
+        });
+
+        if (!$('#modal_detailed_targeting_wrap').length) {
+            const detailedHtml = '<div class="col-md-12 mt-2" id="modal_detailed_targeting_wrap"><label>Penargetan Terperinci (Minat)</label><select id="modal_detailed_targeting" class="form-control" multiple="multiple"></select><small class="text-muted">Ketik minat (interest) seperti di Ads Manager, bisa pilih lebih dari satu.</small></div>';
+            const $anchor = $('#modal_age_min').closest('[class^="col-md-"]');
+            if ($anchor.length) $(detailedHtml).insertBefore($anchor);
+        }
+
+        $('#modal_detailed_targeting').select2({
+            placeholder: 'Cari Penargetan Terperinci (Minat)',
+            allowClear: true,
+            width: '100%',
+            theme: 'bootstrap4',
+            dropdownParent: $('#modal_detailed_targeting_wrap'),
+            minimumInputLength: 2,
+            ajax: {
+                url: '/management/admin/facebook_detailed_targeting_suggest',
+                dataType: 'json',
+                delay: 300,
+                data: function (params) {
+                    return {
+                        q: params.term || '',
+                        selected_account: String($('#modal_account').val() || '').trim()
+                    };
+                },
+                processResults: function (data) {
+                    return { results: (data && data.results) ? data.results : [] };
+                },
+                cache: true
+            }
+        });
+        if (!$('#modal_manual_placement_wrap').length) {
+            const mpHtml = `
+                <div class="col-md-12 mt-2" id="modal_manual_placement_wrap" style="display:none">
+                    <div class="border rounded p-2">
+                        <label class="mb-2">Penempatan Manual</label>
+                        <div class="form-row">
+                            <div class="col-md-6 mb-2">
+                                <small class="font-weight-bold">Perangkat</small>
+                                <div class="mp-grid mp-grid-2">
+                                    <label class="mp-item"><input type="radio" name="modal_device_mode" value="all" checked><span>Semua</span></label>
+                                    <label class="mp-item"><input type="radio" name="modal_device_mode" value="mobile"><span>Mobile</span></label>
+                                    <label class="mp-item"><input type="radio" name="modal_device_mode" value="desktop"><span>Desktop</span></label>
+                                </div>
+                            </div>
+                            <div class="col-md-6 mb-2">
+                                <small class="font-weight-bold">Platform</small>
+                                <div class="mp-grid mp-grid-2">
+                                    <label class="mp-item"><input type="checkbox" class="modal-platform" value="facebook" checked><span>Facebook</span></label>
+                                    <label class="mp-item"><input type="checkbox" class="modal-platform" value="instagram" checked><span>Instagram</span></label>
+                                    <label class="mp-item"><input type="checkbox" class="modal-platform" value="audience_network" checked><span>Audience Network</span></label>
+                                    <label class="mp-item"><input type="checkbox" class="modal-platform" value="messenger" checked><span>Messenger</span></label>
+                                    <label class="mp-item"><input type="checkbox" class="modal-platform" value="whatsapp"><span>WhatsApp</span></label>
+                                    <label class="mp-item"><input type="checkbox" class="modal-platform" value="threads"><span>Threads</span></label>
+                                </div>
+                            </div>
+
+                            <div class="col-md-12 mt-2">
+                                <small class="font-weight-bold">Penempatan</small>
+
+                                <div class="mp-section">
+                                    <div class="mp-section-title">Beranda</div>
+                                    <div class="mp-section-desc">Dapatkan visibilitas tinggi di beranda.</div>
+                                    <div class="mp-grid">
+                                        <label class="mp-item"><input type="checkbox" class="modal-position" data-platform="facebook" value="feed" checked><span>Beranda Facebook</span></label>
+                                        <label class="mp-item"><input type="checkbox" class="modal-position" data-platform="facebook" value="profile_feed"><span>Kabar Profil Facebook</span></label>
+                                        <label class="mp-item"><input type="checkbox" class="modal-position" data-platform="instagram" value="stream" checked><span>Beranda Instagram</span></label>
+                                        <label class="mp-item"><input type="checkbox" class="modal-position" data-platform="instagram" value="profile_feed"><span>Beranda Profil Instagram</span></label>
+                                        <label class="mp-item"><input type="checkbox" class="modal-position" data-platform="facebook" value="marketplace"><span>Facebook Marketplace</span></label>
+                                        <label class="mp-item"><input type="checkbox" class="modal-position" data-platform="facebook" value="right_hand_column"><span>Kolom Kanan Facebook</span></label>
+                                    </div>
+                                </div>
+
+                                <div class="mp-section">
+                                    <div class="mp-section-title">Cerita, Status, Reels</div>
+                                    <div class="mp-section-desc">Sampaikan iklan vertikal layar penuh.</div>
+                                    <div class="mp-grid">
+                                        <label class="mp-item"><input type="checkbox" class="modal-position" data-platform="instagram" value="story" checked><span>Instagram Stories</span></label>
+                                        <label class="mp-item"><input type="checkbox" class="modal-position" data-platform="facebook" value="story"><span>Facebook Stories</span></label>
+                                        <label class="mp-item"><input type="checkbox" class="modal-position" data-platform="messenger" value="story"><span>Messenger Stories</span></label>
+                                        <label class="mp-item"><input type="checkbox" class="modal-position" data-platform="instagram" value="reels" checked><span>Instagram Reels</span></label>
+                                        <label class="mp-item"><input type="checkbox" class="modal-position" data-platform="facebook" value="reels"><span>Facebook Reels</span></label>
+                                        <label class="mp-item"><input type="checkbox" class="modal-position" data-platform="whatsapp" value="status"><span>Status WhatsApp</span></label>
+                                    </div>
+                                </div>
+
+                                <div class="mp-section">
+                                    <div class="mp-section-title">Iklan in-stream untuk reel</div>
+                                    <div class="mp-section-desc">Jangkau audiens sebelum/selama/sesudah menonton reel.</div>
+                                    <div class="mp-grid">
+                                        <label class="mp-item"><input type="checkbox" class="modal-position" data-platform="facebook" value="instream_video"><span>Reel In-stream Facebook</span></label>
+                                        <label class="mp-item"><input type="checkbox" class="modal-position" data-platform="facebook" value="video_feeds"><span>Iklan di Facebook Reels</span></label>
+                                    </div>
+                                </div>
+
+                                <div class="mp-section">
+                                    <div class="mp-section-title">Hasil pencarian</div>
+                                    <div class="mp-section-desc">Tampil saat pengguna melakukan pencarian.</div>
+                                    <div class="mp-grid">
+                                        <label class="mp-item"><input type="checkbox" class="modal-position" data-platform="facebook" value="search"><span>Hasil Pencarian Facebook</span></label>
+                                        <label class="mp-item"><input type="checkbox" class="modal-position" data-platform="instagram" value="search"><span>Hasil Pencarian Instagram</span></label>
+                                    </div>
+                                </div>
+
+                                <div class="mp-section">
+                                    <div class="mp-section-title">Aplikasi dan situs</div>
+                                    <div class="mp-section-desc">Perluas jangkauan di aplikasi/situs eksternal.</div>
+                                    <div class="mp-grid">
+                                        <label class="mp-item"><input type="checkbox" class="modal-position" data-platform="audience_network" value="classic" checked><span>Native, banner, interstisial AN</span></label>
+                                        <label class="mp-item"><input type="checkbox" class="modal-position" data-platform="audience_network" value="rewarded_video"><span>Video berhadiah AN</span></label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-12 mt-2">
+                                <div class="mp-preview">
+                                    <div class="small text-muted">Preview Penempatan</div>
+                                    <div id="mpPreviewTitle" class="font-weight-bold">Messenger Stories</div>
+                                    <video id="mpPreviewMedia" class="mp-preview-media is-vertical" autoplay muted loop playsinline preload="metadata">
+                                        <source id="mpPreviewSource" src="https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4" type="video/mp4">
+                                    </video>
+                                    <div id="mpPreviewNote" class="small text-muted mt-1">Kami menyarankan format vertikal 9:16 untuk placement cerita/reels.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            const $anchor = $('#modal_placement_mode').closest('[class^="col-md-"]');
+            if ($anchor.length) $(mpHtml).insertAfter($anchor.closest('.form-row').children().last());
+        }
+
+        const syncManualPlacementPanel = function(){
+            const isManual = String($('#modal_placement_mode').val() || 'auto') === 'manual';
+            $('#modal_manual_placement_wrap').toggle(isManual);
+        };
+        const refreshPlacementPreview = function(){
+            const $first = $('.modal-position:checked').first();
+            const txt = String($first.closest('label').text() || 'Messenger Stories').trim();
+            const lower = (txt || '').toLowerCase();
+            $('#mpPreviewTitle').text(txt || 'Messenger Stories');
+
+            const isVertical = lower.indexOf('stories') >= 0 || lower.indexOf('story') >= 0 || lower.indexOf('reels') >= 0 || lower.indexOf('status') >= 0;
+            const $video = $('#mpPreviewMedia');
+            const $source = $('#mpPreviewSource');
+            const srcVertical = 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4';
+            const srcFeed = 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4';
+            const nextSrc = isVertical ? srcVertical : srcFeed;
+
+            if ($source.attr('src') !== nextSrc) {
+                $source.attr('src', nextSrc);
+                const el = $video.get(0);
+                if (el) {
+                    try { el.load(); } catch (e) {}
+                }
+            }
+
+            $video.removeClass('is-vertical is-feed').addClass(isVertical ? 'is-vertical' : 'is-feed');
+            if (lower.indexOf('in-stream') >= 0 || lower.indexOf('video') >= 0) {
+                $('#mpPreviewNote').text('Preview animasi untuk in-stream/video placement.');
+            } else if (isVertical) {
+                $('#mpPreviewNote').text('Preview animasi vertikal 9:16 untuk Stories/Reels/Status.');
+            } else {
+                $('#mpPreviewNote').text('Preview animasi feed, sesuaikan rasio aset dengan placement terpilih.');
+            }
+        };
+        $(document).off('change.mpSync').on('change.mpSync', '.modal-platform', function(){
+            const p = String($(this).val()||'').trim();
+            const checked = $(this).is(':checked');
+            $('.modal-position[data-platform="'+p+'"]').prop('disabled', !checked);
+            refreshPlacementPreview();
+        }).on('change.mpSync', '.modal-position', refreshPlacementPreview);
+        refreshPlacementPreview();
+        $('#modal_placement_mode').off('change.manualPlacement').on('change.manualPlacement', function(){
+            syncManualPlacementPanel();
+            updateStepProgress();
+        });
+        syncManualPlacementPanel();
+
+        $('#modal_account').off('change.lang').on('change.lang', function(){
+            $('#modal_languages').val(null).trigger('change');
+        });
         $('#modal_use_existing_post').off('change.meta').on('change.meta', function(){
             const useExisting = String($(this).val() || '0') === '1';
             $('#modal_existing_post_wrap').toggle(useExisting);
@@ -238,12 +458,12 @@ $().ready(function () {
     };
     const requiredByStep = {
         1: ['#modal_campaign_name','#modal_account','#modal_objective','#modal_status'],
-        2: ['#modal_adset_name','#modal_conversion_location','#modal_optimization_goal','#modal_daily_budget','#modal_countries'],
+        2: ['#modal_adset_name','#modal_conversion_location','#modal_optimization_goal','#modal_daily_budget','#modal_location_include_countries'],
         3: ['#modal_ad_name','#modal_page_id','#modal_website_url','#modal_cta']
     };
     const fieldLabel = {
         '#modal_campaign_name':'Nama Campaign','#modal_account':'Account','#modal_objective':'Objective','#modal_status':'Status',
-        '#modal_adset_name':'Nama Set Iklan','#modal_conversion_location':'Konversi','#modal_optimization_goal':'Target Kinerja','#modal_daily_budget':'Daily Budget','#modal_countries':'Countries',
+        '#modal_adset_name':'Nama Set Iklan','#modal_conversion_location':'Konversi','#modal_optimization_goal':'Target Kinerja','#modal_daily_budget':'Daily Budget','#modal_location_include_countries':'Lokasi Termasuk (Negara)',
         '#modal_ad_name':'Nama Ad','#modal_page_id':'Page ID','#modal_website_url':'Website URL','#modal_cta':'CTA'
     };
     const updateStepProgress = function(){
@@ -261,8 +481,10 @@ $().ready(function () {
     };
     const syncCampaignBudgetFields = function(){
         const type = String($('#modal_campaign_budget_type').val() || 'none');
-        $('#modal_campaign_daily_budget').prop('disabled', type !== 'daily');
-        $('#modal_campaign_lifetime_budget').prop('disabled', type !== 'lifetime');
+        const isDaily = type === 'daily';
+        const isLifetime = type === 'lifetime';
+        $('#modal_campaign_daily_budget').prop('disabled', !isDaily).prop('required', isDaily);
+        $('#modal_campaign_lifetime_budget').prop('disabled', !isLifetime).prop('required', isLifetime);
     };
     const setWizardStep = function (step) {
         wizardStep = Math.max(1, Math.min(3, Number(step) || 1));
@@ -300,6 +522,14 @@ $().ready(function () {
         const campaignLifetimeBudget = String($('#modal_campaign_lifetime_budget').val() || '').trim();
         const campaignSpendCap = String($('#modal_campaign_spend_cap').val() || '').trim();
         if (!accountId || !campaignName) { alert('Account dan nama campaign wajib diisi.'); return; }
+        if (campaignBudgetType === 'daily') {
+            const dailyNum = Number(campaignDailyBudget || 0);
+            if (!campaignDailyBudget || !Number.isFinite(dailyNum) || dailyNum <= 0) {
+                alert('Anggaran Harian Kampanye wajib diisi dan harus lebih dari 0.');
+                $('#modal_campaign_daily_budget').focus();
+                return;
+            }
+        }
         const fd = new FormData();
         fd.append('account_id', accountId); fd.append('campaign_name', campaignName); fd.append('objective', objective); fd.append('status', status);
         fd.append('buying_type', buyingType); fd.append('special_ad_category', specialCategory);
@@ -333,8 +563,36 @@ $().ready(function () {
         fd.append('adset_name', String($('#modal_adset_name').val()||'')); fd.append('ad_name', String($('#modal_ad_name').val()||''));
         fd.append('daily_budget', String($('#modal_daily_budget').val()||'50000')); fd.append('lifetime_budget', String($('#modal_lifetime_budget').val()||''));
         fd.append('budget_type', String($('#modal_budget_type').val()||'daily')); fd.append('start_time', String($('#modal_start_time').val()||'')); fd.append('end_time', String($('#modal_end_time').val()||''));
-        fd.append('countries', String($('#modal_countries').val()||'ID')); fd.append('age_min', String($('#modal_age_min').val()||'18')); fd.append('age_max', String($('#modal_age_max').val()||'65'));
-        fd.append('gender', String($('#modal_gender').val()||'all')); fd.append('advantage', String($('#modal_advantage').val()||'0')); fd.append('placement_mode', String($('#modal_placement_mode').val()||'auto'));
+        const includeCountries = String($('#modal_location_include_countries').val()||'ID').trim();
+        fd.append('countries', includeCountries || 'ID');
+        fd.append('location_include_countries', includeCountries || 'ID');
+        fd.append('location_exclude_countries', String($('#modal_location_exclude_countries').val()||'').trim());
+        fd.append('location_include_regions', String($('#modal_location_include_regions').val()||'').trim());
+        fd.append('location_include_cities', String($('#modal_location_include_cities').val()||'').trim());
+        fd.append('location_exclude_regions', String($('#modal_location_exclude_regions').val()||'').trim());
+        fd.append('location_exclude_cities', String($('#modal_location_exclude_cities').val()||'').trim());
+        fd.append('languages', JSON.stringify($('#modal_languages').val() || []));
+        const detailedTargeting = ($('#modal_detailed_targeting').select2('data') || []).map(function(x){
+            return { id: String(x.id || '').trim(), name: String(x.text || '').trim() };
+        }).filter(function(x){ return x.id; });
+        fd.append('detailed_targeting', JSON.stringify(detailedTargeting));
+        fd.append('age_min', String($('#modal_age_min').val()||'18')); fd.append('age_max', String($('#modal_age_max').val()||'65'));
+        const placementMode = String($('#modal_placement_mode').val()||'auto');
+        fd.append('gender', String($('#modal_gender').val()||'all')); fd.append('advantage', String($('#modal_advantage').val()||'0')); fd.append('placement_mode', placementMode);
+        const deviceMode = String($('input[name="modal_device_mode"]:checked').val() || 'all');
+        const platforms = $('.modal-platform:checked').map(function(){ return String($(this).val()||'').trim(); }).get();
+        const positions = {};
+        $('.modal-position:checked').each(function(){
+            const p = String($(this).data('platform') || '').trim();
+            const v = String($(this).val() || '').trim();
+            if (!p || !v) return;
+            if (!positions[p]) positions[p] = [];
+            if (positions[p].indexOf(v) < 0) positions[p].push(v);
+        });
+        fd.append('placement_device_mode', deviceMode);
+        fd.append('placement_platforms', JSON.stringify(platforms));
+        fd.append('placement_positions', JSON.stringify(positions));
+        fd.append('asset_customization', placementMode === 'manual' ? '1' : '0');
         fd.append('conversion_location', String($('#modal_conversion_location').val()||'WEBSITE')); fd.append('optimization_goal', String($('#modal_optimization_goal').val()||'LINK_CLICKS'));
         fd.append('bid_strategy', String($('#modal_bid_strategy').val()||'LOWEST_COST_WITHOUT_CAP')); fd.append('bid_amount', String($('#modal_bid_amount').val()||''));
         fd.append('attribution_window', String($('#modal_attribution_window').val()||'7d_click_1d_view')); fd.append('dynamic_creative', String($('#modal_dynamic_creative').val()||'0'));
@@ -354,6 +612,364 @@ $().ready(function () {
             error:function(xhr){ let m='Terjadi kesalahan saat membuat ad set + ad'; try{const r=JSON.parse(xhr.responseText||'{}'); if(r&&r.message)m=r.message;}catch(e){} $('#modal_create_result').removeClass('text-muted text-success').addClass('text-danger').text(m); }
         });
     });
+
+    const locationLabelMap = {};
+    const countryNameMap = { ID:'Indonesia', MY:'Malaysia', PH:'Filipina', TH:'Thailand', SG:'Singapura' };
+
+    $('.js-loc-reco').off('click.locReco').on('click.locReco', function(){
+        const country = String($(this).data('country') || '').trim().toUpperCase();
+        if (country) locationLabelMap['country:'+country] = countryNameMap[country] || country;
+        const $inp = $('#modal_location_include_countries');
+        $inp.val(appendCsvUnique($inp.val(), country)).trigger('input');
+    });
+
+    let gmap = null;
+    let gmarkers = [];
+    let gcircles = [];
+    let gmapLoader = null;
+
+    const getGoogleMapsApiKey = function(){
+        return String(window.GOOGLE_MAPS_API_KEY || $('meta[name="google-maps-api-key"]').attr('content') || 'AIzaSyDXEjWpqoOm72hidRShr_Tn-43MGTkT5oE').trim();
+    };
+
+    const setMapNotice = function(msg, tone){
+        let $n = $('#modal_location_map_notice');
+        if (!$n.length) {
+            $n = $('<div id="modal_location_map_notice" class="small mt-1"></div>');
+            $('#modal_location_map_link').closest('.mt-1').after($n);
+        }
+        const t = String(tone || 'muted').trim();
+        $n.removeClass('text-muted text-warning text-danger text-success').addClass('text-' + t).text(String(msg || ''));
+    };
+
+    const loadGoogleMapsApi = function(){
+        if (window.google && window.google.maps) return Promise.resolve(true);
+        const key = getGoogleMapsApiKey();
+        if (!key) {
+            setMapNotice('Marker interaktif belum aktif: Google Maps API key belum diset.', 'warning');
+            return Promise.resolve(false);
+        }
+        if (gmapLoader) return gmapLoader;
+        gmapLoader = new Promise(function(resolve){
+            const cb = '__gmapsInit_' + Date.now();
+            window[cb] = function(){ try { delete window[cb]; } catch(e) {} resolve(true); };
+            const s = document.createElement('script');
+            s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key) + '&callback=' + cb;
+            s.async = true; s.defer = true;
+            s.onerror = function(){ resolve(false); };
+            document.head.appendChild(s);
+        });
+        return gmapLoader;
+    };
+
+    const toMapQuery = function(type, raw){
+        const token = String(raw || '').trim();
+        const display = getLocationDisplay(type, token) || token;
+        if (!display) return '';
+        if (type === 'country') {
+            const cc = String(token || '').trim().toUpperCase();
+            if (cc && cc.length <= 3) return countryNameMap[cc] || cc;
+            return display;
+        }
+        const m = String(display).match(/^(.*?)\s*-\s*([A-Z]{2,3})(?:\s*\((.*?)\))?$/);
+        if (m) {
+            const name = String(m[1] || '').trim();
+            const cc = String(m[2] || '').trim().toUpperCase();
+            const region = String(m[3] || '').trim();
+            const country = countryNameMap[cc] || cc;
+            if (name && region) return name + ', ' + region + ', ' + country;
+            if (name) return name + ', ' + country;
+        }
+        if (type === 'city' || type === 'region') return String(display).trim() + ', Indonesia';
+        return String(display).trim();
+    };
+
+    const getMapQueries = function(preferredText){
+        const picked = String(preferredText || '').trim();
+        const includeCities = parseCsv($('#modal_location_include_cities').val()).map(function(v){ return toMapQuery('city', v); }).filter(Boolean);
+        const includeRegions = parseCsv($('#modal_location_include_regions').val()).map(function(v){ return toMapQuery('region', v); }).filter(Boolean);
+        const includeCountries = parseCsv($('#modal_location_include_countries').val()).map(function(v){ return toMapQuery('country', v); }).filter(Boolean);
+        const fallbackQuery = String($('#modal_location_query').val() || '').trim();
+        const out = [];
+        const add = function(v){ const s = String(v || '').trim(); if (s && out.indexOf(s) < 0) out.push(s); };
+        add(toMapQuery('city', picked) || picked);
+        includeCities.slice(0, 5).forEach(add);
+        includeRegions.slice(0, 5).forEach(add);
+        includeCountries.slice(0, 2).forEach(add);
+        if (!out.length) add(fallbackQuery || 'Indonesia');
+        return out;
+    };
+
+    const updateLocationMapLink = function(preferredText){
+        const queries = getMapQueries(preferredText);
+        const qRaw = queries.join(' | ');
+        const q = encodeURIComponent(qRaw || 'Indonesia');
+        $('#modal_location_map_link').attr('href', 'https://www.google.com/maps/search/' + q);
+
+        loadGoogleMapsApi().then(function(ok){
+            const $iframe = $('#modal_location_map_iframe');
+            if (!ok) {
+                $iframe.show().attr('src', 'https://maps.google.com/maps?q=' + q + '&output=embed');
+                $('#modal_location_map_canvas').remove();
+                return;
+            }
+            setMapNotice('Marker interaktif aktif.', 'success');
+            let $canvas = $('#modal_location_map_canvas');
+            if (!$canvas.length) {
+                $canvas = $('<div id="modal_location_map_canvas" class="meta-loc-map"></div>');
+                $iframe.after($canvas).hide();
+            }
+            if (!gmap) gmap = new google.maps.Map($canvas.get(0), { center: { lat: -2.5, lng: 118 }, zoom: 5 });
+            gmarkers.forEach(function(m){ m.setMap(null); });
+            gcircles.forEach(function(c){ c.setMap(null); });
+            gmarkers = [];
+            gcircles = [];
+            const bounds = new google.maps.LatLngBounds();
+            const geocoder = new google.maps.Geocoder();
+            let pending = queries.length;
+            queries.forEach(function(name){
+                geocoder.geocode({ address: name }, function(results, status){ 
+                    if (status === 'OK' && results && results[0]) {
+                        const p = results[0].geometry.location;
+                        const marker = new google.maps.Marker({
+                            map: gmap,
+                            position: p,
+                            title: name,
+                            icon: {
+                                path: google.maps.SymbolPath.CIRCLE,
+                                scale: 8,
+                                fillColor: '#1d4ed8',
+                                fillOpacity: 1,
+                                strokeColor: '#ffffff',
+                                strokeWeight: 2
+                            }
+                        });
+                        gmarkers.push(marker);
+                        const circle = new google.maps.Circle({
+                            map: gmap,
+                            center: p,
+                            radius: 40000,
+                            strokeColor: '#1d4ed8',
+                            strokeOpacity: 0.55,
+                            strokeWeight: 2,
+                            fillColor: '#60a5fa',
+                            fillOpacity: 0.15
+                        });
+                        gcircles.push(circle);
+                        bounds.extend(p);
+                    }
+                    pending -= 1;
+                    if (pending <= 0) {
+                        if (gmarkers.length > 1) gmap.fitBounds(bounds);
+                        else if (gmarkers.length === 1) { gmap.setCenter(bounds.getCenter()); gmap.setZoom(9); }
+                    }
+                });
+            });
+        });
+    };
+
+    const resolveLocationTargetField = function(mode, type){
+        const m = String(mode || 'include');
+        const t = String(type || 'country');
+        if (t === 'country') return m === 'exclude' ? '#modal_location_exclude_countries' : '#modal_location_include_countries';
+        if (t === 'region') return m === 'exclude' ? '#modal_location_exclude_regions' : '#modal_location_include_regions';
+        return m === 'exclude' ? '#modal_location_exclude_cities' : '#modal_location_include_cities';
+    };
+
+    const normalizeLocationText = function(type, text){
+        let t = String(text || '').trim();
+        if (!t) return '';
+        t = t.replace(/\s*\(key:\s*[^)]+\)\s*/ig, '').trim();
+        if (type === 'country') {
+            const m = t.match(/^(.+?)\s*[-,]\s*[A-Z]{2,3}(?:\b.*)?$/);
+            if (m && m[1]) t = String(m[1]).trim();
+        }
+        return t;
+    };
+
+    const getLocationDisplay = function(type, raw){
+        const v = String(raw || '').trim();
+        if (!v) return '';
+        const key = String(type || '') + ':' + v;
+        if (locationLabelMap[key]) return normalizeLocationText(type, locationLabelMap[key]);
+        if (type === 'country') return countryNameMap[v.toUpperCase()] || v;
+        return '';
+    };
+
+    const renderLocationResults = function(items){
+        const $wrap = $('#modal_location_search_results');
+        if (!Array.isArray(items) || !items.length) {
+            $wrap.html('<div class="text-muted small">Belum ada hasil pencarian.</div>');
+            return;
+        }
+        const html = items.map(function(it){
+            const text = String(it.text || '-');
+            const token = String(it.token || it.id || '').replace(/"/g, '&quot;');
+            const safeText = text.replace(/"/g, '&quot;');
+            return '<div class="meta-loc-item"><div class="small">'+text+'</div><button type="button" class="btn btn-xs btn-success js-loc-pick" data-token="'+token+'" data-text="'+safeText+'">Pilih</button></div>';
+        }).join('');
+        $wrap.html(html);
+    };
+
+    const parseCsv = function(v){
+        return String(v || '').split(',').map(function(x){ return String(x || '').trim(); }).filter(Boolean);
+    };
+
+    const renderLocationSummary = function(){
+        if (!$('#modal_location_summary').length) {
+            $('#modal_location_search_results').after('<div id="modal_location_summary" class="mt-2"></div>');
+        }
+        const groups = [
+            {sel:'#modal_location_include_countries', cls:'success', label:'Termasuk-Negara', type:'country'},
+            {sel:'#modal_location_include_regions', cls:'success', label:'Termasuk-Wilayah', type:'region'},
+            {sel:'#modal_location_include_cities', cls:'success', label:'Termasuk-Kota', type:'city'},
+            {sel:'#modal_location_exclude_countries', cls:'danger', label:'Kecuali-Negara', type:'country'},
+            {sel:'#modal_location_exclude_regions', cls:'danger', label:'Kecuali-Wilayah', type:'region'},
+            {sel:'#modal_location_exclude_cities', cls:'danger', label:'Kecuali-Kota', type:'city'}
+        ];
+        const chips = [];
+        groups.forEach(function(g){
+            parseCsv($(g.sel).val()).forEach(function(v){
+                const disp = getLocationDisplay(g.type, v);
+                if (!disp) return;
+                const safeDisp = String(disp).replace(/"/g, '&quot;');
+                const safeSel = String(g.sel).replace(/"/g, '&quot;');
+                const safeVal = String(v).replace(/"/g, '&quot;');
+                chips.push('<span class="badge badge-'+g.cls+' mr-1 mb-1">'+g.label+': '+safeDisp+' <button type="button" class="btn btn-xs btn-light ml-1 js-loc-remove" title="Hapus" data-sel="'+safeSel+'" data-type="'+g.type+'" data-value="'+safeVal+'">&times;</button></span>');
+            });
+        });
+        $('#modal_location_summary').html(chips.length ? chips.join('') : '<small class="text-muted">Belum ada lokasi terpilih.</small>');
+    };
+
+    const doLocationSearch = function(opts){
+        const q = String($('#modal_location_query').val() || '').trim();
+        const selectedAccount = String($('#modal_account').val() || '').trim();
+        const mode = String($('#modal_location_mode').val() || 'include');
+        const type = String($('#modal_location_type').val() || 'country');
+        const silent = !!(opts && opts.silent);
+        if (!selectedAccount) {
+            if (!silent) alert('Pilih akun terlebih dahulu.');
+            return;
+        }
+        if (q.length < 2) { renderLocationResults([]); return; }
+        $('#modal_location_search_results').html('<div class="text-muted small">Mencari lokasi...</div>');
+        $.ajax({
+            url: '/management/admin/facebook_location_suggest',
+            method: 'GET',
+            dataType: 'json',
+            data: { q: q, selected_account: selectedAccount, location_type: type },
+            success: function(res){
+                const rows = (res && res.results) ? res.results : [];
+                renderLocationResults(rows);
+                $('#modal_location_search_results').off('click.locPick').on('click.locPick', '.js-loc-pick', function(){
+                    const $btn = $(this);
+                    const token = String($btn.data('token') || '').trim();
+                    const pickedText = String($btn.data('text') || '').trim();
+                    if (token && pickedText) locationLabelMap[String(type || 'country') + ':' + token] = normalizeLocationText(type, pickedText);
+                    const target = resolveLocationTargetField(mode, type);
+                    const $target = $(target);
+                    const before = String($target.val() || '');
+                    const after = appendCsvUnique(before, token);
+                    $target.val(after).trigger('input');
+                    renderLocationSummary();
+                    if (pickedText) {
+                        updateLocationMapLink(pickedText);
+                    } else if (target === '#modal_location_include_countries') {
+                        updateLocationMapLink();
+                    }
+                    if (before !== after) {
+                        $btn.removeClass('btn-success').addClass('btn-outline-success').text('Dipilih');
+                        setTimeout(function(){ $btn.text('Pilih').removeClass('btn-outline-success').addClass('btn-success'); }, 900);
+                    }
+                });
+            },
+            error: function(){
+                $('#modal_location_search_results').html('<div class="text-danger small">Gagal mengambil lokasi.</div>');
+            }
+        });
+    };
+
+    const $searchCol = $('#modal_location_search_results').closest('[class^="col-md-"]');
+    const $mapCol = $('#modal_location_map_iframe').closest('[class^="col-md-"]');
+    if ($searchCol.length && $mapCol.length) {
+        $searchCol.removeClass('col-md-8').addClass('col-md-12');
+        $mapCol.removeClass('col-md-4').addClass('col-md-12 mt-2');
+        $mapCol.insertAfter($searchCol);
+    }
+
+    let locationTypingTimer = null;
+    $('#modal_location_query').off('input.locSearch keydown.locSearch').on('input.locSearch', function(){
+        clearTimeout(locationTypingTimer);
+        locationTypingTimer = setTimeout(function(){ doLocationSearch({silent:true}); }, 280);
+    }).on('keydown.locSearch', function(e){ if(e.key === 'Enter'){ e.preventDefault(); doLocationSearch(); }});
+    $('#modal_location_search_btn').off('click.locSearch').on('click.locSearch', function(){ doLocationSearch(); });
+
+    const $advanced = $([
+        '#modal_location_include_countries','#modal_location_exclude_countries',
+        '#modal_location_include_regions','#modal_location_include_cities',
+        '#modal_location_exclude_regions','#modal_location_exclude_cities'
+    ].join(',')).closest('[class^="col-md-"]');
+    $advanced.hide();
+    if (!$('#btn_location_advanced').length) {
+        $('#modal_location_search_btn').after(' <button type="button" class="btn btn-outline-secondary" id="btn_location_advanced">Lanjutan</button>');
+        $('#btn_location_advanced').on('click', function(){ $advanced.toggle(); });
+    }
+
+    const resolveUnknownLocationLabels = function(){
+        const selectedAccount = String($('#modal_account').val() || '').trim();
+        if (!selectedAccount) return;
+        const groups = [
+            {sel:'#modal_location_include_regions', type:'region'},
+            {sel:'#modal_location_include_cities', type:'city'},
+            {sel:'#modal_location_exclude_regions', type:'region'},
+            {sel:'#modal_location_exclude_cities', type:'city'}
+        ];
+        groups.forEach(function(g){
+            parseCsv($(g.sel).val()).forEach(function(token){
+                const key = g.type + ':' + token;
+                if (!token || locationLabelMap[key]) return;
+                $.ajax({
+                    url: '/management/admin/facebook_location_suggest',
+                    method: 'GET',
+                    dataType: 'json',
+                    data: { q: token, selected_account: selectedAccount, location_type: g.type },
+                    success: function(res){
+                        const rows = (res && res.results) ? res.results : [];
+                        const hit = (rows || []).find(function(r){ return String(r.token || r.id || '').trim() === String(token).trim(); });
+                        if (hit && hit.text) {
+                            locationLabelMap[key] = normalizeLocationText(g.type, hit.text);
+                            renderLocationSummary();
+                            updateLocationMapLink();
+                        }
+                    }
+                });
+            });
+        });
+    };
+
+    $('#modal_location_include_countries,#modal_location_exclude_countries,#modal_location_include_regions,#modal_location_include_cities,#modal_location_exclude_regions,#modal_location_exclude_cities').off('input.locSummary change.locSummary').on('input.locSummary change.locSummary', function(){
+        renderLocationSummary();
+        updateLocationMapLink();
+        resolveUnknownLocationLabels();
+    });
+
+    $(document).off('click.locRemove', '#modal_location_summary .js-loc-remove').on('click.locRemove', '#modal_location_summary .js-loc-remove', function(e){
+        e.preventDefault();
+        const $btn = $(this);
+        const sel = String($btn.data('sel') || '').trim();
+        const type = String($btn.data('type') || '').trim();
+        const value = String($btn.data('value') || '').trim();
+        if (!sel || !value) return;
+        const arr = parseCsv($(sel).val()).filter(function(v){ return String(v).trim() !== value; });
+        $(sel).val(arr.join(',')).trigger('input');
+        if (type) delete locationLabelMap[type + ':' + value];
+        renderLocationSummary();
+        updateLocationMapLink();
+    });
+    $('#modal_account').off('change.locSummary').on('change.locSummary', function(){ resolveUnknownLocationLabels(); renderLocationSummary(); });
+    renderLocationSummary();
+    updateLocationMapLink();
+    resolveUnknownLocationLabels();
 
     // Filter silang account-domain dinonaktifkan karena domain menggunakan freetext.
 });
