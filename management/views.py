@@ -3684,6 +3684,89 @@ class PerAccountFacebookAds(View):
             'seven_days_ago': seven_days_ago,
         }
         return render(req, 'admin/facebook_ads/per_account/index.html', data)
+
+class CreateCampaignFacebookAds(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super(CreateCampaignFacebookAds, self).dispatch(request, *args, **kwargs)
+    def get(self, req):
+        rs_accounts = data_mysql().master_account_ads()
+        account_rows = (rs_accounts or {}).get('data') if isinstance(rs_accounts, dict) else []
+        if not isinstance(account_rows, list):
+            account_rows = []
+        data = {
+            'title': 'Create Campaign Facebook Ads',
+            'user': req.session['hris_admin'],
+            'data_account': account_rows,
+            'account_rows': account_rows,
+            'today': datetime.now().strftime('%Y-%m-%d'),
+            'seven_days_ago': (datetime.now() - timedelta(days=6)).strftime('%Y-%m-%d'),
+        }
+        return render(req, 'admin/facebook_ads/create_campaign/index.html', data)
+
+class CreateCampaignMetaListView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super(CreateCampaignMetaListView, self).dispatch(request, *args, **kwargs)
+    def get(self, req):
+        selected = [str(x).strip() for x in str(req.GET.get('selected_accounts') or '').split(',') if str(x).strip()]
+        keyword = str(req.GET.get('keyword') or '').strip().lower()
+        tanggal_dari = str(req.GET.get('tanggal_dari') or '').strip() or datetime.now().strftime('%Y-%m-%d')
+        tanggal_sampai = str(req.GET.get('tanggal_sampai') or '').strip() or tanggal_dari
+        if tanggal_dari > tanggal_sampai:
+            tanggal_dari, tanggal_sampai = tanggal_sampai, tanggal_dari
+        if not selected:
+            return JsonResponse({'status': True, 'data': [], 'tanggal_dari': tanggal_dari, 'tanggal_sampai': tanggal_sampai, 'message': 'Pilih account terlebih dahulu'})
+        rows = []
+        accounts = data_mysql().master_account_ads()['data'] or []
+        accounts = [a for a in accounts if str((a or {}).get('account_id') or '').strip() in selected]
+        fields = 'id,name,status,effective_status,objective,buying_type,daily_budget,lifetime_budget,created_time,updated_time'
+        for acc in accounts:
+            token = str((acc or {}).get('access_token') or '').strip()
+            real_id = str((acc or {}).get('account_id') or '').replace('act_', '').strip()
+            if not token or not real_id:
+                continue
+            try:
+                resp = requests.get(
+                    f'https://graph.facebook.com/v22.0/act_{real_id}/campaigns',
+                    params={'access_token': token, 'fields': fields, 'limit': 50},
+                    timeout=12
+                )
+                body = resp.json() if resp.text else {}
+            except Exception:
+                continue
+            if resp.status_code >= 400 or (isinstance(body, dict) and body.get('error')):
+                continue
+            for item in ((body or {}).get('data') or []):
+                name = str((item or {}).get('name') or '').strip()
+                created_at = str((item or {}).get('created_time') or '').strip()
+                updated_at = str((item or {}).get('updated_time') or '').strip()
+                created_date = created_at[:10] if len(created_at) >= 10 else ''
+                updated_date = updated_at[:10] if len(updated_at) >= 10 else ''
+                in_range = ((created_date and tanggal_dari <= created_date <= tanggal_sampai) or (updated_date and tanggal_dari <= updated_date <= tanggal_sampai))
+                if not in_range:
+                    continue
+                if keyword and keyword not in name.lower():
+                    continue
+                rows.append({
+                    'account_id': str((acc or {}).get('account_id') or '').strip(),
+                    'account_name': str((acc or {}).get('account_name') or '').strip(),
+                    'campaign_id': str((item or {}).get('id') or '').strip(),
+                    'campaign_name': name,
+                    'status': str((item or {}).get('status') or '').strip(),
+                    'effective_status': str((item or {}).get('effective_status') or '').strip(),
+                    'objective': str((item or {}).get('objective') or '').strip(),
+                    'buying_type': str((item or {}).get('buying_type') or '').strip(),
+                    'daily_budget': (item or {}).get('daily_budget'),
+                    'lifetime_budget': (item or {}).get('lifetime_budget'),
+                    'created_time': str((item or {}).get('created_time') or '').strip(),
+                    'updated_time': str((item or {}).get('updated_time') or '').strip(),
+                })
+        rows.sort(key=lambda x: ((x.get('updated_time') or ''), (x.get('created_time') or '')), reverse=True)
+        rows = rows[:50]
+        return JsonResponse({'status': True, 'data': rows, 'tanggal_dari': tanggal_dari, 'tanggal_sampai': tanggal_sampai, 'message': f'{len(rows)} campaign terbaru ditampilkan'})
     
 class page_per_account_facebook(View):
     def dispatch(self, request, *args, **kwargs):

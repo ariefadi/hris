@@ -82,52 +82,6 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 {% block content %}  
 <style>
   .dt-buttons { margin-bottom: 20px; }
-  .meta-modal .modal-dialog{max-width:1560px;margin:12px auto}
-  .meta-modal .modal-content{border:0;border-radius:16px;overflow:hidden;background:linear-gradient(180deg,#f8fbff,#f1f5f9);box-shadow:0 18px 50px rgba(2,6,23,.18)}
-  .meta-modal .modal-header{background:linear-gradient(90deg,#0f172a,#1e3a8a 60%,#2563eb);color:#fff;border-bottom:0;padding:12px 16px}
-  .meta-builder{display:grid;grid-template-columns:270px 1fr 330px;gap:14px;min-height:640px}
-  .meta-left{background:linear-gradient(180deg,#0f172a,#1e293b);color:#cbd5e1;padding:14px;border-radius:12px;box-shadow:inset 0 0 0 1px rgba(148,163,184,.18)}
-  .meta-center,.meta-right{background:rgba(255,255,255,.84);backdrop-filter:blur(6px);border:1px solid #dbe5f4;border-radius:12px;padding:14px}
-  .meta-step-chip{display:block;width:100%;padding:11px 12px;border-radius:10px;background:rgba(148,163,184,.12);color:#cbd5e1;font-weight:700;font-size:13px;margin-bottom:8px;border:1px solid rgba(148,163,184,.18);transition:.2s}
-  .meta-step-chip:hover{transform:translateY(-1px);border-color:#93c5fd}
-  .meta-step-chip.active{background:linear-gradient(90deg,#e0ecff,#eff6ff);color:#0f172a;border-color:#93c5fd;box-shadow:0 8px 18px rgba(37,99,235,.18)}
-  .meta-pane{display:none}.meta-pane.active{display:block}
-  .meta-card{position:relative;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:13px;margin-bottom:11px;box-shadow:0 6px 20px rgba(15,23,42,.05)}
-  .meta-card:before{content:"";position:absolute;left:0;top:0;right:0;height:3px;border-radius:12px 12px 0 0;background:linear-gradient(90deg,#38bdf8,#6366f1,#22c55e)}
-  .meta-card h6{font-weight:800;margin-bottom:10px;color:#0f172a}
-  .meta-card .form-row{row-gap:10px}
-  .meta-card label{font-size:12px;font-weight:700;margin-bottom:4px;color:#334155}
-  .meta-card .form-control{height:38px;border-color:#cbd5e1;border-radius:9px}
-  .meta-card .form-control:focus{border-color:#60a5fa;box-shadow:0 0 0 .18rem rgba(37,99,235,.15)}
-  .meta-card textarea.form-control{height:auto;min-height:80px}
-  .meta-modal .select2-container{width:100% !important}
-  .meta-modal .select2-container .select2-selection--single{height:38px !important;border:1px solid #cbd5e1;border-radius:9px}
-  .meta-modal .select2-container .select2-selection__rendered{line-height:36px !important;padding-left:12px}
-  .meta-modal .select2-container .select2-selection__arrow{height:36px !important}
-  #modal_languages_wrap .select2-container--default .select2-selection--multiple{min-height:38px !important;height:auto !important;border:1px solid #cbd5e1;border-radius:9px;padding:2px 8px;background:#fff}
-  #modal_languages_wrap .select2-container--default .select2-selection--multiple .select2-selection__rendered{display:flex;flex-wrap:wrap;gap:4px;padding:0}
-  #modal_languages_wrap .select2-container--default .select2-selection--multiple .select2-selection__choice{margin:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .meta-actions{display:flex;justify-content:space-between;align-items:center;width:100%}
-  .meta-result{display:block;margin-top:8px}
-  .meta-guide{background:linear-gradient(90deg,#ecfeff,#eef2ff);border:1px solid #a5b4fc;color:#1e293b;padding:10px 12px;border-radius:9px;font-size:12px;margin-bottom:10px}
-  .meta-progress{height:8px;background:#e5e7eb;border-radius:999px;overflow:hidden;margin-top:6px}
-  .meta-progress > span{display:block;height:100%;background:linear-gradient(90deg,#22c55e,#14b8a6);width:0%}
-  .meta-loc-results{max-height:180px;overflow:auto;border:1px solid #dbe5f4;border-radius:10px;background:#fff;padding:8px}
-  .meta-loc-item{display:flex;align-items:center;justify-content:space-between;padding:7px 8px;border-radius:8px;border:1px solid #e2e8f0;margin-bottom:6px;background:#f8fafc}
-  .meta-loc-item:last-child{margin-bottom:0}
-  .meta-loc-map{width:100%;height:280px;border:1px solid #dbe5f4;border-radius:10px;background:#eef2ff}
-  .mp-grid{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:8px}
-  .mp-grid-2{grid-template-columns:repeat(2,minmax(170px,1fr))}
-  .mp-item{border:1px solid #dbe5f4;border-radius:10px;padding:8px;background:#f8fafc;display:flex;align-items:center;gap:8px;min-height:42px}
-  .mp-item input{transform:scale(1.1)}
-  .mp-section{border:1px solid #dbe5f4;border-radius:10px;background:#fff;padding:8px 10px;margin-bottom:8px}
-  .mp-section-title{font-weight:800;font-size:14px;color:#0f172a;margin-bottom:4px}
-  .mp-section-desc{font-size:12px;color:#64748b;margin-bottom:8px}
-  .mp-preview{border:1px solid #dbe5f4;border-radius:10px;padding:10px;background:#fff}
-  .mp-preview-media{width:100%;max-height:320px;object-fit:cover;border-radius:10px;border:1px solid #e2e8f0;background:#0f172a}
-  .mp-preview-media.is-vertical{max-width:360px;aspect-ratio:9/16;height:auto;margin:0 auto;display:block}
-  .mp-preview-media.is-feed{max-width:560px;aspect-ratio:4/5;height:auto;margin:0 auto;display:block}
-  @media (max-width: 1280px){.meta-builder{grid-template-columns:220px 1fr;}.meta-right{grid-column:1 / -1}.mp-grid{grid-template-columns:repeat(2,minmax(160px,1fr));}.mp-grid-2{grid-template-columns:repeat(2,minmax(150px,1fr));}}
   html[data-theme="dark"] .meta-center,html[data-theme="dark"] .meta-right{background:#111827;border-color:#374151}
   html[data-theme="dark"] .meta-card{background:#1f2937;border-color:#374151;color:#e5e7eb}
   html[data-theme="dark"] .meta-card h6,html[data-theme="dark"] .meta-card label{color:#e5e7eb}
@@ -137,9 +91,6 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
         <div class="d-flex align-items-center justify-content-between w-100">
             <h3 class="card-title mb-0">Data Traffic Per Account</h3>
             <div class="d-flex align-items-center" style="gap:8px;">
-                <button type="button" class="btn btn-sm btn-success" id="btnOpenCreateCampaignModal">
-                    <i class="fas fa-bullhorn"></i> Create Campaign
-                </button>
                 <button type="button" class="btn btn-sm hris-tour-launch-btn" id="btnFacebookPerAccountTour">
                     <i class="far fa-question-circle" aria-hidden="true"></i> User Manual
                 </button>
@@ -182,100 +133,6 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
             </div>
         </div>
 
-        <hr>
-        <div class="form-row" id="facebookCreateCampaignForm" data-title="Create Campaign" data-intro="Buat campaign baru langsung ke Meta Ads berdasarkan account yang dipilih." style="display:none;">
-            <div class="col-md-3">
-                <label>Account Tujuan</label>
-                <select class="form-control select2" id="create_campaign_account">
-                    <option value=""></option>
-                    {% for data_account in data_account %}
-                    <option value="{{data_account.account_id}}">{{data_account.account_name}}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-4">
-                <label>Nama Campaign</label>
-                <input type="text" class="form-control" id="create_campaign_name" placeholder="contoh: MYDOMAIN_26NEGARA_STABLE" />
-            </div>
-            <div class="col-md-2">
-                <label>Tujuan Kampanye</label>
-                <select class="form-control" id="create_campaign_objective">
-                    <option value="OUTCOME_TRAFFIC">Lalu Lintas</option>
-                    <option value="OUTCOME_LEADS">Prospek</option>
-                    <option value="OUTCOME_SALES">Penjualan</option>
-                    <option value="OUTCOME_ENGAGEMENT">Interaksi</option>
-                    <option value="OUTCOME_AWARENESS">Kesadaran</option>
-                    <option value="OUTCOME_APP_PROMOTION">Promosi Aplikasi</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label>Status Awal</label>
-                <select class="form-control" id="create_campaign_status">
-                    <option value="PAUSED">Draft</option>
-                    <option value="ACTIVE">Aktif</option>
-                </select>
-            </div>
-            <div class="col-md-1">
-                <label>&nbsp;</label>
-                <button type="button" class="btn btn-success form-control" id="btn_create_campaign">
-                    <i class="fas fa-plus"></i> Buat
-                </button>
-            </div>
-            <div class="col-md-2 mt-2">
-                <label>Daily Budget</label>
-                <input type="number" class="form-control" id="create_adset_daily_budget" value="50000" min="1000" />
-            </div>
-            <div class="col-md-2 mt-2">
-                <label>Negara (CSV)</label>
-                <input type="text" class="form-control" id="create_adset_countries" value="ID" placeholder="ID,MY" />
-            </div>
-            <div class="col-md-1 mt-2">
-                <label>Age Min</label>
-                <input type="number" class="form-control" id="create_adset_age_min" value="18" min="13" max="65" />
-            </div>
-            <div class="col-md-1 mt-2">
-                <label>Age Max</label>
-                <input type="number" class="form-control" id="create_adset_age_max" value="65" min="13" max="65" />
-            </div>
-            <div class="col-md-2 mt-2">
-                <label>Page ID</label>
-                <input type="text" class="form-control" id="create_ad_page_id" placeholder="contoh: 123456789" />
-            </div>
-            <div class="col-md-4 mt-2">
-                <label>Website URL</label>
-                <input type="text" class="form-control" id="create_ad_website_url" placeholder="https://domain.com/landing" />
-            </div>
-            <div class="col-md-4 mt-2">
-                <label>Primary Text</label>
-                <input type="text" class="form-control" id="create_ad_primary_text" placeholder="Teks iklan" />
-            </div>
-            <div class="col-md-3 mt-2">
-                <label>Headline</label>
-                <input type="text" class="form-control" id="create_ad_headline" placeholder="Headline iklan" />
-            </div>
-            <div class="col-md-2 mt-2">
-                <label>CTA</label>
-                <select class="form-control" id="create_ad_cta_type">
-                    <option value="LEARN_MORE">LEARN_MORE</option>
-                    <option value="SHOP_NOW">SHOP_NOW</option>
-                    <option value="SIGN_UP">SIGN_UP</option>
-                    <option value="CONTACT_US">CONTACT_US</option>
-                </select>
-            </div>
-            <div class="col-md-2 mt-2">
-                <label>Pixel ID (opsional)</label>
-                <input type="text" class="form-control" id="create_ad_pixel_id" placeholder="opsional" />
-            </div>
-            <div class="col-md-1 mt-2">
-                <label>&nbsp;</label>
-                <button type="button" class="btn btn-warning form-control" id="btn_create_campaign_full">
-                    <i class="fas fa-layer-group"></i> Full
-                </button>
-            </div>
-            <div class="col-md-12 mt-2">
-                <small id="create_campaign_result" class="text-muted"></small>
-            </div>
-        </div>
 
         <div class="modal fade meta-modal" id="modalCreateMetaCampaign" tabindex="-1" role="dialog" aria-hidden="true">
           <div class="modal-dialog" role="document"><div class="modal-content">

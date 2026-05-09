@@ -1361,6 +1361,35 @@ html[data-theme="dark"] .decision-detail-reason-item {
 
                         <div class="card dashboard-card mt-3" style="border-radius:16px;">
                             <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
+                                <div style="font-weight:900;"><i class="bi bi-diagram-3 me-2"></i> Ringkasan Scoring per Account</div>
+                                <div class="text-muted" style="font-size:12px" id="dashboardAccountRelationMeta">Belum ada data</div>
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-striped table-bordered mb-0 dashboard-recap-table" id="dashboardAccountRelationTable">
+                                        <thead>
+                                            <tr>
+                                                <th class="text-center">No</th>
+                                                <th>Account Ads</th>
+                                                <th class="text-center">Subdomain</th>
+                                                <th class="text-center">Campaign Relasi</th>
+                                                <th class="text-center">Avg Score</th>
+                                                <th class="text-center">Avg Health</th>
+                                                <th class="text-center">Avg Risk</th>
+                                                <th class="text-end">Spend</th>
+                                                <th class="text-end">Pendapatan</th>
+                                                <th class="text-center">Alert Dominan</th>
+                                                <th class="text-center">Kondisi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="dashboardAccountRelationTbody"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card dashboard-card mt-3" style="border-radius:16px;">
+                            <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
                                 <div style="font-weight:900;"><i class="bi bi-table me-2"></i> Detail Scoring</div>
                                 <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
                                     <div class="text-muted" style="font-size:12px" id="dashboardRecapTableMeta"></div>
@@ -8732,7 +8761,116 @@ function initDashboardRecap() {
             return badges.join(' ') || '-';
         }
 
-        function renderWinningCampaignTables(scoredRows, stateNow) {
+        function renderAccountRelationTable(scored) {
+        const tbody = document.getElementById('dashboardAccountRelationTbody');
+        const metaEl = document.getElementById('dashboardAccountRelationMeta');
+        if (!tbody) return;
+
+        const avg = function(list) {
+            return list.length ? (list.reduce(function(a, b){ return a + b; }, 0) / list.length) : null;
+        };
+
+        const rankKondisi = { 'Jelek': 0, 'Perlu Pantau': 1, 'Bagus': 2 };
+        const accMap = new Map();
+
+        (scored || []).forEach(function(item){
+            const r = item?.r || {};
+            const meta = item?.meta || {};
+            const info = meta?.breakdown?.meta || {};
+            const accountName = String(r?.account_ads || '').trim() || 'Tanpa Account';
+            const detailRows = Array.isArray(info.country_details) ? info.country_details : [];
+            const current = accMap.get(accountName) || {
+                subs: new Set(),
+                camps: new Set(),
+                spend: 0,
+                revenue: 0,
+                scores: [],
+                health: [],
+                risk: [],
+                alerts: { Normal: 0, Waspada: 0, Kritis: 0 }
+            };
+
+            current.subs.add(String(r?.name || r?.domain || r?.site || '-').trim());
+            detailRows.forEach(function(c){
+                const campaign = scxCampaignValue(c);
+                if (campaign && campaign !== '-') current.camps.add(campaign);
+            });
+
+            current.spend += Number(r?.spend || 0);
+            current.revenue += Number(r?.revenue || 0);
+
+            if (Number.isFinite(Number(meta?.score))) current.scores.push(Number(meta.score));
+            if (Number.isFinite(Number(info?.health_score))) current.health.push(Number(info.health_score));
+            if (Number.isFinite(Number(info?.ivt_risk_score))) current.risk.push(Number(info.ivt_risk_score));
+
+            const alert = scxAlertMeta(
+                meta?.label || info.final_label || '',
+                info.root_cause_label || '',
+                Number(info.ivt_risk_score || 0),
+                String(info.forecast_direction || 'STABLE_OUTLOOK'),
+                Number(info.forecast_confidence || 0)
+            );
+            const alertLabel = String(alert?.label || 'Normal');
+            current.alerts[alertLabel] = Number(current.alerts[alertLabel] || 0) + 1;
+
+            accMap.set(accountName, current);
+        });
+
+        const rows = Array.from(accMap.entries()).map(function(entry){
+            const accountName = entry[0];
+            const data = entry[1];
+            const avgScore = avg(data.scores);
+            const avgHealth = avg(data.health);
+            const avgRisk = avg(data.risk);
+            const dominant = Object.entries(data.alerts).sort(function(a, b){ return Number(b[1] || 0) - Number(a[1] || 0); })[0]?.[0] || 'Normal';
+            const kondisi = (dominant === 'Kritis' || (avgRisk != null && avgRisk >= 68) || (avgScore != null && avgScore < 50))
+                ? 'Jelek'
+                : ((dominant === 'Waspada' || (avgScore != null && avgScore < 70)) ? 'Perlu Pantau' : 'Bagus');
+
+            return {
+                acc: accountName,
+                subs: data.subs.size,
+                camps: data.camps.size,
+                score: avgScore,
+                health: avgHealth,
+                risk: avgRisk,
+                spend: data.spend,
+                revenue: data.revenue,
+                dominant: dominant,
+                kondisi: kondisi
+            };
+        }).sort(function(a, b){
+            const rkA = Number(rankKondisi[a.kondisi] ?? 99);
+            const rkB = Number(rankKondisi[b.kondisi] ?? 99);
+            if (rkA !== rkB) return rkA - rkB;
+            return (Number(a.score ?? 999) - Number(b.score ?? 999));
+        });
+
+        tbody.innerHTML = rows.length
+            ? rows.map(function(x, i){
+                const kondisiBadge = x.kondisi === 'Bagus'
+                    ? 'badge-success'
+                    : (x.kondisi === 'Perlu Pantau' ? 'badge-warning' : 'badge-danger');
+                return `<tr>
+                    <td class="text-center">${i + 1}</td>
+                    <td>${esc(x.acc)}</td>
+                    <td class="text-center">${x.subs}</td>
+                    <td class="text-center">${x.camps}</td>
+                    <td class="text-center">${x.score == null ? '-' : x.score.toFixed(1)}</td>
+                    <td class="text-center">${x.health == null ? '-' : x.health.toFixed(1)}</td>
+                    <td class="text-center">${x.risk == null ? '-' : x.risk.toFixed(1)}</td>
+                    <td class="text-end">${fmtIdr(x.spend)}</td>
+                    <td class="text-end">${fmtIdr(x.revenue)}</td>
+                    <td class="text-center">${esc(x.dominant)}</td>
+                    <td class="text-center"><span class="badge ${kondisiBadge}">${esc(x.kondisi)}</span></td>
+                </tr>`;
+            }).join('')
+            : '<tr><td colspan="11" class="text-center text-muted py-4">Belum ada relasi account yang bisa ditampilkan.</td></tr>';
+
+        if (metaEl) metaEl.textContent = `${rows.length} account terelasi`;
+    }
+
+    function renderWinningCampaignTables(scoredRows, stateNow) {
             const topBody = document.getElementById('dashboardWinningTopTbody');
             const bottomBody = document.getElementById('dashboardWinningBottomTbody');
             const metaEl = document.getElementById('dashboardWinningCampaignMeta');
@@ -8909,6 +9047,7 @@ function initDashboardRecap() {
         const minScore = scores.length ? Math.min.apply(null, scores) : null;
         const maxScore = scores.length ? Math.max.apply(null, scores) : null;
         const hasRange = (minScore != null && maxScore != null && minScore !== maxScore);
+        renderAccountRelationTable(scored);
         renderWinningCampaignTables(scored, state);
 
         if (tableEl) {
