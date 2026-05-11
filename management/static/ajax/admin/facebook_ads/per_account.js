@@ -55,7 +55,8 @@ $().ready(function () {
         height: '100%',
         theme: 'bootstrap4'
     })
-    if ($('#modalCreateMetaCampaign').length) {
+    const isCreateCampaignPage = $('#table_create_campaign_meta').length > 0;
+    if (!isCreateCampaignPage && $('#modalCreateMetaCampaign').length) {
         $('#modalCreateMetaCampaign').remove();
     }
     $('#select_domain').select2({

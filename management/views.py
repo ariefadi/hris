@@ -3729,44 +3729,65 @@ class CreateCampaignMetaListView(View):
             if not token or not real_id:
                 continue
             try:
-                resp = requests.get(
-                    f'https://graph.facebook.com/v22.0/act_{real_id}/campaigns',
-                    params={'access_token': token, 'fields': fields, 'limit': 50},
-                    timeout=12
-                )
+                resp = requests.get(f'https://graph.facebook.com/v22.0/act_{real_id}/campaigns', params={'access_token': token, 'fields': fields, 'limit': 50}, timeout=12)
                 body = resp.json() if resp.text else {}
             except Exception:
                 continue
             if resp.status_code >= 400 or (isinstance(body, dict) and body.get('error')):
                 continue
             for item in ((body or {}).get('data') or []):
-                name = str((item or {}).get('name') or '').strip()
-                created_at = str((item or {}).get('created_time') or '').strip()
-                updated_at = str((item or {}).get('updated_time') or '').strip()
-                created_date = created_at[:10] if len(created_at) >= 10 else ''
-                updated_date = updated_at[:10] if len(updated_at) >= 10 else ''
-                in_range = ((created_date and tanggal_dari <= created_date <= tanggal_sampai) or (updated_date and tanggal_dari <= updated_date <= tanggal_sampai))
-                if not in_range:
+                name = str((item or {}).get('name') or '').strip(); created_at = str((item or {}).get('created_time') or '').strip(); updated_at = str((item or {}).get('updated_time') or '').strip()
+                created_date = created_at[:10] if len(created_at) >= 10 else ''; updated_date = updated_at[:10] if len(updated_at) >= 10 else ''
+                if not (((created_date and tanggal_dari <= created_date <= tanggal_sampai) or (updated_date and tanggal_dari <= updated_date <= tanggal_sampai)) and (not keyword or keyword in name.lower())):
                     continue
-                if keyword and keyword not in name.lower():
-                    continue
-                rows.append({
-                    'account_id': str((acc or {}).get('account_id') or '').strip(),
-                    'account_name': str((acc or {}).get('account_name') or '').strip(),
-                    'campaign_id': str((item or {}).get('id') or '').strip(),
-                    'campaign_name': name,
-                    'status': str((item or {}).get('status') or '').strip(),
-                    'effective_status': str((item or {}).get('effective_status') or '').strip(),
-                    'objective': str((item or {}).get('objective') or '').strip(),
-                    'buying_type': str((item or {}).get('buying_type') or '').strip(),
-                    'daily_budget': (item or {}).get('daily_budget'),
-                    'lifetime_budget': (item or {}).get('lifetime_budget'),
-                    'created_time': str((item or {}).get('created_time') or '').strip(),
-                    'updated_time': str((item or {}).get('updated_time') or '').strip(),
-                })
+                rows.append({'account_id': str((acc or {}).get('account_id') or '').strip(), 'account_name': str((acc or {}).get('account_name') or '').strip(), 'campaign_id': str((item or {}).get('id') or '').strip(), 'campaign_name': name, 'status': str((item or {}).get('status') or '').strip(), 'effective_status': str((item or {}).get('effective_status') or '').strip(), 'objective': str((item or {}).get('objective') or '').strip(), 'buying_type': str((item or {}).get('buying_type') or '').strip(), 'daily_budget': (item or {}).get('daily_budget'), 'lifetime_budget': (item or {}).get('lifetime_budget'), 'created_time': created_at, 'updated_time': updated_at})
         rows.sort(key=lambda x: ((x.get('updated_time') or ''), (x.get('created_time') or '')), reverse=True)
-        rows = rows[:50]
-        return JsonResponse({'status': True, 'data': rows, 'tanggal_dari': tanggal_dari, 'tanggal_sampai': tanggal_sampai, 'message': f'{len(rows)} campaign terbaru ditampilkan'})
+        return JsonResponse({'status': True, 'data': rows[:50], 'tanggal_dari': tanggal_dari, 'tanggal_sampai': tanggal_sampai, 'message': f'{len(rows[:50])} campaign terbaru ditampilkan'})
+
+class GetCampaignMetaDetailView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=401)
+        return super(GetCampaignMetaDetailView, self).dispatch(request, *args, **kwargs)
+    def get(self, req):
+        account_id = str(req.GET.get('account_id') or '').strip(); campaign_id = str(req.GET.get('campaign_id') or '').strip()
+        if not account_id or not campaign_id:
+            return JsonResponse({'success': False, 'message': 'Account dan campaign wajib diisi'})
+        rs = data_mysql().master_account_ads_by_id({'data_account': account_id}); acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+        if not isinstance(acc, dict):
+            return JsonResponse({'success': False, 'message': 'Account tidak ditemukan'})
+        token = str(acc.get('access_token') or '').strip()
+        fields = 'id,name,objective,status,buying_type,special_ad_categories,daily_budget,lifetime_budget,spend_cap'
+        resp = requests.get(f'https://graph.facebook.com/v22.0/{campaign_id}', params={'access_token': token, 'fields': fields}, timeout=20)
+        body = resp.json() if resp.text else {}
+        if resp.status_code >= 400 or (isinstance(body, dict) and body.get('error')):
+            return JsonResponse({'success': False, 'message': str(((body or {}).get('error') or {}).get('message') or 'Gagal mengambil detail campaign')})
+        data = body if isinstance(body, dict) else {}
+        cats = data.get('special_ad_categories') if isinstance(data.get('special_ad_categories'), list) else []
+        return JsonResponse({'success': True, 'data': {'account_id': account_id, 'campaign_id': str(data.get('id') or campaign_id), 'campaign_name': str(data.get('name') or ''), 'objective': str(data.get('objective') or 'OUTCOME_TRAFFIC'), 'status': str(data.get('status') or 'PAUSED'), 'buying_type': str(data.get('buying_type') or 'AUCTION'), 'special_ad_category': str(cats[0] if cats else 'NONE'), 'campaign_budget_type': 'daily' if data.get('daily_budget') else ('lifetime' if data.get('lifetime_budget') else 'none'), 'campaign_daily_budget': str(data.get('daily_budget') or ''), 'campaign_lifetime_budget': str(data.get('lifetime_budget') or ''), 'campaign_spend_cap': str(data.get('spend_cap') or '')}})
+
+@method_decorator(csrf_exempt, name='dispatch')
+class UpdateCampaignMetaView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=401)
+        return super(UpdateCampaignMetaView, self).dispatch(request, *args, **kwargs)
+    def post(self, req):
+        account_id = str(req.POST.get('account_id') or '').strip(); campaign_id = str(req.POST.get('campaign_id') or '').strip()
+        if not account_id or not campaign_id:
+            return JsonResponse({'success': False, 'message': 'Account dan campaign wajib diisi'})
+        rs = data_mysql().master_account_ads_by_id({'data_account': account_id}); acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+        if not isinstance(acc, dict):
+            return JsonResponse({'success': False, 'message': 'Account tidak ditemukan'})
+        token = str(acc.get('access_token') or '').strip(); special_ad_category = str(req.POST.get('special_ad_category') or 'NONE').strip().upper(); budget_type = str(req.POST.get('campaign_budget_type') or 'none').strip().lower()
+        payload = {'access_token': token, 'name': str(req.POST.get('campaign_name') or '').strip(), 'objective': str(req.POST.get('objective') or 'OUTCOME_TRAFFIC').strip().upper(), 'status': str(req.POST.get('status') or 'PAUSED').strip().upper(), 'buying_type': str(req.POST.get('buying_type') or 'AUCTION').strip().upper(), 'special_ad_categories': json.dumps([] if special_ad_category in ('', 'NONE') else [special_ad_category])}
+        if budget_type == 'daily' and str(req.POST.get('campaign_daily_budget') or '').strip(): payload['daily_budget'] = str(max(1000, int(float(req.POST.get('campaign_daily_budget') or 0))))
+        if budget_type == 'lifetime' and str(req.POST.get('campaign_lifetime_budget') or '').strip(): payload['lifetime_budget'] = str(max(1000, int(float(req.POST.get('campaign_lifetime_budget') or 0))))
+        if str(req.POST.get('campaign_spend_cap') or '').strip(): payload['spend_cap'] = str(max(0, int(float(req.POST.get('campaign_spend_cap') or 0))))
+        resp = requests.post(f'https://graph.facebook.com/v22.0/{campaign_id}', data=payload, timeout=30); body = resp.json() if resp.text else {}
+        if resp.status_code >= 400 or (isinstance(body, dict) and body.get('error')):
+            return JsonResponse({'success': False, 'message': str(((body or {}).get('error') or {}).get('message') or 'Gagal update campaign')})
+        return JsonResponse({'success': True, 'message': 'Campaign berhasil diperbarui', 'campaign_id': campaign_id})
     
 class page_per_account_facebook(View):
     def dispatch(self, request, *args, **kwargs):
@@ -4343,6 +4364,7 @@ class create_campaign_fullstack_per_account(View):
             display_link = str(req.POST.get('display_link') or '').strip()
             url_tags = str(req.POST.get('url_tags') or '').strip()
             instagram_actor_id = str(req.POST.get('instagram_actor_id') or '').strip()
+            threads_user_id = str(req.POST.get('threads_user_id') or '').strip()
             use_existing_post = str(req.POST.get('use_existing_post') or '0').strip()
             existing_post_id = str(req.POST.get('existing_post_id') or '').strip()
             cta_type = str(req.POST.get('cta_type') or 'LEARN_MORE').strip().upper()
@@ -4604,6 +4626,7 @@ class create_adset_ad_per_account(View):
             elif gender == 'female':
                 targeting['genders'] = [2]
 
+            selected_platforms = []
             if placement_mode == 'manual':
                 try:
                     parsed_platforms = json.loads(placement_platforms_raw) if placement_platforms_raw else []
@@ -4611,10 +4634,12 @@ class create_adset_ad_per_account(View):
                         parsed_platforms = []
                 except Exception:
                     parsed_platforms = []
-                allowed_platforms = ['facebook', 'instagram', 'audience_network', 'messenger']
+                allowed_platforms = ['facebook', 'instagram', 'audience_network', 'messenger', 'threads']
                 selected_platforms = [p for p in [str(x).strip().lower() for x in parsed_platforms] if p in allowed_platforms]
                 if not selected_platforms:
                     selected_platforms = ['facebook', 'instagram', 'audience_network', 'messenger']
+                if 'threads' in selected_platforms and 'instagram' not in selected_platforms:
+                    selected_platforms.append('instagram')
                 targeting['publisher_platforms'] = selected_platforms
 
                 if placement_device_mode == 'mobile':
@@ -4631,17 +4656,27 @@ class create_adset_ad_per_account(View):
                 except Exception:
                     parsed_positions = {}
 
+                if 'threads' in selected_platforms:
+                    tvals = parsed_positions.get('threads') or []
+                    if 'threads_stream' in tvals:
+                        ivals = parsed_positions.get('instagram') or []
+                        if 'stream' not in ivals:
+                            parsed_positions['instagram'] = list(ivals) + ['stream']
                 pos_field_map = {
                     'facebook': 'facebook_positions',
                     'instagram': 'instagram_positions',
                     'audience_network': 'audience_network_positions',
                     'messenger': 'messenger_positions',
+                    'threads': 'threads_positions',
                 }
+                allowed_positions = {'messenger': ['story', 'sponsored_messages'], 'threads': ['threads_stream']}
                 for p in selected_platforms:
                     vals = parsed_positions.get(p) or []
                     if not isinstance(vals, list):
                         vals = []
                     vals = [str(v).strip() for v in vals if str(v).strip()]
+                    if p in allowed_positions:
+                        vals = [v for v in vals if v in allowed_positions[p]]
                     if vals and p in pos_field_map:
                         targeting[pos_field_map[p]] = vals
 
@@ -4713,8 +4748,38 @@ class create_adset_ad_per_account(View):
                     link_data['caption'] = caption
                 if display_link:
                     link_data['display_link'] = display_link
-                object_story_spec = {'page_id': page_id, 'link_data': link_data}
-                if instagram_actor_id:
+                media_story_key = 'link_data'
+                media_story_data = link_data
+                image_file = req.FILES.get('image_file')
+                video_file = req.FILES.get('video_file')
+                if image_file:
+                    ok, err, img_rs = _post_file(f'act_{real_account_id}/adimages', files={'filename': (image_file.name, image_file.file, image_file.content_type or 'application/octet-stream')})
+                    if not ok:
+                        return JsonResponse({'success': False, 'step': 'creative_media', 'adset_id': adset_id, 'message': err})
+                    img_data = ((img_rs or {}).get('images') or {}).get(image_file.name) or {}
+                    image_hash = str(img_data.get('hash') or '').strip()
+                    if image_hash:
+                        media_story_data['image_hash'] = image_hash
+                elif video_file:
+                    ok, err, vid_rs = _post_file(f'act_{real_account_id}/advideos', files={'source': (video_file.name, video_file.file, video_file.content_type or 'application/octet-stream')})
+                    if not ok:
+                        return JsonResponse({'success': False, 'step': 'creative_media', 'adset_id': adset_id, 'message': err})
+                    video_id = str((vid_rs or {}).get('id') or '').strip()
+                    media_story_key = 'video_data'
+                    media_story_data = {'video_id': video_id, 'call_to_action': {'type': cta_type, 'value': {'link': website_url}}}
+                    if primary_text:
+                        media_story_data['message'] = primary_text
+                    if headline:
+                        media_story_data['title'] = headline
+                    if description:
+                        media_story_data['description'] = description
+                object_story_spec = {'page_id': page_id, media_story_key: media_story_data}
+                if 'threads' in selected_platforms:
+                    if not instagram_actor_id or not threads_user_id:
+                        return JsonResponse({'success': False, 'step': 'creative', 'adset_id': adset_id, 'message': 'Threads memerlukan Instagram Actor ID dan Threads User ID.'})
+                    object_story_spec['instagram_actor_id'] = instagram_actor_id
+                    object_story_spec['threads_user_id'] = threads_user_id
+                elif instagram_actor_id:
                     object_story_spec['instagram_actor_id'] = instagram_actor_id
                 creative_payload['object_story_spec'] = json.dumps(object_story_spec)
             ok, err, creative_rs = _post(f'act_{real_account_id}/adcreatives', creative_payload)

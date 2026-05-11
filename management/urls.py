@@ -45,6 +45,8 @@ urlpatterns = [
     path('admin/per_account_facebook', views.PerAccountFacebookAds.as_view(), name='per_account_facebook'),
     path('admin/create_campaign', views.CreateCampaignFacebookAds.as_view(), name='create_campaign_facebook'),
     path('admin/page_create_campaign_meta', views.CreateCampaignMetaListView.as_view(), name='page_create_campaign_meta'),
+    path('admin/get_campaign_meta_detail', views.GetCampaignMetaDetailView.as_view(), name='get_campaign_meta_detail'),
+    path('admin/update_campaign_meta', views.UpdateCampaignMetaView.as_view(), name='update_campaign_meta'),
     path('admin/page_per_account_facebook', views.page_per_account_facebook.as_view()),
     path('admin/update_daily_budget_per_campaign', views.update_daily_budget_per_campaign.as_view()),
     path('admin/update_switch_campaign', views.update_switch_campaign.as_view()),
