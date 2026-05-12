@@ -945,9 +945,28 @@
     const campaignId=String($('#modal_campaign_id').val()||'').trim()||'no-campaign';
     return 'meta_adset_draft:'+accountId+':'+campaignId;
   }
+  function getLanguageFallbackName(id){
+    const map={'42':'Bahasa Indonesia','6':'English (All)','1002':'English (US)','1001':'English (UK)','3':'Spanish','10':'Arabic','35':'Malay','52':'Thai','53':'Vietnamese','7':'French','5':'German','8':'Italian','9':'Portuguese','11':'Japanese','12':'Korean','13':'Chinese (Simplified)','14':'Chinese (Traditional)'};
+    return map[String(id||'').trim()]||'';
+  }
+  function getSelectedOptionItems(sel, cleaner){
+    return $(sel).find('option:selected').map(function(){
+      const id=String(this.value||'').trim(), raw=String($(this).text()||'').trim();
+      if(!id) return null;
+      return {id:id,name:(typeof cleaner==='function'?cleaner(raw,id):raw)||id};
+    }).get().filter(Boolean);
+  }
+  function normalizeLanguageDraftItems(raw){
+    return (Array.isArray(raw)?raw:[]).map(function(item){
+      const id=String((item&&typeof item==='object')?(item.id||item.value||''):item||'').trim();
+      const rawName=String((item&&typeof item==='object')?(item.name||item.text||''):'').trim();
+      const name=rawName.replace(/\s*\(key:\s*[^)]+\)$/i,'').trim()||getLanguageFallbackName(id)||id;
+      return id?{id:id,name:name}:null;
+    }).filter(Boolean);
+  }
   function seedDraftSelect2(sel, items){
     const $el=$(sel); if(!$el.length) return;
-    (items||[]).forEach(function(it){ const id=String((it&&it.id)||'').trim(); if(!id) return; if(!$el.find('option[value="'+id.replace(/"/g,'\\"')+'"]').length){ $el.append(new Option(String((it&&it.name)||id), id, true, true)); } });
+    (items||[]).forEach(function(it){ const id=String((it&&it.id)||'').trim(); if(!id) return; if(!$el.find('option[value="'+id.replace(/"/g,'\\"')+'"]').length){ $el.append(new Option(String((it&&it.name)||id), id, true, true)); } else { $el.find('option[value="'+id.replace(/"/g,'\\"')+'"]').text(String((it&&it.name)||id)).prop('selected',true); } });
     $el.trigger('change');
   }
   function restoreAdsetDraft(){
@@ -959,7 +978,7 @@
     try{ (JSON.parse(draft.placement_platforms||'[]')||[]).forEach(function(p){ $('.modal-platform[value="'+String(p||'').trim()+'"]').prop('checked',true); }); }catch(e){}
     try{ const pos=JSON.parse(draft.placement_positions||'{}')||{}; Object.keys(pos).forEach(function(p){ (pos[p]||[]).forEach(function(v){ $('.modal-position[data-platform="'+p+'"][value="'+v+'"]').prop('checked',true); }); }); }catch(e){}
     syncCampaignBudgetFields(); initAudiencePlacementControls();
-    try{ seedDraftSelect2('#modal_languages', JSON.parse(draft.languages||'[]').map(function(x){ return {id:String(x||''),name:String(x||'')}; })); }catch(e){}
+    try{ seedDraftSelect2('#modal_languages', normalizeLanguageDraftItems(JSON.parse(draft.languages||'[]'))); }catch(e){}
     try{ const dt=JSON.parse(draft.detailed_targeting||'{}')||{}; seedDraftSelect2('#modal_detailed_targeting_include', dt.include||[]); seedDraftSelect2('#modal_detailed_targeting_narrow', dt.narrow||[]); }catch(e){}
     syncBidAmountField(); updateStepProgress();
     $('#modal_create_result').removeClass('text-danger').addClass('text-success').text('Draft Set Iklan lokal berhasil dipulihkan.');
@@ -1115,7 +1134,7 @@
     }
     fd.append('start_time', String($('#modal_start_time').val() || '')); fd.append('end_time', String($('#modal_end_time').val() || ''));
     fd.append('countries', String($('#modal_location_include_countries').val() || 'ID')); fd.append('location_include_countries', String($('#modal_location_include_countries').val() || 'ID')); fd.append('location_exclude_countries', String($('#modal_location_exclude_countries').val() || '')); fd.append('location_include_regions', String($('#modal_location_include_regions').val() || '')); fd.append('location_include_cities', String($('#modal_location_include_cities').val() || '')); fd.append('location_exclude_regions', String($('#modal_location_exclude_regions').val() || '')); fd.append('location_exclude_cities', String($('#modal_location_exclude_cities').val() || ''));
-    fd.append('languages', JSON.stringify($('#modal_languages').val() || [])); fd.append('age_min', String($('#modal_age_min').val() || '18')); fd.append('age_max', String($('#modal_age_max').val() || '65')); fd.append('conversion_location', String($('#modal_conversion_location').val() || 'WEBSITE')); fd.append('optimization_goal', String($('#modal_optimization_goal').val() || 'LINK_CLICKS')); fd.append('bid_strategy', String($('#modal_bid_strategy').val() || 'LOWEST_COST_WITHOUT_CAP')); fd.append('bid_amount', String($('#modal_bid_amount').val() || '')); fd.append('attribution_window', String($('#modal_attribution_window').val() || '7d_click_1d_view')); fd.append('dynamic_creative', String($('#modal_dynamic_creative').val() || '0'));
+    fd.append('languages', JSON.stringify(getSelectedOptionItems('#modal_languages', function(text,id){ return text.replace(/\s*\(key:\s*[^)]+\)$/i,'').trim()||getLanguageFallbackName(id)||id; }))); fd.append('age_min', String($('#modal_age_min').val() || '18')); fd.append('age_max', String($('#modal_age_max').val() || '65')); fd.append('conversion_location', String($('#modal_conversion_location').val() || 'WEBSITE')); fd.append('optimization_goal', String($('#modal_optimization_goal').val() || 'LINK_CLICKS')); fd.append('bid_strategy', String($('#modal_bid_strategy').val() || 'LOWEST_COST_WITHOUT_CAP')); fd.append('bid_amount', String($('#modal_bid_amount').val() || '')); fd.append('attribution_window', String($('#modal_attribution_window').val() || '7d_click_1d_view')); fd.append('dynamic_creative', String($('#modal_dynamic_creative').val() || '0'));
     fd.append('detailed_targeting', JSON.stringify({include:$('#modal_detailed_targeting_include').find('option:selected').map(function(){return{id:String(this.value||''),name:String($(this).text()||'').replace(/\s*\(audience:.*\)$/,'').trim()};}).get(),narrow:$('#modal_detailed_targeting_narrow').find('option:selected').map(function(){return{id:String(this.value||''),name:String($(this).text()||'').replace(/\s*\(audience:.*\)$/,'').trim()};}).get()}));
     fd.append('gender', String($('#modal_gender').val() || 'all')); fd.append('advantage', String($('#modal_advantage').val() || '0')); fd.append('placement_mode', placementMode); fd.append('placement_device_mode', String($('input[name="modal_device_mode"]:checked').val() || 'all')); fd.append('placement_platforms', JSON.stringify(placementPlatforms)); fd.append('placement_positions', JSON.stringify(placementPositions)); fd.append('asset_customization', String($('#modal_asset_customization').val() || (placementMode === 'manual' ? '1' : '0')));
     return fd;
