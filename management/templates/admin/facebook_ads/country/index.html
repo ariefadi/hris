@@ -77,9 +77,15 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 {% block content %}
 {% csrf_token %}  
 <style>
-  .dt-buttons {
-      margin-bottom: 20px;
-  }
+  .dt-buttons{margin-bottom:16px}.dt-buttons .btn{border-radius:10px!important;font-weight:700!important;border:none!important;box-shadow:0 6px 14px rgba(15,23,42,.10)}
+  .dt-responsive-table{border:1px solid #dbe7ff;border-radius:18px;overflow:hidden;background:linear-gradient(180deg,#f8fbff 0%,#fff 100%);box-shadow:0 10px 24px rgba(37,99,235,.08)}
+  .dataTables_wrapper .dataTables_length,.dataTables_wrapper .dataTables_filter{margin-bottom:12px}.dataTables_wrapper .dataTables_filter input,.dataTables_wrapper .dataTables_length select{border-radius:10px!important;border:1px solid #cbd5e1!important}
+  #table_data_per_country_facebook th,#table_data_per_country_facebook td{white-space:nowrap;vertical-align:middle;text-align:center;border-color:#e5edf8!important}
+  #table_data_per_country_facebook thead th{background:linear-gradient(135deg,#2563eb 0%,#0891b2 100%)!important;color:#fff!important;border:none!important;font-size:12px;font-weight:800}
+  #table_data_per_country_facebook tbody tr:nth-child(odd) td{background:#f8fbff}#table_data_per_country_facebook tbody tr:nth-child(even) td{background:#eef6ff}#table_data_per_country_facebook tbody tr:hover td{background:#dbeafe!important;transition:background-color .16s ease}
+  #table_data_per_country_facebook tbody td:first-child{text-align:left;font-weight:700}#table_data_per_country_facebook tbody td:last-child{background:#f8fafc;font-weight:700}
+  html[data-theme="dark"] .dt-responsive-table{border-color:#334155;background:linear-gradient(180deg,#0f172a 0%,#111827 100%);box-shadow:0 14px 28px rgba(0,0,0,.35)}
+  html[data-theme="dark"] #table_data_per_country_facebook,html[data-theme="dark"] #table_data_per_country_facebook>:not(caption)>*>*,html[data-theme="dark"] .dataTables_wrapper{color:#e5e7eb!important}html[data-theme="dark"] #table_data_per_country_facebook tbody tr:nth-child(odd) td{background:#162033!important}html[data-theme="dark"] #table_data_per_country_facebook tbody tr:nth-child(even) td{background:#111827!important}html[data-theme="dark"] #table_data_per_country_facebook tbody tr:hover td{background:#1e3a5f!important}html[data-theme="dark"] #table_data_per_country_facebook thead th{background:linear-gradient(135deg,#2563eb 0%,#0f766e 100%)!important}html[data-theme="dark"] .dataTables_wrapper .dataTables_filter input,html[data-theme="dark"] .dataTables_wrapper .dataTables_length select{background:#0f172a!important;color:#e5e7eb!important;border-color:#334155!important}
 </style>
 <div class="card">
     <div class="card-header">

@@ -251,140 +251,41 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link rel="stylesheet" type="text/css" href="{% static 'css/datatable-responsive.css' %}">
 <style>
-        #table_data_per_account_facebook th,
-        #table_data_per_account_facebook td {
-            white-space: nowrap;
-            vertical-align: middle;
-            text-align: center;
-        }
-
-        .dt-scroll-head {
-            z-index: 1001 !important;
-        }
-
-        .dt-scroll-head th {
-            background-color: #ffffff !important;
-            border-bottom: 2px solid #dee2e6 !important;
-        }
-
-        .dtfc-fixed-left {
-            background-color: #f8f9fa !important;
-            border-right: 2px solid #dee2e6 !important;
-            z-index: 1000 !important;
-            box-shadow: 2px 0 5px rgba(0,0,0,0.1) !important;
-        }
-
-        .dtfc-fixed-left th,
-        .dtfc-fixed-left td {
-            background-color: #f8f9fa !important;
-            border-right: 1px solid #dee2e6 !important;
-        }
-
-        .dt-fixedcolumns-left {
-            background-color: #f8f9fa !important;
-            border-right: 2px solid #dee2e6 !important;
-            z-index: 1000 !important;
-            box-shadow: 2px 0 5px rgba(0,0,0,0.1) !important;
-        }
-
-        .dt-fixedcolumns-left th,
-        .dt-fixedcolumns-left td {
-            background-color: #f8f9fa !important;
-            border-right: 1px solid #dee2e6 !important;
-        }
-
-        html[data-theme="dark"] #table_data_per_account_facebook,
-        html[data-theme="dark"] #table_data_per_account_facebook > :not(caption) > * > * {
-            background-color: #1e1e1e !important;
-            color: #e9ecef !important;
-            border-color: #2b2b2b !important;
-        }
-
-        html[data-theme="dark"] .dt-scroll-head th {
-            background-color: #1e1e1e !important;
-            color: #e9ecef !important;
-            border-bottom-color: #2b2b2b !important;
-        }
-
-        html[data-theme="dark"] .dtfc-fixed-left,
-        html[data-theme="dark"] .dtfc-fixed-left th,
-        html[data-theme="dark"] .dtfc-fixed-left td,
-        html[data-theme="dark"] .dt-fixedcolumns-left,
-        html[data-theme="dark"] .dt-fixedcolumns-left th,
-        html[data-theme="dark"] .dt-fixedcolumns-left td {
-            background-color: #1e1e1e !important;
-            color: #e9ecef !important;
-            border-color: #2b2b2b !important;
-        }
-
-        html[data-theme="dark"] .dtfc-fixed-left,
-        html[data-theme="dark"] .dt-fixedcolumns-left {
-            border-right-color: #2b2b2b !important;
-            box-shadow: 2px 0 6px rgba(0,0,0,0.45) !important;
-        }
-
-        .card-body {
-            width: 100% !important;
-            overflow-x: auto;
-        }
-
-        .dt-responsive-table {
-            width: 100% !important;
-        }
-
-        #table_data_per_account_facebook {
-            width: 100% !important;
-            table-layout: auto;
-        }
-
-        .dataTables_wrapper {
-            width: 100% !important;
-            overflow: visible !important;
-        }
-
-        .dataTables_scrollBody {
-            border-top: none !important;
-        }
-
-        .dataTables_scrollHeadInner {
-            width: 100% !important;
-        }
-
-        .dataTables_scrollHeadInner table {
-            width: 100% !important;
-        }
-
-        .dtfc-fixed-left table {
-            border-collapse: separate !important;
-            border-spacing: 0 !important;
-        }
-
-        .dtfc-fixed-left {
-            box-shadow: 2px 0 5px rgba(0,0,0,0.1) !important;
-        }
-
-        .form-check-input {
-            width: 2em !important;
-            height: 1em !important;
-            transform: scale(0.8) !important;
-        }
-
-        .form-switch .form-check-input {
-            width: 2em !important;
-            height: 1em !important;
-        }
-
-        #headerSwitch {
-            width: 2.8em !important;
-            height: 1.5em !important;
-            transform: scale(0.8) !important;
-        }
-
-        td .form-switch .form-check-input {
-            width: 2em !important;
-            height: 1em !important;
-            transform: scale(0.8) !important;
-        }
+        .card-body { width: 100% !important; overflow-x: auto; }
+        .dt-responsive-table { width: 100% !important; border:1px solid #dbe7ff; border-radius:18px; overflow:hidden; background:linear-gradient(180deg,#f8fbff 0%,#ffffff 100%); box-shadow:0 10px 24px rgba(37,99,235,.08); }
+        .dt-buttons { margin-bottom: 16px; }
+        .dt-buttons .btn { border-radius:10px !important; font-weight:700 !important; border:none !important; box-shadow:0 6px 14px rgba(15,23,42,.10); }
+        .dataTables_wrapper { width: 100% !important; overflow: visible !important; }
+        .dataTables_wrapper .dataTables_length, .dataTables_wrapper .dataTables_filter { margin-bottom: 12px; }
+        .dataTables_wrapper .dataTables_filter input, .dataTables_wrapper .dataTables_length select { border-radius:10px !important; border:1px solid #cbd5e1 !important; }
+        #table_data_per_account_facebook { width: 100% !important; table-layout: auto; border-collapse: separate; border-spacing: 0; }
+        #table_data_per_account_facebook th, #table_data_per_account_facebook td { white-space: nowrap; vertical-align: middle; text-align: center; border-color:#e5edf8 !important; }
+        #table_data_per_account_facebook thead th, .dt-scroll-head th { background:linear-gradient(135deg,#1d4ed8 0%,#0891b2 100%) !important; color:#fff !important; border:none !important; font-size:12px; font-weight:800; letter-spacing:.01em; }
+        #table_data_per_account_facebook tbody tr:nth-child(odd) td { background:#f8fbff; }
+        #table_data_per_account_facebook tbody tr:nth-child(even) td { background:#eef6ff; }
+        #table_data_per_account_facebook tbody tr:hover td { background:#dbeafe !important; transition:background-color .16s ease; }
+        #table_data_per_account_facebook tbody td:first-child { font-weight:700; color:#334155; }
+        #table_data_per_account_facebook tbody td:nth-child(2), #table_data_per_account_facebook tbody td:nth-child(3) { text-align:left; }
+        #table_data_per_account_facebook .badge { border-radius:999px; padding:4px 8px; font-size:10px; font-weight:800; box-shadow:0 4px 10px rgba(15,23,42,.10); }
+        #table_data_per_account_facebook .form-switch .form-check-input, #headerSwitch { cursor:pointer; box-shadow:none !important; }
+        .dt-scroll-head { z-index: 1001 !important; }
+        .dataTables_scrollBody { border-top: none !important; }
+        .dataTables_scrollHeadInner, .dataTables_scrollHeadInner table { width: 100% !important; }
+        .dtfc-fixed-left, .dt-fixedcolumns-left { background-color:#edf5ff !important; border-right:2px solid #cfe0ff !important; z-index:1000 !important; box-shadow:2px 0 10px rgba(37,99,235,.12) !important; }
+        .dtfc-fixed-left th, .dtfc-fixed-left td, .dt-fixedcolumns-left th, .dt-fixedcolumns-left td { background-color:#edf5ff !important; border-right:1px solid #dbe7ff !important; }
+        .dtfc-fixed-left table { border-collapse: separate !important; border-spacing: 0 !important; }
+        .form-check-input { width: 2em !important; height: 1em !important; transform: scale(0.8) !important; }
+        .form-switch .form-check-input { width: 2em !important; height: 1em !important; }
+        #headerSwitch { width: 2.8em !important; height: 1.5em !important; transform: scale(0.8) !important; }
+        td .form-switch .form-check-input { width: 2em !important; height: 1em !important; transform: scale(0.8) !important; }
+        html[data-theme="dark"] .dt-responsive-table { border-color:#334155; background:linear-gradient(180deg,#0f172a 0%,#111827 100%); box-shadow:0 14px 28px rgba(0,0,0,.35); }
+        html[data-theme="dark"] #table_data_per_account_facebook, html[data-theme="dark"] #table_data_per_account_facebook > :not(caption) > * > *, html[data-theme="dark"] .dataTables_wrapper { color:#e5e7eb !important; }
+        html[data-theme="dark"] #table_data_per_account_facebook tbody tr:nth-child(odd) td { background:#162033 !important; }
+        html[data-theme="dark"] #table_data_per_account_facebook tbody tr:nth-child(even) td { background:#111827 !important; }
+        html[data-theme="dark"] #table_data_per_account_facebook tbody tr:hover td { background:#1e3a5f !important; }
+        html[data-theme="dark"] .dt-scroll-head th, html[data-theme="dark"] #table_data_per_account_facebook thead th { background:linear-gradient(135deg,#2563eb 0%,#0f766e 100%) !important; }
+        html[data-theme="dark"] .dtfc-fixed-left, html[data-theme="dark"] .dtfc-fixed-left th, html[data-theme="dark"] .dtfc-fixed-left td, html[data-theme="dark"] .dt-fixedcolumns-left, html[data-theme="dark"] .dt-fixedcolumns-left th, html[data-theme="dark"] .dt-fixedcolumns-left td { background-color:#172554 !important; color:#e5e7eb !important; border-color:#334155 !important; }
+        html[data-theme="dark"] .dataTables_wrapper .dataTables_filter input, html[data-theme="dark"] .dataTables_wrapper .dataTables_length select { background:#0f172a !important; color:#e5e7eb !important; border-color:#334155 !important; }
     </style>
 <script src="{% static 'ajax/admin/facebook_ads/per_account.js'%}?v={%now 'u'%}"></script>
 <script>

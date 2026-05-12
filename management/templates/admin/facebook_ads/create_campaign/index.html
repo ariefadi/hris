@@ -23,18 +23,39 @@
     font-size: 13px;
   }
   .cc-form-card, .cc-table-card {
-    border-radius: 14px;
+    border-radius: 18px;
     overflow: hidden;
+    border: 1px solid #dbe7ff;
+    box-shadow: 0 12px 28px rgba(37,99,235,.08);
+    background: linear-gradient(180deg,#f8fbff 0%,#ffffff 100%);
   }
   .cc-form-card .card-header, .cc-table-card .card-header {
-    background: linear-gradient(90deg, #0f172a, #1d4ed8);
+    background: linear-gradient(135deg, #1d4ed8 0%, #0891b2 100%);
     color: #fff;
+    border-bottom: 0;
   }
   .cc-toolbar {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
     align-items: center;
+  }
+  .cc-toolbar .btn {
+    border-radius: 10px;
+    border: none;
+    font-weight: 700;
+    box-shadow: 0 8px 18px rgba(15,23,42,.12);
+  }
+  .cc-form-card .card-body,
+  .cc-table-card .card-body {
+    background: linear-gradient(180deg,#f8fbff 0%,#ffffff 100%);
+  }
+  .cc-table-card .form-control,
+  .cc-form-card .form-control,
+  .cc-table-card .select2-container .select2-selection--single {
+    border-radius: 10px !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: 0 1px 2px rgba(15,23,42,.04);
   }
   .cc-mini-result {
     min-height: 20px;
@@ -83,6 +104,37 @@
   }
   .cc-table-wrap {
     position: relative;
+    border: 1px solid #dbe7ff;
+    border-radius: 16px;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.7);
+  }
+  #table_create_campaign_meta {
+    margin-bottom: 0 !important;
+  }
+  #table_create_campaign_meta thead th {
+    background: linear-gradient(135deg,#1d4ed8 0%,#0891b2 100%) !important;
+    color: #fff !important;
+    border: none !important;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: .01em;
+    white-space: nowrap;
+  }
+  #table_create_campaign_meta tbody tr:nth-child(odd) td { background: #f8fbff; }
+  #table_create_campaign_meta tbody tr:nth-child(even) td { background: #eef6ff; }
+  #table_create_campaign_meta tbody tr:hover td { background: #dbeafe !important; transition: background-color .16s ease; }
+  #table_create_campaign_meta tbody td { border-color: #e5edf8 !important; vertical-align: middle; }
+  #table_create_campaign_meta_wrapper .dataTables_filter,
+  #table_create_campaign_meta_wrapper .dataTables_length,
+  #table_create_campaign_meta_wrapper .dt-buttons {
+    margin-bottom: 12px;
+  }
+  #table_create_campaign_meta_wrapper .dataTables_filter input,
+  #table_create_campaign_meta_wrapper .dataTables_length select {
+    border-radius: 10px !important;
+    border: 1px solid #cbd5e1 !important;
   }
   #filter_campaign_accounts + .select2-container .select2-selection--single {
     height: 38px;
@@ -99,8 +151,9 @@
   }
   .cc-filter-help {
     margin-top: 6px;
-    color: #6c757d;
+    color: #64748b;
     font-size: 12px;
+    font-weight: 600;
   }
 
   .meta-modal .modal-dialog{max-width:1560px;margin:12px auto}
@@ -141,7 +194,7 @@
   .mp-section{border:1px solid #dbe5f4;border-radius:10px;background:#fff;padding:8px 10px;margin-bottom:8px}
   .mp-section-title{font-weight:800;font-size:14px;color:#0f172a;margin-bottom:4px}
   .mp-section-desc{font-size:12px;color:#64748b;margin-bottom:8px}
-  #modal_languages_wrap,.meta-audience-field{position:relative}#modal_languages_wrap .select2-container{width:100%!important}#modal_languages_wrap .select2-selection--multiple{min-height:44px!important;border:1px solid #cbd5e1!important;border-radius:12px!important;padding:4px 10px!important;background:linear-gradient(180deg,#fff,#f8fafc)!important;box-shadow:0 1px 2px rgba(15,23,42,.04);display:flex;align-items:center;align-content:flex-start;flex-wrap:wrap}#modal_languages_wrap .select2-selection__rendered{display:flex!important;align-items:center;gap:4px;min-height:34px;flex-wrap:wrap}#modal_languages_wrap .select2-search--inline{display:flex;align-items:center;flex:1 0 120px}#modal_languages_wrap .select2-search--inline .select2-search__field{margin-top:0!important;height:30px}#modal_languages_wrap .select2-selection__choice{border-radius:999px!important;padding:2px 8px!important;border:1px solid #bfdbfe!important;background:#eff6ff!important;color:#1e3a8a!important}.meta-audience-field{margin-top:12px}.meta-audience-field label{margin-bottom:6px}.meta-audience-field .form-control,.meta-audience-field .select2-container .select2-selection--single{height:44px!important;border-radius:12px!important;background:linear-gradient(180deg,#fff,#f8fafc);box-shadow:0 1px 2px rgba(15,23,42,.04)}.meta-audience-field small{display:block;margin-top:6px}.meta-audience-select .form-control{font-weight:600}.meta-audience-select:before{content:'';position:absolute;left:0;right:0;top:-6px;height:1px;background:linear-gradient(90deg,transparent,#e2e8f0,transparent)}
+  #modal_languages_wrap,.meta-audience-field{position:relative}#modal_languages_wrap .select2-container,.meta-dt-select .select2-container{width:100%!important}#modal_languages_wrap .select2-selection--multiple,.meta-dt-select .select2-selection--multiple{min-height:44px!important;border:1px solid #cbd5e1!important;border-radius:12px!important;padding:4px 10px!important;background:linear-gradient(180deg,#fff,#f8fafc)!important;box-shadow:0 1px 2px rgba(15,23,42,.04);display:flex;align-items:center;align-content:flex-start;flex-wrap:wrap}#modal_languages_wrap .select2-selection__rendered,.meta-dt-select .select2-selection__rendered{display:flex!important;align-items:center;gap:4px;min-height:34px;flex-wrap:wrap}#modal_languages_wrap .select2-search--inline,.meta-dt-select .select2-search--inline{display:flex;align-items:center;flex:1 0 120px}#modal_languages_wrap .select2-search--inline .select2-search__field,.meta-dt-select .select2-search--inline .select2-search__field{margin-top:0!important;height:30px}#modal_languages_wrap .select2-selection__choice,.meta-dt-select .select2-selection__choice{border-radius:999px!important;padding:2px 8px!important;border:1px solid #bfdbfe!important;background:#eff6ff!important;color:#1e3a8a!important}.meta-audience-field{margin-top:12px}.meta-audience-field label{margin-bottom:6px}.meta-audience-field .form-control,.meta-audience-field .select2-container .select2-selection--single{height:44px!important;border-radius:12px!important;background:linear-gradient(180deg,#fff,#f8fafc);box-shadow:0 1px 2px rgba(15,23,42,.04)}.meta-audience-field small{display:block;margin-top:6px}.meta-audience-select .form-control{font-weight:600}.meta-audience-select:before{content:'';position:absolute;left:0;right:0;top:-6px;height:1px;background:linear-gradient(90deg,transparent,#e2e8f0,transparent)}.meta-dt-card{margin-top:14px;border:1px solid #dbe5f4;border-radius:14px;background:linear-gradient(180deg,#fff,#f8fbff);padding:12px}.meta-dt-group{border:1px solid #e2e8f0;border-radius:12px;background:#fff;padding:12px}.meta-dt-title{font-weight:800;color:#0f172a}.meta-dt-note{font-size:12px;color:#64748b}.meta-auddef-mini{margin-top:10px;padding-top:10px;border-top:1px dashed #dbe5f4}.meta-auddef-bar{position:relative;height:8px;border-radius:999px;background:linear-gradient(90deg,#fee2e2 0 33%,#fef3c7 33% 66%,#dcfce7 66% 100%)}.meta-auddef-bar:after{content:'';position:absolute;top:50%;left:var(--aud-pos,50%);transform:translate(-50%,-50%);width:12px;height:12px;border-radius:50%;background:#0f172a;border:2px solid #fff;box-shadow:0 2px 8px rgba(15,23,42,.2)}
   #modal_manual_placement_wrap>.mp-section{display:none!important}#modalPlacementManagerUi{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:14px;align-items:start}#modalPlacementManagerUi .grp{border:1px solid #dbe5f4;border-radius:12px;background:#fff;overflow:hidden;margin-bottom:10px}#modalPlacementManagerUi .gh{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid #eef2f7;font-weight:800;color:#0f172a}#modalPlacementManagerUi .gd{padding:12px 14px 6px;color:#64748b;font-size:12px}#modalPlacementManagerUi .go{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-top:1px solid #eef2f7;font-weight:600;color:#334155}#modalPlacementManagerUi .go input,#modalPlacementManagerUi .gg{width:18px;height:18px}.mp-preview{border:1px solid #dbe5f4;border-radius:12px;padding:14px;background:linear-gradient(180deg,#fff,#f8fbff);position:sticky;top:0;box-shadow:0 10px 30px rgba(15,23,42,.06)}.mpf{position:relative;overflow:hidden;border-radius:18px;min-height:280px;background:linear-gradient(135deg,#c7d2fe 0%,#93c5fd 35%,#a7f3d0 100%);box-shadow:0 18px 40px rgba(59,130,246,.18)}.mpf:before{content:'';position:absolute;inset:-20% -40%;background:linear-gradient(115deg,transparent 20%,rgba(255,255,255,.28) 40%,rgba(255,255,255,.7) 50%,rgba(255,255,255,.2) 60%,transparent 80%);animation:mpShimmer 3.8s linear infinite}.mpf:after{content:'';position:absolute;right:18px;top:22%;width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.18);backdrop-filter:blur(4px);animation:mpFloat 4.5s ease-in-out infinite}.mpf.v{aspect-ratio:9/16;max-width:220px;margin:0 auto}.mpf.f{aspect-ratio:4/5}.mpl{position:absolute;top:14px;left:14px;right:14px;color:#fff;font-weight:700;text-shadow:0 2px 10px rgba(15,23,42,.35);z-index:2}.mpc{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);background:#fff;border-radius:999px;padding:8px 18px;font-weight:800;box-shadow:0 8px 20px rgba(15,23,42,.18);z-index:2}.mp-meta,.mp-lines{position:absolute;left:14px;right:14px;z-index:2}.mp-meta{top:44px;display:flex;gap:8px}.mp-meta span{height:10px;border-radius:999px;background:rgba(255,255,255,.75)}.mp-meta span:nth-child(1){width:36%}.mp-meta span:nth-child(2){width:22%}.mp-lines{bottom:64px}.mp-lines i{display:block;height:10px;border-radius:999px;background:rgba(255,255,255,.68);margin-top:8px}.mp-lines i:nth-child(1){width:82%}.mp-lines i:nth-child(2){width:58%}@keyframes mpShimmer{0%{transform:translateX(-35%) translateY(0)}100%{transform:translateX(35%) translateY(0)}}@keyframes mpFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}@media (prefers-reduced-motion:reduce){.mpf:before,.mpf:after{animation:none}}
   .meta-actions{display:flex;justify-content:space-between;align-items:center;width:100%;gap:8px}
   .meta-id-row{display:flex;align-items:center;gap:12px;padding:10px 0}.meta-id-no{font-size:22px;font-weight:800;color:#0f172a;width:22px}.meta-id-avatars{display:flex;align-items:center;gap:6px}.meta-id-avatar{width:42px;height:42px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:#e2e8f0;color:#475569;font-weight:800}.meta-id-avatar.ig{background:#fce7f3;color:#be185d}.meta-id-alert{margin-top:12px;padding:12px 14px;border-left:4px solid #ef4444;background:#fff1f2;border-radius:10px;color:#7f1d1d}.meta-result{display:block;margin-top:8px}
@@ -155,6 +208,37 @@
     background: linear-gradient(90deg, #1e293b, #0f172a);
     color: #cbd5e1;
     border-color: #334155;
+  }
+  html[data-theme="dark"] .cc-form-card,
+  html[data-theme="dark"] .cc-table-card {
+    border-color: #334155;
+    background: linear-gradient(180deg,#0f172a 0%,#111827 100%);
+    box-shadow: 0 14px 28px rgba(0,0,0,.35);
+  }
+  html[data-theme="dark"] .cc-form-card .card-body,
+  html[data-theme="dark"] .cc-table-card .card-body,
+  html[data-theme="dark"] .cc-table-wrap {
+    background: #111827;
+    border-color: #334155;
+  }
+  html[data-theme="dark"] #table_create_campaign_meta thead th {
+    background: linear-gradient(135deg,#2563eb 0%,#0f766e 100%) !important;
+  }
+  html[data-theme="dark"] #table_create_campaign_meta tbody tr:nth-child(odd) td { background: #162033; }
+  html[data-theme="dark"] #table_create_campaign_meta tbody tr:nth-child(even) td { background: #111827; }
+  html[data-theme="dark"] #table_create_campaign_meta tbody tr:hover td { background: #1e3a5f !important; }
+  html[data-theme="dark"] #table_create_campaign_meta tbody td,
+  html[data-theme="dark"] #table_create_campaign_meta_wrapper,
+  html[data-theme="dark"] #table_create_campaign_meta_wrapper .dataTables_info,
+  html[data-theme="dark"] #table_create_campaign_meta_wrapper .dataTables_filter label,
+  html[data-theme="dark"] #table_create_campaign_meta_wrapper .dataTables_length label {
+    color: #e5e7eb !important;
+  }
+  html[data-theme="dark"] #table_create_campaign_meta_wrapper .dataTables_filter input,
+  html[data-theme="dark"] #table_create_campaign_meta_wrapper .dataTables_length select {
+    background: #0f172a !important;
+    color: #e5e7eb !important;
+    border-color: #334155 !important;
   }
   html[data-theme="dark"] .cc-status.active { background: rgba(34,197,94,.18); color: #86efac; }
   html[data-theme="dark"] .cc-status.paused { background: rgba(148,163,184,.18); color: #e5e7eb; }
@@ -380,20 +464,21 @@
           <div id="pane1" class="meta-pane active">
             <div class="meta-card"><h6>Pengaturan Kampanye</h6><div class="form-row"><div class="col-md-4"><label>Nama Kampanye</label><input id="modal_campaign_name" class="form-control" type="text" placeholder="contoh: AFFILIATE_ID_TRAFFIC"></div><div class="col-md-4"><label>Nama  Akun</label><select class="form-control" id="modal_account"><option value=""></option>{% for data_account in data_account %}<option value="{{data_account.account_id}}">{{data_account.account_name}}</option>{% endfor %}</select></div><div class="col-md-2"><label>Tujuan</label><select id="modal_objective" class="form-control"><option value="OUTCOME_TRAFFIC">Lalu Lintas</option><option value="OUTCOME_LEADS">Prospek</option><option value="OUTCOME_SALES">Penjualan</option><option value="OUTCOME_ENGAGEMENT">Interaksi</option><option value="OUTCOME_AWARENESS">Kesadaran</option><option value="OUTCOME_APP_PROMOTION">Promosi Aplikasi</option></select></div><div class="col-md-2"><label>Status</label><select id="modal_status" class="form-control"><option value="PAUSED">Draft</option><option value="ACTIVE">Aktif</option></select></div></div></div>
             <div class="meta-card"><h6>Detail Kampanye</h6><div class="form-row"><div class="col-md-3"><label>Jenis Pembelian</label><select id="modal_campaign_buying_type" class="form-control"><option value="AUCTION">Lelang (Auction)</option><option value="RESERVED">Jangkauan & Frekuensi (Reserved)</option></select><small class="text-muted">Catatan: opsi Reserved hanya muncul valid jika akun Meta mendukung.</small></div><div class="col-md-3"><label>Kategori Iklan Khusus</label><select id="modal_campaign_special_category" class="form-control"><option value="NONE">Tidak ada</option><option value="CREDIT">Produk dan layanan keuangan</option><option value="EMPLOYMENT">Pekerjaan</option><option value="HOUSING">Perumahan</option><option value="ISSUES_ELECTIONS_POLITICS">Isu sosial, pemilu, atau politik</option></select></div><div class="col-md-3"><label>Tipe Anggaran Kampanye</label><select id="modal_campaign_budget_type" class="form-control"><option value="">Pilih Tipe Anggaran</option><option value="none">Tanpa CBO</option><option value="daily">Anggaran Harian</option><option value="lifetime">Anggaran Total</option></select></div><div class="col-md-3"><label>Batas Belanja Kampanye</label><input id="modal_campaign_spend_cap" class="form-control" type="number" min="0" placeholder="opsional"></div><div class="col-md-3 mt-2"><label>Anggaran Harian Kampanye</label><input id="modal_campaign_daily_budget" class="form-control" type="number" min="0" placeholder="opsional" disabled></div><div class="col-md-3 mt-2"><label>Anggaran Total Kampanye</label><input id="modal_campaign_lifetime_budget" class="form-control" type="number" min="0" placeholder="opsional" disabled></div></div></div>
+            <div class="meta-card"><div class="d-flex justify-content-between align-items-start flex-wrap"><div><h6 class="mb-1">Uji A/B</h6><div class="text-muted small">Bandingkan 2 versi kampanye untuk melihat mana yang bekerja lebih baik pada audiens yang dipisahkan.</div></div><div class="custom-control custom-switch mt-2 mt-md-0"><input type="checkbox" class="custom-control-input" id="modal_ab_test_enabled"><label class="custom-control-label" for="modal_ab_test_enabled">Nonaktif</label></div></div><div id="modal_ab_test_panel" class="mt-3" style="display:none;"><div class="form-row"><div class="col-md-4"><label>Apa yang ingin Anda uji?</label><select id="modal_ab_test_variable" class="form-control"><option value="creative">Materi Iklan</option><option value="audience">Pemirsa</option><option value="placement">Penempatan</option><option value="optimization">Optimisasi Penayangan</option></select></div><div class="col-md-3"><label>Durasi Pengujian</label><select id="modal_ab_test_days" class="form-control"><option value="3">3 hari</option><option value="5">5 hari</option><option value="7" selected>7 hari</option><option value="14">14 hari</option></select></div><div class="col-md-5"><label>Bagaimana Anda ingin membandingkan kinerja?</label><select id="modal_ab_test_metric" class="form-control"><option value="reach_cpm">Biaya per 1.000 Akun Meta yang dijangkau</option><option value="cost_per_result">Biaya per hasil</option><option value="ctr">CTR</option><option value="cpc">CPC</option></select></div></div><div id="modal_ab_test_summary" class="small text-muted mt-2">A/B test belum diaktifkan.</div></div></div>
           </div>
 
             <div id="pane2" class="meta-pane">
             <div class="meta-card"><h6>Ad Set Setup</h6><div class="form-row"><div class="col-md-4"><label>Nama Set Iklan</label><input id="modal_adset_name" class="form-control" type="text"></div><div class="col-md-3"><label>Konversi</label><select id="modal_conversion_location" class="form-control"><option value="WEBSITE">Website</option><option value="APP">App</option><option value="MESSAGING">Messaging</option></select></div><div class="col-md-3"><label>Target Kinerja</label><select id="modal_optimization_goal" class="form-control"><option value="LINK_CLICKS">Link Clicks</option><option value="LANDING_PAGE_VIEWS">Landing Page Views</option><option value="IMPRESSIONS">Impressions</option><option value="REACH">Reach</option></select></div><div class="col-md-2"><label>Target Biaya/Hasil</label><input id="modal_bid_amount" class="form-control" type="number" min="0" placeholder="opsional"></div></div></div>
             <div class="meta-card"><h6>Bidding & Atribusi</h6><div class="form-row"><div class="col-md-4"><label>Aturan Nilai</label><select id="modal_bid_strategy" class="form-control"><option value="LOWEST_COST_WITHOUT_CAP">Lowest Cost</option><option value="LOWEST_COST_WITH_BID_CAP">Bid Cap</option><option value="COST_CAP">Cost Cap</option></select></div><div class="col-md-3"><label>Model Atribusi</label><select id="modal_attribution_window" class="form-control"><option value="7d_click_1d_view">7d Click / 1d View</option><option value="1d_click">1d Click</option><option value="7d_click">7d Click</option></select></div><div class="col-md-3"><label>Materi Iklan Dinamis</label><select id="modal_dynamic_creative" class="form-control"><option value="0">Nonaktif</option><option value="1">Aktif</option></select></div></div></div>
-            <div class="meta-card"><h6>Anggaran & Jadwal</h6><div class="form-row"><div class="col-md-3"><label>Tipe Anggaran</label><select id="modal_budget_type" class="form-control"><option value="daily">Daily Budget</option><option value="lifetime">Lifetime Budget</option></select></div><div class="col-md-2"><label>Daily Budget</label><input id="modal_daily_budget" class="form-control" type="number" value="50000"></div><div class="col-md-2"><label>Lifetime Budget</label><input id="modal_lifetime_budget" class="form-control" type="number" placeholder="opsional"></div><div class="col-md-2"><label>Mulai</label><input id="modal_start_time" class="form-control" type="datetime-local"></div><div class="col-md-2"><label>Selesai</label><input id="modal_end_time" class="form-control" type="datetime-local"></div></div></div>
-            <div class="meta-card"><h6>Kontrol Pemirsa & Placement</h6><div class="form-row"><div class="col-md-6"><label>Lokasi Termasuk - Negara (CSV)</label><input id="modal_location_include_countries" class="form-control" type="text" value="ID" placeholder="ID,MY,PH"><small class="text-muted">Gunakan kode negara ISO (contoh: ID, MY).</small></div><div class="col-md-6"><label>Lokasi Dikecualikan - Negara (CSV)</label><input id="modal_location_exclude_countries" class="form-control" type="text" placeholder="contoh: SG"><small class="text-muted">Negara yang tidak ingin ditarget.</small></div><div class="col-md-8"><label>Pencarian Lokasi</label><div class="input-group"><div class="input-group-prepend"><select id="modal_location_mode" class="form-control"><option value="include">Termasuk</option><option value="exclude">Dikecualikan</option></select></div><div class="input-group-prepend"><select id="modal_location_type" class="form-control"><option value="country">Negara</option><option value="region">Wilayah</option><option value="city">Kota</option></select></div><input id="modal_location_query" class="form-control" type="text" placeholder="Cari lokasi..."><div class="input-group-append"><button id="modal_location_search_btn" class="btn btn-primary" type="button"><i class="fas fa-search"></i> Cari</button></div></div><small class="text-muted">Pilih mode dan tipe, lalu cari lokasi untuk ditambahkan otomatis.</small><div id="modal_location_search_results" class="meta-loc-results mt-2"><div class="text-muted small">Belum ada hasil pencarian.</div></div></div><div class="col-md-4"><label>Peta Lokasi</label><iframe id="modal_location_map_iframe" class="meta-loc-map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?q=Indonesia&output=embed"></iframe><div class="mt-1"><a id="modal_location_map_link" class="btn btn-outline-info btn-sm" href="https://www.google.com/maps/search/Indonesia" target="_blank" rel="noopener">Buka di Peta</a></div></div><input id="modal_location_include_regions" type="hidden" value=""><input id="modal_location_include_cities" type="hidden" value=""><input id="modal_location_exclude_regions" type="hidden" value=""><input id="modal_location_exclude_cities" type="hidden" value=""><div class="col-md-4 mt-2 meta-audience-field" id="modal_languages_wrap"><label>Bahasa</label><select id="modal_languages" class="form-control" multiple="multiple"></select><small class="text-muted">Cari dan pilih bahasa untuk memperhalus jangkauan audiens.</small></div><div class="col-md-2 mt-2 meta-audience-field"><label>Age Min</label><input id="modal_age_min" class="form-control" type="number" value="18"></div><div class="col-md-2 mt-2 meta-audience-field"><label>Age Max</label><input id="modal_age_max" class="form-control" type="number" value="65"></div><div class="col-md-2 mt-2 meta-audience-field meta-audience-select"><label>Gender</label><select id="modal_gender" class="form-control"><option value="all">All</option><option value="male">Male</option><option value="female">Female</option></select></div><div class="col-md-2 mt-2 meta-audience-field meta-audience-select"><label>Pemirsa Advantage+</label><select id="modal_advantage" class="form-control"><option value="0">Nonaktif</option><option value="1">Aktif</option></select></div><div class="col-md-2 mt-2 meta-audience-field meta-audience-select"><label>Penyesuaian Aset</label><select id="modal_asset_customization" class="form-control"><option value="0">Nonaktif</option><option value="1">Aktif</option></select></div><div class="col-md-3 mt-2 meta-audience-field meta-audience-select"><label>Penempatan</label><select id="modal_placement_mode" class="form-control"><option value="auto">Advantage+ (Auto)</option><option value="manual">Manual</option></select></div><div class="col-md-12 mt-2" id="modal_manual_placement_wrap" style="display:none;"><div class="mp-section"><div class="mp-section-title">Penempatan Manual</div><div class="mp-section-desc">Pilih device, platform, dan posisi tayang yang ingin digunakan.</div><div class="mb-2"><label class="mr-3"><input type="radio" name="modal_device_mode" value="all" checked> Semua Device</label><label class="mr-3"><input type="radio" name="modal_device_mode" value="mobile"> Mobile</label><label><input type="radio" name="modal_device_mode" value="desktop"> Desktop</label></div><div class="mp-grid"><label class="mp-item"><input type="checkbox" class="modal-platform" value="facebook" checked> Facebook</label><label class="mp-item"><input type="checkbox" class="modal-platform" value="instagram" checked> Instagram</label><label class="mp-item"><input type="checkbox" class="modal-platform" value="audience_network" checked> Audience Network</label><label class="mp-item"><input type="checkbox" class="modal-platform" value="messenger" checked> Messenger</label></div><div class="row mt-2"><div class="col-md-3"><div class="mp-section"><div class="mp-section-title">Facebook</div><div class="mp-grid mp-grid-2"><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="facebook" value="feed" checked> Feed</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="facebook" value="story" checked> Story</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="facebook" value="marketplace"> Marketplace</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="facebook" value="video_feeds"> Video Feeds</label></div></div></div><div class="col-md-3"><div class="mp-section"><div class="mp-section-title">Instagram</div><div class="mp-grid mp-grid-2"><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="instagram" value="stream" checked> Feed</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="instagram" value="story" checked> Story</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="instagram" value="reels"> Reels</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="instagram" value="explore"> Explore</label></div></div></div><div class="col-md-3"><div class="mp-section"><div class="mp-section-title">Audience Network</div><div class="mp-grid mp-grid-2"><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="audience_network" value="classic" checked> Classic</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="audience_network" value="rewarded_video"> Rewarded Video</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="audience_network" value="instream_video"> In-Stream</label></div></div></div><div class="col-md-3"><div class="mp-section"><div class="mp-section-title">Messenger</div><div class="mp-grid mp-grid-2"><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="messenger" value="story" checked> Story</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="messenger" value="messenger_home"> Home</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="messenger" value="sponsored_messages"> Sponsored</label></div></div></div></div></div></div></div></div>
+            <div class="meta-card"><h6>Anggaran & Jadwal</h6><div class="form-row"><div class="col-md-3"><label>Tipe Anggaran</label><select id="modal_budget_type" class="form-control"><option value="daily">Daily Budget</option><option value="lifetime">Lifetime Budget</option></select><small id="modal_budget_type_hint" class="text-muted d-block mt-2" style="display:none"></small></div><div class="col-md-4"><label>Daily Budget</label><div class="input-group"><div class="input-group-prepend"><span class="input-group-text">Rp</span></div><input id="modal_daily_budget" class="form-control" type="number" value="50000"></div></div><div class="col-md-5"><label>Lifetime Budget</label><div class="input-group"><div class="input-group-prepend"><span class="input-group-text">Rp</span></div><input id="modal_lifetime_budget" class="form-control" type="number" placeholder="opsional"></div></div><div class="col-md-6 mt-3"><label>Mulai</label><div class="input-group"><input id="modal_start_time" class="form-control datepicker-input flatpickr-input" type="text" placeholder="dd/mm/yyyy hh:mm" autocomplete="off"><div class="input-group-append"><button class="btn btn-outline-secondary" type="button" id="btnModalStartTimePicker"><i class="fas fa-calendar-alt"></i></button></div></div></div><div class="col-md-6 mt-3"><label>Selesai</label><div class="input-group"><input id="modal_end_time" class="form-control datepicker-input flatpickr-input" type="text" placeholder="dd/mm/yyyy hh:mm" autocomplete="off"><div class="input-group-append"><button class="btn btn-outline-secondary" type="button" id="btnModalEndTimePicker"><i class="fas fa-calendar-alt"></i></button></div></div></div></div></div>
+            <div class="meta-card"><h6>Kontrol Pemirsa & Placement</h6><div class="form-row"><div class="col-md-6"><label>Lokasi Termasuk - Negara (CSV)</label><input id="modal_location_include_countries" class="form-control" type="text" value="ID" placeholder="ID,MY,PH"><small class="text-muted">Gunakan kode negara ISO (contoh: ID, MY).</small></div><div class="col-md-6"><label>Lokasi Dikecualikan - Negara (CSV)</label><input id="modal_location_exclude_countries" class="form-control" type="text" placeholder="contoh: SG"><small class="text-muted">Negara yang tidak ingin ditarget.</small></div><div class="col-md-8"><label>Pencarian Lokasi</label><div class="form-row"><div class="col-md-4"><select id="modal_location_mode" class="form-control"><option value="include">Termasuk</option><option value="exclude">Dikecualikan</option></select></div><div class="col-md-4"><select id="modal_location_type" class="form-control"><option value="country">Negara</option><option value="region">Wilayah</option><option value="city">Kota</option></select></div><div class="col-md-12 mt-2"><div class="input-group"><input id="modal_location_query" class="form-control" type="text" placeholder="Cari lokasi..."><div class="input-group-append"><button id="modal_location_search_btn" class="btn btn-primary" type="button"><i class="fas fa-search"></i> Cari</button></div></div></div></div><small class="text-muted">Pilih mode dan tipe, lalu cari lokasi untuk ditambahkan otomatis.</small><div id="modal_location_search_results" class="meta-loc-results mt-2"><div class="text-muted small">Belum ada hasil pencarian.</div></div></div><div class="col-md-4"><label>Peta Lokasi</label><iframe id="modal_location_map_iframe" class="meta-loc-map" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="https://maps.google.com/maps?q=Indonesia&output=embed"></iframe><div class="mt-1"><a id="modal_location_map_link" class="btn btn-outline-info btn-sm" href="https://www.google.com/maps/search/Indonesia" target="_blank" rel="noopener">Buka di Peta</a></div></div><input id="modal_location_include_regions" type="hidden" value=""><input id="modal_location_include_cities" type="hidden" value=""><input id="modal_location_exclude_regions" type="hidden" value=""><input id="modal_location_exclude_cities" type="hidden" value=""><div class="col-md-12 mt-3 meta-audience-field" id="modal_languages_wrap"><label>Bahasa</label><select id="modal_languages" class="form-control" multiple="multiple"></select><small class="text-muted">Cari dan pilih bahasa untuk memperhalus jangkauan audiens.</small></div><div class="col-md-3 mt-2 meta-audience-field"><label>Age Min</label><input id="modal_age_min" class="form-control" type="number" value="18"></div><div class="col-md-3 mt-2 meta-audience-field"><label>Age Max</label><input id="modal_age_max" class="form-control" type="number" value="65"><small id="modal_age_max_hint" class="text-muted" style="display:none">Saat Advantage+ aktif, usia maksimum hanya menjadi saran.</small></div><div class="col-md-3 mt-2 meta-audience-field meta-audience-select"><label>Gender</label><select id="modal_gender" class="form-control"><option value="all">All</option><option value="male">Male</option><option value="female">Female</option></select></div><div class="col-md-3 mt-2 meta-audience-field meta-audience-select"><label>Pemirsa Advantage+</label><select id="modal_advantage" class="form-control"><option value="0">Nonaktif</option><option value="1">Aktif</option></select></div><div class="col-md-12"><div class="meta-dt-card"><div class="d-flex justify-content-between align-items-start flex-wrap mb-2"><div><div class="meta-dt-title">Penargetan terperinci</div><div class="meta-dt-note">Tambahkan demografis, minat, atau perilaku untuk mempersempit audiens seperti di Ads Manager.</div></div></div><div class="meta-dt-group mb-3"><div class="font-weight-bold mb-1">Sertakan orang yang cocok</div><div class="meta-dt-select"><select id="modal_detailed_targeting_include" class="form-control" multiple="multiple"></select></div></div><div class="meta-dt-group"><div class="font-weight-bold mb-1">dan juga harus cocok</div><div class="meta-dt-note mb-2">Gunakan grup kedua untuk mempersempit audiens lebih lanjut.</div><div class="meta-dt-select"><select id="modal_detailed_targeting_narrow" class="form-control" multiple="multiple"></select></div></div><small id="modal_detailed_targeting_summary" class="text-muted mt-2">Belum ada penargetan terperinci dipilih.</small><div class="meta-auddef-mini"><div class="d-flex align-items-center justify-content-between mb-1"><div class="font-weight-bold small mb-0">Definisi audiens</div><div id="modalAudienceMiniStatus" class="small font-weight-bold">Seimbang</div></div><div id="modalAudienceMiniBar" class="meta-auddef-bar" style="--aud-pos:50%;"></div><div class="d-flex justify-content-between mt-1"><small class="text-muted">Sempit</small><small class="text-muted">Luas</small></div><small id="modalAudienceMiniNote" class="text-muted d-block mt-2">Kontrol audiens mengikuti lokasi, usia, gender, bahasa, Advantage+, dan penargetan terperinci.</small></div></div></div><div class="col-md-2 mt-2 meta-audience-field meta-audience-select"><label>Penyesuaian Aset</label><select id="modal_asset_customization" class="form-control"><option value="0">Nonaktif</option><option value="1">Aktif</option></select></div><div class="col-md-3 mt-2 meta-audience-field meta-audience-select"><label>Penempatan</label><select id="modal_placement_mode" class="form-control"><option value="auto">Advantage+ (Auto)</option><option value="manual">Manual</option></select></div><div class="col-md-12 mt-2" id="modal_manual_placement_wrap" style="display:none;"><div class="mp-section"><div class="mp-section-title">Penempatan Manual</div><div class="mp-section-desc">Pilih device, platform, dan posisi tayang yang ingin digunakan.</div><div class="mb-2"><label class="mr-3"><input type="radio" name="modal_device_mode" value="all" checked> Semua Device</label><label class="mr-3"><input type="radio" name="modal_device_mode" value="mobile"> Mobile</label><label><input type="radio" name="modal_device_mode" value="desktop"> Desktop</label></div><div class="mp-grid"><label class="mp-item"><input type="checkbox" class="modal-platform" value="facebook" checked> Facebook</label><label class="mp-item"><input type="checkbox" class="modal-platform" value="instagram" checked> Instagram</label><label class="mp-item"><input type="checkbox" class="modal-platform" value="audience_network" checked> Audience Network</label><label class="mp-item"><input type="checkbox" class="modal-platform" value="messenger" checked> Messenger</label></div><div class="row mt-2"><div class="col-md-3"><div class="mp-section"><div class="mp-section-title">Facebook</div><div class="mp-grid mp-grid-2"><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="facebook" value="feed" checked> Feed</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="facebook" value="story" checked> Story</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="facebook" value="marketplace"> Marketplace</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="facebook" value="video_feeds"> Video Feeds</label></div></div></div><div class="col-md-3"><div class="mp-section"><div class="mp-section-title">Instagram</div><div class="mp-grid mp-grid-2"><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="instagram" value="stream" checked> Feed</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="instagram" value="story" checked> Story</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="instagram" value="reels"> Reels</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="instagram" value="explore"> Explore</label></div></div></div><div class="col-md-3"><div class="mp-section"><div class="mp-section-title">Audience Network</div><div class="mp-grid mp-grid-2"><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="audience_network" value="classic" checked> Classic</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="audience_network" value="rewarded_video"> Rewarded Video</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="audience_network" value="instream_video"> In-Stream</label></div></div></div><div class="col-md-3"><div class="mp-section"><div class="mp-section-title">Messenger</div><div class="mp-grid mp-grid-2"><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="messenger" value="story" checked> Story</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="messenger" value="messenger_home"> Home</label><label class="mp-item"><input type="checkbox" class="modal-position" data-platform="messenger" value="sponsored_messages"> Sponsored</label></div></div></div></div></div></div></div></div>
           </div>
 
           <div id="pane3" class="meta-pane">
             <div class="meta-card"><h6>Nama Iklan</h6><div class="form-row"><div class="col-md-8"><input id="modal_ad_name" class="form-control" type="text" placeholder="Masukkan nama iklan"></div><div class="col-md-4"><select id="modal_use_existing_post" class="form-control"><option value="0">Buat Iklan</option><option value="1">Pakai Existing Post</option></select></div></div></div>
             <div class="meta-card"><div class="d-flex justify-content-between align-items-start"><div><h6 class="mb-1">Iklan Kemitraan</h6><div class="text-muted small">Jalankan iklan dengan creator, merek, dan bisnis lain. UI ini mengikuti pola Ads Manager, sementara submit backend partnership masih disiapkan.</div></div><div class="custom-control custom-switch"><input type="checkbox" class="custom-control-input" id="modal_partnership_ad"><label class="custom-control-label" for="modal_partnership_ad">Nonaktif</label></div></div><div id="modal_partnership_panel" class="mt-3" style="display:none;"><div class="font-weight-bold mb-2">Pilih cara membuat iklan</div><button type="button" class="btn btn-light btn-block border mb-2" id="btnPartnershipCode">Masukkan kode iklan atau info postingan</button><button type="button" class="btn btn-light btn-block border" id="btnPartnershipPicker">Pilih kemitraan</button><div class="small text-muted mt-2" id="modal_partnership_summary">Belum ada metode kemitraan yang dipilih.</div><input type="hidden" id="modal_partnership_mode" value=""><input type="hidden" id="modal_partnership_code" value=""><input type="hidden" id="modal_partnership_partner" value=""></div></div>
             <div class="meta-card"><div class="d-flex justify-content-between align-items-start"><div><h6 class="mb-1">Identitas</h6><div class="text-muted small">Pilih Halaman Facebook dan profil Instagram yang akan dikaitkan dengan iklan ini.</div></div><button type="button" class="btn btn-outline-secondary btn-sm" id="btnEditIdentity">Edit</button></div><div class="meta-id-row"><div class="meta-id-no">1</div><div class="meta-id-avatars"><span class="meta-id-avatar">f</span><span class="meta-id-avatar ig">ig</span></div><div><div id="identityPrimaryName" class="font-weight-bold">Belum dipilih</div><div id="identityPrimaryMeta" class="text-muted">Tambahkan Page ID dan profil Instagram</div></div></div><div class="meta-id-row"><div class="meta-id-no">2</div><div class="meta-id-avatars"><span class="meta-id-avatar">f</span><span class="meta-id-avatar ig">ig</span></div><div><div id="identitySecondaryName" class="font-weight-bold text-muted">Tidak ada identitas kedua</div><div id="identitySecondaryMeta" class="text-muted">Tidak ada profil yang terhubung</div></div></div><div id="identityPartnershipAlert" class="meta-id-alert" style="display:none;">Iklan kemitraan mewajibkan Anda untuk memilih identitas pertama dan kedua.</div><div class="mt-3"><div class="font-weight-bold">Identitas untuk ditampilkan di judul</div><div class="text-muted small mb-2">Identitas dinamis.</div><input type="hidden" id="modal_page_id" value=""><input type="hidden" id="modal_instagram_actor_id" value=""><input type="hidden" id="modal_threads_user_id" value=""><input type="hidden" id="modal_identity_title_mode" value="dynamic"></div></div><div class="meta-card"><h6>Destinasi</h6><div class="text-muted small mb-3">Tentukan tempat untuk mengirim orang setelah mereka mengetuk atau mengklik iklan Anda.</div><div class="custom-control custom-radio mb-2"><input class="custom-control-input" type="radio" name="modal_destination_mode" id="modal_destination_website" value="website" checked><label class="custom-control-label" for="modal_destination_website">Situs Web<div class="small text-muted font-weight-normal">Kirim orang ke situs web Anda.</div></label></div><div class="custom-control custom-radio mb-2"><input class="custom-control-input" type="radio" name="modal_destination_mode" id="modal_destination_instant" value="instant" disabled><label class="custom-control-label text-muted" for="modal_destination_instant">Instant Experience<div class="small text-muted font-weight-normal">UI disiapkan, submit builder saat ini fokus ke Situs Web.</div></label></div><div class="custom-control custom-radio mb-3"><input class="custom-control-input" type="radio" name="modal_destination_mode" id="modal_destination_call" value="call" disabled><label class="custom-control-label text-muted" for="modal_destination_call">Panggilan Telepon</label></div><div id="modal_destination_website_wrap"><div class="form-row"><div class="col-md-9"><label>URL Situs Web</label><div class="input-group"><input id="modal_website_url" class="form-control" type="text" placeholder="https://domain.com"><div class="input-group-append"><button class="btn btn-outline-secondary" type="button" id="btnTestWebsiteUrl"><i class="fas fa-external-link-alt"></i></button></div></div><small id="modal_destination_test_result" class="text-muted">Isi URL lalu klik tombol test untuk membuka link.</small></div><div class="col-md-3"><label>CTA</label><select id="modal_cta" class="form-control"><option value="LEARN_MORE">Pelajari Selengkapnya</option><option value="SHOP_NOW">Belanja Sekarang</option><option value="SIGN_UP">Daftar</option><option value="CONTACT_US">Hubungi Kami</option><option value="APPLY_NOW">Lamar Sekarang</option><option value="BOOK_TRAVEL">Pesan Perjalanan</option><option value="BOOK_NOW">Pesan Sekarang</option><option value="DOWNLOAD">Unduh</option><option value="GET_OFFER">Dapatkan Promo</option><option value="GET_QUOTE">Minta Penawaran</option><option value="INSTALL_APP">Instal Aplikasi</option><option value="LISTEN_NOW">Dengarkan Sekarang</option><option value="ORDER_NOW">Pesan Sekarang</option><option value="PLAY_GAME">Mainkan Game</option><option value="REQUEST_TIME">Minta Waktu</option><option value="SEE_MENU">Lihat Menu</option><option value="SEND_MESSAGE">Kirim Pesan</option><option value="SUBSCRIBE">Berlangganan</option><option value="WATCH_MORE">Tonton Selengkapnya</option><option value="WHATSAPP_MESSAGE">WhatsApp</option></select></div><div class="col-md-6 mt-3"><label>Tautan Tampilan</label><input id="modal_display_link" class="form-control" type="text" placeholder="domain.com"></div></div><div class="mt-4"><div class="font-weight-bold mb-2">Add-on browser</div><div class="custom-control custom-radio mb-2"><input class="custom-control-input" type="radio" name="modal_browser_addon" id="modal_browser_addon_none" value="none" checked><label class="custom-control-label" for="modal_browser_addon_none">Tidak Ada<div class="small text-muted font-weight-normal">Jangan tambahkan tombol.</div></label></div><div class="custom-control custom-radio mb-2"><input class="custom-control-input" type="radio" name="modal_browser_addon" id="modal_browser_addon_phone" value="phone"><label class="custom-control-label" for="modal_browser_addon_phone">Telepon</label></div><div class="custom-control custom-radio mb-2"><input class="custom-control-input" type="radio" name="modal_browser_addon" id="modal_browser_addon_whatsapp" value="whatsapp"><label class="custom-control-label" for="modal_browser_addon_whatsapp">WhatsApp</label></div><div class="custom-control custom-radio"><input class="custom-control-input" type="radio" name="modal_browser_addon" id="modal_browser_addon_form" value="form"><label class="custom-control-label" for="modal_browser_addon_form">Formulir instan</label></div></div></div></div>
-            <div class="meta-card"><h6>Materi Iklan</h6><div class="text-muted small mb-3">Pilih dan optimalkan teks iklan, media, dan penyempurnaan Anda.</div><div class="d-flex justify-content-between align-items-start flex-wrap"><div><div class="font-weight-bold">Penyiapan materi iklan</div><div class="small"><b>Dinonaktifkan:</b> Branding, Sorotan situs web</div><div class="small"><b>Diaktifkan:</b> Tautan situs</div></div><button type="button" class="btn btn-outline-secondary btn-sm mt-2 mt-md-0" id="btnEditCreativeSetup">Edit</button></div><div class="mt-3"><label class="font-weight-bold">Media</label><div class="dropdown d-inline-block ml-2"><button class="btn btn-outline-secondary dropdown-toggle" type="button" id="btnCreativeMediaMenu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Tambahkan media</button><div class="dropdown-menu" aria-labelledby="btnCreativeMediaMenu"><button class="dropdown-item" type="button" data-media-kind="image">Tambahkan gambar</button><button class="dropdown-item" type="button" data-media-kind="video">Tambahkan video</button></div></div><input id="modal_image_file" type="file" accept="image/*" hidden><input id="modal_video_file" type="file" accept="video/*" hidden><div id="modal_media_state" class="alert alert-danger py-2 px-3 mt-3 mb-2">Media belum dipilih. Tambahkan gambar atau video untuk materi iklan Anda.</div><div id="modal_media_files" class="small text-muted"></div></div><div class="mt-4"><div class="font-weight-bold mb-2">Opsi tampilan format</div><div class="text-muted small mb-2">Tampilkan media dengan beragam cara agar lebih relevan dengan orang yang melihat iklan Anda.</div><div class="border rounded p-3" style="background:#eef5ff"><div class="d-flex justify-content-between align-items-center"><div><div class="font-weight-bold">2 dari 4 opsi tampilan format diaktifkan</div><div class="small text-muted">Menampilkan produk</div></div><button type="button" class="btn btn-link btn-sm p-0" id="btnToggleFormatOptions">Ubah</button></div><div id="modal_format_options_wrap" class="mt-3"><div class="form-group mb-3"><label>Carousel</label><select id="modal_format_carousel_behavior" class="form-control"><option value="product">Tampilkan produk</option><option value="image">Tampilkan gambar</option><option value="link">Tampilkan tautan</option></select></div><div class="form-group mb-0"><label>Koleksi</label><select id="modal_format_collection_behavior" class="form-control"><option value="product">Tampilkan produk</option><option value="image">Tampilkan gambar</option><option value="catalog">Tampilkan katalog</option></select></div></div></div></div><div class="form-row mt-3"><div class="col-md-6" id="modal_existing_post_wrap" style="display:none;"><label>Existing Post ID</label><input id="modal_existing_post_id" class="form-control" type="text" placeholder="pageid_postid"></div><div class="col-md-3"><label>Display Link</label><input id="modal_display_link" class="form-control" type="text" placeholder="domain.com"></div><div class="col-md-3"><label>Caption</label><input id="modal_caption" class="form-control" type="text" placeholder="opsional"></div><div class="col-md-12 mt-3" id="modal_ad_copy_wrap"><label>Teks utama</label><textarea id="modal_primary_text" class="form-control" rows="6" placeholder="Tulis teks utama iklan di sini"></textarea><button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="btnAddTextOption">Tambahkan opsi teks</button></div><div class="col-md-6 mt-3" id="modal_ad_headline_wrap"><label>Judul</label><input id="modal_headline" class="form-control" type="text" placeholder="Masukkan judul"></div><div class="col-md-6 mt-3" id="modal_ad_description_wrap"><label>Deskripsi</label><input id="modal_description" class="form-control" type="text" placeholder="opsional"></div></div></div>
+            <div class="meta-card"><h6>Materi Iklan</h6><div class="text-muted small mb-3">Pilih dan optimalkan teks iklan, media, dan penyempurnaan Anda.</div><div class="d-flex justify-content-between align-items-start flex-wrap"><div><div class="font-weight-bold">Penyiapan materi iklan</div><div class="small"><b>Dinonaktifkan:</b> Branding, Sorotan situs web</div><div class="small"><b>Diaktifkan:</b> Tautan situs</div></div><button type="button" class="btn btn-outline-secondary btn-sm mt-2 mt-md-0" id="btnEditCreativeSetup">Edit</button></div><div class="mt-3"><label class="font-weight-bold">Media</label><div class="dropdown d-inline-block ml-2"><button class="btn btn-outline-secondary dropdown-toggle" type="button" id="btnCreativeMediaMenu" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Tambahkan media</button><div class="dropdown-menu" aria-labelledby="btnCreativeMediaMenu"><button class="dropdown-item" type="button" data-media-kind="image">Tambahkan gambar</button><button class="dropdown-item" type="button" data-media-kind="video">Tambahkan video</button></div></div><input id="modal_image_file" type="file" accept="image/*" hidden><input id="modal_video_file" type="file" accept="video/*" hidden><div id="modal_media_state" class="alert alert-danger py-2 px-3 mt-3 mb-2">Media belum dipilih. Tambahkan gambar atau video untuk materi iklan Anda.</div><div id="modal_media_files" class="small text-muted"></div><div id="modal_app_mode_warning" class="alert alert-warning py-2 px-3 mt-3 mb-0" style="display:none;">Aplikasi Meta yang dipakai masih dalam mode development. Untuk sementara gunakan <b>Pakai Existing Post</b> dan isi <b>Existing Post ID</b> dari postingan yang sudah publik.</div></div><div class="mt-4"><div class="font-weight-bold mb-2">Opsi tampilan format</div><div class="text-muted small mb-2">Tampilkan media dengan beragam cara agar lebih relevan dengan orang yang melihat iklan Anda.</div><div class="border rounded p-3" style="background:#eef5ff"><div class="d-flex justify-content-between align-items-center"><div><div class="font-weight-bold">2 dari 4 opsi tampilan format diaktifkan</div><div class="small text-muted">Menampilkan produk</div></div><button type="button" class="btn btn-link btn-sm p-0" id="btnToggleFormatOptions">Ubah</button></div><div id="modal_format_options_wrap" class="mt-3"><div class="form-group mb-3"><label>Carousel</label><select id="modal_format_carousel_behavior" class="form-control"><option value="product">Tampilkan produk</option><option value="image">Tampilkan gambar</option><option value="link">Tampilkan tautan</option></select></div><div class="form-group mb-0"><label>Koleksi</label><select id="modal_format_collection_behavior" class="form-control"><option value="product">Tampilkan produk</option><option value="image">Tampilkan gambar</option><option value="catalog">Tampilkan katalog</option></select></div></div></div></div><div class="form-row mt-3"><div class="col-md-6" id="modal_existing_post_wrap" style="display:none;"><label>Existing Post ID</label><input id="modal_existing_post_id" class="form-control" type="text" placeholder="pageid_postid"></div><div class="col-md-3"><label>Display Link</label><input id="modal_display_link" class="form-control" type="text" placeholder="domain.com"></div><div class="col-md-3"><label>Caption</label><input id="modal_caption" class="form-control" type="text" placeholder="opsional"></div><div class="col-md-12 mt-3" id="modal_ad_copy_wrap"><label>Teks utama</label><textarea id="modal_primary_text" class="form-control" rows="6" placeholder="Tulis teks utama iklan di sini"></textarea><button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="btnAddTextOption">Tambahkan opsi teks</button></div><div class="col-md-6 mt-3" id="modal_ad_headline_wrap"><label>Judul</label><input id="modal_headline" class="form-control" type="text" placeholder="Masukkan judul"></div><div class="col-md-6 mt-3" id="modal_ad_description_wrap"><label>Deskripsi</label><input id="modal_description" class="form-control" type="text" placeholder="opsional"></div></div></div>
             <div class="meta-card"><h6>Pengujian materi iklan</h6><div class="text-muted mb-3">Bandingkan hingga 7 versi berbeda materi iklan Anda dalam pengujian yang membantu memastikan penayangan iklan pengujian baru.</div><button type="button" class="btn btn-outline-secondary" id="btnOpenCreativeTestSetup">Siapkan uji coba</button><div id="modal_creative_test_summary" class="small text-muted mt-3">Belum ada pengujian materi iklan yang disiapkan.</div></div><div class="meta-card"><h6>Pelacakan</h6><div class="text-muted mb-3">Pilih peristiwa konversi untuk dilacak. Set data konversi yang dipilih akun iklan ini akan dilacak secara default.</div><div class="d-flex justify-content-between align-items-center flex-wrap mb-3"><div><div class="font-weight-bold">Peristiwa situs web</div><div class="small text-muted">Pixel / peristiwa web untuk iklan situs web.</div></div><button type="button" class="btn btn-outline-secondary btn-sm" id="btnOpenPixelSetup">Penyiapan</button></div><div class="custom-control custom-checkbox mb-3"><input class="custom-control-input" type="checkbox" id="modal_track_app_event"><label class="custom-control-label" for="modal_track_app_event">Peristiwa Aplikasi</label></div><div class="d-flex justify-content-between align-items-center flex-wrap mb-3"><div><div class="font-weight-bold">Acara offline</div><div class="small text-muted">Layer UI disiapkan untuk perluasan berikutnya.</div></div><button type="button" class="btn btn-outline-secondary btn-sm" id="btnOpenOfflineSetup">Penyiapan</button></div><div class="form-group"><label>Parameter URL</label><input id="modal_url_tags" class="form-control" type="text" placeholder="utm_source=meta&utm_medium=cpc"><button type="button" class="btn btn-link px-0 mt-2" id="btnBuildUrlTags">Buat parameter URL</button></div><div class="font-weight-bold mt-3 mb-2">Fitur pelaporan pihak ketiga</div><div class="text-muted mb-3">Hubungkan akun Anda untuk mengukur tindakan pada iklan yang mengarahkan orang ke situs web atau toko Anda.</div><button type="button" class="btn btn-outline-secondary" id="btnOpenThirdPartyTracking">Hubungkan</button><input id="modal_pixel_id" type="hidden" value=""></div>
           </div>
         </div>
@@ -405,9 +490,10 @@
         </div>
       </div>
       <input type="hidden" id="modal_campaign_id" />
+      <input type="hidden" id="modal_adset_id" />
       <input type="hidden" id="modal_campaign_mode" value="create" />
     </div>
-    <div class="modal-footer"><div class="meta-actions"><div><button class="btn btn-outline-secondary" type="button" id="btnWizardPrev">Kembali</button> <button class="btn btn-outline-secondary" type="button" id="btnWizardNext">Lanjut</button></div><div><button class="btn btn-info" type="button" id="btnWizardGoStep3" style="display:none;">Lanjut ke Iklan</button> <button class="btn btn-success" type="button" id="btnWizardCreateCampaign">Buat Kampanye</button> <button class="btn btn-primary" type="button" id="btnWizardCreateAdsetAd">Buat Set Iklan + Iklan</button></div></div></div>
+    <div class="modal-footer"><div class="meta-actions"><div><button class="btn btn-outline-secondary" type="button" id="btnWizardPrev">Kembali</button> <button class="btn btn-outline-secondary" type="button" id="btnWizardNext">Lanjut</button></div><div><button class="btn btn-outline-danger" type="button" id="btnWizardClearAdsetDraft" style="display:none;" onclick="window.createCampaignModalApi&&window.createCampaignModalApi.clearAdsetDraft&&window.createCampaignModalApi.clearAdsetDraft()">Hapus Draft Set Iklan</button> <button class="btn btn-warning" type="button" id="btnWizardSaveAdset" style="display:none;" onclick="window.createCampaignModalApi&&window.createCampaignModalApi.builderSaveAdset&&window.createCampaignModalApi.builderSaveAdset()">Simpan Set Iklan</button> <button class="btn btn-info" type="button" id="btnWizardGoStep3" style="display:none;">Lanjut ke Iklan</button> <button class="btn btn-success" type="button" id="btnWizardCreateCampaign">Buat Kampanye</button> <button class="btn btn-primary" type="button" id="btnWizardCreateAdsetAd">Buat Set Iklan + Iklan</button></div></div></div>
   </div></div>
 </div>
 
@@ -471,7 +557,7 @@
 
   const requiredByStep = {
     1: ['#modal_campaign_name','#modal_account','#modal_objective','#modal_status'],
-    2: ['#modal_adset_name','#modal_daily_budget','#modal_location_include_countries','#modal_age_min','#modal_age_max'],
+    2: ['#modal_adset_name','#modal_location_include_countries','#modal_age_min','#modal_age_max'],
     3: ['#modal_ad_name','#modal_page_id','#modal_website_url','#modal_cta']
   };
 
@@ -492,7 +578,10 @@
   };
 
   function updateStepProgress() {
-    const req = requiredByStep[wizardStep] || [];
+    const campBudgetType = String($('#modal_campaign_budget_type').val() || 'none').trim();
+    const req = wizardStep === 2 && campBudgetType === 'none'
+      ? (requiredByStep[2] || []).concat(['#modal_daily_budget'])
+      : (requiredByStep[wizardStep] || []);
     let filled = 0;
     const missing = [];
     req.forEach(function(sel) {
@@ -516,6 +605,8 @@
     $('#btnWizardPrev').prop('disabled', wizardStep === 1);
     $('#btnWizardNext').prop('disabled', wizardStep === 3);
     $('#btnWizardCreateCampaign').toggle(wizardStep === 1);
+    $('#btnWizardClearAdsetDraft').toggle(wizardStep === 2);
+    $('#btnWizardSaveAdset').toggle(wizardStep === 2);
     $('#btnWizardGoStep3').toggle(wizardStep === 2);
     $('#btnWizardCreateAdsetAd').toggle(wizardStep === 3);
     updateStepProgress();
@@ -528,7 +619,7 @@
 
   function buildMetaRows(rows) {
     return (rows || []).map(function(row) {
-      const budget = row.daily_budget ? ('<div class="cc-budget">Daily: ' + escapeHtml(formatBudget(row.daily_budget)) + '</div>') : row.lifetime_budget ? ('<div class="cc-budget">Lifetime: ' + escapeHtml(formatBudget(row.lifetime_budget)) + '</div>') : '-';
+      const budget = row.daily_budget ? ('<div class="cc-budget"> ' + escapeHtml(formatBudget(row.daily_budget)) + '</div>') : row.lifetime_budget ? ('<div class="cc-budget">Lifetime: ' + escapeHtml(formatBudget(row.lifetime_budget)) + '</div>') : '-';
       const actionBtn = '<button type="button" class="btn btn-xs btn-outline-primary btn-edit-campaign-meta" data-account-id="' + escapeHtml(row.account_id || '') + '" data-campaign-id="' + escapeHtml(row.campaign_id || '') + '"><i class="fas fa-pen"></i> Edit</button>';
       return [escapeHtml(row.account_name || '-'), escapeHtml(row.campaign_name || '-'), escapeHtml(row.campaign_id || '-'), escapeHtml(row.objective || '-'), statusBadge(row.status), statusBadge(row.effective_status), escapeHtml(row.buying_type || '-'), budget, escapeHtml(formatDate(row.updated_time)), escapeHtml(formatDate(row.created_time)), actionBtn];
     });
@@ -710,12 +801,25 @@
   function resetBuilder() {
     $('#modal_campaign_mode').val('create');
     $('#modal_campaign_id').val('');
+    $('#modal_adset_id').val('');
+    $('#modal_ab_test_enabled').prop('checked', false);
+    $('#modal_ab_test_variable').val('creative');
+    $('#modal_ab_test_days').val('7');
+    $('#modal_ab_test_metric').val('reach_cpm');
     $('#metaSummaryCampaignId').text('-');
     $('#btnWizardCreateCampaign').text('Buat Kampanye').removeClass('btn-warning').addClass('btn-success');
+    $('#modal_app_mode_warning').hide();
     $('#modal_create_result').removeClass('text-danger text-success').addClass('text-muted').text('Isi form campaign untuk mulai.');
+    syncCampaignAbTestSummary();
     setWizardStep(1);
   }
 
+  function applyEditAdsetData(adset){
+    if(!adset || typeof adset!=='object') return false;
+    if(adset.location_labels && typeof adset.location_labels==='object'){ window.__ccLocLabels = Object.assign(window.__ccLocLabels||{}, adset.location_labels); }
+    ['adset_id','adset_name','budget_type','daily_budget','lifetime_budget','start_time','end_time','location_include_countries','location_exclude_countries','location_include_regions','location_include_cities','location_exclude_regions','location_exclude_cities','age_min','age_max','optimization_goal','bid_strategy','bid_amount','attribution_window','dynamic_creative','gender'].forEach(function(k){ if(typeof adset[k]!=='undefined') $('#modal_'+k).val(String(adset[k]||'')); });
+    return true;
+  }
   function fillCampaignForEdit(data) {
     $('#modal_campaign_mode').val('edit');
     $('#modal_campaign_id').val(String(data.campaign_id || ''));
@@ -729,21 +833,169 @@
     $('#modal_campaign_daily_budget').val(String(data.campaign_daily_budget || ''));
     $('#modal_campaign_lifetime_budget').val(String(data.campaign_lifetime_budget || ''));
     $('#modal_campaign_spend_cap').val(String(data.campaign_spend_cap || ''));
+    $('#modal_ab_test_enabled').prop('checked', String(data.ab_test_enabled || '0') === '1');
+    $('#modal_ab_test_variable').val(String(data.ab_test_variable || 'creative'));
+    $('#modal_ab_test_days').val(String(data.ab_test_days || '7'));
+    $('#modal_ab_test_metric').val(String(data.ab_test_metric || 'reach_cpm'));
+    applyEditAdsetData(data.adset || {});
     $('#metaSummaryCampaignId').text(String(data.campaign_id || '-'));
     $('#btnWizardCreateCampaign').text('Simpan Perubahan').removeClass('btn-success').addClass('btn-warning');
-    $('#modal_create_result').removeClass('text-danger text-success').addClass('text-muted').text('Mode edit campaign aktif. Ubah data pada Step 1 lalu simpan.');
+    $('#modal_app_mode_warning').hide();
+    $('#modal_create_result').removeClass('text-danger text-success').addClass('text-muted').text((data.adset && (data.adset.location_include_countries || data.adset.location_include_regions || data.adset.location_include_cities)) ? 'Mode edit campaign aktif. Data Step 2 termasuk lokasi lama berhasil dimuat.' : 'Mode edit campaign aktif. Ubah data pada Step 1 lalu simpan.');
     syncCampaignBudgetFields();
+    syncCampaignAbTestSummary();
+    initAudiencePlacementControls();
+    syncBidAmountField();
+    updateStepProgress();
     setWizardStep(1);
+    setTimeout(function(){ restoreAdsetDraft(); }, 80);
   }
 
+  function initBuilderDateInputs() {
+    [
+      { input: '#modal_start_time', button: '#btnModalStartTimePicker' },
+      { input: '#modal_end_time', button: '#btnModalEndTimePicker' }
+    ].forEach(function(cfg){
+      const $input=$(cfg.input), el=$input.get(0), $btn=$(cfg.button);
+      if(!el) return;
+      const cur=String($input.val()||'').trim();
+      if(el._flatpickr) el._flatpickr.destroy();
+      if(window.flatpickr){
+        flatpickr(el,{enableTime:true,time_24hr:true,allowInput:true,clickOpens:true,dateFormat:'Y-m-d\\TH:i',altInput:true,altFormat:'d/m/Y H:i',minuteIncrement:5,defaultDate:cur||null});
+        $btn.off('.dtpick').on('click.dtpick',function(e){ e.preventDefault(); if(el._flatpickr) el._flatpickr.open(); else $input.trigger('focus'); });
+      }else{
+        $input.attr('type','datetime-local').attr('placeholder','').removeClass('flatpickr-input');
+        $btn.off('.dtpick').on('click.dtpick',function(e){ e.preventDefault(); if(typeof el.showPicker==='function') el.showPicker(); else $input.trigger('focus'); });
+      }
+    });
+  }
   function syncCampaignBudgetFields() {
     const type = String($('#modal_campaign_budget_type').val() || '').trim();
     const isDaily = type === 'daily';
     const isLifetime = type === 'lifetime';
     const isNone = type === 'none' || type === '';
+    const followType = isLifetime ? 'lifetime' : 'daily';
     $('#modal_campaign_daily_budget').prop('disabled', !isDaily).val(isDaily ? $('#modal_campaign_daily_budget').val() : '');
     $('#modal_campaign_lifetime_budget').prop('disabled', !isLifetime).val(isLifetime ? $('#modal_campaign_lifetime_budget').val() : '');
     $('#modal_campaign_spend_cap').prop('disabled', isNone);
+    const adsetBudgetOff = !isNone;
+    $('#modal_budget_type').val(String($('#modal_budget_type').val() || followType)).prop('disabled', adsetBudgetOff);
+    $('#modal_budget_type_hint').html(adsetBudgetOff ? '<span class="badge badge-pill badge-info mr-1">Campaign</span>Mengikuti tipe anggaran campaign.' : '').toggle(adsetBudgetOff);
+    $('#modal_daily_budget,#modal_lifetime_budget').prop('disabled', adsetBudgetOff);
+    if (adsetBudgetOff) {
+      $('#modal_budget_type').val(followType);
+      $('#modal_daily_budget,#modal_lifetime_budget').val('');
+      $('#modal_daily_budget').attr('placeholder','Mengikuti anggaran kampanye');
+      $('#modal_lifetime_budget').attr('placeholder','Mengikuti anggaran kampanye');
+    }
+    updateStepProgress();
+  }
+
+  function syncCampaignAbTestSummary() {
+    const on = $('#modal_ab_test_enabled').is(':checked');
+    const variable = $('#modal_ab_test_variable option:selected').text() || 'Materi Iklan';
+    const days = String($('#modal_ab_test_days').val() || '7');
+    const metric = $('#modal_ab_test_metric option:selected').text() || 'Biaya per 1.000 Akun Meta yang dijangkau';
+    $('label[for="modal_ab_test_enabled"]').text(on ? 'Aktif' : 'Nonaktif');
+    $('#modal_ab_test_panel').toggle(on);
+    $('#modal_ab_test_summary').text(on ? ('Variabel: ' + variable + ' • Durasi: ' + days + ' hari • KPI: ' + metric + '.') : 'A/B test belum diaktifkan.');
+  }
+  function syncBidAmountField() {
+    const strategy = String($('#modal_bid_strategy').val() || 'LOWEST_COST_WITHOUT_CAP').trim();
+    const needBid = strategy === 'LOWEST_COST_WITH_BID_CAP' || strategy === 'COST_CAP' || strategy === 'TARGET_COST';
+    $('#modal_bid_amount').attr('placeholder', needBid ? 'wajib diisi' : 'opsional');
+    $('#modal_bid_amount').toggleClass('is-invalid', needBid && !String($('#modal_bid_amount').val() || '').trim());
+  }
+  function normalizeBidInputsForSubmit(showMessage){
+    const strategy = String($('#modal_bid_strategy').val() || 'LOWEST_COST_WITHOUT_CAP').trim();
+    const bidAmount = String($('#modal_bid_amount').val() || '').trim();
+    const needBid = strategy === 'LOWEST_COST_WITH_BID_CAP' || strategy === 'COST_CAP' || strategy === 'TARGET_COST';
+    if (needBid && !bidAmount) {
+      $('#modal_bid_strategy').val('LOWEST_COST_WITHOUT_CAP');
+      syncBidAmountField();
+      if (showMessage) {
+        $('#modal_create_result').removeClass('text-danger text-success').addClass('text-muted').text('Aturan Nilai otomatis diubah ke Lowest Cost karena Target Biaya/Hasil belum diisi.');
+      }
+      return 'LOWEST_COST_WITHOUT_CAP';
+    }
+    return strategy;
+  }
+  function normalizeAttributionWindowForSubmit(showMessage){
+    const conv = String($('#modal_conversion_location').val() || 'WEBSITE').trim().toUpperCase();
+    const goal = String($('#modal_optimization_goal').val() || 'LINK_CLICKS').trim().toUpperCase();
+    const current = String($('#modal_attribution_window').val() || '7d_click_1d_view').trim();
+    const mustOneDayClick = conv === 'WEBSITE' && (goal === 'LINK_CLICKS' || goal === 'LANDING_PAGE_VIEWS');
+    if (mustOneDayClick && current !== '1d_click') {
+      $('#modal_attribution_window').val('1d_click');
+      if (showMessage) {
+        $('#modal_create_result').removeClass('text-danger text-success').addClass('text-muted').text('Model Atribusi otomatis diubah ke 1d Click karena kombinasi tujuan optimasi saat ini hanya mendukung 1 hari klik.');
+      }
+      return '1d_click';
+    }
+    return current;
+  }
+  function syncAdvantageAudienceFields(){
+    const on = String($('#modal_advantage').val() || '0') === '1';
+    $('#modal_age_max').prop('disabled', on).toggleClass('bg-light', on);
+    $('#modal_age_max_hint').toggle(on);
+    if (on) $('#modal_age_max').val('65');
+  }
+  function getAdsetDraftKey(){
+    const accountId=String($('#modal_account').val()||'').trim()||'no-account';
+    const campaignId=String($('#modal_campaign_id').val()||'').trim()||'no-campaign';
+    return 'meta_adset_draft:'+accountId+':'+campaignId;
+  }
+  function seedDraftSelect2(sel, items){
+    const $el=$(sel); if(!$el.length) return;
+    (items||[]).forEach(function(it){ const id=String((it&&it.id)||'').trim(); if(!id) return; if(!$el.find('option[value="'+id.replace(/"/g,'\\"')+'"]').length){ $el.append(new Option(String((it&&it.name)||id), id, true, true)); } });
+    $el.trigger('change');
+  }
+  function restoreAdsetDraft(){
+    let draft=null; try{ draft=JSON.parse(localStorage.getItem(getAdsetDraftKey())||'null'); }catch(e){}
+    if(!draft||String(draft.campaign_id||'')!==String($('#modal_campaign_id').val()||'')) return false;
+    ['adset_name','budget_type','daily_budget','lifetime_budget','start_time','end_time','location_include_countries','location_exclude_countries','location_include_regions','location_include_cities','location_exclude_regions','location_exclude_cities','age_min','age_max','conversion_location','optimization_goal','bid_strategy','bid_amount','attribution_window','dynamic_creative','gender','advantage','placement_mode','asset_customization'].forEach(function(k){ if(typeof draft[k]!=='undefined') $('#modal_'+k).val(String(draft[k]||'')); });
+    $('input[name="modal_device_mode"][value="'+String(draft.placement_device_mode||'all')+'"]').prop('checked',true);
+    $('.modal-platform,.modal-position').prop('checked',false);
+    try{ (JSON.parse(draft.placement_platforms||'[]')||[]).forEach(function(p){ $('.modal-platform[value="'+String(p||'').trim()+'"]').prop('checked',true); }); }catch(e){}
+    try{ const pos=JSON.parse(draft.placement_positions||'{}')||{}; Object.keys(pos).forEach(function(p){ (pos[p]||[]).forEach(function(v){ $('.modal-position[data-platform="'+p+'"][value="'+v+'"]').prop('checked',true); }); }); }catch(e){}
+    syncCampaignBudgetFields(); initAudiencePlacementControls();
+    try{ seedDraftSelect2('#modal_languages', JSON.parse(draft.languages||'[]').map(function(x){ return {id:String(x||''),name:String(x||'')}; })); }catch(e){}
+    try{ const dt=JSON.parse(draft.detailed_targeting||'{}')||{}; seedDraftSelect2('#modal_detailed_targeting_include', dt.include||[]); seedDraftSelect2('#modal_detailed_targeting_narrow', dt.narrow||[]); }catch(e){}
+    syncBidAmountField(); updateStepProgress();
+    $('#modal_create_result').removeClass('text-danger').addClass('text-success').text('Draft Set Iklan lokal berhasil dipulihkan.');
+    return true;
+  }
+  function resetAdsetDraftFields(){
+    const baseName=String($('#modal_campaign_name').val()||'').trim();
+    $('#modal_adset_id').val('');
+    $('#modal_adset_name').val(baseName?baseName+' - ADSET 1':'');
+    $('#modal_conversion_location').val('WEBSITE'); $('#modal_optimization_goal').val('LINK_CLICKS');
+    $('#modal_bid_strategy').val('LOWEST_COST_WITHOUT_CAP'); $('#modal_bid_amount').val('');
+    $('#modal_attribution_window').val('7d_click_1d_view'); $('#modal_dynamic_creative').val('0');
+    $('#modal_budget_type').val('daily'); $('#modal_daily_budget').val('50000'); $('#modal_lifetime_budget').val('');
+    $('#modal_start_time,#modal_end_time').val('');
+    $('#modal_location_include_countries').val('ID'); $('#modal_location_exclude_countries,#modal_location_include_regions,#modal_location_include_cities,#modal_location_exclude_regions,#modal_location_exclude_cities,#modal_location_query').val('');
+    $('#modal_location_mode').val('include'); $('#modal_location_type').val('country');
+    $('#modal_location_search_results').html('<div class="text-muted small">Belum ada hasil pencarian.</div>');
+    $('#modal_location_map_iframe').attr('src','https://maps.google.com/maps?q=Indonesia&output=embed');
+    $('#modal_location_map_link').attr('href','https://www.google.com/maps/search/Indonesia');
+    $('#modal_age_min').val('18'); $('#modal_age_max').val('65'); $('#modal_gender').val('all'); $('#modal_advantage').val('0');
+    $('#modal_placement_mode').val('auto'); $('#modal_asset_customization').val('0');
+    $('input[name="modal_device_mode"][value="all"]').prop('checked',true); $('.modal-platform,.modal-position').prop('checked',false);
+    $('.modal-platform[value="facebook"],.modal-platform[value="instagram"],.modal-platform[value="audience_network"],.modal-platform[value="messenger"]').prop('checked',true);
+    $('.select2-hidden-accessible').filter('#modal_languages,#modal_detailed_targeting_include,#modal_detailed_targeting_narrow').val(null).trigger('change');
+    syncCampaignBudgetFields(); initAudiencePlacementControls(); syncBidAmountField(); updateStepProgress();
+  }
+  function clearAdsetDraft(){
+    const key=getAdsetDraftKey();
+    try{ localStorage.removeItem(key); }catch(e){}
+    resetAdsetDraftFields();
+    $('#modal_create_result').removeClass('text-danger').addClass('text-success').text('Draft Set Iklan lokal berhasil dihapus dan form Step 2 dikembalikan ke default.');
+  }
+
+  function initCampaignAbTestUi() {
+    $('#modal_ab_test_enabled,#modal_ab_test_variable,#modal_ab_test_days,#modal_ab_test_metric').off('.abtest').on('change.abtest input.abtest', syncCampaignAbTestSummary);
+    syncCampaignAbTestSummary();
   }
 
   function initCampaignSingleSelects() {
@@ -767,8 +1019,9 @@
   }
 
   function initAudiencePlacementControls() {
-    const $campaignModal=$('#modalCreateMetaCampaign'),accountId=String($('#modal_account').val()||'').trim(),$languages=$('#modal_languages'),groups=[{t:'Beranda',d:'Dapatkan visibilitas tinggi untuk bisnis Anda di area beranda.',s:'f',i:[['Beranda Facebook','facebook','feed'],['Beranda Instagram','instagram','stream'],['Facebook Marketplace','facebook','marketplace'],['Beranda Jelajahi Instagram','instagram','explore']]},{t:'Cerita, Status, Reels',d:'Sampaikan iklan vertikal layar penuh dengan visual yang menonjol.',s:'v',i:[['Facebook Stories','facebook','story'],['Instagram Stories','instagram','story'],['Messenger Stories','messenger','story'],['Instagram Reels','instagram','reels']]},{t:'Aplikasi dan situs',d:'Perluas jangkauan di aplikasi dan situs eksternal.',s:'f',i:[['Audience Network Classic','audience_network','classic'],['Rewarded Video Audience Network','audience_network','rewarded_video'],['Audience Network In-Stream','audience_network','instream_video']]},{t:'Messenger',d:'Tampilkan iklan pesan yang disponsori atau story di Messenger.',s:'f',i:[['Sponsored Messages','messenger','sponsored_messages'],['Messenger Stories','messenger','story']]},{t:'Threads',d:'Tayangkan iklan di feed Threads. Memerlukan Instagram Feed dan Threads User ID.',s:'f',i:[['Kabar Threads','threads','threads_stream']]}];
+    const $campaignModal=$('#modalCreateMetaCampaign'),accountId=String($('#modal_account').val()||'').trim(),$languages=$('#modal_languages'),groups=[{t:'Beranda',d:'Dapatkan visibilitas tinggi untuk bisnis Anda di area beranda.',s:'f',i:[['Beranda Facebook','facebook','feed'],['Beranda Instagram','instagram','stream'],['Facebook Marketplace','facebook','marketplace'],['Beranda Jelajahi Instagram','instagram','explore']]},{t:'Cerita, Status, Reels',d:'Sampaikan iklan vertikal layar penuh dengan visual yang menonjol.',s:'v',i:[['Facebook Stories','facebook','story'],['Instagram Stories','instagram','story'],['Messenger Stories','messenger','story'],['Instagram Reels','instagram','reels']]},{t:'Aplikasi dan situs',d:'Perluas jangkauan di aplikasi dan situs eksternal.',s:'f',i:[['Audience Network Classic','audience_network','classic'],['Rewarded Video Audience Network','audience_network','rewarded_video'],['Audience Network In-Stream','audience_network','instream_video']]},{t:'Messenger',d:'Tampilkan iklan pesan yang disponsori atau story di Messenger.',s:'f',i:[['Sponsored Messages','messenger','sponsored_messages'],['Messenger Stories','messenger','story']]},{t:'Threads',d:'Tayangkan iklan di feed Threads. Memerlukan Instagram Feed dan Threads User ID.',s:'f',i:[['Kabar Threads','threads','threads_stream']]}],dtCfg={width:'100%',theme:'bootstrap4',dropdownParent:$campaignModal,placeholder:'Tambahkan demografis, minat, atau perilaku',multiple:true,ajax:{url:'/management/admin/facebook_detailed_targeting_suggest',dataType:'json',delay:250,data:function(p){return{q:String(p.term||'').trim(),selected_account:accountId};},processResults:function(d){return{results:(d&&d.results)||[]};},cache:true}};
     if($languages.length){if($languages.data('select2'))$languages.select2('destroy');$languages.next('.select2-container').remove();$languages.select2({width:'100%',theme:'bootstrap4',dropdownParent:$campaignModal,placeholder:'Cari bahasa...',multiple:true,ajax:{url:'/management/admin/facebook_language_suggest',dataType:'json',delay:250,data:function(p){return{q:String(p.term||'').trim(),selected_account:accountId};},processResults:function(d){return{results:(d&&d.results)||[]};},cache:true}});} 
+    ['#modal_detailed_targeting_include','#modal_detailed_targeting_narrow'].forEach(function(sel){const $el=$(sel);if(!$el.length)return;if($el.data('select2'))$el.select2('destroy');$el.next('.select2-container').remove();$el.select2(dtCfg);}); const dtSync=function(){const a=$('#modal_detailed_targeting_include').find('option:selected').length,b=$('#modal_detailed_targeting_narrow').find('option:selected').length;$('#modal_detailed_targeting_summary').text((a||b)?('Sertakan: '+a+' item • Harus cocok: '+b+' item.'): 'Belum ada penargetan terperinci dipilih.');}; const audMini=function(){const csv=function(v){return String(v||'').split(',').map(function(x){return String(x||'').trim();}).filter(Boolean)},a=$('#modal_detailed_targeting_include').find('option:selected').length,b=$('#modal_detailed_targeting_narrow').find('option:selected').length,loc=csv($('#modal_location_include_countries').val()).length+csv($('#modal_location_include_regions').val()).length+csv($('#modal_location_include_cities').val()).length,lang=($('#modal_languages').val()||[]).length,ageMin=Math.max(13,Number($('#modal_age_min').val()||18)),ageMax=Math.max(ageMin,Number($('#modal_age_max').val()||65)),ageSpan=Math.max(1,ageMax-ageMin),gender=String($('#modal_gender').val()||'all'),adv=String($('#modal_advantage').val()||'0')==='1';let score=50+Math.max(loc-1,0)*8-a*6-b*12-ageSpan*0.5+(gender==='all'?6:-4)+(lang?Math.max(lang-1,0)*2:0)+(adv?12:0);score=Math.max(8,Math.min(92,Math.round(score)));const state=score<=34?'Sempit':(score>=68?'Luas':'Seimbang');$('#modalAudienceMiniStatus').text(state);$('#modalAudienceMiniBar').attr('style','--aud-pos:'+score+'%;');$('#modalAudienceMiniNote').text(state==='Sempit'?'Audiens lebih terkontrol karena detail targeting dan batasannya lebih ketat.':(state==='Luas'?'Audiens cenderung luas karena batasan lebih longgar atau Advantage+ aktif.':'Audiens cukup seimbang antara jangkauan dan kontrol targeting.'));}; $('#modal_detailed_targeting_include,#modal_detailed_targeting_narrow').off('.dt').on('change.dt',function(){dtSync();audMini();}); $('#modal_location_include_countries,#modal_location_include_regions,#modal_location_include_cities,#modal_age_min,#modal_age_max,#modal_gender,#modal_advantage,#modal_languages').off('.audmini').on('change.audmini input.audmini',audMini); dtSync(); audMini();
     if(!$('#modalPlacementManagerUi').length){let h='<div id="modalPlacementManagerUi"><div><div class="grp"><div class="gh"><span>Kontrol Manual</span></div><div class="gd">Atur perangkat, platform, dan penyesuaian aset sebelum memilih posisi tayang.</div><div style="padding:12px 14px"><div class="mb-2 font-weight-bold small">Perangkat</div><div class="d-flex flex-wrap mb-3"><label class="mr-3 mb-2"><input type="radio" class="ui-device" name="ui_device_mode" value="all"> Semua Device</label><label class="mr-3 mb-2"><input type="radio" class="ui-device" name="ui_device_mode" value="mobile"> Mobile</label><label class="mb-2"><input type="radio" class="ui-device" name="ui_device_mode" value="desktop"> Desktop</label></div><div class="mb-2 font-weight-bold small">Platform</div><div class="d-flex flex-wrap mb-2"><label class="mr-3 mb-2"><input type="checkbox" class="ui-platform" value="facebook"> Facebook</label><label class="mr-3 mb-2"><input type="checkbox" class="ui-platform" value="instagram"> Instagram</label><label class="mr-3 mb-2"><input type="checkbox" class="ui-platform" value="audience_network"> Audience Network</label><label class="mr-3 mb-2"><input type="checkbox" class="ui-platform" value="messenger"> Messenger</label><label class="mr-3 mb-2"><input type="checkbox" class="ui-platform" value="threads"> Threads</label><label class="mb-2 text-muted" title="Belum aktif untuk submit backend saat ini."><input type="checkbox" disabled> WhatsApp</label></div><div class="small text-muted mb-3">Threads aktif untuk submit manual placement. WhatsApp masih nonaktif karena memerlukan flow Click to WhatsApp terpisah.</div><div class="mb-2 font-weight-bold small">Penyesuaian Aset</div><div class="border rounded p-2 bg-light"><label class="d-flex align-items-center justify-content-between mb-2"><span class="font-weight-bold small mb-0">Optimalkan aset kreatif otomatis</span><input type="checkbox" id="modal_asset_customization_ui"></label><div class="small text-muted mb-2">Sesuaikan tampilan aset secara otomatis untuk placement yang berbeda.</div><div class="d-flex flex-wrap"><label class="mr-3 mb-2 small text-muted"><input type="checkbox" class="ui-asset mr-1" value="labels"> Variasi label</label><label class="mr-3 mb-2 small text-muted"><input type="checkbox" class="ui-asset mr-1" value="crop"> Penyesuaian crop</label><label class="mr-3 mb-2 small text-muted"><input type="checkbox" class="ui-asset mr-1" value="text"> Penyesuaian teks</label><label class="mb-2 small text-muted"><input type="checkbox" class="ui-asset mr-1" value="format"> Penyesuaian format</label></div></div></div></div>';groups.forEach(function(g){h+='<div class="grp"><div class="gh"><span>'+g.t+'</span><input type="checkbox" class="gg"></div><div class="gd">'+g.d+'</div>';g.i.forEach(function(x){h+='<label class="go" data-s="'+g.s+'" data-l="'+x[0]+'"><span>'+x[0]+'</span><input type="checkbox" class="ui-pos" data-p="'+x[1]+'" data-v="'+x[2]+'"></label>';});h+='</div>';});h+='</div><div class="mp-preview"><div class="small text-muted mb-2">Preview Penempatan</div><div id="mppf" class="mpf f"><div id="mppl" class="mpl">Beranda Facebook</div><div class="mp-meta"><span></span><span></span></div><div class="mp-lines"><i></i><i></i></div><div class="mpc">LEARN MORE</div></div><div class="small text-muted text-center mt-2">Preview mengikuti placement yang dipilih.</div></div></div>';$('#modal_manual_placement_wrap').append(h);} 
     function syncUi(){const dv=String($('input[name="modal_device_mode"]:checked').val()||'all');const assetOn=String($('#modal_asset_customization').val()||'0')==='1';$('.ui-device[value="'+dv+'"]').prop('checked',true);$('.ui-platform').each(function(){const p=String($(this).val()||'').trim();const on=$('.modal-platform[value="'+p+'"]').prop('checked');$(this).prop('checked',on);$('#modalPlacementManagerUi .ui-pos[data-p="'+p+'"]').prop('disabled',!on).closest('.go').toggleClass('off',!on);});$('#modalPlacementManagerUi .ui-pos').each(function(){const p=$(this).data('p'),v=$(this).data('v');$(this).prop('checked',$('.modal-position[data-platform="'+p+'"][value="'+v+'"]').prop('checked'));});$('#modalPlacementManagerUi .grp').each(function(){const $c=$(this).find('.ui-pos');if($c.length)$(this).find('.gg').prop('checked',$c.filter(':checked').length===$c.length);});$('#modal_asset_customization_ui').prop('checked',assetOn);$('.ui-asset').prop('checked',assetOn).prop('disabled',!assetOn);}
     function syncLegacy(){const dv=String($('.ui-device:checked').val()||'all');const assetOn=$('#modal_asset_customization_ui').is(':checked');$('input[name="modal_device_mode"][value="'+dv+'"]').prop('checked',true);$('.modal-platform').prop('checked',false);$('.ui-platform:checked').each(function(){const p=String($(this).val()||'').trim();$('.modal-platform[value="'+p+'"]').prop('checked',true);});$('.modal-position').prop('checked',false);$('#modalPlacementManagerUi .ui-pos:checked').each(function(){const p=$(this).data('p'),v=$(this).data('v');if($('.modal-platform[value="'+p+'"]').prop('checked'))$('.modal-position[data-platform="'+p+'"][value="'+v+'"]').prop('checked',true);});$('.ui-asset').prop('disabled',!assetOn);if(!assetOn)$('.ui-asset').prop('checked',false);$('#modal_asset_customization').val(assetOn?'1':'0');}
@@ -776,6 +1029,10 @@
     $('#modalPlacementManagerUi').off('change.mpui','.ui-pos,.gg,.ui-platform,.ui-device,#modal_asset_customization_ui,.ui-asset').on('change.mpui','.ui-pos,.gg,.ui-platform,.ui-device,#modal_asset_customization_ui,.ui-asset',function(){if($(this).hasClass('gg'))$(this).closest('.grp').find('.ui-pos').prop('checked',$(this).is(':checked'));if($(this).hasClass('ui-platform')&&!$(this).is(':checked'))$('#modalPlacementManagerUi .ui-pos[data-p="'+String($(this).val()||'').trim()+'"]').prop('checked',false);syncLegacy();syncUi();const $a=$('#modalPlacementManagerUi .ui-pos:checked').first().closest('.go');preview($a.length?$a:$('#modalPlacementManagerUi .go').first());});
     const toggle=function(){ $('#modal_manual_placement_wrap').toggle(String($('#modal_placement_mode').val()||'auto')==='manual'); };
     $('#modal_placement_mode').off('change.manualPlacement').on('change.manualPlacement',toggle); toggle(); syncUi(); const $f=$('#modalPlacementManagerUi .ui-pos:checked').first().closest('.go'); preview($f.length?$f:$('#modalPlacementManagerUi .go').first());
+    $('#modal_bid_strategy,#modal_bid_amount').off('.bidcheck').on('change.bidcheck input.bidcheck', syncBidAmountField);
+    $('#modal_advantage').off('.advage').on('change.advage', syncAdvantageAudienceFields);
+    syncBidAmountField();
+    syncAdvantageAudienceFields();
   }
 
   window.createCampaignModalApi = {
@@ -785,10 +1042,16 @@
     setWizardStep: setWizardStep,
     getWizardStep: function() { return wizardStep; },
     builderCreateCampaign: builderCreateCampaign,
+    builderSaveAdset: builderSaveAdset,
     builderCreateAdsetAd: builderCreateAdsetAd,
+    clearAdsetDraft: clearAdsetDraft,
+    resetAdsetDraftFields: resetAdsetDraftFields,
     syncCampaignBudgetFields: syncCampaignBudgetFields,
+    initBuilderDateInputs: initBuilderDateInputs,
+    initCampaignAbTestUi: initCampaignAbTestUi,
     initCampaignSingleSelects: initCampaignSingleSelects,
-    initAudiencePlacementControls: initAudiencePlacementControls
+    initAudiencePlacementControls: initAudiencePlacementControls,
+    restoreAdsetDraft: restoreAdsetDraft
   };
 
   function builderCreateCampaign() {
@@ -798,7 +1061,7 @@
     const campaignName = String($('#modal_campaign_name').val() || '').trim();
     if (!accountId || !campaignName) { alert('Account dan nama campaign wajib diisi.'); return; }
     const fd = new FormData();
-    fd.append('account_id', accountId); fd.append('campaign_id', campaignId); fd.append('campaign_name', campaignName); fd.append('objective', String($('#modal_objective').val() || 'OUTCOME_TRAFFIC')); fd.append('status', String($('#modal_status').val() || 'PAUSED')); fd.append('buying_type', String($('#modal_campaign_buying_type').val() || 'AUCTION')); fd.append('special_ad_category', String($('#modal_campaign_special_category').val() || 'NONE')); fd.append('campaign_budget_type', String($('#modal_campaign_budget_type').val() || 'none')); fd.append('campaign_daily_budget', String($('#modal_campaign_daily_budget').val() || '')); fd.append('campaign_lifetime_budget', String($('#modal_campaign_lifetime_budget').val() || '')); fd.append('campaign_spend_cap', String($('#modal_campaign_spend_cap').val() || ''));
+    fd.append('account_id', accountId); fd.append('campaign_id', campaignId); fd.append('campaign_name', campaignName); fd.append('objective', String($('#modal_objective').val() || 'OUTCOME_TRAFFIC')); fd.append('status', String($('#modal_status').val() || 'PAUSED')); fd.append('buying_type', String($('#modal_campaign_buying_type').val() || 'AUCTION')); fd.append('special_ad_category', String($('#modal_campaign_special_category').val() || 'NONE')); fd.append('campaign_budget_type', String($('#modal_campaign_budget_type').val() || 'none')); fd.append('campaign_daily_budget', String($('#modal_campaign_daily_budget').val() || '')); fd.append('campaign_lifetime_budget', String($('#modal_campaign_lifetime_budget').val() || '')); fd.append('campaign_spend_cap', String($('#modal_campaign_spend_cap').val() || '')); fd.append('ab_test_enabled', $('#modal_ab_test_enabled').is(':checked') ? '1' : '0'); fd.append('ab_test_variable', String($('#modal_ab_test_variable').val() || 'creative')); fd.append('ab_test_days', String($('#modal_ab_test_days').val() || '7')); fd.append('ab_test_metric', String($('#modal_ab_test_metric').val() || 'reach_cpm'));
     $('#modal_create_result').removeClass('text-danger text-success').addClass('text-muted').text(mode === 'edit' ? 'Menyimpan perubahan campaign...' : 'Membuat campaign...');
     $.ajax({
       url: mode === 'edit' ? '/management/admin/update_campaign_meta' : '/management/admin/create_campaign_per_account',
@@ -835,6 +1098,44 @@
     });
   }
 
+  function buildAdsetPayload(fd, opts){
+    const placementMode = String($('#modal_placement_mode').val() || 'auto');
+    const campaignBudgetType = String($('#modal_campaign_budget_type').val() || 'none').trim();
+    const placementPlatforms = $('.modal-platform:checked').map(function(){ return String($(this).val() || '').trim(); }).get();
+    const placementPositions = {};
+    $('.modal-position:checked').each(function(){ const p=String($(this).data('platform')||'').trim(), v=String($(this).val()||'').trim(); if(!p||!v) return; if(!placementPositions[p]) placementPositions[p]=[]; if(placementPositions[p].indexOf(v)<0) placementPositions[p].push(v); });
+    const forceNewAdset = !!(opts && opts.forceNewAdset);
+    fd.append('adset_id', forceNewAdset ? '' : String($('#modal_adset_id').val() || ''));
+    fd.append('campaign_budget_type', campaignBudgetType);
+    fd.append('status', String($('#modal_status').val() || 'PAUSED')); fd.append('adset_name', String($('#modal_adset_name').val() || ''));
+    if (campaignBudgetType === 'none' || campaignBudgetType === '') {
+      fd.append('daily_budget', String($('#modal_daily_budget').val() || '50000')); fd.append('lifetime_budget', String($('#modal_lifetime_budget').val() || '')); fd.append('budget_type', String($('#modal_budget_type').val() || 'daily'));
+    } else {
+      fd.append('daily_budget', ''); fd.append('lifetime_budget', ''); fd.append('budget_type', '');
+    }
+    fd.append('start_time', String($('#modal_start_time').val() || '')); fd.append('end_time', String($('#modal_end_time').val() || ''));
+    fd.append('countries', String($('#modal_location_include_countries').val() || 'ID')); fd.append('location_include_countries', String($('#modal_location_include_countries').val() || 'ID')); fd.append('location_exclude_countries', String($('#modal_location_exclude_countries').val() || '')); fd.append('location_include_regions', String($('#modal_location_include_regions').val() || '')); fd.append('location_include_cities', String($('#modal_location_include_cities').val() || '')); fd.append('location_exclude_regions', String($('#modal_location_exclude_regions').val() || '')); fd.append('location_exclude_cities', String($('#modal_location_exclude_cities').val() || ''));
+    fd.append('languages', JSON.stringify($('#modal_languages').val() || [])); fd.append('age_min', String($('#modal_age_min').val() || '18')); fd.append('age_max', String($('#modal_age_max').val() || '65')); fd.append('conversion_location', String($('#modal_conversion_location').val() || 'WEBSITE')); fd.append('optimization_goal', String($('#modal_optimization_goal').val() || 'LINK_CLICKS')); fd.append('bid_strategy', String($('#modal_bid_strategy').val() || 'LOWEST_COST_WITHOUT_CAP')); fd.append('bid_amount', String($('#modal_bid_amount').val() || '')); fd.append('attribution_window', String($('#modal_attribution_window').val() || '7d_click_1d_view')); fd.append('dynamic_creative', String($('#modal_dynamic_creative').val() || '0'));
+    fd.append('detailed_targeting', JSON.stringify({include:$('#modal_detailed_targeting_include').find('option:selected').map(function(){return{id:String(this.value||''),name:String($(this).text()||'').replace(/\s*\(audience:.*\)$/,'').trim()};}).get(),narrow:$('#modal_detailed_targeting_narrow').find('option:selected').map(function(){return{id:String(this.value||''),name:String($(this).text()||'').replace(/\s*\(audience:.*\)$/,'').trim()};}).get()}));
+    fd.append('gender', String($('#modal_gender').val() || 'all')); fd.append('advantage', String($('#modal_advantage').val() || '0')); fd.append('placement_mode', placementMode); fd.append('placement_device_mode', String($('input[name="modal_device_mode"]:checked').val() || 'all')); fd.append('placement_platforms', JSON.stringify(placementPlatforms)); fd.append('placement_positions', JSON.stringify(placementPositions)); fd.append('asset_customization', String($('#modal_asset_customization').val() || (placementMode === 'manual' ? '1' : '0')));
+    return fd;
+  }
+  function builderSaveAdset(){
+    const accountId=String($('#modal_account').val()||'').trim(), campaignId=String($('#modal_campaign_id').val()||'').trim();
+    if(!accountId||!campaignId){ alert('Buat campaign dulu pada Step 1.'); return; }
+    syncBidAmountField();
+    const fd=buildAdsetPayload(new FormData());
+    const draft={saved_at:new Date().toISOString()};
+    fd.forEach(function(v,k){ draft[k]=v; });
+    draft.account_id=accountId; draft.campaign_id=campaignId; draft.is_local_draft='1';
+    $('#modal_create_result').removeClass('text-danger text-success').addClass('text-muted').text('Menyimpan draft Set Iklan...');
+    try{
+      localStorage.setItem(getAdsetDraftKey(), JSON.stringify(draft));
+      $('#modal_create_result').removeClass('text-muted text-danger').addClass('text-success').text('Draft Set Iklan berhasil disimpan. Lanjutkan ke Step 3 kapan saja.');
+    }catch(e){
+      $('#modal_create_result').removeClass('text-muted text-success').addClass('text-danger').text('Draft Set Iklan gagal disimpan di browser.');
+    }
+  }
   function builderCreateAdsetAd() {
     const accountId = String($('#modal_account').val() || '').trim();
     const campaignId = String($('#modal_campaign_id').val() || '').trim();
@@ -842,6 +1143,10 @@
       alert('Buat campaign dulu pada Step 1.');
       return;
     }
+    const normalizedBidStrategy = normalizeBidInputsForSubmit(true);
+    normalizeAttributionWindowForSubmit(true);
+    const bidAmount = String($('#modal_bid_amount').val() || '').trim();
+    const forceNewAdset = normalizedBidStrategy === 'LOWEST_COST_WITHOUT_CAP' && !bidAmount;
 
     const pageId = String($('#modal_page_id').val() || '').trim();
     const websiteUrl = String($('#modal_website_url').val() || '').trim();
@@ -852,64 +1157,17 @@
       return;
     }
 
-    const fd = new FormData();
-    fd.append('account_id', accountId);
-    fd.append('campaign_id', campaignId);
-    fd.append('status', String($('#modal_status').val() || 'PAUSED'));
-    fd.append('adset_name', String($('#modal_adset_name').val() || ''));
-    fd.append('ad_name', String($('#modal_ad_name').val() || ''));
-    const placementMode = String($('#modal_placement_mode').val() || 'auto');
-    const placementPlatforms = $('.modal-platform:checked').map(function(){ return String($(this).val() || '').trim(); }).get();
-    const placementPositions = {};
-    $('.modal-position:checked').each(function(){ const p = String($(this).data('platform') || '').trim(); const v = String($(this).val() || '').trim(); if (!p || !v) return; if (!placementPositions[p]) placementPositions[p] = []; if (placementPositions[p].indexOf(v) < 0) placementPositions[p].push(v); });
-    fd.append('daily_budget', String($('#modal_daily_budget').val() || '50000'));
-    fd.append('lifetime_budget', String($('#modal_lifetime_budget').val() || ''));
-    fd.append('budget_type', String($('#modal_budget_type').val() || 'daily'));
-    fd.append('start_time', String($('#modal_start_time').val() || ''));
-    fd.append('end_time', String($('#modal_end_time').val() || ''));
-    fd.append('countries', String($('#modal_location_include_countries').val() || 'ID'));
-    fd.append('location_include_countries', String($('#modal_location_include_countries').val() || 'ID'));
-    fd.append('location_exclude_countries', String($('#modal_location_exclude_countries').val() || ''));
-    fd.append('location_include_regions', String($('#modal_location_include_regions').val() || ''));
-    fd.append('location_include_cities', String($('#modal_location_include_cities').val() || ''));
-    fd.append('location_exclude_regions', String($('#modal_location_exclude_regions').val() || ''));
-    fd.append('location_exclude_cities', String($('#modal_location_exclude_cities').val() || ''));
-    fd.append('languages', JSON.stringify($('#modal_languages').val() || []));
-    fd.append('age_min', String($('#modal_age_min').val() || '18'));
-    fd.append('age_max', String($('#modal_age_max').val() || '65'));
-    fd.append('conversion_location', String($('#modal_conversion_location').val() || 'WEBSITE'));
-    fd.append('optimization_goal', String($('#modal_optimization_goal').val() || 'LINK_CLICKS'));
-    fd.append('bid_strategy', String($('#modal_bid_strategy').val() || 'LOWEST_COST_WITHOUT_CAP'));
-    fd.append('bid_amount', String($('#modal_bid_amount').val() || ''));
-    fd.append('attribution_window', String($('#modal_attribution_window').val() || '7d_click_1d_view'));
-    fd.append('dynamic_creative', String($('#modal_dynamic_creative').val() || '0'));
-    fd.append('gender', String($('#modal_gender').val() || 'all'));
-    fd.append('advantage', String($('#modal_advantage').val() || '0'));
-    fd.append('placement_mode', placementMode);
-    fd.append('placement_device_mode', String($('input[name="modal_device_mode"]:checked').val() || 'all'));
-    fd.append('placement_platforms', JSON.stringify(placementPlatforms));
-    fd.append('placement_positions', JSON.stringify(placementPositions));
-    fd.append('asset_customization', String($('#modal_asset_customization').val() || (placementMode === 'manual' ? '1' : '0')));
-    fd.append('page_id', pageId);
-    fd.append('website_url', websiteUrl);
-    fd.append('primary_text', String($('#modal_primary_text').val() || ''));
-    fd.append('headline', String($('#modal_headline').val() || ''));
-    fd.append('cta_type', String($('#modal_cta').val() || 'LEARN_MORE'));
-    fd.append('use_existing_post', String($('#modal_use_existing_post').val() || '0'));
-    fd.append('existing_post_id', String($('#modal_existing_post_id').val() || ''));
-    fd.append('description', String($('#modal_description').val() || ''));
-    fd.append('display_link', String($('#modal_display_link').val() || ''));
-    fd.append('caption', String($('#modal_caption').val() || ''));
-    fd.append('url_tags', String($('#modal_url_tags').val() || ''));
-    fd.append('pixel_id', String($('#modal_pixel_id').val() || ''));
-    fd.append('instagram_actor_id', String($('#modal_instagram_actor_id').val() || ''));
-    fd.append('threads_user_id', String($('#modal_threads_user_id').val() || ''));
+    const fd = buildAdsetPayload(new FormData(), { forceNewAdset: forceNewAdset });
+    if (forceNewAdset) fd.append('force_new_adset', '1');
+    fd.append('account_id', accountId); fd.append('campaign_id', campaignId); fd.append('ad_name', String($('#modal_ad_name').val() || ''));
+    fd.append('page_id', pageId); fd.append('website_url', websiteUrl); fd.append('primary_text', String($('#modal_primary_text').val() || '')); fd.append('headline', String($('#modal_headline').val() || '')); fd.append('cta_type', String($('#modal_cta').val() || 'LEARN_MORE')); fd.append('use_existing_post', String($('#modal_use_existing_post').val() || '0')); fd.append('existing_post_id', String($('#modal_existing_post_id').val() || '')); fd.append('description', String($('#modal_description').val() || '')); fd.append('display_link', String($('#modal_display_link').val() || '')); fd.append('caption', String($('#modal_caption').val() || '')); fd.append('url_tags', String($('#modal_url_tags').val() || '')); fd.append('pixel_id', String($('#modal_pixel_id').val() || '')); fd.append('instagram_actor_id', String($('#modal_instagram_actor_id').val() || '')); fd.append('threads_user_id', String($('#modal_threads_user_id').val() || ''));
     const imageFile = ($('#modal_image_file')[0] && $('#modal_image_file')[0].files && $('#modal_image_file')[0].files[0]) ? $('#modal_image_file')[0].files[0] : null;
     const videoFile = ($('#modal_video_file')[0] && $('#modal_video_file')[0].files && $('#modal_video_file')[0].files[0]) ? $('#modal_video_file')[0].files[0] : null;
     if (imageFile) fd.append('image_file', imageFile);
     if (videoFile) fd.append('video_file', videoFile);
 
-    $('#modal_create_result').removeClass('text-danger text-success').addClass('text-muted').text('Membuat ad set + ad...');
+    $('#modal_app_mode_warning').hide();
+    $('#modal_create_result').removeClass('text-danger text-success').addClass('text-muted').text('Membuat iklan...');
 
     $.ajax({
       url: '/management/admin/create_adset_ad_per_account',
@@ -921,14 +1179,27 @@
       dataType: 'json',
       success: function(res) {
         if (res && res.success) {
+          $('#modal_adset_id').val(String(res.adset_id || ''));
+          try{ localStorage.removeItem(getAdsetDraftKey()); }catch(e){}
+          $('#modal_app_mode_warning').hide();
           $('#modal_create_result').removeClass('text-muted text-danger').addClass('text-success')
             .text('Berhasil publish. AdSet: ' + String(res.adset_id || '-') + ' | Ad: ' + String(res.ad_id || '-'));
           setWizardStep(3);
           loadCampaignMeta();
         } else {
           const step = (res && res.step) ? (' [step: ' + res.step + ']') : '';
+          const dbg = (res && (res.debug_bid_strategy || res.debug_adset_id || res.debug_campaign_bid_strategy || res.debug_attribution_window))
+            ? (' [bid=' + String(res.debug_bid_strategy || '-') + ', adset=' + String(res.debug_adset_id || 'new') + ', camp_bid=' + String(res.debug_campaign_bid_strategy || '-') + ', attr=' + String(res.debug_attribution_window || '-') + ']')
+            : '';
+          if (res && res.app_mode_blocked) {
+            setWizardStep(3);
+            $('#modal_use_existing_post').val('1').trigger('change');
+            $('#modal_existing_post_wrap').show();
+            $('#modal_app_mode_warning').show();
+            $('#modal_existing_post_id').trigger('focus');
+          }
           $('#modal_create_result').removeClass('text-muted text-success').addClass('text-danger')
-            .text(((res && res.message) ? res.message : 'Gagal publish') + step);
+            .text(((res && res.message) ? res.message : 'Gagal publish') + (res && res.app_mode_blocked ? ' Gunakan Pakai Existing Post untuk melanjutkan.' : '') + step + dbg);
         }
       },
       error: function(xhr) {
@@ -936,7 +1207,10 @@
         try {
           const res = JSON.parse(xhr.responseText || '{}');
           if (res && res.message) msg = res.message;
-        } catch (e) {}
+        } catch (e) {
+          const raw = String(xhr.responseText || '').replace(/\s+/g, ' ').trim();
+          if (raw) msg = raw.slice(0, 300);
+        }
         $('#modal_create_result').removeClass('text-muted text-success').addClass('text-danger').text(msg);
       }
     });

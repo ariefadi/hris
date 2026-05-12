@@ -473,6 +473,55 @@ html[data-theme="dark"] .dashboard-recap-tabs .btn:hover {
 .metric-card.net { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
 .metric-card.roi { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
 .dashboard-recap-table th, .dashboard-recap-table td { vertical-align: middle; }
+.dashboard-kondisi-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+.dashboard-kondisi-chip {
+    cursor: help;
+}
+.dashboard-kondisi-tooltip {
+    position: absolute;
+    right: calc(100% + 12px);
+    top: 50%;
+    transform: translateY(-50%) translateX(8px);
+    min-width: 220px;
+    max-width: 280px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #0f172a;
+    color: #fff;
+    font-size: 12px;
+    line-height: 1.5;
+    text-align: left;
+    box-shadow: 0 14px 32px rgba(15, 23, 42, 0.22);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity .15s ease, transform .15s ease, visibility .15s ease;
+    z-index: 30;
+}
+.dashboard-kondisi-tooltip::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: -6px;
+    width: 12px;
+    height: 12px;
+    background: #0f172a;
+    transform: translateY(-50%) rotate(45deg);
+}
+.dashboard-kondisi-wrap:hover .dashboard-kondisi-tooltip,
+.dashboard-kondisi-wrap:focus-within .dashboard-kondisi-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(-50%) translateX(0);
+}
+html[data-theme="dark"] .dashboard-kondisi-tooltip,
+html[data-theme="dark"] .dashboard-kondisi-tooltip::after {
+    background: #020617;
+}
 
 html[data-theme="dark"] .dashboard-recap-card {
     background: linear-gradient(180deg, #0f172a 0%, #0b1220 100%);
@@ -1413,10 +1462,11 @@ html[data-theme="dark"] .decision-detail-reason-item {
                                             <tr>
                                                 <th class="text-center">No</th>
                                                 <th id="dashboardRecapThName" class="text-center">Sub Domain</th>
+                                                <th class="text-center">Account Ads</th>
                                                 <th id="dashboardRecapThCode" class="text-center" style="width:90px;display:none;">Kode</th>
-                                                <th class="text-end">Spend</th>
-                                                <th class="text-end">Pendapatan</th>
-                                                <th class="text-end">Pendapatan Bersih</th>
+                                                <th class="text-center">Spend</th>
+                                                <th class="text-center">Pendapatan</th>
+                                                <th class="text-center">Pendapatan <br> Bersih</th>
                                                 <th class="text-center">ROI</th>
                                                 <th class="text-center">Score</th>
                                                 <th class="text-center">Keputusan</th>
@@ -4317,7 +4367,7 @@ function initDashboardRecap() {
         }
 
         if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="11" style="padding:12px;"><div class="scx-table-loading" style="justify-content:center;"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><span>${esc(msg)}</span></div></td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="12" style="padding:12px;"><div class="scx-table-loading" style="justify-content:center;"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><span>${esc(msg)}</span></div></td></tr>`;
         }
     }
 
@@ -4338,7 +4388,7 @@ function initDashboardRecap() {
         }
 
         if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="11" class="text-center text-muted" style="padding:16px;font-size:12px;font-weight:700;">${esc(msg)}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="12" class="text-center text-muted" style="padding:16px;font-size:12px;font-weight:700;">${esc(msg)}</td></tr>`;
         }
     }
 
@@ -8719,20 +8769,21 @@ function initDashboardRecap() {
             const badges = [];
             const activeDays = Number(r?.active_days || 0);
             const dayBadge = activeDays > 0
-                ? `<span class="badge badge-info badge-pill ml-1">jalan ${esc(String(activeDays))} hari</span>`
+                ? `<span class="badge badge-info badge-pill">jalan ${esc(String(activeDays))} hari</span>`
                 : '';
 
             if (srcs && (srcs.adx || srcs.adsense)) {
-                if (srcs.adx) badges.push('<span class="badge badge-primary badge-pill ml-2">AdX</span>');
-                if (srcs.adsense) badges.push('<span class="badge badge-warning badge-pill ml-1 text-dark">AdSense</span>');
+                if (srcs.adx) badges.push('<span class="badge badge-primary badge-pill">AdX</span>');
+                if (srcs.adsense) badges.push('<span class="badge badge-warning badge-pill text-dark">AdSense</span>');
             } else {
                 const src = String(r?.source || '').toLowerCase();
-                if (src === 'adx') badges.push('<span class="badge badge-primary badge-pill ml-2">AdX</span>');
-                if (src === 'adsense') badges.push('<span class="badge badge-warning badge-pill ml-2 text-dark">AdSense</span>');
+                if (src === 'adx') badges.push('<span class="badge badge-primary badge-pill">AdX</span>');
+                if (src === 'adsense') badges.push('<span class="badge badge-warning badge-pill text-dark">AdSense</span>');
             }
 
             if (dayBadge) badges.push(dayBadge);
-            return badges.length ? (name + ' ' + badges.join('')) : name;
+            if (!badges.length) return name;
+            return `<div>${name}</div><div class="mt-1 d-flex flex-wrap align-items-center" style="gap:4px;">${badges.join('')}</div>`;
         }
 
         function updatedCell(r, meta) {
@@ -8771,6 +8822,23 @@ function initDashboardRecap() {
         };
 
         const rankKondisi = { 'Jelek': 0, 'Perlu Pantau': 1, 'Bagus': 2 };
+        const fmtAvg = function(v) {
+            return Number.isFinite(Number(v)) ? Number(v).toFixed(1) : '-';
+        };
+        const kondisiReason = function(kondisi, dominant, avgScore, avgHealth, avgRisk) {
+            const reasons = [];
+            if (dominant === 'Kritis') reasons.push('Alert dominan masih Kritis.');
+            else if (dominant === 'Waspada') reasons.push('Alert dominan masih Waspada.');
+            if (avgScore != null && avgScore < 50) reasons.push('Avg Score rendah (' + fmtAvg(avgScore) + ').');
+            else if (avgScore != null && avgScore < 70) reasons.push('Avg Score belum stabil (' + fmtAvg(avgScore) + ').');
+            if (avgHealth != null && avgHealth < 10) reasons.push('Avg Health sangat lemah (' + fmtAvg(avgHealth) + ').');
+            else if (avgHealth != null && avgHealth < 25) reasons.push('Avg Health masih perlu penguatan (' + fmtAvg(avgHealth) + ').');
+            if (avgRisk != null && avgRisk >= 68) reasons.push('Avg Risk tinggi (' + fmtAvg(avgRisk) + ').');
+            else if (avgRisk != null && avgRisk >= 45) reasons.push('Avg Risk mulai naik (' + fmtAvg(avgRisk) + ').');
+            if (!reasons.length && kondisi === 'Bagus') reasons.push('Score cukup kuat, risk masih aman, dan alert dominan normal.');
+            if (!reasons.length) reasons.push('Kondisi ditentukan dari gabungan score, health, risk, dan alert dominan.');
+            return reasons.join(' ');
+        };
         const accMap = new Map();
 
         (scored || []).forEach(function(item){
@@ -8837,7 +8905,8 @@ function initDashboardRecap() {
                 spend: data.spend,
                 revenue: data.revenue,
                 dominant: dominant,
-                kondisi: kondisi
+                kondisi: kondisi,
+                kondisiReason: kondisiReason(kondisi, dominant, avgScore, avgHealth, avgRisk)
             };
         }).sort(function(a, b){
             const rkA = Number(rankKondisi[a.kondisi] ?? 99);
@@ -8862,7 +8931,12 @@ function initDashboardRecap() {
                     <td class="text-end">${fmtIdr(x.spend)}</td>
                     <td class="text-end">${fmtIdr(x.revenue)}</td>
                     <td class="text-center">${esc(x.dominant)}</td>
-                    <td class="text-center"><span class="badge ${kondisiBadge}">${esc(x.kondisi)}</span></td>
+                    <td class="text-center">
+                        <span class="dashboard-kondisi-wrap">
+                            <span class="badge ${kondisiBadge} dashboard-kondisi-chip" tabindex="0" aria-label="${esc(x.kondisiReason)}">${esc(x.kondisi)}</span>
+                            <span class="dashboard-kondisi-tooltip" role="tooltip">${esc(x.kondisiReason)}</span>
+                        </span>
+                    </td>
                 </tr>`;
             }).join('')
             : '<tr><td colspan="11" class="text-center text-muted py-4">Belum ada relasi account yang bisa ditampilkan.</td></tr>';
@@ -9072,6 +9146,7 @@ function initDashboardRecap() {
             return [
                 i + 1,
                 domainCell(r),
+                esc(r.account_ads || '-'),
                 esc(r.code || ''),
                 Number(r.spend) || 0,
                 Number(r.revenue) || 0,
@@ -9101,21 +9176,22 @@ function initDashboardRecap() {
             }
             data.forEach(row => {
                 const tr = document.createElement('tr');
-                const scoreVal = Number(row[7]?.value) || 0;
-                tr.dataset.alertLevel = String(row[7]?.alertLevel || 'normal').toLowerCase();
+                const scoreVal = Number(row[8]?.value) || 0;
+                tr.dataset.alertLevel = String(row[8]?.alertLevel || 'normal').toLowerCase();
                 if (hasRange && scoreVal === minScore) tr.classList.add('table-danger');
                 else if (hasRange && scoreVal === maxScore) tr.classList.add('table-info');
                 tr.innerHTML = `
                     <td class="text-center">${row[0]}</td>
                     <td>${row[1]}</td>
-                    <td class="text-end">${fmtIdr(row[3])}</td>
-                    <td class="text-end">${fmtIdr(row[4])}</td>
-                    <td class="text-end">${fmtIdr(row[5])}</td>
-                    <td class="text-center">${fmtPct(row[6])}</td>
-                    <td class="text-center">${renderScoreCell(row[7], 'display')}</td>
-                    <td class="text-center">${row[8]}</td>
+                    <td class="text-left">${row[2]}</td>
+                    <td class="text-right">${fmtIdr(row[4])}</td>
+                    <td class="text-right">${fmtIdr(row[5])}</td>
+                    <td class="text-right">${fmtIdr(row[6])}</td>
+                    <td class="text-center">${fmtPct(row[7])}</td>
+                    <td class="text-center">${renderScoreCell(row[8], 'display')}</td>
                     <td class="text-center">${row[9]}</td>
                     <td class="text-center">${row[10]}</td>
+                    <td class="text-center">${row[11]}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -9152,7 +9228,7 @@ function initDashboardRecap() {
                 searching: true,
                 info: true,
                 ordering: true,
-                order: [[7, 'desc']],
+                order: [[8, 'desc']],
                 autoWidth: false,
                 responsive: true,
                 dom: hasDtButtons ? 'Blfrtip' : undefined,
@@ -9174,13 +9250,13 @@ function initDashboardRecap() {
                 },
                 rowCallback: function(row, rowData) {
                     const hasRange = !!(tableEl && tableEl.dataset && tableEl.dataset.hasRange === '1');
-                    row.dataset.alertLevel = String(rowData && rowData[7] && rowData[7].alertLevel || 'normal').toLowerCase();
+                    row.dataset.alertLevel = String(rowData && rowData[8] && rowData[8].alertLevel || 'normal').toLowerCase();
                     jQuery(row).removeClass('table-danger table-info');
                     if (!hasRange) return;
 
                     const minScore = Number(tableEl.dataset.minScore);
                     const maxScore = Number(tableEl.dataset.maxScore);
-                    const sc = Number(rowData && rowData[7] && rowData[7].value) || 0;
+                    const sc = Number(rowData && rowData[8] && rowData[8].value) || 0;
 
                     if (sc === minScore) jQuery(row).addClass('table-danger');
                     else if (sc === maxScore) jQuery(row).addClass('table-info');
@@ -9199,10 +9275,11 @@ function initDashboardRecap() {
                         }
                     },
                     { targets: 1, orderable: true },
-                    { targets: 2, className: 'text-center', width: '90px', visible: false },
+                    { targets: 2, className: 'text-left' },
+                    { targets: 3, className: 'text-center', width: '90px', visible: false },
                     {
-                        targets: [3,4,5],
-                        className: 'text-end',
+                        targets: [4,5,6],
+                        className: 'text-right',
                         render: function (data, type) {
                             const v = Number(data) || 0;
                             if (type === 'display' || type === 'filter') return fmtIdr(v);
@@ -9210,7 +9287,7 @@ function initDashboardRecap() {
                         }
                     },
                     {
-                        targets: 6,
+                        targets: 7,
                         className: 'text-center',
                         render: function (data, type) {
                             const v = Number(data) || 0;
@@ -9219,15 +9296,15 @@ function initDashboardRecap() {
                         }
                     },
                     {
-                        targets: 7,
+                        targets: 8,
                         className: 'text-center',
                         render: function (data, type) {
                             return renderScoreCell(data, type);
                         }
                     },
-                    { targets: 8, className: 'text-center', orderable: false },
+                    { targets: 9, className: 'text-center', orderable: false },
                     {
-                        targets: 9,
+                        targets: 10,
                         className: 'text-center',
                         orderable: true,
                         searchable: false,
@@ -9248,7 +9325,7 @@ function initDashboardRecap() {
                             return maxSec;
                         }
                     },
-                    { targets: 10, className: 'text-center', orderable: false, searchable: false }
+                    { targets: 11, className: 'text-center', orderable: false, searchable: false }
                 ]
             });
             bindNoColumn(window.dashboardRecapDt);
