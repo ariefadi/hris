@@ -5768,17 +5768,27 @@ function initDashboardRecap() {
 
     function scxRenderCountryPane(group, tabKey) {
         const st = group?.status || {};
-        const evs = Array.isArray(group?.events) ? group.events : [];
+        const useNativeEvents = String(group?.eventSource || 'native') === 'native';
+        const evs = useNativeEvents && Array.isArray(group?.events) ? group.events : [];
         let pos = scxTopEvents(evs, 'positive');
         let neg = scxTopEvents(evs, 'negative');
         if (!pos.length && Number(st?.positive_signal_count || 0) > 0) pos = [{ name:'Sinyal Positif (agregat)', signal:Number(st?.positive_signal_count || 0), current:Number(st?.positive_signal_count || 0), baseline:0, countries:1 }];
         if (!neg.length && Number(st?.negative_signal_count || 0) > 0) neg = [{ name:'Sinyal Negatif (agregat)', signal:-Number(st?.negative_signal_count || 0), current:Number(st?.negative_signal_count || 0), baseline:0, countries:1 }];
         let rows = evs.filter(function(ev){ return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; }).sort(function(a,b){ return Math.abs(Number(b?.signal_strength||0)) - Math.abs(Number(a?.signal_strength||0)); }).map(function(ev){ const t=scxSignalTone(ev?.signal_strength); return `<tr><td>${esc(scxMetricName(ev?.header_name || ev?.rule_key || '-'))}</td><td class="text-end">${esc(scxNum(ev?.cur_value,2))}</td><td class="text-end">${esc(scxBaselineText(ev))}</td><td><span class="scx-impact ${t}">${esc(scxSignalText(ev?.signal_strength))}</span></td></tr>`; }).join('');
         if (!rows) {
-            rows = [['TRAFFIC_SCORE', st?.traffic_score], ['DELIVERY_SCORE', st?.delivery_score], ['YIELD_SCORE', st?.yield_score], ['QUALITY_SCORE', st?.quality_score], ['REVENUE_SCORE', st?.revenue_score], ['EFFICIENCY_SCORE', st?.efficiency_score]]
-                .filter(function(pair){ return Number.isFinite(Number(pair[1])); })
-                .map(function(pair){ const v = Number(pair[1] || 0); const t = scxSignalTone(v); return `<tr><td>${esc(scxMetricName(pair[0]))}</td><td class="text-end">${esc(scxNum(v,2))}</td><td class="text-end">0.00</td><td><span class="scx-impact ${t}">${esc(scxSignalText(v))}</span></td></tr>`; })
-                .join('');
+            const spend = Number(st?.spend || 0);
+            const revenue = Number((st?.revenue_value ?? st?.revenue ?? 0));
+            const roi = Number.isFinite(Number(st?.roi)) ? Number(st?.roi) : (spend > 0 ? ((revenue - spend) / spend) * 100 : 0);
+            rows = [
+                ['HEALTH_SCORE', st?.health_score],
+                ['IVT_RISK_SCORE', st?.ivt_risk_score],
+                ['DECISION_MARGIN', st?.decision_margin],
+                ['ROI', roi],
+                ['SPEND', spend],
+                ['REVENUE', revenue]
+            ].filter(function(pair){ return Number.isFinite(Number(pair[1])); })
+             .map(function(pair){ const v = Number(pair[1] || 0); const t = scxSignalTone(pair[0] === 'IVT_RISK_SCORE' ? -v : v); return `<tr><td>${esc(scxMetricName(pair[0]))}</td><td class="text-end">${esc(scxNum(v,2))}</td><td class="text-end">-</td><td><span class="scx-impact ${t}">${esc(pair[0] === 'IVT_RISK_SCORE' ? 'Risiko tinggi perlu ditekan' : scxSignalText(v))}</span></td></tr>`; })
+             .join('');
         }
         const fl = String(st?.final_label || 'UNKNOWN');
         const rl = String(st?.root_cause_label || 'STABLE');
@@ -6933,9 +6943,10 @@ function initDashboardRecap() {
         return out;
     }
 
-    function dailyAggFromRawRows(rawRows, domainKey) {
+    function dailyAggFromRawRows(rawRows, domainKey, countryCode) {
         const out = {};
         const dk = baseSubdomain(domainKey);
+        const wantCountry = String(countryCode || '').trim().toUpperCase();
 
         const n0 = (v) => {
             const x = Number(v);
@@ -6983,8 +6994,10 @@ function initDashboardRecap() {
                     'log_adx_country_domain'
                 ])
             );
+            const rowCountry = String(pickText(r, ['country_code', 'country_cd', 'code', 'log_adsense_country_code', 'log_adx_country_code']) || '').trim().toUpperCase();
 
             if (dk && sn && dk !== sn) return;
+            if (wantCountry && rowCountry && wantCountry !== rowCountry) return;
 
             const o = out[d] || (out[d] = {
                 spend: 0,
@@ -7124,7 +7137,7 @@ function initDashboardRecap() {
         return [];
     }
 
-    async function buildTrendSeries(domainKey, endYmd, state, daysBack) {
+    async function buildTrendSeries(domainKey, endYmd, state, daysBack, opts) {
         const dim = (state && state.dim) ? state.dim : 'domain';
         const src = String((state && state.source) || 'all').toLowerCase();
         const back = Math.max(0, Number(daysBack) || 0);
@@ -7282,7 +7295,7 @@ function initDashboardRecap() {
 
         if (src === 'adx' || src === 'adsense') {
             const raw = await fetchTrendRaw(src, dim, start, end, domainKey);
-            const m = dailyAggFromRawRows(raw, domainKey);
+            const m = dailyAggFromRawRows(raw, domainKey, opts && opts.countryCode);
             return seriesFromDaily(m);
         }
 
@@ -7290,8 +7303,8 @@ function initDashboardRecap() {
             fetchTrendRaw('adx', dim, start, end, domainKey),
             fetchTrendRaw('adsense', dim, start, end, domainKey)
         ]);
-        const mAdx = dailyAggFromRawRows(rawAdx, domainKey);
-        const mAds = dailyAggFromRawRows(rawAds, domainKey);
+        const mAdx = dailyAggFromRawRows(rawAdx, domainKey, opts && opts.countryCode);
+        const mAds = dailyAggFromRawRows(rawAds, domainKey, opts && opts.countryCode);
 
         const sx = seriesFromDaily(mAdx);
         const ss = seriesFromDaily(mAds);
@@ -7320,10 +7333,10 @@ function initDashboardRecap() {
         };
     }
 
-    async function buildTrendSeriesMulti(domainKeys, endYmd, state, daysBack) {
+    async function buildTrendSeriesMulti(domainKeys, endYmd, state, daysBack, opts) {
         const keys = uniqKeepOrder(Array.isArray(domainKeys) ? domainKeys : [domainKeys]).filter(Boolean);
-        if (!keys.length) return buildTrendSeries('', endYmd, state, daysBack);
-        const list = await Promise.all(keys.map(function(k){ return buildTrendSeries(k, endYmd, state, daysBack); }));
+        if (!keys.length) return buildTrendSeries('', endYmd, state, daysBack, opts);
+        const list = await Promise.all(keys.map(function(k){ return buildTrendSeries(k, endYmd, state, daysBack, opts); }));
         const base = list.find(function(s){ return Array.isArray(s?.dates) && s.dates.length; }) || { dates: [] };
         const spend = base.dates.map(function(_, i){ return list.reduce(function(a, s){ return a + safeNum(s?.spend?.[i], 0); }, 0); });
         const revenue = base.dates.map(function(_, i){ return list.reduce(function(a, s){ return a + safeNum(s?.revenue?.[i], 0); }, 0); });
@@ -7651,7 +7664,7 @@ function initDashboardRecap() {
             setActive(days);
             if (st) st.textContent = 'Loading trend...';
             try {
-                const series = await buildTrendSeriesMulti((o.domainKeys && o.domainKeys.length) ? o.domainKeys : domainKey, endYmd, trendState, back);
+                const series = await buildTrendSeriesMulti((o.domainKeys && o.domainKeys.length) ? o.domainKeys : domainKey, endYmd, trendState, back, o.seriesOpts || {});
                 renderScoreTrendChart(series, trendState, o);
                 renderTrendStats(series, trendState);
                 const n = (series && series.dates) ? series.dates.length : 0;
@@ -8135,7 +8148,7 @@ function initDashboardRecap() {
             const parsed = pickScoringArrays(scoring);
             const eventsSource = String(scoring?._events_source || 'native');
             const aggEvents = eventsSource === 'synthetic_status_components' ? [] : parsed.events;
-            const groups = scxGroupScoringByCountry(parsed.statuses, parsed.events);
+            const groups = scxGroupScoringByCountry(parsed.statuses, parsed.events).map(function(g){ return Object.assign({}, g, { eventSource: eventsSource }); });
             const enableSubdomainTabs = String(state?.dim || '').toLowerCase() === 'country';
             const subgroups = (enableSubdomainTabs) ? scxGroupScoringBySubdomain(parsed.statuses, parsed.events, row?.code || '') : [];
             const useSubTabs = !!subgroups.length;
@@ -8703,8 +8716,9 @@ function initDashboardRecap() {
                         const idx = Number(String(tabKey || '').replace('country-', ''));
                         const group = Array.isArray(groups) ? groups[idx] : null;
                         const st = group?.status || {};
-                        const trendKey = String(st?.country_cd || st?.country_code || '').trim();
-                        if (trendKey) bindScoreTrendControls(trendKey, endYmd, Object.assign({}, state, { dim: 'country' }), { btn1Id: `scxCountryTrend${idx}Btn1`, btn3Id: `scxCountryTrend${idx}Btn3`, btn7Id: `scxCountryTrend${idx}Btn7`, btn14Id: `scxCountryTrend${idx}Btn14`, statusId: `scxCountryTrend${idx}Status`, statsId: `scxCountryTrend${idx}Stats`, canvasId: `scxCountryTrend${idx}Chart`, chartKey: `scxCountryTrendChart${idx}` });
+                        const trendKey = String(row?.name || row?.domain || row?.site || '').trim();
+                        const countryCode = String(st?.country_cd || st?.country_code || '').trim().toUpperCase();
+                        if (trendKey && countryCode) bindScoreTrendControls(trendKey, endYmd, Object.assign({}, state, { dim: 'domain' }), { btn1Id: `scxCountryTrend${idx}Btn1`, btn3Id: `scxCountryTrend${idx}Btn3`, btn7Id: `scxCountryTrend${idx}Btn7`, btn14Id: `scxCountryTrend${idx}Btn14`, statusId: `scxCountryTrend${idx}Status`, statsId: `scxCountryTrend${idx}Stats`, canvasId: `scxCountryTrend${idx}Chart`, chartKey: `scxCountryTrendChart${idx}`, row: row, seriesOpts: { countryCode: countryCode } });
                     });
                     if (String(state?.dim || '').toLowerCase() === 'domain' && rowWithTrend?.account_ads && state?.date) bindScoreCampaignControls(rowWithTrend, String(state.date || '').trim(), normalizedJson?.scoring || {});
                 } catch (e) {}
