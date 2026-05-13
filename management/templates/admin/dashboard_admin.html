@@ -1483,7 +1483,7 @@ html[data-theme="dark"] .decision-detail-reason-item {
                         <div class="card dashboard-card mt-2" id="dashboardWinningCampaignCard" style="border-radius:16px;">
                             <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
                                 <div style="font-weight:900;"><i class="bi bi-trophy me-2"></i> Winning Campaign</div>
-                                <div class="text-muted" style="font-size:12px" id="dashboardWinningCampaignMeta">Top/Bottom 5 Campaign berdasarkan score</div>
+                                <div class="text-muted" style="font-size:12px" id="dashboardWinningCampaignMeta">Top/Bottom 5 Campaign berdasarkan score Detail Scoring</div>
                             </div>
                             <div class="card-body">
                                 <div class="row">
@@ -8967,10 +8967,14 @@ function initDashboardRecap() {
                 const n = Number(s);
                 return Number.isFinite(n) ? n : 0;
             };
-            const scoreFromMetrics = function(health, risk, conf, margin, roiDec) {
-                const profitComp = scxClamp((safeNum(roiDec) + 1) * 50, 0, 100);
-                const scoreRaw = (((safeNum(health) + 100) / 2) * 0.25) + ((100 - safeNum(risk)) * 0.20) + (scxClamp(safeNum(conf), 0, 1) * 100 * 0.10) + (scxClamp(safeNum(margin) + 50, 0, 100) * 0.15) + (profitComp * 0.30);
-                return Math.round(scxClamp(scoreRaw, 0, 100));
+            const scoreFromMetrics = function(scoreValue) {
+                const n = Number(scoreValue);
+                return Number.isFinite(n) ? Math.round(scxClamp(n, 0, 100)) : null;
+            };
+            const incVote = function(map, key) {
+                const k = String(key || '').trim().toUpperCase();
+                if (!k) return;
+                map.set(k, Number(map.get(k) || 0) + 1);
             };
             const pill = function(dec) {
                 const d = String(dec || '').toUpperCase();
@@ -8984,6 +8988,10 @@ function initDashboardRecap() {
 
             const agg = new Map();
             (Array.isArray(scoredRows) ? scoredRows : []).forEach(function(it){
+                const backendScore = scoreFromMetrics(it?.meta?.score);
+                const backendDecision = String(it?.meta?.decision || '').trim().toUpperCase();
+                const info = it?.meta?.breakdown?.meta || {};
+                const fallbackDays = Math.max(0, Math.floor(Number(info?.days_active || it?.r?.days_active || 0) || 0));
                 const sources = [
                     it?.meta?.breakdown?.meta?.country_details,
                     it?.meta?.breakdown?.meta?.statuses,
@@ -9003,46 +9011,37 @@ function initDashboardRecap() {
                     if (Array.isArray(src)) src.forEach(function(r){ details.push(r || {}); });
                     else if (src && typeof src === 'object') Object.values(src).forEach(function(r){ details.push(r || {}); });
                 });
+                const localByCampaign = new Map();
                 details.forEach(function(cd){
                     const campaign = campaignNameOf(cd);
                     if (!campaign) return;
                     const key = campaign.toLowerCase();
-                    if (!agg.has(key)) agg.set(key, { campaign, spend: 0, revenue: 0, w: 0, healthW: 0, riskW: 0, adjW: 0, confW: 0, marginW: 0, daysMax: 0, final_label: '', source_mode: '' });
+                    if (!localByCampaign.has(key)) localByCampaign.set(key, { campaign, spend: 0, revenue: 0, days_active: fallbackDays });
+                    const loc = localByCampaign.get(key);
+                    loc.spend += Number(scxSpendValue(cd));
+                    loc.revenue += Number(scxRevenueValue(cd));
+                    loc.days_active = Math.max(Number(loc.days_active || 0), Math.max(0, Math.floor(safeNum(cd?.days_active))));
+                });
+                localByCampaign.forEach(function(loc, key){
+                    if (!agg.has(key)) agg.set(key, { campaign: loc.campaign, spend: 0, revenue: 0, scoreW: 0, scoreWeight: 0, daysMax: 0, decisions: new Map() });
                     const a = agg.get(key);
-                    const spend = Number(scxSpendValue(cd));
-                    const revenue = Number(scxRevenueValue(cd));
-                    const w = spend > 0 ? spend : 1;
-                    a.spend += spend;
-                    a.revenue += revenue;
-                    a.w += w;
-                    a.healthW += safeNum(cd?.health_score) * w;
-                    a.riskW += safeNum(cd?.ivt_risk_score) * w;
-                    a.adjW += safeNum(cd?.adjustment_score) * w;
-                    a.confW += safeNum(cd?.confidence) * w;
-                    a.marginW += safeNum(cd?.decision_margin) * w;
-                    const d = Math.max(0, Math.floor(safeNum(cd?.days_active)));
-                    a.daysMax = Math.max(Number(a.daysMax || 0), d);
-                    if (!a.final_label) a.final_label = String(cd?.final_label || cd?.root_cause_label || 'STABLE').toUpperCase();
-                    if (!a.source_mode) a.source_mode = String(cd?.mapped_revenue_source || cd?.source_mode || '').toUpperCase();
+                    const weight = loc.spend > 0 ? loc.spend : 1;
+                    a.spend += loc.spend;
+                    a.revenue += loc.revenue;
+                    if (backendScore != null) { a.scoreW += backendScore * weight; a.scoreWeight += weight; }
+                    a.daysMax = Math.max(Number(a.daysMax || 0), Number(loc.days_active || 0), fallbackDays);
+                    incVote(a.decisions, backendDecision);
                 });
             });
 
             const campaigns = Array.from(agg.values()).map(function(a){
-                const ww = a.w > 0 ? a.w : 1;
-                const health = a.healthW / ww;
-                const risk = a.riskW / ww;
-                const adj = a.adjW / ww;
-                const conf = scxClamp(a.confW / ww, 0, 1);
-                const margin = a.marginW / ww;
                 const roi = a.spend > 0 ? ((a.revenue - a.spend) / a.spend) : 0;
-                const score = scoreFromMetrics(health, risk, conf, margin, roi);
-                const profitStrong = (a.revenue > a.spend) && (roi >= 0.30);
-                const sourceMode = a.source_mode || (String(stateNow?.source || 'all').toLowerCase() === 'adx' ? 'ADX_ONLY' : (String(stateNow?.source || 'all').toLowerCase() === 'adsense' ? 'ADSENSE_ONLY' : 'BLENDED'));
-                const decision = scxDeriveDecision(score, a.final_label || 'STABLE', health, risk, adj, conf, margin, profitStrong, sourceMode).decision;
-                return { campaign: a.campaign, spend: a.spend, revenue: a.revenue, roi: roi * 100, score, decision, days_active: Number(a.daysMax || 0) };
+                const topDecision = Array.from(a.decisions.entries()).sort(function(x, y){ return Number(y[1] || 0) - Number(x[1] || 0); })[0];
+                const scoreRaw = a.scoreWeight > 0 ? Math.round(a.scoreW / a.scoreWeight) : null;
+                return { campaign: a.campaign, spend: a.spend, revenue: a.revenue, roi: roi * 100, score: scoreRaw == null ? -1 : scoreRaw, score_text: scoreRaw == null ? '-' : String(scoreRaw), decision: topDecision ? topDecision[0] : 'HOLD', days_active: Number(a.daysMax || 0) };
             }).filter(function(x){
                 return Number(x?.days_active || 0) >= WINNING_MIN_DAYS;
-            }).sort(function(x, y){ return y.score - x.score; });
+            }).sort(function(x, y){ return (y.score - x.score) || (y.roi - x.roi); });
 
             const draw = function(targetBody, list, emptyMsg) {
                 if (!list.length) {
@@ -9050,7 +9049,7 @@ function initDashboardRecap() {
                     return;
                 }
                 targetBody.innerHTML = list.map(function(r, idx){
-                    return `<tr><td class="text-center">${idx + 1}</td><td><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;"><span style="display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.campaign)}</span>${daysBadge(r.days_active)}</div></td><td class="text-end">${esc(fmtIdr(r.spend))}</td><td class="text-end">${esc(fmtIdr(r.revenue))}</td><td class="text-center">${esc(fmtPct(r.roi))}</td><td class="text-center" style="font-weight:800;">${esc(String(r.score))}</td><td class="text-center">${pill(r.decision)}</td></tr>`;
+                    return `<tr><td class="text-center">${idx + 1}</td><td><div style="display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;"><span style="display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.campaign)}</span>${daysBadge(r.days_active)}</div></td><td class="text-end">${esc(fmtIdr(r.spend))}</td><td class="text-end">${esc(fmtIdr(r.revenue))}</td><td class="text-center">${esc(fmtPct(r.roi))}</td><td class="text-center" style="font-weight:800;">${esc(r.score_text)}</td><td class="text-center">${pill(r.decision)}</td></tr>`;
                 }).join('');
             };
 
@@ -9058,7 +9057,7 @@ function initDashboardRecap() {
             const bottom5 = campaigns.slice().sort(function(x, y){ return x.score - y.score; }).slice(0, 5);
             draw(topBody, top5, `Belum ada campaign dengan umur minimal ${WINNING_MIN_DAYS} hari.`);
             draw(bottomBody, bottom5, `Belum ada campaign dengan umur minimal ${WINNING_MIN_DAYS} hari.`);
-            if (metaEl) metaEl.textContent = `${campaigns.length} campaign (umur ≥ ${WINNING_MIN_DAYS} hari)`;
+            if (metaEl) metaEl.textContent = `${campaigns.length} campaign (umur ≥ ${WINNING_MIN_DAYS} hari, score mengikuti Detail Scoring)`;
         }
 
         window.dashboardRecapScoreDetails = window.dashboardRecapScoreDetails || {};
