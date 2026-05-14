@@ -86,6 +86,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
   #table_data_per_country_facebook tbody td:first-child{text-align:left;font-weight:700}#table_data_per_country_facebook tbody td:last-child{background:#f8fafc;font-weight:700}
   html[data-theme="dark"] .dt-responsive-table{border-color:#334155;background:linear-gradient(180deg,#0f172a 0%,#111827 100%);box-shadow:0 14px 28px rgba(0,0,0,.35)}
   html[data-theme="dark"] #table_data_per_country_facebook,html[data-theme="dark"] #table_data_per_country_facebook>:not(caption)>*>*,html[data-theme="dark"] .dataTables_wrapper{color:#e5e7eb!important}html[data-theme="dark"] #table_data_per_country_facebook tbody tr:nth-child(odd) td{background:#162033!important}html[data-theme="dark"] #table_data_per_country_facebook tbody tr:nth-child(even) td{background:#111827!important}html[data-theme="dark"] #table_data_per_country_facebook tbody tr:hover td{background:#1e3a5f!important}html[data-theme="dark"] #table_data_per_country_facebook thead th{background:linear-gradient(135deg,#2563eb 0%,#0f766e 100%)!important}html[data-theme="dark"] .dataTables_wrapper .dataTables_filter input,html[data-theme="dark"] .dataTables_wrapper .dataTables_length select{background:#0f172a!important;color:#e5e7eb!important;border-color:#334155!important}
+  .fb-country-modal .modal-dialog{max-width:860px}.fb-country-modal .modal-content{border:0;border-radius:22px;overflow:hidden;background:linear-gradient(180deg,#f8fbff 0%,#fff 100%);box-shadow:0 24px 60px rgba(15,23,42,.26)}.fb-country-modal .modal-header{border:0;padding:18px 22px;background:linear-gradient(135deg,#1d4ed8 0%,#0891b2 100%);color:#fff}.fb-country-modal .modal-title{font-weight:800;display:flex;align-items:center;gap:10px}.fb-country-modal .close{color:#fff;opacity:.9;text-shadow:none}.fb-country-modal .modal-body{padding:22px;background:linear-gradient(180deg,#f8fbff 0%,#fff 100%)}.fb-country-modal .modal-footer{border:0;padding:0 22px 22px;background:transparent}.fb-country-hero{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:18px 20px;border-radius:18px;background:linear-gradient(135deg,#eff6ff 0%,#ecfeff 100%);border:1px solid #dbeafe;box-shadow:inset 0 1px 0 rgba(255,255,255,.8)}.fb-country-hero-meta{display:grid;gap:8px}.fb-country-hero-label{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#475569}.fb-country-hero-name{font-size:28px;line-height:1.1;font-weight:900;color:#0f172a}.fb-country-hero-code{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;background:#fff;border:1px solid #bfdbfe;color:#1d4ed8;font-weight:800}.fb-country-hero-spend{min-width:220px;padding:14px 16px;border-radius:16px;background:rgba(255,255,255,.78);border:1px solid rgba(148,163,184,.25);text-align:right}.fb-country-hero-spend .k{display:block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b}.fb-country-hero-spend .v{display:block;font-size:28px;line-height:1.1;font-weight:900;color:#0f172a;margin-top:4px}.fb-country-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:16px}.fb-country-stat{padding:16px;border-radius:18px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 10px 24px rgba(15,23,42,.06)}.fb-country-stat .k{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-bottom:8px}.fb-country-stat .v{font-size:24px;line-height:1.1;font-weight:900;color:#0f172a}.fb-country-stat .s{font-size:12px;color:#64748b;margin-top:6px}.fb-country-modal .btn-secondary{border-radius:12px;padding:9px 16px;font-weight:800;border:none;background:#64748b}.fb-country-modal .btn-secondary:hover{background:#475569}@media (max-width:767.98px){.fb-country-hero{flex-direction:column}.fb-country-hero-spend{width:100%;min-width:0;text-align:left}.fb-country-stats{grid-template-columns:1fr}}html[data-theme="dark"] .fb-country-modal .modal-content{background:linear-gradient(180deg,#0f172a 0%,#111827 100%);box-shadow:0 28px 60px rgba(0,0,0,.55)}html[data-theme="dark"] .fb-country-modal .modal-body{background:linear-gradient(180deg,#0f172a 0%,#111827 100%)}html[data-theme="dark"] .fb-country-hero{background:linear-gradient(135deg,rgba(30,41,59,.95) 0%,rgba(15,23,42,.95) 100%);border-color:#334155}html[data-theme="dark"] .fb-country-hero-name,html[data-theme="dark"] .fb-country-hero-spend .v,html[data-theme="dark"] .fb-country-stat .v{color:#f8fafc}html[data-theme="dark"] .fb-country-hero-label,html[data-theme="dark"] .fb-country-hero-spend .k,html[data-theme="dark"] .fb-country-stat .k,html[data-theme="dark"] .fb-country-stat .s{color:#94a3b8}html[data-theme="dark"] .fb-country-hero-code{background:#0f172a;border-color:#334155;color:#93c5fd}html[data-theme="dark"] .fb-country-hero-spend,html[data-theme="dark"] .fb-country-stat{background:#111827;border-color:#334155;box-shadow:0 10px 24px rgba(0,0,0,.25)}
 </style>
 <div class="card">
     <div class="card-header">
@@ -208,8 +209,8 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
         </table>
         </div>
 
-        <div class="modal fade" id="facebookCountryDetailModal" tabindex="-1" role="dialog" aria-labelledby="facebookCountryDetailModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg" role="document">
+        <div class="modal fade fb-country-modal" id="facebookCountryDetailModal" tabindex="-1" role="dialog" aria-labelledby="facebookCountryDetailModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title" id="facebookCountryDetailModalLabel">
@@ -220,58 +221,47 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         </button>
                     </div>
                     <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-borderless mb-0">
-                                        <tbody>
-                                            <tr>
-                                                <th style="width: 45%;">Negara</th>
-                                                <td id="facebookCountryDetailCountryName">-</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Kode</th>
-                                                <td id="facebookCountryDetailCountryCode">-</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+                        <div class="fb-country-hero">
+                            <div class="fb-country-hero-meta">
+                                <span class="fb-country-hero-label">Negara Terpilih</span>
+                                <div id="facebookCountryDetailCountryName" class="fb-country-hero-name">-</div>
+                                <div class="fb-country-hero-code"><i class="bi bi-geo-alt-fill"></i> <span id="facebookCountryDetailCountryCode">-</span></div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-borderless mb-0">
-                                        <tbody>
-                                            <tr>
-                                                <th style="width: 45%;">Spend</th>
-                                                <td id="facebookCountryDetailSpend" class="text-right">Rp 0</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Impressions</th>
-                                                <td id="facebookCountryDetailImpressions" class="text-right">0</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Reach</th>
-                                                <td id="facebookCountryDetailReach" class="text-right">0</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Clicks</th>
-                                                <td id="facebookCountryDetailClicks" class="text-right">0</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Frequency</th>
-                                                <td id="facebookCountryDetailFrequency" class="text-right">0</td>
-                                            </tr>
-                                            <tr>
-                                                <th>CPR</th>
-                                                <td id="facebookCountryDetailCpr" class="text-right">Rp 0</td>
-                                            </tr>
-                                            <tr>
-                                                <th>CPC</th>
-                                                <td id="facebookCountryDetailCpc" class="text-right">Rp 0</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+                            <div class="fb-country-hero-spend">
+                                <span class="k">Total Spend</span>
+                                <span id="facebookCountryDetailSpend" class="v">Rp 0</span>
+                            </div>
+                        </div>
+                        <div class="fb-country-stats">
+                            <div class="fb-country-stat">
+                                <div class="k">Impressions</div>
+                                <div id="facebookCountryDetailImpressions" class="v">0</div>
+                                <div class="s">Jumlah tayangan iklan</div>
+                            </div>
+                            <div class="fb-country-stat">
+                                <div class="k">Reach</div>
+                                <div id="facebookCountryDetailReach" class="v">0</div>
+                                <div class="s">Akun yang berhasil dijangkau</div>
+                            </div>
+                            <div class="fb-country-stat">
+                                <div class="k">Clicks</div>
+                                <div id="facebookCountryDetailClicks" class="v">0</div>
+                                <div class="s">Klik yang dihasilkan</div>
+                            </div>
+                            <div class="fb-country-stat">
+                                <div class="k">Frequency</div>
+                                <div id="facebookCountryDetailFrequency" class="v">0</div>
+                                <div class="s">Rata-rata tayang per audiens</div>
+                            </div>
+                            <div class="fb-country-stat">
+                                <div class="k">CPR</div>
+                                <div id="facebookCountryDetailCpr" class="v">Rp 0</div>
+                                <div class="s">Biaya per hasil</div>
+                            </div>
+                            <div class="fb-country-stat">
+                                <div class="k">CPC</div>
+                                <div id="facebookCountryDetailCpc" class="v">Rp 0</div>
+                                <div class="s">Biaya per klik</div>
                             </div>
                         </div>
                     </div>
