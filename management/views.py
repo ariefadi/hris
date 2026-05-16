@@ -1038,6 +1038,139 @@ class FacebookDetailedTargetingSuggestView(View):
         except Exception:
             return JsonResponse({'results': []})
 
+class FacebookIdentitySuggestView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        q = str(req.GET.get('q') or '').strip().lower()
+        selected_account = str(req.GET.get('selected_account') or '').strip()
+        identity_type = str(req.GET.get('identity_type') or 'page').strip().lower()
+        page_id = str(req.GET.get('page_id') or '').strip()
+        if not selected_account:
+            return JsonResponse({'results': []})
+        try:
+            rs = data_mysql().master_account_ads_by_id({'data_account': selected_account})
+            acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+            token = str((acc or {}).get('access_token') or '').strip()
+            if not token:
+                return JsonResponse({'results': []})
+            resp = requests.get('https://graph.facebook.com/v22.0/me/accounts', params={'fields': 'id,name,instagram_business_account{id,username,name},connected_instagram_account{id,username,name}', 'limit': 200, 'access_token': token}, timeout=20)
+            rows = ((resp.json() if resp.text else {}) or {}).get('data') or []
+            results, seen = [], set()
+            for p in rows:
+                pid, pname = str((p or {}).get('id') or '').strip(), str((p or {}).get('name') or '').strip()
+                ig = (p or {}).get('instagram_business_account') or (p or {}).get('connected_instagram_account') or {}
+                if identity_type == 'instagram':
+                    iid = str((ig or {}).get('id') or '').strip(); uname = str((ig or {}).get('username') or '').strip(); iname = str((ig or {}).get('name') or '').strip()
+                    if not iid or (page_id and pid != page_id):
+                        continue
+                    raw = f"{iid} {uname} {iname} {pname}".lower()
+                    if q and q not in raw:
+                        continue
+                    label = ('@' + uname) if uname else (iname or iid)
+                    key = f"ig|{iid}".lower()
+                    if key in seen:
+                        continue
+                    seen.add(key); results.append({'id': iid, 'text': f'{label} • {pname}'})
+                else:
+                    raw = f"{pid} {pname}".lower()
+                    if q and q not in raw:
+                        continue
+                    key = f"pg|{pid}".lower()
+                    if key in seen or not pid:
+                        continue
+                    seen.add(key); results.append({'id': pid, 'text': f'{pname} (ID: {pid})'})
+            return JsonResponse({'results': results[:50]})
+        except Exception:
+            return JsonResponse({'results': []})
+
+class FacebookExistingPostLibraryView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+    def _token(self, account_id):
+        rs = data_mysql().master_account_ads_by_id({'data_account': account_id}); acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+        return str((acc or {}).get('access_token') or '').strip()
+    def _page_token(self, page_id, user_token):
+        r = requests.get(f'https://graph.facebook.com/v22.0/{page_id}', params={'fields': 'access_token,name', 'access_token': user_token}, timeout=20)
+        b = r.json() if r.text else {}
+        return str((b or {}).get('access_token') or '').strip(), str((b or {}).get('name') or page_id)
+    def get(self, req):
+        account_id = str(req.GET.get('account_id') or '').strip(); source = str(req.GET.get('source') or 'facebook').strip(); q = str(req.GET.get('q') or '').strip().lower(); flt = str(req.GET.get('filter') or 'all').strip().lower()
+        page_id = str(req.GET.get('page_id') or '').strip(); ig_id = str(req.GET.get('instagram_actor_id') or '').strip(); partner_page_id = str(req.GET.get('partner_page_id') or '').strip(); partner_ig_id = str(req.GET.get('partner_instagram_actor_id') or '').strip()
+        token = self._token(account_id)
+        if not token: return JsonResponse({'results': []})
+        results = []
+        try:
+            def _media_label(item):
+                atts = (((item or {}).get('attachments') or {}).get('data') or [])
+                first = (atts[0] or {}) if atts else {}
+                raw = str((first.get('media_type') or first.get('type') or (item or {}).get('media_type') or (item or {}).get('status_type') or '')).upper()
+                if 'VIDEO' in raw:
+                    return 'Video'
+                if any(x in raw for x in ['PHOTO','IMAGE','ALBUM']):
+                    return 'Gambar'
+                return 'Teks'
+            if source == 'instagram' and ig_id:
+                r = requests.get(f'https://graph.facebook.com/v22.0/{ig_id}/media', params={'fields': 'id,caption,media_type,media_url,thumbnail_url,timestamp,permalink', 'limit': 50, 'access_token': token}, timeout=20)
+                rows = ((r.json() if r.text else {}) or {}).get('data') or []
+                for x in rows:
+                    txt = str((x or {}).get('caption') or 'Postingan Instagram').strip() or 'Postingan Instagram'; mt = str((x or {}).get('media_type') or '-').strip(); created = str((x or {}).get('timestamp') or '').replace('T', ' ')[:16]
+                    media_label = 'Video' if 'VIDEO' in mt.upper() else ('Gambar' if any(v in mt.upper() for v in ['IMAGE','CAROUSEL']) else 'Teks')
+                    raw = f"{txt} {x.get('id','')} {mt}".lower()
+                    if q and q not in raw: continue
+                    if flt != 'all' and flt != media_label.lower(): continue
+                    results.append({'id': str((x or {}).get('id') or ''), 'text': txt[:120], 'source_label': 'Instagram', 'media_label': media_label, 'created_label': created or '-'})
+            else:
+                use_page = partner_page_id if source == 'partner' and partner_page_id else page_id
+                if use_page:
+                    page_token, page_name = self._page_token(use_page, token)
+                    fields = 'id,message,created_time,status_type,attachments{media_type,type}'
+                    resp_prom = requests.get(f'https://graph.facebook.com/v22.0/{use_page}/promotable_posts', params={'fields': fields, 'limit': 50, 'access_token': page_token or token}, timeout=20)
+                    resp_pub = requests.get(f'https://graph.facebook.com/v22.0/{use_page}/published_posts', params={'fields': fields, 'limit': 50, 'access_token': page_token or token}, timeout=20)
+                    rows = (((resp_prom.json() if resp_prom.text else {}) or {}).get('data') or []) + (((resp_pub.json() if resp_pub.text else {}) or {}).get('data') or [])
+                    seen = set()
+                    for x in rows:
+                        xid = str((x or {}).get('id') or '').strip()
+                        if not xid or xid in seen: continue
+                        seen.add(xid)
+                        txt = str((x or {}).get('message') or 'Postingan Facebook').strip() or 'Postingan Facebook'; media_label = _media_label(x); created = str((x or {}).get('created_time') or '').replace('T', ' ')[:16]
+                        raw = f"{txt} {xid} {media_label}".lower()
+                        if q and q not in raw: continue
+                        if flt != 'all' and flt != media_label.lower(): continue
+                        results.append({'id': xid, 'text': txt[:120], 'source_label': ('Konten Mitra' if source == 'partner' else page_name), 'media_label': media_label, 'created_label': created or '-'})
+            return JsonResponse({'results': results[:50]})
+        except Exception:
+            return JsonResponse({'results': results[:50]})
+
+class FacebookCreatePagePostView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+    def post(self, req):
+        account_id = str(req.POST.get('account_id') or '').strip(); page_id = str(req.POST.get('page_id') or '').strip(); message = str(req.POST.get('message') or '').strip(); link = str(req.POST.get('link') or '').strip()
+        if not account_id or not page_id or not message:
+            return JsonResponse({'success': False, 'message': 'Account, halaman, dan isi postingan wajib diisi.'})
+        try:
+            rs = data_mysql().master_account_ads_by_id({'data_account': account_id}); acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+            token = str((acc or {}).get('access_token') or '').strip()
+            page_meta = requests.get(f'https://graph.facebook.com/v22.0/{page_id}', params={'fields': 'access_token', 'access_token': token}, timeout=20).json()
+            page_token = str((page_meta or {}).get('access_token') or token).strip()
+            payload = {'message': message, 'published': 'false', 'access_token': page_token}
+            if link: payload['link'] = link
+            resp = requests.post(f'https://graph.facebook.com/v22.0/{page_id}/feed', data=payload, timeout=20)
+            body = resp.json() if resp.text else {}
+            post_id = str((body or {}).get('id') or '').strip()
+            if not post_id: return JsonResponse({'success': False, 'message': str((body or {}).get('error', {}) or {}).strip() or 'Gagal membuat postingan.'})
+            return JsonResponse({'success': True, 'post_id': post_id, 'post_text': message[:120]})
+        except Exception:
+            return JsonResponse({'success': False, 'message': 'Gagal membuat postingan.'})
+
 @csrf_exempt
 def get_countries_adx(request):
     """Endpoint untuk mendapatkan daftar negara yang tersedia"""
@@ -3765,6 +3898,7 @@ class GetCampaignMetaDetailView(View):
         data = body if isinstance(body, dict) else {}
         cats = data.get('special_ad_categories') if isinstance(data.get('special_ad_categories'), list) else []
         adset_data = {}
+        ad_data = {}
         try:
             aresp = requests.get(
                 f'https://graph.facebook.com/v22.0/{campaign_id}/adsets',
@@ -3810,7 +3944,55 @@ class GetCampaignMetaDetailView(View):
                 }
         except Exception:
             adset_data = {}
-        return JsonResponse({'success': True, 'data': {'account_id': account_id, 'campaign_id': str(data.get('id') or campaign_id), 'campaign_name': str(data.get('name') or ''), 'objective': str(data.get('objective') or 'OUTCOME_TRAFFIC'), 'status': str(data.get('status') or 'PAUSED'), 'buying_type': str(data.get('buying_type') or 'AUCTION'), 'special_ad_category': str(cats[0] if cats else 'NONE'), 'campaign_budget_type': 'daily' if data.get('daily_budget') else ('lifetime' if data.get('lifetime_budget') else 'none'), 'campaign_daily_budget': str(data.get('daily_budget') or ''), 'campaign_lifetime_budget': str(data.get('lifetime_budget') or ''), 'campaign_spend_cap': str(data.get('spend_cap') or ''), 'adset': adset_data}})
+        try:
+            dresp = requests.get(
+                f'https://graph.facebook.com/v22.0/{campaign_id}/ads',
+                params={'access_token': token, 'fields': 'id,name,effective_object_story_id,creative{id}', 'limit': 25},
+                timeout=20
+            )
+            dbody = dresp.json() if dresp.text else {}
+            rows = (dbody or {}).get('data') or [] if isinstance(dbody, dict) else []
+            drow = next((x for x in rows if isinstance((x or {}).get('creative'), dict) or str((x or {}).get('effective_object_story_id') or '').strip()), None)
+            if isinstance(drow, dict):
+                creative_ref = drow.get('creative') if isinstance(drow.get('creative'), dict) else {}
+                creative_id = str(creative_ref.get('id') or '').strip()
+                creative = {}
+                if creative_id:
+                    cresp = requests.get(
+                        f'https://graph.facebook.com/v22.0/{creative_id}',
+                        params={'access_token': token, 'fields': 'id,title,body,object_story_id,object_story_spec,call_to_action_type,instagram_actor_id,url_tags'},
+                        timeout=20
+                    )
+                    creative = cresp.json() if cresp.text else {}
+                spec = creative.get('object_story_spec') if isinstance(creative.get('object_story_spec'), dict) else {}
+                story = spec.get('link_data') if isinstance(spec.get('link_data'), dict) else (spec.get('video_data') if isinstance(spec.get('video_data'), dict) else {})
+                existing_post_id = str(creative.get('object_story_id') or drow.get('effective_object_story_id') or '').strip()
+                post_data = {}
+                if existing_post_id:
+                    presp = requests.get(
+                        f'https://graph.facebook.com/v22.0/{existing_post_id}',
+                        params={'access_token': token, 'fields': 'id,message,caption,description,link,from{id,name},call_to_action'},
+                        timeout=20
+                    )
+                    post_data = presp.json() if presp.text else {}
+                post_from = post_data.get('from') if isinstance(post_data.get('from'), dict) else {}
+                ad_data = {
+                    'ad_id': str(drow.get('id') or ''), 'ad_name': str(drow.get('name') or ''),
+                    'page_id': str(spec.get('page_id') or post_from.get('id') or (existing_post_id.split('_')[0] if '_' in existing_post_id else '')),
+                    'page_id_label': str(post_from.get('name') or ''),
+                    'instagram_actor_id': str(spec.get('instagram_actor_id') or creative.get('instagram_actor_id') or ''),
+                    'use_existing_post': '1' if existing_post_id else '0', 'existing_post_id': existing_post_id,
+                    'website_url': str(story.get('link') or post_data.get('link') or ''),
+                    'primary_text': str(story.get('message') or post_data.get('message') or creative.get('body') or ''),
+                    'headline': str(story.get('name') or creative.get('title') or ''),
+                    'description': str(story.get('description') or post_data.get('description') or ''),
+                    'caption': str(story.get('caption') or post_data.get('caption') or ''),
+                    'cta_type': str(((story.get('call_to_action') or {}).get('type') or ((post_data.get('call_to_action') or {}).get('type') if isinstance(post_data.get('call_to_action'), dict) else '') or creative.get('call_to_action_type') or 'LEARN_MORE')).strip().upper(),
+                    'url_tags': str(creative.get('url_tags') or '')
+                }
+        except Exception:
+            ad_data = {}
+        return JsonResponse({'success': True, 'data': {'account_id': account_id, 'campaign_id': str(data.get('id') or campaign_id), 'campaign_name': str(data.get('name') or ''), 'objective': str(data.get('objective') or 'OUTCOME_TRAFFIC'), 'status': str(data.get('status') or 'PAUSED'), 'buying_type': str(data.get('buying_type') or 'AUCTION'), 'special_ad_category': str(cats[0] if cats else 'NONE'), 'campaign_budget_type': 'daily' if data.get('daily_budget') else ('lifetime' if data.get('lifetime_budget') else 'none'), 'campaign_daily_budget': str(data.get('daily_budget') or ''), 'campaign_lifetime_budget': str(data.get('lifetime_budget') or ''), 'campaign_spend_cap': str(data.get('spend_cap') or ''), 'adset': adset_data, 'ad': ad_data}})
 
 @method_decorator(csrf_exempt, name='dispatch')
 class UpdateCampaignMetaView(View):
