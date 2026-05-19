@@ -1057,6 +1057,29 @@ class FacebookIdentitySuggestView(View):
             token = str((acc or {}).get('access_token') or '').strip()
             if not token:
                 return JsonResponse({'results': []})
+            if identity_type == 'instagram' and page_id:
+                try:
+                    page_resp = requests.get(
+                        f'https://graph.facebook.com/v22.0/{page_id}',
+                        params={
+                            'fields': 'id,name,instagram_business_account{id,username,name},connected_instagram_account{id,username,name}',
+                            'access_token': token
+                        },
+                        timeout=20
+                    )
+                    page_data = (page_resp.json() if page_resp.text else {}) or {}
+                    page_name = str(page_data.get('name') or '').strip()
+                    ig = page_data.get('instagram_business_account') or page_data.get('connected_instagram_account') or {}
+                    iid = str((ig or {}).get('id') or '').strip()
+                    uname = str((ig or {}).get('username') or '').strip()
+                    iname = str((ig or {}).get('name') or '').strip()
+                    if iid:
+                        raw = f"{iid} {uname} {iname} {page_name}".lower()
+                        if (not q) or (q in raw):
+                            label = ('@' + uname) if uname else (iname or iid)
+                            return JsonResponse({'results': [{'id': iid, 'text': f'{label} • {page_name or page_id}'}]})
+                except Exception:
+                    pass
             resp = requests.get('https://graph.facebook.com/v22.0/me/accounts', params={'fields': 'id,name,instagram_business_account{id,username,name},connected_instagram_account{id,username,name}', 'limit': 200, 'access_token': token}, timeout=20)
             rows = ((resp.json() if resp.text else {}) or {}).get('data') or []
             results, seen = [], set()

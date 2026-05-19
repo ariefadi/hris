@@ -587,7 +587,8 @@
     position: sticky;
     top: 0;
     z-index: 12;
-    overflow: visible
+    overflow: visible;
+    grid-column: 1
   }
 
   .meta-center,
@@ -598,6 +599,15 @@
     border-radius: 12px;
     padding: 14px;
     min-height: 0
+  }
+
+  .meta-center {
+    grid-column: 2;
+    min-width: 0
+  }
+
+  .meta-right {
+    grid-column: 3
   }
 
   .meta-step-chip {
@@ -1494,17 +1504,70 @@
     overflow: hidden
   }
 
+  .name-template .modal-header,
+  .name-template .modal-body,
+  .name-template .modal-footer {
+    padding-left: 28px;
+    padding-right: 28px
+  }
+
+  .name-template .modal-header {
+    padding-top: 22px;
+    padding-bottom: 8px
+  }
+
+  .name-template .modal-body {
+    padding-bottom: 18px
+  }
+
+  .name-template .modal-footer {
+    padding-top: 8px;
+    padding-bottom: 24px
+  }
+
+  .name-template .close {
+    font-size: 32px;
+    font-weight: 300;
+    color: #334155;
+    opacity: 1
+  }
+
   .nt-shell {
     border: 1px solid #dbe5f4;
     border-radius: 14px;
-    background: linear-gradient(90deg, #f8fbff, #f0fdf4);
-    padding: 16px
+    background: linear-gradient(180deg, #f8fbff, #f3f7fb);
+    padding: 18px
   }
 
   .nt-tabs {
     display: flex;
     gap: 10px;
     margin-bottom: 14px
+  }
+
+  .nt-tabs .btn {
+    min-height: 46px;
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-weight: 700;
+    box-shadow: none !important
+  }
+
+  .nt-tabs .btn-link {
+    color: #2563eb;
+    text-decoration: none
+  }
+
+  .nt-tabs .btn-outline-secondary.active,
+  .nt-tabs .btn-outline-secondary:active {
+    background: #eef2f7;
+    border-color: #cbd5e1;
+    color: #1e293b
+  }
+
+  .nt-list {
+    display: grid;
+    gap: 10px
   }
 
   .nt-list button,
@@ -1519,7 +1582,75 @@
     display: block;
     width: 100%;
     text-align: left;
-    margin-bottom: 10px
+    margin-bottom: 0;
+    transition: border-color .18s ease, box-shadow .18s ease, background .18s ease
+  }
+
+  .nt-list button:hover {
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, .08)
+  }
+
+  .nt-list button.active {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    box-shadow: 0 0 0 2px rgba(148, 163, 184, .12)
+  }
+
+  .nt-picked {
+    min-height: 164px;
+    background: linear-gradient(180deg, #fff, #f8fbff)
+  }
+
+  #adtGroupList .js-adt-group,
+  #atGroupList .js-at-group {
+    position: relative;
+    padding-right: 42px
+  }
+
+  #adtGroupList .js-adt-group:after,
+  #atGroupList .js-at-group:after {
+    content: '\203A';
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #64748b;
+    font-size: 28px;
+    line-height: 1
+  }
+
+  #adtChildList,
+  #atChildList {
+    border: 1px solid #dbe5f4;
+    border-radius: 12px;
+    background: #fff;
+    padding: 10px;
+    min-height: 240px
+  }
+
+  #adtChildList button,
+  #atChildList button {
+    border: 0;
+    border-radius: 10px;
+    padding: 12px 14px
+  }
+
+  #adtPreviewName,
+  #atPreviewName,
+  #ntPreviewName {
+    font-size: 18px;
+    line-height: 1.5;
+    color: #0f172a;
+    word-break: break-word
+  }
+
+  #btnApplyAdNameTemplate:disabled,
+  #btnApplyAdsetNameTemplate:disabled,
+  #btnApplyCampaignNameTemplate:disabled {
+    background: #cfe2ff;
+    border-color: #cfe2ff;
+    color: #fff
   }
 
   .nt-token {
@@ -2331,16 +2462,19 @@
   }
 
   #modal_languages_wrap,
+  #modal_ad_languages_wrap,
   .meta-audience-field {
     position: relative
   }
 
   #modal_languages_wrap .select2-container,
+  #modal_ad_languages_wrap .select2-container,
   .meta-dt-select .select2-container {
     width: 100% !important
   }
 
   #modal_languages_wrap .select2-selection--multiple,
+  #modal_ad_languages_wrap .select2-selection--multiple,
   .meta-dt-select .select2-selection--multiple {
     min-height: 44px !important;
     border: 1px solid #cbd5e1 !important;
@@ -2355,6 +2489,7 @@
   }
 
   #modal_languages_wrap .select2-selection__rendered,
+  #modal_ad_languages_wrap .select2-selection__rendered,
   .meta-dt-select .select2-selection__rendered {
     display: flex !important;
     align-items: center;
@@ -2364,6 +2499,7 @@
   }
 
   #modal_languages_wrap .select2-search--inline,
+  #modal_ad_languages_wrap .select2-search--inline,
   .meta-dt-select .select2-search--inline {
     display: flex;
     align-items: center;
@@ -2371,12 +2507,14 @@
   }
 
   #modal_languages_wrap .select2-search--inline .select2-search__field,
+  #modal_ad_languages_wrap .select2-search--inline .select2-search__field,
   .meta-dt-select .select2-search--inline .select2-search__field {
     margin-top: 0 !important;
     height: 30px
   }
 
   #modal_languages_wrap .select2-selection__choice,
+  #modal_ad_languages_wrap .select2-selection__choice,
   .meta-dt-select .select2-selection__choice {
     border-radius: 999px !important;
     padding: 2px 8px !important;
@@ -3595,6 +3733,406 @@
     display: none !important
   }
 
+  .tm-step3-on .meta-left {
+    background: linear-gradient(180deg, #f8fbff, #eef6ff);
+    color: #0f172a;
+    box-shadow: inset 0 0 0 1px #dbe5f4;
+    grid-column: 1;
+    grid-row: auto
+  }
+
+  .tm-step3-on .meta-builder {
+    grid-template-columns: 350px minmax(0, 1fr) 360px;
+    align-items: start
+  }
+
+  .tm-step3-on .meta-step-chip {
+    display: none
+  }
+
+  .tm-step3-on .tm-left-tree,
+  .tm-step3-on .tm-topbar,
+  .tm-step3-on .tm-toolbar {
+    display: block
+  }
+
+  .tm-step3-on .tm-topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    border: 1px solid #dbe5f4;
+    border-radius: 14px;
+    background: #fff
+  }
+
+  .tm-step3-on .tm-toolbar {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 0 0 14px
+  }
+
+  .tm-step3-on #pane3 {
+    display: grid;
+    gap: 12px
+  }
+
+  .tm-step3-on #tmEditPanelAd {
+    display: grid;
+    gap: 12px
+  }
+
+  .tm-step3-on .meta-center {
+    grid-column: 2;
+    grid-row: auto;
+    min-width: 0;
+    width: auto;
+    max-width: none;
+    justify-self: stretch
+  }
+
+  .tm-step3-on .meta-right {
+    grid-column: 3;
+    grid-row: auto;
+    background: linear-gradient(180deg, #eef7ff, #f8fbff);
+    align-self: start
+  }
+
+  .tm-step3-on .meta-right .meta-card {
+    background: rgba(255, 255, 255, .92)
+  }
+
+  .tm-step3-on .modal-footer {
+    background: #fff;
+    border-top: 1px solid #dbe5f4;
+    padding: 12px 16px;
+    position: relative;
+    bottom: auto;
+    z-index: 1
+  }
+
+  .tm-step3-on .meta-actions .btn {
+    min-width: 120px;
+    border-radius: 10px;
+    font-weight: 700
+  }
+
+  .tm-step3-on #btnWizardNext {
+    display: none !important
+  }
+
+  .tm-partnership-card {
+    border: 1px solid #dbe5f4;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #fff, #f8fbff);
+    padding: 16px 18px
+  }
+
+  .tm-partnership-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px
+  }
+
+  .tm-partnership-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 700;
+    color: #0f172a;
+    white-space: nowrap
+  }
+
+  .tm-partnership-title {
+    font-weight: 800;
+    color: #1e293b;
+    margin-bottom: 4px
+  }
+
+  .tm-partnership-copy {
+    color: #334155;
+    line-height: 1.6
+  }
+
+  .tm-partnership-link {
+    font-weight: 700
+  }
+
+  .tm-partnership-panel {
+    margin-top: 16px;
+    border-top: 1px solid #e2e8f0;
+    padding-top: 16px
+  }
+
+  .tm-partnership-actions {
+    display: grid;
+    gap: 12px
+  }
+
+  .tm-partnership-action {
+    width: 100%;
+    min-height: 56px;
+    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b
+  }
+
+  .tm-partnership-action:hover {
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, .08)
+  }
+
+  .tm-partnership-summary {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: #f8fafc;
+    color: #475569
+  }
+
+  .tm-partnership-modal .modal-dialog {
+    max-width: 1120px
+  }
+
+  .tm-partnership-modal .modal-content {
+    border-radius: 18px;
+    border: 0;
+    overflow: hidden
+  }
+
+  .tm-partnership-modal .modal-header,
+  .tm-partnership-modal .modal-body,
+  .tm-partnership-modal .modal-footer {
+    padding-left: 24px;
+    padding-right: 24px
+  }
+
+  .tm-partnership-modal .modal-header {
+    align-items: flex-start
+  }
+
+  .tm-partnership-modal .close {
+    font-size: 30px;
+    font-weight: 300;
+    color: #334155;
+    opacity: 1
+  }
+
+  .tm-partnership-code-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 500px;
+    gap: 20px
+  }
+
+  .tm-partnership-code-copy {
+    color: #334155;
+    line-height: 1.7
+  }
+
+  .tm-partnership-preview-panel {
+    border: 1px solid #dbe5f4;
+    border-radius: 14px;
+    background: linear-gradient(180deg, #fff, #f8fbff);
+    padding: 14px
+  }
+
+  .tm-partnership-preview-top {
+    margin-bottom: 12px
+  }
+
+  .tm-partnership-preview-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px
+  }
+
+  .tm-partnership-post-card {
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    background: #fff;
+    overflow: hidden
+  }
+
+  .tm-partnership-post-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: #475569;
+    border-bottom: 1px solid #e2e8f0
+  }
+
+  .tm-partnership-post-media {
+    height: 230px;
+    margin: 12px;
+    border: 2px dashed #cbd5e1;
+    border-radius: 12px;
+    background: linear-gradient(180deg, #f8fafc, #eef2f7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    font-weight: 700
+  }
+
+  .tm-partnership-post-foot {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 12px 12px;
+    color: #475569
+  }
+
+  .tm-partnership-picker-tabs {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 16px
+  }
+
+  .tm-partnership-picker-tabs .btn {
+    border-radius: 10px;
+    font-weight: 700
+  }
+
+  .tm-partnership-picker-toolbar {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr) auto;
+    gap: 10px;
+    margin-bottom: 14px
+  }
+
+  .tm-partnership-picker-head {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) 180px 180px;
+    gap: 16px;
+    padding: 10px 12px;
+    border-top: 1px solid #dbe5f4;
+    border-bottom: 1px solid #dbe5f4;
+    font-weight: 700;
+    color: #334155
+  }
+
+  .tm-partnership-empty {
+    min-height: 340px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #64748b
+  }
+
+  .tm-partnership-empty-icon {
+    width: 84px;
+    height: 84px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(180deg, #e0f2fe, #f8fafc);
+    color: #0ea5e9;
+    font-size: 30px;
+    margin-bottom: 16px
+  }
+
+  .tm-partnership-selected {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid #93c5fd;
+    background: #eff6ff;
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 12px
+  }
+
+  .tm-partnership-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #dbeafe;
+    color: #1d4ed8;
+    font-weight: 800;
+    flex: 0 0 40px
+  }
+
+  .tm-partnership-add .modal-dialog {
+    max-width: 1020px
+  }
+
+  .tm-partnership-add .modal-content {
+    border-radius: 18px;
+    border: 0;
+    overflow: hidden
+  }
+
+  .tm-partnership-add-shell {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    min-height: 560px
+  }
+
+  .tm-partnership-steprail {
+    background: linear-gradient(180deg, #f8fbff, #eef6ff);
+    border-right: 1px solid #dbe5f4;
+    padding: 24px 18px
+  }
+
+  .tm-partnership-steps {
+    display: grid;
+    gap: 16px
+  }
+
+  .tm-partnership-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 700;
+    color: #64748b
+  }
+
+  .tm-partnership-step-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #64748b;
+    background: #fff;
+    flex: 0 0 18px
+  }
+
+  .tm-partnership-step.active {
+    color: #0f172a
+  }
+
+  .tm-partnership-step.active .tm-partnership-step-dot {
+    border-color: #0284c7;
+    box-shadow: inset 0 0 0 4px #dbeafe
+  }
+
+  .tm-partnership-add-body {
+    padding: 24px
+  }
+
+  .tm-partnership-add-stage {
+    min-height: 360px
+  }
+
+  .tm-partnership-add-review {
+    border: 1px solid #dbe5f4;
+    border-radius: 14px;
+    background: #f8fbff;
+    padding: 16px
+  }
+
   .meta-id-row {
     display: flex;
     align-items: center;
@@ -3639,6 +4177,256 @@
     background: #fff1f2;
     border-radius: 10px;
     color: #7f1d1d
+  }
+
+  .tm-identity-grid {
+    display: grid;
+    gap: 16px;
+    margin-top: 14px
+  }
+
+  .tm-identity-field label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 8px
+  }
+
+  .tm-identity-help {
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.55;
+    margin: -2px 0 8px
+  }
+
+  .tm-id-picker {
+    position: relative
+  }
+
+  .tm-id-selected {
+    width: 100%;
+    min-height: 62px;
+    border: 1px solid #bfdbfe;
+    border-radius: 12px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    text-align: left;
+    color: #0f172a;
+    box-shadow: inset 0 0 0 1px rgba(96, 165, 250, .12)
+  }
+
+  .tm-id-selected-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0
+  }
+
+  .tm-id-avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 38px;
+    background: #e2e8f0;
+    color: #334155;
+    font-weight: 800;
+    overflow: hidden
+  }
+
+  .tm-id-avatar.ig {
+    background: linear-gradient(135deg, #fde68a, #f9a8d4);
+    color: #831843
+  }
+
+  .tm-id-avatar.threads,
+  .tm-id-avatar.whatsapp {
+    background: #eff6ff;
+    color: #1d4ed8
+  }
+
+  .tm-id-selected-text {
+    min-width: 0
+  }
+
+  .tm-id-selected-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis
+  }
+
+  .tm-id-selected-meta {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 2px
+  }
+
+  .tm-id-panel {
+    margin-top: 10px;
+    border: 1px solid #bfdbfe;
+    border-radius: 14px;
+    background: #fff;
+    overflow: hidden;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, .08)
+  }
+
+  .tm-id-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px;
+    border-bottom: 1px solid #dbe5f4
+  }
+
+  .tm-id-search i {
+    color: #475569;
+    font-size: 28px
+  }
+
+  .tm-id-search input {
+    border: 0;
+    outline: 0;
+    box-shadow: none;
+    width: 100%;
+    min-height: 56px;
+    font-size: 15px;
+    color: #1e293b;
+    background: transparent
+  }
+
+  .tm-id-group {
+    padding: 12px 16px 8px
+  }
+
+  .tm-id-group-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #1f2937
+  }
+
+  .tm-id-group-meta {
+    color: #64748b;
+    margin-top: 2px
+  }
+
+  .tm-id-list {
+    padding: 0 8px 10px
+  }
+
+  .tm-id-option {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 0;
+    border-radius: 12px;
+    background: #fff;
+    padding: 12px 14px;
+    text-align: left;
+    color: #0f172a
+  }
+
+  .tm-id-option:hover {
+    background: #f8fbff
+  }
+
+  .tm-id-option.active {
+    background: #eff6ff
+  }
+
+  .tm-id-marker {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid #cbd5e1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: transparent;
+    flex: 0 0 28px;
+    background: #fff
+  }
+
+  .tm-id-option.active .tm-id-marker {
+    border-color: #2563eb;
+    color: #2563eb
+  }
+
+  .tm-id-option-copy {
+    min-width: 0
+  }
+
+  .tm-id-option-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1f2937
+  }
+
+  .tm-id-option-meta {
+    color: #64748b;
+    margin-top: 2px
+  }
+
+  .tm-id-footer-link {
+    display: inline-block;
+    margin: 2px 16px 16px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0b66c3
+  }
+
+  .tm-id-footer-action {
+    display: block;
+    width: calc(100% - 32px);
+    margin: 8px 16px 16px;
+    min-height: 52px;
+    border-radius: 12px;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1f2937
+  }
+
+  .tm-identity-partnership {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e2e8f0
+  }
+
+  .tm-identity-inline-summary {
+    border: 1px solid #dbe5f4;
+    border-radius: 12px;
+    background: #f8fbff;
+    padding: 14px
+  }
+
+  .tm-identity-inline-summary .k {
+    font-size: 11px;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-bottom: 4px
+  }
+
+  .tm-identity-inline-summary .v {
+    color: #0f172a;
+    font-weight: 700;
+    margin-bottom: 12px
+  }
+
+  .tm-identity-inline-summary .v:last-child {
+    margin-bottom: 0
   }
 
   .meta-result {
@@ -5682,79 +6470,198 @@
                 <input type="hidden" id="modal_content_type_exclusions" value="[]">
               </div>
             </div>
-          </div>
-
           <div id="pane3" class="meta-pane">
+            <div id="tmReviewPanelAd" class="tm-review"></div>
+            <div id="tmEditPanelAd">
             <div class="meta-card">
               <h6>Nama Iklan</h6>
               <div class="form-row">
-                <div class="col-md-12"><input id="modal_ad_name" class="form-control" type="text"
+                <div class="col-md-8"><input id="modal_ad_name" class="form-control" type="text"
                     placeholder="Masukkan nama iklan"></div>
+                <div class="col-md-4"><button type="button" class="btn btn-outline-secondary btn-block"
+                    id="btnOpenAdNameTemplate">Buat Template</button></div>
               </div>
             </div>
             <div class="meta-card">
-              <div class="d-flex justify-content-between align-items-start">
-                <div>
-                  <h6 class="mb-1">Iklan Kemitraan</h6>
-                  <div class="text-muted small">Jalankan iklan dengan creator, merek, dan bisnis lain. UI ini mengikuti
-                    pola Ads Manager, sementara submit backend partnership masih disiapkan.</div>
+              <div class="tm-partnership-card">
+                <div class="tm-partnership-head">
+                  <div>
+                    <div class="tm-partnership-title">Iklan kemitraan</div>
+                    <div class="tm-partnership-copy">Jalankan iklan dengan creator, merek, dan bisnis lain. Iklan ini
+                      memanfaatkan sinyal dari kedua profil untuk meningkatkan kinerja kampanye. <a
+                        href="https://www.facebook.com/business/help/755401046347541" target="_blank" rel="noopener"
+                        class="tm-partnership-link">Tentang iklan kemitraan</a></div>
+                  </div>
+                  <div class="tm-partnership-toggle"><span id="tmPartnershipToggleLabel">Nonaktif</span>
+                    <div class="custom-control custom-switch mb-0"><input type="checkbox" class="custom-control-input"
+                        id="modal_partnership_ad"><label class="custom-control-label"
+                        for="modal_partnership_ad">&nbsp;</label></div>
+                  </div>
                 </div>
-                <div class="custom-control custom-switch"><input type="checkbox" class="custom-control-input"
-                    id="modal_partnership_ad"><label class="custom-control-label"
-                    for="modal_partnership_ad">Nonaktif</label></div>
-              </div>
-              <div id="modal_partnership_panel" class="mt-3" style="display:none;">
-                <div class="font-weight-bold mb-2">Pilih cara membuat iklan</div><button type="button"
-                  class="btn btn-light btn-block border mb-2" id="btnPartnershipCode">Masukkan kode iklan atau info
-                  postingan</button><button type="button" class="btn btn-light btn-block border"
-                  id="btnPartnershipPicker">Pilih kemitraan</button>
-                <div class="small text-muted mt-2" id="modal_partnership_summary">Belum ada metode kemitraan yang
-                  dipilih.</div><input type="hidden" id="modal_partnership_mode" value=""><input type="hidden"
-                  id="modal_partnership_code" value=""><input type="hidden" id="modal_partnership_partner" value="">
+                <div id="modal_partnership_panel" class="tm-partnership-panel" style="display:none;">
+                  <div class="font-weight-bold mb-3">Pilih cara membuat iklan <i
+                      class="fas fa-info-circle text-muted"></i></div>
+                  <div class="tm-partnership-actions"><button type="button" class="tm-partnership-action"
+                      id="btnPartnershipCode">Masukkan kode iklan atau info postingan</button><button type="button"
+                      class="tm-partnership-action" id="btnPartnershipPicker">Pilih kemitraan</button></div>
+                  <div class="tm-partnership-summary small" id="modal_partnership_summary">Belum ada metode kemitraan yang
+                    dipilih.</div><input type="hidden" id="modal_partnership_mode" value=""><input type="hidden"
+                    id="modal_partnership_code" value=""><input type="hidden" id="modal_partnership_partner" value="">
+                </div>
               </div>
             </div>
             <div class="meta-card">
               <div class="d-flex justify-content-between align-items-start">
                 <div>
                   <h6 class="mb-1">Identitas</h6>
-                  <div class="text-muted small">Pilih Halaman Facebook dan profil Instagram yang akan dikaitkan dengan
-                    iklan ini.</div>
-                </div><button type="button" class="btn btn-outline-secondary btn-sm" id="btnEditIdentity">Edit</button>
+                  <div class="text-muted small">Profil dan branding yang akan digunakan dalam iklan Anda.</div>
+                </div><button type="button" class="btn btn-outline-secondary btn-sm d-none"
+                  id="btnEditIdentity">Edit</button>
               </div>
-              <div class="meta-id-row">
-                <div class="meta-id-no">1</div>
-                <div class="meta-id-avatars"><span class="meta-id-avatar">f</span><span
-                    class="meta-id-avatar ig">ig</span></div>
-                <div>
-                  <div id="identityPrimaryName" class="font-weight-bold">Belum dipilih</div>
-                  <div id="identityPrimaryMeta" class="text-muted">Tambahkan Page ID dan profil Instagram</div>
+              <div class="tm-identity-grid">
+                <div class="tm-identity-field">
+                  <label>* Halaman Facebook <i class="fas fa-info-circle text-muted"></i></label>
+                  <div class="tm-id-picker" id="tmIdentityPagePicker">
+                    <button type="button" class="tm-id-selected" id="tmIdentityPageSelected">
+                      <span class="tm-id-selected-left"><span class="tm-id-avatar" id="tmIdentityPageAvatar">f</span><span
+                          class="tm-id-selected-text"><span class="tm-id-selected-title"
+                            id="tmIdentityPageTitle">Pilih Halaman Facebook</span><span class="tm-id-selected-meta"
+                            id="tmIdentityPageMeta">Cari berdasarkan nama Halaman atau ID</span></span></span><i
+                        class="fas fa-caret-down text-muted"></i>
+                    </button>
+                    <div class="tm-id-panel" id="tmIdentityPagePanel" style="display:none;">
+                      <div class="tm-id-search"><i class="fas fa-search"></i><input type="text" id="tmIdentityPageSearch"
+                          placeholder="Cari berdasarkan nama Halaman atau ID"></div>
+                      <div class="tm-id-group"><div class="tm-id-group-title" id="tmIdentityPageGroupTitle">Akun</div>
+                        <div class="tm-id-group-meta" id="tmIdentityPageGroupMeta">0 Halaman</div>
+                      </div>
+                      <div class="tm-id-list" id="tmIdentityPageList"></div><a href="https://www.facebook.com/business/help"
+                        target="_blank" rel="noopener" class="tm-id-footer-link">Tidak bisa menemukan Halaman?</a>
+                    </div>
+                  </div>
+                </div>
+                <div class="tm-identity-field">
+                  <label>Profil Instagram <i class="fas fa-info-circle text-muted"></i></label>
+                  <div class="tm-id-picker" id="tmIdentityInstagramPicker">
+                    <button type="button" class="tm-id-selected" id="tmIdentityInstagramSelected">
+                      <span class="tm-id-selected-left"><span class="tm-id-avatar ig" id="tmIdentityInstagramAvatar">ig</span><span
+                          class="tm-id-selected-text"><span class="tm-id-selected-title"
+                            id="tmIdentityInstagramTitle">Pilih Profil Instagram</span><span class="tm-id-selected-meta"
+                            id="tmIdentityInstagramMeta">Cari berdasarkan profil Instagram</span></span></span><i
+                        class="fas fa-caret-down text-muted"></i>
+                    </button>
+                    <div class="tm-id-panel" id="tmIdentityInstagramPanel" style="display:none;">
+                      <div class="tm-id-search"><i class="fas fa-search"></i><input type="text"
+                          id="tmIdentityInstagramSearch" placeholder="Cari berdasarkan profil Instagram"></div>
+                      <div class="tm-id-list" id="tmIdentityInstagramList"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="tm-identity-field">
+                  <label>Profil Threads <i class="fas fa-info-circle text-muted"></i></label>
+                  <div class="tm-identity-help">Buat profil di aplikasi Threads, atau gunakan akun Instagram atau
+                    Halaman Facebook Anda untuk menayangkan iklan. <a href="https://www.facebook.com/business/help"
+                      target="_blank" rel="noopener">Selengkapnya</a></div>
+                  <div class="tm-id-picker" id="tmIdentityThreadsPicker">
+                    <button type="button" class="tm-id-selected" id="tmIdentityThreadsSelected">
+                      <span class="tm-id-selected-left"><span class="tm-id-avatar threads"><i
+                            class="fab fa-instagram"></i></span><span class="tm-id-selected-text"><span
+                            class="tm-id-selected-title" id="tmIdentityThreadsTitle">Gunakan akun Instagram</span><span
+                            class="tm-id-selected-meta" id="tmIdentityThreadsMeta">Profil Threads akan mengikuti akun yang
+                            dipilih</span></span></span><i class="fas fa-caret-down text-muted"></i>
+                    </button>
+                    <div class="tm-id-panel" id="tmIdentityThreadsPanel" style="display:none;">
+                      <div class="tm-id-search"><i class="fas fa-search"></i><input type="text" id="tmIdentityThreadsSearch"
+                          placeholder=""></div>
+                      <div class="tm-id-list" id="tmIdentityThreadsList"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="tm-identity-field">
+                  <label>Nomor telepon WhatsApp <i class="fas fa-info-circle text-muted"></i></label>
+                  <div class="tm-id-picker" id="tmIdentityWhatsappPicker">
+                    <button type="button" class="tm-id-selected" id="tmIdentityWhatsappSelected">
+                      <span class="tm-id-selected-left"><span class="tm-id-avatar whatsapp"><i
+                            class="fab fa-whatsapp"></i></span><span class="tm-id-selected-text"><span
+                            class="tm-id-selected-title" id="tmIdentityWhatsappTitle">Gunakan Halaman Facebook</span><span
+                            class="tm-id-selected-meta" id="tmIdentityWhatsappMeta">Profil akan mengikuti halaman yang
+                            terhubung</span></span></span><i class="fas fa-caret-down text-muted"></i>
+                    </button>
+                    <div class="tm-id-panel" id="tmIdentityWhatsappPanel" style="display:none;">
+                      <div class="tm-id-search"><i class="fas fa-search"></i><input type="text"
+                          id="tmIdentityWhatsappSearch" placeholder=""></div>
+                      <div class="tm-id-list" id="tmIdentityWhatsappList"></div><button type="button"
+                        class="tm-id-footer-action" id="btnIdentityWhatsappConnect">Connect profile</button>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="meta-id-row">
-                <div class="meta-id-no">2</div>
-                <div class="meta-id-avatars"><span class="meta-id-avatar">f</span><span
-                    class="meta-id-avatar ig">ig</span></div>
-                <div>
-                  <div id="identitySecondaryName" class="font-weight-bold text-muted">Tidak ada identitas kedua</div>
-                  <div id="identitySecondaryMeta" class="text-muted">Tidak ada profil yang terhubung</div>
+              <div id="tmIdentityPartnershipAdvanced" class="tm-identity-partnership" style="display:none;">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                  <div>
+                    <div class="font-weight-bold">Pengaturan identitas kemitraan</div>
+                    <div class="text-muted small">Atur identitas kedua dan mode judul untuk iklan kemitraan.</div>
+                  </div>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="btnEditIdentityInline">Edit</button>
+                </div>
+                <div class="tm-identity-inline-summary">
+                  <div class="k">Identitas Utama</div>
+                  <div id="identityPrimaryName" class="v">Belum dipilih</div>
+                  <div class="k">Profil Instagram</div>
+                  <div id="identityPrimaryMeta" class="v">Tambahkan profil Instagram</div>
+                  <div class="k">Identitas Kedua</div>
+                  <div id="identitySecondaryName" class="v text-muted">Tidak ada identitas kedua</div>
+                  <div class="k">Profil Kedua</div>
+                  <div id="identitySecondaryMeta" class="v text-muted">Tidak ada profil yang terhubung</div>
+                  <div class="k">Identitas Judul</div>
+                  <div id="tmIdentityTitleModeText" class="v">Identitas dinamis</div>
                 </div>
               </div>
               <div id="identityPartnershipAlert" class="meta-id-alert" style="display:none;">Iklan kemitraan mewajibkan
                 Anda untuk memilih identitas pertama dan kedua.</div>
-              <div class="mt-3">
+              <div class="d-none">
+                <div id="identityPrimaryNameMirror"></div>
+                <div id="identityPrimaryMetaMirror"></div>
+                <div id="identitySecondaryNameMirror"></div>
+                <div id="identitySecondaryMetaMirror"></div>
+              </div>
+              <div class="mt-3 d-none">
                 <div class="font-weight-bold">Identitas untuk ditampilkan di judul</div>
                 <div class="text-muted small mb-2">Identitas dinamis.</div><input type="hidden" id="modal_page_id"
                   value=""><input type="hidden" id="modal_instagram_actor_id" value=""><input type="hidden"
                   id="modal_threads_user_id" value=""><input type="hidden" id="modal_identity_title_mode"
-                  value="dynamic">
+                  value="dynamic"><input type="hidden" id="modal_identity_whatsapp_source" value="page">
               </div>
             </div>
             <div class="meta-card">
               <h6>Penyiapan Iklan</h6>
-              <div class="form-group mb-3"><select id="modal_ad_setup_mode" class="form-control">
-                  <option value="create">Buat Iklan</option>
-                  <option value="existing">Gunakan postingan yang ada</option>
-                </select></div>
+              <div class="form-group mb-3">
+                <div class="tm-id-picker" id="tmAdSetupModePicker">
+                  <button type="button" class="tm-id-selected" id="tmAdSetupModeSelected">
+                    <span class="tm-id-selected-left"><span class="tm-id-selected-text"><span class="tm-id-selected-title"
+                          id="tmAdSetupModeTitle">Buat Iklan</span><span class="tm-id-selected-meta"
+                          id="tmAdSetupModeMeta">&nbsp;</span></span></span><i class="fas fa-caret-down text-muted"></i>
+                  </button>
+                  <div class="tm-id-panel" id="tmAdSetupModePanel" style="display:none;">
+                    <div class="tm-id-list" id="tmAdSetupModeList">
+                      <button type="button" class="tm-id-option js-ad-setup-mode" data-value="create"><span
+                          class="tm-id-marker"><i class="fas fa-check"></i></span><span class="tm-id-option-copy"><span
+                            class="tm-id-option-title">Buat Iklan</span></span></button>
+                      <button type="button" class="tm-id-option js-ad-setup-mode" data-value="existing"><span
+                          class="tm-id-marker"><i class="fas fa-check"></i></span><span class="tm-id-option-copy"><span
+                            class="tm-id-option-title">Gunakan postingan yang ada</span></span></button>
+                      <button type="button" class="tm-id-option js-ad-setup-mode" data-value="mockup"><span
+                          class="tm-id-marker"><i class="fas fa-check"></i></span><span class="tm-id-option-copy"><span
+                            class="tm-id-option-title">Gunakan Mockup Hub Materi Iklan</span></span></button>
+                    </div>
+                  </div>
+                  <select id="modal_ad_setup_mode" class="form-control d-none">
+                    <option value="create">Buat Iklan</option>
+                    <option value="existing">Gunakan postingan yang ada</option>
+                    <option value="mockup">Gunakan Mockup Hub Materi Iklan</option>
+                  </select>
+                </div>
+              </div>
               <div id="modal_ad_setup_create_ui">
                 <div id="modal_ad_setup_callout" class="border rounded p-3 mb-3"
                   style="background:#fbf8ff;border-left:4px solid #6f42c1!important;">
@@ -5782,19 +6689,22 @@
                 <div class="custom-control custom-radio mb-3"><input class="custom-control-input" type="radio"
                     name="modal_ad_format" id="modal_ad_format_carousel" value="carousel"><label
                     class="custom-control-label" for="modal_ad_format_carousel">Carousel</label></div>
-              </div>
-              <div id="modal_ad_setup_existing_ui" style="display:none;">
                 <div class="custom-control custom-checkbox mb-2"><input class="custom-control-input" type="checkbox"
                     id="modal_multi_advertiser_ads" checked><label class="custom-control-label"
                     for="modal_multi_advertiser_ads">Iklan multi-pengiklan</label></div>
                 <div id="modal_multi_advertiser_hint" class="small text-muted mb-3">Iklan Anda bisa muncul bersama iklan
-                  lain dalam unit iklan yang sama.</div>
+                  lain dalam unit iklan yang sama untuk membantu mendorong penemuan.</div>
+              </div>
+              <div id="modal_ad_setup_existing_ui" style="display:none;">
+                <div class="small text-muted">Pilih postingan dari Facebook, Instagram, atau konten mitra yang sudah ada.
+                </div>
               </div>
               <div id="modal_ad_setup_status" class="small text-muted">Membuat iklan baru secara manual.</div>
               <div id="modal_ad_source_summary" class="small text-muted">Unggah manual dipakai untuk gambar atau video
                 yang Anda pilih.</div>
               <div id="modal_ad_format_info" class="small text-muted">Format gambar atau video tunggal dipakai untuk
-                materi utama Anda.</div><input id="modal_use_existing_post" type="hidden" value="0">
+                materi utama Anda.</div><input id="modal_use_existing_post" type="hidden" value="0"><input
+                id="modal_ad_mockup_id" type="hidden" value="">
             </div>
             <div class="meta-card">
               <h6>Destinasi</h6>
@@ -5973,6 +6883,14 @@
                 disiapkan.</div>
             </div>
             <div class="meta-card">
+              <h6>Bahasa</h6>
+              <div class="text-muted small mb-3">Tambahkan bahasa materi iklan bila Anda ingin membatasi tampilan iklan
+                berdasarkan bahasa tertentu.</div>
+              <div class="meta-audience-field" id="modal_ad_languages_wrap"><label>Cari bahasa</label><select
+                  id="modal_ad_languages" class="form-control" multiple="multiple"></select><small
+                  class="text-muted">Opsional. Kosongkan bila iklan dapat tampil ke semua bahasa.</small></div>
+            </div>
+            <div class="meta-card">
               <h6>Pelacakan</h6>
               <div class="text-muted mb-3">Pilih peristiwa konversi untuk dilacak. Set data konversi yang dipilih akun
                 iklan ini akan dilacak secara default.</div>
@@ -6001,6 +6919,8 @@
                 ke situs web atau toko Anda.</div><button type="button" class="btn btn-outline-secondary"
                 id="btnOpenThirdPartyTracking">Hubungkan</button><input id="modal_pixel_id" type="hidden" value="">
             </div>
+            </div>
+          </div>
           </div>
           <div class="meta-right">
             <div class="meta-card tm-score-card" id="tmScoreCard">
@@ -6150,6 +7070,46 @@
   </div>
 </div>
 </div>
+<div class="modal fade name-template" id="modalAdNameTemplate" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h3 class="mb-0 font-weight-bold">Nama Iklan</h3><button type="button" class="close"
+          data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body pt-0">
+        <p class="text-muted mb-4">Beri nama iklan Anda secara konsisten dengan membuat template berdasarkan konvensi
+          pemberian nama. Nama iklan akan diperbarui otomatis agar sesuai pengaturan iklan Anda saat ini.</p>
+        <div class="font-weight-bold mb-2">Template</div>
+        <div class="nt-shell">
+          <div class="nt-tabs"><button type="button" class="btn btn-outline-secondary active"
+              id="btnAdtComponents">Tambahkan Komponen</button><button type="button" class="btn btn-link"
+              id="btnAdtExisting">Pilih template yang ada</button></div>
+          <div class="row">
+            <div class="col-md-5">
+              <div id="adtGroupList" class="nt-list"></div>
+              <div id="adtExistingList" class="nt-list" style="display:none"></div>
+            </div>
+            <div class="col-md-7">
+              <div class="nt-picked">
+                <div class="font-weight-bold mb-2">Preview template</div>
+                <div id="adtPickedTokens"></div><input id="adtOpenText" class="form-control mt-2" type="text"
+                  placeholder="Isi kolom teks terbuka" style="display:none"><input id="adtCustomText"
+                  class="form-control mt-2" type="text" placeholder="Isi kolom kustom" style="display:none">
+                <div class="small text-muted mt-3">Hasil nama iklan</div>
+                <div id="adtPreviewName" class="font-weight-bold">-</div>
+              </div>
+              <div id="adtChildList" class="nt-list mt-3"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer border-0"><button type="button" class="btn btn-outline-secondary"
+          data-dismiss="modal">Batal</button><button type="button" class="btn btn-primary" id="btnApplyAdNameTemplate"
+          disabled>Simpan</button></div>
+    </div>
+  </div>
+</div>
 <div class="modal fade" id="modalAudienceControls" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog modal-xl" role="document">
     <div class="modal-content">
@@ -6181,61 +7141,157 @@
   </div>
 </div>
 
-<div class="modal fade" id="modalPartnershipCode" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog modal-lg" role="document">
+<div class="modal fade tm-partnership-modal" id="modalPartnershipCode" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Masukkan kode iklan kemitraan</h5><button type="button" class="close"
+        <h5 class="modal-title font-weight-bold">Masukkan kode iklan kemitraan, ID postingan, atau URL postingan</h5><button type="button" class="close"
           data-dismiss="modal"><span>&times;</span></button>
       </div>
       <div class="modal-body">
-        <div class="text-muted small mb-3">Masukkan kode iklan, ID postingan, atau URL postingan yang diberikan
-          creator/mitra.</div><input type="text" id="modal_partnership_code_input" class="form-control"
-          placeholder="Masukkan kode iklan atau URL postingan">
-        <div class="row mt-3">
-          <div class="col-md-6">
-            <div class="border rounded p-3 text-center text-muted">Pratinjau iklan kemitraan</div>
+        <div class="tm-partnership-code-shell">
+          <div>
+            <div class="tm-partnership-code-copy mb-3">Ini akan menetapkan identitas pertama iklan kemitraan dan akan
+              menggunakan media yang terkait dengan kode atau info postingan. Untuk kode iklan kemitraan, hubungi creator
+              postingan dan minta agar membagikannya kepada Anda. Untuk ID postingan atau URL postingan, pastikan Anda
+              memiliki izin level akun dari creator untuk menjalankan iklan Anda dengan media terkait. <a
+                href="https://www.facebook.com/business/help/337382133280602" target="_blank" rel="noopener">Pelajari
+                cara menggunakan kode iklan, ID postingan, atau URL postingan</a></div><input type="text"
+              id="modal_partnership_code_input" class="form-control"
+              placeholder="Masukkan kode iklan yang diberikan oleh kreator, atau ID postingan maupun URL postingan">
           </div>
-          <div class="col-md-6">
-            <div class="border rounded p-3 text-center text-muted">Identitas dinamis</div>
+          <div class="tm-partnership-preview-panel">
+            <div class="tm-partnership-preview-top"><label class="small font-weight-bold mb-1">Pratinjau iklan kemitraan</label>
+              <select id="modal_partnership_preview_placement" class="form-control">
+                <option>Beranda Instagram</option>
+                <option>Feed Facebook</option>
+              </select>
+            </div>
+            <div class="tm-partnership-preview-grid">
+              <div class="tm-partnership-post-card">
+                <div class="tm-partnership-post-head"><span><strong id="tmPartnershipCodePrimaryTitle">Berita 21</strong><br><small id="tmPartnershipCodePrimaryMeta">dan creator</small></span><span>Iklan</span></div>
+                <div class="tm-partnership-post-media">Pratinjau iklan</div>
+                <div class="tm-partnership-post-foot"><span><i class="far fa-heart"></i> <i class="far fa-comment ml-2"></i> <i class="far fa-paper-plane ml-2"></i></span><span><i class="far fa-bookmark"></i></span></div>
+              </div>
+              <div class="tm-partnership-post-card">
+                <div class="tm-partnership-post-head"><span><strong>Identitas dinamis</strong><br><small id="tmPartnershipCodeSecondaryMeta">Iklan</small></span><span>Iklan</span></div>
+                <div class="tm-partnership-post-media">Pratinjau identitas dinamis</div>
+                <div class="tm-partnership-post-foot"><span><i class="far fa-heart"></i> <i class="far fa-comment ml-2"></i> <i class="far fa-paper-plane ml-2"></i></span><span><i class="far fa-bookmark"></i></span></div>
+              </div>
+            </div>
+            <div class="small text-muted mt-3">Pratinjau sampel hanya untuk ilustrasi. Rendering dan interaksi akhir bisa
+              bervariasi.</div>
           </div>
         </div>
       </div>
       <div class="modal-footer"><button type="button" class="btn btn-outline-secondary"
           data-dismiss="modal">Batal</button><button type="button" class="btn btn-primary"
-          id="btnApplyPartnershipCode">Pilih</button></div>
+          id="btnApplyPartnershipCode" disabled>Selesai</button></div>
     </div>
   </div>
 </div>
-<div class="modal fade" id="modalPartnershipPicker" tabindex="-1" role="dialog" aria-hidden="true">
+<div class="modal fade tm-partnership-modal" id="modalPartnershipPicker" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog modal-xl" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Pilih kemitraan</h5><button type="button" class="close"
+        <div><h5 class="modal-title font-weight-bold mb-1">Pilih kemitraan</h5>
+          <div class="text-muted">Pilih dari kemitraan iklan yang ada, atau kirim permintaan kemitraan baru. Anda juga
+            bisa melakukannya di <a href="https://www.facebook.com/ads/partnerships" target="_blank"
+              rel="noopener">Pusat Iklan Kemitraan</a>.</div>
+        </div><button type="button" class="close"
           data-dismiss="modal"><span>&times;</span></button>
       </div>
       <div class="modal-body">
-        <div class="row">
-          <div class="col-md-3 border-right">
-            <div class="font-weight-bold mb-3">Tambahkan kemitraan</div>
-            <div class="list-group"><button type="button" class="list-group-item list-group-item-action active">Pilih
-                mitra iklan</button><button type="button" class="list-group-item list-group-item-action">Pilih aset
-                bisnis</button><button type="button" class="list-group-item list-group-item-action">Tinjau
-                permintaan</button><button type="button" class="list-group-item list-group-item-action">Selesai</button>
-            </div>
-          </div>
-          <div class="col-md-9">
-            <div class="font-weight-bold mb-2">Pilih mitra iklan</div>
-            <div class="text-muted small mb-3">Cari Halaman Facebook atau akun Instagram creator untuk dipakai sebagai
-              mitra iklan.</div><input type="text" id="modal_partnership_partner_input" class="form-control mb-3"
-              placeholder="Cari Halaman Facebook atau akun Instagram creator">
-            <div class="border rounded p-4 text-center text-muted">Belum ada mitra dipilih.</div>
-          </div>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div class="tm-partnership-picker-tabs"><button type="button" class="btn btn-light active"
+              id="btnPartnershipTabSent">Permintaan dikirim</button><button type="button" class="btn btn-link"
+              id="btnPartnershipTabReceived">Permintaan diterima</button></div><button type="button"
+            class="btn btn-outline-secondary" id="btnOpenPartnershipAdd">Tambahkan kemitraan</button>
+        </div>
+        <div class="tm-partnership-picker-toolbar"><select id="modal_partnership_business" class="form-control">
+            <option value="Berita 21">@ Berita 21</option>
+          </select><input type="text" id="modal_partnership_partner_input" class="form-control"
+            placeholder="Cari mitra iklan"><button type="button" class="btn btn-outline-secondary"
+            id="btnPartnershipFilter"><i class="fas fa-sliders-h mr-1"></i>Filter (1)</button></div>
+        <button type="button" class="tm-partnership-selected w-100 text-left" id="tmPartnershipResultCard"
+          style="display:none;"><span class="tm-partnership-avatar">B</span>
+          <div class="flex-grow-1"><strong>Berita 21</strong><br><span class="text-muted small">@ariefdwicahyoadi94</span>
+          </div><i class="fas fa-check text-primary"></i></button>
+        <div id="tmPartnershipSelectedPartner" class="tm-partnership-selected" style="display:none;">
+          <span class="tm-partnership-avatar">B</span>
+          <div class="flex-grow-1"><strong id="tmPartnershipSelectedName">Berita 21</strong><br><span class="text-muted small"
+              id="tmPartnershipSelectedMeta">@ariefdwicahyoadi94</span></div><i class="fas fa-check text-primary"></i>
+        </div>
+        <div class="tm-partnership-picker-head"><div>Mitra iklan</div><div>Status <i
+              class="fas fa-info-circle text-muted"></i></div><div>Masalah <i
+              class="fas fa-info-circle text-muted"></i></div></div>
+        <div class="tm-partnership-empty" id="tmPartnershipPickerEmpty">
+          <div class="tm-partnership-empty-icon"><i class="fas fa-filter"></i></div>
+          <div class="font-weight-bold h5 mb-2">Kemitraan iklan tidak ditemukan</div>
+          <div>Coba pencarian lain atau lebih sedikit filter.</div>
         </div>
       </div>
       <div class="modal-footer"><button type="button" class="btn btn-outline-secondary"
           data-dismiss="modal">Tutup</button><button type="button" class="btn btn-primary"
-          id="btnApplyPartnershipPicker">Pilih Identitas</button></div>
+          id="btnApplyPartnershipPicker" disabled>Pilih Identitas</button></div>
+    </div>
+  </div>
+</div>
+<div class="modal fade tm-partnership-add" id="modalPartnershipAdd" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header border-0">
+        <h5 class="modal-title font-weight-bold">Tambahkan kemitraan</h5><button type="button" class="close"
+          data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body p-0">
+        <div class="tm-partnership-add-shell">
+          <div class="tm-partnership-steprail">
+            <div class="tm-partnership-steps"><div class="tm-partnership-step active" data-step="1"><span class="tm-partnership-step-dot"></span><span>Pilih mitra iklan</span></div><div class="tm-partnership-step" data-step="2"><span class="tm-partnership-step-dot"></span><span>Pilih aset bisnis</span></div><div class="tm-partnership-step" data-step="3"><span class="tm-partnership-step-dot"></span><span>Tinjau permintaan</span></div><div class="tm-partnership-step" data-step="4"><span class="tm-partnership-step-dot"></span><span>Selesai</span></div></div>
+          </div>
+          <div class="tm-partnership-add-body">
+            <div id="tmPartnershipAddStep1" class="tm-partnership-add-stage">
+              <h4 class="font-weight-bold mb-3">Pilih mitra iklan</h4>
+              <div class="tm-partnership-code-copy mb-4">Bermitra dengan creator untuk mengembangkan brand awareness,
+                menjangkau pemirsa baru, dan mendorong penjualan. Iklan kemitraan ditayangkan dengan header yang
+                menampilkan Halaman Facebook atau akun Instagram Anda dan mitra iklan Anda.</div><select
+                id="modal_partnership_add_partner" class="form-control mb-3">
+                <option value="">Cari Halaman Facebook atau akun Instagram creator</option>
+                <option value="Berita 21">@ Berita 21 / ariefdwicahyoadi94</option>
+              </select>
+            </div>
+            <div id="tmPartnershipAddStep2" class="tm-partnership-add-stage" style="display:none;">
+              <h4 class="font-weight-bold mb-3">Pilih aset bisnis</h4>
+              <div class="tm-partnership-add-review">
+                <div class="font-weight-bold mb-2">Aset yang akan dibagikan</div>
+                <div class="custom-control custom-checkbox mb-2"><input type="checkbox" class="custom-control-input"
+                    id="tmPartnershipAssetPage" checked><label class="custom-control-label"
+                    for="tmPartnershipAssetPage">Halaman Facebook Berita 21</label></div>
+                <div class="custom-control custom-checkbox"><input type="checkbox" class="custom-control-input"
+                    id="tmPartnershipAssetIg" checked><label class="custom-control-label"
+                    for="tmPartnershipAssetIg">Akun Instagram ariefdwicahyoadi94</label></div>
+              </div>
+            </div>
+            <div id="tmPartnershipAddStep3" class="tm-partnership-add-stage" style="display:none;">
+              <h4 class="font-weight-bold mb-3">Tinjau permintaan</h4>
+              <div class="tm-partnership-add-review">
+                <div class="font-weight-bold mb-2">Ringkasan permintaan kemitraan</div>
+                <div class="text-muted">Mitra iklan: <span id="tmPartnershipReviewPartner">-</span></div>
+                <div class="text-muted">Aset bisnis: Halaman Facebook dan akun Instagram aktif</div>
+              </div>
+            </div>
+            <div id="tmPartnershipAddStep4" class="tm-partnership-add-stage" style="display:none;">
+              <h4 class="font-weight-bold mb-3">Selesai</h4>
+              <div class="tm-partnership-add-review">
+                <div class="font-weight-bold mb-2">Permintaan siap dikirim</div>
+                <div class="text-muted">Klik tombol selesai untuk memakai mitra iklan ini pada iklan kemitraan Anda.</div>
+              </div>
+            </div>
+            <div class="d-flex justify-content-end mt-4"><button type="button" class="btn btn-primary"
+                id="btnPartnershipAddNext" disabled>Berikutnya</button></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -6342,6 +7398,79 @@
       <div class="modal-footer"><button type="button" class="btn btn-outline-secondary"
           data-dismiss="modal">Batal</button><button type="button" class="btn btn-primary"
           id="btnApplyIdentityPicker">Selesai</button></div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="modalAdMockupPicker" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title font-weight-bold">Pilih Mockup</h5><button type="button" class="close"
+          data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <div class="text-muted mb-4">Mockup yang Anda lihat di sini sudah ditandai sebagai "Tampilkan di Pengelola Iklan"
+          di Hub Materi Iklan. Editan tambahan yang Anda buat tidak akan memengaruhi mockup asli.</div>
+        <div class="border rounded d-flex align-items-center justify-content-center text-center"
+          style="min-height:360px;background:#fff;">
+          <div style="max-width:520px;">
+            <div class="mb-4" style="opacity:.85;">
+              <svg width="140" height="96" viewBox="0 0 140 96" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M14 14h34v30H14V14Z" stroke="#CBD5E1" stroke-width="3" stroke-dasharray="6 6"/>
+                <path d="M53 6h34v38H53V6Z" stroke="#CBD5E1" stroke-width="3" stroke-dasharray="6 6"/>
+                <path d="M92 14h34v30H92V14Z" stroke="#CBD5E1" stroke-width="3" stroke-dasharray="6 6"/>
+                <path d="M68 82c10-22 22-32 33-32 11 0 20 8 25 20" stroke="#CBD5E1" stroke-width="3"
+                  stroke-linecap="round"/>
+                <path d="M52 80c-4-18-14-26-24-26-10 0-18 7-22 18" stroke="#CBD5E1" stroke-width="3"
+                  stroke-linecap="round"/>
+                <circle cx="70" cy="66" r="10" stroke="#CBD5E1" stroke-width="3"/>
+              </svg>
+            </div>
+            <div class="h5 font-weight-bold mb-2">Mockups Tidak Tersedia</div>
+            <div class="text-muted">Jika Anda membuat mockup di Hub Materi Iklan, pastikan mockup ditandai sebagai
+              "Tampilkan di Pengelola Iklan".</div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary"
+          data-dismiss="modal">Batal</button><button type="button" class="btn btn-primary"
+          id="btnApplyAdMockup" disabled>Konfirmasi</button></div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="modalIdentityWhatsappConnect" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title font-weight-bold">Hubungkan WhatsApp</h5><button type="button" class="close"
+          data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <div class="row align-items-start">
+          <div class="col-md-4 text-center text-muted d-none d-md-block">
+            <div class="border rounded h-100 d-flex align-items-center justify-content-center" style="min-height:260px;background:#f8fafc;">
+              <div><i class="fab fa-whatsapp" style="font-size:64px;color:#10b981;"></i><div class="mt-3">Hubungkan nomor
+                  yang terkait dengan akun WhatsApp Anda.</div></div>
+            </div>
+          </div>
+          <div class="col-md-8">
+            <div class="text-muted mb-4">Masukkan nomor yang terkait dengan akun WhatsApp Anda, tempat orang bisa
+              mengirimi Anda pesan langsung dari iklan Anda.</div>
+            <div class="form-row">
+              <div class="col-md-4"><label>Negara</label><select id="tmIdentityWhatsappCountry" class="form-control">
+                  <option value="+62">+62</option>
+                  <option value="+60">+60</option>
+                  <option value="+65">+65</option>
+                </select></div>
+              <div class="col-md-8"><label>Nomor Telepon</label><input type="text" id="tmIdentityWhatsappNumber"
+                  class="form-control" placeholder="85600449570"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary"
+          data-dismiss="modal">Batal</button><button type="button" class="btn btn-primary"
+          id="btnApplyIdentityWhatsappConnect">Lanjut</button></div>
     </div>
   </div>
 </div>
@@ -7117,20 +8246,140 @@
       ].join('');
       $('#tmReviewPanelAdset').html(cards);
     }
+    const partnershipState = { addStep: 1, pickerTab: 'sent' };
+    function getPartnershipPartnerData() {
+      const raw = String($('#modal_partnership_partner').val() || '').trim();
+      if (!raw) return { name: '', meta: '' };
+      if (raw === 'Berita 21') return { name: 'Berita 21', meta: '@ariefdwicahyoadi94' };
+      const parts = raw.split('||');
+      return { name: parts[0] || raw, meta: parts[1] || '@mitraiklan' };
+    }
+    function getPartnershipSummaryText() {
+      const on = $('#modal_partnership_ad').is(':checked');
+      const mode = String($('#modal_partnership_mode').val() || '').trim();
+      const code = String($('#modal_partnership_code').val() || '').trim();
+      const partner = getPartnershipPartnerData();
+      if (!on) return 'Aktifkan iklan kemitraan untuk memilih metode pembuatan iklan.';
+      if (mode === 'code' && code) return 'Metode aktif: kode iklan atau info postingan. Input terakhir: ' + code;
+      if (mode === 'picker' && partner.name) return 'Metode aktif: pilih kemitraan. Mitra iklan: ' + partner.name + ' ' + partner.meta;
+      return 'Belum ada metode kemitraan yang dipilih.';
+    }
+    function syncPartnershipCodeUi() {
+      const value = String($('#modal_partnership_code_input').val() || '').trim();
+      $('#btnApplyPartnershipCode').prop('disabled', !value);
+      $('#tmPartnershipCodePrimaryTitle').text(value ? 'Berita 21' : 'Berita 21');
+      $('#tmPartnershipCodePrimaryMeta').text(value ? value.slice(0, 36) : 'dan creator');
+      $('#tmPartnershipCodeSecondaryMeta').text(value ? 'Identitas dinamis aktif' : 'Iklan');
+    }
+    function syncPartnershipPickerUi() {
+      const q = String($('#modal_partnership_partner_input').val() || '').trim().toLowerCase();
+      const partner = getPartnershipPartnerData();
+      const hasSelected = !!partner.name;
+      const matches = !q || q.indexOf('berita') >= 0 || q.indexOf('arief') >= 0 || q.indexOf('creator') >= 0 || q.indexOf('mitra') >= 0;
+      $('#tmPartnershipResultCard').toggle(!hasSelected && matches);
+      $('#tmPartnershipSelectedPartner').toggle(hasSelected);
+      $('#tmPartnershipPickerEmpty').toggle(!hasSelected && !matches);
+      $('#btnApplyPartnershipPicker').prop('disabled', !hasSelected);
+      $('#btnPartnershipTabSent').toggleClass('active btn-light', partnershipState.pickerTab === 'sent').toggleClass('btn-link', partnershipState.pickerTab !== 'sent');
+      $('#btnPartnershipTabReceived').toggleClass('active btn-light', partnershipState.pickerTab === 'received').toggleClass('btn-link', partnershipState.pickerTab !== 'received');
+      if (hasSelected) {
+        $('#tmPartnershipSelectedName').text(partner.name);
+        $('#tmPartnershipSelectedMeta').text(partner.meta);
+      }
+    }
+    function setPartnershipAddStep(step) {
+      partnershipState.addStep = Math.max(1, Math.min(4, Number(step) || 1));
+      [1, 2, 3, 4].forEach(function (n) {
+        $('#tmPartnershipAddStep' + n).toggle(n === partnershipState.addStep);
+        $('.tm-partnership-step[data-step="' + n + '"]').toggleClass('active', n === partnershipState.addStep);
+      });
+      const partnerText = $('#modal_partnership_add_partner option:selected').text() || '-';
+      $('#tmPartnershipReviewPartner').text(partnerText);
+      let disabled = false;
+      if (partnershipState.addStep === 1) disabled = !String($('#modal_partnership_add_partner').val() || '').trim();
+      if (partnershipState.addStep === 2) disabled = !($('#tmPartnershipAssetPage').is(':checked') || $('#tmPartnershipAssetIg').is(':checked'));
+      $('#btnPartnershipAddNext').prop('disabled', disabled).text(partnershipState.addStep === 4 ? 'Selesai' : 'Berikutnya');
+    }
+    function syncPartnershipUi() {
+      const on = $('#modal_partnership_ad').is(':checked');
+      $('#tmPartnershipToggleLabel').text(on ? 'Aktif' : 'Nonaktif');
+      $('#modal_partnership_panel').toggle(on);
+      $('#modal_partnership_summary').text(getPartnershipSummaryText());
+      syncPartnershipCodeUi();
+      syncPartnershipPickerUi();
+    }
+    function renderAdReviewPanel() {
+      const $m = $('#modalCreateMetaCampaign');
+      if (wizardStep !== 3 || String($m.data('tmView') || 'edit') !== 'review') return;
+      const adName = String($('#modal_ad_name').val() || '1 Iklan').trim() || '1 Iklan';
+      const partnershipOn = $('#modal_partnership_ad').is(':checked');
+      const identityPrimaryName = String($('#identityPrimaryName').text() || 'Belum dipilih').trim() || 'Belum dipilih';
+      const identityPrimaryMeta = String($('#identityPrimaryMeta').text() || 'Tambahkan Page ID dan profil Instagram').trim() || 'Tambahkan Page ID dan profil Instagram';
+      const identitySecondaryName = String($('#identitySecondaryName').text() || 'Tidak ada identitas kedua').trim() || 'Tidak ada identitas kedua';
+      const setupMode = String($('#modal_ad_setup_mode option:selected').text() || 'Buat Iklan').trim() || 'Buat Iklan';
+      const setupStatus = String($('#modal_ad_setup_status').text() || 'Membuat iklan baru secara manual.').trim() || 'Membuat iklan baru secara manual.';
+      const sourceMode = String($('input[name="modal_ad_source_mode_material"]:checked').closest('label').contents().filter(function () { return this.nodeType === 3; }).text() || 'Unggah manual').trim() || 'Unggah manual';
+      const adFormat = String($('input[name="modal_ad_format"]:checked').closest('label').contents().filter(function () { return this.nodeType === 3; }).text() || 'Gambar atau video tunggal').trim() || 'Gambar atau video tunggal';
+      const destinationMode = String($('input[name="modal_destination_mode"]:checked').closest('label').contents().filter(function () { return this.nodeType === 3; }).text() || 'Situs Web').trim() || 'Situs Web';
+      const websiteUrl = String($('#modal_website_url').val() || '').trim();
+      const cta = String($('#modal_cta option:selected').text() || 'Pelajari Selengkapnya').trim() || 'Pelajari Selengkapnya';
+      const displayLink = String($('#modal_display_link').val() || '').trim();
+      const browserAddon = String($('input[name="modal_browser_addon"]:checked').closest('label').contents().filter(function () { return this.nodeType === 3; }).text() || 'Tidak Ada').trim() || 'Tidak Ada';
+      const mediaState = String($('#modal_media_state').text() || 'Media belum dipilih.').trim() || 'Media belum dipilih.';
+      const mediaFiles = String($('#modal_media_files').text() || '').trim();
+      const primaryText = String($('#modal_primary_text').val() || '').trim();
+      const headline = String($('#modal_headline').val() || '').trim();
+      const description = String($('#modal_description').val() || '').trim();
+      const creativeTestSummary = String($('#modal_creative_test_summary').text() || 'Belum ada pengujian materi iklan yang disiapkan.').trim() || 'Belum ada pengujian materi iklan yang disiapkan.';
+      const adLanguages = $('#modal_ad_languages').find('option:selected').map(function () { return $.trim(String($(this).text() || '')); }).get().filter(Boolean);
+      const urlTags = String($('#modal_url_tags').val() || '').trim();
+      const pixelId = String($('#modal_pixel_id').val() || '').trim();
+      const cards = [
+        '<div class="tm-review-stack">',
+        '<div class="tm-review-card"><div class="tm-review-card-head"><div><div class="tm-review-card-title">Nama Iklan</div><div class="tm-review-card-subtitle">Pastikan nama iklan mudah dikenali sebelum dipublikasikan.</div></div><button type="button" class="btn btn-light js-tm-review-edit" data-target="#modal_ad_name"><i class="fas fa-pen mr-1"></i>Edit</button></div><div class="tm-review-item-value font-weight-bold">' + tmReviewEsc(adName) + '</div></div>',
+        '<div class="tm-review-card"><div class="tm-review-card-head"><div><div class="tm-review-card-title">Identitas</div><div class="tm-review-card-subtitle">Periksa halaman, profil, dan status iklan kemitraan yang dipakai oleh iklan ini.</div></div><button type="button" class="btn btn-light js-tm-review-edit" data-target="#btnEditIdentity"><i class="fas fa-pen mr-1"></i>Edit</button></div><div class="tm-review-grid cols-2"><div><div class="tm-review-item-label">Identitas utama</div><div class="tm-review-item-value">' + tmReviewEsc(identityPrimaryName) + '<br><span class="text-muted">' + tmReviewEsc(identityPrimaryMeta) + '</span></div></div><div><div class="tm-review-item-label">Identitas kedua</div><div class="tm-review-item-value">' + tmReviewEsc(identitySecondaryName) + '</div></div><div><div class="tm-review-item-label">Iklan kemitraan</div><div class="tm-review-item-value">' + tmReviewEsc(partnershipOn ? 'Aktif' : 'Nonaktif') + '</div></div><div><div class="tm-review-item-label">Mode judul identitas</div><div class="tm-review-item-value">' + tmReviewEsc(String($('#modal_identity_title_mode').val() || 'dynamic') === 'dynamic' ? 'Identitas dinamis' : 'Manual') + '</div></div></div></div>',
+        '<div class="tm-review-card"><div class="tm-review-card-head"><div><div class="tm-review-card-title">Penyiapan dan Destinasi</div><div class="tm-review-card-subtitle">Ringkasan mode setup iklan, format, tujuan klik, dan CTA aktif.</div></div><button type="button" class="btn btn-light js-tm-review-edit" data-target="#modal_ad_setup_mode"><i class="fas fa-pen mr-1"></i>Edit</button></div><div class="tm-review-grid cols-2"><div><div class="tm-review-item-label">Mode penyiapan</div><div class="tm-review-item-value">' + tmReviewEsc(setupMode) + '<br><span class="text-muted">' + tmReviewEsc(setupStatus) + '</span></div></div><div><div class="tm-review-item-label">Sumber & format</div><div class="tm-review-item-value">' + tmReviewEsc(sourceMode) + '<br>' + tmReviewEsc(adFormat) + '</div></div><div><div class="tm-review-item-label">Destinasi</div><div class="tm-review-item-value">' + tmReviewEsc(destinationMode) + (websiteUrl ? '<br>' + tmReviewEsc(websiteUrl) : '') + '</div></div><div><div class="tm-review-item-label">CTA & add-on</div><div class="tm-review-item-value">' + tmReviewEsc(cta) + '<br>' + tmReviewEsc(browserAddon) + (displayLink ? '<br>' + tmReviewEsc(displayLink) : '') + '</div></div></div></div>',
+        '<div class="tm-review-card"><div class="tm-review-card-head"><div><div class="tm-review-card-title">Materi Iklan</div><div class="tm-review-card-subtitle">Periksa status media, teks utama, judul, dan deskripsi sebelum iklan dibuat.</div></div><button type="button" class="btn btn-light js-tm-review-edit" data-target="#btnEditCreativeSetup"><i class="fas fa-pen mr-1"></i>Edit</button></div><div class="tm-review-grid cols-2"><div><div class="tm-review-item-label">Status media</div><div class="tm-review-item-value">' + tmReviewEsc(mediaState) + (mediaFiles ? '<br><span class="text-muted">' + tmReviewEsc(mediaFiles) + '</span>' : '') + '</div></div><div><div class="tm-review-item-label">Pengujian materi iklan</div><div class="tm-review-item-value">' + tmReviewEsc(creativeTestSummary) + '</div></div><div><div class="tm-review-item-label">Teks utama</div><div class="tm-review-item-value">' + tmReviewEsc(primaryText || 'Belum diisi') + '</div></div><div><div class="tm-review-item-label">Judul & deskripsi</div><div class="tm-review-item-value">' + tmReviewEsc(headline || 'Belum diisi') + '<br><span class="text-muted">' + tmReviewEsc(description || 'Tanpa deskripsi') + '</span></div></div></div></div>',
+        '<div class="tm-review-card"><div class="tm-review-card-head"><div><div class="tm-review-card-title">Bahasa dan Pelacakan</div><div class="tm-review-card-subtitle">Pastikan bahasa, parameter URL, dan pengaturan pelacakan sudah sesuai.</div></div><button type="button" class="btn btn-light js-tm-review-edit" data-target="#modal_ad_languages_wrap"><i class="fas fa-pen mr-1"></i>Edit</button></div><div class="tm-review-grid cols-2"><div><div class="tm-review-item-label">Bahasa</div><div class="tm-review-item-value">' + tmReviewEsc(adLanguages.length ? adLanguages.join(', ') : 'Semua bahasa') + '</div></div><div><div class="tm-review-item-label">Pixel / peristiwa</div><div class="tm-review-item-value">' + tmReviewEsc(pixelId || 'Set data konversi default akun') + '<br><span class="text-muted">Peristiwa aplikasi: ' + tmReviewEsc($('#modal_track_app_event').is(':checked') ? 'Aktif' : 'Nonaktif') + '</span></div></div><div><div class="tm-review-item-label">Parameter URL</div><div class="tm-review-item-value">' + tmReviewEsc(urlTags || 'Belum diatur') + '</div></div><div><div class="tm-review-item-label">Pelaporan pihak ketiga</div><div class="tm-review-item-value">' + tmReviewEsc(String($('#btnOpenThirdPartyTracking').text() || 'Hubungkan').trim() || 'Hubungkan') + '</div></div></div></div>',
+        '</div>'
+      ].join('');
+      $('#tmReviewPanelAd').html(cards);
+    }
     const syncTrafficManualShellBase = syncTrafficManualShell;
     syncTrafficManualShell = function () {
       syncTrafficManualShellBase();
-      const view = String($('#modalCreateMetaCampaign').data('tmView') || 'edit');
+      let view = String($('#modalCreateMetaCampaign').data('tmView') || 'edit');
       const reviewOnCampaign = wizardStep === 1 && view === 'review';
       const reviewOnAdset = wizardStep === 2 && view === 'review';
+      const stepThree = wizardStep === 3;
+      const reviewOnAd = stepThree && view === 'review';
+      $('#modalCreateMetaCampaign').toggleClass('tm-step3-on', stepThree);
+      $('#metaStepGuide').toggle(!(wizardStep === 1 || wizardStep === 2 || wizardStep === 3));
       $('#pane1 > .tm-section').toggle(!reviewOnCampaign);
       $('#tmEditPanel').toggle(!reviewOnCampaign);
       $('#tmReviewPanel').toggle(reviewOnCampaign);
       $('#pane2 > .tm-section').toggle(!reviewOnAdset);
       $('#tmEditPanelAdset').toggle(!reviewOnAdset);
       $('#tmReviewPanelAdset').toggle(reviewOnAdset);
+      $('#tmEditPanelAd').toggle(!reviewOnAd);
+      $('#tmReviewPanelAd').toggle(reviewOnAd);
+      $('#btnTrafficBuilderReview').toggle(wizardStep === 1 || wizardStep === 2 || wizardStep === 3);
+      $('#btnTrafficBuilderEdit').toggle(true);
+      if (stepThree) {
+        $('#tmScoreTitle').text('Skor iklan');
+        $('#tmScoreHint').text(reviewOnAd ? 'Mode tinjau iklan aktif.' : 'Lengkapi identitas, materi iklan, bahasa, dan pelacakan sebelum publish.');
+        $('#tmSummaryTitle').text('Ringkasan iklan');
+        $('#tmSummaryPrimaryLabel').text('Set iklan induk');
+        $('#tmSummaryPrimaryValue').text(String($('#modal_adset_name').val() || '1 Set Iklan'));
+        $('#tmSummarySecondaryLabel').text('Format iklan');
+        $('#tmSummarySecondaryValue').text(String($('input[name="modal_ad_format"]:checked').closest('label').contents().filter(function () { return this.nodeType === 3; }).text() || 'Gambar atau video tunggal').trim() || 'Gambar atau video tunggal');
+        $('#btnWizardPrev').text('Kembali ke Set Iklan');
+        $('#btnWizardCreateAdsetAd').text(String($('#modal_campaign_mode').val() || 'create') === 'edit' ? 'Simpan Iklan' : 'Buat Set Iklan + Iklan');
+      }
+      syncPartnershipUi();
       renderCampaignReviewPanel();
       renderAdsetReviewPanel();
+      renderAdReviewPanel();
     };
     function setWizardStep(step) {
       const nextStep = Math.max(1, Math.min(3, Number(step) || 1));
@@ -7173,20 +8422,41 @@
       setWizardStep(3);
       $('#modal_create_result').removeClass('text-danger text-success').addClass('text-muted').text('Lengkapi data iklan pada Step 3, lalu klik Buat Set Iklan + Iklan.');
     });
-    $(document).off('click.tmView', '#btnTrafficBuilderEdit,#btnTrafficBuilderReview').on('click.tmView', '#btnTrafficBuilderEdit,#btnTrafficBuilderReview', function () { $('#modalCreateMetaCampaign').data('tmView', this.id === 'btnTrafficBuilderReview' ? 'review' : 'edit'); syncTrafficManualShell(); }).off('change.tmView', '#tmStatusToggle').on('change.tmView', '#tmStatusToggle', function () { $('#modal_status').val(this.checked ? 'ACTIVE' : 'PAUSED').trigger('change'); }).off('input.tmView change.tmView', '#modal_campaign_name,#modal_adset_name,#modal_ad_name,#modal_status,#modal_objective,#modal_campaign_buying_type,#modal_campaign_budget_type,#modal_campaign_special_category,#modal_page_id,#modal_instagram_actor_id').on('input.tmView change.tmView', '#modal_campaign_name,#modal_adset_name,#modal_ad_name,#modal_status,#modal_objective,#modal_campaign_buying_type,#modal_campaign_budget_type,#modal_campaign_special_category,#modal_page_id,#modal_instagram_actor_id', syncTrafficManualShell).off('hidden.bs.modal.tmIdentity', '#modalIdentityPicker').on('hidden.bs.modal.tmIdentity', '#modalIdentityPicker', syncTrafficManualShell).off('change.tmDc', '#tmDynamicCreativeToggle').on('change.tmDc', '#tmDynamicCreativeToggle', function () { $('#modal_dynamic_creative').val(this.checked ? '1' : '0'); syncDynamicCreativeUi(); }).off('change.tmDcValue', '#modal_dynamic_creative').on('change.tmDcValue', '#modal_dynamic_creative', syncDynamicCreativeUi).off('click.tmDcLink', '#btnOpenCreativeSetup').on('click.tmDcLink', '#btnOpenCreativeSetup', function () { setWizardStep(3); }).off('click.tmLeftOutside').on('click.tmLeftOutside', function (e) { if (!$(e.target).closest('#tmLeftCampaign,#tmLeftActionMenu').length) $('#tmLeftActionMenu').hide(); });
+    $(document).off('click.tmView', '#btnTrafficBuilderEdit,#btnTrafficBuilderReview').on('click.tmView', '#btnTrafficBuilderEdit,#btnTrafficBuilderReview', function () { $('#modalCreateMetaCampaign').data('tmView', this.id === 'btnTrafficBuilderReview' ? 'review' : 'edit'); syncTrafficManualShell(); }).off('change.tmView', '#tmStatusToggle').on('change.tmView', '#tmStatusToggle', function () { $('#modal_status').val(this.checked ? 'ACTIVE' : 'PAUSED').trigger('change'); }).off('input.tmView change.tmView', '#modal_campaign_name,#modal_adset_name,#modal_ad_name,#modal_status,#modal_objective,#modal_campaign_buying_type,#modal_campaign_budget_type,#modal_campaign_special_category,#modal_page_id,#modal_instagram_actor_id,#modal_ad_setup_mode,#modal_cta,#modal_website_url,#modal_display_link,#modal_primary_text,#modal_headline,#modal_description,#modal_caption,#modal_url_tags,#modal_track_app_event,#modal_ad_languages,#modal_partnership_ad,#modal_multi_advertiser_ads,input[name="modal_ad_format"],input[name="modal_destination_mode"],input[name="modal_browser_addon"],input[name="modal_ad_source_mode_material"]').on('input.tmView change.tmView', '#modal_campaign_name,#modal_adset_name,#modal_ad_name,#modal_status,#modal_objective,#modal_campaign_buying_type,#modal_campaign_budget_type,#modal_campaign_special_category,#modal_page_id,#modal_instagram_actor_id,#modal_ad_setup_mode,#modal_cta,#modal_website_url,#modal_display_link,#modal_primary_text,#modal_headline,#modal_description,#modal_caption,#modal_url_tags,#modal_track_app_event,#modal_ad_languages,#modal_partnership_ad,#modal_multi_advertiser_ads,input[name="modal_ad_format"],input[name="modal_destination_mode"],input[name="modal_browser_addon"],input[name="modal_ad_source_mode_material"]', syncTrafficManualShell).off('hidden.bs.modal.tmIdentity', '#modalIdentityPicker').on('hidden.bs.modal.tmIdentity', '#modalIdentityPicker', syncTrafficManualShell).off('change.tmDc', '#tmDynamicCreativeToggle').on('change.tmDc', '#tmDynamicCreativeToggle', function () { $('#modal_dynamic_creative').val(this.checked ? '1' : '0'); syncDynamicCreativeUi(); }).off('change.tmDcValue', '#modal_dynamic_creative').on('change.tmDcValue', '#modal_dynamic_creative', syncDynamicCreativeUi).off('click.tmDcLink', '#btnOpenCreativeSetup').on('click.tmDcLink', '#btnOpenCreativeSetup', function () { setWizardStep(3); }).off('click.tmLeftOutside').on('click.tmLeftOutside', function (e) { if (!$(e.target).closest('#tmLeftCampaign,#tmLeftActionMenu').length) $('#tmLeftActionMenu').hide(); });
     $(document).off('click.tmGoal', '.tm-goal-item').on('click.tmGoal', '.tm-goal-item', function () { $('#modal_objective').val(String($(this).data('objective') || 'OUTCOME_TRAFFIC')).trigger('change'); }).off('click.tmConv', '.tm-conv-list > .tm-conv-choice:not(.disabled)').on('click.tmConv', '.tm-conv-list > .tm-conv-choice:not(.disabled)', function () { const v = String($(this).data('value') || 'WEBSITE'); $('.tm-conv-list > .tm-conv-choice').removeClass('active'); $(this).addClass('active'); $('#modal_conversion_location').val(v).trigger('change'); if (v === 'APP') { $('#modal_optimization_goal').val('LINK_CLICKS'); $('#modal_attribution_window').val('1d_click'); } if (v === 'MESSAGING') { $('#modal_optimization_goal').val('CONVERSATIONS'); $('#modal_message_destination_mode').val('auto'); } if (v === 'PROFILE') { $('#modal_optimization_goal').val('PROFILE_VISITS'); } syncTrafficManualShell(); }).off('change.tmProxy', '#tmOptimizationGoalProxy,#tmAppOptimizationGoalProxy,#tmMsgOptimizationGoalProxy').on('change.tmProxy', '#tmOptimizationGoalProxy,#tmAppOptimizationGoalProxy,#tmMsgOptimizationGoalProxy', function () { $('#modal_optimization_goal').val(String(this.value || 'LANDING_PAGE_VIEWS')).trigger('change'); syncTrafficManualShell(); }).off('click.tmMsg', '#btnEditMsgPage,#btnEditProfileIdentity').on('click.tmMsg', '#btnEditMsgPage,#btnEditProfileIdentity', function (e) { e.preventDefault(); e.stopPropagation(); $('#btnEditIdentity').trigger('click'); }).off('click.tmMsg', '.tm-msg-choice').on('click.tmMsg', '.tm-msg-choice', function (e) { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation(); const mode = String($(this).data('msg-mode') || 'auto'); $('#modal_conversion_location').val('MESSAGING'); $('.tm-msg-choice').removeClass('active'); $(this).addClass('active'); $('#modal_message_destination_mode').val(mode); $('#tmMsgManualPanel').toggle(mode === 'manual'); syncTrafficManualShell(); }).off('change.tmMsg', '.tm-msg-check').on('change.tmMsg', '.tm-msg-check', function () { const vals = $('.tm-msg-check:checked').map(function () { return $(this).data('msg-dest'); }).get(); $('#modal_message_destinations').val(vals.join(',')); }).off('change.tmProfile', '.tm-profile-dest-check').on('change.tmProfile', '.tm-profile-dest-check', function () { const vals = $('.tm-profile-dest-check:checked').map(function () { return $(this).data('dest'); }).get(); $('#modal_profile_destinations').val(vals.join(',')); }).off('input.tmProfile', '#modal_bid_amount_profile').on('input.tmProfile', '#modal_bid_amount_profile', function () { $('#modal_bid_amount').val(String(this.value || '')); syncTrafficManualShell(); }).off('input.tmWebCall', '#modal_bid_amount_webcall').on('input.tmWebCall', '#modal_bid_amount_webcall', function () { $('#modal_bid_amount').val(String(this.value || '')); syncTrafficManualShell(); }).off('change.tmMsg', '#tmWhatsappNumberProxy').on('change.tmMsg', '#tmWhatsappNumberProxy', function () { $('#modal_whatsapp_number').val(String(this.value || '')); }).off('click.tmMsg', '#btnOtherWhatsappNumber').on('click.tmMsg', '#btnOtherWhatsappNumber', function (e) { e.preventDefault(); e.stopPropagation(); alert('Flow hubungkan nomor WhatsApp lainnya akan kita lanjutkan setelah UI mode messaging ini stabil.'); }).off('change.tmProxy', '#tmAttributionModelProxy').on('change.tmProxy', '#tmAttributionModelProxy', function () { if (String(this.value || 'standard') !== 'incremental') { $('#modal_attribution_window').val('7d_click_1d_view').trigger('change'); } syncTrafficManualShell(); }).off('change.tmProxy', '#tmAppStoreProxy').on('change.tmProxy', '#tmAppStoreProxy', function () { $('#modal_mobile_app_store').val(String(this.value || 'ALL_STORES')).trigger('change'); $('#tmAppStoreSummary').text($('#modal_mobile_app_store option:selected').text() || 'Semua toko aplikasi untuk Android dan iOS'); }).off('change.tmProxy', '#tmBillingEventProxy').on('change.tmProxy', '#tmBillingEventProxy', function () { $('#modal_billing_event').val(String(this.value || 'IMPRESSIONS')).trigger('change'); }).off('click.tmStore', '#btnEditAppStore').on('click.tmStore', '#btnEditAppStore', function () { $('#tmAppStoreEditor').toggle(); }).off('click.tmMore', '#btnToggleWebsiteMoreOptions').on('click.tmMore', '#btnToggleWebsiteMoreOptions', function () { $('#tmWebsiteMoreOptions').toggle(); $(this).html(($('#tmWebsiteMoreOptions').is(':visible') ? 'Sembunyikan opsi lainnya' : 'Tampilkan opsi lainnya') + ' <i class="fas fa-caret-' + ($('#tmWebsiteMoreOptions').is(':visible') ? 'up' : 'down') + ' ml-1"></i>'); }).off('click.tmMore', '#btnToggleAppMoreOptions').on('click.tmMore', '#btnToggleAppMoreOptions', function () { $('#tmAppMoreOptions').toggle(); $(this).html(($('#tmAppMoreOptions').is(':visible') ? 'Sembunyikan opsi lainnya' : 'Tampilkan opsi lainnya') + ' <i class="fas fa-caret-' + ($('#tmAppMoreOptions').is(':visible') ? 'up' : 'down') + ' ml-1"></i>'); }).off('input.tmApp', '#modal_bid_amount_app').on('input.tmApp', '#modal_bid_amount_app', function () { $('#modal_bid_amount').val(String(this.value || '')); syncTrafficManualShell(); }).off('change.tmCap', '#modal_campaign_spend_cap_enabled').on('change.tmCap', '#modal_campaign_spend_cap_enabled', syncCampaignBudgetFields).off('click.tmBudget', '.tm-budget-choice').on('click.tmBudget', '.tm-budget-choice', function () { $('#modal_campaign_budget_type').val($(this).data('budget-type') === 'campaign' ? String($('#tmCampaignBudgetMode').val() || 'daily') : 'none').trigger('change'); }).off('change.tmBudget', '#tmCampaignBudgetMode').on('change.tmBudget', '#tmCampaignBudgetMode', function () { $('#modal_campaign_budget_type').val(String(this.value || 'daily')).trigger('change'); }).off('input.tmBudget', '#tmCampaignBudgetAmount').on('input.tmBudget', '#tmCampaignBudgetAmount', function () { const m = String($('#tmCampaignBudgetMode').val() || 'daily'), v = String(this.value || ''); $('#modal_campaign_daily_budget').val(m === 'daily' ? v : ''); $('#modal_campaign_lifetime_budget').val(m === 'lifetime' ? v : ''); syncCampaignBudgetFields(); }).off('change.tmBudget', '#tmAdsetReallocateEnabled').on('change.tmBudget', '#tmAdsetReallocateEnabled', syncCampaignBudgetFields).off('click.tmBudget', '#btnEditTmBidStrategy').on('click.tmBudget', '#btnEditTmBidStrategy', function () { $('#tmBidStrategyPane').toggle(); }).off('click.tmBudget', '#btnEditTmBidStrategyInline').on('click.tmBudget', '#btnEditTmBidStrategyInline', function () { $('#tmAdsetBidStrategyPane').toggle(); }).off('change.tmBudget', '#tmBidStrategyProxy,#tmAdsetBidStrategyProxy').on('change.tmBudget', '#tmBidStrategyProxy,#tmAdsetBidStrategyProxy', function () { const v = String(this.value || 'LOWEST_COST_WITHOUT_CAP'); $('#modal_bid_strategy').val(v).trigger('change'); $('#tmBidStrategyProxy,#tmAdsetBidStrategyProxy').val(v); $('#tmBidAmountProxy,#tmAdsetBidAmountProxy').toggle(['COST_CAP', 'LOWEST_COST_WITH_BID_CAP'].indexOf(v) >= 0); syncCampaignBudgetFields(); }).off('input.tmBudget', '#tmBidAmountProxy,#tmAdsetBidAmountProxy').on('input.tmBudget', '#tmBidAmountProxy,#tmAdsetBidAmountProxy', function () { const v = String(this.value || ''); $('#modal_bid_amount').val(v); $('#tmBidAmountProxy,#tmAdsetBidAmountProxy').val(v); }).off('click.tmBudget', '#btnToggleTmSchedule').on('click.tmBudget', '#btnToggleTmSchedule', function () { $('#tmSchedulePane').toggle(); $(this).text($('#tmSchedulePane').is(':visible') ? 'Sembunyikan opsi' : 'Tampilkan opsi'); if ($('#tmSchedulePane').is(':visible') && $('#tmBudgetScheduleEnabled').is(':checked')) tmSchedRender(); }).off('change.tmBudget', '#tmBudgetScheduleEnabled').on('change.tmBudget', '#tmBudgetScheduleEnabled', function () { $('#tmBudgetScheduleEditor').toggle(this.checked); if (this.checked) tmSchedRender(); }).off('click.tmBudget', '#btnTmSchedView').on('click.tmBudget', '#btnTmSchedView', function (e) { e.stopPropagation(); $('#tmSchedViewMenu').toggle(); }).off('click.tmBudget', '.js-tm-filter').on('click.tmBudget', '.js-tm-filter', function () { tmSched.filter = String($(this).data('v') || 'all'); $('#tmSchedViewMenu .js-tm-filter').removeClass('btn-primary').addClass('btn-light'); $(this).removeClass('btn-light').addClass('btn-primary'); tmSchedRender(); $('#tmSchedViewMenu').hide(); }).off('click.tmBudget', '.js-tm-sort').on('click.tmBudget', '.js-tm-sort', function () { tmSched.sort = String($(this).data('v') || 'newest'); tmSchedRender(); $('#tmSchedViewMenu').hide(); }).off('click.tmBudget', '#btnTmAddPeriod').on('click.tmBudget', '#btnTmAddPeriod', function () { tmSchedEnsure(); if (tmSched.items.length < 50) { tmSched.items.push({ id: Date.now() + tmSched.items.length, start: '', end: '', mode: 'amount', amount: '5000' }); tmSchedRender(); } }).off('change.tmBudget input.tmBudget', '.js-tm-s,.js-tm-e,.js-tm-m,.js-tm-a').on('change.tmBudget input.tmBudget', '.js-tm-s,.js-tm-e,.js-tm-m,.js-tm-a', function () { const i = Number($(this).data('i')); if (!tmSched.items[i]) return; if ($(this).hasClass('js-tm-s')) tmSched.items[i].start = this.value; if ($(this).hasClass('js-tm-e')) tmSched.items[i].end = this.value; if ($(this).hasClass('js-tm-m')) tmSched.items[i].mode = this.value; if ($(this).hasClass('js-tm-a')) tmSched.items[i].amount = this.value; $(this).closest('.border').find('.js-tm-sum').html(tmSchedSummary(tmSched.items[i])); }).off('click.tmBudget', '.js-tm-del').on('click.tmBudget', '.js-tm-del', function () { const i = Number($(this).data('i')); tmSched.items.splice(i, 1); if (!tmSched.items.length) tmSched.items = [{ id: Date.now(), start: '', end: '', mode: 'amount', amount: '5000' }]; tmSchedRender(); }).off('click.tmBudgetOutside').on('click.tmBudgetOutside', function (e) { if (!$(e.target).closest('.tm-sched-head').length) $('#tmSchedViewMenu').hide(); });
     $(document).off('change.tmAdsetBudget', '#tmAdsetSpendLimitEnabled,#tmAdsetSpendLimitUnit,#tmAdsetEndEnabled').on('change.tmAdsetBudget', '#tmAdsetSpendLimitEnabled,#tmAdsetSpendLimitUnit,#tmAdsetEndEnabled', function () { if (this.id === 'tmAdsetEndEnabled') { if (!this.checked) { $('#modal_end_time').val(''); } else if (!$('#tmAdsetEndDate').val()) { $('#tmAdsetEndDate').val($('#tmAdsetStartDate').val() || ''); $('#tmAdsetEndTime').val($('#tmAdsetStartTime').val() || '00:00'); } } syncAdsetBudgetUi(); }).off('click.tmAudience', '#btnOpenAudienceControls').on('click.tmAudience', '#btnOpenAudienceControls', function () { $('#modalAudienceControls').modal('show'); }).off('click.tmAudience', '#btnApplyAudienceControls').on('click.tmAudience', '#btnApplyAudienceControls', function () { $('#modalAudienceControls').modal('hide'); }).off('click.tmAudience', '#btnEditAudienceLocation,#btnCloseAudienceLocation,#btnEditAudienceLanguage,#btnCloseAudienceLanguage,#btnEditAudienceDemo,#btnCloseAudienceDemo,#btnEditAudienceDetail,#btnCloseAudienceDetail').on('click.tmAudience', '#btnEditAudienceLocation,#btnCloseAudienceLocation,#btnEditAudienceLanguage,#btnCloseAudienceLanguage,#btnEditAudienceDemo,#btnCloseAudienceDemo,#btnEditAudienceDetail,#btnCloseAudienceDetail', function () { const map = { btnEditAudienceLocation: '#tmAudienceLocationEditor', btnCloseAudienceLocation: '#tmAudienceLocationEditor', btnEditAudienceLanguage: '#tmAudienceLanguageEditor', btnCloseAudienceLanguage: '#tmAudienceLanguageEditor', btnEditAudienceDemo: '#tmAudienceDemoEditor', btnCloseAudienceDemo: '#tmAudienceDemoEditor', btnEditAudienceDetail: '#tmAudienceDetailEditor', btnCloseAudienceDetail: '#tmAudienceDetailEditor' }, sel = (map[this.id] || ''); if (this.id === 'btnEditAudienceLocation') $('#tmAudienceMapWrap').hide(), $('#btnToggleAudienceMap').html('<i class="fas fa-chevron-down"></i>'); $(sel).stop(true, true)[this.id.indexOf('Close') === 0 ? 'slideUp' : 'slideDown'](180); syncAudienceSummary(); }).off('click.tmAudience', '#btnToggleAudienceMore').on('click.tmAudience', '#btnToggleAudienceMore', function () { const $w = $('#tmAudienceMoreWrap'); $w.stop(true, true).slideToggle(180); $(this).html(($w.is(':visible') ? 'Sembunyikan opsi' : 'Tampilkan opsi lainnya') + ' <i class="fas fa-caret-' + ($w.is(':visible') ? 'up' : 'down') + ' ml-1"></i>'); }).off('click.tmAudience', '#btnToggleAudienceMap').on('click.tmAudience', '#btnToggleAudienceMap', function () { const $w = $('#tmAudienceMapWrap'); $w.stop(true, true).slideToggle(180); $(this).html('<i class="fas fa-chevron-' + ($w.is(':visible') ? 'up' : 'down') + '"></i>'); }).off('input.tmAudience change.tmAudience', '#modal_location_include_countries,#modal_location_exclude_countries,#modal_languages,#modal_age_min,#modal_age_max,#modal_gender,#modal_detailed_targeting_include,#modal_detailed_targeting_narrow').on('input.tmAudience change.tmAudience', '#modal_location_include_countries,#modal_location_exclude_countries,#modal_languages,#modal_age_min,#modal_age_max,#modal_gender,#modal_detailed_targeting_include,#modal_detailed_targeting_narrow', syncAudienceSummary).off('input.tmAdsetBudget change.tmAdsetBudget', '#tmAdsetStartDate,#tmAdsetStartTime,#tmAdsetEndDate,#tmAdsetEndTime,#modal_daily_budget,#modal_lifetime_budget,#modal_campaign_daily_budget,#modal_campaign_lifetime_budget,#modal_budget_type,#modal_campaign_budget_type').on('input.tmAdsetBudget change.tmAdsetBudget', '#tmAdsetStartDate,#tmAdsetStartTime,#tmAdsetEndDate,#tmAdsetEndTime,#modal_daily_budget,#modal_lifetime_budget,#modal_campaign_daily_budget,#modal_campaign_lifetime_budget,#modal_budget_type,#modal_campaign_budget_type', function () { const pack = function (d, t) { return d ? (d + 'T' + (t || '00:00')) : ''; }; $('#modal_start_time').val(pack($('#tmAdsetStartDate').val(), $('#tmAdsetStartTime').val())); $('#modal_end_time').val($('#tmAdsetEndEnabled').prop('checked') ? pack($('#tmAdsetEndDate').val(), $('#tmAdsetEndTime').val()) : ''); syncAdsetBudgetUi(); }).off('click.tmAdsetBudget', '#btnToggleAdsetSchedNote').on('click.tmAdsetBudget', '#btnToggleAdsetSchedNote', function () { const $n = $('#tmAdsetSchedNote'); $n.toggle(); $(this).html(($n.is(':visible') ? 'Sembunyikan opsi' : 'Tampilkan opsi') + ' <i class="fas fa-caret-' + ($n.is(':visible') ? 'up' : 'down') + ' ml-1"></i>'); });
-    const ntState = { items: [], mode: 'components' }, ntCatalog = [{ key: 'objective', label: 'Tujuan' }, { key: 'account', label: 'Nama Akun' }, { key: 'campaign_id', label: 'ID Kampanye' }, { key: 'buying', label: 'Jenis Pembelian' }, { key: 'open_text', label: 'Kolom teks terbuka' }], ntTemplates = [{ name: 'Template Khusus 1', items: ['objective'] }, { name: 'Template Khusus 2', items: ['campaign_id'] }], atState = { items: [], mode: 'components', group: '' }, atGroups = [{ key: 'campaign', label: 'Kolom kampanye', items: [{ key: 'campaign_name', label: 'Nama Kampanye' }, { key: 'campaign_id', label: 'ID Kampanye' }, { key: 'objective', label: 'Tujuan' }] }, { key: 'adset', label: 'Kolom set iklan', items: [{ key: 'country', label: 'Negara' }, { key: 'city', label: 'Kota' }, { key: 'age', label: 'Usia' }, { key: 'gender', label: 'Jenis kelamin' }, { key: 'device', label: 'Perangkat Seluler' }, { key: 'os', label: 'Sistem Operasi Seluler' }, { key: 'optimization', label: 'Optimasi untuk Penayangan Iklan' }, { key: 'schedule', label: 'Penjadwalan Iklan' }, { key: 'adset_id', label: 'ID Set Iklan' }, { key: 'interest', label: 'Minat' }] }, { key: 'open_text', label: 'Kolom teks terbuka', items: [{ key: 'open_text', label: 'Kolom teks terbuka', desc: 'Ruang kosong yang bisa Anda isi' }] }, { key: 'custom', label: 'Kolom kustom', items: [{ key: 'custom_text', label: 'Kolom kustom', desc: 'Info unik yang bisa Anda tambahkan tentang iklan Anda' }] }], atTemplates = [{ name: 'Template Khusus 1', items: ['country', 'age', 'gender', 'interest'] }, { name: 'Template Khusus 2', items: ['age', 'gender'] }];
+    const ntState = { items: [], mode: 'components' }, ntCatalog = [{ key: 'objective', label: 'Tujuan' }, { key: 'account', label: 'Nama Akun' }, { key: 'campaign_id', label: 'ID Kampanye' }, { key: 'buying', label: 'Jenis Pembelian' }, { key: 'open_text', label: 'Kolom teks terbuka' }], ntTemplates = [{ name: 'Template Khusus 1', items: ['objective'] }, { name: 'Template Khusus 2', items: ['campaign_id'] }], atState = { items: [], mode: 'components', group: '' }, atGroups = [{ key: 'campaign', label: 'Kolom kampanye', items: [{ key: 'campaign_name', label: 'Nama Kampanye' }, { key: 'campaign_id', label: 'ID Kampanye' }, { key: 'objective', label: 'Tujuan' }] }, { key: 'adset', label: 'Kolom set iklan', items: [{ key: 'country', label: 'Negara' }, { key: 'city', label: 'Kota' }, { key: 'age', label: 'Usia' }, { key: 'gender', label: 'Jenis kelamin' }, { key: 'device', label: 'Perangkat Seluler' }, { key: 'os', label: 'Sistem Operasi Seluler' }, { key: 'optimization', label: 'Optimasi untuk Penayangan Iklan' }, { key: 'schedule', label: 'Penjadwalan Iklan' }, { key: 'adset_id', label: 'ID Set Iklan' }, { key: 'interest', label: 'Minat' }] }, { key: 'open_text', label: 'Kolom teks terbuka', items: [{ key: 'open_text', label: 'Kolom teks terbuka', desc: 'Ruang kosong yang bisa Anda isi' }] }, { key: 'custom', label: 'Kolom kustom', items: [{ key: 'custom_text', label: 'Kolom kustom', desc: 'Info unik yang bisa Anda tambahkan tentang iklan Anda' }] }], atTemplates = [{ name: 'Template Khusus 1', items: ['country', 'age', 'gender', 'interest'] }, { name: 'Template Khusus 2', items: ['age', 'gender'] }], adtState = { items: [], mode: 'components', group: '' }, adtGroups = [{ key: 'campaign', label: 'Kolom kampanye', items: [{ key: 'campaign_budget', label: 'Anggaran campaign Advantage+' }, { key: 'objective', label: 'Tujuan' }, { key: 'campaign_id', label: 'ID Kampanye' }, { key: 'campaign_name', label: 'Nama Kampanye' }] }, { key: 'adset', label: 'Kolom set iklan', items: [{ key: 'age', label: 'Usia' }, { key: 'gender', label: 'Jenis kelamin' }, { key: 'device', label: 'Perangkat Seluler' }, { key: 'os', label: 'Sistem Operasi Seluler' }, { key: 'optimization', label: 'Optimasi untuk Penayangan Iklan' }, { key: 'schedule', label: 'Penjadwalan Iklan' }, { key: 'adset_id', label: 'ID Set Iklan' }, { key: 'adset_name', label: 'Nama Set Iklan' }, { key: 'interest', label: 'Minat' }, { key: 'country', label: 'Negara' }, { key: 'city', label: 'Kota' }, { key: 'postal_code', label: 'Kode Pos' }, { key: 'adset_updated_time', label: 'Tanggal Pembaruan Set Iklan' }] }, { key: 'ad', label: 'Kolom iklan', items: [{ key: 'ad_id', label: 'ID Iklan' }, { key: 'ad_format', label: 'Format' }, { key: 'ad_updated_time', label: 'Tanggal Pembaruan Iklan' }, { key: 'cta', label: 'Ajakan bertindak' }, { key: 'display_order', label: 'Urutan Tampilan' }, { key: 'headline', label: 'Judul' }, { key: 'image_hash', label: 'Hash Gambar' }, { key: 'instagram_actor_id', label: 'ID profil Instagram' }, { key: 'page_id', label: 'ID Halaman' }] }, { key: 'open_text', label: 'Kolom teks terbuka', items: [{ key: 'open_text', label: 'Kolom teks terbuka', desc: 'Ruang kosong yang bisa Anda isi' }] }, { key: 'custom', label: 'Kolom kustom', items: [{ key: 'custom_text', label: 'Kolom kustom', desc: 'Info unik yang bisa Anda tambahkan tentang iklan Anda' }] }], adtTemplates = [{ name: 'Template Khusus 1', items: ['ad_format'] }, { name: 'Template Khusus 2', items: ['ad_id'] }];
     function ntVal(k) { if (k === 'objective') return $('#modal_objective option:selected').text() || 'Tujuan'; if (k === 'account') return $('#modal_account option:selected').text() || 'Akun'; if (k === 'campaign_id') return $('#modal_campaign_id').val() || 'BARU'; if (k === 'buying') return $('#modal_campaign_buying_type option:selected').text() || 'Lelang'; if (k === 'open_text') return String($('#ntOpenText').val() || '').trim() || 'TEXT'; return k }
     function atVal(k) { if (k === 'campaign_name') return $('#modal_campaign_name').val() || 'Nama Kampanye'; if (k === 'campaign_id') return $('#modal_campaign_id').val() || 'BARU'; if (k === 'objective') return $('#modal_objective option:selected').text() || 'Tujuan'; if (k === 'country') return ($('#modal_location_include_countries').val() || 'ID').split(',')[0].trim() || 'Negara'; if (k === 'city') return $('#modal_location_query').val() || 'Kota'; if (k === 'age') return [$('#modal_age_min').val() || '18', $('#modal_age_max').val() || '65'].join('-'); if (k === 'gender') return $('#modal_gender option:selected').text() || 'Semua'; if (k === 'device') return String($('input[name="modal_device_mode"]:checked').parent().text() || 'Semua Device').trim(); if (k === 'os') return 'Mobile OS'; if (k === 'optimization') return $('#modal_optimization_goal option:selected').text() || 'Optimisasi'; if (k === 'schedule') return ($('#modal_start_time').val() || 'Mulai') + ' - ' + ($('#modal_end_time').val() || 'Selesai'); if (k === 'adset_id') return $('#modal_adset_id').val() || 'BARU'; if (k === 'interest') return $('#modal_detailed_targeting_include option:selected').first().text() || 'Minat'; if (k === 'open_text') return String($('#atOpenText').val() || '').trim() || 'TEXT'; if (k === 'custom_text') return String($('#atCustomText').val() || '').trim() || 'CUSTOM'; return k }
+    function adtVal(k) { const mediaName = String($('#modal_media_files').text() || '').trim(); if (k === 'campaign_budget') return $('#modal_campaign_budget_type option:selected').text() || 'Tanpa CBO'; if (k === 'objective') return $('#modal_objective option:selected').text() || 'Tujuan'; if (k === 'campaign_id') return $('#modal_campaign_id').val() || 'BARU'; if (k === 'campaign_name') return $('#modal_campaign_name').val() || 'Nama Kampanye'; if (k === 'age') return [$('#modal_age_min').val() || '18', $('#modal_age_max').val() || '65'].join('-'); if (k === 'gender') return String($('#tmAdvantageGenderSummary').text() || $('#modal_gender option:selected').text() || 'Semua jenis kelamin').trim() || 'Semua jenis kelamin'; if (k === 'device') return String($('input[name="modal_device_mode"]:checked').parent().text() || 'Semua Device').trim() || 'Semua Device'; if (k === 'os') return String($('#modal_specific_mobile_device').val() || 'all') === 'ios' ? 'iOS' : (String($('#modal_specific_mobile_device').val() || 'all') === 'android' ? 'Android' : 'Semua OS'); if (k === 'optimization') return $('#modal_optimization_goal option:selected').text() || 'Optimisasi'; if (k === 'schedule') return ($('#modal_start_time').val() || 'Mulai') + ' - ' + ($('#modal_end_time').val() || 'Berjalan terus'); if (k === 'adset_id') return $('#modal_adset_id').val() || 'BARU'; if (k === 'adset_name') return $('#modal_adset_name').val() || 'Nama Set Iklan'; if (k === 'interest') return $('#modal_detailed_targeting_include option:selected').first().text() || 'Minat'; if (k === 'country') return ($('#modal_location_include_countries').val() || 'ID').split(',')[0].trim() || 'Negara'; if (k === 'city') return $('#modal_location_query').val() || 'Kota'; if (k === 'postal_code') return $('#modal_location_include_zips').val() || 'Kode Pos'; if (k === 'adset_updated_time') return $('#modal_adset_id').val() ? 'Draft set iklan aktif' : 'Belum diperbarui'; if (k === 'ad_id') return $('#modal_ad_id').val() || 'BARU'; if (k === 'ad_format') return String($('input[name="modal_ad_format"]:checked').closest('label').contents().filter(function () { return this.nodeType === 3; }).text() || 'Gambar/Video').trim() || 'Gambar/Video'; if (k === 'ad_updated_time') return $('#modal_ad_id').val() ? 'Draft iklan aktif' : 'Belum diperbarui'; if (k === 'cta') return $('#modal_cta option:selected').text() || 'Ajakan bertindak'; if (k === 'display_order') return $('#modal_format_carousel_behavior option:selected').text() || 'Default'; if (k === 'headline') return $('#modal_headline').val() || 'Judul'; if (k === 'image_hash') return mediaName || 'Hash Gambar'; if (k === 'instagram_actor_id') return $('#modal_instagram_actor_id').val() || 'ID profil Instagram'; if (k === 'page_id') return $('#modal_page_id').val() || 'ID Halaman'; if (k === 'open_text') return String($('#adtOpenText').val() || '').trim() || 'TEXT'; if (k === 'custom_text') return String($('#adtCustomText').val() || '').trim() || 'CUSTOM'; return k }
     function ntRender() { $('#ntComponentList').html(ntCatalog.map(function (x) { return '<button type="button" class="js-nt-add" data-key="' + x.key + '"><div class="font-weight-bold">' + x.label + '</div>' + (x.key === 'open_text' ? '<div class="text-muted small">Ruang kosong yang bisa Anda isi</div>' : '') + '</button>'; }).join('')); $('#ntExistingList').html(ntTemplates.map(function (x, i) { return '<button type="button" class="js-nt-template" data-idx="' + i + '"><div class="font-weight-bold">' + x.name + '</div><div class="text-muted small">' + x.items.map(ntVal).join(' • ') + '</div></button>'; }).join('')); $('#ntPickedTokens').html(ntState.items.length ? ntState.items.map(function (k) { return '<span class="nt-token">' + ntVal(k) + '</span>'; }).join('') : '<span class="text-muted">Belum ada komponen dipilih.</span>'); $('#ntOpenText').toggle(ntState.items.indexOf('open_text') >= 0); const name = ntState.items.map(ntVal).filter(Boolean).join(' | '); $('#ntPreviewName').text(name || '-'); $('#btnApplyCampaignNameTemplate').prop('disabled', !name); }
     function atRender() { const grp = atGroups.find(function (x) { return x.key === atState.group; }) || { items: [] }; $('#atGroupList').html(atGroups.map(function (x) { return '<button type="button" class="js-at-group' + (atState.group === x.key ? ' active' : '') + '" data-key="' + x.key + '"><div class="font-weight-bold">' + x.label + '</div>' + (x.items[0] && x.items[0].desc ? '<div class="text-muted small">' + x.items[0].desc + '</div>' : '') + '</button>'; }).join('')); $('#atExistingList').html(atTemplates.map(function (x, i) { return '<button type="button" class="js-at-template" data-idx="' + i + '"><div class="font-weight-bold">' + x.name + '</div><div class="text-muted small">' + x.items.map(atVal).join('_') + '</div></button>'; }).join('')); $('#atChildList').html(grp.items.map(function (x) { return '<button type="button" class="js-at-add" data-key="' + x.key + '"><div class="font-weight-bold">' + x.label + '</div>' + (x.desc ? '<div class="text-muted small">' + x.desc + '</div>' : '') + '</button>'; }).join('')); $('#atOpenText').toggle(atState.items.indexOf('open_text') >= 0); $('#atCustomText').toggle(atState.items.indexOf('custom_text') >= 0); $('#atPickedTokens').html(atState.items.length ? atState.items.map(function (k) { return '<span class="nt-token">' + atVal(k) + '</span>'; }).join('') : '<span class="text-muted">Belum ada komponen dipilih.</span>'); const name = atState.items.map(atVal).filter(Boolean).join('_'); $('#atPreviewName').text(name || '-'); $('#btnApplyAdsetNameTemplate').prop('disabled', !name); }
+    function adtRender() { const grp = adtGroups.find(function (x) { return x.key === adtState.group; }) || { items: [] }; $('#adtGroupList').html(adtGroups.map(function (x) { return '<button type="button" class="js-adt-group' + (adtState.group === x.key ? ' active' : '') + '" data-key="' + x.key + '"><div class="font-weight-bold">' + x.label + '</div>' + (x.items[0] && x.items[0].desc ? '<div class="text-muted small">' + x.items[0].desc + '</div>' : '') + '</button>'; }).join('')); $('#adtExistingList').html(adtTemplates.map(function (x, i) { return '<button type="button" class="js-adt-template" data-idx="' + i + '"><div class="font-weight-bold">' + x.name + '</div><div class="text-muted small">' + x.items.map(adtVal).join(' | ') + '</div></button>'; }).join('')); $('#adtChildList').html(grp.items.map(function (x) { return '<button type="button" class="js-adt-add" data-key="' + x.key + '"><div class="font-weight-bold">' + x.label + '</div>' + (x.desc ? '<div class="text-muted small">' + x.desc + '</div>' : '') + '</button>'; }).join('')); $('#adtOpenText').toggle(adtState.items.indexOf('open_text') >= 0); $('#adtCustomText').toggle(adtState.items.indexOf('custom_text') >= 0); $('#adtPickedTokens').html(adtState.items.length ? adtState.items.map(function (k) { return '<span class="nt-token">' + adtVal(k) + '</span>'; }).join('') : '<span class="text-muted">Belum ada komponen dipilih.</span>'); const name = adtState.items.map(adtVal).filter(Boolean).join(' | '); $('#adtPreviewName').text(name || '-'); $('#btnApplyAdNameTemplate').prop('disabled', !name); }
     $('#btnOpenCampaignNameTemplate').off('.nt').on('click.nt', function () { ntState.items = []; ntState.mode = 'components'; $('#btnNtComponents').addClass('active'); $('#btnNtExisting').removeClass('btn-outline-secondary').addClass('btn-link'); $('#ntComponentList').show(); $('#ntExistingList').hide(); $('#ntOpenText').val(''); ntRender(); $('#modalCampaignNameTemplate').modal('show'); });
     $('#btnNtComponents').off('.nt').on('click.nt', function () { ntState.mode = 'components'; $(this).addClass('active btn-outline-secondary').removeClass('btn-link'); $('#btnNtExisting').removeClass('active btn-outline-secondary').addClass('btn-link'); $('#ntComponentList').show(); $('#ntExistingList').hide(); }); $('#btnNtExisting').off('.nt').on('click.nt', function () { ntState.mode = 'existing'; $(this).addClass('active btn-outline-secondary').removeClass('btn-link'); $('#btnNtComponents').removeClass('active btn-outline-secondary').addClass('btn-link'); $('#ntComponentList').hide(); $('#ntExistingList').show(); });
     $(document).off('click.ntAdd', '.js-nt-add').on('click.ntAdd', '.js-nt-add', function () { const k = String($(this).data('key') || ''); if (k && ntState.items.indexOf(k) < 0) ntState.items.push(k); ntRender(); }).off('click.ntTpl', '.js-nt-template').on('click.ntTpl', '.js-nt-template', function () { const t = ntTemplates[Number($(this).data('idx') || 0)] || { items: [] }; ntState.items = t.items.slice(); ntRender(); }).off('input.nt', '#ntOpenText').on('input.nt', '#ntOpenText', ntRender); $('#btnApplyCampaignNameTemplate').off('.nt').on('click.nt', function () { const name = $('#ntPreviewName').text(); if (name && name !== '-') $('#modal_campaign_name').val(name).trigger('input'); $('#modalCampaignNameTemplate').modal('hide'); });
     $('#btnOpenAdsetNameTemplate').off('.at').on('click.at', function () { atState.items = []; atState.mode = 'components'; atState.group = 'campaign'; $('#btnAtComponents').addClass('active btn-outline-secondary').removeClass('btn-link'); $('#btnAtExisting').removeClass('active btn-outline-secondary').addClass('btn-link'); $('#atGroupList,#atChildList').show(); $('#atExistingList').hide(); $('#atOpenText,#atCustomText').val(''); atRender(); $('#modalAdsetNameTemplate').modal('show'); });
     $('#btnAtComponents').off('.at').on('click.at', function () { atState.mode = 'components'; $(this).addClass('active btn-outline-secondary').removeClass('btn-link'); $('#btnAtExisting').removeClass('active btn-outline-secondary').addClass('btn-link'); $('#atGroupList,#atChildList').show(); $('#atExistingList').hide(); }); $('#btnAtExisting').off('.at').on('click.at', function () { atState.mode = 'existing'; $(this).addClass('active btn-outline-secondary').removeClass('btn-link'); $('#btnAtComponents').removeClass('active btn-outline-secondary').addClass('btn-link'); $('#atGroupList,#atChildList').hide(); $('#atExistingList').show(); });
     $(document).off('click.atGroup', '.js-at-group').on('click.atGroup', '.js-at-group', function () { atState.group = String($(this).data('key') || 'campaign'); atRender(); }).off('click.atAdd', '.js-at-add').on('click.atAdd', '.js-at-add', function () { const k = String($(this).data('key') || ''); if (k && atState.items.indexOf(k) < 0) atState.items.push(k); atRender(); }).off('click.atTpl', '.js-at-template').on('click.atTpl', '.js-at-template', function () { const t = atTemplates[Number($(this).data('idx') || 0)] || { items: [] }; atState.items = t.items.slice(); atRender(); }).off('input.at', '#atOpenText,#atCustomText').on('input.at', '#atOpenText,#atCustomText', atRender); $('#btnApplyAdsetNameTemplate').off('.at').on('click.at', function () { const name = $('#atPreviewName').text(); if (name && name !== '-') $('#modal_adset_name').val(name).trigger('input'); $('#modalAdsetNameTemplate').modal('hide'); });
+    $('#btnOpenAdNameTemplate').off('.adt').on('click.adt', function () { adtState.items = []; adtState.mode = 'components'; adtState.group = 'campaign'; $('#btnAdtComponents').addClass('active btn-outline-secondary').removeClass('btn-link'); $('#btnAdtExisting').removeClass('active btn-outline-secondary').addClass('btn-link'); $('#adtGroupList,#adtChildList').show(); $('#adtExistingList').hide(); $('#adtOpenText,#adtCustomText').val(''); adtRender(); $('#modalAdNameTemplate').modal('show'); });
+    $('#btnAdtComponents').off('.adt').on('click.adt', function () { adtState.mode = 'components'; $(this).addClass('active btn-outline-secondary').removeClass('btn-link'); $('#btnAdtExisting').removeClass('active btn-outline-secondary').addClass('btn-link'); $('#adtGroupList,#adtChildList').show(); $('#adtExistingList').hide(); }); $('#btnAdtExisting').off('.adt').on('click.adt', function () { adtState.mode = 'existing'; $(this).addClass('active btn-outline-secondary').removeClass('btn-link'); $('#btnAdtComponents').removeClass('active btn-outline-secondary').addClass('btn-link'); $('#adtGroupList,#adtChildList').hide(); $('#adtExistingList').show(); });
+    $(document).off('click.adtGroup', '.js-adt-group').on('click.adtGroup', '.js-adt-group', function () { adtState.group = String($(this).data('key') || 'campaign'); adtRender(); }).off('click.adtAdd', '.js-adt-add').on('click.adtAdd', '.js-adt-add', function () { const k = String($(this).data('key') || ''); if (k && adtState.items.indexOf(k) < 0) adtState.items.push(k); adtRender(); }).off('click.adtTpl', '.js-adt-template').on('click.adtTpl', '.js-adt-template', function () { const t = adtTemplates[Number($(this).data('idx') || 0)] || { items: [] }; adtState.items = t.items.slice(); adtRender(); }).off('input.adt', '#adtOpenText,#adtCustomText').on('input.adt', '#adtOpenText,#adtCustomText', adtRender); $('#btnApplyAdNameTemplate').off('.adt').on('click.adt', function () { const name = $('#adtPreviewName').text(); if (name && name !== '-') $('#modal_ad_name').val(name).trigger('input'); $('#modalAdNameTemplate').modal('hide'); });
+    $('#modal_partnership_ad').off('.partner').on('change.partner', function () { syncPartnershipUi(); syncTrafficManualShell(); });
+    $('#btnPartnershipCode').off('.partner').on('click.partner', function () { if (!$('#modal_partnership_ad').is(':checked')) return; syncPartnershipCodeUi(); $('#modalPartnershipCode').modal('show'); });
+    $('#btnPartnershipPicker').off('.partner').on('click.partner', function () { if (!$('#modal_partnership_ad').is(':checked')) return; syncPartnershipPickerUi(); $('#modalPartnershipPicker').modal('show'); });
+    $('#modal_partnership_code_input').off('.partner').on('input.partner', syncPartnershipCodeUi);
+    $('#btnApplyPartnershipCode').off('.partner').on('click.partner', function () { const value = String($('#modal_partnership_code_input').val() || '').trim(); if (!value) return; $('#modal_partnership_mode').val('code'); $('#modal_partnership_code').val(value); $('#modal_partnership_partner').val(''); $('#modalPartnershipCode').modal('hide'); syncPartnershipUi(); syncTrafficManualShell(); });
+    $('#btnPartnershipTabSent,#btnPartnershipTabReceived').off('.partner').on('click.partner', function () { partnershipState.pickerTab = this.id === 'btnPartnershipTabReceived' ? 'received' : 'sent'; syncPartnershipPickerUi(); });
+    $('#modal_partnership_partner_input').off('.partner').on('input.partner', function () { if (String($(this).val() || '').trim()) $('#modal_partnership_partner').val(''); syncPartnershipPickerUi(); });
+    $('#tmPartnershipResultCard').off('.partner').on('click.partner', function () { $('#modal_partnership_partner').val('Berita 21'); syncPartnershipPickerUi(); });
+    $('#btnApplyPartnershipPicker').off('.partner').on('click.partner', function () { if (!String($('#modal_partnership_partner').val() || '').trim()) return; $('#modal_partnership_mode').val('picker'); $('#modal_partnership_code').val(''); $('#modalPartnershipPicker').modal('hide'); syncPartnershipUi(); syncTrafficManualShell(); });
+    $('#btnOpenPartnershipAdd').off('.partner').on('click.partner', function () { setPartnershipAddStep(1); $('#modalPartnershipAdd').modal('show'); });
+    $('#modal_partnership_add_partner').off('.partner').on('change.partner', function () { setPartnershipAddStep(partnershipState.addStep); });
+    $('#tmPartnershipAssetPage,#tmPartnershipAssetIg').off('.partner').on('change.partner', function () { setPartnershipAddStep(partnershipState.addStep); });
+    $('#btnPartnershipAddNext').off('.partner').on('click.partner', function () { if (partnershipState.addStep < 4) { setPartnershipAddStep(partnershipState.addStep + 1); return; } const selected = String($('#modal_partnership_add_partner').val() || '').trim(); if (selected) $('#modal_partnership_partner').val(selected); $('#modalPartnershipAdd').modal('hide'); syncPartnershipPickerUi(); });
+    $('#modalPartnershipPicker').off('shown.bs.modal.partner').on('shown.bs.modal.partner', syncPartnershipPickerUi);
+    $('#modalPartnershipAdd').off('shown.bs.modal.partner').on('shown.bs.modal.partner', function () { setPartnershipAddStep(partnershipState.addStep || 1); });
+    syncPartnershipUi();
 
     function buildMetaRows(rows) {
       return (rows || []).map(function (row) {
@@ -7570,6 +8840,7 @@
       try { const pos = JSON.parse(draft.placement_positions || '{}') || {}; Object.keys(pos).forEach(function (p) { (pos[p] || []).forEach(function (v) { $('.modal-position[data-platform="' + p + '"][value="' + v + '"]').prop('checked', true); }); }); } catch (e) { }
       syncCampaignBudgetFields(); initAudiencePlacementControls();
       try { seedDraftSelect2('#modal_languages', normalizeLanguageDraftItems(JSON.parse(draft.languages || '[]'))); } catch (e) { }
+      try { seedDraftSelect2('#modal_ad_languages', normalizeLanguageDraftItems(JSON.parse(draft.ad_languages || '[]'))); } catch (e) { }
       try { const dt = JSON.parse(draft.detailed_targeting || '{}') || {}; seedDraftSelect2('#modal_detailed_targeting_include', dt.include || []); seedDraftSelect2('#modal_detailed_targeting_narrow', dt.narrow || []); } catch (e) { }
       try { seedDraftSelect2('#modal_excluded_custom_audiences', JSON.parse(draft.excluded_custom_audiences || '[]')); } catch (e) { }
       try { seedDraftSelect2('#modal_advantage_custom_audiences', JSON.parse(draft.advantage_custom_audiences || '[]')); } catch (e) { }
@@ -7599,7 +8870,7 @@
       $('#modal_placement_mode').val('auto'); $('#modal_asset_customization').val('0'); $('#modal_ad_transparency_status').val('not_started'); $('#modal_ad_transparency_method').val(''); $('#modal_ad_transparency_country').val('Indonesia'); $('#modal_ad_transparency_name').val(''); $('#modal_transparency_country_select').val('Indonesia'); $('#modal_transparency_identity_name').val(''); $('#modal_account_placement_control_enabled').val('0'); $('#modal_account_placement_controls').val('[]'); $('#modal_specific_mobile_device').val('all'); $('#modal_specific_mobile_wifi_only').val('0'); $('#modal_exclude_skippable_ads').val('0'); $('#modal_content_inventory_filter').val('expanded'); $('#modal_audience_network_inventory_filter').val('expanded'); $('#modal_publisher_blocklist').val('[]'); $('#modal_content_type_exclusions').val('[]');
       $('input[name="modal_device_mode"][value="all"]').prop('checked', true); $('.modal-platform,.modal-position').prop('checked', false);
       $('.modal-platform[value="facebook"],.modal-platform[value="instagram"],.modal-platform[value="audience_network"],.modal-platform[value="messenger"]').prop('checked', true);
-      $('.select2-hidden-accessible').filter('#modal_languages,#modal_detailed_targeting_include,#modal_detailed_targeting_narrow,#modal_excluded_custom_audiences,#modal_advantage_custom_audiences,#modal_lookalike_source').val(null).trigger('change');
+      $('.select2-hidden-accessible').filter('#modal_languages,#modal_ad_languages,#modal_detailed_targeting_include,#modal_detailed_targeting_narrow,#modal_excluded_custom_audiences,#modal_advantage_custom_audiences,#modal_lookalike_source').val(null).trigger('change');
       if (typeof window.syncTransparencyUi === 'function') window.syncTransparencyUi();
       if (typeof window.syncPlacementUi === 'function') window.syncPlacementUi();
       syncCampaignBudgetFields(); initAudiencePlacementControls(); syncBidAmountField(); updateStepProgress();
@@ -7638,7 +8909,7 @@
         $el.next('.select2-container').remove();
         $el.select2(Object.assign({ width: '100%', theme: 'bootstrap4', dropdownParent: $campaignModal }, cfg));
       });
-      $campaignModal.find('select.form-control').not('[multiple],.no-select2,#modal_account,#modal_objective,#modal_status,#modal_campaign_buying_type,#modal_campaign_budget_type,#modal_campaign_special_category,#modal_ab_test_variable,#modal_ab_test_days,#modal_ab_test_metric,#modal_languages,#modal_detailed_targeting_include,#modal_detailed_targeting_narrow').each(function () {
+      $campaignModal.find('select.form-control').not('[multiple],.no-select2,#modal_account,#modal_objective,#modal_status,#modal_campaign_buying_type,#modal_campaign_budget_type,#modal_campaign_special_category,#modal_ab_test_variable,#modal_ab_test_days,#modal_ab_test_metric,#modal_languages,#modal_ad_languages,#modal_detailed_targeting_include,#modal_detailed_targeting_narrow').each(function () {
         const $el = $(this); if (!$el.find('option').length) return;
         if ($el.data('select2')) $el.select2('destroy');
         $el.next('.select2-container').remove();
@@ -7649,8 +8920,9 @@
     }
 
     function initAudiencePlacementControls() {
-      const $campaignModal = $('#modalCreateMetaCampaign'), accountId = String($('#modal_account').val() || '').trim(), $languages = $('#modal_languages'), groups = [{ t: 'Beranda', d: 'Dapatkan visibilitas tinggi untuk bisnis Anda di area beranda.', s: 'f', i: [['Beranda Facebook', 'facebook', 'feed'], ['Beranda Instagram', 'instagram', 'stream'], ['Facebook Marketplace', 'facebook', 'marketplace'], ['Beranda Jelajahi Instagram', 'instagram', 'explore']] }, { t: 'Cerita, Status, Reels', d: 'Sampaikan iklan vertikal layar penuh dengan visual yang menonjol.', s: 'v', i: [['Facebook Stories', 'facebook', 'story'], ['Instagram Stories', 'instagram', 'story'], ['Messenger Stories', 'messenger', 'story'], ['Instagram Reels', 'instagram', 'reels']] }, { t: 'Aplikasi dan situs', d: 'Perluas jangkauan di aplikasi dan situs eksternal.', s: 'f', i: [['Audience Network Classic', 'audience_network', 'classic'], ['Rewarded Video Audience Network', 'audience_network', 'rewarded_video'], ['Audience Network In-Stream', 'audience_network', 'instream_video']] }, { t: 'Messenger', d: 'Tampilkan iklan pesan yang disponsori atau story di Messenger.', s: 'f', i: [['Sponsored Messages', 'messenger', 'sponsored_messages'], ['Messenger Stories', 'messenger', 'story']] }, { t: 'Threads', d: 'Tayangkan iklan di feed Threads. Memerlukan Instagram Feed dan Threads User ID.', s: 'f', i: [['Kabar Threads', 'threads', 'threads_stream']] }], dtCfg = { width: '100%', theme: 'bootstrap4', dropdownParent: $campaignModal, placeholder: 'Tambahkan demografis, minat, atau perilaku', multiple: true, ajax: { url: '/management/admin/facebook_detailed_targeting_suggest', dataType: 'json', delay: 250, data: function (p) { return { q: String(p.term || '').trim(), selected_account: accountId }; }, processResults: function (d) { return { results: (d && d.results) || [] }; }, cache: true } };
-      if ($languages.length) { if ($languages.data('select2')) $languages.select2('destroy'); $languages.next('.select2-container').remove(); $languages.select2({ width: '100%', theme: 'bootstrap4', dropdownParent: $campaignModal, placeholder: 'Cari bahasa...', multiple: true, ajax: { url: '/management/admin/facebook_language_suggest', dataType: 'json', delay: 250, data: function (p) { return { q: String(p.term || '').trim(), selected_account: accountId }; }, processResults: function (d) { return { results: (d && d.results) || [] }; }, cache: true } }); }
+      const $campaignModal = $('#modalCreateMetaCampaign'), accountId = String($('#modal_account').val() || '').trim(), $languages = $('#modal_languages'), $adLanguages = $('#modal_ad_languages'), groups = [{ t: 'Beranda', d: 'Dapatkan visibilitas tinggi untuk bisnis Anda di area beranda.', s: 'f', i: [['Beranda Facebook', 'facebook', 'feed'], ['Beranda Instagram', 'instagram', 'stream'], ['Facebook Marketplace', 'facebook', 'marketplace'], ['Beranda Jelajahi Instagram', 'instagram', 'explore']] }, { t: 'Cerita, Status, Reels', d: 'Sampaikan iklan vertikal layar penuh dengan visual yang menonjol.', s: 'v', i: [['Facebook Stories', 'facebook', 'story'], ['Instagram Stories', 'instagram', 'story'], ['Messenger Stories', 'messenger', 'story'], ['Instagram Reels', 'instagram', 'reels']] }, { t: 'Aplikasi dan situs', d: 'Perluas jangkauan di aplikasi dan situs eksternal.', s: 'f', i: [['Audience Network Classic', 'audience_network', 'classic'], ['Rewarded Video Audience Network', 'audience_network', 'rewarded_video'], ['Audience Network In-Stream', 'audience_network', 'instream_video']] }, { t: 'Messenger', d: 'Tampilkan iklan pesan yang disponsori atau story di Messenger.', s: 'f', i: [['Sponsored Messages', 'messenger', 'sponsored_messages'], ['Messenger Stories', 'messenger', 'story']] }, { t: 'Threads', d: 'Tayangkan iklan di feed Threads. Memerlukan Instagram Feed dan Threads User ID.', s: 'f', i: [['Kabar Threads', 'threads', 'threads_stream']] }], dtCfg = { width: '100%', theme: 'bootstrap4', dropdownParent: $campaignModal, placeholder: 'Tambahkan demografis, minat, atau perilaku', multiple: true, ajax: { url: '/management/admin/facebook_detailed_targeting_suggest', dataType: 'json', delay: 250, data: function (p) { return { q: String(p.term || '').trim(), selected_account: accountId }; }, processResults: function (d) { return { results: (d && d.results) || [] }; }, cache: true } }, languageCfg = { width: '100%', theme: 'bootstrap4', dropdownParent: $campaignModal, placeholder: 'Cari bahasa...', multiple: true, ajax: { url: '/management/admin/facebook_language_suggest', dataType: 'json', delay: 250, data: function (p) { return { q: String(p.term || '').trim(), selected_account: accountId }; }, processResults: function (d) { return { results: (d && d.results) || [] }; }, cache: true } };
+      if ($languages.length) { if ($languages.data('select2')) $languages.select2('destroy'); $languages.next('.select2-container').remove(); $languages.select2(languageCfg); }
+      if ($adLanguages.length) { if ($adLanguages.data('select2')) $adLanguages.select2('destroy'); $adLanguages.next('.select2-container').remove(); $adLanguages.select2(languageCfg); }
       ['#modal_detailed_targeting_include', '#modal_detailed_targeting_narrow'].forEach(function (sel) { const $el = $(sel); if (!$el.length) return; if ($el.data('select2')) $el.select2('destroy'); $el.next('.select2-container').remove(); $el.select2(dtCfg); }); const dtSync = function () { const a = $('#modal_detailed_targeting_include').find('option:selected').length, b = $('#modal_detailed_targeting_narrow').find('option:selected').length; $('#modal_detailed_targeting_summary').text((a || b) ? ('Sertakan: ' + a + ' item • Harus cocok: ' + b + ' item.') : 'Belum ada penargetan terperinci dipilih.'); }; const audMini = function () { const csv = function (v) { return String(v || '').split(',').map(function (x) { return String(x || '').trim(); }).filter(Boolean) }, a = $('#modal_detailed_targeting_include').find('option:selected').length, b = $('#modal_detailed_targeting_narrow').find('option:selected').length, loc = csv($('#modal_location_include_countries').val()).length + csv($('#modal_location_include_regions').val()).length + csv($('#modal_location_include_cities').val()).length, lang = ($('#modal_languages').val() || []).length, ageMin = Math.max(13, Number($('#modal_age_min').val() || 18)), ageMax = Math.max(ageMin, Number($('#modal_age_max').val() || 65)), ageSpan = Math.max(1, ageMax - ageMin), gender = String($('#modal_gender').val() || 'all'), adv = String($('#modal_advantage').val() || '0') === '1'; let score = 50 + Math.max(loc - 1, 0) * 8 - a * 6 - b * 12 - ageSpan * 0.5 + (gender === 'all' ? 6 : -4) + (lang ? Math.max(lang - 1, 0) * 2 : 0) + (adv ? 12 : 0); score = Math.max(8, Math.min(92, Math.round(score))); const state = score <= 34 ? 'Sempit' : (score >= 68 ? 'Luas' : 'Seimbang'); $('#modalAudienceMiniStatus').text(state); $('#modalAudienceMiniBar').attr('style', '--aud-pos:' + score + '%;'); $('#modalAudienceMiniNote').text(state === 'Sempit' ? 'Audiens lebih terkontrol karena detail targeting dan batasannya lebih ketat.' : (state === 'Luas' ? 'Audiens cenderung luas karena batasan lebih longgar atau Advantage+ aktif.' : 'Audiens cukup seimbang antara jangkauan dan kontrol targeting.')); }; $('#modal_detailed_targeting_include,#modal_detailed_targeting_narrow').off('.dt').on('change.dt', function () { dtSync(); audMini(); }); $('#modal_location_include_countries,#modal_location_include_regions,#modal_location_include_cities,#modal_age_min,#modal_age_max,#modal_gender,#modal_advantage,#modal_languages').off('.audmini').on('change.audmini input.audmini', audMini); dtSync(); audMini();
       if (!$('#modalPlacementManagerUi').length) { let h = '<div id="modalPlacementManagerUi"><div><div class="grp"><div class="gh"><span>Kontrol Manual</span></div><div class="gd">Atur perangkat, platform, dan penyesuaian aset sebelum memilih posisi tayang.</div><div style="padding:12px 14px"><div class="mb-2 font-weight-bold small">Perangkat</div><div class="d-flex flex-wrap mb-3"><label class="mr-3 mb-2"><input type="radio" class="ui-device" name="ui_device_mode" value="all"> Semua Device</label><label class="mr-3 mb-2"><input type="radio" class="ui-device" name="ui_device_mode" value="mobile"> Mobile</label><label class="mb-2"><input type="radio" class="ui-device" name="ui_device_mode" value="desktop"> Desktop</label></div><div class="mb-2 font-weight-bold small">Platform</div><div class="d-flex flex-wrap mb-2"><label class="mr-3 mb-2"><input type="checkbox" class="ui-platform" value="facebook"> Facebook</label><label class="mr-3 mb-2"><input type="checkbox" class="ui-platform" value="instagram"> Instagram</label><label class="mr-3 mb-2"><input type="checkbox" class="ui-platform" value="audience_network"> Audience Network</label><label class="mr-3 mb-2"><input type="checkbox" class="ui-platform" value="messenger"> Messenger</label><label class="mr-3 mb-2"><input type="checkbox" class="ui-platform" value="threads"> Threads</label><label class="mb-2 text-muted" title="Belum aktif untuk submit backend saat ini."><input type="checkbox" disabled> WhatsApp</label></div><div class="small text-muted mb-3">Threads aktif untuk submit manual placement. WhatsApp masih nonaktif karena memerlukan flow Click to WhatsApp terpisah.</div><div class="mb-2 font-weight-bold small">Penyesuaian Aset</div><div class="border rounded p-2 bg-light"><label class="d-flex align-items-center justify-content-between mb-2"><span class="font-weight-bold small mb-0">Optimalkan aset kreatif otomatis</span><input type="checkbox" id="modal_asset_customization_ui"></label><div class="small text-muted mb-2">Sesuaikan tampilan aset secara otomatis untuk placement yang berbeda.</div><div class="d-flex flex-wrap"><label class="mr-3 mb-2 small text-muted"><input type="checkbox" class="ui-asset mr-1" value="labels"> Variasi label</label><label class="mr-3 mb-2 small text-muted"><input type="checkbox" class="ui-asset mr-1" value="crop"> Penyesuaian crop</label><label class="mr-3 mb-2 small text-muted"><input type="checkbox" class="ui-asset mr-1" value="text"> Penyesuaian teks</label><label class="mb-2 small text-muted"><input type="checkbox" class="ui-asset mr-1" value="format"> Penyesuaian format</label></div></div></div></div>'; groups.forEach(function (g) { h += '<div class="grp"><div class="gh"><span>' + g.t + '</span><input type="checkbox" class="gg"></div><div class="gd">' + g.d + '</div>'; g.i.forEach(function (x) { h += '<label class="go" data-s="' + g.s + '" data-l="' + x[0] + '"><span>' + x[0] + '</span><input type="checkbox" class="ui-pos" data-p="' + x[1] + '" data-v="' + x[2] + '"></label>'; }); h += '</div>'; }); h += '</div><div class="mp-preview"><div class="small text-muted mb-2">Preview Penempatan</div><div id="mppf" class="mpf f"><div id="mppl" class="mpl">Beranda Facebook</div><div class="mp-meta"><span></span><span></span></div><div class="mp-lines"><i></i><i></i></div><div class="mpc">LEARN MORE</div></div><div class="small text-muted text-center mt-2">Preview mengikuti placement yang dipilih.</div></div></div>'; $('#modal_manual_placement_wrap').append(h); }
       function syncUi() { const dv = String($('input[name="modal_device_mode"]:checked').val() || 'all'); const assetOn = String($('#modal_asset_customization').val() || '0') === '1'; $('.ui-device[value="' + dv + '"]').prop('checked', true); $('.ui-platform').each(function () { const p = String($(this).val() || '').trim(); const on = $('.modal-platform[value="' + p + '"]').prop('checked'); $(this).prop('checked', on); $('#modalPlacementManagerUi .ui-pos[data-p="' + p + '"]').prop('disabled', !on).closest('.go').toggleClass('off', !on); }); $('#modalPlacementManagerUi .ui-pos').each(function () { const p = $(this).data('p'), v = $(this).data('v'); $(this).prop('checked', $('.modal-position[data-platform="' + p + '"][value="' + v + '"]').prop('checked')); }); $('#modalPlacementManagerUi .grp').each(function () { const $c = $(this).find('.ui-pos'); if ($c.length) $(this).find('.gg').prop('checked', $c.filter(':checked').length === $c.length); }); $('#modal_asset_customization_ui').prop('checked', assetOn); $('.ui-asset').prop('checked', assetOn).prop('disabled', !assetOn); }
