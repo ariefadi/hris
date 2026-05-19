@@ -61,14 +61,14 @@
   }
 
   .am-launcher .modal-dialog {
-    max-width: 940px
+    max-width: 820px
   }
 
   .am-launcher .modal-content {
-    border-radius: 22px;
+    border-radius: 4px;
     border: 0;
     overflow: hidden;
-    box-shadow: 0 22px 60px rgba(15, 23, 42, .22)
+    box-shadow: 0 22px 60px rgba(15, 23, 42, .28)
   }
 
   .am-launcher-warn {
@@ -82,24 +82,64 @@
   }
 
   .am-traffic-format .modal-dialog {
-    max-width: 860px
+    max-width: 640px
   }
 
   .am-traffic-format .modal-content {
-    border-radius: 24px;
+    border-radius: 12px;
     border: 0;
-    box-shadow: 0 24px 60px rgba(15, 23, 42, .24)
+    box-shadow: 0 18px 44px rgba(15, 23, 42, .22)
+  }
+
+  .am-traffic-format .modal-header {
+    padding: 14px 18px 4px
+  }
+
+  .am-traffic-format .modal-header h4 {
+    font-size: 16px;
+    margin-bottom: 4px !important
+  }
+
+  .am-traffic-format .modal-header .text-muted,
+  .am-traffic-format .am-tf-option .text-muted {
+    font-size: 12px;
+    line-height: 1.4
+  }
+
+  .am-traffic-format .modal-body {
+    padding: 10px 18px 12px !important
+  }
+
+  .am-traffic-format .modal-footer {
+    padding: 0 18px 14px
+  }
+
+  .am-traffic-format .modal-footer .btn {
+    padding: 6px 12px;
+    font-size: 12px;
+    border-radius: 6px
   }
 
   .am-tf-option {
     display: flex;
     align-items: center;
-    gap: 18px;
-    padding: 22px;
+    gap: 12px;
+    padding: 14px 16px;
     border: 1px solid #dbe5f4;
-    border-radius: 18px;
+    border-radius: 12px;
     background: #fff;
     cursor: pointer
+  }
+
+  .am-tf-option .h4 {
+    font-size: 15px;
+    line-height: 1.3;
+    margin-bottom: 4px !important
+  }
+
+  .am-tf-option .badge {
+    font-size: 10px;
+    padding: 3px 6px
   }
 
   .am-tf-option.active {
@@ -109,31 +149,31 @@
   }
 
   .am-tf-radio {
-    width: 22px;
-    height: 22px;
+    width: 16px;
+    height: 16px;
     border-radius: 999px;
     border: 2px solid #cbd5e1;
     position: relative;
-    flex: 0 0 22px
+    flex: 0 0 16px
   }
 
   .am-tf-option.active .am-tf-radio:after {
     content: '';
     position: absolute;
-    inset: 4px;
+    inset: 3px;
     border-radius: 999px;
     background: #0ea5e9
   }
 
   .am-tf-icon {
-    width: 88px;
-    height: 88px;
+    width: 58px;
+    height: 58px;
     border-radius: 999px;
     display: flex;
     align-items: center;
     justify-content: center;
     background: #f8fafc;
-    font-size: 34px;
+    font-size: 22px;
     color: #334155
   }
 
@@ -143,7 +183,7 @@
   }
 
   .am-launcher .modal-header {
-    padding: 16px 18px;
+    padding: 12px 16px;
     border-bottom: 1px solid #e5e7eb;
     background: #fff
   }
@@ -157,7 +197,8 @@
 
   .am-tabs {
     display: flex;
-    gap: 10px
+    gap: 10px;
+    align-items: center
   }
 
   .am-tab {
@@ -165,8 +206,9 @@
     background: #eaf2ff;
     color: #0f172a;
     font-weight: 800;
-    padding: 11px 18px;
-    border-radius: 12px
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 16px
   }
 
   .am-tab.active {
@@ -179,14 +221,18 @@
     padding: 18px
   }
 
+  .am-launcher[data-active-tab="existing"] .am-pane {
+    padding: 22px 28px 18px
+  }
+
   .am-buying {
-    margin-bottom: 18px
+    margin-bottom: 16px
   }
 
   .am-objectives {
     display: grid;
-    grid-template-columns: 340px 1fr;
-    gap: 16px
+    grid-template-columns: 300px 1fr;
+    gap: 14px
   }
 
   .am-objective-heading {
@@ -218,7 +264,7 @@
     padding: 10px 12px;
     background: #fff;
     cursor: pointer;
-    min-height: 72px
+    min-height: 64px
   }
 
   .am-objective-item.active {
@@ -248,8 +294,8 @@
   }
 
   .am-objective-art {
-    width: 190px;
-    height: 170px;
+    width: 150px;
+    height: 135px;
     margin: 0 auto 14px;
     border-radius: 28px;
     background: radial-gradient(circle at 30% 30%, #fde68a 0 18px, transparent 19px), linear-gradient(180deg, #fcd34d 0 58%, #f59e0b 58% 100%);
@@ -259,7 +305,7 @@
 
   .am-objective-art i {
     position: absolute;
-    font-size: 82px;
+    font-size: 66px;
     right: 18px;
     bottom: 16px;
     color: rgba(255, 255, 255, .92)
@@ -328,10 +374,10 @@
   }
 
   .am-campaign-pick {
-    max-height: 320px;
+    max-height: 330px;
     overflow: auto;
-    border: 1px solid #dbe5f4;
-    border-radius: 14px;
+    border: 0;
+    border-radius: 0;
     background: #fff
   }
 
@@ -340,14 +386,143 @@
     width: 100%;
     text-align: left;
     border: 0;
-    border-bottom: 1px solid #eef2f7;
+    border-bottom: 0;
     background: #fff;
-    padding: 14px 16px
+    padding: 6px 18px;
+    font-size: 18px;
+    line-height: 1.22
   }
 
   .am-campaign-item.active {
-    background: #1d4ed8;
+    background: #31589e;
     color: #fff
+  }
+
+  .am-existing-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 23px;
+    font-weight: 800;
+    color: #172033;
+    margin: 8px 0 10px
+  }
+
+  .am-existing-search-wrap {
+    position: relative
+  }
+
+  .am-existing-search-wrap .clear {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: 0;
+    background: transparent;
+    color: #64748b;
+    font-size: 24px;
+    display: none
+  }
+
+  .am-existing-search-wrap.has-value .clear {
+    display: block
+  }
+
+  .am-existing-search-wrap .form-control {
+    height: 50px;
+    border-radius: 8px;
+    font-size: 18px;
+    padding-left: 16px;
+    padding-right: 46px
+  }
+
+  .am-existing-empty {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 18px;
+    color: #64748b;
+    font-size: 15px
+  }
+
+  .am-existing-builder {
+    display: none;
+    margin-top: 22px
+  }
+
+  .am-existing-row-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 23px;
+    font-weight: 800;
+    color: #172033;
+    margin: 22px 0 8px
+  }
+
+  .am-existing-row {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 8px;
+    margin-left: 40px;
+    position: relative
+  }
+
+  .am-existing-row select,
+  .am-existing-row input {
+    height: 50px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 0 16px;
+    font-size: 18px;
+    background: #fff
+  }
+
+  .am-existing-menu {
+    position: absolute;
+    top: 54px;
+    left: 0;
+    width: 280px;
+    background: #fff;
+    border: 1px solid #dbe5f4;
+    border-radius: 8px;
+    box-shadow: 0 18px 38px rgba(15, 23, 42, .18);
+    padding: 8px;
+    z-index: 20;
+    display: none
+  }
+
+  .am-existing-menu button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    border: 0;
+    background: transparent;
+    border-radius: 7px;
+    padding: 12px 10px;
+    font-size: 18px;
+    text-align: left
+  }
+
+  .am-existing-menu button.active {
+    background: #dbeafe
+  }
+
+  .am-existing-radio {
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    border: 1px solid #d1d5db;
+    position: relative;
+    flex: 0 0 28px
+  }
+
+  .am-existing-menu button.active .am-existing-radio:before {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border-radius: 999px;
+    background: #168bd0
   }
 
   .am-campaign-item:last-child {
@@ -526,8 +701,8 @@
   }
 
   .meta-modal .modal-dialog {
-    max-width: 1640px;
-    margin: 12px auto
+    max-width: min(1880px, 98vw);
+    margin: 10px auto
   }
 
   .meta-modal .modal-content {
@@ -572,8 +747,8 @@
 
   .meta-builder {
     display: grid;
-    grid-template-columns: 350px minmax(0, 1fr) 360px;
-    gap: 16px;
+    grid-template-columns: 300px minmax(520px, 1fr) 460px;
+    gap: 14px;
     min-height: 640px;
     align-items: start
   }
@@ -639,19 +814,64 @@
     box-shadow: inset 0 0 0 1px #dbe5f4
   }
 
-  .tm-step1-on .meta-step-chip {
+  .tm-manual-on .meta-left {
+    background: #fff;
+    color: #172033;
+    border: 1px solid #d9e2ef;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0;
+    min-height: calc(100vh - 150px)
+  }
+
+  .tm-step1-on .meta-step-chip,
+  .tm-manual-on .meta-step-chip {
     display: none
   }
 
-  .tm-step1-on .tm-left-tree {
+  .tm-step1-on .tm-left-tree,
+  .tm-manual-on .tm-left-tree {
     display: block;
     background: #fff;
-    border: 1px solid #dbe5f4;
-    border-radius: 14px;
-    padding: 10px;
+    border: 0;
+    border-radius: 0;
+    padding: 0;
     position: relative;
     overflow: visible;
-    box-shadow: 0 10px 28px rgba(15, 23, 42, .08)
+    box-shadow: none
+  }
+
+  .tm-tree-search {
+    position: relative;
+    padding: 8px;
+    border-bottom: 1px solid #d9e2ef
+  }
+
+  .tm-tree-search i {
+    position: absolute;
+    top: 20px;
+    left: 19px;
+    color: #64748b;
+    font-size: 12px
+  }
+
+  .tm-tree-search input {
+    height: 36px;
+    width: 100%;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    padding: 0 10px 0 30px;
+    font-size: 13px;
+    outline: 0
+  }
+
+  .tm-tree-search input:focus {
+    border-color: #168bd0;
+    box-shadow: 0 0 0 2px rgba(22, 139, 208, .16)
+  }
+
+  .tm-tree-list {
+    padding: 8px 0
   }
 
   .tm-left-item {
@@ -660,21 +880,21 @@
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    padding: 11px 12px;
+    padding: 9px 8px 9px 12px;
     border: 1px solid transparent;
-    border-radius: 10px;
+    border-radius: 0;
     background: transparent;
     color: #0f172a;
     text-align: left;
-    margin-bottom: 8px;
+    margin-bottom: 0;
     cursor: pointer
   }
 
   .tm-left-item .lbl {
     display: flex;
     align-items: flex-start;
-    gap: 10px;
-    font-weight: 700;
+    gap: 8px;
+    font-weight: 600;
     line-height: 1.35
   }
 
@@ -684,15 +904,22 @@
   }
 
   .tm-left-item.sub {
-    margin-left: 20px;
-    width: calc(100% - 20px);
-    background: #f8fafc
+    padding-left: 32px;
+    background: #fff
+  }
+
+  .tm-left-item.ad-node {
+    padding-left: 54px
+  }
+
+  .tm-left-item.is-hidden {
+    display: none
   }
 
   .tm-left-item.active {
-    background: #e0ecff;
-    border-color: #93c5fd;
-    box-shadow: 0 6px 16px rgba(59, 130, 246, .12)
+    background: #fff8cf;
+    border-color: #f4d45f;
+    box-shadow: inset 3px 0 0 #f5c542
   }
 
   .tm-left-dot {
@@ -704,42 +931,71 @@
   }
 
   .tm-left-act {
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
     border: 0;
-    border-radius: 8px;
-    background: #fff;
+    border-radius: 999px;
+    background: transparent;
     color: #475569;
-    flex: 0 0 30px
+    flex: 0 0 26px
   }
 
   .tm-left-act:hover {
-    background: #eff6ff;
-    color: #1d4ed8
+    background: #eef2f7;
+    color: #0f172a
   }
 
   .tm-left-menu {
     position: absolute;
-    left: calc(100% + 10px);
-    top: 0;
-    width: 250px;
+    left: 8px;
+    top: calc(100% + 4px);
+    width: 390px;
     background: #fff;
-    border: 1px solid #dbe5f4;
-    border-radius: 12px;
-    box-shadow: 0 20px 40px rgba(15, 23, 42, .18);
-    padding: 8px;
-    z-index: 120
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    box-shadow: 0 14px 36px rgba(15, 23, 42, .22);
+    padding: 8px 8px 0;
+    z-index: 120;
+    color: #172033
+  }
+
+  .tm-left-item.ad-node .tm-left-menu,
+  .tm-left-item.sub .tm-left-menu {
+    left: -24px
+  }
+
+  .tm-left-menu-title {
+    font-size: 22px;
+    line-height: 1.2;
+    font-weight: 800;
+    padding: 12px 10px 18px;
+    color: #172033
   }
 
   .tm-left-menu button {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     width: 100%;
     border: 0;
     background: #fff;
-    border-radius: 8px;
-    padding: 8px 10px;
-    text-align: left
+    border-radius: 0;
+    padding: 10px 10px;
+    text-align: left;
+    color: #172033;
+    font-size: 20px;
+    line-height: 1.2
+  }
+
+  .tm-left-menu button[disabled] {
+    color: #7b8794;
+    cursor: not-allowed
+  }
+
+  .tm-left-menu button span {
+    color: #7b8794;
+    font-size: 16px;
+    margin-left: 20px
   }
 
   .tm-left-menu button:hover {
@@ -747,11 +1003,20 @@
   }
 
   .tm-left-meta {
-    padding: 8px 10px;
-    border-top: 1px solid #e5e7eb;
-    margin-top: 6px;
-    font-size: 12px;
-    color: #64748b
+    padding: 14px 10px;
+    border-top: 1px solid #d1d5db;
+    margin-top: 8px;
+    font-size: 20px;
+    color: #7b8794;
+    display: flex;
+    justify-content: space-between
+  }
+
+  .tm-left-meta button {
+    width: auto;
+    padding: 0;
+    font-size: 16px;
+    color: #7b8794
   }
 
   .meta-step-chip.active {
@@ -787,21 +1052,103 @@
   .tm-crumbs {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 5px;
     font-weight: 700;
     color: #334155;
-    flex-wrap: wrap
+    flex-wrap: nowrap;
+    min-width: 0
+  }
+
+  .tm-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0
+  }
+
+  .tm-tree-header-btn,
+  .tm-header-options {
+    width: 32px;
+    height: 32px;
+    border: 1px solid #cbd5e1;
+    border-radius: 4px;
+    background: #fff;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 32px
+  }
+
+  .tm-tree-header-btn:hover,
+  .tm-header-options:hover {
+    background: #eef6ff;
+    color: #0f5ea8
+  }
+
+  .tm-tree-hide-chip {
+    display: none;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    background: #fff;
+    color: #334155;
+    font-size: 12px;
+    padding: 6px 10px;
+    margin: -4px 0 10px 0
+  }
+
+  .tm-manual-on:not(.tm-tree-collapsed) .tm-tree-hide-chip {
+    display: inline-flex
   }
 
   .tm-crumb-btn {
     border: 0;
     background: transparent;
-    border-radius: 10px;
-    padding: 6px 10px;
+    border-radius: 5px;
+    padding: 4px 7px;
     color: #334155;
     font-weight: 800;
+    font-size: 12px;
+    line-height: 1.25;
+    max-width: 240px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     cursor: pointer;
     transition: .18s
+  }
+
+  .tm-crumb-sep {
+    color: #94a3b8;
+    font-size: 13px
+  }
+
+  .tm-header-action-wrap {
+    position: relative;
+    display: inline-flex
+  }
+
+  .tm-header-action-menu {
+    left: auto;
+    right: 0;
+    top: calc(100% + 6px)
+  }
+
+  .tm-tree-collapsed .meta-builder,
+  .tm-tree-collapsed.tm-step3-on .meta-builder {
+    grid-template-columns: minmax(620px, 1fr) 460px
+  }
+
+  .tm-tree-collapsed .meta-left {
+    display: none
+  }
+
+  .tm-tree-collapsed .meta-center {
+    grid-column: 1
+  }
+
+  .tm-tree-collapsed .meta-right {
+    grid-column: 2
   }
 
   .tm-crumb-btn:hover {
@@ -1407,10 +1754,17 @@
     color: #166534
   }
 
-  tm-manual-on #pane1 {
+  .tm-manual-on #pane1.active {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 12px
+    gap: 18px
+  }
+
+  .tm-manual-on #tmEditPanel,
+  .tm-manual-on #tmEditPanelAdset,
+  .tm-manual-on #tmEditPanelAd {
+    display: grid;
+    gap: 5px
   }
 
   .tm-section {
@@ -1419,6 +1773,22 @@
     border: 1px solid #dbe5f4;
     background: #fff;
     box-shadow: 0 6px 20px rgba(15, 23, 42, .05)
+  }
+
+  .tm-section+.tm-section {
+    margin-top: 18px !important
+  }
+
+  .tm-manual-on #tmEditPanel>.tm-section,
+  .tm-manual-on #tmEditPanelAdset>.tm-section,
+  .tm-manual-on #tmEditPanelAd>.tm-section {
+    margin-bottom: 5px
+  }
+
+  .tm-manual-on #tmEditPanel>.tm-section:last-child,
+  .tm-manual-on #tmEditPanelAdset>.tm-section:last-child,
+  .tm-manual-on #tmEditPanelAd>.tm-section:last-child {
+    margin-bottom: 0
   }
 
   .tm-section h6 {
@@ -1442,7 +1812,7 @@
   }
 
   .tm-budget-box .tm-sub {
-    font-size: 12px;
+    font-size: 10px;
     color: #64748b
   }
 
@@ -1458,6 +1828,69 @@
 
   .tm-manual-on .meta-right .meta-card:not(.tm-score-card) {
     background: rgba(255, 255, 255, .92)
+  }
+
+  .tm-campaign-recommendation-card {
+    display: none;
+    min-height: 520px;
+    border-radius: 10px;
+    border: 1px solid #dbe5f4;
+    background: linear-gradient(180deg, #fff, #f3f9ff 42%, #eaf7ff);
+    box-shadow: none;
+    overflow: hidden
+  }
+
+  .tm-campaign-recommendation-card:before {
+    background: linear-gradient(90deg, #22c55e, #60a5fa)
+  }
+
+  .tm-campaign-recommendation-head {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    color: #172033
+  }
+
+  .tm-campaign-recommendation-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: #e0f2fe;
+    color: #0284c7;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 28px
+  }
+
+  .tm-campaign-recommendation-title {
+    font-size: 13px;
+    line-height: 1.35;
+    font-weight: 800;
+    color: #172033
+  }
+
+  .tm-campaign-recommendation-copy {
+    font-size: 12px;
+    line-height: 1.5;
+    color: #334155;
+    margin-top: 4px
+  }
+
+  .tm-campaign-recommendation-empty {
+    margin-top: 18px;
+    min-height: 380px;
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(239, 246, 255, .55), rgba(236, 253, 245, .38));
+    border: 1px solid rgba(219, 229, 244, .75)
+  }
+
+  .tm-step1-on .tm-campaign-recommendation-card {
+    display: block
+  }
+
+  .tm-step1-on .tm-right-default-card {
+    display: none
   }
 
   .tm-manual-on .modal-footer {
@@ -3819,6 +4252,20 @@
     font-weight: 700
   }
 
+  .tm-manual-on.tm-step2-on .meta-left,
+  .tm-manual-on.tm-step3-on .meta-left {
+    background: #fff;
+    color: #172033;
+    border: 1px solid #d9e2ef;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 0
+  }
+
+  .tm-manual-on.tm-step3-on .meta-builder {
+    grid-template-columns: 300px minmax(520px, 1fr) 460px
+  }
+
   .tm-step3-on #btnWizardNext {
     display: none !important
   }
@@ -4270,6 +4717,1175 @@
     font-size: 12px;
     color: #64748b;
     margin-top: 2px
+  }
+
+  .tm-ad-setup-card .tm-ad-setup-heading {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+    font-size: 22px;
+    font-weight: 800
+  }
+
+  .tm-ad-setup-card .tm-ad-setup-check {
+    color: #00856f;
+    font-size: 22px
+  }
+
+  .tm-ad-setup-card .tm-ad-setup-mode-wrap {
+    margin-bottom: 34px
+  }
+
+  .tm-ad-setup-card .tm-id-selected {
+    min-height: 56px;
+    padding: 12px 18px;
+    border-color: #cbd5e1;
+    border-radius: 6px;
+    box-shadow: none
+  }
+
+  .tm-ad-setup-card .tm-id-selected-title {
+    font-size: 18px;
+    font-weight: 500
+  }
+
+  .tm-ad-setup-card .tm-id-selected-meta {
+    display: none
+  }
+
+  .tm-ad-setup-block {
+    margin-bottom: 28px
+  }
+
+  .tm-ad-setup-block:last-child {
+    margin-bottom: 0
+  }
+
+  .tm-ad-setup-label {
+    font-size: 18px;
+    font-weight: 800;
+    color: #1e293b;
+    margin-bottom: 16px
+  }
+
+  .tm-ad-setup-label-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px
+  }
+
+  .tm-ad-setup-label-row .tm-ad-setup-label {
+    margin-bottom: 0
+  }
+
+  .tm-ad-setup-label-row i {
+    font-size: 16px;
+    color: #334155
+  }
+
+  .tm-ad-setup-sub {
+    font-size: 16px;
+    color: #1e293b;
+    margin-bottom: 18px
+  }
+
+  .tm-ad-setup-option {
+    padding: 4px 0
+  }
+
+  .tm-ad-setup-option .custom-control,
+  .tm-ad-setup-multi .custom-control {
+    min-height: 38px;
+    padding-left: 52px
+  }
+
+  .tm-ad-setup-option .custom-control-label {
+    font-size: 18px;
+    line-height: 32px;
+    font-weight: 700;
+    color: #1e293b;
+    padding-top: 0
+  }
+
+  .tm-ad-setup-card .custom-radio .custom-control-label:before {
+    width: 34px;
+    height: 34px;
+    left: -52px;
+    top: 0;
+    border: 1px solid #cbd5e1;
+    background: #fff
+  }
+
+  .tm-ad-setup-card .custom-radio .custom-control-input:checked~.custom-control-label:before {
+    border-color: #cbd5e1;
+    background: #fff
+  }
+
+  .tm-ad-setup-card .custom-radio .custom-control-input:checked~.custom-control-label:after {
+    width: 18px;
+    height: 18px;
+    left: -44px;
+    top: 8px;
+    border-radius: 50%;
+    background: #168bd0
+  }
+
+  .tm-ad-setup-card .custom-radio .custom-control-input:disabled~.custom-control-label:before {
+    background: #f8fafc
+  }
+
+  .tm-ad-setup-card .custom-radio .custom-control-input:disabled~.custom-control-label {
+    color: #7b8794
+  }
+
+  .tm-ad-setup-option-adv .custom-control-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px
+  }
+
+  .tm-ad-setup-sparkle {
+    color: #1e293b;
+    font-size: 13px
+  }
+
+  .tm-ad-setup-help {
+    font-size: 16px;
+    color: #7b8794;
+    margin: -2px 0 0 52px;
+    line-height: 1.35
+  }
+
+  .tm-ad-setup-help a {
+    color: #006dcc;
+    font-weight: 700
+  }
+
+  .tm-ad-setup-multi {
+    border-top: 1px solid #dbe5f4;
+    padding-top: 26px
+  }
+
+  .tm-ad-setup-multi .custom-control-label {
+    font-size: 18px;
+    line-height: 32px;
+    font-weight: 800;
+    color: #1e293b
+  }
+
+  .tm-ad-setup-multi .custom-checkbox .custom-control-label:before {
+    width: 38px;
+    height: 38px;
+    left: -52px;
+    top: -3px;
+    border: 1px solid #bfdbfe;
+    border-radius: 6px;
+    background: #fff
+  }
+
+  .tm-ad-setup-multi .custom-checkbox .custom-control-input:checked~.custom-control-label:before {
+    background: #fff;
+    border-color: #bfdbfe
+  }
+
+  .tm-ad-setup-multi .custom-checkbox .custom-control-input:checked~.custom-control-label:after {
+    content: '';
+    width: 13px;
+    height: 22px;
+    left: -39px;
+    top: 1px;
+    border: solid #168bd0;
+    border-width: 0 3px 3px 0;
+    transform: rotate(45deg);
+    background: none
+  }
+
+  .tm-ad-setup-multi-desc {
+    font-size: 16px;
+    color: #334155;
+    margin: -4px 0 0 52px;
+    line-height: 1.35
+  }
+
+  .tm-ad-setup-multi-desc a {
+    color: #006dcc;
+    font-weight: 700
+  }
+
+  .tm-destination-card .tm-dest-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px
+  }
+
+  .tm-dest-heading-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #168ac4;
+    background: linear-gradient(90deg, #168ac4 0 50%, #fff 50% 100%);
+    flex: 0 0 18px
+  }
+
+  .tm-destination-card .tm-dest-intro {
+    font-size: 13px;
+    color: #475569;
+    line-height: 1.45;
+    margin-bottom: 16px
+  }
+
+  .tm-destination-card .tm-dest-intro a,
+  .tm-ie-link {
+    color: #0b83b7;
+    font-weight: 700
+  }
+
+  .tm-dest-choice {
+    display: grid;
+    grid-template-columns: 22px 28px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+    padding: 8px 0
+  }
+
+  .tm-dest-choice .custom-control {
+    min-height: 22px;
+    padding-left: 0
+  }
+
+  .tm-dest-choice .custom-control-input {
+    position: static;
+    opacity: 1;
+    z-index: auto;
+    width: 18px;
+    height: 18px;
+    margin: 3px 0 0
+  }
+
+  .tm-dest-choice .custom-control-label {
+    display: none
+  }
+
+  .tm-dest-icon {
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b;
+    font-size: 18px
+  }
+
+  .tm-dest-title {
+    font-weight: 800;
+    color: #172033;
+    font-size: 15px;
+    line-height: 1.2
+  }
+
+  .tm-dest-sub {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 2px;
+    line-height: 1.35
+  }
+
+  .tm-dest-panel {
+    margin: 8px 0 18px 62px
+  }
+
+  #modal_destination_website_wrap {
+    margin: 8px 0 18px 62px
+  }
+
+  .tm-website-destination-fields {
+    max-width: 640px
+  }
+
+  .tm-website-field {
+    margin-bottom: 18px
+  }
+
+  .tm-website-field label,
+  .tm-browser-addon-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 15px;
+    font-weight: 800;
+    color: #172033;
+    margin-bottom: 8px
+  }
+
+  .tm-website-field input {
+    height: 56px;
+    border-radius: 6px;
+    font-size: 16px;
+    padding: 12px 16px
+  }
+
+  .tm-website-field input::placeholder {
+    color: #64748b
+  }
+
+  .tm-browser-addon-group {
+    display: grid;
+    gap: 12px
+  }
+
+  .tm-browser-addon-option {
+    display: grid;
+    grid-template-columns: 28px 32px minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+    margin: 0
+  }
+
+  .tm-browser-addon-option .custom-control {
+    min-height: 26px;
+    padding-left: 0
+  }
+
+  .tm-browser-addon-option .custom-control-input {
+    position: static;
+    opacity: 1;
+    width: 22px;
+    height: 22px;
+    margin: 2px 0 0
+  }
+
+  .tm-browser-addon-option .custom-control-label {
+    display: none
+  }
+
+  .tm-browser-addon-icon {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #475569;
+    font-size: 18px
+  }
+
+  .tm-browser-addon-name {
+    font-size: 15px;
+    font-weight: 800;
+    color: #172033;
+    line-height: 1.25
+  }
+
+  .tm-browser-addon-desc {
+    color: #334155;
+    font-size: 13px;
+    margin-top: 2px;
+    line-height: 1.35
+  }
+
+  .tm-creative-card .tm-creative-heading {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    font-size: 20px;
+    font-weight: 800
+  }
+
+  .tm-creative-heading-icon {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #168bd0;
+    background: linear-gradient(90deg, #168bd0 0 50%, #fff 50% 100%);
+    flex: 0 0 18px
+  }
+
+  .tm-creative-intro {
+    color: #1e293b;
+    font-size: 17px;
+    line-height: 1.35;
+    margin-bottom: 22px
+  }
+
+  .tm-creative-setup-menu .dropdown-toggle {
+    min-width: 255px;
+    height: 56px;
+    border-radius: 6px;
+    border-color: #aab7c4;
+    background: #fff;
+    color: #172033;
+    font-size: 18px;
+    font-weight: 600;
+    text-align: left;
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px
+  }
+
+  .tm-creative-setup-menu .dropdown-menu {
+    min-width: 255px;
+    border: 0;
+    border-radius: 6px;
+    box-shadow: 0 8px 28px rgba(15, 23, 42, .18);
+    padding: 12px 0
+  }
+
+  .tm-creative-setup-menu .dropdown-item {
+    font-size: 17px;
+    color: #172033;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 18px
+  }
+
+  .tm-creative-setup-menu .dropdown-item i {
+    width: 22px;
+    text-align: center;
+    color: #334155
+  }
+
+  .tm-creative-alert {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, .08);
+    padding: 18px 22px;
+    color: #172033;
+    font-size: 17px
+  }
+
+  .tm-creative-summary {
+    margin-top: 20px;
+    display: none
+  }
+
+  .tm-creative-media-list {
+    display: grid;
+    gap: 12px;
+    margin-top: 12px
+  }
+
+  .tm-creative-media-row {
+    display: grid;
+    grid-template-columns: 54px minmax(0, 1fr) 34px;
+    gap: 12px;
+    align-items: center
+  }
+
+  .tm-creative-media-thumb {
+    width: 48px;
+    height: 48px;
+    border-radius: 3px;
+    background: linear-gradient(135deg, #cbd5e1, #0f172a);
+    overflow: hidden
+  }
+
+  .tm-creative-media-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover
+  }
+
+  .tm-creative-generated-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px
+  }
+
+  .tm-creative-generated-row span {
+    width: 42px;
+    height: 42px;
+    background: #e5e7eb;
+    border-radius: 2px
+  }
+
+  .tm-creative-format-note,
+  .tm-creative-enhancement-note {
+    border-left: 4px solid #dbeafe;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, .08);
+    padding: 14px 16px;
+    margin: 18px 0;
+    background: #fff
+  }
+
+  .tm-creative-modal .modal-dialog {
+    max-width: 1200px
+  }
+
+  .tm-creative-modal .modal-content {
+    min-height: 760px
+  }
+
+  .tm-creative-modal-body {
+    display: grid;
+    grid-template-columns: 170px minmax(0, 1fr);
+    min-height: 650px;
+    padding: 0
+  }
+
+  .tm-creative-sidebar {
+    background: linear-gradient(180deg, #eef7ff, #fbf5f7);
+    border-right: 1px solid #dbe5f4;
+    padding: 16px 0
+  }
+
+  .tm-creative-side-title {
+    font-size: 12px;
+    font-weight: 800;
+    padding: 0 16px 14px;
+    line-height: 1.35
+  }
+
+  .tm-creative-step {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    color: #334155;
+    font-weight: 700;
+    font-size: 13px
+  }
+
+  .tm-creative-step.active {
+    background: #dff0ff;
+    color: #0f5ea8
+  }
+
+  .tm-creative-step-dot {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid #9ca3af;
+    background: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    flex: 0 0 18px
+  }
+
+  .tm-creative-step.done .tm-creative-step-dot {
+    border-color: #00856f;
+    background: #00856f;
+    color: #fff
+  }
+
+  .tm-creative-step.active .tm-creative-step-dot {
+    border-color: #168bd0;
+    background: linear-gradient(90deg, #168bd0 0 50%, #fff 50% 100%)
+  }
+
+  .tm-creative-workspace {
+    background: #f5f7fb;
+    min-width: 0
+  }
+
+  .tm-creative-pane {
+    display: none;
+    padding: 16px
+  }
+
+  .tm-creative-pane.active {
+    display: block
+  }
+
+  .tm-creative-pane-head {
+    background: #fff;
+    margin: -16px -16px 16px;
+    padding: 14px 16px;
+    border-bottom: 1px solid #e5e7eb
+  }
+
+  .tm-creative-pane-title {
+    font-weight: 800;
+    color: #172033
+  }
+
+  .tm-creative-section {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    padding: 16px;
+    margin-bottom: 14px
+  }
+
+  .tm-creative-brand-summary {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr)) 24px;
+    gap: 12px;
+    align-items: center;
+    border-top: 1px solid #e5e7eb;
+    padding-top: 14px;
+    font-size: 12px
+  }
+
+  .tm-creative-brand-form {
+    display: none;
+    background: #eef7ff;
+    border: 1px solid #dbeafe;
+    padding: 14px;
+    margin-top: 12px
+  }
+
+  .tm-creative-brand-form.active {
+    display: block
+  }
+
+  .tm-creative-color-pills {
+    display: flex;
+    gap: 16px
+  }
+
+  .tm-creative-color-pills span {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: #f1f5f9;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center
+  }
+
+  .tm-media-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 10px
+  }
+
+  .tm-media-filter {
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 13px
+  }
+
+  .tm-media-filter.active {
+    background: #eaf3ff;
+    color: #0f5ea8;
+    border-color: #93c5fd
+  }
+
+  .tm-media-grid-section {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    min-height: 430px;
+    padding: 14px
+  }
+
+  .tm-media-row-title {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #334155;
+    margin-bottom: 10px
+  }
+
+  .tm-media-grid {
+    display: grid;
+    grid-template-columns: repeat(10, minmax(64px, 1fr));
+    gap: 12px;
+    margin-bottom: 22px
+  }
+
+  .tm-media-item {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    text-align: center;
+    position: relative
+  }
+
+  .tm-media-item.active .tm-media-img,
+  .tm-ai-card.active {
+    outline: 3px solid #168bd0
+  }
+
+  .tm-media-img {
+    height: 74px;
+    border-radius: 2px;
+    background: linear-gradient(135deg, #cbd5e1, #334155);
+    display: block;
+    margin-bottom: 4px;
+    overflow: hidden
+  }
+
+  .tm-media-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover
+  }
+
+  .tm-crop-grid {
+    display: grid;
+    grid-template-columns: 240px 240px 240px;
+    gap: 18px
+  }
+
+  .tm-crop-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    padding: 12px
+  }
+
+  .tm-crop-box {
+    height: 190px;
+    background: #94a3b8;
+    margin: 10px 0;
+    overflow: hidden
+  }
+
+  .tm-crop-box.vertical {
+    height: 380px
+  }
+
+  .tm-crop-box.horizontal {
+    height: 105px
+  }
+
+  .tm-creative-text-form label {
+    font-weight: 800;
+    font-size: 13px
+  }
+
+  .tm-creative-text-form .form-control {
+    margin-bottom: 16px
+  }
+
+  .tm-ai-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(120px, 1fr));
+    gap: 14px
+  }
+
+  .tm-ai-card {
+    height: 118px;
+    border: 1px solid #dbe5f4;
+    background: linear-gradient(135deg, #f8fafc, #94a3b8);
+    border-radius: 3px;
+    position: relative
+  }
+
+  .tm-ai-card:before {
+    content: '';
+    width: 18px;
+    height: 18px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    border-radius: 3px
+  }
+
+  .tm-enhance-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(170px, 1fr));
+    gap: 14px;
+    margin-bottom: 18px
+  }
+
+  .tm-enhance-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    padding: 12px;
+    min-height: 360px
+  }
+
+  .tm-enhance-preview {
+    height: 220px;
+    background: #dbeafe;
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #334155
+  }
+
+  .tm-enhance-switch {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 800
+  }
+
+  .tm-live-preview-shell {
+    background: #fff;
+    border: 1px solid #dbe5f4;
+    padding: 12px
+  }
+
+  .tm-live-preview-tabs {
+    display: flex;
+    gap: 8px;
+    overflow: auto;
+    margin-bottom: 14px
+  }
+
+  .tm-live-preview-tabs button {
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    border-radius: 4px;
+    padding: 7px 10px;
+    white-space: nowrap
+  }
+
+  .tm-live-preview-tabs button.active {
+    border-color: #168bd0;
+    color: #0f5ea8
+  }
+
+  .tm-live-preview-frame {
+    width: 260px;
+    min-height: 430px;
+    margin: 0 auto;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, .08)
+  }
+
+  .tm-live-preview-media {
+    height: 220px;
+    background: #334155;
+    overflow: hidden
+  }
+
+  .tm-live-preview-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover
+  }
+
+  .tm-live-preview-copy {
+    padding: 12px
+  }
+
+  .tm-ie-search {
+    position: relative;
+    margin-bottom: 10px
+  }
+
+  .tm-ie-search i {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #64748b;
+    font-size: 16px
+  }
+
+  .tm-ie-search input {
+    padding-left: 42px;
+    height: 46px;
+    border-radius: 5px
+  }
+
+  .tm-ie-info {
+    display: flex;
+    gap: 12px;
+    background: #eaf3ff;
+    border-radius: 5px;
+    padding: 14px;
+    color: #1f2937;
+    font-weight: 700;
+    line-height: 1.35
+  }
+
+  .tm-ie-notice {
+    position: relative;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-left: 4px solid #dbeafe;
+    border-radius: 5px;
+    padding: 16px 44px 16px 16px;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, .08);
+    line-height: 1.45
+  }
+
+  .tm-ie-notice-title {
+    font-weight: 800;
+    color: #1f2937;
+    margin-bottom: 8px
+  }
+
+  .tm-ie-notice button {
+    position: absolute;
+    right: 12px;
+    top: 10px
+  }
+
+  .tm-ie-selected {
+    display: none;
+    border: 1px solid #bfdbfe;
+    background: #f8fbff;
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 12px
+  }
+
+  .tm-ie-template-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px
+  }
+
+  .tm-ie-template-card {
+    border: 1px solid #d1d5db;
+    background: #fff;
+    border-radius: 6px;
+    padding: 10px 42px 10px 10px;
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: 14px;
+    min-height: 132px;
+    position: relative;
+    text-align: left;
+    width: 100%
+  }
+
+  .tm-ie-template-card.active {
+    border-color: #1877f2;
+    box-shadow: inset 0 0 0 1px #1877f2
+  }
+
+  .tm-ie-template-check {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 26px;
+    height: 26px;
+    border: 1px solid #d1d5db;
+    border-radius: 50%;
+    background: #fff
+  }
+
+  .tm-ie-template-card.active .tm-ie-template-check {
+    border-color: #1877f2;
+    background: #1877f2
+  }
+
+  .tm-ie-template-card.active .tm-ie-template-check:after {
+    content: '';
+    width: 7px;
+    height: 12px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+    position: absolute;
+    left: 9px;
+    top: 4px
+  }
+
+  .tm-ie-thumb {
+    border-radius: 4px;
+    background: linear-gradient(135deg, #dbeafe, #fef3c7);
+    min-height: 112px;
+    overflow: hidden;
+    position: relative
+  }
+
+  .tm-ie-thumb.product {
+    background: linear-gradient(160deg, #e0f2fe 0 45%, #fff7ed 45% 100%)
+  }
+
+  .tm-ie-thumb.story {
+    background: linear-gradient(160deg, #bfdbfe 0 45%, #dbeafe 45% 60%, #fde68a 60% 100%)
+  }
+
+  .tm-ie-thumb.customer {
+    background: linear-gradient(160deg, #fef3c7 0 45%, #dcfce7 45% 100%)
+  }
+
+  .tm-ie-thumb.custom {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1f5f9;
+    color: #475569;
+    font-size: 30px
+  }
+
+  .tm-ie-template-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: #172033;
+    margin-bottom: 8px
+  }
+
+  .tm-ie-template-desc {
+    color: #334155;
+    line-height: 1.4
+  }
+
+  .tm-ie-builder .modal-dialog {
+    max-width: 1160px
+  }
+
+  .tm-ie-builder-body {
+    display: grid;
+    grid-template-columns: 520px minmax(0, 1fr);
+    min-height: 620px
+  }
+
+  .tm-ie-builder-left {
+    background: #fff;
+    border-right: 1px solid #dbe5f4
+  }
+
+  .tm-ie-section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8fafc;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 14px 18px;
+    font-weight: 800
+  }
+
+  .tm-ie-editor-block {
+    padding: 18px;
+    border-bottom: 1px solid #e5e7eb
+  }
+
+  .tm-ie-media-row {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    gap: 18px;
+    align-items: center;
+    border: 1px solid #e5e7eb;
+    padding: 12px
+  }
+
+  .tm-ie-media-thumb {
+    height: 88px;
+    border-radius: 3px;
+    background: linear-gradient(135deg, #bbf7d0, #fb7185)
+  }
+
+  .tm-ie-tabs {
+    display: flex;
+    gap: 24px;
+    border-bottom: 1px solid #dbe5f4;
+    padding: 16px 16px 0;
+    font-size: 16px;
+    font-weight: 700
+  }
+
+  .tm-ie-tabs span {
+    padding-bottom: 12px
+  }
+
+  .tm-ie-tabs .active {
+    border-bottom: 4px solid #2563eb;
+    color: #172033
+  }
+
+  .tm-ie-preview {
+    background: #f3f4f6;
+    padding: 18px
+  }
+
+  .tm-ie-phone {
+    width: 100%;
+    min-height: 560px;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, .08);
+    overflow: hidden
+  }
+
+  .tm-ie-preview-hero {
+    height: 190px;
+    background: linear-gradient(135deg, #bbf7d0, #ef4444)
+  }
+
+  .tm-ie-preview-copy {
+    padding: 34px 26px;
+    text-align: center
+  }
+
+  .tm-ie-preview-title {
+    font-size: 24px;
+    font-weight: 500;
+    color: #111827
+  }
+
+  .tm-ie-preview-desc {
+    color: #64748b;
+    font-size: 16px;
+    margin-top: 12px
+  }
+
+  .tm-ie-package-tabs {
+    display: flex;
+    gap: 6px;
+    margin-top: 16px
+  }
+
+  .tm-ie-package-tabs span,
+  .tm-ie-package-tabs button {
+    width: 46px;
+    height: 44px;
+    border: 1px solid #d1d5db;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    background: #fff
+  }
+
+  .tm-ie-package-tabs .active {
+    background: #0f62b7;
+    color: #fff
+  }
+
+  .tm-ie-custom-toolbar {
+    display: flex;
+    gap: 28px;
+    align-items: center;
+    padding: 14px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    color: #64748b
+  }
+
+  .tm-ie-custom-title {
+    padding: 28px 24px;
+    color: #64748b;
+    font-size: 20px
+  }
+
+  .tm-ie-add-component {
+    color: #2563eb;
+    font-weight: 700;
+    font-size: 17px;
+    text-align: center;
+    padding: 24px;
+    border-top: 1px solid #e5e7eb;
+    border-bottom: 1px solid #e5e7eb
+  }
+
+  .tm-ie-empty-preview {
+    min-height: 520px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #64748b
   }
 
   .tm-id-panel {
@@ -4744,13 +6360,38 @@
           </div>
         </div>
       </div>
-      <div class="am-pane" data-am-pane="existing" style="display:none"><label
-          class="font-weight-bold d-block">Kampanye</label><input id="am_existing_campaign_search"
-          class="form-control mb-3" type="text" placeholder="Cari kampanye pada account terpilih"><input
-          id="am_existing_campaign_id" type="hidden"><input id="am_existing_account_id" type="hidden">
-        <div id="am_existing_campaign_list" class="am-campaign-pick">
-          <div class="p-3 text-muted">Pilih 1 account di filter lalu klik Muat Data agar referensi campaign muncul di
-            sini.</div>
+      <div class="am-pane" data-am-pane="existing" style="display:none">
+        <div class="am-existing-title"><i class="far fa-folder"></i>Kampanye</div>
+        <div class="am-existing-search-wrap" id="amExistingCampaignSearchWrap"><input id="am_existing_campaign_search"
+            class="form-control" type="text" placeholder="Pilih kampanye"><button type="button" class="clear"
+            id="btnAmClearExistingCampaign">&times;</button></div><input id="am_existing_campaign_id"
+          type="hidden"><input id="am_existing_account_id" type="hidden"><input id="am_existing_campaign_name"
+          type="hidden"><input id="am_existing_campaign_objective" type="hidden"><input
+          id="am_existing_campaign_buying" type="hidden">
+        <div id="am_existing_campaign_list" class="am-campaign-pick mt-2">
+          <div class="am-existing-empty">Belum ada referensi campaign untuk account ini. Klik Muat Data dulu jika tabel
+            belum terisi.</div>
+        </div>
+        <div class="am-existing-builder" id="amExistingBuilder">
+          <div class="am-existing-row-title"><i class="fas fa-th-large"></i>Set Iklan</div>
+          <div class="am-existing-row"><select id="am_existing_adset_mode" class="no-select2">
+              <option value="create">Buat set iklan</option>
+              <option value="existing">Gunakan set iklan yang ada</option>
+            </select><input id="am_existing_adset_name" type="text" placeholder="Beri nama set iklan ini">
+            <div class="am-existing-menu" id="amExistingAdsetMenu"><button type="button" class="active"
+                data-am-adset-mode="create"><span class="am-existing-radio"></span>Buat set iklan</button><button
+                type="button" data-am-adset-mode="existing"><span class="am-existing-radio"></span>Gunakan set iklan yang
+                ada</button></div>
+          </div>
+          <div class="am-existing-row-title"><i class="far fa-clone"></i>Iklan</div>
+          <div class="am-existing-row"><select id="am_existing_ad_mode" class="no-select2">
+              <option value="create">Buat iklan</option>
+              <option value="skip">Lewati iklan</option>
+            </select><input id="am_existing_ad_name" type="text" placeholder="Beri nama iklan ini">
+            <div class="am-existing-menu" id="amExistingAdMenu"><button type="button" class="active"
+                data-am-ad-mode="create"><span class="am-existing-radio"></span>Buat iklan</button><button type="button"
+                data-am-ad-mode="skip"><span class="am-existing-radio"></span>Lewati iklan</button></div>
+          </div>
         </div>
       </div>
       <div id="amLauncherWarn" class="am-launcher-warn"></div>
@@ -4915,56 +6556,67 @@
             <div class="meta-step-chip" id="chip2">2. Set Iklan</div>
             <div class="meta-step-chip" id="chip3">3. Iklan</div>
             <div class="tm-left-tree">
-              <div class="tm-left-item active" id="tmLeftCampaign" role="button" tabindex="0"
-                onclick="setWizardStep(1)">
-                <div class="lbl"><span class="tm-left-dot"><i class="far fa-folder"></i></span><span
-                    id="tmLeftCampaignName">Kampanye Traffic Baru</span></div><button type="button" class="tm-left-act"
-                  onclick="$('#tmLeftActionMenu').toggle();return false;"><i class="fas fa-ellipsis-h"></i></button>
-                <div id="tmLeftActionMenu" class="tm-left-menu" style="display:none"><button type="button"
-                    onclick="$('#modal_campaign_name').val((($('#modal_campaign_name').val()||'Kampanye Traffic Baru')+' - Salin')).trigger('input');$('#tmLeftActionMenu').hide();">Duplikat
-                    <span>Ctrl+Shift+D</span></button><button type="button"
-                    onclick="navigator.clipboard&&navigator.clipboard.writeText(String($('#tmCampaignCrumb').text()||''));$('#tmLeftActionMenu').hide();">Salin
-                    <span>Ctrl+C</span></button><button type="button"
-                    onclick="navigator.clipboard&&navigator.clipboard.readText().then(function(t){$('#modal_campaign_name').val(t).trigger('input');});$('#tmLeftActionMenu').hide();">Tempel
-                    <span>Ctrl+V</span></button><button type="button"
-                    onclick="$('#modal_campaign_name').val('').trigger('input');$('#tmLeftActionMenu').hide();">Hapus
-                    <span>Ctrl+Del</span></button><button type="button"
-                    onclick="setWizardStep(2);$('#tmLeftActionMenu').hide();">Buat set iklan</button><button
-                    type="button"
-                    onclick="alert('Fitur aturan akan disiapkan berikutnya.');$('#tmLeftActionMenu').hide();">Buat
-                    aturan</button>
-                  <div class="tm-left-meta">ID: <span id="tmLeftCampaignId">-</span></div>
+              <div class="tm-tree-search"><i class="fas fa-search"></i><input id="tmBuilderTreeSearch" type="search"
+                  placeholder="Cari"></div>
+              <div class="tm-tree-list">
+                <div class="tm-left-item active" id="tmLeftCampaign" role="button" tabindex="0" data-tree-type="campaign"
+                  data-tree-target="1">
+                  <div class="lbl"><span class="tm-left-dot"><i class="far fa-folder"></i></span><small id="tmLeftCampaignName">Kampanye Traffic Baru</small></div><button type="button" class="tm-left-act" data-tree-menu="campaign" aria-label="Opsi kampanye"><i class="fas fa-ellipsis-h"></i></button>
+                  <div class="tm-left-menu" data-tree-menu-panel="campaign" style="display:none">
+                    <div class="tm-left-menu-title"><small>Tindakan untuk kampanye ini</small></div><button type="button"
+                      data-tree-action="duplicate" data-tree-type="campaign"><small>Duplikat</small><small>Ctrl+Shift+D</small></button><button
+                      type="button" data-tree-action="quick_duplicate" data-tree-type="campaign"><small>Duplikat cepat</small><small>Ctrl+D</small></button><button type="button" data-tree-action="copy"
+                      data-tree-type="campaign"><small>Salin</small><small>Ctrl+C</small></button><button type="button" data-tree-action="paste" data-tree-type="campaign"><small>Tempel</small><small>Ctrl+V</small></button><button
+                      type="button" data-tree-action="delete" data-tree-type="campaign"><small>Hapus</small><small>Ctrl+Del</small></button>
+                    <hr><button type="button" data-tree-action="create_adset" data-tree-type="campaign"><small>Buat set iklan</small></button><button type="button" data-tree-action="rule" data-tree-type="campaign"><small>Buat aturan</small></button>
+                    <div class="tm-left-meta"><small>ID: <small id="tmLeftCampaignId">120244335649490056</small></small><button type="button" data-tree-action="copy_id" data-tree-type="campaign"><small>Salin</small></button></div>
+                  </div>
+                </div>
+                <div class="tm-left-item sub" id="tmLeftAdset" role="button" tabindex="0" data-tree-type="adset" data-tree-target="2">
+                  <div class="lbl"><span class="tm-left-dot"><i class="fas fa-th-large"></i></span><small id="tmLeftAdsetName">1 Set Iklan</small></div><button type="button" class="tm-left-act" data-tree-menu="adset" aria-label="Opsi set iklan"><i class="fas fa-ellipsis-h"></i></button>
+                  <div class="tm-left-menu" data-tree-menu-panel="adset" style="display:none">
+                    <div class="tm-left-menu-title"><small>Tindakan untuk Set Iklan Ini</small></div><button type="button" data-tree-action="duplicate" data-tree-type="adset"><small>Duplikat</small><small>Ctrl+Shift+D</small></button><button type="button" data-tree-action="quick_duplicate" data-tree-type="adset"><small>Duplikat cepat</small><small>Ctrl+D</small></button><button type="button" data-tree-action="copy" data-tree-type="adset"><small>Salin</small><small>Ctrl+C</small></button><button type="button" data-tree-action="paste" data-tree-type="adset"><small>Tempel</small><small>Ctrl+V</small></button><button type="button" data-tree-action="delete" data-tree-type="adset"><small>Hapus</small><small>Ctrl+Del</small></button>
+                    <hr><button type="button" data-tree-action="create_ad" data-tree-type="adset"><small>Buat iklan</small></button><button type="button" disabled><small>Buat beberapa iklan</small></button><button type="button" data-tree-action="rule" data-tree-type="adset"><small>Buat aturan</small></button>
+                    <div class="tm-left-meta"><small>ID: <small id="tmLeftAdsetId">120244335689290056</small></small><button type="button" data-tree-action="copy_id" data-tree-type="adset"><small>Salin</small></button></div>
+                  </div>
+                </div>
+                <div class="tm-left-item sub ad-node" id="tmLeftAd" role="button" tabindex="0" data-tree-type="ad"
+                  data-tree-target="3">
+                  <div class="lbl"><span class="tm-left-dot"><i class="far fa-clone"></i></span><small id="tmLeftAdName">1 Iklan</small></div><button type="button" class="tm-left-act" data-tree-menu="ad" aria-label="Opsi iklan"><i class="fas fa-ellipsis-h"></i></button>
+                  <div class="tm-left-menu" data-tree-menu-panel="ad" style="display:none">
+                    <div class="tm-left-menu-title"><small>Tindakan untuk Iklan Ini</small></div><button type="button"
+                      data-tree-action="duplicate" data-tree-type="ad"><small>Duplikat</small><small>Ctrl+Shift+D</small></button><button type="button" data-tree-action="quick_duplicate" data-tree-type="ad"><small>Duplikat cepat</small><small>Ctrl+D</small></button><button type="button" data-tree-action="copy" data-tree-type="ad"><small>Salin</small><small>Ctrl+C</small></button><button type="button" data-tree-action="paste" data-tree-type="ad"><small>Tempel</small><small>Ctrl+V</small></button><button type="button" data-tree-action="delete" data-tree-type="ad"><small>Hapus</small><small>Ctrl+Del</small></button>
+                    <hr><button type="button" data-tree-action="rule" data-tree-type="ad"><small>Buat aturan</small></button>
+                    <div class="tm-left-meta"><small>ID: <small id="tmLeftAdId">120244335689300056</small></small><button type="button" data-tree-action="copy_id" data-tree-type="ad"><small>Salin</small></button></div>
+                  </div>
                 </div>
               </div>
-              <button type="button" class="tm-left-item sub" id="tmLeftAdset" onclick="setWizardStep(2)">
-                <div class="lbl"><span class="tm-left-dot"><i class="fas fa-th-large"></i></span><span
-                    id="tmLeftAdsetName">1 Set Iklan</span></div>
-              </button>
-              <button type="button" class="tm-left-item sub" id="tmLeftAd" onclick="setWizardStep(3)">
-                <div class="lbl"><span class="tm-left-dot"><i class="far fa-clone"></i></span><span id="tmLeftAdName">1
-                    Iklan</span></div>
-              </button>
             </div>
           </div>
           <div class="meta-center">
             <div class="tm-topbar" id="tmTopbar">
-              <div class="tm-crumbs"><button type="button" class="tm-crumb-btn active" id="tmCampaignCrumbBtn"
-                  onclick="setWizardStep(1)"><span id="tmCampaignCrumb">Kampanye Traffic Baru</span></button><span
-                  class="tm-crumb-sep">›</span><button type="button" class="tm-crumb-btn" id="tmAdsetCrumbBtn"
-                  onclick="setWizardStep(2)"><span id="tmAdsetCrumb">1 Set Iklan</span></button><span
-                  class="tm-crumb-sep">›</span><button type="button" class="tm-crumb-btn" id="tmAdCrumbBtn"
-                  onclick="setWizardStep(3)"><span id="tmAdCrumb">1 Iklan</span></button></div>
+              <div class="tm-header-left"><button type="button" class="tm-tree-header-btn" id="btnToggleBuilderTree"
+                  title="Sembunyikan struktur kampanye"><i class="fas fa-columns"></i></button>
+                <div class="tm-crumbs"><button type="button" class="tm-crumb-btn active" id="tmCampaignCrumbBtn"
+                    onclick="setWizardStep(1)"><span id="tmCampaignCrumb">Kampanye Traffic Baru</span></button><span
+                    class="tm-crumb-sep">›</span><button type="button" class="tm-crumb-btn" id="tmAdsetCrumbBtn"
+                    onclick="setWizardStep(2)"><span id="tmAdsetCrumb">1 Set Iklan</span></button><span
+                    class="tm-crumb-sep">›</span><button type="button" class="tm-crumb-btn" id="tmAdCrumbBtn"
+                    onclick="setWizardStep(3)"><span id="tmAdCrumb">1 Iklan</span></button></div>
+              </div>
               <div class="tm-state"><span id="tmStatusText">Dalam Draf</span>
                 <div class="custom-control custom-switch m-0"><input type="checkbox" class="custom-control-input"
                     id="tmStatusToggle"><label class="custom-control-label" for="tmStatusToggle"></label></div>
+                <div class="tm-header-action-wrap"><button type="button" class="tm-header-options"
+                    id="btnHeaderTreeOptions" title="Tindakan untuk item aktif"><i class="fas fa-ellipsis-h"></i></button>
+                  <div class="tm-left-menu tm-header-action-menu" id="tmHeaderActionMenu" style="display:none"></div>
+                </div>
               </div>
             </div>
-            <div class="tm-toolbar" id="tmToolbar"><button class="btn btn-outline-secondary active" type="button"
-                id="btnTrafficBuilderEdit"><i class="fas fa-pen mr-1"></i>Edit</button><button
-                class="btn btn-outline-secondary" type="button" id="btnTrafficBuilderReview"><i
-                  class="fas fa-eye mr-1"></i>Tinjau</button></div>
+            <div class="tm-toolbar" id="tmToolbar">
+              <button class="btn btn-outline-secondary btn-sm active" type="button" id="btnTrafficBuilderEdit"><i class="fas fa-pen mr-1"></i>Edit</button>
+              <button class="btn btn-outline-secondary btn-sm" type="button" id="btnTrafficBuilderReview"><i class="fas fa-eye mr-1"></i>Tinjau</button></div>
             <div class="meta-guide" id="metaStepGuide">Lengkapi field wajib di step ini lalu klik tombol aksi.</div>
-
             <div id="pane1" class="meta-pane active">
               <div id="tmReviewPanel" class="tm-review">
                 <div class="h5 font-weight-bold mb-3" id="tmReviewName">-</div>
@@ -5148,12 +6800,11 @@
                     </div>
                   </div>
                   <div id="tmAdsetBudgetPane" class="tm-budget-pane">
-                    <div class="custom-control custom-checkbox mb-3"><input type="checkbox" class="custom-control-input"
-                        id="tmAdsetReallocateEnabled" checked><label class="custom-control-label"
-                        for="tmAdsetReallocateEnabled"><span class="font-weight-bold">Realokasikan sebagian anggaran
-                          untuk set iklan lainnya</span>
-                        <div class="tm-sub">Kami akan berbagi hingga 20% dari anggaran set iklan Anda dengan set iklan
-                          lainnya di dalam kampanye ini jika kemungkinan besar akan menyempurnakan kinerja.</div>
+                    <div class="custom-control custom-checkbox mb-3">
+                        <input type="checkbox" class="custom-control-input" id="tmAdsetReallocateEnabled" checked>
+                        <label class="custom-control-label" for="tmAdsetReallocateEnabled">
+                          <span class="font-weight-bold">Realokasikan sebagian anggaran untuk set iklan lainnya</span>
+                        <div class="tm-sub">Kami akan berbagi hingga 20% dari anggaran set iklan Anda dengan set iklan lainnya di dalam kampanye ini jika kemungkinan besar akan menyempurnakan kinerja.</div>
                       </label></div>
                     <div id="tmAdsetBidBlock">
                       <div class="font-weight-bold mb-1">Strategi tawaran kampanye <i
@@ -5766,11 +7417,10 @@
                   <div class="tm-aud-loc-card mb-3">
                     <div class="tm-aud-loc-head">
                       <div>
-                        <div class="tm-aud-loc-title">* Lokasi <i class="fas fa-info-circle text-muted"></i></div>
-                        <div id="tmAudienceLocationSummary" class="small text-muted mt-2">Lokasi yang disertakan:
-                          Indonesia</div>
-                      </div><button type="button" class="btn btn-link p-0" id="btnEditAudienceLocation"><i
-                          class="fas fa-pen mr-1"></i>Edit</button>
+                        <h6>Lokasi <i class="fas fa-info-circle text-muted"></i></h6>
+                        <div id="tmAudienceLocationSummary" class="small text-muted mt-2">Lokasi yang disertakan: Indonesia</div>
+                      </div>
+                      <button type="button" class="btn btn-link btn-sm p-0" id="btnEditAudienceLocation"><i class="fas fa-pen mr-1"></i>Edit</button>
                     </div>
                     <div class="form-row">
                       <div id="tmAudienceLocationEditor" class="col-md-12 pt-3 border-top mt-3" style="display:none;">
@@ -5848,8 +7498,7 @@
                           id="modal_location_exclude_cities" type="hidden" value="">
                       </div>
                     </div>
-                  </div><button type="button" class="tm-aud-more-btn mb-3" id="btnToggleAudienceMore">Tampilkan opsi
-                    lainnya <i class="fas fa-caret-down ml-1"></i></button>
+                  </div><button type="button" class="tm-aud-more-btn btn-sm mb-3" id="btnToggleAudienceMore">Tampilkan opsi lainnya <i class="fas fa-caret-down ml-1"></i></button>
                   <div id="tmAudienceMoreWrap" class="tm-aud-extra-wrap">
                     <div class="col-md-12">
                       <div class="border rounded p-3 mb-3">
@@ -5980,16 +7629,15 @@
                 <div class="form-row">
                   <div class="col-md-4 meta-audience-field meta-audience-select"><label>Pemirsa
                       Advantage+</label><select id="modal_advantage" class="form-control">
-                      <option value="0">Nonaktif</option>
                       <option value="1">Aktif</option>
+                      <option value="0">Nonaktif</option>
                     </select></div>
                 </div>
                 <div id="tmAdvantageAudiencePanel" class="tm-adv-audience-panel" style="display:none;">
                   <div class="tm-adv-audience-top">
                     <div class="tm-adv-audience-head">
-                      <div class="tm-adv-audience-ico"><i class="fas fa-check"></i></div>
                       <div>
-                        <div class="font-weight-bold" style="font-size:18px;">Pemirsa Advantage+ <span
+                        <div class="font-weight-bold" style="font-size:15px;">Pemirsa Advantage+ <span
                             class="text-muted">*</span></div>
                         <div class="tm-adv-audience-desc">AI kami mencari pemirsa untuk iklan Anda. Jika Anda
                           menambahkan saran audiens, sistem akan memandu penayangan ke orang-orang yang menurut Anda
@@ -6098,14 +7746,11 @@
                 </div>
               </div>
               <div class="tm-section">
-                <div class="tm-transparency-lead">
-                  <i class="fas fa-check"></i>
-                  <div>
-                    <h6>Transparansi iklan</h6>
-                    <p>Tingkatkan transparansi untuk audiens Anda dengan memberikan detail tentang pengiklan dan pembayar.
-                      Nama, lokasi, dan kredensialnya akan ditampilkan secara publik di <a href="https://www.facebook.com/ads/library/"
-                        target="_blank" rel="noopener">Galeri Iklan Meta</a> saat iklan ditayangkan, atau lebih lama dalam beberapa kasus.</p>
-                  </div>
+                <div>
+                  <h6>Transparansi iklan</h6>
+                  <p>Tingkatkan transparansi untuk audiens Anda dengan memberikan detail tentang pengiklan dan pembayar.
+                    Nama, lokasi, dan kredensialnya akan ditampilkan secara publik di <a href="https://www.facebook.com/ads/library/"
+                      target="_blank" rel="noopener">Galeri Iklan Meta</a> saat iklan ditayangkan, atau lebih lama dalam beberapa kasus.</p>
                 </div>
                 <div id="tmTransparencyStatusCard" class="tm-transparency-card">
                   <h5 id="tmTransparencyStatusTitle">Bangun kepercayaan pemirsa Anda dengan menyelesaikan verifikasi</h5>
@@ -6125,14 +7770,11 @@
                 <input type="hidden" id="modal_ad_transparency_name" value="">
               </div>
               <div class="tm-section">
-                <div class="tm-placement-lead">
-                  <i class="fas fa-check"></i>
-                  <div>
-                    <h6>Penempatan</h6>
-                    <p>Pilih tempat iklan Anda muncul di seluruh teknologi Meta. <a
-                        href="https://www.facebook.com/business/help/407108559393196" target="_blank"
-                        rel="noopener">Pelajari selengkapnya</a></p>
-                  </div>
+                <div>
+                  <h6>Penempatan</h6>
+                  <p>Pilih tempat iklan Anda muncul di seluruh teknologi Meta. <a
+                      href="https://www.facebook.com/business/help/407108559393196" target="_blank"
+                      rel="noopener">Pelajari selengkapnya</a></p>
                 </div>
                 <div id="tmPlacementWhatsappNotice" class="tm-placement-note">
                   <div class="d-flex align-items-start justify-content-between gap-3">
@@ -6633,16 +8275,17 @@
                   value="dynamic"><input type="hidden" id="modal_identity_whatsapp_source" value="page">
               </div>
             </div>
-            <div class="meta-card">
-              <h6>Penyiapan Iklan</h6>
-              <div class="form-group mb-3">
+            <div class="meta-card tm-ad-setup-card">
+              <h6 class="tm-ad-setup-heading"><i class="far fa-check-circle tm-ad-setup-check" aria-hidden="true"></i> Penyiapan Iklan</h6>
+              <div class="tm-ad-setup-mode-wrap">
                 <div class="tm-id-picker" id="tmAdSetupModePicker">
-                  <button type="button" class="tm-id-selected" id="tmAdSetupModeSelected">
+                  <button type="button" class="tm-id-selected" id="tmAdSetupModeSelected" aria-haspopup="listbox"
+                    aria-expanded="false">
                     <span class="tm-id-selected-left"><span class="tm-id-selected-text"><span class="tm-id-selected-title"
                           id="tmAdSetupModeTitle">Buat Iklan</span><span class="tm-id-selected-meta"
                           id="tmAdSetupModeMeta">&nbsp;</span></span></span><i class="fas fa-caret-down text-muted"></i>
                   </button>
-                  <div class="tm-id-panel" id="tmAdSetupModePanel" style="display:none;">
+                  <div class="tm-id-panel" id="tmAdSetupModePanel" style="display:none;" role="listbox">
                     <div class="tm-id-list" id="tmAdSetupModeList">
                       <button type="button" class="tm-id-option js-ad-setup-mode" data-value="create"><span
                           class="tm-id-marker"><i class="fas fa-check"></i></span><span class="tm-id-option-copy"><span
@@ -6655,7 +8298,7 @@
                             class="tm-id-option-title">Gunakan Mockup Hub Materi Iklan</span></span></button>
                     </div>
                   </div>
-                  <select id="modal_ad_setup_mode" class="form-control d-none">
+                  <select id="modal_ad_setup_mode" class="form-control d-none no-select2">
                     <option value="create">Buat Iklan</option>
                     <option value="existing">Gunakan postingan yang ada</option>
                     <option value="mockup">Gunakan Mockup Hub Materi Iklan</option>
@@ -6663,216 +8306,244 @@
                 </div>
               </div>
               <div id="modal_ad_setup_create_ui">
-                <div id="modal_ad_setup_callout" class="border rounded p-3 mb-3"
-                  style="background:#fbf8ff;border-left:4px solid #6f42c1!important;">
-                  <div class="font-weight-bold mb-2">Tampilkan penawaran Anda dalam iklan yang lebih menarik</div>
-                  <div class="text-muted small mb-3">Buka lebih banyak format iklan dan fitur materi iklan untuk
-                    menunjukkan produk, layanan, atau konten yang paling relevan kepada setiap orang.</div>
-                  <div class="d-flex align-items-center flex-wrap"><button type="button"
-                      class="btn btn-outline-primary btn-sm mr-3 mb-2" id="btnAdSetupStart">Mulai</button><button
-                      type="button" class="btn btn-link btn-sm p-0 mb-2" id="btnAdSetupDismiss">Ingatkan saya
-                      nanti</button></div>
+                <div class="tm-ad-setup-block">
+                  <div class="tm-ad-setup-label">Sumber materi iklan</div>
+                  <div class="tm-ad-setup-option">
+                    <div class="custom-control custom-radio mb-0"><input class="custom-control-input" type="radio"
+                        name="modal_ad_source_mode_material" id="modal_ad_source_manual" value="manual" checked><label
+                        class="custom-control-label" for="modal_ad_source_manual">Unggah manual</label></div>
+                  </div>
+                  <div class="tm-ad-setup-option tm-ad-setup-option-adv">
+                    <div class="custom-control custom-radio mb-0"><input class="custom-control-input" type="radio"
+                        name="modal_ad_source_mode_material" id="modal_ad_source_catalog" value="catalog" disabled><label
+                        class="custom-control-label" for="modal_ad_source_catalog">Iklan katalog Advantage+ <i
+                          class="fas fa-sparkles tm-ad-setup-sparkle" aria-hidden="true"></i></label></div>
+                    <p class="tm-ad-setup-help mb-0">Raih sasaran Anda menggunakan informasi produk dengan menunjukkan
+                      media produk yang relevan dari katalog Anda.<br><a
+                        href="https://www.facebook.com/business/help/397103717129942" target="_blank"
+                        rel="noopener">Tentang iklan katalog Advantage+</a></p>
+                  </div>
                 </div>
-                <div class="font-weight-bold mb-2">Sumber materi iklan</div>
-                <div class="custom-control custom-radio mb-2"><input class="custom-control-input" type="radio"
-                    name="modal_ad_source_mode_material" id="modal_ad_source_manual" value="manual" checked><label
-                    class="custom-control-label" for="modal_ad_source_manual">Unggah manual</label></div>
-                <div class="custom-control custom-radio mb-3"><input class="custom-control-input" type="radio"
-                    name="modal_ad_source_mode_material" id="modal_ad_source_catalog" value="catalog" disabled><label
-                    class="custom-control-label text-muted" for="modal_ad_source_catalog">Iklan katalog Advantage+<div
-                      class="small text-muted font-weight-normal">Mode katalog belum aktif di builder ini.</div></label>
+                <div class="tm-ad-setup-block">
+                  <div class="tm-ad-setup-label-row">
+                    <div class="tm-ad-setup-label">Format</div><i class="fas fa-info-circle"
+                      title="Pilih tata letak materi iklan"></i>
+                  </div>
+                  <div class="tm-ad-setup-sub">Pilih tata letak materi iklan.</div>
+                  <div class="tm-ad-setup-option">
+                    <div class="custom-control custom-radio mb-0"><input class="custom-control-input" type="radio"
+                        name="modal_ad_format" id="modal_ad_format_single" value="single" checked><label
+                        class="custom-control-label" for="modal_ad_format_single">Gambar atau video tunggal</label></div>
+                  </div>
+                  <div class="tm-ad-setup-option">
+                    <div class="custom-control custom-radio mb-0"><input class="custom-control-input" type="radio"
+                        name="modal_ad_format" id="modal_ad_format_carousel" value="carousel"><label
+                        class="custom-control-label" for="modal_ad_format_carousel">Carousel</label></div>
+                  </div>
                 </div>
-                <div class="font-weight-bold mb-2">Format</div>
-                <div class="custom-control custom-radio mb-2"><input class="custom-control-input" type="radio"
-                    name="modal_ad_format" id="modal_ad_format_single" value="single" checked><label
-                    class="custom-control-label" for="modal_ad_format_single">Gambar atau video tunggal</label></div>
-                <div class="custom-control custom-radio mb-3"><input class="custom-control-input" type="radio"
-                    name="modal_ad_format" id="modal_ad_format_carousel" value="carousel"><label
-                    class="custom-control-label" for="modal_ad_format_carousel">Carousel</label></div>
-                <div class="custom-control custom-checkbox mb-2"><input class="custom-control-input" type="checkbox"
-                    id="modal_multi_advertiser_ads" checked><label class="custom-control-label"
-                    for="modal_multi_advertiser_ads">Iklan multi-pengiklan</label></div>
-                <div id="modal_multi_advertiser_hint" class="small text-muted mb-3">Iklan Anda bisa muncul bersama iklan
-                  lain dalam unit iklan yang sama untuk membantu mendorong penemuan.</div>
+                <div class="tm-ad-setup-block tm-ad-setup-multi">
+                  <div class="custom-control custom-checkbox mb-0"><input class="custom-control-input" type="checkbox"
+                      id="modal_multi_advertiser_ads" checked><label class="custom-control-label"
+                      for="modal_multi_advertiser_ads">Iklan multi-pengiklan</label></div>
+                  <p id="modal_multi_advertiser_hint" class="tm-ad-setup-multi-desc mb-0">Iklan Anda bisa muncul bersama
+                    iklan lain dalam unit iklan yang sama untuk membantu mendorong penemuan. Materi iklan Anda mungkin
+                    diubah ukurannya atau dipotong. <a
+                      href="https://www.facebook.com/business/help/404213939422729" target="_blank"
+                      rel="noopener">Tentang iklan multi-pengiklan</a></p>
+                </div>
               </div>
               <div id="modal_ad_setup_existing_ui" style="display:none;">
                 <div class="small text-muted">Pilih postingan dari Facebook, Instagram, atau konten mitra yang sudah ada.
                 </div>
               </div>
-              <div id="modal_ad_setup_status" class="small text-muted">Membuat iklan baru secara manual.</div>
-              <div id="modal_ad_source_summary" class="small text-muted">Unggah manual dipakai untuk gambar atau video
-                yang Anda pilih.</div>
-              <div id="modal_ad_format_info" class="small text-muted">Format gambar atau video tunggal dipakai untuk
-                materi utama Anda.</div><input id="modal_use_existing_post" type="hidden" value="0"><input
-                id="modal_ad_mockup_id" type="hidden" value="">
+              <div id="modal_ad_setup_status" class="d-none">Membuat iklan baru secara manual.</div>
+              <div id="modal_ad_source_summary" class="d-none">Unggah manual dipakai untuk gambar atau video yang Anda
+                pilih.</div>
+              <div id="modal_ad_format_info" class="d-none">Format gambar atau video tunggal dipakai untuk materi utama
+                Anda.</div><input id="modal_use_existing_post" type="hidden" value="0"><input id="modal_ad_mockup_id"
+                type="hidden" value="">
             </div>
-            <div class="meta-card">
-              <h6>Destinasi</h6>
-              <div class="text-muted small mb-3">Tentukan tempat untuk mengirim orang setelah mereka mengetuk atau
-                mengklik iklan Anda.</div>
-              <div class="custom-control custom-radio mb-2"><input class="custom-control-input" type="radio"
-                  name="modal_destination_mode" id="modal_destination_website" value="website" checked><label
-                  class="custom-control-label" for="modal_destination_website">Situs Web<div
-                    class="small text-muted font-weight-normal">Kirim orang ke situs web Anda.</div></label></div>
-              <div class="custom-control custom-radio mb-2"><input class="custom-control-input" type="radio"
-                  name="modal_destination_mode" id="modal_destination_instant" value="instant" disabled><label
-                  class="custom-control-label text-muted" for="modal_destination_instant">Instant Experience<div
-                    class="small text-muted font-weight-normal">UI disiapkan, submit builder saat ini fokus ke Situs
-                    Web.</div></label></div>
-              <div class="custom-control custom-radio mb-3"><input class="custom-control-input" type="radio"
-                  name="modal_destination_mode" id="modal_destination_call" value="call" disabled><label
-                  class="custom-control-label text-muted" for="modal_destination_call">Panggilan Telepon</label></div>
+            <div class="meta-card tm-destination-card">
+              <h6 class="tm-dest-heading"><span class="tm-dest-heading-icon"></span>Destinasi</h6>
+              <div class="tm-dest-intro">Tentukan tempat untuk mengirim orang setelah mereka mengetuk atau mengklik iklan
+                Anda. <a href="https://www.facebook.com/business/help/1623146011293258" target="_blank"
+                  rel="noopener">Pelajari selengkapnya</a></div>
+              <div class="tm-dest-choice">
+                <div class="custom-control custom-radio"><input class="custom-control-input" type="radio"
+                    name="modal_destination_mode" id="modal_destination_instant" value="instant" checked><label
+                    class="custom-control-label" for="modal_destination_instant">Instant Experience</label></div>
+                <div class="tm-dest-icon"><i class="far fa-file-alt"></i></div>
+                <label for="modal_destination_instant" class="mb-0"><div class="tm-dest-title">Instant Experience</div>
+                  <div class="tm-dest-sub">Kirim orang ke pengalaman yang dimuat dengan cepat dan dioptimalkan untuk
+                    perangkat seluler.</div></label>
+              </div>
+              <div class="tm-dest-panel" id="modal_destination_instant_wrap">
+                <div class="tm-ie-search"><i class="fas fa-search"></i><input id="modal_instant_experience_search"
+                    class="form-control" type="text" placeholder="Cari Instant Experience yang ada"></div>
+                <button type="button" class="btn btn-outline-secondary mb-3" id="btnCreateInstantExperience"><i
+                    class="fas fa-plus mr-2"></i>Buat baru</button>
+                <div class="tm-ie-info mb-3"><i class="fas fa-info-circle mt-1"></i><div>Buat Instant Experience
+                    menggunakan template atau cari yang sudah ada.</div></div>
+                <div class="tm-ie-notice" id="tmInstantExperienceNotice"><button type="button"
+                    class="btn btn-link text-muted p-0" id="btnCloseInstantExperienceNotice"><i
+                      class="fas fa-times"></i></button>
+                  <div class="tm-ie-notice-title"><i class="fas fa-info-circle mr-2 text-muted"></i>Instant Experience
+                    tidak lagi dianggap sebagai tayangan halaman tujuan</div>
+                  <div>Iklan Instant Experience Anda sekarang hanya akan menghitung jumlah tayangan halaman tujuan saat
+                    orang membuka situs web yang tertaut di dalamnya.</div>
+                </div>
+                <div class="tm-ie-selected" id="modal_instant_experience_selected">
+                  <div class="font-weight-bold" id="modal_instant_experience_selected_title">Instant Experience belum
+                    dipilih</div>
+                  <div class="small text-muted" id="modal_instant_experience_selected_meta">Klik Buat baru untuk memilih
+                    template.</div>
+                </div>
+              </div>
+              <div class="tm-dest-choice">
+                <div class="custom-control custom-radio"><input class="custom-control-input" type="radio"
+                    name="modal_destination_mode" id="modal_destination_website" value="website"><label
+                    class="custom-control-label" for="modal_destination_website">Situs Web</label></div>
+                <div class="tm-dest-icon"><i class="fas fa-link"></i></div>
+                <label for="modal_destination_website" class="mb-0"><div class="tm-dest-title">Situs Web</div>
+                  <div class="tm-dest-sub">Kirim orang ke situs web Anda.</div></label>
+              </div>
               <div id="modal_destination_website_wrap">
+                <div class="tm-website-destination-fields">
+                  <div class="tm-website-field"><label for="modal_website_url">* URL Situs Web <i
+                        class="fas fa-info-circle text-muted"></i></label><input id="modal_website_url"
+                      class="form-control" type="text"
+                      placeholder="Masukkan URL yang dikunjungi orang setelah iklan Anda diklik"><small
+                      id="modal_destination_test_result" class="text-muted">Isi URL lalu klik tombol test untuk membuka
+                      link.</small><button class="btn btn-link btn-sm px-0 d-none" type="button" id="btnTestWebsiteUrl"><i
+                        class="fas fa-external-link-alt mr-1"></i>Test URL</button></div>
+                  <div class="tm-website-field"><label for="modal_display_link">Tautan tampilan</label><input
+                      id="modal_display_link" class="form-control" type="text"
+                      placeholder="Masukkan tautan untuk ditampilkan di iklan Anda"></div>
+                  <select id="modal_cta" class="form-control d-none no-select2">
+                    <option value="LEARN_MORE">Lihat Detail</option>
+                    <option value="LEARN_MORE">Pelajari Selengkapnya</option>
+                    <option value="SHOP_NOW">Belanja Sekarang</option>
+                    <option value="SIGN_UP">Daftar</option>
+                    <option value="CONTACT_US">Hubungi Kami</option>
+                    <option value="APPLY_NOW">Lamar Sekarang</option>
+                    <option value="BOOK_TRAVEL">Pesan Perjalanan</option>
+                    <option value="BOOK_NOW">Pesan Sekarang</option>
+                    <option value="DOWNLOAD">Unduh</option>
+                    <option value="GET_ACCESS">Dapatkan Akses</option>
+                    <option value="GET_OFFER">Dapatkan Promo</option>
+                    <option value="GET_QUOTE">Minta Penawaran</option>
+                    <option value="GET_SHOWTIMES">Dapatkan Waktu Pertunjukan</option>
+                    <option value="INSTALL_APP">Instal Aplikasi</option>
+                    <option value="LISTEN_NOW">Dengarkan Sekarang</option>
+                    <option value="ORDER_NOW">Pesan Sekarang</option>
+                    <option value="PLAY_GAME">Mainkan Game</option>
+                    <option value="REQUEST_TIME">Minta Waktu</option>
+                    <option value="SEE_MENU">Lihat Menu</option>
+                    <option value="SEND_MESSAGE">Kirim Pesan</option>
+                    <option value="SUBSCRIBE">Berlangganan</option>
+                    <option value="WATCH_MORE">Tonton Selengkapnya</option>
+                    <option value="WHATSAPP_MESSAGE">WhatsApp</option>
+                  </select>
+                  <div class="tm-browser-addon-title">Add-on browser <i class="fas fa-info-circle text-muted"></i></div>
+                  <div class="tm-browser-addon-group">
+                    <label class="tm-browser-addon-option" for="modal_browser_addon_none">
+                      <span class="custom-control custom-radio"><input class="custom-control-input" type="radio"
+                          name="modal_browser_addon" id="modal_browser_addon_none" value="none" checked><span
+                          class="custom-control-label">Tidak Ada</span></span><span class="tm-browser-addon-icon"><i
+                          class="fas fa-times-circle"></i></span><span><span class="tm-browser-addon-name">Tidak
+                          Ada</span><span class="tm-browser-addon-desc d-block">Jangan tambahkan tombol.</span></span>
+                    </label>
+                    <label class="tm-browser-addon-option" for="modal_browser_addon_phone">
+                      <span class="custom-control custom-radio"><input class="custom-control-input" type="radio"
+                          name="modal_browser_addon" id="modal_browser_addon_phone" value="phone"><span
+                          class="custom-control-label">Telepon</span></span><span class="tm-browser-addon-icon"><i
+                          class="fas fa-phone-alt"></i></span><span><span class="tm-browser-addon-name">Telepon <i
+                            class="fas fa-info-circle text-muted"></i></span><span
+                          class="tm-browser-addon-desc d-block">Tambahkan tombol telepon di situs web Anda.</span></span>
+                    </label>
+                    <label class="tm-browser-addon-option" for="modal_browser_addon_whatsapp">
+                      <span class="custom-control custom-radio"><input class="custom-control-input" type="radio"
+                          name="modal_browser_addon" id="modal_browser_addon_whatsapp" value="whatsapp"><span
+                          class="custom-control-label">WhatsApp</span></span><span class="tm-browser-addon-icon"><i
+                          class="fab fa-whatsapp"></i></span><span><span
+                          class="tm-browser-addon-name">WhatsApp</span><span
+                          class="tm-browser-addon-desc d-block">Tambahkan tombol WhatsApp di situs web Anda.</span></span>
+                    </label>
+                    <label class="tm-browser-addon-option" for="modal_browser_addon_form">
+                      <span class="custom-control custom-radio"><input class="custom-control-input" type="radio"
+                          name="modal_browser_addon" id="modal_browser_addon_form" value="form"><span
+                          class="custom-control-label">Formulir instan</span></span><span class="tm-browser-addon-icon"><i
+                          class="far fa-question-circle"></i></span><span><span class="tm-browser-addon-name">Formulir
+                          instan (disarankan) <i class="fas fa-info-circle text-muted"></i></span><span
+                          class="tm-browser-addon-desc d-block">Kumpulkan informasi kontak orang.</span></span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div class="tm-dest-choice">
+                <div class="custom-control custom-radio"><input class="custom-control-input" type="radio"
+                    name="modal_destination_mode" id="modal_destination_event" value="event"><label
+                    class="custom-control-label" for="modal_destination_event">Acara Facebook</label></div>
+                <div class="tm-dest-icon"><i class="far fa-calendar-alt"></i></div>
+                <label for="modal_destination_event" class="mb-0"><div class="tm-dest-title">Acara Facebook</div>
+                  <div class="tm-dest-sub">Kirim orang ke acara di Halaman Facebook Anda.</div></label>
+              </div>
+              <div class="tm-dest-panel" id="modal_destination_event_wrap" style="display:none;">
+                <div class="form-group mb-2"><label>URL atau ID Acara Facebook</label><input id="modal_facebook_event_url"
+                    class="form-control" type="text" placeholder="https://www.facebook.com/events/..."></div>
+                <div class="small text-muted">Masukkan tautan acara Facebook yang ingin dipromosikan.</div>
+              </div>
+              <div class="tm-dest-choice">
+                <div class="custom-control custom-radio"><input class="custom-control-input" type="radio"
+                    name="modal_destination_mode" id="modal_destination_call" value="call"><label
+                    class="custom-control-label" for="modal_destination_call">Panggilan Telepon</label></div>
+                <div class="tm-dest-icon"><i class="fas fa-phone-alt"></i></div>
+                <label for="modal_destination_call" class="mb-0"><div class="tm-dest-title">Panggilan telepon</div>
+                  <div class="tm-dest-sub">Izinkan orang menelepon Anda langsung.</div></label>
+              </div>
+              <div class="tm-dest-panel" id="modal_destination_call_wrap" style="display:none;">
                 <div class="form-row">
-                  <div class="col-md-9"><label>URL Situs Web</label>
-                    <div class="input-group"><input id="modal_website_url" class="form-control" type="text"
-                        placeholder="https://domain.com">
-                      <div class="input-group-append"><button class="btn btn-outline-secondary" type="button"
-                          id="btnTestWebsiteUrl"><i class="fas fa-external-link-alt"></i></button></div>
-                    </div><small id="modal_destination_test_result" class="text-muted">Isi URL lalu klik tombol test
-                      untuk membuka link.</small>
-                  </div>
-                  <div class="col-md-3"><label>CTA</label><select id="modal_cta" class="form-control">
-                      <option value="LEARN_MORE">Pelajari Selengkapnya</option>
-                      <option value="SHOP_NOW">Belanja Sekarang</option>
-                      <option value="SIGN_UP">Daftar</option>
-                      <option value="CONTACT_US">Hubungi Kami</option>
-                      <option value="APPLY_NOW">Lamar Sekarang</option>
-                      <option value="BOOK_TRAVEL">Pesan Perjalanan</option>
-                      <option value="BOOK_NOW">Pesan Sekarang</option>
-                      <option value="DOWNLOAD">Unduh</option>
-                      <option value="GET_OFFER">Dapatkan Promo</option>
-                      <option value="GET_QUOTE">Minta Penawaran</option>
-                      <option value="INSTALL_APP">Instal Aplikasi</option>
-                      <option value="LISTEN_NOW">Dengarkan Sekarang</option>
-                      <option value="ORDER_NOW">Pesan Sekarang</option>
-                      <option value="PLAY_GAME">Mainkan Game</option>
-                      <option value="REQUEST_TIME">Minta Waktu</option>
-                      <option value="SEE_MENU">Lihat Menu</option>
-                      <option value="SEND_MESSAGE">Kirim Pesan</option>
-                      <option value="SUBSCRIBE">Berlangganan</option>
-                      <option value="WATCH_MORE">Tonton Selengkapnya</option>
-                      <option value="WHATSAPP_MESSAGE">WhatsApp</option>
+                  <div class="col-md-4"><label>Kode Negara</label><select id="modal_call_country_code"
+                      class="form-control no-select2">
+                      <option value="+62">Indonesia (+62)</option>
+                      <option value="+65">Singapura (+65)</option>
+                      <option value="+60">Malaysia (+60)</option>
                     </select></div>
-                  <div class="col-md-6 mt-3"><label>Tautan Tampilan</label><input id="modal_display_link"
-                      class="form-control" type="text" placeholder="domain.com"></div>
-                </div>
-                <div class="mt-4">
-                  <div class="font-weight-bold mb-2">Add-on browser</div>
-                  <div class="custom-control custom-radio mb-2"><input class="custom-control-input" type="radio"
-                      name="modal_browser_addon" id="modal_browser_addon_none" value="none" checked><label
-                      class="custom-control-label" for="modal_browser_addon_none">Tidak Ada<div
-                        class="small text-muted font-weight-normal">Jangan tambahkan tombol.</div></label></div>
-                  <div class="custom-control custom-radio mb-2"><input class="custom-control-input" type="radio"
-                      name="modal_browser_addon" id="modal_browser_addon_phone" value="phone"><label
-                      class="custom-control-label" for="modal_browser_addon_phone">Telepon</label></div>
-                  <div class="custom-control custom-radio mb-2"><input class="custom-control-input" type="radio"
-                      name="modal_browser_addon" id="modal_browser_addon_whatsapp" value="whatsapp"><label
-                      class="custom-control-label" for="modal_browser_addon_whatsapp">WhatsApp</label></div>
-                  <div class="custom-control custom-radio"><input class="custom-control-input" type="radio"
-                      name="modal_browser_addon" id="modal_browser_addon_form" value="form"><label
-                      class="custom-control-label" for="modal_browser_addon_form">Formulir instan</label></div>
+                  <div class="col-md-8"><label>Nomor telepon</label><input id="modal_call_phone_number"
+                      class="form-control" type="text" placeholder="81234567890"></div>
                 </div>
               </div>
+              <input id="modal_instant_experience_id" type="hidden" value=""><input id="modal_instant_experience_template"
+                type="hidden" value=""><input id="modal_instant_experience_payload" type="hidden" value="">
             </div>
-            <div class="meta-card">
-              <h6>Materi Iklan</h6>
-              <div class="text-muted small mb-3">Pilih dan optimalkan teks iklan, media, dan penyempurnaan Anda.</div>
-              <div class="d-flex justify-content-between align-items-start flex-wrap" id="modal_material_manual_intro">
-                <div>
-                  <div class="font-weight-bold">Penyiapan materi iklan</div>
-                  <div class="small"><b>Dinonaktifkan:</b> Branding, Sorotan situs web</div>
-                  <div class="small"><b>Diaktifkan:</b> Tautan situs</div>
-                </div><button type="button" class="btn btn-outline-secondary btn-sm mt-2 mt-md-0"
-                  id="btnEditCreativeSetup">Edit</button>
-              </div>
-              <div class="mt-3" id="modal_material_media_picker"><label class="font-weight-bold">Media</label>
-                <div class="dropdown d-inline-block ml-2"><button class="btn btn-outline-secondary dropdown-toggle"
-                    type="button" id="btnCreativeMediaMenu" data-toggle="dropdown" aria-haspopup="true"
-                    aria-expanded="false">Tambahkan media</button>
-                  <div class="dropdown-menu" aria-labelledby="btnCreativeMediaMenu"><button class="dropdown-item"
-                      type="button" data-media-kind="image">Tambahkan gambar</button><button class="dropdown-item"
-                      type="button" data-media-kind="video">Tambahkan video</button></div>
-                </div><input id="modal_image_file" type="file" accept="image/*" hidden><input id="modal_video_file"
-                  type="file" accept="video/*" hidden>
-                <div id="modal_media_state" class="alert alert-danger py-2 px-3 mt-3 mb-2">Media belum dipilih.
-                  Tambahkan gambar atau video untuk materi iklan Anda.</div>
-                <div id="modal_media_files" class="small text-muted"></div>
-                <div id="modal_app_mode_warning" class="alert alert-warning py-2 px-3 mt-3 mb-0" style="display:none;">
-                  Aplikasi Meta yang dipakai masih dalam mode development. Untuk sementara gunakan <b>Pakai Existing
-                    Post</b> dan isi <b>Existing Post ID</b> dari postingan yang sudah publik.</div>
-              </div>
-              <div class="mt-4" id="modal_format_section">
-                <div class="font-weight-bold mb-2">Opsi tampilan format</div>
-                <div class="text-muted small mb-2">Tampilkan media dengan beragam cara agar lebih relevan dengan orang
-                  yang melihat iklan Anda.</div>
-                <div class="border rounded p-3" style="background:#eef5ff">
-                  <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                      <div class="font-weight-bold">2 dari 4 opsi tampilan format diaktifkan</div>
-                      <div class="small text-muted">Menampilkan produk</div>
-                    </div><button type="button" class="btn btn-link btn-sm p-0"
-                      id="btnToggleFormatOptions">Ubah</button>
-                  </div>
-                  <div id="modal_format_options_wrap" class="mt-3">
-                    <div class="form-group mb-3"><label>Carousel</label><select id="modal_format_carousel_behavior"
-                        class="form-control">
-                        <option value="product">Tampilkan produk</option>
-                        <option value="image">Tampilkan gambar</option>
-                        <option value="link">Tampilkan tautan</option>
-                      </select></div>
-                    <div class="form-group mb-0"><label>Koleksi</label><select id="modal_format_collection_behavior"
-                        class="form-control">
-                        <option value="product">Tampilkan produk</option>
-                        <option value="image">Tampilkan gambar</option>
-                        <option value="catalog">Tampilkan katalog</option>
-                      </select></div>
-                  </div>
+            <div class="meta-card tm-creative-card">
+              <h6 class="tm-creative-heading"><span class="tm-creative-heading-icon"></span>Materi iklan</h6>
+              <div class="tm-creative-intro">Pilih dan optimalkan teks iklan, media, dan penyempurnaan Anda.</div>
+              <div class="dropdown tm-creative-setup-menu">
+                <button class="btn dropdown-toggle" type="button" id="btnCreativeSetupMenu" data-toggle="dropdown"
+                  aria-haspopup="true" aria-expanded="false">Siapkan materi iklan</button>
+                <div class="dropdown-menu" aria-labelledby="btnCreativeSetupMenu">
+                  <button class="dropdown-item" type="button" data-creative-kind="image"><i class="far fa-images"></i>Iklan gambar</button>
+                  <button class="dropdown-item" type="button" data-creative-kind="video"><i class="fas fa-play-square"></i>Iklan video</button>
                 </div>
               </div>
-              <div class="form-row mt-3">
-                <div class="col-md-12" id="modal_existing_post_wrap" style="display:none;">
-                  <div class="border rounded p-3" style="background:#f8fbff;">
-                    <div class="d-flex flex-wrap mb-3"><button type="button" class="btn btn-outline-secondary mr-2 mb-2"
-                        id="btnExistingPostPicker"><i class="far fa-list-alt mr-1"></i> Pilih postingan</button><button
-                        type="button" class="btn btn-outline-secondary mb-2" id="btnCreatePagePost"><i
-                          class="fas fa-plus mr-1"></i> Buat postingan</button></div>
-                    <div id="modal_existing_post_empty" class="alert alert-light border mb-3">Postingan diperlukan.
-                      Pilih atau buat postingan untuk menerbitkan.</div>
-                    <div id="modal_existing_post_selected" class="border rounded p-2 mb-3" style="display:none;">
-                      <div class="font-weight-bold" id="modal_existing_post_selected_title">-</div>
-                      <div class="small text-muted" id="modal_existing_post_selected_meta">-</div>
-                    </div>
-                    <div><button type="button" class="btn btn-link px-0" id="btnToggleExistingPostManual">Masukkan ID
-                        postingan</button></div>
-                    <div id="modal_existing_post_manual_wrap" class="mt-2" style="display:none;">
-                      <div class="font-weight-bold mb-2">Masukkan ID postingan</div>
-                      <div class="form-row align-items-center">
-                        <div class="col-md-9"><input id="modal_existing_post_id" class="form-control" type="text"
-                            placeholder="pageid_postid"></div>
-                        <div class="col-md-3 d-flex"><button type="button"
-                            class="btn btn-outline-success mr-2 flex-fill" id="btnApplyExistingPostManual"><i
-                              class="fas fa-check"></i></button><button type="button"
-                            class="btn btn-outline-secondary flex-fill" id="btnCancelExistingPostManual"><i
-                              class="fas fa-times"></i></button></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div class="col-md-3" id="modal_display_link_wrap"><label>Display Link</label><input
-                    id="modal_display_link" class="form-control" type="text" placeholder="domain.com"></div>
-                <div class="col-md-3" id="modal_caption_wrap"><label>Caption</label><input id="modal_caption"
-                    class="form-control" type="text" placeholder="opsional"></div>
-                <div class="col-md-12 mt-3" id="modal_ad_copy_wrap"><label>Teks utama</label><textarea
-                    id="modal_primary_text" class="form-control" rows="6"
-                    placeholder="Tulis teks utama iklan di sini"></textarea><button type="button"
-                    class="btn btn-outline-secondary btn-sm mt-2" id="btnAddTextOption">Tambahkan opsi teks</button>
-                </div>
-                <div class="col-md-6 mt-3" id="modal_ad_headline_wrap"><label>Judul</label><input id="modal_headline"
-                    class="form-control" type="text" placeholder="Masukkan judul"></div>
-                <div class="col-md-6 mt-3" id="modal_ad_description_wrap"><label>Deskripsi</label><input
-                    id="modal_description" class="form-control" type="text" placeholder="opsional"></div>
+              <div class="tm-creative-alert" id="tmCreativeSetupAlert"><i class="fas fa-info-circle"></i><span>Tentukan gambar untuk digunakan bersama iklan ini.</span></div>
+              <div class="tm-creative-summary" id="tmCreativeSummary">
+                <div class="font-weight-bold mb-2">Penyiapan materi iklan (0/3)</div>
+                <div class="small mb-3"><b>Dinonaktifkan:</b> <span id="tmCreativeDisabledSummary">Branding, Tautan situs, Sorotan situs web</span></div>
+                <div class="tm-creative-media-list" id="tmCreativeMediaSummaryList"></div>
+                <div class="tm-creative-generated-row"><span></span><span></span><button type="button" class="btn btn-outline-secondary btn-sm" id="btnEditGeneratedImages">Edit</button></div>
+                <div class="tm-creative-format-note"><strong><i class="fas fa-info-circle mr-1"></i>Tambahkan produk atau tautan situs</strong><button type="button" class="close">&times;</button><div class="small mt-2">Aktifkan opsi tampilan format dengan menambahkan tautan situs di Penyiapan materi iklan.</div><button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="btnOpenCreativeSetupInline">Buka Penyiapan materi iklan</button></div>
+                <div class="form-group"><label>Teks utama <i class="fas fa-info-circle text-muted"></i></label><input class="form-control" id="tmCreativePrimaryPreview" readonly value="-"></div>
+                <div class="form-group"><label>Judul <i class="fas fa-info-circle text-muted"></i></label><input class="form-control" id="tmCreativeHeadlinePreview" readonly value="-"></div>
+                <div class="form-group"><label>Deskripsi <i class="fas fa-info-circle text-muted"></i></label><textarea class="form-control" id="tmCreativeDescriptionPreview" readonly rows="3">-</textarea></div>
+                <div class="form-group"><label>Ajakan bertindak <i class="fas fa-info-circle text-muted"></i></label><button type="button" class="btn btn-outline-secondary btn-block text-left" id="btnEditCreativeTextInline">Lihat Detail <i class="fas fa-caret-down float-right mt-1"></i></button></div>
+                <div class="tm-creative-enhancement-note"><i class="fas fa-info-circle mr-2"></i>Kami mengaktifkan atau memperbarui 3 penyempurnaan.<div class="mt-2"><strong>Diaktifkan</strong><ul class="mb-2"><li>Buka detailnya seiring waktu</li><li>Tampilkan sorotan</li></ul><strong>Pratinjau diperbarui</strong><ul class="mb-0"><li>Tambahkan animasi</li></ul></div></div>
+                <div class="d-flex justify-content-between align-items-start"><div><strong>Penyempurnaan materi iklan Advantage+ (6/6)</strong><div class="small mt-2"><b>Diaktifkan:</b> Tambahkan overlay, Peningkatan visual, Tambahkan musik dan 3 lainnya</div></div><button type="button" class="btn btn-outline-secondary" id="btnEditEnhancementsInline">Edit</button></div>
               </div>
+              <input id="modal_image_file" type="file" accept="image/*" hidden><input id="modal_video_file" type="file" accept="video/*" hidden>
+              <div id="modal_media_state" class="d-none">Media belum dipilih.</div><div id="modal_media_files" class="d-none"></div>
+              <div id="modal_app_mode_warning" class="alert alert-warning py-2 px-3 mt-3 mb-0" style="display:none;">Aplikasi Meta yang dipakai masih dalam mode development. Untuk sementara gunakan <b>Pakai Existing Post</b> dan isi <b>Existing Post ID</b> dari postingan yang sudah publik.</div>
             </div>
             <div class="meta-card">
               <h6>Pengujian materi iklan</h6>
@@ -6923,7 +8594,19 @@
           </div>
           </div>
           <div class="meta-right">
-            <div class="meta-card tm-score-card" id="tmScoreCard">
+            <div class="meta-card tm-campaign-recommendation-card" id="tmCampaignRecommendationCard">
+              <div class="tm-campaign-recommendation-head">
+                <span class="tm-campaign-recommendation-icon"><i class="fas fa-chart-line"></i></span>
+                <div>
+                  <div class="tm-campaign-recommendation-title">Rekomendasi kampanye <i
+                      class="fas fa-info-circle text-muted"></i></div>
+                  <div class="tm-campaign-recommendation-copy" id="tmCampaignRecommendationText">Tidak tersedia karena set
+                    iklan tidak ada</div>
+                </div>
+              </div>
+              <div class="tm-campaign-recommendation-empty"></div>
+            </div>
+            <div class="meta-card tm-score-card tm-right-default-card" id="tmScoreCard">
               <div class="tm-score">
                 <div class="tm-score-ring" id="tmScoreValue">100</div>
                 <div>
@@ -6932,7 +8615,7 @@
                 </div>
               </div>
             </div>
-            <div class="meta-card">
+            <div class="meta-card tm-right-default-card">
               <h6 id="tmSummaryTitle">Ringkasan</h6>
               <div class="small text-muted" id="tmSummaryPrimaryLabel">Campaign ID</div>
               <div id="tmSummaryPrimaryValue" class="font-weight-bold">-</div>
@@ -6943,13 +8626,13 @@
               <div id="tmSummarySecondaryValue" class="font-weight-bold">Traffic Manual</div>
               <div id="metaSummaryCampaignId" class="d-none">-</div>
             </div>
-            <div class="meta-card">
+            <div class="meta-card tm-right-default-card">
               <h6>Kelengkapan Step</h6>
               <div class="small text-muted" id="metaStepProgressLabel">0% lengkap</div>
               <div class="meta-progress"><span id="metaStepProgressBar"></span></div>
               <div class="small mt-2 text-muted" id="metaStepMissing">Field wajib belum lengkap.</div>
             </div>
-            <div class="meta-card" id="metaAdPreviewCard">
+            <div class="meta-card tm-right-default-card" id="metaAdPreviewCard">
               <div class="d-flex justify-content-between align-items-center mb-2">
                 <h6 class="mb-0">Pratinjau Iklan</h6><button type="button" class="btn btn-outline-secondary btn-sm"
                   id="btnOpenPlacementEditor">Pratinjau lanjutan</button>
@@ -6959,7 +8642,7 @@
               <div id="metaAdPreviewPlacements" class="mb-3"></div>
               <div id="metaAdPreviewFrames" class="d-flex flex-wrap"></div>
             </div>
-            <div class="meta-card">
+            <div class="meta-card tm-right-default-card">
               <h6>Tips</h6>
               <ul class="small mb-0 pl-3">
                 <li>Buat Campaign dulu.</li>
@@ -7531,90 +9214,159 @@
     </div>
   </div>
 </div>
-<div class="modal fade" id="modalCreativeSetup" tabindex="-1" role="dialog" aria-hidden="true">
+<div class="modal fade" id="modalInstantExperienceTemplates" tabindex="-1" role="dialog" aria-hidden="true">
   <div class="modal-dialog modal-xl" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Penyiapan materi iklan</h5><button type="button" class="close"
+        <h5 class="modal-title">Pilih template</h5><button type="button" class="close"
           data-dismiss="modal"><span>&times;</span></button>
       </div>
       <div class="modal-body">
-        <div class="row">
-          <div class="col-md-3 border-right">
-            <div class="list-group" id="creativeSetupTabs"><button type="button"
-                class="list-group-item list-group-item-action active" data-creative-tab="setup">Penyiapan
-                materi</button><button type="button" class="list-group-item list-group-item-action"
-                data-creative-tab="media">Media</button><button type="button"
-                class="list-group-item list-group-item-action" data-creative-tab="text">Teks</button><button
-                type="button" class="list-group-item list-group-item-action"
-                data-creative-tab="polish">Penyempurnaan</button></div>
+        <div class="tm-ie-template-grid">
+          <button type="button" class="tm-ie-template-card" data-ie-template="product">
+            <span class="tm-ie-template-check"></span><span class="tm-ie-thumb product"></span>
+            <span><span class="tm-ie-template-title d-block">Jual Produk (Tanpa Katalog)</span><span
+                class="tm-ie-template-desc d-block">Buat pengalaman belanja seluler dengan cara mengunggah info produk
+                Anda alih-alih menggunakan katalog.</span></span>
+          </button>
+          <button type="button" class="tm-ie-template-card" data-ie-template="story">
+            <span class="tm-ie-template-check"></span><span class="tm-ie-thumb story"></span>
+            <span><span class="tm-ie-template-title d-block">Bercerita</span><span
+                class="tm-ie-template-desc d-block">Beri orang cara menarik untuk menelusuri merek, produk, atau layanan
+                Anda.</span></span>
+          </button>
+          <button type="button" class="tm-ie-template-card" data-ie-template="customer">
+            <span class="tm-ie-template-check"></span><span class="tm-ie-thumb customer"></span>
+            <span><span class="tm-ie-template-title d-block">Akuisisi Pelanggan</span><span
+                class="tm-ie-template-desc d-block">Dorong pelanggan baru untuk menemukan merek dan produk Anda dengan
+                halaman tujuan seluler yang mendorong tindakan.</span></span>
+          </button>
+          <button type="button" class="tm-ie-template-card" data-ie-template="custom">
+            <span class="tm-ie-template-check"></span><span class="tm-ie-thumb custom"><i
+                class="fas fa-edit"></i></span>
+            <span><span class="tm-ie-template-title d-block">Instant Experience Khusus</span><span
+                class="tm-ie-template-desc d-block">Buat tata letak sendiri dengan desain dan opsi interaksi
+                lainnya.</span></span>
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-primary" id="btnContinueInstantExperienceTemplate"
+          disabled>Berikutnya</button></div>
+    </div>
+  </div>
+</div>
+<div class="modal fade tm-ie-builder" id="modalInstantExperienceBuilder" tabindex="-1" role="dialog"
+  aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header py-2">
+        <h5 class="modal-title" id="modalInstantExperienceBuilderTitle">Buat Instant Experience</h5><button type="button"
+          class="close" data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="tm-ie-builder-body" id="tmIeTemplateBuilder">
+        <div class="tm-ie-builder-left">
+          <div class="tm-ie-section-head"><span>Gambar atau Video Sampul</span><i class="fas fa-caret-down"></i></div>
+          <div class="tm-ie-editor-block">
+            <div class="text-muted mb-3">Perkenalkan merek, produk, atau layanan Anda dengan menggunakan video atau
+              gambar yang menarik perhatian.</div>
+            <div class="mb-3"><label class="mr-4"><input type="radio" name="modal_ie_cover_type" value="image" checked>
+                Gambar</label><label><input type="radio" name="modal_ie_cover_type" value="video"> Video</label></div>
+            <div class="tm-ie-media-row">
+              <div class="tm-ie-media-thumb"></div>
+              <div><div class="text-muted mb-2">Disarankan: Lebar gambar 1080 piksel</div><button type="button"
+                  class="btn btn-outline-secondary" id="btnIeChangeCover">Ganti gambar</button></div>
+            </div>
+            <div class="form-group mt-3 mb-0"><label>URL Tujuan (opsional)</label><input id="modal_ie_destination_url"
+                class="form-control" type="text" placeholder="https://www.facebook.com/973827142469893"><small
+                class="text-muted">Kolom ini hanya berlaku untuk iklan Facebook.</small></div>
           </div>
-          <div class="col-md-9">
-            <div class="creative-tab-pane" data-creative-pane="setup">
-              <div class="text-muted small mb-2">Kami akan menggunakan sumber ini untuk menambahkan informasi ke iklan
-                Anda jika menurut kami akan menginspirasi tindakan dari orang yang melihatnya.</div>
-              <div class="border rounded p-2 mb-3 bg-light d-flex align-items-center justify-content-between">
-                <div><span class="text-success mr-2">●</span><span class="font-weight-bold">URL sumber:</span> <span
-                    id="modalCreativeSetupUrl">-</span></div><button type="button" class="btn btn-link btn-sm p-0"
-                  id="btnCreativeSetupEditSource">Edit sumber</button>
-              </div>
-              <div class="small font-weight-bold text-uppercase text-muted mb-2">Ekstensi</div>
-              <div class="border rounded p-3 mb-3">
-                <div class="d-flex justify-content-between align-items-start">
-                  <div>
-                    <div class="font-weight-bold">Tautan situs <span class="badge badge-success">Aktif</span></div>
-                    <div class="text-muted small">Berpotensi membantu meningkatkan konversi dengan menyediakan lebih
-                      banyak cara bagi orang untuk mempelajari dan membeli.</div>
-                  </div><button type="button" class="btn btn-link btn-sm p-0" id="btnEditSiteLinks"><i
-                      class="fas fa-pen"></i></button>
-                </div>
-                <hr>
-                <div id="modalCreativeSiteLinks" class="small text-muted">Belum ada tautan situs ditambahkan.</div>
-              </div>
-              <div class="border rounded p-3">
-                <div class="d-flex justify-content-between align-items-start">
-                  <div>
-                    <div class="font-weight-bold">Sorotan situs web <span class="badge badge-secondary">Nonaktif</span>
-                    </div>
-                    <div class="text-muted small">Gunakan cerita menarik dan teks dari situs web Anda untuk membantu
-                      orang memahami bisnis dan produk Anda dengan lebih baik.</div>
-                  </div><button type="button" class="btn btn-link btn-sm p-0" id="btnToggleWebsiteHighlights"><i
-                      class="fas fa-angle-down"></i></button>
-                </div>
-                <div id="modalWebsiteHighlightsWrap" class="mt-3" style="display:none;">
-                  <div class="custom-control custom-switch mb-3"><input type="checkbox" class="custom-control-input"
-                      id="modal_enable_website_highlights"><label class="custom-control-label"
-                      for="modal_enable_website_highlights">Terapkan sorotan situs web</label></div>
-                  <div class="border rounded text-center text-muted py-5">Pratinjau sorotan situs web akan muncul di
-                    sini.</div>
-                </div>
-              </div>
+          <div class="tm-ie-section-head"><span>Pesan teks</span><i class="fas fa-caret-down"></i></div>
+          <div class="tm-ie-editor-block"><textarea id="modal_ie_title" class="form-control"
+              rows="2">Give People a Reason to Buy</textarea></div>
+          <div class="tm-ie-section-head"><span>Pesan teks</span><i class="fas fa-caret-down"></i></div>
+          <div class="tm-ie-editor-block"><textarea id="modal_ie_body" class="form-control"
+              rows="3">Use this space to introduce your products or services and encourage people to explore and shop.</textarea>
+          </div>
+          <div class="tm-ie-section-head"><span>Paket</span><i class="fas fa-caret-down"></i></div>
+          <div class="tm-ie-editor-block">
+            <div class="text-muted">Tampilkan 4-8 produk agar orang bisa menelusuri dan berbelanja. Unggah gambar dan
+              tambahkan judul, deskripsi, dan URL destinasi untuk setiap produk.</div>
+            <div class="tm-ie-package-tabs"><span class="active">1</span><span>2</span><span>3</span><span>4</span><button
+                type="button"><i class="fas fa-plus"></i></button></div>
+          </div>
+        </div>
+        <div class="tm-ie-preview">
+          <div class="tm-ie-tabs"><span class="active">Facebook</span><span>Instagram</span></div>
+          <div class="tm-ie-phone">
+            <div class="tm-ie-preview-hero"></div>
+            <div class="tm-ie-preview-copy">
+              <div class="tm-ie-preview-title" id="modalIePreviewTitle">Give People a Reason to Buy</div>
+              <div class="tm-ie-preview-desc" id="modalIePreviewBody">Use this space to introduce your products or
+                services and encourage people to explore and shop.</div>
             </div>
-            <div class="creative-tab-pane" data-creative-pane="media" style="display:none;">
-              <div class="font-weight-bold mb-2">Media</div>
-              <div class="text-muted small mb-3">Pilih gambar atau video dari dalam modal ini.</div>
-              <div class="d-flex flex-wrap mb-3"><button type="button" class="btn btn-outline-secondary mr-2 mb-2"
-                  id="btnCreativePickImage">Tambahkan gambar</button><button type="button"
-                  class="btn btn-outline-secondary mb-2" id="btnCreativePickVideo">Tambahkan video</button></div>
-              <div id="modalCreativeMediaSummary" class="alert alert-light border mb-0">Belum ada media dipilih.</div>
-            </div>
-            <div class="creative-tab-pane" data-creative-pane="text" style="display:none;">
-              <div class="font-weight-bold mb-2">Teks</div>
-              <div class="form-group"><label>Teks utama tambahan</label><textarea id="modal_primary_text_option_2"
-                  class="form-control mb-2" rows="3" placeholder="Opsi teks 2"></textarea><textarea
-                  id="modal_primary_text_option_3" class="form-control" rows="3" placeholder="Opsi teks 3"></textarea>
-              </div>
-            </div>
-            <div class="creative-tab-pane" data-creative-pane="polish" style="display:none;">
-              <div class="font-weight-bold mb-2">Penyempurnaan</div>
-              <div class="text-muted small">Bagian ini disiapkan untuk optimasi materi berikutnya.</div>
-            </div>
+            <div class="tm-ie-preview-hero" style="background:linear-gradient(135deg,#f8fafc,#111827);"></div>
           </div>
         </div>
       </div>
-      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary"
-          data-dismiss="modal">Batal</button><button type="button" class="btn btn-primary"
-          id="btnApplyCreativeSetup">Simpan</button></div>
+      <div class="tm-ie-builder-body" id="tmIeCustomBuilder" style="display:none;">
+        <div class="tm-ie-builder-left">
+          <div class="tm-ie-custom-toolbar"><span><i class="fas fa-plus-circle text-primary mr-2"></i>Komponen</span>
+            <span class="ml-auto"><i class="fas fa-folder mr-1"></i>Simpan</span><span class="text-muted"><i
+                class="fas fa-check-square mr-1"></i>Selesai</span><span><i class="fas fa-question-circle mr-1"></i>Bantuan</span>
+          </div>
+          <div class="tm-ie-custom-title">Instant Experience Tanpa Judul</div>
+          <div class="tm-ie-section-head"><span>Pengaturan</span><i class="fas fa-caret-right"></i></div>
+          <button type="button" class="btn btn-link btn-block tm-ie-add-component" id="btnIeAddComponent">+ Tambahkan
+            Komponen</button>
+        </div>
+        <div class="tm-ie-preview">
+          <div class="tm-ie-tabs"><span class="active">Facebook</span><span>Instagram</span></div>
+          <div class="tm-ie-phone tm-ie-empty-preview">
+            <div><div style="font-size:72px;color:#687fc2;"><i class="fas fa-map-marker-alt"></i></div>
+              <div class="font-weight-bold mt-3 mb-2">Selamat Datang di Instant Experience</div>
+              <div>Gunakan tombol Tambahkan Komponen untuk memulai.</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-primary" id="btnSaveInstantExperience">Selesai</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade tm-creative-modal" id="modalCreativeSetup" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-xl" role="document">
+    <div class="modal-content">
+      <div class="modal-header py-2"><h5 class="modal-title">Siapkan materi iklan Anda</h5><button type="button" class="close" data-dismiss="modal"><span>&times;</span></button></div>
+      <div class="modal-body tm-creative-modal-body">
+        <div class="tm-creative-sidebar">
+          <div class="tm-creative-side-title">Siapkan materi iklan Anda</div>
+          <button type="button" class="tm-creative-step active" data-creative-tab="setup"><span class="tm-creative-step-dot"></span>Penyiapan materi ...</button>
+          <button type="button" class="tm-creative-step" data-creative-tab="media"><span class="tm-creative-step-dot"></span>Media</button>
+          <button type="button" class="tm-creative-step" data-creative-tab="crop"><span class="tm-creative-step-dot"></span>Pangkas</button>
+          <button type="button" class="tm-creative-step" data-creative-tab="text"><span class="tm-creative-step-dot"></span>Teks</button>
+          <button type="button" class="tm-creative-step" data-creative-tab="image"><span class="tm-creative-step-dot"></span>Pembuatan gambar</button>
+          <button type="button" class="tm-creative-step" data-creative-tab="enhance"><span class="tm-creative-step-dot"></span>Penyempurnaan</button>
+          <button type="button" class="tm-creative-step" data-creative-tab="translate"><span class="tm-creative-step-dot"></span>Terjemahan</button>
+        </div>
+        <div class="tm-creative-workspace">
+          <div class="tm-creative-pane active" data-creative-pane="setup">
+            <div class="tm-creative-pane-head"><div class="tm-creative-pane-title">Penyiapan materi iklan</div><div class="small">Tinjau dan kelola informasi yang kami temukan di sumber iklan Anda dan kami akan menggunakannya yang dalam penyempurnaan yang Anda pilih.</div></div>
+            <div class="form-group"><label>URL sumber</label><input id="modalCreativeSourceUrl" class="form-control" placeholder="Masukkan URL yang dikunjungi orang setelah iklan Anda"></div>
+            <div class="font-weight-bold mb-2">Ekstensi</div>
+            <div class="tm-creative-section"><div class="d-flex justify-content-between align-items-start"><div><strong>Branding</strong> <i class="fas fa-info-circle text-muted"></i> <span class="badge badge-secondary ml-2" id="tmBrandingState">Nonaktif</span><div class="small mt-2">Tetapkan default merek untuk iklan ini dan iklan berikutnya.</div></div><button type="button" class="btn btn-link p-0" id="btnEditCreativeBranding"><i class="fas fa-pen"></i></button></div><div class="tm-creative-brand-summary mt-3"><span>Logo: <i class="fas fa-upload"></i></span><span>Font: Belum dipilih</span><span>Warna: Belum dipilih</span><span>Nada teks: Belum dipilih</span><span>Gaya visual: Belum dipilih</span><i class="fas fa-pen"></i></div>
+              <div class="tm-creative-brand-form" id="tmCreativeBrandingForm"><div class="row"><div class="col-md-6"><label><input type="checkbox" id="tmApplyBranding"> Terapkan branding ini</label><div class="font-weight-bold mt-3">Logo <i class="fas fa-info-circle text-muted"></i></div><div class="d-flex mt-2 mb-3"><div class="border rounded p-2 mr-2 text-center" style="width:64px;height:64px;">LOGO</div><button type="button" class="btn btn-light border" style="width:64px;height:64px;">+</button></div><div class="font-weight-bold">Font <i class="fas fa-info-circle text-muted"></i></div><select id="tmBrandFont" class="form-control no-select2 mb-3"><option>Tidak ada preferensi</option><option>Sans modern</option><option>Serif elegan</option></select><div class="font-weight-bold">Warna <i class="fas fa-info-circle text-muted"></i></div><div class="tm-creative-color-pills mt-2"><span>+</span><span>+</span><span>+</span></div></div><div class="col-md-6"><label>Nada teks <i class="fas fa-info-circle text-muted"></i></label><textarea id="tmBrandTone" class="form-control mb-3" rows="4" maxlength="300" placeholder="Deskripsikan nada, seperti hangat, informatif, dan komunikatif"></textarea><label>Gaya visual <i class="fas fa-info-circle text-muted"></i></label><textarea id="tmBrandVisual" class="form-control mb-3" rows="4" maxlength="300" placeholder="Deskripsikan gaya visual Anda, seperti penuh warna dan alami"></textarea><label>Kata yang dibatasi <i class="fas fa-info-circle text-muted"></i></label><input id="tmBrandBlockedWords" class="form-control" placeholder="Masukkan kata dan frasa yang dibatasi"></div></div></div>
+            </div>
+            <div class="tm-creative-section"><div class="d-flex justify-content-between align-items-start"><div><strong>Tautan situs</strong> <i class="fas fa-info-circle text-muted"></i> <span class="badge badge-secondary ml-2" id="tmSiteLinksState">Nonaktif</span><div class="small mt-2">Berpotensi membantu meningkatkan konversi dengan menyediakan lebih banyak cara bagi orang untuk mempelajari dan membeli.</div></div><button type="button" class="btn btn-outline-secondary btn-sm">Kelola tautan situs</button></div><div class="mt-3 p-3" style="background:#eef7ff;"><label><input type="checkbox" id="tmEnableSiteLinks"> Aktifkan tautan situs</label><div class="form-row mt-3"><div class="col-md-5"><label>URL</label><input id="tmSiteLinkUrl" class="form-control" placeholder="http://www.example.com/page"></div><div class="col-md-4"><label>Label tampilan</label><input id="tmSiteLinkLabel" class="form-control" placeholder="Tulis label untuk tautan Anda"></div><div class="col-md-2"><label>Gambar mini</label><button type="button" class="btn btn-light border btn-block"><i class="fas fa-upload"></i></button></div><div class="col-md-1 d-flex align-items-end"><button type="button" class="btn btn-light border">+</button></div></div><label class="small mt-3"><input type="checkbox"> Identifikasi dan tambahkan tautan situs yang relevan saat iklan Anda dijalankan</label></div></div>
+          </div>
+          <div class="tm-creative-pane" data-creative-pane="media"><div class="tm-creative-pane-head"><div class="tm-creative-pane-title">Media</div><div class="small">Pilih atau unggah media yang Anda inginkan untuk digunakan pada iklan Anda.</div></div><div class="tm-media-toolbar"><button class="tm-media-filter active">Semua</button><button class="tm-media-filter">Akun</button><button class="tm-media-filter">Bisnis</button><button class="tm-media-filter">Instagram</button><button class="tm-media-filter">Halaman</button><input class="form-control ml-2" placeholder="Cari media"><button type="button" class="btn btn-outline-secondary" id="btnCreativePickImage"><i class="fas fa-upload mr-1"></i>Unggah</button></div><div class="tm-media-grid-section"><div class="tm-media-row-title"><strong>Gambar Akun</strong><span>Menampilkan 10 gambar pertama <a href="#">Lihat semua</a></span></div><div class="tm-media-grid"><button type="button" class="tm-media-item" data-media-sample="1"><span class="tm-media-img"></span><span class="small">untitled<br>100 • 100</span></button><button type="button" class="tm-media-item" data-media-sample="2"><span class="tm-media-img"></span><span class="small">untitled<br>1125 • 590</span></button><button type="button" class="tm-media-item" data-media-sample="3"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 324</span></button><button type="button" class="tm-media-item" data-media-sample="4"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 1024</span></button><button type="button" class="tm-media-item" data-media-sample="5"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 576</span></button><button type="button" class="tm-media-item" data-media-sample="6"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 1920</span></button><button type="button" class="tm-media-item" data-media-sample="7"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 608</span></button><button type="button" class="tm-media-item" data-media-sample="8"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 1920</span></button><button type="button" class="tm-media-item" data-media-sample="9"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 1024</span></button><button type="button" class="tm-media-item" data-media-sample="10"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 1920</span></button></div><div class="tm-media-row-title"><strong>Gambar Instagram</strong><span>Menampilkan 10 gambar pertama <a href="#">Lihat semua</a></span></div><div class="tm-media-grid"><button type="button" class="tm-media-item" data-media-sample="1"><span class="tm-media-img"></span><span class="small">untitled<br>100 • 100</span></button><button type="button" class="tm-media-item" data-media-sample="2"><span class="tm-media-img"></span><span class="small">untitled<br>1125 • 590</span></button><button type="button" class="tm-media-item" data-media-sample="3"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 324</span></button><button type="button" class="tm-media-item" data-media-sample="4"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 1024</span></button><button type="button" class="tm-media-item" data-media-sample="5"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 576</span></button><button type="button" class="tm-media-item" data-media-sample="6"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 1920</span></button><button type="button" class="tm-media-item" data-media-sample="7"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 608</span></button><button type="button" class="tm-media-item" data-media-sample="8"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 1920</span></button><button type="button" class="tm-media-item" data-media-sample="9"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 1024</span></button><button type="button" class="tm-media-item" data-media-sample="10"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 1920</span></button></div><div class="tm-media-row-title"><strong>Berita 21</strong><span>Menampilkan 10 gambar pertama <a href="#">Lihat semua</a></span></div><div class="tm-media-grid"><button type="button" class="tm-media-item" data-media-sample="1"><span class="tm-media-img"></span><span class="small">untitled<br>100 • 100</span></button><button type="button" class="tm-media-item" data-media-sample="2"><span class="tm-media-img"></span><span class="small">untitled<br>1125 • 590</span></button><button type="button" class="tm-media-item" data-media-sample="3"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 324</span></button><button type="button" class="tm-media-item" data-media-sample="4"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 1024</span></button><button type="button" class="tm-media-item" data-media-sample="5"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 576</span></button><button type="button" class="tm-media-item" data-media-sample="6"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 1920</span></button><button type="button" class="tm-media-item" data-media-sample="7"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 608</span></button><button type="button" class="tm-media-item" data-media-sample="8"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 1920</span></button><button type="button" class="tm-media-item" data-media-sample="9"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 1024</span></button><button type="button" class="tm-media-item" data-media-sample="10"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 1920</span></button></div></div></div>
+          <div class="tm-creative-pane" data-creative-pane="crop"><div class="tm-creative-pane-head"><div class="tm-creative-pane-title">Pilih potongan media untuk penempatan</div><div class="small">Kami mengevaluasi gambar Anda dan memotongnya untuk mengisi penempatan jika kinerjanya lebih baik.</div></div><div class="tm-crop-grid"><div class="tm-crop-card"><strong>Persegi</strong><label class="d-block mt-2"><input type="radio"> Asli</label><label><input type="radio" checked> 1:1 (Direkomendasikan)</label><div class="tm-crop-box" id="tmCropSquare"></div><button class="btn btn-light border btn-sm">Pangkas</button> <button class="btn btn-light border btn-sm">Ganti</button></div><div class="tm-crop-card"><strong>Vertikal</strong><label class="d-block mt-2"><input type="radio" checked> Asli</label><label><input type="radio"> 9:16</label><div class="tm-crop-box vertical" id="tmCropVertical"></div><button class="btn btn-light border btn-sm">Pangkas</button> <button class="btn btn-light border btn-sm">Ganti</button></div><div class="tm-crop-card"><strong>Horizontal</strong><label class="d-block mt-2"><input type="radio"> Asli</label><label><input type="radio" checked> 1.91:1 (Direkomendasikan)</label><div class="tm-crop-box horizontal" id="tmCropHorizontal"></div><button class="btn btn-light border btn-sm">Pangkas</button> <button class="btn btn-light border btn-sm">Ganti</button></div></div></div>
+          <div class="tm-creative-pane" data-creative-pane="text"><div class="tm-creative-pane-head"><div class="tm-creative-pane-title">Teks</div><div class="small">Tambahkan beberapa opsi teks dan kami akan menampilkan opsi yang kami prediksi akan berkinerja paling baik.</div></div><div class="tm-creative-text-form"><label>Teks utama <i class="fas fa-info-circle text-muted"></i></label><input id="modal_primary_text" class="form-control" placeholder="Beri tahu orang-orang tentang apa iklan Anda"><label>Judul <i class="fas fa-info-circle text-muted"></i></label><input id="modal_headline" class="form-control" placeholder="Tulis judul yang singkat"><label>Deskripsi <i class="fas fa-info-circle text-muted"></i></label><textarea id="modal_description" class="form-control" rows="3" placeholder="Masukkan detail tambahan"></textarea><label>Ajakan bertindak <i class="fas fa-info-circle text-muted"></i></label><select id="modal_cta_proxy" class="form-control no-select2"><option value="GET_OFFER">Dapatkan promosi</option><option value="GET_SHOWTIMES">Dapatkan Waktu Pertunjukan</option><option value="LEARN_MORE" selected>Lihat Detail</option><option value="LEARN_MORE">Pelajari selengkapnya</option><option value="LISTEN_NOW">Dengarkan Sekarang</option><option value="ORDER_NOW">Pesan sekarang</option><option value="GET_ACCESS">Dapatkan akses</option><option value="REQUEST_TIME">Minta Waktu</option><option value="SHOP_NOW">Belanja Sekarang</option><option value="SIGN_UP">Daftar</option><option value="CONTACT_US">Hubungi Kami</option><option value="APPLY_NOW">Lamar Sekarang</option><option value="BOOK_NOW">Pesan Sekarang</option><option value="DOWNLOAD">Unduh</option><option value="GET_QUOTE">Minta Penawaran</option><option value="INSTALL_APP">Instal Aplikasi</option><option value="SEE_MENU">Lihat Menu</option><option value="SEND_MESSAGE">Kirim Pesan</option><option value="SUBSCRIBE">Berlangganan</option><option value="WATCH_MORE">Tonton Selengkapnya</option><option value="WHATSAPP_MESSAGE">WhatsApp</option></select></div></div>
+          <div class="tm-creative-pane" data-creative-pane="image"><div class="tm-creative-pane-head"><div class="tm-creative-pane-title">Pembuatan gambar materi iklan Advantage+ <span class="badge badge-light">AI</span></div><div class="small">Kampanye dengan gambar yang dibuat AI dapat memperoleh peningkatan performa.</div></div><button type="button" class="btn btn-light border mb-3"><i class="fas fa-sync mr-1"></i>Buat gambar baru</button><label class="float-right"><input type="checkbox"> Pilih semua</label><div class="tm-ai-grid"><button type="button" class="tm-ai-card" data-ai-sample="1"></button><button type="button" class="tm-ai-card" data-ai-sample="2"></button><button type="button" class="tm-ai-card" data-ai-sample="3"></button><button type="button" class="tm-ai-card" data-ai-sample="4"></button><button type="button" class="tm-ai-card" data-ai-sample="5"></button><button type="button" class="tm-ai-card" data-ai-sample="6"></button><button type="button" class="tm-ai-card" data-ai-sample="7"></button><button type="button" class="tm-ai-card" data-ai-sample="8"></button><button type="button" class="tm-ai-card" data-ai-sample="9"></button><button type="button" class="tm-ai-card" data-ai-sample="10"></button><button type="button" class="tm-ai-card" data-ai-sample="11"></button><button type="button" class="tm-ai-card" data-ai-sample="12"></button><button type="button" class="tm-ai-card" data-ai-sample="13"></button><button type="button" class="tm-ai-card" data-ai-sample="14"></button><button type="button" class="tm-ai-card" data-ai-sample="15"></button></div><div class="mt-3"><span id="tmAiSelectedCount">0</span> dipilih · Media dari AI</div></div>
+          <div class="tm-creative-pane" data-creative-pane="enhance"><div class="tm-creative-pane-head"><div class="tm-creative-pane-title">Penyempurnaan materi iklan Advantage+</div><div class="small">Tinjau preview langsung untuk peningkatan visual, musik, animasi, media flex, overlay, dan teks.</div></div><div class="tm-enhance-grid"><div class="tm-enhance-card"><div class="tm-enhance-switch"><span>Peningkatan visual <i class="fas fa-info-circle text-muted"></i></span><input type="checkbox" class="tm-enhance-toggle" checked></div><div class="small"><span class="badge badge-light">AI</span> Diaktifkan secara Default</div><div class="tm-enhance-preview">Preview</div><div class="small text-muted">Contoh 1 dari 2</div><button class="btn btn-light border btn-block btn-sm mt-2">Sesuaikan</button></div><div class="tm-enhance-card"><div class="tm-enhance-switch"><span>Tambahkan musik <i class="fas fa-info-circle text-muted"></i></span><input type="checkbox" class="tm-enhance-toggle" checked></div><div class="small"><span class="badge badge-light">AI</span> Diaktifkan secara Default</div><div class="tm-enhance-preview">Preview</div><div class="small text-muted">Contoh 2 dari 2</div><button class="btn btn-light border btn-block btn-sm mt-2">Sesuaikan</button></div><div class="tm-enhance-card"><div class="tm-enhance-switch"><span>Tambahkan animasi <i class="fas fa-info-circle text-muted"></i></span><input type="checkbox" class="tm-enhance-toggle" checked></div><div class="small"><span class="badge badge-light">AI</span> Diaktifkan secara Default</div><div class="tm-enhance-preview">Preview</div><div class="small text-muted">Contoh 3 dari 2</div><button class="btn btn-light border btn-block btn-sm mt-2">Sesuaikan</button></div><div class="tm-enhance-card"><div class="tm-enhance-switch"><span>Media flex <i class="fas fa-info-circle text-muted"></i></span><input type="checkbox" class="tm-enhance-toggle" checked></div><div class="small"><span class="badge badge-light">AI</span> Diaktifkan secara Default</div><div class="tm-enhance-preview">Preview</div><div class="small text-muted">Contoh 4 dari 2</div><button class="btn btn-light border btn-block btn-sm mt-2">Sesuaikan</button></div><div class="tm-enhance-card"><div class="tm-enhance-switch"><span>Tambahkan overlay <i class="fas fa-info-circle text-muted"></i></span><input type="checkbox" class="tm-enhance-toggle" checked></div><div class="small"><span class="badge badge-light">AI</span> Diaktifkan secara Default</div><div class="tm-enhance-preview">Preview</div><div class="small text-muted">Contoh 5 dari 2</div><button class="btn btn-light border btn-block btn-sm mt-2">Sesuaikan</button></div><div class="tm-enhance-card"><div class="tm-enhance-switch"><span>Penyempurnaan teks <i class="fas fa-info-circle text-muted"></i></span><input type="checkbox" class="tm-enhance-toggle" checked></div><div class="small"><span class="badge badge-light">AI</span> Diaktifkan secara Default</div><div class="tm-enhance-preview">Preview</div><div class="small text-muted">Contoh 6 dari 2</div><button class="btn btn-light border btn-block btn-sm mt-2">Sesuaikan</button></div></div><div class="tm-live-preview-shell"><div class="tm-live-preview-tabs"><button type="button" data-preview-placement-name="Beranda Facebook" class="active">Beranda Facebook</button><button type="button" data-preview-placement-name="Instagram Stories" class="">Instagram Stories</button><button type="button" data-preview-placement-name="Facebook Stories" class="">Facebook Stories</button><button type="button" data-preview-placement-name="Facebook Marketplace" class="">Facebook Marketplace</button><button type="button" data-preview-placement-name="Facebook Reels" class="">Facebook Reels</button><button type="button" data-preview-placement-name="Status WhatsApp" class="">Status WhatsApp</button><button type="button" data-preview-placement-name="Iklan di Facebook Reels" class="">Iklan di Facebook Reels</button><button type="button" data-preview-placement-name="Kabar profil Facebook" class="">Kabar profil Facebook</button><button type="button" data-preview-placement-name="Reel in-stream Facebook" class="">Reel in-stream Facebook</button><button type="button" data-preview-placement-name="Hasil pencarian Facebook" class="">Hasil pencarian Facebook</button></div><div class="tm-live-preview-frame"><div class="tm-live-preview-media" id="tmLivePreviewMedia"></div><div class="tm-live-preview-copy"><div class="small text-muted" id="tmLivePlacementLabel">Beranda Facebook</div><div id="tmLivePrimary">-</div><strong id="tmLiveHeadline">Lihat Detail</strong><div id="tmLiveDescription" class="small text-muted">-</div><button type="button" class="btn btn-primary btn-sm mt-2" id="tmLiveCta">Lihat Detail</button></div></div></div></div>
+          <div class="tm-creative-pane" data-creative-pane="translate"><div class="tm-creative-pane-head"><div class="tm-creative-pane-title">Terjemahan</div><div class="small">Terjemahan otomatis dapat ditambahkan nanti.</div></div><div class="tm-creative-section text-muted">Belum ada bahasa tambahan. Kosongkan bila iklan dapat tampil ke semua bahasa.</div></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" id="btnCreativeWizardPrev">Batal</button><button type="button" class="btn btn-primary" id="btnCreativeWizardNext">Berikutnya</button><button type="button" class="btn btn-success" id="btnApplyCreativeSetup" style="display:none;">Selesai</button></div>
     </div>
   </div>
 </div>
@@ -8324,7 +10076,8 @@
       const websiteUrl = String($('#modal_website_url').val() || '').trim();
       const cta = String($('#modal_cta option:selected').text() || 'Pelajari Selengkapnya').trim() || 'Pelajari Selengkapnya';
       const displayLink = String($('#modal_display_link').val() || '').trim();
-      const browserAddon = String($('input[name="modal_browser_addon"]:checked').closest('label').contents().filter(function () { return this.nodeType === 3; }).text() || 'Tidak Ada').trim() || 'Tidak Ada';
+      const browserAddonMap = { none: 'Tidak Ada', phone: 'Telepon', whatsapp: 'WhatsApp', form: 'Formulir instan' };
+      const browserAddon = browserAddonMap[String($('input[name="modal_browser_addon"]:checked').val() || 'none')] || 'Tidak Ada';
       const mediaState = String($('#modal_media_state').text() || 'Media belum dipilih.').trim() || 'Media belum dipilih.';
       const mediaFiles = String($('#modal_media_files').text() || '').trim();
       const primaryText = String($('#modal_primary_text').val() || '').trim();
@@ -9026,17 +10779,42 @@
       const accountId = String($('#modal_account').val() || '').trim(), campaignId = String($('#modal_campaign_id').val() || '').trim();
       if (!accountId || !campaignId) { alert('Buat campaign dulu pada Step 1.'); return; }
       syncBidAmountField();
+      normalizeBidInputsForSubmit(true);
       const fd = buildAdsetPayload(new FormData());
-      const draft = { saved_at: new Date().toISOString() };
-      fd.forEach(function (v, k) { draft[k] = v; });
-      draft.account_id = accountId; draft.campaign_id = campaignId; draft.is_local_draft = '1';
-      $('#modal_create_result').removeClass('text-danger text-success').addClass('text-muted').text('Menyimpan draft Set Iklan...');
-      try {
-        localStorage.setItem(getAdsetDraftKey(), JSON.stringify(draft));
-        $('#modal_create_result').removeClass('text-muted text-danger').addClass('text-success').text('Draft Set Iklan berhasil disimpan. Lanjutkan ke Step 3 kapan saja.');
-      } catch (e) {
-        $('#modal_create_result').removeClass('text-muted text-success').addClass('text-danger').text('Draft Set Iklan gagal disimpan di browser.');
-      }
+      fd.append('account_id', accountId);
+      fd.append('campaign_id', campaignId);
+      fd.append('save_adset_only', '1');
+      $('#modal_create_result').removeClass('text-danger text-success').addClass('text-muted').text('Menyimpan Set Iklan ke Meta...');
+      $.ajax({
+        url: '/management/admin/create_adset_ad_per_account',
+        method: 'POST',
+        data: fd,
+        headers: { 'X-CSRFToken': csrfToken },
+        processData: false,
+        contentType: false,
+        dataType: 'json',
+        success: function (res) {
+          if (res && res.success) {
+            $('#modal_adset_id').val(String(res.adset_id || ''));
+            try { localStorage.removeItem(getAdsetDraftKey()); } catch (e) { }
+            $('#modal_create_result').removeClass('text-muted text-danger').addClass('text-success').text('Set Iklan berhasil disimpan ke Meta. AdSet ID: ' + String(res.adset_id || '-'));
+            updateStepProgress();
+            syncTrafficManualShell();
+            loadCampaignMeta();
+          } else {
+            const step = (res && res.step) ? (' [step: ' + res.step + ']') : '';
+            $('#modal_create_result').removeClass('text-muted text-success').addClass('text-danger').text(((res && res.message) ? res.message : 'Gagal menyimpan Set Iklan') + step);
+          }
+        },
+        error: function (xhr) {
+          let msg = 'Terjadi kesalahan saat menyimpan Set Iklan';
+          try {
+            const res = JSON.parse(xhr.responseText || '{}');
+            if (res && res.message) msg = res.message;
+          } catch (e) { }
+          $('#modal_create_result').removeClass('text-muted text-success').addClass('text-danger').text(msg);
+        }
+      });
     }
     function builderCreateAdsetAd() {
       const accountId = String($('#modal_account').val() || '').trim();
@@ -9051,18 +10829,22 @@
       const forceNewAdset = normalizedBidStrategy === 'LOWEST_COST_WITHOUT_CAP' && !bidAmount;
 
       const pageId = String($('#modal_page_id').val() || '').trim();
-      const websiteUrl = String($('#modal_website_url').val() || '').trim();
+      const destinationMode = String($('input[name="modal_destination_mode"]:checked').val() || 'website').trim();
+      let websiteUrl = String($('#modal_website_url').val() || '').trim();
+      if (destinationMode === 'instant' && !websiteUrl) websiteUrl = String($('#modal_ie_destination_url').val() || '').trim() || (pageId ? ('https://www.facebook.com/' + pageId) : '');
+      if (destinationMode === 'event' && !websiteUrl) websiteUrl = String($('#modal_facebook_event_url').val() || '').trim();
+      if (destinationMode === 'call' && !websiteUrl) websiteUrl = 'https://www.facebook.com/';
       if (!pageId || !websiteUrl) {
         setWizardStep(3);
         $('#modal_create_result').removeClass('text-muted text-success').addClass('text-danger')
-          .text('Lengkapi Step 3 terlebih dahulu: Page ID dan Website URL wajib diisi sebelum publish.');
+          .text('Lengkapi Step 3 terlebih dahulu: Page ID dan destinasi iklan wajib diisi sebelum publish.');
         return;
       }
 
       const fd = buildAdsetPayload(new FormData(), { forceNewAdset: forceNewAdset });
       if (forceNewAdset) fd.append('force_new_adset', '1');
       fd.append('account_id', accountId); fd.append('campaign_id', campaignId); fd.append('ad_name', String($('#modal_ad_name').val() || ''));
-      fd.append('page_id', pageId); fd.append('website_url', websiteUrl); fd.append('primary_text', String($('#modal_primary_text').val() || '')); fd.append('headline', String($('#modal_headline').val() || '')); fd.append('cta_type', String($('#modal_cta').val() || 'LEARN_MORE')); fd.append('use_existing_post', String($('#modal_use_existing_post').val() || '0')); fd.append('existing_post_id', String($('#modal_existing_post_id').val() || '')); fd.append('description', String($('#modal_description').val() || '')); fd.append('display_link', String($('#modal_display_link').val() || '')); fd.append('caption', String($('#modal_caption').val() || '')); fd.append('url_tags', String($('#modal_url_tags').val() || '')); fd.append('pixel_id', String($('#modal_pixel_id').val() || '')); fd.append('instagram_actor_id', String($('#modal_instagram_actor_id').val() || '')); fd.append('threads_user_id', String($('#modal_threads_user_id').val() || ''));
+      fd.append('page_id', pageId); fd.append('website_url', websiteUrl); fd.append('destination_mode', destinationMode); fd.append('instant_experience_id', String($('#modal_instant_experience_id').val() || '')); fd.append('instant_experience_template', String($('#modal_instant_experience_template').val() || '')); fd.append('instant_experience_payload', String($('#modal_instant_experience_payload').val() || '')); fd.append('facebook_event_url', String($('#modal_facebook_event_url').val() || '')); fd.append('call_country_code', String($('#modal_call_country_code').val() || '+62')); fd.append('call_phone_number', String($('#modal_call_phone_number').val() || '')); fd.append('primary_text', String($('#modal_primary_text').val() || '')); fd.append('headline', String($('#modal_headline').val() || '')); fd.append('cta_type', String($('#modal_cta').val() || 'LEARN_MORE')); fd.append('use_existing_post', String($('#modal_use_existing_post').val() || '0')); fd.append('existing_post_id', String($('#modal_existing_post_id').val() || '')); fd.append('description', String($('#modal_description').val() || '')); fd.append('display_link', String($('#modal_display_link').val() || '')); fd.append('caption', String($('#modal_caption').val() || '')); fd.append('url_tags', String($('#modal_url_tags').val() || '')); fd.append('pixel_id', String($('#modal_pixel_id').val() || '')); fd.append('instagram_actor_id', String($('#modal_instagram_actor_id').val() || '')); fd.append('threads_user_id', String($('#modal_threads_user_id').val() || ''));
       const imageFile = ($('#modal_image_file')[0] && $('#modal_image_file')[0].files && $('#modal_image_file')[0].files[0]) ? $('#modal_image_file')[0].files[0] : null;
       const videoFile = ($('#modal_video_file')[0] && $('#modal_video_file')[0].files && $('#modal_video_file')[0].files[0]) ? $('#modal_video_file')[0].files[0] : null;
       if (imageFile) fd.append('image_file', imageFile);

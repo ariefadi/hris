@@ -3871,6 +3871,7 @@ class CreateCampaignMetaListView(View):
         keyword = str(req.GET.get('keyword') or '').strip().lower()
         tanggal_dari = str(req.GET.get('tanggal_dari') or '').strip() or datetime.now().strftime('%Y-%m-%d')
         tanggal_sampai = str(req.GET.get('tanggal_sampai') or '').strip() or tanggal_dari
+        ignore_date = str(req.GET.get('ignore_date') or '0').strip() == '1'
         if tanggal_dari > tanggal_sampai:
             tanggal_dari, tanggal_sampai = tanggal_sampai, tanggal_dari
         if not selected:
@@ -3894,7 +3895,8 @@ class CreateCampaignMetaListView(View):
             for item in ((body or {}).get('data') or []):
                 name = str((item or {}).get('name') or '').strip(); created_at = str((item or {}).get('created_time') or '').strip(); updated_at = str((item or {}).get('updated_time') or '').strip()
                 created_date = created_at[:10] if len(created_at) >= 10 else ''; updated_date = updated_at[:10] if len(updated_at) >= 10 else ''
-                if not (((created_date and tanggal_dari <= created_date <= tanggal_sampai) or (updated_date and tanggal_dari <= updated_date <= tanggal_sampai)) and (not keyword or keyword in name.lower())):
+                date_match = ignore_date or ((created_date and tanggal_dari <= created_date <= tanggal_sampai) or (updated_date and tanggal_dari <= updated_date <= tanggal_sampai))
+                if not (date_match and (not keyword or keyword in name.lower())):
                     continue
                 rows.append({'account_id': str((acc or {}).get('account_id') or '').strip(), 'account_name': str((acc or {}).get('account_name') or '').strip(), 'campaign_id': str((item or {}).get('id') or '').strip(), 'campaign_name': name, 'status': str((item or {}).get('status') or '').strip(), 'effective_status': str((item or {}).get('effective_status') or '').strip(), 'objective': str((item or {}).get('objective') or '').strip(), 'buying_type': str((item or {}).get('buying_type') or '').strip(), 'daily_budget': (item or {}).get('daily_budget'), 'lifetime_budget': (item or {}).get('lifetime_budget'), 'created_time': created_at, 'updated_time': updated_at})
         rows.sort(key=lambda x: ((x.get('updated_time') or ''), (x.get('created_time') or '')), reverse=True)
@@ -4784,6 +4786,7 @@ class create_adset_ad_per_account(View):
             end_time = str(req.POST.get('end_time') or '').strip()
             conversion_location = str(req.POST.get('conversion_location') or 'WEBSITE').strip().upper()
             optimization_goal = str(req.POST.get('optimization_goal') or 'LINK_CLICKS').strip().upper()
+            billing_event = str(req.POST.get('billing_event') or 'IMPRESSIONS').strip().upper()
             bid_strategy = str(req.POST.get('bid_strategy') or 'LOWEST_COST_WITHOUT_CAP').strip().upper()
             bid_amount_raw = str(req.POST.get('bid_amount') or '').strip()
             bid_requires_amount = bid_strategy in ('LOWEST_COST_WITH_BID_CAP', 'COST_CAP', 'TARGET_COST')
@@ -4846,7 +4849,7 @@ class create_adset_ad_per_account(View):
             elif force_new_adset:
                 adset_id = ''
 
-            if (not save_adset_only) and (not bid_amount_raw) and existing_campaign_bid_strategy in ('LOWEST_COST_WITH_BID_CAP', 'COST_CAP', 'TARGET_COST'):
+            if (not bid_amount_raw) and existing_campaign_bid_strategy in ('LOWEST_COST_WITH_BID_CAP', 'COST_CAP', 'TARGET_COST'):
                 try:
                     camp_fix_resp = requests.post(
                         f'https://graph.facebook.com/v22.0/{campaign_id}',
@@ -5068,7 +5071,7 @@ class create_adset_ad_per_account(View):
 
             adset_payload = {
                 'name': adset_name,
-                'billing_event': 'IMPRESSIONS',
+                'billing_event': billing_event or 'IMPRESSIONS',
                 'optimization_goal': optimization_goal,
                 'status': status,
                 'targeting': json.dumps(targeting),
