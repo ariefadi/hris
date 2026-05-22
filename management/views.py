@@ -826,55 +826,95 @@ class FacebookLocationSuggestView(View):
         return super().dispatch(request, *args, **kwargs)
 
     def get(self, req):
+        if str(req.GET.get('geocode') or '').strip() == '1':
+            q = str(req.GET.get('q') or '').strip()
+            if not q:
+                return JsonResponse({'lat': None, 'lng': None})
+            try:
+                resp = requests.get('https://nominatim.openstreetmap.org/search', params={
+                    'q': q,
+                    'format': 'json',
+                    'limit': 1,
+                }, headers={'User-Agent': 'HRIS-AdsBuilder/1.0 (location-ui)'}, timeout=10)
+                rows = resp.json() if resp.text else []
+                if rows:
+                    return JsonResponse({'lat': float(rows[0]['lat']), 'lng': float(rows[0]['lon'])})
+            except Exception:
+                pass
+            return JsonResponse({'lat': None, 'lng': None})
+
         q = str(req.GET.get('q') or '').strip()
         selected_account = str(req.GET.get('selected_account') or '').strip()
         location_type = str(req.GET.get('location_type') or 'country').strip().lower()
-        if len(q) < 2 or not selected_account:
+        if len(q) < 1 or not selected_account:
             return JsonResponse({'results': []})
         type_map = {'country': 'country', 'region': 'region', 'city': 'city'}
-        api_loc = type_map.get(location_type, 'country')
+        kind_labels = {
+            'country': 'Negara',
+            'region': 'Provinsi',
+            'city': 'Kota',
+            'subcity': 'Subdistrict',
+            'neighborhood': 'Lingkungan',
+            'zip': 'Kode Pos',
+            'geo_market': 'Market',
+            'electoral_district': 'Distrik',
+        }
+        search_types = ['country', 'region', 'city'] if location_type in ('all', 'any', '') else [type_map.get(location_type, 'country')]
         try:
             rs = data_mysql().master_account_ads_by_id({'data_account': selected_account})
             acc = (rs or {}).get('data') if isinstance(rs, dict) else None
             token = str((acc or {}).get('access_token') or '').strip()
             if not token:
                 return JsonResponse({'results': []})
-            resp = requests.get('https://graph.facebook.com/v22.0/search', params={
-                'type': 'adgeolocation',
-                'q': q,
-                'location_types': json.dumps([api_loc]),
-                'limit': 30,
-                'access_token': token,
-            }, timeout=20)
-            body = resp.json() if resp.text else {}
-            rows = (body or {}).get('data') if isinstance(body, dict) else []
-            results, seen = [], set()
-            for r in (rows or []):
-                key = str((r or {}).get('key') or '').strip()
-                name = str((r or {}).get('name') or '').strip()
-                cc = str((r or {}).get('country_code') or '').strip().upper()
-                region = str((r or {}).get('region') or '').strip()
-                token_val = cc if api_loc == 'country' and cc else key
-                if not token_val:
-                    continue
-                dedup = f'{token_val}|{name}|{cc}|{region}'.lower()
-                if dedup in seen:
-                    continue
-                seen.add(dedup)
-                suffix = f' - {cc}' if cc else ''
-                if region and region.lower() != name.lower():
-                    suffix += f' ({region})'
-                results.append({
-                    'id': token_val,
-                    'token': token_val,
-                    'text': f'{name}{suffix}'.strip(),
-                    'key': key,
-                    'country_code': cc,
-                    'location_type': api_loc,
-                })
-            return JsonResponse({'results': results})
+            results = []
+            seen = set()
+            for api_loc in search_types:
+                resp = requests.get('https://graph.facebook.com/v22.0/search', params={
+                    'type': 'adgeolocation',
+                    'q': q,
+                    'location_types': json.dumps([api_loc]),
+                    'limit': 30,
+                    'access_token': token,
+                }, timeout=20)
+                body = resp.json() if resp.text else {}
+                rows = (body or {}).get('data') if isinstance(body, dict) else []
+                for r in (rows or []):
+                    key = str((r or {}).get('key') or '').strip()
+                    name = str((r or {}).get('name') or '').strip()
+                    cc = str((r or {}).get('country_code') or '').strip().upper()
+                    region = str((r or {}).get('region') or '').strip()
+                    row_type = str((r or {}).get('type') or api_loc).strip().lower()
+                    token_val = cc if api_loc == 'country' and cc else key
+                    if not token_val:
+                        continue
+                    if api_loc != 'country' and len(name) <= 3 and name.upper() == cc:
+                        continue
+                    dedup = f'{token_val}|{name}|{cc}|{region}|{row_type}'.lower()
+                    if dedup in seen:
+                        continue
+                    seen.add(dedup)
+                    parts = [name]
+                    if region and region.lower() != name.lower():
+                        parts.append(region)
+                    if cc:
+                        parts.append(cc)
+                    display = ', '.join(dict.fromkeys([p for p in parts if p]))
+                    kind = kind_labels.get(row_type) or kind_labels.get(api_loc) or 'Lokasi'
+                    results.append({
+                        'id': token_val,
+                        'token': token_val,
+                        'text': display,
+                        'name': name,
+                        'short_name': name.split(',')[0].strip() if name else '',
+                        'kind': kind,
+                        'location_type': row_type if row_type else api_loc,
+                        'country_code': cc,
+                        'region': region,
+                        'key': key or token_val,
+                    })
+            return JsonResponse({'results': results[:60]})
         except Exception:
-            return JsonResponse({'results': results})
+            return JsonResponse({'results': []})
 
 class FacebookLanguageSuggestView(View):
     def dispatch(self, request, *args, **kwargs):
@@ -944,66 +984,65 @@ class FacebookLanguageSuggestView(View):
         except Exception:
             return JsonResponse({'results': _filter_fallback(q)})
 
-class FacebookLocationSuggestView(View):
-    def dispatch(self, request, *args, **kwargs):
-        if 'hris_admin' not in request.session:
-            return redirect('admin_login')
-        return super().dispatch(request, *args, **kwargs)
-
-    def get(self, req):
-        q = str(req.GET.get('q') or '').strip()
-        selected_account = str(req.GET.get('selected_account') or '').strip()
-        location_type = str(req.GET.get('location_type') or 'country').strip().lower()
-        if len(q) < 2 or not selected_account:
-            return JsonResponse({'results': []})
-        type_map = {'country': 'country', 'region': 'region', 'city': 'city'}
-        api_loc = type_map.get(location_type, 'country')
-        try:
-            rs = data_mysql().master_account_ads_by_id({'data_account': selected_account})
-            acc = (rs or {}).get('data') if isinstance(rs, dict) else None
-            token = str((acc or {}).get('access_token') or '').strip()
-            if not token:
-                return JsonResponse({'results': []})
-            resp = requests.get('https://graph.facebook.com/v22.0/search', params={
-                'type': 'adgeolocation',
-                'q': q,
-                'location_types': json.dumps([api_loc]),
-                'limit': 30,
-                'access_token': token,
-            }, timeout=20)
-            body = resp.json() if resp.text else {}
-            rows = (body or {}).get('data') if isinstance(body, dict) else []
-            results = []
-            seen = set()
-            for r in (rows or []):
-                key = str((r or {}).get('key') or '').strip()
-                name = str((r or {}).get('name') or '').strip()
-                cc = str((r or {}).get('country_code') or '').strip().upper()
-                region = str((r or {}).get('region') or '').strip()
-                token_val = cc if api_loc == 'country' and cc else key
-                if not token_val:
-                    continue
-                dedup = f"{token_val}|{name}|{cc}|{region}".lower()
-                if dedup in seen:
-                    continue
-                seen.add(dedup)
-                suffix = f' - {cc}' if cc else ''
-                if region and region.lower() != name.lower():
-                    suffix += f' ({region})'
-                results.append({'id': token_val, 'token': token_val, 'text': f'{name}{suffix}'.strip()})
-            return JsonResponse({'results': results})
-        except Exception:
-            return JsonResponse({'results': []})
-
 class FacebookDetailedTargetingSuggestView(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
             return redirect('admin_login')
         return super().dispatch(request, *args, **kwargs)
 
+    @staticmethod
+    def _fmt_size_num(val):
+        try:
+            return f"{int(val):,}".replace(',', '.')
+        except (TypeError, ValueError):
+            return ''
+
+    @classmethod
+    def _size_label(cls, row):
+        lo = (row or {}).get('audience_size_lower_bound')
+        hi = (row or {}).get('audience_size_upper_bound')
+        single = (row or {}).get('audience_size') or (row or {}).get('coverage')
+        if lo and hi:
+            return f"{cls._fmt_size_num(lo)} - {cls._fmt_size_num(hi)}"
+        if single:
+            return cls._fmt_size_num(single)
+        return ''
+
+    @staticmethod
+    def _category_label(search_type, path, row_type):
+        type_map = {
+            'adinterest': 'Minat',
+            'adeducationschool': 'Pendidikan',
+            'adeducationmajor': 'Pendidikan',
+            'adworkemployer': 'Pekerjaan',
+            'adworkposition': 'Pekerjaan',
+        }
+        class_map = {
+            'interests': 'Minat',
+            'behaviors': 'Perilaku',
+            'demographics': 'Demografi',
+            'life_events': 'Peristiwa Penting',
+            'industries': 'Industri',
+            'income': 'Financial',
+            'family_statuses': 'Orang Tua',
+            'relationship_statuses': 'Hubungan',
+            'education_statuses': 'Pendidikan',
+            'college_years': 'Pendidikan',
+        }
+        if search_type in type_map:
+            return type_map[search_type]
+        rt = str(row_type or '').strip().lower()
+        if rt in class_map:
+            return class_map[rt]
+        path = path or []
+        if path:
+            return str(path[0])
+        return 'Minat'
+
     def get(self, req):
         q = str(req.GET.get('q') or '').strip()
         selected_account = str(req.GET.get('selected_account') or '').strip()
+        search_type = str(req.GET.get('search_type') or 'adinterest').strip()
         if len(q) < 2 or not selected_account:
             return JsonResponse({'results': []})
         try:
@@ -1012,12 +1051,13 @@ class FacebookDetailedTargetingSuggestView(View):
             token = str((acc or {}).get('access_token') or '').strip()
             if not token:
                 return JsonResponse({'results': []})
-            resp = requests.get('https://graph.facebook.com/v22.0/search', params={
-                'type': 'adinterest',
+            params = {
+                'type': search_type,
                 'q': q,
                 'limit': 25,
                 'access_token': token,
-            }, timeout=20)
+            }
+            resp = requests.get('https://graph.facebook.com/v22.0/search', params=params, timeout=20)
             body = resp.json() if resp.text else {}
             rows = (body or {}).get('data') if isinstance(body, dict) else []
             results = []
@@ -1025,16 +1065,203 @@ class FacebookDetailedTargetingSuggestView(View):
             for r in (rows or []):
                 rid = str((r or {}).get('id') or '').strip()
                 name = str((r or {}).get('name') or '').strip()
-                audience_size = (r or {}).get('audience_size')
                 if not rid or not name:
                     continue
                 key = f"{rid}|{name}".lower()
                 if key in seen:
                     continue
                 seen.add(key)
-                suffix = f" (audience: {audience_size})" if audience_size else ''
-                results.append({'id': rid, 'text': f'{name}{suffix}'})
+                path = (r or {}).get('path') or []
+                category = self._category_label(search_type, path, (r or {}).get('type'))
+                size_label = self._size_label(r)
+                subtext = str((r or {}).get('subtext') or '').strip()
+                display = name + (f" ({subtext})" if subtext else '')
+                results.append({
+                    'id': rid,
+                    'text': display,
+                    'name': name,
+                    'category': category,
+                    'size_label': size_label,
+                    'audience_size_lower': (r or {}).get('audience_size_lower_bound') or (r or {}).get('audience_size') or (r or {}).get('coverage'),
+                    'audience_size_upper': (r or {}).get('audience_size_upper_bound'),
+                    'path': path,
+                    'type': search_type,
+                })
             return JsonResponse({'results': results})
+        except Exception:
+            return JsonResponse({'results': []})
+
+
+class FacebookDetailedTargetingBrowseView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    @staticmethod
+    def _fmt_size_num(val):
+        try:
+            return f"{int(val):,}".replace(',', '.')
+        except (TypeError, ValueError):
+            return ''
+
+    @classmethod
+    def _size_label(cls, row):
+        lo = (row or {}).get('audience_size_lower_bound')
+        hi = (row or {}).get('audience_size_upper_bound')
+        single = (row or {}).get('audience_size')
+        if lo and hi:
+            return f"{cls._fmt_size_num(lo)} - {cls._fmt_size_num(hi)}"
+        if single:
+            return cls._fmt_size_num(single)
+        return ''
+
+    @staticmethod
+    def _category_label(class_name, path, row_type):
+        class_map = {
+            'interests': 'Minat',
+            'behaviors': 'Perilaku',
+            'demographics': 'Demografi',
+            'life_events': 'Peristiwa Penting',
+            'industries': 'Industri',
+            'income': 'Financial',
+            'net_worth': 'Financial',
+            'family_statuses': 'Orang Tua',
+            'moms': 'Orang Tua',
+            'relationship_statuses': 'Hubungan',
+            'interested_in': 'Hubungan',
+            'education_statuses': 'Pendidikan',
+            'college_years': 'Pendidikan',
+        }
+        rt = str(row_type or class_name or '').strip().lower()
+        if rt in class_map:
+            return class_map[rt]
+        path = path or []
+        if path:
+            return str(path[0])
+        return class_map.get(str(class_name or '').lower(), 'Minat')
+
+    def get(self, req):
+        selected_account = str(req.GET.get('selected_account') or '').strip()
+        class_name = str(req.GET.get('class') or '').strip()
+        group_path = str(req.GET.get('group_path') or '').strip()
+        mode = str(req.GET.get('mode') or 'items').strip().lower()
+        if not selected_account or not class_name:
+            return JsonResponse({'results': []})
+        try:
+            rs = data_mysql().master_account_ads_by_id({'data_account': selected_account})
+            acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+            token = str((acc or {}).get('access_token') or '').strip()
+            if not token:
+                return JsonResponse({'results': []})
+            resp = requests.get('https://graph.facebook.com/v22.0/search', params={
+                'type': 'adTargetingCategory',
+                'class': class_name,
+                'limit': 1000,
+                'access_token': token,
+            }, timeout=25)
+            body = resp.json() if resp.text else {}
+            rows = (body or {}).get('data') if isinstance(body, dict) else []
+            if mode == 'groups':
+                groups, seen = [], set()
+                for r in (rows or []):
+                    path = (r or {}).get('path') or []
+                    if not path:
+                        continue
+                    g = str(path[0] or '').strip()
+                    if not g or g.lower() in seen:
+                        continue
+                    seen.add(g.lower())
+                    groups.append({'id': g, 'name': g, 'type': 'group'})
+                groups.sort(key=lambda x: x['name'].lower())
+                return JsonResponse({'results': groups})
+            results, seen = [], set()
+            for r in (rows or []):
+                rid = str((r or {}).get('id') or '').strip()
+                name = str((r or {}).get('name') or '').strip()
+                if not rid or not name:
+                    continue
+                path = (r or {}).get('path') or []
+                if group_path:
+                    if not path or str(path[0]) != group_path:
+                        continue
+                key = rid.lower()
+                if key in seen:
+                    continue
+                seen.add(key)
+                category = self._category_label(class_name, path, (r or {}).get('type'))
+                size_label = self._size_label(r)
+                results.append({
+                    'id': rid,
+                    'text': name,
+                    'name': name,
+                    'category': category,
+                    'size_label': size_label,
+                    'audience_size_lower': (r or {}).get('audience_size_lower_bound') or (r or {}).get('audience_size'),
+                    'audience_size_upper': (r or {}).get('audience_size_upper_bound'),
+                    'path': path,
+                    'description': str((r or {}).get('description') or '').strip(),
+                    'type': str((r or {}).get('type') or class_name),
+                })
+            results.sort(key=lambda x: x['name'].lower())
+            return JsonResponse({'results': results[:120]})
+        except Exception:
+            return JsonResponse({'results': []})
+
+class FacebookCustomAudienceSuggestView(View):
+    """AJAX endpoint daftar audiens kustom / serupa dari akun Meta Ads."""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        q = str(req.GET.get('q') or '').strip().lower()
+        selected_account = str(req.GET.get('selected_account') or '').strip()
+        tab = str(req.GET.get('tab') or 'all').strip().lower()
+        if not selected_account or not q:
+            return JsonResponse({'results': []})
+        try:
+            rs = data_mysql().master_account_ads_by_id({'data_account': selected_account})
+            acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+            token = str((acc or {}).get('access_token') or '').strip()
+            if not token:
+                return JsonResponse({'results': []})
+            ad_act = str((acc or {}).get('account_ads_id') or (acc or {}).get('account_id') or '').strip()
+            if not ad_act.lower().startswith('act_'):
+                ad_act = 'act_' + ad_act.replace('act_', '')
+            resp = requests.get(
+                f'https://graph.facebook.com/v22.0/{ad_act}/customaudiences',
+                params={
+                    'fields': 'id,name,subtype,description',
+                    'limit': 100,
+                    'access_token': token,
+                },
+                timeout=20,
+            )
+            body = resp.json() if resp.text else {}
+            rows = (body or {}).get('data') if isinstance(body, dict) else []
+            results, seen = [], set()
+            for r in (rows or []):
+                rid = str((r or {}).get('id') or '').strip()
+                name = str((r or {}).get('name') or '').strip()
+                subtype = str((r or {}).get('subtype') or '').strip().upper()
+                if not rid or not name:
+                    continue
+                is_lookalike = subtype == 'LOOKALIKE'
+                if tab == 'lookalike' and not is_lookalike:
+                    continue
+                if tab == 'custom' and is_lookalike:
+                    continue
+                hay = f'{name} {rid} {subtype}'.lower()
+                if q not in hay:
+                    continue
+                if rid.lower() in seen:
+                    continue
+                seen.add(rid.lower())
+                suffix = 'Audiens serupa' if is_lookalike else 'Audiens kustom'
+                results.append({'id': rid, 'text': f'{name} • {suffix}', 'subtype': 'lookalike' if is_lookalike else 'custom'})
+            return JsonResponse({'results': results[:50]})
         except Exception:
             return JsonResponse({'results': []})
 
@@ -1109,6 +1336,133 @@ class FacebookIdentitySuggestView(View):
             return JsonResponse({'results': results[:50]})
         except Exception:
             return JsonResponse({'results': []})
+
+class FacebookPageMessagingAssetsView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def _token(self, selected_account):
+        rs = data_mysql().master_account_ads_by_id({'data_account': selected_account})
+        acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+        return str((acc or {}).get('access_token') or '').strip()
+
+    def _ig_row(self, ig, page_name):
+        if not isinstance(ig, dict):
+            return None
+        iid = str((ig or {}).get('id') or '').strip()
+        if not iid:
+            return None
+        uname = str((ig or {}).get('username') or '').strip()
+        iname = str((ig or {}).get('name') or '').strip()
+        pic = str((((ig or {}).get('profile_picture_url') or '')).strip())
+        label = ('@' + uname) if uname else (iname or iid)
+        return {
+            'id': iid,
+            'username': uname,
+            'name': iname or uname or iid,
+            'label': label,
+            'picture_url': pic,
+            'page_name': page_name,
+        }
+
+    def _page_picture_url(self, page_data):
+        return str((((page_data or {}).get('picture') or {}).get('data') or {}).get('url') or '').strip()
+
+    def _page_assets(self, page_data):
+        page_name = str((page_data or {}).get('name') or '').strip()
+        pic = self._page_picture_url(page_data)
+        ig = self._ig_row((page_data or {}).get('instagram_business_account'), page_name)
+        if not ig:
+            ig = self._ig_row((page_data or {}).get('connected_instagram_account'), page_name)
+        wa_raw = str((page_data or {}).get('whatsapp_number') or '').strip()
+        wa_numbers = []
+        if wa_raw:
+            wa_numbers.append({'id': wa_raw, 'label': wa_raw})
+        assets = {
+            'messenger': {
+                'available': True,
+                'label': page_name,
+                'picture_url': pic,
+            },
+            'instagram': ig,
+            'whatsapp': {
+                'available': bool(wa_numbers),
+                'numbers': wa_numbers,
+                'picture_url': pic,
+            },
+            'threads': {
+                'available': bool(ig),
+                'label': ig.get('label') if ig else '',
+                'picture_url': (ig or {}).get('picture_url') or '',
+                'instagram_id': (ig or {}).get('id') if ig else '',
+            },
+        }
+        return assets
+
+    def get(self, req):
+        selected_account = str(req.GET.get('selected_account') or '').strip()
+        page_id = str(req.GET.get('page_id') or '').strip()
+        q = str(req.GET.get('q') or '').strip().lower()
+        if not selected_account:
+            return JsonResponse({'pages': [], 'assets': None})
+        token = self._token(selected_account)
+        if not token:
+            return JsonResponse({'pages': [], 'assets': None})
+        page_fields = 'id,name,picture{url},instagram_business_account{id,username,name,profile_picture_url},connected_instagram_account{id,username,name},whatsapp_number'
+        try:
+            if page_id:
+                page_resp = requests.get(
+                    f'https://graph.facebook.com/v22.0/{page_id}',
+                    params={'fields': page_fields, 'access_token': token},
+                    timeout=20,
+                )
+                page_data = (page_resp.json() if page_resp.text else {}) or {}
+                if isinstance(page_data, dict) and page_data.get('error'):
+                    return JsonResponse({'pages': [], 'assets': None, 'message': str(((page_data.get('error') or {}).get('message') or 'Gagal memuat halaman'))})
+                pid = str(page_data.get('id') or page_id).strip()
+                pname = str(page_data.get('name') or pid).strip()
+                ig = self._ig_row(page_data.get('instagram_business_account'), pname) or self._ig_row(page_data.get('connected_instagram_account'), pname)
+                page_row = {
+                    'id': pid,
+                    'name': pname,
+                    'picture_url': self._page_picture_url(page_data),
+                    'instagram_label': (ig or {}).get('label') or '',
+                }
+                return JsonResponse({
+                    'page': page_row,
+                    'assets': self._page_assets(page_data),
+                })
+            resp = requests.get(
+                'https://graph.facebook.com/v22.0/me/accounts',
+                params={'fields': page_fields, 'limit': 200, 'access_token': token},
+                timeout=20,
+            )
+            rows = ((resp.json() if resp.text else {}) or {}).get('data') or []
+            pages, seen = [], set()
+            for p in rows:
+                pid = str((p or {}).get('id') or '').strip()
+                pname = str((p or {}).get('name') or '').strip()
+                if not pid or not pname:
+                    continue
+                raw = f'{pid} {pname}'.lower()
+                if q and q not in raw:
+                    continue
+                key = f'pg|{pid}'.lower()
+                if key in seen:
+                    continue
+                seen.add(key)
+                ig = self._ig_row((p or {}).get('instagram_business_account'), pname) or self._ig_row((p or {}).get('connected_instagram_account'), pname)
+                pages.append({
+                    'id': pid,
+                    'name': pname,
+                    'picture_url': self._page_picture_url(p),
+                    'instagram_label': (ig or {}).get('label') or '',
+                })
+            return JsonResponse({'pages': pages[:50], 'assets': None})
+        except Exception:
+            return JsonResponse({'pages': [], 'assets': None})
 
 class FacebookExistingPostLibraryView(View):
     def dispatch(self, request, *args, **kwargs):

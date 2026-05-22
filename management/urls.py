@@ -67,9 +67,12 @@ urlpatterns = [
     path('admin/facebook_language_suggest', views.FacebookLanguageSuggestView.as_view(), name='facebook_language_suggest'),
     path('admin/facebook_location_suggest', views.FacebookLocationSuggestView.as_view(), name='facebook_location_suggest'),
     path('admin/facebook_identity_suggest', views.FacebookIdentitySuggestView.as_view(), name='facebook_identity_suggest'),
+    path('admin/facebook_page_messaging_assets', views.FacebookPageMessagingAssetsView.as_view(), name='facebook_page_messaging_assets'),
     path('admin/facebook_existing_post_library', views.FacebookExistingPostLibraryView.as_view(), name='facebook_existing_post_library'),
     path('admin/facebook_create_page_post', views.FacebookCreatePagePostView.as_view(), name='facebook_create_page_post'),
     path('admin/facebook_detailed_targeting_suggest', views.FacebookDetailedTargetingSuggestView.as_view(), name='facebook_detailed_targeting_suggest'),
+    path('admin/facebook_detailed_targeting_browse', views.FacebookDetailedTargetingBrowseView.as_view(), name='facebook_detailed_targeting_browse'),
+    path('admin/facebook_custom_audience_suggest', views.FacebookCustomAudienceSuggestView.as_view(), name='facebook_custom_audience_suggest'),
     # Cache Management
     path('admin/cache_stats', views.CacheStatsView.as_view(), name='cache_stats'),
     path('admin/ads_sites_list', views.AdsSitesListView.as_view(), name='ads_sites_list'),

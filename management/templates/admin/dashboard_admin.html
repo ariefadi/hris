@@ -1444,9 +1444,11 @@ html[data-theme="dark"] .decision-detail-reason-item {
                                     <div class="text-muted" style="font-size:12px" id="dashboardRecapTableMeta"></div>
                                     <div class="dashboard-recap-tabs" id="dashboardRecapAlertTabs" style="display:flex;gap:8px;flex-wrap:wrap;">
                                         <button type="button" class="btn btn-sm btn-primary" data-alert-filter="all">Semua</button>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="normal">Normal</button>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="waspada">Waspada</button>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="kritis">Kritis</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="scale_up">Scale Up</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="hold">Hold</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="pause">Pause</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="scale_down">Scale Down</button>
+                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="stop">Stop</button>
                                     </div>
                                 </div>
                             </div>
@@ -4290,8 +4292,13 @@ function initDashboardRecap() {
             if (!settings || settings.nTable !== tableEl) return true;
             const target = String(window.dashboardRecapAlertFilter || 'all').toLowerCase();
             if (target === 'all') return true;
-            const rowNode = settings.aoData && settings.aoData[dataIndex] ? settings.aoData[dataIndex].nTr : null;
-            const level = String(rowNode?.dataset?.alertLevel || 'normal').toLowerCase();
+            const aoRow = settings.aoData && settings.aoData[dataIndex] ? settings.aoData[dataIndex] : null;
+            const rawRow = aoRow && Array.isArray(aoRow._aData) ? aoRow._aData : null;
+            const levelFromData = rawRow && rawRow[9] && typeof rawRow[9] === 'object'
+                ? String(rawRow[9].decisionKey || 'belum_siap').toLowerCase()
+                : '';
+            const rowNode = aoRow ? aoRow.nTr : null;
+            const level = String(levelFromData || rowNode?.dataset?.decisionKey || 'belum_siap').toLowerCase();
             return level === target;
         };
         jQuery.fn.dataTable.ext.search.push(filterFn);
@@ -4300,6 +4307,47 @@ function initDashboardRecap() {
         dt.on('draw.dashboardAlertFilter page.dashboardAlertFilter order.dashboardAlertFilter search.dashboardAlertFilter length.dashboardAlertFilter', function(){
             syncDashboardRecapAlertUi(dt, tableEl);
         });
+    }
+
+    function dashboardRecapDecisionKeyFromMeta(meta) {
+        const info = meta?.breakdown?.meta || {};
+        const label = String(meta?.label || info.final_label || info.root_cause_label || '').trim();
+        const decision = scxNormalizeDecisionForDisplay(meta?.decision || info.decision || '', label);
+        return String(decision || 'belum_siap').trim().toLowerCase().replace(/\s+/g, '_');
+    }
+
+    function buildDecisionCellData(meta, ctx) {
+        const decisionKey = dashboardRecapDecisionKeyFromMeta(meta);
+        const decisionLabel = String(decisionKey || 'belum_siap').replace(/_/g, ' ').trim();
+        const info = meta?.breakdown?.meta || {};
+        const causeKey = String(meta?.label || info.final_label || info.root_cause_label || '').trim();
+        const causeLabel = causeKey ? scxFriendlyLabelGlobal(causeKey) : '';
+        const causeText = causeLabel ? `Penyebab ${causeLabel}` : '';
+        const reasonsText = Array.isArray(meta?.reasons)
+            ? meta.reasons.map(function(x){ return String(x || '').trim(); }).filter(Boolean).join(' ')
+            : '';
+        return {
+            html: keputusanBadge(meta || {}, ctx),
+            decisionKey: decisionKey,
+            decisionLabel: decisionLabel,
+            searchText: uniqKeepOrder([
+                decisionKey,
+                decisionLabel,
+                decisionLabel.toUpperCase(),
+                decisionLabel.toLowerCase(),
+                decisionLabel.replace(/\s+/g, ''),
+                decisionLabel.replace(/\s+/g, '_'),
+                causeKey,
+                causeKey.toLowerCase(),
+                causeKey.replace(/_/g, ' '),
+                causeLabel,
+                causeLabel.toLowerCase(),
+                causeText,
+                causeText.toLowerCase(),
+                reasonsText,
+                reasonsText.toLowerCase()
+            ]).join(' ')
+        };
     }
 
     function applyDashboardRecapAlertFilter() {
@@ -4311,7 +4359,7 @@ function initDashboardRecap() {
         if (tableEl && hasDt && jQuery.fn.DataTable.isDataTable(tableEl)) {
             const dt = window.dashboardRecapDt || jQuery(tableEl).DataTable();
             ensureDashboardRecapAlertDtFilter();
-            dt.page('first').draw(false);
+            dt.page('first').draw();
             syncDashboardRecapAlertUi(dt, tableEl);
             return;
         }
@@ -4319,7 +4367,7 @@ function initDashboardRecap() {
         let visible = 0;
         Array.from(tbody.querySelectorAll('tr')).forEach(function(tr) {
             if (tr.querySelector('td.dataTables_empty')) return;
-            const level = String(tr.dataset.alertLevel || 'normal').toLowerCase();
+            const level = String(tr.dataset.decisionKey || 'belum_siap').toLowerCase();
             const show = (target === 'all' || level === target);
             tr.style.display = show ? '' : 'none';
             if (show) visible += 1;
@@ -4424,7 +4472,7 @@ function initDashboardRecap() {
         const site = key.replace(/^www\./i, '');
         const campaign = String(row?.meta_campaign || row?.campaign || row?.campaign_name || row?.meta_campaign_name || row?.status_campaign || '').trim().toUpperCase();
         const country = String(row?.code || row?.country_cd || row?.country_code || '').trim().toUpperCase();
-        const out = [key, site, baseSubdomain(site)].concat(domainCandidateKeys(site));
+        const out = [key, site];
         if (site && campaign && country) out.push(`${site}|${campaign}|${country}`);
         if (site && country) out.push(`${site}||${country}`);
         return uniqKeepOrder(out.filter(Boolean));
@@ -9074,7 +9122,9 @@ function initDashboardRecap() {
             if (metaEl) metaEl.textContent = `${campaigns.length} campaign (umur ≥ ${WINNING_MIN_DAYS} hari, score mengikuti Detail Scoring)`;
         }
 
-        window.dashboardRecapScoreDetails = window.dashboardRecapScoreDetails || {};
+        window.dashboardRecapScoreDetails = {};
+        window.dashboardRecapScoreRenderSeq = Number(window.dashboardRecapScoreRenderSeq || 0) + 1;
+        const detailStoreRenderSeq = String(window.dashboardRecapScoreRenderSeq);
 
         const backendScores = await fetchDashboardScoring(rows, state);
         const rawStore = (backendScores && typeof backendScores === 'object') ? backendScores : {};
@@ -9083,8 +9133,6 @@ function initDashboardRecap() {
             const nk = String(k || '').trim().toLowerCase();
             if (!nk) return;
             normalizedStore[nk] = normalizedStore[nk] || rawStore[k];
-            const bk = baseSubdomain(nk);
-            if (bk) normalizedStore[bk] = normalizedStore[bk] || rawStore[k];
             const wk = nk.replace(/^www\./i, '');
             if (wk) normalizedStore[wk] = normalizedStore[wk] || rawStore[k];
         });
@@ -9146,10 +9194,23 @@ function initDashboardRecap() {
         const data = scored.map((x, i) => {
             const r = x.r;
             const meta = x.meta;
-            const k = `${String(state?.dim || '')}\u241F${String(scoringLookupKey(dim, r) || String(r?.name || ''))}|${String(r?.code || '')}`;
-            window.dashboardRecapScoreDetails[k] = { row: r, meta, state };
+            const k = [
+                detailStoreRenderSeq,
+                String(state?.dim || ''),
+                String(state?.source || ''),
+                String(state?.date || ''),
+                String(scoringLookupKey(dim, r) || String(r?.name || '')),
+                String(r?.account_ads || ''),
+                String(r?.code || ''),
+                String(i)
+            ].join('\u241F');
+            window.dashboardRecapScoreDetails[k] = {
+                row: Object.assign({}, r),
+                meta,
+                state: Object.assign({}, state)
+            };
 
-            const keputusanHtml = `${keputusanBadge(meta || {}, { row: r, state: state })}`;
+            const keputusanData = buildDecisionCellData(meta, { row: r, state: state });
             const detailBtn = (meta)
                 ? `<button type="button" class="btn btn-sm btn-primary dashboard-open-score-detail-btn" data-score-key="${esc(k)}">Detail</button>`
                 : `<button type="button" class="btn btn-sm btn-secondary" disabled title="Scoring belum tersedia">Detail</button>`;
@@ -9166,7 +9227,7 @@ function initDashboardRecap() {
                 Number(r.net) || 0,
                 Number(r.roi) || 0,
                 buildScoreCellData(meta),
-                keputusanHtml,
+                keputusanData,
                 updatedCell(r, meta),
                 detailBtn,
             ];
@@ -9191,6 +9252,7 @@ function initDashboardRecap() {
                 const tr = document.createElement('tr');
                 const scoreVal = Number(row[8]?.value) || 0;
                 tr.dataset.alertLevel = String(row[8]?.alertLevel || 'normal').toLowerCase();
+                tr.dataset.decisionKey = String(row[9]?.decisionKey || 'belum_siap').toLowerCase();
                 if (hasRange && scoreVal === minScore) tr.classList.add('table-danger');
                 else if (hasRange && scoreVal === maxScore) tr.classList.add('table-info');
                 tr.innerHTML = `
@@ -9202,7 +9264,7 @@ function initDashboardRecap() {
                     <td class="text-right">${fmtIdr(row[6])}</td>
                     <td class="text-center">${fmtPct(row[7])}</td>
                     <td class="text-center">${renderScoreCell(row[8], 'display')}</td>
-                    <td class="text-center">${row[9]}</td>
+                    <td class="text-center">${row[9]?.html || ''}</td>
                     <td class="text-center">${row[10]}</td>
                     <td class="text-center">${row[11]}</td>
                 `;
@@ -9264,6 +9326,7 @@ function initDashboardRecap() {
                 rowCallback: function(row, rowData) {
                     const hasRange = !!(tableEl && tableEl.dataset && tableEl.dataset.hasRange === '1');
                     row.dataset.alertLevel = String(rowData && rowData[8] && rowData[8].alertLevel || 'normal').toLowerCase();
+                    row.dataset.decisionKey = String(rowData && rowData[9] && rowData[9].decisionKey || 'belum_siap').toLowerCase();
                     jQuery(row).removeClass('table-danger table-info');
                     if (!hasRange) return;
 
@@ -9315,7 +9378,21 @@ function initDashboardRecap() {
                             return renderScoreCell(data, type);
                         }
                     },
-                    { targets: 9, className: 'text-center', orderable: false },
+                    {
+                        targets: 9,
+                        className: 'text-center',
+                        orderable: false,
+                        render: function (data, type) {
+                            const html = data && typeof data === 'object' ? String(data.html || '') : String(data || '');
+                            const key = data && typeof data === 'object' ? String(data.decisionKey || 'belum_siap') : 'belum_siap';
+                            const searchText = data && typeof data === 'object'
+                                ? String(data.searchText || data.decisionLabel || key || 'belum_siap')
+                                : key;
+                            if (type === 'display') return html;
+                            if (type === 'filter') return searchText;
+                            return key;
+                        }
+                    },
                     {
                         targets: 10,
                         className: 'text-center',
@@ -9343,7 +9420,7 @@ function initDashboardRecap() {
             });
             bindNoColumn(window.dashboardRecapDt);
             ensureDashboardRecapAlertDtFilter();
-            window.dashboardRecapDt.draw(false);
+            window.dashboardRecapDt.draw();
             applyDashboardRecapAlertFilter();
         } else {
             const dt = window.dashboardRecapDt || $table.DataTable();
@@ -9351,7 +9428,7 @@ function initDashboardRecap() {
             ensureDashboardRecapAlertDtFilter();
             dt.clear();
             dt.rows.add(data);
-            dt.draw(false);
+            dt.draw();
             applyDashboardRecapAlertFilter();
             dt.column(2).visible(false, false);
             dt.column(3).visible(true, false);
