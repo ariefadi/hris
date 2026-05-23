@@ -3028,6 +3028,22 @@
     color: #425466
   }
 
+  #tmValueRuleFields .tm-vr-set-wrap {
+    display: block
+  }
+
+  #tmValueRuleFields .tm-vr-set-wrap #tmValueSetSelect {
+    width: 100%
+  }
+
+  #tmValueRuleFields .tm-vr-set-wrap #btnEditValueRuleSet {
+    margin-top: 10px
+  }
+
+  #tmValueRuleFields .tm-vr-set-dropdown {
+    width: 100%
+  }
+
   .tm-value-modal .modal-dialog {
     max-width: 500px
   }
@@ -3125,6 +3141,13 @@
     color: #1f2937;
     font-size: 14px;
     text-align: left
+  }
+
+  .tm-vr-select.is-open,
+  .tm-vr-select:focus {
+    border-color: #1877f2;
+    box-shadow: 0 0 0 1px #1877f2;
+    outline: 0
   }
 
   .tm-vr-dropdown {
@@ -3439,9 +3462,17 @@
     gap: 10px
   }
 
+  .tm-vr-set-field {
+    position: relative
+  }
+
+  .tm-vr-set-dropdown.is-open {
+    display: block !important
+  }
+
   .tm-vr-set-dropdown {
     position: absolute;
-    z-index: 20;
+    z-index: 20120;
     top: calc(100% + 6px);
     left: 0;
     width: calc(100% - 102px);
@@ -3451,6 +3482,50 @@
     box-shadow: 0 18px 35px rgba(15, 23, 42, .14);
     padding: 8px;
     display: none
+  }
+
+  .tm-vr-set-search-wrap {
+    position: relative;
+    margin-bottom: 8px
+  }
+
+  .tm-vr-set-search-wrap i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #606770;
+    font-size: 13px;
+    pointer-events: none
+  }
+
+  .tm-vr-set-search {
+    width: 100%;
+    border: 1px solid #ccd0d5;
+    border-radius: 6px;
+    min-height: 36px;
+    padding: 0 12px 0 34px;
+    font-size: 14px;
+    color: #1c1e21
+  }
+
+  .tm-vr-set-search:focus {
+    border-color: #1877f2;
+    box-shadow: 0 0 0 1px #1877f2;
+    outline: 0
+  }
+
+  .tm-vr-set-options-scroll {
+    max-height: 240px;
+    overflow-y: auto;
+    margin-bottom: 4px
+  }
+
+  .tm-vr-set-empty {
+    display: none;
+    padding: 10px 12px;
+    color: #606770;
+    font-size: 13px
   }
 
   .tm-vr-set-option {
@@ -5360,6 +5435,115 @@
     background: #eef4fb
   }
 
+  .tm-placement-account.open .tm-placement-account-body {
+    display: block
+  }
+
+  .tm-placement-vr-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    border: 1px solid #c9daf8;
+    border-radius: 10px;
+    background: #ecf3ff;
+    padding: 14px 16px;
+    margin-bottom: 16px
+  }
+
+  .tm-placement-vr-info i.fa-info-circle {
+    color: #1877f2;
+    margin-top: 3px
+  }
+
+  .tm-placement-vr-info h5 {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: #1c1e21
+  }
+
+  .tm-placement-vr-info p {
+    margin: 0;
+    color: #1c1e21;
+    font-size: 14px;
+    line-height: 1.45
+  }
+
+  .tm-placement-vr-card {
+    border: 1px solid #dbe4f0;
+    border-radius: 12px;
+    background: #fff;
+    margin-bottom: 16px;
+    overflow: visible
+  }
+
+  .tm-placement-vr-card-head {
+    width: 100%;
+    border: 0;
+    background: #f5f6f7;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #1c1e21;
+    text-align: left
+  }
+
+  .tm-placement-vr-card.open .tm-placement-vr-card-head {
+    background: #eef4fb;
+    border-bottom: 1px solid #dbe4f0
+  }
+
+  .tm-placement-vr-card-body {
+    display: none;
+    padding: 16px
+  }
+
+  .tm-placement-vr-card.open .tm-placement-vr-card-body {
+    display: block
+  }
+
+  .tm-placement-vr-card-body > p {
+    color: #1c1e21;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 16px
+  }
+
+  .tm-placement-vr-inner {
+    border: 0;
+    padding: 0;
+    background: transparent
+  }
+
+  .tm-placement-vr-set-wrap {
+    grid-template-columns: 1fr !important
+  }
+
+  .tm-placement-vr-set-wrap .tm-vr-set-dropdown {
+    width: 100%;
+    z-index: 20120
+  }
+
+  .tm-vr-set-option .tm-vr-set-badge {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 600;
+    color: #606770;
+    background: #e4e6eb;
+    border-radius: 999px;
+    padding: 4px 8px;
+    white-space: nowrap;
+    align-self: center
+  }
+
+  .tm-vr-set-option {
+    align-items: center
+  }
+
   .tm-placement-account-inner {
     border: 1px solid #dbe4f0;
     border-radius: 12px;
@@ -5406,10 +5590,686 @@
 
   .tm-placement-adv-editor {
     display: none;
-    border: 2px solid #f97316;
-    border-radius: 18px;
-    padding: 14px;
+    border: 1px solid #dbe4f0;
+    border-radius: 14px;
+    padding: 16px 18px;
+    background: #fff;
+    margin-top: 12px;
+    overflow: visible
+  }
+
+  .tm-placement-adv-editor.is-open {
+    display: block
+  }
+
+  .tm-placement-adv-summary.is-hidden {
+    display: none
+  }
+
+  .tm-mp-upsell {
+    border: 1px solid #c9daf8;
+    border-radius: 10px;
+    background: #f0f6ff;
+    padding: 14px 16px;
+    margin: 14px 0 12px;
+    position: relative
+  }
+
+  .tm-mp-upsell-title {
+    font-weight: 700;
+    color: #1c1e21;
+    margin-bottom: 6px;
+    font-size: 14px
+  }
+
+  .tm-mp-upsell p {
+    margin: 0 0 10px;
+    color: #1c1e21;
+    font-size: 13px;
+    line-height: 1.45
+  }
+
+  .tm-mp-abtest {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 14px;
+    color: #1c1e21;
+    margin-bottom: 14px;
+    cursor: pointer;
+    line-height: 1.45
+  }
+
+  .tm-mp-abtest input {
+    width: 18px;
+    height: 18px;
+    margin-top: 3px;
+    flex: 0 0 18px;
+    cursor: pointer
+  }
+
+  .tm-mp-abtest-ico {
+    width: 28px;
+    height: 28px;
+    border: 1px solid #ccd0d5;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #606770;
+    flex: 0 0 28px;
+    margin-top: 1px
+  }
+
+  .tm-mp-ab-panel {
+    border: 1px solid #dbe4f0;
+    border-radius: 10px;
+    background: #f5f6f7;
+    margin: -6px 0 14px;
+    overflow: hidden
+  }
+
+  .tm-mp-ab-panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    font-weight: 700;
+    color: #1c1e21;
+    font-size: 14px;
+    background: #eef2f7;
+    border-bottom: 1px solid #e4e6eb
+  }
+
+  .tm-mp-ab-panel-body {
+    padding: 14px 16px 16px
+  }
+
+  .tm-mp-ab-field {
+    margin-bottom: 14px
+  }
+
+  .tm-mp-ab-field:last-child {
+    margin-bottom: 0
+  }
+
+  .tm-mp-ab-label {
+    font-weight: 700;
+    color: #1c1e21;
+    font-size: 13px;
+    margin-bottom: 4px
+  }
+
+  .tm-mp-ab-value {
+    color: #1c1e21;
+    font-size: 13px;
+    line-height: 1.45
+  }
+
+  .tm-mp-ab-version {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 8px
+  }
+
+  .tm-mp-ab-version-badge {
+    width: 22px;
+    height: 22px;
+    border-radius: 999px;
+    border: 1px solid #ccd0d5;
+    background: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: #606770;
+    flex: 0 0 22px
+  }
+
+  .tm-mp-ab-pill {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: #e7f3ff;
+    color: #1877f2;
+    font-size: 12px;
+    font-weight: 600
+  }
+
+  .tm-mp-ab-toggle-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding-top: 14px;
+    margin-top: 14px;
+    border-top: 1px solid #e4e6eb
+  }
+
+  .tm-mp-ab-switch {
+    position: relative;
+    width: 44px;
+    height: 24px;
+    flex: 0 0 44px
+  }
+
+  .tm-mp-ab-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute
+  }
+
+  .tm-mp-ab-switch span {
+    position: absolute;
+    inset: 0;
+    background: #ccd0d5;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background .2s
+  }
+
+  .tm-mp-ab-switch span:before {
+    content: '';
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    left: 3px;
+    top: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform .2s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .2)
+  }
+
+  .tm-mp-ab-switch input:checked + span {
+    background: #1877f2
+  }
+
+  .tm-mp-ab-switch input:checked + span:before {
+    transform: translateX(20px)
+  }
+
+  .tm-mp-device-block {
+    padding: 12px 0;
+    border-top: 1px solid #e4e6eb;
+    border-bottom: 1px solid #e4e6eb;
+    margin-bottom: 14px
+  }
+
+  .tm-mp-device-title {
+    display: block;
+    color: #1c1e21;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 8px
+  }
+
+  .tm-mp-device-select-wrap {
+    position: relative
+  }
+
+  .tm-mp-device-select {
+    width: 100%;
+    border: 1px solid #ccd0d5;
+    border-radius: 8px;
+    background: #fff;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    font-size: 14px;
+    color: #1c1e21;
+    text-align: left;
+    cursor: pointer
+  }
+
+  .tm-mp-device-select.is-open,
+  .tm-mp-device-select:focus {
+    border-color: #1877f2;
+    outline: none;
+    box-shadow: 0 0 0 1px #1877f2
+  }
+
+  .tm-mp-device-select i {
+    color: #606770;
+    font-size: 12px
+  }
+
+  .tm-mp-device-menu {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 30;
+    background: #fff;
+    border: 1px solid #e4e6eb;
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+    padding: 8px;
+    display: none
+  }
+
+  .tm-mp-device-menu.is-open {
+    display: block
+  }
+
+  .tm-mp-device-opt {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #f0f6ff;
+    cursor: pointer;
+    font-size: 14px;
+    color: #1c1e21;
+    position: relative
+  }
+
+  .tm-mp-device-opt + .tm-mp-device-opt {
+    margin-top: 6px
+  }
+
+  .tm-mp-device-opt input {
+    position: absolute;
+    opacity: 0;
+    width: 18px;
+    height: 18px;
+    margin: 0
+  }
+
+  .tm-mp-device-box {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 2px solid #ccd0d5;
+    background: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 22px
+  }
+
+  .tm-mp-device-box:after {
+    content: '';
+    width: 6px;
+    height: 10px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) scale(0);
+    margin-top: -2px;
+    transition: transform .12s
+  }
+
+  .tm-mp-device-opt input:checked + .tm-mp-device-box {
+    background: #1877f2;
+    border-color: #1877f2
+  }
+
+  .tm-mp-device-opt input:checked + .tm-mp-device-box:after {
+    transform: rotate(45deg) scale(1)
+  }
+
+  .tm-mp-platform-block {
+    margin-bottom: 16px
+  }
+
+  .tm-mp-platform-title {
+    font-weight: 700;
+    color: #1c1e21;
+    font-size: 14px;
+    margin-bottom: 10px
+  }
+
+  .tm-mp-platform-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px 24px
+  }
+
+  .tm-mp-plat {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+    cursor: pointer;
+    font-size: 15px;
+    color: #1c1e21;
+    min-height: 32px;
+    position: relative
+  }
+
+  .tm-mp-plat.is-disabled {
+    opacity: .55;
+    cursor: not-allowed
+  }
+
+  .tm-mp-plat input {
+    position: absolute;
+    opacity: 0;
+    width: 18px;
+    height: 18px;
+    margin: 0
+  }
+
+  .tm-mp-plat-box {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: 2px solid #ccd0d5;
+    background: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 24px
+  }
+
+  .tm-mp-plat-box:after {
+    content: '';
+    width: 7px;
+    height: 11px;
+    border: solid #fff;
+    border-width: 0 2.5px 2.5px 0;
+    transform: rotate(45deg) scale(0);
+    margin-top: -2px;
+    transition: transform .12s
+  }
+
+  .tm-mp-plat input:checked + .tm-mp-plat-box {
+    background: #1877f2;
+    border-color: #1877f2
+  }
+
+  .tm-mp-plat input:checked + .tm-mp-plat-box:after {
+    transform: rotate(45deg) scale(1)
+  }
+
+  .tm-mp-plat:not(.is-disabled):hover .tm-mp-plat-box {
+    border-color: #1877f2
+  }
+
+  .tm-mp-device-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 0;
+    border-top: 1px solid #e4e6eb;
+    border-bottom: 1px solid #e4e6eb;
+    margin-bottom: 14px
+  }
+
+  .tm-mp-device-row strong {
+    display: block;
+    color: #1c1e21;
+    font-size: 14px
+  }
+
+  .tm-mp-device-row span {
+    color: #606770;
+    font-size: 13px
+  }
+
+  #tmMpDeviceEditor {
+    display: none !important
+  }
+
+  .tm-mp-platforms {
+    display: none
+  }
+
+  #modalPlacementManagerUi {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 16px;
+    align-items: start
+  }
+
+  #modalPlacementManagerUi .mp-list-col {
+    max-height: 520px;
+    overflow-y: auto;
+    padding-right: 4px
+  }
+
+  #modalPlacementManagerUi .grp {
+    border: 1px solid #e4e6eb;
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+    margin-bottom: 8px
+  }
+
+  #modalPlacementManagerUi .gh {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: #f5f6f7;
+    font-weight: 700;
+    color: #1c1e21;
+    font-size: 14px;
+    cursor: pointer
+  }
+
+  #modalPlacementManagerUi .gh i {
+    color: #606770;
+    font-size: 12px
+  }
+
+  #modalPlacementManagerUi .grp.collapsed .gh i {
+    transform: rotate(180deg)
+  }
+
+  #modalPlacementManagerUi .grp.collapsed .go-wrap {
+    display: none
+  }
+
+  #modalPlacementManagerUi .gd {
+    padding: 0 14px 10px;
+    color: #606770;
+    font-size: 13px;
+    line-height: 1.45;
+    background: #f5f6f7
+  }
+
+  #modalPlacementManagerUi .go {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-top: 1px solid #f0f2f5;
+    font-size: 14px;
+    color: #1c1e21;
+    cursor: pointer;
+    margin: 0
+  }
+
+  #modalPlacementManagerUi .go:hover,
+  #modalPlacementManagerUi .go.is-preview-active {
+    background: #eef2f7
+  }
+
+  #modalPlacementManagerUi .go.off {
+    opacity: .45;
+    pointer-events: none
+  }
+
+  #modalPlacementManagerUi .go input,
+  #modalPlacementManagerUi .gg {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    cursor: pointer
+  }
+
+  .mp-preview {
+    border: 1px solid #e4e6eb;
+    border-radius: 10px;
+    padding: 16px;
+    background: #fff;
+    position: sticky;
+    top: 0
+  }
+
+  .mp-preview-title {
+    font-weight: 700;
+    color: #1c1e21;
+    font-size: 15px;
+    margin: 12px 0 6px
+  }
+
+  .mp-preview-hint {
+    color: #1c1e21;
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 6px
+  }
+
+  .mp-preview-desc {
+    color: #606770;
+    font-size: 13px;
+    line-height: 1.45;
+    margin-bottom: 0
+  }
+
+  .mp-preview-format {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px
+  }
+
+  .mp-preview-format button {
+    border: 1px solid #ccd0d5;
+    background: #fff;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1c1e21
+  }
+
+  .mp-preview-format button.active {
+    background: #e7f3ff;
+    border-color: #1877f2;
+    color: #1877f2
+  }
+
+  .mpf {
+    position: relative;
+    overflow: hidden;
+    border-radius: 16px;
+    min-height: 240px;
+    margin: 0 auto;
+    background: #eef2f7;
+    border: 6px solid #1c1e21;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .12)
+  }
+
+  .mpf.v {
+    aspect-ratio: 9/16;
+    max-width: 180px
+  }
+
+  .mpf.f {
+    aspect-ratio: 4/5;
+    max-width: 200px
+  }
+
+  .mpf.s {
+    aspect-ratio: 4/5;
+    max-width: 200px
+  }
+
+  .mpf-inner {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, #fff 0%, #f0f2f5 100%);
+    display: flex;
+    flex-direction: column;
+    padding: 10px
+  }
+
+  .mpf-inner.story {
+    background: linear-gradient(180deg, #1c1e21 0%, #3a3b3c 100%);
+    color: #fff
+  }
+
+  .mpf-inner.search {
     background: #fff
+  }
+
+  .mpf-brand {
+    font-size: 11px;
+    font-weight: 700;
+    margin-bottom: 8px
+  }
+
+  .mpf-media {
+    flex: 1;
+    border-radius: 8px;
+    background: #e4e6eb;
+    min-height: 80px;
+    overflow: hidden;
+    position: relative
+  }
+
+  .mpf-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block
+  }
+
+  .mpf-inner.story .mpf-media {
+    border-radius: 12px;
+    background: #3a3b3c
+  }
+
+  .mpf-cta {
+    margin-top: 8px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 700;
+    background: #fff;
+    color: #1c1e21;
+    border-radius: 999px;
+    padding: 6px 10px
+  }
+
+  .mpf-inner.story .mpf-cta {
+    background: rgba(255, 255, 255, .92)
+  }
+
+  .mpf-inner.feed {
+    background: linear-gradient(180deg, #fff 0%, #f0f2f5 100%)
+  }
+
+  .mpf-media.is-square {
+    aspect-ratio: 1/1;
+    flex: 0 0 auto;
+    max-height: 55%
+  }
+
+  .mpf-inner.search .mpf-brand {
+    font-size: 10px;
+    color: #606770
+  }
+
+  .mpf-inner.search:before {
+    content: 'pie recipes';
+    display: block;
+    font-size: 10px;
+    color: #8a8d91;
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e4e6eb
   }
 
   .tm-placement-mode-choice {
@@ -5456,7 +6316,8 @@
 
   .tm-placement-manual-shell {
     display: none;
-    margin-top: 14px
+    margin-top: 14px;
+    overflow: visible
   }
 
   .tm-placement-extra-wrap {
@@ -5662,6 +6523,54 @@
 
   .tm-placement-modal-option:last-child {
     margin-bottom: 0
+  }
+
+  .tm-placement-modal-group.collapsed .tm-placement-modal-group-body {
+    display: none
+  }
+
+  .tm-placement-modal-group.collapsed .tm-placement-modal-group-head i {
+    transform: rotate(180deg)
+  }
+
+  .tm-placement-account-modal .modal-dialog {
+    max-width: 548px
+  }
+
+  .tm-placement-account-modal .modal-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1c1e21
+  }
+
+  .tm-placement-account-modal .modal-footer {
+    align-items: center
+  }
+
+  .tm-placement-account-modal #btnSavePlacementAccountControls:disabled {
+    background: #aac9ff;
+    border-color: #aac9ff;
+    opacity: 1
+  }
+
+  .tm-placement-review-note {
+    color: #1c1e21;
+    font-size: 14px;
+    line-height: 1.5;
+    margin-bottom: 16px
+  }
+
+  .tm-placement-review-list {
+    margin: 0;
+    padding-left: 18px;
+    color: #1c1e21;
+    font-size: 14px;
+    line-height: 1.55
+  }
+
+  .tm-placement-review-list ul {
+    margin: 6px 0 10px;
+    padding-left: 18px
   }
 
   .tm-adv-search-row {
@@ -6769,205 +7678,6 @@
 
   #modal_manual_placement_wrap>.mp-section {
     display: none !important
-  }
-
-  #modalPlacementManagerUi {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 320px;
-    gap: 14px;
-    align-items: start
-  }
-
-  #modalPlacementManagerUi .grp {
-    border: 1px solid #dbe5f4;
-    border-radius: 12px;
-    background: #fff;
-    overflow: hidden;
-    margin-bottom: 10px
-  }
-
-  #modalPlacementManagerUi .gh {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 14px;
-    border-bottom: 1px solid #eef2f7;
-    font-weight: 800;
-    color: #0f172a
-  }
-
-  #modalPlacementManagerUi .gd {
-    padding: 12px 14px 6px;
-    color: #64748b;
-    font-size: 12px
-  }
-
-  #modalPlacementManagerUi .go {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 14px;
-    border-top: 1px solid #eef2f7;
-    font-weight: 600;
-    color: #334155
-  }
-
-  #modalPlacementManagerUi .go input,
-  #modalPlacementManagerUi .gg {
-    width: 18px;
-    height: 18px
-  }
-
-  .mp-preview {
-    border: 1px solid #dbe5f4;
-    border-radius: 12px;
-    padding: 14px;
-    background: linear-gradient(180deg, #fff, #f8fbff);
-    position: sticky;
-    top: 0;
-    box-shadow: 0 10px 30px rgba(15, 23, 42, .06)
-  }
-
-  .mpf {
-    position: relative;
-    overflow: hidden;
-    border-radius: 18px;
-    min-height: 280px;
-    background: linear-gradient(135deg, #c7d2fe 0%, #93c5fd 35%, #a7f3d0 100%);
-    box-shadow: 0 18px 40px rgba(59, 130, 246, .18)
-  }
-
-  .mpf:before {
-    content: '';
-    position: absolute;
-    inset: -20% -40%;
-    background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, .28) 40%, rgba(255, 255, 255, .7) 50%, rgba(255, 255, 255, .2) 60%, transparent 80%);
-    animation: mpShimmer 3.8s linear infinite
-  }
-
-  .mpf:after {
-    content: '';
-    position: absolute;
-    right: 18px;
-    top: 22%;
-    width: 72px;
-    height: 72px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, .18);
-    backdrop-filter: blur(4px);
-    animation: mpFloat 4.5s ease-in-out infinite
-  }
-
-  .mpf.v {
-    aspect-ratio: 9/16;
-    max-width: 220px;
-    margin: 0 auto
-  }
-
-  .mpf.f {
-    aspect-ratio: 4/5
-  }
-
-  .mpl {
-    position: absolute;
-    top: 14px;
-    left: 14px;
-    right: 14px;
-    color: #fff;
-    font-weight: 700;
-    text-shadow: 0 2px 10px rgba(15, 23, 42, .35);
-    z-index: 2
-  }
-
-  .mpc {
-    position: absolute;
-    left: 50%;
-    bottom: 16px;
-    transform: translateX(-50%);
-    background: #fff;
-    border-radius: 999px;
-    padding: 8px 18px;
-    font-weight: 800;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, .18);
-    z-index: 2
-  }
-
-  .mp-meta,
-  .mp-lines {
-    position: absolute;
-    left: 14px;
-    right: 14px;
-    z-index: 2
-  }
-
-  .mp-meta {
-    top: 44px;
-    display: flex;
-    gap: 8px
-  }
-
-  .mp-meta span {
-    height: 10px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, .75)
-  }
-
-  .mp-meta span:nth-child(1) {
-    width: 36%
-  }
-
-  .mp-meta span:nth-child(2) {
-    width: 22%
-  }
-
-  .mp-lines {
-    bottom: 64px
-  }
-
-  .mp-lines i {
-    display: block;
-    height: 10px;
-    border-radius: 999px;
-    background: rgba(255, 255, 255, .68);
-    margin-top: 8px
-  }
-
-  .mp-lines i:nth-child(1) {
-    width: 82%
-  }
-
-  .mp-lines i:nth-child(2) {
-    width: 58%
-  }
-
-  @keyframes mpShimmer {
-    0% {
-      transform: translateX(-35%) translateY(0)
-    }
-
-    100% {
-      transform: translateX(35%) translateY(0)
-    }
-  }
-
-  @keyframes mpFloat {
-
-    0%,
-    100% {
-      transform: translateY(0)
-    }
-
-    50% {
-      transform: translateY(-10px)
-    }
-  }
-
-  @media (prefers-reduced-motion:reduce) {
-
-    .mpf:before,
-    .mpf:after {
-      animation: none
-    }
   }
 
   .meta-actions {
@@ -9935,18 +10645,26 @@
                           tertentu bagi bisnis Anda. Sistem kami akan mengoptimalkan hasil berdasarkan aturan ini. <a
                             href="javascript:void(0)">Tentang aturan nilai</a></p>
                         <label class="font-weight-bold d-block mb-2">Set aturan</label>
+                        <div class="tm-vr-set-field">
                         <div class="tm-vr-set-wrap">
                           <button type="button" class="tm-vr-select" id="tmValueSetSelect"><span
                               id="tmValueSetSelectedText">Tidak ada</span><i class="fas fa-caret-down"></i></button>
                           <button type="button" class="btn btn-outline-secondary" id="btnEditValueRuleSet"
                             style="display:none">Edit</button>
                           <div class="tm-vr-set-dropdown" id="tmValueSetMenu">
-                            <button type="button" class="tm-vr-set-option active" data-vr-set-id=""><span
-                                class="tm-vr-radio"></span><span>Tidak ada</span></button>
-                            <div id="tmValueSetOptions"></div>
+                            <div class="tm-vr-set-search-wrap"><i class="fas fa-search"></i><input type="text"
+                                class="tm-vr-set-search" id="tmValueSetSearch" placeholder="Cari set aturan"
+                                autocomplete="off"></div>
+                            <div class="tm-vr-set-options-scroll">
+                              <button type="button" class="tm-vr-set-option js-vr-conv-set-option active" data-vr-set-id=""
+                                data-search-text="tidak ada"><span class="tm-vr-radio"></span><span>Tidak ada</span></button>
+                              <div id="tmValueSetOptions"></div>
+                              <div class="tm-vr-set-empty" id="tmValueSetEmpty">Tidak ada hasil untuk pencarian ini.</div>
+                            </div>
                             <button type="button" class="btn btn-outline-secondary btn-block mt-2"
                               id="btnCreateValueRuleFromSelect">Buat set aturan</button>
                           </div>
+                        </div>
                         </div>
                         <div class="small mt-2" id="tmValueRuleSummary">Set aturan nilai belum dipilih.</div>
                       </div>
@@ -10776,11 +11494,62 @@
                 <input type="hidden" id="modal_ad_transparency_name" value="">
               </div>
               <div class="tm-section">
-                <div>
-                  <h6>Penempatan</h6>
-                  <p>Pilih tempat iklan Anda muncul di seluruh teknologi Meta. <a
-                      href="https://www.facebook.com/business/help/407108559393196" target="_blank"
-                      rel="noopener">Pelajari selengkapnya</a></p>
+                <div class="tm-placement-lead">
+                  <i class="fas fa-check"></i>
+                  <div>
+                    <h6>Penempatan</h6>
+                    <p>Pilih tempat iklan Anda muncul di seluruh teknologi Meta. <a
+                        href="https://www.facebook.com/business/help/407108559393196" target="_blank"
+                        rel="noopener">Pelajari selengkapnya</a></p>
+                  </div>
+                </div>
+                <div id="tmPlacementValueRuleInfo" class="tm-placement-vr-info">
+                  <i class="fas fa-info-circle"></i>
+                  <div class="flex-grow-1">
+                    <h5>Pembuatan aturan nilai berubah</h5>
+                    <p>Kini Anda bisa menambahkan aturan lebih dekat dengan tempat Anda memilih penempatan set iklan Anda.</p>
+                  </div>
+                  <button type="button" class="btn btn-link text-muted p-0" id="btnDismissPlacementValueRuleInfo"
+                    aria-label="Tutup"><i class="fas fa-times"></i></button>
+                </div>
+                <div id="tmPlacementValueRuleCard" class="tm-placement-vr-card open">
+                  <button type="button" class="tm-placement-vr-card-head" id="btnTogglePlacementValueRules">
+                    <span>Aturan nilai penempatan <i class="fas fa-info-circle text-muted"></i></span>
+                    <i class="fas fa-chevron-up tm-placement-vr-chevron"></i>
+                  </button>
+                  <div class="tm-placement-vr-card-body">
+                    <p>Prioritaskan penempatan yang paling penting bagi bisnis Anda dengan menyesuaikan tawaran untuk
+                      penempatan tersebut. <a href="javascript:void(0)">Tentang aturan nilai</a></p>
+                    <div class="tm-value-rule-card tm-placement-vr-inner">
+                      <h6 class="mb-1">Aturan nilai <i class="fas fa-info-circle text-muted"></i></h6>
+                      <p class="mb-3">Beri tahu kami seberapa besar nilai audiens, lokasi konversi, dan penempatan
+                        tertentu bagi bisnis Anda. Sistem kami akan mengoptimalkan hasil berdasarkan aturan ini. <a
+                          href="javascript:void(0)">Tentang aturan nilai</a></p>
+                      <label class="font-weight-bold d-block mb-2">Set aturan</label>
+                      <div class="tm-vr-set-field">
+                      <div class="tm-vr-set-wrap tm-placement-vr-set-wrap">
+                        <button type="button" class="tm-vr-select" id="tmPlacementValueSetSelect"><span
+                            id="tmPlacementValueSetSelectedText">Tidak ada</span><i class="fas fa-caret-down"></i></button>
+                        <div class="tm-vr-set-dropdown" id="tmPlacementValueSetMenu">
+                          <div class="tm-vr-set-search-wrap"><i class="fas fa-search"></i><input type="text"
+                              class="tm-vr-set-search" id="tmPlacementValueSetSearch" placeholder="Cari set aturan"
+                              autocomplete="off"></div>
+                          <div class="tm-vr-set-options-scroll">
+                            <button type="button" class="tm-vr-set-option js-vr-placement-set-option active" data-vr-placement-set-id=""
+                              data-search-text="tidak ada"><span class="tm-vr-radio"></span><span>Tidak ada</span></button>
+                            <div id="tmPlacementValueSetOptions"></div>
+                            <div class="tm-vr-set-empty" id="tmPlacementValueSetEmpty">Tidak ada hasil untuk pencarian ini.
+                            </div>
+                          </div>
+                          <button type="button" class="btn btn-outline-secondary btn-block mt-2"
+                            id="btnCreatePlacementValueRuleFromSelect">Buat set aturan</button>
+                        </div>
+                      </div>
+                      </div>
+                      <div class="small text-muted mt-2" id="tmPlacementValueRuleSummary">Set aturan ini digunakan dalam 0
+                        set iklan aktif</div>
+                    </div>
+                  </div>
                 </div>
                 <div id="tmPlacementWhatsappNotice" class="tm-placement-note">
                   <div class="d-flex align-items-start justify-content-between gap-3">
@@ -10822,7 +11591,7 @@
                           oleh sistem penayangan Meta ke beberapa penempatan berdasarkan tempatnya kemungkinan akan memiliki
                           kinerja terbaik.</div>
                       </div><button type="button" class="btn btn-link p-0" id="btnEditPlacementMode"><i
-                          class="fas fa-pen mr-1"></i>Edit</button>
+                          class="fas fa-pen"></i></button>
                     </div>
                   </div>
                   <div id="tmPlacementAdvEditor" class="tm-placement-adv-editor">
@@ -10849,13 +11618,110 @@
                       </span>
                     </label>
                     <div id="tmPlacementManualShell" class="tm-placement-manual-shell">
-                      <div id="tmPlacementModeFields" class="form-row mt-3" style="display:block;">
+                      <div class="tm-mp-upsell">
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                          <div><i class="fas fa-chart-line text-primary mr-1"></i><span class="tm-mp-upsell-title">Anda
+                              bisa mendapatkan hasil yang lebih baik dengan penempatan Advantage+</span></div>
+                          <button type="button" class="btn btn-link btn-sm p-0 text-muted" tabindex="-1"
+                            aria-hidden="true"><i class="fas fa-ellipsis-h"></i></button>
+                        </div>
+                        <p>Semakin banyak penempatan, semakin besar peluang menemukan audiens yang lebih luas. <a
+                            href="#" tabindex="-1" onclick="return false;">Tentang penempatan Advantage+</a></p>
+                        <button type="button" class="btn btn-light btn-sm" id="btnSwitchToAdvPlacement">Daftar
+                          sekarang</button>
+                      </div>
+                      <label class="tm-mp-abtest mb-0"><input type="checkbox" id="tmMpAbTest"> <span
+                          class="tm-mp-abtest-ico"><i class="fas fa-flask"></i></span> <span>Jalankan uji A/B untuk
+                          melihat hasil penggunaan Penempatan Advantage+</span></label>
+                      <input type="hidden" id="modal_placement_ab_test_enabled" value="0">
+                      <input type="hidden" id="modal_placement_ab_deactivate_loser" value="0">
+                      <div id="tmMpAbTestPanel" class="tm-mp-ab-panel" style="display:none;">
+                        <div class="tm-mp-ab-panel-head"><span>Detail pengujian</span><button type="button"
+                            class="btn btn-link btn-sm p-0 text-muted" id="btnToggleMpAbPanel"><i
+                              class="fas fa-chevron-up"></i></button></div>
+                        <div class="tm-mp-ab-panel-body" id="tmMpAbPanelBody">
+                          <div class="tm-mp-ab-field">
+                            <div class="tm-mp-ab-label">Durasi pengujian <i class="fas fa-info-circle text-muted"></i></div>
+                            <div class="tm-mp-ab-value" id="tmMpAbDuration">-</div>
+                          </div>
+                          <div class="tm-mp-ab-field">
+                            <div class="tm-mp-ab-label">Versi</div>
+                            <div class="tm-mp-ab-version">
+                              <span class="tm-mp-ab-version-badge">A</span>
+                              <div class="tm-mp-ab-value" id="tmMpAbVersionA">-</div>
+                            </div>
+                            <div class="tm-mp-ab-version">
+                              <span class="tm-mp-ab-version-badge">B</span>
+                              <div>
+                                <div class="tm-mp-ab-value" id="tmMpAbVersionB">-</div>
+                                <span class="tm-mp-ab-pill">Advantage+ aktif untuk penempatan</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="tm-mp-ab-field">
+                            <div class="tm-mp-ab-label">Anggaran pengujian <i class="fas fa-info-circle text-muted"></i>
+                            </div>
+                            <div class="tm-mp-ab-value">Kami akan mengupayakan untuk membelanjakan minimal 10% dari
+                              anggaran Anda yang ada di tiap versi.</div>
+                          </div>
+                          <div class="tm-mp-ab-toggle-row">
+                            <label class="tm-mp-ab-switch mb-0"><input type="checkbox" id="tmMpAbDeactivateLoser"><span></span></label>
+                            <div>
+                              <div class="font-weight-bold" style="font-size:14px;color:#1c1e21;">Nonaktifkan versi yang
+                                kalah</div>
+                              <div class="small text-muted">Jika pemenang ditemukan, opsi ini akan otomatis menonaktifkan
+                                yang kalah.</div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="tm-mp-device-block">
+                        <span class="tm-mp-device-title">Perangkat</span>
+                        <div class="tm-mp-device-select-wrap">
+                          <button type="button" class="tm-mp-device-select" id="btnMpDeviceSelect" aria-haspopup="listbox"
+                            aria-expanded="false"><span id="tmMpDeviceSelectLabel">Semua Perangkat
+                              (Disarankan)</span><i class="fas fa-caret-down"></i></button>
+                          <div class="tm-mp-device-menu" id="tmMpDeviceMenu" role="listbox">
+                            <label class="tm-mp-device-opt"><input type="checkbox" class="tm-mp-device-cb" value="mobile"
+                                checked><span class="tm-mp-device-box"></span><span>Seluler</span></label>
+                            <label class="tm-mp-device-opt"><input type="checkbox" class="tm-mp-device-cb" value="desktop"
+                                checked><span class="tm-mp-device-box"></span><span>Desktop</span></label>
+                          </div>
+                        </div>
+                      </div>
+                      <div id="tmMpDeviceEditor" class="mb-3" style="display:none;">
+                        <label class="mr-3 mb-2 d-inline-block"><input type="radio" class="tm-mp-device" name="tm_mp_device_mode"
+                            value="all" checked> Semua perangkat</label>
+                        <label class="mr-3 mb-2 d-inline-block"><input type="radio" class="tm-mp-device"
+                            name="tm_mp_device_mode" value="mobile"> Seluler</label>
+                        <label class="mb-2 d-inline-block"><input type="radio" class="tm-mp-device" name="tm_mp_device_mode"
+                            value="desktop"> Desktop</label>
+                      </div>
+                      <div class="tm-mp-platform-block">
+                        <div class="tm-mp-platform-title">Platform</div>
+                        <div class="tm-mp-platform-grid" id="tmMpPlatforms">
+                          <label class="tm-mp-plat"><input type="checkbox" class="tm-mp-platform" value="facebook"
+                              checked><span class="tm-mp-plat-box"></span><span>Facebook</span></label>
+                          <label class="tm-mp-plat"><input type="checkbox" class="tm-mp-platform" value="instagram"
+                              checked><span class="tm-mp-plat-box"></span><span>Instagram</span></label>
+                          <label class="tm-mp-plat"><input type="checkbox" class="tm-mp-platform" value="audience_network"
+                              checked><span class="tm-mp-plat-box"></span><span>Audience Network</span></label>
+                          <label class="tm-mp-plat"><input type="checkbox" class="tm-mp-platform"
+                              value="messenger"><span class="tm-mp-plat-box"></span><span>Messenger</span></label>
+                          <label class="tm-mp-plat is-disabled"><input type="checkbox" disabled><span
+                              class="tm-mp-plat-box"></span><span>WhatsApp</span></label>
+                          <label class="tm-mp-plat"><input type="checkbox" class="tm-mp-platform"
+                              value="threads"><span class="tm-mp-plat-box"></span><span>Threads</span></label>
+                        </div>
+                      </div>
+                      <div id="tmPlacementManagerMount"></div>
+                      <div id="tmPlacementModeFields" class="d-none">
                         <div class="col-md-4 meta-audience-field meta-audience-select d-none"><label>Penempatan</label><select
                             id="modal_placement_mode" class="form-control">
                             <option value="auto">Advantage+ (Auto)</option>
                             <option value="manual">Manual</option>
                           </select></div>
-                        <div class="col-md-12 mt-2" id="modal_manual_placement_wrap" style="display:none;">
+                        <div class="col-md-12 mt-2" id="modal_manual_placement_wrap">
                           <div class="mp-section">
                             <div class="mp-section-title">Penempatan Manual</div>
                             <div class="mp-section-desc">Pilih device, platform, dan posisi tayang yang ingin digunakan.</div>
@@ -10868,7 +11734,8 @@
                                   class="modal-platform" value="instagram" checked> Instagram</label><label
                                 class="mp-item"><input type="checkbox" class="modal-platform" value="audience_network"
                                   checked> Audience Network</label><label class="mp-item"><input type="checkbox"
-                                  class="modal-platform" value="messenger" checked> Messenger</label></div>
+                                  class="modal-platform" value="messenger"> Messenger</label><label class="mp-item"><input
+                                  type="checkbox" class="modal-platform" value="threads"> Threads</label></div>
                             <div class="row mt-2">
                               <div class="col-md-3">
                                 <div class="mp-section">
@@ -10917,6 +11784,14 @@
                                         data-platform="messenger" value="messenger_home"> Home</label><label
                                       class="mp-item"><input type="checkbox" class="modal-position"
                                         data-platform="messenger" value="sponsored_messages"> Sponsored</label></div>
+                                </div>
+                              </div>
+                              <div class="col-md-3">
+                                <div class="mp-section">
+                                  <div class="mp-section-title">Threads</div>
+                                  <div class="mp-grid mp-grid-2"><label class="mp-item"><input type="checkbox"
+                                        class="modal-position" data-platform="threads" value="threads_stream">
+                                      Feed</label></div>
                                 </div>
                               </div>
                             </div>
@@ -11109,6 +11984,7 @@
                 </div>
                 <input type="hidden" id="modal_account_placement_control_enabled" value="0">
                 <input type="hidden" id="modal_account_placement_controls" value="[]">
+                <input type="hidden" id="modal_placement_value_rule_set_id" value="">
                 <input type="hidden" id="modal_specific_mobile_device" value="all">
                 <input type="hidden" id="modal_specific_mobile_wifi_only" value="0">
                 <input type="hidden" id="modal_exclude_skippable_ads" value="0">
@@ -12894,8 +13770,9 @@
     </div>
   </div>
 </div>
-<div class="modal fade" id="modalPlacementAccountControls" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog modal-xl" role="document">
+<div class="modal fade tm-placement-account-modal" id="modalPlacementAccountControls" tabindex="-1" role="dialog"
+  aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
     <div class="modal-content">
       <div class="modal-header border-0 pb-0">
         <h3 class="modal-title">Kontrol penempatan untuk akun iklan ini</h3><button type="button" class="close"
@@ -12903,8 +13780,8 @@
       </div>
       <div class="modal-body pt-3">
         <div class="tm-placement-modal-intro">Kontrol ini akan membuat pengecualian pada seluruh kampanye untuk akun iklan
-          ini. Untuk menghindari penurunan kinerja, hanya lakukan pengecualian penempatan yang diperlukan untuk bisnis
-          Anda. <a href="https://www.facebook.com/business/help/407108559393196" target="_blank" rel="noopener">Pelajari
+          ini. Untuk menghindari penurunan kinerja, hanya lakukan pengecualian penempatan yang diperlukan saja. <a
+            href="https://www.facebook.com/business/help/407108559393196" target="_blank" rel="noopener">Pelajari
             tentang penempatan</a></div>
         <div class="tm-placement-switch">
           <div class="custom-control custom-switch">
@@ -12913,7 +13790,7 @@
               beriklan di penempatan tertentu</label>
           </div>
         </div>
-        <div id="tmPlacementControlModalWrap">
+        <div id="tmPlacementControlModalWrap" style="display:none;">
           <div class="font-weight-bold mb-3">Batalkan memilih penempatan yang ingin Anda kecualikan <i
               class="fas fa-info-circle text-muted"></i></div>
           <div class="tm-placement-modal-groups">
@@ -12922,10 +13799,10 @@
                   class="fas fa-chevron-up"></i></div>
               <div id="tmPlacementGroupApps" class="tm-placement-modal-group-body">
                 <label class="tm-placement-modal-option"><input type="checkbox" class="tm-placement-control-option"
-                    value="audience_network_native_banner_interstitial"><span>Native, banner, dan intertisial Audience
-                      Network</span></label>
+                    value="audience_network_native_banner_interstitial" checked><span>Native, banner, dan intertisial
+                    Audience Network</span></label>
                 <label class="tm-placement-modal-option"><input type="checkbox" class="tm-placement-control-option"
-                    value="audience_network_rewarded_video"><span>Video berhadiah Audience Network</span></label>
+                    value="audience_network_rewarded_video" checked><span>Video berhadiah Audience Network</span></label>
               </div>
             </div>
             <div class="tm-placement-modal-group">
@@ -12933,9 +13810,9 @@
                   class="fas fa-chevron-up"></i></div>
               <div id="tmPlacementGroupFeed" class="tm-placement-modal-group-body">
                 <label class="tm-placement-modal-option"><input type="checkbox" class="tm-placement-control-option"
-                    value="facebook_marketplace"><span>Facebook Marketplace</span></label>
+                    value="facebook_marketplace" checked><span>Facebook Marketplace</span></label>
                 <label class="tm-placement-modal-option"><input type="checkbox" class="tm-placement-control-option"
-                    value="facebook_right_column"><span>Kolom kanan Facebook</span></label>
+                    value="facebook_right_column" checked><span>Kolom kanan Facebook</span></label>
               </div>
             </div>
           </div>
@@ -12945,7 +13822,24 @@
         <a href="https://adsmanager.facebook.com/adsmanager/manage/advertising_settings" target="_blank" rel="noopener"
           class="btn btn-link mr-auto pl-0">Lihat kontrol di pengaturan Periklanan</a>
         <button type="button" class="btn btn-outline-secondary" data-dismiss="modal">Batal</button>
-        <button type="button" class="btn btn-primary" id="btnSavePlacementAccountControls">Tinjau perubahan</button>
+        <button type="button" class="btn btn-primary" id="btnSavePlacementAccountControls" disabled>Tinjau
+          perubahan</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade tm-placement-account-modal" id="modalPlacementAccountControlsReview" tabindex="-1" role="dialog"
+  aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header border-0 pb-0">
+        <h3 class="modal-title">Kontrol penempatan untuk akun iklan ini</h3><button type="button" class="close"
+          data-dismiss="modal"><span>&times;</span></button>
+      </div>
+      <div class="modal-body pt-3" id="tmPlacementAccountReviewBody"></div>
+      <div class="modal-footer border-0">
+        <button type="button" class="btn btn-outline-secondary" id="btnBackPlacementAccountReview">Kembali</button>
+        <button type="button" class="btn btn-primary" id="btnConfirmPlacementAccountControls">Konfirmasi</button>
       </div>
     </div>
   </div>
@@ -14481,7 +15375,7 @@
     function restoreAdsetDraft() {
       let draft = null; try { draft = JSON.parse(localStorage.getItem(getAdsetDraftKey()) || 'null'); } catch (e) { }
       if (!draft || String(draft.campaign_id || '') !== String($('#modal_campaign_id').val() || '')) return false;
-      ['adset_name', 'budget_type', 'daily_budget', 'lifetime_budget', 'start_time', 'end_time', 'location_include_countries', 'location_exclude_countries', 'location_include_regions', 'location_include_cities', 'location_exclude_regions', 'location_exclude_cities', 'age_min', 'age_max', 'conversion_location', 'optimization_goal', 'bid_strategy', 'bid_amount', 'attribution_window', 'dynamic_creative', 'gender', 'advantage', 'placement_mode', 'asset_customization', 'mobile_app_store', 'promoted_app_name', 'billing_event', 'message_destination_mode', 'message_destinations', 'whatsapp_number', 'ad_transparency_status', 'ad_transparency_method', 'ad_transparency_country', 'ad_transparency_name', 'account_placement_control_enabled', 'account_placement_controls', 'specific_mobile_device', 'specific_mobile_wifi_only', 'exclude_skippable_ads', 'content_inventory_filter', 'audience_network_inventory_filter', 'publisher_blocklist', 'content_type_exclusions'].forEach(function (k) { if (typeof draft[k] !== 'undefined') $('#modal_' + k).val(String(draft[k] || '')); });
+      ['adset_name', 'budget_type', 'daily_budget', 'lifetime_budget', 'start_time', 'end_time', 'location_include_countries', 'location_exclude_countries', 'location_include_regions', 'location_include_cities', 'location_exclude_regions', 'location_exclude_cities', 'age_min', 'age_max', 'conversion_location', 'optimization_goal', 'bid_strategy', 'bid_amount', 'attribution_window', 'dynamic_creative', 'gender', 'advantage', 'placement_mode', 'asset_customization', 'mobile_app_store', 'promoted_app_name', 'billing_event', 'message_destination_mode', 'message_destinations', 'whatsapp_number', 'ad_transparency_status', 'ad_transparency_method', 'ad_transparency_country', 'ad_transparency_name', 'account_placement_control_enabled', 'account_placement_controls', 'placement_value_rule_set_id', 'specific_mobile_device', 'specific_mobile_wifi_only', 'exclude_skippable_ads', 'content_inventory_filter', 'audience_network_inventory_filter', 'publisher_blocklist', 'content_type_exclusions'].forEach(function (k) { if (typeof draft[k] !== 'undefined') $('#modal_' + k).val(String(draft[k] || '')); });
       $('#modal_whatsapp_unknown_age').val('0');
       $('#modal_bid_amount_app,#modal_bid_amount_msg').val(String(draft.bid_amount || ''));
       $('input[name="modal_device_mode"][value="' + String(draft.placement_device_mode || 'all') + '"]').prop('checked', true);
@@ -14534,7 +15428,7 @@
       $('#modal_location_search_results').hide().empty();
       resetAudienceLocationUi();
       $('#modal_age_min').val('18'); syncAgeMinPickerUi(); closeAgeMinMenu(); $('#modal_age_max').val('65'); $('#modal_gender').val('all'); $('#modal_advantage').val('1'); $('#modal_whatsapp_unknown_age').val('0');
-      $('#modal_placement_mode').val('auto'); $('#modal_asset_customization').val('0'); $('#modal_ad_transparency_status').val('not_started'); $('#modal_ad_transparency_method').val(''); $('#modal_ad_transparency_country').val('Indonesia'); $('#modal_ad_transparency_name').val(''); $('#modal_transparency_country_select').val('Indonesia'); $('#modal_transparency_identity_name').val(''); $('#modal_account_placement_control_enabled').val('0'); $('#modal_account_placement_controls').val('[]'); $('#modal_specific_mobile_device').val('all'); $('#modal_specific_mobile_wifi_only').val('0'); $('#modal_exclude_skippable_ads').val('0'); $('#modal_content_inventory_filter').val('expanded'); $('#modal_audience_network_inventory_filter').val('expanded'); $('#modal_publisher_blocklist').val('[]'); $('#modal_content_type_exclusions').val('[]');
+      $('#modal_placement_mode').val('auto'); $('#modal_asset_customization').val('0'); $('#modal_ad_transparency_status').val('not_started'); $('#modal_ad_transparency_method').val(''); $('#modal_ad_transparency_country').val('Indonesia'); $('#modal_ad_transparency_name').val(''); $('#modal_transparency_country_select').val('Indonesia'); $('#modal_transparency_identity_name').val(''); $('#modal_account_placement_control_enabled').val('0'); $('#modal_account_placement_controls').val('[]'); $('#modal_placement_value_rule_set_id').val(''); if (typeof window.setPlacementValueRuleSetId === 'function') window.setPlacementValueRuleSetId(''); $('#modal_specific_mobile_device').val('all'); $('#modal_specific_mobile_wifi_only').val('0'); $('#modal_exclude_skippable_ads').val('0'); $('#modal_content_inventory_filter').val('expanded'); $('#modal_audience_network_inventory_filter').val('expanded'); $('#modal_publisher_blocklist').val('[]'); $('#modal_content_type_exclusions').val('[]');
       $('input[name="modal_device_mode"][value="all"]').prop('checked', true); $('.modal-platform,.modal-position').prop('checked', false);
       $('.modal-platform[value="facebook"],.modal-platform[value="instagram"],.modal-platform[value="audience_network"],.modal-platform[value="messenger"]').prop('checked', true);
       setExcludedCustomAudiences([]);
@@ -14593,7 +15487,28 @@
     }
 
     function initAudiencePlacementControls() {
-      const $campaignModal = $('#modalCreateMetaCampaign'), accountId = String($('#modal_account').val() || '').trim(), $languages = $('#modal_languages'), $adLanguages = $('#modal_ad_languages'), groups = [{ t: 'Beranda', d: 'Dapatkan visibilitas tinggi untuk bisnis Anda di area beranda.', s: 'f', i: [['Beranda Facebook', 'facebook', 'feed'], ['Beranda Instagram', 'instagram', 'stream'], ['Facebook Marketplace', 'facebook', 'marketplace'], ['Beranda Jelajahi Instagram', 'instagram', 'explore']] }, { t: 'Cerita, Status, Reels', d: 'Sampaikan iklan vertikal layar penuh dengan visual yang menonjol.', s: 'v', i: [['Facebook Stories', 'facebook', 'story'], ['Instagram Stories', 'instagram', 'story'], ['Messenger Stories', 'messenger', 'story'], ['Instagram Reels', 'instagram', 'reels']] }, { t: 'Aplikasi dan situs', d: 'Perluas jangkauan di aplikasi dan situs eksternal.', s: 'f', i: [['Audience Network Classic', 'audience_network', 'classic'], ['Rewarded Video Audience Network', 'audience_network', 'rewarded_video'], ['Audience Network In-Stream', 'audience_network', 'instream_video']] }, { t: 'Messenger', d: 'Tampilkan iklan pesan yang disponsori atau story di Messenger.', s: 'f', i: [['Sponsored Messages', 'messenger', 'sponsored_messages'], ['Messenger Stories', 'messenger', 'story']] }, { t: 'Threads', d: 'Tayangkan iklan di feed Threads. Memerlukan Instagram Feed dan Threads User ID.', s: 'f', i: [['Kabar Threads', 'threads', 'threads_stream']] }], dtCfg = { width: '100%', theme: 'bootstrap4', dropdownParent: $campaignModal, placeholder: 'Tambahkan demografis, minat, atau perilaku', multiple: true, ajax: { url: '/management/admin/facebook_detailed_targeting_suggest', dataType: 'json', delay: 250, data: function (p) { return { q: String(p.term || '').trim(), selected_account: accountId }; }, processResults: function (d) { return { results: (d && d.results) || [] }; }, cache: true } }, languageCfg = { width: '100%', theme: 'bootstrap4', dropdownParent: $campaignModal, placeholder: 'Cari bahasa...', multiple: true, ajax: { url: '/management/admin/facebook_language_suggest', dataType: 'json', delay: 250, data: function (p) { return { q: String(p.term || '').trim(), selected_account: accountId }; }, processResults: function (d) { return { results: (d && d.results) || [] }; }, cache: true } };
+      const $campaignModal = $('#modalCreateMetaCampaign');
+      const accountId = String($('#modal_account').val() || '').trim();
+      const $languages = $('#modal_languages');
+      const $adLanguages = $('#modal_ad_languages');
+      const dtCfg = {
+        width: '100%', theme: 'bootstrap4', dropdownParent: $campaignModal,
+        placeholder: 'Tambahkan demografis, minat, atau perilaku', multiple: true,
+        ajax: {
+          url: '/management/admin/facebook_detailed_targeting_suggest', dataType: 'json', delay: 250,
+          data: function (p) { return { q: String(p.term || '').trim(), selected_account: accountId }; },
+          processResults: function (d) { return { results: (d && d.results) || [] }; }, cache: true
+        }
+      };
+      const languageCfg = {
+        width: '100%', theme: 'bootstrap4', dropdownParent: $campaignModal,
+        placeholder: 'Cari bahasa...', multiple: true,
+        ajax: {
+          url: '/management/admin/facebook_language_suggest', dataType: 'json', delay: 250,
+          data: function (p) { return { q: String(p.term || '').trim(), selected_account: accountId }; },
+          processResults: function (d) { return { results: (d && d.results) || [] }; }, cache: true
+        }
+      };
       if ($languages.length) { initAudienceLanguageUi(); }
       if ($adLanguages.length) { if ($adLanguages.data('select2')) $adLanguages.select2('destroy'); $adLanguages.next('.select2-container').remove(); $adLanguages.select2(languageCfg); }
       ['#modal_detailed_targeting_narrow'].forEach(function (sel) {
@@ -14609,13 +15524,280 @@
       }
       const dtSync = function () { const a = $('#modal_detailed_targeting_include').find('option:selected').length, b = $('#modal_detailed_targeting_narrow').find('option:selected').length; $('#modal_detailed_targeting_summary').text((a || b) ? ('Sertakan: ' + a + ' item • Harus cocok: ' + b + ' item.') : 'Belum ada penargetan terperinci dipilih.'); };
       $('#modal_detailed_targeting_include,#modal_detailed_targeting_narrow').off('.dt').on('change.dt', function () { dtSync(); if (window.createCampaignDetailedTargetingApi && typeof window.createCampaignDetailedTargetingApi.renderDtPicked === 'function') window.createCampaignDetailedTargetingApi.renderDtPicked(); }); dtSync();
-      if (!$('#modalPlacementManagerUi').length) { let h = '<div id="modalPlacementManagerUi"><div><div class="grp"><div class="gh"><span>Kontrol Manual</span></div><div class="gd">Atur perangkat, platform, dan penyesuaian aset sebelum memilih posisi tayang.</div><div style="padding:12px 14px"><div class="mb-2 font-weight-bold small">Perangkat</div><div class="d-flex flex-wrap mb-3"><label class="mr-3 mb-2"><input type="radio" class="ui-device" name="ui_device_mode" value="all"> Semua Device</label><label class="mr-3 mb-2"><input type="radio" class="ui-device" name="ui_device_mode" value="mobile"> Mobile</label><label class="mb-2"><input type="radio" class="ui-device" name="ui_device_mode" value="desktop"> Desktop</label></div><div class="mb-2 font-weight-bold small">Platform</div><div class="d-flex flex-wrap mb-2"><label class="mr-3 mb-2"><input type="checkbox" class="ui-platform" value="facebook"> Facebook</label><label class="mr-3 mb-2"><input type="checkbox" class="ui-platform" value="instagram"> Instagram</label><label class="mr-3 mb-2"><input type="checkbox" class="ui-platform" value="audience_network"> Audience Network</label><label class="mr-3 mb-2"><input type="checkbox" class="ui-platform" value="messenger"> Messenger</label><label class="mr-3 mb-2"><input type="checkbox" class="ui-platform" value="threads"> Threads</label><label class="mb-2 text-muted" title="Belum aktif untuk submit backend saat ini."><input type="checkbox" disabled> WhatsApp</label></div><div class="small text-muted mb-3">Threads aktif untuk submit manual placement. WhatsApp masih nonaktif karena memerlukan flow Click to WhatsApp terpisah.</div><div class="mb-2 font-weight-bold small">Penyesuaian Aset</div><div class="border rounded p-2 bg-light"><label class="d-flex align-items-center justify-content-between mb-2"><span class="font-weight-bold small mb-0">Optimalkan aset kreatif otomatis</span><input type="checkbox" id="modal_asset_customization_ui"></label><div class="small text-muted mb-2">Sesuaikan tampilan aset secara otomatis untuk placement yang berbeda.</div><div class="d-flex flex-wrap"><label class="mr-3 mb-2 small text-muted"><input type="checkbox" class="ui-asset mr-1" value="labels"> Variasi label</label><label class="mr-3 mb-2 small text-muted"><input type="checkbox" class="ui-asset mr-1" value="crop"> Penyesuaian crop</label><label class="mr-3 mb-2 small text-muted"><input type="checkbox" class="ui-asset mr-1" value="text"> Penyesuaian teks</label><label class="mb-2 small text-muted"><input type="checkbox" class="ui-asset mr-1" value="format"> Penyesuaian format</label></div></div></div></div>'; groups.forEach(function (g) { h += '<div class="grp"><div class="gh"><span>' + g.t + '</span><input type="checkbox" class="gg"></div><div class="gd">' + g.d + '</div>'; g.i.forEach(function (x) { h += '<label class="go" data-s="' + g.s + '" data-l="' + x[0] + '"><span>' + x[0] + '</span><input type="checkbox" class="ui-pos" data-p="' + x[1] + '" data-v="' + x[2] + '"></label>'; }); h += '</div>'; }); h += '</div><div class="mp-preview"><div class="small text-muted mb-2">Preview Penempatan</div><div id="mppf" class="mpf f"><div id="mppl" class="mpl">Beranda Facebook</div><div class="mp-meta"><span></span><span></span></div><div class="mp-lines"><i></i><i></i></div><div class="mpc">LEARN MORE</div></div><div class="small text-muted text-center mt-2">Preview mengikuti placement yang dipilih.</div></div></div>'; $('#modal_manual_placement_wrap').append(h); }
-      function syncUi() { const dv = String($('input[name="modal_device_mode"]:checked').val() || 'all'); const assetOn = String($('#modal_asset_customization').val() || '0') === '1'; $('.ui-device[value="' + dv + '"]').prop('checked', true); $('.ui-platform').each(function () { const p = String($(this).val() || '').trim(); const on = $('.modal-platform[value="' + p + '"]').prop('checked'); $(this).prop('checked', on); $('#modalPlacementManagerUi .ui-pos[data-p="' + p + '"]').prop('disabled', !on).closest('.go').toggleClass('off', !on); }); $('#modalPlacementManagerUi .ui-pos').each(function () { const p = $(this).data('p'), v = $(this).data('v'); $(this).prop('checked', $('.modal-position[data-platform="' + p + '"][value="' + v + '"]').prop('checked')); }); $('#modalPlacementManagerUi .grp').each(function () { const $c = $(this).find('.ui-pos'); if ($c.length) $(this).find('.gg').prop('checked', $c.filter(':checked').length === $c.length); }); $('#modal_asset_customization_ui').prop('checked', assetOn); $('.ui-asset').prop('checked', assetOn).prop('disabled', !assetOn); }
-      function syncLegacy() { const dv = String($('.ui-device:checked').val() || 'all'); const assetOn = $('#modal_asset_customization_ui').is(':checked'); $('input[name="modal_device_mode"][value="' + dv + '"]').prop('checked', true); $('.modal-platform').prop('checked', false); $('.ui-platform:checked').each(function () { const p = String($(this).val() || '').trim(); $('.modal-platform[value="' + p + '"]').prop('checked', true); }); $('.modal-position').prop('checked', false); $('#modalPlacementManagerUi .ui-pos:checked').each(function () { const p = $(this).data('p'), v = $(this).data('v'); if ($('.modal-platform[value="' + p + '"]').prop('checked')) $('.modal-position[data-platform="' + p + '"][value="' + v + '"]').prop('checked', true); }); $('.ui-asset').prop('disabled', !assetOn); if (!assetOn) $('.ui-asset').prop('checked', false); $('#modal_asset_customization').val(assetOn ? '1' : '0'); }
-      function preview($o) { const s = $o.data('s') === 'v' ? 'v' : 'f'; $('#mppf').attr('class', 'mpf ' + s); $('#mppl').text(String($o.data('l') || 'Beranda Facebook')); }
-      $('#modalPlacementManagerUi').off('change.mpui', '.ui-pos,.gg,.ui-platform,.ui-device,#modal_asset_customization_ui,.ui-asset').on('change.mpui', '.ui-pos,.gg,.ui-platform,.ui-device,#modal_asset_customization_ui,.ui-asset', function () { if ($(this).hasClass('gg')) $(this).closest('.grp').find('.ui-pos').prop('checked', $(this).is(':checked')); if ($(this).hasClass('ui-platform') && !$(this).is(':checked')) $('#modalPlacementManagerUi .ui-pos[data-p="' + String($(this).val() || '').trim() + '"]').prop('checked', false); syncLegacy(); syncUi(); const $a = $('#modalPlacementManagerUi .ui-pos:checked').first().closest('.go'); preview($a.length ? $a : $('#modalPlacementManagerUi .go').first()); });
-      const toggle = function () { $('#modal_manual_placement_wrap').toggle(String($('#modal_placement_mode').val() || 'auto') === 'manual'); };
-      $('#modal_placement_mode').off('change.manualPlacement').on('change.manualPlacement', toggle); toggle(); syncUi(); const $f = $('#modalPlacementManagerUi .ui-pos:checked').first().closest('.go'); preview($f.length ? $f : $('#modalPlacementManagerUi .go').first());
+      if (!$('#modalPlacementManagerUi').length) {
+        const mpGroups = [
+          { t: 'Beranda', d: 'Dapatkan visibilitas yang tinggi untuk bisnis Anda dengan iklan di beranda.', items: [
+            { l: 'Beranda Facebook', p: 'facebook', v: 'feed', s: 'f', hint: 'Kami menyarankan gambar dan video <strong>vertikal (4:5)</strong>.' },
+            { l: 'Kabar profil Facebook', p: 'facebook', v: 'feed', s: 'f', hint: 'Kami rekomendasikan gambar <strong>persegi (1:1)</strong> dan video <strong>vertikal (4:5)</strong>.' },
+            { l: 'Beranda Instagram', p: 'instagram', v: 'stream', s: 'f', hint: 'Kami merekomendasikan gambar <strong>vertikal (4:5)</strong> dan video <strong>vertikal layar penuh (9:16)</strong>.' },
+            { l: 'Beranda profil Instagram', p: 'instagram', v: 'stream', s: 'f', hint: 'Kami merekomendasikan gambar <strong>vertikal (4:5)</strong> dan video <strong>vertikal layar penuh (9:16)</strong>.' },
+            { l: 'Facebook Marketplace', p: 'facebook', v: 'marketplace', s: 'f', hint: 'Kami menyarankan gambar dan video <strong>persegi (1:1)</strong>.' },
+            { l: 'Kolom Kanan Facebook', p: 'facebook', v: 'feed', s: 'f', hint: 'Kami rekomendasikan gambar <strong>persegi (1:1)</strong> dan video <strong>vertikal (4:5)</strong>.' },
+            { l: 'Beranda Jelajahi Instagram', p: 'instagram', v: 'explore', s: 'f', hint: 'Kami merekomendasikan gambar <strong>vertikal (4:5)</strong> dan video <strong>vertikal layar penuh (9:16)</strong>.' },
+            { l: 'Facebook Business Explore', p: 'facebook', v: 'feed', s: 'f', hint: 'Kami rekomendasikan gambar <strong>persegi (1:1)</strong> dan video <strong>vertikal (4:5)</strong>.' },
+            { l: 'Kabar Threads', p: 'threads', v: 'threads_stream', s: 'f', hint: 'Kami menyarankan gambar dan video <strong>vertikal (4:5)</strong>.' },
+            { l: 'Notifikasi Facebook', p: 'facebook', v: 'feed', s: 'f', hint: 'Kami rekomendasikan gambar <strong>persegi (1:1)</strong> dan video <strong>vertikal (4:5)</strong>.' }
+          ]},
+          { t: 'Cerita, Status, Reels', d: 'Sampaikan iklan vertikal layar penuh dengan cerita visual yang mendalam.', items: [
+            { l: 'Instagram Stories', p: 'instagram', v: 'story', s: 'v', hint: 'Kami menyarankan gambar atau video <strong>vertikal layar penuh (9:16)</strong>.' },
+            { l: 'Facebook Stories', p: 'facebook', v: 'story', s: 'v', hint: 'Kami menyarankan gambar atau video <strong>vertikal layar penuh (9:16)</strong>.' },
+            { l: 'Messenger Stories', p: 'messenger', v: 'story', s: 'v', hint: 'Kami menyarankan gambar atau video <strong>vertikal layar penuh (9:16)</strong>.' },
+            { l: 'Instagram Reels', p: 'instagram', v: 'reels', s: 'v', hint: 'Kami menyarankan video <strong>vertikal layar penuh (9:16)</strong>.' },
+            { l: 'Facebook Reels', p: 'facebook', v: 'video_feeds', s: 'v', hint: 'Kami menyarankan video <strong>vertikal layar penuh (9:16)</strong>.' }
+          ]},
+          { t: 'Iklan in-stream untuk reel', d: 'Jangkau orang sebelum, selama, atau setelah mereka menonton reel.', items: [
+            { l: 'Reel in-stream Facebook', p: 'facebook', v: 'video_feeds', s: 'v', hint: 'Format video yang direkomendasikan adalah <strong>vertikal (9:16)</strong>, kurang dari 10 detik.', desc: 'Format gambar <strong>persegi (1:1)</strong>.', fmt: 1 },
+            { l: 'Iklan di Facebook Reels', p: 'facebook', v: 'video_feeds', s: 'v', hint: 'Format video yang direkomendasikan adalah <strong>vertikal (9:16)</strong>, kurang dari 10 detik.', desc: 'Format gambar <strong>persegi (1:1)</strong>.', fmt: 1 }
+          ]},
+          { t: 'Hasil pencarian', d: 'Dapatkan visibilitas untuk bisnis Anda saat orang-orang melakukan pencarian.', items: [
+            { l: 'Hasil pencarian Facebook', p: 'facebook', v: 'feed', s: 's', hint: 'Kami menyarankan gambar dan video <strong>persegi (1:1)</strong>.', desc: 'Penempatan ini mencakup pencarian umum dan pencarian Marketplace.' },
+            { l: 'Hasil pencarian Instagram', p: 'instagram', v: 'stream', s: 's', hint: 'Kami menyarankan gambar dan video <strong>persegi (1:1)</strong>.' }
+          ]},
+          { t: 'Aplikasi dan situs', d: 'Perluas jangkauan Anda dengan iklan di aplikasi dan situs web eksternal.', items: [
+            { l: 'Native, banner, dan interstisial Audience Network', p: 'audience_network', v: 'classic', s: 'f', hint: 'Kami rekomendasikan gambar <strong>persegi (1:1)</strong> dan video <strong>vertikal (4:5)</strong>.' },
+            { l: 'Video berhadiah Audience Network', p: 'audience_network', v: 'rewarded_video', s: 'v', hint: 'Kami menyarankan video <strong>vertikal layar penuh (9:16)</strong>.' }
+          ]}
+        ];
+        let h = '<div id="modalPlacementManagerUi"><div class="mp-list-col">';
+        mpGroups.forEach(function (g) {
+          h += '<div class="grp"><div class="gh"><span><i class="fas fa-chevron-down mr-2"></i>' + g.t + '</span><input type="checkbox" class="gg"></div><div class="gd">' + g.d + '</div><div class="go-wrap">';
+          g.items.forEach(function (x) {
+            h += '<label class="go" data-s="' + x.s + '" data-l="' + x.l + '" data-hint="' + String(x.hint || '').replace(/"/g, '&quot;') + '" data-desc="' + String(x.desc || '').replace(/"/g, '&quot;') + '" data-fmt="' + (x.fmt ? '1' : '0') + '"><span>' + x.l + '</span><input type="checkbox" class="ui-pos" data-p="' + x.p + '" data-v="' + x.v + '"></label>';
+          });
+          h += '</div></div>';
+        });
+        h += '</div><div class="mp-preview"><div id="mppf" class="mpf f"><div class="mpf-inner feed"><div class="mpf-brand">Jasper\'s Market · Sponsored</div><div class="mpf-media"><img src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=480&h=600&q=80" alt="Preview Beranda Facebook"></div><div class="mpf-cta">LEARN MORE</div></div></div><div id="mpPreviewTitle" class="mp-preview-title">Beranda Facebook</div><div id="mpPreviewHint" class="mp-preview-hint">Kami menyarankan gambar dan video <strong>vertikal (4:5)</strong>.</div><div id="mpPreviewDesc" class="mp-preview-desc"></div><div id="mpPreviewFormat" class="mp-preview-format" style="display:none;"><button type="button" class="active" data-fmt="video">Video</button><button type="button" data-fmt="image">Gambar</button></div></div></div>';
+        ($('#tmPlacementManagerMount').length ? $('#tmPlacementManagerMount') : $('#modal_manual_placement_wrap')).append(h);
+      }
+      function syncMpDeviceUi() {
+        const dv = String($('input[name="modal_device_mode"]:checked').val() || 'all');
+        $('.tm-mp-device-cb[value="mobile"]').prop('checked', dv === 'all' || dv === 'mobile');
+        $('.tm-mp-device-cb[value="desktop"]').prop('checked', dv === 'all' || dv === 'desktop');
+        const labels = { all: 'Semua Perangkat (Disarankan)', mobile: 'Seluler', desktop: 'Desktop' };
+        $('#tmMpDeviceSelectLabel').text(labels[dv] || labels.all);
+      }
+      function readMpDeviceModeFromChecks() {
+        const mobile = $('.tm-mp-device-cb[value="mobile"]').is(':checked');
+        const desktop = $('.tm-mp-device-cb[value="desktop"]').is(':checked');
+        if (mobile && desktop) return 'all';
+        if (mobile) return 'mobile';
+        if (desktop) return 'desktop';
+        return 'all';
+      }
+      function closeMpDeviceMenu() {
+        $('#tmMpDeviceMenu').removeClass('is-open');
+        $('#btnMpDeviceSelect').removeClass('is-open').attr('aria-expanded', 'false');
+      }
+      function syncMpAbTestPanel() {
+        const on = $('#tmMpAbTest').is(':checked');
+        $('#tmMpAbTestPanel').toggle(on);
+        $('#modal_placement_ab_test_enabled').val(on ? '1' : '0');
+        if (!on) return;
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+        const fmt = function (d) {
+          const pad = function (n) { return String(n).padStart(2, '0'); };
+          return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear() + ' ' + pad(d.getHours()) + '.' + pad(d.getMinutes());
+        };
+        const start = new Date();
+        const days = parseInt(String($('#modal_ab_test_days').val() || '7'), 10) || 7;
+        const end = new Date(start.getTime() + (days * 86400000));
+        $('#tmMpAbDuration').text(fmt(start) + ' – ' + fmt(end));
+        const accountName = String($('#modal_account option:selected').text() || 'Akun').replace(/\s*\([^)]*\)\s*$/, '').trim() || 'Akun';
+        const objective = String($('#modal_objective option:selected').text() || 'Kampanye').trim() || 'Kampanye';
+        const adset = String($('#modal_adset_name').val() || 'Set Iklan').trim() || 'Set Iklan';
+        $('#tmMpAbVersionA').text(accountName + ' | ' + objective + ' | Baru | ' + adset);
+        $('#tmMpAbVersionB').text('Uji - ' + accountName + ' | ' + objective + ' | Baru | ' + adset);
+      }
+      function syncUi() {
+        const assetOn = String($('#modal_asset_customization').val() || '0') === '1';
+        syncMpDeviceUi();
+        $('.tm-mp-platform').each(function () {
+          const p = String($(this).val() || '').trim();
+          const on = $('.modal-platform[value="' + p + '"]').prop('checked');
+          $(this).prop('checked', on);
+          $('#modalPlacementManagerUi .ui-pos[data-p="' + p + '"]').prop('disabled', !on).closest('.go').toggleClass('off', !on);
+        });
+        $('#modalPlacementManagerUi .ui-pos').each(function () {
+          const p = $(this).data('p'), v = $(this).data('v');
+          $(this).prop('checked', $('.modal-position[data-platform="' + p + '"][value="' + v + '"]').prop('checked'));
+        });
+        $('#modalPlacementManagerUi .grp').each(function () {
+          const $c = $(this).find('.ui-pos:not(:disabled)');
+          if ($c.length) $(this).find('.gg').prop('checked', $c.filter(':checked').length === $c.length);
+        });
+      }
+      function syncLegacy() {
+        const dv = readMpDeviceModeFromChecks();
+        $('input[name="modal_device_mode"][value="' + dv + '"]').prop('checked', true);
+        $('.modal-platform').prop('checked', false);
+        $('.tm-mp-platform:checked').each(function () {
+          const p = String($(this).val() || '').trim();
+          $('.modal-platform[value="' + p + '"]').prop('checked', true);
+        });
+        $('.modal-position').prop('checked', false);
+        $('#modalPlacementManagerUi .ui-pos:checked').each(function () {
+          const p = $(this).data('p'), v = $(this).data('v');
+          if ($('.modal-platform[value="' + p + '"]').prop('checked')) {
+            $('.modal-position[data-platform="' + p + '"][value="' + v + '"]').prop('checked', true);
+          }
+        });
+        if (String($('#modal_placement_mode').val() || 'auto') === 'manual' && !$('#modal_asset_customization').val()) {
+          $('#modal_asset_customization').val('1');
+        }
+        syncMpDeviceUi();
+      }
+      let mpUserImageUrl = null;
+      const MP_DEMO_DEFAULTS = {
+        feed: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=480&h=600&q=80',
+        story: 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=480&h=853&q=80',
+        search: 'https://images.unsplash.com/photo-1541782814458-9ca234f18a88?auto=format&fit=crop&w=480&h=480&q=80',
+        square: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=480&h=480&q=80',
+        reels: 'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?auto=format&fit=crop&w=480&h=853&q=80'
+      };
+      const MP_DEMO_IMAGES = {
+        'Beranda Facebook': MP_DEMO_DEFAULTS.feed,
+        'Kabar profil Facebook': MP_DEMO_DEFAULTS.square,
+        'Beranda Instagram': 'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?auto=format&fit=crop&w=480&h=600&q=80',
+        'Beranda profil Instagram': 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?auto=format&fit=crop&w=480&h=600&q=80',
+        'Facebook Marketplace': 'https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=480&h=480&q=80',
+        'Kolom Kanan Facebook': MP_DEMO_DEFAULTS.square,
+        'Beranda Jelajahi Instagram': 'https://images.unsplash.com/photo-1616394584738-fc6e612e71b9?auto=format&fit=crop&w=480&h=600&q=80',
+        'Facebook Business Explore': MP_DEMO_DEFAULTS.feed,
+        'Kabar Threads': 'https://images.unsplash.com/photo-1494976388531-d105849445bf?auto=format&fit=crop&w=480&h=600&q=80',
+        'Notifikasi Facebook': MP_DEMO_DEFAULTS.square,
+        'Instagram Stories': 'https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&w=480&h=853&q=80',
+        'Facebook Stories': 'https://images.unsplash.com/photo-1565958011703-44f9824ba187?auto=format&fit=crop&w=480&h=853&q=80',
+        'Messenger Stories': 'https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=480&h=853&q=80',
+        'Instagram Reels': MP_DEMO_DEFAULTS.reels,
+        'Facebook Reels': MP_DEMO_DEFAULTS.reels,
+        'Reel in-stream Facebook': MP_DEMO_DEFAULTS.reels,
+        'Iklan di Facebook Reels': MP_DEMO_DEFAULTS.reels,
+        'Hasil pencarian Facebook': MP_DEMO_DEFAULTS.search,
+        'Hasil pencarian Instagram': 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=480&h=480&q=80',
+        'Native, banner, dan interstisial Audience Network': MP_DEMO_DEFAULTS.square,
+        'Video berhadiah Audience Network': MP_DEMO_DEFAULTS.story
+      };
+      function resolveMpPreviewImage(label, s, fmtMode) {
+        if (mpUserImageUrl) return mpUserImageUrl;
+        if (MP_DEMO_IMAGES[label]) return MP_DEMO_IMAGES[label];
+        if (s === 'v') return fmtMode === 'image' ? MP_DEMO_DEFAULTS.square : MP_DEMO_DEFAULTS.story;
+        if (s === 's') return MP_DEMO_DEFAULTS.search;
+        return MP_DEMO_DEFAULTS.feed;
+      }
+      function renderPreviewMock($o, fmt) {
+        const s = String($o.data('s') || 'f');
+        const label = String($o.data('l') || 'Beranda Facebook');
+        const hint = String($o.data('hint') || '');
+        const desc = String($o.data('desc') || '');
+        const showFmt = String($o.data('fmt') || '0') === '1';
+        const fmtMode = fmt || 'video';
+        const imgUrl = resolveMpPreviewImage(label, s, fmtMode);
+        $('#mppf').attr('class', 'mpf ' + (s === 'v' ? 'v' : (s === 's' ? 's' : 'f')));
+        const innerCls = s === 'v' ? 'story' : (s === 's' ? 'search' : 'feed');
+        const brand = s === 's' ? 'Hasil pencarian · Sponsored' : 'Jasper\'s Market · Sponsored';
+        const cta = s === 'v' ? 'LEARN MORE' : (s === 's' ? 'Shop now' : 'LEARN MORE');
+        const mediaCls = 'mpf-media' + (showFmt && fmtMode === 'image' ? ' is-square' : '');
+        $('#mppf').html('<div class="mpf-inner ' + innerCls + '"><div class="mpf-brand">' + brand + '</div><div class="' + mediaCls + '"><img src="' + imgUrl + '" alt="Preview ' + label.replace(/"/g, '') + '"></div><div class="mpf-cta">' + cta + '</div></div>');
+        $('#mpPreviewTitle').text(label);
+        $('#mpPreviewHint').html(hint || 'Kami rekomendasikan gambar <strong>persegi (1:1)</strong> dan video <strong>vertikal (4:5)</strong>.');
+        $('#mpPreviewDesc').html(desc);
+        $('#mpPreviewFormat').toggle(showFmt);
+      }
+      function preview($o, fmt) {
+        if (!$o || !$o.length) return;
+        $('#modalPlacementManagerUi .go').removeClass('is-preview-active');
+        $o.addClass('is-preview-active');
+        renderPreviewMock($o, fmt);
+      }
+      $('#modalPlacementManagerUi').off('click.mpui', '.gh').on('click.mpui', '.gh', function (e) {
+        if ($(e.target).is('input')) return;
+        $(this).closest('.grp').toggleClass('collapsed');
+      });
+      $('#modalPlacementManagerUi').off('mouseenter.mpui focusin.mpui', '.go').on('mouseenter.mpui focusin.mpui', '.go', function () {
+        preview($(this));
+      });
+      $('#modalPlacementManagerUi').off('change.mpui', '.ui-pos,.gg').on('change.mpui', '.ui-pos,.gg', function () {
+        if ($(this).hasClass('gg')) {
+          const on = $(this).is(':checked');
+          $(this).closest('.grp').find('.ui-pos:not(:disabled)').prop('checked', on);
+        }
+        syncLegacy();
+        syncUi();
+        const $a = $(this).closest('.go').length ? $(this).closest('.go') : $('#modalPlacementManagerUi .ui-pos:checked').first().closest('.go');
+        preview($a.length ? $a : $('#modalPlacementManagerUi .go:not(.off)').first());
+      });
+      $(document).off('change.mpuiShell', '.tm-mp-platform,.tm-mp-device-cb').on('change.mpuiShell', '.tm-mp-platform,.tm-mp-device-cb', function () {
+        if ($(this).hasClass('tm-mp-platform') && !$(this).is(':checked')) {
+          $('#modalPlacementManagerUi .ui-pos[data-p="' + String($(this).val() || '').trim() + '"]').prop('checked', false);
+        }
+        if ($(this).hasClass('tm-mp-device-cb')) {
+          const mobile = $('.tm-mp-device-cb[value="mobile"]').is(':checked');
+          const desktop = $('.tm-mp-device-cb[value="desktop"]').is(':checked');
+          if (!mobile && !desktop) $(this).prop('checked', true);
+        }
+        syncLegacy();
+        syncUi();
+      });
+      $(document).off('click.mpDevice', '#btnMpDeviceSelect').on('click.mpDevice', '#btnMpDeviceSelect', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if ($('#tmMpDeviceMenu').hasClass('is-open')) closeMpDeviceMenu();
+        else {
+          $('#tmMpDeviceMenu').addClass('is-open');
+          $(this).addClass('is-open').attr('aria-expanded', 'true');
+        }
+      });
+      $(document).off('click.mpDeviceDoc').on('click.mpDeviceDoc', function (e) {
+        if (!$(e.target).closest('.tm-mp-device-select-wrap').length) closeMpDeviceMenu();
+      });
+      $(document).off('change.mpAb', '#tmMpAbTest,#tmMpAbDeactivateLoser,#modal_ab_test_days,#modal_adset_name').on('change.mpAb', '#tmMpAbTest,#tmMpAbDeactivateLoser,#modal_ab_test_days,#modal_adset_name', function () {
+        if ($(this).is('#tmMpAbDeactivateLoser')) {
+          $('#modal_placement_ab_deactivate_loser').val($(this).is(':checked') ? '1' : '0');
+          return;
+        }
+        syncMpAbTestPanel();
+      }).on('input.mpAb', '#modal_adset_name', syncMpAbTestPanel);
+      $(document).off('click.mpAb', '#btnToggleMpAbPanel').on('click.mpAb', '#btnToggleMpAbPanel', function (e) {
+        e.preventDefault();
+        $('#tmMpAbPanelBody').slideToggle(150);
+        $(this).find('i').toggleClass('fa-chevron-up fa-chevron-down');
+      });
+      $(document).off('click.mpuiShell', '#btnSwitchToAdvPlacement').on('click.mpuiShell', '#btnSwitchToAdvPlacement', function (e) {
+        e.preventDefault();
+        $('input[name="tmPlacementModeProxy"][value="auto"]').prop('checked', true).trigger('change');
+      });
+      $('#mpPreviewFormat').off('click.mpuiFmt', 'button').on('click.mpuiFmt', 'button', function () {
+        $('#mpPreviewFormat button').removeClass('active');
+        $(this).addClass('active');
+        const $active = $('#modalPlacementManagerUi .go.is-preview-active').first();
+        preview($active.length ? $active : $('#modalPlacementManagerUi .go:not(.off)').first(), String($(this).data('fmt') || 'video'));
+      });
+      $(document).off('change.mpUserImg', '#modal_image_file').on('change.mpUserImg', '#modal_image_file', function () {
+        if (mpUserImageUrl) {
+          try { URL.revokeObjectURL(mpUserImageUrl); } catch (e) { }
+          mpUserImageUrl = null;
+        }
+        const file = this.files && this.files[0];
+        if (file && String(file.type || '').indexOf('image/') === 0) {
+          mpUserImageUrl = URL.createObjectURL(file);
+        }
+        const $active = $('#modalPlacementManagerUi .go.is-preview-active').first();
+        const $fallback = $('#modalPlacementManagerUi .go:not(.off)').first();
+        preview($active.length ? $active : $fallback);
+      });
+      const toggleManualShell = function () {
+        const manual = String($('#modal_placement_mode').val() || 'auto') === 'manual';
+        const editorOpen = $('#tmPlacementAdvEditor').hasClass('is-open');
+        $('#tmPlacementManualShell').toggle(manual && editorOpen);
+      };
+      $('#modal_placement_mode').off('change.manualPlacement').on('change.manualPlacement', toggleManualShell);
+      toggleManualShell();
+      $('#tmMpAbTest').prop('checked', String($('#modal_placement_ab_test_enabled').val() || '0') === '1');
+      $('#tmMpAbDeactivateLoser').prop('checked', String($('#modal_placement_ab_deactivate_loser').val() || '0') === '1');
+      syncUi();
+      syncMpAbTestPanel();
+      const $f = $('#modalPlacementManagerUi .ui-pos:checked').first().closest('.go');
+      preview($f.length ? $f : $('#modalPlacementManagerUi .go:not(.off)').first());
       $('#modal_bid_strategy,#modal_bid_amount').off('.bidcheck').on('change.bidcheck input.bidcheck', syncBidAmountField);
       syncBidAmountField();
       initAdvantageAudienceUi();
@@ -14623,6 +15805,8 @@
       initAgeMinPicker();
       initAudienceLanguageUi();
       if (typeof window.initTransparencyUi === 'function') window.initTransparencyUi();
+      if (typeof window.initValueRuleSetUi === 'function') window.initValueRuleSetUi();
+      if (typeof window.initPlacementUi === 'function') window.initPlacementUi();
     }
 
     window.initAdsetSchedulePickers = initAdsetSchedulePickers;
@@ -14711,7 +15895,7 @@
       fd.append('countries', String($('#modal_location_include_countries').val() || 'ID')); fd.append('location_include_countries', String($('#modal_location_include_countries').val() || 'ID')); fd.append('location_exclude_countries', String($('#modal_location_exclude_countries').val() || '')); fd.append('location_include_regions', String($('#modal_location_include_regions').val() || '')); fd.append('location_include_cities', String($('#modal_location_include_cities').val() || '')); fd.append('location_exclude_regions', String($('#modal_location_exclude_regions').val() || '')); fd.append('location_exclude_cities', String($('#modal_location_exclude_cities').val() || ''));
       fd.append('languages', JSON.stringify(getSelectedOptionItems('#modal_languages', function (text, id) { return text.replace(/\s*\(key:\s*[^)]+\)$/i, '').trim() || getLanguageFallbackName(id) || id; }))); fd.append('age_min', String($('#modal_age_min').val() || '18')); fd.append('age_max', String($('#modal_age_max').val() || '65')); fd.append('whatsapp_unknown_age', String($('#modal_whatsapp_unknown_age').val() || '0')); fd.append('excluded_custom_audiences', JSON.stringify(getExcludedCustomAudiences())); fd.append('advantage_custom_audiences', JSON.stringify(getSelectedOptionItems('#modal_advantage_custom_audiences'))); fd.append('conversion_location', String($('#modal_conversion_location').val() || 'WEBSITE')); fd.append('optimization_goal', String($('#modal_optimization_goal').val() || 'LINK_CLICKS')); fd.append('bid_strategy', String($('#modal_bid_strategy').val() || 'LOWEST_COST_WITHOUT_CAP')); fd.append('bid_amount', String($('#modal_conversion_location').val() === 'APP' ? ($('#modal_bid_amount_app').val() || $('#modal_bid_amount').val() || '') : ($('#modal_conversion_location').val() === 'MESSAGING' ? ($('#modal_bid_amount_msg').val() || $('#modal_bid_amount').val() || '') : ($('#modal_conversion_location').val() === 'PROFILE' ? ($('#modal_bid_amount_profile').val() || $('#modal_bid_amount').val() || '') : ($('#modal_conversion_location').val() === 'WEBSITE_CALL' ? ($('#modal_bid_amount_webcall').val() || $('#modal_bid_amount').val() || '') : ($('#modal_bid_amount').val() || '')))))); fd.append('attribution_window', String($('#modal_attribution_window').val() || '7d_click_1d_view')); fd.append('dynamic_creative', String($('#modal_dynamic_creative').val() || '0')); fd.append('mobile_app_store', String($('#modal_mobile_app_store').val() || 'ALL_STORES')); fd.append('promoted_app_name', String($('#modal_promoted_app_name').val() || '')); fd.append('billing_event', String($('#modal_billing_event').val() || 'IMPRESSIONS')); fd.append('message_destination_mode', String($('#modal_message_destination_mode').val() || 'auto')); fd.append('message_destinations', String($('#modal_message_destinations').val() || 'messenger,instagram')); fd.append('whatsapp_number', String($('#modal_whatsapp_number').val() || ''));
       fd.append('detailed_targeting', JSON.stringify({ include: $('#modal_detailed_targeting_include').find('option:selected').map(function () { return { id: String(this.value || ''), name: String($(this).text() || '').replace(/\s*\(audience:.*\)$/, '').trim() }; }).get(), narrow: $('#modal_detailed_targeting_narrow').find('option:selected').map(function () { return { id: String(this.value || ''), name: String($(this).text() || '').replace(/\s*\(audience:.*\)$/, '').trim() }; }).get() }));
-      fd.append('gender', String($('#modal_gender').val() || 'all')); fd.append('advantage', String($('#modal_advantage').val() || '0')); fd.append('placement_mode', placementMode); fd.append('placement_device_mode', String($('input[name="modal_device_mode"]:checked').val() || 'all')); fd.append('placement_platforms', JSON.stringify(placementPlatforms)); fd.append('placement_positions', JSON.stringify(placementPositions)); fd.append('asset_customization', String($('#modal_asset_customization').val() || (placementMode === 'manual' ? '1' : '0'))); fd.append('ad_transparency_status', String($('#modal_ad_transparency_status').val() || 'not_started')); fd.append('ad_transparency_method', String($('#modal_ad_transparency_method').val() || '')); fd.append('ad_transparency_country', String($('#modal_ad_transparency_country').val() || 'Indonesia')); fd.append('ad_transparency_name', String($('#modal_ad_transparency_name').val() || '')); fd.append('account_placement_control_enabled', String($('#modal_account_placement_control_enabled').val() || '0')); fd.append('account_placement_controls', String($('#modal_account_placement_controls').val() || '[]')); fd.append('specific_mobile_device', String($('#modal_specific_mobile_device').val() || 'all')); fd.append('specific_mobile_wifi_only', String($('#modal_specific_mobile_wifi_only').val() || '0')); fd.append('exclude_skippable_ads', String($('#modal_exclude_skippable_ads').val() || '0')); fd.append('content_inventory_filter', String($('#modal_content_inventory_filter').val() || 'expanded')); fd.append('audience_network_inventory_filter', String($('#modal_audience_network_inventory_filter').val() || 'expanded')); fd.append('publisher_blocklist', String($('#modal_publisher_blocklist').val() || '[]')); fd.append('content_type_exclusions', String($('#modal_content_type_exclusions').val() || '[]'));
+      fd.append('gender', String($('#modal_gender').val() || 'all')); fd.append('advantage', String($('#modal_advantage').val() || '0')); fd.append('placement_mode', placementMode); fd.append('placement_device_mode', String($('input[name="modal_device_mode"]:checked').val() || 'all')); fd.append('placement_platforms', JSON.stringify(placementPlatforms)); fd.append('placement_positions', JSON.stringify(placementPositions)); fd.append('asset_customization', String($('#modal_asset_customization').val() || (placementMode === 'manual' ? '1' : '0'))); fd.append('ad_transparency_status', String($('#modal_ad_transparency_status').val() || 'not_started')); fd.append('ad_transparency_method', String($('#modal_ad_transparency_method').val() || '')); fd.append('ad_transparency_country', String($('#modal_ad_transparency_country').val() || 'Indonesia')); fd.append('ad_transparency_name', String($('#modal_ad_transparency_name').val() || '')); fd.append('account_placement_control_enabled', String($('#modal_account_placement_control_enabled').val() || '0')); fd.append('account_placement_controls', String($('#modal_account_placement_controls').val() || '[]')); fd.append('placement_value_rule_set_id', String($('#modal_placement_value_rule_set_id').val() || '')); fd.append('specific_mobile_device', String($('#modal_specific_mobile_device').val() || 'all')); fd.append('specific_mobile_wifi_only', String($('#modal_specific_mobile_wifi_only').val() || '0')); fd.append('exclude_skippable_ads', String($('#modal_exclude_skippable_ads').val() || '0')); fd.append('content_inventory_filter', String($('#modal_content_inventory_filter').val() || 'expanded')); fd.append('audience_network_inventory_filter', String($('#modal_audience_network_inventory_filter').val() || 'expanded')); fd.append('publisher_blocklist', String($('#modal_publisher_blocklist').val() || '[]')); fd.append('content_type_exclusions', String($('#modal_content_type_exclusions').val() || '[]'));
       return fd;
     }
     function builderSaveAdset() {
@@ -14924,7 +16108,9 @@
     const vrState = {
       sets: [],
       selectedSetId: '',
+      placementSelectedSetId: '',
       editingSetId: '',
+      createTarget: '',
       draft: null
     };
     function esc(v) { return $('<div>').text(String(v || '')).html(); }
@@ -14950,7 +16136,7 @@
           }
         });
       });
-      return criteria.join(', ') || set.name || 'Set aturan nilai';
+      return criteria.join(' atau ') || set.name || 'Set aturan nilai';
     }
     function criterionDropdown(row, ruleIndex, rowIndex) {
       const type = row.type || 'Audiens';
@@ -15017,6 +16203,28 @@
       $('#tmValueRuleNameCount').text(String($('#tmValueRuleName').val() || '').length + '/50');
       syncSaveButton();
     }
+    function hasPlacementRules(set) {
+      return !!(set && (set.rules || []).some(function (rule) {
+        return (rule.criteria || []).some(function (c) {
+          if (c.type !== 'Penempatan') return false;
+          return Array.isArray(c.value) ? c.value.length > 0 : !!String(c.value || '').trim();
+        });
+      }));
+    }
+    function placementSetOptionHtml(set) {
+      const active = set.id === vrState.placementSelectedSetId ? ' active' : '';
+      const badge = hasPlacementRules(set) ? '' : '<span class="tm-vr-set-badge">Tidak ada aturan penempatan</span>';
+      const label = setLabel(set);
+      return '<button type="button" class="tm-vr-set-option js-vr-placement-set-option' + active + '" data-vr-placement-set-id="' + esc(set.id) + '" data-search-text="' + esc(label.toLowerCase()) + '"><span class="tm-vr-radio"></span><span><strong>' + esc(label) + '</strong><br><small>Digunakan dalam 0 set iklan aktif</small></span>' + badge + '</button>';
+    }
+    function renderPlacementSetSelect() {
+      const selected = vrState.sets.find(function (s) { return s.id === vrState.placementSelectedSetId; });
+      $('#tmPlacementValueSetSelectedText').text(selected ? setLabel(selected) : 'Tidak ada');
+      $('#tmPlacementValueRuleSummary').text('Set aturan ini digunakan dalam 0 set iklan aktif');
+      $('#modal_placement_value_rule_set_id').val(vrState.placementSelectedSetId || '');
+      $('#tmPlacementValueSetMenu [data-vr-placement-set-id=""]').toggleClass('active', !selected);
+      $('#tmPlacementValueSetOptions').html(vrState.sets.map(placementSetOptionHtml).join(''));
+    }
     function renderSetSelect() {
       const selected = vrState.sets.find(function (s) { return s.id === vrState.selectedSetId; });
       $('#tmValueSetSelectedText').text(setLabel(selected));
@@ -15024,8 +16232,10 @@
       $('#tmValueRuleSummary').html(selected ? ('Set aturan ini akan diterapkan ke set iklan Anda. Set aturan ini digunakan di 0 set iklan aktif. <a href="javascript:void(0)">Lihat detail</a>') : 'Set aturan nilai belum dipilih.');
       $('#tmValueSetMenu [data-vr-set-id=""]').toggleClass('active', !selected);
       $('#tmValueSetOptions').html(vrState.sets.map(function (set) {
-        return '<button type="button" class="tm-vr-set-option' + (set.id === vrState.selectedSetId ? ' active' : '') + '" data-vr-set-id="' + esc(set.id) + '"><span class="tm-vr-radio"></span><span><strong>' + esc(setLabel(set)) + '</strong><br><small>Digunakan dalam 0 set iklan aktif</small></span></button>';
+        const label = setLabel(set);
+        return '<button type="button" class="tm-vr-set-option js-vr-conv-set-option' + (set.id === vrState.selectedSetId ? ' active' : '') + '" data-vr-set-id="' + esc(set.id) + '" data-search-text="' + esc(label.toLowerCase()) + '"><span class="tm-vr-radio"></span><span><strong>' + esc(label) + '</strong><br><small>Digunakan dalam 0 set iklan aktif</small></span></button>';
       }).join(''));
+      renderPlacementSetSelect();
     }
     function renderOrderList() {
       if (!vrState.draft) return;
@@ -15040,7 +16250,99 @@
       });
     }
     function syncSaveButton() { $('#btnValueRuleSave').prop('disabled', !draftComplete()); }
-    function closeVrMenus() { $('.tm-vr-dropdown,.tm-vr-set-dropdown').hide(); }
+    function closeVrMenus() {
+      $('.tm-vr-dropdown,.tm-vr-set-dropdown').hide().removeClass('is-open');
+      $('.tm-vr-select.is-open').removeClass('is-open');
+      $('.tm-vr-set-search').val('');
+      $('.tm-vr-set-option').show();
+      $('.tm-vr-set-empty').hide();
+    }
+    function filterVrSetMenu($menu, query, emptySel) {
+      const q = String(query || '').trim().toLowerCase();
+      let visible = 0;
+      $menu.find('.tm-vr-set-option').each(function () {
+        const text = String($(this).attr('data-search-text') || $(this).text() || '').toLowerCase();
+        const show = !q || text.indexOf(q) >= 0;
+        $(this).toggle(show);
+        if (show) visible += 1;
+      });
+      if (emptySel) $(emptySel).toggle(!!q && visible === 0);
+    }
+    function openVrSetMenu($menu, $trigger, $search, emptySel) {
+      if (!$menu.length || !$trigger.length) return;
+      const wasOpen = $menu.hasClass('is-open');
+      closeVrMenus();
+      if (wasOpen) return;
+      $menu.addClass('is-open').show();
+      $trigger.addClass('is-open');
+      if ($search && $search.length) {
+        $search.val('');
+        filterVrSetMenu($menu, '', emptySel);
+        setTimeout(function () { $search.trigger('focus'); }, 0);
+      }
+    }
+    function initValueRuleSetUi() {
+      $(document)
+        .off('click.vrConvSetOpen', '#tmValueSetSelect').on('click.vrConvSetOpen', '#tmValueSetSelect', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          openVrSetMenu($('#tmValueSetMenu'), $('#tmValueSetSelect'), $('#tmValueSetSearch'), '#tmValueSetEmpty');
+        })
+        .off('click.vrPlacementSetOpen', '#tmPlacementValueSetSelect').on('click.vrPlacementSetOpen', '#tmPlacementValueSetSelect', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          openVrSetMenu($('#tmPlacementValueSetMenu'), $('#tmPlacementValueSetSelect'), $('#tmPlacementValueSetSearch'), '#tmPlacementValueSetEmpty');
+        })
+        .off('click.vrConvSetPick', '#tmValueSetMenu .js-vr-conv-set-option').on('click.vrConvSetPick', '#tmValueSetMenu .js-vr-conv-set-option', function (e) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          vrState.selectedSetId = String(this.getAttribute('data-vr-set-id') || '');
+          renderSetSelect();
+          closeVrMenus();
+        })
+        .off('click.vrPlacementSetPick', '#tmPlacementValueSetMenu .js-vr-placement-set-option').on('click.vrPlacementSetPick', '#tmPlacementValueSetMenu .js-vr-placement-set-option', function (e) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          vrState.placementSelectedSetId = String(this.getAttribute('data-vr-placement-set-id') || '');
+          renderPlacementSetSelect();
+          closeVrMenus();
+        })
+        .off('input.vrConvSetSearch', '#tmValueSetSearch').on('input.vrConvSetSearch', '#tmValueSetSearch', function (e) {
+          e.stopPropagation();
+          filterVrSetMenu($('#tmValueSetMenu'), this.value, '#tmValueSetEmpty');
+        })
+        .off('input.vrPlacementSetSearch', '#tmPlacementValueSetSearch').on('input.vrPlacementSetSearch', '#tmPlacementValueSetSearch', function (e) {
+          e.stopPropagation();
+          filterVrSetMenu($('#tmPlacementValueSetMenu'), this.value, '#tmPlacementValueSetEmpty');
+        })
+        .off('click.vrSetSearchStop', '.tm-vr-set-search').on('click.vrSetSearchStop', '.tm-vr-set-search', function (e) { e.stopPropagation(); })
+        .off('keydown.vrSetSearchStop', '.tm-vr-set-search').on('keydown.vrSetSearchStop', '.tm-vr-set-search', function (e) {
+          e.stopPropagation();
+          if (e.key === 'Escape') closeVrMenus();
+        })
+        .off('click.vrPlacementValueRuleOpen', '#btnCreatePlacementValueRuleFromSelect').on('click.vrPlacementValueRuleOpen', '#btnCreatePlacementValueRuleFromSelect', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          vrState.createTarget = 'placement';
+          closeVrMenus();
+          $('#tmValueRuleIntroAgree').prop('checked', false);
+          $('#btnValueRuleStart').prop('disabled', true);
+          $('#modalValueRuleIntro').modal('show');
+        })
+        .off('click.vrValueRuleOpen', '#btnOpenValueRuleIntro,#btnCreateValueRuleFromSelect').on('click.vrValueRuleOpen', '#btnOpenValueRuleIntro,#btnCreateValueRuleFromSelect', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          vrState.createTarget = 'conversion';
+          closeVrMenus();
+          $('#tmValueRuleIntroAgree').prop('checked', false);
+          $('#btnValueRuleStart').prop('disabled', true);
+          $('#modalValueRuleIntro').modal('show');
+        })
+        .off('click.vrSetOutside').on('click.vrSetOutside', function (e) {
+          if ($(e.target).closest('.tm-vr-set-field, #tmValueSetMenu, #tmPlacementValueSetMenu').length) return;
+          closeVrMenus();
+        });
+    }
     function openBuilder(set) {
       vrState.editingSetId = set && set.id ? set.id : '';
       vrState.draft = cloneSet(set || defaultDraft());
@@ -15051,24 +16353,39 @@
     function saveDraftSet() {
       if (!vrState.draft) return;
       vrState.draft.name = String($('#tmValueRuleName').val() || '').trim() || setLabel(vrState.draft);
+      let savedId = vrState.editingSetId;
       if (vrState.editingSetId) {
         const idx = vrState.sets.findIndex(function (s) { return s.id === vrState.editingSetId; });
         if (idx >= 0) vrState.sets[idx] = cloneSet(vrState.draft);
-        vrState.selectedSetId = vrState.editingSetId;
       } else {
         vrState.draft.id = 'vr_' + Date.now();
         vrState.sets.push(cloneSet(vrState.draft));
-        vrState.selectedSetId = vrState.draft.id;
+        savedId = vrState.draft.id;
       }
+      if (vrState.createTarget === 'placement') vrState.placementSelectedSetId = savedId;
+      else vrState.selectedSetId = savedId;
+      vrState.createTarget = '';
       renderSetSelect();
       $('#modalValueRuleBuilder').modal('hide');
     }
     $(function () {
+      if (!vrState.sets.length) {
+        vrState.sets.push({
+          id: 'vr_seed_age_gender',
+          name: 'Umur',
+          rules: [{
+            criteria: [
+              { type: 'Audiens', criterion: 'Umur', value: '18-24' },
+              { type: 'Audiens', criterion: 'Jenis Kelamin', value: 'Semua' }
+            ],
+            bidMode: 'Tambah penawaran sebesar',
+            bidPercent: '50'
+          }]
+        });
+      }
       renderSetSelect();
+      initValueRuleSetUi();
       $(document)
-        .off('click.tmValueSetSelect', '#tmValueSetSelect').on('click.tmValueSetSelect', '#tmValueSetSelect', function (e) { e.preventDefault(); e.stopPropagation(); $('#tmValueSetMenu').toggle(); })
-        .off('click.tmValueSetPick', '[data-vr-set-id]').on('click.tmValueSetPick', '[data-vr-set-id]', function () { vrState.selectedSetId = String($(this).data('vrSetId') || ''); renderSetSelect(); closeVrMenus(); })
-        .off('click.tmValueRuleOpen', '#btnOpenValueRuleIntro,#btnCreateValueRuleFromSelect').on('click.tmValueRuleOpen', '#btnOpenValueRuleIntro,#btnCreateValueRuleFromSelect', function () { closeVrMenus(); $('#tmValueRuleIntroAgree').prop('checked', false); $('#btnValueRuleStart').prop('disabled', true); $('#modalValueRuleIntro').modal('show'); })
         .off('click.tmValueRuleEdit', '#btnEditValueRuleSet').on('click.tmValueRuleEdit', '#btnEditValueRuleSet', function () { const set = vrState.sets.find(function (s) { return s.id === vrState.selectedSetId; }); if (set) openBuilder(set); })
         .off('change.tmValueRuleAgree', '#tmValueRuleIntroAgree').on('change.tmValueRuleAgree', '#tmValueRuleIntroAgree', function () { $('#btnValueRuleStart').prop('disabled', !this.checked); })
         .off('click.tmValueRuleStart', '#btnValueRuleStart').on('click.tmValueRuleStart', '#btnValueRuleStart', function () { $('#modalValueRuleIntro').modal('hide'); setTimeout(function () { openBuilder(null); }, 180); })
@@ -15091,8 +16408,217 @@
         .off('drop.tmValueRuleOrder', '.tm-vr-order-item').on('drop.tmValueRuleOrder', '.tm-vr-order-item', function (e) { e.preventDefault(); const from = Number(e.originalEvent.dataTransfer.getData('text/plain')), to = Number($(this).data('vrOrder')); if (from === to || from < 0 || to < 0 || from >= vrState.draft.rules.length || to >= vrState.draft.rules.length) return; const moved = vrState.draft.rules.splice(from, 1)[0]; vrState.draft.rules.splice(to, 0, moved); renderOrderList(); })
         .off('click.tmValueRuleOrderDone', '#btnValueRuleOrderDone').on('click.tmValueRuleOrderDone', '#btnValueRuleOrderDone', function () { $('#modalValueRuleOrder').modal('hide'); setTimeout(function () { renderRules(); $('#modalValueRuleBuilder').modal('show'); }, 180); })
         .off('click.tmValueRuleSave', '#btnValueRuleSave').on('click.tmValueRuleSave', '#btnValueRuleSave', saveDraftSet)
-        .off('click.tmValueRuleOutside').on('click.tmValueRuleOutside', function (e) { if (!$(e.target).closest('.tm-vr-field,.tm-vr-set-wrap').length) closeVrMenus(); });
+        .off('click.tmValueRuleOutside').on('click.tmValueRuleOutside', function (e) {
+          if ($(e.target).closest('.tm-vr-field, .tm-vr-set-field, #tmValueSetMenu, #tmPlacementValueSetMenu').length) return;
+          closeVrMenus();
+        });
     });
+    window.initValueRuleSetUi = initValueRuleSetUi;
+    window.renderPlacementSetSelect = renderPlacementSetSelect;
+    window.setPlacementValueRuleSetId = function (id) {
+      vrState.placementSelectedSetId = String(id || '');
+      renderPlacementSetSelect();
+    };
+  })();
+</script>
+<script>
+  (function () {
+    const PLACEMENT_CONTROL_CATALOG = {
+      'Aplikasi dan situs': [
+        { id: 'audience_network_native_banner_interstitial', label: 'Native, banner, dan intertisial Audience Network' },
+        { id: 'audience_network_rewarded_video', label: 'Video berhadiah Audience Network' }
+      ],
+      'Feed': [
+        { id: 'facebook_marketplace', label: 'Facebook Marketplace' },
+        { id: 'facebook_right_column', label: 'Kolom kanan Facebook' }
+      ]
+    };
+    let placementModalSnapshot = null;
+    let placementUiReady = false;
+
+    function esc(v) { return $('<div>').text(String(v || '')).html(); }
+
+    function placementControlLabel(id) {
+      let label = id;
+      Object.keys(PLACEMENT_CONTROL_CATALOG).forEach(function (group) {
+        (PLACEMENT_CONTROL_CATALOG[group] || []).forEach(function (item) {
+          if (item.id === id) label = item.label;
+        });
+      });
+      return label;
+    }
+
+    function readExcludedFromHidden() {
+      try { return JSON.parse($('#modal_account_placement_controls').val() || '[]') || []; } catch (e) { return []; }
+    }
+
+    function getModalPlacementState() {
+      const enabled = $('#modal_account_placement_specific_only').prop('checked');
+      const excluded = [];
+      if (enabled) {
+        $('.tm-placement-control-option').each(function () {
+          if (!$(this).prop('checked')) excluded.push(String($(this).val() || ''));
+        });
+      }
+      return { enabled: enabled, excluded: excluded.slice().sort() };
+    }
+
+    function applyModalPlacementState(state) {
+      const enabled = !!(state && state.enabled);
+      const excluded = (state && state.excluded) || [];
+      const excMap = {};
+      excluded.forEach(function (id) { excMap[id] = true; });
+      $('#modal_account_placement_specific_only').prop('checked', enabled);
+      $('.tm-placement-control-option').each(function () {
+        const id = String($(this).val() || '');
+        $(this).prop('checked', !excMap[id]);
+      });
+      $('#tmPlacementControlModalWrap').toggle(enabled);
+    }
+
+    function syncPlacementReviewButton() {
+      const current = getModalPlacementState();
+      const changed = !placementModalSnapshot || JSON.stringify(current) !== JSON.stringify(placementModalSnapshot);
+      $('#btnSavePlacementAccountControls').prop('disabled', !changed);
+    }
+
+    function formatAccountControlSummary(excluded) {
+      if (!excluded.length) return 'Penempatan yang dikecualikan: Tidak ada';
+      if (excluded.length === 1) return 'Penempatan yang dikecualikan: ' + placementControlLabel(excluded[0]);
+      return 'Penempatan yang dikecualikan: ' + excluded.length + ' penempatan';
+    }
+
+    function syncPlacementAccountSummary() {
+      const enabled = String($('#modal_account_placement_control_enabled').val() || '0') === '1';
+      const excluded = enabled ? readExcludedFromHidden() : [];
+      const summary = formatAccountControlSummary(excluded);
+      $('#tmPlacementAccountSummary').html(summary);
+      $('#tmPlacementAccountExpandedSummary').text('Penempatan yang dikecualikan: ' + (excluded.length ? excluded.map(placementControlLabel).join(', ') : 'Tidak ada'));
+    }
+
+    function buildPlacementReviewHtml(excluded) {
+      const byGroup = {};
+      excluded.forEach(function (id) {
+        Object.keys(PLACEMENT_CONTROL_CATALOG).forEach(function (group) {
+          (PLACEMENT_CONTROL_CATALOG[group] || []).forEach(function (item) {
+            if (item.id === id) {
+              if (!byGroup[group]) byGroup[group] = [];
+              byGroup[group].push(item.label);
+            }
+          });
+        });
+      });
+      let html = '<p class="tm-placement-review-note">Kontrol ini berlaku pada seluruh kampanye untuk akun iklan ini. Perubahan pada kampanye mungkin memerlukan waktu hingga 48 jam.</p>';
+      html += '<div class="font-weight-bold mb-2">Iklan Anda seharusnya tidak muncul di:</div><ul class="tm-placement-review-list">';
+      Object.keys(PLACEMENT_CONTROL_CATALOG).forEach(function (group) {
+        if (!byGroup[group] || !byGroup[group].length) return;
+        html += '<li><strong>' + esc(group) + '</strong><ul>';
+        byGroup[group].forEach(function (label) { html += '<li>' + esc(label) + '</li>'; });
+        html += '</ul></li>';
+      });
+      html += '</ul>';
+      return html;
+    }
+
+    function syncPlacementModeSummary() {
+      const mode = String($('#modal_placement_mode').val() || 'auto');
+      if (mode === 'manual') {
+        $('#tmPlacementModeSummary').text('Penempatan manual dipilih. Anda mengontrol tempat iklan ditampilkan.');
+      } else {
+        $('#tmPlacementModeSummary').text('Anggaran Anda akan dialokasikan oleh sistem penayangan Meta ke beberapa penempatan berdasarkan tempatnya kemungkinan akan memiliki kinerja terbaik.');
+      }
+    }
+
+    function openPlacementAccountModal(reloadFromSaved) {
+      if (reloadFromSaved !== false) {
+        const enabled = String($('#modal_account_placement_control_enabled').val() || '0') === '1';
+        applyModalPlacementState({ enabled: enabled, excluded: readExcludedFromHidden() });
+        placementModalSnapshot = getModalPlacementState();
+        syncPlacementReviewButton();
+      }
+      $('#modalPlacementAccountControls').modal('show');
+    }
+
+    function confirmPlacementAccountControls() {
+      const state = getModalPlacementState();
+      $('#modal_account_placement_control_enabled').val(state.enabled ? '1' : '0');
+      $('#modal_account_placement_controls').val(JSON.stringify(state.enabled ? state.excluded : []));
+      syncPlacementAccountSummary();
+      $('#modalPlacementAccountControlsReview').modal('hide');
+    }
+
+    function syncPlacementUi() {
+      if (typeof window.setPlacementValueRuleSetId === 'function') {
+        window.setPlacementValueRuleSetId(String($('#modal_placement_value_rule_set_id').val() || ''));
+      }
+      const mode = String($('#modal_placement_mode').val() || 'auto');
+      $('input[name="tmPlacementModeProxy"][value="' + mode + '"]').prop('checked', true);
+      $('#tmPlacementManualShell').toggle(mode === 'manual' && $('#tmPlacementAdvEditor').hasClass('is-open'));
+      syncPlacementAccountSummary();
+      syncPlacementModeSummary();
+    }
+
+    function initPlacementUi() {
+      if (!placementUiReady) {
+        placementUiReady = true;
+        $(document)
+          .off('click.tmPlacementVrInfo', '#btnDismissPlacementValueRuleInfo').on('click.tmPlacementVrInfo', '#btnDismissPlacementValueRuleInfo', function () { $('#tmPlacementValueRuleInfo').hide(); })
+          .off('click.tmPlacementVrToggle', '#btnTogglePlacementValueRules').on('click.tmPlacementVrToggle', '#btnTogglePlacementValueRules', function () { $('#tmPlacementValueRuleCard').toggleClass('open'); })
+          .off('click.tmPlacementAccountToggle', '#btnTogglePlacementAccountControl').on('click.tmPlacementAccountToggle', '#btnTogglePlacementAccountControl', function (e) { e.preventDefault(); $('#tmPlacementAccountControl').toggleClass('open'); })
+          .off('click.tmPlacementAccountEdit', '#btnEditPlacementAccountControls').on('click.tmPlacementAccountEdit', '#btnEditPlacementAccountControls', function (e) { e.preventDefault(); openPlacementAccountModal(); })
+          .off('click.tmPlacementAdvEdit', '#btnEditPlacementMode').on('click.tmPlacementAdvEdit', '#btnEditPlacementMode', function (e) {
+            e.preventDefault();
+            const $ed = $('#tmPlacementAdvEditor');
+            const open = !$ed.hasClass('is-open');
+            $ed.toggleClass('is-open', open);
+            $('#tmPlacementAdvSummary').toggleClass('is-hidden', open);
+            if (open) {
+              const mode = String($('#modal_placement_mode').val() || 'auto');
+              $('input[name="tmPlacementModeProxy"][value="' + mode + '"]').prop('checked', true);
+              $('#tmPlacementManualShell').toggle(mode === 'manual');
+            } else {
+              $('#tmPlacementManualShell').hide();
+            }
+          })
+          .off('change.tmPlacementAccountModal', '#modal_account_placement_specific_only,.tm-placement-control-option').on('change.tmPlacementAccountModal', '#modal_account_placement_specific_only,.tm-placement-control-option', function () {
+            if ($(this).is('#modal_account_placement_specific_only')) {
+              const on = $(this).prop('checked');
+              $('#tmPlacementControlModalWrap').toggle(on);
+              if (on) $('.tm-placement-control-option').prop('checked', true);
+            }
+            syncPlacementReviewButton();
+          })
+          .off('click.tmPlacementGroupToggle', '.tm-placement-modal-group-head').on('click.tmPlacementGroupToggle', '.tm-placement-modal-group-head', function () {
+            $(this).closest('.tm-placement-modal-group').toggleClass('collapsed');
+          })
+          .off('click.tmPlacementReview', '#btnSavePlacementAccountControls').on('click.tmPlacementReview', '#btnSavePlacementAccountControls', function () {
+            if ($(this).prop('disabled')) return;
+            const excluded = getModalPlacementState().excluded;
+            $('#tmPlacementAccountReviewBody').html(buildPlacementReviewHtml(excluded));
+            $('#modalPlacementAccountControls').modal('hide');
+            setTimeout(function () { $('#modalPlacementAccountControlsReview').modal('show'); }, 180);
+          })
+          .off('click.tmPlacementReviewBack', '#btnBackPlacementAccountReview').on('click.tmPlacementReviewBack', '#btnBackPlacementAccountReview', function () {
+            $('#modalPlacementAccountControlsReview').modal('hide');
+            setTimeout(function () { openPlacementAccountModal(false); }, 180);
+          })
+          .off('click.tmPlacementReviewConfirm', '#btnConfirmPlacementAccountControls').on('click.tmPlacementReviewConfirm', '#btnConfirmPlacementAccountControls', function () { confirmPlacementAccountControls(); })
+          .off('hidden.bs.modal.tmPlacementAccount', '#modalPlacementAccountControls').on('hidden.bs.modal.tmPlacementAccount', '#modalPlacementAccountControls', function () { placementModalSnapshot = null; });
+        $('input[name="tmPlacementModeProxy"]').off('change.tmPlacementModeProxy').on('change.tmPlacementModeProxy', function () {
+          const val = String($(this).val() || 'auto');
+          $('#modal_placement_mode').val(val).trigger('change');
+          if ($('#tmPlacementAdvEditor').hasClass('is-open')) {
+            $('#tmPlacementManualShell').toggle(val === 'manual');
+          }
+          syncPlacementModeSummary();
+        });
+        $('#modal_placement_mode').off('change.tmPlacementModeSummary').on('change.tmPlacementModeSummary', syncPlacementModeSummary);
+      }
+      syncPlacementUi();
+    }
+
+    window.initPlacementUi = initPlacementUi;
+    window.syncPlacementUi = syncPlacementUi;
   })();
 </script>
 <script src="{% static 'ajax/admin/facebook_ads/create_campaign.js' %}?v={% now 'u' %}"></script>
