@@ -5,6 +5,55 @@ function normalizeDomainFilter(selected_domain) {
     return String(selected_domain || '').trim();
 }
 
+var ROI_COUNTRY_MAP_VISIBLE_KEY = 'roiTrafficCountryMapVisible';
+
+function isCountryMapVisible() {
+    try {
+        return localStorage.getItem(ROI_COUNTRY_MAP_VISIBLE_KEY) !== '0';
+    } catch (e) {
+        return true;
+    }
+}
+
+function reflowCountryMap() {
+    if (window.worldMapInstance && typeof window.worldMapInstance.reflow === 'function') {
+        try { window.worldMapInstance.reflow(); } catch (e) { }
+    }
+}
+
+function setCountryMapVisible(visible, animate) {
+    window.__roiCountryMapVisible = !!visible;
+    try {
+        localStorage.setItem(ROI_COUNTRY_MAP_VISIBLE_KEY, visible ? '1' : '0');
+    } catch (e) { }
+
+    var $card = $('#charts_section_card');
+    var $body = $('#charts_section_body');
+    var $btn = $('#btnToggleCountryMap');
+    if (!$card.length || !$body.length || !$btn.length) return;
+
+    $btn.attr('aria-expanded', visible ? 'true' : 'false');
+    if (visible) {
+        $btn.html('<i class="fas fa-eye-slash" aria-hidden="true"></i> Sembunyikan Peta');
+        $card.removeClass('map-collapsed');
+    } else {
+        $btn.html('<i class="fas fa-eye" aria-hidden="true"></i> Tampilkan Peta');
+        $card.addClass('map-collapsed');
+    }
+
+    if (animate) {
+        if (visible) {
+            $body.stop(true, true).slideDown(200, reflowCountryMap);
+        } else {
+            $body.stop(true, true).slideUp(200);
+        }
+        return;
+    }
+
+    $body.toggle(visible);
+    if (visible) reflowCountryMap();
+}
+
 $(document).ready(function () {
     // Simpan data terakhir untuk re-render cepat saat toggle berubah
     window.lastRoiData = null;
@@ -88,6 +137,10 @@ $(document).ready(function () {
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
         }
+    });
+    $('#btnToggleCountryMap').on('click', function (e) {
+        e.preventDefault();
+        setCountryMapVisible(!window.__roiCountryMapVisible, true);
     });
     // Filter silang account-domain dinonaktifkan karena domain menggunakan freetext.
     // Load data saat halaman pertama kali dibuka
@@ -402,7 +455,8 @@ $(document).ready(function () {
                     Number(row.ecpm || 0),                 // 11: eCPM (Rp)
                     Number(row.roi || 0),                  // 12: ROI (%)
                     revenueVal,                            // 13: Pendapatan (Rp)
-                    (revenueVal - spendVal)                // 14: Pendapatan Bersih (Rp)
+                    (revenueVal - spendVal),               // 14: Pendapatan Bersih (Rp)
+                    Number(row.total_visitors || 0)         // 15: Visitor
                 ]);
             });
         }
@@ -651,7 +705,7 @@ $(document).ready(function () {
                     className: "text-center"
                 },
                 {
-                    targets: [3, 4, 5, 6, 9, 10, 11, 13, 14],
+                    targets: [3, 4, 5, 6, 9, 10, 11, 13, 14, 15],
                     className: "text-right"
                 },
                 // Kolom 0: checkbox per-baris
@@ -782,6 +836,15 @@ $(document).ready(function () {
                         if (type === 'sort' || type === 'type' || type === 'filter') return v;
                         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
                     }
+                },
+                // Visitor (kolom 15)
+                {
+                    targets: 15,
+                    type: 'num',
+                    render: function (data, type) {
+                        var v = Number(data) || 0;
+                        return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toLocaleString('id-ID');
+                    }
                 }
             ],
             order: [[12, 'desc']]
@@ -856,6 +919,7 @@ $(document).ready(function () {
         // Bersihkan chart jika data kosong dan sembunyikan section chart
         if (!data || data.length === 0) {
             $('#charts_section').hide();
+            $('#btnToggleCountryMap').hide();
             return;
         }
         
@@ -875,6 +939,7 @@ $(document).ready(function () {
                 window.worldMapInstance = null;
             }
             $('#charts_section').hide();
+            $('#btnToggleCountryMap').hide();
             return;
         }
 
@@ -971,6 +1036,8 @@ $(document).ready(function () {
             // Check if we have data to display
             if (mapData.length === 0) {
                 $('#worldMap').html('<div style="text-align: center; padding: 100px; color: #666; font-size: 16px;">Tidak ada data untuk ditampilkan.<br>Silakan pilih tanggal dan akun, lalu klik Load Data.</div>');
+                $('#btnToggleCountryMap').show();
+                setCountryMapVisible(isCountryMapVisible(), false);
                 return;
             }
             
@@ -1090,6 +1157,8 @@ $(document).ready(function () {
             });
             
             console.log('World map created successfully with', mapData.length, 'countries');
+            $('#btnToggleCountryMap').show();
+            setCountryMapVisible(isCountryMapVisible(), false);
             
         } catch (error) {
             console.error('Error creating world map:', error);

@@ -650,6 +650,7 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 event_data += '<td class="text-right" style="font-size: 12px;">' + formattedFrequency + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + cpr + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + value.cpc + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(Number(value.total_visitors || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-center no-export" style="font-size: 12px;">'
                     + '<button type="button" class="btn btn-sm btn-outline-primary btn-facebook-campaign-detail" data-row-index="' + index + '" title="Detail">'
                     + '<i class="bi bi-eye-fill" aria-hidden="true"></i>'
@@ -688,6 +689,8 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 $('#total_cpr').text(data_cpr);
                 // CPC
                 $('#total_cpc').text(data_cpc);
+                const totalVisitors = Number(value.total_visitors) || 0;
+                $('#total_visitors').text(totalVisitors.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
             })
             $('#table_data_campaign_facebook').DataTable({
                 columnDefs: [
@@ -716,7 +719,7 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                             + tanggal.getFullYear(),
                         exportOptions: {
                             columns: ':visible',
-                            columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],      // tanpa kolom Detail
+                            columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],      // tanpa kolom Detail
                             modifier: {
                                 search: 'applied',      // sesuai filter pencarian
                                 order: 'applied'        // sesuai urutan saat itu
@@ -727,7 +730,7 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                             // =========================
                             // Set column width secara manual (unit: character width)
                             // =========================
-                            const colWidths = [10, 15, 15, 10, 10, 10, 10, 10, 10, 10]; // 💡 Sesuaikan berdasarkan % di HTML
+                            const colWidths = [10, 15, 15, 10, 10, 10, 10, 10, 10, 10, 10]; // 💡 Sesuaikan berdasarkan % di HTML
                             const cols = $('cols', sheet);
                             cols.empty(); // Kosongkan default <col> dari DataTables
                             for (let i = 0; i < colWidths.length; i++) {
@@ -776,12 +779,13 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                                     if (body[i][7]) body[i][7].alignment = 'right';
                                     if (body[i][8]) body[i][8].alignment = 'right';
                                     if (body[i][9]) body[i][9].alignment = 'right';
+                                    if (body[i][10]) body[i][10].alignment = 'right';
                                 }
                             }
                             // Margin
                             doc.content[1].margin = [0, 0, 0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
                             // Manual width sesuai presentase kolom HTML (tanpa kolom Detail)
-                            doc.content[1].table.widths = ['10%', '15%', '15%', '10%', '10%', '10%', '10%', '10%', '10%', '10%'];
+                            doc.content[1].table.widths = ['9%', '13%', '13%', '8%', '8%', '8%', '8%', '8%', '8%', '8%', '9%'];
                         }
                     }
                 ]

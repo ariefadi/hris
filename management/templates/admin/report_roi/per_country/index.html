@@ -125,6 +125,9 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
       border-color: #0d6efd;
       box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
   }
+  #charts_section_card .card-header{border-bottom:1px solid #e5edf8}#btnToggleCountryMap{border-radius:10px;font-weight:700;padding:6px 14px;white-space:nowrap}
+  #charts_section_card.map-collapsed .card-header{border-bottom:0}
+  html[data-theme="dark"] #charts_section_card .card-header{border-color:#334155}
   #table_traffic_country tbody tr.selected-row {
       background-color: rgba(13, 110, 253, 0.08) !important;
   }
@@ -277,12 +280,17 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
         <!-- Charts Section -->
         <div class="row mt-3" id="charts_section" style="display: none;" data-title="Peta" data-intro="Peta ROI per negara. Akan muncul setelah data dimuat. Hover/klik negara untuk melihat detail (jika tersedia).">
             <div class="col-12">
-                <div class="card">
+                <div class="card" id="charts_section_card">
                     <div class="card-header">
-                        <h4 class="card-title"><i class="bi bi-globe"></i> Peta ROI Per Negara</h4>
-                    </div>
-                    <div class="card-body">
-                        <div id="worldMap" style="height: 500px; width: 100%;"></div>
+                        <div class="card-title d-flex justify-content-between align-items-center w-100 mb-0">
+                            <h4 class="card-title mb-0"><i class="bi bi-globe"></i> Peta ROI Per Negara</h4>
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="btnToggleCountryMap" style="display: none;" aria-expanded="true" aria-controls="charts_section_body">
+                                <i class="fas fa-eye-slash" aria-hidden="true"></i> Sembunyikan Peta
+                            </button>
+                        </div>
+                        <div class="card-body" id="charts_section_body">
+                            <div id="worldMap" style="height: 500px; width: 100%;"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -308,7 +316,8 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         <th rowspan="2" style="width: 8%;" class="text-center">eCPM</th>
                         <th rowspan="2" style="width: 8%;" class="text-center">ROI (%)</th>
                         <th rowspan="2" style="width: 8%;" class="text-center">Pendapatan</th>
-                        <th rowspan="2" style="width: 10%;" class="text-center">Pendapatan <br> Bersih</th>
+                        <th rowspan="2" style="width: 8%;" class="text-center">Pendapatan <br> Bersih</th>
+                        <th rowspan="2" style="width: 8%;" class="text-center">Visitor</th>
                     </tr>
                     <tr>
                         <th class="text-center">Klik Ads</th>

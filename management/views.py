@@ -19,7 +19,7 @@ from django.utils.decorators import method_decorator
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.conf import settings
 from django import template
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 from django.http import HttpResponse, JsonResponse, QueryDict
 from django.core.management import call_command
 
@@ -202,6 +202,308 @@ def redirect_login_user(request):
     if request.user.is_authenticated and 'hris_admin' in request.session:
         return redirect('dashboard_admin')
     return redirect('admin_login')
+
+META_ADSET_TZ = timezone(timedelta(hours=7))
+
+
+def fmt_meta_adset_dt_local(raw, tz=META_ADSET_TZ):
+    s = str(raw or '').strip()
+    if not s:
+        return ''
+    try:
+        normalized = re.sub(r'([+-]\d{2})(\d{2})$', r'\1:\2', s.replace('Z', '+00:00'))
+        if 'T' in normalized:
+            dt = datetime.fromisoformat(normalized)
+            if dt.tzinfo is not None:
+                dt = dt.astimezone(tz)
+            return dt.strftime('%Y-%m-%dT%H:%M')
+    except Exception:
+        pass
+    m = re.match(r'(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})', s)
+    if m:
+        return m.group(1) + 'T' + m.group(2)
+    return s
+
+
+def normalize_meta_adset_dt_for_api(raw, tz=META_ADSET_TZ):
+    s = str(raw or '').strip()
+    if not s:
+        return ''
+    if re.search(r'[+-]\d{2}:?\d{2}$', s) or s.endswith('Z'):
+        return re.sub(r'([+-]\d{2}):(\d{2})$', r'\1\2', s.replace('Z', '+0000'))
+    if len(s) == 16 and 'T' in s:
+        s = s + ':00'
+    elif re.match(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$', s):
+        s = s + ':00'
+    offset = tz.utcoffset(datetime.now()) or timedelta(0)
+    total_minutes = int(offset.total_seconds() // 60)
+    sign = '+' if total_minutes >= 0 else '-'
+    total_minutes = abs(total_minutes)
+    return s + f'{sign}{total_minutes // 60:02d}{total_minutes % 60:02d}'
+
+
+def _parse_csv_values(raw, upper=False):
+    vals = [str(x).strip() for x in str(raw or '').split(',') if str(x).strip()]
+    out = []
+    for v in vals:
+        vv = v.upper() if upper else v
+        if vv not in out:
+            out.append(vv)
+    return out
+
+
+def _parse_custom_audience_refs(raw):
+    if not raw:
+        return []
+    try:
+        parsed = json.loads(raw) if isinstance(raw, str) else raw
+    except Exception:
+        return []
+    if not isinstance(parsed, list):
+        parsed = [parsed]
+    out = []
+    for item in parsed:
+        if isinstance(item, dict):
+            iid = str(item.get('id') or '').strip()
+        else:
+            iid = str(item or '').strip()
+        if iid:
+            out.append({'id': iid})
+    return out
+
+
+def _normalize_facebook_placement_positions(vals):
+    cleaned = [str(v).strip() for v in (vals or []) if str(v).strip()]
+    fb_map = {'video_feeds': 'facebook_reels', 'suggested_video': 'facebook_reels'}
+    normalized = []
+    for v in cleaned:
+        v = fb_map.get(v, v)
+        if v in ('video_feeds', 'suggested_video'):
+            continue
+        if v not in normalized:
+            normalized.append(v)
+    return normalized
+
+
+def build_adset_targeting_from_post(post):
+    countries_raw = str(post.get('countries') or 'ID').strip()
+    location_include_countries_raw = str(post.get('location_include_countries') or countries_raw or 'ID').strip()
+    location_exclude_countries_raw = str(post.get('location_exclude_countries') or '').strip()
+    location_include_regions_raw = str(post.get('location_include_regions') or '').strip()
+    location_include_cities_raw = str(post.get('location_include_cities') or '').strip()
+    location_exclude_regions_raw = str(post.get('location_exclude_regions') or '').strip()
+    location_exclude_cities_raw = str(post.get('location_exclude_cities') or '').strip()
+    languages_raw = str(post.get('languages') or '').strip()
+    detailed_targeting_raw = str(post.get('detailed_targeting') or '').strip()
+    gender = str(post.get('gender') or 'all').strip().lower()
+    advantage = str(post.get('advantage') or '0').strip()
+    placement_mode = str(post.get('placement_mode') or 'auto').strip().lower()
+    placement_device_mode = str(post.get('placement_device_mode') or 'all').strip().lower()
+    placement_platforms_raw = str(post.get('placement_platforms') or '').strip()
+    placement_positions_raw = str(post.get('placement_positions') or '').strip()
+    try:
+        age_min = int(post.get('age_min') or 18)
+    except Exception:
+        age_min = 18
+    try:
+        age_max = int(post.get('age_max') or 65)
+    except Exception:
+        age_max = 65
+
+    include_countries = _parse_csv_values(location_include_countries_raw or countries_raw or 'ID', upper=True) or ['ID']
+    exclude_countries = _parse_csv_values(location_exclude_countries_raw, upper=True)
+    include_regions = [{'key': v} for v in _parse_csv_values(location_include_regions_raw)]
+    include_cities = [{'key': v} for v in _parse_csv_values(location_include_cities_raw)]
+    exclude_regions = [{'key': v} for v in _parse_csv_values(location_exclude_regions_raw)]
+    exclude_cities = [{'key': v} for v in _parse_csv_values(location_exclude_cities_raw)]
+
+    if (include_regions or include_cities) and len(include_countries) <= 1:
+        include_countries = []
+
+    geo_locations = {}
+    if include_countries:
+        geo_locations['countries'] = include_countries
+    if include_regions:
+        geo_locations['regions'] = include_regions
+    if include_cities:
+        geo_locations['cities'] = include_cities
+
+    targeting = {'geo_locations': geo_locations}
+    age_min = max(13, age_min)
+    age_max = max(age_min, min(65, age_max))
+    if advantage == '1':
+        adv_min = max(18, min(25, age_min))
+        adv_range_max = max(adv_min, min(65, age_max))
+        targeting['age_min'] = adv_min
+        targeting['age_max'] = 65
+        targeting['age_range'] = [adv_min, adv_range_max]
+    else:
+        targeting['age_min'] = age_min
+        targeting['age_max'] = age_max
+
+    excluded_geo_locations = {}
+    if exclude_countries:
+        excluded_geo_locations['countries'] = exclude_countries
+    if exclude_regions:
+        excluded_geo_locations['regions'] = exclude_regions
+    if exclude_cities:
+        excluded_geo_locations['cities'] = exclude_cities
+    if excluded_geo_locations:
+        targeting['excluded_geo_locations'] = excluded_geo_locations
+
+    language_keys = []
+    if languages_raw:
+        try:
+            parsed_lang = json.loads(languages_raw)
+            if not isinstance(parsed_lang, list):
+                parsed_lang = [parsed_lang]
+        except Exception:
+            parsed_lang = [x.strip() for x in languages_raw.split(',') if x.strip()]
+        for lv in parsed_lang:
+            sv = str(lv or '').strip()
+            if sv.isdigit():
+                iv = int(sv)
+                if iv not in language_keys:
+                    language_keys.append(iv)
+    if language_keys:
+        targeting['locales'] = language_keys
+
+    flexible_spec = []
+    if detailed_targeting_raw:
+        try:
+            parsed_dt = json.loads(detailed_targeting_raw)
+        except Exception:
+            parsed_dt = []
+        if isinstance(parsed_dt, dict):
+            parsed_groups = [parsed_dt.get('include') or [], parsed_dt.get('narrow') or []]
+        elif isinstance(parsed_dt, list):
+            parsed_groups = [parsed_dt]
+        else:
+            parsed_groups = []
+        for group in parsed_groups:
+            interests = []
+            for item in (group or []):
+                if isinstance(item, dict):
+                    iid = str(item.get('id') or '').strip()
+                    iname = str(item.get('name') or '').strip()
+                else:
+                    iid = str(item or '').strip()
+                    iname = ''
+                if not iid:
+                    continue
+                row = {'id': iid}
+                if iname:
+                    row['name'] = iname
+                interests.append(row)
+            if interests:
+                flexible_spec.append({'interests': interests})
+        if flexible_spec:
+            targeting['flexible_spec'] = flexible_spec
+
+    custom_audiences = _parse_custom_audience_refs(post.get('advantage_custom_audiences'))
+    if custom_audiences:
+        targeting['custom_audiences'] = custom_audiences
+    excluded_custom_audiences = _parse_custom_audience_refs(post.get('excluded_custom_audiences'))
+    if excluded_custom_audiences:
+        targeting['excluded_custom_audiences'] = excluded_custom_audiences
+
+    if gender == 'male':
+        targeting['genders'] = [1]
+    elif gender == 'female':
+        targeting['genders'] = [2]
+
+    if placement_mode == 'manual':
+        try:
+            parsed_platforms = json.loads(placement_platforms_raw) if placement_platforms_raw else []
+            if not isinstance(parsed_platforms, list):
+                parsed_platforms = []
+        except Exception:
+            parsed_platforms = []
+        allowed_platforms = ['facebook', 'instagram', 'audience_network', 'messenger', 'threads']
+        selected_platforms = [p for p in [str(x).strip().lower() for x in parsed_platforms] if p in allowed_platforms]
+        if not selected_platforms:
+            selected_platforms = ['facebook', 'instagram', 'audience_network', 'messenger']
+        if 'threads' in selected_platforms and 'instagram' not in selected_platforms:
+            selected_platforms.append('instagram')
+        targeting['publisher_platforms'] = selected_platforms
+
+        if placement_device_mode == 'mobile':
+            targeting['device_platforms'] = ['mobile']
+        elif placement_device_mode == 'desktop':
+            targeting['device_platforms'] = ['desktop']
+        else:
+            targeting['device_platforms'] = ['mobile', 'desktop']
+
+        try:
+            parsed_positions = json.loads(placement_positions_raw) if placement_positions_raw else {}
+            if not isinstance(parsed_positions, dict):
+                parsed_positions = {}
+        except Exception:
+            parsed_positions = {}
+
+        if 'threads' in selected_platforms:
+            tvals = parsed_positions.get('threads') or []
+            if 'threads_stream' in tvals:
+                ivals = parsed_positions.get('instagram') or []
+                if 'stream' not in ivals:
+                    parsed_positions['instagram'] = list(ivals) + ['stream']
+
+        pos_field_map = {
+            'facebook': 'facebook_positions',
+            'instagram': 'instagram_positions',
+            'audience_network': 'audience_network_positions',
+            'messenger': 'messenger_positions',
+            'threads': 'threads_positions',
+        }
+        allowed_positions = {'messenger': ['story', 'sponsored_messages'], 'threads': ['threads_stream']}
+        for p in selected_platforms:
+            vals = parsed_positions.get(p) or []
+            if not isinstance(vals, list):
+                vals = []
+            if p == 'facebook':
+                vals = _normalize_facebook_placement_positions(vals)
+            elif p in allowed_positions:
+                vals = [v for v in [str(x).strip() for x in vals if str(x).strip()] if v in allowed_positions[p]]
+            else:
+                vals = [str(v).strip() for v in vals if str(v).strip()]
+            if vals and p in pos_field_map:
+                targeting[pos_field_map[p]] = vals
+
+    if advantage == '1':
+        targeting['targeting_automation'] = {'advantage_audience': 1}
+
+    return targeting
+
+
+def build_adset_targeting_for_audience_estimate(post):
+    """Targeting spec for audience size widget — mirrors Ads Manager (excludes Advantage+ expansion)."""
+    targeting = build_adset_targeting_from_post(post)
+    targeting.pop('targeting_automation', None)
+    return targeting
+
+
+def _extract_meta_audience_size_bounds(row):
+    if not isinstance(row, dict):
+        return None, None
+    for lo_key, hi_key in (
+        ('estimate_mau_lower_bound', 'estimate_mau_upper_bound'),
+        ('users_lower_bound', 'users_upper_bound'),
+    ):
+        lower = row.get(lo_key)
+        upper = row.get(hi_key)
+        if lower in (None, -1) or upper in (None, -1):
+            continue
+        try:
+            lower = int(lower)
+            upper = int(upper)
+        except Exception:
+            continue
+        if lower >= 0 and upper >= 0:
+            if upper < lower:
+                upper = lower
+            return lower, upper
+    return None, None
+
 
 # Create your views here.
 class LoginAdmin(View):
@@ -846,6 +1148,35 @@ class FacebookLocationSuggestView(View):
         q = str(req.GET.get('q') or '').strip()
         selected_account = str(req.GET.get('selected_account') or '').strip()
         location_type = str(req.GET.get('location_type') or 'country').strip().lower()
+        resolve_key = str(req.GET.get('resolve_key') or '').strip()
+        if resolve_key and selected_account:
+            try:
+                rs = data_mysql().master_account_ads_by_id({'data_account': selected_account})
+                acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+                token = str((acc or {}).get('access_token') or '').strip()
+                if not token:
+                    return JsonResponse({'results': []})
+                resp = requests.get(
+                    'https://graph.facebook.com/v22.0/search',
+                    params={
+                        'type': 'adgeolocation',
+                        'location_ids': json.dumps([resolve_key]),
+                        'access_token': token,
+                    },
+                    timeout=20,
+                )
+                body = resp.json() if resp.text else {}
+                rows = (body or {}).get('data') if isinstance(body, dict) else []
+                row = rows[0] if rows else None
+                if isinstance(row, dict):
+                    name = str(row.get('name') or '').strip()
+                    key = str(row.get('key') or resolve_key).strip()
+                    row_type = str(row.get('type') or location_type or 'region').strip().lower()
+                    if name:
+                        return JsonResponse({'results': [{'id': key, 'token': key, 'text': name, 'type': row_type}]})
+            except Exception:
+                pass
+            return JsonResponse({'results': []})
         if len(q) < 1 or not selected_account:
             return JsonResponse({'results': []})
         type_map = {'country': 'country', 'region': 'region', 'city': 'city'}
@@ -4261,8 +4592,364 @@ class GetCampaignMetaDetailView(View):
         if 'hris_admin' not in request.session:
             return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=401)
         return super(GetCampaignMetaDetailView, self).dispatch(request, *args, **kwargs)
+
+    @staticmethod
+    def _parse_meta_targeting(raw):
+        if isinstance(raw, dict):
+            return raw
+        if isinstance(raw, str):
+            s = raw.strip()
+            if not s:
+                return {}
+            try:
+                parsed = json.loads(s)
+                return parsed if isinstance(parsed, dict) else {}
+            except Exception:
+                return {}
+        return {}
+
+    @staticmethod
+    def _parse_custom_audience_items(raw_list):
+        items = []
+        for x in (raw_list if isinstance(raw_list, list) else []):
+            if isinstance(x, dict):
+                iid = str(x.get('id') or '').strip()
+                name = str(x.get('name') or iid).strip()
+            else:
+                iid = str(x or '').strip()
+                name = iid
+            if iid:
+                items.append({'id': iid, 'name': name})
+        return items
+
+    @staticmethod
+    def _parse_flexible_spec_group(spec):
+        if not isinstance(spec, dict):
+            return []
+        type_labels = {
+            'interests': 'Minat',
+            'behaviors': 'Perilaku',
+            'life_events': 'Peristiwa Penting',
+            'industries': 'Industri',
+            'income': 'Pendapatan',
+            'family_statuses': 'Orang Tua',
+            'relationship_statuses': 'Status hubungan',
+            'education_statuses': 'Tingkat Pendidikan',
+            'work_positions': 'Jabatan',
+            'work_employers': 'Pengusaha',
+            'education_majors': 'Bidang Studi',
+            'education_schools': 'Sekolah',
+            'college_years': 'Tahun Kuliah',
+        }
+        items = []
+        for field, label in type_labels.items():
+            for x in (spec.get(field) if isinstance(spec.get(field), list) else []):
+                if isinstance(x, dict):
+                    iid = str(x.get('id') or x.get('key') or '').strip()
+                    name = str(x.get('name') or x.get('text') or iid).strip()
+                else:
+                    iid = str(x or '').strip()
+                    name = iid
+                if not iid:
+                    continue
+                items.append({'id': iid, 'name': name, 'category': label, 'path': [label]})
+        return items
+
+    @staticmethod
+    def _dedupe_targeting_items(items):
+        out = []
+        seen = set()
+        for it in (items or []):
+            iid = str((it or {}).get('id') or '').strip()
+            if not iid or iid in seen:
+                continue
+            seen.add(iid)
+            out.append(it)
+        return out
+
+    @staticmethod
+    def _parse_detailed_targeting(tg):
+        specs = tg.get('flexible_spec') if isinstance(tg.get('flexible_spec'), list) else []
+        include_items = []
+        narrow_items = []
+        if len(specs) >= 2:
+            include_items.extend(GetCampaignMetaDetailView._parse_flexible_spec_group(specs[0]))
+            for spec in specs[1:]:
+                narrow_items.extend(GetCampaignMetaDetailView._parse_flexible_spec_group(spec))
+        else:
+            for spec in specs:
+                include_items.extend(GetCampaignMetaDetailView._parse_flexible_spec_group(spec))
+        top_interests = tg.get('interests') if isinstance(tg.get('interests'), list) else []
+        for x in top_interests:
+            if isinstance(x, dict):
+                iid = str(x.get('id') or x.get('key') or '').strip()
+                name = str(x.get('name') or iid).strip()
+            else:
+                iid = str(x or '').strip()
+                name = iid
+            if iid:
+                include_items.append({'id': iid, 'name': name, 'category': 'Minat', 'path': ['Minat']})
+        return {
+            'include': GetCampaignMetaDetailView._dedupe_targeting_items(include_items),
+            'narrow': GetCampaignMetaDetailView._dedupe_targeting_items(narrow_items),
+        }
+
+    @staticmethod
+    def _resolve_targeting_item_names(token, items):
+        rows = list(items or [])
+        if not token or not rows:
+            return rows
+        needs_resolve = []
+        for it in rows:
+            iid = str(it.get('id') or '').strip()
+            if not iid:
+                continue
+            name = str(it.get('name') or '').strip()
+            path = it.get('path') if isinstance(it.get('path'), list) else []
+            if (not name or name == iid) or len(path) < 2:
+                needs_resolve.append(it)
+        if not needs_resolve:
+            return rows
+        ids = [str(it.get('id') or '').strip() for it in needs_resolve if str(it.get('id') or '').strip()]
+        if not ids:
+            return rows
+        try:
+            resp = requests.get(
+                'https://graph.facebook.com/v22.0/',
+                params={'access_token': token, 'ids': ','.join(ids[:50]), 'fields': 'name,path'},
+                timeout=20,
+            )
+            body = resp.json() if resp.text else {}
+            if not isinstance(body, dict):
+                return rows
+            for it in needs_resolve:
+                node = body.get(str(it.get('id') or '').strip())
+                if not isinstance(node, dict):
+                    continue
+                name = str(node.get('name') or '').strip()
+                if name:
+                    it['name'] = name
+                path = node.get('path') if isinstance(node.get('path'), list) else []
+                if path:
+                    it['path'] = [str(p) for p in path if str(p or '').strip()]
+                    it['category'] = str(path[0])
+        except Exception:
+            pass
+        return rows
+
+    @staticmethod
+    def _merge_targeting_dicts(*layers):
+        merged = {}
+        flex_specs = []
+        for layer in layers:
+            if not isinstance(layer, dict):
+                continue
+            cur = dict(layer)
+            fs = cur.pop('flexible_spec', None)
+            if isinstance(fs, list):
+                flex_specs.extend([x for x in fs if isinstance(x, dict)])
+            for key, val in cur.items():
+                if val in (None, '', [], {}):
+                    continue
+                if key not in merged or merged.get(key) in (None, '', [], {}):
+                    merged[key] = val
+        if flex_specs:
+            merged['flexible_spec'] = flex_specs
+        return merged
+
+    @staticmethod
+    def _fetch_targeting_sentence_lines(token, adset_id):
+        if not token or not adset_id:
+            return []
+        try:
+            resp = requests.get(
+                f'https://graph.facebook.com/v22.0/{adset_id}/targetingsentencelines',
+                params={'access_token': token, 'fields': 'id,params,targetingsentencelines,content'},
+                timeout=20,
+            )
+            body = resp.json() if resp.text else {}
+            if isinstance(body, dict):
+                lines = body.get('targetingsentencelines')
+                if isinstance(lines, list):
+                    return lines
+                data = body.get('data')
+                if isinstance(data, list):
+                    return data
+        except Exception:
+            pass
+        return []
+
+    @staticmethod
+    def _targeting_richness_score(targeting):
+        tg = GetCampaignMetaDetailView._parse_meta_targeting(targeting)
+        score = 0
+        flex_specs = tg.get('flexible_spec') if isinstance(tg.get('flexible_spec'), list) else []
+        for spec in flex_specs:
+            if not isinstance(spec, dict):
+                continue
+            for val in spec.values():
+                if isinstance(val, list):
+                    score += 10 * len(val)
+        for key in ('custom_audiences', 'excluded_custom_audiences', 'interests', 'behaviors'):
+            vals = tg.get(key) if isinstance(tg.get(key), list) else []
+            score += 5 * len(vals)
+        if tg.get('locales'):
+            score += 2
+        geo = tg.get('geo_locations') if isinstance(tg.get('geo_locations'), dict) else {}
+        if geo.get('regions') or geo.get('cities'):
+            score += 3
+        return score
+
+    @staticmethod
+    def _pick_adset_row(rows, preferred_id=None):
+        items = [r for r in (rows or []) if isinstance(r, dict)]
+        if not items:
+            return None
+        pref = str(preferred_id or '').strip()
+        if pref:
+            for row in items:
+                if str(row.get('id') or '').strip() == pref:
+                    return row
+        return max(items, key=lambda r: GetCampaignMetaDetailView._targeting_richness_score(r.get('targeting')))
+
+    @staticmethod
+    def _load_adset_targeting(token, adset_id, fallback_targeting=None):
+        layers = [GetCampaignMetaDetailView._parse_meta_targeting(fallback_targeting)]
+        if not adset_id:
+            return GetCampaignMetaDetailView._merge_targeting_dicts(*layers)
+        try:
+            adset_resp = requests.get(
+                f'https://graph.facebook.com/v22.0/{adset_id}',
+                params={'access_token': token, 'fields': 'targeting,targetingsentencelines{params,targetingsentencelines}'},
+                timeout=20,
+            )
+            adset_body = adset_resp.json() if adset_resp.text else {}
+            if isinstance(adset_body, dict):
+                if adset_body.get('targeting'):
+                    layers.append(GetCampaignMetaDetailView._parse_meta_targeting(adset_body.get('targeting')))
+                nested = adset_body.get('targetingsentencelines')
+                nested_lines = []
+                if isinstance(nested, dict):
+                    nested_lines = nested.get('targetingsentencelines') or nested.get('data') or []
+                elif isinstance(nested, list):
+                    nested_lines = nested
+                if isinstance(nested_lines, list):
+                    for line in nested_lines:
+                        if isinstance(line, dict) and line.get('params'):
+                            layers.append(GetCampaignMetaDetailView._parse_meta_targeting(line.get('params')))
+        except Exception:
+            pass
+        for line in GetCampaignMetaDetailView._fetch_targeting_sentence_lines(token, adset_id):
+            if isinstance(line, dict):
+                layers.append(GetCampaignMetaDetailView._parse_meta_targeting(line.get('params')))
+        return GetCampaignMetaDetailView._merge_targeting_dicts(*layers)
+
+    @staticmethod
+    def _interest_labels_from_sentence_lines(sentence_rows):
+        labels = []
+        seen = set()
+        interest_headers = (
+            'minat', 'interest', 'penargetan terperinci', 'detailed targeting',
+            'perilaku', 'behavior', 'demograf', 'demographic', 'shopping', 'beauty', 'fashion',
+        )
+
+        def add_label(raw):
+            label = str(raw or '').strip()
+            if not label:
+                return
+            if '>' in label:
+                label = label.split('>')[-1].strip()
+            label = re.sub(r'\s*\([^)]*\)\s*$', '', label).strip()
+            key = label.lower()
+            if label and key not in seen:
+                seen.add(key)
+                labels.append(label)
+
+        def walk(node):
+            if not isinstance(node, dict):
+                return
+            content = str(node.get('content') or '').strip()
+            children = node.get('children') if isinstance(node.get('children'), list) else []
+            header = content.lower().rstrip(':').strip()
+            if header and any(marker in header for marker in interest_headers):
+                for child in children:
+                    text = str(child or '').strip()
+                    if not text:
+                        continue
+                    for part in re.split(r'[;,]', text):
+                        add_label(part)
+            for child in children:
+                if isinstance(child, dict):
+                    walk(child)
+
+        for row in (sentence_rows or []):
+            if isinstance(row, dict):
+                walk(row)
+        return labels
+
+    @staticmethod
+    def _resolve_interest_labels(token, labels):
+        items = []
+        seen = set()
+        for label in (labels or []):
+            name = str(label or '').strip()
+            if not name:
+                continue
+            try:
+                resp = requests.get(
+                    'https://graph.facebook.com/v22.0/search',
+                    params={'access_token': token, 'type': 'adinterest', 'q': name, 'limit': 8},
+                    timeout=20,
+                )
+                body = resp.json() if resp.text else {}
+                rows = (body.get('data') or []) if isinstance(body, dict) else []
+                picked = None
+                for row in rows:
+                    if not isinstance(row, dict):
+                        continue
+                    rid = str(row.get('id') or '').strip()
+                    rname = str(row.get('name') or '').strip()
+                    if not rid:
+                        continue
+                    if rname.lower() == name.lower():
+                        picked = row
+                        break
+                    if not picked:
+                        picked = row
+                if picked:
+                    rid = str(picked.get('id') or '').strip()
+                    if rid and rid not in seen:
+                        seen.add(rid)
+                        path = picked.get('path') if isinstance(picked.get('path'), list) else []
+                        items.append({
+                            'id': rid,
+                            'name': str(picked.get('name') or name).strip(),
+                            'category': str(path[0] if path else 'Minat'),
+                            'path': [str(p) for p in path if str(p or '').strip()] or ['Minat'],
+                        })
+            except Exception:
+                continue
+        return items
+
+    @staticmethod
+    def _parse_language_items(raw_locales):
+        locale_names = {
+            '42': 'Bahasa Indonesia', '6': 'English (All)', '1002': 'English (US)', '1001': 'English (UK)',
+            '3': 'Spanish', '10': 'Arabic', '35': 'Malay', '52': 'Thai', '53': 'Vietnamese', '7': 'French',
+            '5': 'German', '8': 'Italian', '9': 'Portuguese', '11': 'Japanese', '12': 'Korean',
+            '13': 'Chinese (Simplified)', '14': 'Chinese (Traditional)',
+        }
+        items = []
+        for x in (raw_locales if isinstance(raw_locales, list) else []):
+            key = str(x or '').strip()
+            if not key:
+                continue
+            items.append({'id': key, 'name': locale_names.get(key, key)})
+        return items
+
     def get(self, req):
         account_id = str(req.GET.get('account_id') or '').strip(); campaign_id = str(req.GET.get('campaign_id') or '').strip()
+        preferred_adset_id = str(req.GET.get('adset_id') or '').strip()
         if not account_id or not campaign_id:
             return JsonResponse({'success': False, 'message': 'Account dan campaign wajib diisi'})
         rs = data_mysql().master_account_ads_by_id({'data_account': account_id}); acc = (rs or {}).get('data') if isinstance(rs, dict) else None
@@ -4281,45 +4968,136 @@ class GetCampaignMetaDetailView(View):
         try:
             aresp = requests.get(
                 f'https://graph.facebook.com/v22.0/{campaign_id}/adsets',
-                params={'access_token': token, 'fields': 'id,name,daily_budget,lifetime_budget,start_time,end_time,optimization_goal,bid_strategy,bid_amount,is_dynamic_creative,attribution_spec,targeting', 'limit': 1},
+                params={'access_token': token, 'fields': 'id,name,daily_budget,lifetime_budget,start_time,end_time,optimization_goal,bid_strategy,bid_amount,is_dynamic_creative,attribution_spec,targeting', 'limit': 25},
                 timeout=20
             )
             abody = aresp.json() if aresp.text else {}
-            row = ((abody or {}).get('data') or [None])[0] if isinstance(abody, dict) else None
+            adset_rows = (abody or {}).get('data') or [] if isinstance(abody, dict) else []
+            row = self._pick_adset_row(adset_rows, preferred_adset_id)
             if isinstance(row, dict):
-                tg = row.get('targeting') if isinstance(row.get('targeting'), dict) else {}
+                adset_id = str(row.get('id') or '').strip()
+                tg = self._load_adset_targeting(token, adset_id, row.get('targeting'))
+                sentence_rows = self._fetch_targeting_sentence_lines(token, adset_id)
                 geo = tg.get('geo_locations') if isinstance(tg.get('geo_locations'), dict) else {}
                 exg = tg.get('excluded_geo_locations') if isinstance(tg.get('excluded_geo_locations'), dict) else {}
                 gl = {}
+                region_countries = set()
                 def keys(xs, kind):
                     out = []
                     for x in (xs if isinstance(xs, list) else []):
                         if isinstance(x, dict):
                             k = str(x.get('key') or x.get('id') or x.get('country') or '').strip()
                             n = str(x.get('name') or x.get('region_name') or x.get('city_name') or k).strip()
+                            if kind == 'region':
+                                cc = str(x.get('country') or '').strip().upper()
+                                if cc:
+                                    region_countries.add(cc)
                             if k:
                                 out.append(k)
                                 gl[f'{kind}:{k}'] = n
+                        elif x is not None and str(x).strip():
+                            k = str(x).strip()
+                            out.append(k)
+                            gl[f'{kind}:{k}'] = k
                     return out
                 genders = tg.get('genders') if isinstance(tg.get('genders'), list) else []
+                age_range = tg.get('age_range') if isinstance(tg.get('age_range'), list) else []
+                ui_age_min = tg.get('age_min') or 18
+                ui_age_max = tg.get('age_max') or 65
+                if len(age_range) >= 2:
+                    try:
+                        ui_age_min = int(age_range[0])
+                        ui_age_max = int(age_range[1])
+                    except Exception:
+                        pass
                 attrs = row.get('attribution_spec') if isinstance(row.get('attribution_spec'), list) else []
                 attr = '7d_click_1d_view'
                 if any(str(x.get('event_type') or '').upper() == 'CLICK_THROUGH' and int(x.get('window_days') or 0) == 1 for x in attrs): attr = '1d_click'
                 elif any(str(x.get('event_type') or '').upper() == 'CLICK_THROUGH' and int(x.get('window_days') or 0) == 7 for x in attrs): attr = '7d_click'
+                def _fmt_meta_dt(raw):
+                    return fmt_meta_adset_dt_local(raw)
+                pub_platforms = tg.get('publisher_platforms') if isinstance(tg.get('publisher_platforms'), list) else []
+                placement_mode = 'manual' if pub_platforms else 'auto'
+                placement_positions = {}
+                for plat, field in (
+                    ('facebook', 'facebook_positions'),
+                    ('instagram', 'instagram_positions'),
+                    ('audience_network', 'audience_network_positions'),
+                    ('messenger', 'messenger_positions'),
+                    ('threads', 'threads_positions'),
+                ):
+                    vals = tg.get(field) if isinstance(tg.get(field), list) else []
+                    if vals:
+                        cleaned = [str(v).strip() for v in vals if str(v).strip()]
+                        if plat == 'facebook':
+                            fb_map = {'video_feeds': 'facebook_reels', 'suggested_video': 'facebook_reels'}
+                            mapped = []
+                            for v in cleaned:
+                                v = fb_map.get(v, v)
+                                if v in ('video_feeds', 'suggested_video'):
+                                    continue
+                                if v not in mapped:
+                                    mapped.append(v)
+                            cleaned = mapped
+                        placement_positions[plat] = cleaned
+                device_platforms = tg.get('device_platforms') if isinstance(tg.get('device_platforms'), list) else []
+                if device_platforms == ['mobile']:
+                    placement_device_mode = 'mobile'
+                elif device_platforms == ['desktop']:
+                    placement_device_mode = 'desktop'
+                else:
+                    placement_device_mode = 'all'
+                targeting_automation = tg.get('targeting_automation') if isinstance(tg.get('targeting_automation'), dict) else {}
+                advantage_audience = targeting_automation.get('advantage_audience')
+                advantage = '1' if str(advantage_audience).lower() in ('1', 'true') else '0'
+                detailed_targeting = self._parse_detailed_targeting(tg)
+                if not (detailed_targeting.get('include') or detailed_targeting.get('narrow')):
+                    fallback_labels = self._interest_labels_from_sentence_lines(sentence_rows)
+                    resolved = self._resolve_interest_labels(token, fallback_labels)
+                    if resolved:
+                        detailed_targeting['include'] = self._dedupe_targeting_items(
+                            (detailed_targeting.get('include') or []) + resolved
+                        )
+                detailed_targeting['include'] = self._resolve_targeting_item_names(token, detailed_targeting.get('include') or [])
+                detailed_targeting['narrow'] = self._resolve_targeting_item_names(token, detailed_targeting.get('narrow') or [])
+                advantage_custom_audiences = self._parse_custom_audience_items(tg.get('custom_audiences'))
+                excluded_custom_audiences = self._parse_custom_audience_items(tg.get('excluded_custom_audiences'))
+                languages = self._parse_language_items(tg.get('locales'))
+                inc_regions = keys(geo.get('regions'), 'region')
+                inc_cities = keys(geo.get('cities'), 'city')
+                inc_countries = [str(x).strip().upper() for x in (geo.get('countries') if isinstance(geo.get('countries'), list) else []) if str(x).strip()]
+                if (inc_regions or inc_cities) and len(inc_countries) <= 1:
+                    inc_countries = []
+                country_names = {'ID': 'Indonesia', 'SG': 'Singapore', 'MY': 'Malaysia', 'US': 'United States', 'AU': 'Australia', 'GB': 'United Kingdom'}
+                display_cc = (list(region_countries)[0] if region_countries else (inc_countries[0] if inc_countries else 'ID'))
                 adset_data = {
                     'adset_id': str(row.get('id') or ''), 'adset_name': str(row.get('name') or ''),
                     'budget_type': 'daily' if row.get('daily_budget') else ('lifetime' if row.get('lifetime_budget') else 'daily'),
                     'daily_budget': str(row.get('daily_budget') or ''), 'lifetime_budget': str(row.get('lifetime_budget') or ''),
-                    'start_time': str(row.get('start_time') or ''), 'end_time': str(row.get('end_time') or ''),
+                    'start_time': _fmt_meta_dt(row.get('start_time')), 'end_time': _fmt_meta_dt(row.get('end_time')),
                     'optimization_goal': str(row.get('optimization_goal') or 'LINK_CLICKS'), 'bid_strategy': str(row.get('bid_strategy') or 'LOWEST_COST_WITHOUT_CAP'),
                     'bid_amount': str(row.get('bid_amount') or ''), 'dynamic_creative': '1' if str(row.get('is_dynamic_creative') or '').lower() == 'true' else '0',
-                    'attribution_window': attr, 'age_min': str(tg.get('age_min') or 18), 'age_max': str(tg.get('age_max') or 65),
+                    'attribution_window': attr, 'age_min': str(ui_age_min), 'age_max': str(ui_age_max),
                     'gender': 'male' if genders == [1] else ('female' if genders == [2] else 'all'),
-                    'location_include_countries': ','.join([str(x).strip().upper() for x in (geo.get('countries') if isinstance(geo.get('countries'), list) else []) if str(x).strip()]),
+                    'location_include_countries': ','.join(inc_countries),
                     'location_exclude_countries': ','.join([str(x).strip().upper() for x in (exg.get('countries') if isinstance(exg.get('countries'), list) else []) if str(x).strip()]),
-                    'location_include_regions': ','.join(keys(geo.get('regions'), 'region')), 'location_include_cities': ','.join(keys(geo.get('cities'), 'city')),
+                    'location_include_regions': ','.join(inc_regions), 'location_include_cities': ','.join(inc_cities),
                     'location_exclude_regions': ','.join(keys(exg.get('regions'), 'region')), 'location_exclude_cities': ','.join(keys(exg.get('cities'), 'city')),
-                    'location_labels': gl
+                    'location_display_country': country_names.get(display_cc, display_cc),
+                    'location_labels': dict(gl, **{
+                        ('country:' + str(c).strip().upper()): country_names.get(str(c).strip().upper(), str(c).strip().upper())
+                        for c in inc_countries
+                        if str(c).strip()
+                    }),
+                    'advantage': advantage,
+                    'detailed_targeting': json.dumps(detailed_targeting),
+                    'advantage_custom_audiences': json.dumps(advantage_custom_audiences),
+                    'excluded_custom_audiences': json.dumps(excluded_custom_audiences),
+                    'languages': json.dumps(languages),
+                    'placement_mode': placement_mode,
+                    'placement_platforms': json.dumps(pub_platforms),
+                    'placement_positions': json.dumps(placement_positions),
+                    'placement_device_mode': placement_device_mode,
                 }
         except Exception:
             adset_data = {}
@@ -5093,6 +5871,110 @@ class create_campaign_fullstack_per_account(View):
             return JsonResponse({'success': False, 'message': f'Gagal create full stack: {str(e)}'})
 
 @method_decorator(csrf_exempt, name='dispatch')
+class FacebookAdsetReachEstimateView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'success': False, 'message': 'Unauthorized'}, status=401)
+        return super(FacebookAdsetReachEstimateView, self).dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        account_id = str(req.POST.get('account_id') or '').strip()
+        if not account_id:
+            return JsonResponse({'success': False, 'message': 'Account wajib dipilih'})
+
+        rs = data_mysql().master_account_ads_by_id({'data_account': account_id})
+        acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+        if not isinstance(acc, dict):
+            return JsonResponse({'success': False, 'message': 'Account tidak ditemukan'})
+
+        token = str(acc.get('access_token') or '').strip()
+        real_account_id = str(acc.get('account_id') or account_id).replace('act_', '').strip()
+        if not token or not real_account_id:
+            return JsonResponse({'success': False, 'message': 'Token atau Account ID tidak valid'})
+
+        targeting = build_adset_targeting_for_audience_estimate(req.POST)
+        if not (targeting.get('geo_locations') or {}).get('countries') and not (targeting.get('geo_locations') or {}).get('regions') and not (targeting.get('geo_locations') or {}).get('cities'):
+            targeting.setdefault('geo_locations', {})['countries'] = ['ID']
+
+        optimization_goal = str(req.POST.get('optimization_goal') or 'LANDING_PAGE_VIEWS').strip().upper()
+        allowed_delivery_goals = {
+            'IMPRESSIONS', 'REACH', 'LINK_CLICKS', 'LANDING_PAGE_VIEWS', 'POST_ENGAGEMENT',
+            'CONVERSATIONS', 'LEAD_GENERATION', 'OFFSITE_CONVERSIONS', 'PAGE_LIKES',
+            'APP_INSTALLS', 'VIDEO_VIEWS', 'THRUPLAY', 'PROFILE_VISIT', 'PROFILE_VISITS',
+            'VALUE', 'QUALITY_LEAD',
+        }
+        if optimization_goal not in allowed_delivery_goals:
+            optimization_goal = 'LANDING_PAGE_VIEWS'
+        optimize_for = optimization_goal if optimization_goal in ('IMPRESSIONS', 'REACH', 'LINK_CLICKS', 'LANDING_PAGE_VIEWS', 'POST_ENGAGEMENT', 'CONVERSATIONS') else 'IMPRESSIONS'
+        targeting_json = json.dumps(targeting, separators=(',', ':'))
+
+        def _meta_estimate_row(body):
+            if not isinstance(body, dict):
+                return None
+            data = body.get('data')
+            if isinstance(data, list) and data:
+                return data[0]
+            if any(body.get(k) is not None for k in ('estimate_mau_lower_bound', 'users_lower_bound')):
+                return body
+            return None
+
+        def _meta_estimate_error(body):
+            err = (body.get('error') or {}) if isinstance(body, dict) else {}
+            return str(err.get('error_user_msg') or err.get('message') or 'Gagal mengambil estimasi audiens dari Meta')
+
+        try:
+            row = None
+            source = 'meta_delivery'
+            resp = requests.get(
+                f'https://graph.facebook.com/v22.0/act_{real_account_id}/delivery_estimate',
+                params={
+                    'access_token': token,
+                    'targeting_spec': targeting_json,
+                    'optimization_goal': optimization_goal,
+                },
+                timeout=25,
+            )
+            body = resp.json() if resp.text else {}
+            if resp.status_code < 400 and not (isinstance(body, dict) and body.get('error')):
+                row = _meta_estimate_row(body)
+
+            lower, upper = _extract_meta_audience_size_bounds(row)
+            if lower is None:
+                source = 'meta_reach'
+                resp = requests.get(
+                    f'https://graph.facebook.com/v22.0/act_{real_account_id}/reachestimate',
+                    params={
+                        'access_token': token,
+                        'targeting_spec': targeting_json,
+                        'optimize_for': optimize_for,
+                    },
+                    timeout=25,
+                )
+                body = resp.json() if resp.text else {}
+                if resp.status_code >= 400 or (isinstance(body, dict) and body.get('error')):
+                    return JsonResponse({'success': False, 'message': _meta_estimate_error(body)})
+                row = _meta_estimate_row(body)
+                lower, upper = _extract_meta_audience_size_bounds(row)
+
+            if lower is None:
+                if isinstance(body, dict) and body.get('error'):
+                    return JsonResponse({'success': False, 'message': _meta_estimate_error(body)})
+                return JsonResponse({'success': False, 'message': 'Estimasi audiens tidak tersedia dari Meta'})
+
+            return JsonResponse({
+                'success': True,
+                'lower': lower,
+                'upper': upper,
+                'source': source,
+                'estimate_ready': bool((row or {}).get('estimate_ready', True)),
+            })
+        except requests.Timeout:
+            return JsonResponse({'success': False, 'message': 'Estimasi audiens Meta timeout, coba lagi.'})
+        except Exception as exc:
+            return JsonResponse({'success': False, 'message': str(exc) or 'Gagal mengambil estimasi audiens'})
+
+
+@method_decorator(csrf_exempt, name='dispatch')
 class create_adset_ad_per_account(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
@@ -5196,7 +6078,6 @@ class create_adset_ad_per_account(View):
                 actual_campaign_budget_type = campaign_budget_type
 
             if save_adset_only:
-                adset_id = ''
                 bid_strategy = 'LOWEST_COST_WITHOUT_CAP'
                 bid_amount_raw = ''
                 bid_requires_amount = False
@@ -5259,9 +6140,18 @@ class create_adset_ad_per_account(View):
             if include_cities:
                 geo_locations['cities'] = include_cities
 
-            targeting = {'geo_locations': geo_locations, 'age_min': max(13, age_min)}
-            if advantage != '1':
-                targeting['age_max'] = max(age_min, age_max)
+            targeting = {'geo_locations': geo_locations}
+            age_min = max(13, age_min)
+            age_max = max(age_min, min(65, age_max))
+            if advantage == '1':
+                adv_min = max(18, min(25, age_min))
+                adv_range_max = max(adv_min, min(65, age_max))
+                targeting['age_min'] = adv_min
+                targeting['age_max'] = 65
+                targeting['age_range'] = [adv_min, adv_range_max]
+            else:
+                targeting['age_min'] = age_min
+                targeting['age_max'] = age_max
             excluded_geo_locations = {}
             if exclude_countries:
                 excluded_geo_locations['countries'] = exclude_countries
@@ -5370,13 +6260,27 @@ class create_adset_ad_per_account(View):
                     'threads': 'threads_positions',
                 }
                 allowed_positions = {'messenger': ['story', 'sponsored_messages'], 'threads': ['threads_stream']}
+                def _normalize_platform_positions(platform, vals):
+                    cleaned = [str(v).strip() for v in (vals or []) if str(v).strip()]
+                    if platform == 'facebook':
+                        fb_map = {'video_feeds': 'facebook_reels', 'suggested_video': 'facebook_reels'}
+                        normalized = []
+                        for v in cleaned:
+                            v = fb_map.get(v, v)
+                            if v in ('video_feeds', 'suggested_video'):
+                                continue
+                            if v not in normalized:
+                                normalized.append(v)
+                        return normalized
+                    if platform in allowed_positions:
+                        return [v for v in cleaned if v in allowed_positions[platform]]
+                    return cleaned
+
                 for p in selected_platforms:
                     vals = parsed_positions.get(p) or []
                     if not isinstance(vals, list):
                         vals = []
-                    vals = [str(v).strip() for v in vals if str(v).strip()]
-                    if p in allowed_positions:
-                        vals = [v for v in vals if v in allowed_positions[p]]
+                    vals = _normalize_platform_positions(p, vals)
                     if vals and p in pos_field_map:
                         targeting[pos_field_map[p]] = vals
 
@@ -5416,12 +6320,7 @@ class create_adset_ad_per_account(View):
                 return True, '', b
 
             def _normalize_meta_dt(raw):
-                s = str(raw or '').strip()
-                if not s:
-                    return ''
-                if len(s) == 16 and 'T' in s:
-                    return s + ':00'
-                return s
+                return normalize_meta_adset_dt_for_api(raw)
 
             adset_payload = {
                 'name': adset_name,
@@ -5470,7 +6369,14 @@ class create_adset_ad_per_account(View):
                 return JsonResponse({'success': False, 'step': 'adset', 'message': err, 'debug_bid_strategy': adset_payload.get('bid_strategy', ''), 'debug_bid_amount': bid_amount_raw, 'debug_adset_id': adset_id, 'debug_campaign_bid_strategy': existing_campaign_bid_strategy, 'debug_attribution_window': attribution_window, 'debug_advantage': advantage})
             adset_id = str((adset_rs or {}).get('id') or adset_id or '').strip()
             if save_adset_only:
-                return JsonResponse({'success': True, 'message': 'Ad Set berhasil disimpan', 'campaign_id': campaign_id, 'adset_id': adset_id})
+                was_update = bool(str(req.POST.get('adset_id') or '').strip())
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Ad Set berhasil diperbarui' if was_update else 'Ad Set berhasil dibuat',
+                    'campaign_id': campaign_id,
+                    'adset_id': adset_id,
+                    'updated': was_update,
+                })
 
             creative_payload = {'name': f'{ad_name} - CREATIVE'}
             if url_tags:
@@ -5888,6 +6794,22 @@ class page_per_campaign_facebook(View):
             total_frequency = format(total_impressions / total_reach, '.1f')
         rata_cpr = round(sum([row['cpr'] for row in normalized_rows]) / len(normalized_rows), 0) if normalized_rows else 0.0
         rata_cpc = round(sum([row['cpc'] for row in normalized_rows]) / len(normalized_rows), 0) if normalized_rows else 0.0
+
+        visits_by_domain = _fetch_kiwipixel_visits_by_domain(
+            tanggal_dari,
+            tanggal_sampai,
+            selected_domain_list,
+        )
+        total_visitors = 0
+        seen_domain_keys = set()
+        for row in normalized_rows:
+            domain_key = _normalize_kiwipixel_domain_key(row.get('domain'))
+            visitors = int(visits_by_domain.get(domain_key) or 0)
+            row['total_visitors'] = visitors
+            if domain_key and domain_key not in seen_domain_keys:
+                seen_domain_keys.add(domain_key)
+                total_visitors += visitors
+
         response_data = {
             'hasil': "Data Traffic Per Campaign",
             'data_campaign': normalized_rows,
@@ -5899,6 +6821,7 @@ class page_per_campaign_facebook(View):
                 'total_frequency': total_frequency,
                 'total_cpr': format(rata_cpr, '.0f'),
                 'total_cpc': format(rata_cpc, '.0f'),
+                'total_visitors': total_visitors,
             }],
         }
         # Jika terjadi kegagalan di layer DB, kirimkan respons kosong agar frontend tidak error
@@ -6015,7 +6938,235 @@ class page_per_campaign_facebook_detail(View):
             })
 
         return JsonResponse({'status': True, 'data': {'campaign': campaign_full, 'platforms': platforms, 'adsets': adsets, 'ad_assets': ad_assets}})
-    
+
+
+KIWIPIXEL_COUNTRY_API = 'https://api-tracker.kiwipixel.com/v1/country'
+
+
+def _normalize_kiwipixel_date(value):
+    if not value:
+        return ''
+    cleaned = str(value).strip().replace('-', '').replace('/', '')
+    if len(cleaned) == 8 and cleaned.isdigit():
+        return cleaned
+    try:
+        return datetime.strptime(str(value).strip()[:10], '%Y-%m-%d').strftime('%Y%m%d')
+    except Exception:
+        return ''
+
+
+def _normalize_kiwipixel_domain_key(domain):
+    value = (domain or '').lower().strip()
+    if not value or value == '%':
+        return ''
+    for suffix in ('.adx', '.ads'):
+        if value.endswith(suffix):
+            value = value[: -len(suffix)]
+    tlds = (
+        '.co.id', '.web.id', '.my.id', '.or.id', '.ac.id', '.go.id',
+        '.com', '.net', '.org', '.id', '.top', '.io',
+    )
+    for tld in sorted(tlds, key=len, reverse=True):
+        if value.endswith(tld):
+            value = value[: -len(tld)]
+            break
+    return value.strip('.')
+
+
+def _kiwipixel_domain_matches(api_domain, filter_domains):
+    api_key = _normalize_kiwipixel_domain_key(api_domain)
+    if not api_key:
+        return False
+    if not filter_domains:
+        return True
+    normalized_filters = [
+        str(item or '').lower().strip()
+        for item in filter_domains
+        if str(item or '').strip() and str(item or '').strip() != '%'
+    ]
+    if not normalized_filters:
+        return True
+    for domain_filter in normalized_filters:
+        filter_key = _normalize_kiwipixel_domain_key(domain_filter)
+        if not filter_key:
+            continue
+        if (
+            filter_key == api_key
+            or filter_key in api_key
+            or api_key in filter_key
+            or filter_key in (api_domain or '').lower()
+            or (api_domain or '').lower() in filter_key
+        ):
+            return True
+    return False
+
+
+def _fetch_kiwipixel_country_visits(country_codes, start_date, end_date, domain_filters):
+    start_fmt = _normalize_kiwipixel_date(start_date)
+    end_fmt = _normalize_kiwipixel_date(end_date)
+    codes = [str(code or '').strip().upper() for code in (country_codes or []) if str(code or '').strip()]
+    if not start_fmt or not end_fmt or not codes:
+        return {}
+
+    filter_payload = {
+        'country': ','.join(codes),
+        'start_date': int(start_fmt),
+        'end_date': int(end_fmt),
+    }
+    try:
+        response = requests.get(
+            KIWIPIXEL_COUNTRY_API,
+            params={'filter': json.dumps(filter_payload, separators=(',', ':'))},
+            timeout=30,
+            headers={
+                'Accept': 'application/json',
+                'User-Agent': 'hris-management/1.0',
+            },
+        )
+        if response.status_code != 200:
+            return {}
+        payload = response.json() if response.content else {}
+    except Exception:
+        return {}
+
+    visits_by_country = {}
+    for country_row in (payload.get('countries') or []):
+        if not isinstance(country_row, dict):
+            continue
+        country_code = str(country_row.get('country_code') or '').strip().upper()
+        if not country_code:
+            continue
+        domain_rows = country_row.get('domains') or []
+        if not isinstance(domain_rows, list):
+            domain_rows = []
+        normalized_filters = [
+            str(item or '').strip()
+            for item in (domain_filters or [])
+            if str(item or '').strip() and str(item or '').strip() != '%'
+        ]
+        if not normalized_filters:
+            visits_by_country[country_code] = int(country_row.get('total_visits') or 0)
+            continue
+        total = 0
+        for domain_row in domain_rows:
+            if not isinstance(domain_row, dict):
+                continue
+            if _kiwipixel_domain_matches(domain_row.get('domain'), normalized_filters):
+                total += int(domain_row.get('total_visits') or 0)
+        visits_by_country[country_code] = total
+    return visits_by_country
+
+
+def _fetch_kiwipixel_visits_by_domain(start_date, end_date, domain_filters=None):
+    start_fmt = _normalize_kiwipixel_date(start_date)
+    end_fmt = _normalize_kiwipixel_date(end_date)
+    if not start_fmt or not end_fmt:
+        return {}
+
+    filter_payload = {
+        'country': '',
+        'start_date': int(start_fmt),
+        'end_date': int(end_fmt),
+    }
+    try:
+        response = requests.get(
+            KIWIPIXEL_COUNTRY_API,
+            params={'filter': json.dumps(filter_payload, separators=(',', ':'))},
+            timeout=30,
+            headers={
+                'Accept': 'application/json',
+                'User-Agent': 'hris-management/1.0',
+            },
+        )
+        if response.status_code != 200:
+            return {}
+        payload = response.json() if response.content else {}
+    except Exception:
+        return {}
+
+    normalized_filters = [
+        str(item or '').strip()
+        for item in (domain_filters or [])
+        if str(item or '').strip() and str(item or '').strip() != '%'
+    ]
+    visits_by_domain = {}
+    for country_row in (payload.get('countries') or []):
+        if not isinstance(country_row, dict):
+            continue
+        for domain_row in (country_row.get('domains') or []):
+            if not isinstance(domain_row, dict):
+                continue
+            api_domain = domain_row.get('domain')
+            if normalized_filters and not _kiwipixel_domain_matches(api_domain, normalized_filters):
+                continue
+            domain_key = _normalize_kiwipixel_domain_key(api_domain)
+            if not domain_key:
+                continue
+            visits_by_domain[domain_key] = visits_by_domain.get(domain_key, 0) + int(domain_row.get('total_visits') or 0)
+    return visits_by_domain
+
+
+def attach_kiwipixel_visitors_to_country_result(result, start_date, end_date, domain_filters=None):
+    if not isinstance(result, dict) or not result.get('status'):
+        return result
+
+    def normalize_cc(cc):
+        c = (str(cc or '').strip().upper())
+        if c == 'TU':
+            return 'TR'
+        return c
+
+    def lookup_visits(code, visits_map):
+        cc = normalize_cc(code)
+        if not cc:
+            return 0
+        val = int(visits_map.get(cc) or 0)
+        if not val and cc == 'TR':
+            val = int(visits_map.get('TU') or 0)
+        return val
+
+    country_codes = []
+    for key in ('data', 'data_filtered'):
+        for row in (result.get(key) or []):
+            if not isinstance(row, dict):
+                continue
+            cc = normalize_cc(row.get('country_code'))
+            if cc and cc not in country_codes:
+                country_codes.append(cc)
+
+    domain_list = []
+    if domain_filters:
+        if isinstance(domain_filters, str):
+            domain_list = [s.strip() for s in domain_filters.split(',') if s.strip() and s.strip() != '%']
+        else:
+            domain_list = [
+                str(s).strip()
+                for s in domain_filters
+                if str(s).strip() and str(s).strip() != '%'
+            ]
+
+    if not country_codes:
+        return result
+
+    visits_by_country = _fetch_kiwipixel_country_visits(country_codes, start_date, end_date, domain_list)
+    for key in ('data', 'data_filtered'):
+        for row in (result.get(key) or []):
+            if isinstance(row, dict):
+                row['total_visitors'] = lookup_visits(row.get('country_code'), visits_by_country)
+
+    def sum_visitors(rows):
+        return sum(int((r or {}).get('total_visitors') or 0) for r in (rows or []) if isinstance(r, dict))
+
+    if isinstance(result.get('summary_all'), dict):
+        result['summary_all']['total_visitors'] = sum_visitors(result.get('data'))
+    if isinstance(result.get('summary_filtered'), dict):
+        result['summary_filtered']['total_visitors'] = sum_visitors(result.get('data_filtered'))
+    if isinstance(result.get('summary'), dict):
+        result['summary']['total_visitors'] = sum_visitors(result.get('data'))
+
+    return result
+
+
 class PerCountryFacebookAds(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
@@ -6167,6 +7318,29 @@ class page_per_country_facebook(View):
                 }
         else:
             print("DEBUG - No country filter applied, using original total")
+
+        country_codes_for_api = selected_countries[:] if selected_countries else []
+        if not country_codes_for_api:
+            country_codes_for_api = sorted({
+                str(row.get('country_code') or '').strip().upper()
+                for row in (data.get('data') or [])
+                if str(row.get('country_code') or '').strip()
+            })
+        visits_by_country = _fetch_kiwipixel_country_visits(
+            country_codes_for_api,
+            tanggal_dari,
+            tanggal_sampai,
+            selected_domain_list,
+        )
+        total_visitors = 0
+        for row in (data.get('data') or []):
+            country_code = str(row.get('country_code') or '').strip().upper()
+            visitors = int(visits_by_country.get(country_code) or 0)
+            row['total_visitors'] = visitors
+            total_visitors += visitors
+        if isinstance(data.get('total'), dict):
+            data['total']['total_visitors'] = total_visitors
+
         hasil = {
             'hasil': "Data Traffic Per Country",
             'data_country': data['data'],
@@ -7850,6 +9024,9 @@ class RoiTrafficPerCountryDataView(View):
             )
             cached_response = get_cached_data(response_cache_key)
             if cached_response is not None:
+                attach_kiwipixel_visitors_to_country_result(
+                    cached_response, start_date, end_date, selected_domain_list
+                )
                 return JsonResponse(cached_response, safe=False)
             data_facebook = None
             # Jalankan paralel jika selected_domain sudah ada (menghindari fetch FB yang terlalu lebar)
@@ -8039,6 +9216,9 @@ class RoiTrafficPerCountryDataView(View):
                 set_cached_data(response_cache_key, result, timeout=900)
             except Exception as _cache_err:
                 print(f"[DEBUG] Failed to cache ROI Country final response: {_cache_err}")
+            attach_kiwipixel_visitors_to_country_result(
+                result, start_date, end_date, selected_domain_list
+            )
             return JsonResponse(result, safe=False)
         except Exception as e:
             return JsonResponse({
@@ -11798,6 +12978,9 @@ class RoiMonitoringCountryDataView(View):
             )
             cached_response = get_cached_data(response_cache_key)
             if cached_response is not None:
+                attach_kiwipixel_visitors_to_country_result(
+                    cached_response, start_date, end_date, selected_domain_list
+                )
                 return JsonResponse(cached_response, safe=False)
             data_facebook = None
             # Jalankan paralel jika selected_domain sudah ada (menghindari fetch FB yang terlalu lebar)
@@ -12194,6 +13377,9 @@ class RoiMonitoringCountryDataView(View):
                 set_cached_data(response_cache_key, result, timeout=900)
             except Exception as _cache_err:
                 print(f"[DEBUG] Failed to cache ROI Country final response: {_cache_err}")
+            attach_kiwipixel_visitors_to_country_result(
+                result, start_date, end_date, selected_domain_list
+            )
             return JsonResponse(result, safe=False)
         except Exception as e:
             return JsonResponse({
