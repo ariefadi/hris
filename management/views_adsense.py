@@ -43,6 +43,7 @@ from .utils_adsense import (
 )
 from .list_adsense_policy_events import list_adsense_policy_events
 from .sync_adsense_policy_events import sync_adsense_policy_events
+from management.views import attach_kiwipixel_visitors_to_country_result
 
 def get_adsense_data(request):
     if 'credentials' not in request.session:
@@ -1718,6 +1719,9 @@ class RekapTrafficPerCountryAdsenseDataView(View):
             )
             cached_response = None if selected_domain_list else get_cached_data_adsense(response_cache_key)
             if cached_response is not None:
+                attach_kiwipixel_visitors_to_country_result(
+                    cached_response, start_date, end_date, selected_domain_list
+                )
                 return JsonResponse(cached_response, safe=False)
             data_facebook = None
             unique_name_site = []
@@ -1956,6 +1960,9 @@ class RekapTrafficPerCountryAdsenseDataView(View):
                 set_cached_data_adsense(response_cache_key, result, timeout=900)
             except Exception as _cache_err:
                 print(f"[DEBUG] Failed to cache ROI Country final response: {_cache_err}")
+            attach_kiwipixel_visitors_to_country_result(
+                result, start_date, end_date, selected_domain_list
+            )
             return JsonResponse(result, safe=False)
         except Exception as e:
             return JsonResponse({
@@ -2814,6 +2821,9 @@ class RoiMonitoringCountryAdsenseDataView(View):
             )
             cached_response = None if selected_domain_list else get_cached_data_adsense(response_cache_key)
             if cached_response is not None:
+                attach_kiwipixel_visitors_to_country_result(
+                    cached_response, start_date, end_date, selected_domain_list
+                )
                 return JsonResponse(cached_response, safe=False)
             data_facebook = None
             # Jalankan paralel jika selected_domain sudah ada (menghindari fetch FB yang terlalu lebar)
@@ -3190,6 +3200,9 @@ class RoiMonitoringCountryAdsenseDataView(View):
                 set_cached_data_adsense(response_cache_key, result, timeout=900)
             except Exception as _cache_err:
                 print(f"[DEBUG] Failed to cache ROI Country final response: {_cache_err}")
+            attach_kiwipixel_visitors_to_country_result(
+                result, start_date, end_date, selected_domain_list
+            )
             return JsonResponse(result, safe=False)
         except Exception as e:
             return JsonResponse({

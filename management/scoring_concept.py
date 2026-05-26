@@ -48,6 +48,10 @@ NEGATIVE_ROOT_LABELS = {
     "REVENUE_DROP",
     "NEGATIVE_MIXED",
     "NEG_ADJUSTMENT",
+    "WATCH_IVT",
+    "IVT_DOMINANT_RISK",
+    "PROFIT_OK_BUT_UNSAFE",
+    "TRAFFIC_QUALITY_MISMATCH",
     "RED_FLAG_IVT",
     "RED_FLAG_CLICK_STRESS",
     "RED_FLAG_SERVING_SUPPRESSION",
@@ -61,14 +65,17 @@ POSITIVE_ROOT_LABELS = {
     "POSITIVE_RECOVERY",
 }
 
-# Balanced mode thresholds (lebih mudah dipahami untuk operasional)
+# Safety / IVT first thresholds
 LEARNING_MIN_DAYS = 2
-NEGATIVE_HEALTH_DROP_THRESHOLD = -22
-NEG_ADJUSTMENT_DROP_MIN_COUNT = 3
-NEG_ADJUSTMENT_SCORE_THRESHOLD = -45
-RED_FLAG_IVT_THRESHOLD = 75
-PROFIT_FIRST_ROI_THRESHOLD = 0.30
-PROFIT_FIRST_RISK_CAP = 45
+NEGATIVE_HEALTH_DROP_THRESHOLD = -18
+NEG_ADJUSTMENT_DROP_MIN_COUNT = 2
+NEG_ADJUSTMENT_SCORE_THRESHOLD = -32
+RED_FLAG_IVT_THRESHOLD = 68
+WATCH_IVT_THRESHOLD = 52
+SAFETY_SCALE_UP_RISK_CAP = 42
+SAFETY_SCALE_UP_HEALTH_FLOOR = 8
+SAFETY_SCALE_UP_CONFIDENCE_FLOOR = 0.45
+PROFIT_SUPPORT_ROI_THRESHOLD = 0.20
 
 COUNTER_CORRECTION_COLUMNS = {
     "meta_spend",
@@ -167,8 +174,8 @@ RULES: list[MetricRule] = [
     MetricRule("meta_spend", "meta", "control", "counter", "acquisition_cost", "adjustment_guardrail", "NEUTRAL", "HOURLY_INCREMENT_Z", 0.00, adjustment_weight=1.25, deadband_pct=0.03, family_key="meta_budget", family_rank=2, label_negative="META_SPEND_DROP", requires_source_match=False),
     MetricRule("meta_budget_pacing_index", "meta", "control", "band", "budget_pacing", "pacing", "RANGE_GOOD", "BAND_TARGET", 0.55, 0.75, 1.10, ivt_weight=0.30, volume_gate_column="meta_daily_budget", min_volume=1, family_key="meta_budget", family_rank=1, range_low=0.70, range_high=1.30, band_dynamic=True, band_quantile_low=0.20, band_quantile_high=0.80, band_sigma=1.00, band_min_width_pct=0.08, label_positive="BUDGET_PACING_IN_RANGE", label_negative="BUDGET_PACING_OUT_OF_RANGE", requires_source_match=True),
     MetricRule("meta_avg_cpc", "meta", "efficiency", "level", "acquisition_cost", "guardrail", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.85, 0.85, 1.05, ivt_weight=0.20, volume_gate_column="meta_clicks", min_volume=20, family_key="meta_efficiency", family_rank=1, label_positive="META_CPC_IMPROVING", label_negative="META_CPC_RISING", requires_source_match=False),
-    MetricRule("meta_clicks", "meta", "traffic", "counter", "acquisition", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.10, 0.95, 1.10, adjustment_weight=0.75, ivt_weight=0.25, deadband_pct=0.03, family_key="meta_traffic_volume", family_rank=2, label_positive="META_TRAFFIC_UP", label_negative="META_TRAFFIC_DOWN", requires_source_match=False),
-    MetricRule("meta_lpv", "meta", "traffic", "counter", "landing", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.35, 0.95, 1.15, adjustment_weight=1.00, ivt_weight=0.35, deadband_pct=0.03, family_key="meta_traffic_volume", family_rank=1, label_positive="LPV_UP", label_negative="LPV_DOWN", requires_source_match=False),
+    MetricRule("meta_clicks", "meta", "traffic", "counter", "acquisition", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 0.95, 0.90, 1.25, adjustment_weight=0.85, ivt_weight=0.60, deadband_pct=0.03, family_key="meta_traffic_volume", family_rank=2, label_positive="META_TRAFFIC_UP", label_negative="META_TRAFFIC_DOWN", requires_source_match=False),
+    MetricRule("meta_lpv", "meta", "traffic", "counter", "landing", "primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.10, 0.90, 1.20, adjustment_weight=1.00, ivt_weight=0.55, deadband_pct=0.03, family_key="meta_traffic_volume", family_rank=1, label_positive="LPV_UP", label_negative="LPV_DOWN", requires_source_match=False),
     MetricRule("meta_lpv_rate", "meta", "efficiency", "rate", "landing_quality", "derived", "UP_GOOD", "PROPORTION_Z", 1.10, 0.90, 1.15, ivt_weight=0.55, volume_gate_column="meta_clicks", min_volume=20, denominator_column="meta_clicks", numerator_column="meta_lpv", family_key="meta_traffic_quality", family_rank=1, deadband_pct=0.04, label_positive="LPV_RATE_IMPROVING", label_negative="LPV_RATE_DROP", requires_source_match=False),
     MetricRule("meta_frequency", "meta", "quality", "band", "fatigue", "guardrail", "RANGE_GOOD", "BAND_TARGET", 0.45, 0.70, 1.00, ivt_weight=0.65, family_key="meta_fatigue", family_rank=1, range_low=1.0, range_high=3.5, band_dynamic=True, band_quantile_low=0.20, band_quantile_high=0.80, band_sigma=1.00, band_min_width_pct=0.08, label_positive="FREQUENCY_IN_RANGE", label_negative="FREQUENCY_OUT_OF_RANGE", requires_source_match=False),
 
@@ -197,23 +204,22 @@ RULES: list[MetricRule] = [
     MetricRule("adx_active_view_pct_viewable", "adx", "quality", "rate", "viewability", "primary", "UP_GOOD", "PROPORTION_Z", 0.85, 0.80, 1.15, ivt_weight=0.70, volume_gate_column="adx_impressions", min_volume=500, denominator_column="adx_impressions", family_key="adx_viewability", family_rank=1, deadband_pct=0.03, label_positive="ADX_VIEWABILITY_UP", label_negative="ADX_VIEWABILITY_DROP"),
     MetricRule("adx_active_view_avg_time_sec", "adx", "quality", "level", "attention", "support", "UP_GOOD", "EWMA_LEVEL_Z", 0.55, 0.75, 1.00, ivt_weight=0.70, volume_gate_column="adx_impressions", min_volume=500, family_key="adx_attention", family_rank=1, deadband_pct=0.04, label_positive="ADX_ACTIVE_VIEW_TIME_UP", label_negative="ADX_ACTIVE_VIEW_TIME_DOWN"),
 
-    MetricRule("blended_revenue", "blended", "revenue", "counter", "monetization", "composite_primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.95, 0.95, 1.20, adjustment_weight=1.80, ivt_weight=0.55, deadband_pct=0.03, family_key="blended_revenue", family_rank=1, provisional_metric=True, freshness_min_confidence_factor=0.55, freshness_full_confidence_hours=8, label_positive="BLENDED_REVENUE_UP", label_negative="BLENDED_REVENUE_DROP", requires_source_match=False),
-    MetricRule("revenue_per_lpv", "blended", "yield", "level", "monetization_efficiency", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 1.45, 0.90, 1.15, ivt_weight=1.00, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_efficiency", family_rank=1, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="REVENUE_PER_LPV_UP", label_negative="REVENUE_PER_LPV_DOWN", requires_source_match=False),
-    MetricRule("roi_proxy", "blended", "efficiency", "level", "unit_economics", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 1.35, 0.90, 1.15, ivt_weight=0.70, volume_gate_column="meta_spend", min_volume=500, denominator_column="meta_spend", family_key="blended_efficiency", family_rank=2, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="ROI_PROXY_UP", label_negative="ROI_PROXY_DOWN", requires_source_match=False),
+    MetricRule("blended_revenue", "blended", "revenue", "counter", "monetization", "composite_primary", "UP_GOOD", "HOURLY_INCREMENT_Z", 1.25, 0.90, 1.10, adjustment_weight=1.30, ivt_weight=0.70, deadband_pct=0.03, family_key="blended_revenue", family_rank=1, provisional_metric=True, freshness_min_confidence_factor=0.55, freshness_full_confidence_hours=8, label_positive="BLENDED_REVENUE_UP", label_negative="BLENDED_REVENUE_DROP", requires_source_match=False),
+    MetricRule("revenue_per_lpv", "blended", "yield", "level", "monetization_efficiency", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 1.10, 0.85, 1.10, ivt_weight=1.05, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_efficiency", family_rank=1, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="REVENUE_PER_LPV_UP", label_negative="REVENUE_PER_LPV_DOWN", requires_source_match=False),
+    MetricRule("roi_proxy", "blended", "efficiency", "level", "unit_economics", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 0.85, 0.85, 1.10, ivt_weight=0.85, volume_gate_column="meta_spend", min_volume=500, denominator_column="meta_spend", family_key="blended_efficiency", family_rank=2, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="ROI_PROXY_UP", label_negative="ROI_PROXY_DOWN", requires_source_match=False),
     MetricRule("meta_cost_per_lpv", "blended", "efficiency", "level", "acquisition_cost", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 1.00, 0.85, 1.10, ivt_weight=0.45, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_efficiency", family_rank=3, deadband_pct=0.05, label_positive="COST_PER_LPV_DOWN", label_negative="COST_PER_LPV_UP", requires_source_match=False),
     MetricRule("request_to_impression_eff", "blended", "delivery", "rate", "render_efficiency", "composite", "UP_GOOD", "PROPORTION_Z", 1.25, 0.90, 1.20, ivt_weight=1.10, volume_gate_column="total_requests_blended", min_volume=300, denominator_column="total_requests_blended", numerator_column="total_impressions_blended", family_key="blended_delivery", family_rank=1, deadband_pct=0.03, label_positive="REQUEST_EFFICIENCY_UP", label_negative="REQUEST_EFFICIENCY_DOWN", requires_source_match=False),
     MetricRule("revenue_per_request_total", "blended", "yield", "level", "request_yield", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 0.75, 0.85, 1.10, ivt_weight=0.90, volume_gate_column="total_requests_blended", min_volume=300, denominator_column="total_requests_blended", family_key="blended_delivery", family_rank=2, deadband_pct=0.05, provisional_metric=True, freshness_min_confidence_factor=0.60, freshness_full_confidence_hours=8, label_positive="REQUEST_YIELD_UP", label_negative="REQUEST_YIELD_DOWN", requires_source_match=False),
-    MetricRule("click_pressure", "blended", "quality", "level", "click_stress", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.45, 0.75, 1.00, ivt_weight=1.65, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_click_pressure", family_rank=1, deadband_pct=0.06, label_positive="CLICK_PRESSURE_DOWN", label_negative="CLICK_PRESSURE_UP", requires_source_match=False),
-    MetricRule("request_density", "blended", "quality", "level", "request_density", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.35, 0.75, 1.00, ivt_weight=1.15, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_click_pressure", family_rank=2, deadband_pct=0.06, label_positive="REQUEST_DENSITY_DOWN", label_negative="REQUEST_DENSITY_UP", requires_source_match=False),
+    MetricRule("click_pressure", "blended", "quality", "level", "click_stress", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.70, 0.75, 1.20, ivt_weight=2.10, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_click_pressure", family_rank=1, deadband_pct=0.06, label_positive="CLICK_PRESSURE_DOWN", label_negative="CLICK_PRESSURE_UP", requires_source_match=False),
+    MetricRule("request_density", "blended", "quality", "level", "request_density", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.55, 0.75, 1.15, ivt_weight=1.55, volume_gate_column="meta_lpv", min_volume=20, denominator_column="meta_lpv", family_key="blended_click_pressure", family_rank=2, deadband_pct=0.06, label_positive="REQUEST_DENSITY_DOWN", label_negative="REQUEST_DENSITY_UP", requires_source_match=False),
     MetricRule("attention_quality_blended", "blended", "quality", "rate", "viewability", "composite", "UP_GOOD", "PROPORTION_Z", 0.90, 0.80, 1.10, ivt_weight=0.95, volume_gate_column="total_impressions_blended", min_volume=500, denominator_column="total_impressions_blended", family_key="blended_attention", family_rank=1, deadband_pct=0.03, label_positive="ATTENTION_QUALITY_UP", label_negative="ATTENTION_QUALITY_DROP", requires_source_match=True),
     MetricRule("active_time_blended", "blended", "quality", "level", "attention", "composite", "UP_GOOD", "EWMA_LEVEL_Z", 0.75, 0.80, 1.00, ivt_weight=0.75, volume_gate_column="total_impressions_blended", min_volume=500, family_key="blended_attention", family_rank=2, deadband_pct=0.04, label_positive="ACTIVE_TIME_BLENDED_UP", label_negative="ACTIVE_TIME_BLENDED_DOWN", requires_source_match=False),
     MetricRule("viewability_gap_abs", "blended", "quality", "level", "source_alignment", "composite", "DOWN_GOOD", "EWMA_LEVEL_Z", 0.35, 0.75, 1.00, ivt_weight=0.85, volume_gate_column="total_impressions_blended", min_volume=500, family_key="blended_attention", family_rank=3, deadband_pct=0.05, label_positive="VIEWABILITY_GAP_DOWN", label_negative="VIEWABILITY_GAP_UP", requires_source_match=False),
 ]
 
 def _resolve_rules_for_profile() -> tuple[str, list[MetricRule]]:
-    # Full metrics aktif semua, tanpa switching profile.
-    # Profit-first tetap dijaga di layer scoring/labeling/recommendation logic.
-    return "full_profit_first", list(RULES)
+    # Full metrics aktif semua, dengan prioritas safety / IVT lebih tinggi.
+    return "full_safety_first_ivt_gated", list(RULES)
 
 
 RAW_JOIN_COLUMNS = [
@@ -1878,6 +1884,14 @@ def _group_risk_score(events: list[dict], group_name: str) -> float:
 def _root_cause_label(status: dict) -> str:
     if status["join_status"] not in SCORABLE_JOIN_STATUSES and status["negative_signal_count"] == 0 and status["positive_signal_count"] == 0:
         return "DATA_INCOMPLETE"
+    spend = safe_float(status.get("spend"))
+    revenue = safe_float(status.get("revenue_value"))
+    roi = ((revenue - spend) / spend) if spend > 0 else 0.0
+    profit_support = (revenue > spend) and (roi >= PROFIT_SUPPORT_ROI_THRESHOLD)
+    risk = safe_float(status.get("ivt_risk_score"))
+    health = safe_float(status.get("health_score"))
+    quality = safe_float(status.get("quality_score"))
+    lpv = safe_float(status.get("traffic_score"))
     if status["ivt_risk_score"] >= RED_FLAG_IVT_THRESHOLD:
         ivt_groups = {
             "RED_FLAG_CLICK_STRESS": status["ivt_click_stress_score"],
@@ -1888,17 +1902,29 @@ def _root_cause_label(status: dict) -> str:
         }
         label, value = max(ivt_groups.items(), key=lambda x: x[1])
         return label if value >= 45 else "RED_FLAG_IVT"
+    if risk >= WATCH_IVT_THRESHOLD and profit_support:
+        return "PROFIT_OK_BUT_UNSAFE"
+    if risk >= WATCH_IVT_THRESHOLD:
+        ivt_groups = {
+            "ivt_click_stress_score": safe_float(status.get("ivt_click_stress_score")),
+            "ivt_serving_score": safe_float(status.get("ivt_serving_score")),
+            "ivt_attention_score": safe_float(status.get("ivt_attention_score")),
+            "ivt_counter_score": safe_float(status.get("ivt_counter_score")),
+            "ivt_funnel_score": safe_float(status.get("ivt_funnel_score")),
+        }
+        dom_val = max(ivt_groups.values()) if ivt_groups else 0.0
+        if dom_val >= 32:
+            return "IVT_DOMINANT_RISK"
+        return "WATCH_IVT"
+    if profit_support and (quality <= -8 or lpv <= -8 or health <= -6):
+        return "TRAFFIC_QUALITY_MISMATCH"
     if status["adjustment_drop_count"] >= NEG_ADJUSTMENT_DROP_MIN_COUNT and status["adjustment_score"] <= NEG_ADJUSTMENT_SCORE_THRESHOLD:
-        spend = safe_float(status.get("spend"))
-        revenue = safe_float(status.get("revenue_value"))
-        roi = ((revenue - spend) / spend) if spend > 0 else 0.0
-        profit_strong = (revenue > spend) and (roi >= PROFIT_FIRST_ROI_THRESHOLD)
-        if profit_strong and status.get("ivt_risk_score", 0) < PROFIT_FIRST_RISK_CAP and status.get("health_score", 0) > -8:
-            return "WATCH_DECAY"
-        return "NEG_ADJUSTMENT"
-    if status["health_score"] >= 18 and status["ivt_risk_score"] < 35 and status["positive_signal_count"] >= status["negative_signal_count"]:
+        if status.get("ivt_risk_score", 0) >= WATCH_IVT_THRESHOLD or status.get("health_score", 0) <= -10:
+            return "NEG_ADJUSTMENT"
+        return "WATCH_DECAY"
+    if status["health_score"] >= 22 and status["ivt_risk_score"] < SAFETY_SCALE_UP_RISK_CAP and status["positive_signal_count"] >= status["negative_signal_count"]:
         return "POSITIVE_EXPANSION"
-    if status["health_score"] >= 10 and status["ivt_risk_score"] < 45 and status["positive_signal_count"] > status["negative_signal_count"]:
+    if status["health_score"] >= 14 and status["ivt_risk_score"] < 50 and status["positive_signal_count"] > status["negative_signal_count"]:
         return "POSITIVE_RECOVERY"
     if status["health_score"] <= NEGATIVE_HEALTH_DROP_THRESHOLD:
         groups = {
@@ -1928,6 +1954,10 @@ def _apply_hysteresis(root_label: str, status: dict, persistence: dict) -> tuple
             hysteresis_applied = 1
         return final_label, hysteresis_applied
 
+    if root_label in {"PROFIT_OK_BUT_UNSAFE", "IVT_DOMINANT_RISK", "WATCH_IVT"} and persistence["ivt_streak"] >= 1:
+        return "WATCH_IVT", 1
+    if root_label == "TRAFFIC_QUALITY_MISMATCH" and persistence["negative_streak"] >= 1:
+        return "WATCH_NEGATIVE", 1
     if root_label == "POSITIVE_EXPANSION" and persistence["negative_streak"] >= 2 and status["health_score"] < 30:
         return "WATCH_RECOVERY", 1
     if root_label == "POSITIVE_RECOVERY" and persistence["negative_streak"] >= 2 and status["health_score"] < 18:
@@ -1999,74 +2029,109 @@ def _compute_forecast_and_budget_reco(status: dict, persistence: dict) -> dict:
     health = clip(safe_float(status.get("health_score")), -100.0, 100.0)
     margin = safe_float(status.get("decision_margin"))
     adj = safe_float(status.get("adjustment_score"))
+    label = str(status.get("final_label") or status.get("root_cause_label") or "STABLE").upper()
+    quality = safe_float(status.get("quality_score"))
+    traffic = safe_float(status.get("traffic_score"))
 
     pos_streak = int(safe_float(persistence.get("positive_streak", 0)))
     neg_streak = int(safe_float(persistence.get("negative_streak", 0)))
     ivt_streak = int(safe_float(persistence.get("ivt_streak", 0)))
     days_active = int(safe_float(persistence.get("days_active", 0)))
 
+    profit_support = (revenue > spend) and (roi >= PROFIT_SUPPORT_ROI_THRESHOLD)
+    meta_shutdown_risk = clip(
+        (risk / 100.0) * 0.40
+        + (min(3, ivt_streak) / 3.0) * 0.20
+        + (max(0.0, -quality) / 100.0) * 0.15
+        + (max(0.0, -traffic) / 100.0) * 0.10
+        + (0.15 if label in {"PROFIT_OK_BUT_UNSAFE", "IVT_DOMINANT_RISK", "WATCH_IVT", "RED_FLAG_IVT"} else 0.0),
+        0.0,
+        1.0,
+    )
     down_pressure = clip(
-        (max(0.0, -margin) / 45.0) * 0.30
-        + (risk / 100.0) * 0.25
-        + (max(0.0, -health) / 100.0) * 0.20
+        (max(0.0, -margin) / 45.0) * 0.24
+        + (risk / 100.0) * 0.28
+        + (max(0.0, -health) / 100.0) * 0.16
         + (max(0.0, -adj) / 100.0) * 0.10
-        + (min(3, neg_streak) / 3.0) * 0.10
-        + (min(2, ivt_streak) / 2.0) * 0.05,
+        + (min(3, neg_streak) / 3.0) * 0.08
+        + (min(3, ivt_streak) / 3.0) * 0.08
+        + (meta_shutdown_risk * 0.06),
         0.0,
         1.0,
     )
     up_strength = clip(
-        (max(0.0, margin) / 45.0) * 0.30
-        + (max(0.0, health) / 100.0) * 0.25
-        + (max(0.0, roi) / 0.60) * 0.20
-        + (max(0.0, 60.0 - risk) / 60.0) * 0.15
-        + (min(3, pos_streak) / 3.0) * 0.10,
+        (max(0.0, margin) / 45.0) * 0.24
+        + (max(0.0, health) / 100.0) * 0.22
+        + (max(0.0, roi) / 0.60) * 0.15
+        + (max(0.0, 60.0 - risk) / 60.0) * 0.17
+        + (min(3, pos_streak) / 3.0) * 0.10
+        + (max(0.0, quality) / 100.0) * 0.06
+        + (max(0.0, traffic) / 100.0) * 0.06,
         0.0,
         1.0,
     )
-    volatility = clip((abs(adj) / 100.0) * 0.55 + (abs(margin) / 120.0) * 0.45, 0.0, 1.0)
+    volatility = clip((abs(adj) / 100.0) * 0.45 + (abs(margin) / 120.0) * 0.35 + (meta_shutdown_risk * 0.20), 0.0, 1.0)
 
     delta = up_strength - down_pressure
-    if delta >= 0.15:
-        forecast_direction = "UPCOMING_UP"
-        forecast_reason = "Momentum positif (margin/ROI/health) lebih dominan dibanding tekanan risiko"
-    elif delta <= -0.15:
+    forecast_horizon_hours = 24
+    reason_parts = []
+    if meta_shutdown_risk >= 0.68:
         forecast_direction = "UPCOMING_DOWN"
-        forecast_reason = "Tekanan turun meningkat (risk naik, margin/health melemah, streak negatif)"
+        forecast_horizon_hours = 12
+        reason_parts.append("Risiko pembatasan / pemadaman Meta meningkat dari sinyal IVT dan kualitas traffic")
+    elif delta >= 0.18 and risk < SAFETY_SCALE_UP_RISK_CAP and meta_shutdown_risk < 0.38:
+        forecast_direction = "UPCOMING_UP"
+        forecast_horizon_hours = 24
+        reason_parts.append("Momentum positif masih sehat dan risk relatif terkendali")
+    elif delta <= -0.12 or risk >= WATCH_IVT_THRESHOLD:
+        forecast_direction = "UPCOMING_DOWN"
+        forecast_horizon_hours = 24 if risk < RED_FLAG_IVT_THRESHOLD else 12
+        reason_parts.append("Tekanan turun meningkat dari kombinasi risk, margin, health, atau streak negatif")
     else:
         forecast_direction = "STABLE_OUTLOOK"
-        forecast_reason = "Sinyal campuran, outlook cenderung stabil dalam horizon pendek"
+        forecast_horizon_hours = 48
+        reason_parts.append("Sinyal campuran, outlook cenderung stabil namun tetap perlu observasi")
 
-    forecast_confidence = clip((0.50 * conf) + (0.30 * (1.0 - volatility)) + (0.20 * max(up_strength, down_pressure)), 0.0, 1.0)
+    if profit_support and meta_shutdown_risk >= 0.52:
+        reason_parts.append("Profit masih mendukung, tetapi belum cukup aman untuk ekspansi")
+    if ivt_streak >= 2:
+        reason_parts.append("Streak IVT berulang terdeteksi")
+    if quality <= -8:
+        reason_parts.append("Kualitas traffic melemah")
+    if traffic <= -8:
+        reason_parts.append("Traffic mulai tidak sehat terhadap baseline")
+
+    forecast_reason = "; ".join(dict.fromkeys([x for x in reason_parts if x]))
+    forecast_confidence = clip((0.42 * conf) + (0.22 * (1.0 - volatility)) + (0.18 * max(up_strength, down_pressure)) + (0.18 * meta_shutdown_risk), 0.0, 1.0)
 
     cap_up = 20.0
     cap_down = 30.0
     if conf < 0.35 or days_active < 3:
         cap_up = min(cap_up, 10.0)
         cap_down = min(cap_down, 15.0)
-    if roi >= 0.50 and risk < 45 and conf >= 0.60:
-        cap_up = 25.0
-    if risk >= 75 or str(status.get("final_label", "")).upper().startswith("RED_FLAG"):
+    if roi >= 0.50 and risk < SAFETY_SCALE_UP_RISK_CAP and conf >= 0.60:
+        cap_up = 18.0
+    if risk >= RED_FLAG_IVT_THRESHOLD or label.startswith("RED_FLAG"):
         cap_down = 35.0
 
     recommended_action = "HOLD"
     recommended_budget_change_pct = 0.0
-    if forecast_direction == "UPCOMING_UP" and risk < 65:
-        up_pct = clip(3.0 + (14.0 * up_strength * conf) - (6.0 * volatility), 3.0, cap_up)
+    if forecast_direction == "UPCOMING_UP" and risk < SAFETY_SCALE_UP_RISK_CAP and meta_shutdown_risk < 0.35 and health >= SAFETY_SCALE_UP_HEALTH_FLOOR and conf >= SAFETY_SCALE_UP_CONFIDENCE_FLOOR:
+        up_pct = clip(3.0 + (11.0 * up_strength * conf) - (7.0 * volatility), 3.0, cap_up)
         recommended_action = "SCALE UP"
         recommended_budget_change_pct = float(round(up_pct, 2))
-    elif (forecast_direction == "UPCOMING_DOWN") or risk >= 70 or margin <= -20:
-        down_pct = clip(6.0 + (22.0 * down_pressure * conf) + (4.0 * volatility), 6.0, cap_down)
-        recommended_action = "PAUSE" if risk >= 85 else "SCALE DOWN"
+    elif (forecast_direction == "UPCOMING_DOWN") or risk >= 62 or margin <= -20 or meta_shutdown_risk >= 0.55:
+        down_pct = clip(6.0 + (18.0 * down_pressure * conf) + (7.0 * meta_shutdown_risk) + (4.0 * volatility), 6.0, cap_down)
+        recommended_action = "PAUSE" if (risk >= 85 or meta_shutdown_risk >= 0.80) else "SCALE DOWN"
         recommended_budget_change_pct = float(round(-down_pct, 2))
 
     recommended_budget_target = float(round(max(0.0, spend * (1.0 + (recommended_budget_change_pct / 100.0))), 2)) if spend > 0 else 0.0
     budget_reco_reason = (
-        f"{recommended_action} {recommended_budget_change_pct:+.2f}% | ROI={roi:.2f} | risk={risk:.1f} | margin={margin:.1f} | conf={conf:.2f}"
+        f"{recommended_action} {recommended_budget_change_pct:+.2f}% | ROI={roi:.2f} | risk={risk:.1f} | shutdown_risk={meta_shutdown_risk*100:.0f}% | margin={margin:.1f} | conf={conf:.2f}"
     )
 
     return {
-        "forecast_horizon_hours": 24,
+        "forecast_horizon_hours": int(forecast_horizon_hours),
         "forecast_direction": forecast_direction,
         "forecast_confidence": float(round(forecast_confidence, 4)),
         "forecast_reason": forecast_reason,

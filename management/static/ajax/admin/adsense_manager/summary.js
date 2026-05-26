@@ -46,11 +46,9 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const setDefaultDates = () => {
-    // Default 7 hari terakhir: dari hari ini - 6 sampai hari ini
+    // Default hari ini untuk tanggal awal dan akhir
     const today = new Date();
-    const start = new Date(today);
-    start.setDate(today.getDate() - 7);
-    startInput.value = toISO(start);
+    startInput.value = toISO(today);
     endInput.value = toISO(today);
     // Sinkronkan jika flatpickr tersedia
     if (startInput._flatpickr) startInput._flatpickr.setDate(startInput.value, true);

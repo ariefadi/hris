@@ -31,12 +31,11 @@ $().ready(function () {
     };
     // Initialize date pickers
     var today = new Date();
-    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     $('#tanggal_dari').datepicker({
         format: 'yyyy-mm-dd',
         autoclose: true,
         todayHighlight: true
-    }).datepicker('setDate', lastWeek);
+    }).datepicker('setDate', today);
     $('#tanggal_sampai').datepicker({
         format: 'yyyy-mm-dd',
         autoclose: true,

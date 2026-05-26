@@ -5,6 +5,55 @@ function normalizeDomainFilter(selected_domain) {
     return String(selected_domain || '').trim();
 }
 
+var ADX_COUNTRY_MAP_VISIBLE_KEY = 'adxTrafficCountryMapVisible';
+
+function isCountryMapVisible() {
+    try {
+        return localStorage.getItem(ADX_COUNTRY_MAP_VISIBLE_KEY) !== '0';
+    } catch (e) {
+        return true;
+    }
+}
+
+function reflowCountryMap() {
+    if (window.countryMapInstance && typeof window.countryMapInstance.reflow === 'function') {
+        try { window.countryMapInstance.reflow(); } catch (e) { }
+    }
+}
+
+function setCountryMapVisible(visible, animate) {
+    window.__adxCountryMapVisible = !!visible;
+    try {
+        localStorage.setItem(ADX_COUNTRY_MAP_VISIBLE_KEY, visible ? '1' : '0');
+    } catch (e) { }
+
+    var $card = $('#charts_section_card');
+    var $body = $('#charts_section_body');
+    var $btn = $('#btnToggleCountryMap');
+    if (!$card.length || !$body.length || !$btn.length) return;
+
+    $btn.attr('aria-expanded', visible ? 'true' : 'false');
+    if (visible) {
+        $btn.html('<i class="fas fa-eye-slash" aria-hidden="true"></i> Sembunyikan Peta');
+        $card.removeClass('map-collapsed');
+    } else {
+        $btn.html('<i class="fas fa-eye" aria-hidden="true"></i> Tampilkan Peta');
+        $card.addClass('map-collapsed');
+    }
+
+    if (animate) {
+        if (visible) {
+            $body.stop(true, true).slideDown(200, reflowCountryMap);
+        } else {
+            $body.stop(true, true).slideUp(200);
+        }
+        return;
+    }
+
+    $body.toggle(visible);
+    if (visible) reflowCountryMap();
+}
+
 $(document).ready(function () {
     // Inisialisasi datepicker
     $('.datepicker-input').datepicker({
@@ -12,10 +61,9 @@ $(document).ready(function () {
         autoclose: true,
         todayHighlight: true
     });
-    // Set tanggal default (7 hari terakhir)
+    // Set tanggal default (hari ini)
     var today = new Date();
-    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    $('#tanggal_dari').val(formatDateForInput(lastWeek));
+    $('#tanggal_dari').val(formatDateForInput(today));
     $('#tanggal_sampai').val(formatDateForInput(today));
     // Initialize Select2 for account
     $('#account_filter').select2({
@@ -82,6 +130,10 @@ $(document).ready(function () {
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
         }
+    });
+    $('#btnToggleCountryMap').on('click', function (e) {
+        e.preventDefault();
+        setCountryMapVisible(!window.__adxCountryMapVisible, true);
     });
     // Filter silang account-domain dinonaktifkan karena domain menggunakan freetext.
     // Fungsi untuk memuat opsi negara ke select2
@@ -609,6 +661,7 @@ $(document).ready(function () {
                 window.countryMapInstance = null;
             }
             $('#charts_section').hide();
+            $('#btnToggleCountryMap').hide();
             return;
         }
 
@@ -672,6 +725,8 @@ $(document).ready(function () {
             // Check if we have data to display
             if (mapData.length === 0) {
                 $('#worldMap').html('<div style="text-align: center; padding: 100px; color: #666; font-size: 16px;">Tidak ada data untuk ditampilkan.<br>Silakan pilih tanggal dan akun, lalu klik Load Data.</div>');
+                $('#btnToggleCountryMap').show();
+                setCountryMapVisible(isCountryMapVisible(), false);
                 return;
             }
             var rootEl = document.documentElement || document.body;
@@ -810,6 +865,8 @@ $(document).ready(function () {
                 }
             });
             console.log('[DEBUG] Map created successfully');
+            $('#btnToggleCountryMap').show();
+            setCountryMapVisible(isCountryMapVisible(), false);
         } catch (error) {
             console.error('[ERROR] Failed to create map:', error);
             alert('Error creating map: ' + error.message);

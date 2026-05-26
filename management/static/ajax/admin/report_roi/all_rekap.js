@@ -35,12 +35,11 @@ $().ready(function () {
     };
     // Initialize date pickers
     var today = new Date();
-    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
     $('#tanggal_dari').datepicker({
         format: 'yyyy-mm-dd',
         autoclose: true,
         todayHighlight: true
-    }).datepicker('setDate', lastWeek);
+    }).datepicker('setDate', today);
     $('#tanggal_sampai').datepicker({
         format: 'yyyy-mm-dd',
         autoclose: true,
@@ -96,10 +95,9 @@ $().ready(function () {
         theme: 'bootstrap4',
         multiple: true
     });
-    // Set default dates (last 7 days)
+    // Set default dates (today)
     var today = new Date();
-    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    $('#tanggal_dari').val(lastWeek.toISOString().split('T')[0]);
+    $('#tanggal_dari').val(today.toISOString().split('T')[0]);
     $('#tanggal_sampai').val(today.toISOString().split('T')[0]);
     $('#btn_load_data').click(function (e) {
         var tanggal_dari = $("#tanggal_dari").val();

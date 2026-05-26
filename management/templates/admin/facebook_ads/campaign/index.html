@@ -78,44 +78,17 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 {% endblock %}
 {% block content %}  
 <style>
-  .dt-buttons { margin-bottom: 20px; }
-  .fb-detail-header {
-      background: linear-gradient(135deg, #2563eb, #4f46e5);
-      color: #fff;
-      border-bottom: 0;
-  }
-  .fb-detail-card { border: 1px solid #e5e7eb; border-radius: 12px; }
-  .fb-detail-label { font-weight: 700; color: #475569; }
-  .fb-detail-value { font-weight: 600; color: #0f172a; }
-  .fb-kpi-chip { border-radius: 10px; background: #f1f5f9; padding: 8px 10px; }
-  .fb-kpi-chip .k { font-size: 11px; color: #64748b; text-transform: uppercase; }
-  .fb-kpi-chip .v { font-size: 14px; font-weight: 700; color: #0f172a; }
-  .fb-asset-item { border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; margin-bottom: 10px; background: #fff; }
-  .fb-asset-tag { display: inline-block; font-size: 11px; border-radius: 999px; padding: 3px 8px; margin-right: 6px; background: #e0e7ff; color: #3730a3; }
-  .fb-asset-item .form-label { font-size: 12px; font-weight: 700; color: #475569; margin-bottom: 4px; }
-  .fb-asset-item .form-control, .fb-asset-item .custom-select { font-size: 12px; }
-  .fb-asset-preview { width: 100%; max-height: 220px; object-fit: contain; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; }
-  .fb-form-note { font-size: 11px; color: #64748b; }
-  .fb-section-title { font-size: 13px; font-weight: 800; color: #1e293b; margin-bottom: 10px; border-left: 4px solid #3b82f6; padding-left: 8px; }
-  .fb-smart-field { margin-bottom: 10px; }
-  .fb-smart-field textarea.form-control { min-height: 74px; }
-  .fb-file-preview { width: 100%; max-height: 140px; object-fit: contain; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; margin-bottom: 6px; }
-  .fb-material-panel .fb-material-grid .form-group { margin-bottom: 10px; }
-  .fb-upload-card { border: 1px dashed #cbd5e1; border-radius: 10px; padding: 10px; margin-bottom: 10px; background: #fff; }
-  .fb-upload-title { font-size: 12px; font-weight: 700; color: #334155; margin-bottom: 6px; }
-  .fb-upload-preview { width: 100%; max-height: 150px; object-fit: contain; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; margin-bottom: 6px; }
-  .fb-upload-video { width: 100%; max-height: 150px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc; margin-bottom: 6px; }
-  .fb-asset-item details { border: 1px dashed #cbd5e1; border-radius: 8px; padding: 8px; background: #f8fafc; }
-  .fb-asset-item details summary { font-weight: 700; color: #475569; }
-  .fb-layout-col { min-height: 520px; max-height: 72vh; overflow-y: auto; overflow-x: hidden; padding-right: 5px; }
-  .fb-layout-col::-webkit-scrollbar { width: 4px; }
-  .fb-layout-col::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-  .fb-tree-list .list-group-item { border: 0; border-bottom: 1px solid #f1f5f9; border-radius: 0; cursor: pointer; padding: 10px 12px; transition: all 0.2s; }
-  .fb-tree-list .list-group-item:hover { background: #f8fafc; }
-  .fb-tree-list .list-group-item.active { background: #eff6ff; color: #2563eb; border-left: 4px solid #2563eb; font-weight: 700; }
-  .fb-preview-phone { border: 1px solid #e2e8f0; border-radius: 16px; background: #fff; padding: 12px; box-shadow: inset 0 0 10px rgba(0,0,0,0.02); }
-  .fb-preview-title { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
-  .fb-modal-footer-actions { display: flex; gap: 8px; width: 100%; justify-content: flex-end; }
+  .dt-buttons{margin-bottom:16px}.dt-buttons .btn{border-radius:10px!important;font-weight:700!important;border:none!important;box-shadow:0 6px 14px rgba(15,23,42,.10)}
+  .dt-responsive-table{border:1px solid #dbe7ff;border-radius:18px;overflow:hidden;background:linear-gradient(180deg,#f8fbff 0%,#fff 100%);box-shadow:0 10px 24px rgba(37,99,235,.08)}
+  .dataTables_wrapper .dataTables_length,.dataTables_wrapper .dataTables_filter{margin-bottom:12px}.dataTables_wrapper .dataTables_filter input,.dataTables_wrapper .dataTables_length select{border-radius:10px!important;border:1px solid #cbd5e1!important}
+  #table_data_campaign_facebook th,#table_data_campaign_facebook td{white-space:nowrap;vertical-align:middle;text-align:center;border-color:#e5edf8!important}
+  #table_data_campaign_facebook thead th{background:linear-gradient(135deg,#1d4ed8 0%,#0891b2 100%)!important;color:#fff!important;border:none!important;font-size:12px;font-weight:800}
+  #table_data_campaign_facebook tbody tr:nth-child(odd) td{background:#f8fbff}#table_data_campaign_facebook tbody tr:nth-child(even) td{background:#eef6ff}#table_data_campaign_facebook tbody tr:hover td{background:#dbeafe!important;transition:background-color .16s ease}
+  #table_data_campaign_facebook tbody td:nth-child(2),#table_data_campaign_facebook tbody td:nth-child(3){text-align:left}#table_data_campaign_facebook tbody td:last-child{background:#f8fafc;font-weight:700}
+  .fb-detail-header{background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;border-bottom:0}.fb-detail-card{border:1px solid #e5e7eb;border-radius:12px}.fb-detail-label{font-weight:700;color:#475569}.fb-detail-value{font-weight:600;color:#0f172a}.fb-kpi-chip{border-radius:10px;background:#f1f5f9;padding:8px 10px}.fb-kpi-chip .k{font-size:11px;color:#64748b;text-transform:uppercase}.fb-kpi-chip .v{font-size:14px;font-weight:700;color:#0f172a}.fb-asset-item{border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:10px;background:#fff}.fb-asset-tag{display:inline-block;font-size:11px;border-radius:999px;padding:3px 8px;margin-right:6px;background:#e0e7ff;color:#3730a3}.fb-layout-col{min-height:520px;max-height:72vh;overflow-y:auto;overflow-x:hidden;padding-right:5px}.fb-layout-col::-webkit-scrollbar{width:4px}.fb-layout-col::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:10px}.fb-tree-list .list-group-item{border:0;border-bottom:1px solid #f1f5f9;border-radius:0;cursor:pointer;padding:10px 12px;transition:all .2s}.fb-tree-list .list-group-item:hover{background:#f8fafc}.fb-tree-list .list-group-item.active{background:#eff6ff;color:#2563eb;border-left:4px solid #2563eb;font-weight:700}.fb-preview-phone{border:1px solid #e2e8f0;border-radius:16px;background:#fff;padding:12px;box-shadow:inset 0 0 10px rgba(0,0,0,.02)}.fb-preview-title{font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}.fb-modal-footer-actions{display:flex;gap:8px;width:100%;justify-content:flex-end}
+  html[data-theme="dark"] .dt-responsive-table{border-color:#334155;background:linear-gradient(180deg,#0f172a 0%,#111827 100%);box-shadow:0 14px 28px rgba(0,0,0,.35)}
+  html[data-theme="dark"] #table_data_campaign_facebook,html[data-theme="dark"] #table_data_campaign_facebook>:not(caption)>*>*,html[data-theme="dark"] .dataTables_wrapper{color:#e5e7eb!important}html[data-theme="dark"] #table_data_campaign_facebook tbody tr:nth-child(odd) td{background:#162033!important}html[data-theme="dark"] #table_data_campaign_facebook tbody tr:nth-child(even) td{background:#111827!important}html[data-theme="dark"] #table_data_campaign_facebook tbody tr:hover td{background:#1e3a5f!important}html[data-theme="dark"] #table_data_campaign_facebook thead th{background:linear-gradient(135deg,#2563eb 0%,#0f766e 100%)!important}html[data-theme="dark"] .dataTables_wrapper .dataTables_filter input,html[data-theme="dark"] .dataTables_wrapper .dataTables_length select{background:#0f172a!important;color:#e5e7eb!important;border-color:#334155!important}
+  .fb-campaign-modal .modal-dialog{max-width:920px}.fb-campaign-modal .modal-content{border:0;border-radius:22px;overflow:hidden;background:linear-gradient(180deg,#f8fbff 0%,#fff 100%);box-shadow:0 24px 60px rgba(15,23,42,.24)}.fb-campaign-modal .modal-header,.fb-campaign-modal .modal-footer{border:0}.fb-campaign-modal .modal-body,.fb-campaign-modal .modal-footer{background:linear-gradient(180deg,#f8fbff 0%,#fff 100%)}.fb-campaign-hero{display:flex;justify-content:space-between;gap:16px;padding:18px;border-radius:18px;background:linear-gradient(135deg,#eff6ff 0%,#ecfeff 100%);border:1px solid #dbeafe}.fb-campaign-hero-title{font-size:28px;font-weight:900;line-height:1.1;color:#0f172a}.fb-campaign-hero-meta{display:grid;gap:8px}.fb-campaign-badge{display:inline-flex;align-items:center;padding:6px 12px;border-radius:999px;background:#fff;border:1px solid #bfdbfe;color:#1d4ed8;font-weight:800}.fb-campaign-main{min-width:220px;padding:14px 16px;border-radius:16px;background:rgba(255,255,255,.82);border:1px solid rgba(148,163,184,.25);text-align:right}.fb-campaign-main .k{display:block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b}.fb-campaign-main .v{display:block;font-size:28px;font-weight:900;color:#0f172a}.fb-campaign-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:16px}.fb-campaign-stat{padding:16px;border-radius:18px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 10px 24px rgba(15,23,42,.06)}.fb-campaign-stat .k{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-bottom:8px}.fb-campaign-stat .v{font-size:22px;font-weight:900;color:#0f172a}.fb-campaign-meta{margin-top:16px;padding:16px 18px;border-radius:18px;background:#fff;border:1px solid #e2e8f0}.fb-campaign-meta .row>div{margin-bottom:10px}.fb-campaign-meta .label{display:block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b}.fb-campaign-meta .value{display:block;font-size:15px;font-weight:700;color:#0f172a}.fb-campaign-modal .btn-outline-secondary{border-radius:12px;padding:9px 16px;font-weight:800}@media (max-width:767.98px){.fb-campaign-hero{flex-direction:column}.fb-campaign-main{text-align:left;min-width:0}.fb-campaign-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}html[data-theme="dark"] .fb-campaign-modal .modal-content,html[data-theme="dark"] .fb-campaign-modal .modal-body,html[data-theme="dark"] .fb-campaign-modal .modal-footer{background:linear-gradient(180deg,#0f172a 0%,#111827 100%)}html[data-theme="dark"] .fb-campaign-hero,html[data-theme="dark"] .fb-campaign-meta,html[data-theme="dark"] .fb-campaign-stat,html[data-theme="dark"] .fb-campaign-main{background:#111827;border-color:#334155}html[data-theme="dark"] .fb-campaign-hero-title,html[data-theme="dark"] .fb-campaign-main .v,html[data-theme="dark"] .fb-campaign-stat .v,html[data-theme="dark"] .fb-campaign-meta .value{color:#f8fafc}html[data-theme="dark"] .fb-campaign-main .k,html[data-theme="dark"] .fb-campaign-stat .k,html[data-theme="dark"] .fb-campaign-meta .label{color:#94a3b8}html[data-theme="dark"] .fb-campaign-badge{background:#0f172a;border-color:#334155;color:#93c5fd}
 </style>
 <div class="card">
     <div class="card-header">
@@ -202,6 +175,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     <th class="text-center" style="font-size: 12px;" width="8%">Frequency</th>
                     <th class="text-center" style="font-size: 12px;" width="8%">CPR <br> ( Rp. )</th>
                     <th class="text-center" style="font-size: 12px;" width="8%">CPC <br> ( Rp. )</th>
+                    <th class="text-center" style="font-size: 12px;" width="8%">Visitor</th>
                     <th class="text-center no-export" style="font-size: 12px;" width="4%">Detail</th>
                 </tr>
             </thead>
@@ -218,68 +192,48 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     <th class="text-right" style="font-size: 12px;" id="total_frequency"></th>
                     <th class="text-right" style="font-size: 12px;" id="total_cpr"></th>
                     <th class="text-right" style="font-size: 12px;" id="total_cpc"></th>
+                    <th class="text-right" style="font-size: 12px;" id="total_visitors"></th>
                     <th class="no-export"></th>
                 </tr>
             </tfoot>
         </table>
 
-        <div class="modal fade" id="facebookCampaignDetailModal" tabindex="-1" role="dialog" aria-labelledby="facebookCampaignDetailModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-xl" role="document">
+        <div class="modal fade fb-campaign-modal" id="facebookCampaignDetailModal" tabindex="-1" role="dialog" aria-labelledby="facebookCampaignDetailModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
                 <div class="modal-content">
                     <div class="modal-header fb-detail-header">
                         <h5 class="modal-title" id="facebookCampaignDetailModalLabel"><i class="bi bi-eye-fill"></i> Detail Campaign</h5>
                         <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                     </div>
-                    <div class="modal-body bg-light">
-                        <div class="card fb-detail-card mb-3">
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="mb-2"><span class="fb-detail-label">Tanggal:</span> <span class="fb-detail-value" id="facebookCampaignDetailDate">-</span></div>
-                                        <div class="mb-2"><span class="fb-detail-label">Account:</span> <span class="fb-detail-value" id="facebookCampaignDetailAccount">-</span></div>
-                                        <div class="mb-2"><span class="fb-detail-label">Domain:</span> <span class="fb-detail-value" id="facebookCampaignDetailDomain">-</span></div>
-                                        <div><span class="fb-detail-label">Campaign:</span> <span class="fb-detail-value" id="facebookCampaignDetailCampaign">-</span></div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="row">
-                                            <div class="col-6 mb-2"><div class="fb-kpi-chip"><div class="k">Spend</div><div class="v" id="facebookCampaignDetailSpend">Rp 0</div></div></div>
-                                            <div class="col-6 mb-2"><div class="fb-kpi-chip"><div class="k">Impressions</div><div class="v" id="facebookCampaignDetailImpressions">0</div></div></div>
-                                            <div class="col-6 mb-2"><div class="fb-kpi-chip"><div class="k">Reach</div><div class="v" id="facebookCampaignDetailReach">0</div></div></div>
-                                            <div class="col-6 mb-2"><div class="fb-kpi-chip"><div class="k">Clicks</div><div class="v" id="facebookCampaignDetailClicks">0</div></div></div>
-                                            <div class="col-6 mb-2"><div class="fb-kpi-chip"><div class="k">Frequency</div><div class="v" id="facebookCampaignDetailFrequency">0</div></div></div>
-                                            <div class="col-6 mb-2"><div class="fb-kpi-chip"><div class="k">CPR / CPC</div><div class="v"><span id="facebookCampaignDetailCpr">Rp 0</span> / <span id="facebookCampaignDetailCpc">Rp 0</span></div></div></div>
-                                            <div class="col-6 mb-2"><div class="fb-kpi-chip"><div class="k">LPV</div><div class="v" id="facebookCampaignDetailLpv">0</div></div></div>
-                                            <div class="col-6 mb-2"><div class="fb-kpi-chip"><div class="k">LPV Rate</div><div class="v" id="facebookCampaignDetailLpvRate">0%</div></div></div>
-                                        </div>
-                                    </div>
-                                </div>
+                    <div class="modal-body">
+                        <div class="fb-campaign-hero">
+                            <div class="fb-campaign-hero-meta">
+                                <span class="fb-campaign-badge"><i class="bi bi-megaphone-fill mr-2"></i> Campaign Overview</span>
+                                <div id="facebookCampaignDetailCampaign" class="fb-campaign-hero-title">-</div>
+                            </div>
+                            <div class="fb-campaign-main"><span class="k">Total Spend</span><span id="facebookCampaignDetailSpend" class="v">Rp 0</span></div>
+                        </div>
+                        <div class="fb-campaign-meta">
+                            <div class="row">
+                                <div class="col-md-4"><span class="label">Tanggal</span><span id="facebookCampaignDetailDate" class="value">-</span></div>
+                                <div class="col-md-4"><span class="label">Account</span><span id="facebookCampaignDetailAccount" class="value">-</span></div>
+                                <div class="col-md-4"><span class="label">Domain</span><span id="facebookCampaignDetailDomain" class="value">-</span></div>
                             </div>
                         </div>
-                        <div class="card fb-detail-card">
-                            <div class="card-header d-flex justify-content-between align-items-center">
-                                <strong><i class="bi bi-collection-play"></i> Detail Iklan & Asset</strong>
-                                <small class="text-muted" id="facebookCampaignAdAssetMeta">-</small>
-                            </div>
-                            <div class="card-body">
-                                <div class="row">
-                                    <div class="col-md-2">
-                                        <div class="fb-preview-title">Struktur</div>
-                                        <div id="facebookCampaignTree" class="list-group fb-tree-list fb-layout-col"></div>
-                                    </div>
-                                    <div class="col-md-10">
-                                        <div id="facebookCampaignApiStatus" class="text-muted">Memuat detail asset iklan...</div>
-                                        <div id="facebookCampaignAdAssetList" class="mt-2 fb-layout-col"></div>
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="fb-campaign-grid">
+                            <div class="fb-campaign-stat"><div class="k">Impressions</div><div id="facebookCampaignDetailImpressions" class="v">0</div></div>
+                            <div class="fb-campaign-stat"><div class="k">Reach</div><div id="facebookCampaignDetailReach" class="v">0</div></div>
+                            <div class="fb-campaign-stat"><div class="k">Clicks</div><div id="facebookCampaignDetailClicks" class="v">0</div></div>
+                            <div class="fb-campaign-stat"><div class="k">Frequency</div><div id="facebookCampaignDetailFrequency" class="v">0</div></div>
+                            <div class="fb-campaign-stat"><div class="k">CPR</div><div id="facebookCampaignDetailCpr" class="v">Rp 0</div></div>
+                            <div class="fb-campaign-stat"><div class="k">CPC</div><div id="facebookCampaignDetailCpc" class="v">Rp 0</div></div>
+                            <div class="fb-campaign-stat"><div class="k">LPV</div><div id="facebookCampaignDetailLpv" class="v">0</div></div>
+                            <div class="fb-campaign-stat"><div class="k">LPV Rate</div><div id="facebookCampaignDetailLpvRate" class="v">0%</div></div>
                         </div>
                     </div>
-                    <div class="modal-footer bg-light border-top">
+                    <div class="modal-footer">
                         <div class="fb-modal-footer-actions">
                             <button type="button" class="btn btn-outline-secondary" data-dismiss="modal"><i class="bi bi-x"></i> Tutup</button>
-                            <div class="flex-grow-1"></div>
-                            <button type="button" class="btn btn-outline-primary" id="btnFacebookCampaignSaveDraft"><i class="bi bi-pencil-square"></i> Simpan Draft</button>
-                            <button type="button" class="btn btn-primary" id="btnFacebookCampaignPublish"><i class="bi bi-cloud-upload"></i> Publish Perubahan</button>
                         </div>
                     </div>
                 </div>

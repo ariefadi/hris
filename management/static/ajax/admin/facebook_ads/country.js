@@ -15,6 +15,55 @@ function normalizeCsvOrWildcard(val) {
     return s || '%';
 }
 
+var FB_COUNTRY_MAP_VISIBLE_KEY = 'fbPerCountryMapVisible';
+
+function isCountryMapVisible() {
+    try {
+        return localStorage.getItem(FB_COUNTRY_MAP_VISIBLE_KEY) !== '0';
+    } catch (e) {
+        return true;
+    }
+}
+
+function reflowCountrySpendMap() {
+    if (window.fbSpendMapInstance && typeof window.fbSpendMapInstance.reflow === 'function') {
+        try { window.fbSpendMapInstance.reflow(); } catch (e) { }
+    }
+}
+
+function setCountryMapVisible(visible, animate) {
+    window.__fbCountryMapVisible = !!visible;
+    try {
+        localStorage.setItem(FB_COUNTRY_MAP_VISIBLE_KEY, visible ? '1' : '0');
+    } catch (e) { }
+
+    var $section = $('#charts_section');
+    var $body = $('#charts_section_body');
+    var $btn = $('#btnToggleCountryMap');
+    if (!$section.length || !$body.length || !$btn.length) return;
+
+    $btn.attr('aria-expanded', visible ? 'true' : 'false');
+    if (visible) {
+        $btn.html('<i class="fas fa-eye-slash" aria-hidden="true"></i> Sembunyikan Peta');
+        $section.removeClass('map-collapsed');
+    } else {
+        $btn.html('<i class="fas fa-eye" aria-hidden="true"></i> Tampilkan Peta');
+        $section.addClass('map-collapsed');
+    }
+
+    if (animate) {
+        if (visible) {
+            $body.stop(true, true).slideDown(200, reflowCountrySpendMap);
+        } else {
+            $body.stop(true, true).slideUp(200);
+        }
+        return;
+    }
+
+    $body.toggle(visible);
+    if (visible) reflowCountrySpendMap();
+}
+
 $().ready(function () {
     report_eror = function (jqXHR, exception) {
         var msg = '';
@@ -112,6 +161,10 @@ $().ready(function () {
             table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain);
         }
     });
+    $('#btnToggleCountryMap').on('click', function (e) {
+        e.preventDefault();
+        setCountryMapVisible(!window.__fbCountryMapVisible, true);
+    });
     // Filter silang account-domain dinonaktifkan karena domain menggunakan freetext.
 });
 // Fungsi untuk memuat opsi negara ke select2
@@ -198,6 +251,7 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                 event_data += '<td class="text-right" style="font-size: 12px;">' + formattedFrequency + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.cpr).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.cpc).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(Number(value.total_visitors || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-center no-export" style="font-size: 12px;">'
                     + '<button type="button" class="btn btn-sm btn-outline-primary btn-facebook-country-detail" data-row-index="' + index + '" title="Detail">'
                     + '<i class="bi bi-eye-fill" aria-hidden="true"></i>'
@@ -236,6 +290,8 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
             const totalCpc = cpc.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
             $('#total_cpr').text(totalCpr);
             $('#total_cpc').text(totalCpc);
+            const totalVisitors = Number(totalData?.total_visitors) || 0;
+            $('#total_visitors').text(totalVisitors.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
             // Periksa apakah DataTable sudah diinisialisasi sebelumnya
             if ($.fn.dataTable.isDataTable('#table_data_per_country_facebook')) {
                 $('#table_data_per_country_facebook').DataTable().destroy();
@@ -267,7 +323,7 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                             + tanggal.getFullYear(),
                         exportOptions: {
                             columns: ':visible',
-                            columns: [0, 1, 2, 3, 4, 5, 6, 7],      // tanpa kolom Detail
+                            columns: [0, 1, 2, 3, 4, 5, 6, 7, 8],      // tanpa kolom Detail
                             modifier: {
                                 search: 'applied',      // sesuai filter pencarian
                                 order: 'applied'        // sesuai urutan saat itu
@@ -278,7 +334,7 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                             // =========================
                             // Set column width secara manual (unit: character width)
                             // =========================
-                            const colWidths = [20, 10, 10, 10, 10, 10, 10, 10]; // 💡 Sesuaikan berdasarkan % di HTML
+                            const colWidths = [20, 10, 10, 10, 10, 10, 10, 10, 10]; // 💡 Sesuaikan berdasarkan % di HTML
                             const cols = $('cols', sheet);
                             cols.empty(); // Kosongkan default <col> dari DataTables
                             for (let i = 0; i < colWidths.length; i++) {
@@ -324,12 +380,13 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                                     if (body[i][5]) body[i][5].alignment = 'right';
                                     if (body[i][6]) body[i][6].alignment = 'right';
                                     if (body[i][7]) body[i][7].alignment = 'right';
+                                    if (body[i][8]) body[i][8].alignment = 'right';
                                 }
                             }
                             // Margin
                             doc.content[1].margin = [0, 0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
                             // Manual width sesuai presentase kolom HTML (tanpa kolom Detail)
-                            doc.content[1].table.widths = ['20%', '10%', '10%', '10%', '10%', '10%', '10%', '10%'];
+                            doc.content[1].table.widths = ['18%', '9%', '9%', '9%', '9%', '9%', '9%', '9%', '10%'];
                         }
                     }
                 ]
@@ -422,6 +479,7 @@ function createSpendMap(items) {
             window.fbSpendMapInstance = null;
         }
         $('#charts_section').hide();
+        $('#btnToggleCountryMap').hide();
         return;
     }
 
@@ -447,11 +505,13 @@ function createSpendMap(items) {
 
     if (!mapData.length) {
         $('#charts_section').hide();
+        $('#btnToggleCountryMap').hide();
         return;
     }
 
-    // Tampilkan section peta
+    // Tampilkan section peta (header tetap ada, body bisa di-collapse)
     $('#charts_section').show();
+    $('#btnToggleCountryMap').show();
     $('#worldMap').css({ height: '500px', width: '100%', display: 'block', visibility: 'visible' });
 
     // Hancurkan instance lama
@@ -538,4 +598,6 @@ function createSpendMap(items) {
             buttons: { contextButton: { menuItems: ['viewFullscreen', 'separator', 'downloadPNG', 'downloadJPEG', 'downloadPDF', 'downloadSVG'] } }
         }
     });
+
+    setCountryMapVisible(isCountryMapVisible(), false);
 }

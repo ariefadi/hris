@@ -45,7 +45,7 @@ def force_usd_by_domain(domain):
     d = str(domain or '').strip().lower()
     if not d:
         return False
-    usd_domains = ('sharpdrivers', 'uaetiming', 'valoranewspekanbaru')
+    usd_domains = ('uaetiming', 'valoranewspekanbaru')
     return any(k in d for k in usd_domains)
 
 
