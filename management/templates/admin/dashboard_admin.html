@@ -7756,11 +7756,15 @@ function initDashboardRecap() {
         run(14);
     }
 
+    const SCORE_METRIC_CHART_DAYS = 35;
+    const SCORE_METRIC_DAYS_BACK = SCORE_METRIC_CHART_DAYS - 1;
+
     function bindScoreMetric14Tabs(rows) {
         const tabs = document.getElementById('sdMetric14Tabs');
         const cvs = document.getElementById('sdMetric14Chart');
         const st = document.getElementById('sdMetric14Status');
         if (!tabs || !cvs || typeof Chart === 'undefined') return;
+        const pointCount = Array.isArray(rows) ? rows.length : 0;
         const defs = {score:['Score','#2563eb',''],health_score:['Health Score','#10b981',''],ivt_risk_score:['IVT Risk Score','#ef4444',''],adjustment_score:['Adjustment Score','#f59e0b',''],confidence:['Confidence','#7c3aed','%'],decision_margin:['Decision Margin','#0ea5e9','']};
         const draw = function(k){
             const d = defs[k] || defs.score;
@@ -7785,6 +7789,7 @@ function initDashboardRecap() {
                     meta.data.forEach(function(point, i){
                         const v = data[i];
                         if (v === null || v === undefined || !Number.isFinite(Number(v))) return;
+                        if (pointCount > 20 && i % 3 !== 0 && i !== pointCount - 1) return;
                         ctx.fillText(Number(v).toFixed(0), point.x, point.y - 8);
                     });
                     ctx.restore();
@@ -7799,8 +7804,8 @@ function initDashboardRecap() {
             });
             const validCount = vals.filter(v => v !== null).length;
             if (window.sdMetric14Chart && typeof window.sdMetric14Chart.destroy === 'function') try { window.sdMetric14Chart.destroy(); } catch (_) {}
-            window.sdMetric14Chart = new Chart(cvs.getContext('2d'), {type:'line',data:{labels,datasets:[{label:d[0],data:vals,borderColor:d[1],backgroundColor:'rgba(37,99,235,.10)',fill:true,tension:.3,borderWidth:3,pointRadius:4,pointHoverRadius:5,spanGaps:false}]},plugins:[valueLabelPlugin],options:{layout:{padding:{top:18}},responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{callbacks:{label:(c)=>`${d[0]}: ${Number.isFinite(Number(c.parsed?.y))?Number(c.parsed.y).toFixed(2):'-'}${d[2]}`}}},scales:{x:{grid:{display:false},ticks:{maxRotation:55,minRotation:55,autoSkip:false}},y:{beginAtZero:k==='confidence'||k==='ivt_risk_score'}}}});
-            if (st) st.textContent = `${labels.length} hari (H-13 s/d hari ini) • ${validCount} titik valid`;
+            window.sdMetric14Chart = new Chart(cvs.getContext('2d'), {type:'line',data:{labels,datasets:[{label:d[0],data:vals,borderColor:d[1],backgroundColor:'rgba(37,99,235,.10)',fill:true,tension:.3,borderWidth:3,pointRadius:pointCount > 20 ? 2 : 4,pointHoverRadius:5,spanGaps:false}]},plugins:[valueLabelPlugin],options:{layout:{padding:{top:18}},responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{display:false},tooltip:{callbacks:{label:(c)=>`${d[0]}: ${Number.isFinite(Number(c.parsed?.y))?Number(c.parsed.y).toFixed(2):'-'}${d[2]}`}}},scales:{x:{grid:{display:false},ticks:{maxRotation:55,minRotation:55,autoSkip:true,maxTicksLimit:12}},y:{beginAtZero:k==='confidence'||k==='ivt_risk_score'}}}});
+            if (st) st.textContent = `${labels.length} hari (H-${SCORE_METRIC_DAYS_BACK} s/d hari ini) • ${validCount} titik valid`;
             tabs.querySelectorAll('button[data-metric]').forEach(b=>{ const on = b.getAttribute('data-metric')===k; b.classList.toggle('btn-primary', on); b.classList.toggle('btn-outline-primary', !on); });
         };
         tabs.querySelectorAll('button[data-metric]').forEach(b => b.onclick = () => draw(String(b.getAttribute('data-metric')||'score')));
@@ -8397,7 +8402,7 @@ function initDashboardRecap() {
     
             html += `  <div class="scx-section-gap">`;
             html += `      <div class="sd-details">`;
-            html += `          <summary><span>Grafik Score/Metrik 14 Hari</span><span class="sd-det-right" id="sdMetric14Status">Loading...</span></summary>`;
+            html += `          <summary><span>Grafik Score/Metrik ${SCORE_METRIC_CHART_DAYS} Hari</span><span class="sd-det-right" id="sdMetric14Status">Loading...</span></summary>`;
             html += `          <div class="sd-det-body">`;
             html += `              <div class="dashboard-recap-tabs mb-3" id="sdMetric14Tabs" style="display:flex;gap:8px;flex-wrap:wrap;">`;
             html += `                  <button type="button" class="btn btn-sm btn-primary" data-metric="score">Score</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="health_score">Health Score</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="ivt_risk_score">IVT Risk Score</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="adjustment_score">Adjustment Score</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="confidence">Confidence</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="decision_margin">Decision Margin</button>`;
@@ -8657,13 +8662,13 @@ function initDashboardRecap() {
                     if (dim === 'domain') {
                         const cmpRes = await fetch('/management/admin/dashboard_scoring_compare', {
                             method:'POST', headers:{ 'Content-Type':'application/json', 'X-Requested-With':'XMLHttpRequest' },
-                            body: JSON.stringify({ date: baseDate, domain: String(row?.name || row?.domain || row?.site || '').trim(), days_back: 13 }), credentials:'same-origin'
+                            body: JSON.stringify({ date: baseDate, domain: String(row?.name || row?.domain || row?.site || '').trim(), days_back: SCORE_METRIC_DAYS_BACK }), credentials:'same-origin'
                         });
                         const cmpJson = await cmpRes.json();
                         const hist = Array.isArray(cmpJson?.data?.history_by_day) ? cmpJson.data.history_by_day : [];
                         metricDailySeries = hist.map(function(it){ return { date:String(it?.date || ''), score:Number.isFinite(Number(it?.score))?Number(it.score):null, health_score:Number.isFinite(Number(it?.health_score))?Number(it.health_score):null, ivt_risk_score:Number.isFinite(Number(it?.ivt_risk_score))?Number(it.ivt_risk_score):null, adjustment_score:Number.isFinite(Number(it?.adjustment_score))?Number(it.adjustment_score):null, confidence:Number.isFinite(Number(it?.confidence))?(Number(it.confidence) > 1 ? Number(it.confidence) : Number(it.confidence) * 100):null, decision_margin:Number.isFinite(Number(it?.decision_margin))?Number(it.decision_margin):null }; });
                     } else {
-                        const dates = []; for (let i=13;i>=0;i--) dates.push(ymdShift(baseDate, -i));
+                        const dates = []; for (let i=SCORE_METRIC_DAYS_BACK;i>=0;i--) dates.push(ymdShift(baseDate, -i));
                         const daily = await Promise.all(dates.map(async function(d){ try { const st = Object.assign({}, state, { date:d }); const r = await fetch('/management/admin/dashboard_scoring_data', { method:'POST', headers:{ 'Content-Type':'application/json', 'X-Requested-With':'XMLHttpRequest' }, body: JSON.stringify(Object.assign({}, payloadBase, { date:d })), credentials:'same-origin' }); const j = await r.json(); if (!r.ok || !j?.status || !j?.data) return { date:d }; const raw = pickDailyRaw(j.data, st); const m = raw ? summarizeDashboardScoringMeta(raw, row, st) : null; return toRow(m, d); } catch(_) { return { date:d }; } }));
                         metricDailySeries = daily;
                     }

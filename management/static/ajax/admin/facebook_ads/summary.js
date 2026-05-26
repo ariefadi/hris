@@ -9,6 +9,16 @@ function normalizeDomainFilter(selected_domain) {
     return String(selected_domain || '').trim();
 }
 
+function showFacebookSummaryResults() {
+    $('#facebookSummaryEmptyState').hide();
+    $('#facebookSummaryResults').show();
+}
+
+function hideFacebookSummaryResults() {
+    $('#facebookSummaryResults').hide();
+    $('#facebookSummaryEmptyState').show();
+}
+
 $().ready(function () {
     report_eror = function (jqXHR, exception) {
         var msg = '';
@@ -86,6 +96,8 @@ $().ready(function () {
             return { id: term, text: term, newTag: true };
         }
     });
+    hideFacebookSummaryResults();
+
     $('#btn_load_data').click(function (e) {
         e.preventDefault();
         var tanggal_dari = $("#tanggal_dari").val();
@@ -95,6 +107,7 @@ $().ready(function () {
         var selected_domain = normalizeDomainFilter($("#select_domain").val());
         var data_domain = selected_domain ? selected_domain : '%';
         if (tanggal_dari !== '' && tanggal_sampai !== '') {
+            showFacebookSummaryResults();
             destroy_table_data_campaign_facebook()
             table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain)
         }

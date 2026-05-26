@@ -1596,6 +1596,330 @@ class FacebookCustomAudienceSuggestView(View):
         except Exception:
             return JsonResponse({'results': []})
 
+def _facebook_page_access_token(page_id, user_token):
+    page_id = str(page_id or '').strip()
+    user_token = str(user_token or '').strip()
+    if not page_id or not user_token:
+        return user_token
+    try:
+        resp = requests.get(
+            f'https://graph.facebook.com/v22.0/{page_id}',
+            params={'fields': 'access_token', 'access_token': user_token},
+            timeout=20,
+        )
+        data = (resp.json() if resp.text else {}) or {}
+        return str(data.get('access_token') or user_token).strip() or user_token
+    except Exception:
+        return user_token
+
+def _facebook_graph_data_rows(url, params, access_token, timeout=20):
+    access_token = str(access_token or '').strip()
+    if not access_token:
+        return []
+    try:
+        resp = requests.get(url, params={**(params or {}), 'access_token': access_token}, timeout=timeout)
+        data = (resp.json() if resp.text else {}) or {}
+        if isinstance(data, dict) and data.get('error'):
+            return []
+        if isinstance(data, dict) and data.get('data') is not None:
+            return [x for x in (data.get('data') or []) if isinstance(x, dict)]
+        if isinstance(data, dict) and data.get('id'):
+            return [data]
+        return []
+    except Exception:
+        return []
+
+def _facebook_normalize_ig_node(ig):
+    if not isinstance(ig, dict):
+        return {}
+    out = dict(ig)
+    if not out.get('profile_picture_url'):
+        pic = out.get('profile_pic')
+        if isinstance(pic, dict):
+            pic = str(((pic.get('data') or {}).get('url') or pic.get('url') or '')).strip()
+        out['profile_picture_url'] = str(pic or '').strip()
+    graph_id = str(out.get('id') or '').strip()
+    legacy_id = str(out.get('legacy_instagram_user_id') or '').strip()
+    if graph_id:
+        out['graph_id'] = graph_id
+    actor_id = legacy_id or graph_id
+    if actor_id:
+        out['id'] = actor_id
+    return out
+
+def _facebook_fetch_ig_profile(iid, tokens, graph_id=''):
+    ids = []
+    for raw in (iid, graph_id):
+        val = str(raw or '').strip()
+        if val and val not in ids:
+            ids.append(val)
+    fields = 'id,username,name,profile_picture_url,legacy_instagram_user_id'
+    for token in tokens:
+        token = str(token or '').strip()
+        if not token:
+            continue
+        for fid in ids:
+            try:
+                resp = requests.get(
+                    f'https://graph.facebook.com/v22.0/{fid}',
+                    params={'fields': fields, 'access_token': token},
+                    timeout=20,
+                )
+                detail = (resp.json() if resp.text else {}) or {}
+                if isinstance(detail, dict) and detail.get('id') and not detail.get('error'):
+                    return detail
+            except Exception:
+                pass
+    return {}
+
+def _facebook_ig_actor_row(ig, page_name='', access_token='', extra_tokens=None):
+    ig = _facebook_normalize_ig_node(ig)
+    if not isinstance(ig, dict):
+        return None
+    iid = str((ig or {}).get('id') or '').strip()
+    if not iid:
+        return None
+    uname = str((ig or {}).get('username') or '').strip()
+    iname = str((ig or {}).get('name') or '').strip()
+    pic = str((ig or {}).get('profile_picture_url') or '').strip()
+    tokens = []
+    for t in [access_token, *(extra_tokens or [])]:
+        t = str(t or '').strip()
+        if t and t not in tokens:
+            tokens.append(t)
+    if tokens and (not uname or not iname or not pic):
+        detail = _facebook_fetch_ig_profile(iid, tokens, str((ig or {}).get('graph_id') or '').strip())
+        if detail:
+            uname = uname or str(detail.get('username') or '').strip()
+            iname = iname or str(detail.get('name') or '').strip()
+            pic = pic or str(detail.get('profile_picture_url') or '').strip()
+            iid = str(detail.get('legacy_instagram_user_id') or detail.get('id') or iid).strip() or iid
+    page_name = str(page_name or '').strip()
+    label = uname if uname else (iname if iname and not iname.isdigit() else '')
+    if not label:
+        label = f'Instagram {page_name}' if page_name else 'Profil Instagram'
+    return {
+        'id': iid,
+        'username': uname,
+        'name': iname or uname or label,
+        'label': label,
+        'display_name': label,
+        'picture_url': pic,
+        'page_name': page_name,
+    }
+
+def _facebook_ig_has_username(ig):
+    ig = _facebook_normalize_ig_node(ig)
+    return bool(str((ig or {}).get('username') or '').strip())
+
+def _facebook_enrich_ig_node(ig, access_token='', page_name='', extra_tokens=None):
+    ig = _facebook_normalize_ig_node(ig)
+    if not ig.get('id'):
+        return ig
+    if _facebook_ig_has_username(ig):
+        return ig
+    row = _facebook_ig_actor_row(ig, page_name, access_token, extra_tokens=extra_tokens)
+    if not row:
+        return ig
+    ig = dict(ig)
+    if row.get('username'):
+        ig['username'] = row['username']
+    if row.get('name'):
+        ig['name'] = row['name']
+    if row.get('picture_url'):
+        ig['profile_picture_url'] = row['picture_url']
+    if row.get('label'):
+        ig['label'] = row['label']
+        ig['display_name'] = row['label']
+    if row.get('id'):
+        ig['id'] = row['id']
+    return ig
+
+def _facebook_merge_ig_candidates(*buckets):
+    merged, seen = [], set()
+    for bucket in buckets:
+        for ig in (bucket or []):
+            ig = _facebook_normalize_ig_node(ig)
+            iid = str((ig or {}).get('id') or '').strip()
+            if not iid or iid in seen:
+                continue
+            seen.add(iid)
+            merged.append(ig)
+    merged.sort(key=lambda ig: (0 if _facebook_ig_has_username(ig) else 1))
+    return merged
+
+def _facebook_page_instagram_candidates(page_id, token, ensure_pbia=False, page_name='', ad_account_id=''):
+    page_id = str(page_id or '').strip()
+    token = str(token or '').strip()
+    page_name = str(page_name or '').strip()
+    if not page_id or not token:
+        return []
+    page_token = _facebook_page_access_token(page_id, token)
+    access_tokens = [t for t in [page_token, token] if t]
+    linked, edge_named, edge_other, pbia, ad_named = [], [], [], [], []
+    seen = set()
+
+    def append_bucket(bucket, ig):
+        ig = _facebook_enrich_ig_node(ig, page_token or token, page_name, extra_tokens=access_tokens)
+        iid = str((ig or {}).get('id') or '').strip()
+        if not iid or iid in seen:
+            return
+        seen.add(iid)
+        bucket.append(ig)
+
+    page_fields = 'name,instagram_business_account{id,username,name,profile_picture_url,legacy_instagram_user_id},connected_instagram_account{id,username,name,profile_picture_url,legacy_instagram_user_id}'
+    page_data = {}
+    for access in access_tokens:
+        try:
+            page_resp = requests.get(
+                f'https://graph.facebook.com/v22.0/{page_id}',
+                params={'fields': page_fields, 'access_token': access},
+                timeout=20,
+            )
+            data = (page_resp.json() if page_resp.text else {}) or {}
+            if isinstance(data, dict) and not data.get('error'):
+                page_data = data
+                if not page_name:
+                    page_name = str(data.get('name') or '').strip()
+                break
+        except Exception:
+            pass
+    if isinstance(page_data, dict):
+        for key in ('instagram_business_account', 'connected_instagram_account'):
+            ig = page_data.get(key)
+            if ig:
+                append_bucket(linked, ig)
+
+    access = page_token or token
+    for ig in _facebook_graph_data_rows(
+        f'https://graph.facebook.com/v22.0/{page_id}/instagram_accounts',
+        {'fields': 'id,username,name,profile_picture_url,legacy_instagram_user_id', 'limit': 50},
+        access,
+    ):
+        if _facebook_ig_has_username(ig):
+            append_bucket(edge_named, ig)
+        else:
+            append_bucket(edge_other, ig)
+
+    for ig in _facebook_graph_data_rows(
+        f'https://graph.facebook.com/v22.0/{page_id}/page_backed_instagram_accounts',
+        {'fields': 'id,username,name,profile_pic,legacy_instagram_user_id', 'limit': 50},
+        access,
+    ):
+        append_bucket(pbia, ig)
+
+    if ad_account_id:
+        for ig in _facebook_ad_account_instagram_candidates(ad_account_id, token):
+            if _facebook_ig_has_username(ig):
+                append_bucket(ad_named, ig)
+
+    candidates = _facebook_merge_ig_candidates(linked, edge_named, ad_named, edge_other, pbia)
+
+    if not candidates and ensure_pbia:
+        try:
+            create_resp = requests.post(
+                f'https://graph.facebook.com/v22.0/{page_id}/page_backed_instagram_accounts',
+                params={'access_token': access},
+                timeout=20,
+            )
+            created = (create_resp.json() if create_resp.text else {}) or {}
+            if isinstance(created, dict) and created.get('id'):
+                append_bucket(pbia, created)
+                candidates = _facebook_merge_ig_candidates(linked, edge_named, ad_named, edge_other, pbia)
+        except Exception:
+            pass
+    return candidates
+
+def _facebook_ad_account_instagram_candidates(account_id, token):
+    real_id = str(account_id or '').replace('act_', '').strip()
+    token = str(token or '').strip()
+    if not real_id or not token:
+        return []
+    rows = _facebook_graph_data_rows(
+        f'https://graph.facebook.com/v22.0/act_{real_id}/instagram_accounts',
+        {'fields': 'id,username,name,profile_picture_url,legacy_instagram_user_id', 'limit': 200},
+        token,
+    )
+    return [_facebook_normalize_ig_node(x) for x in rows]
+
+def _facebook_instagram_suggest_results(token, selected_account='', page_id='', q='', ensure_pbia=False):
+    q = str(q or '').strip().lower()
+    page_id = str(page_id or '').strip()
+    token = str(token or '').strip()
+    results, seen = [], set()
+
+    def add_row(ig, page_name='', source='', access_token=''):
+        row = _facebook_ig_actor_row(ig, page_name, access_token or token)
+        if not row:
+            return
+        raw = f"{row.get('id','')} {row.get('username','')} {row.get('name','')} {row.get('label','')} {page_name}".lower()
+        if q and q not in raw:
+            return
+        key = f"ig|{row['id']}".lower()
+        if key in seen:
+            return
+        seen.add(key)
+        display = row.get('display_name') or row.get('label') or 'Profil Instagram'
+        text = display
+        meta = source or (f'Tertaut ke {page_name}' if page_name else 'Profil Instagram')
+        if page_name and display == f'Instagram {page_name}':
+            meta = f'Page-backed account · {page_name}'
+        results.append({'id': row['id'], 'text': text, 'meta': meta, **row})
+
+    page_name_cache = {}
+
+    def page_name_for(pid):
+        pid = str(pid or '').strip()
+        if not pid:
+            return ''
+        if pid in page_name_cache:
+            return page_name_cache[pid]
+        name = pid
+        try:
+            page_token = _facebook_page_access_token(pid, token)
+            resp = requests.get(
+                f'https://graph.facebook.com/v22.0/{pid}',
+                params={'fields': 'name', 'access_token': page_token or token},
+                timeout=20,
+            )
+            data = (resp.json() if resp.text else {}) or {}
+            if isinstance(data, dict) and not data.get('error'):
+                name = str(data.get('name') or pid).strip() or pid
+        except Exception:
+            pass
+        page_name_cache[pid] = name
+        return name
+
+    if page_id:
+        pname = page_name_for(page_id)
+        page_token = _facebook_page_access_token(page_id, token)
+        for ig in _facebook_page_instagram_candidates(page_id, token, ensure_pbia=ensure_pbia, page_name=pname, ad_account_id=selected_account):
+            add_row(ig, pname, 'Profil Instagram untuk Halaman ini', page_token)
+
+    try:
+        pages_resp = requests.get(
+            'https://graph.facebook.com/v22.0/me/accounts',
+            params={'fields': 'id,name,access_token', 'limit': 200, 'access_token': token},
+            timeout=20,
+        )
+        pages = ((pages_resp.json() if pages_resp.text else {}) or {}).get('data') or []
+    except Exception:
+        pages = []
+
+    for p in pages:
+        pid = str((p or {}).get('id') or '').strip()
+        if not pid or (page_id and pid != page_id):
+            continue
+        pname = str((p or {}).get('name') or page_name_for(pid)).strip()
+        page_token = str((p or {}).get('access_token') or '').strip() or _facebook_page_access_token(pid, token)
+        for ig in _facebook_page_instagram_candidates(pid, token, ensure_pbia=False, page_name=pname, ad_account_id=selected_account):
+            add_row(ig, pname, 'Profil Instagram untuk Halaman ini', page_token or token)
+
+    for ig in _facebook_ad_account_instagram_candidates(selected_account, token):
+        add_row(ig, '', 'Profil Instagram pada akun iklan')
+
+    return results[:50]
+
 class FacebookIdentitySuggestView(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
@@ -1615,55 +1939,32 @@ class FacebookIdentitySuggestView(View):
             token = str((acc or {}).get('access_token') or '').strip()
             if not token:
                 return JsonResponse({'results': []})
-            if identity_type == 'instagram' and page_id:
-                try:
-                    page_resp = requests.get(
-                        f'https://graph.facebook.com/v22.0/{page_id}',
-                        params={
-                            'fields': 'id,name,instagram_business_account{id,username,name},connected_instagram_account{id,username,name}',
-                            'access_token': token
-                        },
-                        timeout=20
-                    )
-                    page_data = (page_resp.json() if page_resp.text else {}) or {}
-                    page_name = str(page_data.get('name') or '').strip()
-                    ig = page_data.get('instagram_business_account') or page_data.get('connected_instagram_account') or {}
-                    iid = str((ig or {}).get('id') or '').strip()
-                    uname = str((ig or {}).get('username') or '').strip()
-                    iname = str((ig or {}).get('name') or '').strip()
-                    if iid:
-                        raw = f"{iid} {uname} {iname} {page_name}".lower()
-                        if (not q) or (q in raw):
-                            label = ('@' + uname) if uname else (iname or iid)
-                            return JsonResponse({'results': [{'id': iid, 'text': f'{label} • {page_name or page_id}'}]})
-                except Exception:
-                    pass
+            if identity_type == 'instagram':
+                ensure_pbia = str(req.GET.get('ensure_pbia') or '').strip().lower() in ('1', 'true', 'yes')
+                if not ensure_pbia and page_id and not q:
+                    ensure_pbia = True
+                results = _facebook_instagram_suggest_results(
+                    token,
+                    selected_account=selected_account,
+                    page_id=page_id,
+                    q=q,
+                    ensure_pbia=ensure_pbia,
+                )
+                return JsonResponse({'results': results})
             resp = requests.get('https://graph.facebook.com/v22.0/me/accounts', params={'fields': 'id,name,instagram_business_account{id,username,name},connected_instagram_account{id,username,name}', 'limit': 200, 'access_token': token}, timeout=20)
             rows = ((resp.json() if resp.text else {}) or {}).get('data') or []
             results, seen = [], set()
             for p in rows:
                 pid, pname = str((p or {}).get('id') or '').strip(), str((p or {}).get('name') or '').strip()
-                ig = (p or {}).get('instagram_business_account') or (p or {}).get('connected_instagram_account') or {}
                 if identity_type == 'instagram':
-                    iid = str((ig or {}).get('id') or '').strip(); uname = str((ig or {}).get('username') or '').strip(); iname = str((ig or {}).get('name') or '').strip()
-                    if not iid or (page_id and pid != page_id):
-                        continue
-                    raw = f"{iid} {uname} {iname} {pname}".lower()
-                    if q and q not in raw:
-                        continue
-                    label = ('@' + uname) if uname else (iname or iid)
-                    key = f"ig|{iid}".lower()
-                    if key in seen:
-                        continue
-                    seen.add(key); results.append({'id': iid, 'text': f'{label} • {pname}'})
-                else:
-                    raw = f"{pid} {pname}".lower()
-                    if q and q not in raw:
-                        continue
-                    key = f"pg|{pid}".lower()
-                    if key in seen or not pid:
-                        continue
-                    seen.add(key); results.append({'id': pid, 'text': f'{pname} (ID: {pid})'})
+                    continue
+                raw = f"{pid} {pname}".lower()
+                if q and q not in raw:
+                    continue
+                key = f"pg|{pid}".lower()
+                if key in seen or not pid:
+                    continue
+                seen.add(key); results.append({'id': pid, 'text': f'{pname} (ID: {pid})'})
             return JsonResponse({'results': results[:50]})
         except Exception:
             return JsonResponse({'results': []})
@@ -1679,34 +1980,42 @@ class FacebookPageMessagingAssetsView(View):
         acc = (rs or {}).get('data') if isinstance(rs, dict) else None
         return str((acc or {}).get('access_token') or '').strip()
 
-    def _ig_row(self, ig, page_name):
-        if not isinstance(ig, dict):
-            return None
-        iid = str((ig or {}).get('id') or '').strip()
-        if not iid:
-            return None
-        uname = str((ig or {}).get('username') or '').strip()
-        iname = str((ig or {}).get('name') or '').strip()
-        pic = str((((ig or {}).get('profile_picture_url') or '')).strip())
-        label = ('@' + uname) if uname else (iname or iid)
-        return {
-            'id': iid,
-            'username': uname,
-            'name': iname or uname or iid,
-            'label': label,
-            'picture_url': pic,
-            'page_name': page_name,
-        }
+    def _ig_row(self, ig, page_name, access_token='', extra_tokens=None):
+        return _facebook_ig_actor_row(ig, page_name, access_token, extra_tokens=extra_tokens)
 
     def _page_picture_url(self, page_data):
         return str((((page_data or {}).get('picture') or {}).get('data') or {}).get('url') or '').strip()
 
-    def _page_assets(self, page_data):
+    def _page_assets(self, page_data, access_token='', page_id='', token='', ensure_pbia=False, selected_account=''):
         page_name = str((page_data or {}).get('name') or '').strip()
         pic = self._page_picture_url(page_data)
-        ig = self._ig_row((page_data or {}).get('instagram_business_account'), page_name)
-        if not ig:
-            ig = self._ig_row((page_data or {}).get('connected_instagram_account'), page_name)
+        page_token = str(access_token or '').strip()
+        extra_tokens = [t for t in [page_token, token] if t]
+        pid = page_id or str((page_data or {}).get('id') or '').strip()
+        ig_candidates = _facebook_page_instagram_candidates(
+            pid,
+            token,
+            ensure_pbia=ensure_pbia,
+            page_name=page_name,
+            ad_account_id=selected_account,
+        ) if pid and token else []
+        if not ig_candidates:
+            ig = self._ig_row((page_data or {}).get('instagram_business_account'), page_name, page_token, extra_tokens=extra_tokens)
+            if not ig:
+                ig = self._ig_row((page_data or {}).get('connected_instagram_account'), page_name, page_token, extra_tokens=extra_tokens)
+        else:
+            ig = self._ig_row(ig_candidates[0], page_name, page_token, extra_tokens=extra_tokens)
+        ig_list = []
+        seen = set()
+        for raw in ig_candidates:
+            row = self._ig_row(raw, page_name, page_token, extra_tokens=extra_tokens)
+            if row and row.get('id') and row['id'] not in seen:
+                seen.add(row['id'])
+                ig_list.append(row)
+        if ig and ig.get('id') and ig['id'] not in seen:
+            ig_list.insert(0, ig)
+            seen.add(ig['id'])
+        ig = ig or (ig_list[0] if ig_list else None)
         wa_raw = str((page_data or {}).get('whatsapp_number') or '').strip()
         wa_numbers = []
         if wa_raw:
@@ -1718,6 +2027,7 @@ class FacebookPageMessagingAssetsView(View):
                 'picture_url': pic,
             },
             'instagram': ig,
+            'instagram_accounts': ig_list,
             'whatsapp': {
                 'available': bool(wa_numbers),
                 'numbers': wa_numbers,
@@ -1741,29 +2051,37 @@ class FacebookPageMessagingAssetsView(View):
         token = self._token(selected_account)
         if not token:
             return JsonResponse({'pages': [], 'assets': None})
-        page_fields = 'id,name,picture{url},instagram_business_account{id,username,name,profile_picture_url},connected_instagram_account{id,username,name},whatsapp_number'
+        page_fields = 'id,name,picture{url},instagram_business_account{id,username,name,profile_picture_url},connected_instagram_account{id,username,name,profile_picture_url},whatsapp_number'
         try:
             if page_id:
+                page_token = _facebook_page_access_token(page_id, token)
                 page_resp = requests.get(
                     f'https://graph.facebook.com/v22.0/{page_id}',
-                    params={'fields': page_fields, 'access_token': token},
+                    params={'fields': page_fields, 'access_token': page_token},
                     timeout=20,
                 )
                 page_data = (page_resp.json() if page_resp.text else {}) or {}
                 if isinstance(page_data, dict) and page_data.get('error'):
+                    page_resp = requests.get(
+                        f'https://graph.facebook.com/v22.0/{page_id}',
+                        params={'fields': page_fields, 'access_token': token},
+                        timeout=20,
+                    )
+                    page_data = (page_resp.json() if page_resp.text else {}) or {}
+                if isinstance(page_data, dict) and page_data.get('error'):
                     return JsonResponse({'pages': [], 'assets': None, 'message': str(((page_data.get('error') or {}).get('message') or 'Gagal memuat halaman'))})
                 pid = str(page_data.get('id') or page_id).strip()
                 pname = str(page_data.get('name') or pid).strip()
-                ig = self._ig_row(page_data.get('instagram_business_account'), pname) or self._ig_row(page_data.get('connected_instagram_account'), pname)
+                assets = self._page_assets(page_data, page_token, page_id=pid, token=token, ensure_pbia=not bool((page_data.get('instagram_business_account') or page_data.get('connected_instagram_account'))), selected_account=selected_account)
                 page_row = {
                     'id': pid,
                     'name': pname,
                     'picture_url': self._page_picture_url(page_data),
-                    'instagram_label': (ig or {}).get('label') or '',
+                    'instagram_label': ((assets.get('instagram') or {}).get('label') or ''),
                 }
                 return JsonResponse({
                     'page': page_row,
-                    'assets': self._page_assets(page_data),
+                    'assets': assets,
                 })
             resp = requests.get(
                 'https://graph.facebook.com/v22.0/me/accounts',
@@ -1784,7 +2102,7 @@ class FacebookPageMessagingAssetsView(View):
                 if key in seen:
                     continue
                 seen.add(key)
-                ig = self._ig_row((p or {}).get('instagram_business_account'), pname) or self._ig_row((p or {}).get('connected_instagram_account'), pname)
+                ig = self._ig_row((p or {}).get('instagram_business_account'), pname, token) or self._ig_row((p or {}).get('connected_instagram_account'), pname, token)
                 pages.append({
                     'id': pid,
                     'name': pname,
@@ -3593,7 +3911,7 @@ class DashboardScoringCompareView(View):
             target_date = target_dt.date()
             compare_offsets = {'h1': 1, 'h3': 3, 'h7': 7}
             compare_dates = {k: (target_date - timedelta(days=v)) for k, v in compare_offsets.items()}
-            days_back = max(0, min(int(payload.get('days_back') or 0), 30))
+            days_back = max(0, min(int(payload.get('days_back') or 0), 35))
 
             scoring_module = _get_scoring_concept_module()
             query_df_func = getattr(scoring_module, 'query_df', None)

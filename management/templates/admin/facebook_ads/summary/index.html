@@ -101,6 +101,24 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
       border-color: #2b2b2b;
       box-shadow: none;
   }
+  .summary-empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: #64748b;
+  }
+  .summary-empty-state i {
+      font-size: 2.5rem;
+      margin-bottom: 12px;
+      display: block;
+      opacity: 0.65;
+  }
+  .summary-empty-state-title {
+      font-weight: 800;
+      font-size: 16px;
+      color: #334155;
+      margin-bottom: 6px;
+  }
+  html[data-theme="dark"] .summary-empty-state-title { color: #e2e8f0; }
 </style>
 <div class="card">
     <div class="card-header">
@@ -173,6 +191,14 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 padding-top: 20%;">
             <i class="fas fa fa-sync-alt fa-spin"></i> Menyiapkan Data ... 
         </div>
+
+        <div id="facebookSummaryEmptyState" class="summary-empty-state">
+            <i class="bi bi-funnel" aria-hidden="true"></i>
+            <div class="summary-empty-state-title">Belum ada data ditampilkan</div>
+            <div>Pilih rentang tanggal, account, dan subdomain (opsional), lalu klik <strong>Muat Data</strong>.</div>
+        </div>
+
+        <div id="facebookSummaryResults" style="display:none;">
         <div class="summary-section-card mb-3" data-title="Ringkasan" data-intro="Ringkasan metrik utama: Total Spend, Total Impresi, Total Klik, dan Total CPC.">
             <div class="summary-section-title"><i class="bi bi-grid-3x3-gap"></i> Ringkasan Performa</div>
             <div class="row mb-0" id="summary_boxes_campaign">
@@ -296,6 +322,8 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
             </div>
         </div>
 
+        </div><!-- /#facebookSummaryResults -->
+
         <div class="modal fade" id="facebookCampaignDetailModal" tabindex="-1" role="dialog" aria-labelledby="facebookCampaignDetailModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-lg" role="document">
                 <div class="modal-content">
@@ -386,7 +414,6 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     </div>
                 </div>
             </div>
-        </div>
         </div>
     </div>
 </div>
