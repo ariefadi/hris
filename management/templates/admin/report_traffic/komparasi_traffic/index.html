@@ -1,0 +1,492 @@
+{% extends "admin_base.html" %}
+{% load static %}
+{% block page_title %}Komparasi Traffic{% endblock %}
+{% block page_heading %}Komparasi Traffic{% endblock %}
+{% block breadcrumbs %}
+<li class="breadcrumb-item"><a href="{% url 'dashboard_admin' %}">Dashboard</a></li>
+<li class="breadcrumb-item active">Report Traffic</li>
+{% endblock %}
+
+{% block more_stylesheet %}
+<style>
+.metric-card {
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+    border-radius: 16px;
+    padding: 14px 16px !important;
+    margin-bottom: 0;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.metric-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.18);
+}
+.metric-card::after {
+    content: "";
+    position: relative;
+    display: none;
+}
+.metric-card::before {
+    content: "";
+    position: absolute;
+    right: -34px;
+    top: -34px;
+    width: 110px;
+    height: 110px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.14);
+}
+.metric-card-inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+}
+.metric-card-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.18);
+}
+.metric-card-icon i {
+    font-size: 1.2rem;
+    color: #fff;
+}
+.metric-label {
+    font-size: 12px;
+    opacity: 0.9;
+    margin-bottom: 4px;
+}
+.metric-value {
+    font-size: 1.5rem !important;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 0;
+}
+.traffic-muted {
+    position: relative;
+    z-index: 1;
+    font-size: 16px;
+    color: rgba(255,255,255,0.9);
+    margin-top: 6px;
+}
+.metric-subtext {
+    position: relative;
+    z-index: 1;
+    font-size: 12px;
+    color: rgba(255,255,255,0.92);
+    margin-top: 4px;
+}
+.metric-card.unique { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.metric-card.click { background: linear-gradient(135deg, #ff4b1f 0%, #ff9068 100%); }
+.metric-card.pageviews { background: linear-gradient(135deg, #7f00ff 0%, #e100ff 100%); }
+.metric-card.overlap { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
+.metric-card.overlap-click { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
+.domain-summary-title {
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+}
+.domain-summary-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    background: #fff;
+    box-shadow: 0 8px 22px rgba(15, 23, 42, 0.06);
+    height: 100%;
+}
+.domain-summary-card .card-body {
+    padding: 16px;
+}
+.domain-summary-name {
+    font-size: 15px;
+    font-weight: 800;
+    margin-bottom: 12px;
+    word-break: break-word;
+}
+.domain-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+.domain-stat-item {
+    border-radius: 12px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    padding: 10px 12px;
+}
+.domain-stat-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #64748b;
+    margin-bottom: 4px;
+}
+.domain-stat-value {
+    font-size: 20px;
+    font-weight: 800;
+    line-height: 1.1;
+    color: #0f172a;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title mb-0"><i class="bi bi-diagram-3"></i> Komparasi Unique Traffic (Overlap)</h3>
+    </div>
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-6">
+                <label for="domain_filter">Domains (min 2, max 4)</label>
+                <select class="form-control select2 select2-multiple" multiple id="domain_filter"></select>
+            </div>
+            <div class="col-md-2">
+                <label for="identity_filter">Identity</label>
+                <select class="form-control" id="identity_filter">
+                    <option value="device_fingerprint" selected>device_fingerprint</option>
+                    <option value="ip">IP</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="start_date">Start Date</label>
+                <input type="date" class="form-control" id="start_date" />
+            </div>
+            <div class="col-md-2">
+                <label for="end_date">End Date</label>
+                <input type="date" class="form-control" id="end_date" />
+            </div>
+        </div>
+        <div class="mt-3 d-flex justify-content-end">
+            <button type="button" class="btn btn-primary" id="btn_compare">
+                <span id="btn_compare_text">Compare</span>
+            </button>
+        </div>
+        <div class="mt-2">
+            <span class="traffic-muted">Last update: <b id="lastUpdate">-</b></span>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <div class="domain-summary-title">Per Domain Summary</div>
+    <div class="row" id="domainSummaryRow"></div>
+</div>
+
+<div class="row mt-1">
+    <div class="col-12 col-sm-6 col-lg-6 mb-3">
+        <div class="metric-card overlap">
+            <div class="metric-card-inner">
+                <div>
+                    <div class="metric-label">Same Unique Visitor</div>
+                    <div class="metric-value" id="total_same_unique_visitor">0</div>
+                    <div class="metric-subtext">Percentage: <span id="pct_same_unique_visitor">0%</span></div>
+                </div>
+                <div class="metric-card-icon" aria-hidden="true"><i class="bi bi-intersect"></i></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-6 mb-3">
+        <div class="metric-card overlap-click">
+            <div class="metric-card-inner">
+                <div>
+                    <div class="metric-label">Same Ad Click</div>
+                    <div class="metric-value" id="total_same_unique_visitor_ad_click">0</div>
+                    <div class="metric-subtext">Percentage: <span id="pct_same_unique_visitor_ad_click">0%</span></div>
+                </div>
+                <div class="metric-card-icon" aria-hidden="true"><i class="bi bi-link-45deg"></i></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block more_scripts %}
+<script>
+(function () {
+    var DOMAIN_LIST_ENDPOINT = "https://api-tracker.kiwipixel.com/v1/domain_list";
+    var OVERLAP_ENDPOINT = "{% url 'traffic_overlap_proxy' %}";
+    var DOMAIN_CACHE_KEY = "traffic_domain_list_cache_v1";
+    var DOMAIN_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+
+    function formatDateISO(d) {
+        var yyyy = d.getFullYear();
+        var mm = String(d.getMonth() + 1).padStart(2, "0");
+        var dd = String(d.getDate()).padStart(2, "0");
+        return yyyy + "-" + mm + "-" + dd;
+    }
+
+    function toYmdInt(dateStr) {
+        var s = String(dateStr || "").trim();
+        if (!s) return null;
+        return Number(s.replaceAll("-", ""));
+    }
+
+    function formatDateTime(ms) {
+        return new Date(ms).toLocaleString("id-ID", {
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            hour12: false
+        });
+    }
+
+    function setLastUpdate(ts) {
+        var el = document.getElementById("lastUpdate");
+        if (!el) return;
+        el.textContent = ts ? formatDateTime(ts) : "-";
+    }
+
+    function setButtonLoading(isLoading) {
+        var btn = document.getElementById("btn_compare");
+        var txt = document.getElementById("btn_compare_text");
+        if (!btn || !txt) return;
+        if (isLoading) {
+            btn.disabled = true;
+            txt.textContent = "Loading...";
+        } else {
+            btn.disabled = false;
+            txt.textContent = "Compare";
+        }
+    }
+
+    function getCachedDomains() {
+        try {
+            var raw = localStorage.getItem(DOMAIN_CACHE_KEY);
+            if (!raw) return null;
+            var parsed = JSON.parse(raw);
+            if (!parsed || !Array.isArray(parsed.domains)) return null;
+            if (!parsed.savedAt || (Date.now() - Number(parsed.savedAt)) > DOMAIN_CACHE_TTL_MS) return null;
+            return parsed.domains;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function cacheDomains(domains) {
+        try {
+            localStorage.setItem(DOMAIN_CACHE_KEY, JSON.stringify({
+                domains: domains,
+                savedAt: Date.now()
+            }));
+        } catch (e) {}
+    }
+
+    function populateDomainSelect(domains) {
+        var select = document.getElementById("domain_filter");
+        if (!select) return;
+        select.innerHTML = "";
+        (domains || []).forEach(function (domain) {
+            var opt = document.createElement("option");
+            opt.value = domain;
+            opt.textContent = domain;
+            select.appendChild(opt);
+        });
+        if (window.jQuery && jQuery.fn.select2) {
+            jQuery("#domain_filter").select2({
+                placeholder: "-- Select Domains --",
+                allowClear: true,
+                width: "100%",
+                theme: "bootstrap4"
+            });
+        }
+    }
+
+    function loadDomainList() {
+        var cached = getCachedDomains();
+        if (cached && cached.length) {
+            populateDomainSelect(cached);
+            return Promise.resolve(cached);
+        }
+        return fetch(DOMAIN_LIST_ENDPOINT, { method: "GET" })
+            .then(function (resp) {
+                if (!resp.ok) throw new Error("Failed fetching domain list");
+                return resp.json();
+            })
+            .then(function (json) {
+                var domains = (json && Array.isArray(json.domains)) ? json.domains : [];
+                cacheDomains(domains);
+                populateDomainSelect(domains);
+                return domains;
+            });
+    }
+
+    function getSelectedDomains() {
+        if (window.jQuery) {
+            var selected = jQuery("#domain_filter").val();
+            if (Array.isArray(selected)) return selected.filter(Boolean);
+            if (selected === null || selected === undefined || selected === "") return [];
+            return [String(selected)];
+        }
+        var select = document.getElementById("domain_filter");
+        if (!select) return [];
+        var out = [];
+        for (var i = 0; i < select.options.length; i++) {
+            if (select.options[i].selected) out.push(select.options[i].value);
+        }
+        return out;
+    }
+
+    function setNumber(elId, value) {
+        var el = document.getElementById(elId);
+        if (!el) return;
+        el.textContent = Number(value || 0).toLocaleString("id-ID");
+    }
+
+    function escapeHtml(value) {
+        return String(value || "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+    }
+
+    function setPercent(elId, numerator, denominator) {
+        var el = document.getElementById(elId);
+        if (!el) return;
+        var n = Number(numerator || 0);
+        var d = Number(denominator || 0);
+        if (!d) {
+            el.textContent = "0%";
+            return;
+        }
+        var pct = (n / d) * 100;
+        el.textContent = pct.toFixed(2) + "%";
+    }
+
+    function sumBy(items, key) {
+        if (!Array.isArray(items)) return 0;
+        return items.reduce(function (total, item) {
+            return total + Number((item && item[key]) || 0);
+        }, 0);
+    }
+
+    function renderDomainSummary(domainRows) {
+        var row = document.getElementById("domainSummaryRow");
+        if (!row) return;
+        if (!Array.isArray(domainRows) || !domainRows.length) {
+            row.innerHTML = '<div class="col-12"><div class="alert alert-light border mb-3">No domain data found.</div></div>';
+            return;
+        }
+
+        row.innerHTML = domainRows.map(function (item) {
+            var domain = escapeHtml(item && item.domain);
+            var totalVisits = Number((item && item.total_visits) || 0).toLocaleString("id-ID");
+            var uniqueVisitor = Number((item && item.unique_visitor) || 0).toLocaleString("id-ID");
+            var totalPageviews = Number((item && item.total_pageviews) || 0).toLocaleString("id-ID");
+            var totalAdClick = Number((item && item.total_ad_click) || 0).toLocaleString("id-ID");
+            return '' +
+                '<div class="col-12 col-md-6 mb-3">' +
+                    '<div class="card domain-summary-card">' +
+                        '<div class="card-body">' +
+                            '<div class="domain-summary-name">' + domain + '</div>' +
+                            '<div class="domain-stat-grid">' +
+                                '<div class="domain-stat-item"><div class="domain-stat-label">Total Visits</div><div class="domain-stat-value">' + totalVisits + '</div></div>' +
+                                '<div class="domain-stat-item"><div class="domain-stat-label">Unique Visitor</div><div class="domain-stat-value">' + uniqueVisitor + '</div></div>' +
+                                '<div class="domain-stat-item"><div class="domain-stat-label">Total Pageviews</div><div class="domain-stat-value">' + totalPageviews + '</div></div>' +
+                                '<div class="domain-stat-item"><div class="domain-stat-label">Total Ad Click</div><div class="domain-stat-value">' + totalAdClick + '</div></div>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>';
+        }).join("");
+    }
+
+    function renderResult(json) {
+        var domainRows = (json && Array.isArray(json.domains)) ? json.domains : [];
+        var overlap = (json && json.overlap) || {};
+        var totalAdClick = (json && (json.total_ad_click || json.total_ad_clicks || json.total_click)) || sumBy(domainRows, "total_ad_click");
+        var totalUnique = (json && (json.total_unique_visitor || json.total_unique_visitors || json.total_unique)) || sumBy(domainRows, "unique_visitor");
+        var sameUnique = (json && json.total_same_unique_visitor) || overlap.total_same_unique_visitor || 0;
+        var sameUniqueClick = (json && json.total_same_unique_visitor_ad_click) || overlap.total_same_unique_visitor_ad_click || 0;
+
+        renderDomainSummary(domainRows);
+        setNumber("total_same_unique_visitor", sameUnique);
+        setNumber("total_same_unique_visitor_ad_click", sameUniqueClick);
+
+        setPercent("pct_same_unique_visitor", sameUnique, totalUnique);
+        setPercent("pct_same_unique_visitor_ad_click", sameUniqueClick, totalAdClick);
+    }
+
+    function compare() {
+        var domains = getSelectedDomains();
+        if (domains.length < 2) {
+            alert("Please select at least 2 domains.");
+            return;
+        }
+        if (domains.length > 4) {
+            alert("Max 4 domains.");
+            return;
+        }
+        var identity = String(document.getElementById("identity_filter").value || "device_fingerprint");
+        var startDate = String(document.getElementById("start_date").value || "");
+        var endDate = String(document.getElementById("end_date").value || "");
+        if (!startDate || !endDate) {
+            alert("Please select date range.");
+            return;
+        }
+        var startYmd = toYmdInt(startDate);
+        var endYmd = toYmdInt(endDate);
+
+        var filterObj = {
+            domains: domains.join(","),
+            identity: identity,
+            start_date: startYmd,
+            end_date: endYmd
+        };
+        var url = OVERLAP_ENDPOINT + "?filter=" + encodeURIComponent(JSON.stringify(filterObj));
+
+        setButtonLoading(true);
+        fetch(url, {
+            method: "GET",
+            headers: {
+                "X-Requested-With": "XMLHttpRequest"
+            }
+        })
+            .then(function (resp) {
+                if (!resp.ok) throw new Error("Failed overlap request");
+                return resp.json();
+            })
+            .then(function (json) {
+                renderResult(json);
+                setLastUpdate(Date.now());
+            })
+            .catch(function (err) {
+                console.error(err);
+                alert("Failed loading overlap data.");
+            })
+            .finally(function () {
+                setButtonLoading(false);
+            });
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        var end = new Date();
+        var start = new Date();
+        start.setDate(end.getDate() - 2);
+        document.getElementById("start_date").value = formatDateISO(start);
+        document.getElementById("end_date").value = formatDateISO(end);
+
+        loadDomainList().catch(function () {
+            alert("Failed loading domain list.");
+        });
+
+        document.getElementById("btn_compare").addEventListener("click", compare);
+    });
+})();
+</script>
+{% endblock %}

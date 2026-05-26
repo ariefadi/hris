@@ -7348,6 +7348,73 @@ class TrafficPerDomainReportView(View):
         }
         return render(req, 'admin/report_traffic/per_domain/index.html', data)
 
+class KomparasiTrafficReportView(View):
+    """View untuk Komparasi Traffic (unique overlap)"""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        data = {
+            'title': 'Komparasi Traffic',
+            'user': req.session['hris_admin']
+        }
+        return render(req, 'admin/report_traffic/komparasi_traffic/index.html', data)
+
+class TrafficOverlapProxyView(View):
+    """Proxy untuk api-tracker traffic-overlap dengan header Origin dari hostname server."""
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        try:
+            filter_raw = str(req.GET.get('filter') or '').strip()
+            if filter_raw:
+                try:
+                    filter_obj = json.loads(filter_raw)
+                except Exception:
+                    return JsonResponse({'status': False, 'error': 'Invalid filter JSON'}, status=400)
+            else:
+                domains = str(req.GET.get('domains') or '').strip()
+                identity = str(req.GET.get('identity') or 'device_fingerprint').strip()
+                start_date = req.GET.get('start_date')
+                end_date = req.GET.get('end_date')
+                filter_obj = {
+                    'domains': domains,
+                    'identity': identity,
+                    'start_date': int(start_date) if start_date is not None and str(start_date).strip() else None,
+                    'end_date': int(end_date) if end_date is not None and str(end_date).strip() else None
+                }
+
+            origin = req.get_host()
+            url = "https://api-tracker.kiwipixel.com/v1/traffic-overlap"
+            tracker_resp = requests.get(
+                url,
+                params={'filter': json.dumps(filter_obj)},
+                timeout=60,
+                headers={
+                    'Accept': 'application/json',
+                    'User-Agent': 'hris-management/1.0',
+                    'Origin': origin
+                }
+            )
+            if tracker_resp.status_code != 200:
+                return JsonResponse({
+                    'status': False,
+                    'error': f'Upstream error status={tracker_resp.status_code}'
+                }, status=502)
+
+            try:
+                payload = tracker_resp.json() if tracker_resp.content else {}
+            except Exception:
+                payload = {}
+            return JsonResponse(payload, safe=False)
+        except Exception as e:
+            return JsonResponse({'status': False, 'error': str(e)}, status=500)
+
 class TrafficPerDomainAdSpendView(View):
     """AJAX endpoint total ad spend for selected domain(s) + report range."""
     def dispatch(self, request, *args, **kwargs):
