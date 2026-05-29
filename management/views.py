@@ -20,7 +20,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.conf import settings
 from django import template
 from datetime import datetime, date, timedelta, timezone
-from django.http import HttpResponse, JsonResponse, QueryDict
+from django.http import HttpResponse, JsonResponse, QueryDict, HttpResponseRedirect
 from django.core.management import call_command
 
 from management.database import insert_df, query_df
@@ -2112,6 +2112,555 @@ class FacebookPageMessagingAssetsView(View):
             return JsonResponse({'pages': pages[:50], 'assets': None})
         except Exception:
             return JsonResponse({'pages': [], 'assets': None})
+
+
+def _creative_media_aspect_bucket(width, height):
+    try:
+        w = float(width or 0)
+        h = float(height or 0)
+    except (TypeError, ValueError):
+        return ''
+    if w <= 0 or h <= 0:
+        return ''
+    ratio = w / h
+    if abs(ratio - (16 / 9)) <= 0.12:
+        return '16:9'
+    if abs(ratio - (9 / 16)) <= 0.12:
+        return '9:16'
+    if abs(ratio - 0.8) <= 0.12:
+        return '4:5'
+    return ''
+
+
+class FacebookCreativeMediaLibraryView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def _token(self, account_id):
+        rs = data_mysql().master_account_ads_by_id({'data_account': account_id})
+        acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+        return str((acc or {}).get('access_token') or '').strip()
+
+    def _real_account_id(self, account_id):
+        return str(account_id or '').replace('act_', '').strip()
+
+    def _graph_rows(self, url, token, params=None):
+        try:
+            p = dict(params or {})
+            p['access_token'] = token
+            resp = requests.get(url, params=p, timeout=25)
+            body = resp.json() if resp.text else {}
+            if isinstance(body, dict) and body.get('error'):
+                return []
+            return (body or {}).get('data') or []
+        except Exception:
+            return []
+
+    def _resolve_video_thumb(self, row, video_id, token, allow_fetch=True):
+        row = row or {}
+        for key in ('thumbnail_url', 'picture'):
+            val = str((row or {}).get(key) or '').strip()
+            if val:
+                return val
+        fmt = (row or {}).get('format') or []
+        if isinstance(fmt, list):
+            for entry in fmt:
+                pic = str((entry or {}).get('picture') or '').strip()
+                if pic:
+                    return pic
+        if not allow_fetch:
+            return ''
+        video_id = str(video_id or '').strip()
+        if not video_id or not token:
+            return ''
+        try:
+            resp = requests.get(
+                f'https://graph.facebook.com/v22.0/{video_id}/thumbnails',
+                params={'access_token': token, 'fields': 'uri,is_preferred', 'limit': 8},
+                timeout=15,
+            )
+            body = resp.json() if resp.text else {}
+            rows = (body or {}).get('data') or []
+            preferred = [r for r in rows if (r or {}).get('is_preferred')]
+            for entry in (preferred or rows):
+                uri = str((entry or {}).get('uri') or '').strip()
+                if uri:
+                    return uri
+        except Exception:
+            pass
+        return ''
+
+    def _media_item(self, *, media_id, media_type, title, width, height, thumb_url, source, image_hash='', video_id='', length=0, video_url=''):
+        title = str(title or '').strip() or 'untitled'
+        try:
+            width = int(width or 0)
+        except (TypeError, ValueError):
+            width = 0
+        try:
+            height = int(height or 0)
+        except (TypeError, ValueError):
+            height = 0
+        try:
+            length = float(length or 0)
+        except (TypeError, ValueError):
+            length = 0
+        thumb_url = str(thumb_url or '').strip()
+        video_url = str(video_url or '').strip()
+        return {
+            'id': str(media_id or image_hash or video_id or '').strip(),
+            'type': 'video' if media_type == 'video' else 'image',
+            'title': title,
+            'width': width,
+            'height': height,
+            'length': length,
+            'aspect': _creative_media_aspect_bucket(width, height),
+            'thumb_url': thumb_url,
+            'video_url': video_url,
+            'source': source,
+            'image_hash': str(image_hash or '').strip(),
+            'video_id': str(video_id or '').strip(),
+        }
+
+    def _fetch_account_media(self, real_account_id, token, kind):
+        items = []
+        if kind in ('all', 'image'):
+            rows = self._graph_rows(
+                f'https://graph.facebook.com/v22.0/act_{real_account_id}/adimages',
+                token,
+                {'fields': 'hash,url,name,width,height,created_time,status', 'limit': 50},
+            )
+            for row in rows:
+                image_hash = str((row or {}).get('hash') or '').strip()
+                if not image_hash:
+                    continue
+                thumb = str((row or {}).get('url') or '').strip()
+                items.append(self._media_item(
+                    media_id=image_hash,
+                    media_type='image',
+                    title=(row or {}).get('name') or image_hash[:12],
+                    width=(row or {}).get('width'),
+                    height=(row or {}).get('height'),
+                    thumb_url=thumb,
+                    source='account',
+                    image_hash=image_hash,
+                ))
+        if kind in ('all', 'video'):
+            rows = self._graph_rows(
+                f'https://graph.facebook.com/v22.0/act_{real_account_id}/advideos',
+                token,
+                {'fields': 'id,title,thumbnail_url,picture,length,width,height,created_time,source,format{width,height,picture}', 'limit': 50},
+            )
+            for row in rows:
+                vid = str((row or {}).get('id') or '').strip()
+                if not vid:
+                    continue
+                fmt = ((row or {}).get('format') or [{}])
+                first_fmt = fmt[0] if isinstance(fmt, list) and fmt else {}
+                thumb = self._resolve_video_thumb(row, vid, token, allow_fetch=False)
+                items.append(self._media_item(
+                    media_id=vid,
+                    media_type='video',
+                    title=(row or {}).get('title') or vid,
+                    width=(row or {}).get('width') or (first_fmt or {}).get('width'),
+                    height=(row or {}).get('height') or (first_fmt or {}).get('height'),
+                    thumb_url=thumb,
+                    source='account',
+                    video_id=vid,
+                    length=(row or {}).get('length'),
+                    video_url=(row or {}).get('source'),
+                ))
+        return items
+
+    def _fetch_instagram_media(self, ig_id, token, kind):
+        if not ig_id:
+            return []
+        fields = 'id,caption,media_type,media_url,thumbnail_url,timestamp'
+        rows = self._graph_rows(
+            f'https://graph.facebook.com/v22.0/{ig_id}/media',
+            token,
+            {'fields': fields, 'limit': 50},
+        )
+        items = []
+        for row in rows:
+            media_type = str((row or {}).get('media_type') or '').upper()
+            is_video = 'VIDEO' in media_type
+            if kind == 'image' and is_video:
+                continue
+            if kind == 'video' and not is_video:
+                continue
+            mid = str((row or {}).get('id') or '').strip()
+            if not mid:
+                continue
+            caption = str((row or {}).get('caption') or '').strip()
+            thumb = str((row or {}).get('thumbnail_url') or (row or {}).get('media_url') or '').strip()
+            media_url = str((row or {}).get('media_url') or '').strip()
+            items.append(self._media_item(
+                media_id=mid,
+                media_type='video' if is_video else 'image',
+                title=caption[:80] if caption else mid,
+                width=0,
+                height=0,
+                thumb_url=thumb,
+                source='instagram',
+                video_id=mid if is_video else '',
+                video_url=media_url if is_video else '',
+            ))
+        return items
+
+    def _fetch_page_media(self, page_id, token, page_name, kind):
+        if not page_id:
+            return []
+        page_token = _facebook_page_access_token(page_id, token) or token
+        items = []
+        if kind in ('all', 'image'):
+            rows = self._graph_rows(
+                f'https://graph.facebook.com/v22.0/{page_id}/photos',
+                page_token,
+                {'fields': 'images,name,created_time', 'type': 'uploaded', 'limit': 40},
+            )
+            for row in rows:
+                pid = str((row or {}).get('id') or '').strip()
+                imgs = (row or {}).get('images') or []
+                best = imgs[0] if imgs else {}
+                if isinstance(imgs, list) and imgs:
+                    best = max(imgs, key=lambda x: int((x or {}).get('width') or 0))
+                thumb = str((best or {}).get('source') or '').strip()
+                if not pid or not thumb:
+                    continue
+                items.append(self._media_item(
+                    media_id=pid,
+                    media_type='image',
+                    title=(row or {}).get('name') or page_name or pid,
+                    width=(best or {}).get('width'),
+                    height=(best or {}).get('height'),
+                    thumb_url=thumb,
+                    source='page',
+                ))
+        if kind in ('all', 'video'):
+            rows = self._graph_rows(
+                f'https://graph.facebook.com/v22.0/{page_id}/videos',
+                page_token,
+                {'fields': 'picture,source,title,length,created_time,format', 'limit': 40},
+            )
+            for row in rows:
+                vid = str((row or {}).get('id') or '').strip()
+                if not vid:
+                    continue
+                fmt = ((row or {}).get('format') or [{}])
+                first_fmt = fmt[0] if isinstance(fmt, list) and fmt else {}
+                thumb = self._resolve_video_thumb(row, vid, page_token, allow_fetch=False)
+                items.append(self._media_item(
+                    media_id=vid,
+                    media_type='video',
+                    title=(row or {}).get('title') or page_name or vid,
+                    width=(first_fmt or {}).get('width'),
+                    height=(first_fmt or {}).get('height'),
+                    thumb_url=thumb,
+                    source='page',
+                    video_id=vid,
+                    length=(row or {}).get('length'),
+                    video_url=(row or {}).get('source'),
+                ))
+        return items
+
+    def get(self, req):
+        account_id = str(req.GET.get('account_id') or '').strip()
+        source = str(req.GET.get('source') or 'all').strip().lower()
+        kind = str(req.GET.get('kind') or 'all').strip().lower()
+        page_id = str(req.GET.get('page_id') or '').strip()
+        ig_id = str(req.GET.get('instagram_actor_id') or '').strip()
+        page_name = str(req.GET.get('page_name') or '').strip()
+        if kind not in ('all', 'image', 'video'):
+            kind = 'all'
+        token = self._token(account_id)
+        real_account_id = self._real_account_id(account_id)
+        if not token or not real_account_id:
+            return JsonResponse({'sections': [], 'message': 'Token atau akun iklan belum tersedia.'})
+
+        sections = []
+        try:
+            if source in ('all', 'account'):
+                acc_items = self._fetch_account_media(real_account_id, token, kind)
+                if acc_items:
+                    label = 'Video akun' if kind == 'video' else ('Gambar Akun' if kind == 'image' else 'Media Akun')
+                    sections.append({'key': 'account', 'title': label, 'items': acc_items[:50]})
+
+            if source in ('all', 'business'):
+                biz_items = self._fetch_account_media(real_account_id, token, kind)
+                if biz_items:
+                    label = 'Video Bisnis' if kind == 'video' else ('Gambar Bisnis' if kind == 'image' else 'Media Bisnis')
+                    sections.append({'key': 'business', 'title': label, 'items': biz_items[:50]})
+
+            if source in ('all', 'instagram'):
+                ig_items = self._fetch_instagram_media(ig_id, token, kind)
+                if ig_items:
+                    label = 'Video Instagram' if kind == 'video' else ('Gambar Instagram' if kind == 'image' else 'Media Instagram')
+                    sections.append({'key': 'instagram', 'title': label, 'items': ig_items[:50]})
+
+            if source in ('all', 'page'):
+                if not page_name and page_id:
+                    try:
+                        pr = requests.get(
+                            f'https://graph.facebook.com/v22.0/{page_id}',
+                            params={'fields': 'name', 'access_token': _facebook_page_access_token(page_id, token) or token},
+                            timeout=15,
+                        )
+                        page_name = str(((pr.json() if pr.text else {}) or {}).get('name') or page_id)
+                    except Exception:
+                        page_name = page_id
+                page_items = self._fetch_page_media(page_id, token, page_name, kind)
+                if page_items:
+                    title = page_name or 'Halaman Facebook'
+                    if kind == 'video':
+                        title = f'Video · {title}'
+                    elif kind == 'image':
+                        title = title
+                    sections.append({'key': 'page', 'title': title, 'items': page_items[:50]})
+        except Exception:
+            pass
+
+        return JsonResponse({'sections': sections})
+
+
+class FacebookCreativeMediaThumbView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        account_id = str(req.GET.get('account_id') or '').strip()
+        video_id = str(req.GET.get('video_id') or '').strip()
+        if not account_id or not video_id:
+            return HttpResponse(status=404)
+        lib = FacebookCreativeMediaLibraryView()
+        token = lib._token(account_id)
+        if not token:
+            return HttpResponse(status=404)
+        thumb = lib._resolve_video_thumb({}, video_id, token)
+        if not thumb:
+            return HttpResponse(status=404)
+        return HttpResponseRedirect(thumb)
+
+
+def _discovery_normalize_url(url):
+    url = str(url or '').strip()
+    if not url:
+        return ''
+    if not url.startswith(('http://', 'https://')):
+        url = 'https://' + url
+    return url
+
+
+def _discovery_host(url):
+    try:
+        from urllib.parse import urlparse
+        host = urlparse(url).netloc.lower()
+        return host[4:] if host.startswith('www.') else host
+    except Exception:
+        return ''
+
+
+def _discovery_same_site(base_url, candidate_url):
+    base_host = _discovery_host(base_url)
+    cand_host = _discovery_host(candidate_url)
+    if not base_host or not cand_host:
+        return False
+    if base_host == cand_host:
+        return True
+    return base_host.split('.')[-2:] == cand_host.split('.')[-2:]
+
+
+def _discovery_label_from_url(url):
+    try:
+        from urllib.parse import urlparse, unquote
+        path = unquote(urlparse(url).path or '').strip('/')
+        if not path:
+            return 'Beranda'
+        slug = path.split('/')[-1]
+        slug = re.sub(r'[-_]+', ' ', slug)
+        slug = re.sub(r'\s+', ' ', slug).strip()
+        if slug:
+            return slug[:80].title()
+    except Exception:
+        pass
+    return 'Produk'
+
+
+def _discovery_skip_href(href):
+    h = str(href or '').strip().lower()
+    if not h or h.startswith('#') or h.startswith('javascript:') or h.startswith('mailto:'):
+        return True
+    skip_words = (
+        '/login', '/signin', '/signup', '/register', '/cart', '/checkout',
+        '/privacy', '/terms', '/policy', '/help', '/account', '/settings',
+        '/search', '/wishlist', 'facebook.com', 'instagram.com', 'twitter.com',
+    )
+    return any(w in h for w in skip_words)
+
+
+def _discovery_extract_links(html, base_url, limit=24):
+    from html.parser import HTMLParser
+    from urllib.parse import urljoin, urlparse
+
+    class _Parser(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.links = []
+            self._href = ''
+            self._text_parts = []
+
+        def handle_starttag(self, tag, attrs):
+            if tag != 'a':
+                return
+            ad = dict(attrs)
+            self._href = str(ad.get('href') or '').strip()
+            self._text_parts = []
+
+        def handle_data(self, data):
+            if self._href:
+                self._text_parts.append(str(data or ''))
+
+        def handle_endtag(self, tag):
+            if tag != 'a' or not self._href:
+                return
+            text = re.sub(r'\s+', ' ', ''.join(self._text_parts)).strip()
+            self.links.append((self._href, text))
+            self._href = ''
+            self._text_parts = []
+
+    parser = _Parser()
+    try:
+        parser.feed(str(html or ''))
+    except Exception:
+        pass
+
+    seen = set()
+    out = []
+    base_norm = _discovery_normalize_url(base_url)
+    for href, text in parser.links:
+        if _discovery_skip_href(href):
+            continue
+        abs_url = urljoin(base_norm, href)
+        abs_url = abs_url.split('#')[0].strip()
+        if not abs_url.startswith(('http://', 'https://')):
+            continue
+        if not _discovery_same_site(base_norm, abs_url):
+            continue
+        key = abs_url.rstrip('/').lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        label = text[:80] if text and len(text) >= 3 else _discovery_label_from_url(abs_url)
+        if len(label) < 2:
+            continue
+        score = 0
+        low = abs_url.lower()
+        if any(x in low for x in ('/product', '/products', '/item', '/p/', '/shop', '/collections', 'shopee', 'tokopedia', 'lazada')):
+            score += 3
+        if text:
+            score += 2
+        out.append({'url': abs_url, 'label': label, 'score': score})
+    out.sort(key=lambda x: (-x.get('score', 0), x.get('label', '')))
+    return [{'url': x['url'], 'label': x['label']} for x in out[:limit]]
+
+
+def _discovery_meta_scrape(url, token):
+    url = _discovery_normalize_url(url)
+    token = str(token or '').strip()
+    if not url or not token:
+        return {}
+    try:
+        resp = requests.post(
+            'https://graph.facebook.com/v22.0/',
+            params={'id': url, 'scrape': 'true', 'access_token': token},
+            timeout=15,
+        )
+        body = resp.json() if resp.text else {}
+        if isinstance(body, dict) and body.get('error'):
+            return {}
+        title = str(body.get('title') or '').strip()
+        images = body.get('image') or []
+        thumb = ''
+        if isinstance(images, list) and images:
+            thumb = str((images[0] or {}).get('url') or '').strip()
+        if not thumb:
+            thumb = str(body.get('thumbnail_url') or '').strip()
+        return {'title': title, 'thumb_url': thumb}
+    except Exception:
+        return {}
+
+
+class FacebookCreativeDiscoveryLinksView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        source_url = _discovery_normalize_url(req.GET.get('source_url') or req.GET.get('url') or '')
+        account_id = str(req.GET.get('account_id') or '').strip()
+        if not source_url:
+            return JsonResponse({'links': [], 'message': 'URL sumber belum diisi.'})
+
+        lib = FacebookCreativeMediaLibraryView()
+        token = lib._token(account_id) if account_id else ''
+
+        final_url = source_url
+        html = ''
+        try:
+            resp = requests.get(
+                source_url,
+                timeout=18,
+                headers={'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)'},
+                allow_redirects=True,
+            )
+            final_url = str(resp.url or source_url).strip() or source_url
+            html = resp.text or ''
+        except Exception:
+            html = ''
+
+        suggestions = []
+        seen_urls = set()
+
+        def _append(url, label, thumb_url=''):
+            url = _discovery_normalize_url(url)
+            if not url:
+                return
+            key = url.rstrip('/').lower()
+            if key in seen_urls:
+                return
+            seen_urls.add(key)
+            suggestions.append({
+                'url': url,
+                'label': str(label or _discovery_label_from_url(url))[:80],
+                'thumb_url': str(thumb_url or '').strip(),
+                'recommended': True,
+            })
+
+        meta_main = _discovery_meta_scrape(final_url, token)
+        main_label = meta_main.get('title') or _discovery_label_from_url(final_url)
+        _append(final_url, main_label, meta_main.get('thumb_url') or '')
+
+        for row in _discovery_extract_links(html, final_url, limit=20):
+            thumb = ''
+            if token and len(suggestions) < 8:
+                meta_row = _discovery_meta_scrape(row['url'], token)
+                thumb = meta_row.get('thumb_url') or ''
+                if meta_row.get('title') and (not row.get('label') or row.get('label') == _discovery_label_from_url(row['url'])):
+                    row['label'] = meta_row['title']
+            _append(row['url'], row['label'], thumb)
+            if len(suggestions) >= 15:
+                break
+
+        return JsonResponse({
+            'links': suggestions[:15],
+            'source_url': final_url,
+            'count': len(suggestions[:15]),
+        })
+
 
 class FacebookExistingPostLibraryView(View):
     def dispatch(self, request, *args, **kwargs):
@@ -6715,6 +7264,9 @@ class create_adset_ad_per_account(View):
                 media_story_data = link_data
                 image_file = req.FILES.get('image_file')
                 video_file = req.FILES.get('video_file')
+                image_hash_existing = str(req.POST.get('image_hash') or '').strip()
+                video_id_existing = str(req.POST.get('video_id') or '').strip()
+                video_thumb_existing = str(req.POST.get('video_thumbnail_url') or '').strip()
                 if image_file:
                     ok, err, img_rs = _post_file(f'act_{real_account_id}/adimages', files={'filename': (image_file.name, image_file.file, image_file.content_type or 'application/octet-stream')})
                     if not ok:
@@ -6723,6 +7275,8 @@ class create_adset_ad_per_account(View):
                     image_hash = str(img_data.get('hash') or '').strip()
                     if image_hash:
                         media_story_data['image_hash'] = image_hash
+                elif image_hash_existing:
+                    media_story_data['image_hash'] = image_hash_existing
                 elif video_file:
                     ok, err, vid_rs = _post_file(f'act_{real_account_id}/advideos', files={'source': (video_file.name, video_file.file, video_file.content_type or 'application/octet-stream')})
                     if not ok:
@@ -6744,6 +7298,28 @@ class create_adset_ad_per_account(View):
                         return JsonResponse({'success': False, 'step': 'creative_media', 'adset_id': adset_id, 'message': 'Thumbnail video tidak ditemukan. Coba upload ulang video atau gunakan gambar untuk materi iklan.'})
                     media_story_key = 'video_data'
                     media_story_data = {'video_id': video_id, 'image_url': thumb_url, 'call_to_action': {'type': cta_type, 'value': {'link': website_url}}}
+                    if primary_text:
+                        media_story_data['message'] = primary_text
+                    if headline:
+                        media_story_data['title'] = headline
+                elif video_id_existing:
+                    thumb_url = video_thumb_existing
+                    if not thumb_url:
+                        try:
+                            thumb_resp = requests.get(
+                                f'https://graph.facebook.com/v22.0/{video_id_existing}',
+                                params={'access_token': token, 'fields': 'thumbnails'},
+                                timeout=20,
+                            )
+                            thumb_body = thumb_resp.json() if thumb_resp.text else {}
+                            thumb_rows = (((thumb_body or {}).get('thumbnails') or {}).get('data') or []) if isinstance(thumb_body, dict) else []
+                            thumb_url = str(((thumb_rows[0] or {}).get('uri') if thumb_rows else '') or '').strip()
+                        except Exception:
+                            thumb_url = ''
+                    if not thumb_url:
+                        return JsonResponse({'success': False, 'step': 'creative_media', 'adset_id': adset_id, 'message': 'Thumbnail video library tidak ditemukan. Pilih media lain atau unggah ulang.'})
+                    media_story_key = 'video_data'
+                    media_story_data = {'video_id': video_id_existing, 'image_url': thumb_url, 'call_to_action': {'type': cta_type, 'value': {'link': website_url}}}
                     if primary_text:
                         media_story_data['message'] = primary_text
                     if headline:

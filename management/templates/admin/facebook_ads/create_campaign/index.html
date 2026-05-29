@@ -9890,18 +9890,23 @@
   }
 
   .tm-creative-modal .modal-dialog {
-    max-width: 1200px
+    max-width: 1180px
   }
 
   .tm-creative-modal .modal-content {
-    min-height: 760px
+    min-height: 720px;
+    background: #fff;
+    overflow: hidden;
+    border-radius: 10px
   }
 
   .tm-creative-modal-body {
     display: grid;
-    grid-template-columns: 170px minmax(0, 1fr);
-    min-height: 650px;
-    padding: 0
+    grid-template-columns: 190px minmax(0, 1fr);
+    min-height: 620px;
+    padding: 0;
+    background: #fff;
+    overflow: hidden
   }
 
   .tm-creative-sidebar {
@@ -9962,23 +9967,36 @@
 
   .tm-creative-workspace {
     background: #f5f7fb;
-    min-width: 0
+    min-width: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column
   }
 
   .tm-creative-pane {
     display: none;
-    padding: 16px
+    padding: 16px;
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden
   }
 
   .tm-creative-pane.active {
-    display: block
+    display: flex;
+    flex-direction: column;
+    min-height: 0
+  }
+
+  .tm-creative-pane[data-creative-pane="media"].active {
+    background: #f5f7fb
   }
 
   .tm-creative-pane-head {
     background: #fff;
     margin: -16px -16px 16px;
     padding: 14px 16px;
-    border-bottom: 1px solid #e5e7eb
+    border-bottom: 1px solid #e5e7eb;
+    flex: 0 0 auto
   }
 
   .tm-creative-pane-title {
@@ -9992,6 +10010,287 @@
     border-radius: 4px;
     padding: 16px;
     margin-bottom: 14px
+  }
+
+  .tm-setup-view {
+    display: none
+  }
+
+  .tm-setup-view.active {
+    display: block
+  }
+
+  .tm-setup-source-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #334155;
+    margin-top: 8px
+  }
+
+  .tm-setup-source-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #94a3b8;
+    flex: 0 0 8px
+  }
+
+  .tm-setup-source-dot.is-on {
+    background: #22c55e
+  }
+
+  .tm-setup-ext-card {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 16px
+  }
+
+  .tm-setup-ext-card.is-expanded {
+    border-color: #bfdbfe;
+    background: #f8fbff
+  }
+
+  .tm-setup-ext-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px
+  }
+
+  .tm-setup-link-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #e5e7eb;
+    font-size: 13px
+  }
+
+  .tm-setup-edit-panel {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 20px;
+    margin-top: 16px;
+    padding: 16px;
+    background: #eef7ff;
+    border: 1px solid #dbeafe;
+    border-radius: 8px
+  }
+
+  .tm-setup-preview-frame {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 10px;
+    min-height: 280px;
+    display: flex;
+    align-items: center;
+    justify-content: center
+  }
+
+  .tm-setup-preview-mock {
+    width: 100%;
+    max-width: 160px;
+    text-align: center
+  }
+
+  .tm-setup-preview-media {
+    height: 120px;
+    background: #f1f5f9;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    font-size: 28px
+  }
+
+  .tm-setup-preview-lines span {
+    display: block;
+    height: 8px;
+    background: #e2e8f0;
+    border-radius: 4px;
+    margin: 8px 12px 0
+  }
+
+  .tm-setup-preview-icons {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 12px;
+    color: #64748b
+  }
+
+  .tm-setup-preview-frame.is-carousel .tm-setup-preview-mock {
+    max-width: 180px
+  }
+
+  .tm-setup-preview-frame.is-single .tm-setup-preview-media {
+    height: 160px
+  }
+
+  .tm-setup-preview-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 10px;
+    font-size: 12px;
+    color: #64748b
+  }
+
+  .tm-setup-check-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    cursor: pointer;
+    margin-bottom: 0
+  }
+
+  .tm-setup-check-row input {
+    margin-top: 4px
+  }
+
+  .tm-setup-product-grid {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 12px
+  }
+
+  .tm-setup-product-tile {
+    width: 72px;
+    text-align: center
+  }
+
+  .tm-setup-product-thumb {
+    height: 72px;
+    background: #f1f5f9;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    overflow: hidden;
+    position: relative
+  }
+
+  .tm-setup-product-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block
+  }
+
+  .tm-discovery-thumb {
+    width: 40px;
+    height: 40px;
+    background: #f1f5f9;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    overflow: hidden;
+    position: relative
+  }
+
+  .tm-discovery-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block
+  }
+
+  .tm-discovery-thumb-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center
+  }
+
+  .tm-setup-auto-row {
+    align-items: center;
+    flex-wrap: wrap
+  }
+
+  .tm-setup-auto-feedback {
+    margin-left: auto;
+    display: inline-flex;
+    gap: 4px
+  }
+
+  .tm-auto-feedback.is-active {
+    color: #1877f2
+  }
+
+  .tm-discovery-recommend-banner {
+    font-size: 12px
+  }
+
+  .tm-setup-product-loading {
+    width: 100%;
+    padding: 12px 0
+  }
+
+  .tm-setup-product-label {
+    font-size: 10px;
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis
+  }
+
+  .tm-setup-product-tile.is-more .tm-setup-product-thumb {
+    font-weight: 700;
+    color: #64748b
+  }
+
+  .tm-setup-links-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px
+  }
+
+  .tm-discovery-inline-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto auto auto;
+    gap: 8px;
+    align-items: center
+  }
+
+  .tm-discovery-table th {
+    font-size: 12px;
+    color: #64748b;
+    border-top: 0
+  }
+
+  .tm-discovery-url {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 12px
+  }
+
+  .tm-setup-links-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb
+  }
+
+  .tm-creative-pane[data-creative-pane="setup"].active {
+    display: block
   }
 
   .tm-creative-brand-summary {
@@ -10035,7 +10334,153 @@
     display: flex;
     gap: 8px;
     align-items: center;
-    margin-bottom: 10px
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 10px 12px;
+    flex: 0 0 auto
+  }
+
+  .tm-media-toolbar .tm-media-filter {
+    white-space: nowrap
+  }
+
+  .tm-media-toolbar .tm-media-search {
+    flex: 1 1 200px;
+    min-width: 180px;
+    max-width: none
+  }
+
+  .tm-media-toolbar .tm-media-filter-wrap,
+  .tm-media-toolbar #btnCreativePickImage {
+    margin-left: auto
+  }
+
+  .tm-media-toolbar #btnCreativePickImage {
+    margin-left: 0
+  }
+
+  @media (min-width: 900px) {
+    .tm-media-toolbar .tm-media-search {
+      max-width: 280px
+    }
+
+    .tm-media-toolbar .tm-media-filter-wrap {
+      margin-left: auto
+    }
+  }
+
+  .tm-media-filter-wrap .dropdown-menu {
+    min-width: 320px;
+    padding: 10px 0;
+    max-height: 420px;
+    overflow-y: auto
+  }
+
+  .tm-media-filter-group {
+    padding: 6px 14px 10px;
+    border-bottom: 1px solid #e5e7eb
+  }
+
+  .tm-media-filter-group:last-child {
+    border-bottom: 0
+  }
+
+  .tm-media-filter-group-title {
+    font-size: 12px;
+    font-weight: 800;
+    color: #334155;
+    margin-bottom: 6px
+  }
+
+  .tm-media-filter-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    margin-bottom: 4px;
+    cursor: pointer
+  }
+
+  .tm-media-footer-bar {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    padding: 12px 4px 0;
+    font-size: 13px;
+    flex: 0 0 auto;
+    background: #f5f7fb
+  }
+
+  #tmCreativeMediaLibrary {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 14px;
+    min-height: 320px;
+    max-height: min(52vh, 520px);
+    overflow-x: hidden;
+    overflow-y: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    position: relative;
+    z-index: 2
+  }
+
+  .tm-media-grid-section-block + .tm-media-grid-section-block {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid #eef2f7
+  }
+
+  .tm-media-empty,
+  .tm-media-loading {
+    padding: 48px 16px;
+    text-align: center
+  }
+
+  .tm-media-item.is-video .tm-media-img::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, .08);
+    pointer-events: none
+  }
+
+  .tm-media-item.is-video:not(.has-thumb) .tm-media-img::after {
+    background: rgba(15, 23, 42, .18)
+  }
+
+  .tm-media-item.is-video .tm-media-play {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: 28px;
+    height: 28px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .92);
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    z-index: 2
+  }
+
+  .tm-media-item .tm-media-img {
+    position: relative
+  }
+
+  .tm-media-item .tm-media-warn {
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    color: #f59e0b;
+    font-size: 11px;
+    z-index: 2
   }
 
   .tm-media-filter {
@@ -10062,71 +10507,445 @@
   .tm-media-row-title {
     display: flex;
     justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
     font-size: 12px;
     color: #334155;
-    margin-bottom: 10px
+    margin-bottom: 12px
+  }
+
+  .tm-media-row-title strong {
+    font-size: 14px;
+    color: #0f172a
+  }
+
+  .tm-media-row-title span {
+    text-align: right;
+    white-space: nowrap;
+    color: #64748b;
+    font-size: 12px
   }
 
   .tm-media-grid {
     display: grid;
-    grid-template-columns: repeat(10, minmax(64px, 1fr));
-    gap: 12px;
-    margin-bottom: 22px
+    grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+    gap: 14px 12px;
+    margin-bottom: 4px
+  }
+
+  @media (min-width: 1100px) {
+    .tm-media-grid {
+      grid-template-columns: repeat(8, minmax(0, 1fr))
+    }
   }
 
   .tm-media-item {
-    border: 0;
-    background: transparent;
-    padding: 0;
-    text-align: center;
-    position: relative
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    min-width: 0;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    background: #fff;
+    padding: 6px;
+    text-align: left;
+    position: relative;
+    cursor: pointer;
+    transition: border-color .15s, box-shadow .15s
+  }
+
+  .tm-media-item:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, .08)
+  }
+
+  .tm-media-item.active {
+    border-color: #168bd0;
+    background: #f0f9ff;
+    box-shadow: 0 0 0 1px rgba(22, 139, 208, .25)
   }
 
   .tm-media-item.active .tm-media-img,
   .tm-ai-card.active {
-    outline: 3px solid #168bd0
+    outline: none
   }
 
   .tm-media-img {
-    height: 74px;
-    border-radius: 2px;
-    background: linear-gradient(135deg, #cbd5e1, #334155);
+    width: 100%;
+    aspect-ratio: 9/16;
+    max-height: 168px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #e2e8f0, #94a3b8);
     display: block;
-    margin-bottom: 4px;
-    overflow: hidden
+    margin-bottom: 0;
+    overflow: hidden;
+    position: relative
+  }
+
+  .tm-media-item.has-thumb .tm-media-img {
+    background: #0f172a
+  }
+
+  .tm-media-no-thumb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    min-height: 112px;
+    color: #64748b;
+    font-size: 28px
+  }
+
+  .tm-media-item.is-image .tm-media-img {
+    aspect-ratio: 1/1;
+    max-height: 112px
+  }
+
+  .tm-media-meta {
+    display: block;
+    min-width: 0;
+    padding-top: 8px
+  }
+
+  .tm-media-name {
+    display: block;
+    font-size: 11px;
+    line-height: 1.35;
+    font-weight: 600;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis
+  }
+
+  .tm-media-dim {
+    display: block;
+    margin-top: 2px;
+    font-size: 11px;
+    line-height: 1.3;
+    color: #64748b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis
   }
 
   .tm-media-img img {
     width: 100%;
     height: 100%;
-    object-fit: cover
+    object-fit: cover;
+    display: block;
+    background: #0f172a
   }
 
   .tm-crop-grid {
     display: grid;
-    grid-template-columns: 240px 240px 240px;
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
     gap: 18px
   }
 
   .tm-crop-card {
     background: #fff;
     border: 1px solid #e5e7eb;
-    padding: 12px
+    border-radius: 8px;
+    padding: 14px
+  }
+
+  .tm-crop-options label {
+    display: block;
+    font-size: 13px;
+    margin-bottom: 6px;
+    cursor: pointer;
+    color: #334155
+  }
+
+  .tm-crop-options label:last-child {
+    margin-bottom: 0
+  }
+
+  .tm-crop-options input[type="radio"] {
+    margin-right: 6px
+  }
+
+  .tm-crop-preview-wrap {
+    margin: 12px 0
   }
 
   .tm-crop-box {
     height: 190px;
-    background: #94a3b8;
-    margin: 10px 0;
-    overflow: hidden
+    background: #0f172a;
+    border-radius: 6px 6px 0 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative
+  }
+
+  .tm-crop-box.is-crop-original {
+    background: repeating-conic-gradient(#e2e8f0 0% 25%, #f8fafc 0% 50%) 50% / 16px 16px
+  }
+
+  .tm-crop-box.is-crop-fill {
+    background: #0f172a
   }
 
   .tm-crop-box.vertical {
-    height: 380px
+    height: 360px
   }
 
   .tm-crop-box.horizontal {
-    height: 105px
+    height: 120px
+  }
+
+  .tm-crop-box .tm-crop-video,
+  .tm-crop-box .tm-crop-image {
+    display: block
+  }
+
+  .tm-crop-box.is-crop-fill .tm-crop-video,
+  .tm-crop-box.is-crop-fill .tm-crop-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover
+  }
+
+  .tm-crop-box.is-crop-original .tm-crop-video,
+  .tm-crop-box.is-crop-original .tm-crop-image {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain
+  }
+
+  .tm-crop-original-warn {
+    margin-top: 8px;
+    padding: 10px 12px;
+    border: 1px solid #fcd34d;
+    border-radius: 8px;
+    background: #fffbeb;
+    color: #92400e;
+    font-size: 12px;
+    line-height: 1.45
+  }
+
+  .tm-crop-original-warn i {
+    margin-right: 6px
+  }
+
+  .tm-crop-box .tm-crop-empty {
+    color: #94a3b8;
+    font-size: 12px;
+    padding: 12px;
+    text-align: center
+  }
+
+  .tm-crop-video-controls {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-top: 0;
+    border-radius: 0 0 6px 6px
+  }
+
+  .tm-creative-pane[data-creative-pane="crop"].is-video .tm-crop-video-controls {
+    display: flex
+  }
+
+  .tm-crop-vc-play,
+  .tm-crop-vc-mute {
+    border: 0;
+    background: transparent;
+    color: #334155;
+    padding: 0;
+    width: 26px;
+    height: 26px;
+    flex: 0 0 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer
+  }
+
+  .tm-crop-vc-seek {
+    flex: 1 1 auto;
+    height: 4px;
+    margin: 0;
+    accent-color: #168bd0;
+    cursor: pointer
+  }
+
+  .tm-crop-vc-time {
+    white-space: nowrap;
+    color: #64748b;
+    font-size: 11px;
+    min-width: 76px;
+    text-align: right
+  }
+
+  .tm-crop-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap
+  }
+
+  .tm-trim-alert {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    color: #9a3412;
+    margin-bottom: 16px
+  }
+
+  .tm-trim-alert.is-warning {
+    background: #fff7ed;
+    border-color: #fdba74;
+    color: #c2410c
+  }
+
+  .tm-trim-stage {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 18px
+  }
+
+  .tm-trim-preview {
+    width: min(100%, 320px);
+    aspect-ratio: 9/16;
+    max-height: 420px;
+    background: #0f172a;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center
+  }
+
+  .tm-trim-preview .tm-trim-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block
+  }
+
+  .tm-trim-empty {
+    color: #94a3b8;
+    font-size: 12px;
+    padding: 16px;
+    text-align: center
+  }
+
+  .tm-trim-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 10px 12px
+  }
+
+  .tm-trim-play,
+  .tm-trim-mute {
+    border: 0;
+    background: transparent;
+    color: #334155;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer
+  }
+
+  .tm-trim-track-wrap {
+    flex: 1 1 auto;
+    min-width: 0
+  }
+
+  .tm-trim-track {
+    position: relative;
+    height: 56px;
+    border-radius: 6px;
+    overflow: hidden;
+    background: #111827;
+    cursor: pointer
+  }
+
+  .tm-trim-track-inner {
+    position: absolute;
+    inset: 0;
+    background-repeat: repeat-x;
+    background-size: auto 100%;
+    background-position: left center;
+    opacity: .55
+  }
+
+  .tm-trim-selection {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, .08);
+    border-top: 3px solid #f97316;
+    border-bottom: 3px solid #f97316;
+    pointer-events: none
+  }
+
+  .tm-trim-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 10px;
+    margin-left: -5px;
+    background: #f97316;
+    border-radius: 2px;
+    cursor: ew-resize;
+    z-index: 2
+  }
+
+  .tm-trim-playhead {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    margin-left: -1px;
+    background: #fff;
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, .35);
+    pointer-events: none;
+    z-index: 3
+  }
+
+  .tm-trim-playhead:before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 0 0 1px rgba(15, 23, 42, .25)
+  }
+
+  .tm-trim-range-label {
+    white-space: nowrap;
+    font-size: 11px;
+    color: #64748b;
+    min-width: 150px;
+    text-align: right
+  }
+
+  .tm-creative-pane[data-creative-pane="trim"].active {
+    background: #f5f7fb
   }
 
   .tm-creative-text-form label {
@@ -10142,6 +10961,276 @@
     display: grid;
     grid-template-columns: repeat(6, minmax(120px, 1fr));
     gap: 14px
+  }
+
+  .tm-creative-pane[data-creative-pane="image"].active {
+    display: flex;
+    flex-direction: column;
+    min-height: 0
+  }
+
+  .tm-ai-shell {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0
+  }
+
+  .tm-ai-stats-banner {
+    background: #ecfdf5;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: #166534;
+    margin-bottom: 12px
+  }
+
+  .tm-ai-progress-steps {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 16px;
+    align-items: center;
+    padding: 10px 0 14px;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 14px
+  }
+
+  .tm-ai-progress-step {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #94a3b8
+  }
+
+  .tm-ai-progress-step.is-active {
+    color: #1877f2;
+    font-weight: 600
+  }
+
+  .tm-ai-progress-step.is-done {
+    color: #334155
+  }
+
+  .tm-ai-progress-dot {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid #cbd5e1;
+    flex: 0 0 16px;
+    position: relative
+  }
+
+  .tm-ai-progress-step.is-active .tm-ai-progress-dot {
+    border-color: #1877f2;
+    border-top-color: transparent;
+    animation: tmAiSpin .8s linear infinite
+  }
+
+  .tm-ai-progress-step.is-done .tm-ai-progress-dot {
+    border-color: #22c55e;
+    background: #22c55e
+  }
+
+  .tm-ai-progress-step.is-done .tm-ai-progress-dot:after {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 1px;
+    width: 4px;
+    height: 8px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg)
+  }
+
+  @keyframes tmAiSpin {
+    to { transform: rotate(360deg) }
+  }
+
+  .tm-ai-generating-note {
+    text-align: center;
+    padding: 28px 12px;
+    color: #64748b;
+    font-size: 13px
+  }
+
+  .tm-ai-columns {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto
+  }
+
+  .tm-ai-column {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 12px;
+    min-width: 0
+  }
+
+  .tm-ai-column-title {
+    font-weight: 700;
+    font-size: 13px;
+    color: #0f172a;
+    margin-bottom: 4px
+  }
+
+  .tm-ai-column-desc {
+    font-size: 11px;
+    color: #64748b;
+    line-height: 1.4;
+    margin-bottom: 10px;
+    min-height: 46px
+  }
+
+  .tm-ai-column-select-all {
+    font-size: 11px;
+    margin-bottom: 8px;
+    display: block;
+    cursor: pointer
+  }
+
+  .tm-ai-column-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px
+  }
+
+  .tm-ai-variant {
+    aspect-ratio: 1/1;
+    border: 1px solid #dbe5f4;
+    border-radius: 6px;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    background: #f1f5f9
+  }
+
+  .tm-ai-variant.is-loading {
+    background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+    animation: tmAiPulse 1.2s ease-in-out infinite
+  }
+
+  @keyframes tmAiPulse {
+    0%, 100% { opacity: .55 }
+    50% { opacity: 1 }
+  }
+
+  .tm-ai-variant img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block
+  }
+
+  .tm-ai-variant.is-smooth img { filter: brightness(1.06) saturate(1.08) contrast(1.02) }
+  .tm-ai-variant.is-lifestyle img { filter: brightness(1.02) saturate(1.15) sepia(.12) }
+  .tm-ai-variant.is-ctr img { filter: contrast(1.12) saturate(.95) brightness(1.04) }
+
+  .tm-ai-variant.is-lifestyle:before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255, 237, 213, .25), rgba(15, 23, 42, .08));
+    pointer-events: none
+  }
+
+  .tm-ai-variant.is-ctr:before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    box-shadow: inset 0 0 40px rgba(0, 0, 0, .18);
+    pointer-events: none
+  }
+
+  .tm-ai-variant-check {
+    position: absolute;
+    left: 6px;
+    top: 6px;
+    z-index: 2;
+    width: 16px;
+    height: 16px;
+    accent-color: #1877f2
+  }
+
+  .tm-ai-variant.selected {
+    border-color: #1877f2;
+    box-shadow: 0 0 0 2px rgba(24, 119, 242, .25)
+  }
+
+  .tm-ai-footer-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #e5e7eb;
+    flex: 0 0 auto
+  }
+
+  .tm-ai-selected-tray {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+    font-size: 12px
+  }
+
+  .tm-ai-tray-group {
+    display: flex;
+    align-items: center;
+    gap: 8px
+  }
+
+  .tm-ai-tray-thumbs {
+    display: flex;
+    gap: 6px;
+    align-items: center
+  }
+
+  .tm-ai-tray-thumb {
+    width: 36px;
+    height: 36px;
+    border-radius: 4px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+    background: #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: center
+  }
+
+  .tm-ai-tray-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover
+  }
+
+  .tm-ai-tray-empty {
+    width: 36px;
+    height: 36px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 4px;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px
+  }
+
+  .tm-ai-footer-feedback {
+    display: inline-flex;
+    gap: 4px
+  }
+
+  .tm-ai-feedback.is-active {
+    color: #1877f2
   }
 
   .tm-ai-card {
@@ -10164,6 +11253,683 @@
     border-radius: 3px
   }
 
+  .tm-enhance-shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 0
+  }
+
+  .tm-enhance-view {
+    display: none
+  }
+
+  .tm-enhance-view.active {
+    display: block
+  }
+
+  .tm-enhance-detail-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px
+  }
+
+  .tm-enhance-detail-head .tm-enhance-back {
+    color: #0f172a !important;
+    font-size: 18px;
+    line-height: 1;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center
+  }
+
+  .tm-enhance-detail-head .tm-creative-pane-title {
+    margin: 0;
+    font-size: 20px
+  }
+
+  .tm-enhance-detail-body {
+    max-width: none;
+    padding-right: 8px
+  }
+
+  .tm-enhance-active-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 6px;
+    font-weight: 700;
+    font-size: 15px;
+    color: #0f172a
+  }
+
+  .tm-enhance-active-desc {
+    font-size: 13px;
+    line-height: 1.5;
+    color: #64748b;
+    margin-bottom: 20px;
+    max-width: 680px
+  }
+
+  .tm-enhance-mode-options {
+    margin-top: 4px;
+    border-top: 1px solid #e5e7eb
+  }
+
+  .tm-enhance-mode-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px 0;
+    border-bottom: 1px solid #e5e7eb;
+    margin: 0;
+    cursor: pointer;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #0f172a
+  }
+
+  .tm-enhance-mode-option input[type="radio"] {
+    margin-top: 2px;
+    flex: 0 0 auto;
+    accent-color: #1877f2
+  }
+
+  .tm-enhance-mode-option > span {
+    flex: 1 1 auto
+  }
+
+  .tm-enhance-mode-manual-wrap {
+    border-bottom: 1px solid #e5e7eb
+  }
+
+  .tm-enhance-mode-manual-wrap.is-active {
+    border: 1px solid #c7dff9;
+    border-radius: 8px;
+    margin-top: -1px;
+    margin-bottom: 8px;
+    overflow: hidden;
+    background: #fff
+  }
+
+  .tm-enhance-mode-manual-wrap.is-active .tm-enhance-mode-manual-head {
+    background: #e7f3ff;
+    border-bottom: 0;
+    padding: 14px 16px;
+    margin: 0
+  }
+
+  .tm-enhance-manual-expand {
+    flex: 0 0 auto;
+    color: #64748b !important;
+    font-size: 14px
+  }
+
+  .tm-enhance-manual-panel {
+    display: none
+  }
+
+  .tm-enhance-manual-panel.is-open {
+    display: block;
+    padding: 16px;
+    background: #fff
+  }
+
+  .tm-enhance-music-group + .tm-enhance-music-group {
+    margin-top: 22px;
+    padding-top: 4px
+  }
+
+  .tm-enhance-music-group-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: #0f172a;
+    margin-bottom: 10px
+  }
+
+  .tm-enhance-music-search-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    align-items: center
+  }
+
+  .tm-enhance-search-wrap {
+    position: relative;
+    flex: 1 1 auto
+  }
+
+  .tm-enhance-search-wrap i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #94a3b8;
+    font-size: 13px;
+    pointer-events: none
+  }
+
+  .tm-enhance-search-wrap .form-control {
+    padding-left: 34px;
+    height: 36px;
+    border-radius: 8px;
+    border-color: #dbeafe;
+    font-size: 13px
+  }
+
+  .tm-enhance-search-wrap .form-control:focus {
+    border-color: #1877f2;
+    box-shadow: 0 0 0 2px rgba(24, 119, 242, .12)
+  }
+
+  .tm-enhance-filter-btn {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748b
+  }
+
+  .tm-enhance-gallery-meta {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-bottom: 8px
+  }
+
+  .tm-enhance-gallery-scroll {
+    max-height: 340px;
+    overflow-y: auto;
+    border: 1px solid #eef2f7;
+    border-radius: 8px;
+    background: #fff
+  }
+
+  .tm-enhance-gallery-scroll::-webkit-scrollbar {
+    width: 8px
+  }
+
+  .tm-enhance-gallery-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 999px
+  }
+
+  .tm-enhance-gallery-empty {
+    padding: 24px 16px;
+    text-align: center;
+    font-size: 13px;
+    color: #94a3b8
+  }
+
+  .tm-enhance-track-list {
+    display: flex;
+    flex-direction: column
+  }
+
+  .tm-enhance-track-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #f1f5f9;
+    min-height: 56px
+  }
+
+  .tm-enhance-track-row:last-child {
+    border-bottom: 0
+  }
+
+  .tm-enhance-track-row.is-selected {
+    background: #e7f3ff
+  }
+
+  .tm-enhance-track-check {
+    flex: 0 0 18px;
+    margin: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center
+  }
+
+  .tm-enhance-track-check input {
+    width: 16px;
+    height: 16px;
+    accent-color: #1877f2;
+    cursor: pointer
+  }
+
+  .tm-enhance-track-info {
+    flex: 1 1 auto;
+    min-width: 0
+  }
+
+  .tm-enhance-track-title-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px
+  }
+
+  .tm-enhance-track-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #0f172a;
+    line-height: 1.3
+  }
+
+  .tm-enhance-track-meta {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 3px;
+    line-height: 1.35
+  }
+
+  .tm-enhance-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.4
+  }
+
+  .tm-enhance-badge-ai {
+    background: #eef2ff;
+    color: #4338ca
+  }
+
+  .tm-enhance-badge-rec {
+    background: #ecfdf5;
+    color: #047857
+  }
+
+  .tm-enhance-track-play {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+    color: #334155 !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    font-size: 11px
+  }
+
+  .tm-enhance-track-play:hover {
+    border-color: #1877f2;
+    color: #1877f2 !important
+  }
+
+  .tm-enhance-track-play.is-playing {
+    background: #1877f2;
+    color: #fff !important;
+    border-color: #1877f2
+  }
+
+  .tm-enhance-detail-footer {
+    margin-top: 28px;
+    padding-top: 0;
+    border-top: 0;
+    display: flex;
+    justify-content: flex-end
+  }
+
+  .tm-enhance-detail-footer .btn-primary {
+    background: #1877f2;
+    border-color: #1877f2;
+    border-radius: 6px;
+    font-weight: 600;
+    padding: 8px 18px;
+    font-size: 14px
+  }
+
+  .tm-creative-pane[data-creative-pane="enhance"] .tm-enhance-music-detail.active {
+    overflow: auto
+  }
+
+  .tm-enhance-overlay-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 24px;
+    align-items: start
+  }
+
+  .tm-enhance-overlay-section {
+    margin-top: 22px
+  }
+
+  .tm-enhance-overlay-section-title {
+    font-weight: 700;
+    font-size: 14px;
+    color: #0f172a;
+    margin-bottom: 10px
+  }
+
+  .tm-enhance-overlay-option-row {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+    position: relative
+  }
+
+  .tm-overlay-option-btn {
+    flex: 1 1 0;
+    min-height: 40px;
+    border: 1px solid #dbeafe;
+    border-radius: 8px;
+    background: #fff;
+    color: #0f172a;
+    font-size: 13px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px;
+    cursor: pointer
+  }
+
+  .tm-overlay-option-btn.is-active {
+    border-color: #1877f2;
+    background: #eef6ff;
+    color: #1877f2
+  }
+
+  .tm-overlay-option-btn i {
+    color: #64748b
+  }
+
+  .tm-overlay-option-btn.is-active i {
+    color: #1877f2
+  }
+
+  .tm-overlay-font-picker {
+    position: relative;
+    flex: 1 1 0
+  }
+
+  .tm-overlay-font-picker .tm-overlay-option-btn {
+    width: 100%
+  }
+
+  .tm-overlay-font-menu {
+    display: none;
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 30;
+    background: #fff;
+    border: 1px solid #dbeafe;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .12);
+    max-height: 280px;
+    overflow-y: auto;
+    padding: 6px 0
+  }
+
+  .tm-overlay-font-menu.is-open {
+    display: block
+  }
+
+  .tm-overlay-font-item {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #0f172a;
+    text-align: left;
+    cursor: pointer
+  }
+
+  .tm-overlay-font-item:hover,
+  .tm-overlay-font-item.is-active {
+    background: #f1f5f9
+  }
+
+  .tm-overlay-font-aa {
+    width: 28px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #334155
+  }
+
+  .tm-overlay-font-item span:nth-child(2) {
+    flex: 1 1 auto
+  }
+
+  .tm-overlay-font-item i {
+    color: #94a3b8;
+    font-size: 11px
+  }
+
+  .tm-overlay-color-picker-wrap {
+    position: relative;
+    flex: 1 1 0
+  }
+
+  .tm-overlay-color-picker-wrap .tm-overlay-option-btn {
+    width: 100%
+  }
+
+  .tm-overlay-color-picker {
+    display: none;
+    position: absolute;
+    left: 0;
+    top: calc(100% + 6px);
+    z-index: 30;
+    width: 280px;
+    background: #fff;
+    border: 1px solid #dbeafe;
+    border-radius: 10px;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, .14);
+    padding: 14px
+  }
+
+  .tm-overlay-color-picker.is-open {
+    display: block
+  }
+
+  .tm-overlay-picker-head {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px
+  }
+
+  .tm-overlay-picker-close {
+    border: 0;
+    background: transparent;
+    color: #64748b;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 0
+  }
+
+  .tm-overlay-swatch-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    margin-bottom: 12px
+  }
+
+  .tm-overlay-swatch {
+    width: 100%;
+    aspect-ratio: 1;
+    border: 1px solid rgba(15, 23, 42, .12);
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 0
+  }
+
+  .tm-overlay-swatch.is-active {
+    box-shadow: 0 0 0 2px #fff, 0 0 0 4px #1877f2
+  }
+
+  .tm-overlay-color-gradient {
+    height: 120px;
+    border-radius: 8px;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, #000 100%), linear-gradient(90deg, #fff 0%, #1877f2 100%);
+    margin-bottom: 10px;
+    border: 1px solid #e2e8f0
+  }
+
+  .tm-overlay-color-hex-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px
+  }
+
+  .tm-overlay-color-hex-row input {
+    flex: 1 1 auto;
+    height: 34px;
+    border: 1px solid #dbeafe;
+    border-radius: 6px;
+    padding: 0 10px;
+    font-size: 13px
+  }
+
+  .tm-overlay-color-hue {
+    width: 100%;
+    accent-color: #1877f2
+  }
+
+  .tm-enhance-overlay-preview-pane {
+    background: #f3f4f6;
+    border-radius: 10px;
+    min-height: 420px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px
+  }
+
+  .tm-overlay-preview-phone {
+    width: 220px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, .08)
+  }
+
+  .tm-overlay-preview-media {
+    height: 220px;
+    background: #334155;
+    position: relative;
+    overflow: hidden
+  }
+
+  .tm-overlay-preview-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover
+  }
+
+  .tm-overlay-preview-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #94a3b8;
+    font-size: 28px;
+    background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%)
+  }
+
+  .tm-overlay-preview-banner {
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 8px 10px;
+    line-height: 1.3;
+    min-height: 34px
+  }
+
+  .tm-overlay-preview-lines {
+    padding: 10px 10px 0
+  }
+
+  .tm-overlay-preview-lines span {
+    display: block;
+    height: 6px;
+    background: #e2e8f0;
+    border-radius: 999px;
+    margin-bottom: 6px
+  }
+
+  .tm-overlay-preview-lines span:last-child {
+    width: 70%
+  }
+
+  .tm-overlay-preview-cta {
+    margin: 10px;
+    padding: 7px 10px;
+    border: 1px solid #dbeafe;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #334155
+  }
+
+  .tm-enhance-overlay-tag-bar {
+    display: block;
+    height: 3px;
+    border-radius: 999px;
+    margin-bottom: 6px
+  }
+
+  @media (max-width: 991px) {
+    .tm-enhance-overlay-layout {
+      grid-template-columns: 1fr
+    }
+
+    .tm-enhance-overlay-preview-pane {
+      min-height: 320px
+    }
+  }
+
+  .tm-enhance-notice a {
+    color: #1877f2
+  }
+
+  .tm-enhance-section {
+    margin-bottom: 20px
+  }
+
+  .tm-enhance-section-title {
+    font-weight: 800;
+    font-size: 15px;
+    color: #0f172a;
+    margin-bottom: 12px
+  }
+
+  .tm-enhance-media-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px
+  }
+
+  .tm-enhance-text-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px
+  }
+
   .tm-enhance-grid {
     display: grid;
     grid-template-columns: repeat(4, minmax(170px, 1fr));
@@ -10174,18 +11940,379 @@
   .tm-enhance-card {
     background: #fff;
     border: 1px solid #e5e7eb;
-    padding: 12px;
-    min-height: 360px
+    border-radius: 8px;
+    padding: 14px;
+    min-height: 380px;
+    display: flex;
+    flex-direction: column
+  }
+
+  .tm-enhance-card.is-off {
+    opacity: .72
+  }
+
+  .tm-enhance-card-top {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 8px
+  }
+
+  .tm-enhance-card-head {
+    flex: 1 1 auto;
+    font-size: 13px;
+    line-height: 1.35
+  }
+
+  .tm-enhance-card-head .badge {
+    font-size: 10px;
+    vertical-align: middle;
+    margin-left: 4px
+  }
+
+  .tm-enhance-default-note {
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 6px
+  }
+
+  .tm-enhance-toggle-wrap {
+    position: relative;
+    flex: 0 0 36px;
+    cursor: pointer
+  }
+
+  .tm-enhance-toggle-wrap input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0
+  }
+
+  .tm-enhance-toggle-ui {
+    display: block;
+    width: 36px;
+    height: 20px;
+    background: #cbd5e1;
+    border-radius: 999px;
+    position: relative;
+    transition: background .15s
+  }
+
+  .tm-enhance-toggle-ui:after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform .15s;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .15)
+  }
+
+  .tm-enhance-toggle-wrap input:checked + .tm-enhance-toggle-ui {
+    background: #1877f2
+  }
+
+  .tm-enhance-toggle-wrap input:checked + .tm-enhance-toggle-ui:after {
+    transform: translateX(16px)
   }
 
   .tm-enhance-preview {
-    height: 220px;
+    flex: 1 1 auto;
+    min-height: 200px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    margin: 8px 0 10px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center
+  }
+
+  .tm-enhance-mock-feed {
+    width: 100%;
+    max-width: 180px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 10px
+  }
+
+  .tm-enhance-mock-head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px
+  }
+
+  .tm-enhance-mock-avatar {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: #e2e8f0
+  }
+
+  .tm-enhance-mock-media {
+    position: relative;
+    height: 160px;
+    background: #334155;
+    overflow: hidden
+  }
+
+  .tm-enhance-overlay-tag {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(255, 255, 255, .94);
+    border-radius: 6px;
+    padding: 6px 8px;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, .12)
+  }
+
+  .tm-enhance-mock-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover
+  }
+
+  .tm-enhance-mock-body {
+    padding: 8px
+  }
+
+  .tm-enhance-mock-cta {
+    margin: 0 8px 8px;
+    text-align: center;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    padding: 5px;
+    font-weight: 600;
+    color: #334155
+  }
+
+  .tm-enhance-mock-reels {
+    width: 120px;
+    height: 210px;
+    background: #0f172a;
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative
+  }
+
+  .tm-enhance-mock-reels img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: .92
+  }
+
+  .tm-enhance-mock-reels:after {
+    content: 'Reels';
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700
+  }
+
+  .tm-enhance-mock-music,
+  .tm-enhance-music-player {
+    width: 100%;
+    padding: 0
+  }
+
+  .tm-enhance-music-art {
+    position: relative;
+    height: 120px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: linear-gradient(180deg, #dbeafe 0%, #bfdbfe 100%);
+    margin-bottom: 10px
+  }
+
+  .tm-enhance-music-art-scene {
+    position: absolute;
+    inset: 0
+  }
+
+  .tm-enhance-music-art-sun {
+    position: absolute;
+    top: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #93c5fd;
+    box-shadow: 0 0 0 6px rgba(147, 197, 253, .35)
+  }
+
+  .tm-enhance-music-art-hill {
+    position: absolute;
+    bottom: 0;
+    border-radius: 50% 50% 0 0;
+    background: #60a5fa
+  }
+
+  .tm-enhance-music-art-hill-1 {
+    left: -8%;
+    width: 72%;
+    height: 44px;
+    background: #93c5fd
+  }
+
+  .tm-enhance-music-art-hill-2 {
+    right: -10%;
+    width: 62%;
+    height: 56px
+  }
+
+  .tm-enhance-music-art-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: #1877f2;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    box-shadow: 0 2px 6px rgba(24, 119, 242, .35)
+  }
+
+  .tm-enhance-music-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 2px
+  }
+
+  .tm-enhance-music-play {
+    flex: 0 0 28px;
+    width: 28px;
+    height: 28px;
+    border: 0;
+    border-radius: 50%;
+    background: #1877f2;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    padding: 0;
+    cursor: pointer
+  }
+
+  .tm-enhance-music-play:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(24, 119, 242, .25)
+  }
+
+  .tm-enhance-music-seek {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 4px;
+    margin: 0;
+    accent-color: #1877f2;
+    cursor: pointer
+  }
+
+  .tm-enhance-music-time {
+    flex: 0 0 auto;
+    font-size: 11px;
+    color: #64748b;
+    white-space: nowrap
+  }
+
+  .tm-enhance-music-volume {
+    flex: 0 0 24px;
+    width: 24px;
+    height: 24px;
+    border: 0;
+    background: transparent;
+    color: #64748b;
+    padding: 0;
+    cursor: pointer
+  }
+
+  .tm-enhance-mock-music-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
     background: #dbeafe;
-    margin: 10px 0;
+    color: #1877f2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    margin-bottom: 12px
+  }
+
+  .tm-enhance-mock-audio-bar {
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 999px;
+    overflow: hidden;
+    margin: 8px 0 4px
+  }
+
+  .tm-enhance-mock-audio-fill {
+    height: 100%;
+    width: 8%;
+    background: #1877f2;
+    border-radius: 999px
+  }
+
+  .tm-enhance-mock-text-graphic {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    padding: 20px
+  }
+
+  .tm-enhance-mock-text-graphic span {
+    width: 48px;
+    height: 64px;
+    border-radius: 6px;
+    background: linear-gradient(180deg, #dbeafe, #93c5fd);
+    border: 1px solid #bfdbfe;
+    transform: rotate(-8deg)
+  }
+
+  .tm-enhance-mock-text-graphic span:nth-child(2) {
+    transform: rotate(0deg);
+    height: 72px
+  }
+
+  .tm-enhance-mock-text-graphic span:nth-child(3) {
+    transform: rotate(8deg)
+  }
+
+  .tm-enhance-desc {
+    color: #64748b;
+    line-height: 1.45;
+    margin-bottom: 10px;
+    min-height: 40px
+  }
+
+  .tm-enhance-sample-nav {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #334155
+    gap: 8px;
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 8px
   }
 
   .tm-enhance-switch {
@@ -10193,6 +12320,11 @@
     align-items: center;
     justify-content: space-between;
     font-weight: 800
+  }
+
+  .tm-creative-pane[data-creative-pane="enhance"].active {
+    display: block;
+    overflow: auto
   }
 
   .tm-live-preview-shell {
@@ -13495,6 +15627,11 @@
                 <div class="d-flex justify-content-between align-items-start"><div><strong>Penyempurnaan materi iklan Advantage+ (6/6)</strong><div class="small mt-2"><b>Diaktifkan:</b> Tambahkan overlay, Peningkatan visual, Tambahkan musik dan 3 lainnya</div></div><button type="button" class="btn btn-outline-secondary" id="btnEditEnhancementsInline">Edit</button></div>
               </div>
               <input id="modal_image_file" type="file" accept="image/*" hidden><input id="modal_video_file" type="file" accept="video/*" hidden>
+              <input type="hidden" id="modal_image_hash" value="">
+              <input type="hidden" id="modal_video_id" value="">
+              <input type="hidden" id="modal_video_trim_start" value="">
+              <input type="hidden" id="modal_video_trim_end" value="">
+              <input type="hidden" id="modal_video_thumbnail_url" value="">
               <div id="modal_media_state" class="d-none">Media belum dipilih.</div><div id="modal_media_files" class="d-none"></div>
               <div id="modal_app_mode_warning" class="alert alert-warning py-2 px-3 mt-3 mb-0" style="display:none;">Aplikasi Meta yang dipakai masih dalam mode development. Untuk sementara gunakan <b>Pakai Existing Post</b> dan isi <b>Existing Post ID</b> dari postingan yang sudah publik.</div>
             </div>
@@ -14502,8 +16639,9 @@
       <div class="modal-body tm-creative-modal-body">
         <div class="tm-creative-sidebar">
           <div class="tm-creative-side-title">Siapkan materi iklan Anda</div>
-          <button type="button" class="tm-creative-step active" data-creative-tab="setup"><span class="tm-creative-step-dot"></span>Penyiapan materi ...</button>
-          <button type="button" class="tm-creative-step" data-creative-tab="media"><span class="tm-creative-step-dot"></span>Media</button>
+          <button type="button" class="tm-creative-step active" data-creative-tab="media"><span class="tm-creative-step-dot"></span>Media</button>
+          <button type="button" class="tm-creative-step" data-creative-tab="setup"><span class="tm-creative-step-dot"></span>Penyiapan materi ...</button>
+          <button type="button" class="tm-creative-step" data-creative-tab="trim" style="display:none"><span class="tm-creative-step-dot"></span>Potong</button>
           <button type="button" class="tm-creative-step" data-creative-tab="crop"><span class="tm-creative-step-dot"></span>Pangkas</button>
           <button type="button" class="tm-creative-step" data-creative-tab="text"><span class="tm-creative-step-dot"></span>Teks</button>
           <button type="button" class="tm-creative-step" data-creative-tab="image"><span class="tm-creative-step-dot"></span>Pembuatan gambar</button>
@@ -14511,20 +16649,477 @@
           <button type="button" class="tm-creative-step" data-creative-tab="translate"><span class="tm-creative-step-dot"></span>Terjemahan</button>
         </div>
         <div class="tm-creative-workspace">
-          <div class="tm-creative-pane active" data-creative-pane="setup">
-            <div class="tm-creative-pane-head"><div class="tm-creative-pane-title">Penyiapan materi iklan</div><div class="small">Tinjau dan kelola informasi yang kami temukan di sumber iklan Anda dan kami akan menggunakannya yang dalam penyempurnaan yang Anda pilih.</div></div>
-            <div class="form-group"><label>URL sumber</label><input id="modalCreativeSourceUrl" class="form-control" placeholder="Masukkan URL yang dikunjungi orang setelah iklan Anda"></div>
-            <div class="font-weight-bold mb-2">Ekstensi</div>
-            <div class="tm-creative-section"><div class="d-flex justify-content-between align-items-start"><div><strong>Branding</strong> <i class="fas fa-info-circle text-muted"></i> <span class="badge badge-secondary ml-2" id="tmBrandingState">Nonaktif</span><div class="small mt-2">Tetapkan default merek untuk iklan ini dan iklan berikutnya.</div></div><button type="button" class="btn btn-link p-0" id="btnEditCreativeBranding"><i class="fas fa-pen"></i></button></div><div class="tm-creative-brand-summary mt-3"><span>Logo: <i class="fas fa-upload"></i></span><span>Font: Belum dipilih</span><span>Warna: Belum dipilih</span><span>Nada teks: Belum dipilih</span><span>Gaya visual: Belum dipilih</span><i class="fas fa-pen"></i></div>
-              <div class="tm-creative-brand-form" id="tmCreativeBrandingForm"><div class="row"><div class="col-md-6"><label><input type="checkbox" id="tmApplyBranding"> Terapkan branding ini</label><div class="font-weight-bold mt-3">Logo <i class="fas fa-info-circle text-muted"></i></div><div class="d-flex mt-2 mb-3"><div class="border rounded p-2 mr-2 text-center" style="width:64px;height:64px;">LOGO</div><button type="button" class="btn btn-light border" style="width:64px;height:64px;">+</button></div><div class="font-weight-bold">Font <i class="fas fa-info-circle text-muted"></i></div><select id="tmBrandFont" class="form-control no-select2 mb-3"><option>Tidak ada preferensi</option><option>Sans modern</option><option>Serif elegan</option></select><div class="font-weight-bold">Warna <i class="fas fa-info-circle text-muted"></i></div><div class="tm-creative-color-pills mt-2"><span>+</span><span>+</span><span>+</span></div></div><div class="col-md-6"><label>Nada teks <i class="fas fa-info-circle text-muted"></i></label><textarea id="tmBrandTone" class="form-control mb-3" rows="4" maxlength="300" placeholder="Deskripsikan nada, seperti hangat, informatif, dan komunikatif"></textarea><label>Gaya visual <i class="fas fa-info-circle text-muted"></i></label><textarea id="tmBrandVisual" class="form-control mb-3" rows="4" maxlength="300" placeholder="Deskripsikan gaya visual Anda, seperti penuh warna dan alami"></textarea><label>Kata yang dibatasi <i class="fas fa-info-circle text-muted"></i></label><input id="tmBrandBlockedWords" class="form-control" placeholder="Masukkan kata dan frasa yang dibatasi"></div></div></div>
+          <div class="tm-creative-pane" data-creative-pane="setup">
+            <input type="hidden" id="modal_discovery_links" value="[]">
+            <div class="tm-setup-view tm-setup-summary active" id="tmSetupSummary">
+              <div class="tm-creative-pane-head">
+                <div class="tm-creative-pane-title">Penyiapan materi iklan</div>
+                <div class="small">Tinjau dan kelola informasi yang kami temukan di sumber iklan Anda dan kami akan menggunakannya dalam penyempurnaan yang Anda pilih.</div>
+              </div>
+              <div class="tm-setup-source-row">
+                <span class="tm-setup-source-dot"></span>
+                <span>URL sumber: <strong id="tmSetupSourceUrlDisplay">-</strong></span>
+              </div>
+              <input type="hidden" id="modalCreativeSourceUrl">
+              <div class="font-weight-bold mb-2 mt-3">Ekstensi</div>
+              <div class="tm-setup-ext-card">
+                <div class="tm-setup-ext-head">
+                  <div>
+                    <strong>Sorotan situs web</strong> <i class="fas fa-info-circle text-muted"></i>
+                    <span class="badge badge-secondary ml-1" id="tmWebHighlightsState">Nonaktif</span>
+                    <div class="small mt-2 text-muted">Gunakan gambar menarik dan tautan dari situs web di iklan Anda untuk membantu orang memahami bisnis Anda.</div>
+                  </div>
+                </div>
+                <div class="tm-setup-link-row">
+                  <span>Tautan penemuan: <strong id="tmDiscoveryLinkCount">0</strong> <span class="text-muted" id="tmDiscoveryLinkState">Nonaktif</span></span>
+                  <button type="button" class="btn btn-link p-0" id="btnEditWebHighlights" aria-label="Edit"><i class="fas fa-pen"></i></button>
+                </div>
+              </div>
             </div>
-            <div class="tm-creative-section"><div class="d-flex justify-content-between align-items-start"><div><strong>Tautan situs</strong> <i class="fas fa-info-circle text-muted"></i> <span class="badge badge-secondary ml-2" id="tmSiteLinksState">Nonaktif</span><div class="small mt-2">Berpotensi membantu meningkatkan konversi dengan menyediakan lebih banyak cara bagi orang untuk mempelajari dan membeli.</div></div><button type="button" class="btn btn-outline-secondary btn-sm">Kelola tautan situs</button></div><div class="mt-3 p-3" style="background:#eef7ff;"><label><input type="checkbox" id="tmEnableSiteLinks"> Aktifkan tautan situs</label><div class="form-row mt-3"><div class="col-md-5"><label>URL</label><input id="tmSiteLinkUrl" class="form-control" placeholder="http://www.example.com/page"></div><div class="col-md-4"><label>Label tampilan</label><input id="tmSiteLinkLabel" class="form-control" placeholder="Tulis label untuk tautan Anda"></div><div class="col-md-2"><label>Gambar mini</label><button type="button" class="btn btn-light border btn-block"><i class="fas fa-upload"></i></button></div><div class="col-md-1 d-flex align-items-end"><button type="button" class="btn btn-light border">+</button></div></div><label class="small mt-3"><input type="checkbox"> Identifikasi dan tambahkan tautan situs yang relevan saat iklan Anda dijalankan</label></div></div>
+            <div class="tm-setup-view tm-setup-edit" id="tmSetupEdit">
+              <div class="tm-creative-pane-head">
+                <div class="tm-creative-pane-title">Penyiapan materi iklan</div>
+                <div class="tm-setup-source-row">
+                  <span class="tm-setup-source-dot is-on"></span>
+                  <span>URL sumber: <strong id="tmSetupSourceUrlDisplayEdit">-</strong></span>
+                </div>
+              </div>
+              <div class="font-weight-bold mb-2">Ekstensi</div>
+              <div class="tm-setup-ext-card is-expanded">
+                <div class="tm-setup-ext-head">
+                  <div>
+                    <strong>Sorotan situs web</strong> <i class="fas fa-info-circle text-muted"></i>
+                    <span class="badge badge-secondary ml-1" id="tmWebHighlightsStateEdit">Nonaktif</span>
+                    <div class="small mt-2 text-muted">Gunakan gambar menarik dan tautan dari situs web di iklan Anda untuk membantu orang memahami bisnis Anda.</div>
+                  </div>
+                  <button type="button" class="btn btn-outline-secondary btn-sm" id="btnManageDiscoveryLinks">Kelola tautan penemuan</button>
+                </div>
+                <div class="tm-setup-edit-panel">
+                  <div class="tm-setup-preview-col">
+                    <div class="tm-setup-preview-frame is-collection" id="tmSetupPreviewFrame">
+                      <div class="tm-setup-preview-mock">
+                        <div class="tm-setup-preview-media"><i class="fas fa-image"></i></div>
+                        <div class="tm-setup-preview-lines"><span></span><span></span></div>
+                        <div class="tm-setup-preview-icons"><i class="fas fa-shopping-bag"></i><i class="fas fa-shopping-bag"></i><i class="fas fa-shopping-bag"></i></div>
+                      </div>
+                    </div>
+                    <div class="tm-setup-preview-nav">
+                      <button type="button" class="btn btn-link btn-sm p-1" id="btnSetupPreviewPrev"><i class="fas fa-chevron-left"></i></button>
+                      <span id="tmSetupPreviewLabel">Koleksi format</span>
+                      <button type="button" class="btn btn-link btn-sm p-1" id="btnSetupPreviewNext"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <div class="small text-muted text-center mt-1">Digunakan dalam <span id="tmSetupPreviewLabelSub">Koleksi format</span></div>
+                  </div>
+                  <div class="tm-setup-config-col">
+                    <div class="font-weight-bold mb-2">Dari mana saja di situs web Anda</div>
+                    <label class="tm-setup-check-row">
+                      <input type="checkbox" id="tmEnableDiscoveryLinks">
+                      <span><strong>Tautan penemuan</strong><br><span class="small text-muted">Tampilkan lebih banyak produk dalam iklan Anda agar orang bisa menjelajahi selengkapnya bisnis Anda.</span></span>
+                    </label>
+                    <div class="tm-setup-product-grid" id="tmSetupProductGrid"></div>
+                    <div class="tm-discovery-recommend-banner d-none alert alert-light border py-2 px-3 mt-2 mb-0" id="tmDiscoveryRecommendBanner">
+                      <i class="fas fa-magic text-primary mr-1"></i>
+                      <span><strong id="tmDiscoveryRecommendCount">0</strong> tautan direkomendasikan dari situs web Anda.</span>
+                      <button type="button" class="btn btn-link btn-sm p-0 ml-2" id="btnRefreshDiscoveryRecommend">Muat ulang</button>
+                    </div>
+                    <a href="#" class="small d-inline-block mt-2 tm-setup-show-more" id="btnSetupShowMoreLinks" onclick="return false;">Tampilkan lebih banyak <i class="fas fa-chevron-down"></i></a>
+                    <label class="tm-setup-check-row tm-setup-auto-row mt-3">
+                      <input type="checkbox" id="tmAutoDiscoverLinks" checked>
+                      <span class="small">Identifikasi dan tambahkan tautan penemuan yang relevan saat iklan Anda dijalankan <i class="fas fa-info-circle text-muted"></i></span>
+                      <span class="tm-setup-auto-feedback">
+                        <button type="button" class="btn btn-link btn-sm p-0 tm-auto-feedback" data-vote="up" title="Membantu"><i class="far fa-thumbs-up"></i></button>
+                        <button type="button" class="btn btn-link btn-sm p-0 tm-auto-feedback" data-vote="down" title="Kurang membantu"><i class="far fa-thumbs-down"></i></button>
+                      </span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="tm-setup-view tm-setup-links" id="tmSetupLinks">
+              <div class="tm-setup-links-head">
+                <button type="button" class="btn btn-link btn-sm p-0 mr-2" id="btnSetupLinksBack"><i class="fas fa-chevron-left"></i></button>
+                <div>
+                  <div class="font-weight-bold">Kelola tautan penemuan</div>
+                  <div class="small text-muted">Tambahkan, edit, atau hapus tautan penemuan untuk akun iklan ini dan pilih mana yang ingin Anda tampilkan di iklan Anda.</div>
+                </div>
+              </div>
+              <div class="tm-discovery-recommend-banner d-none alert alert-light border py-2 px-3 mt-3 mb-0" id="tmDiscoveryRecommendBannerManage">
+                <i class="fas fa-magic text-primary mr-1"></i>
+                <span>Tautan berlabel <strong>Rekomendasi</strong> diambil otomatis dari URL sumber iklan Anda.</span>
+              </div>
+              <button type="button" class="btn btn-outline-primary btn-sm mt-3" id="btnShowDiscoveryAddForm">Tambahkan tautan penemuan</button>
+              <div class="tm-discovery-add-form d-none mt-3" id="tmDiscoveryAddForm">
+                <div class="font-weight-bold mb-2">Tambahkan tautan penemuan</div>
+                <div class="tm-discovery-inline-form">
+                  <input type="url" class="form-control form-control-sm" id="tmDiscoveryAddUrl" placeholder="http://www.example.com/page">
+                  <input type="text" class="form-control form-control-sm" id="tmDiscoveryAddLabel" placeholder="Tulis label untuk tautan Anda">
+                  <button type="button" class="btn btn-light border btn-sm" title="Unggah gambar mini"><i class="fas fa-upload"></i></button>
+                  <button type="button" class="btn btn-light border btn-sm" id="btnDiscoveryAddCancel">Batalkan</button>
+                  <button type="button" class="btn btn-primary btn-sm" id="btnDiscoveryAddSubmit">Tambah</button>
+                </div>
+              </div>
+              <div class="table-responsive mt-3">
+                <table class="table table-sm tm-discovery-table">
+                  <thead><tr><th style="width:36px"></th><th>Gambar mini</th><th>Label tampilan</th><th>URL</th><th style="width:72px"></th></tr></thead>
+                  <tbody id="tmDiscoveryLinksTableBody"></tbody>
+                </table>
+              </div>
+              <div class="tm-setup-links-footer">
+                <button type="button" class="btn btn-light border" id="btnSetupLinksBackFooter">Kembali ke penyiapan materi iklan</button>
+                <button type="button" class="btn btn-primary" id="btnApplyDiscoveryLinks">Terapkan ke iklan</button>
+              </div>
+            </div>
           </div>
-          <div class="tm-creative-pane" data-creative-pane="media"><div class="tm-creative-pane-head"><div class="tm-creative-pane-title">Media</div><div class="small">Pilih atau unggah media yang Anda inginkan untuk digunakan pada iklan Anda.</div></div><div class="tm-media-toolbar"><button class="tm-media-filter active">Semua</button><button class="tm-media-filter">Akun</button><button class="tm-media-filter">Bisnis</button><button class="tm-media-filter">Instagram</button><button class="tm-media-filter">Halaman</button><input class="form-control ml-2" placeholder="Cari media"><button type="button" class="btn btn-outline-secondary" id="btnCreativePickImage"><i class="fas fa-upload mr-1"></i>Unggah</button></div><div class="tm-media-grid-section"><div class="tm-media-row-title"><strong>Gambar Akun</strong><span>Menampilkan 10 gambar pertama <a href="#">Lihat semua</a></span></div><div class="tm-media-grid"><button type="button" class="tm-media-item" data-media-sample="1"><span class="tm-media-img"></span><span class="small">untitled<br>100 • 100</span></button><button type="button" class="tm-media-item" data-media-sample="2"><span class="tm-media-img"></span><span class="small">untitled<br>1125 • 590</span></button><button type="button" class="tm-media-item" data-media-sample="3"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 324</span></button><button type="button" class="tm-media-item" data-media-sample="4"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 1024</span></button><button type="button" class="tm-media-item" data-media-sample="5"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 576</span></button><button type="button" class="tm-media-item" data-media-sample="6"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 1920</span></button><button type="button" class="tm-media-item" data-media-sample="7"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 608</span></button><button type="button" class="tm-media-item" data-media-sample="8"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 1920</span></button><button type="button" class="tm-media-item" data-media-sample="9"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 1024</span></button><button type="button" class="tm-media-item" data-media-sample="10"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 1920</span></button></div><div class="tm-media-row-title"><strong>Gambar Instagram</strong><span>Menampilkan 10 gambar pertama <a href="#">Lihat semua</a></span></div><div class="tm-media-grid"><button type="button" class="tm-media-item" data-media-sample="1"><span class="tm-media-img"></span><span class="small">untitled<br>100 • 100</span></button><button type="button" class="tm-media-item" data-media-sample="2"><span class="tm-media-img"></span><span class="small">untitled<br>1125 • 590</span></button><button type="button" class="tm-media-item" data-media-sample="3"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 324</span></button><button type="button" class="tm-media-item" data-media-sample="4"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 1024</span></button><button type="button" class="tm-media-item" data-media-sample="5"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 576</span></button><button type="button" class="tm-media-item" data-media-sample="6"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 1920</span></button><button type="button" class="tm-media-item" data-media-sample="7"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 608</span></button><button type="button" class="tm-media-item" data-media-sample="8"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 1920</span></button><button type="button" class="tm-media-item" data-media-sample="9"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 1024</span></button><button type="button" class="tm-media-item" data-media-sample="10"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 1920</span></button></div><div class="tm-media-row-title"><strong>Berita 21</strong><span>Menampilkan 10 gambar pertama <a href="#">Lihat semua</a></span></div><div class="tm-media-grid"><button type="button" class="tm-media-item" data-media-sample="1"><span class="tm-media-img"></span><span class="small">untitled<br>100 • 100</span></button><button type="button" class="tm-media-item" data-media-sample="2"><span class="tm-media-img"></span><span class="small">untitled<br>1125 • 590</span></button><button type="button" class="tm-media-item" data-media-sample="3"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 324</span></button><button type="button" class="tm-media-item" data-media-sample="4"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 1024</span></button><button type="button" class="tm-media-item" data-media-sample="5"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 576</span></button><button type="button" class="tm-media-item" data-media-sample="6"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 1920</span></button><button type="button" class="tm-media-item" data-media-sample="7"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 608</span></button><button type="button" class="tm-media-item" data-media-sample="8"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 1920</span></button><button type="button" class="tm-media-item" data-media-sample="9"><span class="tm-media-img"></span><span class="small">untitled<br>576 • 1024</span></button><button type="button" class="tm-media-item" data-media-sample="10"><span class="tm-media-img"></span><span class="small">untitled<br>1080 • 1920</span></button></div></div></div>
-          <div class="tm-creative-pane" data-creative-pane="crop"><div class="tm-creative-pane-head"><div class="tm-creative-pane-title">Pilih potongan media untuk penempatan</div><div class="small">Kami mengevaluasi gambar Anda dan memotongnya untuk mengisi penempatan jika kinerjanya lebih baik.</div></div><div class="tm-crop-grid"><div class="tm-crop-card"><strong>Persegi</strong><label class="d-block mt-2"><input type="radio"> Asli</label><label><input type="radio" checked> 1:1 (Direkomendasikan)</label><div class="tm-crop-box" id="tmCropSquare"></div><button class="btn btn-light border btn-sm">Pangkas</button> <button class="btn btn-light border btn-sm">Ganti</button></div><div class="tm-crop-card"><strong>Vertikal</strong><label class="d-block mt-2"><input type="radio" checked> Asli</label><label><input type="radio"> 9:16</label><div class="tm-crop-box vertical" id="tmCropVertical"></div><button class="btn btn-light border btn-sm">Pangkas</button> <button class="btn btn-light border btn-sm">Ganti</button></div><div class="tm-crop-card"><strong>Horizontal</strong><label class="d-block mt-2"><input type="radio"> Asli</label><label><input type="radio" checked> 1.91:1 (Direkomendasikan)</label><div class="tm-crop-box horizontal" id="tmCropHorizontal"></div><button class="btn btn-light border btn-sm">Pangkas</button> <button class="btn btn-light border btn-sm">Ganti</button></div></div></div>
+                    <div class="tm-creative-pane active" data-creative-pane="media">
+            <div class="tm-creative-pane-head">
+              <div class="tm-creative-pane-title">Media</div>
+              <div class="small">Pilih atau unggah media yang Anda inginkan untuk digunakan pada iklan Anda. Anda bisa memilih satu gambar atau video.</div>
+            </div>
+            <div class="tm-media-toolbar">
+              <button type="button" class="tm-media-filter active" data-media-source="all">Semua</button>
+              <button type="button" class="tm-media-filter" data-media-source="account">Akun</button>
+              <button type="button" class="tm-media-filter" data-media-source="business">Bisnis</button>
+              <button type="button" class="tm-media-filter" data-media-source="instagram">Instagram</button>
+              <button type="button" class="tm-media-filter" data-media-source="page">Halaman</button>
+              <input type="search" class="form-control tm-media-search" id="tmCreativeMediaSearch" placeholder="Cari media">
+              <div class="dropdown tm-media-filter-wrap">
+                <button type="button" class="btn btn-outline-secondary dropdown-toggle" id="btnCreativeMediaFilter" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Filter</button>
+                <div class="dropdown-menu dropdown-menu-right tm-media-filter-menu" id="tmCreativeMediaFilterMenu">
+                  <div class="tm-media-filter-group">
+                    <div class="tm-media-filter-group-title">Filter video</div>
+                    <label class="tm-media-filter-option"><input type="checkbox" data-media-filter="original_only"> Hanya unggahan asli</label>
+                  </div>
+                  <div class="tm-media-filter-group">
+                    <div class="tm-media-filter-group-title">Kebijakan</div>
+                    <label class="tm-media-filter-option"><input type="checkbox" data-media-filter="policy_ok"> Mungkin Patuh pada Kebijakan</label>
+                    <label class="tm-media-filter-option"><input type="checkbox" data-media-filter="policy_maybe_not"> Mungkin Tidak Patuh</label>
+                  </div>
+                  <div class="tm-media-filter-group">
+                    <div class="tm-media-filter-group-title">Durasi</div>
+                    <label class="tm-media-filter-option"><input type="checkbox" data-media-filter="duration_lt15"> Kurang dari 15 detik</label>
+                    <label class="tm-media-filter-option"><input type="checkbox" data-media-filter="duration_lt60"> Kurang dari 60 detik</label>
+                    <label class="tm-media-filter-option"><input type="checkbox" data-media-filter="duration_gte60"> 60 detik atau lebih</label>
+                  </div>
+                  <div class="tm-media-filter-group">
+                    <div class="tm-media-filter-group-title">Rasio Aspek</div>
+                    <label class="tm-media-filter-option"><input type="checkbox" data-media-filter="aspect_169"> Horizontal layar penuh (16:9)</label>
+                    <label class="tm-media-filter-option"><input type="checkbox" data-media-filter="aspect_916"> Vertikal layar penuh (9:16)</label>
+                    <label class="tm-media-filter-option"><input type="checkbox" data-media-filter="aspect_45"> Vertikal (4:5)</label>
+                  </div>
+                </div>
+              </div>
+              <button type="button" class="btn btn-outline-secondary" id="btnCreativePickImage"><i class="fas fa-upload mr-1"></i>Unggah</button>
+            </div>
+            <div id="tmCreativeMediaLibrary">
+              <div class="tm-media-empty text-muted" id="tmCreativeMediaEmpty">Pilih akun iklan terlebih dahulu, lalu media akan dimuat dari Meta.</div>
+            </div>
+            <div class="tm-media-footer-bar">
+              <span><strong id="tmCreativeMediaSelectedCount">0</strong> dipilih</span>
+              <span class="text-muted">· Media dari Anda</span>
+            </div>
+          </div>
+          <div class="tm-creative-pane" data-creative-pane="trim">
+            <div class="tm-creative-pane-head">
+              <div class="tm-creative-pane-title">Potong video</div>
+              <div class="small">Geser sisi pemotong untuk menyesuaikan durasi video Anda</div>
+            </div>
+            <div class="tm-trim-alert" id="tmTrimDurationHint"><i class="fas fa-info-circle mr-1"></i>Pilih video terlebih dahulu</div>
+            <div class="tm-trim-stage">
+              <div class="tm-trim-preview" id="tmTrimPreview"><span class="tm-trim-empty">Pilih video terlebih dahulu</span></div>
+            </div>
+            <div class="tm-trim-toolbar">
+              <button type="button" class="tm-trim-play" id="btnTrimPlay" aria-label="Putar"><i class="fas fa-play"></i></button>
+              <div class="tm-trim-track-wrap">
+                <div class="tm-trim-track" id="tmTrimTrack">
+                  <div class="tm-trim-track-inner" id="tmTrimTrackInner"></div>
+                  <div class="tm-trim-selection" id="tmTrimSelection"></div>
+                  <div class="tm-trim-playhead" id="tmTrimPlayhead"></div>
+                  <div class="tm-trim-handle" id="tmTrimHandleStart"></div>
+                  <div class="tm-trim-handle" id="tmTrimHandleEnd"></div>
+                </div>
+              </div>
+              <span class="tm-trim-range-label" id="tmTrimRangeLabel">00:00.00 Sampai 00:00.00</span>
+              <button type="button" class="tm-trim-mute" id="btnTrimMute" aria-label="Suara"><i class="fas fa-volume-up"></i></button>
+            </div>
+          </div>
+          <div class="tm-creative-pane" data-creative-pane="crop">
+            <div class="tm-creative-pane-head">
+              <div class="tm-creative-pane-title">Pilih potongan media untuk penempatan</div>
+              <div class="small">Kami mengevaluasi gambar Anda dan memotongnya untuk mengisi penempatan jika kinerjanya lebih baik.</div>
+            </div>
+            <div class="tm-crop-grid">
+              <div class="tm-crop-card">
+                <strong>Persegi</strong>
+                <div class="tm-crop-options mt-2">
+                  <label><input type="radio" name="tm_crop_square" value="original"> Asli</label>
+                  <label><input type="radio" name="tm_crop_square" value="1_1" checked> 1:1 (Direkomendasikan)</label>
+                </div>
+                <div class="tm-crop-original-warn d-none" data-crop-warn="square"><i class="fas fa-exclamation-triangle"></i>Iklan Anda mungkin tidak ditampilkan di sebagian besar penempatan persegi atau mungkin dipangkas secara otomatis. Pangkas iklan Anda atau ubah video Anda untuk menghindari hal ini.</div>
+                <div class="tm-crop-preview-wrap">
+                  <div class="tm-crop-box" id="tmCropSquare"><span class="tm-crop-empty">Pilih media terlebih dahulu</span></div>
+                  <div class="tm-crop-video-controls">
+                    <button type="button" class="tm-crop-vc-play" aria-label="Putar"><i class="fas fa-play"></i></button>
+                    <input type="range" class="tm-crop-vc-seek" min="0" max="100" value="0" step="0.1">
+                    <span class="tm-crop-vc-time">0:00/0:00</span>
+                    <button type="button" class="tm-crop-vc-mute" aria-label="Suara"><i class="fas fa-volume-up"></i></button>
+                  </div>
+                </div>
+                <div class="tm-crop-actions">
+                  <button type="button" class="btn btn-light border btn-sm" disabled><i class="fas fa-crop-alt mr-1"></i>Pangkas</button>
+                  <button type="button" class="btn btn-light border btn-sm tm-crop-change" data-creative-tab="media"><i class="fas fa-exchange-alt mr-1"></i>Ganti</button>
+                </div>
+              </div>
+              <div class="tm-crop-card">
+                <strong>Vertikal</strong>
+                <div class="tm-crop-options mt-2">
+                  <label><input type="radio" name="tm_crop_vertical" value="original" checked> Asli</label>
+                  <label><input type="radio" name="tm_crop_vertical" value="9_16"> 9:16 (Direkomendasikan)</label>
+                </div>
+                <div class="tm-crop-original-warn d-none" data-crop-warn="vertical"><i class="fas fa-exclamation-triangle"></i>Iklan Anda mungkin tidak ditampilkan di sebagian besar penempatan vertikal atau mungkin dipangkas secara otomatis. Pangkas iklan Anda atau ubah video Anda untuk menghindari hal ini.</div>
+                <div class="tm-crop-preview-wrap">
+                  <div class="tm-crop-box vertical" id="tmCropVertical"><span class="tm-crop-empty">Pilih media terlebih dahulu</span></div>
+                  <div class="tm-crop-video-controls">
+                    <button type="button" class="tm-crop-vc-play" aria-label="Putar"><i class="fas fa-play"></i></button>
+                    <input type="range" class="tm-crop-vc-seek" min="0" max="100" value="0" step="0.1">
+                    <span class="tm-crop-vc-time">0:00/0:00</span>
+                    <button type="button" class="tm-crop-vc-mute" aria-label="Suara"><i class="fas fa-volume-up"></i></button>
+                  </div>
+                </div>
+                <div class="tm-crop-actions">
+                  <button type="button" class="btn btn-light border btn-sm" disabled><i class="fas fa-crop-alt mr-1"></i>Pangkas</button>
+                  <button type="button" class="btn btn-light border btn-sm tm-crop-change" data-creative-tab="media"><i class="fas fa-exchange-alt mr-1"></i>Ganti</button>
+                </div>
+              </div>
+              <div class="tm-crop-card">
+                <strong>Horizontal</strong>
+                <div class="tm-crop-options mt-2">
+                  <label><input type="radio" name="tm_crop_horizontal" value="original"> Asli</label>
+                  <label><input type="radio" name="tm_crop_horizontal" value="191_1" checked> 1.91:1 (Direkomendasikan)</label>
+                </div>
+                <div class="tm-crop-original-warn d-none" data-crop-warn="horizontal"><i class="fas fa-exclamation-triangle"></i>Iklan Anda mungkin tidak ditampilkan di sebagian besar penempatan horizontal atau mungkin dipangkas secara otomatis. Pangkas iklan Anda atau ubah video Anda untuk menghindari hal ini.</div>
+                <div class="tm-crop-preview-wrap">
+                  <div class="tm-crop-box horizontal" id="tmCropHorizontal"><span class="tm-crop-empty">Pilih media terlebih dahulu</span></div>
+                  <div class="tm-crop-video-controls">
+                    <button type="button" class="tm-crop-vc-play" aria-label="Putar"><i class="fas fa-play"></i></button>
+                    <input type="range" class="tm-crop-vc-seek" min="0" max="100" value="0" step="0.1">
+                    <span class="tm-crop-vc-time">0:00/0:00</span>
+                    <button type="button" class="tm-crop-vc-mute" aria-label="Suara"><i class="fas fa-volume-up"></i></button>
+                  </div>
+                </div>
+                <div class="tm-crop-actions">
+                  <button type="button" class="btn btn-light border btn-sm" disabled><i class="fas fa-crop-alt mr-1"></i>Pangkas</button>
+                  <button type="button" class="btn btn-light border btn-sm tm-crop-change" data-creative-tab="media"><i class="fas fa-exchange-alt mr-1"></i>Ganti</button>
+                </div>
+              </div>
+            </div>
+          </div>
           <div class="tm-creative-pane" data-creative-pane="text"><div class="tm-creative-pane-head"><div class="tm-creative-pane-title">Teks</div><div class="small">Tambahkan beberapa opsi teks dan kami akan menampilkan opsi yang kami prediksi akan berkinerja paling baik.</div></div><div class="tm-creative-text-form"><label>Teks utama <i class="fas fa-info-circle text-muted"></i></label><input id="modal_primary_text" class="form-control" placeholder="Beri tahu orang-orang tentang apa iklan Anda"><label>Judul <i class="fas fa-info-circle text-muted"></i></label><input id="modal_headline" class="form-control" placeholder="Tulis judul yang singkat"><label>Deskripsi <i class="fas fa-info-circle text-muted"></i></label><textarea id="modal_description" class="form-control" rows="3" placeholder="Masukkan detail tambahan"></textarea><label>Ajakan bertindak <i class="fas fa-info-circle text-muted"></i></label><select id="modal_cta_proxy" class="form-control no-select2"><option value="GET_OFFER">Dapatkan promosi</option><option value="GET_SHOWTIMES">Dapatkan Waktu Pertunjukan</option><option value="LEARN_MORE" selected>Lihat Detail</option><option value="LEARN_MORE">Pelajari selengkapnya</option><option value="LISTEN_NOW">Dengarkan Sekarang</option><option value="ORDER_NOW">Pesan sekarang</option><option value="GET_ACCESS">Dapatkan akses</option><option value="REQUEST_TIME">Minta Waktu</option><option value="SHOP_NOW">Belanja Sekarang</option><option value="SIGN_UP">Daftar</option><option value="CONTACT_US">Hubungi Kami</option><option value="APPLY_NOW">Lamar Sekarang</option><option value="BOOK_NOW">Pesan Sekarang</option><option value="DOWNLOAD">Unduh</option><option value="GET_QUOTE">Minta Penawaran</option><option value="INSTALL_APP">Instal Aplikasi</option><option value="SEE_MENU">Lihat Menu</option><option value="SEND_MESSAGE">Kirim Pesan</option><option value="SUBSCRIBE">Berlangganan</option><option value="WATCH_MORE">Tonton Selengkapnya</option><option value="WHATSAPP_MESSAGE">WhatsApp</option></select></div></div>
-          <div class="tm-creative-pane" data-creative-pane="image"><div class="tm-creative-pane-head"><div class="tm-creative-pane-title">Pembuatan gambar materi iklan Advantage+ <span class="badge badge-light">AI</span></div><div class="small">Kampanye dengan gambar yang dibuat AI dapat memperoleh peningkatan performa.</div></div><button type="button" class="btn btn-light border mb-3"><i class="fas fa-sync mr-1"></i>Buat gambar baru</button><label class="float-right"><input type="checkbox"> Pilih semua</label><div class="tm-ai-grid"><button type="button" class="tm-ai-card" data-ai-sample="1"></button><button type="button" class="tm-ai-card" data-ai-sample="2"></button><button type="button" class="tm-ai-card" data-ai-sample="3"></button><button type="button" class="tm-ai-card" data-ai-sample="4"></button><button type="button" class="tm-ai-card" data-ai-sample="5"></button><button type="button" class="tm-ai-card" data-ai-sample="6"></button><button type="button" class="tm-ai-card" data-ai-sample="7"></button><button type="button" class="tm-ai-card" data-ai-sample="8"></button><button type="button" class="tm-ai-card" data-ai-sample="9"></button><button type="button" class="tm-ai-card" data-ai-sample="10"></button><button type="button" class="tm-ai-card" data-ai-sample="11"></button><button type="button" class="tm-ai-card" data-ai-sample="12"></button><button type="button" class="tm-ai-card" data-ai-sample="13"></button><button type="button" class="tm-ai-card" data-ai-sample="14"></button><button type="button" class="tm-ai-card" data-ai-sample="15"></button></div><div class="mt-3"><span id="tmAiSelectedCount">0</span> dipilih · Media dari AI</div></div>
-          <div class="tm-creative-pane" data-creative-pane="enhance"><div class="tm-creative-pane-head"><div class="tm-creative-pane-title">Penyempurnaan materi iklan Advantage+</div><div class="small">Tinjau preview langsung untuk peningkatan visual, musik, animasi, media flex, overlay, dan teks.</div></div><div class="tm-enhance-grid"><div class="tm-enhance-card"><div class="tm-enhance-switch"><span>Peningkatan visual <i class="fas fa-info-circle text-muted"></i></span><input type="checkbox" class="tm-enhance-toggle" checked></div><div class="small"><span class="badge badge-light">AI</span> Diaktifkan secara Default</div><div class="tm-enhance-preview">Preview</div><div class="small text-muted">Contoh 1 dari 2</div><button class="btn btn-light border btn-block btn-sm mt-2">Sesuaikan</button></div><div class="tm-enhance-card"><div class="tm-enhance-switch"><span>Tambahkan musik <i class="fas fa-info-circle text-muted"></i></span><input type="checkbox" class="tm-enhance-toggle" checked></div><div class="small"><span class="badge badge-light">AI</span> Diaktifkan secara Default</div><div class="tm-enhance-preview">Preview</div><div class="small text-muted">Contoh 2 dari 2</div><button class="btn btn-light border btn-block btn-sm mt-2">Sesuaikan</button></div><div class="tm-enhance-card"><div class="tm-enhance-switch"><span>Tambahkan animasi <i class="fas fa-info-circle text-muted"></i></span><input type="checkbox" class="tm-enhance-toggle" checked></div><div class="small"><span class="badge badge-light">AI</span> Diaktifkan secara Default</div><div class="tm-enhance-preview">Preview</div><div class="small text-muted">Contoh 3 dari 2</div><button class="btn btn-light border btn-block btn-sm mt-2">Sesuaikan</button></div><div class="tm-enhance-card"><div class="tm-enhance-switch"><span>Media flex <i class="fas fa-info-circle text-muted"></i></span><input type="checkbox" class="tm-enhance-toggle" checked></div><div class="small"><span class="badge badge-light">AI</span> Diaktifkan secara Default</div><div class="tm-enhance-preview">Preview</div><div class="small text-muted">Contoh 4 dari 2</div><button class="btn btn-light border btn-block btn-sm mt-2">Sesuaikan</button></div><div class="tm-enhance-card"><div class="tm-enhance-switch"><span>Tambahkan overlay <i class="fas fa-info-circle text-muted"></i></span><input type="checkbox" class="tm-enhance-toggle" checked></div><div class="small"><span class="badge badge-light">AI</span> Diaktifkan secara Default</div><div class="tm-enhance-preview">Preview</div><div class="small text-muted">Contoh 5 dari 2</div><button class="btn btn-light border btn-block btn-sm mt-2">Sesuaikan</button></div><div class="tm-enhance-card"><div class="tm-enhance-switch"><span>Penyempurnaan teks <i class="fas fa-info-circle text-muted"></i></span><input type="checkbox" class="tm-enhance-toggle" checked></div><div class="small"><span class="badge badge-light">AI</span> Diaktifkan secara Default</div><div class="tm-enhance-preview">Preview</div><div class="small text-muted">Contoh 6 dari 2</div><button class="btn btn-light border btn-block btn-sm mt-2">Sesuaikan</button></div></div><div class="tm-live-preview-shell"><div class="tm-live-preview-tabs"><button type="button" data-preview-placement-name="Beranda Facebook" class="active">Beranda Facebook</button><button type="button" data-preview-placement-name="Instagram Stories" class="">Instagram Stories</button><button type="button" data-preview-placement-name="Facebook Stories" class="">Facebook Stories</button><button type="button" data-preview-placement-name="Facebook Marketplace" class="">Facebook Marketplace</button><button type="button" data-preview-placement-name="Facebook Reels" class="">Facebook Reels</button><button type="button" data-preview-placement-name="Status WhatsApp" class="">Status WhatsApp</button><button type="button" data-preview-placement-name="Iklan di Facebook Reels" class="">Iklan di Facebook Reels</button><button type="button" data-preview-placement-name="Kabar profil Facebook" class="">Kabar profil Facebook</button><button type="button" data-preview-placement-name="Reel in-stream Facebook" class="">Reel in-stream Facebook</button><button type="button" data-preview-placement-name="Hasil pencarian Facebook" class="">Hasil pencarian Facebook</button></div><div class="tm-live-preview-frame"><div class="tm-live-preview-media" id="tmLivePreviewMedia"></div><div class="tm-live-preview-copy"><div class="small text-muted" id="tmLivePlacementLabel">Beranda Facebook</div><div id="tmLivePrimary">-</div><strong id="tmLiveHeadline">Lihat Detail</strong><div id="tmLiveDescription" class="small text-muted">-</div><button type="button" class="btn btn-primary btn-sm mt-2" id="tmLiveCta">Lihat Detail</button></div></div></div></div>
+          <div class="tm-creative-pane" data-creative-pane="image">
+            <div class="tm-ai-shell">
+              <div class="tm-creative-pane-head">
+                <div class="tm-creative-pane-title">Pembuatan gambar materi iklan Advantage+ <span class="badge badge-light">AI</span></div>
+                <div class="small">Kampanye dengan gambar yang dibuat AI dapat memperoleh peningkatan performa.</div>
+              </div>
+              <div class="tm-ai-stats-banner">
+                <i class="fas fa-chart-line mr-1"></i>
+                Dalam eksperimen kami, kampanye dengan semua iklan menambahkan gambar buatan AI memperoleh peningkatan CTR 10% dan CVR 6%.
+              </div>
+              <div class="tm-ai-progress-steps" id="tmAiProgressSteps"></div>
+              <div class="tm-ai-generating-note" id="tmAiGeneratingNote">
+                <i class="fas fa-magic mr-1"></i> AI sedang menyiapkan variasi gambar untuk materi iklan Anda...
+              </div>
+              <div class="tm-ai-columns d-none" id="tmAiColumns"></div>
+              <div class="tm-ai-footer-bar">
+                <div class="tm-ai-selected-tray">
+                  <div class="tm-ai-tray-group">
+                    <span><strong id="tmAiYourCount">0</strong> dipilih · Media dari Anda</span>
+                    <div class="tm-ai-tray-thumbs" id="tmAiYourTray"></div>
+                  </div>
+                  <div class="tm-ai-tray-group">
+                    <span><strong id="tmAiSelectedCount">0</strong> dipilih · Media dari AI</span>
+                    <div class="tm-ai-tray-thumbs" id="tmAiSelectedTray"></div>
+                  </div>
+                </div>
+                <div class="tm-ai-footer-feedback">
+                  <button type="button" class="btn btn-link btn-sm p-0 tm-ai-feedback" data-vote="up" title="Membantu"><i class="far fa-thumbs-up"></i></button>
+                  <button type="button" class="btn btn-link btn-sm p-0 tm-ai-feedback" data-vote="down" title="Kurang membantu"><i class="far fa-thumbs-down"></i></button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="tm-creative-pane" data-creative-pane="enhance">
+            <div class="tm-enhance-shell">
+              <div class="tm-enhance-view tm-enhance-overview active" id="tmEnhanceOverview">
+              <div class="tm-creative-pane-head">
+                <div class="tm-creative-pane-title">Penyempurnaan materi iklan Advantage+</div>
+                <div class="tm-enhance-notice small text-muted mt-1">Anda terdaftar dalam tes materi iklan dan penyempurnaan baru. <a href="#" onclick="return false;">Pengaturan iklan</a></div>
+                <div class="small text-muted mt-1">Dengan menggunakan penyempurnaan AI, Anda menyetujui <a href="#" onclick="return false;">Ketentuan AI Generatif Materi Iklan</a>.</div>
+              </div>
+              <div class="tm-enhance-section">
+                <div class="tm-enhance-section-title">Media</div>
+                <div class="tm-enhance-media-grid">
+                  <div class="tm-enhance-card" data-enhance-key="visual">
+                    <div class="tm-enhance-card-top">
+                      <label class="tm-enhance-toggle-wrap"><input type="checkbox" class="tm-enhance-toggle" checked data-enhance-key="visual"><span class="tm-enhance-toggle-ui"></span></label>
+                      <div class="tm-enhance-card-head"><strong>Peningkatan visual</strong> <span class="badge badge-light">AI</span> <i class="fas fa-info-circle text-muted"></i></div>
+                    </div>
+                    <div class="tm-enhance-preview" id="tmEnhancePreviewVisual"></div>
+                    <div class="tm-enhance-desc">Memotong gambar agar sesuai dengan lebih banyak penempatan.</div>
+                  </div>
+                  <div class="tm-enhance-card" data-enhance-key="music">
+                    <div class="tm-enhance-card-top">
+                      <label class="tm-enhance-toggle-wrap"><input type="checkbox" class="tm-enhance-toggle" checked data-enhance-key="music"><span class="tm-enhance-toggle-ui"></span></label>
+                      <div class="tm-enhance-card-head"><strong>Tambahkan musik</strong> <span class="badge badge-light">AI</span> <i class="fas fa-info-circle text-muted"></i></div>
+                    </div>
+                    <div class="tm-enhance-default-note">Diaktifkan secara Default</div>
+                    <div class="tm-enhance-preview" id="tmEnhancePreviewMusic"></div>
+                    <div class="tm-enhance-desc">Menambahkan musik buatan AI ke iklan Anda.</div>
+                    <div class="tm-enhance-sample-nav" data-enhance-key="music">
+                      <button type="button" class="btn btn-link btn-sm p-0 tm-enhance-sample-prev"><i class="fas fa-chevron-left"></i></button>
+                      <span class="tm-enhance-sample-label">Contoh 1 dari 5</span>
+                      <button type="button" class="btn btn-link btn-sm p-0 tm-enhance-sample-next"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                    <button type="button" class="btn btn-light border btn-block btn-sm tm-enhance-customize" data-enhance-key="music">Sesuaikan</button>
+                  </div>
+                  <div class="tm-enhance-card" data-enhance-key="animation">
+                    <div class="tm-enhance-card-top">
+                      <label class="tm-enhance-toggle-wrap"><input type="checkbox" class="tm-enhance-toggle" checked data-enhance-key="animation"><span class="tm-enhance-toggle-ui"></span></label>
+                      <div class="tm-enhance-card-head"><strong>Tambahkan animasi</strong> <span class="badge badge-light">AI Terbaru</span> <i class="fas fa-info-circle text-muted"></i></div>
+                    </div>
+                    <div class="tm-enhance-default-note">Diaktifkan secara Default</div>
+                    <div class="tm-enhance-preview" id="tmEnhancePreviewAnimation"></div>
+                    <div class="tm-enhance-desc">Menganimasikan gambar dan/atau teks untuk meningkatkan daya tarik visual.</div>
+                    <div class="tm-enhance-sample-nav" data-enhance-key="animation">
+                      <button type="button" class="btn btn-link btn-sm p-0 tm-enhance-sample-prev"><i class="fas fa-chevron-left"></i></button>
+                      <span class="tm-enhance-sample-label">Contoh 1 dari 2</span>
+                      <button type="button" class="btn btn-link btn-sm p-0 tm-enhance-sample-next"><i class="fas fa-chevron-right"></i></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="tm-enhance-section">
+                <div class="tm-enhance-section-title">Teks</div>
+                <div class="tm-enhance-text-grid">
+                  <div class="tm-enhance-card" data-enhance-key="overlay">
+                    <div class="tm-enhance-card-top">
+                      <label class="tm-enhance-toggle-wrap"><input type="checkbox" class="tm-enhance-toggle" checked data-enhance-key="overlay"><span class="tm-enhance-toggle-ui"></span></label>
+                      <div class="tm-enhance-card-head"><strong>Tambahkan overlay</strong> <span class="badge badge-light">AI</span> <i class="fas fa-info-circle text-muted"></i></div>
+                    </div>
+                    <div class="tm-enhance-preview" id="tmEnhancePreviewOverlay"></div>
+                    <div class="tm-enhance-desc">Menambahkan overlay ke gambar yang diperluas dengan AI.</div>
+                    <button type="button" class="btn btn-light border btn-block btn-sm tm-enhance-customize" data-enhance-key="overlay">Sesuaikan</button>
+                  </div>
+                  <div class="tm-enhance-card" data-enhance-key="text">
+                    <div class="tm-enhance-card-top">
+                      <label class="tm-enhance-toggle-wrap"><input type="checkbox" class="tm-enhance-toggle" checked data-enhance-key="text"><span class="tm-enhance-toggle-ui"></span></label>
+                      <div class="tm-enhance-card-head"><strong>Penyempurnaan teks</strong> <span class="badge badge-light">AI</span> <i class="fas fa-info-circle text-muted"></i></div>
+                    </div>
+                    <div class="tm-enhance-preview" id="tmEnhancePreviewText"></div>
+                    <div class="tm-enhance-desc">Teks yang Anda berikan bisa ditampilkan sebagai teks utama, judul, atau deskripsi.</div>
+                    <button type="button" class="btn btn-light border btn-block btn-sm tm-enhance-customize" data-enhance-key="text">Sesuaikan</button>
+                  </div>
+                </div>
+              </div>
+              </div>
+              <div class="tm-enhance-view tm-enhance-music-detail" id="tmEnhanceMusicDetail">
+                <div class="tm-enhance-detail-head">
+                  <button type="button" class="btn btn-link p-0 tm-enhance-back" aria-label="Kembali"><i class="fas fa-chevron-left"></i></button>
+                  <div class="tm-creative-pane-title">Tambahkan musik</div>
+                </div>
+                <div class="tm-enhance-detail-body">
+                  <div class="tm-enhance-active-row">
+                    <label class="tm-enhance-toggle-wrap"><input type="checkbox" id="tmEnhanceMusicActiveToggle" checked><span class="tm-enhance-toggle-ui"></span></label>
+                    <span>Aktif</span>
+                  </div>
+                  <div class="tm-enhance-active-desc">Mengaktifkan musik bisa membantu iklan Anda lebih terlihat seperti postingan organik dan meningkatkan waktu yang dihabiskan orang-orang untuk melihat iklan Anda.</div>
+                  <div class="tm-enhance-mode-options">
+                    <label class="tm-enhance-mode-option tm-enhance-mode-auto">
+                      <input type="radio" name="tm_enhance_music_mode" value="auto" checked>
+                      <span>Terapkan otomatis musik, termasuk musik buatan AI, berdasarkan popularitas media dan musik Anda</span>
+                      <i class="fas fa-info-circle text-muted"></i>
+                    </label>
+                    <div class="tm-enhance-mode-manual-wrap" id="tmEnhanceManualWrap">
+                      <label class="tm-enhance-mode-option tm-enhance-mode-manual-head">
+                        <input type="radio" name="tm_enhance_music_mode" value="manual">
+                        <span>Pilih musik secara manual</span>
+                        <button type="button" class="btn btn-link btn-sm p-0 tm-enhance-manual-expand" aria-label="Perluas"><i class="fas fa-chevron-down"></i></button>
+                      </label>
+                      <div class="tm-enhance-manual-panel" id="tmEnhanceMusicManualPanel">
+                        <div class="tm-enhance-music-group">
+                          <div class="tm-enhance-music-group-title">Pilih dari musik AI</div>
+                          <div class="tm-enhance-track-list" id="tmEnhanceMusicAiList"></div>
+                        </div>
+                        <div class="tm-enhance-music-group">
+                          <div class="tm-enhance-music-group-title">Pilih dari galeri musik</div>
+                          <div class="tm-enhance-music-search-row">
+                            <div class="tm-enhance-search-wrap">
+                              <i class="fas fa-search"></i>
+                              <input type="text" class="form-control form-control-sm" id="tmEnhanceMusicSearch" placeholder="Cari artis, genre, atau kata kunci...">
+                            </div>
+                            <button type="button" class="btn btn-light border tm-enhance-filter-btn" title="Filter"><i class="fas fa-sliders-h"></i></button>
+                          </div>
+                          <div class="tm-enhance-gallery-meta"><span id="tmEnhanceGalleryCount">50 lagu</span></div>
+                          <div class="tm-enhance-gallery-scroll">
+                            <div class="tm-enhance-track-list" id="tmEnhanceMusicGalleryList"></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="tm-enhance-detail-footer">
+                  <button type="button" class="btn btn-primary tm-enhance-back">Kembali ke penyempurnaan</button>
+                </div>
+              </div>
+              <div class="tm-enhance-view tm-enhance-overlay-detail" id="tmEnhanceOverlayDetail">
+                <div class="tm-enhance-detail-head">
+                  <button type="button" class="btn btn-link p-0 tm-enhance-back" aria-label="Kembali"><i class="fas fa-chevron-left"></i></button>
+                  <div class="tm-creative-pane-title">Tambahkan overlay</div>
+                </div>
+                <div class="tm-enhance-overlay-layout">
+                  <div class="tm-enhance-overlay-config">
+                    <div class="tm-enhance-active-row">
+                      <label class="tm-enhance-toggle-wrap"><input type="checkbox" id="tmEnhanceOverlayActiveToggle" checked><span class="tm-enhance-toggle-ui"></span></label>
+                      <span>Aktif</span>
+                    </div>
+                    <div class="tm-enhance-active-desc">Pilih gaya teks dan warna latar belakang atau biarkan Meta secara otomatis memilih berdasarkan gambar iklan Anda. Kami akan mengingat pengaturan Anda untuk iklan mendatang. Pengaturan ini hanya akan diterapkan ke overlay banners.</div>
+                    <div class="tm-enhance-overlay-section">
+                      <div class="tm-enhance-overlay-section-title">Gaya teks</div>
+                      <div class="tm-enhance-overlay-option-row">
+                        <button type="button" class="tm-overlay-option-btn is-active" id="tmEnhanceOverlayTextAuto"><i class="fas fa-magic"></i> Otomatis</button>
+                        <div class="tm-overlay-font-picker">
+                          <button type="button" class="tm-overlay-option-btn" id="tmEnhanceOverlayTextManual"><span class="tm-overlay-font-aa">Aa</span> <span id="tmEnhanceOverlayTextManualLabel">Pilih gaya</span> <i class="fas fa-chevron-down ml-auto"></i></button>
+                          <div class="tm-overlay-font-menu" id="tmEnhanceOverlayFontMenu"></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="tm-enhance-overlay-section">
+                      <div class="tm-enhance-overlay-section-title">Warna latar belakang</div>
+                      <div class="tm-enhance-overlay-option-row">
+                        <button type="button" class="tm-overlay-option-btn is-active" id="tmEnhanceOverlayColorAuto"><i class="fas fa-magic"></i> Otomatis</button>
+                        <div class="tm-overlay-color-picker-wrap">
+                          <button type="button" class="tm-overlay-option-btn" id="tmEnhanceOverlayColorManual"><i class="fas fa-eye-dropper"></i> Pilih warna <i class="fas fa-chevron-down ml-auto"></i></button>
+                          <div class="tm-overlay-color-picker" id="tmEnhanceOverlayColorPicker">
+                            <div class="tm-overlay-picker-head"><button type="button" class="tm-overlay-picker-close" aria-label="Tutup"><i class="fas fa-times"></i></button></div>
+                            <div class="tm-overlay-swatch-grid" id="tmEnhanceOverlaySwatches"></div>
+                            <div class="tm-overlay-color-gradient" id="tmEnhanceOverlayGradient"></div>
+                            <div class="tm-overlay-color-hex-row"><input type="text" id="tmEnhanceOverlayColorHex" maxlength="7" placeholder="#000000"></div>
+                            <input type="range" class="tm-overlay-color-hue" id="tmEnhanceOverlayHue" min="0" max="360" value="220">
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="tm-enhance-overlay-preview-pane">
+                    <div id="tmEnhanceOverlayPreviewFrame"></div>
+                  </div>
+                </div>
+                <div class="tm-enhance-detail-footer">
+                  <button type="button" class="btn btn-primary tm-enhance-back">Kembali ke penyempurnaan</button>
+                </div>
+              </div>
+            </div>
+          </div>
           <div class="tm-creative-pane" data-creative-pane="translate"><div class="tm-creative-pane-head"><div class="tm-creative-pane-title">Terjemahan</div><div class="small">Terjemahan otomatis dapat ditambahkan nanti.</div></div><div class="tm-creative-section text-muted">Belum ada bahasa tambahan. Kosongkan bila iklan dapat tampil ke semua bahasa.</div></div>
         </div>
       </div>
@@ -15088,7 +17683,14 @@
       $('#metaStepGuide').text(stepGuide[wizardStep] || '');
     }
 
-    function syncTrafficManualShell() { const $m = $('#modalCreateMetaCampaign'), stepOne = wizardStep === 1, stepTwo = wizardStep === 2, manual = String($('#modal_objective').val() || '') === 'OUTCOME_TRAFFIC' && String($m.data('traffic_format') || '') === 'manual', view = String($m.data('tmView') || 'edit'), active = String($('#modal_status').val() || 'PAUSED') === 'ACTIVE', pct = parseInt(String($('#metaStepProgressLabel').text() || '0'), 10) || 0, mode = String($('#modal_campaign_mode').val() || 'create'), objective = String($('#modal_objective').val() || 'OUTCOME_TRAFFIC'), c = String($('#modal_campaign_name').val() || 'Kampanye Traffic Baru'), a = String($('#modal_adset_name').val() || '1 Set Iklan'), d = String($('#modal_ad_name').val() || '1 Iklan'), conv = String($('#modal_conversion_location').val() || 'WEBSITE'), attr = String($('#modal_attribution_window').val() || '7d_click_1d_view'); let goal = String($('#modal_optimization_goal').val() || 'LANDING_PAGE_VIEWS'); $m.toggleClass('tm-step1-on', stepOne); $m.toggleClass('tm-step2-on', stepTwo); $m.toggleClass('tm-manual-on', manual); $('#metaStepGuide').toggle(!(stepOne || stepTwo)); $('.tm-goal-item').removeClass('active').filter('[data-objective="' + objective + '"]').addClass('active'); $('#tmCampaignCrumb,#tmLeftCampaignName').text(c); $('#tmAdsetCrumb,#tmLeftAdsetName').text(a); $('#tmAdCrumb,#tmLeftAdName').text(d); $('#tmLeftCampaign').toggleClass('active', wizardStep === 1); $('#tmLeftAdset').toggleClass('active', wizardStep === 2); $('#tmLeftAd').toggleClass('active', wizardStep === 3); $('#tmCampaignCrumbBtn').toggleClass('active', wizardStep === 1); $('#tmAdsetCrumbBtn').toggleClass('active', wizardStep === 2); $('#tmAdCrumbBtn').toggleClass('active', wizardStep === 3); $('#tmLeftCampaignId').text(String($('#metaSummaryCampaignId').text() || '-')); $('#tmStatusText').text(active ? 'Aktif' : 'Dalam Draf'); $('#tmStatusToggle').prop('checked', active); $('#tmScoreValue').text(String(Math.max(60, pct || 0))); if (stepTwo) { $('#tmScoreTitle').html('Skor kampanye <i class="fas fa-info-circle text-muted"></i>'); $('#tmScoreHint').text(view === 'review' ? 'Mode tinjau set iklan aktif.' : (pct >= 80 ? 'Anda menggunakan penyiapan yang direkomendasikan.' : 'Lengkapi pengaturan set iklan untuk meningkatkan skor.')); } else { $('#tmScoreTitle').text('Skor kampanye'); $('#tmScoreHint').text(view === 'review' ? 'Mode tinjau campaign aktif.' : (manual ? 'Mode traffic manual aktif.' : 'Mode campaign aktif.')); } $('#tmSummaryTitle').text(stepTwo ? 'Ringkasan set iklan' : 'Ringkasan'); $('#tmSummaryPrimaryLabel').text(stepTwo ? 'Campaign induk' : 'Campaign ID'); $('#tmSummaryPrimaryValue').text(stepTwo ? c : String($('#metaSummaryCampaignId').text() || '-')); $('#tmSummarySecondaryLabel').text(stepTwo ? 'Lokasi konversi' : 'Mode Builder'); $('#tmSummarySecondaryValue').text(stepTwo ? ($('#modal_conversion_location option:selected').text() || '-') : (manual ? 'Traffic Manual' : 'Standar')); $('#tmReviewName').text(String($('#modal_campaign_name').val() || '-')); $('#tmReviewBuying').text($('#modal_campaign_buying_type option:selected').text() || '-'); $('#tmReviewObjective').text($('#modal_objective option:selected').text() || '-'); $('#tmReviewBudget').text($('#modal_campaign_budget_type option:selected').text() || 'Tanpa CBO'); $('#tmReviewCategory').text($('#modal_campaign_special_category option:selected').text() || '-'); $('.tm-conv-list > .tm-conv-choice[data-value]').removeClass('active').filter('[data-value="' + conv + '"]').addClass('active'); $('#tmWebsiteConversionFields,#tmWebsiteBidFields,#tmWebsiteAttrFields').toggle(conv === 'WEBSITE'); $('.tm-web-conv-fields').toggle(conv === 'WEBSITE'); $('#tmConversionModePending').toggle(conv !== 'WEBSITE'); $('#tmWebsiteConversionFields,#tmWebsiteBidFields,#tmWebsiteAttrFields,.tm-web-conv-fields').toggle(conv === 'WEBSITE'); $('#tmAppConversionFields,#tmAppStoreCard,#tmAppNameField,#tmAppBidField,.tm-app-conv-fields').toggle(conv === 'APP'); $('#tmMsgConversionFields,#tmMsgPageCard,#tmMsgDestinations,#tmMsgBidField,.tm-msg-conv-fields').toggle(conv === 'MESSAGING'); $('#tmDynamicCreativeSection').toggle(conv === 'WEBSITE'); $('#tmProfileConversionFields,#tmProfileIdentityCard,#tmProfileDestinationCard,#tmProfileBidField,.tm-profile-conv-fields').toggle(conv === 'PROFILE'); $('#tmWebCallConversionFields,#tmWebCallBidField,.tm-webcall-conv-fields').toggle(conv === 'WEBSITE_CALL'); $('#tmConversionModePending').toggle(['WEBSITE', 'APP', 'MESSAGING', 'PROFILE', 'WEBSITE_CALL'].indexOf(conv) < 0); if (conv === 'APP' && ['LINK_CLICKS', 'REACH'].indexOf(goal) < 0) { goal = 'LINK_CLICKS'; $('#modal_optimization_goal').val(goal); } if (conv === 'MESSAGING' && ['REACH', 'CONVERSATIONS', 'IMPRESSIONS'].indexOf(goal) < 0) { goal = 'CONVERSATIONS'; $('#modal_optimization_goal').val(goal); } if (conv === 'PROFILE' && goal !== 'PROFILE_VISITS') { $('#modal_optimization_goal').val('PROFILE_VISITS'); goal = 'PROFILE_VISITS'; } if (conv === 'WEBSITE_CALL' && goal !== 'LANDING_PAGE_VIEWS') { $('#modal_optimization_goal').val('LANDING_PAGE_VIEWS'); goal = 'LANDING_PAGE_VIEWS'; } const rawPageLabel = String($('#modal_page_id').attr('data-label') || '').trim(), rawPageId = String($('#modal_page_id').val() || '').trim(), rawIdentityName = String($('#identityPrimaryName').text() || '').trim(), msgPageLabel = rawPageLabel || ((rawIdentityName && rawIdentityName !== 'Belum dipilih') ? rawIdentityName : '') || rawPageId, msgIgLabel = String($('#modal_instagram_actor_id').attr('data-label') || '').trim() || String($('#identityPrimaryMeta').text() || '').trim(), msgMode = String($('#modal_message_destination_mode').val() || 'auto'), msgHasIg = !!(msgIgLabel && msgIgLabel !== 'Tambahkan profil Instagram'), profileDests = String($('#modal_profile_destinations').val() || 'instagram,page').split(','); $('#tmProfilePageTitle').text(msgPageLabel || 'Halaman Facebook'); $('#tmProfilePageMeta').text(msgPageLabel ? 'Halaman Facebook terhubung siap dipakai untuk traffic profil.' : 'Pilih Halaman Facebook pada bagian Identitas.'); $('#tmProfileIgRow').text(msgHasIg ? 'Profil Instagram: ' + msgIgLabel : '').toggle(msgHasIg); $('#tmProfileDestInstagramLabel').text(msgHasIg ? ('Profil Instagram · ' + msgIgLabel) : 'Profil Instagram'); $('#tmProfileDestPageLabel').text(msgPageLabel ? ('Halaman Facebook · ' + msgPageLabel) : 'Halaman Facebook'); $('#tmProfileDestInstagramRow').toggle(msgHasIg); $('#tmProfileDestPageRow').toggle(!!msgPageLabel); $('.tm-profile-dest-check[data-dest="instagram"]').prop('checked', profileDests.indexOf('instagram') >= 0); $('.tm-profile-dest-check[data-dest="page"]').prop('checked', profileDests.indexOf('page') >= 0); $('#tmBidAmountProfileHint').text((String($('#modal_bid_amount_profile').val() || $('#modal_bid_amount').val() || '220') || '220') + ' adalah tawaran maksimal di setiap lelang.'); $('#tmMsgPageTitle').text(msgPageLabel ? msgPageLabel : 'Halaman Facebook'); $('#tmMsgPageMeta').text(msgPageLabel ? (msgHasIg ? msgIgLabel : 'Halaman Facebook terhubung siap dipakai untuk percakapan.') : 'Pilih Halaman Facebook pada bagian Identitas.'); $('#tmMsgAutoMessengerPill').text(msgPageLabel || 'Messenger'); $('#tmMsgAutoInstagramPill').text(msgHasIg ? msgIgLabel : 'Instagram').toggle(msgHasIg); $('#tmMsgManualMessengerLabel').text('Messenger · ' + (msgPageLabel || 'Halaman Facebook')); $('#tmMsgManualInstagramLabel').text(msgHasIg ? ('Instagram · ' + msgIgLabel) : 'Instagram'); $('#tmMsgManualInstagramRow').toggle(msgHasIg); $('.tm-msg-choice').removeClass('active').filter('[data-msg-mode="' + msgMode + '"]').addClass('active'); $('#tmMsgManualPanel').toggle(msgMode === 'manual'); if ($('#tmOptimizationGoalProxy').length) { $('#tmOptimizationGoalProxy').val(goal).trigger('change.select2'); } if ($('#tmAppOptimizationGoalProxy').length) { $('#tmAppOptimizationGoalProxy').val(['LINK_CLICKS', 'REACH'].indexOf(goal) >= 0 ? goal : 'LINK_CLICKS').trigger('change.select2'); } if ($('#tmMsgOptimizationGoalProxy').length) { $('#tmMsgOptimizationGoalProxy').val(['REACH', 'CONVERSATIONS', 'IMPRESSIONS'].indexOf(goal) >= 0 ? goal : 'CONVERSATIONS').trigger('change.select2'); } if ($('#tmAttributionModelProxy').length) { $('#tmAttributionModelProxy').val('standard').trigger('change.select2'); } if ($('#tmAppStoreProxy').length) { $('#tmAppStoreProxy').val(String($('#modal_mobile_app_store').val() || 'ALL_STORES')).trigger('change.select2'); } if ($('#tmBillingEventProxy').length) { $('#tmBillingEventProxy').val(String($('#modal_billing_event').val() || 'IMPRESSIONS')).trigger('change.select2'); } $('#tmAppStoreSummary').text($('#modal_mobile_app_store option:selected').text() || 'Semua toko aplikasi untuk Android dan iOS'); $('#tmAttrWindowHint').text('Jendela atribusi aktif: ' + ($('#modal_attribution_window option:selected').text() || '7d Click / 1d View')); $('#tmBidAmountWebsiteHint').text((String($('#modal_bid_amount').val() || '220') || '220') + ' adalah tawaran maksimal di setiap lelang.'); $('#tmBidAmountAppHint').text((String($('#modal_bid_amount_app').val() || $('#modal_bid_amount').val() || '220') || '220') + ' adalah tawaran maksimal di setiap lelang.'); $('#tmBidAmountMsgHint').text((String($('#modal_bid_amount_msg').val() || $('#modal_bid_amount').val() || '220') || '220') + ' adalah tawaran maksimal di setiap lelang.'); syncDynamicCreativeUi(); syncAdsetBudgetUi(); syncAudienceSummary(); $('#tmReviewAdsetName').text(String($('#modal_adset_name').val() || '-')); $('#tmReviewConversion').text($('#modal_conversion_location option:selected').text() || '-'); $('#tmReviewOptimization').text($('#modal_optimization_goal option:selected').text() || '-'); $('#tmReviewAdsetBudget').text((String($('#modal_budget_type option:selected').text() || '') || 'Budget') + ' · Rp ' + (String($('#modal_daily_budget').val() || $('#modal_lifetime_budget').val() || '0'))); $('#tmReviewPlacement').text(String($('#modal_placement_mode').val() || 'auto') === 'manual' ? 'Penempatan manual' : 'Advantage+ placements'); $('#tmReviewPanel').toggle(stepOne && view === 'review'); $('#tmEditPanel').toggle(!(stepOne && view === 'review')); $('#tmReviewPanelAdset').toggle(stepTwo && view === 'review'); $('#tmEditPanelAdset').toggle(!(stepTwo && view === 'review')); $('#btnTrafficBuilderEdit').toggleClass('active', view !== 'review'); $('#btnTrafficBuilderReview').toggleClass('active', view === 'review'); if (stepTwo) { $('#btnWizardPrev').text('Kembali ke Kampanye'); $('#btnWizardSaveAdset').text(mode === 'edit' ? 'Simpan Perubahan' : 'Simpan Draft Set Iklan'); $('#btnWizardGoStep3').text('Lanjut ke Iklan'); } else if (manual) { $('#btnWizardPrev').text('Tutup'); $('#btnWizardCreateCampaign').text(mode === 'edit' ? 'Simpan & Lanjut' : 'Berikutnya').removeClass('btn-success').addClass('btn-primary'); } else { $('#btnWizardPrev').text('Kembali'); if (mode === 'edit') { $('#btnWizardCreateCampaign').text('Simpan Perubahan').removeClass('btn-success').addClass('btn-warning'); } else { $('#btnWizardCreateCampaign').text('Buat Kampanye').removeClass('btn-warning btn-primary').addClass('btn-success'); } } }
+    function applyWizardStepShell() {
+      const $m = $('#modalCreateMetaCampaign');
+      if (!$m.length) return;
+      $m.toggleClass('tm-step1-on', wizardStep === 1);
+      $m.toggleClass('tm-step2-on', wizardStep === 2);
+      $m.toggleClass('tm-step3-on', wizardStep === 3);
+    }
+    function syncTrafficManualShell() { const $m = $('#modalCreateMetaCampaign'), stepOne = wizardStep === 1, stepTwo = wizardStep === 2, manual = String($('#modal_objective').val() || '') === 'OUTCOME_TRAFFIC' && String($m.data('traffic_format') || '') === 'manual', view = String($m.data('tmView') || 'edit'), active = String($('#modal_status').val() || 'PAUSED') === 'ACTIVE', pct = parseInt(String($('#metaStepProgressLabel').text() || '0'), 10) || 0, mode = String($('#modal_campaign_mode').val() || 'create'), objective = String($('#modal_objective').val() || 'OUTCOME_TRAFFIC'), c = String($('#modal_campaign_name').val() || 'Kampanye Traffic Baru'), a = String($('#modal_adset_name').val() || '1 Set Iklan'), d = String($('#modal_ad_name').val() || '1 Iklan'), conv = String($('#modal_conversion_location').val() || 'WEBSITE'), attr = String($('#modal_attribution_window').val() || '7d_click_1d_view'); let goal = String($('#modal_optimization_goal').val() || 'LANDING_PAGE_VIEWS'); applyWizardStepShell(); $m.toggleClass('tm-manual-on', manual); $('#metaStepGuide').toggle(!(stepOne || stepTwo)); $('.tm-goal-item').removeClass('active').filter('[data-objective="' + objective + '"]').addClass('active'); $('#tmCampaignCrumb,#tmLeftCampaignName').text(c); $('#tmAdsetCrumb,#tmLeftAdsetName').text(a); $('#tmAdCrumb,#tmLeftAdName').text(d); $('#tmLeftCampaign').toggleClass('active', wizardStep === 1); $('#tmLeftAdset').toggleClass('active', wizardStep === 2); $('#tmLeftAd').toggleClass('active', wizardStep === 3); $('#tmCampaignCrumbBtn').toggleClass('active', wizardStep === 1); $('#tmAdsetCrumbBtn').toggleClass('active', wizardStep === 2); $('#tmAdCrumbBtn').toggleClass('active', wizardStep === 3); $('#tmLeftCampaignId').text(String($('#metaSummaryCampaignId').text() || '-')); $('#tmStatusText').text(active ? 'Aktif' : 'Dalam Draf'); $('#tmStatusToggle').prop('checked', active); $('#tmScoreValue').text(String(Math.max(60, pct || 0))); if (stepTwo) { $('#tmScoreTitle').html('Skor kampanye <i class="fas fa-info-circle text-muted"></i>'); $('#tmScoreHint').text(view === 'review' ? 'Mode tinjau set iklan aktif.' : (pct >= 80 ? 'Anda menggunakan penyiapan yang direkomendasikan.' : 'Lengkapi pengaturan set iklan untuk meningkatkan skor.')); } else { $('#tmScoreTitle').text('Skor kampanye'); $('#tmScoreHint').text(view === 'review' ? 'Mode tinjau campaign aktif.' : (manual ? 'Mode traffic manual aktif.' : 'Mode campaign aktif.')); } $('#tmSummaryTitle').text(stepTwo ? 'Ringkasan set iklan' : 'Ringkasan'); $('#tmSummaryPrimaryLabel').text(stepTwo ? 'Campaign induk' : 'Campaign ID'); $('#tmSummaryPrimaryValue').text(stepTwo ? c : String($('#metaSummaryCampaignId').text() || '-')); $('#tmSummarySecondaryLabel').text(stepTwo ? 'Lokasi konversi' : 'Mode Builder'); $('#tmSummarySecondaryValue').text(stepTwo ? ($('#modal_conversion_location option:selected').text() || '-') : (manual ? 'Traffic Manual' : 'Standar')); $('#tmReviewName').text(String($('#modal_campaign_name').val() || '-')); $('#tmReviewBuying').text($('#modal_campaign_buying_type option:selected').text() || '-'); $('#tmReviewObjective').text($('#modal_objective option:selected').text() || '-'); $('#tmReviewBudget').text($('#modal_campaign_budget_type option:selected').text() || 'Tanpa CBO'); $('#tmReviewCategory').text($('#modal_campaign_special_category option:selected').text() || '-'); $('.tm-conv-list > .tm-conv-choice[data-value]').removeClass('active').filter('[data-value="' + conv + '"]').addClass('active'); $('#tmWebsiteConversionFields,#tmWebsiteBidFields,#tmWebsiteAttrFields').toggle(conv === 'WEBSITE'); $('.tm-web-conv-fields').toggle(conv === 'WEBSITE'); $('#tmConversionModePending').toggle(conv !== 'WEBSITE'); $('#tmWebsiteConversionFields,#tmWebsiteBidFields,#tmWebsiteAttrFields,.tm-web-conv-fields').toggle(conv === 'WEBSITE'); $('#tmAppConversionFields,#tmAppStoreCard,#tmAppNameField,#tmAppBidField,.tm-app-conv-fields').toggle(conv === 'APP'); $('#tmMsgConversionFields,#tmMsgPageCard,#tmMsgDestinations,#tmMsgBidField,.tm-msg-conv-fields').toggle(conv === 'MESSAGING'); $('#tmDynamicCreativeSection').toggle(conv === 'WEBSITE'); $('#tmProfileConversionFields,#tmProfileIdentityCard,#tmProfileDestinationCard,#tmProfileBidField,.tm-profile-conv-fields').toggle(conv === 'PROFILE'); $('#tmWebCallConversionFields,#tmWebCallBidField,.tm-webcall-conv-fields').toggle(conv === 'WEBSITE_CALL'); $('#tmConversionModePending').toggle(['WEBSITE', 'APP', 'MESSAGING', 'PROFILE', 'WEBSITE_CALL'].indexOf(conv) < 0); if (conv === 'APP' && ['LINK_CLICKS', 'REACH'].indexOf(goal) < 0) { goal = 'LINK_CLICKS'; $('#modal_optimization_goal').val(goal); } if (conv === 'MESSAGING' && ['REACH', 'CONVERSATIONS', 'IMPRESSIONS'].indexOf(goal) < 0) { goal = 'CONVERSATIONS'; $('#modal_optimization_goal').val(goal); } if (conv === 'PROFILE' && goal !== 'PROFILE_VISITS') { $('#modal_optimization_goal').val('PROFILE_VISITS'); goal = 'PROFILE_VISITS'; } if (conv === 'WEBSITE_CALL' && goal !== 'LANDING_PAGE_VIEWS') { $('#modal_optimization_goal').val('LANDING_PAGE_VIEWS'); goal = 'LANDING_PAGE_VIEWS'; } const rawPageLabel = String($('#modal_page_id').attr('data-label') || '').trim(), rawPageId = String($('#modal_page_id').val() || '').trim(), rawIdentityName = String($('#identityPrimaryName').text() || '').trim(), msgPageLabel = rawPageLabel || ((rawIdentityName && rawIdentityName !== 'Belum dipilih') ? rawIdentityName : '') || rawPageId, msgIgLabel = String($('#modal_instagram_actor_id').attr('data-label') || '').trim() || String($('#identityPrimaryMeta').text() || '').trim(), msgMode = String($('#modal_message_destination_mode').val() || 'auto'), msgHasIg = !!(msgIgLabel && msgIgLabel !== 'Tambahkan profil Instagram'), profileDests = String($('#modal_profile_destinations').val() || 'instagram,page').split(','); $('#tmProfilePageTitle').text(msgPageLabel || 'Halaman Facebook'); $('#tmProfilePageMeta').text(msgPageLabel ? 'Halaman Facebook terhubung siap dipakai untuk traffic profil.' : 'Pilih Halaman Facebook pada bagian Identitas.'); $('#tmProfileIgRow').text(msgHasIg ? 'Profil Instagram: ' + msgIgLabel : '').toggle(msgHasIg); $('#tmProfileDestInstagramLabel').text(msgHasIg ? ('Profil Instagram · ' + msgIgLabel) : 'Profil Instagram'); $('#tmProfileDestPageLabel').text(msgPageLabel ? ('Halaman Facebook · ' + msgPageLabel) : 'Halaman Facebook'); $('#tmProfileDestInstagramRow').toggle(msgHasIg); $('#tmProfileDestPageRow').toggle(!!msgPageLabel); $('.tm-profile-dest-check[data-dest="instagram"]').prop('checked', profileDests.indexOf('instagram') >= 0); $('.tm-profile-dest-check[data-dest="page"]').prop('checked', profileDests.indexOf('page') >= 0); $('#tmBidAmountProfileHint').text((String($('#modal_bid_amount_profile').val() || $('#modal_bid_amount').val() || '220') || '220') + ' adalah tawaran maksimal di setiap lelang.'); $('#tmMsgPageTitle').text(msgPageLabel ? msgPageLabel : 'Halaman Facebook'); $('#tmMsgPageMeta').text(msgPageLabel ? (msgHasIg ? msgIgLabel : 'Halaman Facebook terhubung siap dipakai untuk percakapan.') : 'Pilih Halaman Facebook pada bagian Identitas.'); $('#tmMsgAutoMessengerPill').text(msgPageLabel || 'Messenger'); $('#tmMsgAutoInstagramPill').text(msgHasIg ? msgIgLabel : 'Instagram').toggle(msgHasIg); $('#tmMsgManualMessengerLabel').text('Messenger · ' + (msgPageLabel || 'Halaman Facebook')); $('#tmMsgManualInstagramLabel').text(msgHasIg ? ('Instagram · ' + msgIgLabel) : 'Instagram'); $('#tmMsgManualInstagramRow').toggle(msgHasIg); $('.tm-msg-choice').removeClass('active').filter('[data-msg-mode="' + msgMode + '"]').addClass('active'); $('#tmMsgManualPanel').toggle(msgMode === 'manual'); if ($('#tmOptimizationGoalProxy').length) { $('#tmOptimizationGoalProxy').val(goal).trigger('change.select2'); } if ($('#tmAppOptimizationGoalProxy').length) { $('#tmAppOptimizationGoalProxy').val(['LINK_CLICKS', 'REACH'].indexOf(goal) >= 0 ? goal : 'LINK_CLICKS').trigger('change.select2'); } if ($('#tmMsgOptimizationGoalProxy').length) { $('#tmMsgOptimizationGoalProxy').val(['REACH', 'CONVERSATIONS', 'IMPRESSIONS'].indexOf(goal) >= 0 ? goal : 'CONVERSATIONS').trigger('change.select2'); } if ($('#tmAttributionModelProxy').length) { $('#tmAttributionModelProxy').val('standard').trigger('change.select2'); } if ($('#tmAppStoreProxy').length) { $('#tmAppStoreProxy').val(String($('#modal_mobile_app_store').val() || 'ALL_STORES')).trigger('change.select2'); } if ($('#tmBillingEventProxy').length) { $('#tmBillingEventProxy').val(String($('#modal_billing_event').val() || 'IMPRESSIONS')).trigger('change.select2'); } $('#tmAppStoreSummary').text($('#modal_mobile_app_store option:selected').text() || 'Semua toko aplikasi untuk Android dan iOS'); $('#tmAttrWindowHint').text('Jendela atribusi aktif: ' + ($('#modal_attribution_window option:selected').text() || '7d Click / 1d View')); $('#tmBidAmountWebsiteHint').text((String($('#modal_bid_amount').val() || '220') || '220') + ' adalah tawaran maksimal di setiap lelang.'); $('#tmBidAmountAppHint').text((String($('#modal_bid_amount_app').val() || $('#modal_bid_amount').val() || '220') || '220') + ' adalah tawaran maksimal di setiap lelang.'); $('#tmBidAmountMsgHint').text((String($('#modal_bid_amount_msg').val() || $('#modal_bid_amount').val() || '220') || '220') + ' adalah tawaran maksimal di setiap lelang.'); syncDynamicCreativeUi(); syncAdsetBudgetUi(); syncAudienceSummary(); $('#tmReviewAdsetName').text(String($('#modal_adset_name').val() || '-')); $('#tmReviewConversion').text($('#modal_conversion_location option:selected').text() || '-'); $('#tmReviewOptimization').text($('#modal_optimization_goal option:selected').text() || '-'); $('#tmReviewAdsetBudget').text((String($('#modal_budget_type option:selected').text() || '') || 'Budget') + ' · Rp ' + (String($('#modal_daily_budget').val() || $('#modal_lifetime_budget').val() || '0'))); $('#tmReviewPlacement').text(String($('#modal_placement_mode').val() || 'auto') === 'manual' ? 'Penempatan manual' : 'Advantage+ placements'); $('#tmReviewPanel').toggle(stepOne && view === 'review'); $('#tmEditPanel').toggle(!(stepOne && view === 'review')); $('#tmReviewPanelAdset').toggle(stepTwo && view === 'review'); $('#tmEditPanelAdset').toggle(!(stepTwo && view === 'review')); $('#btnTrafficBuilderEdit').toggleClass('active', view !== 'review'); $('#btnTrafficBuilderReview').toggleClass('active', view === 'review'); if (stepTwo) { $('#btnWizardPrev').text('Kembali ke Kampanye'); $('#btnWizardSaveAdset').text(mode === 'edit' ? 'Simpan Perubahan' : 'Simpan Draft Set Iklan'); $('#btnWizardGoStep3').text('Lanjut ke Iklan'); } else if (manual) { $('#btnWizardPrev').text('Tutup'); $('#btnWizardCreateCampaign').text(mode === 'edit' ? 'Simpan & Lanjut' : 'Berikutnya').removeClass('btn-success').addClass('btn-primary'); } else { $('#btnWizardPrev').text('Kembali'); if (mode === 'edit') { $('#btnWizardCreateCampaign').text('Simpan Perubahan').removeClass('btn-success').addClass('btn-warning'); } else { $('#btnWizardCreateCampaign').text('Buat Kampanye').removeClass('btn-warning btn-primary').addClass('btn-success'); } } }
     function syncDynamicCreativeUi() { const on = String($('#modal_dynamic_creative').val() || '0') === '1'; $('#tmDynamicCreativeToggle').prop('checked', on); $('#tmDynamicCreativeStateText').text(on ? 'Aktif' : 'Nonaktif'); $('#tmDynamicCreativeNote').toggleClass('active', on); $('#tmDynamicCreativeCheck').toggle(!!on); }
     function openCreativeSetupStep() { setWizardStep(3); setTimeout(function () { const $body = $('#modalCreateMetaCampaign .modal-body'), $target = $('.tm-creative-card').first(); if (!$body.length || !$target.length) return; const top = Math.max(0, $target.offset().top - $body.offset().top + $body.scrollTop() - 24); $body.stop(true).animate({ scrollTop: top }, 220); if ($target.find('#btnCreativeSetupMenu').length) $target.find('#btnCreativeSetupMenu').trigger('focus'); }, 80); }
     function tmPad2(n) { return String(n).padStart(2, '0'); }
@@ -15960,6 +18562,7 @@
     }
     const syncTrafficManualShellBase = typeof syncTrafficManualShell === 'function' ? syncTrafficManualShell : function () { };
     syncTrafficManualShell = function () {
+      applyWizardStepShell();
       syncTrafficManualShellBase();
       let view = String($('#modalCreateMetaCampaign').data('tmView') || 'edit');
       const reviewOnCampaign = wizardStep === 1 && view === 'review';
@@ -16024,6 +18627,7 @@
         $('#chip' + n).toggleClass('active', Number(n) === wizardStep);
         $('#pane' + n).toggleClass('active', Number(n) === wizardStep);
       });
+      applyWizardStepShell();
       $('#btnWizardPrev').prop('disabled', wizardStep === 1);
       $('#btnWizardNext').prop('disabled', wizardStep === 3);
       $('#btnWizardCreateCampaign').toggle(wizardStep === 1);
@@ -16052,7 +18656,12 @@
         }, 160);
       }
       updateStepProgress();
-      syncTrafficManualShell();
+      try {
+        syncTrafficManualShell();
+      } catch (err) {
+        console.error('syncTrafficManualShell failed', err);
+        applyWizardStepShell();
+      }
       if (wizardStep === 3) {
         setTimeout(function () {
           syncCampaignRecommendationPanel();
@@ -16061,6 +18670,7 @@
       }
     }
     window.setWizardStep = setWizardStep;
+    window.applyWizardStepShell = applyWizardStepShell;
     $(document).off('click.tmReviewJump', '.js-tm-review-edit').on('click.tmReviewJump', '.js-tm-review-edit', function (e) {
       e.preventDefault();
       e.stopPropagation();
@@ -16311,24 +18921,28 @@
     }
     function restoreParentCampaignModal() {
       const $parent = $(BUILDER_MAIN_MODAL);
-      if (!$parent.length || !$parent.data('builder-open')) return;
+      if (!$parent.length) return;
+      const parentShouldBeOpen = !!$parent.data('builder-open') || $parent.hasClass('show');
+      if (!parentShouldBeOpen) {
+        $('.modal-backdrop').remove();
+        $('body').removeClass('modal-open').css('padding-right', '');
+        return;
+      }
       if (!$parent.hasClass('show')) {
         $parent.addClass('show').attr({ 'aria-modal': 'true', 'aria-hidden': 'false' }).css('display', 'block');
       }
       $('body').addClass('modal-open');
-      const $backdrops = $('.modal-backdrop');
-      if (!$backdrops.length) {
-        $('<div class="modal-backdrop fade show"></div>').appendTo(document.body);
-      } else {
-        $backdrops.addClass('show');
-      }
+      $('.modal-backdrop').remove();
+      $('<div class="modal-backdrop fade show"></div>').appendTo(document.body);
     }
+    window.restoreBuilderParentModal = restoreParentCampaignModal;
     function openBuilderSubModal(selector) {
       const $modal = $(selector);
       if (!$modal.length) return;
       ensureBuilderSubModalInBody($modal);
       $modal.modal({ backdrop: isBuilderMainModalOpen() ? false : true, show: true });
     }
+    window.openBuilderSubModal = openBuilderSubModal;
     function initBuilderSubModalGuards() {
       const $parent = $(BUILDER_MAIN_MODAL);
       if (!$parent.length || $parent.data('builderSubModalGuards')) return;
@@ -16354,7 +18968,8 @@
       $(document).off('hidden.bs.modal.builderSub').on('hidden.bs.modal.builderSub', '.modal', function () {
         const id = this.id || '';
         if (id === 'modalCreateMetaCampaign' || isBuilderLauncherModal(id)) return;
-        if ($(BUILDER_MAIN_MODAL).data('builder-open')) {
+        const $parent = $(BUILDER_MAIN_MODAL);
+        if ($parent.data('builder-open') || $parent.hasClass('show')) {
           setTimeout(restoreParentCampaignModal, 0);
         }
       });
@@ -18799,6 +21414,7 @@
       fillCampaignForEdit: fillCampaignForEdit,
       updateStepProgress: updateStepProgress,
       setWizardStep: setWizardStep,
+      applyWizardStepShell: applyWizardStepShell,
       getWizardStep: function () { return wizardStep; },
       builderCreateCampaign: builderCreateCampaign,
       builderSaveAdset: builderSaveAdset,
@@ -19018,6 +21634,14 @@
       const videoFile = ($('#modal_video_file')[0] && $('#modal_video_file')[0].files && $('#modal_video_file')[0].files[0]) ? $('#modal_video_file')[0].files[0] : null;
       if (imageFile) fd.append('image_file', imageFile);
       if (videoFile) fd.append('video_file', videoFile);
+      const imageHash = String($('#modal_image_hash').val() || '').trim();
+      const videoId = String($('#modal_video_id').val() || '').trim();
+      const videoThumb = String($('#modal_video_thumbnail_url').val() || '').trim();
+      if (!imageFile && imageHash) fd.append('image_hash', imageHash);
+      if (!videoFile && videoId) {
+        fd.append('video_id', videoId);
+        if (videoThumb) fd.append('video_thumbnail_url', videoThumb);
+      }
 
       $('#modal_app_mode_warning').hide();
       $('#modal_create_result').removeClass('text-danger text-success').addClass('text-muted').text('Membuat iklan...');
@@ -19709,5 +22333,6 @@
     window.syncPlacementModeSummary = syncPlacementModeSummary;
   })();
 </script>
+<script src="{% static 'ajax/admin/facebook_ads/create_campaign_creative.js' %}?v={% now 'u' %}"></script>
 <script src="{% static 'ajax/admin/facebook_ads/create_campaign.js' %}?v={% now 'u' %}"></script>
 {% endblock %}
