@@ -1612,6 +1612,56 @@ def _facebook_page_access_token(page_id, user_token):
     except Exception:
         return user_token
 
+def _facebook_page_post_ad_ready(post_id, page_id, tokens):
+    """Return (ok, message, meta) for using object_story_id in dev-mode ads."""
+    post_id = str(post_id or '').strip()
+    page_id = str(page_id or '').strip()
+    if not post_id:
+        return False, 'Existing Post ID wajib diisi.', {}
+    if '_' not in post_id:
+        return False, 'Existing Post ID harus format Facebook Page Post (pageid_postid), bukan ID Instagram/media.', {}
+    post_page_id = post_id.split('_', 1)[0].strip()
+    if page_id and post_page_id and post_page_id != page_id:
+        return False, f'Postingan ({post_id}) bukan milik halaman yang dipilih ({page_id}).', {}
+    meta = {}
+    lookup_id = post_id
+    for tok in [t for t in (tokens or []) if t]:
+        try:
+            resp = requests.get(
+                f'https://graph.facebook.com/v22.0/{lookup_id}',
+                params={
+                    'fields': 'id,is_published,is_eligible_for_promotion,promotable_id,application{id,name},status_type',
+                    'access_token': tok,
+                },
+                timeout=20,
+            )
+            body = (resp.json() if resp.text else {}) or {}
+            if isinstance(body, dict) and body.get('error'):
+                continue
+            meta = body if isinstance(body, dict) else {}
+            break
+        except Exception:
+            continue
+    if not meta.get('id'):
+        return False, 'Postingan tidak ditemukan atau token tidak punya akses ke posting ini.', meta
+    is_published = meta.get('is_published')
+    if is_published is False:
+        return False, (
+            'Postingan ini belum dipublish di Halaman Facebook. '
+            'Mode development Meta hanya menerima posting PUBLIK yang sudah tayang di halaman. '
+            'Buat posting langsung di facebook.com/Page Anda, lalu pilih di sini.'
+        ), meta
+    if meta.get('is_eligible_for_promotion') is False:
+        return False, (
+            'Postingan ini tidak eligible untuk iklan (is_eligible_for_promotion=false). '
+            'Pilih posting lain yang dibuat langsung di Halaman Facebook, bukan via app/iklan sebelumnya.'
+        ), meta
+    usable_id = str(meta.get('promotable_id') or meta.get('id') or post_id).strip()
+    if '_' not in usable_id:
+        return False, 'ID posting tidak valid untuk iklan. Pilih posting Facebook Page (format pageid_postid).', meta
+    meta['usable_object_story_id'] = usable_id
+    return True, '', meta
+
 def _facebook_graph_data_rows(url, params, access_token, timeout=20):
     access_token = str(access_token or '').strip()
     if not access_token:
@@ -1642,9 +1692,13 @@ def _facebook_normalize_ig_node(ig):
     legacy_id = str(out.get('legacy_instagram_user_id') or '').strip()
     if graph_id:
         out['graph_id'] = graph_id
-    actor_id = legacy_id or graph_id
-    if actor_id:
-        out['id'] = actor_id
+    if legacy_id:
+        out['legacy_instagram_user_id'] = legacy_id
+    # Ads API instagram_user_id expects Graph IG account id (e.g. 178414...), not legacy id.
+    if graph_id:
+        out['id'] = graph_id
+    elif legacy_id:
+        out['id'] = legacy_id
     return out
 
 def _facebook_fetch_ig_profile(iid, tokens, graph_id=''):
@@ -1672,6 +1726,79 @@ def _facebook_fetch_ig_profile(iid, tokens, graph_id=''):
                 pass
     return {}
 
+def _facebook_resolve_instagram_user_id(ig_id, tokens, page_id='', graph_id='', ad_account_id=''):
+    """Resolve instagram_user_id for object_story_spec (Graph API IG account id linked to page)."""
+    ig_id = str(ig_id or '').strip()
+    graph_id = str(graph_id or '').strip()
+    page_id = str(page_id or '').strip()
+    ad_account_id = str(ad_account_id or '').strip()
+    token_list = []
+    for t in (tokens if isinstance(tokens, (list, tuple)) else [tokens]):
+        t = str(t or '').strip()
+        if t and t not in token_list:
+            token_list.append(t)
+    if not token_list:
+        return ''
+
+    wanted = {x for x in [ig_id, graph_id] if x}
+
+    def _graph_id_from_raw(raw):
+        if not isinstance(raw, dict):
+            return ''
+        gid = str(raw.get('id') or '').strip()
+        legacy = str(raw.get('legacy_instagram_user_id') or '').strip()
+        if gid and (not legacy or gid != legacy):
+            return gid
+        if gid:
+            return gid
+        return ''
+
+    def _matches(raw):
+        if not wanted:
+            return True
+        if not isinstance(raw, dict):
+            return False
+        gid = _graph_id_from_raw(raw)
+        legacy = str(raw.get('legacy_instagram_user_id') or '').strip()
+        norm_id = str(_facebook_normalize_ig_node(raw).get('id') or '').strip()
+        return bool(wanted.intersection({gid, legacy, norm_id}))
+
+    if page_id:
+        page_token = _facebook_page_access_token(page_id, token_list[0])
+        lookup_tokens = [t for t in [page_token, *token_list] if t]
+        for access in lookup_tokens:
+            for ig in _facebook_page_instagram_candidates(
+                page_id,
+                token_list[0],
+                ensure_pbia=False,
+                page_name='',
+                ad_account_id=ad_account_id,
+            ):
+                if not _matches(ig):
+                    continue
+                resolved = _graph_id_from_raw(ig)
+                if resolved:
+                    return resolved
+
+    if ad_account_id:
+        for ig in _facebook_ad_account_instagram_candidates(ad_account_id, token_list[0]):
+            if not _matches(ig):
+                continue
+            resolved = _graph_id_from_raw(ig)
+            if resolved:
+                return resolved
+
+    if ig_id or graph_id:
+        detail = _facebook_fetch_ig_profile(ig_id or graph_id, token_list, graph_id)
+        if isinstance(detail, dict) and detail:
+            resolved = str(detail.get('id') or '').strip()
+            if resolved:
+                return resolved
+
+    if ig_id.isdigit() and len(ig_id) >= 15:
+        return ig_id
+    return ''
+
 def _facebook_ig_actor_row(ig, page_name='', access_token='', extra_tokens=None):
     ig = _facebook_normalize_ig_node(ig)
     if not isinstance(ig, dict):
@@ -1693,7 +1820,7 @@ def _facebook_ig_actor_row(ig, page_name='', access_token='', extra_tokens=None)
             uname = uname or str(detail.get('username') or '').strip()
             iname = iname or str(detail.get('name') or '').strip()
             pic = pic or str(detail.get('profile_picture_url') or '').strip()
-            iid = str(detail.get('legacy_instagram_user_id') or detail.get('id') or iid).strip() or iid
+            iid = str(detail.get('id') or detail.get('legacy_instagram_user_id') or iid).strip() or iid
     page_name = str(page_name or '').strip()
     label = uname if uname else (iname if iname and not iname.isdigit() else '')
     if not label:
@@ -2676,6 +2803,8 @@ class FacebookExistingPostLibraryView(View):
         return str((b or {}).get('access_token') or '').strip(), str((b or {}).get('name') or page_id)
     def get(self, req):
         account_id = str(req.GET.get('account_id') or '').strip(); source = str(req.GET.get('source') or 'facebook').strip(); q = str(req.GET.get('q') or '').strip().lower(); flt = str(req.GET.get('filter') or 'all').strip().lower()
+        post_scope = str(req.GET.get('post_scope') or 'published').strip().lower()
+        eligible_only = str(req.GET.get('eligible_only') or '1').strip().lower() in ('1', 'true', 'yes', 'on')
         page_id = str(req.GET.get('page_id') or '').strip(); ig_id = str(req.GET.get('instagram_actor_id') or '').strip(); partner_page_id = str(req.GET.get('partner_page_id') or '').strip(); partner_ig_id = str(req.GET.get('partner_instagram_actor_id') or '').strip()
         token = self._token(account_id)
         if not token: return JsonResponse({'results': []})
@@ -2699,25 +2828,88 @@ class FacebookExistingPostLibraryView(View):
                     raw = f"{txt} {x.get('id','')} {mt}".lower()
                     if q and q not in raw: continue
                     if flt != 'all' and flt != media_label.lower(): continue
-                    results.append({'id': str((x or {}).get('id') or ''), 'text': txt[:120], 'source_label': 'Instagram', 'media_label': media_label, 'created_label': created or '-'})
+                    results.append({
+                        'id': str((x or {}).get('id') or ''), 'text': txt[:120], 'source_label': 'Instagram',
+                        'media_label': media_label, 'created_label': created or '-',
+                        'is_published': False, 'promotable_for_dev': False,
+                        'publish_label': 'Instagram (tidak didukung dev mode)',
+                    })
             else:
                 use_page = partner_page_id if source == 'partner' and partner_page_id else page_id
                 if use_page:
                     page_token, page_name = self._page_token(use_page, token)
-                    fields = 'id,message,created_time,status_type,attachments{media_type,type}'
-                    resp_prom = requests.get(f'https://graph.facebook.com/v22.0/{use_page}/promotable_posts', params={'fields': fields, 'limit': 50, 'access_token': page_token or token}, timeout=20)
-                    resp_pub = requests.get(f'https://graph.facebook.com/v22.0/{use_page}/published_posts', params={'fields': fields, 'limit': 50, 'access_token': page_token or token}, timeout=20)
-                    rows = (((resp_prom.json() if resp_prom.text else {}) or {}).get('data') or []) + (((resp_pub.json() if resp_pub.text else {}) or {}).get('data') or [])
+                    fields = 'id,message,created_time,status_type,is_published,is_eligible_for_promotion,promotable_id,application{id,name},attachments{media_type,type}'
+                    rows = []
                     seen = set()
+                    if post_scope in ('published', 'all'):
+                        resp_pub = requests.get(f'https://graph.facebook.com/v22.0/{use_page}/published_posts', params={'fields': fields, 'limit': 50, 'access_token': page_token or token}, timeout=20)
+                        for x in (((resp_pub.json() if resp_pub.text else {}) or {}).get('data') or []):
+                            xid = str((x or {}).get('id') or '').strip()
+                            if xid and xid not in seen:
+                                seen.add(xid)
+                                x = dict(x or {})
+                                x['_from'] = 'published'
+                                rows.append(x)
+                    if post_scope in ('promotable', 'all'):
+                        resp_prom = requests.get(f'https://graph.facebook.com/v22.0/{use_page}/promotable_posts', params={'fields': fields, 'limit': 50, 'access_token': page_token or token}, timeout=20)
+                        for x in (((resp_prom.json() if resp_prom.text else {}) or {}).get('data') or []):
+                            xid = str((x or {}).get('id') or '').strip()
+                            if xid and xid not in seen:
+                                seen.add(xid)
+                                x = dict(x or {})
+                                x['_from'] = 'promotable'
+                                rows.append(x)
                     for x in rows:
                         xid = str((x or {}).get('id') or '').strip()
-                        if not xid or xid in seen: continue
-                        seen.add(xid)
-                        txt = str((x or {}).get('message') or 'Postingan Facebook').strip() or 'Postingan Facebook'; media_label = _media_label(x); created = str((x or {}).get('created_time') or '').replace('T', ' ')[:16]
-                        raw = f"{txt} {xid} {media_label}".lower()
-                        if q and q not in raw: continue
-                        if flt != 'all' and flt != media_label.lower(): continue
-                        results.append({'id': xid, 'text': txt[:120], 'source_label': ('Konten Mitra' if source == 'partner' else page_name), 'media_label': media_label, 'created_label': created or '-'})
+                        if not xid:
+                            continue
+                        is_published = (x or {}).get('is_published')
+                        if is_published is None and str((x or {}).get('_from') or '') == 'published':
+                            is_published = True
+                        is_eligible = (x or {}).get('is_eligible_for_promotion')
+                        promotable_id = str((x or {}).get('promotable_id') or xid).strip()
+                        app_obj = (x or {}).get('application') if isinstance((x or {}).get('application'), dict) else {}
+                        app_name = str((app_obj or {}).get('name') or '').strip()
+                        promotable_for_dev = bool(
+                            is_published is not False
+                            and '_' in promotable_id
+                            and is_eligible is not False
+                        )
+                        txt = str((x or {}).get('message') or 'Postingan Facebook').strip() or 'Postingan Facebook'
+                        media_label = _media_label(x)
+                        created = str((x or {}).get('created_time') or '').replace('T', ' ')[:16]
+                        raw = f"{txt} {xid} {promotable_id} {media_label}".lower()
+                        if q and q not in raw:
+                            continue
+                        if flt != 'all' and flt != media_label.lower():
+                            continue
+                        if post_scope == 'published' and is_published is False:
+                            continue
+                        if eligible_only and is_eligible is False:
+                            continue
+                        if promotable_for_dev:
+                            publish_label = 'Siap untuk iklan'
+                        elif is_eligible is False:
+                            publish_label = 'Tidak eligible iklan'
+                        elif is_published is False:
+                            publish_label = 'Unpublished'
+                        else:
+                            publish_label = 'Perlu verifikasi'
+                        if app_name:
+                            publish_label += f' · {app_name[:24]}'
+                        results.append({
+                            'id': promotable_id,
+                            'post_id': xid,
+                            'promotable_id': promotable_id,
+                            'text': txt[:120],
+                            'source_label': ('Konten Mitra' if source == 'partner' else page_name),
+                            'media_label': media_label, 'created_label': created or '-',
+                            'is_published': bool(is_published is not False),
+                            'is_eligible_for_promotion': is_eligible is not False,
+                            'promotable_for_dev': promotable_for_dev,
+                            'publish_label': publish_label,
+                            'application_name': app_name,
+                        })
             return JsonResponse({'results': results[:50]})
         except Exception:
             return JsonResponse({'results': results[:50]})
@@ -2729,6 +2921,8 @@ class FacebookCreatePagePostView(View):
         return super().dispatch(request, *args, **kwargs)
     def post(self, req):
         account_id = str(req.POST.get('account_id') or '').strip(); page_id = str(req.POST.get('page_id') or '').strip(); message = str(req.POST.get('message') or '').strip(); link = str(req.POST.get('link') or '').strip()
+        publish_raw = str(req.POST.get('published') or 'true').strip().lower()
+        publish = publish_raw in ('1', 'true', 'yes', 'on')
         if not account_id or not page_id or not message:
             return JsonResponse({'success': False, 'message': 'Account, halaman, dan isi postingan wajib diisi.'})
         try:
@@ -2736,13 +2930,22 @@ class FacebookCreatePagePostView(View):
             token = str((acc or {}).get('access_token') or '').strip()
             page_meta = requests.get(f'https://graph.facebook.com/v22.0/{page_id}', params={'fields': 'access_token', 'access_token': token}, timeout=20).json()
             page_token = str((page_meta or {}).get('access_token') or token).strip()
-            payload = {'message': message, 'published': 'false', 'access_token': page_token}
+            payload = {'message': message, 'published': 'true' if publish else 'false', 'access_token': page_token}
             if link: payload['link'] = link
             resp = requests.post(f'https://graph.facebook.com/v22.0/{page_id}/feed', data=payload, timeout=20)
             body = resp.json() if resp.text else {}
             post_id = str((body or {}).get('id') or '').strip()
-            if not post_id: return JsonResponse({'success': False, 'message': str((body or {}).get('error', {}) or {}).strip() or 'Gagal membuat postingan.'})
-            return JsonResponse({'success': True, 'post_id': post_id, 'post_text': message[:120]})
+            if not post_id:
+                err_obj = (body or {}).get('error') or {}
+                err_msg = str(err_obj.get('message') or err_obj or '').strip() or 'Gagal membuat postingan.'
+                return JsonResponse({'success': False, 'message': err_msg})
+            return JsonResponse({
+                'success': True,
+                'post_id': post_id,
+                'post_text': message[:120],
+                'is_published': publish,
+                'publish_label': 'Publik' if publish else 'Unpublished',
+            })
         except Exception:
             return JsonResponse({'success': False, 'message': 'Gagal membuat postingan.'})
 
@@ -6004,7 +6207,7 @@ class GetCampaignMetaDetailView(View):
                     'ad_id': str(drow.get('id') or ''), 'ad_name': str(drow.get('name') or ''),
                     'page_id': str(spec.get('page_id') or post_from.get('id') or (existing_post_id.split('_')[0] if '_' in existing_post_id else '')),
                     'page_id_label': str(post_from.get('name') or ''),
-                    'instagram_actor_id': str(spec.get('instagram_actor_id') or creative.get('instagram_actor_id') or ''),
+                    'instagram_actor_id': str(spec.get('instagram_user_id') or spec.get('instagram_actor_id') or creative.get('instagram_actor_id') or ''),
                     'use_existing_post': '1' if existing_post_id else '0', 'existing_post_id': existing_post_id,
                     'website_url': str(story.get('link') or post_data.get('link') or ''),
                     'primary_text': str(story.get('message') or post_data.get('message') or creative.get('body') or ''),
@@ -7248,8 +7451,32 @@ class create_adset_ad_per_account(View):
             creative_payload = {'name': f'{ad_name} - CREATIVE'}
             if url_tags:
                 creative_payload['url_tags'] = url_tags
-            if use_existing_post == '1' and existing_post_id:
-                creative_payload['object_story_id'] = existing_post_id
+            if existing_post_id and use_existing_post != '1':
+                use_existing_post = '1'
+            if use_existing_post == '1':
+                if not existing_post_id:
+                    return JsonResponse({
+                        'success': False,
+                        'step': 'creative',
+                        'adset_id': adset_id,
+                        'message': 'Pilih postingan yang ada terlebih dahulu (Existing Post ID wajib diisi).',
+                        'suggest_existing_post': True,
+                    })
+                page_token_for_post = _facebook_page_access_token(page_id, token) if page_id else token
+                post_ok, post_err, _post_meta = _facebook_page_post_ad_ready(
+                    existing_post_id, page_id, [page_token_for_post, token],
+                )
+                if not post_ok:
+                    return JsonResponse({
+                        'success': False,
+                        'step': 'creative',
+                        'adset_id': adset_id,
+                        'message': post_err,
+                        'suggest_existing_post': True,
+                        'needs_published_post': True,
+                    })
+                object_story_id = str(_post_meta.get('usable_object_story_id') or existing_post_id).strip()
+                creative_payload['object_story_id'] = object_story_id
             else:
                 link_data = {'link': website_url, 'call_to_action': {'type': cta_type, 'value': {'link': website_url}}}
                 if primary_text:
@@ -7325,20 +7552,58 @@ class create_adset_ad_per_account(View):
                     if headline:
                         media_story_data['title'] = headline
                 object_story_spec = {'page_id': page_id, media_story_key: media_story_data}
+                needs_instagram_identity = 'instagram' in selected_platforms or 'threads' in selected_platforms
+                page_token = _facebook_page_access_token(page_id, token) if page_id else ''
+                resolve_tokens = [t for t in [page_token, token] if t]
+                instagram_user_id = ''
+                if needs_instagram_identity or instagram_actor_id:
+                    instagram_user_id = _facebook_resolve_instagram_user_id(
+                        instagram_actor_id,
+                        resolve_tokens,
+                        page_id=page_id,
+                        ad_account_id=real_account_id,
+                    )
+                if needs_instagram_identity and not instagram_user_id:
+                    return JsonResponse({
+                        'success': False,
+                        'step': 'creative',
+                        'adset_id': adset_id,
+                        'message': 'Profil Instagram tidak valid untuk halaman ini. Buka Identitas, pilih ulang Profil Instagram yang tertaut ke halaman Facebook, lalu simpan lagi.',
+                    })
                 if 'threads' in selected_platforms:
-                    if not instagram_actor_id or not threads_user_id:
-                        return JsonResponse({'success': False, 'step': 'creative', 'adset_id': adset_id, 'message': 'Threads memerlukan Instagram Actor ID dan Threads User ID.'})
-                    object_story_spec['instagram_actor_id'] = instagram_actor_id
+                    if not instagram_user_id or not threads_user_id:
+                        return JsonResponse({'success': False, 'step': 'creative', 'adset_id': adset_id, 'message': 'Threads memerlukan Instagram User ID dan Threads User ID.'})
+                    object_story_spec['instagram_user_id'] = instagram_user_id
                     object_story_spec['threads_user_id'] = threads_user_id
-                elif instagram_actor_id:
-                    object_story_spec['instagram_actor_id'] = instagram_actor_id
+                elif instagram_user_id and needs_instagram_identity:
+                    object_story_spec['instagram_user_id'] = instagram_user_id
                 creative_payload['object_story_spec'] = json.dumps(object_story_spec)
+            creative_mode = 'object_story_id' if use_existing_post == '1' else 'object_story_spec'
             ok, err, creative_rs = _post(f'act_{real_account_id}/adcreatives', creative_payload)
             if not ok:
                 err_msg = str(err or '').strip()
                 low = err_msg.lower()
-                if 'mode perkembangan' in low or 'development mode' in low:
-                    return JsonResponse({'success': False, 'step': 'creative', 'adset_id': adset_id, 'message': err_msg, 'app_mode_blocked': True, 'suggest_existing_post': True})
+                if any(x in low for x in (
+                    'mode perkembangan', 'development mode', 'harus bersifat publik', 'must be public',
+                    'must be made public', 'in development', 'apps in development', 'development apps',
+                )):
+                    hint = (
+                        ' Posting yang dipilih kemungkinan dibuat via app/API (bukan langsung di facebook.com). '
+                        'Buat posting baru langsung di Halaman Facebook (bukan lewat HRIS), tunggu tayang, lalu pilih di sini. '
+                        'Atau ubah app Meta ke mode Live.'
+                    ) if use_existing_post == '1' else (
+                        ' Gunakan Penyiapan iklan → Gunakan postingan yang ada → pilih posting dengan badge "Siap untuk iklan", '
+                        'lalu klik Lanjutkan sebelum Simpan.'
+                    )
+                    return JsonResponse({
+                        'success': False, 'step': 'creative', 'adset_id': adset_id,
+                        'message': err_msg + hint,
+                        'app_mode_blocked': True, 'suggest_existing_post': True,
+                        'needs_published_post': use_existing_post == '1',
+                        'debug_creative_mode': creative_mode,
+                        'debug_object_story_id': str(creative_payload.get('object_story_id') or ''),
+                        'debug_use_existing_post': use_existing_post,
+                    })
                 return JsonResponse({'success': False, 'step': 'creative', 'adset_id': adset_id, 'message': err_msg})
             creative_id = str((creative_rs or {}).get('id') or '').strip()
 
