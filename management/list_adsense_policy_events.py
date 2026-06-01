@@ -123,6 +123,19 @@ def _classify(subject, body, snippet):
     return event_type, severity, status
 
 
+def _gmail_scope_error_message(refresh_err=''):
+    base = (
+        "Token OAuth akun ini belum punya izin Gmail (gmail.readonly). "
+        "Fitur policy events membaca email dari adsense-noreply@google.com. "
+        "Silakan connect ulang akun lewat menu OAuth / AdX Account dengan izin Gmail, "
+        "lalu pastikan Gmail API aktif di Google Cloud Console project OAuth yang sama."
+    )
+    detail = str(refresh_err or '').strip()
+    if detail:
+        return f"{base} Detail: {detail}"
+    return base
+
+
 def build_gmail_service(client_id, client_secret, refresh_token):
     if build is None:
         return None, "googleapiclient tidak tersedia"
@@ -133,17 +146,45 @@ def build_gmail_service(client_id, client_secret, refresh_token):
     if not (cid and csec and rt):
         return None, "Kredensial tidak lengkap (client_id/client_secret/refresh_token)"
 
-    creds = Credentials(
-        token=None,
-        refresh_token=rt,
-        token_uri='https://oauth2.googleapis.com/token',
-        client_id=cid,
-        client_secret=csec,
-        scopes=[GMAIL_READONLY_SCOPE],
-    )
-    creds.refresh(Request())
-    service = build('gmail', 'v1', credentials=creds, cache_discovery=False)
-    return service, None
+    last_err = ''
+    creds = None
+
+    # Jangan paksa gmail.readonly saat refresh jika token hanya di-authorize untuk AdSense/AdX
+    # (Google mengembalikan invalid_scope). Coba refresh dengan scope asli token dulu.
+    for scopes in (None, [GMAIL_READONLY_SCOPE]):
+        try:
+            creds = Credentials(
+                token=None,
+                refresh_token=rt,
+                token_uri='https://oauth2.googleapis.com/token',
+                client_id=cid,
+                client_secret=csec,
+                scopes=scopes,
+            )
+            creds.refresh(Request())
+            break
+        except Exception as e:
+            last_err = str(e)
+            creds = None
+            err_low = last_err.lower()
+            if scopes is None and ('invalid_scope' in err_low or 'bad request' in err_low):
+                continue
+            if scopes == [GMAIL_READONLY_SCOPE]:
+                return None, _gmail_scope_error_message(last_err)
+            continue
+
+    if creds is None:
+        return None, _gmail_scope_error_message(last_err)
+
+    try:
+        service = build('gmail', 'v1', credentials=creds, cache_discovery=False)
+        service.users().getProfile(userId='me').execute()
+        return service, None
+    except Exception as e:
+        err_low = str(e).lower()
+        if 'insufficient' in err_low or '403' in err_low or 'forbidden' in err_low:
+            return None, _gmail_scope_error_message(str(e))
+        return None, f"Gagal mengakses Gmail API: {e}"
 
 
 def list_message_ids(service, query, max_results=200):

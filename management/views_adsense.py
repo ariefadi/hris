@@ -817,6 +817,8 @@ class AdsensePolicyEventsView(View):
     def get(self, req):
         db = data_mysql()
         result = list_adsense_policy_events(db, limit=200)
+        oauth_msg = str(req.session.pop('oauth_added_message', '') or '').strip()
+        oauth_ok = req.session.pop('oauth_added_success', None)
         data = {
             'title': 'AdSense Policy Events',
             'user': req.session.get('hris_admin', {}),
@@ -824,6 +826,8 @@ class AdsensePolicyEventsView(View):
             'rows': result.get('rows') or [],
             'items': result.get('items') or [],
             'table_name': result.get('table') or '',
+            'oauth_flash_success': bool(oauth_ok),
+            'oauth_flash_message': oauth_msg,
         }
         return render(req, 'admin/adsense_manager/policy_event/index.html', data)
 

@@ -9261,6 +9261,9 @@ class AdxAccountOAuthStartView(View):
             current_user = req.session.get('hris_admin', {})
             # Izinkan target email via query (?email=xxx); jika tidak ada, JANGAN paksa fallback ke email session
             target_mail = req.GET.get('email')
+            return_to = str(req.GET.get('return_to') or '').strip().lower()
+            if return_to in ('policy_events', 'adsense_policy_events'):
+                req.session['oauth_return_to'] = 'adsense_policy_events'
             user_id = current_user.get('user_id')
             # Ambil konfigurasi dari .env secara eksklusif
             client_id = os.getenv('GOOGLE_OAUTH2_CLIENT_ID')
@@ -9291,7 +9294,7 @@ class AdxAccountOAuthStartView(View):
                 # Scope untuk Google AdSense
                 'https://www.googleapis.com/auth/adsense',
                 # Scope untuk sinkronisasi Gmail AdSense policy events
-                # 'https://www.googleapis.com/auth/gmail.readonly'
+                'https://www.googleapis.com/auth/gmail.readonly',
             ]
             flow = Flow.from_client_config(client_config, scopes=scopes)
             flow.redirect_uri = redirect_uri
@@ -9306,8 +9309,8 @@ class AdxAccountOAuthStartView(View):
                 'scope': ' '.join(scopes),
                 'response_type': 'code',
                 'access_type': 'offline',
-                'include_granted_scopes': 'false',  # Ubah ke false untuk memaksa scope baru
-                'prompt': 'consent select_account',  # Tambahkan select_account untuk memaksa pilih akun
+                'include_granted_scopes': 'true',
+                'prompt': 'consent select_account',
                 'state': state,
             }
             # Hanya gunakan login_hint bila admin sengaja memilih email tertentu
@@ -9411,7 +9414,7 @@ class AdxAccountOAuthCallbackView(View):
                 # Scope untuk Google AdSense
                 'https://www.googleapis.com/auth/adsense',
                 # Scope untuk sinkronisasi Gmail AdSense policy events
-                # 'https://www.googleapis.com/auth/gmail.readonly'
+                'https://www.googleapis.com/auth/gmail.readonly',
             ]
 
             flow = Flow.from_client_config(client_config, scopes=scopes)

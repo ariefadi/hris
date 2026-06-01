@@ -130,7 +130,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
         </div>
     </div> <!-- /.card-header -->
     <div class="card-body">
-        <div class="form-row" id="facebookPerCampaignFilters" data-title="Filter" data-intro="Pilih rentang tanggal, account, dan domain (opsional), lalu klik Muat Data untuk menampilkan traffic per campaign.">
+        <div class="form-row" id="facebookPerCampaignFilters" data-title="Filter" data-intro="Pilih rentang tanggal, minimal 1 Account (wajib), dan subdomain (opsional), lalu klik Muat Data. Loader tampil sampai data selesai dimuat.">
             <div class="col-md-2">
                 <label>Tanggal Dari</label>
                 <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Dari"/>
@@ -140,8 +140,8 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                  <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
             </div>
             <div class="col-md-3">
-                <label>Filter Account</label>
-                <select class="form-control select2-multiple" id="select_account" multiple>
+                <label>Filter Account <span class="text-danger">*</span></label>
+                <select class="form-control select2-multiple" id="select_account" multiple required>
                     {% for account in data_account %}
                     <option value="{{account.account_id}}">{{account.account_name}}</option>
                     {% endfor %}
@@ -182,7 +182,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
         <div id="facebookSummaryEmptyState" class="summary-empty-state">
             <i class="bi bi-funnel" aria-hidden="true"></i>
             <div class="summary-empty-state-title">Belum ada data ditampilkan</div>
-            <div>Pilih rentang tanggal, account, dan subdomain (opsional), lalu klik <strong>Muat Data</strong>.</div>
+            <div>Pilih rentang tanggal, <strong>minimal 1 Account</strong> (wajib), subdomain opsional, lalu klik <strong>Muat Data</strong>.</div>
         </div>
 
         <div id="facebookSummaryResults" style="display:none;">

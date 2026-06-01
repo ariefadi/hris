@@ -19,6 +19,51 @@ function hideFacebookSummaryResults() {
     $('#facebookSummaryEmptyState').show();
 }
 
+function showFacebookSummaryLoader(message) {
+    const msg = String(message || 'Memuat data summary Facebook...').trim() || 'Memuat data summary Facebook...';
+    if (window.HrisLoader && typeof window.HrisLoader.show === 'function') {
+        window.HrisLoader.show(msg);
+        return;
+    }
+    const $overlay = $('#overlay');
+    if ($overlay.length) {
+        $overlay.attr('data-loader-message', msg);
+        $overlay.fadeIn(200);
+    }
+}
+
+function hideFacebookSummaryLoader() {
+    if (window.HrisLoader && typeof window.HrisLoader.forceHide === 'function') {
+        window.HrisLoader.forceHide();
+        return;
+    }
+    $('#overlay').fadeOut(200);
+}
+
+function validateFacebookSummaryFilters() {
+    const tanggalDari = String($('#tanggal_dari').val() || '').trim();
+    const tanggalSampai = String($('#tanggal_sampai').val() || '').trim();
+    const selectedAccount = $('#select_account').val();
+    const accounts = Array.isArray(selectedAccount)
+        ? selectedAccount.filter(function (id) { return String(id || '').trim(); })
+        : (selectedAccount ? [String(selectedAccount).trim()] : []);
+
+    if (!tanggalDari || !tanggalSampai) {
+        alert('Tanggal Dari dan Tanggal Sampai wajib diisi.');
+        return null;
+    }
+    if (!accounts.length) {
+        alert('Filter Account wajib dipilih minimal 1 akun sebelum memuat data.');
+        return null;
+    }
+    return {
+        tanggal_dari: tanggalDari,
+        tanggal_sampai: tanggalSampai,
+        data_account: accounts.join(','),
+        data_domain: normalizeDomainFilter($('#select_domain').val()) || '%'
+    };
+}
+
 $().ready(function () {
     report_eror = function (jqXHR, exception) {
         var msg = '';
@@ -100,17 +145,21 @@ $().ready(function () {
 
     $('#btn_load_data').click(function (e) {
         e.preventDefault();
-        var tanggal_dari = $("#tanggal_dari").val();
-        var tanggal_sampai = $("#tanggal_sampai").val();
-        var selected_account = $("#select_account").val() || '%';
-        var data_account = selected_account ? selected_account : '';
-        var selected_domain = normalizeDomainFilter($("#select_domain").val());
-        var data_domain = selected_domain ? selected_domain : '%';
-        if (tanggal_dari !== '' && tanggal_sampai !== '') {
-            showFacebookSummaryResults();
-            destroy_table_data_campaign_facebook()
-            table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain)
-        }
+        const filters = validateFacebookSummaryFilters();
+        if (!filters) return;
+        const $btn = $('#btn_load_data');
+        const btnHtml = $btn.html();
+        $btn.prop('disabled', true);
+        destroy_table_data_campaign_facebook();
+        table_data_campaign_facebook(
+            filters.tanggal_dari,
+            filters.tanggal_sampai,
+            filters.data_account,
+            filters.data_domain,
+            function onDone() {
+                $btn.prop('disabled', false).html(btnHtml);
+            }
+        );
     });
     // Filter silang account-domain dinonaktifkan karena domain menggunakan freetext.
 });
@@ -236,16 +285,16 @@ function renderFacebookMonitoringCampaignTable(rows) {
     });
 }
 
-function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain) {
+function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain, onDone) {
+    showFacebookSummaryLoader('Memuat data summary Facebook...');
     $.ajax({
         url: '/management/admin/page_summary_facebook?tanggal_dari=' + encodeURIComponent(tanggal_dari) + '&tanggal_sampai=' + encodeURIComponent(tanggal_sampai) + '&data_account=' + encodeURIComponent(data_account) + '&data_domain=' + encodeURIComponent(data_domain),
         method: 'GET',
         dataType: 'json',
-        beforeSend: function () {
-            $('#overlay').fadeIn(500);
-        },
         success: function (data_campaign) {
-            $('#overlay').fadeOut(500);
+            hideFacebookSummaryLoader();
+            if (typeof onDone === 'function') onDone();
+            showFacebookSummaryResults();
             const tanggal = new Date();
             judul = "Rekapitulasi Traffic Per Campaign Facebook";
 
@@ -462,6 +511,12 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                     $('#facebookCampaignDetailModal').modal('show');
                 });
         },
+        error: function (jqXHR, exception) {
+            hideFacebookSummaryLoader();
+            if (typeof onDone === 'function') onDone();
+            hideFacebookSummaryResults();
+            report_eror(jqXHR, exception);
+        }
     });
 }
 
