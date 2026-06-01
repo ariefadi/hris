@@ -1,21 +1,188 @@
 {% extends "admin_base.html" %}
 {% load static %}
 {% block page_title %}Dashboard{% endblock %}
-{% block page_heading %}Dashboard{% endblock %}
+{% block body_class %}hold-transition sidebar-mini dashboard-admin-page{% endblock %}
+{% block page_heading %}{% endblock %}
 {% block more_stylesheet %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css">
 <!-- Custom Dashboard CSS -->
 <style>
+/* ── Dashboard design system ── */
+:root {
+    --db-primary: #6366f1;
+    --db-primary-dark: #4f46e5;
+    --db-accent: #8b5cf6;
+    --db-cyan: #06b6d4;
+    --db-emerald: #10b981;
+    --db-amber: #f59e0b;
+    --db-rose: #f43f5e;
+    --db-surface: #ffffff;
+    --db-muted: #64748b;
+    --db-text: #0f172a;
+    --db-border: rgba(15, 23, 42, 0.08);
+    --db-shadow: 0 10px 40px rgba(15, 23, 42, 0.08);
+    --db-shadow-lg: 0 20px 50px rgba(79, 70, 229, 0.15);
+    --db-grad-hero: linear-gradient(135deg, #4f46e5 0%, #7c3aed 45%, #db2777 100%);
+    --db-grad-soft: linear-gradient(180deg, #f8fafc 0%, #eef2ff 50%, #f1f5f9 100%);
+    --db-radius: 18px;
+    --db-radius-sm: 12px;
+}
+
+.dashboard-admin-page .content-header { display: none; }
+.dashboard-admin-page .content {
+    background: var(--db-grad-soft);
+    min-height: calc(100vh - 57px);
+}
+.dashboard-admin-page .content > .container-fluid { padding: 0; max-width: 100%; }
+
+.db-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0 0 var(--db-radius) var(--db-radius);
+    margin: -12px -12px 24px;
+    padding: 28px 28px 32px;
+    background: var(--db-grad-hero);
+    color: #fff;
+    box-shadow: var(--db-shadow-lg);
+}
+.db-hero-bg {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at 12% 20%, rgba(255,255,255,.22) 0%, transparent 42%),
+        radial-gradient(circle at 88% 10%, rgba(255,255,255,.14) 0%, transparent 38%),
+        radial-gradient(circle at 70% 90%, rgba(0,0,0,.12) 0%, transparent 45%);
+    pointer-events: none;
+}
+.db-hero-inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+.db-hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.16);
+    border: 1px solid rgba(255,255,255,.28);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    backdrop-filter: blur(8px);
+}
+.db-hero-title {
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    font-weight: 800;
+    margin: 0 0 8px;
+    letter-spacing: -.02em;
+    line-height: 1.15;
+}
+.db-hero-sub {
+    margin: 0;
+    font-size: 15px;
+    opacity: .92;
+    max-width: 560px;
+    line-height: 1.55;
+}
+.db-hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+.db-hero-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 18px;
+    border-radius: var(--db-radius-sm);
+    background: rgba(255,255,255,.14);
+    border: 1px solid rgba(255,255,255,.22);
+    backdrop-filter: blur(10px);
+    min-width: 130px;
+}
+.db-hero-stat-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    opacity: .78;
+}
+.db-hero-stat-value {
+    font-size: 14px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.db-pulse-dot {
+    font-size: 8px;
+    color: #4ade80;
+    animation: db-pulse 2s ease-in-out infinite;
+}
+@keyframes db-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .55; transform: scale(1.15); }
+}
+.db-hero-btn {
+    border-radius: 999px !important;
+    padding: 10px 18px !important;
+    font-weight: 700 !important;
+    border: 1px solid rgba(255,255,255,.35) !important;
+    background: rgba(255,255,255,.18) !important;
+    color: #fff !important;
+    backdrop-filter: blur(8px);
+    transition: transform .15s ease, background .15s ease;
+}
+.db-hero-btn:hover {
+    background: rgba(255,255,255,.28) !important;
+    color: #fff !important;
+    transform: translateY(-1px);
+}
+
+.dashboard-admin-content {
+    position: relative;
+    min-height: 60vh;
+    padding: 0 12px 32px;
+}
+
 .dashboard-card {
-    border: none;
-    border-radius: 15px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid var(--db-border);
+    border-radius: var(--db-radius);
+    background: var(--db-surface);
+    box-shadow: var(--db-shadow);
+    transition: box-shadow 0.25s ease, border-color 0.25s ease;
+    overflow: hidden;
 }
 
 .dashboard-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+    border-color: rgba(99, 102, 241, 0.18);
+}
+
+.dashboard-card .card-header {
+    background: linear-gradient(180deg, #fafbff 0%, #f8fafc 100%);
+    border-bottom: 1px solid var(--db-border);
+    padding: 16px 20px;
+}
+
+.dashboard-card .card-header .card-title,
+.dashboard-card .card-header > div:first-child {
+    font-weight: 800 !important;
+    color: var(--db-text);
+    letter-spacing: -.01em;
+}
+
+.dashboard-card .card-header i.bi {
+    color: var(--db-primary);
 }
 
 .metric-card {
@@ -23,16 +190,30 @@
     overflow: hidden;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: #fff;
-    border-radius: 16px;
-    padding: 18px 18px;
+    border-radius: var(--db-radius);
+    padding: 20px 20px;
     margin-bottom: 20px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 12px 32px rgba(79, 70, 229, 0.22);
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+    border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .metric-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.18);
+    transform: translateY(-5px) scale(1.01);
+    box-shadow: 0 20px 44px rgba(79, 70, 229, 0.28);
+}
+
+.metric-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.12) 50%, transparent 70%);
+    transform: translateX(-120%);
+    transition: transform .6s ease;
+    pointer-events: none;
+}
+.metric-card:hover::before {
+    transform: translateX(120%);
 }
 
 .metric-card::after {
@@ -44,7 +225,6 @@
     height: 140px;
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.18);
-    filter: blur(0px);
 }
 
 .metric-card-inner {
@@ -98,40 +278,24 @@
 }
 
 .metric-value {
-    font-size: 2.5rem;
-    font-weight: bold;
-    margin-bottom: 5px;
+    font-size: clamp(1.6rem, 2.5vw, 2.4rem);
+    font-weight: 800;
+    margin-bottom: 4px;
+    letter-spacing: -.02em;
+    line-height: 1.1;
 }
 
 .metric-label {
-    font-size: 1rem;
-    opacity: 0.9;
+    font-size: .92rem;
+    font-weight: 600;
+    opacity: 0.92;
+    letter-spacing: .01em;
 }
 
 .chart-container {
     position: relative;
     height: 400px;
     margin: 20px 0;
-}
-
-.loading-spinner {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    background: rgba(0,0,0,0.5);
-    color: #fff;
-}
-
-.loading-spinner .loading-inner {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    font-size: 1.5rem;
-    font-weight: 800;
 }
 
 .score-loading-state {
@@ -177,11 +341,6 @@
     to { transform: rotate(360deg); }
 }
 
-.dashboard-admin-content {
-    position: relative;
-    min-height: 60vh;
-}
-
 .spinner-border {
     width: 3rem;
     height: 3rem;
@@ -217,11 +376,13 @@
 }
 
 .error-message {
-    background: #f8d7da;
-    color: #721c24;
-    padding: 15px;
-    border-radius: 10px;
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    color: #991b1b;
+    padding: 16px 18px;
+    border-radius: var(--db-radius-sm);
     margin: 20px 0;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    box-shadow: 0 8px 24px rgba(239, 68, 68, 0.08);
 }
 .equal-group {
     flex-wrap: wrap;
@@ -411,34 +572,45 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-prevbutton:h
     align-items: center;
     gap: 6px;
     flex-wrap: wrap;
-    padding: 6px;
+    padding: 5px;
     border-radius: 999px;
-    background: rgba(15, 23, 42, 0.04);
-    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
 }
 .dashboard-recap-tabs .btn {
     border-radius: 999px;
-    font-weight: 900;
-    letter-spacing: .03em;
-    padding: 6px 12px;
+    font-weight: 800;
+    letter-spacing: .02em;
+    padding: 7px 14px;
     line-height: 1.2;
     border: 1px solid transparent;
     background: transparent;
-    color: #334155;
+    color: #475569;
     box-shadow: none;
+    transition: all .18s ease;
 }
 .dashboard-recap-tabs .btn.btn-primary {
-    background: #ffffff;
-    color: #0f172a;
-    border-color: rgba(15, 23, 42, 0.10);
-    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.10);
+    background: linear-gradient(135deg, var(--db-primary) 0%, var(--db-accent) 100%);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
 }
 .dashboard-recap-tabs .btn.btn-outline-primary {
     background: transparent;
     border-color: transparent;
 }
+.dashboard-recap-tabs .btn.btn-outline-primary:hover {
+    background: rgba(99, 102, 241, 0.08);
+    color: var(--db-primary-dark);
+}
 .dashboard-recap-tabs .btn:hover {
-    background: rgba(255, 255, 255, 0.55);
+    background: rgba(255, 255, 255, 0.65);
+}
+.dashboard-recap-tabs .btn.btn-primary:hover {
+    background: linear-gradient(135deg, #5558e8 0%, #7c3aed 100%);
+    color: #fff;
+    filter: brightness(1.05);
 }
 .dashboard-recap-tabs .btn:focus {
     outline: none;
@@ -462,16 +634,130 @@ html[data-theme="dark"] .dashboard-recap-tabs .btn:hover {
     background: rgba(255, 255, 255, 0.10);
 }
 
-.dashboard-recap-card { border-radius:16px; border:1px solid rgba(15,23,42,0.08); overflow:hidden; }
+.dashboard-recap-card {
+    border-radius: var(--db-radius);
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    overflow: hidden;
+    box-shadow: var(--db-shadow);
+    background: var(--db-surface);
+}
+.dashboard-recap-card > .card-header {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border-bottom: 1px solid var(--db-border);
+    padding: 20px 22px 16px;
+    position: relative;
+}
+.dashboard-recap-card > .card-header::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--db-primary), var(--db-accent), var(--db-rose));
+}
+.dashboard-recap-title {
+    font-weight: 800;
+    font-size: 1.15rem;
+    letter-spacing: -.01em;
+    color: var(--db-text);
+    margin-bottom: 4px;
+}
+.dashboard-recap-subtitle {
+    font-size: 12px;
+    color: var(--db-muted);
+}
+.dashboard-recap-filters {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.dashboard-recap-filter-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.dashboard-recap-filter-item label {
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--db-muted);
+    margin: 0;
+    white-space: nowrap;
+}
+.dashboard-recap-filter-item .form-control {
+    border-radius: 10px;
+    border-color: rgba(99, 102, 241, 0.18);
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+.dashboard-recap-filter-item .form-control:focus {
+    border-color: var(--db-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+#dashboardRecapSyncBtn {
+    border-radius: 10px;
+    font-weight: 700;
+    border: none;
+    background: linear-gradient(135deg, var(--db-primary) 0%, var(--db-accent) 100%);
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+    transition: transform .15s ease, box-shadow .15s ease;
+    color: #fff;
+}
+#dashboardRecapSyncBtn .bi {
+    font-size: 1.05rem;
+    line-height: 1;
+    display: inline-block;
+    vertical-align: middle;
+}
+#dashboardRecapSyncBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px rgba(99, 102, 241, 0.38);
+    background: linear-gradient(135deg, #5558e8 0%, #7c3aed 100%);
+}
+.dashboard-recap-table thead th {
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    color: var(--db-text);
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    border-bottom: 2px solid rgba(99, 102, 241, 0.25) !important;
+    white-space: nowrap;
+}
+.dashboard-recap-table tbody tr {
+    transition: background-color .15s ease;
+}
+.dashboard-recap-table tbody tr:hover {
+    background: rgba(99, 102, 241, 0.05) !important;
+}
 .dashboard-recap-header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
-.dashboard-recap-header .select2-container { min-width: 180px; }
+.dashboard-recap-header .select2-container { min-width: 200px; }
+.dashboard-recap-filter-item .select2-container--bootstrap4 .select2-selection--single {
+    height: 38px;
+    border-radius: 10px;
+    border-color: rgba(99, 102, 241, 0.18);
+}
+.dashboard-recap-filter-item .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+    line-height: 36px;
+    padding-left: 12px;
+}
+.dashboard-recap-filter-item .select2-container--bootstrap4 .select2-selection--single .select2-selection__arrow {
+    height: 36px;
+}
+.dashboard-recap-filter-item .select2-container--bootstrap4.select2-container--focus .select2-selection,
+.dashboard-recap-filter-item .select2-container--bootstrap4.select2-container--open .select2-selection {
+    border-color: var(--db-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
 .dashboard-recap-header .select2-container--bootstrap4 .select2-selection--single { height: 38px; }
 .dashboard-recap-header .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered { line-height: 36px; }
 .dashboard-recap-header .select2-container--bootstrap4 .select2-selection--single .select2-selection__arrow { height: 36px; }
-.metric-card.spend { background: linear-gradient(135deg, #ff4b1f 0%, #ff9068 100%); }
-.metric-card.revenue { background: linear-gradient(135deg, #7f00ff 0%, #e100ff 100%); }
-.metric-card.net { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
-.metric-card.roi { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.metric-card.spend { background: linear-gradient(135deg, #ef4444 0%, #f97316 100%); box-shadow: 0 12px 32px rgba(239, 68, 68, 0.25); }
+.metric-card.revenue { background: linear-gradient(135deg, #7c3aed 0%, #db2777 100%); box-shadow: 0 12px 32px rgba(124, 58, 237, 0.25); }
+.metric-card.net { background: linear-gradient(135deg, #059669 0%, #10b981 100%); box-shadow: 0 12px 32px rgba(16, 185, 129, 0.25); }
+.metric-card.roi { background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%); box-shadow: 0 12px 32px rgba(37, 99, 235, 0.25); }
 .dashboard-recap-table th, .dashboard-recap-table td { vertical-align: middle; }
 .dashboard-kondisi-wrap {
     position: relative;
@@ -1338,6 +1624,52 @@ html[data-theme="dark"] .decision-detail-reason-item {
     filter: brightness(1.1);
 }
 
+/* Dark mode — dashboard shell */
+html[data-theme="dark"] body.dashboard-admin-page .content {
+    background: linear-gradient(180deg, #0f172a 0%, #1e1b4b 40%, #0f172a 100%);
+}
+html[data-theme="dark"] .db-hero {
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+html[data-theme="dark"] .dashboard-card {
+    background: #1e293b;
+    border-color: rgba(148, 163, 184, 0.15);
+}
+html[data-theme="dark"] .dashboard-card .card-header {
+    background: linear-gradient(180deg, #1e293b 0%, #172033 100%);
+    border-bottom-color: rgba(148, 163, 184, 0.12);
+}
+html[data-theme="dark"] .dashboard-recap-card > .card-header {
+    background: linear-gradient(180deg, #1e293b 0%, #172033 100%);
+}
+html[data-theme="dark"] .dashboard-recap-title { color: #f1f5f9; }
+html[data-theme="dark"] .dashboard-recap-tabs {
+    background: rgba(15, 23, 42, 0.6);
+    border-color: rgba(148, 163, 184, 0.15);
+}
+html[data-theme="dark"] .dashboard-recap-table thead th {
+    background: #162235;
+    color: #f8fafc;
+    border-bottom-color: rgba(99, 102, 241, 0.35) !important;
+}
+html[data-theme="dark"] .dashboard-recap-filter-item .form-control {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-color: rgba(148, 163, 184, 0.25);
+}
+
+@media (max-width: 768px) {
+    .db-hero {
+        margin: -8px -8px 20px;
+        padding: 22px 18px 26px;
+        border-radius: 0 0 14px 14px;
+    }
+    .db-hero-inner { flex-direction: column; align-items: flex-start; }
+    .dashboard-recap-filters { width: 100%; }
+    .dashboard-recap-filter-item { width: 100%; }
+    .dashboard-recap-filter-item .form-control { flex: 1; width: 100% !important; max-width: none !important; }
+}
+
 /* ...existing code... */
 </style>
 {% endblock %}
@@ -1346,13 +1678,29 @@ html[data-theme="dark"] .decision-detail-reason-item {
 <main class="app-main">
     <div class="app-content">
         <div class="container-fluid dashboard-admin-content">
-            <!-- Loading Spinner -->
-            <div id="loading" class="loading-spinner">
-                <div class="loading-inner">
-                    <i class="fas fa-sync-alt fa-spin" aria-hidden="true"></i>
-                    <span>Memuat Data ...</span>
-                </div>  
-            </div>
+
+            <!-- Hero Welcome -->
+            <section class="db-hero" aria-label="Dashboard header">
+                <div class="db-hero-bg" aria-hidden="true"></div>
+                <div class="db-hero-inner">
+                    <div class="db-hero-copy">
+                        <span class="db-hero-badge"><i class="bi bi-stars" aria-hidden="true"></i> AdX &amp; AdSense Analytics</span>
+                        <h2 class="db-hero-title">Dashboard Earning</h2>
+                        <p class="db-hero-sub">Selamat datang, <strong>{% firstof user.user_alias user.user_name "Admin" %}</strong> — pantau performa iklan, pendapatan, dan scoring campaign secara real-time.</p>
+                    </div>
+                    <div class="db-hero-actions">
+                        <div class="db-hero-stat">
+                            <span class="db-hero-stat-label">Monitor</span>
+                            <span class="db-hero-stat-value"><i class="bi bi-circle-fill db-pulse-dot" aria-hidden="true"></i> Aktif</span>
+                        </div>
+                        <button type="button" class="btn db-hero-btn" id="btnDashboardTourHero">
+                            <i class="bi bi-question-circle" aria-hidden="true"></i> Panduan
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <div id="loading" class="hris-loader-stub" style="display:none" data-loader-message="Memuat Data..." aria-hidden="true"></div>
             <!-- Error Message -->
             <div id="error-message" class="error-message" style="display: none;">
                 <strong>Error:</strong> <span id="error-text"></span>
@@ -1366,30 +1714,30 @@ html[data-theme="dark"] .decision-detail-reason-item {
                     <div class="card-header">
                         <div class="dashboard-recap-header">
                             <div>
-                                <div style="font-weight:900;letter-spacing:.02em;">Dashboard Earning Adx Manager & AdSense</div>
-                                <div class="text-muted" style="font-size:12px;">Default: hari ini</div>
+                                <div class="dashboard-recap-title">Dashboard Earning Adx Manager &amp; AdSense</div>
+                                <div class="dashboard-recap-subtitle">Default: hari ini</div>
                                 <div id="dashboardRecapSyncAlert" class="alert alert-info" style="display:none;border-radius:10px;margin-top:10px;margin-bottom:0;padding:10px 12px;">
                                     <span id="dashboardRecapSyncAlertText">Syncronize sedang berlangsung</span>
                                 </div>
                             </div>
-                            <div class="d-flex align-items-center" style="gap:16px;flex-wrap:nowrap;white-space:nowrap;overflow-x:auto;max-width:100%;">
-                                <div class="d-flex align-items-center" style="gap:10px;">
-                                    <label for="dashboardRecapDate" class="mb-0" style="font-weight:800;font-size:12px;letter-spacing:.06em;text-transform:uppercase;">Filter Tanggal</label>
+                            <div class="dashboard-recap-filters">
+                                <div class="dashboard-recap-filter-item">
+                                    <label for="dashboardRecapDate">Filter Tanggal</label>
                                     <input id="dashboardRecapDate" type="text" class="form-control datepicker-input w-auto" style="width: 180px;" placeholder="YYYY-MM-DD" autocomplete="off" />
                                 </div>
-                                <div class="d-flex align-items-center" style="gap:10px;">
-                                    <label for="dashboardRecapSubdomain" class="mb-0" style="font-weight:800;font-size:12px;letter-spacing:.06em;text-transform:uppercase;">Filter Subdomain</label>
+                                <div class="dashboard-recap-filter-item">
+                                    <label for="dashboardRecapSubdomain">Filter Subdomain</label>
                                     <input id="dashboardRecapSubdomain" type="text" class="form-control w-auto" style="width: 220px;" placeholder="contoh: benteng" autocomplete="off" />
                                 </div>
-                                <div class="d-flex align-items-center" style="gap:10px;">
-                                    <label for="dashboardRecapSource" class="mb-0" style="font-weight:800;font-size:12px;letter-spacing:.06em;text-transform:uppercase;">Data Sumber</label>
-                                    <select id="dashboardRecapSource" class="form-control w-auto" style="width: 180px;">
+                                <div class="dashboard-recap-filter-item">
+                                    <label for="dashboardRecapSource">Data Sumber</label>
+                                    <select id="dashboardRecapSource" class="form-control w-auto dashboard-recap-source-select" style="width: 200px;">
                                         <option value="all">Semua Data</option>
                                         <option value="adx">AdX Manager</option>
                                         <option value="adsense">AdSense Manager</option>
                                     </select>
                                     <button id="dashboardRecapSyncBtn" type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:8px;">
-                                        <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                                        <i class="bi bi-arrow-clockwise text-white"></i>
                                         <span>Synchronize</span>
                                     </button>
                                 </div>
@@ -1766,11 +2114,7 @@ html[data-theme="dark"] .decision-detail-reason-item {
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/wordcloud.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.1.0/custom/world.js"></script>
-<!-- Select2 (untuk Adx Account) -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@1.5.2/dist/select2-bootstrap4.min.css" rel="stylesheet">
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<!-- intro.js for dashboard tour -->
 <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
 <script>
 let loginChart, userChart;
@@ -1795,6 +2139,7 @@ function showError(message) {
     const text = document.getElementById('error-text');
 
     if (loading) loading.style.display = 'none';
+    if (window.HrisLoader) window.HrisLoader.forceHide();
     if (legacy) legacy.style.display = 'none';
     if (recap) recap.style.display = 'none';
     if (box) box.style.display = 'block';
@@ -1874,6 +2219,7 @@ async function fetchDashboardData() {
 // Update dashboard with data
 function updateDashboard(data) {
     document.getElementById('loading').style.display = 'none';
+    if (window.HrisLoader) window.HrisLoader.forceHide();
     document.getElementById('dashboard-content').style.display = 'block';
 
     try {
@@ -2915,32 +3261,45 @@ function initRoiHourlyModal() {
     });
 }
 function startDashboardTour() {
-    if (typeof introJs !== 'function') return;
+    const introFactory = (typeof introJs === 'function') ? introJs : (window.introJs || null);
+    if (!introFactory) {
+        alert('Panduan belum siap dimuat. Silakan refresh halaman dan coba lagi.');
+        return;
+    }
+
+    function tourCard(selector) {
+        const el = document.querySelector(selector);
+        if (!el) return null;
+        return el.closest('.dashboard-card') || el.closest('.card') || el;
+    }
 
     const steps = [{
-        intro: 'Ini adalah panduan singkat pada halaman <b> Dashboard </b>. Klik tombol “ Lanjut ” untuk mengikuti langkah-langkahnya.'
+        intro: 'Selamat datang di <b>Dashboard Earning</b>. Panduan ini akan memperkenalkan fitur-fitur utama. Klik <b>Lanjut</b> untuk mulai.'
     }];
 
     const sections = [
-        ['#metric-cards', 'User Management'],
-        ['#ads-adx-cards', 'Akun Ads & AdX'],
-        ['#roi-kpi-cards', 'ROI & Pendapatan'],
-        ['#earnings-comparison', 'Komparasi Pendapatan'],
-        ['#roi-charts', 'ROI Charts'],
-        ['#roi-hourly-section', 'ROI per Hour']
+        ['.db-hero', 'Header Dashboard', 'Area sapaan dan akses cepat ke panduan interaktif.'],
+        ['.dashboard-recap-filters', 'Filter Data', 'Atur tanggal, subdomain, dan sumber data (AdX / AdSense). Gunakan tombol <b>Synchronize</b> untuk memperbarui data.'],
+        ['#dashboardRecapDimTabs', 'Dimensi Tampilan', 'Beralih antara rekap <b>Per Domain</b> dan <b>Per Negara</b>.'],
+        ['#dashboardRecapSummaryRow', 'Ringkasan Metrik', 'Kartu KPI: Total Spend, Pendapatan, Pendapatan Bersih, dan ROI Nett untuk tanggal yang dipilih.'],
+        ['#dashboardAccountRelationTable', 'Scoring per Account', 'Ringkasan performa tiap akun Ads: score, health, risk, spend, dan kondisi dominan.'],
+        ['#dashboardRecapTable', 'Detail Scoring', 'Tabel detail scoring per subdomain/campaign. Filter berdasarkan keputusan: Scale Up, Hold, Pause, dll.'],
+        ['#dashboardWinningCampaignCard', 'Winning Campaign', 'Top 5 campaign terbaik dan terburuk berdasarkan score.'],
+        ['#dashboardPulseCard', 'Grafik Matrik', 'Trend ROI atau Spend 14 hari terakhir plus prediksi 3 hari ke depan.'],
+        ['#dashboardRecapChart', 'Grafik Perbandingan', 'Perbandingan visual Spend, Pendapatan, Pendapatan Bersih, dan ROI.']
     ];
 
     sections.forEach(function(item) {
-        const el = document.querySelector(item[0]);
+        const el = tourCard(item[0]) || document.querySelector(item[0]);
         if (!el) return;
         steps.push({
             element: el,
             title: item[1],
-            intro: el.getAttribute('data-intro') || ''
+            intro: item[2]
         });
     });
 
-    steps.push({ intro: 'Selesai. Kamu bisa jalankan ulang petunjuk ini dari tombol “User Manual”.' });
+    steps.push({ intro: 'Selesai! Anda bisa membuka panduan ini kapan saja dari tombol <b>Panduan</b> di header dashboard.' });
 
     function decorateTourButtons() {
         const root = document.querySelector('.introjs-tooltip');
@@ -2949,23 +3308,23 @@ function startDashboardTour() {
         const prev = root.querySelector('.introjs-prevbutton');
         if (prev && !prev.dataset.iconized) {
             prev.dataset.iconized = '1';
-            prev.insertAdjacentHTML('afterbegin', '<i class="fa fa-arrow-left" aria-hidden="true"></i>');
+            prev.insertAdjacentHTML('afterbegin', '<i class="bi bi-arrow-left" aria-hidden="true"></i>');
         }
 
         const next = root.querySelector('.introjs-nextbutton');
         if (next && !next.dataset.iconized) {
             next.dataset.iconized = '1';
-            next.insertAdjacentHTML('beforeend', '<i class="fa fa-arrow-right" aria-hidden="true"></i>');
+            next.insertAdjacentHTML('beforeend', '<i class="bi bi-arrow-right" aria-hidden="true"></i>');
         }
 
         const done = root.querySelector('.introjs-donebutton');
         if (done && !done.dataset.iconized) {
             done.dataset.iconized = '1';
-            done.insertAdjacentHTML('afterbegin', '<i class="fa fa-check-circle" aria-hidden="true"></i>');
+            done.insertAdjacentHTML('afterbegin', '<i class="bi bi-check-circle" aria-hidden="true"></i>');
         }
     }
 
-    const tour = introJs();
+    const tour = introFactory();
     tour.setOptions({
         steps: steps,
         tooltipClass: 'hris-tour-tooltip',
@@ -2977,7 +3336,8 @@ function startDashboardTour() {
         showProgress: true,
         showBullets: false,
         exitOnOverlayClick: true,
-        scrollToElement: true
+        scrollToElement: true,
+        scrollPadding: 80
     });
 
     tour.onstart(decorateTourButtons);
@@ -2986,6 +3346,7 @@ function startDashboardTour() {
 
     tour.start();
 }
+window.startDashboardTour = startDashboardTour;
 
 // ===== MODAL FUNCTIONS (Global Scope) =====
 window.detailKeputusanStore = window.detailKeputusanStore || {};
@@ -9998,7 +10359,8 @@ function initDashboardRecap() {
         window.dashboardRecapLastState = st;
         if (!st.date) return;
         if (box) box.style.display = 'none';
-        if (loading) loading.style.display = 'flex';
+        if (window.HrisLoader) window.HrisLoader.show('Memuat Data...');
+        else if (loading) loading.style.display = 'flex';
         setRecapTableLoading('Memuat detail rekap...');
         try {
             let rows = [];
@@ -10126,11 +10488,15 @@ function initDashboardRecap() {
             }
 
             root.style.display = 'block';
+            if (typeof initRecapSourceSelect2 === 'function') {
+                try { initRecapSourceSelect2(); } catch (e) {}
+            }
         } catch (e) {
             root.style.display = 'none';
             showError(String(e?.message || e || 'Error'));
         } finally {
             if (loading) loading.style.display = 'none';
+            if (window.HrisLoader) window.HrisLoader.forceHide();
         }
     }
 
@@ -10151,6 +10517,27 @@ function initDashboardRecap() {
         dateEl.addEventListener('change', load);
     }
 
+    function initRecapSourceSelect2() {
+        if (!window.jQuery || !jQuery.fn || typeof jQuery.fn.select2 !== 'function') return;
+        const $el = jQuery(sourceEl);
+        try {
+            if ($el.data('select2')) $el.select2('destroy');
+        } catch (e) {}
+        $el.select2({
+            theme: 'bootstrap4',
+            width: '200px',
+            placeholder: 'Pilih data sumber',
+            allowClear: false,
+            minimumResultsForSearch: 0,
+            dropdownParent: jQuery(root)
+        });
+        $el
+            .off('.dashboardRecapSource')
+            .on('change.dashboardRecapSource select2:select.dashboardRecapSource', function () {
+                load();
+            });
+    }
+
     if (!sourceEl.value) sourceEl.value = 'all';
     if (subdomainEl) {
         subdomainEl.addEventListener('change', load);
@@ -10162,18 +10549,7 @@ function initDashboardRecap() {
         });
     }
 
-    if (window.jQuery && jQuery.fn && typeof jQuery.fn.select2 === 'function') {
-        try {
-            if (jQuery(sourceEl).data('select2')) {
-                jQuery(sourceEl).select2('destroy');
-            }
-        } catch (e) {}
-        jQuery(sourceEl).select2({
-            theme: 'bootstrap4',
-            width: 'style',
-            minimumResultsForSearch: Infinity
-        });
-    }
+    initRecapSourceSelect2();
 
     setActive('dashboardRecapDimTabs', 'data-dim', 'domain');
     setActive('dashboardPulseTabs', 'data-metric', 'roi');
@@ -10188,16 +10564,8 @@ function initDashboardRecap() {
         if (window.dashboardPulsePayload) renderPulseChart(m, window.dashboardPulsePayload);
     });
 
-    if (window.jQuery && jQuery.fn && typeof jQuery.fn.select2 === 'function' && jQuery(sourceEl).data('select2')) {
-        jQuery(sourceEl)
-            .off('.dashboardRecapSource')
-            .on('change.dashboardRecapSource select2:select.dashboardRecapSource select2:clear.dashboardRecapSource', function(){
-                load();
-            });
-    } else {
-        sourceEl.addEventListener('change', function(){
-            load();
-        });
+    if (!window.jQuery || !jQuery.fn || typeof jQuery.fn.select2 !== 'function' || !jQuery(sourceEl).data('select2')) {
+        sourceEl.addEventListener('change', load);
     }
 
     if (syncBtn) {
@@ -10208,7 +10576,7 @@ function initDashboardRecap() {
 
             const originalHtml = syncBtn.innerHTML;
             syncBtn.disabled = true;
-            syncBtn.innerHTML = '<i class="bi bi-arrow-repeat bi-spin" aria-hidden="true"></i><span>Synchronize...</span>';
+            syncBtn.innerHTML = '<i class="bi bi-arrow-clockwise bi-spin" aria-hidden="true"></i><span>Synchronize...</span>';
 
             setSyncAlert('info', 'Syncronize sedang berlangsung');
             try {
@@ -10277,6 +10645,16 @@ function initDashboardRecap() {
 // Initialize dashboard
 document.addEventListener('DOMContentLoaded', function() {
     initDashboardRecap();
+
+    ['btnDashboardTour', 'btnDashboardTourHero'].forEach(function(id) {
+        const btn = document.getElementById(id);
+        if (!btn || btn.dataset.tourBound) return;
+        btn.dataset.tourBound = '1';
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            startDashboardTour();
+        });
+    });
     
     const modal = document.getElementById('decision-detail-modal');
     const closeBtn = document.getElementById('decision-detail-close-btn');

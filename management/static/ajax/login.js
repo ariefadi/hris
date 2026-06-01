@@ -1,5 +1,7 @@
 $().ready(function () {
 
+    var LOGIN_LOADER_MS = 320;
+
     report_eror = function (jqXHR, exception) {
         var msg = '';
         if (jqXHR.status === 0) {
@@ -19,6 +21,36 @@ $().ready(function () {
         }
         alert(msg);
     };
+
+    function showLoginLoader(message) {
+        var $el = $('#overlay');
+        if (!$el.length) return;
+
+        if (message) {
+            $el.find('.login-loader-text').html(
+                message + '<span class="login-loader-dots" aria-hidden="true"><i></i><i></i><i></i></span>'
+            );
+        }
+
+        $el.attr('aria-hidden', 'false');
+        void $el[0].offsetWidth;
+        $el.addClass('is-active');
+    }
+
+    function hideLoginLoader(callback) {
+        var $el = $('#overlay');
+        if (!$el.length) {
+            if (typeof callback === 'function') callback();
+            return;
+        }
+
+        $el.removeClass('is-active');
+        $el.attr('aria-hidden', 'true');
+
+        setTimeout(function () {
+            if (typeof callback === 'function') callback();
+        }, LOGIN_LOADER_MS);
+    }
 
     function showLoginTab() {
         try {
@@ -46,33 +78,38 @@ $().ready(function () {
             cache: false,
             contentType: false,
             processData: false,
-            error: report_eror,
             beforeSend: function () {
-                $('#overlay').fadeIn(500);
+                showLoginLoader('Login Process');
+            },
+            error: function (jqXHR, exception) {
+                hideLoginLoader(function () {
+                    report_eror(jqXHR, exception);
+                });
             },
             success: function (data) {
-                $('#overlay').fadeOut(500);
-                if (data.status === true) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Berhasil Login',
-                        text: data.message,
-                        timer: 2000,
-                        timerProgressBar: true,
-                        showConfirmButton: false
-                    });
-                    setTimeout(() => {
-                        location.reload();
-                    }, 2000);
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Gagal Login',
-                        text: data.message,
-                    }).then(() => {
-                        location.reload();
-                    });
-                }
+                hideLoginLoader(function () {
+                    if (data.status === true) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil Login',
+                            text: data.message,
+                            timer: 2000,
+                            timerProgressBar: true,
+                            showConfirmButton: false
+                        });
+                        setTimeout(function () {
+                            location.reload();
+                        }, 2000);
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal Login',
+                            text: data.message,
+                        }).then(function () {
+                            location.reload();
+                        });
+                    }
+                });
             }
         });
     });
@@ -87,35 +124,39 @@ $().ready(function () {
             cache: false,
             contentType: false,
             processData: false,
-            error: report_eror,
             beforeSend: function () {
-                $('#overlay').fadeIn(500);
+                showLoginLoader('Register Process');
+            },
+            error: function (jqXHR, exception) {
+                hideLoginLoader(function () {
+                    report_eror(jqXHR, exception);
+                });
             },
             success: function (data) {
-                $('#overlay').fadeOut(500);
-                if (data && data.status === true) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Berhasil Register',
-                        text: data.message || 'Account berhasil dibuat. Silakan login.',
-                        timer: 2500,
-                        timerProgressBar: true,
-                        showConfirmButton: false
-                    });
-                    showLoginTab();
+                hideLoginLoader(function () {
+                    if (data && data.status === true) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil Register',
+                            text: data.message || 'Account berhasil dibuat. Silakan login.',
+                            timer: 2500,
+                            timerProgressBar: true,
+                            showConfirmButton: false
+                        });
+                        showLoginTab();
                         try {
                             $('#registerForm')[0].reset();
                         } catch (err) {
                         }
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Gagal Register',
-                        text: (data && data.message) ? data.message : 'Gagal membuat account.',
-                    });
-                }
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal Register',
+                            text: (data && data.message) ? data.message : 'Gagal membuat account.',
+                        });
+                    }
+                });
             }
         });
     });
 });
-
