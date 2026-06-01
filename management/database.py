@@ -280,6 +280,13 @@ class data_mysql:
     def _report_engine(self):
         return str(os.getenv('REPORT_DB_ENGINE', '') or os.getenv('DB_REPORT_ENGINE', '') or '').strip().lower()
 
+    @staticmethod
+    def _normalize_fb_account_key(value):
+        s = str(value or '').strip().lower()
+        if s.startswith('act_'):
+            s = s[4:]
+        return s
+
     def _report_tables(self):
         raw = str(os.getenv('REPORT_DB_TABLES', '') or os.getenv('DB_REPORT_TABLES', '') or '').strip()
         if raw:
@@ -5779,7 +5786,10 @@ class data_mysql:
                 selected_account_list = []
             elif isinstance(selected_account_list, (set, tuple)):
                 selected_account_list = list(selected_account_list)
-            selected_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
+            selected_account_list = [
+                str(a).strip() for a in selected_account_list
+                if str(a).strip() and str(a).strip() != '%'
+            ]
 
             if isinstance(selected_domain_list, str):
                 selected_domain_list = [selected_domain_list.strip()]
@@ -5787,7 +5797,10 @@ class data_mysql:
                 selected_domain_list = []
             elif isinstance(selected_domain_list, (set, tuple)):
                 selected_domain_list = list(selected_domain_list)
-            selected_domain_list = [str(d).strip() for d in selected_domain_list if str(d).strip()]
+            selected_domain_list = [
+                str(d).strip() for d in selected_domain_list
+                if str(d).strip() and str(d).strip() != '%'
+            ]
 
             engine = (self._report_engine() or '').strip().lower()
             use_clickhouse = engine in ('clickhouse', 'ch')
@@ -5823,7 +5836,10 @@ class data_mysql:
                 if selected_account_list:
                     like_conditions_account = " OR ".join([f"{account_col} LIKE %s"] * len(selected_account_list))
                     base_sql.append(f"\tAND ({like_conditions_account})")
-                    params.extend([f"%{account}%" for account in selected_account_list])
+                    params.extend([
+                        f"%{self._normalize_fb_account_key(account)}%"
+                        for account in selected_account_list
+                    ])
                 if selected_domain_list:
                     like_conditions_domain = " OR ".join(["b.data_ads_domain LIKE %s"] * len(selected_domain_list))
                     base_sql.append(f"\tAND ({like_conditions_domain})")
@@ -5831,7 +5847,6 @@ class data_mysql:
                 base_sql.append("GROUP BY toString(b.account_ads_id), toDate(b.data_ads_tanggal), b.data_ads_domain, b.data_ads_campaign_nm")
                 base_sql.append("ORDER BY date, domain, campaign")
             else:
-                like_conditions_account = " OR ".join(["b.account_ads_id LIKE %s"] * len(selected_account_list))
                 like_conditions_domain = " OR ".join(["b.data_ads_domain LIKE %s"] * len(selected_domain_list))
                 base_sql = [
                     "SELECT",
@@ -5866,8 +5881,18 @@ class data_mysql:
                         "\tb.data_ads_tanggal BETWEEN %s AND %s",
                 ]
                 if selected_account_list:
-                    base_sql.append(f"\tAND ({like_conditions_account})")
-                    params.extend([f"%{account}%" for account in selected_account_list])
+                    account_match_parts = []
+                    for account in selected_account_list:
+                        norm = self._normalize_fb_account_key(account)
+                        account_match_parts.append(
+                            "("
+                            "REPLACE(LOWER(b.account_ads_id), 'act_', '') LIKE %s "
+                            "OR REPLACE(LOWER(a.account_id), 'act_', '') LIKE %s "
+                            "OR REPLACE(LOWER(CAST(a.account_ads_id AS CHAR)), 'act_', '') LIKE %s"
+                            ")"
+                        )
+                        params.extend([f"%{norm}%", f"%{norm}%", f"%{norm}%"])
+                    base_sql.append(f"\tAND ({' OR '.join(account_match_parts)})")
                 if selected_domain_list:
                     base_sql.append(f"\tAND ({like_conditions_domain})")
                     params.extend([f"%{domain}%" for domain in selected_domain_list])

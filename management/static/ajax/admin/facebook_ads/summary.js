@@ -60,7 +60,7 @@ function validateFacebookSummaryFilters() {
         tanggal_dari: tanggalDari,
         tanggal_sampai: tanggalSampai,
         data_account: accounts.join(','),
-        data_domain: normalizeDomainFilter($('#select_domain').val()) || '%'
+        data_domain: normalizeDomainFilter($('#select_domain').val())
     };
 }
 
@@ -175,7 +175,8 @@ function renderFacebookSummaryCharts(rows) {
     const byAccount = {};
 
     (rows || []).forEach(function (r) {
-        const d = String(r.date || '').slice(0, 10);
+        let d = String(r.date || '').slice(0, 10);
+        if (!d || d === 'null' || d === 'undefined') return;
         const acc = String(r.account_name || '-');
         const spend = toNum(r.spend);
         const impressions = toNum(r.impressions);
@@ -294,6 +295,11 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
         success: function (data_campaign) {
             hideFacebookSummaryLoader();
             if (typeof onDone === 'function') onDone();
+            if (data_campaign && data_campaign.error) {
+                hideFacebookSummaryResults();
+                alert(String(data_campaign.error));
+                return;
+            }
             showFacebookSummaryResults();
             const tanggal = new Date();
             judul = "Rekapitulasi Traffic Per Campaign Facebook";
@@ -337,7 +343,8 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 event_data += '</tr>';
                 $("#table_data_campaign_facebook tbody").append(event_data);
             })
-            $.each(data_campaign.total_campaign, function (index, value) {
+            const totals = Array.isArray(data_campaign.total_campaign) ? data_campaign.total_campaign : [];
+            $.each(totals, function (index, value) {
                 // Spend
                 const spend = Number(value?.total_spend) || 0;
                 const totalSpend = spend.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
@@ -372,7 +379,12 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 $('#summary_total_impressions').text(totalImpressions);
                 $('#summary_total_clicks').text(totalClicks);
                 $('#summary_total_cpc').text('Rp ' + data_cpc);
-            })
+            });
+
+            renderFacebookSummaryCharts(window.__facebookCampaignRows);
+            renderFacebookMonitoringCampaignTable((data_campaign && data_campaign.monitoring_campaign) ? data_campaign.monitoring_campaign : []);
+
+            try {
             $('#table_data_campaign_facebook').DataTable({
                 columnDefs: [
                     { targets: -1, orderable: false, searchable: false }
@@ -470,9 +482,9 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                     }
                 ]
             });
-
-            renderFacebookSummaryCharts(window.__facebookCampaignRows);
-            renderFacebookMonitoringCampaignTable((data_campaign && data_campaign.monitoring_campaign) ? data_campaign.monitoring_campaign : []);
+            } catch (dtErr) {
+                console.error('DataTable summary Facebook gagal diinisialisasi:', dtErr);
+            }
 
             $('#table_data_campaign_facebook tbody')
                 .off('click', '.btn-facebook-campaign-detail')

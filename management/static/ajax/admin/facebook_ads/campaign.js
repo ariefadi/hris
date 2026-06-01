@@ -9,6 +9,26 @@ function normalizeDomainFilter(selected_domain) {
     return String(selected_domain || '').trim();
 }
 
+function showHrisFacebookLoader(message) {
+    var msg = String(message || 'Memuat data...').trim() || 'Memuat data...';
+    if (window.HrisLoader && typeof window.HrisLoader.show === 'function') {
+        window.HrisLoader.show(msg);
+        return;
+    }
+    var $overlay = $('#overlay');
+    if ($overlay.length) {
+        $overlay.attr('data-loader-message', msg).stop(true, true).fadeIn(200);
+    }
+}
+
+function hideHrisFacebookLoader() {
+    if (window.HrisLoader && typeof window.HrisLoader.forceHide === 'function') {
+        window.HrisLoader.forceHide();
+        return;
+    }
+    $('#overlay').stop(true, true).fadeOut(200);
+}
+
 window.facebookCampaignDetailXhr = null;
 window.facebookCampaignDetailReqKey = '';
 window.facebookCampaignAssetsCache = [];
@@ -600,22 +620,24 @@ $(document).on('click', '#btnFacebookCampaignPublish', function() {
         var selected_domain = normalizeDomainFilter($("#select_domain").val());
         var data_domain = selected_domain ? selected_domain : '%';
         if (tanggal_dari !== '' && tanggal_sampai !== '') {
-            destroy_table_data_campaign_facebook()
-            table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain)
+            var $btn = $('#btn_load_data');
+            var btnHtml = $btn.html();
+            $btn.prop('disabled', true);
+            destroy_table_data_campaign_facebook();
+            table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain, function onDone() {
+                $btn.prop('disabled', false).html(btnHtml);
+            });
         }
     });
     // Filter silang account-domain dinonaktifkan karena domain menggunakan freetext.
 });
-function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain) {
+function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain, onDone) {
+    showHrisFacebookLoader('Memuat data per campaign Facebook...');
     $.ajax({
         url: '/management/admin/page_per_campaign_facebook?tanggal_dari=' + encodeURIComponent(tanggal_dari) + '&tanggal_sampai=' + encodeURIComponent(tanggal_sampai) + '&data_account=' + encodeURIComponent(data_account) + '&data_domain=' + encodeURIComponent(data_domain),
         method: 'GET',
         dataType: 'json',
-        beforeSend: function () {
-            $('#overlay').fadeIn(500);
-        },
         success: function (data_campaign) {
-            $('#overlay').fadeOut(500);
             const tanggal = new Date();
             judul = "Rekapitulasi Traffic Per Campaign Facebook";
 
@@ -819,6 +841,15 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                     loadCampaignAssetDetail(row);
                 });
         },
+        error: function (jqXHR, exception) {
+            if (typeof report_eror === 'function') {
+                report_eror(jqXHR, exception);
+            }
+        },
+        complete: function () {
+            hideHrisFacebookLoader();
+            if (typeof onDone === 'function') onDone();
+        }
     });
 }
 

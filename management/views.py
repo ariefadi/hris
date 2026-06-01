@@ -5343,7 +5343,10 @@ class page_summary_facebook(View):
         data_domain = req.GET.get('data_domain')
         selected_domain_list = []
         if data_domain:
-            selected_domain_list = [str(s).strip() for s in data_domain.split(',') if s.strip()]
+            selected_domain_list = [
+                str(s).strip() for s in data_domain.split(',')
+                if str(s).strip() and str(s).strip() != '%'
+            ]
         # Panggil ke database layer dengan argumen positional sesuai definisi fungsi
         db_result = data_mysql().get_all_ads_traffic_campaign_by_params(
             tanggal_dari,
@@ -5355,7 +5358,7 @@ class page_summary_facebook(View):
         payload = db_result.get('hasil', {}) if isinstance(db_result, dict) else {}
         status_ok = bool(payload.get('status', False))
         raw_rows = payload.get('data', []) if status_ok else []
-        # Normalisasi kolom agar cocok dengan harapan di management/static/ajax/admin/facebook_ads/campaign.js
+        # Normalisasi kolom agar cocok dengan harapan di management/static/ajax/admin/facebook_ads/summary.js
         normalized_rows = []
         total_spend = 0.0
         total_impressions = 0
@@ -5420,15 +5423,22 @@ class page_summary_facebook(View):
         rata_cpc = round(sum([row['cpc'] for row in normalized_rows]) / len(normalized_rows), 0) if normalized_rows else 0.0
         monitor_rows = []
         try:
-            domain_filter_for_api = str(data_domain or '%') if 'data_domain' in locals() else '%'
             accounts_all = data_mysql().master_account_ads().get('data', [])
 
             # Pilih account sesuai filter (jika tidak ada -> semua account)
             if selected_account_list:
                 selected_set = set([str(x) for x in selected_account_list])
-                accounts_target = [a for a in accounts_all if str(a.get('account_id')) in selected_set]
+                accounts_target = [
+                    a for a in accounts_all
+                    if str(a.get('account_id')) in selected_set
+                    or str(a.get('account_ads_id')) in selected_set
+                ]
             else:
                 accounts_target = accounts_all
+
+            domain_filter_for_api = str(data_domain or '').strip()
+            if domain_filter_for_api in ('', '%'):
+                domain_filter_for_api = '%'
 
             api_rows = []
             if not selected_account_list or len(accounts_target) > 1:
