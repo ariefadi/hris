@@ -137,6 +137,37 @@
     line-height: 1.1;
     color: #0f172a;
 }
+
+.result-loading-wrap {
+    position: relative;
+}
+.result-loading-overlay {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(2px);
+    z-index: 20;
+    border-radius: 16px;
+}
+.result-loading-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+    padding: 18px 22px;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+.result-loading-text {
+    font-size: 13px;
+    font-weight: 700;
+    color: #334155;
+}
 </style>
 {% endblock %}
 
@@ -178,33 +209,41 @@
     </div>
 </div>
 
-<div class="mt-3">
-    <div class="domain-summary-title">Per Domain Summary</div>
-    <div class="row" id="domainSummaryRow"></div>
-</div>
-
-<div class="row mt-1">
-    <div class="col-12 col-sm-6 col-lg-6 mb-3">
-        <div class="metric-card overlap">
-            <div class="metric-card-inner">
-                <div>
-                    <div class="metric-label">Same Unique Visitor</div>
-                    <div class="metric-value" id="total_same_unique_visitor">0</div>
-                    <div class="metric-subtext">Percentage: <span id="pct_same_unique_visitor">0%</span></div>
-                </div>
-                <div class="metric-card-icon" aria-hidden="true"><i class="bi bi-intersect"></i></div>
-            </div>
+<div class="result-loading-wrap mt-3">
+    <div class="result-loading-overlay" id="resultLoadingOverlay">
+        <div class="result-loading-box">
+            <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+            <div class="result-loading-text">Loading traffic comparison...</div>
         </div>
     </div>
-    <div class="col-12 col-sm-6 col-lg-6 mb-3">
-        <div class="metric-card overlap-click">
-            <div class="metric-card-inner">
-                <div>
-                    <div class="metric-label">Same Ad Click</div>
-                    <div class="metric-value" id="total_same_unique_visitor_ad_click">0</div>
-                    <div class="metric-subtext">Percentage: <span id="pct_same_unique_visitor_ad_click">0%</span></div>
+    <div>
+        <div class="domain-summary-title">Per Domain Summary</div>
+        <div class="row" id="domainSummaryRow"></div>
+    </div>
+
+    <div class="row mt-1">
+        <div class="col-12 col-sm-6 col-lg-6 mb-3">
+            <div class="metric-card overlap">
+                <div class="metric-card-inner">
+                    <div>
+                        <div class="metric-label">Same Unique Visitor</div>
+                        <div class="metric-value" id="total_same_unique_visitor">0</div>
+                        <div class="metric-subtext">Percentage: <span id="pct_same_unique_visitor">0%</span></div>
+                    </div>
+                    <div class="metric-card-icon" aria-hidden="true"><i class="bi bi-intersect"></i></div>
                 </div>
-                <div class="metric-card-icon" aria-hidden="true"><i class="bi bi-link-45deg"></i></div>
+            </div>
+        </div>
+        <div class="col-12 col-sm-6 col-lg-6 mb-3">
+            <div class="metric-card overlap-click">
+                <div class="metric-card-inner">
+                    <div>
+                        <div class="metric-label">Same Ad Click</div>
+                        <div class="metric-value" id="total_same_unique_visitor_ad_click">0</div>
+                        <div class="metric-subtext">Percentage: <span id="pct_same_unique_visitor_ad_click">0%</span></div>
+                    </div>
+                    <div class="metric-card-icon" aria-hidden="true"><i class="bi bi-link-45deg"></i></div>
+                </div>
             </div>
         </div>
     </div>
@@ -261,6 +300,12 @@
             btn.disabled = false;
             txt.textContent = "Compare";
         }
+    }
+
+    function setResultLoading(isLoading) {
+        var overlay = document.getElementById("resultLoadingOverlay");
+        if (!overlay) return;
+        overlay.style.display = isLoading ? "flex" : "none";
     }
 
     function getCachedDomains() {
@@ -451,6 +496,7 @@
         var url = OVERLAP_ENDPOINT + "?filter=" + encodeURIComponent(JSON.stringify(filterObj));
 
         setButtonLoading(true);
+        setResultLoading(true);
         fetch(url, {
             method: "GET",
             headers: {
@@ -471,6 +517,7 @@
             })
             .finally(function () {
                 setButtonLoading(false);
+                setResultLoading(false);
             });
     }
 
