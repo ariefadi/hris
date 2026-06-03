@@ -6658,61 +6658,125 @@ class data_mysql:
             domains = [str(d).strip() for d in (domains or []) if str(d).strip()]
             if not domains:
                 raise ValueError("data_sub_domain is required")
-            # Buat clause startsWith
-            starts_clause_ch = " OR ".join(["startsWith(b.data_ads_domain, %s)"] * len(domains))
-            # --- 3. Query ClickHouse (no subquery, optimized)
-            query = f"""
-            SELECT
-                rs.account_id,
-                any(rs.account_name) AS account_name,
-                any(rs.account_email) AS account_email,
-                rs.date,
-                rs.domain,
-                rs.country_code,
-                sum(rs.spend) AS spend,
-                sum(rs.clicks_fb) AS clicks_fb,
-                sum(rs.impressions_fb) AS impressions_fb,
-                round(avg(rs.cpr), 0) AS cpr,
-                if(sum(rs.clicks_fb) = 0, 0,
-                    round(sum(rs.spend) / sum(rs.clicks_fb), 0)
-                ) AS cpc_fb
-            FROM
-            (
+
+            engine = (self._report_engine() or '').strip().lower()
+            use_clickhouse = engine in ('clickhouse', 'ch')
+
+            if use_clickhouse:
+                domain_1 = "arrayElement(splitByChar('.', b.data_ads_domain), 1)"
+                domain_2 = "concat(arrayElement(splitByChar('.', b.data_ads_domain), 1), '.', arrayElement(splitByChar('.', b.data_ads_domain), 2))"
+                cond_parts = []
+                like_params = []
+                for d in domains:
+                    d = str(d or '').strip()
+                    if not d:
+                        continue
+                    d_first = d.split('.')[0] if '.' in d else d
+                    cond_parts.append(
+                        f"(positionCaseInsensitive(b.data_ads_domain, %s) > 0 "
+                        f"OR positionCaseInsensitive({domain_2}, %s) > 0 "
+                        f"OR positionCaseInsensitive({domain_1}, %s) > 0)"
+                    )
+                    like_params.extend([d, d, d_first])
+                like_clause = f"AND ({' OR '.join(cond_parts)})" if cond_parts else ""
+                query = f"""
                 SELECT
-                    a.account_id,
-                    a.account_name,
-                    a.account_email,
-                    b.data_ads_country_tanggal AS date,
-                    b.data_ads_country_cd AS country_code,
-                    b.data_ads_country_nm AS country_name,
-                    arrayStringConcat(
-                        arraySlice(splitByChar('.', b.data_ads_domain), 1, 2),
-                        '.'
-                    ) AS domain,
-                    b.data_ads_country_spend AS spend,
-                    b.data_ads_country_impresi AS impressions_fb,
-                    b.data_ads_country_click AS clicks_fb,
-                    b.data_ads_country_cpr AS cpr
-                FROM hris_trendHorizone.master_account_ads a
-                INNER JOIN hris_trendHorizone.data_ads_country b ON a.account_id = b.account_ads_id
-                WHERE b.data_ads_country_tanggal BETWEEN toDate('{start_date_formatted}') AND toDate('{end_date_formatted}')
-                AND ({starts_clause_ch})
-            ) rs
-            GROUP BY
-                rs.account_id,
-                rs.date,
-                rs.domain,
-                rs.country_code
-            ORDER BY
-                rs.account_id,
-                rs.date
-            """
-            # Params: tanggal untuk CTE + tanggal untuk main query + domains
-            params_tuple = tuple([start_date_formatted, end_date_formatted] + domains)  
-            self._ensure_report_connection()
-            self.cur_hris = self.report_cur
-            self.cur_hris.execute(query, params_tuple)
-            data = self.fetch_all() or []
+                    rs.account_id,
+                    any(rs.account_name) AS account_name,
+                    any(rs.account_email) AS account_email,
+                    rs.date,
+                    rs.domain,
+                    rs.country_code,
+                    sum(rs.spend) AS spend,
+                    sum(rs.clicks_fb) AS clicks_fb,
+                    sum(rs.impressions_fb) AS impressions_fb,
+                    round(avg(rs.cpr), 0) AS cpr,
+                    if(sum(rs.clicks_fb) = 0, 0,
+                        round(sum(rs.spend) / sum(rs.clicks_fb), 0)
+                    ) AS cpc_fb
+                FROM
+                (
+                    SELECT
+                        a.account_id,
+                        a.account_name,
+                        a.account_email,
+                        b.data_ads_country_tanggal AS date,
+                        b.data_ads_country_cd AS country_code,
+                        b.data_ads_country_nm AS country_name,
+                        arrayStringConcat(
+                            arraySlice(splitByChar('.', b.data_ads_domain), 1, 2),
+                            '.'
+                        ) AS domain,
+                        b.data_ads_country_spend AS spend,
+                        b.data_ads_country_impresi AS impressions_fb,
+                        b.data_ads_country_click AS clicks_fb,
+                        b.data_ads_country_cpr AS cpr
+                    FROM hris_trendHorizone.master_account_ads a
+                    INNER JOIN hris_trendHorizone.data_ads_country b ON a.account_id = b.account_ads_id
+                    WHERE b.data_ads_country_tanggal BETWEEN toDate(%s) AND toDate(%s)
+                    {like_clause}
+                ) rs
+                GROUP BY
+                    rs.account_id,
+                    rs.date,
+                    rs.domain,
+                    rs.country_code
+                ORDER BY
+                    rs.account_id,
+                    rs.date
+                """
+                params_tuple = tuple([start_date_formatted, end_date_formatted] + like_params)
+                self._ensure_report_connection()
+                self.cur_hris = self.report_cur
+                self.cur_hris.execute(query, params_tuple)
+                data = self.fetch_all() or []
+            else:
+                like_conditions = " OR ".join([
+                    "(b.data_ads_domain LIKE %s OR SUBSTRING_INDEX(b.data_ads_domain, '.', 2) LIKE %s OR SUBSTRING_INDEX(b.data_ads_domain, '.', 1) LIKE %s)"
+                ] * len(domains))
+                like_params = []
+                for d in domains:
+                    d = str(d or '').strip()
+                    if not d:
+                        continue
+                    d_first = d.split('.')[0] if '.' in d else d
+                    like_params.extend([f"%{d}%", f"%{d}%", f"%{d_first}%"])
+                base_sql = [
+                    "SELECT",
+                    "\trs.account_id, rs.account_name, rs.account_email,",
+                    "\trs.date, SUBSTRING_INDEX(rs.domain, '.', -2) AS 'domain', rs.country_code,",
+                    "\tSUM(rs.spend) AS 'spend',",
+                    "\tSUM(rs.clicks_fb) AS 'clicks_fb',",
+                    "\tSUM(rs.impressions_fb) AS 'impressions_fb',",
+                    "\tROUND(AVG(rs.cpr), 0) AS 'cpr',",
+                    "\tROUND((SUM(rs.spend)/SUM(rs.clicks_fb)), 0) AS 'cpc_fb'",
+                    "FROM (",
+                    "\tSELECT",
+                    "\t\ta.account_id, a.account_name, a.account_email,",
+                    "\t\tb.data_ads_country_tanggal AS 'date',",
+                    "\t\tb.data_ads_country_cd AS 'country_code',",
+                    "\t\tb.data_ads_country_nm AS 'country_name',",
+                    "\t\tCONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS domain,",
+                    "\t\tb.data_ads_country_spend AS 'spend',",
+                    "\t\tb.data_ads_country_impresi AS 'impressions_fb',",
+                    "\t\tb.data_ads_country_click AS 'clicks_fb',",
+                    "\t\tb.data_ads_country_cpr AS 'cpr'",
+                    "\tFROM master_account_ads a",
+                    "\tINNER JOIN data_ads_country b ON a.account_id = b.account_ads_id",
+                    "\tWHERE b.data_ads_country_tanggal BETWEEN %s AND %s",
+                    f"\tAND ({like_conditions})",
+                    ") rs",
+                    "GROUP BY rs.date, rs.country_code, SUBSTRING_INDEX(rs.domain, '.', -2)",
+                    "ORDER BY rs.account_id, rs.date",
+                ]
+                params = [start_date_formatted, end_date_formatted] + like_params
+                sql = "\n".join(base_sql)
+                if not self.execute_query(sql, tuple(params)):
+                    raise pymysql.Error("Failed to get all ads adsense roi traffic campaign by params")
+                data = self.fetch_all() or []
+                if not self.commit():
+                    raise pymysql.Error("Failed to commit get all ads adsense roi traffic campaign by params")
+
             hasil = {
                 "status": True,
                 "message": "Data ads traffic campaign berhasil diambil",
