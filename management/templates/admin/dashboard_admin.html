@@ -9868,9 +9868,21 @@ function initDashboardRecap() {
     }
 
     async function renderTable(dim, rows, state) {
+        const recapDim = String(dim || 'domain').toLowerCase() === 'country' ? 'country' : 'domain';
         const thName = document.getElementById('dashboardRecapThName');
         const thCode = document.getElementById('dashboardRecapThCode');
-        if (thName) thName.textContent = dim === 'country' ? 'Nama Negara' : 'Domain';
+        if (thName) thName.textContent = recapDim === 'country' ? 'Nama Negara' : 'Domain';
+
+        function applyDashboardRecapColumnLayout(dt) {
+            const isCountry = recapDim === 'country';
+            if (thCode) thCode.style.display = isCountry ? '' : 'none';
+            if (!dt || typeof dt.column !== 'function') return;
+            try {
+                if (dt.column(2).length) dt.column(2).visible(!isCountry, false);
+                if (dt.column(3).length) dt.column(3).visible(isCountry, false);
+            } catch (e) {}
+        }
+
         const tableEl = document.getElementById('dashboardRecapTable');
         if (tableEl && !tableEl.dataset.boundScoreDetail) {
             tableEl.addEventListener('click', function(e) {
@@ -9909,7 +9921,7 @@ function initDashboardRecap() {
 
         function domainCell(r) {
             const name = esc(r?.name);
-            if (dim === 'country') {
+            if (recapDim === 'country') {
                 const cc = String(r?.code || '').trim().toUpperCase();
                 const badge = cc ? `<span class="ds-tag ds-tag--country">${esc(cc)}</span>` : '';
                 return `<div class="ds-domain-cell"><div class="ds-domain-name">${name}</div>${badge ? `<div class="ds-domain-badges">${badge}</div>` : ''}</div>`;
@@ -10440,8 +10452,8 @@ function initDashboardRecap() {
                         }
                     },
                     { targets: 1, orderable: true },
-                    { targets: 2, className: 'text-left' },
-                    { targets: 3, className: 'text-center', width: '90px', visible: false },
+                    { targets: 2, className: 'text-left', visible: recapDim !== 'country' },
+                    { targets: 3, className: 'text-center', width: '90px', visible: recapDim === 'country' },
                     {
                         targets: [4, 5, 6],
                         className: 'text-right',
@@ -10505,6 +10517,7 @@ function initDashboardRecap() {
             });
             bindNoColumn(window.dashboardRecapDt);
             ensureDashboardRecapAlertDtFilter();
+            applyDashboardRecapColumnLayout(window.dashboardRecapDt);
             window.dashboardRecapDt.draw();
             applyDashboardRecapAlertFilter();
         } else {
@@ -10513,13 +10526,10 @@ function initDashboardRecap() {
             ensureDashboardRecapAlertDtFilter();
             dt.clear();
             dt.rows.add(data);
+            applyDashboardRecapColumnLayout(dt);
             dt.draw();
             applyDashboardRecapAlertFilter();
-            dt.column(2).visible(false, false);
-            dt.column(3).visible(true, false);
         }
-
-        if (thCode) thCode.style.display = dim === 'country' ? '' : 'none';
     }
 
     function renderChart(dim, rows, meta) {
