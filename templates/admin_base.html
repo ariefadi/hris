@@ -4,7 +4,7 @@
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>{% block page_title %}Admin Dashboard{% endblock %} - HRis Trend Horizone</title>
+        <title>{% block page_title %}Admin Dashboard{% endblock %} - Kiwipixel Analytics</title>
         <!-- Theme style -->
         <link rel="stylesheet" href="{% static 'dist/css/adminlte.min.css' %}">
         <link rel="stylesheet" href="{% static 'plugins/bootstrap-icons/bootstrap-icons.min.css' %}">
@@ -436,9 +436,283 @@
         @media (max-width: 576px) {
             .metric-value { font-size: 1.6rem; }
         }
+
+        /* ── Elegant Sidebar ── */
+        .main-sidebar.hris-sidebar-elegant {
+            background: linear-gradient(180deg, #0f172a 0%, #1e1b4b 55%, #0f172a 100%) !important;
+            border-right: 1px solid rgba(148, 163, 184, 0.12);
+            box-shadow: 4px 0 24px rgba(15, 23, 42, 0.18);
+        }
+        .hris-sidebar-elegant .sidebar-brand {
+            padding: 0;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+        }
+        .hris-sidebar-elegant .brand-link {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 18px 16px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.22) 0%, rgba(124, 58, 237, 0.12) 100%);
+            border-bottom: none;
+            transition: background 0.2s ease;
+        }
+        .hris-sidebar-elegant .brand-link:hover {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.32) 0%, rgba(124, 58, 237, 0.2) 100%);
+            color: #fff;
+        }
+        .hris-sidebar-elegant .brand-image {
+            width: 38px;
+            height: 38px;
+            border-radius: 12px !important;
+            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+            opacity: 1 !important;
+        }
+        .hris-sidebar-elegant .brand-text {
+            font-weight: 700 !important;
+            font-size: 15px;
+            letter-spacing: -0.01em;
+            color: #f1f5f9;
+            white-space: normal;
+            line-height: 1.25;
+        }
+        .hris-sidebar-elegant .sidebar {
+            padding: 12px 10px 20px;
+        }
+        .hris-sidebar-elegant .nav-sidebar > .nav-item {
+            margin-bottom: 4px;
+        }
+        .hris-sidebar-elegant .nav-sidebar .nav-header {
+            padding: 18px 14px 8px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: rgba(148, 163, 184, 0.75) !important;
+            background: transparent;
+        }
+        .hris-sidebar-elegant .nav-sidebar .nav-header b {
+            font-weight: 800;
+        }
+        .hris-sidebar-elegant .nav-sidebar .nav-link {
+            border-radius: 12px;
+            margin: 0 4px;
+            padding: 10px 12px;
+            color: rgba(226, 232, 240, 0.88) !important;
+            transition: background 0.18s ease, color 0.18s ease, transform 0.15s ease, box-shadow 0.18s ease;
+        }
+        .hris-sidebar-elegant .nav-sidebar .nav-link p {
+            font-weight: 600;
+            font-size: 13.5px;
+        }
+        .hris-sidebar-elegant .nav-sidebar .nav-link .nav-icon,
+        .hris-sidebar-elegant .nav-sidebar .nav-link > i.bi {
+            width: 34px;
+            height: 34px;
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.06);
+            font-size: 1rem;
+            margin-right: 10px;
+            transition: background 0.18s ease, color 0.18s ease;
+        }
+        .hris-sidebar-elegant .nav-sidebar .nav-link:hover {
+            background: rgba(99, 102, 241, 0.14) !important;
+            color: #fff !important;
+            transform: translateX(2px);
+        }
+        .hris-sidebar-elegant .nav-sidebar .nav-link:hover .nav-icon,
+        .hris-sidebar-elegant .nav-sidebar .nav-link:hover > i.bi {
+            background: rgba(99, 102, 241, 0.25);
+            color: #c7d2fe;
+        }
+        .hris-sidebar-elegant .nav-sidebar .nav-link.active {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.85) 0%, rgba(124, 58, 237, 0.75) 100%) !important;
+            color: #fff !important;
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
+        }
+        .hris-sidebar-elegant .nav-sidebar .nav-link.active .nav-icon,
+        .hris-sidebar-elegant .nav-sidebar .nav-link.active > i.bi {
+            background: rgba(255, 255, 255, 0.2);
+            color: #fff;
+        }
+        .hris-sidebar-elegant .nav-sidebar .nav-treeview {
+            padding: 4px 0 6px 8px;
+        }
+        .hris-sidebar-elegant .nav-sidebar .nav-treeview .nav-link {
+            padding: 8px 12px 8px 20px;
+            font-size: 13px;
+        }
+        .hris-sidebar-elegant .nav-sidebar .nav-treeview .nav-link .nav-icon,
+        .hris-sidebar-elegant .nav-sidebar .nav-treeview .nav-link > i.bi {
+            width: 28px;
+            height: 28px;
+            font-size: 0.85rem;
+        }
+        .hris-sidebar-elegant .nav-item.menu-open > .nav-link {
+            background: rgba(99, 102, 241, 0.1) !important;
+        }
+        .hris-sidebar-elegant .nav-item-logout {
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(148, 163, 184, 0.12);
+        }
+        .hris-sidebar-elegant .nav-item-logout .nav-link:hover {
+            background: rgba(239, 68, 68, 0.15) !important;
+        }
+        .hris-sidebar-elegant .nav-item-logout .nav-link:hover > i.bi {
+            background: rgba(239, 68, 68, 0.25);
+            color: #fca5a5;
+        }
+        html[data-theme="dark"] .main-sidebar.hris-sidebar-elegant {
+            background: linear-gradient(180deg, #020617 0%, #0f172a 55%, #020617 100%) !important;
+        }
+
+        /* ── Global page loader (all admin menus) ── */
+        .hris-global-loader {
+            display: none;
+            justify-content: center;
+            align-items: center;
+            position: fixed;
+            inset: 0;
+            z-index: 10050;
+            background: rgba(15, 23, 42, 0.52);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            color: #fff;
+            animation: hrisLoaderFadeIn .25s ease;
+        }
+        @keyframes hrisLoaderFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .hris-global-loader-inner {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            padding: 36px 44px 32px;
+            border-radius: 18px;
+            background: linear-gradient(145deg, rgba(79, 70, 229, 0.97) 0%, rgba(124, 58, 237, 0.95) 55%, rgba(219, 39, 119, 0.92) 100%);
+            box-shadow: 0 24px 60px rgba(79, 70, 229, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+            min-width: 260px;
+            position: relative;
+            overflow: hidden;
+        }
+        .hris-global-loader-inner::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 30% 20%, rgba(255,255,255,.18) 0%, transparent 55%);
+            pointer-events: none;
+        }
+        .hris-loader-ring {
+            position: relative;
+            width: 64px;
+            height: 64px;
+            flex-shrink: 0;
+        }
+        .hris-loader-ring span {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            border: 3px solid transparent;
+        }
+        .hris-loader-ring span:nth-child(1) {
+            border-top-color: #fff;
+            border-right-color: rgba(255, 255, 255, 0.35);
+            animation: hrisLoaderSpin 1s cubic-bezier(.6,.15,.35,.85) infinite;
+        }
+        .hris-loader-ring span:nth-child(2) {
+            inset: 8px;
+            border-bottom-color: rgba(255, 255, 255, 0.85);
+            border-left-color: rgba(255, 255, 255, 0.2);
+            animation: hrisLoaderSpin 1.4s cubic-bezier(.6,.15,.35,.85) infinite reverse;
+        }
+        .hris-loader-ring span:nth-child(3) {
+            inset: 16px;
+            border-top-color: rgba(255, 255, 255, 0.6);
+            animation: hrisLoaderSpin 1.8s linear infinite;
+        }
+        .hris-loader-ring::after {
+            content: "";
+            position: absolute;
+            inset: 22px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.22);
+            animation: hrisLoaderPulse 1.6s ease-in-out infinite;
+        }
+        @keyframes hrisLoaderSpin { to { transform: rotate(360deg); } }
+        @keyframes hrisLoaderPulse {
+            0%, 100% { transform: scale(0.85); opacity: 0.5; }
+            50% { transform: scale(1.1); opacity: 1; }
+        }
+        .hris-loader-text {
+            position: relative;
+            z-index: 1;
+            font-size: 1.05rem;
+            font-weight: 800;
+            letter-spacing: .01em;
+            text-align: center;
+        }
+        .hris-loader-dots {
+            display: inline-flex;
+            gap: 3px;
+            margin-left: 2px;
+            vertical-align: baseline;
+        }
+        .hris-loader-dots i {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.9);
+            display: inline-block;
+            animation: hrisLoaderDot 1.2s ease-in-out infinite;
+            font-style: normal;
+        }
+        .hris-loader-dots i:nth-child(2) { animation-delay: .15s; }
+        .hris-loader-dots i:nth-child(3) { animation-delay: .3s; }
+        @keyframes hrisLoaderDot {
+            0%, 80%, 100% { transform: translateY(0); opacity: 0.35; }
+            40% { transform: translateY(-5px); opacity: 1; }
+        }
+        .hris-loader-bar {
+            position: relative;
+            z-index: 1;
+            width: 180px;
+            height: 4px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+        }
+        .hris-loader-bar-fill {
+            height: 100%;
+            width: 40%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, rgba(255,255,255,.4), #fff, rgba(255,255,255,.4));
+            animation: hrisLoaderBar 1.2s ease-in-out infinite;
+        }
+        @keyframes hrisLoaderBar {
+            0% { transform: translateX(-120%); }
+            100% { transform: translateX(320%); }
+        }
+        .hris-loader-stub {
+            display: none !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
         </style>
     </head>
     <body class="{% block body_class %}hold-transition sidebar-mini{% endblock %}">
+        <div id="hrisGlobalLoader" class="hris-global-loader" style="display:none" role="status" aria-live="polite" aria-hidden="true" aria-label="Memuat data">
+            <div class="hris-global-loader-inner">
+                <div class="hris-loader-ring" aria-hidden="true"><span></span><span></span><span></span></div>
+                <div class="hris-loader-text">Memuat Data<span class="hris-loader-dots" aria-hidden="true"><i></i><i></i><i></i></span></div>
+                <div class="hris-loader-bar" aria-hidden="true"><div class="hris-loader-bar-fill"></div></div>
+            </div>
+        </div>
         <div class="wrapper">
 
          <!-- Navbar -->
@@ -515,7 +789,7 @@
             </div>
         </nav>
         <!-- /.navbar -->
-        <aside class="main-sidebar sidebar-dark-primary elevation-4">
+        <aside class="main-sidebar sidebar-dark-primary elevation-4 hris-sidebar-elegant">
             <div class="sidebar-brand">
                 <!--begin::Brand Link-->
                 <a href="{% url 'dashboard_admin' %}" class="brand-link">
@@ -523,7 +797,7 @@
                     <img src="{% static 'icon/png/trend_horizone.png' %}" alt="Trend Horizone Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
                     <!--end::Brand Image-->
                     <!--begin::Brand Text-->
-                    <span class="brand-text font-weight-light">HRis Trend Horizone</span>
+                    <span class="brand-text font-weight-light">Kiwipixel Analytics</span>
                     <!--end::Brand Text-->
                 </a>
                 <!--end::Brand Link-->
@@ -539,8 +813,8 @@
                         {% render_menu_tree global_portal_menus request.path 1 3 %}
                         <!-- End Dynamic Menus -->
                     
-                        <li class="nav-item">
-                            <a href="{% url 'admin_logout' %}"class="nav-link" >
+                        <li class="nav-item nav-item-logout">
+                            <a href="{% url 'admin_logout' %}" class="nav-link">
                                 <i class="bi bi-box-arrow-left"></i>
                                 <p>LogOut</p>
                             </a>
@@ -611,6 +885,153 @@
         <!-- REQUIRED SCRIPTS -->
         <!-- jQuery -->
         <script src="{% static 'plugins/jquery/jquery.min.js' %}"></script>
+        <script>
+        (function(window, $) {
+            'use strict';
+
+            function escapeHtml(str) {
+                return String(str || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;');
+            }
+
+            function buildLoaderTextEl(text) {
+                var msg = String(text || 'Memuat Data...').trim().replace(/\.+$/, '');
+                var el = document.createElement('div');
+                el.className = 'hris-loader-text';
+                el.innerHTML = escapeHtml(msg) + '<span class="hris-loader-dots" aria-hidden="true"><i></i><i></i><i></i></span>';
+                return el;
+            }
+
+            var HrisLoader = {
+                _el: null,
+                _textHost: null,
+                _count: 0,
+                _defaultMsg: 'Memuat Data...',
+
+                init: function() {
+                    this._el = document.getElementById('hrisGlobalLoader');
+                    if (this._el) {
+                        this._textHost = this._el.querySelector('.hris-loader-text');
+                    }
+                },
+
+                show: function(message) {
+                    if (!this._el) this.init();
+                    if (!this._el) return;
+                    this._count += 1;
+                    var msg = String(message || this._defaultMsg).trim() || this._defaultMsg;
+                    if (this._textHost) {
+                        var fresh = buildLoaderTextEl(msg);
+                        this._textHost.replaceWith(fresh);
+                        this._textHost = fresh;
+                    }
+                    this._el.style.display = 'flex';
+                    this._el.setAttribute('aria-hidden', 'false');
+                },
+
+                hide: function() {
+                    if (!this._el) this.init();
+                    this._count = Math.max(0, this._count - 1);
+                    if (this._count > 0) return;
+                    if (!this._el) return;
+                    this._el.style.display = 'none';
+                    this._el.setAttribute('aria-hidden', 'true');
+                },
+
+                forceHide: function() {
+                    this._count = 0;
+                    if (!this._el) this.init();
+                    if (!this._el) return;
+                    this._el.style.display = 'none';
+                    this._el.setAttribute('aria-hidden', 'true');
+                },
+
+                setDefaultMessage: function(message) {
+                    this._defaultMsg = String(message || 'Memuat Data...').trim() || 'Memuat Data...';
+                }
+            };
+
+            window.HrisLoader = HrisLoader;
+
+            function normalizeLoaderMessage(el) {
+                var msg = el.getAttribute('data-loader-message') || el.textContent || '';
+                msg = String(msg).replace(/\s+/g, ' ').trim();
+                msg = msg.replace(/<[^>]+>/g, '').trim();
+                if (!msg || msg.length < 4) msg = HrisLoader._defaultMsg;
+                el.setAttribute('data-loader-message', msg);
+                return msg;
+            }
+
+            function wireLegacyLoader(el) {
+                if (!el || el.id === 'hrisGlobalLoader' || el.dataset.hrisLoaderWired === '1') return;
+                el.dataset.hrisLoaderWired = '1';
+                var msg = normalizeLoaderMessage(el);
+                el.innerHTML = '';
+                el.classList.add('hris-loader-stub');
+                el.style.display = 'none';
+                el.setAttribute('aria-hidden', 'true');
+
+                var observer = new MutationObserver(function() {
+                    var display = (el.style.display || '').toLowerCase();
+                    if (!display || display === 'none') {
+                        HrisLoader.forceHide();
+                    } else {
+                        HrisLoader.show(el.getAttribute('data-loader-message') || msg);
+                        el.style.display = 'none';
+                    }
+                });
+                observer.observe(el, { attributes: true, attributeFilter: ['style'] });
+            }
+
+            function wireLegacyLoaders() {
+                HrisLoader.init();
+                var stubs = document.querySelectorAll('#overlay, #loading');
+                if (!stubs.length) {
+                    var el = document.createElement('div');
+                    el.id = 'overlay';
+                    el.className = 'hris-loader-stub';
+                    el.style.display = 'none';
+                    el.setAttribute('data-loader-message', HrisLoader._defaultMsg);
+                    el.setAttribute('aria-hidden', 'true');
+                    document.body.appendChild(el);
+                    stubs = [el];
+                }
+                stubs.forEach(wireLegacyLoader);
+            }
+
+            if ($) {
+                var jqShow = $.fn.show;
+                var jqHide = $.fn.hide;
+                function isLegacyLoaderEl(el) {
+                    return el && (el.id === 'overlay' || el.id === 'loading' || el.classList.contains('hris-loader-stub'));
+                }
+                $.fn.show = function() {
+                    if (this.length === 1 && isLegacyLoaderEl(this[0])) {
+                        var msg = this.attr('data-loader-message') || this.text().trim();
+                        HrisLoader.show(msg);
+                        return this;
+                    }
+                    return jqShow.apply(this, arguments);
+                };
+                $.fn.hide = function() {
+                    if (this.length === 1 && isLegacyLoaderEl(this[0])) {
+                        HrisLoader.forceHide();
+                        return this;
+                    }
+                    return jqHide.apply(this, arguments);
+                };
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', wireLegacyLoaders);
+            } else {
+                wireLegacyLoaders();
+            }
+        })(window, window.jQuery);
+        </script>
         <script src="{% static 'plugins/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
         <!-- Select2 -->
         <script src="{% static 'plugins/select2/js/select2.full.min.js' %}"></script>

@@ -71,7 +71,7 @@ MAIL_USERNAME=cs.extools@gmail.com
 MAIL_PASSWORD=cfvgewmrevypiscx
 MAIL_ENCRYPTION=tls
 MAIL_FROM_ADDRESS=account@trendhorizone.id
-MAIL_FROM_NAME="HRiS Trend Horizone"
+MAIL_FROM_NAME="Kiwipixel Analytics"
 ```
 
 ### 4. Setup Redis
@@ -194,7 +194,7 @@ send_mail(
     to=['user@example.com', 'admin@example.com'],
     subject='Welcome to HRIS',
     template='emails/simple.html',  # opsional: gunakan template Django
-    context={'name': 'Hendrik', 'body': body, 'subject': subject, 'brand_name': from_name or 'HRiS Trend Horizone'},     # data untuk template
+    context={'name': 'Hendrik', 'body': body, 'subject': subject, 'brand_name': from_name or 'Kiwipixel Analytics'},     # data untuk template
     attachments=['/path/to/file.pdf']  # dukungan lampiran (path atau bytes)
 )
 ```

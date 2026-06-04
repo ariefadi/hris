@@ -14,6 +14,12 @@
       <input id="policySyncDate" type="date" class="form-control form-control-sm" style="width:170px;">
       <select id="policyAccountFilter" class="form-control form-control-sm" multiple style="width:420px;">
       </select>
+      <a id="policyGmailOAuthBtn" class="btn btn-sm btn-outline-primary disabled" href="#" role="button" aria-disabled="true"
+        title="Pilih tepat 1 akun di filter dropdown, lalu klik untuk connect ulang OAuth + izin Gmail"
+        style="display:inline-flex;align-items:center;gap:8px;pointer-events:none;opacity:.65;">
+        <i class="bi bi-envelope-check" aria-hidden="true"></i>
+        <span>Izinkan Gmail</span>
+      </a>
       <button id="policySyncBtn" type="button" class="btn btn-sm btn-primary" style="display:inline-flex;align-items:center;gap:8px;">
         <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
         <span>Synchronize</span>
@@ -21,6 +27,17 @@
     </div>
   </div>
   <div class="card-body">
+    <div class="alert alert-warning mb-3" style="border-radius:10px;font-size:13px;line-height:1.5;">
+      <strong>Izin Gmail diperlukan.</strong> Setiap akun harus di-connect ulang dengan scope
+      <code>gmail.readonly</code> agar bisa membaca email policy dari <code>adsense-noreply@google.com</code>.
+      <strong>Pilih 1 akun</strong> di filter → klik <strong>Izinkan Gmail</strong> di kanan atas → login dengan email akun tersebut dan terima semua izin.
+      Pastikan <strong>Gmail API</strong> aktif di Google Cloud project OAuth HRIS.
+    </div>
+    {% if oauth_flash_message %}
+    <div class="alert {% if oauth_flash_success %}alert-success{% else %}alert-danger{% endif %}" style="border-radius:10px;">
+      {{ oauth_flash_message }}
+    </div>
+    {% endif %}
     <div id="policyAlert" class="alert alert-info" style="display:none;border-radius:10px;">
       <span id="policyAlertText">Syncronize sedang berlangsung</span>
       <pre id="policyAlertDetails" style="display:none;white-space:pre-wrap;margin:8px 0 0 0;"></pre>
@@ -88,6 +105,60 @@
   const alertBox = document.getElementById('policyAlert');
   const alertText = document.getElementById('policyAlertText');
   const alertDetails = document.getElementById('policyAlertDetails');
+  const gmailOAuthBtn = document.getElementById('policyGmailOAuthBtn');
+  const oauthStartBase = "{% url 'adx_account_oauth_start' %}";
+  function emailFromAccountValue(val, label) {
+    const v = String(val || '').trim();
+    if (v.includes('@')) return v;
+    const lbl = String(label || '').trim();
+    const m = lbl.match(/[\w.+-]+@[\w.-]+\.\w+/);
+    return m ? m[0] : '';
+  }
+  function selectedAccountEmails() {
+    if (!accountFilterEl) return [];
+    const emails = [];
+    if (window.jQuery && window.jQuery(accountFilterEl).data('select2')) {
+      const raw = window.jQuery(accountFilterEl).val();
+      const vals = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+      const opts = Array.from(accountFilterEl.options || []);
+      vals.forEach(function(v) {
+        const sv = String(v || '').trim();
+        const opt = opts.find(function(o) { return String(o.value || '').trim() === sv; });
+        const mail = emailFromAccountValue(sv, opt ? opt.textContent : '');
+        if (mail) emails.push(mail);
+      });
+    } else {
+      Array.from(accountFilterEl.selectedOptions || []).forEach(function(opt) {
+        const mail = emailFromAccountValue(opt.value, opt.textContent);
+        if (mail) emails.push(mail);
+      });
+    }
+    return emails;
+  }
+  function updateGmailOAuthLink() {
+    if (!gmailOAuthBtn) return;
+    const emails = selectedAccountEmails();
+    if (emails.length === 1) {
+      const mail = encodeURIComponent(emails[0]);
+      gmailOAuthBtn.href = oauthStartBase + '?email=' + mail + '&return_to=policy_events';
+      gmailOAuthBtn.classList.remove('disabled');
+      gmailOAuthBtn.removeAttribute('aria-disabled');
+      gmailOAuthBtn.style.pointerEvents = '';
+      gmailOAuthBtn.style.opacity = '';
+      gmailOAuthBtn.title = 'Connect ulang OAuth untuk ' + emails[0] + ' (termasuk izin Gmail)';
+    } else {
+      gmailOAuthBtn.href = '#';
+      gmailOAuthBtn.classList.add('disabled');
+      gmailOAuthBtn.setAttribute('aria-disabled', 'true');
+      gmailOAuthBtn.style.pointerEvents = 'none';
+      gmailOAuthBtn.style.opacity = '0.65';
+      if (emails.length === 0) {
+        gmailOAuthBtn.title = 'Pilih tepat 1 akun di filter dropdown';
+      } else {
+        gmailOAuthBtn.title = 'Pilih hanya 1 akun untuk Izinkan Gmail (saat ini: ' + emails.length + ' akun)';
+      }
+    }
+  }
   function setAlert(kind, text, details) {
     if (!alertBox || !alertText) return;
     alertBox.classList.remove('alert-info','alert-success','alert-danger');
@@ -129,12 +200,28 @@
         return value ? ('<option value="' + value.replace(/"/g, '&quot;') + '">' + label.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</option>') : '';
       }).join('');
       initAccountSelect2();
+      updateGmailOAuthLink();
     } catch (e) {
       initAccountSelect2();
     }
   }
   if (syncDateEl && !syncDateEl.value) syncDateEl.value = new Date().toISOString().slice(0, 10);
   loadAccountOptions();
+  if (gmailOAuthBtn) {
+    gmailOAuthBtn.addEventListener('click', function(e) {
+      if (gmailOAuthBtn.classList.contains('disabled')) {
+        e.preventDefault();
+        setAlert('error', gmailOAuthBtn.title || 'Pilih tepat 1 akun di filter terlebih dahulu.');
+      }
+    });
+  }
+  if (accountFilterEl) {
+    accountFilterEl.addEventListener('change', updateGmailOAuthLink);
+    if (window.jQuery) {
+      window.jQuery(accountFilterEl).on('change select2:select select2:unselect select2:clear', updateGmailOAuthLink);
+    }
+  }
+  updateGmailOAuthLink();
   if (!btn) return;
   btn.addEventListener('click', async function(){
     const originalHtml = btn.innerHTML;
@@ -162,7 +249,11 @@
         const lines = failedSteps.slice(0, 12).map(function(s){
           const mail = String(s.user_mail || '').trim();
           const name = String(s.account_name || '').trim();
-          const err = String(s.error || '').trim();
+          let err = String(s.error || '').trim();
+          if (/gmail\.readonly|insufficient.*scope|insufficientPermissions/i.test(err)) {
+            err = 'Belum ada izin Gmail. Klik "Izinkan Gmail" untuk akun ini lalu sync ulang.';
+            if (mail) err += ' OAuth: ' + oauthStartBase + '?email=' + encodeURIComponent(mail) + '&return_to=policy_events';
+          }
           return (mail || name ? ((mail ? mail : name) + (mail && name ? (' - ' + name) : '')) : 'akun') + ': ' + (err || 'error');
         });
         const more = failedSteps.length > 12 ? ('\n... +' + (failedSteps.length - 12) + ' akun') : '';

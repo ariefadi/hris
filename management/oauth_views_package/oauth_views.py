@@ -264,6 +264,8 @@ class OAuthCallbackView(View):
                     else:
                         request.session['oauth_added_success'] = False
                         request.session['oauth_added_message'] = result.get('message', 'Gagal menyimpan app_credentials.')
+                    if request.session.pop('oauth_return_to', None) == 'adsense_policy_events':
+                        return redirect('/management/admin/adsense_policy_events')
                     return redirect('/management/admin/adx_account')
                 # Default: flow umum, arahkan ke dashboard OAuth
                 if result.get('status'):

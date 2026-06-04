@@ -9,6 +9,26 @@ function normalizeDomainFilter(selected_domain) {
     return String(selected_domain || '').trim();
 }
 
+function showHrisFacebookLoader(message) {
+    var msg = String(message || 'Memuat data...').trim() || 'Memuat data...';
+    if (window.HrisLoader && typeof window.HrisLoader.show === 'function') {
+        window.HrisLoader.show(msg);
+        return;
+    }
+    var $overlay = $('#overlay');
+    if ($overlay.length) {
+        $overlay.attr('data-loader-message', msg).stop(true, true).fadeIn(200);
+    }
+}
+
+function hideHrisFacebookLoader() {
+    if (window.HrisLoader && typeof window.HrisLoader.forceHide === 'function') {
+        window.HrisLoader.forceHide();
+        return;
+    }
+    $('#overlay').stop(true, true).fadeOut(200);
+}
+
 function appendCsvUnique(currentValue, item) {
     const list = String(currentValue || '').split(',').map(function(v){ return String(v || '').trim().toUpperCase(); }).filter(Boolean);
     const token = String(item || '').trim().toUpperCase();
@@ -104,8 +124,13 @@ $().ready(function () {
         var selected_domain = normalizeDomainFilter($('#select_domain').val());
         var data_domain = selected_domain ? selected_domain : '%';
         if(tanggal_dari && tanggal_dari !== '' && data_account!="") {
-            destroy_table_data_per_account_facebook()
-            table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain)
+            var $btn = $('#btn_load_data');
+            var btnHtml = $btn.html();
+            $btn.prop('disabled', true);
+            destroy_table_data_per_account_facebook();
+            table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain, function onDone() {
+                $btn.prop('disabled', false).html(btnHtml);
+            });
         }    
     });
     let wizardStep = 1;
@@ -624,16 +649,13 @@ $().ready(function () {
     // Filter silang account-domain dinonaktifkan karena domain menggunakan freetext.
 });
 
-function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain) {
+function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain, onDone) {
+    showHrisFacebookLoader('Memuat data per account Facebook...');
     $.ajax({
         url: '/management/admin/page_per_account_facebook?tanggal_dari=' + encodeURIComponent(tanggal_dari) + '&tanggal_sampai=' + encodeURIComponent(tanggal_sampai) + '&data_account=' + encodeURIComponent(data_account) + '&data_domain=' + encodeURIComponent(data_domain),
         method: 'GET',
         dataType: 'json',
-        beforeSend: function () {
-            $('#overlay').fadeIn(500);
-        },
         success: function (data_per_account) {
-            $('#overlay').fadeOut(500);
             destroy_table_data_per_account_facebook()
             const tanggal = new Date();
             judul = "Rekapitulasi Traffic Per Account Facebook";
@@ -1178,6 +1200,13 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
                     }
                 });
             }
+        },
+        error: function (jqXHR, exception) {
+            report_eror(jqXHR, exception);
+        },
+        complete: function () {
+            hideHrisFacebookLoader();
+            if (typeof onDone === 'function') onDone();
         }
     });
 }

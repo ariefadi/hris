@@ -51,7 +51,7 @@ class Command(BaseCommand):
                 ))
                 return
             self.stdout.write(self.style.SUCCESS(
-                f"[CRON] SUCCESS: {insert_result.get('message')}"
+            f"[CRON] SUCCESS: {insert_result.get('message')}"
             ))
         except Exception as e:
             self.stdout.write(self.style.ERROR(

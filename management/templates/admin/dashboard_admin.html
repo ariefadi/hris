@@ -1,21 +1,188 @@
 {% extends "admin_base.html" %}
 {% load static %}
 {% block page_title %}Dashboard{% endblock %}
-{% block page_heading %}Dashboard{% endblock %}
+{% block body_class %}hold-transition sidebar-mini dashboard-admin-page{% endblock %}
+{% block page_heading %}{% endblock %}
 {% block more_stylesheet %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css">
 <!-- Custom Dashboard CSS -->
 <style>
+/* ── Dashboard design system ── */
+:root {
+    --db-primary: #6366f1;
+    --db-primary-dark: #4f46e5;
+    --db-accent: #8b5cf6;
+    --db-cyan: #06b6d4;
+    --db-emerald: #10b981;
+    --db-amber: #f59e0b;
+    --db-rose: #f43f5e;
+    --db-surface: #ffffff;
+    --db-muted: #64748b;
+    --db-text: #0f172a;
+    --db-border: rgba(15, 23, 42, 0.08);
+    --db-shadow: 0 10px 40px rgba(15, 23, 42, 0.08);
+    --db-shadow-lg: 0 20px 50px rgba(79, 70, 229, 0.15);
+    --db-grad-hero: linear-gradient(135deg, #4f46e5 0%, #7c3aed 45%, #db2777 100%);
+    --db-grad-soft: linear-gradient(180deg, #f8fafc 0%, #eef2ff 50%, #f1f5f9 100%);
+    --db-radius: 18px;
+    --db-radius-sm: 12px;
+}
+
+.dashboard-admin-page .content-header { display: none; }
+.dashboard-admin-page .content {
+    background: var(--db-grad-soft);
+    min-height: calc(100vh - 57px);
+}
+.dashboard-admin-page .content > .container-fluid { padding: 0; max-width: 100%; }
+
+.db-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0 0 var(--db-radius) var(--db-radius);
+    margin: -12px -12px 24px;
+    padding: 28px 28px 32px;
+    background: var(--db-grad-hero);
+    color: #fff;
+    box-shadow: var(--db-shadow-lg);
+}
+.db-hero-bg {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(circle at 12% 20%, rgba(255,255,255,.22) 0%, transparent 42%),
+        radial-gradient(circle at 88% 10%, rgba(255,255,255,.14) 0%, transparent 38%),
+        radial-gradient(circle at 70% 90%, rgba(0,0,0,.12) 0%, transparent 45%);
+    pointer-events: none;
+}
+.db-hero-inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+.db-hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.16);
+    border: 1px solid rgba(255,255,255,.28);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    backdrop-filter: blur(8px);
+}
+.db-hero-title {
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    font-weight: 800;
+    margin: 0 0 8px;
+    letter-spacing: -.02em;
+    line-height: 1.15;
+}
+.db-hero-sub {
+    margin: 0;
+    font-size: 15px;
+    opacity: .92;
+    max-width: 560px;
+    line-height: 1.55;
+}
+.db-hero-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+}
+.db-hero-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 18px;
+    border-radius: var(--db-radius-sm);
+    background: rgba(255,255,255,.14);
+    border: 1px solid rgba(255,255,255,.22);
+    backdrop-filter: blur(10px);
+    min-width: 130px;
+}
+.db-hero-stat-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    opacity: .78;
+}
+.db-hero-stat-value {
+    font-size: 14px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.db-pulse-dot {
+    font-size: 8px;
+    color: #4ade80;
+    animation: db-pulse 2s ease-in-out infinite;
+}
+@keyframes db-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .55; transform: scale(1.15); }
+}
+.db-hero-btn {
+    border-radius: 999px !important;
+    padding: 10px 18px !important;
+    font-weight: 700 !important;
+    border: 1px solid rgba(255,255,255,.35) !important;
+    background: rgba(255,255,255,.18) !important;
+    color: #fff !important;
+    backdrop-filter: blur(8px);
+    transition: transform .15s ease, background .15s ease;
+}
+.db-hero-btn:hover {
+    background: rgba(255,255,255,.28) !important;
+    color: #fff !important;
+    transform: translateY(-1px);
+}
+
+.dashboard-admin-content {
+    position: relative;
+    min-height: 60vh;
+    padding: 0 12px 32px;
+}
+
 .dashboard-card {
-    border: none;
-    border-radius: 15px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid var(--db-border);
+    border-radius: var(--db-radius);
+    background: var(--db-surface);
+    box-shadow: var(--db-shadow);
+    transition: box-shadow 0.25s ease, border-color 0.25s ease;
+    overflow: hidden;
 }
 
 .dashboard-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+    border-color: rgba(99, 102, 241, 0.18);
+}
+
+.dashboard-card .card-header {
+    background: linear-gradient(180deg, #fafbff 0%, #f8fafc 100%);
+    border-bottom: 1px solid var(--db-border);
+    padding: 16px 20px;
+}
+
+.dashboard-card .card-header .card-title,
+.dashboard-card .card-header > div:first-child {
+    font-weight: 800 !important;
+    color: var(--db-text);
+    letter-spacing: -.01em;
+}
+
+.dashboard-card .card-header i.bi {
+    color: var(--db-primary);
 }
 
 .metric-card {
@@ -23,16 +190,30 @@
     overflow: hidden;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: #fff;
-    border-radius: 16px;
-    padding: 18px 18px;
+    border-radius: var(--db-radius);
+    padding: 20px 20px;
     margin-bottom: 20px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 12px 32px rgba(79, 70, 229, 0.22);
+    transition: transform 0.22s ease, box-shadow 0.22s ease;
+    border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .metric-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.18);
+    transform: translateY(-5px) scale(1.01);
+    box-shadow: 0 20px 44px rgba(79, 70, 229, 0.28);
+}
+
+.metric-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.12) 50%, transparent 70%);
+    transform: translateX(-120%);
+    transition: transform .6s ease;
+    pointer-events: none;
+}
+.metric-card:hover::before {
+    transform: translateX(120%);
 }
 
 .metric-card::after {
@@ -44,7 +225,6 @@
     height: 140px;
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.18);
-    filter: blur(0px);
 }
 
 .metric-card-inner {
@@ -98,40 +278,24 @@
 }
 
 .metric-value {
-    font-size: 2.5rem;
-    font-weight: bold;
-    margin-bottom: 5px;
+    font-size: clamp(1.6rem, 2.5vw, 2.4rem);
+    font-weight: 800;
+    margin-bottom: 4px;
+    letter-spacing: -.02em;
+    line-height: 1.1;
 }
 
 .metric-label {
-    font-size: 1rem;
-    opacity: 0.9;
+    font-size: .92rem;
+    font-weight: 600;
+    opacity: 0.92;
+    letter-spacing: .01em;
 }
 
 .chart-container {
     position: relative;
     height: 400px;
     margin: 20px 0;
-}
-
-.loading-spinner {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: fixed;
-    inset: 0;
-    z-index: 9999;
-    background: rgba(0,0,0,0.5);
-    color: #fff;
-}
-
-.loading-spinner .loading-inner {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    font-size: 1.5rem;
-    font-weight: 800;
 }
 
 .score-loading-state {
@@ -177,11 +341,6 @@
     to { transform: rotate(360deg); }
 }
 
-.dashboard-admin-content {
-    position: relative;
-    min-height: 60vh;
-}
-
 .spinner-border {
     width: 3rem;
     height: 3rem;
@@ -217,11 +376,13 @@
 }
 
 .error-message {
-    background: #f8d7da;
-    color: #721c24;
-    padding: 15px;
-    border-radius: 10px;
+    background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+    color: #991b1b;
+    padding: 16px 18px;
+    border-radius: var(--db-radius-sm);
     margin: 20px 0;
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    box-shadow: 0 8px 24px rgba(239, 68, 68, 0.08);
 }
 .equal-group {
     flex-wrap: wrap;
@@ -411,34 +572,45 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-prevbutton:h
     align-items: center;
     gap: 6px;
     flex-wrap: wrap;
-    padding: 6px;
+    padding: 5px;
     border-radius: 999px;
-    background: rgba(15, 23, 42, 0.04);
-    border: 1px solid rgba(15, 23, 42, 0.08);
+    background: linear-gradient(180deg, #f1f5f9 0%, #e2e8f0 100%);
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
 }
 .dashboard-recap-tabs .btn {
     border-radius: 999px;
-    font-weight: 900;
-    letter-spacing: .03em;
-    padding: 6px 12px;
+    font-weight: 800;
+    letter-spacing: .02em;
+    padding: 7px 14px;
     line-height: 1.2;
     border: 1px solid transparent;
     background: transparent;
-    color: #334155;
+    color: #475569;
     box-shadow: none;
+    transition: all .18s ease;
 }
 .dashboard-recap-tabs .btn.btn-primary {
-    background: #ffffff;
-    color: #0f172a;
-    border-color: rgba(15, 23, 42, 0.10);
-    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.10);
+    background: linear-gradient(135deg, var(--db-primary) 0%, var(--db-accent) 100%);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
 }
 .dashboard-recap-tabs .btn.btn-outline-primary {
     background: transparent;
     border-color: transparent;
 }
+.dashboard-recap-tabs .btn.btn-outline-primary:hover {
+    background: rgba(99, 102, 241, 0.08);
+    color: var(--db-primary-dark);
+}
 .dashboard-recap-tabs .btn:hover {
-    background: rgba(255, 255, 255, 0.55);
+    background: rgba(255, 255, 255, 0.65);
+}
+.dashboard-recap-tabs .btn.btn-primary:hover {
+    background: linear-gradient(135deg, #5558e8 0%, #7c3aed 100%);
+    color: #fff;
+    filter: brightness(1.05);
 }
 .dashboard-recap-tabs .btn:focus {
     outline: none;
@@ -462,16 +634,130 @@ html[data-theme="dark"] .dashboard-recap-tabs .btn:hover {
     background: rgba(255, 255, 255, 0.10);
 }
 
-.dashboard-recap-card { border-radius:16px; border:1px solid rgba(15,23,42,0.08); overflow:hidden; }
+.dashboard-recap-card {
+    border-radius: var(--db-radius);
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    overflow: hidden;
+    box-shadow: var(--db-shadow);
+    background: var(--db-surface);
+}
+.dashboard-recap-card > .card-header {
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border-bottom: 1px solid var(--db-border);
+    padding: 20px 22px 16px;
+    position: relative;
+}
+.dashboard-recap-card > .card-header::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--db-primary), var(--db-accent), var(--db-rose));
+}
+.dashboard-recap-title {
+    font-weight: 800;
+    font-size: 1.15rem;
+    letter-spacing: -.01em;
+    color: var(--db-text);
+    margin-bottom: 4px;
+}
+.dashboard-recap-subtitle {
+    font-size: 12px;
+    color: var(--db-muted);
+}
+.dashboard-recap-filters {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.dashboard-recap-filter-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.dashboard-recap-filter-item label {
+    font-weight: 800;
+    font-size: 11px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--db-muted);
+    margin: 0;
+    white-space: nowrap;
+}
+.dashboard-recap-filter-item .form-control {
+    border-radius: 10px;
+    border-color: rgba(99, 102, 241, 0.18);
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+.dashboard-recap-filter-item .form-control:focus {
+    border-color: var(--db-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+#dashboardRecapSyncBtn {
+    border-radius: 10px;
+    font-weight: 700;
+    border: none;
+    background: linear-gradient(135deg, var(--db-primary) 0%, var(--db-accent) 100%);
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+    transition: transform .15s ease, box-shadow .15s ease;
+    color: #fff;
+}
+#dashboardRecapSyncBtn .bi {
+    font-size: 1.05rem;
+    line-height: 1;
+    display: inline-block;
+    vertical-align: middle;
+}
+#dashboardRecapSyncBtn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px rgba(99, 102, 241, 0.38);
+    background: linear-gradient(135deg, #5558e8 0%, #7c3aed 100%);
+}
+.dashboard-recap-table thead th {
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    color: var(--db-text);
+    font-weight: 800;
+    font-size: 12px;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    border-bottom: 2px solid rgba(99, 102, 241, 0.25) !important;
+    white-space: nowrap;
+}
+.dashboard-recap-table tbody tr {
+    transition: background-color .15s ease;
+}
+.dashboard-recap-table tbody tr:hover {
+    background: rgba(99, 102, 241, 0.05) !important;
+}
 .dashboard-recap-header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
-.dashboard-recap-header .select2-container { min-width: 180px; }
+.dashboard-recap-header .select2-container { min-width: 200px; }
+.dashboard-recap-filter-item .select2-container--bootstrap4 .select2-selection--single {
+    height: 38px;
+    border-radius: 10px;
+    border-color: rgba(99, 102, 241, 0.18);
+}
+.dashboard-recap-filter-item .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered {
+    line-height: 36px;
+    padding-left: 12px;
+}
+.dashboard-recap-filter-item .select2-container--bootstrap4 .select2-selection--single .select2-selection__arrow {
+    height: 36px;
+}
+.dashboard-recap-filter-item .select2-container--bootstrap4.select2-container--focus .select2-selection,
+.dashboard-recap-filter-item .select2-container--bootstrap4.select2-container--open .select2-selection {
+    border-color: var(--db-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
 .dashboard-recap-header .select2-container--bootstrap4 .select2-selection--single { height: 38px; }
 .dashboard-recap-header .select2-container--bootstrap4 .select2-selection--single .select2-selection__rendered { line-height: 36px; }
 .dashboard-recap-header .select2-container--bootstrap4 .select2-selection--single .select2-selection__arrow { height: 36px; }
-.metric-card.spend { background: linear-gradient(135deg, #ff4b1f 0%, #ff9068 100%); }
-.metric-card.revenue { background: linear-gradient(135deg, #7f00ff 0%, #e100ff 100%); }
-.metric-card.net { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
-.metric-card.roi { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.metric-card.spend { background: linear-gradient(135deg, #ef4444 0%, #f97316 100%); box-shadow: 0 12px 32px rgba(239, 68, 68, 0.25); }
+.metric-card.revenue { background: linear-gradient(135deg, #7c3aed 0%, #db2777 100%); box-shadow: 0 12px 32px rgba(124, 58, 237, 0.25); }
+.metric-card.net { background: linear-gradient(135deg, #059669 0%, #10b981 100%); box-shadow: 0 12px 32px rgba(16, 185, 129, 0.25); }
+.metric-card.roi { background: linear-gradient(135deg, #2563eb 0%, #06b6d4 100%); box-shadow: 0 12px 32px rgba(37, 99, 235, 0.25); }
 .dashboard-recap-table th, .dashboard-recap-table td { vertical-align: middle; }
 .dashboard-kondisi-wrap {
     position: relative;
@@ -588,6 +874,500 @@ html[data-theme="dark"] #dashboardRecapTable_wrapper .paginate_button:hover {
     color: #fff !important;
     border-color: #1d4ed8 !important;
 }
+
+/* ── Detail Scoring section ── */
+.detail-scoring-card {
+    border: 1px solid rgba(99, 102, 241, 0.14);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 16px 40px rgba(99, 102, 241, 0.08), 0 2px 8px rgba(15, 23, 42, 0.04);
+    background: #fff;
+}
+.detail-scoring-card > .card-header {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.06) 0%, rgba(6, 182, 212, 0.05) 50%, rgba(236, 72, 153, 0.04) 100%);
+    border-bottom: 1px solid rgba(99, 102, 241, 0.12);
+    padding: 18px 22px;
+}
+.detail-scoring-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    width: 100%;
+}
+.detail-scoring-head-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    min-width: 0;
+}
+.detail-scoring-head-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.35rem;
+    color: #fff;
+    background: linear-gradient(135deg, var(--db-primary) 0%, var(--db-accent) 100%);
+    box-shadow: 0 10px 24px rgba(99, 102, 241, 0.35);
+    flex-shrink: 0;
+}
+.detail-scoring-title {
+    font-weight: 800;
+    font-size: 1.12rem;
+    letter-spacing: -.02em;
+    color: var(--db-text);
+    margin: 0 0 4px;
+    line-height: 1.25;
+}
+.detail-scoring-subtitle {
+    font-size: 12px;
+    color: var(--db-muted);
+    margin: 0;
+    line-height: 1.45;
+    max-width: 520px;
+}
+.detail-scoring-meta-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: var(--db-primary-dark);
+    background: rgba(99, 102, 241, 0.1);
+    border: 1px solid rgba(99, 102, 241, 0.18);
+    white-space: nowrap;
+}
+.detail-scoring-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 22px;
+    background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+    border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+.detail-scoring-filter.dashboard-recap-tabs {
+    border-radius: 14px;
+    padding: 6px;
+    gap: 4px;
+}
+.detail-scoring-filter .btn {
+    font-size: 11px;
+    padding: 6px 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+.detail-scoring-filter .btn[data-alert-filter="scale_up"].btn-primary {
+    background: linear-gradient(135deg, #059669, #10b981);
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.35);
+}
+.detail-scoring-filter .btn[data-alert-filter="hold"].btn-primary {
+    background: linear-gradient(135deg, #2563eb, #3b82f6);
+    box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+}
+.detail-scoring-filter .btn[data-alert-filter="pause"].btn-primary {
+    background: linear-gradient(135deg, #475569, #64748b);
+    box-shadow: 0 6px 16px rgba(100, 116, 139, 0.35);
+}
+.detail-scoring-filter .btn[data-alert-filter="scale_down"].btn-primary {
+    background: linear-gradient(135deg, #d97706, #f59e0b);
+    box-shadow: 0 6px 16px rgba(245, 158, 11, 0.35);
+    color: #0f172a !important;
+}
+.detail-scoring-filter .btn[data-alert-filter="stop"].btn-primary {
+    background: linear-gradient(135deg, #dc2626, #ef4444);
+    box-shadow: 0 6px 16px rgba(239, 68, 68, 0.35);
+}
+.detail-scoring-note {
+    margin: 14px 22px 0;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 12px;
+    line-height: 1.55;
+    color: #334155;
+    background: linear-gradient(135deg, rgba(239, 246, 255, 0.95) 0%, rgba(238, 242, 255, 0.85) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.14);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+.detail-scoring-note i {
+    color: var(--db-primary);
+    font-size: 1rem;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+.detail-scoring-note code {
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 6px;
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--db-primary-dark);
+}
+.detail-scoring-table-wrap {
+    margin: 14px 16px 18px;
+    border-radius: 14px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    overflow: hidden;
+    background: #fff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+.detail-scoring-card #dashboardRecapTable {
+    margin: 0;
+    border: 0 !important;
+}
+.detail-scoring-card #dashboardRecapTable thead th {
+    background: linear-gradient(180deg, #f1f5f9 0%, #e8eef5 100%);
+    font-size: 11px;
+    padding: 12px 10px;
+    border-top: 0 !important;
+}
+.detail-scoring-card #dashboardRecapTable tbody td {
+    padding: 11px 10px;
+    font-size: 13px;
+}
+.detail-scoring-card #dashboardRecapTable tbody tr.ds-row-highlight-best td {
+    background: rgba(186, 230, 253, 0.45) !important;
+}
+.detail-scoring-card #dashboardRecapTable tbody tr.ds-row-highlight-worst td {
+    background: rgba(254, 226, 226, 0.5) !important;
+}
+.detail-scoring-card .dataTables_wrapper {
+    padding: 12px 14px 14px;
+}
+/* Toolbar: export kiri (kecil inline), length + search kanan */
+.detail-scoring-card .ds-dt-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+    margin-bottom: 12px;
+    clear: both;
+}
+.detail-scoring-card .ds-dt-toolbar__left {
+    flex: 0 1 auto;
+    min-width: 0;
+    text-align: left;
+}
+.detail-scoring-card .ds-dt-toolbar__right {
+    flex: 0 1 auto;
+    margin-left: auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px 18px;
+}
+.detail-scoring-card .ds-dt-toolbar__right .dataTables_length,
+.detail-scoring-card .ds-dt-toolbar__right .dataTables_filter {
+    margin: 0;
+    float: none;
+}
+.detail-scoring-card .ds-dt-toolbar__left .dt-buttons {
+    display: inline-block !important;
+    width: auto !important;
+    max-width: 100%;
+    margin: 0 !important;
+    padding: 0 !important;
+    text-align: left;
+    vertical-align: middle;
+    float: none !important;
+}
+.detail-scoring-card .ds-dt-toolbar__left .dt-buttons.btn-group {
+    display: inline-flex !important;
+    flex-wrap: wrap !important;
+    justify-content: flex-start !important;
+    align-items: center;
+    width: auto !important;
+    gap: 6px;
+}
+.detail-scoring-card .ds-dt-toolbar__left .dt-buttons .dt-button,
+.detail-scoring-card .ds-dt-toolbar__left .dt-buttons .btn {
+    display: inline-block !important;
+    width: auto !important;
+    flex: 0 0 auto !important;
+    float: none !important;
+    margin: 0 !important;
+    border-radius: 10px !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    padding: 5px 12px !important;
+    line-height: 1.3 !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1) !important;
+    white-space: nowrap;
+}
+.detail-scoring-card .ds-dt-toolbar__left .dt-buttons .btn + .btn {
+    margin-left: 0 !important;
+}
+@media (max-width: 767px) {
+    .detail-scoring-card .ds-dt-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .detail-scoring-card .ds-dt-toolbar__right {
+        margin-left: 0;
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+.detail-scoring-card #dashboardRecapTable tbody td.ds-keputusan-cell {
+    min-width: 120px;
+    max-width: 160px;
+    vertical-align: middle;
+}
+.detail-scoring-card .dataTables_length select,
+.detail-scoring-card .dataTables_filter input {
+    border-radius: 10px;
+    border-color: rgba(99, 102, 241, 0.2);
+    font-size: 12px;
+}
+.detail-scoring-card .dataTables_filter input:focus {
+    border-color: var(--db-primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
+}
+.detail-scoring-card .dataTables_info {
+    font-size: 12px;
+    color: var(--db-muted);
+    font-weight: 600;
+}
+.detail-scoring-card .dataTables_paginate .paginate_button {
+    border-radius: 8px !important;
+    margin: 0 2px;
+    font-weight: 700;
+    font-size: 12px;
+}
+.ds-domain-name {
+    font-weight: 800;
+    color: #0f172a;
+    font-size: 13px;
+    line-height: 1.3;
+}
+.ds-domain-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+}
+.ds-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .02em;
+    line-height: 1.4;
+}
+.ds-tag--adx { background: rgba(37, 99, 235, 0.12); color: #1d4ed8; border: 1px solid rgba(37, 99, 235, 0.2); }
+.ds-tag--adsense { background: rgba(245, 158, 11, 0.14); color: #b45309; border: 1px solid rgba(245, 158, 11, 0.25); }
+.ds-tag--days { background: rgba(6, 182, 212, 0.12); color: #0e7490; border: 1px solid rgba(6, 182, 212, 0.22); }
+.ds-tag--country { background: rgba(100, 116, 139, 0.12); color: #334155; border: 1px solid rgba(100, 116, 139, 0.2); }
+.ds-money {
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    color: #0f172a;
+    white-space: nowrap;
+}
+.ds-roi {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 56px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+}
+.ds-roi--pos { background: rgba(16, 185, 129, 0.14); color: #047857; border: 1px solid rgba(16, 185, 129, 0.25); }
+.ds-roi--neg { background: rgba(239, 68, 68, 0.12); color: #b91c1c; border: 1px solid rgba(239, 68, 68, 0.22); }
+.ds-roi--zero { background: rgba(148, 163, 184, 0.14); color: #475569; border: 1px solid rgba(148, 163, 184, 0.22); }
+.ds-score-cell {
+    min-width: 108px;
+    text-align: left;
+}
+.ds-score-cell.is-empty {
+    color: #94a3b8;
+    font-size: 11px;
+    font-weight: 800;
+}
+.ds-score-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    font-weight: 800;
+    margin-bottom: 5px;
+    color: #0f172a;
+}
+.ds-score-value {
+    font-size: 15px;
+    font-weight: 900;
+    letter-spacing: -.02em;
+    background: linear-gradient(135deg, var(--db-primary), var(--db-accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+.ds-score-bar {
+    height: 7px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.08);
+    overflow: hidden;
+}
+.ds-score-bar > span {
+    display: block;
+    height: 100%;
+    border-radius: 999px;
+    transition: width .35s ease;
+}
+.ds-score-bar--success > span { background: linear-gradient(90deg, #16a34a, #22c55e); }
+.ds-score-bar--primary > span { background: linear-gradient(90deg, #2563eb, #3b82f6); }
+.ds-score-bar--warning > span { background: linear-gradient(90deg, #d97706, #f59e0b); }
+.ds-score-bar--danger > span { background: linear-gradient(90deg, #dc2626, #ef4444); }
+.ds-score-meta {
+    margin-top: 5px;
+    font-size: 10px;
+    line-height: 1.35;
+    color: #64748b;
+    font-weight: 700;
+}
+.ds-decision-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    margin: 0 auto;
+    text-align: center;
+}
+.ds-decision-wrap.keputusan-badge-clickable:hover {
+    transform: translateY(-2px);
+}
+.ds-decision-chip {
+    display: inline-block;
+    padding: 5px 11px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border: 1px solid transparent;
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+    white-space: nowrap;
+    line-height: 1.2;
+}
+.ds-decision--scale-up { background: linear-gradient(135deg, #059669, #10b981); color: #fff; }
+.ds-decision--hold { background: linear-gradient(135deg, #2563eb, #3b82f6); color: #fff; }
+.ds-decision--pause { background: linear-gradient(135deg, #64748b, #94a3b8); color: #fff; }
+.ds-decision--scale-down { background: linear-gradient(135deg, #f59e0b, #fbbf24); color: #78350f; }
+.ds-decision--stop { background: linear-gradient(135deg, #dc2626, #ef4444); color: #fff; }
+.ds-decision--pending { background: #f1f5f9; color: #64748b; border-color: rgba(100, 116, 139, 0.25); box-shadow: none; }
+.ds-decision-cause {
+    display: block;
+    width: 100%;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: #64748b;
+    max-width: 148px;
+    word-break: break-word;
+}
+.ds-status-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 5px;
+    min-width: 108px;
+}
+.ds-status-stack .ds-decision-chip,
+.ds-status-stack > .scx-pill {
+    align-self: flex-start;
+}
+.ds-status-sub {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: #64748b;
+    max-width: 200px;
+    word-break: break-word;
+}
+.ds-update-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 800;
+    background: rgba(239, 68, 68, 0.1);
+    color: #b91c1c;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    white-space: nowrap;
+}
+.ds-detail-btn {
+    border-radius: 10px;
+    font-weight: 800;
+    font-size: 11px;
+    padding: 5px 12px;
+    border: none;
+    background: linear-gradient(135deg, var(--db-primary), #7c3aed);
+    color: #fff !important;
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: transform .15s ease, box-shadow .15s ease;
+}
+.ds-detail-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(99, 102, 241, 0.38);
+    color: #fff !important;
+}
+.ds-detail-btn:disabled {
+    background: #e2e8f0;
+    color: #94a3b8 !important;
+    box-shadow: none;
+}
+html[data-theme="dark"] .detail-scoring-card {
+    background: #1e293b;
+    border-color: rgba(148, 163, 184, 0.15);
+}
+html[data-theme="dark"] .detail-scoring-card > .card-header {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(6, 182, 212, 0.08) 100%);
+}
+html[data-theme="dark"] .detail-scoring-title { color: #f1f5f9; }
+html[data-theme="dark"] .detail-scoring-subtitle { color: #94a3b8; }
+html[data-theme="dark"] .detail-scoring-toolbar { background: linear-gradient(180deg, #172033 0%, #1e293b 100%); }
+html[data-theme="dark"] .detail-scoring-note {
+    background: rgba(30, 41, 59, 0.8);
+    border-color: rgba(99, 102, 241, 0.2);
+    color: #cbd5e1;
+}
+html[data-theme="dark"] .detail-scoring-table-wrap {
+    background: #0f172a;
+    border-color: rgba(148, 163, 184, 0.15);
+}
+html[data-theme="dark"] .ds-domain-name { color: #f1f5f9; }
+html[data-theme="dark"] .ds-money { color: #e2e8f0; }
+html[data-theme="dark"] .ds-score-head { color: #f1f5f9; }
+html[data-theme="dark"] .ds-score-bar { background: rgba(148, 163, 184, 0.2); }
+html[data-theme="dark"] .ds-decision-cause { color: #94a3b8; }
 
 .sd-wrap { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
 .sd-card { flex: 1; min-width: 320px; background: #f8fafc; border: 1px solid rgba(15,23,42,0.08); border-radius: 14px; padding: 12px 14px; }
@@ -1038,6 +1818,183 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
     line-height: 1.45;
 }
 
+/* ── Detail Scoring modal ── */
+.score-detail-modal {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    padding: 16px;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.score-detail-modal.is-open {
+    display: flex;
+}
+.score-detail-modal__dialog {
+    background: #f8fafc;
+    max-width: 1800px;
+    width: 100%;
+    max-height: 96vh;
+    overflow: hidden;
+    border-radius: 20px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    box-shadow: 0 32px 80px rgba(2, 6, 23, 0.35);
+    display: flex;
+    flex-direction: column;
+}
+.score-detail-modal__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(99, 102, 241, 0.12);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(6, 182, 212, 0.06) 50%, #fff 100%);
+    flex-shrink: 0;
+}
+.score-detail-modal__header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+}
+.score-detail-modal__icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 1.2rem;
+    background: linear-gradient(135deg, var(--db-primary), var(--db-accent));
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
+    flex-shrink: 0;
+}
+.score-detail-modal__title {
+    margin: 0;
+    font-weight: 800;
+    font-size: 1.05rem;
+    color: #0f172a;
+    letter-spacing: -.02em;
+    line-height: 1.3;
+}
+.score-detail-modal__close {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    border-radius: 999px;
+    padding: 8px 14px;
+    font-weight: 800;
+    font-size: 12px;
+    color: #fff;
+    background: linear-gradient(135deg, var(--db-primary), #7c3aed);
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+    transition: transform .15s ease, box-shadow .15s ease;
+    flex-shrink: 0;
+}
+.score-detail-modal__close:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 26px rgba(99, 102, 241, 0.38);
+    color: #fff;
+}
+.score-detail-modal__body {
+    padding: 18px 20px 22px;
+    overflow: auto;
+    flex: 1;
+    min-height: 0;
+}
+.score-detail-modal__body .scx-modal-nav {
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(99, 102, 241, 0.14);
+    background: linear-gradient(180deg, rgba(239, 246, 255, 0.95) 0%, #fff 100%);
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(99, 102, 241, 0.06);
+}
+.score-detail-modal__body .scx-modal-nav-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: 10px;
+}
+.score-detail-modal__body .scx-modal-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.score-detail-modal__body .scx-modal-tab {
+    border-radius: 999px;
+    padding: 7px 13px;
+    font-size: 11px;
+    font-weight: 800;
+    border: 1px solid rgba(99, 102, 241, 0.18);
+    background: #fff;
+    color: #4338ca;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    transition: all .18s ease;
+}
+.score-detail-modal__body .scx-modal-tab:hover {
+    background: rgba(99, 102, 241, 0.06);
+}
+.score-detail-modal__body .scx-modal-tab.is-active {
+    background: linear-gradient(135deg, var(--db-primary), #6366f1);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.32);
+}
+.score-detail-modal__body .scx-modal-tab .scx-tab-count {
+    margin-left: 5px;
+    opacity: 0.85;
+    font-size: 10px;
+}
+.score-detail-modal__body .scx-card {
+    border-radius: 16px;
+    border-color: rgba(99, 102, 241, 0.1);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+}
+.score-detail-modal__body .scx-action-panel {
+    padding: 14px 16px;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    border-radius: 16px;
+    background: #fff;
+    margin-top: 12px;
+}
+.score-detail-modal__body .scx-country-table thead th {
+    background: linear-gradient(180deg, #f1f5f9, #e8eef5);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+}
+html[data-theme="dark"] .score-detail-modal__dialog {
+    background: #0f172a;
+    border-color: rgba(148, 163, 184, 0.2);
+}
+html[data-theme="dark"] .score-detail-modal__header {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), #1e293b);
+}
+html[data-theme="dark"] .score-detail-modal__title { color: #f1f5f9; }
+html[data-theme="dark"] .score-detail-modal__body .scx-modal-nav {
+    background: linear-gradient(180deg, #1e293b, #172033);
+    border-color: rgba(148, 163, 184, 0.15);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-modal-tab {
+    background: #0f172a;
+    color: #c7d2fe;
+    border-color: rgba(148, 163, 184, 0.2);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-card {
+    background: #1e293b;
+    border-color: rgba(148, 163, 184, 0.12);
+}
+
 .scx-note-box {
     border: 1px dashed rgba(15, 23, 42, 0.10);
     border-radius: 12px;
@@ -1338,6 +2295,52 @@ html[data-theme="dark"] .decision-detail-reason-item {
     filter: brightness(1.1);
 }
 
+/* Dark mode — dashboard shell */
+html[data-theme="dark"] body.dashboard-admin-page .content {
+    background: linear-gradient(180deg, #0f172a 0%, #1e1b4b 40%, #0f172a 100%);
+}
+html[data-theme="dark"] .db-hero {
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+html[data-theme="dark"] .dashboard-card {
+    background: #1e293b;
+    border-color: rgba(148, 163, 184, 0.15);
+}
+html[data-theme="dark"] .dashboard-card .card-header {
+    background: linear-gradient(180deg, #1e293b 0%, #172033 100%);
+    border-bottom-color: rgba(148, 163, 184, 0.12);
+}
+html[data-theme="dark"] .dashboard-recap-card > .card-header {
+    background: linear-gradient(180deg, #1e293b 0%, #172033 100%);
+}
+html[data-theme="dark"] .dashboard-recap-title { color: #f1f5f9; }
+html[data-theme="dark"] .dashboard-recap-tabs {
+    background: rgba(15, 23, 42, 0.6);
+    border-color: rgba(148, 163, 184, 0.15);
+}
+html[data-theme="dark"] .dashboard-recap-table thead th {
+    background: #162235;
+    color: #f8fafc;
+    border-bottom-color: rgba(99, 102, 241, 0.35) !important;
+}
+html[data-theme="dark"] .dashboard-recap-filter-item .form-control {
+    background: #0f172a;
+    color: #e2e8f0;
+    border-color: rgba(148, 163, 184, 0.25);
+}
+
+@media (max-width: 768px) {
+    .db-hero {
+        margin: -8px -8px 20px;
+        padding: 22px 18px 26px;
+        border-radius: 0 0 14px 14px;
+    }
+    .db-hero-inner { flex-direction: column; align-items: flex-start; }
+    .dashboard-recap-filters { width: 100%; }
+    .dashboard-recap-filter-item { width: 100%; }
+    .dashboard-recap-filter-item .form-control { flex: 1; width: 100% !important; max-width: none !important; }
+}
+
 /* ...existing code... */
 </style>
 {% endblock %}
@@ -1346,13 +2349,29 @@ html[data-theme="dark"] .decision-detail-reason-item {
 <main class="app-main">
     <div class="app-content">
         <div class="container-fluid dashboard-admin-content">
-            <!-- Loading Spinner -->
-            <div id="loading" class="loading-spinner">
-                <div class="loading-inner">
-                    <i class="fas fa-sync-alt fa-spin" aria-hidden="true"></i>
-                    <span>Memuat Data ...</span>
-                </div>  
-            </div>
+
+            <!-- Hero Welcome -->
+            <section class="db-hero" aria-label="Dashboard header">
+                <div class="db-hero-bg" aria-hidden="true"></div>
+                <div class="db-hero-inner">
+                    <div class="db-hero-copy">
+                        <span class="db-hero-badge"><i class="bi bi-stars" aria-hidden="true"></i> AdX &amp; AdSense Analytics</span>
+                        <h2 class="db-hero-title">Dashboard Earning</h2>
+                        <p class="db-hero-sub">Selamat datang, <strong>{% firstof user.user_alias user.user_name "Admin" %}</strong> — pantau performa iklan, pendapatan, dan scoring campaign secara real-time.</p>
+                    </div>
+                    <div class="db-hero-actions">
+                        <div class="db-hero-stat">
+                            <span class="db-hero-stat-label">Monitor</span>
+                            <span class="db-hero-stat-value"><i class="bi bi-circle-fill db-pulse-dot" aria-hidden="true"></i> Aktif</span>
+                        </div>
+                        <button type="button" class="btn db-hero-btn" id="btnDashboardTourHero">
+                            <i class="bi bi-question-circle" aria-hidden="true"></i> Panduan
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <div id="loading" class="hris-loader-stub" style="display:none" data-loader-message="Memuat Data..." aria-hidden="true"></div>
             <!-- Error Message -->
             <div id="error-message" class="error-message" style="display: none;">
                 <strong>Error:</strong> <span id="error-text"></span>
@@ -1366,30 +2385,30 @@ html[data-theme="dark"] .decision-detail-reason-item {
                     <div class="card-header">
                         <div class="dashboard-recap-header">
                             <div>
-                                <div style="font-weight:900;letter-spacing:.02em;">Dashboard Earning Adx Manager & AdSense</div>
-                                <div class="text-muted" style="font-size:12px;">Default: hari ini</div>
+                                <div class="dashboard-recap-title">Dashboard Earning Adx Manager &amp; AdSense</div>
+                                <div class="dashboard-recap-subtitle">Default: hari ini</div>
                                 <div id="dashboardRecapSyncAlert" class="alert alert-info" style="display:none;border-radius:10px;margin-top:10px;margin-bottom:0;padding:10px 12px;">
                                     <span id="dashboardRecapSyncAlertText">Syncronize sedang berlangsung</span>
                                 </div>
                             </div>
-                            <div class="d-flex align-items-center" style="gap:16px;flex-wrap:nowrap;white-space:nowrap;overflow-x:auto;max-width:100%;">
-                                <div class="d-flex align-items-center" style="gap:10px;">
-                                    <label for="dashboardRecapDate" class="mb-0" style="font-weight:800;font-size:12px;letter-spacing:.06em;text-transform:uppercase;">Filter Tanggal</label>
+                            <div class="dashboard-recap-filters">
+                                <div class="dashboard-recap-filter-item">
+                                    <label for="dashboardRecapDate">Filter Tanggal</label>
                                     <input id="dashboardRecapDate" type="text" class="form-control datepicker-input w-auto" style="width: 180px;" placeholder="YYYY-MM-DD" autocomplete="off" />
                                 </div>
-                                <div class="d-flex align-items-center" style="gap:10px;">
-                                    <label for="dashboardRecapSubdomain" class="mb-0" style="font-weight:800;font-size:12px;letter-spacing:.06em;text-transform:uppercase;">Filter Subdomain</label>
+                                <div class="dashboard-recap-filter-item">
+                                    <label for="dashboardRecapSubdomain">Filter Subdomain</label>
                                     <input id="dashboardRecapSubdomain" type="text" class="form-control w-auto" style="width: 220px;" placeholder="contoh: benteng" autocomplete="off" />
                                 </div>
-                                <div class="d-flex align-items-center" style="gap:10px;">
-                                    <label for="dashboardRecapSource" class="mb-0" style="font-weight:800;font-size:12px;letter-spacing:.06em;text-transform:uppercase;">Data Sumber</label>
-                                    <select id="dashboardRecapSource" class="form-control w-auto" style="width: 180px;">
+                                <div class="dashboard-recap-filter-item">
+                                    <label for="dashboardRecapSource">Data Sumber</label>
+                                    <select id="dashboardRecapSource" class="form-control w-auto dashboard-recap-source-select" style="width: 200px;">
                                         <option value="all">Semua Data</option>
                                         <option value="adx">AdX Manager</option>
                                         <option value="adsense">AdSense Manager</option>
                                     </select>
                                     <button id="dashboardRecapSyncBtn" type="button" class="btn btn-primary" style="display:inline-flex;align-items:center;gap:8px;">
-                                        <i class="bi bi-arrow-repeat" aria-hidden="true"></i>
+                                        <i class="bi bi-arrow-clockwise text-white"></i>
                                         <span>Synchronize</span>
                                     </button>
                                 </div>
@@ -1437,48 +2456,56 @@ html[data-theme="dark"] .decision-detail-reason-item {
                             </div>
                         </div>
 
-                        <div class="card dashboard-card mt-3" style="border-radius:16px;">
-                            <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
-                                <div style="font-weight:900;"><i class="bi bi-table me-2"></i> Detail Scoring</div>
-                                <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-                                    <div class="text-muted" style="font-size:12px" id="dashboardRecapTableMeta"></div>
-                                    <div class="dashboard-recap-tabs" id="dashboardRecapAlertTabs" style="display:flex;gap:8px;flex-wrap:wrap;">
-                                        <button type="button" class="btn btn-sm btn-primary" data-alert-filter="all">Semua</button>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="scale_up">Scale Up</button>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="hold">Hold</button>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="pause">Pause</button>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="scale_down">Scale Down</button>
-                                        <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="stop">Stop</button>
+                        <div class="card dashboard-card detail-scoring-card mt-3">
+                            <div class="card-header">
+                                <div class="detail-scoring-head">
+                                    <div class="detail-scoring-head-main">
+                                        <div class="detail-scoring-head-icon" aria-hidden="true"><i class="bi bi-table"></i></div>
+                                        <div>
+                                            <h3 class="detail-scoring-title">Detail Scoring</h3>
+                                            <p class="detail-scoring-subtitle">Tabel performa per subdomain atau negara — score, keputusan otomatis, dan aksi detail campaign.</p>
+                                        </div>
                                     </div>
+                                    <span class="detail-scoring-meta-chip" id="dashboardRecapTableMeta"><i class="bi bi-list-ul"></i> Memuat...</span>
                                 </div>
                             </div>
-                            <div class="card-body p-0">
-                                <div style="padding:10px 14px 4px 14px;">
-                                    <div style="font-size:12px;line-height:1.45;color:#334155;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px;">
-                                        <b>Catatan:</b> Proses scoring mengedepankan <b>profit-first</b> (spend, revenue, ROI) sebagai prioritas keputusan, namun tetap menggunakan <b>semua metrik</b> yang tersedia di <code>scoring_concept</code> untuk validasi kualitas traffic, risk, dan kestabilan performa.
-                                    </div>
+                            <div class="detail-scoring-toolbar">
+                                <span class="text-muted" style="font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;">Filter keputusan</span>
+                                <div class="dashboard-recap-tabs detail-scoring-filter" id="dashboardRecapAlertTabs" role="tablist" aria-label="Filter keputusan scoring">
+                                    <button type="button" class="btn btn-sm btn-primary" data-alert-filter="all"><i class="bi bi-grid-3x3-gap"></i> Semua</button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="scale_up"><i class="bi bi-graph-up-arrow"></i> Scale Up</button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="hold"><i class="bi bi-hand-thumbs-up"></i> Hold</button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="pause"><i class="bi bi-pause-circle"></i> Pause</button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="scale_down"><i class="bi bi-graph-down-arrow"></i> Scale Down</button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" data-alert-filter="stop"><i class="bi bi-stop-circle"></i> Stop</button>
                                 </div>
-                                <div class="table-responsive">
-                                    <table class="table table-striped table-bordered mb-0 dashboard-recap-table" id="dashboardRecapTable">
-                                        <thead>
-                                            <tr>
-                                                <th class="text-center">No</th>
-                                                <th id="dashboardRecapThName" class="text-center">Sub Domain</th>
-                                                <th class="text-center">Account Ads</th>
-                                                <th id="dashboardRecapThCode" class="text-center" style="width:90px;display:none;">Kode</th>
-                                                <th class="text-center">Spend</th>
-                                                <th class="text-center">Pendapatan</th>
-                                                <th class="text-center">Pendapatan <br> Bersih</th>
-                                                <th class="text-center">ROI</th>
-                                                <th class="text-center">Score</th>
-                                                <th class="text-center">Keputusan</th>
-                                                <th class="text-center">Data Updated</th>
-                                                <th class="text-center">Detail</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="dashboardRecapTbody"></tbody>
-                                    </table>
+                            </div>
+                            <div class="detail-scoring-note">
+                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                                <div>
+                                    <strong>Catatan:</strong> Scoring mengedepankan <strong>profit-first</strong> (spend, revenue, ROI) sebagai prioritas keputusan, dengan validasi penuh dari metrik di <code>scoring_concept</code> untuk kualitas traffic, risk, dan stabilitas performa.
                                 </div>
+                            </div>
+                            <div class="detail-scoring-table-wrap table-responsive">
+                                <table class="table table-striped table-bordered mb-0 dashboard-recap-table" id="dashboardRecapTable">
+                                    <thead>
+                                        <tr>
+                                            <th class="text-center">No</th>
+                                            <th id="dashboardRecapThName" class="text-center">Sub Domain</th>
+                                            <th class="text-center">Account Ads</th>
+                                            <th id="dashboardRecapThCode" class="text-center" style="width:90px;display:none;">Kode</th>
+                                            <th class="text-end">Spend</th>
+                                            <th class="text-end">Pendapatan</th>
+                                            <th class="text-end">Pendapatan Bersih</th>
+                                            <th class="text-center">ROI</th>
+                                            <th class="text-center">Score</th>
+                                            <th class="text-center">Keputusan</th>
+                                            <th class="text-center">Data Updated</th>
+                                            <th class="text-center">Detail</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="dashboardRecapTbody"></tbody>
+                                </table>
                             </div>
                         </div>
 
@@ -1724,13 +2751,16 @@ html[data-theme="dark"] .decision-detail-reason-item {
                                         <div id="roiHourlyDetailBody" style="padding:12px 16px;"></div>
                                     </div>
                                 </div>
-                                <div id="scoreDetailModal" style="position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(15,23,42,.55),rgba(15,23,42,.72));backdrop-filter:blur(2px);z-index:1060;padding:16px;">
-                                    <div style="background:#fff;max-width:1800px;width:100%;max-height:96vh;overflow:auto;border-radius:18px;border:1px solid rgba(148,163,184,.35);box-shadow:0 30px 80px rgba(2,6,23,.30);">
-                                        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid rgba(15,23,42,.08);background:linear-gradient(90deg,#eef2ff 0%,#f8fafc 50%,#ecfeff 100%);position:sticky;top:0;z-index:1;">
-                                            <h6 id="scoreDetailTitle" style="margin:0;font-weight:800;color:#0f172a;">Detail Score</h6>
-                                            <button id="scoreDetailClose" type="button" class="btn btn-sm btn-primary" style="display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 12px;"><i class="bi bi-x-lg" aria-hidden="true"></i><span>Tutup</span></button>
+                                <div id="scoreDetailModal" class="score-detail-modal" aria-hidden="true">
+                                    <div class="score-detail-modal__dialog" role="dialog" aria-modal="true" aria-labelledby="scoreDetailTitle">
+                                        <div class="score-detail-modal__header">
+                                            <div class="score-detail-modal__header-left">
+                                                <div class="score-detail-modal__icon" aria-hidden="true"><i class="bi bi-bar-chart-steps"></i></div>
+                                                <h6 id="scoreDetailTitle" class="score-detail-modal__title">Detail Score</h6>
+                                            </div>
+                                            <button id="scoreDetailClose" type="button" class="score-detail-modal__close"><i class="bi bi-x-lg" aria-hidden="true"></i><span>Tutup</span></button>
                                         </div>
-                                        <div id="scoreDetailBody" style="padding:16px 18px 20px;"></div>
+                                        <div id="scoreDetailBody" class="score-detail-modal__body"></div>
                                     </div>
                                 </div>
                             </div>
@@ -1766,11 +2796,7 @@ html[data-theme="dark"] .decision-detail-reason-item {
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/wordcloud.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.1.0/custom/world.js"></script>
-<!-- Select2 (untuk Adx Account) -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/@ttskch/select2-bootstrap4-theme@1.5.2/dist/select2-bootstrap4.min.css" rel="stylesheet">
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<!-- intro.js for dashboard tour -->
 <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
 <script>
 let loginChart, userChart;
@@ -1795,6 +2821,7 @@ function showError(message) {
     const text = document.getElementById('error-text');
 
     if (loading) loading.style.display = 'none';
+    if (window.HrisLoader) window.HrisLoader.forceHide();
     if (legacy) legacy.style.display = 'none';
     if (recap) recap.style.display = 'none';
     if (box) box.style.display = 'block';
@@ -1874,6 +2901,7 @@ async function fetchDashboardData() {
 // Update dashboard with data
 function updateDashboard(data) {
     document.getElementById('loading').style.display = 'none';
+    if (window.HrisLoader) window.HrisLoader.forceHide();
     document.getElementById('dashboard-content').style.display = 'block';
 
     try {
@@ -2915,32 +3943,45 @@ function initRoiHourlyModal() {
     });
 }
 function startDashboardTour() {
-    if (typeof introJs !== 'function') return;
+    const introFactory = (typeof introJs === 'function') ? introJs : (window.introJs || null);
+    if (!introFactory) {
+        alert('Panduan belum siap dimuat. Silakan refresh halaman dan coba lagi.');
+        return;
+    }
+
+    function tourCard(selector) {
+        const el = document.querySelector(selector);
+        if (!el) return null;
+        return el.closest('.dashboard-card') || el.closest('.card') || el;
+    }
 
     const steps = [{
-        intro: 'Ini adalah panduan singkat pada halaman <b> Dashboard </b>. Klik tombol “ Lanjut ” untuk mengikuti langkah-langkahnya.'
+        intro: 'Selamat datang di <b>Dashboard Earning</b>. Panduan ini akan memperkenalkan fitur-fitur utama. Klik <b>Lanjut</b> untuk mulai.'
     }];
 
     const sections = [
-        ['#metric-cards', 'User Management'],
-        ['#ads-adx-cards', 'Akun Ads & AdX'],
-        ['#roi-kpi-cards', 'ROI & Pendapatan'],
-        ['#earnings-comparison', 'Komparasi Pendapatan'],
-        ['#roi-charts', 'ROI Charts'],
-        ['#roi-hourly-section', 'ROI per Hour']
+        ['.db-hero', 'Header Dashboard', 'Area sapaan dan akses cepat ke panduan interaktif.'],
+        ['.dashboard-recap-filters', 'Filter Data', 'Atur tanggal, subdomain, dan sumber data (AdX / AdSense). Gunakan tombol <b>Synchronize</b> untuk memperbarui data.'],
+        ['#dashboardRecapDimTabs', 'Dimensi Tampilan', 'Beralih antara rekap <b>Per Domain</b> dan <b>Per Negara</b>.'],
+        ['#dashboardRecapSummaryRow', 'Ringkasan Metrik', 'Kartu KPI: Total Spend, Pendapatan, Pendapatan Bersih, dan ROI Nett untuk tanggal yang dipilih.'],
+        ['#dashboardAccountRelationTable', 'Scoring per Account', 'Ringkasan performa tiap akun Ads: score, health, risk, spend, dan kondisi dominan.'],
+        ['#dashboardRecapTable', 'Detail Scoring', 'Tabel detail scoring per subdomain/campaign. Filter berdasarkan keputusan: Scale Up, Hold, Pause, dll.'],
+        ['#dashboardWinningCampaignCard', 'Winning Campaign', 'Top 5 campaign terbaik dan terburuk berdasarkan score.'],
+        ['#dashboardPulseCard', 'Grafik Matrik', 'Trend ROI atau Spend 14 hari terakhir plus prediksi 3 hari ke depan.'],
+        ['#dashboardRecapChart', 'Grafik Perbandingan', 'Perbandingan visual Spend, Pendapatan, Pendapatan Bersih, dan ROI.']
     ];
 
     sections.forEach(function(item) {
-        const el = document.querySelector(item[0]);
+        const el = tourCard(item[0]) || document.querySelector(item[0]);
         if (!el) return;
         steps.push({
             element: el,
             title: item[1],
-            intro: el.getAttribute('data-intro') || ''
+            intro: item[2]
         });
     });
 
-    steps.push({ intro: 'Selesai. Kamu bisa jalankan ulang petunjuk ini dari tombol “User Manual”.' });
+    steps.push({ intro: 'Selesai! Anda bisa membuka panduan ini kapan saja dari tombol <b>Panduan</b> di header dashboard.' });
 
     function decorateTourButtons() {
         const root = document.querySelector('.introjs-tooltip');
@@ -2949,23 +3990,23 @@ function startDashboardTour() {
         const prev = root.querySelector('.introjs-prevbutton');
         if (prev && !prev.dataset.iconized) {
             prev.dataset.iconized = '1';
-            prev.insertAdjacentHTML('afterbegin', '<i class="fa fa-arrow-left" aria-hidden="true"></i>');
+            prev.insertAdjacentHTML('afterbegin', '<i class="bi bi-arrow-left" aria-hidden="true"></i>');
         }
 
         const next = root.querySelector('.introjs-nextbutton');
         if (next && !next.dataset.iconized) {
             next.dataset.iconized = '1';
-            next.insertAdjacentHTML('beforeend', '<i class="fa fa-arrow-right" aria-hidden="true"></i>');
+            next.insertAdjacentHTML('beforeend', '<i class="bi bi-arrow-right" aria-hidden="true"></i>');
         }
 
         const done = root.querySelector('.introjs-donebutton');
         if (done && !done.dataset.iconized) {
             done.dataset.iconized = '1';
-            done.insertAdjacentHTML('afterbegin', '<i class="fa fa-check-circle" aria-hidden="true"></i>');
+            done.insertAdjacentHTML('afterbegin', '<i class="bi bi-check-circle" aria-hidden="true"></i>');
         }
     }
 
-    const tour = introJs();
+    const tour = introFactory();
     tour.setOptions({
         steps: steps,
         tooltipClass: 'hris-tour-tooltip',
@@ -2977,7 +4018,8 @@ function startDashboardTour() {
         showProgress: true,
         showBullets: false,
         exitOnOverlayClick: true,
-        scrollToElement: true
+        scrollToElement: true,
+        scrollPadding: 80
     });
 
     tour.onstart(decorateTourButtons);
@@ -2986,10 +4028,21 @@ function startDashboardTour() {
 
     tour.start();
 }
+window.startDashboardTour = startDashboardTour;
 
 // ===== MODAL FUNCTIONS (Global Scope) =====
 window.detailKeputusanStore = window.detailKeputusanStore || {};
 window.detailKeputusanStoreCounter = window.detailKeputusanStoreCounter || 0;
+
+function dsDecisionChipClass(decision) {
+    const d = String(decision || '').toUpperCase();
+    if (d === 'SCALE UP') return 'ds-decision--scale-up';
+    if (d === 'HOLD') return 'ds-decision--hold';
+    if (d === 'PAUSE') return 'ds-decision--pause';
+    if (d === 'SCALE DOWN') return 'ds-decision--scale-down';
+    if (d === 'STOP') return 'ds-decision--stop';
+    return 'ds-decision--pending';
+}
 
 function keputusanBadge(meta, ctx) {
     const label = String(meta?.label || '').trim();
@@ -3001,20 +4054,11 @@ function keputusanBadge(meta, ctx) {
         row: ctx?.row || null,
         state: ctx?.state || null,
     };
-    const causeText = label ? `Penyebab: ${scxFriendlyLabelGlobal(label)}` : '';
-    if (!d) return `<div class="keputusan-badge-clickable" title="${title}" data-keputusan-key="${storeKey}" role="button" tabindex="0"><span class="badge badge-light badge-pill" style="color:#6b7280;border:1px solid rgba(107,114,128,.22);">BELUM SIAP</span>${causeText ? `<div style="font-size:11px;opacity:.85;margin-top:4px;font-weight:700;line-height:1.3;">${esc(causeText)}</div>` : ''}</div>`;
-    let cls = 'badge badge-secondary badge-pill';
-    let badgeStyle = '';
-    if (d === 'SCALE UP') cls = 'badge badge-success badge-pill';
-    else if (d === 'HOLD') cls = 'badge badge-primary badge-pill';
-    else if (d === 'PAUSE') {
-        cls = 'badge badge-pill';
-        badgeStyle = 'background:#64748b;color:#fff;border:1px solid rgba(100,116,139,.28);';
-    }
-    else if (d === 'SCALE DOWN') cls = 'badge badge-warning badge-pill text-dark';
-    else if (d === 'STOP') cls = 'badge badge-danger badge-pill';
-    const sub = causeText ? `<div style="font-size:11px;opacity:.85;margin-top:4px;font-weight:700;line-height:1.3;">${esc(causeText)}</div>` : '';
-    return `<div class="keputusan-badge-clickable" title="${title}" data-keputusan-key="${storeKey}" role="button" tabindex="0"><span class="${cls}"${badgeStyle ? ` style="${badgeStyle}"` : ''}>${esc(d)}</span>${sub}</div>`;
+    const causeText = label ? scxFriendlyLabelGlobal(label) : '';
+    const chipCls = dsDecisionChipClass(d);
+    const labelText = d || 'BELUM SIAP';
+    const causeHtml = causeText ? `<span class="ds-decision-cause" title="${esc('Penyebab: ' + causeText)}">${esc(causeText)}</span>` : '';
+    return `<div class="ds-decision-wrap keputusan-badge-clickable" title="${esc(title)}" data-keputusan-key="${storeKey}" role="button" tabindex="0"><span class="ds-decision-chip ${chipCls}">${esc(labelText)}</span>${causeHtml}</div>`;
 }
 
 function scxFriendlyLabelGlobal(label) {
@@ -4270,15 +5314,21 @@ function initDashboardRecap() {
         return scxAlertMeta(meta?.label || info.final_label || '', info.root_cause_label || '', Number(info.ivt_risk_score || 0), String(info.forecast_direction || 'STABLE_OUTLOOK'), Number(info.forecast_confidence || 0));
     }
 
-    function syncDashboardRecapAlertUi(dt, tableEl) {
+    function setDetailScoringMeta(text) {
         const metaEl = document.getElementById('dashboardRecapTableMeta');
+        if (!metaEl) return;
+        const label = String(text || '').trim() || '—';
+        metaEl.innerHTML = `<i class="bi bi-list-ul" aria-hidden="true"></i> ${esc(label)}`;
+    }
+
+    function syncDashboardRecapAlertUi(dt, tableEl) {
         const wrapper = document.getElementById('dashboardRecapTable_wrapper') || tableEl?.closest('.dataTables_wrapper');
         const paginateEl = wrapper ? wrapper.querySelector('.dataTables_paginate') : null;
         if (!dt || !tableEl) return;
         const info = (typeof dt.page === 'function' && typeof dt.page.info === 'function') ? dt.page.info() : null;
         const total = Number(info?.recordsDisplay || 0);
         const pages = Number(info?.pages || 0);
-        if (metaEl) metaEl.textContent = `${total} baris`;
+        setDetailScoringMeta(`${total} baris`);
         if (paginateEl) paginateEl.style.display = pages > 1 ? '' : 'none';
     }
 
@@ -4353,7 +5403,6 @@ function initDashboardRecap() {
     function applyDashboardRecapAlertFilter() {
         const tableEl = document.getElementById('dashboardRecapTable');
         const tbody = document.getElementById('dashboardRecapTbody');
-        const metaEl = document.getElementById('dashboardRecapTableMeta');
         const target = String(window.dashboardRecapAlertFilter || 'all').toLowerCase();
         const hasDt = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.DataTable === 'function');
         if (tableEl && hasDt && jQuery.fn.DataTable.isDataTable(tableEl)) {
@@ -4372,7 +5421,7 @@ function initDashboardRecap() {
             tr.style.display = show ? '' : 'none';
             if (show) visible += 1;
         });
-        if (metaEl) metaEl.textContent = `${visible} baris`;
+        setDetailScoringMeta(`${visible} baris`);
     }
 
     function bindDashboardRecapAlertTabs() {
@@ -4400,8 +5449,7 @@ function initDashboardRecap() {
         const msg = String(message || 'Memuat detail rekap...').trim() || 'Memuat detail rekap...';
         const tableEl = document.getElementById('dashboardRecapTable');
         const tbody = document.getElementById('dashboardRecapTbody');
-        const metaEl = document.getElementById('dashboardRecapTableMeta');
-        if (metaEl) metaEl.textContent = msg;
+        setDetailScoringMeta(msg);
 
         const hasDt = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.DataTable === 'function');
         if (tableEl && hasDt && jQuery.fn.DataTable.isDataTable(tableEl)) {
@@ -4423,8 +5471,7 @@ function initDashboardRecap() {
         const msg = String(message || 'Belum ada data untuk filter ini.').trim() || 'Belum ada data untuk filter ini.';
         const tableEl = document.getElementById('dashboardRecapTable');
         const tbody = document.getElementById('dashboardRecapTbody');
-        const metaEl = document.getElementById('dashboardRecapTableMeta');
-        if (metaEl) metaEl.textContent = '0 baris';
+        setDetailScoringMeta('0 baris');
 
         const hasDt = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.DataTable === 'function');
         if (tableEl && hasDt && jQuery.fn.DataTable.isDataTable(tableEl)) {
@@ -4840,12 +5887,8 @@ function initDashboardRecap() {
         const value = data && typeof data === 'object' ? data.value : data;
         const updatedAt = data && typeof data === 'object' ? String(data.updatedAt || '').trim() : '';
         const anomalyCards = (data && typeof data === 'object' && Array.isArray(data.anomalyCards)) ? data.anomalyCards : [];
-        const isDark = String(document.documentElement.getAttribute('data-theme') || '').toLowerCase() === 'dark';
-        const emptyColor = isDark ? '#94a3b8' : '#6b7280';
-        const subColor = isDark ? 'rgba(203,213,225,.92)' : '#6b7280';
-        const labelColor = isDark ? 'inherit' : '#0f172a';
         if (value == null || value === '') {
-            if (type === 'display') return `<div style="min-width:92px;text-align:left;color:${emptyColor};font-size:11px;font-weight:800;">Belum ada hasil</div>`;
+            if (type === 'display') return '<div class="ds-score-cell is-empty">Belum ada hasil</div>';
             if (type === 'filter') return '';
             return -1;
         }
@@ -4853,12 +5896,27 @@ function initDashboardRecap() {
         if (type === 'display') {
             const tone = v >= 80 ? 'success' : v >= 60 ? 'primary' : v >= 40 ? 'warning' : 'danger';
             const width = Math.max(6, Math.min(100, Math.round(v)));
-            const sub = updatedAt ? `<div style="margin-top:6px;font-size:10px;line-height:1.35;color:${subColor};font-weight:700;">Update score<br>${esc(updatedAt)}</div>` : '';
-            const anomaly = anomalyCards.length ? `<div style="margin-top:4px;font-size:10px;line-height:1.3;color:${subColor};font-weight:700;">Anomaly: ${esc(anomalyCards.slice(0,2).join(', '))}${anomalyCards.length > 2 ? ' +' + String(anomalyCards.length - 2) : ''}</div>` : '';
-            return `<div style="min-width:92px;text-align:left;"><div style="display:flex;justify-content:space-between;font-size:11px;font-weight:900;margin-bottom:4px;color:${labelColor};"><span>Score</span><span>${Math.round(v)}</span></div><div class="progress" style="height:6px;border-radius:999px;background:${isDark ? 'rgba(148,163,184,.20)' : 'rgba(15,23,42,.08)'};"><div class="progress-bar bg-${tone}" style="width:${width}%"></div></div>${sub}${anomaly}</div>`;
+            const sub = updatedAt ? `<div class="ds-score-meta">Update ${esc(updatedAt)}</div>` : '';
+            const anomaly = anomalyCards.length ? `<div class="ds-score-meta">Anomaly: ${esc(anomalyCards.slice(0, 2).join(', '))}${anomalyCards.length > 2 ? ' +' + String(anomalyCards.length - 2) : ''}</div>` : '';
+            return `<div class="ds-score-cell"><div class="ds-score-head"><span>Score</span><span class="ds-score-value">${Math.round(v)}</span></div><div class="ds-score-bar ds-score-bar--${tone}"><span style="width:${width}%"></span></div>${sub}${anomaly}</div>`;
         }
         if (type === 'filter') return updatedAt ? `${v} ${updatedAt}` : String(v);
         return v;
+    }
+
+    function renderRoiCell(v, type) {
+        const n = Number(v) || 0;
+        if (type === 'display' || type === 'filter') {
+            const cls = n > 0 ? 'ds-roi--pos' : n < 0 ? 'ds-roi--neg' : 'ds-roi--zero';
+            return `<span class="ds-roi ${cls}">${fmtPct(n)}</span>`;
+        }
+        return n;
+    }
+
+    function renderMoneyCell(v, type) {
+        const n = Number(v) || 0;
+        if (type === 'display' || type === 'filter') return `<span class="ds-money">${fmtIdr(n)}</span>`;
+        return n;
     }
 
     function baseSubdomain(fullString) {
@@ -5598,9 +6656,35 @@ function initDashboardRecap() {
         return String(raw || row?.site || '').trim().toUpperCase();
     }
 
+    function scxStatusStackHtml(st) {
+        const finalLabel = String(st?.final_label || st?.root_cause_label || '-').trim();
+        const rootLabel = String(st?.root_cause_label || '').trim();
+        const decisionRaw = scxNormalizeDecisionForDisplay(st?.decision || '', finalLabel);
+        const friendlyMain = scxFriendlyLabelGlobal(finalLabel);
+        const friendlySub = (rootLabel && rootLabel !== finalLabel)
+            ? scxFriendlyLabelGlobal(rootLabel)
+            : '';
+        const tone = (
+            finalLabel.includes('POSITIVE') || finalLabel.includes('RECOVERY') || finalLabel.includes('EXPANSION')
+        ) ? 'green' : (
+            finalLabel.includes('DROP') || finalLabel.includes('NEG') || finalLabel.includes('RED_FLAG')
+        ) ? 'red' : 'yellow';
+        let html = '<div class="ds-status-stack">';
+        if (decisionRaw) {
+            html += `<span class="ds-decision-chip ${dsDecisionChipClass(decisionRaw)}">${esc(decisionRaw)}</span>`;
+        } else {
+            html += `<span class="scx-pill ${tone}" title="${esc(finalLabel)}">${esc(friendlyMain)}</span>`;
+        }
+        const subText = decisionRaw ? friendlyMain : (friendlySub || '');
+        if (subText && subText !== decisionRaw) {
+            html += `<span class="ds-status-sub" title="${esc(finalLabel)}">${esc(subText)}</span>`;
+        }
+        html += '</div>';
+        return html;
+    }
+
     function scxRenderBackendStatusTable(statuses) {
         const rows = Array.isArray(statuses) ? statuses : [];
-        console.log(rows);
         if (!rows.length) return `<div class="scx-sub">Status backend kosong.</div>`;
         let html = `<div class="scx-roi-legend"><span class="scx-roi-chip red">ROI &lt; 200% = Merah</span><span class="scx-roi-chip yellow">ROI 200% - 300% = Kuning</span><span class="scx-roi-chip green">ROI &gt; 300% = Hijau</span><span class="scx-roi-chip" style="background:#eef2ff;color:#3730a3;border:1px solid rgba(55,48,163,.18);">Confidence tinggi = biru</span></div>`;
         html += `<div class="scx-table-scroll"><div class="table-responsive"><table class="table table-sm table-striped scx-country-table"><thead><tr><th>Negara</th><th>Campaign</th><th>Join</th><th>Source</th><th>Status</th><th class="text-end">Health</th><th class="text-end">Risk</th><th class="text-end">Adj</th><th class="text-end">Conf</th><th class="text-end">Decision</th><th class="text-end">Pos</th><th class="text-end">Neg</th><th class="text-end">Spend</th><th class="text-end">Revenue</th><th class="text-end">ROI</th></tr></thead><tbody>`;
@@ -5623,14 +6707,13 @@ function initDashboardRecap() {
             const healthTone = !Number.isFinite(health) ? 'gray' : (health >= 10 ? 'green' : (health <= -10 ? 'red' : 'yellow'));
             const riskTone = !Number.isFinite(risk) ? 'gray' : (risk >= 70 ? 'red' : (risk >= 40 ? 'yellow' : 'green'));
             const adjTone = !Number.isFinite(adj) ? 'gray' : (adj >= 10 ? 'green' : (adj <= -10 ? 'red' : 'yellow'));
-            const statusLabel = String(st?.final_label || st?.root_cause_label || '-');
             const srcMode = String(st?.mapped_revenue_source || st?.source_mode || '-').toUpperCase();
             html += `<tr>
                 <td style="font-weight:800;color:#0f172a;">${esc(scxCountryLabel(st))}</td>
                 <td>${esc(scxCampaignValue(st) || '-')}</td>
                 <td>${esc(String(st?.join_status || '-'))}</td>
                 <td><span class="scx-pill gray" title="mapped_revenue_source">${esc(srcMode || '-')}</span></td>
-                <td><span class="scx-pill ${healthTone}">${esc(statusLabel)}</span></td>
+                <td>${scxStatusStackHtml(st)}</td>
                 <td class="text-end"><span class="scx-pill ${healthTone}" title="health_score">${esc(scxNum(health,2))}</span></td>
                 <td class="text-end"><span class="scx-pill ${riskTone}" title="ivt_risk_score">${esc(scxNum(risk,2))}</span></td>
                 <td class="text-end"><span class="scx-pill ${adjTone}" title="adjustment_score">${esc(scxNum(adj,2))}</span></td>
@@ -5714,7 +6797,6 @@ function initDashboardRecap() {
         const events = Array.isArray(parsed?.events) ? parsed.events : [];
         const countryDetails = Array.isArray(scoring?.country_details) ? scoring.country_details : [];
         const statusRows = statuses.length ? statuses : countryDetails;
-        console.log(statusRows)
         const statusBox = document.getElementById('scxBackendStatusContent');
         const eventBox = document.getElementById('scxBackendEventContent');
         const statusLoading = document.getElementById('scxBackendStatusLoading');
@@ -5809,8 +6891,19 @@ function initDashboardRecap() {
         const btns = Array.from(document.querySelectorAll('[data-scx-tab-btn]'));
         const panes = Array.from(document.querySelectorAll('[data-scx-tab-pane]'));
         if (!btns.length || !panes.length) return;
-        function act(k){ btns.forEach(function(b){ const on=b.getAttribute('data-scx-tab-btn')===k; b.className=`btn btn-sm ${on?'btn-primary':'btn-light'}`; b.style.borderRadius='999px'; b.style.padding='8px 14px'; b.style.border=on?'1px solid transparent':'1px solid rgba(37,99,235,0.18)'; b.style.background=on?'linear-gradient(135deg,#2563eb,#1d4ed8)':'#fff'; b.style.color=on?'#fff':'#1e3a8a'; b.style.boxShadow=on?'0 10px 24px rgba(37,99,235,0.22)':'0 1px 3px rgba(15,23,42,0.06)'; } ); panes.forEach(function(p){ p.style.display = p.getAttribute('data-scx-tab-pane')===k ? '' : 'none'; }); if (typeof onShow === 'function') onShow(k); }
-        btns.forEach(function(b){ b.onclick=function(){ act(String(b.getAttribute('data-scx-tab-btn')||'summary')); }; });
+        function act(k) {
+            btns.forEach(function(b) {
+                const on = b.getAttribute('data-scx-tab-btn') === k;
+                b.classList.toggle('is-active', on);
+            });
+            panes.forEach(function(p) {
+                p.style.display = p.getAttribute('data-scx-tab-pane') === k ? '' : 'none';
+            });
+            if (typeof onShow === 'function') onShow(k);
+        }
+        btns.forEach(function(b) {
+            b.onclick = function() { act(String(b.getAttribute('data-scx-tab-btn') || 'summary')); };
+        });
         act('summary');
     }
 
@@ -6914,18 +8007,12 @@ function initDashboardRecap() {
         if (modal.parentNode !== document.body) {
             document.body.appendChild(modal);
         }
-        modal.style.position = 'fixed';
-        modal.style.top = '0';
-        modal.style.left = '0';
-        modal.style.right = '0';
-        modal.style.bottom = '0';
-        modal.style.width = '100%';
-        modal.style.height = '100%';
-        modal.style.zIndex = '2000';
         ttl.textContent = title || 'Detail Score';
         body.innerHTML = html || '';
         setScoreDetailCloseVisible(true);
-        modal.style.display = 'flex';
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
     }
 
     function closeScoreDetailModal() {
@@ -6934,7 +8021,11 @@ function initDashboardRecap() {
             try { window.sdMetric14Chart.destroy(); } catch (_) {}
             window.sdMetric14Chart = null;
         }
-        if (modal) modal.style.display = 'none';
+        if (modal) {
+            modal.classList.remove('is-open');
+            modal.setAttribute('aria-hidden', 'true');
+        }
+        document.body.style.overflow = '';
     }
 
     function initScoreDetailModal() {
@@ -6945,14 +8036,6 @@ function initDashboardRecap() {
             if (modal.parentNode !== document.body) {
                 document.body.appendChild(modal);
             }
-            modal.style.position = 'fixed';
-            modal.style.top = '0';
-            modal.style.left = '0';
-            modal.style.right = '0';
-            modal.style.bottom = '0';
-            modal.style.width = '100%';
-            modal.style.height = '100%';
-            modal.style.zIndex = '2000';
             modal.addEventListener('click', function(e) {
                 if (e.target && e.target.id === 'scoreDetailModal') {
                     closeScoreDetailModal();
@@ -8319,8 +9402,8 @@ function initDashboardRecap() {
                 simplifiedEvents = metricFallback;
             }
             const canAct = String(state?.dim || '').toLowerCase() === 'domain' && String(row?.account_ads || '').trim();
-            const tabButtons = `<div class="mb-3" style="padding:14px;border:1px solid rgba(37,99,235,0.12);background:linear-gradient(180deg,rgba(239,246,255,0.9),rgba(255,255,255,0.95));border-radius:18px;"><div style="font-size:12px;color:#475569;margin-bottom:10px;">${useSubTabs ? 'Navigasi hasil scoring per subdomain negara aktif' : 'Navigasi hasil scoring per negara aktif'}</div><div class="dashboard-recap-tabs" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-primary" data-scx-tab-btn="summary">Kesimpulan Akhir</button>${(useSubTabs ? subgroups : groups).map(function(item, idx){ const count = Array.isArray(item?.events) ? item.events.filter(function(ev){ return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; }).length : 0; const label = useSubTabs ? String(item?.label || item?.key || '-') : String(scxCountryLabel(item?.status || { country_cd: item?.key || '-' }) || '-').toUpperCase(); return `<button type="button" class="btn btn-sm btn-light" data-scx-tab-btn="${useSubTabs ? `sub-${idx}` : `country-${idx}`}">${esc(label)} <span style="margin-left:6px;font-size:11px;opacity:0.72;">${esc(String(count))}</span></button>`; }).join('')}</div></div>`;
-            const actionPanel = canAct ? `<div class="scx-section-gap" style="padding:14px;border:1px solid rgba(15,23,42,0.08);border-radius:16px;background:#fff;"><div class="scx-title">Campaign Aktif di Domain</div><div class="scx-sub" style="margin-bottom:10px;">Campaign langsung dimuat otomatis untuk domain ini.</div><div class="dashboard-recap-tabs mb-2" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-danger" id="sdPauseSelectedBtn">Stop</button><button type="button" class="btn btn-sm btn-primary" id="sdActivateSelectedBtn">Hold</button><button type="button" class="btn btn-sm btn-success" id="sdScaleUp15Btn">Scale Up</button><button type="button" class="btn btn-sm btn-warning text-dark" id="sdOptimize10Btn">Scale Down</button></div><div id="sdCampaignStatus" class="scx-sub" style="margin-bottom:8px;"></div><div id="sdCampaignTable"></div></div>` : '';
+            const tabButtons = `<div class="scx-modal-nav"><div class="scx-modal-nav-label">${useSubTabs ? 'Navigasi hasil scoring per subdomain negara aktif' : 'Navigasi hasil scoring per negara aktif'}</div><div class="scx-modal-tabs"><button type="button" class="scx-modal-tab is-active" data-scx-tab-btn="summary">Kesimpulan Akhir</button>${(useSubTabs ? subgroups : groups).map(function(item, idx){ const count = Array.isArray(item?.events) ? item.events.filter(function(ev){ return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; }).length : 0; const label = useSubTabs ? String(item?.label || item?.key || '-') : String(scxCountryLabel(item?.status || { country_cd: item?.key || '-' }) || '-').toUpperCase(); return `<button type="button" class="scx-modal-tab" data-scx-tab-btn="${useSubTabs ? `sub-${idx}` : `country-${idx}`}">${esc(label)}<span class="scx-tab-count">${esc(String(count))}</span></button>`; }).join('')}</div></div>`;
+            const actionPanel = canAct ? `<div class="scx-section-gap scx-action-panel"><div class="scx-title">Campaign Aktif di Domain</div><div class="scx-sub" style="margin-bottom:10px;">Campaign langsung dimuat otomatis untuk domain ini.</div><div class="dashboard-recap-tabs mb-2" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-danger" id="sdPauseSelectedBtn">Stop</button><button type="button" class="btn btn-sm btn-primary" id="sdActivateSelectedBtn">Hold</button><button type="button" class="btn btn-sm btn-success" id="sdScaleUp15Btn">Scale Up</button><button type="button" class="btn btn-sm btn-warning text-dark" id="sdOptimize10Btn">Scale Down</button></div><div id="sdCampaignStatus" class="scx-sub" style="margin-bottom:8px;"></div><div id="sdCampaignTable"></div></div>` : '';
             const countryPanes = useSubTabs ? subgroups.map(function(sub, idx){ return `<div data-scx-tab-pane="sub-${idx}" style="display:none;">${scxRenderSubdomainPane(sub, `scxSubTrend${idx}`)}</div>`; }).join('') : groups.map(function(group, idx){ return `<div data-scx-tab-pane="country-${idx}" style="display:none;">${scxRenderCountryPane(group, `scxCountryTrend${idx}`)}</div>`; }).join('');
     
             let html = '';
@@ -8785,9 +9868,21 @@ function initDashboardRecap() {
     }
 
     async function renderTable(dim, rows, state) {
+        const recapDim = String(dim || 'domain').toLowerCase() === 'country' ? 'country' : 'domain';
         const thName = document.getElementById('dashboardRecapThName');
         const thCode = document.getElementById('dashboardRecapThCode');
-        if (thName) thName.textContent = dim === 'country' ? 'Nama Negara' : 'Domain';
+        if (thName) thName.textContent = recapDim === 'country' ? 'Nama Negara' : 'Domain';
+
+        function applyDashboardRecapColumnLayout(dt) {
+            const isCountry = recapDim === 'country';
+            if (thCode) thCode.style.display = isCountry ? '' : 'none';
+            if (!dt || typeof dt.column !== 'function') return;
+            try {
+                if (dt.column(2).length) dt.column(2).visible(!isCountry, false);
+                if (dt.column(3).length) dt.column(3).visible(isCountry, false);
+            } catch (e) {}
+        }
+
         const tableEl = document.getElementById('dashboardRecapTable');
         if (tableEl && !tableEl.dataset.boundScoreDetail) {
             tableEl.addEventListener('click', function(e) {
@@ -8821,36 +9916,36 @@ function initDashboardRecap() {
             const tt = fmtUpdateTime(t);
             if (!tt) return '';
             const m = marginCls ? ` ${marginCls}` : '';
-            return `<span class="badge badge-danger badge-pill${m}">${esc(tt)}</span>`;
+            return `<span class="ds-update-badge${m}"><i class="bi bi-clock" aria-hidden="true"></i>${esc(tt)}</span>`;
         }
 
         function domainCell(r) {
             const name = esc(r?.name);
-            if (dim === 'country') {
+            if (recapDim === 'country') {
                 const cc = String(r?.code || '').trim().toUpperCase();
-                const badge = cc ? ` <span class="badge badge-secondary badge-pill ml-1">${esc(cc)}</span>` : '';
-                return `${name}${badge}`;
+                const badge = cc ? `<span class="ds-tag ds-tag--country">${esc(cc)}</span>` : '';
+                return `<div class="ds-domain-cell"><div class="ds-domain-name">${name}</div>${badge ? `<div class="ds-domain-badges">${badge}</div>` : ''}</div>`;
             }
 
             const srcs = r && r.sources;
             const badges = [];
             const activeDays = Number(r?.active_days || 0);
             const dayBadge = activeDays > 0
-                ? `<span class="badge badge-info badge-pill">jalan ${esc(String(activeDays))} hari</span>`
+                ? `<span class="ds-tag ds-tag--days"><i class="bi bi-calendar3"></i> ${esc(String(activeDays))} hari</span>`
                 : '';
 
             if (srcs && (srcs.adx || srcs.adsense)) {
-                if (srcs.adx) badges.push('<span class="badge badge-primary badge-pill">AdX</span>');
-                if (srcs.adsense) badges.push('<span class="badge badge-warning badge-pill text-dark">AdSense</span>');
+                if (srcs.adx) badges.push('<span class="ds-tag ds-tag--adx">AdX</span>');
+                if (srcs.adsense) badges.push('<span class="ds-tag ds-tag--adsense">AdSense</span>');
             } else {
                 const src = String(r?.source || '').toLowerCase();
-                if (src === 'adx') badges.push('<span class="badge badge-primary badge-pill">AdX</span>');
-                if (src === 'adsense') badges.push('<span class="badge badge-warning badge-pill text-dark">AdSense</span>');
+                if (src === 'adx') badges.push('<span class="ds-tag ds-tag--adx">AdX</span>');
+                if (src === 'adsense') badges.push('<span class="ds-tag ds-tag--adsense">AdSense</span>');
             }
 
             if (dayBadge) badges.push(dayBadge);
-            if (!badges.length) return name;
-            return `<div>${name}</div><div class="mt-1 d-flex flex-wrap align-items-center" style="gap:4px;">${badges.join('')}</div>`;
+            if (!badges.length) return `<div class="ds-domain-cell"><div class="ds-domain-name">${name}</div></div>`;
+            return `<div class="ds-domain-cell"><div class="ds-domain-name">${name}</div><div class="ds-domain-badges">${badges.join('')}</div></div>`;
         }
 
         function updatedCell(r, meta) {
@@ -9217,8 +10312,8 @@ function initDashboardRecap() {
 
             const keputusanData = buildDecisionCellData(meta, { row: r, state: state });
             const detailBtn = (meta)
-                ? `<button type="button" class="btn btn-sm btn-primary dashboard-open-score-detail-btn" data-score-key="${esc(k)}">Detail</button>`
-                : `<button type="button" class="btn btn-sm btn-secondary" disabled title="Scoring belum tersedia">Detail</button>`;
+                ? `<button type="button" class="btn btn-sm ds-detail-btn dashboard-open-score-detail-btn" data-score-key="${esc(k)}"><i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Detail</button>`
+                : `<button type="button" class="btn btn-sm ds-detail-btn" disabled title="Scoring belum tersedia">Detail</button>`;
 
             const activeDays = Number(r?.active_days || 0);
 
@@ -9238,8 +10333,7 @@ function initDashboardRecap() {
             ];
         });
 
-        const metaEl = document.getElementById('dashboardRecapTableMeta');
-        if (metaEl) metaEl.textContent = `${rows.length} baris`;
+        setDetailScoringMeta(`${rows.length} baris`);
 
         const hasDt = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.DataTable === 'function');
         const hasDtButtons = !!(hasDt && jQuery.fn.dataTable && jQuery.fn.dataTable.Buttons);
@@ -9258,18 +10352,18 @@ function initDashboardRecap() {
                 const scoreVal = Number(row[8]?.value) || 0;
                 tr.dataset.alertLevel = String(row[8]?.alertLevel || 'normal').toLowerCase();
                 tr.dataset.decisionKey = String(row[9]?.decisionKey || 'belum_siap').toLowerCase();
-                if (hasRange && scoreVal === minScore) tr.classList.add('table-danger');
-                else if (hasRange && scoreVal === maxScore) tr.classList.add('table-info');
+                if (hasRange && scoreVal === minScore) tr.classList.add('ds-row-highlight-worst');
+                else if (hasRange && scoreVal === maxScore) tr.classList.add('ds-row-highlight-best');
                 tr.innerHTML = `
                     <td class="text-center">${row[0]}</td>
                     <td>${row[1]}</td>
                     <td class="text-left">${row[2]}</td>
-                    <td class="text-right">${fmtIdr(row[4])}</td>
-                    <td class="text-right">${fmtIdr(row[5])}</td>
-                    <td class="text-right">${fmtIdr(row[6])}</td>
-                    <td class="text-center">${fmtPct(row[7])}</td>
+                    <td class="text-right">${renderMoneyCell(row[4], 'display')}</td>
+                    <td class="text-right">${renderMoneyCell(row[5], 'display')}</td>
+                    <td class="text-right">${renderMoneyCell(row[6], 'display')}</td>
+                    <td class="text-center">${renderRoiCell(row[7], 'display')}</td>
                     <td class="text-center">${renderScoreCell(row[8], 'display')}</td>
-                    <td class="text-center">${row[9]?.html || ''}</td>
+                    <td class="text-center ds-keputusan-cell">${row[9]?.html || ''}</td>
                     <td class="text-center">${row[10]}</td>
                     <td class="text-center">${row[11]}</td>
                 `;
@@ -9311,14 +10405,16 @@ function initDashboardRecap() {
                 order: [[8, 'desc']],
                 autoWidth: false,
                 responsive: true,
-                dom: hasDtButtons ? 'Blfrtip' : undefined,
+                dom: hasDtButtons
+                    ? '<"ds-dt-toolbar"<"ds-dt-toolbar__left"B><"ds-dt-toolbar__right"lf>>rtip'
+                    : undefined,
                 buttons: hasDtButtons ? [
-                    { extend: 'copyHtml5', text: 'Copy', className: 'btn btn-info btn-sm', exportOptions: { columns: ':visible' }, title: exportTitle },
-                    { extend: 'excelHtml5', text: 'Export Excel', className: 'btn btn-success btn-sm', exportOptions: { columns: ':visible' }, title: exportTitle, filename: exportBase },
-                    { extend: 'pdfHtml5', text: 'Export PDF', className: 'btn btn-danger btn-sm', exportOptions: { columns: ':visible' }, title: exportTitle, filename: exportBase, orientation: 'landscape', pageSize: 'A4' },
-                    { extend: 'csvHtml5', text: 'Export CSV', className: 'btn btn-secondary btn-sm', exportOptions: { columns: ':visible' }, title: exportTitle, filename: exportBase },
-                    { extend: 'print', text: 'Print', className: 'btn btn-warning btn-sm', exportOptions: { columns: ':visible' }, title: exportTitle },
-                    { extend: 'colvis', text: 'Column Visibility', className: 'btn btn-light btn-sm' }
+                    { extend: 'copyHtml5', text: 'Copy', className: 'btn btn-sm btn-info', exportOptions: { columns: ':visible' }, title: exportTitle },
+                    { extend: 'excelHtml5', text: 'Export Excel', className: 'btn btn-sm btn-success', exportOptions: { columns: ':visible' }, title: exportTitle, filename: exportBase },
+                    { extend: 'pdfHtml5', text: 'Export PDF', className: 'btn btn-sm btn-danger', exportOptions: { columns: ':visible' }, title: exportTitle, filename: exportBase, orientation: 'landscape', pageSize: 'A4' },
+                    { extend: 'csvHtml5', text: 'Export CSV', className: 'btn btn-sm btn-secondary', exportOptions: { columns: ':visible' }, title: exportTitle, filename: exportBase },
+                    { extend: 'print', text: 'Print', className: 'btn btn-sm btn-warning', exportOptions: { columns: ':visible' }, title: exportTitle },
+                    { extend: 'colvis', text: 'Column Visibility', className: 'btn btn-sm btn-light' }
                 ] : [],
                 language: {
                     lengthMenu: 'Tampilkan _MENU_ data',
@@ -9332,15 +10428,15 @@ function initDashboardRecap() {
                     const hasRange = !!(tableEl && tableEl.dataset && tableEl.dataset.hasRange === '1');
                     row.dataset.alertLevel = String(rowData && rowData[8] && rowData[8].alertLevel || 'normal').toLowerCase();
                     row.dataset.decisionKey = String(rowData && rowData[9] && rowData[9].decisionKey || 'belum_siap').toLowerCase();
-                    jQuery(row).removeClass('table-danger table-info');
+                    jQuery(row).removeClass('table-danger table-info ds-row-highlight-best ds-row-highlight-worst');
                     if (!hasRange) return;
 
                     const minScore = Number(tableEl.dataset.minScore);
                     const maxScore = Number(tableEl.dataset.maxScore);
                     const sc = Number(rowData && rowData[8] && rowData[8].value) || 0;
 
-                    if (sc === minScore) jQuery(row).addClass('table-danger');
-                    else if (sc === maxScore) jQuery(row).addClass('table-info');
+                    if (sc === minScore) jQuery(row).addClass('ds-row-highlight-worst');
+                    else if (sc === maxScore) jQuery(row).addClass('ds-row-highlight-best');
                 },
                 columnDefs: [
                     {
@@ -9356,24 +10452,20 @@ function initDashboardRecap() {
                         }
                     },
                     { targets: 1, orderable: true },
-                    { targets: 2, className: 'text-left' },
-                    { targets: 3, className: 'text-center', width: '90px', visible: false },
+                    { targets: 2, className: 'text-left', visible: recapDim !== 'country' },
+                    { targets: 3, className: 'text-center', width: '90px', visible: recapDim === 'country' },
                     {
-                        targets: [4,5,6],
+                        targets: [4, 5, 6],
                         className: 'text-right',
                         render: function (data, type) {
-                            const v = Number(data) || 0;
-                            if (type === 'display' || type === 'filter') return fmtIdr(v);
-                            return v;
+                            return renderMoneyCell(data, type);
                         }
                     },
                     {
                         targets: 7,
                         className: 'text-center',
                         render: function (data, type) {
-                            const v = Number(data) || 0;
-                            if (type === 'display' || type === 'filter') return fmtPct(v);
-                            return v;
+                            return renderRoiCell(data, type);
                         }
                     },
                     {
@@ -9385,7 +10477,7 @@ function initDashboardRecap() {
                     },
                     {
                         targets: 9,
-                        className: 'text-center',
+                        className: 'text-center ds-keputusan-cell',
                         orderable: false,
                         render: function (data, type) {
                             const html = data && typeof data === 'object' ? String(data.html || '') : String(data || '');
@@ -9425,6 +10517,7 @@ function initDashboardRecap() {
             });
             bindNoColumn(window.dashboardRecapDt);
             ensureDashboardRecapAlertDtFilter();
+            applyDashboardRecapColumnLayout(window.dashboardRecapDt);
             window.dashboardRecapDt.draw();
             applyDashboardRecapAlertFilter();
         } else {
@@ -9433,13 +10526,10 @@ function initDashboardRecap() {
             ensureDashboardRecapAlertDtFilter();
             dt.clear();
             dt.rows.add(data);
+            applyDashboardRecapColumnLayout(dt);
             dt.draw();
             applyDashboardRecapAlertFilter();
-            dt.column(2).visible(false, false);
-            dt.column(3).visible(true, false);
         }
-
-        if (thCode) thCode.style.display = dim === 'country' ? '' : 'none';
     }
 
     function renderChart(dim, rows, meta) {
@@ -9998,7 +11088,8 @@ function initDashboardRecap() {
         window.dashboardRecapLastState = st;
         if (!st.date) return;
         if (box) box.style.display = 'none';
-        if (loading) loading.style.display = 'flex';
+        if (window.HrisLoader) window.HrisLoader.show('Memuat Data...');
+        else if (loading) loading.style.display = 'flex';
         setRecapTableLoading('Memuat detail rekap...');
         try {
             let rows = [];
@@ -10126,11 +11217,15 @@ function initDashboardRecap() {
             }
 
             root.style.display = 'block';
+            if (typeof initRecapSourceSelect2 === 'function') {
+                try { initRecapSourceSelect2(); } catch (e) {}
+            }
         } catch (e) {
             root.style.display = 'none';
             showError(String(e?.message || e || 'Error'));
         } finally {
             if (loading) loading.style.display = 'none';
+            if (window.HrisLoader) window.HrisLoader.forceHide();
         }
     }
 
@@ -10151,6 +11246,27 @@ function initDashboardRecap() {
         dateEl.addEventListener('change', load);
     }
 
+    function initRecapSourceSelect2() {
+        if (!window.jQuery || !jQuery.fn || typeof jQuery.fn.select2 !== 'function') return;
+        const $el = jQuery(sourceEl);
+        try {
+            if ($el.data('select2')) $el.select2('destroy');
+        } catch (e) {}
+        $el.select2({
+            theme: 'bootstrap4',
+            width: '200px',
+            placeholder: 'Pilih data sumber',
+            allowClear: false,
+            minimumResultsForSearch: 0,
+            dropdownParent: jQuery(root)
+        });
+        $el
+            .off('.dashboardRecapSource')
+            .on('change.dashboardRecapSource select2:select.dashboardRecapSource', function () {
+                load();
+            });
+    }
+
     if (!sourceEl.value) sourceEl.value = 'all';
     if (subdomainEl) {
         subdomainEl.addEventListener('change', load);
@@ -10162,18 +11278,7 @@ function initDashboardRecap() {
         });
     }
 
-    if (window.jQuery && jQuery.fn && typeof jQuery.fn.select2 === 'function') {
-        try {
-            if (jQuery(sourceEl).data('select2')) {
-                jQuery(sourceEl).select2('destroy');
-            }
-        } catch (e) {}
-        jQuery(sourceEl).select2({
-            theme: 'bootstrap4',
-            width: 'style',
-            minimumResultsForSearch: Infinity
-        });
-    }
+    initRecapSourceSelect2();
 
     setActive('dashboardRecapDimTabs', 'data-dim', 'domain');
     setActive('dashboardPulseTabs', 'data-metric', 'roi');
@@ -10188,16 +11293,8 @@ function initDashboardRecap() {
         if (window.dashboardPulsePayload) renderPulseChart(m, window.dashboardPulsePayload);
     });
 
-    if (window.jQuery && jQuery.fn && typeof jQuery.fn.select2 === 'function' && jQuery(sourceEl).data('select2')) {
-        jQuery(sourceEl)
-            .off('.dashboardRecapSource')
-            .on('change.dashboardRecapSource select2:select.dashboardRecapSource select2:clear.dashboardRecapSource', function(){
-                load();
-            });
-    } else {
-        sourceEl.addEventListener('change', function(){
-            load();
-        });
+    if (!window.jQuery || !jQuery.fn || typeof jQuery.fn.select2 !== 'function' || !jQuery(sourceEl).data('select2')) {
+        sourceEl.addEventListener('change', load);
     }
 
     if (syncBtn) {
@@ -10208,7 +11305,7 @@ function initDashboardRecap() {
 
             const originalHtml = syncBtn.innerHTML;
             syncBtn.disabled = true;
-            syncBtn.innerHTML = '<i class="bi bi-arrow-repeat bi-spin" aria-hidden="true"></i><span>Synchronize...</span>';
+            syncBtn.innerHTML = '<i class="bi bi-arrow-clockwise bi-spin" aria-hidden="true"></i><span>Synchronize...</span>';
 
             setSyncAlert('info', 'Syncronize sedang berlangsung');
             try {
@@ -10277,6 +11374,16 @@ function initDashboardRecap() {
 // Initialize dashboard
 document.addEventListener('DOMContentLoaded', function() {
     initDashboardRecap();
+
+    ['btnDashboardTour', 'btnDashboardTourHero'].forEach(function(id) {
+        const btn = document.getElementById(id);
+        if (!btn || btn.dataset.tourBound) return;
+        btn.dataset.tourBound = '1';
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            startDashboardTour();
+        });
+    });
     
     const modal = document.getElementById('decision-detail-modal');
     const closeBtn = document.getElementById('decision-detail-close-btn');
