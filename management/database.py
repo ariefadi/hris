@@ -367,7 +367,7 @@ class data_mysql:
                 print(f"Invalid HRIS_DB_PORT value '{raw_port}', defaulting to 3306")
                 port = 3306
             user = os.getenv('DB_USER') or 'root'
-            password = os.getenv('DB_PASSWORD') or ''
+            password = os.getenv('DB_PASSWORD') or 'hris123456'
             database = os.getenv('DB_NAME') or 'hris_trendHorizone'
 
             self.db_hris = pymysql.connect(
