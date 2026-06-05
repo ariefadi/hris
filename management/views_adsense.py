@@ -1019,21 +1019,12 @@ class RekapTrafficPerDomainDataView(View):
                     main_domain = extract_base_subdomain_fb_adsense(site) if site else site
                     unique_name_site.append(main_domain)
             unique_name_site = list(set(unique_name_site))
-            if unique_name_site:
-                facebook_data = database_main.data_mysql().get_all_ads_adsense_roi_traffic_campaign_by_params(
-                    start_date_formatted,
-                    end_date_formatted,
-                    unique_name_site
-                )
-            if (not facebook_data or not ((facebook_data.get('hasil') or {}).get('data'))) and adsense_result:
+            fb_domain_filter = build_fb_campaign_domain_filter_terms(
+                selected_domain_raw_list, unique_name_site, selected_domain_list
+            )
+            if not fb_domain_filter and adsense_result:
                 ads_rows_fb = (((adsense_result or {}).get('hasil') or {}).get('data') or [])
-                fallback_sites = extract_fb_sites_from_adsense_rows(ads_rows_fb)
-                if fallback_sites:
-                    facebook_data = database_main.data_mysql().get_all_ads_adsense_roi_traffic_campaign_by_params(
-                        start_date_formatted,
-                        end_date_formatted,
-                        fallback_sites
-                    )
+                fb_domain_filter = extract_fb_sites_from_adsense_rows(ads_rows_fb)
             # --- 5. Gabungkan data AdX dan Facebook
             raw_rows_all = []
             combined_data_all = []
@@ -1069,109 +1060,43 @@ class RekapTrafficPerDomainDataView(View):
                     return f"{parts[0]}.{parts[1]}"
                 return s
 
-            facebook_map = {}
+            def normalize_date_key(v):
+                s = str(v or '').strip()
+                if not s:
+                    return ''
+                if ' ' in s:
+                    s = s.split(' ')[0]
+                if 'T' in s:
+                    s = s.split('T')[0]
+                return s
+
             facebook_map_by_domain = {}
-            facebook_map_by_domain_country = {}
-            if facebook_data and facebook_data['hasil']['data']:
-                for fb_item in facebook_data['hasil']['data']:
-                    date_key = str(fb_item.get('date', ''))
-                    subdomain = str(fb_item.get('domain', ''))
-                    domain_key = normalize_join_domain_key(subdomain)
-                    if selected_domain_list and not (
-                        matches_selected_domain(subdomain, selected_domain_list)
-                        or matches_selected_domain(domain_key, selected_domain_list)
-                    ):
-                        continue
-                    country_code = normalize_country_code(fb_item.get('country_code', ''))
-                    key = f"{date_key}_{domain_key}_{country_code}"
-                    cur = facebook_map.get(key) or {
-                        'date': date_key,
-                        'domain': subdomain,
-                        'country_code': country_code,
-                        'spend': 0.0,
-                        'impressions_fb': 0.0,
-                        'clicks_fb': 0.0,
-                        'cpr_sum': 0.0,
-                        'cpr_cnt': 0,
-                        'cpc_fb_sum': 0.0,
-                        'cpc_fb_cnt': 0,
-                    }
-                    cur['spend'] += float(fb_item.get('spend') or 0)
-                    cur['impressions_fb'] += float(fb_item.get('impressions_fb') or 0)
-                    cur['clicks_fb'] += float(fb_item.get('clicks_fb') or 0)
-                    cur['cpr_sum'] += float(fb_item.get('cpr') or 0)
-                    cur['cpr_cnt'] += 1
-                    cur['cpc_fb_sum'] += float(fb_item.get('cpc_fb') or 0)
-                    cur['cpc_fb_cnt'] += 1
-                    cur['cpr'] = (cur['cpr_sum'] / cur['cpr_cnt']) if cur['cpr_cnt'] > 0 else 0
-                    cur['cpc_fb'] = (cur['cpc_fb_sum'] / cur['cpc_fb_cnt']) if cur['cpc_fb_cnt'] > 0 else 0
-                    facebook_map[key] = cur
-
-                    key_domain = f"{date_key}_{domain_key}"
-                    cur_d = facebook_map_by_domain.get(key_domain) or {
-                        'date': date_key,
-                        'domain': domain_key,
-                        'country_code': '',
-                        'spend': 0.0,
-                        'impressions_fb': 0.0,
-                        'clicks_fb': 0.0,
-                        'cpr_sum': 0.0,
-                        'cpr_cnt': 0,
-                        'cpc_fb_sum': 0.0,
-                        'cpc_fb_cnt': 0,
-                    }
-                    cur_d['spend'] += float(fb_item.get('spend') or 0)
-                    cur_d['impressions_fb'] += float(fb_item.get('impressions_fb') or 0)
-                    cur_d['clicks_fb'] += float(fb_item.get('clicks_fb') or 0)
-                    cur_d['cpr_sum'] += float(fb_item.get('cpr') or 0)
-                    cur_d['cpr_cnt'] += 1
-                    cur_d['cpc_fb_sum'] += float(fb_item.get('cpc_fb') or 0)
-                    cur_d['cpc_fb_cnt'] += 1
-                    cur_d['cpr'] = (cur_d['cpr_sum'] / cur_d['cpr_cnt']) if cur_d['cpr_cnt'] > 0 else 0
-                    cur_d['cpc_fb'] = (cur_d['cpc_fb_sum'] / cur_d['cpc_fb_cnt']) if cur_d['cpc_fb_cnt'] > 0 else 0
-                    facebook_map_by_domain[key_domain] = cur_d
-
-                    key_dc = f"{domain_key}_{country_code}"
-                    cur_dc = facebook_map_by_domain_country.get(key_dc) or {
-                        'spend': 0.0,
-                        'impressions_fb': 0.0,
-                        'clicks_fb': 0.0,
-                        'cpr_sum': 0.0,
-                        'cpr_cnt': 0,
-                        'cpc_fb_sum': 0.0,
-                        'cpc_fb_cnt': 0,
-                        'days': set(),
-                    }
-                    cur_dc['spend'] += float(fb_item.get('spend') or 0)
-                    cur_dc['impressions_fb'] += float(fb_item.get('impressions_fb') or 0)
-                    cur_dc['clicks_fb'] += float(fb_item.get('clicks_fb') or 0)
-                    cur_dc['cpr_sum'] += float(fb_item.get('cpr') or 0)
-                    cur_dc['cpr_cnt'] += 1
-                    cur_dc['cpc_fb_sum'] += float(fb_item.get('cpc_fb') or 0)
-                    cur_dc['cpc_fb_cnt'] += 1
-                    cur_dc['days'].add(date_key)
-                    cur_dc['cpr'] = (cur_dc['cpr_sum'] / cur_dc['cpr_cnt']) if cur_dc['cpr_cnt'] > 0 else 0
-                    cur_dc['cpc_fb'] = (cur_dc['cpc_fb_sum'] / cur_dc['cpc_fb_cnt']) if cur_dc['cpc_fb_cnt'] > 0 else 0
-                    facebook_map_by_domain_country[key_dc] = cur_dc
+            if fb_domain_filter:
+                fb_campaign_raw = database_main.data_mysql().get_all_ads_traffic_campaign_by_params(
+                    start_date_formatted,
+                    end_date_formatted,
+                    [],
+                    fb_domain_filter,
+                )
+                campaign_rows = (((fb_campaign_raw or {}).get('hasil') or {}).get('data') or [])
+                facebook_map_by_domain = build_facebook_domain_day_map_from_campaign_rows(
+                    campaign_rows, selected_domain_list, selected_domain_raw_list
+                )
             if adsense_result and adsense_result['hasil']['data']:
                  # --- NEW: siapkan raw_rows + dua grup agregasi (per date+domain)
                 grouped_all = {}
                 grouped_filtered = {}
-                seen_fb_keys = set()
+                seen_fb_domain_day_keys = set()
                 adsense_rows = adsense_result['hasil']['data']
                 adsense_rows_per_domain_day = {}
-                adsense_rows_per_exact_key = {}
                 for _a in adsense_rows:
-                    _date = str((_a or {}).get('date', ''))
+                    _date = normalize_date_key((_a or {}).get('date', ''))
                     _site = str((_a or {}).get('site_name', '')).strip()
                     _base = normalize_join_domain_key(_site)
-                    _country = normalize_country_code((_a or {}).get('country_code', ''))
                     _k = f"{_date}_{_base}"
-                    _k_exact = f"{_date}_{_base}_{_country}"
                     adsense_rows_per_domain_day[_k] = adsense_rows_per_domain_day.get(_k, 0) + 1
-                    adsense_rows_per_exact_key[_k_exact] = adsense_rows_per_exact_key.get(_k_exact, 0) + 1
                 for adsense_item in adsense_rows:
-                    date_key = str(adsense_item.get('date', ''))
+                    date_key = normalize_date_key(adsense_item.get('date', ''))
                     subdomain = str(adsense_item.get('site_name', '')).strip()
                     if selected_domain_list and not matches_selected_domain(subdomain, selected_domain_list):
                         continue
@@ -1181,24 +1106,9 @@ class RekapTrafficPerDomainDataView(View):
                     fb_base = normalize_join_domain_key(subdomain)
                     impressions_adsense = float(adsense_item.get('impressions_adsense', 0))
                     country_code = normalize_country_code(adsense_item.get('country_code', ''))
-                    fb_key = f"{date_key}_{fb_base}_{country_code}"
-                    seen_fb_keys.add(fb_key)
-                    fb_data = facebook_map.get(fb_key)
-                    fb_source = 'exact'
-                    if not fb_data:
-                        fb_data = facebook_map_by_domain.get(f"{date_key}_{fb_base}")
-                        fb_source = 'domain_day' if fb_data else fb_source
-                    if not fb_data:
-                        fb_data = facebook_map_by_domain_country.get(f"{fb_base}_{country_code}")
-                        fb_source = 'domain_country' if fb_data else fb_source
-                    day_div = 1
-                    if fb_data and isinstance(fb_data, dict) and isinstance(fb_data.get('days'), set) and len(fb_data.get('days')) > 0:
-                        day_div = len(fb_data.get('days'))
-                    if fb_source == 'domain_day':
-                        day_div = max(1, int(adsense_rows_per_domain_day.get(f"{date_key}_{fb_base}", 1)))
-                    else:
-                        exact_cnt = int(adsense_rows_per_exact_key.get(f"{date_key}_{fb_base}_{country_code}", 1))
-                        day_div = max(1, day_div * exact_cnt)
+                    seen_fb_domain_day_keys.add(f"{date_key}_{fb_base}")
+                    fb_data = facebook_map_by_domain.get(f"{date_key}_{fb_base}")
+                    day_div = max(1, int(adsense_rows_per_domain_day.get(f"{date_key}_{fb_base}", 1)))
                     spend = (float(fb_data.get('spend') or 0) / day_div) if fb_data else 0
                     impressions_fb = (float(fb_data.get('impressions_fb') or 0) / day_div) if fb_data else 0
                     clicks_fb = (float(fb_data.get('clicks_fb') or 0) / day_div) if fb_data else 0
@@ -1312,8 +1222,8 @@ class RekapTrafficPerDomainDataView(View):
                         grouped_filtered[key] = f_entry
                 # Tambahkan baris FB tanpa pasangan AdSense hanya jika tidak ada filter subdomain
                 if not selected_domain_list:
-                    for fb_key, fb_item in (facebook_map or {}).items():
-                        if fb_key in seen_fb_keys:
+                    for fb_key, fb_item in (facebook_map_by_domain or {}).items():
+                        if fb_key in seen_fb_domain_day_keys:
                             continue
                         date_key = str(fb_item.get('date', ''))
                         subdomain = str(fb_item.get('domain', ''))
@@ -1321,7 +1231,7 @@ class RekapTrafficPerDomainDataView(View):
                         table_site = resolve_rekap_table_site_name(
                             base_subdomain or subdomain, selected_domain_raw_list, selected_domain_list
                         )
-                        country_code = normalize_country_code(fb_item.get('country_code', ''))
+                        country_code = ''
                         spend = float(fb_item.get('spend') or 0)
                         impressions_fb = float(fb_item.get('impressions_fb') or 0)
                         clicks_fb = float(fb_item.get('clicks_fb') or 0)
@@ -1528,32 +1438,6 @@ class RekapTrafficPerDomainDataView(View):
                         total_cpc_adsense += float(row.get('cpc_adsense', 0) or 0)
                         total_cpm += float(row.get('cpm', 0) or 0)
                         total_revenue += float(row.get('revenue', 0) or 0)
-            # Sinkronisasi spend dengan menu Monitoring Domain (campaign-level)
-            campaign_total_spend = None
-            try:
-                if unique_name_site:
-                    fb_campaign = database_main.data_mysql().get_all_adsense_roi_monitoring_campaign_by_params(
-                        start_date_formatted,
-                        end_date_formatted,
-                        unique_name_site
-                    )
-                    fb_campaign_items = (((fb_campaign or {}).get('hasil') or {}).get('data') or [])
-                    campaign_total_spend = float(sum(float((it or {}).get('spend', 0) or 0) for it in fb_campaign_items if isinstance(it, dict)))
-            except Exception:
-                campaign_total_spend = None
-
-            if campaign_total_spend is not None and total_spend > 0:
-                scale = campaign_total_spend / total_spend
-                for row in combined_data_all:
-                    row_spend = float(row.get('spend', 0) or 0) * scale
-                    row['spend'] = row_spend
-                    row['roi'] = ((float(row.get('revenue', 0) or 0) - row_spend) / row_spend * 100) if row_spend > 0 else 0
-                for row in combined_data_filtered:
-                    row_spend = float(row.get('spend', 0) or 0) * scale
-                    row['spend'] = row_spend
-                    row['roi'] = ((float(row.get('revenue', 0) or 0) - row_spend) / row_spend * 100) if row_spend > 0 else 0
-                total_spend = float(sum(float((r or {}).get('spend', 0) or 0) for r in combined_data_all))
-
             roi_nett_summary = ((total_revenue - total_spend) / total_spend * 100) if total_spend > 0 else 0
             result = {
                 'status': True,
@@ -1673,6 +1557,165 @@ def resolve_rekap_table_site_name(site_name, selected_domain_raw_list, selected_
         return label or site
     base = extract_base_subdomain_fb_adsense(site)
     return base or site
+
+
+def derive_fb_campaign_terms_from_adsense_domain(adsense_domain):
+    """
+    Map domain AdSense ke prefix campaign Facebook (bagian sebelum underscore).
+    Contoh: fatiora.fativa.id -> fatiora.fativa.DISP (selaras per_campaign_facebook).
+    """
+    s = str(adsense_domain or '').strip().lower().strip('.')
+    if not s:
+        return []
+    parts = [p for p in s.split('.') if p]
+    terms = []
+    if len(parts) >= 3:
+        base_two = '.'.join(parts[:2])
+        third = parts[2]
+        if third.upper() in ('DISP', 'ADX') or 'adx' in third.lower():
+            terms.append(s)
+        else:
+            # Suffix DISP huruf besar — data_ads_domain di CH/MySQL memakai casing ini
+            terms.append(f"{base_two}.DISP")
+            terms.append(s)
+    elif len(parts) == 2:
+        terms.append(f"{s}.DISP")
+        terms.append(s)
+    else:
+        terms.append(s)
+    out = []
+    seen = set()
+    for t in terms:
+        key = str(t or '').strip().lower()
+        if key and key not in seen:
+            seen.add(key)
+            # Pertahankan casing asli (terutama .DISP) agar LIKE di ClickHouse cocok
+            out.append(str(t).strip())
+    return out
+
+
+def matches_fb_campaign_for_adsense_filter(campaign_domain, selected_domain_raw_list, selected_domain_list=None):
+    """Cocokkan campaign FB ke subdomain AdSense yang dipilih (lebih ketat dari 2-label)."""
+    if not selected_domain_raw_list and not selected_domain_list:
+        return True
+    raw = str(campaign_domain or '').strip().lower().strip('.')
+    camp_prefix = raw.split('_')[0].strip('.') if raw else ''
+    if not camp_prefix:
+        return False
+
+    check_terms = list(selected_domain_raw_list or [])
+    if not check_terms:
+        check_terms = list(selected_domain_list or [])
+
+    for term in check_terms:
+        for derived in derive_fb_campaign_terms_from_adsense_domain(term):
+            d = str(derived or '').strip().lower().strip('.')
+            if not d:
+                continue
+            if camp_prefix == d or camp_prefix.startswith(d + '.'):
+                return True
+            if camp_prefix.startswith(d):
+                return True
+        t = str(term or '').strip().lower().strip('.')
+        if not t:
+            continue
+        t_parts = [p for p in t.split('.') if p]
+        camp_parts = [p for p in camp_prefix.split('.') if p]
+        if len(t_parts) >= 2 and len(camp_parts) >= 3:
+            if '.'.join(t_parts[:2]) == '.'.join(camp_parts[:2]) and camp_parts[2].upper() == 'DISP':
+                return True
+        if len(t_parts) == 2 and camp_prefix.startswith(t + '.'):
+            return True
+    return False
+
+
+def _append_fb_domain_filter_term(terms, seen, value):
+    key = str(value or '').strip().lower()
+    if key and key not in seen:
+        seen.add(key)
+        terms.append(str(value).strip())
+
+
+def build_fb_campaign_domain_filter_terms(selected_domain_raw_list, unique_name_site, selected_domain_list):
+    """Filter domain untuk query campaign FB — selaras dengan per_campaign_facebook (tanpa d_first)."""
+    terms = []
+    seen = set()
+    if selected_domain_raw_list:
+        for item in selected_domain_raw_list:
+            token = str(item or '').strip()
+            if not token:
+                continue
+            for cand in derive_fb_campaign_terms_from_adsense_domain(token):
+                _append_fb_domain_filter_term(terms, seen, cand)
+            base = extract_base_subdomain_fb_adsense(token)
+            if base:
+                _append_fb_domain_filter_term(terms, seen, base)
+        return terms
+    for src in (unique_name_site, selected_domain_list):
+        for item in (src or []):
+            for cand in derive_fb_campaign_terms_from_adsense_domain(item):
+                _append_fb_domain_filter_term(terms, seen, cand)
+            base = extract_base_subdomain_fb_adsense(item)
+            if base:
+                _append_fb_domain_filter_term(terms, seen, base)
+    return terms
+
+
+def build_facebook_domain_day_map_from_campaign_rows(
+    campaign_rows, selected_domain_list=None, selected_domain_raw_list=None
+):
+    """Agregasi spend FB per tanggal+domain dari data_ads_campaign."""
+    facebook_map_by_domain = {}
+    for row in (campaign_rows or []):
+        if not isinstance(row, dict):
+            continue
+        raw_domain = str(row.get('domain', '') or '').strip()
+        if not raw_domain:
+            continue
+        domain_key = extract_base_subdomain_fb_adsense(raw_domain) or raw_domain.lower()
+        if selected_domain_raw_list or selected_domain_list:
+            if not matches_fb_campaign_for_adsense_filter(
+                raw_domain, selected_domain_raw_list, selected_domain_list
+            ):
+                continue
+        date_raw = str(row.get('date', '') or '').strip()
+        if ' ' in date_raw:
+            date_raw = date_raw.split(' ')[0]
+        if 'T' in date_raw:
+            date_raw = date_raw.split('T')[0]
+        date_key = date_raw
+        if not date_key:
+            continue
+        key_domain = f"{date_key}_{domain_key}"
+        cur = facebook_map_by_domain.get(key_domain) or {
+            'date': date_key,
+            'domain': domain_key,
+            'spend': 0.0,
+            'impressions_fb': 0.0,
+            'clicks_fb': 0.0,
+            'cpr_sum': 0.0,
+            'cpr_cnt': 0,
+            'cpc_fb_sum': 0.0,
+            'cpc_fb_cnt': 0,
+        }
+        cur['spend'] += float(row.get('spend') or 0)
+        cur['impressions_fb'] += float(row.get('impressions') or 0)
+        cur['clicks_fb'] += float(row.get('clicks') or 0)
+        cpr_v = float(row.get('cpr') or 0)
+        cpc_v = float(row.get('cpc') or 0)
+        if cpr_v > 0:
+            cur['cpr_sum'] += cpr_v
+            cur['cpr_cnt'] += 1
+        if cpc_v > 0:
+            cur['cpc_fb_sum'] += cpc_v
+            cur['cpc_fb_cnt'] += 1
+        cur['cpr'] = (cur['cpr_sum'] / cur['cpr_cnt']) if cur['cpr_cnt'] > 0 else 0
+        cur['cpc_fb'] = (
+            (cur['cpc_fb_sum'] / cur['cpc_fb_cnt']) if cur['cpc_fb_cnt'] > 0
+            else ((cur['spend'] / cur['clicks_fb']) if cur['clicks_fb'] > 0 else 0)
+        )
+        facebook_map_by_domain[key_domain] = cur
+    return facebook_map_by_domain
 
 # ===== Rekap Adsense Per Country =====
 class RekapTrafficPerCountryAdsenseView(View):

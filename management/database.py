@@ -5841,9 +5841,11 @@ class data_mysql:
                         for account in selected_account_list
                     ])
                 if selected_domain_list:
-                    like_conditions_domain = " OR ".join(["b.data_ads_domain LIKE %s"] * len(selected_domain_list))
+                    like_conditions_domain = " OR ".join(
+                        ["positionCaseInsensitive(b.data_ads_domain, %s) > 0"] * len(selected_domain_list)
+                    )
                     base_sql.append(f"\tAND ({like_conditions_domain})")
-                    params.extend([f"%{domain}%" for domain in selected_domain_list])
+                    params.extend([str(domain) for domain in selected_domain_list])
                 base_sql.append("GROUP BY toString(b.account_ads_id), toDate(b.data_ads_tanggal), b.data_ads_domain, b.data_ads_campaign_nm")
                 base_sql.append("ORDER BY date, domain, campaign")
             else:
