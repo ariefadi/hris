@@ -21,7 +21,14 @@ function showRoiSummaryContent() {
 }
 
 function resetRoiSummarySections() {
-    $('#summary_boxes, #today_traffic, #charts_section').hide();
+    $('#summary_boxes, #charts_section').hide();
+}
+
+function maybeHideRoiSummaryOverlay() {
+    var st = window.fetchStatus || {};
+    if (st.summary && st.country) {
+        $('#overlay').hide();
+    }
 }
 
 function hideRoiSummaryContent() {
@@ -218,21 +225,23 @@ $().ready(function () {
                 window.fetchStatus = window.fetchStatus || { summary: false, country: false };
                 window.fetchStatus.country = true;
                 if (response && response.status) {
-                    // Update summary boxes
                     updateSummaryBoxes(response.data);
-                    // Generate charts if data available
                     generateTrafficCountryCharts(response.data);
                     $('#charts_section').show();
                 } else {
                     var errorMsg = (response && response.error) || 'Terjadi kesalahan yang tidak diketahui';
                     alert('Error: ' + errorMsg);
                 }
+                maybeHideRoiSummaryOverlay();
             },
             error: function (xhr, status, error) {
-                // Tandai selesai tarik data country meskipun error
                 window.fetchStatus = window.fetchStatus || { summary: false, country: false };
                 window.fetchStatus.country = true;
+                maybeHideRoiSummaryOverlay();
                 report_eror('Terjadi kesalahan saat memuat data: ' + error);
+            },
+            complete: function () {
+                maybeHideRoiSummaryOverlay();
             }
         });
     }
@@ -699,69 +708,23 @@ function load_ROI_summary_data(tanggal_dari, tanggal_sampai) {
                     $('#summary_boxes').show();
                     showRoiSummaryContent();
                 }
-                // Tampilkan chart ROI harian jika ada data
                 if (response.data && response.data.length > 0) {
                     $('#charts_section').show();
                     create_roi_daily_chart(response.data);
-                    // Tentukan tanggal yang akan digunakan untuk "Hari Ini": gunakan endDate yang dipilih, fallback ke hari terakhir di dataset
-                    var targetDayStr = tanggal_sampai || new Date().toISOString().split('T')[0];
-                    targetDayStr = normalizeDateStr(targetDayStr);
-                    var normalizedData = response.data.map(function (item) {
-                        return {
-                            date: normalizeDateStr(item.date),
-                            spend: parseFloat(item.spend || 0),
-                            clicks: parseInt(item.clicks || 0),
-                            revenue: parseFloat(item.revenue || 0),
-                            other_costs: parseFloat(item.other_costs || 0)
-                        };
-                    });
-                    var todayItems = normalizedData.filter(function (item) { return item.date === targetDayStr; });
-                    // Jika tidak ada data untuk targetDayStr, gunakan tanggal maksimum yang tersedia pada data
-                    if (todayItems.length === 0) {
-                        var maxDate = normalizedData.reduce(function (max, curr) { return (!max || curr.date > max) ? curr.date : max; }, null);
-                        todayItems = normalizedData.filter(function (item) { return item.date === maxDate; });
-                    }
-                    // Hitung dan tampilkan data traffic untuk tanggal terpilih
-                    if (todayItems.length > 0) {
-                        var todaySpend = 0, todayClicks = 0, todayRevenue = 0, todayOtherCosts = 0;
-                        todayItems.forEach(function (item) {
-                            todaySpend += item.spend;
-                            todayClicks += item.clicks;
-                            todayRevenue += item.revenue;
-                            todayOtherCosts += item.other_costs;
-                        });
-                        var todayTotalCosts = todaySpend + todayOtherCosts;
-                        var todayRoi = todayTotalCosts > 0 ? ((todayRevenue - todayTotalCosts) / todayTotalCosts) * 100 : 0;
-                        var todayNetRevenue = todayRevenue - todaySpend;
-                        $('#today_spend').text(formatCurrencyIDR(todaySpend));
-                        $('#today_clicks').text(formatNumber(todayClicks));
-                        $('#today_roi').text(todayRoi.toFixed(2) + '%');
-                        $('#today_revenue').text(formatCurrencyIDR(todayRevenue));
-                        $('#today_net_revenue').text(formatCurrencyIDR(todayNetRevenue));
-                        $('#today_traffic').show();
-                        $('#overlay').hide();
-                    } else {
-                        // Sembunyikan chart & tampilkan panel today dengan nilai 0 jika tidak ada data
-                        try {
-                            var existingChart = Chart.getChart('chart_roi_daily');
-                            if (existingChart) existingChart.destroy();
-                        } catch (e) { console.warn('Failed to destroy chart_roi_daily:', e); }
-                        $('#charts_section').hide();
-                        $('#today_spend').text(formatCurrencyIDR(0));
-                        $('#today_clicks').text(formatNumber(0));
-                        $('#today_roi').text('0.00%');
-                        $('#today_revenue').text(formatCurrencyIDR(0));
-                        $('#today_net_revenue').text(formatCurrencyIDR(0));
-                        $('#today_traffic').show();
-                        $('#overlay').hide();
-                    }
                 }
             } else {
                 alert('Error: ' + (response && response.error ? response.error : 'Unknown error occurred'));
             }
+            maybeHideRoiSummaryOverlay();
         },
         error: function (jqXHR, textStatus, errorThrown) {
+            window.fetchStatus = window.fetchStatus || { summary: false, country: false };
+            window.fetchStatus.summary = true;
+            maybeHideRoiSummaryOverlay();
             report_eror(jqXHR, textStatus);
+        },
+        complete: function () {
+            maybeHideRoiSummaryOverlay();
         }
     });
 }

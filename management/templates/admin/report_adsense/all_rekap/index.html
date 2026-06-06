@@ -329,42 +329,6 @@ html[data-theme="dark"] {
             </div>
         </div>
 
-        <!-- Data Traffic ROI Hari Ini — di bawah summary boxes -->
-        <div id="today_traffic" style="display: none;" data-title="Hari Ini" data-intro="Ringkasan performa ROI untuk hari ini: spend, pendapatan, dan ROI.">
-            <div class="adsense-summary-section mt-3">
-                <div class="adsense-summary-section-title"><i class="bi bi-calendar-day"></i> Data Traffic ROI Hari Ini</div>
-                <div class="adsense-summary-metrics">
-                    <div class="metric-card spend">
-                        <div class="metric-card-inner">
-                            <div>
-                                <div class="metric-label">Spend Hari Ini</div>
-                                <div class="metric-value" id="today_spend">Rp 0</div>
-                            </div>
-                            <div class="metric-card-icon"><i class="bi bi-cash-stack"></i></div>
-                        </div>
-                    </div>
-                    <div class="metric-card revenue">
-                        <div class="metric-card-inner">
-                            <div>
-                                <div class="metric-label">Pendapatan Hari Ini</div>
-                                <div class="metric-value" id="today_revenue">Rp 0</div>
-                            </div>
-                            <div class="metric-card-icon"><i class="bi bi-currency-dollar"></i></div>
-                        </div>
-                    </div>
-                    <div class="metric-card roi">
-                        <div class="metric-card-inner">
-                            <div>
-                                <div class="metric-label">ROI Hari Ini</div>
-                                <div class="metric-value" id="today_roi">0%</div>
-                            </div>
-                            <div class="metric-card-icon"><i class="bi bi-graph-up-arrow"></i></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Grafik -->
         <div id="charts_section" style="display: none;" data-title="Grafik" data-intro="Visualisasi Traffic ROI Harian dan ROI per Negara (Top 10).">
             <div class="adsense-chart-section mt-3">
@@ -437,13 +401,12 @@ html[data-theme="dark"] {
             '#btn_load_data',
             '#adsenseRekapSummaryLastUpdate',
             '#summary_boxes',
-            '#today_traffic',
             '#charts_section'
         ];
         selectors.forEach(function(sel) {
             const el = document.querySelector(sel);
             if (!el) return;
-            if (!isVisible(el) && (sel === '#summary_boxes' || sel === '#today_traffic' || sel === '#charts_section')) return;
+            if (!isVisible(el) && (sel === '#summary_boxes' || sel === '#charts_section')) return;
             steps.push({
                 element: el,
                 title: el.getAttribute('data-title') || undefined,
