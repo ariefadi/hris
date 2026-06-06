@@ -16,8 +16,8 @@
     --tour-border: rgba(15, 23, 42, 0.14);
     --tour-shadow: 0 18px 40px rgba(2, 6, 23, 0.16);
     --tour-overlay: rgba(15, 23, 42, 0.62);
-    --tour-ring: rgba(37, 99, 235, 0.32);
-    --tour-next-grad: linear-gradient(135deg, #2563eb, #7c3aed);
+    --tour-ring: rgba(5, 150, 105, 0.32);
+    --tour-next-grad: linear-gradient(135deg, #059669, #10b981);
 }
 html[data-theme="dark"] {
     --tour-bg: rgba(30, 41, 59, 0.88);
@@ -25,16 +25,8 @@ html[data-theme="dark"] {
     --tour-border: rgba(255, 255, 255, 0.12);
     --tour-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
     --tour-overlay: rgba(0, 0, 0, 0.74);
-    --tour-ring: rgba(34, 211, 238, 0.28);
-    --tour-next-grad: linear-gradient(135deg, #22c55e, #06b6d4);
-}
-.hris-tour-launch-btn {
-    border-radius: 999px;
-    padding: 6px 12px;
-    font-weight: 700;
-    border: 0 !important;
-    color: #fff !important;
-    background: var(--tour-next-grad) !important;
+    --tour-ring: rgba(52, 211, 153, 0.28);
+    --tour-next-grad: linear-gradient(135deg, #059669, #34d399);
 }
 .introjs-overlay { background: var(--tour-overlay) !important; opacity: 1 !important; }
 .introjs-tooltip.hris-tour-tooltip {
@@ -51,20 +43,11 @@ html[data-theme="dark"] {
 .introjs-tooltip.hris-tour-tooltip .introjs-skipbutton { display: none !important; }
 .introjs-tooltip.hris-tour-tooltip .introjs-tooltipbuttons { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .introjs-tooltip.hris-tour-tooltip .introjs-button {
-    float: none !important;
-    border-radius: 12px !important;
-    padding: 10px 14px !important;
-    line-height: 1 !important;
-    font: inherit !important;
-    font-weight: 800 !important;
+    float: none !important; border-radius: 12px !important; padding: 10px 14px !important;
+    line-height: 1 !important; font: inherit !important; font-weight: 800 !important;
     border: 1px solid var(--tour-border) !important;
-    background: rgba(148, 163, 184, 0.14) !important;
-    color: var(--tour-fg) !important;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    white-space: nowrap;
+    background: rgba(148, 163, 184, 0.14) !important; color: var(--tour-fg) !important;
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap;
 }
 html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { background: rgba(15, 23, 42, 0.35) !important; }
 .introjs-tooltip.hris-tour-tooltip .introjs-nextbutton,
@@ -73,279 +56,351 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 .introjs-tooltip.hris-tour-tooltip .introjs-disabled:hover { opacity: 0.45 !important; cursor: not-allowed !important; }
 .introjs-helperLayer.hris-tour-highlight { background: transparent !important; border-radius: 16px !important; box-shadow: 0 0 0 6px var(--tour-ring) !important; }
 </style>
-<style>
-  /* Kolom header checklist */
-  th.checkbox-cell {
-    width: 44px;
-  }
-
-  /* Pusatkan konten checkbox */
-  .checkbox-center {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* Naikkan posisi checkbox sedikit lagi */
-  #select_all_rows,
-  .form-check-input.row-select,
-  .form-check-input.align-top {
-    transform: translateY(-4px);
-    margin-top: -2px;
-  }
-
-  #select_all_rows,
-  .form-check-input.row-select {
-    width: 18px;
-    height: 18px;
-    cursor: pointer;
-    border: 2px solid #ADB5BD;
-    border-radius: 4px;
-    transition: all .15s ease-in-out;
-    appearance: none;
-    -webkit-appearance: none;
-    background-color: #fff;
-    outline: none;
-  }
-  #select_all_rows:checked,
-  .form-check-input.row-select:checked {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
-    box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
-  }
-  #select_all_rows:focus,
-  .form-check-input.row-select:focus {
-    box-shadow: 0 0 0 0.16rem rgba(13,110,253,.15);
-  }
-
-  /* Highlight baris saat dicentang */
-  #table_traffic_country tbody tr.selected-row {
-    background-color: rgba(13, 110, 253, 0.08) !important;
-  }
-  /* Nudge checkbox sedikit ke atas agar presisi */
-  #select_all_rows,
-  .form-check-input.row-select,
-  .form-check-input.align-top {
-      transform: translateY(-2px);
-      margin-top: -1px;
-  }
-  /* Lebar kolom header checkbox tetap */
-  th.checkbox-cell { width: 44px; }
-  /* Wrapper untuk memposisikan checkbox */
-  .checkbox-center {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-  }
-  /* Highlight baris terpilih tetap */
-  #table_traffic_country tbody tr.selected-row {
-      background-color: rgba(13, 110, 253, 0.08) !important;
-  }
-  /* Pastikan sel kolom checkbox rata tengah secara vertikal */
-  #table_traffic_country th.checkbox-cell,
-  #table_traffic_country td.checkbox-cell {
-      vertical-align: middle !important;
-  }
-  
-  /* Wrapper checkbox: benar-benar center */
-  .checkbox-center {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-  }
-  
-  /* Hilangkan nudge; posisikan input tepat di tengah */
-  #select_all_rows,
-  .form-check-input.row-select,
-  .form-check-input.align-top {
-      transform: none !important;
-      margin-top: 0 !important;
-  }
-</style>
 {% endblock %}
 {% block content %}
-{% csrf_token %}  
+{% csrf_token %}
 <style>
-  .dt-buttons {
-      margin-bottom: 20px;
-  }
-  /* Toggle switch custom (Bootstrap 4 compatible) */
-  .switch-toggle { display: flex; align-items: center; gap: 10px; }
-  .switch-toggle .switch { position: relative; display: inline-block; width: 52px; height: 28px; }
-  .switch-toggle .switch input { opacity: 0; width: 0; height: 0; }
-  .switch-toggle .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #dee2e6; transition: .25s; border-radius: 999px; }
-  .switch-toggle .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background: #fff; transition: .25s; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
-  .switch-toggle input:checked + .slider { background: #0d6efd; }
-  .switch-toggle input:checked + .slider:before { transform: translateX(24px); }
-  @media (max-width: 576px) { .switch-toggle { font-size: 12px; } }
-  /* Presisi dan centering checkbox header & baris */
-  #table_traffic_country th.checkbox-cell,
-  #table_traffic_country td.checkbox-cell {
-      vertical-align: middle !important;
-      width: 44px;
-  }
-  .checkbox-center {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-  }
-  /* Gaya checkbox */
-  #select_all_rows,
-  .form-check-input.row-select {
-      width: 18px;
-      height: 18px;
-      cursor: pointer;
-      border: 2px solid #ADB5BD;
-      border-radius: 4px;
-      transition: all .15s ease-in-out;
-      appearance: none;
-      -webkit-appearance: none;
-      background-color: #fff;
-      outline: none;
-      margin-top: 0 !important; /* tepat di tengah */
-      transform: none !important; /* hilangkan nudge */
-  }
-  #select_all_rows:checked,
-  .form-check-input.row-select:checked {
-      background-color: #0d6efd;
-      border-color: #0d6efd;
-      box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
-  }
-  #table_traffic_country tbody tr.selected-row {
-      background-color: rgba(13, 110, 253, 0.08) !important;
-  }
-  .country-detail-pill { border-radius: 999px; font-size: 12px; padding: 4px 10px; font-weight: 700; }
-  .country-detail-kpi { border-radius: 12px; padding: 10px 12px; color: #fff; }
-  .country-detail-kpi .label { font-size: 11px; opacity: .9; }
-  .country-detail-kpi .value { font-size: 15px; font-weight: 700; }
-  .country-detail-kpi.spend { background: linear-gradient(135deg,#ef4444,#f97316); }
-  .country-detail-kpi.revenue { background: linear-gradient(135deg,#22c55e,#16a34a); }
-  .country-detail-kpi.net { background: linear-gradient(135deg,#3b82f6,#2563eb); }
-  .country-detail-kpi.roi { background: linear-gradient(135deg,#8b5cf6,#7c3aed); }
+:root {
+    --adsense-accent: #059669;
+    --adsense-accent-2: #10b981;
+    --adsense-surface: #ffffff;
+    --adsense-surface-2: #f8fafc;
+    --adsense-border: rgba(15, 23, 42, 0.08);
+    --adsense-text: #0f172a;
+    --adsense-muted: #64748b;
+    --adsense-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    --adsense-radius: 16px;
+}
+html[data-theme="dark"] {
+    --adsense-surface: #1e293b;
+    --adsense-surface-2: #0f172a;
+    --adsense-border: rgba(255, 255, 255, 0.08);
+    --adsense-text: #e2e8f0;
+    --adsense-muted: #94a3b8;
+    --adsense-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+.adsense-monitor-country-page .card {
+    border: 1px solid var(--adsense-border);
+    border-radius: var(--adsense-radius);
+    box-shadow: var(--adsense-shadow);
+    margin-bottom: 16px;
+}
+.adsense-monitor-country-page .card-header {
+    background: var(--adsense-surface);
+    border-bottom: 1px solid var(--adsense-border);
+    padding: 14px 18px;
+}
+.adsense-monitor-country-page .card-title { color: var(--adsense-text); font-weight: 800; margin: 0; }
+.adsense-monitor-country-page .card-subtitle { color: var(--adsense-muted); font-size: 0.85rem; }
+.adsense-monitor-country-tour-btn {
+    border-radius: 999px; padding: 6px 14px; font-weight: 700;
+    border: 0 !important; color: #fff !important;
+    background: var(--tour-next-grad) !important;
+    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35);
+}
+.adsense-monitor-country-page .adsense-filter-row { align-items: flex-start; }
+.adsense-monitor-country-page .adsense-filter-field {
+    display: flex; flex-direction: column; margin-bottom: 0;
+}
+.adsense-monitor-country-page .adsense-filter-field label {
+    display: block; margin-bottom: 0.35rem; font-size: 0.78rem;
+    font-weight: 700; color: var(--adsense-muted); text-transform: uppercase;
+    letter-spacing: 0.04em; line-height: 1.2; min-height: 1.2em;
+}
+.adsense-monitor-country-page .adsense-filter-control { flex: 0 0 auto; width: 100%; }
+.adsense-monitor-country-page .adsense-filter-field .form-control,
+.adsense-monitor-country-page .adsense-filter-field .select2-container .select2-selection--multiple,
+.adsense-monitor-country-page .adsense-filter-field .select2-container .select2-selection--single {
+    min-height: 38px; border-radius: 10px; border-color: var(--adsense-border);
+}
+.adsense-monitor-country-page .adsense-filter-field .select2-container { width: 100% !important; }
+.adsense-monitor-country-page .adsense-filter-note {
+    font-size: 0.75rem; color: var(--adsense-muted); margin-top: 8px; padding-left: 2px;
+}
+.adsense-monitor-country-page #btn_load_data {
+    border-radius: 10px; font-weight: 700;
+    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.3);
+}
+.adsense-monitor-country-last-update {
+    font-size: 0.82rem; color: var(--adsense-muted);
+    background: var(--adsense-surface-2); border: 1px solid var(--adsense-border);
+    border-radius: 999px; padding: 6px 14px; display: inline-flex;
+    align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.adsense-monitor-country-metrics {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px;
+}
+@media (max-width: 991px) { .adsense-monitor-country-metrics { grid-template-columns: 1fr; } }
+.adsense-monitor-country-page .metric-card {
+    position: relative; overflow: hidden; color: #fff; border-radius: 14px;
+    padding: 16px 18px; min-height: 96px;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.13);
+    border: 1px solid rgba(255, 255, 255, 0.12); margin-bottom: 0;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.adsense-monitor-country-page .metric-card:hover {
+    transform: translateY(-2px); box-shadow: 0 8px 22px rgba(15, 23, 42, 0.18);
+}
+.adsense-monitor-country-page .metric-card-inner {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.adsense-monitor-country-page .metric-card-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255, 255, 255, 0.2); flex-shrink: 0;
+}
+.adsense-monitor-country-page .metric-card-icon i { font-size: 1.2rem; color: #fff; }
+.adsense-monitor-country-page .metric-value { font-size: 1.35rem; font-weight: 800; line-height: 1.2; }
+.adsense-monitor-country-page .metric-label {
+    font-size: 0.72rem; font-weight: 600; opacity: 0.92;
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px;
+}
+.adsense-monitor-country-page .metric-card.spend { background: linear-gradient(135deg, #dc2626 0%, #f97316 100%); }
+.adsense-monitor-country-page .metric-card.revenue { background: linear-gradient(135deg, #047857 0%, #10b981 100%); }
+.adsense-monitor-country-page .metric-card.roi { background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); }
+.adsense-monitor-country-empty {
+    text-align: center; padding: 48px 24px; color: var(--adsense-muted);
+}
+.adsense-monitor-country-empty-icon {
+    width: 68px; height: 68px; margin: 0 auto 14px; border-radius: 18px;
+    display: flex; align-items: center; justify-content: center; font-size: 1.8rem;
+    color: var(--adsense-accent);
+    background: linear-gradient(135deg, rgba(5,150,105,0.12), rgba(16,185,129,0.08));
+}
+.adsense-monitor-country-empty-title { font-size: 16px; font-weight: 800; color: var(--adsense-text); margin-bottom: 6px; }
+.adsense-traffic-table-wrap { overflow-x: auto; margin-top: 14px; }
+.adsense-traffic-table-wrap .dt-buttons { margin-bottom: 12px; }
+.adsense-traffic-table-wrap .dt-buttons .btn {
+    border-radius: 8px; font-size: 12px; font-weight: 600; margin-right: 6px; margin-bottom: 6px;
+}
+.adsense-traffic-table-wrap table.adsense-traffic-table {
+    width: 100% !important; border-collapse: separate; border-spacing: 0; font-size: 12px;
+}
+.adsense-traffic-table-wrap table.adsense-traffic-table thead th {
+    background: linear-gradient(180deg, var(--adsense-surface-2) 0%, var(--adsense-surface) 100%);
+    color: var(--adsense-text); font-weight: 700; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.03em;
+    border-bottom: 2px solid var(--adsense-border) !important;
+    padding: 10px 8px; white-space: nowrap; vertical-align: middle;
+}
+.adsense-traffic-table-wrap table.adsense-traffic-table tbody td {
+    padding: 9px 8px; vertical-align: middle;
+    border-color: var(--adsense-border) !important; color: var(--adsense-text);
+}
+.adsense-traffic-table-wrap table.adsense-traffic-table tbody tr:hover td {
+    background: rgba(5, 150, 105, 0.06);
+}
+html[data-theme="dark"] .adsense-traffic-table-wrap table.adsense-traffic-table tbody tr:hover td {
+    background: rgba(5, 150, 105, 0.12);
+}
+.adsense-traffic-table-wrap .country-cell {
+    display: inline-flex; align-items: center; gap: 8px; max-width: 200px;
+}
+.adsense-traffic-table-wrap .country-cell img {
+    border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); flex-shrink: 0;
+}
+.adsense-traffic-table-wrap .country-name {
+    font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.adsense-traffic-table-wrap .country-code-badge {
+    display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;
+    background: rgba(5, 150, 105, 0.12); color: #047857;
+    border: 1px solid rgba(5, 150, 105, 0.2); font-family: ui-monospace, monospace;
+}
+html[data-theme="dark"] .adsense-traffic-table-wrap .country-code-badge { color: #6ee7b7; }
+.adsense-traffic-table-wrap .roi-val-positive { color: #047857; font-weight: 700; }
+.adsense-traffic-table-wrap .roi-val-negative { color: #dc2626; font-weight: 700; }
+html[data-theme="dark"] .adsense-traffic-table-wrap .roi-val-positive { color: #6ee7b7; }
+html[data-theme="dark"] .adsense-traffic-table-wrap .roi-val-negative { color: #fca5a5; }
+.adsense-traffic-table-wrap .roi-detail-btn {
+    border-radius: 8px; font-weight: 700; padding: 4px 10px;
+    border-color: rgba(5, 150, 105, 0.35); color: var(--adsense-accent);
+}
+.adsense-traffic-table-wrap .roi-detail-btn:hover {
+    background: rgba(5, 150, 105, 0.1); border-color: var(--adsense-accent); color: #047857;
+}
+.adsense-traffic-table-wrap .dataTables_wrapper .dataTables_filter input,
+.adsense-traffic-table-wrap .dataTables_wrapper .dataTables_length select {
+    border-radius: 8px; border-color: var(--adsense-border);
+}
+.adsense-monitor-country-page .switch-toggle { display: flex; align-items: center; min-height: 38px; }
+.adsense-monitor-country-page .switch-toggle .switch { position: relative; display: inline-block; width: 52px; height: 28px; flex-shrink: 0; }
+.adsense-monitor-country-page .switch-toggle .switch input { opacity: 0; width: 0; height: 0; }
+.adsense-monitor-country-page .switch-toggle .slider {
+    position: absolute; cursor: pointer; inset: 0; background: #cbd5e1;
+    transition: .25s; border-radius: 999px;
+}
+.adsense-monitor-country-page .switch-toggle .slider:before {
+    content: ""; position: absolute; height: 22px; width: 22px; left: 3px; bottom: 3px;
+    background: #fff; transition: .25s; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.15);
+}
+.adsense-monitor-country-page .switch-toggle input:checked + .slider { background: var(--adsense-accent); }
+.adsense-monitor-country-page .switch-toggle input:checked + .slider:before { transform: translateX(24px); }
+.adsense-monitor-country-page #table_traffic_country th.checkbox-cell,
+.adsense-monitor-country-page #table_traffic_country td.checkbox-cell { vertical-align: middle !important; width: 44px; }
+.adsense-monitor-country-page .checkbox-center { display: flex; align-items: center; justify-content: center; height: 100%; }
+.adsense-monitor-country-page #select_all_rows,
+.adsense-monitor-country-page .form-check-input.row-select {
+    width: 18px; height: 18px; cursor: pointer; border: 2px solid #ADB5BD; border-radius: 4px;
+    appearance: none; -webkit-appearance: none; background-color: var(--adsense-surface);
+    outline: none; margin-top: 0 !important;
+}
+.adsense-monitor-country-page #select_all_rows:checked,
+.adsense-monitor-country-page .form-check-input.row-select:checked {
+    background-color: var(--adsense-accent); border-color: var(--adsense-accent);
+    box-shadow: 0 0 0 0.2rem rgba(5,150,105,.25);
+}
+.adsense-monitor-country-page #table_traffic_country tbody tr.selected-row td {
+    background: rgba(5, 150, 105, 0.1) !important;
+}
+.country-detail-pill { border-radius: 999px; font-size: 12px; padding: 4px 10px; font-weight: 700; }
+.country-detail-kpi { border-radius: 12px; padding: 10px 12px; color: #fff; }
+.country-detail-kpi .label { font-size: 11px; opacity: .9; }
+.country-detail-kpi .value { font-size: 15px; font-weight: 700; }
+.country-detail-kpi.spend { background: linear-gradient(135deg,#ef4444,#f97316); }
+.country-detail-kpi.revenue { background: linear-gradient(135deg,#22c55e,#16a34a); }
+.country-detail-kpi.net { background: linear-gradient(135deg,#3b82f6,#2563eb); }
+.country-detail-kpi.roi { background: linear-gradient(135deg,#8b5cf6,#7c3aed); }
+#countryDetailModal .modal-content { border-radius: 16px; overflow: hidden; border: 1px solid var(--adsense-border); }
+#countryDetailModal .modal-header {
+    background: linear-gradient(135deg, #059669, #10b981);
+    border-bottom: 0;
+}
 </style>
-<div class="card">
+
+<div class="adsense-monitor-country-page">
+<div class="card adsense-filter-card">
     <div class="card-header">
-        <div class="d-flex align-items-center justify-content-between w-100">
-            <h3 class="card-title mb-0">Monitoring Negara</h3>
-            <button type="button" class="btn btn-sm hris-tour-launch-btn" id="btnAdsenseMonitoringCountryTour">
+        <div class="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2">
+            <div>
+                <h3 class="card-title">Monitoring Negara AdSense</h3>
+                <small class="card-subtitle">Pantau performa spend, pendapatan, dan ROI per negara</small>
+            </div>
+            <button type="button" class="btn btn-sm adsense-monitor-country-tour-btn" id="btnAdsenseMonitoringCountryTour">
                 <i class="far fa-question-circle" aria-hidden="true"></i> User Manual
             </button>
         </div>
     </div>
     <div class="card-body">
-        <div class="form-row" id="adsenseMonitoringCountryFilters" data-title="Filter" data-intro="Pilih rentang tanggal, AdSense account, domain, dan negara. Gunakan toggle Tanpa Spends bila perlu, lalu klik Muat Data.">
-            <div class="col-md-1">
+        <div class="form-row adsense-filter-row" id="adsenseMonitoringCountryFilters" data-title="Filter" data-intro="Pilih rentang tanggal, AdSense account, domain, dan negara. Gunakan toggle Tanpa Spends bila perlu, lalu klik Muat Data.">
+            <div class="col-md-1 col-6 adsense-filter-field mb-2 mb-md-0">
                 <label>Dari</label>
-                <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" data-date-orientation="bottom auto" placeholder="Tanggal Dari"/>
-            </div>
-            <div class="col-md-1">
-                <label>Sampai</label>
-                 <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" data-date-orientation="bottom auto" placeholder="Tanggal Sampai"/>
-            </div>
-            <div class="col-md-2">
-                <label>Filter Adx Account</label>
-                <select class="form-control select2-multiple" id="account_filter" multiple>
-                    {% for account in data_account_adsense %}
-                    <option value="{{ account.account_id }}">{{ account.account_name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label>Filter Subdomain</label>
-                <select class="form-control" id="domain_filter" multiple></select>
-                <small class="text-muted">Ketik untuk mencari atau tambah subdomain AdSense.</small>
-            </div>
-            <div class="col-md-3">
-                <label>Filter Negara</label>
-                <select class="form-control select2-multiple" id="country_filter" multiple="multiple">
-                </select>
-            </div>
-            <div class="col-md-1">
-                <label>Tanpa Spends</label>
-                <div class="switch-toggle" title="Sembunyikan negara tanpa spend FB" id="adsenseMonitoringCountryToggle" data-title="Tanpa Spends" data-intro="Aktifkan untuk menyembunyikan negara dengan spend FB = 0 agar monitoring lebih fokus.">
-                    <label class="switch">
-                        <input type="checkbox" id="toggle_hide_zero_spend" aria-label="Sembunyikan negara tanpa spend FB">
-                        <span class="slider"></span>
-                    </label>
+                <div class="adsense-filter-control">
+                    <input class="form-control datepicker-input" type="text" id="tanggal_dari" value="" data-mask="9999-99-99" placeholder="YYYY-MM-DD"/>
                 </div>
             </div>
-            <div class="col-md-1">
-                <label>&nbsp;</label>
-                <button type="button" class="btn btn-primary form-control" id="btn_load_data" data-title="Muat Data" data-intro="Mengambil data monitoring negara sesuai filter, lalu menampilkan ringkasan dan tabel.">
-                    <i class="fas fa-search"></i> Muat Data
-                </button>
+            <div class="col-md-1 col-6 adsense-filter-field mb-2 mb-md-0">
+                <label>Sampai</label>
+                <div class="adsense-filter-control">
+                    <input class="form-control datepicker-input" type="text" id="tanggal_sampai" value="" data-mask="9999-99-99" placeholder="YYYY-MM-DD"/>
+                </div>
+            </div>
+            <div class="col-md-2 adsense-filter-field mb-2 mb-md-0">
+                <label>Filter Adsense Account</label>
+                <div class="adsense-filter-control">
+                    <select class="form-control select2-multiple" id="account_filter" multiple>
+                        {% for account in data_account_adsense %}
+                        <option value="{{ account.account_id }}">{{ account.account_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-3 adsense-filter-field mb-2 mb-md-0">
+                <label>Filter Subdomain</label>
+                <div class="adsense-filter-control">
+                    <select class="form-control" id="domain_filter" multiple></select>
+                </div>
+            </div>
+            <div class="col-md-2 adsense-filter-field mb-2 mb-md-0">
+                <label>Filter Negara</label>
+                <div class="adsense-filter-control">
+                    <select class="form-control select2-multiple" id="country_filter" multiple="multiple"></select>
+                </div>
+            </div>
+            <div class="col-md-1 adsense-filter-field mb-2 mb-md-0">
+                <label>Tanpa Spends</label>
+                <div class="adsense-filter-control">
+                    <div class="switch-toggle" title="Sembunyikan negara tanpa spend FB" id="adsenseMonitoringCountryToggle" data-title="Tanpa Spends" data-intro="Aktifkan untuk menyembunyikan negara dengan spend FB = 0 agar monitoring lebih fokus.">
+                        <label class="switch mb-0">
+                            <input type="checkbox" id="toggle_hide_zero_spend" aria-label="Sembunyikan negara tanpa spend FB">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12 col-lg-auto adsense-filter-field mb-2 mb-md-0">
+                <label class="d-none d-lg-block">&nbsp;</label>
+                <div class="adsense-filter-control">
+                    <button type="button" class="btn btn-primary btn-block" id="btn_load_data" data-title="Muat Data" data-intro="Mengambil data monitoring negara sesuai filter, lalu menampilkan ringkasan dan tabel.">
+                        <i class="fas fa-search"></i> Muat Data
+                    </button>
+                </div>
             </div>
         </div>
-    </div><!-- /.card-body -->
+        <p class="adsense-filter-note mb-0">Ketik subdomain AdSense pada Filter Subdomain untuk mencari atau menambah domain.</p>
+    </div>
 </div>
-<div class="card">
+
+<div class="card adsense-data-card">
     <div class="card-header">
-        <div class="row">
-            <div class="col-6">
-                <h3 class="card-title"><b><i class="bi bi-bar-chart"></i> Data Monitoring Negara</b></h3>
-            </div>
-            <div class="col-6 d-flex justify-content-end">
-                <span id="adsenseMonitoringCountryLastUpdate" data-title="Last Update" data-intro="Informasi kapan data terakhir kali diperbarui."><i class="bi bi-clock-history"></i> Data Diupdate Terakhir <b>Tanggal {{ last_update|date:"d F Y" }} Jam {{ last_update|date:"H:i:s" }}</b></span>
-            </div>
+        <div class="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2">
+            <h3 class="card-title"><i class="bi bi-globe-americas text-success"></i> Data Monitoring Negara</h3>
+            <span class="adsense-monitor-country-last-update" id="adsenseMonitoringCountryLastUpdate" data-title="Last Update" data-intro="Informasi kapan data terakhir kali diperbarui.">
+                <i class="bi bi-clock-history"></i>
+                Terakhir diupdate <b>{{ last_update|date:"d F Y" }} {{ last_update|date:"H:i:s" }}</b>
+            </span>
         </div>
     </div>
-    <div class="card-body">
+    <div class="card-body position-relative">
         <div id="overlay" class="hris-loader-stub" style="display:none" data-loader-message="Memuat Data Traffic ..." aria-hidden="true"></div>
-        <div class="row" id="summary_boxes" style="display: none;" data-title="Ringkasan" data-intro="Ringkasan metrik utama: Total Spend, ROI Nett, dan Total Pendapatan. Akan muncul setelah data dimuat.">
-            <div class="col-12 col-sm-6 col-md-4">
+
+        <div class="adsense-monitor-country-empty" id="adsenseMonitoringCountryEmpty">
+            <div class="adsense-monitor-country-empty-icon"><i class="bi bi-globe2"></i></div>
+            <div class="adsense-monitor-country-empty-title">Belum ada data monitoring negara</div>
+            <p class="mb-0">Atur filter di atas, lalu klik <strong>Muat Data</strong> untuk melihat ringkasan dan tabel per negara.</p>
+        </div>
+
+        <div id="summary_boxes" style="display: none;" data-title="Ringkasan" data-intro="Ringkasan metrik utama: Total Spend, Total Pendapatan, dan ROI Nett. Akan muncul setelah data dimuat.">
+            <div class="adsense-monitor-country-metrics">
                 <div class="metric-card spend">
                     <div class="metric-card-inner">
                         <div>
                             <div class="metric-label">Total Spend</div>
-                            <div class="metric-value" id="total_spend">$0</div>
+                            <div class="metric-value" id="total_spend">Rp 0</div>
                         </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-cash-stack"></i>
-                        </div>
+                        <div class="metric-card-icon"><i class="bi bi-cash-stack"></i></div>
                     </div>
                 </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-4">
                 <div class="metric-card revenue">
                     <div class="metric-card-inner">
                         <div>
                             <div class="metric-label">Total Pendapatan</div>
-                            <div class="metric-value" id="total_revenue">$0</div>
+                            <div class="metric-value" id="total_revenue">Rp 0</div>
                         </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-currency-dollar"></i>
-                        </div>
+                        <div class="metric-card-icon"><i class="bi bi-currency-dollar"></i></div>
                     </div>
                 </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-4">
                 <div class="metric-card roi">
                     <div class="metric-card-inner">
                         <div>
                             <div class="metric-label">ROI Nett</div>
                             <div class="metric-value" id="total_roi">0%</div>
                         </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-graph-up-arrow"></i>
-                        </div>
+                        <div class="metric-card-icon"><i class="bi bi-graph-up-arrow"></i></div>
                     </div>
                 </div>
             </div>
         </div>
-        <!-- Data Table -->
-        <div class="dt-responsive-table mt-3 table-responsive">
-            <table id="table_traffic_country" class="table table-bordered table-striped" style="width:100%" data-title="Tabel" data-intro="Tabel monitoring per negara berisi spend, pendapatan, dan ROI. Gunakan sort/filter DataTables (jika aktif) untuk analisis.">
+
+        <div class="adsense-traffic-table-wrap" id="adsenseMonitoringCountryTableSection" data-title="Tabel" data-intro="Tabel monitoring per negara berisi spend, pendapatan, dan ROI. Gunakan sort/filter DataTables untuk analisis.">
+            <table id="table_traffic_country" class="table adsense-traffic-table" style="width:100%">
                 <thead>
                     <tr>
                         <th class="text-center checkbox-cell" style="width: 5%;">
-                            <div class="form-check checkbox-center m-0">
-                                <input type="checkbox" class="form-check-input" id="select_all_rows" />
-                                <label class="form-check-label" for="select_all_rows" title="Pilih semua"></label>
+                            <div class="checkbox-center">
+                                <input type="checkbox" id="select_all_rows" aria-label="Pilih semua baris" />
                             </div>
                         </th>
-                        <!-- Kolom baru untuk checklist -->
                         <th class="text-center" style="width: 20%;">Nama Negara</th>
                         <th class="text-center" style="width: 10%;">Kode Negara</th>
                         <th class="text-center" style="width: 18%;">Spend (Rp)</th>
@@ -355,15 +410,14 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         <th class="text-center" style="width: 8%;">Detail</th>
                     </tr>
                 </thead>
-                <tbody>
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
 
         <div class="modal fade" id="countryDetailModal" tabindex="-1" role="dialog" aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
-                <div class="modal-content" style="border-radius:16px; overflow:hidden;">
-                    <div class="modal-header text-white" style="background:linear-gradient(135deg,#1d4ed8,#7c3aed);">
+                <div class="modal-content">
+                    <div class="modal-header text-white">
                         <h5 class="modal-title mb-0" id="countryDetailModalTitle">Detail Negara</h5>
                         <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
                     </div>
@@ -373,36 +427,32 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
         </div>
     </div>
 </div>
+</div><!-- /.adsense-monitor-country-page -->
 {% endblock %}
 {% block more_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="{% static 'ajax/admin/report_adsense/monitoring_country.js'%}?v={%now 'u'%}"></script>
 <script>
 (function() {
     function decorateTourButtons() {
         const root = document.querySelector('.introjs-tooltip');
         if (!root) return;
-
         const prev = root.querySelector('.introjs-prevbutton');
         if (prev && !prev.dataset.iconized) {
             prev.dataset.iconized = '1';
             prev.insertAdjacentHTML('afterbegin', '<i class="fas fa-arrow-left" aria-hidden="true"></i>');
         }
-
         const next = root.querySelector('.introjs-nextbutton');
         if (next && !next.dataset.iconized) {
             next.dataset.iconized = '1';
             next.insertAdjacentHTML('beforeend', '<i class="fas fa-arrow-right" aria-hidden="true"></i>');
         }
-
         const done = root.querySelector('.introjs-donebutton');
         if (done && !done.dataset.iconized) {
             done.dataset.iconized = '1';
             done.insertAdjacentHTML('afterbegin', '<i class="fas fa-check-circle" aria-hidden="true"></i>');
         }
     }
-
     function isVisible(el) {
         if (!el) return false;
         if (el.getClientRects().length === 0) return false;
@@ -410,23 +460,17 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
         if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
         return true;
     }
-
     function startAdsenseMonitoringCountryTour() {
         if (typeof introJs !== 'function') return;
-
-        const steps = [{
-            intro: 'Ini panduan singkat halaman Monitoring Negara (AdSense). Klik “Lanjut” untuk mengikuti langkah-langkahnya.'
-        }];
-
+        const steps = [{ intro: 'Ini panduan singkat halaman Monitoring Negara (AdSense). Klik “Lanjut” untuk mengikuti langkah-langkahnya.' }];
         const selectors = [
             '#adsenseMonitoringCountryFilters',
             '#adsenseMonitoringCountryToggle',
             '#btn_load_data',
             '#adsenseMonitoringCountryLastUpdate',
             '#summary_boxes',
-            '#table_traffic_country'
+            '#adsenseMonitoringCountryTableSection'
         ];
-
         selectors.forEach(function(sel) {
             const el = document.querySelector(sel);
             if (!el) return;
@@ -437,9 +481,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 intro: el.getAttribute('data-intro') || ''
             });
         });
-
         steps.push({ intro: 'Selesai. Kamu bisa jalankan ulang petunjuk ini dari tombol “User Manual”.' });
-
         const tour = introJs();
         tour.setOptions({
             steps: steps,
@@ -454,20 +496,15 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
             exitOnOverlayClick: true,
             scrollToElement: true
         });
-
         tour.onstart(decorateTourButtons);
         tour.onafterchange(decorateTourButtons);
         tour.onchange(decorateTourButtons);
-
         tour.start();
     }
-
     document.addEventListener('DOMContentLoaded', function() {
         const btn = document.getElementById('btnAdsenseMonitoringCountryTour');
         if (!btn) return;
-        btn.addEventListener('click', function() {
-            startAdsenseMonitoringCountryTour();
-        });
+        btn.addEventListener('click', function() { startAdsenseMonitoringCountryTour(); });
     });
 })();
 </script>

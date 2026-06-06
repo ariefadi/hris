@@ -13,298 +13,442 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css">
 <style>
 :root {
+    --roi-accent: #0d9488;
+    --roi-accent-2: #6366f1;
+    --roi-surface: #ffffff;
+    --roi-surface-2: #f8fafc;
+    --roi-border: rgba(15, 23, 42, 0.08);
+    --roi-text: #0f172a;
+    --roi-muted: #64748b;
+    --roi-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    --roi-radius: 16px;
     --tour-bg: rgba(241, 245, 249, 0.92);
     --tour-fg: #0f172a;
     --tour-border: rgba(15, 23, 42, 0.14);
     --tour-shadow: 0 18px 40px rgba(2, 6, 23, 0.16);
     --tour-overlay: rgba(15, 23, 42, 0.62);
-    --tour-ring: rgba(37, 99, 235, 0.32);
-    --tour-next-grad: linear-gradient(135deg, #2563eb, #7c3aed);
+    --tour-ring: rgba(13, 148, 136, 0.32);
+    --tour-next-grad: linear-gradient(135deg, #0d9488, #6366f1);
 }
 html[data-theme="dark"] {
+    --roi-surface: #1e293b;
+    --roi-surface-2: #0f172a;
+    --roi-border: rgba(255, 255, 255, 0.08);
+    --roi-text: #e2e8f0;
+    --roi-muted: #94a3b8;
+    --roi-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
     --tour-bg: rgba(30, 41, 59, 0.88);
     --tour-fg: #e5e7eb;
     --tour-border: rgba(255, 255, 255, 0.12);
-    --tour-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
     --tour-overlay: rgba(0, 0, 0, 0.74);
-    --tour-ring: rgba(34, 211, 238, 0.28);
-    --tour-next-grad: linear-gradient(135deg, #22c55e, #06b6d4);
+    --tour-ring: rgba(45, 212, 191, 0.28);
+    --tour-next-grad: linear-gradient(135deg, #0d9488, #06b6d4);
 }
-.hris-tour-launch-btn {
-    border-radius: 999px;
-    padding: 6px 12px;
-    font-weight: 700;
-    border: 0 !important;
-    color: #fff !important;
+.roi-country-page .card {
+    border: 1px solid var(--roi-border);
+    border-radius: var(--roi-radius);
+    box-shadow: var(--roi-shadow);
+    margin-bottom: 16px;
+}
+.roi-country-page .card-header {
+    background: var(--roi-surface);
+    border-bottom: 1px solid var(--roi-border);
+    padding: 14px 18px;
+}
+.roi-country-page .card-title { color: var(--roi-text); font-weight: 800; margin: 0; }
+.roi-country-page .card-subtitle { color: var(--roi-muted); font-size: 0.85rem; }
+.roi-country-tour-btn {
+    border-radius: 999px; padding: 6px 14px; font-weight: 700;
+    border: 0 !important; color: #fff !important;
     background: var(--tour-next-grad) !important;
+    box-shadow: 0 4px 14px rgba(13, 148, 136, 0.35);
+}
+.roi-country-page .roi-filter-row { align-items: flex-start; }
+.roi-country-page .roi-filter-field {
+    display: flex; flex-direction: column; margin-bottom: 0;
+}
+.roi-country-page .roi-filter-field label {
+    display: block; margin-bottom: 0.35rem; font-size: 0.78rem;
+    font-weight: 700; color: var(--roi-muted); text-transform: uppercase;
+    letter-spacing: 0.04em; line-height: 1.2; min-height: 1.2em;
+}
+.roi-country-page .roi-filter-control { flex: 0 0 auto; width: 100%; }
+.roi-country-page .roi-filter-field .form-control,
+.roi-country-page .roi-filter-field .select2-container .select2-selection--multiple,
+.roi-country-page .roi-filter-field .select2-container .select2-selection--single {
+    min-height: 38px; border-radius: 10px; border-color: var(--roi-border);
+}
+.roi-country-page .roi-filter-field .select2-container { width: 100% !important; }
+.roi-country-page .roi-filter-note {
+    font-size: 0.75rem; color: var(--roi-muted); margin-top: 8px; padding-left: 2px;
+}
+.roi-country-page #btn_load_data {
+    border-radius: 10px; font-weight: 700;
+    box-shadow: 0 4px 14px rgba(13, 148, 136, 0.3);
+}
+.roi-country-last-update {
+    font-size: 0.82rem; color: var(--roi-muted);
+    background: var(--roi-surface-2); border: 1px solid var(--roi-border);
+    border-radius: 999px; padding: 6px 14px; display: inline-flex;
+    align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.roi-country-metrics {
+    display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px;
+}
+@media (max-width: 1199px) { .roi-country-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 575px) { .roi-country-metrics { grid-template-columns: 1fr; } }
+.roi-country-page .metric-card {
+    position: relative; overflow: hidden; color: #fff; border-radius: 14px;
+    padding: 16px 18px; min-height: 96px;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.13);
+    border: 1px solid rgba(255, 255, 255, 0.12); margin-bottom: 0;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.roi-country-page .metric-card:hover {
+    transform: translateY(-2px); box-shadow: 0 8px 22px rgba(15, 23, 42, 0.18);
+}
+.roi-country-page .metric-card-inner {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+}
+.roi-country-page .metric-card-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255, 255, 255, 0.2); flex-shrink: 0;
+}
+.roi-country-page .metric-card-icon i { font-size: 1.2rem; color: #fff; }
+.roi-country-page .metric-value { font-size: 1.35rem; font-weight: 800; line-height: 1.2; }
+.roi-country-page .metric-label {
+    font-size: 0.72rem; font-weight: 600; opacity: 0.92;
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px;
+}
+.roi-country-page .metric-card.spend { background: linear-gradient(135deg, #dc2626 0%, #f97316 100%); }
+.roi-country-page .metric-card.revenue { background: linear-gradient(135deg, #7c3aed 0%, #ec4899 100%); }
+.roi-country-page .metric-card.net-revenue { background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); }
+.roi-country-page .metric-card.roi { background: linear-gradient(135deg, #047857 0%, #10b981 100%); }
+.roi-country-empty {
+    text-align: center; padding: 48px 24px; color: var(--roi-muted);
+}
+.roi-country-empty-icon {
+    width: 68px; height: 68px; margin: 0 auto 14px; border-radius: 18px;
+    display: flex; align-items: center; justify-content: center; font-size: 1.8rem;
+    color: var(--roi-accent);
+    background: linear-gradient(135deg, rgba(13,148,136,0.12), rgba(99,102,241,0.08));
+}
+.roi-country-empty-title { font-size: 16px; font-weight: 800; color: var(--roi-text); margin-bottom: 6px; }
+.roi-map-section {
+    background: var(--roi-surface); border: 1px solid var(--roi-border);
+    border-radius: 14px; overflow: hidden; margin-bottom: 14px;
+}
+.roi-map-section.map-collapsed .roi-map-wrap { display: none; }
+.roi-map-section-header {
+    padding: 12px 16px; border-bottom: 1px solid var(--roi-border);
+    background: var(--roi-surface-2);
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
+}
+.roi-map-section-title {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 0.88rem; font-weight: 800; color: var(--roi-text); margin: 0;
+}
+.roi-map-section-title i {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, rgba(13,148,136,0.15), rgba(99,102,241,0.12));
+    color: var(--roi-accent); font-size: 0.85rem;
+}
+#btnToggleCountryMap {
+    border-radius: 10px; font-weight: 700; padding: 6px 14px; white-space: nowrap;
+    border-color: rgba(13, 148, 136, 0.35); color: var(--roi-accent);
+}
+.roi-map-wrap {
+    padding: 12px; background: var(--roi-surface-2);
+}
+.roi-country-map-inner {
+    border-radius: 12px; overflow: hidden;
+    border: 1px solid var(--roi-border); background: var(--roi-surface);
+}
+#worldMap { min-height: 480px; width: 100%; }
+.roi-map-empty {
+    text-align: center; padding: 48px 16px; color: var(--roi-muted); font-size: 0.88rem;
+}
+.roi-traffic-table-wrap { overflow-x: auto; margin-top: 14px; }
+.roi-traffic-table-wrap .dt-buttons { margin-bottom: 12px; }
+.roi-traffic-table-wrap .dt-buttons .btn {
+    border-radius: 8px; font-size: 12px; font-weight: 600; margin-right: 6px; margin-bottom: 6px;
+}
+.roi-traffic-table-wrap table.roi-traffic-table {
+    width: 100% !important; border-collapse: separate; border-spacing: 0; font-size: 12px;
+}
+.roi-traffic-table-wrap table.roi-traffic-table thead th {
+    background: linear-gradient(180deg, var(--roi-surface-2) 0%, var(--roi-surface) 100%);
+    color: var(--roi-text); font-weight: 700; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.03em;
+    border-bottom: 2px solid var(--roi-border) !important;
+    padding: 10px 8px; white-space: nowrap; vertical-align: middle;
+}
+.roi-traffic-table-wrap table.roi-traffic-table tbody td {
+    padding: 9px 8px; vertical-align: middle;
+    border-color: var(--roi-border) !important; color: var(--roi-text);
+}
+.roi-traffic-table-wrap table.roi-traffic-table tbody tr:hover td {
+    background: rgba(13, 148, 136, 0.06);
+}
+html[data-theme="dark"] .roi-traffic-table-wrap table.roi-traffic-table tbody tr:hover td {
+    background: rgba(13, 148, 136, 0.12);
+}
+.roi-traffic-table-wrap .country-cell {
+    display: inline-flex; align-items: center; gap: 8px; max-width: 200px;
+}
+.roi-traffic-table-wrap .country-cell img {
+    border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); flex-shrink: 0;
+}
+.roi-traffic-table-wrap .country-name {
+    font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.roi-traffic-table-wrap .country-code-badge {
+    display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;
+    background: rgba(13, 148, 136, 0.12); color: #047857;
+    border: 1px solid rgba(13, 148, 136, 0.2);
+    font-family: ui-monospace, monospace;
+}
+html[data-theme="dark"] .roi-traffic-table-wrap .country-code-badge { color: #5eead4; }
+.roi-traffic-table-wrap .roi-val-positive { color: #047857; font-weight: 700; }
+.roi-traffic-table-wrap .roi-val-negative { color: #dc2626; font-weight: 700; }
+html[data-theme="dark"] .roi-traffic-table-wrap .roi-val-positive { color: #6ee7b7; }
+html[data-theme="dark"] .roi-traffic-table-wrap .roi-val-negative { color: #fca5a5; }
+.roi-traffic-table-wrap .dataTables_wrapper .dataTables_filter input,
+.roi-traffic-table-wrap .dataTables_wrapper .dataTables_length select {
+    border-radius: 8px; border-color: var(--roi-border);
+}
+.roi-country-page .switch-toggle { display: flex; align-items: center; min-height: 38px; }
+.roi-country-page .switch-toggle .switch { position: relative; display: inline-block; width: 52px; height: 28px; }
+.roi-country-page .switch-toggle .switch input { opacity: 0; width: 0; height: 0; }
+.roi-country-page .switch-toggle .slider {
+    position: absolute; cursor: pointer; inset: 0; background: #cbd5e1;
+    transition: .25s; border-radius: 999px;
+}
+.roi-country-page .switch-toggle .slider:before {
+    content: ""; position: absolute; height: 22px; width: 22px; left: 3px; bottom: 3px;
+    background: #fff; transition: .25s; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.15);
+}
+.roi-country-page .switch-toggle input:checked + .slider { background: var(--roi-accent); }
+.roi-country-page .switch-toggle input:checked + .slider:before { transform: translateX(24px); }
+.roi-country-page #table_traffic_country th.checkbox-cell,
+.roi-country-page #table_traffic_country td.checkbox-cell { vertical-align: middle !important; width: 44px; }
+.roi-country-page .checkbox-center { display: flex; align-items: center; justify-content: center; height: 100%; }
+.roi-country-page #select_all_rows,
+.roi-country-page .form-check-input.row-select {
+    width: 18px; height: 18px; cursor: pointer; border: 2px solid #ADB5BD; border-radius: 4px;
+    appearance: none; -webkit-appearance: none; background-color: var(--roi-surface);
+    outline: none; margin-top: 0 !important;
+}
+.roi-country-page #select_all_rows:checked,
+.roi-country-page .form-check-input.row-select:checked {
+    background-color: var(--roi-accent); border-color: var(--roi-accent);
+    box-shadow: 0 0 0 0.2rem rgba(13,148,136,.25);
+}
+.roi-country-page #table_traffic_country tbody tr.selected-row td {
+    background: rgba(13, 148, 136, 0.1) !important;
 }
 .introjs-overlay { background: var(--tour-overlay) !important; opacity: 1 !important; }
 .introjs-tooltip.hris-tour-tooltip {
-    width: min(900px, calc(100vw - 48px));
-    max-width: min(900px, calc(100vw - 48px)) !important;
-    background: var(--tour-bg) !important;
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-    color: var(--tour-fg) !important;
-    border: 1px solid var(--tour-border) !important;
-    border-radius: 16px !important;
+    width: min(900px, calc(100vw - 48px)); max-width: min(900px, calc(100vw - 48px)) !important;
+    background: var(--tour-bg) !important; color: var(--tour-fg) !important;
+    border: 1px solid var(--tour-border) !important; border-radius: 16px !important;
     box-shadow: var(--tour-shadow) !important;
 }
-.introjs-tooltip.hris-tour-tooltip .introjs-skipbutton { display: none !important; }
-.introjs-tooltip.hris-tour-tooltip .introjs-tooltipbuttons { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
-.introjs-tooltip.hris-tour-tooltip .introjs-button {
-    float: none !important;
-    border-radius: 12px !important;
-    padding: 10px 14px !important;
-    line-height: 1 !important;
-    font: inherit !important;
-    font-weight: 800 !important;
-    border: 1px solid var(--tour-border) !important;
-    background: rgba(148, 163, 184, 0.14) !important;
-    color: var(--tour-fg) !important;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    white-space: nowrap;
-}
-html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { background: rgba(15, 23, 42, 0.35) !important; }
 .introjs-tooltip.hris-tour-tooltip .introjs-nextbutton,
-.introjs-tooltip.hris-tour-tooltip .introjs-donebutton { border-color: transparent !important; background: var(--tour-next-grad) !important; color: #fff !important; }
-.introjs-tooltip.hris-tour-tooltip .introjs-disabled,
-.introjs-tooltip.hris-tour-tooltip .introjs-disabled:hover { opacity: 0.45 !important; cursor: not-allowed !important; }
-.introjs-helperLayer.hris-tour-highlight { background: transparent !important; border-radius: 16px !important; box-shadow: 0 0 0 6px var(--tour-ring) !important; }
+.introjs-tooltip.hris-tour-tooltip .introjs-donebutton {
+    background: var(--tour-next-grad) !important; color: #fff !important;
+}
+.introjs-helperLayer.hris-tour-highlight {
+    border-radius: 16px !important; box-shadow: 0 0 0 6px var(--tour-ring) !important;
+}
 </style>
 {% endblock %}
-{% block content %} 
-{% csrf_token %} 
-<style>
-  .dt-buttons {
-      margin-bottom: 20px;
-  }
-  /* Toggle switch custom (Bootstrap 4 compatible) */
-  .switch-toggle { display: flex; align-items: center; gap: 10px; }
-  .switch-toggle .switch { position: relative; display: inline-block; width: 52px; height: 28px; }
-  .switch-toggle .switch input { opacity: 0; width: 0; height: 0; }
-  .switch-toggle .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #dee2e6; transition: .25s; border-radius: 999px; }
-  .switch-toggle .slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background: #fff; transition: .25s; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,.15); }
-  .switch-toggle input:checked + .slider { background: #0d6efd; }
-  .switch-toggle input:checked + .slider:before { transform: translateX(24px); }
-  @media (max-width: 576px) { .switch-toggle { font-size: 12px; } }
-  /* Presisi dan centering checkbox header & baris */
-  #table_traffic_country th.checkbox-cell,
-  #table_traffic_country td.checkbox-cell {
-      vertical-align: middle !important;
-      width: 44px;
-  }
-  .checkbox-center {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-  }
-  /* Gaya checkbox */
-  #select_all_rows,
-  .form-check-input.row-select {
-      width: 18px;
-      height: 18px;
-      cursor: pointer;
-      border: 2px solid #ADB5BD;
-      border-radius: 4px;
-      transition: all .15s ease-in-out;
-      appearance: none;
-      -webkit-appearance: none;
-      background-color: #fff;
-      outline: none;
-      margin-top: 0 !important; /* tepat di tengah */
-      transform: none !important; /* hilangkan nudge */
-  }
-  #select_all_rows:checked,
-  .form-check-input.row-select:checked {
-      background-color: #0d6efd;
-      border-color: #0d6efd;
-      box-shadow: 0 0 0 0.2rem rgba(13,110,253,.25);
-  }
-  #charts_section_card .card-header{border-bottom:1px solid #e5edf8}#btnToggleCountryMap{border-radius:10px;font-weight:700;padding:6px 14px;white-space:nowrap}
-  #charts_section_card.map-collapsed .card-header{border-bottom:0}
-  html[data-theme="dark"] #charts_section_card .card-header{border-color:#334155}
-  #table_traffic_country tbody tr.selected-row {
-      background-color: rgba(13, 110, 253, 0.08) !important;
-  }
-</style>
-<div class="card">
+{% block content %}
+{% csrf_token %}
+<div class="roi-country-page">
+<div class="card roi-filter-card">
     <div class="card-header">
-        <div class="d-flex align-items-center justify-content-between w-100">
-            <h3 class="card-title mb-0">ROI Traffic Per Negara</h3>
-            <button type="button" class="btn btn-sm hris-tour-launch-btn" id="btnRoiPerCountryTour">
+        <div class="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2">
+            <div>
+                <h3 class="card-title">ROI Traffic Per Negara</h3>
+                <small class="card-subtitle">Analisis ROI traffic per negara dengan peta interaktif</small>
+            </div>
+            <button type="button" class="btn btn-sm roi-country-tour-btn" id="btnRoiPerCountryTour">
                 <i class="far fa-question-circle" aria-hidden="true"></i> User Manual
             </button>
         </div>
-    </div> <!-- /.card-header -->
-    <div class="card-body">
-        <div class="form-row" id="roiPerCountryFilters" data-title="Filter" data-intro="Pilih rentang tanggal, AdX account, domain, Ads account, dan negara (opsional). Gunakan toggle Tanpa Spends untuk menyembunyikan negara tanpa spend FB bila perlu, lalu klik Muat Data.">
-            <div class="col-md-1">
-                <label>Dari</label>
-                <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" data-date-orientation="bottom auto" placeholder="Tanggal Dari"/>
-            </div>
-            <div class="col-md-1">
-                <label>Sampai</label>
-                 <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" data-date-orientation="bottom auto" placeholder="Tanggal Sampai"/>
-            </div>
-            <div class="col-md-2">
-                <label>Filter Adx Account</label>
-                <select class="form-control select2-multiple" id="account_filter" multiple>
-                    {% for account in data_account_adx %}
-                    <option value="{{ account.account_id }}">{{ account.account_name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label>Filter Subdomain</label>
-                <select class="form-control" id="domain_filter" multiple></select>
-                <small class="text-muted">Ketik untuk mencari atau tambah subdomain AdX.</small>
-            </div>
-            <div class="col-md-2">
-                <label>Filter Ads Account</label>
-                <select class="form-control select2" id="select_account">
-                    <option value=""></option>
-                    {% for data_account in data_account %}
-                    <option value="{{data_account.account_ads_id}}">{{data_account.account_name}}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label>Filter Negara</label>
-                <select class="form-control select2-multiple" id="country_filter" multiple="multiple">
-                    <!-- Options akan dimuat secara dinamis -->
-                </select>
-            </div>
-            <div class="col-md-1">
-                <label>Tanpa Spends</label>
-                <div class="switch-toggle" title="Sembunyikan negara tanpa spend FB" id="roiPerCountryToggle" data-title="Tanpa Spends" data-intro="Aktifkan untuk menyembunyikan negara dengan spend FB = 0 agar analisis lebih fokus.">
-                    <label class="switch">
-                        <input type="checkbox" id="toggle_hide_zero_spend" aria-label="Sembunyikan negara tanpa spend FB">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-            </div>
-            <div class="col-md-1">
-                <label>&nbsp;</label>
-                <button type="button" class="btn btn-primary form-control" id="btn_load_data" data-title="Muat Data" data-intro="Mengambil data ROI per negara sesuai filter, lalu menampilkan ringkasan, peta, dan tabel.">
-                    <i class="fas fa-search"></i> Muat Data
-                </button>
-            </div>
-        </div>
-    </div><!-- /.card-body -->
-</div>
-<div class="card">
-    <div class="card-header">
-        <div class="row">
-            <div class="col-6">
-                <h3 class="card-title"><b><i class="bi bi-globe"></i> Data ROI Per Negara</b></h3>
-            </div>
-            <div class="col-6 d-flex justify-content-end">
-                <span id="roiPerCountryLastUpdate" data-title="Last Update" data-intro="Informasi kapan data terakhir kali diperbarui."><i class="bi bi-clock-history"></i> Data Diupdate Terakhir <b>Tanggal {{ last_update|date:"d F Y" }} Jam {{ last_update|date:"H:i:s" }}</b></span>
-            </div>
-        </div>
     </div>
     <div class="card-body">
+        <div class="form-row roi-filter-row" id="roiPerCountryFilters" data-title="Filter" data-intro="Pilih rentang tanggal, AdX account, domain, Ads account, dan negara (opsional). Gunakan toggle Tanpa Spends bila perlu, lalu klik Muat Data.">
+            <div class="col-md-1 col-6 roi-filter-field mb-2 mb-md-0">
+                <label>Dari</label>
+                <div class="roi-filter-control">
+                    <input class="form-control datepicker-input" type="text" id="tanggal_dari" value="" data-mask="9999-99-99" placeholder="YYYY-MM-DD"/>
+                </div>
+            </div>
+            <div class="col-md-1 col-6 roi-filter-field mb-2 mb-md-0">
+                <label>Sampai</label>
+                <div class="roi-filter-control">
+                    <input class="form-control datepicker-input" type="text" id="tanggal_sampai" value="" data-mask="9999-99-99" placeholder="YYYY-MM-DD"/>
+                </div>
+            </div>
+            <div class="col-md-2 roi-filter-field mb-2 mb-md-0">
+                <label>Filter Adx Account</label>
+                <div class="roi-filter-control">
+                    <select class="form-control select2-multiple" id="account_filter" multiple>
+                        {% for account in data_account_adx %}
+                        <option value="{{ account.account_id }}">{{ account.account_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-2 roi-filter-field mb-2 mb-md-0">
+                <label>Filter Subdomain</label>
+                <div class="roi-filter-control">
+                    <select class="form-control" id="domain_filter" multiple></select>
+                </div>
+            </div>
+            <div class="col-md-2 roi-filter-field mb-2 mb-md-0">
+                <label>Filter Ads Account</label>
+                <div class="roi-filter-control">
+                    <select class="form-control select2" id="select_account">
+                        <option value=""></option>
+                        {% for data_account in data_account %}
+                        <option value="{{data_account.account_ads_id}}">{{data_account.account_name}}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="col-md-2 roi-filter-field mb-2 mb-md-0">
+                <label>Filter Negara</label>
+                <div class="roi-filter-control">
+                    <select class="form-control select2-multiple" id="country_filter" multiple="multiple"></select>
+                </div>
+            </div>
+            <div class="col-md-1 roi-filter-field mb-2 mb-md-0">
+                <label>Tanpa Spends</label>
+                <div class="roi-filter-control">
+                    <div class="switch-toggle" title="Sembunyikan negara tanpa spend FB" id="roiPerCountryToggle" data-title="Tanpa Spends" data-intro="Aktifkan untuk menyembunyikan negara dengan spend FB = 0.">
+                        <label class="switch mb-0">
+                            <input type="checkbox" id="toggle_hide_zero_spend" aria-label="Sembunyikan negara tanpa spend FB">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12 col-lg-auto roi-filter-field mb-2 mb-md-0">
+                <label class="d-none d-lg-block">&nbsp;</label>
+                <div class="roi-filter-control">
+                    <button type="button" class="btn btn-primary btn-block" id="btn_load_data" data-title="Muat Data" data-intro="Mengambil data ROI per negara, menampilkan ringkasan, peta, dan tabel.">
+                        <i class="fas fa-search"></i> Muat Data
+                    </button>
+                </div>
+            </div>
+        </div>
+        <p class="roi-filter-note mb-0">Ketik subdomain AdX pada Filter Subdomain untuk mencari atau menambah domain.</p>
+    </div>
+</div>
+
+<div class="card roi-data-card">
+    <div class="card-header">
+        <div class="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2">
+            <h3 class="card-title"><i class="bi bi-globe-americas text-success"></i> Data ROI Per Negara</h3>
+            <span class="roi-country-last-update" id="roiPerCountryLastUpdate" data-title="Last Update" data-intro="Informasi kapan data terakhir kali diperbarui.">
+                <i class="bi bi-clock-history"></i>
+                Terakhir diupdate <b>{{ last_update|date:"d F Y" }} {{ last_update|date:"H:i:s" }}</b>
+            </span>
+        </div>
+    </div>
+    <div class="card-body position-relative">
         <div id="overlay" class="hris-loader-stub" style="display:none" data-loader-message="Memuat Data Negara ..." aria-hidden="true"></div>
-        <div class="row" id="summary_boxes" style="display: none;" data-title="Ringkasan" data-intro="Ringkasan metrik utama ROI per negara (spend, ROI, pendapatan, pendapatan bersih). Akan muncul setelah data dimuat.">
-            <div class="col-12 col-sm-6 col-md-3">
+
+        <div class="roi-country-empty" id="roiCountryEmpty">
+            <div class="roi-country-empty-icon"><i class="bi bi-globe2"></i></div>
+            <div class="roi-country-empty-title">Belum ada data ROI per negara</div>
+            <p class="mb-0">Atur filter di atas, lalu klik <strong>Muat Data</strong> untuk melihat ringkasan, peta, dan tabel.</p>
+        </div>
+
+        <div id="summary_boxes" style="display: none;" data-title="Ringkasan" data-intro="Ringkasan metrik utama ROI per negara.">
+            <div class="roi-country-metrics">
                 <div class="metric-card spend">
                     <div class="metric-card-inner">
                         <div>
                             <div class="metric-label">Total Spend</div>
                             <div class="metric-value" id="total_spend">Rp 0</div>
                         </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-cash-stack"></i>
-                        </div>
+                        <div class="metric-card-icon"><i class="bi bi-cash-stack"></i></div>
                     </div>
                 </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-3">
                 <div class="metric-card revenue">
                     <div class="metric-card-inner">
                         <div>
                             <div class="metric-label">Total Pendapatan</div>
                             <div class="metric-value" id="total_revenue">Rp 0</div>
                         </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-currency-dollar"></i>
-                        </div>
+                        <div class="metric-card-icon"><i class="bi bi-currency-dollar"></i></div>
                     </div>
                 </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="metric-card revenue">
+                <div class="metric-card net-revenue">
                     <div class="metric-card-inner">
                         <div>
-                            <div class="metric-label">Total Pendapatan Bersih</div>
+                            <div class="metric-label">Pendapatan Bersih</div>
                             <div class="metric-value" id="total_net_revenue">Rp 0</div>
                         </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-wallet2"></i>
-                        </div>
+                        <div class="metric-card-icon"><i class="bi bi-wallet2"></i></div>
                     </div>
                 </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-3">
                 <div class="metric-card roi">
                     <div class="metric-card-inner">
                         <div>
                             <div class="metric-label">ROI Total</div>
                             <div class="metric-value" id="total_roi">0%</div>
                         </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-percent"></i>
-                        </div>
+                        <div class="metric-card-icon"><i class="bi bi-percent"></i></div>
                     </div>
                 </div>
             </div>
         </div>
-        <!-- Charts Section -->
-        <div class="row mt-3" id="charts_section" style="display: none;" data-title="Peta" data-intro="Peta ROI per negara. Akan muncul setelah data dimuat. Hover/klik negara untuk melihat detail (jika tersedia).">
-            <div class="col-12">
-                <div class="card" id="charts_section_card">
-                    <div class="card-header">
-                        <div class="card-title d-flex justify-content-between align-items-center w-100 mb-0">
-                            <h4 class="card-title mb-0"><i class="bi bi-globe"></i> Peta ROI Per Negara</h4>
-                            <button type="button" class="btn btn-outline-primary btn-sm" id="btnToggleCountryMap" style="display: none;" aria-expanded="true" aria-controls="charts_section_body">
-                                <i class="fas fa-eye-slash" aria-hidden="true"></i> Sembunyikan Peta
-                            </button>
-                        </div>
-                        <div class="card-body" id="charts_section_body">
-                            <div id="worldMap" style="height: 500px; width: 100%;"></div>
-                        </div>
+
+        <div id="charts_section" style="display: none;" data-title="Peta" data-intro="Peta ROI per negara. Hover negara untuk melihat detail metrik.">
+            <div class="roi-map-section mt-3" id="charts_section_card">
+                <div class="roi-map-section-header">
+                    <h4 class="roi-map-section-title mb-0"><i class="bi bi-map"></i> Peta ROI Per Negara</h4>
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="btnToggleCountryMap" style="display: none;" aria-expanded="true" aria-controls="charts_section_body">
+                        <i class="fas fa-eye-slash" aria-hidden="true"></i> Sembunyikan Peta
+                    </button>
+                </div>
+                <div class="roi-map-wrap" id="charts_section_body">
+                    <div class="roi-country-map-inner">
+                        <div id="worldMap"></div>
+                        <div class="roi-map-empty" id="roiMapEmpty" style="display:none;">Tidak ada data peta untuk periode/filters ini.</div>
                     </div>
                 </div>
             </div>
         </div>
-        <!-- Data Table -->
-        <div class="dt-responsive-table mt-3 table-responsive">
-            <table id="table_traffic_country" class="table table-bordered table-striped" style="width:100%" data-title="Tabel" data-intro="Tabel detail ROI per negara. Gunakan checkbox untuk memilih baris (jika tersedia aksi lanjutan) dan manfaatkan sort/filter DataTables (jika aktif).">
+
+        <div class="roi-traffic-table-wrap" id="roiCountryTableSection" data-title="Tabel" data-intro="Tabel detail ROI per negara dengan sort, search, checkbox, dan export.">
+            <table id="table_traffic_country" class="table roi-traffic-table" style="width:100%">
                 <thead>
                     <tr>
-                        <th rowspan="2" style="width: 2%;" class="text-center checkbox-cell">
-                            <div class="form-check checkbox-center m-0">
-                                <input type="checkbox" class="form-check-input" id="select_all_rows" />
-                                <label class="form-check-label" for="select_all_rows" title="Pilih semua"></label>
+                        <th rowspan="2" style="width:2%;" class="text-center checkbox-cell">
+                            <div class="checkbox-center">
+                                <input type="checkbox" id="select_all_rows" aria-label="Pilih semua baris" />
                             </div>
                         </th>
-                        <th rowspan="2" style="width: 14%;" class="text-center">Negara</th>
-                        <th rowspan="2" style="width: 6%;" class="text-center">Kode Negara</th>
-                        <th rowspan="2" style="width: 8%;" class="text-center">Spend</th>
-                        <th colspan="2" style="width: 12%;" class="text-center">Klik</th>
-                        <th rowspan="2" style="width: 8%;" class="text-center">CPR</th>
-                        <th colspan="2" style="width: 12%;" class="text-center">CTR (%)</th>
-                        <th colspan="2" style="width: 12%;" class="text-center">CPC</th>
-                        <th rowspan="2" style="width: 8%;" class="text-center">eCPM</th>
-                        <th rowspan="2" style="width: 8%;" class="text-center">ROI (%)</th>
-                        <th rowspan="2" style="width: 8%;" class="text-center">Pendapatan</th>
-                        <th rowspan="2" style="width: 8%;" class="text-center">Pendapatan <br> Bersih</th>
-                        <th rowspan="2" style="width: 8%;" class="text-center">Visitor</th>
+                        <th rowspan="2" class="text-center">Negara</th>
+                        <th rowspan="2" class="text-center">Kode</th>
+                        <th rowspan="2" class="text-center">Spend</th>
+                        <th colspan="2" class="text-center">Klik</th>
+                        <th rowspan="2" class="text-center">CPR</th>
+                        <th colspan="2" class="text-center">CTR (%)</th>
+                        <th colspan="2" class="text-center">CPC</th>
+                        <th rowspan="2" class="text-center">eCPM</th>
+                        <th rowspan="2" class="text-center">ROI (%)</th>
+                        <th rowspan="2" class="text-center">Pendapatan</th>
+                        <th rowspan="2" class="text-center">Pendapatan Bersih</th>
+                        <th rowspan="2" class="text-center">Visitor</th>
                     </tr>
                     <tr>
                         <th class="text-center">Klik Ads</th>
@@ -315,67 +459,42 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         <th class="text-center">CPC Adx</th>
                     </tr>
                 </thead>
-                <tbody>
-                </tbody>
+                <tbody></tbody>
             </table>
         </div>
     </div>
 </div>
+</div><!-- /.roi-country-page -->
 {% endblock %}
 {% block more_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
-<!-- Highcharts Maps Library dari CDN alternatif -->
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highmaps.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
-<!-- World Map Data dari CDN alternatif -->
 <script src="https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.1.0/custom/world.js"></script>
-<!-- Chart.js Library -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-    // Pastikan Highcharts ter-load sebelum memuat script kita
     function loadROICountryScript() {
         if (typeof Highcharts !== 'undefined' && Highcharts.mapChart) {
-            console.log('Highcharts Maps loaded successfully');
-            
-            // Check if world map data is loaded, if not, load fallback
             if (!Highcharts.maps || !Highcharts.maps['custom/world']) {
-                console.log('Loading fallback world map data...');
-                loadFallbackWorldMap();
+                Highcharts.maps = Highcharts.maps || {};
+                Highcharts.maps['custom/world'] = {
+                    "title": "World (Fallback)",
+                    "type": "FeatureCollection",
+                    "features": [
+                        {"type": "Feature", "id": "ID", "properties": {"hc-key": "id", "name": "Indonesia"}},
+                        {"type": "Feature", "id": "US", "properties": {"hc-key": "us", "name": "United States"}},
+                        {"type": "Feature", "id": "GB", "properties": {"hc-key": "gb", "name": "United Kingdom"}}
+                    ]
+                };
             }
-            
             var script = document.createElement('script');
             script.src = '{% static "ajax/admin/report_roi/per_country.js" %}?v={%now "U"%}';
             document.head.appendChild(script);
         } else {
-            console.log('Waiting for Highcharts Maps to load...');
             setTimeout(loadROICountryScript, 100);
         }
     }
-    
-    // Fallback function to load minimal world map data
-    function loadFallbackWorldMap() {
-        // Minimal world map data for common countries
-        Highcharts.maps = Highcharts.maps || {};
-        Highcharts.maps['custom/world'] = {
-            "title": "World (Fallback)",
-            "type": "FeatureCollection",
-            "features": [
-                {"type": "Feature", "id": "ID", "properties": {"hc-key": "id", "name": "Indonesia"}},
-                {"type": "Feature", "id": "US", "properties": {"hc-key": "us", "name": "United States"}},
-                {"type": "Feature", "id": "GB", "properties": {"hc-key": "gb", "name": "United Kingdom"}},
-                {"type": "Feature", "id": "DE", "properties": {"hc-key": "de", "name": "Germany"}},
-                {"type": "Feature", "id": "FR", "properties": {"hc-key": "fr", "name": "France"}},
-                {"type": "Feature", "id": "JP", "properties": {"hc-key": "jp", "name": "Japan"}},
-                {"type": "Feature", "id": "CN", "properties": {"hc-key": "cn", "name": "China"}},
-                {"type": "Feature", "id": "IN", "properties": {"hc-key": "in", "name": "India"}},
-                {"type": "Feature", "id": "BR", "properties": {"hc-key": "br", "name": "Brazil"}},
-                {"type": "Feature", "id": "AU", "properties": {"hc-key": "au", "name": "Australia"}}
-            ]
-        };
-        console.log('Fallback world map data loaded');
-    }
-    
     loadROICountryScript();
 </script>
 <script>
@@ -383,26 +502,22 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
     function decorateTourButtons() {
         const root = document.querySelector('.introjs-tooltip');
         if (!root) return;
-
         const prev = root.querySelector('.introjs-prevbutton');
         if (prev && !prev.dataset.iconized) {
             prev.dataset.iconized = '1';
             prev.insertAdjacentHTML('afterbegin', '<i class="fas fa-arrow-left" aria-hidden="true"></i>');
         }
-
         const next = root.querySelector('.introjs-nextbutton');
         if (next && !next.dataset.iconized) {
             next.dataset.iconized = '1';
             next.insertAdjacentHTML('beforeend', '<i class="fas fa-arrow-right" aria-hidden="true"></i>');
         }
-
         const done = root.querySelector('.introjs-donebutton');
         if (done && !done.dataset.iconized) {
             done.dataset.iconized = '1';
             done.insertAdjacentHTML('afterbegin', '<i class="fas fa-check-circle" aria-hidden="true"></i>');
         }
     }
-
     function isVisible(el) {
         if (!el) return false;
         if (el.getClientRects().length === 0) return false;
@@ -410,24 +525,13 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
         if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
         return true;
     }
-
     function startRoiPerCountryTour() {
         if (typeof introJs !== 'function') return;
-
-        const steps = [{
-            intro: 'Ini panduan singkat halaman ROI Traffic Per Negara. Klik “Lanjut” untuk mengikuti langkah-langkahnya.'
-        }];
-
+        const steps = [{ intro: 'Ini panduan singkat halaman ROI Traffic Per Negara. Klik “Lanjut” untuk mengikuti langkah-langkahnya.' }];
         const selectors = [
-            '#roiPerCountryFilters',
-            '#roiPerCountryToggle',
-            '#btn_load_data',
-            '#roiPerCountryLastUpdate',
-            '#summary_boxes',
-            '#charts_section',
-            '#table_traffic_country'
+            '#roiPerCountryFilters', '#roiPerCountryToggle', '#btn_load_data',
+            '#roiPerCountryLastUpdate', '#summary_boxes', '#charts_section', '#roiCountryTableSection'
         ];
-
         selectors.forEach(function(sel) {
             const el = document.querySelector(sel);
             if (!el) return;
@@ -438,37 +542,22 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 intro: el.getAttribute('data-intro') || ''
             });
         });
-
         steps.push({ intro: 'Selesai. Kamu bisa jalankan ulang petunjuk ini dari tombol “User Manual”.' });
-
         const tour = introJs();
         tour.setOptions({
-            steps: steps,
-            tooltipClass: 'hris-tour-tooltip',
-            highlightClass: 'hris-tour-highlight',
-            nextLabel: 'Lanjut',
-            prevLabel: 'Kembali',
-            doneLabel: 'Selesai',
-            showSkipButton: false,
-            showProgress: true,
-            showBullets: false,
-            exitOnOverlayClick: true,
-            scrollToElement: true
+            steps: steps, tooltipClass: 'hris-tour-tooltip', highlightClass: 'hris-tour-highlight',
+            nextLabel: 'Lanjut', prevLabel: 'Kembali', doneLabel: 'Selesai',
+            showSkipButton: false, showProgress: true, showBullets: false,
+            exitOnOverlayClick: true, scrollToElement: true
         });
-
         tour.onstart(decorateTourButtons);
         tour.onafterchange(decorateTourButtons);
         tour.onchange(decorateTourButtons);
-
         tour.start();
     }
-
     document.addEventListener('DOMContentLoaded', function() {
         const btn = document.getElementById('btnRoiPerCountryTour');
-        if (!btn) return;
-        btn.addEventListener('click', function() {
-            startRoiPerCountryTour();
-        });
+        if (btn) btn.addEventListener('click', startRoiPerCountryTour);
     });
 })();
 </script>

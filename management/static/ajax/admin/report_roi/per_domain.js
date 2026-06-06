@@ -1,6 +1,75 @@
 /**
  * Reference Ajax AdX Traffic Per Account
  */
+function escapeHtml(text) {
+    return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function isRoiDarkTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'dark';
+}
+
+function getRoiChartTheme() {
+    var dark = isRoiDarkTheme();
+    return {
+        text: dark ? '#e2e8f0' : '#334155',
+        muted: dark ? '#94a3b8' : '#64748b',
+        grid: dark ? 'rgba(148, 163, 184, 0.12)' : 'rgba(15, 23, 42, 0.08)',
+        tooltipBg: dark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+        tooltipBorder: dark ? 'rgba(255,255,255,0.1)' : 'rgba(15, 23, 42, 0.1)'
+    };
+}
+
+function showRoiDomainContent() {
+    $('#roiDomainEmpty').hide();
+}
+
+function resetRoiDomainSections() {
+    $('#summary_boxes, #charts_section').hide();
+}
+
+function formatSiteCell(name) {
+    var n = String(name || '-').trim();
+    if (!n || n === '-') return '-';
+    return '<span class="site-badge" title="' + escapeHtml(n) + '">' + escapeHtml(n) + '</span>';
+}
+
+function formatDateCell(formattedDate) {
+    if (!formattedDate || formattedDate === '-') return '-';
+    return '<span class="date-badge">' + escapeHtml(String(formattedDate)) + '</span>';
+}
+
+function buildRoiDomainRow(item) {
+    var formattedDate = item.date || '-';
+    if (item.date && item.date.match(/\d{4}-\d{2}-\d{2}/)) {
+        var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        var date = new Date(item.date + 'T00:00:00');
+        formattedDate = date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear();
+    }
+    return [
+        '',
+        formatSiteCell(item.site_name),
+        { display: formatDateCell(formattedDate), sort: item.date || '' },
+        Number(item.spend || 0),
+        Number(item.clicks_fb || 0),
+        Number(item.clicks_adx || 0),
+        Number(item.cpr || 0),
+        Number(item.ctr_fb || 0),
+        Number(item.ctr_adx || 0),
+        Number(item.cpc_fb || 0),
+        Number(item.cpc_adx || 0),
+        Number(item.cpm || 0),
+        Number(item.roi || 0),
+        Number(item.revenue || 0),
+        (Number(item.revenue || 0) - Number(item.spend || 0))
+    ];
+}
+
 function normalizeDomainFilter(selected_domain) {
     if (Array.isArray(selected_domain)) {
         return selected_domain.map(function (s) { return String(s || '').trim(); }).filter(function (s) { return s; }).join(',');
@@ -130,6 +199,8 @@ $().ready(function () {
     })
     $('#btn_load_data').click(function (e) {
         $('#overlay').show();
+        $('#roiDomainEmpty').hide();
+        resetRoiDomainSections();
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
         var selected_account = $("#account_filter").val();
@@ -177,15 +248,6 @@ $().ready(function () {
         }).filter(function (t) {
             return t;
         });
-    }
-
-    function escapeHtml(text) {
-        return String(text || '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/\"/g, '&quot;')
-            .replace(/'/g, '&#39;');
     }
 
     function escapeXmlText(text) {
@@ -640,7 +702,9 @@ $().ready(function () {
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
-                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val, 2) + ' %';
+                    if (type === 'sort' || type === 'type' || type === 'filter') return val;
+                    var cls = val >= 0 ? 'roi-val-positive' : 'roi-val-negative';
+                    return '<span class="' + cls + '">' + formatNumber(val, 2) + ' %</span>';
                 }
             },
             {
@@ -753,32 +817,7 @@ $().ready(function () {
         var table = window.ensureRoiDomainTable();
         table.clear();
         displayData.forEach(function (item) {
-            var formattedDate = item.date || '-';
-            if (item.date && item.date.match(/\d{4}-\d{2}-\d{2}/)) {
-                var months = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
-                var date = new Date(item.date + 'T00:00:00');
-                formattedDate = date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear();
-            }
-            table.row.add([
-                '',
-                item.site_name || '-',
-                {
-                    display: formattedDate,
-                    sort: item.date || '' // YYYY-MM-DD
-                },
-                Number(item.spend || 0),
-                Number(item.clicks_fb || 0),
-                Number(item.clicks_adx || 0),
-                Number(item.cpr || 0),
-                Number(item.ctr_fb || 0),
-                Number(item.ctr_adx || 0),
-                Number(item.cpc_fb || 0),
-                Number(item.cpc_adx || 0),
-                Number(item.cpm || 0),
-                Number(item.roi || 0),
-                Number(item.revenue || 0),
-                (Number(item.revenue || 0) - Number(item.spend || 0))
-            ]);
+            table.row.add(buildRoiDomainRow(item));
         });
         table.draw();
     });
@@ -837,6 +876,7 @@ function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_ac
                     $('#total_net_revenue').text(formatCurrencyIDR(totalNetRevenue));
 
                     $('#summary_boxes').show();
+                    showRoiDomainContent();
                 };
                 // Create ROI Daily Chart
                 // Simpan dataset agregasi (all vs filtered)
@@ -858,53 +898,24 @@ function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_ac
                 // Chart: gunakan data hasil filter
                 if (displayData && displayData.length > 0) {
                     $('#charts_section').show();
+                    $('#chartRoiDailyEmpty').hide();
                     createROIDailyChart(displayData);
                     if (roiChart && typeof roiChart.resize === 'function') { roiChart.resize(); }
                 } else {
                     if (roiChart) { roiChart.destroy(); roiChart = null; }
                     $('#charts_section').hide();
+                    $('#chart_roi_daily').hide();
+                    $('#chartRoiDailyEmpty').show();
                 }
                 
-                // Update DataTable menggunakan data hasil filter
                 var table = window.ensureRoiDomainTable();
                 table.clear();
-                
                 displayData.forEach(function (item) {
-                    var formattedDate = item.date || '-';
-                    if (item.date && item.date.match(/\d{4}-\d{2}-\d{2}/)) {
-                        var months = [
-                            'Januari','Februari','Maret','April','Mei','Juni',
-                            'Juli','Agustus','September','Oktober','November','Desember'
-                        ];
-                        var date = new Date(item.date + 'T00:00:00');
-                        var day = date.getDate();
-                        var month = months[date.getMonth()];
-                        var year = date.getFullYear();
-                        formattedDate = day + ' ' + month + ' ' + year;
-                    }
-                    table.row.add([
-                        '',
-                        item.site_name || '-',
-                        {
-                            display: formattedDate,
-                            sort: item.date || '' // YYYY-MM-DD
-                        },
-                        Number(item.spend || 0),
-                        Number(item.clicks_fb || 0),
-                        Number(item.clicks_adx || 0),
-                        Number(item.cpr || 0),
-                        Number(item.ctr_fb || 0),
-                        Number(item.ctr_adx || 0),
-                        Number(item.cpc_fb || 0),
-                        Number(item.cpc_adx || 0),
-                        Number(item.cpm || 0),
-                        Number(item.roi || 0),
-                        Number(item.revenue || 0),
-                        (Number(item.revenue || 0) - Number(item.spend || 0))
-                    ]);
+                    table.row.add(buildRoiDomainRow(item));
                 });
                 
                 table.draw();
+                showRoiDomainContent();
                 showSuccessMessage('Traffic data loaded successfully!');
                 $("#overlay").hide();
             } else {
@@ -958,7 +969,7 @@ function showSuccessMessage(message) {
     alertHtml += '<span aria-hidden="true">&times;</span>';
     alertHtml += '</button>';
     alertHtml += '</div>';
-    $('.card-body').first().prepend(alertHtml);
+    $('.roi-filter-card .card-body').first().prepend(alertHtml);
     setTimeout(function () {
         $('.alert-success').fadeOut('slow', function () {
             $(this).remove();
@@ -984,12 +995,21 @@ const csrftoken = getCookie('csrftoken');
 let roiChart = null;
 // Function to create ROI Daily Chart
 function createROIDailyChart(data) {
-    // Check if Chart.js is loaded
     if (typeof Chart === 'undefined') {
         console.error('Chart.js is not loaded!');
         return;
     }
-    // Destroy existing chart if it exists
+    if (!data || data.length === 0) {
+        if (roiChart) { roiChart.destroy(); roiChart = null; }
+        $('#chart_roi_daily').hide();
+        $('#chartRoiDailyEmpty').show();
+        return;
+    }
+    $('#chart_roi_daily').show();
+    $('#chartRoiDailyEmpty').hide();
+
+    var theme = getRoiChartTheme();
+
     if (roiChart) {
         roiChart.destroy();
     }
@@ -1074,15 +1094,15 @@ function createROIDailyChart(data) {
                 {
                     label: 'ROI Harian (%)',
                     data: avgROIData,
-                    borderColor: 'rgb(75, 192, 192)',
-                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                    borderWidth: 3,
+                    borderColor: 'rgba(13, 148, 136, 1)',
+                    backgroundColor: 'rgba(13, 148, 136, 0.12)',
+                    borderWidth: 2.5,
                     fill: true,
-                    tension: 0.4,
-                    pointBackgroundColor: 'rgb(75, 192, 192)',
+                    tension: 0.35,
+                    pointBackgroundColor: 'rgba(13, 148, 136, 1)',
                     pointBorderColor: '#fff',
                     pointBorderWidth: 2,
-                    pointRadius: 6,
+                    pointRadius: 5,
                     yAxisID: 'y',
                     order: 1
                 }
@@ -1092,21 +1112,20 @@ function createROIDailyChart(data) {
             responsive: true,
             maintainAspectRatio: false,
             plugins: {
-                title: {
-                    display: true,
-                    text: 'Tren ROI Harian',
-                    font: {
-                        size: 16,
-                        weight: 'bold'
-                    }
-                },
+                title: { display: false },
                 legend: {
                     display: true,
-                    position: 'top'
+                    position: 'top',
+                    labels: { color: theme.text, boxWidth: 12, padding: 14, font: { size: 11 } }
                 },
                 tooltip: {
                     mode: 'index',
                     intersect: false,
+                    backgroundColor: theme.tooltipBg,
+                    borderColor: theme.tooltipBorder,
+                    borderWidth: 1,
+                    titleColor: theme.text,
+                    bodyColor: theme.text,
                     callbacks: {
                         label: function (context) {
                             const dataIndex = context.dataIndex;
@@ -1132,62 +1151,31 @@ function createROIDailyChart(data) {
             scales: {
                 x: {
                     display: true,
-                    title: {
-                        display: true,
-                        text: 'Tanggal',
-                        font: {
-                            weight: 'bold'
-                        }
-                    },
-                    grid: {
-                        display: true,
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    }
+                    title: { display: true, text: 'Tanggal', font: { weight: 'bold' }, color: theme.text },
+                    ticks: { color: theme.muted },
+                    grid: { display: true, color: theme.grid }
                 },
                 y: {
                     display: true,
-                    title: {
-                        display: true,
-                        text: 'ROI (%)',
-                        font: {
-                            weight: 'bold'
-                        }
-                    },
-                    grid: {
-                        display: true,
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    },
+                    title: { display: true, text: 'ROI (%)', font: { weight: 'bold' }, color: theme.text },
                     ticks: {
-                        callback: function (value) {
-                            return value + '%';
-                        }
-                    }
+                        color: theme.muted,
+                        callback: function (value) { return value + '%'; }
+                    },
+                    grid: { display: true, color: theme.grid }
                 },
                 y1: {
                     display: true,
                     position: 'right',
-                    title: {
-                        display: true,
-                        text: 'Profit (Rp)',
-                        font: {
-                            weight: 'bold'
-                        }
-                    },
-                    grid: {
-                        drawOnChartArea: false
-                    },
+                    title: { display: true, text: 'Profit (Rp)', font: { weight: 'bold' }, color: theme.text },
+                    grid: { drawOnChartArea: false },
                     ticks: {
-                        callback: function (value) {
-                            return formatCurrencyIDR(value);
-                        }
+                        color: theme.muted,
+                        callback: function (value) { return formatCurrencyIDR(value); }
                     }
                 }
             },
-            interaction: {
-                mode: 'nearest',
-                axis: 'x',
-                intersect: false
-            }
+            interaction: { mode: 'nearest', axis: 'x', intersect: false }
         }
     });
 }

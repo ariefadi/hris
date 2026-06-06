@@ -13,31 +13,228 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css">
 <style>
 :root {
+    --adx-accent: #6366f1;
+    --adx-surface: #ffffff;
+    --adx-surface-2: #f8fafc;
+    --adx-border: rgba(15, 23, 42, 0.08);
+    --adx-text: #0f172a;
+    --adx-muted: #64748b;
+    --adx-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    --adx-radius: 16px;
     --tour-bg: rgba(241, 245, 249, 0.92);
     --tour-fg: #0f172a;
     --tour-border: rgba(15, 23, 42, 0.14);
     --tour-shadow: 0 18px 40px rgba(2, 6, 23, 0.16);
     --tour-overlay: rgba(15, 23, 42, 0.62);
-    --tour-ring: rgba(37, 99, 235, 0.32);
-    --tour-next-grad: linear-gradient(135deg, #2563eb, #7c3aed);
+    --tour-ring: rgba(99, 102, 241, 0.32);
+    --tour-next-grad: linear-gradient(135deg, #6366f1, #8b5cf6);
 }
 html[data-theme="dark"] {
+    --adx-surface: #1e293b;
+    --adx-surface-2: #0f172a;
+    --adx-border: rgba(255, 255, 255, 0.08);
+    --adx-text: #e2e8f0;
+    --adx-muted: #94a3b8;
+    --adx-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
     --tour-bg: rgba(30, 41, 59, 0.88);
     --tour-fg: #e5e7eb;
     --tour-border: rgba(255, 255, 255, 0.12);
-    --tour-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
     --tour-overlay: rgba(0, 0, 0, 0.74);
-    --tour-ring: rgba(34, 211, 238, 0.28);
-    --tour-next-grad: linear-gradient(135deg, #22c55e, #06b6d4);
+    --tour-ring: rgba(129, 140, 248, 0.28);
+    --tour-next-grad: linear-gradient(135deg, #6366f1, #06b6d4);
 }
-.hris-tour-launch-btn {
-    border-radius: 999px;
-    padding: 6px 12px;
-    font-weight: 700;
-    border: 0 !important;
-    color: #fff !important;
+.adx-account-page .card {
+    border: 1px solid var(--adx-border);
+    border-radius: var(--adx-radius);
+    box-shadow: var(--adx-shadow);
+    margin-bottom: 16px;
+}
+.adx-account-page .card-header {
+    background: var(--adx-surface);
+    border-bottom: 1px solid var(--adx-border);
+    padding: 14px 18px;
+}
+.adx-account-page .card-title { color: var(--adx-text); font-weight: 800; margin: 0; }
+.adx-account-page .card-subtitle { color: var(--adx-muted); font-size: 0.85rem; }
+.hris-tour-launch-btn, .adx-account-tour-btn {
+    border-radius: 999px; padding: 6px 14px; font-weight: 700;
+    border: 0 !important; color: #fff !important;
     background: var(--tour-next-grad) !important;
 }
+.adx-account-page .adx-filter-row { align-items: flex-end; }
+.adx-account-page .adx-filter-field label {
+    display: block; margin-bottom: 0.35rem; font-size: 0.82rem;
+    font-weight: 700; color: var(--adx-muted); text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.adx-account-page .adx-filter-field .form-control,
+.adx-account-page .adx-filter-field .select2-container .select2-selection--single {
+    min-height: 38px; border-radius: 10px; border-color: var(--adx-border);
+}
+.adx-account-page #btn_load_data {
+    border-radius: 10px; font-weight: 700;
+    box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+}
+.adx-account-page .adx-oauth-alert {
+    border-radius: 12px; border: 1px solid var(--adx-border);
+    margin-bottom: 16px;
+}
+.adx-info-hero {
+    background: linear-gradient(135deg, #4338ca 0%, #6366f1 55%, #818cf8 100%);
+    border-radius: 14px; padding: 18px 20px; color: #fff; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+}
+.adx-info-hero-icon {
+    width: 48px; height: 48px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.2); font-size: 1.3rem; flex-shrink: 0;
+}
+.adx-info-hero-title { font-size: 1.15rem; font-weight: 800; margin: 0; color: #fff; }
+.adx-info-hero-sub { font-size: 0.82rem; opacity: 0.9; margin: 2px 0 0; color: #fff; }
+.adx-info-hero-badge {
+    margin-left: auto; padding: 6px 12px; border-radius: 999px;
+    background: rgba(255,255,255,0.2); font-size: 0.78rem; font-weight: 700;
+}
+.adx-info-hero .adx-status-badge.active {
+    background: rgba(255,255,255,0.25); color: #fff;
+    border-color: rgba(255,255,255,0.35);
+}
+.adx-info-hero .adx-status-badge.inactive {
+    background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.9);
+    border-color: rgba(255,255,255,0.25);
+}
+.adx-info-section {
+    background: var(--adx-surface-2); border: 1px solid var(--adx-border);
+    border-radius: 14px; padding: 14px 16px; margin-bottom: 14px;
+}
+.adx-info-section-title {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 0.78rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--adx-muted); margin-bottom: 12px;
+}
+.adx-info-section-title i {
+    width: 28px; height: 28px; border-radius: 8px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.12));
+    color: var(--adx-accent); font-size: 0.85rem;
+}
+.adx-info-metrics {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px;
+}
+@media (max-width: 767px) { .adx-info-metrics { grid-template-columns: 1fr; } }
+.adx-info-metric {
+    background: var(--adx-surface); border: 1px solid var(--adx-border);
+    border-radius: 12px; padding: 12px 14px;
+}
+.adx-info-metric-label {
+    font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--adx-muted); margin-bottom: 6px;
+}
+.adx-info-metric-value {
+    font-size: 0.95rem; font-weight: 800; color: var(--adx-text);
+    word-break: break-all; line-height: 1.35;
+}
+.adx-info-rows {
+    border: 1px solid var(--adx-border); border-radius: 12px; overflow: hidden;
+}
+.adx-info-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 14px; font-size: 0.84rem;
+    border-bottom: 1px solid var(--adx-border);
+}
+.adx-info-row:last-child { border-bottom: 0; }
+.adx-info-row:nth-child(even) { background: var(--adx-surface); }
+.adx-info-row .label { color: var(--adx-muted); font-weight: 600; flex-shrink: 0; }
+.adx-info-row .value { color: var(--adx-text); font-weight: 700; text-align: right; word-break: break-word; }
+.adx-info-empty {
+    text-align: center; padding: 48px 24px; color: var(--adx-muted);
+}
+.adx-info-empty-icon {
+    width: 68px; height: 68px; margin: 0 auto 14px; border-radius: 18px;
+    display: flex; align-items: center; justify-content: center; font-size: 1.8rem;
+    color: var(--adx-accent);
+    background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08));
+}
+.adx-info-empty-title { font-size: 16px; font-weight: 800; color: var(--adx-text); margin-bottom: 6px; }
+.adx-cred-table-wrap { overflow-x: auto; }
+.adx-cred-table {
+    width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px;
+}
+.adx-cred-table thead th {
+    background: linear-gradient(180deg, var(--adx-surface-2) 0%, var(--adx-surface) 100%);
+    color: var(--adx-text); font-weight: 700; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    border-bottom: 2px solid var(--adx-border);
+    padding: 12px 10px; white-space: nowrap; text-align: center;
+}
+.adx-cred-table tbody td {
+    padding: 12px 10px; vertical-align: middle;
+    border-bottom: 1px solid var(--adx-border); color: var(--adx-text);
+}
+.adx-cred-table tbody tr:hover td { background: rgba(99, 102, 241, 0.06); }
+html[data-theme="dark"] .adx-cred-table tbody tr:hover td { background: rgba(99, 102, 241, 0.12); }
+.adx-account-name-badge {
+    display: inline-block; font-weight: 800; color: var(--adx-text);
+    font-size: 0.9rem; margin-bottom: 2px;
+}
+.adx-account-email {
+    display: block; font-size: 0.78rem; color: var(--adx-muted);
+}
+.adx-status-badge {
+    display: inline-block; padding: 4px 10px; border-radius: 999px;
+    font-size: 0.72rem; font-weight: 700;
+}
+.adx-status-badge.active {
+    background: rgba(16, 185, 129, 0.12); color: #047857;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+}
+.adx-status-badge.inactive {
+    background: rgba(100, 116, 139, 0.12); color: #475569;
+    border: 1px solid rgba(100, 116, 139, 0.2);
+}
+html[data-theme="dark"] .adx-status-badge.active { color: #6ee7b7; }
+.adx-share-badge {
+    display: inline-block; padding: 4px 10px; border-radius: 8px;
+    font-size: 0.82rem; font-weight: 700;
+    background: rgba(99, 102, 241, 0.12); color: #4338ca;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+}
+html[data-theme="dark"] .adx-share-badge { color: #a5b4fc; }
+.adx-network-code {
+    display: inline-block; padding: 4px 10px; border-radius: 8px;
+    font-family: ui-monospace, monospace; font-size: 0.82rem; font-weight: 700;
+    background: var(--adx-surface-2); border: 1px solid var(--adx-border);
+}
+.adx-client-id {
+    font-family: ui-monospace, monospace; font-size: 0.78rem;
+    color: var(--adx-muted); max-width: 180px; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; display: inline-block;
+}
+.adx-action-group { display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
+.adx-action-group .btn {
+    border-radius: 8px; padding: 5px 8px; line-height: 1;
+}
+.adx-cred-footer {
+    margin-top: 12px; padding-top: 12px;
+    border-top: 1px solid var(--adx-border);
+    font-size: 0.82rem; color: var(--adx-muted);
+}
+.adx-cred-empty {
+    text-align: center; padding: 40px 24px; color: var(--adx-muted);
+    background: var(--adx-surface-2); border-radius: 12px;
+    border: 1px dashed var(--adx-border);
+}
+.adx-modal .modal-content {
+    border-radius: 16px; border: 1px solid var(--adx-border);
+    overflow: hidden; box-shadow: var(--adx-shadow);
+}
+.adx-modal .modal-header {
+    background: linear-gradient(135deg, #4338ca, #6366f1);
+    color: #fff; border-bottom: 0;
+}
+.adx-modal .modal-header .modal-title { font-weight: 800; color: #fff; }
+.adx-modal .modal-header .close { color: #fff; opacity: 0.85; text-shadow: none; }
+.adx-modal .modal-footer { background: var(--adx-surface-2); border-top: 1px solid var(--adx-border); }
 .introjs-overlay { background: var(--tour-overlay) !important; opacity: 1 !important; }
 .introjs-tooltip.hris-tour-tooltip {
     width: min(900px, calc(100vw - 48px));
@@ -78,33 +275,23 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 {% endblock %}
 {% block content %}
 {% csrf_token %}
-<style>
-    .dt-buttons {
-        margin-bottom: 20px;
-    }
-</style>
+<div class="adx-account-page">
 {% if oauth_banner.show %}
-<div class="alert alert-warning d-flex align-items-center" role="alert" style="border-radius: 10px;">
+<div class="alert alert-warning adx-oauth-alert d-flex align-items-center" role="alert">
     <i class="bi bi-exclamation-triangle-fill me-2"></i>
-    <div class="flex-grow-1">
-        {{ oauth_banner.message }}
-    </div>
-    <a href="{% url 'oauth_management_dashboard' %}" class="btn btn-sm btn-primary ms-3">
-        Authorize Ad Manager
-    </a>
+    <div class="flex-grow-1">{{ oauth_banner.message }}</div>
+    <a href="{% url 'oauth_management_dashboard' %}" class="btn btn-sm btn-primary ms-3">Authorize Ad Manager</a>
 </div>
 {% endif %}
 {% if oauth_success_msg %}
-<div class="alert alert-success d-flex align-items-center" role="alert" style="border-radius: 10px;">
+<div class="alert alert-success adx-oauth-alert d-flex align-items-center" role="alert">
     <i class="bi bi-check-circle-fill me-2"></i>
-    <div class="flex-grow-1">
-        {{ oauth_success_msg }}
-    </div>
+    <div class="flex-grow-1">{{ oauth_success_msg }}</div>
 </div>
 {% endif %}
 
 <!-- Assign Account Modal -->
-<div class="modal fade" id="assignAccountModal" tabindex="-1" role="dialog" aria-labelledby="assignAccountModalLabel" aria-hidden="true">
+<div class="modal fade adx-modal" id="assignAccountModal" tabindex="-1" role="dialog" aria-labelledby="assignAccountModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
@@ -148,7 +335,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 </div>
 
 <!-- Edit Account Modal -->
-<div class="modal fade" id="editAccountNameModal" tabindex="-1" role="dialog" aria-labelledby="editAccountNameModalLabel" aria-hidden="true">
+<div class="modal fade adx-modal" id="editAccountNameModal" tabindex="-1" role="dialog" aria-labelledby="editAccountNameModalLabel" aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
             <div class="modal-header">
@@ -192,18 +379,21 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
     </div>
 </div>
 
-<div class="card">
+<div class="card adx-filter-card">
     <div class="card-header">
-        <div class="d-flex align-items-center justify-content-between w-100">
-            <h3 class="card-title mb-0">AdX Account Data</h3>
-            <button type="button" class="btn btn-sm hris-tour-launch-btn" id="btnAdxAccountTour">
+        <div class="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2">
+            <div>
+                <h3 class="card-title">AdX Account Data</h3>
+                <small class="card-subtitle">Kelola kredensial dan lihat informasi akun Ad Manager</small>
+            </div>
+            <button type="button" class="btn btn-sm adx-account-tour-btn" id="btnAdxAccountTour">
                 <i class="far fa-question-circle" aria-hidden="true"></i> User Manual
             </button>
         </div>
-    </div> <!-- /.card-header -->
+    </div>
     <div class="card-body">
-        <div class="form-row" id="adxAccountFilters" data-intro="Pilih akun, lalu gunakan tombol-tombol aksi untuk memuat data atau melakukan setup OAuth." data-title="Filter">
-            <div class="col-md-4">
+        <div class="form-row adx-filter-row" id="adxAccountFilters" data-intro="Pilih akun, lalu gunakan tombol-tombol aksi untuk memuat data atau melakukan setup OAuth." data-title="Filter">
+            <div class="col-md-4 adx-filter-field">
                 <label>Filter Account</label>
                 <select class="form-control select2" id="account_filter">
                     <option value="">-- Pilih Akun Terdaftar --</option>
@@ -212,236 +402,204 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-2 adx-filter-field">
                 <label>&nbsp;</label>
                 <button type="button" class="btn btn-primary form-control" id="btn_load_data" data-intro="Memuat detail AdX Account Information untuk akun yang dipilih." data-title="Muat Data">
                     <i class="fas fa-search"></i> Muat Data
                 </button>
             </div>
             {% if user.super_st == '1' %}
-            <div class="col-md-3">
+            <div class="col-md-3 adx-filter-field">
                 <label>&nbsp;</label>
                 <button type="button" class="btn btn-success form-control" id="btn_add_credentials" data-intro="Mulai proses tambah kredensial Google OAuth (khusus super admin)." data-title="Tambah Kredensial">
-                    <i class="bi bi-shield-lock"></i> Tambah Kredensial (Google OAuth)
+                    <i class="bi bi-shield-lock"></i> Tambah Kredensial
                 </button>
             </div>
             {% endif %}
-            <div class="col-md-2">
+            <div class="col-md-2 adx-filter-field">
                 <label>&nbsp;</label>
                 <button type="button" class="btn btn-info form-control" id="btn_oauth_setup" data-toggle="modal"
                     data-target="#oauthModal" data-intro="Buka form untuk menyimpan OAuth credentials (Client ID/Secret/Network Code/Email)." data-title="OAuth Setup">
-                    <i class="fas fa-cog"></i> OAuth Setup Credensial
+                    <i class="fas fa-cog"></i> OAuth Setup
                 </button>
             </div>
         </div>
-    </div><!-- /.card-body -->
+    </div>
 </div>
-<div class="row">
-    <div class="col-md-12">
-        <div class="card" id="adxAccountInfo" data-intro="Panel ini menampilkan informasi Network, Settings, dan detail user setelah data akun dimuat." data-title="Informasi Akun">
-            <div class="card-header">
-                <div class="card-title d-flex justify-content-between align-items-center w-100">
-                    <h3 class="card-title"><b><i class="bi bi-building"></i> AdX Account Information</b></h3>
+<div class="card adx-info-card" id="adxAccountInfo" data-intro="Panel ini menampilkan informasi Network, Settings, dan detail user setelah data akun dimuat." data-title="Informasi Akun">
+    <div class="card-header">
+        <h3 class="card-title"><i class="bi bi-building text-primary"></i> AdX Account Information</h3>
+    </div>
+    <div class="card-body position-relative">
+        <div id="overlay" class="hris-loader-stub" style="display:none" data-loader-message="Loading Account Data ..." aria-hidden="true"></div>
+
+        <div class="adx-info-empty" id="adxAccountInfoEmpty">
+            <div class="adx-info-empty-icon"><i class="bi bi-cloud-download"></i></div>
+            <div class="adx-info-empty-title">Belum ada data akun dimuat</div>
+            <p class="mb-0">Pilih akun dari filter di atas, lalu klik <strong>Muat Data</strong> atau gunakan tombol aksi di tabel kredensial.</p>
+        </div>
+
+        <div id="adxAccountInfoContent" style="display:none;">
+            <div class="adx-info-hero">
+                <div class="adx-info-hero-icon"><i class="bi bi-broadcast"></i></div>
+                <div>
+                    <h4 class="adx-info-hero-title" id="display_name">-</h4>
+                    <p class="adx-info-hero-sub"><i class="bi bi-envelope"></i> <span id="user_mail">-</span></p>
+                </div>
+                <span class="adx-info-hero-badge"><span class="adx-status-badge active" id="status">Active</span></span>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-6">
+                    <div class="adx-info-section">
+                        <div class="adx-info-section-title"><i class="bi bi-diagram-3"></i> Network Information</div>
+                        <div class="adx-info-metrics">
+                            <div class="adx-info-metric">
+                                <div class="adx-info-metric-label">Network ID</div>
+                                <div class="adx-info-metric-value" id="network_id">-</div>
+                            </div>
+                            <div class="adx-info-metric">
+                                <div class="adx-info-metric-label">Network Code</div>
+                                <div class="adx-info-metric-value" id="network_code">-</div>
+                            </div>
+                            <div class="adx-info-metric">
+                                <div class="adx-info-metric-label">Timezone</div>
+                                <div class="adx-info-metric-value" id="timezone">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="adx-info-section">
+                        <div class="adx-info-section-title"><i class="bi bi-gear"></i> Settings</div>
+                        <div class="adx-info-metrics">
+                            <div class="adx-info-metric">
+                                <div class="adx-info-metric-label">Currency Code</div>
+                                <div class="adx-info-metric-value" id="currency_code">-</div>
+                            </div>
+                            <div class="adx-info-metric">
+                                <div class="adx-info-metric-label">Active Ad Units</div>
+                                <div class="adx-info-metric-value" id="active_ad_units_count">-</div>
+                            </div>
+                            <div class="adx-info-metric">
+                                <div class="adx-info-metric-label">Last Updated</div>
+                                <div class="adx-info-metric-value" id="last_updated">-</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            <div class="card-body">
-                <div id="overlay" class="hris-loader-stub" style="display:none" data-loader-message="Loading Account Data ..." aria-hidden="true"></div>
-                <!-- Account Info Cards -->
-                <div class="row">
-                    <div class="col-12 col-md-6">
-                        <div class="card card-outline card-primary">
-                            <div class="card-header">
-                                <h3 class="card-title"><i class="bi bi-info-circle"></i> Network Information</h3>
-                            </div>
-                            <div class="card-body">
-                                <table class="table table-borderless">
-                                    <tr>
-                                        <td><strong>Network ID:</strong></td>
-                                        <td id="network_id">-</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Network Code:</strong></td>
-                                        <td id="network_code">-</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Display Name:</strong></td>
-                                        <td id="display_name">-</td>
-                                    </tr>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-12 col-md-6">
-                        <div class="card card-outline card-success">
-                            <div class="card-header">
-                                <h3 class="card-title"><i class="bi bi-gear"></i> Settings</h3>
-                            </div>
-                            <div class="card-body">
-                                <table class="table table-borderless">
-                                    <tr>
-                                        <td><strong>Timezone:</strong></td>
-                                        <td id="timezone">-</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Currency Code:</strong></td>
-                                        <td id="currency_code">-</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Status:</strong></td>
-                                        <td><span class="badge badge-success" id="status">Active</span></td>
-                                    </tr>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
+
+            <div class="adx-info-section">
+                <div class="adx-info-section-title"><i class="bi bi-person"></i> User Information</div>
+                <div class="adx-info-rows">
+                    <div class="adx-info-row"><span class="label">User ID</span><span class="value" id="user_id">-</span></div>
+                    <div class="adx-info-row"><span class="label">User Name</span><span class="value" id="user_name">-</span></div>
+                    <div class="adx-info-row"><span class="label">Role</span><span class="value" id="user_role">-</span></div>
+                    <div class="adx-info-row"><span class="label">Active</span><span class="value" id="user_is_active">-</span></div>
                 </div>
-                <!-- Additional Account Details -->
-                <div class="row mt-3">
-                    <div class="col-12">
-                        <div class="card card-outline card-info">
-                            <div class="card-header">
-                                <h3 class="card-title"><i class="bi bi-list-ul"></i> Account Details</h3>
-                            </div>
-                            <div class="card-body">
-                                <div id="account_details">
-                                    <div class="row">
-                                        <div class="col-md-12">
-                                            <h5><i class="bi bi-person"></i> User Information</h5>
-                                            <table class="table table-sm table-borderless">
-                                                <tr>
-                                                    <td><strong>Email:</strong></td>
-                                                    <td id="user_mail">-</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><strong>User ID:</strong></td>
-                                                    <td id="user_id">-</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><strong>User Name:</strong></td>
-                                                    <td id="user_name">-</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><strong>Role:</strong></td>
-                                                    <td id="user_role">-</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><strong>Active:</strong></td>
-                                                    <td id="user_is_active">-</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><strong>Active Ad Units:</strong></td>
-                                                    <td id="active_ad_units_count">-</td>
-                                                </tr>
-                                                <tr>
-                                                    <td><strong>Last Updated:</strong></td>
-                                                    <td id="last_updated">-</td>
-                                                </tr>
-                                            </table>
-                                        </div>
-                                    </div>
-                                    <div class="alert alert-info mt-3" id="data_note" style="display: none;">
-                                        <i class="bi bi-info-circle"></i> <span id="note_text"></span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <div id="additional_info" class="mt-3"></div>
+            </div>
+
+            <div class="alert alert-info mt-3" id="data_note" style="display: none; border-radius: 12px;">
+                <i class="bi bi-info-circle"></i> <span id="note_text"></span>
             </div>
         </div>
     </div>
-    <div class="col-md-12">
-        <div class="card" id="adxCredentials" data-intro="Daftar kredensial yang tersimpan. Gunakan tombol aksi di tiap baris untuk Load Data, Assign, Edit, atau Hapus." data-title="Kredensial">
-            <div class="card-header">
-                <h3 class="card-title"><b><i class="bi bi-list"></i> Data Kredensial Aplikasi</b></h3>
-            </div>
-            <div class="card-body">
-                {% if credentials_data %}
-                <div class="table-responsive">
-                    <table class="table table-bordered table-striped">
-                        <thead class="table-dark">
-                            <tr>
-                                <th class="text-center">No</th>
-                                <th class="text-center">Account</th>
-                                <th class="text-center">Client ID</th>
-                                <th class="text-center">Network Code</th>
-                                <th class="text-center">Status</th>
-                                <th class="text-center">Prosentase <br> Share Profit</th>
-                                <th class="text-center">Assigned Users</th>
-                                <th class="text-center">#</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for credential in credentials_data %}
-                            <tr>
-                                <td class="text-center">{{ forloop.counter }}</td>
-                                <td><b><u>{{ credential.account_name|default:"-" }}</u></b> <br> <small class="text-muted">{{ credential.user_mail|default:"-" }}</small></td>
-                                <td>{{ credential.client_id|truncatechars:50|default:"-" }}</td>
-                                <td class="text-center">{{ credential.network_code|default:"-" }}</td>
-                                <td class="text-center">
-                                    {% if credential.is_active %}
-                                        <span class="badge badge-success">Aktif</span>
-                                    {% else %}
-                                        <span class="badge badge-secondary">Tidak Aktif</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-center">{{ credential.mcm_revenue_share|default:"0" }}%</td>
-                                <td class="text-center">{{ credential.assigned_users|safe|default:'-' }}</td>
-                                <td class="text-center">
-                                    <button class="btn btn-sm btn-primary load-account-data" 
-                                            data-email="{{ credential.user_mail }}"
-                                            data-account-id="{{ credential.account_id }}"
-                                            data-account-name="{{ credential.account_name }}"
-                                            data-network-code="{{ credential.network_code }}"
-                                            title="Load Data Akun">
-                                        <i class="bi bi-tv"></i> 
-                                    </button>
-                                    {% if user.user_name == 'superadmin' %}
-                                    <button class="btn btn-sm btn-info assign-account-data" 
-                                            data-email="{{ credential.user_mail }}"
-                                            data-account-id="{{ credential.account_id }}"
-                                            data-account-name="{{ credential.account_name }}"
-                                            data-network-code="{{ credential.network_code }}"
-                                            title="Assign Akun">
-                                        <i class="bi bi-box-arrow-right"></i> 
-                                    </button>
-                                    <button class="btn btn-sm btn-warning edit-account-name" 
-                                            data-email="{{ credential.user_mail }}"
-                                            data-account-name="{{ credential.account_name }}"
-                                            data-mcm-revenue-share="{{ credential.mcm_revenue_share|default:'0' }}"
-                                            title="Edit Account">
-                                        <i class="bi bi-pencil"></i> 
-                                    </button>
-                                    <button class="btn btn-sm btn-danger delete-account-credentials" 
-                                            data-email="{{ credential.user_mail }}"
-                                            data-account-name="{{ credential.account_name }}"
-                                            title="Hapus Kredensial">
-                                        <i class="bi bi-trash"></i> 
-                                    </button>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                <div class="mt-3">
-                    <small class="text-muted">
-                        Total: {{ total_accounts }} kredensial terdaftar
-                    </small>
-                </div>
-                {% else %}
-                <div class="alert alert-info">
-                    <i class="bi bi-info-circle"></i>
-                    Belum ada data kredensial aplikasi yang terdaftar.
-                </div>
-                {% endif %}
-            </div>
+</div>
+<div class="card adx-cred-card" id="adxCredentials" data-intro="Daftar kredensial yang tersimpan. Gunakan tombol aksi di tiap baris untuk Load Data, Assign, Edit, atau Hapus." data-title="Kredensial">
+    <div class="card-header">
+        <h3 class="card-title"><i class="bi bi-shield-lock text-primary"></i> Data Kredensial Aplikasi</h3>
+    </div>
+    <div class="card-body">
+        {% if credentials_data %}
+        <div class="adx-cred-table-wrap">
+            <table class="adx-cred-table">
+                <thead>
+                    <tr>
+                        <th>No</th>
+                        <th>Account</th>
+                        <th>Client ID</th>
+                        <th>Network Code</th>
+                        <th>Status</th>
+                        <th>Share Profit</th>
+                        <th>Assigned Users</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for credential in credentials_data %}
+                    <tr>
+                        <td class="text-center">{{ forloop.counter }}</td>
+                        <td>
+                            <span class="adx-account-name-badge">{{ credential.account_name|default:"-" }}</span>
+                            <span class="adx-account-email">{{ credential.user_mail|default:"-" }}</span>
+                        </td>
+                        <td><span class="adx-client-id" title="{{ credential.client_id|default:'' }}">{{ credential.client_id|truncatechars:50|default:"-" }}</span></td>
+                        <td class="text-center"><span class="adx-network-code">{{ credential.network_code|default:"-" }}</span></td>
+                        <td class="text-center">
+                            {% if credential.is_active %}
+                                <span class="adx-status-badge active">Aktif</span>
+                            {% else %}
+                                <span class="adx-status-badge inactive">Tidak Aktif</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center"><span class="adx-share-badge">{{ credential.mcm_revenue_share|default:"0" }}%</span></td>
+                        <td class="text-center">{{ credential.assigned_users|safe|default:'-' }}</td>
+                        <td class="text-center">
+                            <div class="adx-action-group">
+                                <button class="btn btn-sm btn-primary load-account-data"
+                                        data-email="{{ credential.user_mail }}"
+                                        data-account-id="{{ credential.account_id }}"
+                                        data-account-name="{{ credential.account_name }}"
+                                        data-network-code="{{ credential.network_code }}"
+                                        title="Load Data Akun">
+                                    <i class="bi bi-tv"></i>
+                                </button>
+                                {% if user.user_name == 'superadmin' %}
+                                <button class="btn btn-sm btn-info assign-account-data"
+                                        data-email="{{ credential.user_mail }}"
+                                        data-account-id="{{ credential.account_id }}"
+                                        data-account-name="{{ credential.account_name }}"
+                                        data-network-code="{{ credential.network_code }}"
+                                        title="Assign Akun">
+                                    <i class="bi bi-box-arrow-right"></i>
+                                </button>
+                                <button class="btn btn-sm btn-warning edit-account-name"
+                                        data-email="{{ credential.user_mail }}"
+                                        data-account-name="{{ credential.account_name }}"
+                                        data-mcm-revenue-share="{{ credential.mcm_revenue_share|default:'0' }}"
+                                        title="Edit Account">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger delete-account-credentials"
+                                        data-email="{{ credential.user_mail }}"
+                                        data-account-name="{{ credential.account_name }}"
+                                        title="Hapus Kredensial">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
+        <div class="adx-cred-footer">
+            <i class="bi bi-database"></i> Total: <strong>{{ total_accounts }}</strong> kredensial terdaftar
+        </div>
+        {% else %}
+        <div class="adx-cred-empty">
+            <div class="adx-info-empty-icon"><i class="bi bi-inbox"></i></div>
+            <div class="adx-info-empty-title">Belum ada kredensial</div>
+            <p class="mb-0">Belum ada data kredensial aplikasi yang terdaftar.</p>
+        </div>
+        {% endif %}
     </div>
 </div>
 <!-- OAuth Setup Modal -->
-<div class="modal fade" id="oauthModal" tabindex="-1" role="dialog" aria-labelledby="oauthModalLabel"
+<div class="modal fade adx-modal" id="oauthModal" tabindex="-1" role="dialog" aria-labelledby="oauthModalLabel"
     aria-hidden="true">
     <div class="modal-dialog" role="document">
         <div class="modal-content">
@@ -486,7 +644,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 </div>
 
 <!-- OAuth Refresh Token Generation Modal -->
-<div class="modal fade" id="oauthRefreshTokenModal" tabindex="-1" role="dialog"
+<div class="modal fade adx-modal" id="oauthRefreshTokenModal" tabindex="-1" role="dialog"
     aria-labelledby="oauthRefreshTokenModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content">
@@ -556,6 +714,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
         </div>
     </div>
 </div>
+</div><!-- /.adx-account-page -->
 {% endblock %}
 {% block more_scripts %}
 <script src="{% static 'ajax/admin/adx_manager/account.js'%}?v={%now 'u'%}"></script>
@@ -640,10 +799,12 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         $("#user_name").text(response.data.user_name || '-');
                         $("#user_role").text(response.data.user_role || '-');
                         
-                        // Format user active status
                         var userActiveText = response.data.user_is_active !== undefined ? 
                             (response.data.user_is_active ? 'Yes' : 'No') : '-';
                         $("#user_is_active").text(userActiveText);
+                        if (typeof updateStatusBadge === 'function') {
+                            updateStatusBadge(response.data.user_is_active);
+                        }
                         
                         // Update Account Statistics
                         $("#active_ad_units_count").text(response.data.active_ad_units_count || '0');
@@ -653,16 +814,19 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                             new Date(response.data.last_updated).toLocaleString() : new Date().toLocaleString();
                         $("#last_updated").text(lastUpdated);
                         
-                        // Add additional network information if available
-                        var additionalInfo = '';
-                        if (response.data.effective_root_ad_unit_id) {
-                            additionalInfo += '<p><strong>Root Ad Unit ID:</strong> ' + response.data.effective_root_ad_unit_id + '</p>';
+                        if (typeof formatAdditionalInfo === 'function') {
+                            $("#additional_info").html(formatAdditionalInfo(response.data));
+                        } else {
+                            var additionalInfo = '';
+                            if (response.data.effective_root_ad_unit_id) {
+                                additionalInfo += '<p><strong>Root Ad Unit ID:</strong> ' + response.data.effective_root_ad_unit_id + '</p>';
+                            }
+                            if (response.data.is_test_network !== undefined) {
+                                var testNetworkText = response.data.is_test_network ? 'Yes' : 'No';
+                                additionalInfo += '<p><strong>Test Network:</strong> ' + testNetworkText + '</p>';
+                            }
+                            $("#additional_info").html(additionalInfo);
                         }
-                        if (response.data.is_test_network !== undefined) {
-                            var testNetworkText = response.data.is_test_network ? 'Yes' : 'No';
-                            additionalInfo += '<p><strong>Test Network:</strong> ' + testNetworkText + '</p>';
-                        }
-                        $("#additional_info").html(additionalInfo);
                         
                         // Show note if available
                         if (response.note) {
@@ -671,13 +835,20 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                         } else {
                             $("#data_note").hide();
                         }
+
+                        if (typeof showAccountInfoContent === 'function') {
+                            showAccountInfoContent();
+                        } else {
+                            $('#adxAccountInfoEmpty').hide();
+                            $('#adxAccountInfoContent').show();
+                        }
                         
                         // Show success message
                         showSuccessMessage('Data akun berhasil dimuat untuk: ' + email);
                         
                         // Scroll to account information section
                         $('html, body').animate({
-                            scrollTop: $("#network_id").closest('.card').offset().top - 100
+                            scrollTop: $("#adxAccountInfo").offset().top - 100
                         }, 500);
                         
                     } else {
@@ -714,8 +885,8 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
         // Remove existing alerts
         $('.alert-success, .alert-danger').remove();
         
-        // Add new alert at the top of the card body
-        $('.card-body').first().prepend(alertHtml);
+        // Add new alert at the top of the filter card
+        $('.adx-filter-card .card-body').first().prepend(alertHtml);
         
         // Auto-hide after 5 seconds
         setTimeout(function() {
@@ -733,8 +904,8 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
         // Remove existing alerts
         $('.alert-success, .alert-danger').remove();
         
-        // Add new alert at the top of the card body
-        $('.card-body').first().prepend(alertHtml);
+        // Add new alert at the top of the filter card
+        $('.adx-filter-card .card-body').first().prepend(alertHtml);
         
         // Auto-hide after 8 seconds
         setTimeout(function() {

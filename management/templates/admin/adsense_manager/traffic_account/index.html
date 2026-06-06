@@ -9,528 +9,531 @@
 {% block more_stylesheet %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" referrerpolicy="no-referrer">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
 :root {
+    --adsense-accent: #059669;
+    --adsense-surface: #ffffff;
+    --adsense-surface-2: #f8fafc;
+    --adsense-border: rgba(15, 23, 42, 0.08);
+    --adsense-text: #0f172a;
+    --adsense-muted: #64748b;
+    --adsense-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+    --adsense-radius: 16px;
     --tour-bg: rgba(241, 245, 249, 0.92);
     --tour-fg: #0f172a;
     --tour-border: rgba(15, 23, 42, 0.14);
     --tour-shadow: 0 18px 40px rgba(2, 6, 23, 0.16);
     --tour-overlay: rgba(15, 23, 42, 0.62);
-    --tour-ring: rgba(37, 99, 235, 0.32);
-    --tour-next-grad: linear-gradient(135deg, #2563eb, #7c3aed);
+    --tour-ring: rgba(5, 150, 105, 0.32);
+    --tour-next-grad: linear-gradient(135deg, #059669, #34d399);
 }
 html[data-theme="dark"] {
+    --adsense-surface: #1e293b;
+    --adsense-surface-2: #0f172a;
+    --adsense-border: rgba(255, 255, 255, 0.08);
+    --adsense-text: #e2e8f0;
+    --adsense-muted: #94a3b8;
+    --adsense-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
     --tour-bg: rgba(30, 41, 59, 0.88);
     --tour-fg: #e5e7eb;
     --tour-border: rgba(255, 255, 255, 0.12);
-    --tour-shadow: 0 18px 45px rgba(0, 0, 0, 0.55);
     --tour-overlay: rgba(0, 0, 0, 0.74);
-    --tour-ring: rgba(34, 211, 238, 0.28);
-    --tour-next-grad: linear-gradient(135deg, #22c55e, #06b6d4);
+    --tour-ring: rgba(52, 211, 153, 0.28);
+    --tour-next-grad: linear-gradient(135deg, #059669, #06b6d4);
 }
-.hris-tour-launch-btn {
-    border-radius: 999px;
-    padding: 6px 12px;
-    font-weight: 700;
-    border: 0 !important;
-    color: #fff !important;
-    background: var(--tour-next-grad) !important;
+.adsense-traffic-page .card {
+    border: 1px solid var(--adsense-border);
+    border-radius: var(--adsense-radius);
+    box-shadow: var(--adsense-shadow);
+}
+.adsense-traffic-page .card-header {
+    background: var(--adsense-surface);
+    border-bottom: 1px solid var(--adsense-border);
+}
+.adsense-traffic-page .card-title { color: var(--adsense-text); font-weight: 800; }
+.adsense-traffic-tour-btn {
+    border-radius: 999px; padding: 6px 14px; font-weight: 700; border: 0 !important;
+    color: #fff !important; background: var(--tour-next-grad) !important;
+}
+.adsense-traffic-page .adsense-filter-row { align-items: flex-end; }
+.adsense-traffic-page .adsense-filter-field label { display: block; margin-bottom: 0.35rem; line-height: 1.2; }
+.adsense-traffic-page .adsense-filter-field .form-control,
+.adsense-traffic-page .adsense-filter-field .select2-container .select2-selection--multiple,
+.adsense-traffic-page .adsense-filter-field .select2-container .select2-selection--single { min-height: 38px; }
+.adsense-traffic-page .adsense-filter-note { margin-top: 8px; padding-left: 2px; }
+.adsense-traffic-section {
+    background: var(--adsense-surface); border: 1px solid var(--adsense-border);
+    border-radius: var(--adsense-radius); box-shadow: var(--adsense-shadow);
+    padding: 14px 16px; margin-bottom: 14px;
+}
+.adsense-traffic-section-title {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; font-weight: 800; color: var(--adsense-text); margin-bottom: 10px;
+}
+.adsense-traffic-section-title i {
+    width: 28px; height: 28px; border-radius: 8px; font-size: 0.85rem;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, rgba(5, 150, 105, 0.15), rgba(52, 211, 153, 0.12));
+    color: var(--adsense-accent);
+}
+.adsense-traffic-metrics {
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px;
+}
+@media (max-width: 1199px) { .adsense-traffic-metrics { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 767px) { .adsense-traffic-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.adsense-traffic-page .metric-card {
+    position: relative; overflow: hidden; color: #fff; border-radius: 12px;
+    padding: 14px 16px; min-height: 88px;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.13);
+    border: 1px solid rgba(255, 255, 255, 0.12); margin-bottom: 0;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.adsense-traffic-page .metric-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16); }
+.adsense-traffic-page .metric-card-inner {
+    position: relative; z-index: 1; display: flex; align-items: center;
+    justify-content: space-between; gap: 10px;
+}
+.adsense-traffic-page .metric-card-icon {
+    width: 42px; height: 42px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255, 255, 255, 0.2); flex-shrink: 0;
+}
+.adsense-traffic-page .metric-card-icon i { font-size: 1.15rem; color: #fff; }
+.adsense-traffic-page .metric-value { font-size: 1.32rem; font-weight: 800; line-height: 1.2; letter-spacing: -0.015em; }
+.adsense-traffic-page .metric-label {
+    font-size: 0.74rem; font-weight: 600; opacity: 0.92;
+    text-transform: uppercase; letter-spacing: 0.035em;
+}
+.adsense-traffic-page .metric-card.impressions { background: linear-gradient(135deg, #047857 0%, #059669 100%); }
+.adsense-traffic-page .metric-card.clicks { background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%); }
+.adsense-traffic-page .metric-card.cpc { background: linear-gradient(135deg, #4338ca 0%, #6366f1 100%); }
+.adsense-traffic-page .metric-card.ctr { background: linear-gradient(135deg, #ea580c 0%, #fb923c 100%); }
+.adsense-traffic-page .metric-card.revenue { background: linear-gradient(135deg, #7c3aed 0%, #ec4899 100%); }
+.adsense-traffic-empty {
+    text-align: center; padding: 48px 24px; color: var(--adsense-muted);
+}
+.adsense-traffic-empty-icon {
+    width: 68px; height: 68px; margin: 0 auto 14px; border-radius: 18px;
+    display: flex; align-items: center; justify-content: center; font-size: 1.8rem;
+    color: var(--adsense-accent);
+    background: linear-gradient(135deg, rgba(5, 150, 105, 0.12), rgba(52, 211, 153, 0.08));
+}
+.adsense-traffic-empty-title { font-size: 16px; font-weight: 800; color: var(--adsense-text); margin-bottom: 6px; }
+.adsense-chart-wrap { min-height: 360px; border-radius: 12px; overflow: hidden; }
+.adsense-traffic-table-wrap .dt-buttons { margin-bottom: 12px; }
+.adsense-traffic-table-wrap .dt-buttons .btn {
+    border-radius: 8px; font-size: 12px; font-weight: 600; margin-right: 6px; margin-bottom: 6px;
+}
+.adsense-traffic-table-wrap table.adsense-traffic-table {
+    width: 100% !important; border-collapse: separate; border-spacing: 0; font-size: 13px;
+}
+.adsense-traffic-table-wrap table.adsense-traffic-table thead th {
+    background: linear-gradient(180deg, var(--adsense-surface-2) 0%, var(--adsense-surface) 100%);
+    color: var(--adsense-text); font-weight: 700; font-size: 12px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    border-bottom: 2px solid var(--adsense-border) !important;
+    padding: 12px 10px; white-space: nowrap;
+}
+.adsense-traffic-table-wrap table.adsense-traffic-table tbody td {
+    padding: 10px; vertical-align: middle;
+    border-color: var(--adsense-border) !important; color: var(--adsense-text);
+}
+.adsense-traffic-table-wrap table.adsense-traffic-table tbody tr:hover td {
+    background: rgba(5, 150, 105, 0.06);
+}
+html[data-theme="dark"] .adsense-traffic-table-wrap table.adsense-traffic-table tbody tr:hover td {
+    background: rgba(5, 150, 105, 0.12);
+}
+.adsense-traffic-table-wrap .dataTables_wrapper .dataTables_filter input,
+.adsense-traffic-table-wrap .dataTables_wrapper .dataTables_length select {
+    border-radius: 8px; border-color: var(--adsense-border);
+}
+.adsense-traffic-table-wrap .site-badge,
+.adsense-traffic-table-wrap .account-badge {
+    display: inline-block; max-width: 200px; overflow: hidden; text-overflow: ellipsis;
+    padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+    white-space: nowrap; vertical-align: middle;
+}
+.adsense-traffic-table-wrap .site-badge {
+    background: rgba(5, 150, 105, 0.12); color: #047857;
+    border: 1px solid rgba(5, 150, 105, 0.2);
+}
+.adsense-traffic-table-wrap .account-badge {
+    background: rgba(99, 102, 241, 0.12); color: #4338ca;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+}
+html[data-theme="dark"] .adsense-traffic-table-wrap .site-badge { color: #6ee7b7; }
+html[data-theme="dark"] .adsense-traffic-table-wrap .account-badge { color: #a5b4fc; }
+.adsense-traffic-table-wrap .btn-detail-row { border-radius: 8px; padding: 4px 10px; }
+#btn_load_data { border-radius: 10px; font-weight: 700; box-shadow: 0 4px 14px rgba(5, 150, 105, 0.3); }
+.adsense-detail-modal {
+    border: 1px solid var(--adsense-border);
+    border-radius: 16px !important;
+    overflow: hidden;
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+}
+.adsense-detail-hero {
+    background: linear-gradient(135deg, #047857 0%, #059669 55%, #34d399 100%);
+    padding: 18px 20px;
+    color: #fff;
+}
+.adsense-detail-hero-inner {
+    display: flex; align-items: center; gap: 14px; position: relative;
+}
+.adsense-detail-hero-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255, 255, 255, 0.2); font-size: 1.25rem; flex-shrink: 0;
+}
+.adsense-detail-title { margin: 0; font-size: 1.1rem; font-weight: 800; color: #fff; }
+.adsense-detail-subtitle { margin: 2px 0 0; font-size: 0.8rem; opacity: 0.9; color: #fff; }
+.adsense-detail-close {
+    position: absolute; top: -4px; right: 0;
+    color: #fff !important; opacity: 0.85; text-shadow: none;
+    font-size: 1.5rem; padding: 0; margin: 0;
+}
+.adsense-detail-close:hover { opacity: 1; }
+.adsense-detail-body { padding: 18px 20px 8px; background: var(--adsense-surface); }
+.adsense-detail-context {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px;
+}
+@media (max-width: 767px) { .adsense-detail-context { grid-template-columns: 1fr; } }
+.adsense-detail-context-item {
+    background: var(--adsense-surface-2); border: 1px solid var(--adsense-border);
+    border-radius: 12px; padding: 10px 12px;
+}
+.adsense-detail-context-item i { color: var(--adsense-accent); margin-right: 6px; font-size: 0.85rem; }
+.adsense-detail-context-item .label {
+    display: block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--adsense-muted); margin-bottom: 4px;
+}
+.adsense-detail-context-item .value {
+    display: block; font-size: 0.88rem; font-weight: 700; color: var(--adsense-text);
+    word-break: break-word; line-height: 1.35;
+}
+.adsense-detail-section-title {
+    font-size: 0.72rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--adsense-muted); margin-bottom: 10px;
+}
+.adsense-detail-metrics {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px;
+}
+@media (max-width: 575px) { .adsense-detail-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.adsense-detail-metric {
+    background: var(--adsense-surface-2); border: 1px solid var(--adsense-border);
+    border-radius: 12px; padding: 12px 14px; transition: border-color 0.15s ease;
+}
+.adsense-detail-metric:hover { border-color: rgba(5, 150, 105, 0.35); }
+.adsense-detail-metric.highlight {
+    background: linear-gradient(135deg, rgba(5, 150, 105, 0.12), rgba(52, 211, 153, 0.06));
+    border-color: rgba(5, 150, 105, 0.25);
+}
+.adsense-detail-metric-label {
+    font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--adsense-muted); margin-bottom: 6px;
+}
+.adsense-detail-metric-value {
+    font-size: 1.05rem; font-weight: 800; color: var(--adsense-text); line-height: 1.2;
+}
+.adsense-detail-metric.highlight .adsense-detail-metric-value { color: #047857; }
+html[data-theme="dark"] .adsense-detail-metric.highlight .adsense-detail-metric-value { color: #6ee7b7; }
+.adsense-detail-extra {
+    border: 1px solid var(--adsense-border); border-radius: 12px; overflow: hidden; margin-bottom: 8px;
+}
+.adsense-detail-extra-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 14px; font-size: 0.84rem;
+    border-bottom: 1px solid var(--adsense-border);
+}
+.adsense-detail-extra-row:last-child { border-bottom: 0; }
+.adsense-detail-extra-row:nth-child(even) { background: var(--adsense-surface-2); }
+.adsense-detail-extra-row .label { color: var(--adsense-muted); font-weight: 600; }
+.adsense-detail-extra-row .value { color: var(--adsense-text); font-weight: 700; text-align: right; }
+.adsense-detail-footer {
+    background: var(--adsense-surface-2); border-top: 1px solid var(--adsense-border);
+    padding: 12px 20px; justify-content: flex-end;
+}
+.adsense-detail-btn-close {
+    border-radius: 10px; font-weight: 700; padding: 8px 18px;
+    border: 1px solid var(--adsense-border); background: var(--adsense-surface);
+}
+.adsense-detail-country-head {
+    display: flex; align-items: center; gap: 10px;
+}
+.adsense-detail-country-head img {
+    border-radius: 3px; box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+.adsense-detail-code-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem;
+    font-weight: 700; background: rgba(255,255,255,0.25); margin-left: 6px;
 }
 .introjs-overlay { background: var(--tour-overlay) !important; opacity: 1 !important; }
 .introjs-tooltip.hris-tour-tooltip {
-    width: min(900px, calc(100vw - 48px));
-    max-width: min(900px, calc(100vw - 48px)) !important;
-    background: var(--tour-bg) !important;
-    -webkit-backdrop-filter: blur(10px);
-    backdrop-filter: blur(10px);
-    color: var(--tour-fg) !important;
-    border: 1px solid var(--tour-border) !important;
-    border-radius: 16px !important;
+    width: min(900px, calc(100vw - 48px)); max-width: min(900px, calc(100vw - 48px)) !important;
+    background: var(--tour-bg) !important; color: var(--tour-fg) !important;
+    border: 1px solid var(--tour-border) !important; border-radius: 16px !important;
     box-shadow: var(--tour-shadow) !important;
 }
-.introjs-tooltip.hris-tour-tooltip .introjs-skipbutton { display: none !important; }
-.introjs-tooltip.hris-tour-tooltip .introjs-tooltipbuttons { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
-.introjs-tooltip.hris-tour-tooltip .introjs-button {
-    float: none !important;
-    border-radius: 12px !important;
-    padding: 10px 14px !important;
-    line-height: 1 !important;
-    font: inherit !important;
-    font-weight: 800 !important;
-    border: 1px solid var(--tour-border) !important;
-    background: rgba(148, 163, 184, 0.14) !important;
-    color: var(--tour-fg) !important;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    white-space: nowrap;
-}
-html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { background: rgba(15, 23, 42, 0.35) !important; }
 .introjs-tooltip.hris-tour-tooltip .introjs-nextbutton,
-.introjs-tooltip.hris-tour-tooltip .introjs-donebutton { border-color: transparent !important; background: var(--tour-next-grad) !important; color: #fff !important; }
-.introjs-tooltip.hris-tour-tooltip .introjs-disabled,
-.introjs-tooltip.hris-tour-tooltip .introjs-disabled:hover { opacity: 0.45 !important; cursor: not-allowed !important; }
-.introjs-helperLayer.hris-tour-highlight { background: transparent !important; border-radius: 16px !important; box-shadow: 0 0 0 6px var(--tour-ring) !important; }
+.introjs-tooltip.hris-tour-tooltip .introjs-donebutton {
+    background: var(--tour-next-grad) !important; color: #fff !important;
+}
+.introjs-helperLayer.hris-tour-highlight {
+    border-radius: 16px !important; box-shadow: 0 0 0 6px var(--tour-ring) !important;
+}
 </style>
 {% endblock %}
-{% block content %}  
-<style>
-  .dt-buttons {
-      margin-bottom: 20px;
-  }
-</style>
-<!-- Flatpickr Datepicker -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-<div class="card">
+{% block content %}
+{% csrf_token %}
+<div class="adsense-traffic-page">
+<div class="card mb-3">
     <div class="card-header">
-        <div class="d-flex align-items-center justify-content-between w-100">
-            <h3 class="card-title mb-0">Traffic Adsense Per Account</h3>
-            <button type="button" class="btn btn-sm hris-tour-launch-btn" id="btnAdsenseTrafficAccountTour">
+        <div class="d-flex align-items-center justify-content-between w-100 flex-wrap gap-2">
+            <div>
+                <h3 class="card-title mb-0">Traffic AdSense Per Akun</h3>
+                <small class="text-muted">Data traffic per tanggal, account, dan site</small>
+            </div>
+            <button type="button" class="btn btn-sm adsense-traffic-tour-btn" id="btnAdsenseTrafficAccountTour">
                 <i class="far fa-question-circle" aria-hidden="true"></i> User Manual
             </button>
         </div>
-    </div> <!-- /.card-header -->
+    </div>
     <div class="card-body">
-        <div class="form-row" id="adsenseTrafficAccountFilters" data-title="Filter" data-intro="Pilih range tanggal dan filter Account, lalu klik Muat Data untuk menampilkan traffic AdSense per akun.">
-            <div class="col-md-2">
-                <label>Range Dari</label>
-                <input class="form-control datepicker-input" type="text" id="tanggal_dari" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Dari"/>
+        <div class="form-row adsense-filter-row" id="adsenseTrafficAccountFilters" data-title="Filter" data-intro="Pilih range tanggal dan filter Account/Subdomain, lalu klik Muat Data.">
+            <div class="col-md-2 mb-2 mb-md-0 adsense-filter-field">
+                <label class="font-weight-bold small text-muted">Range Dari</label>
+                <input class="form-control datepicker-input" type="text" id="tanggal_dari" placeholder="YYYY-MM-DD"/>
             </div>
-            <div class="col-md-2">
-                <label>Range Sampai</label>
-                 <input class="form-control datepicker-input" type="text" id="tanggal_sampai" size="12" value="" data-mask="9999-99-99" placeholder="Tanggal Sampai"/>
+            <div class="col-md-2 mb-2 mb-md-0 adsense-filter-field">
+                <label class="font-weight-bold small text-muted">Range Sampai</label>
+                <input class="form-control datepicker-input" type="text" id="tanggal_sampai" placeholder="YYYY-MM-DD"/>
             </div>
-            <div class="col-md-3">
-                <label>Filter Account</label>
+            <div class="col-md-3 mb-2 mb-md-0 adsense-filter-field">
+                <label class="font-weight-bold small text-muted">Filter Account</label>
                 <select class="form-control select2-multiple" id="account_filter" multiple>
                     {% for account in data_account_adsense %}
                     <option value="{{ account.account_id }}">{{ account.account_name }}</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-4">
-                <label>Filter Subdomain</label>
+            <div class="col-md-3 mb-2 mb-md-0 adsense-filter-field">
+                <label class="font-weight-bold small text-muted">Filter Subdomain</label>
                 <select class="form-control" id="domain_filter" multiple>
                     {% for domain in data_domain_adsense %}
                     <option value="{{ domain.data_adsense_domain|default:'' }}">{{ domain.data_adsense_domain|default:'' }}</option>
                     {% endfor %}
                 </select>
-                <small class="text-muted">Ketik untuk mencari atau tambah domain baru (freetext).</small>
             </div>
-            <div class="col-md-1">
-                <label>&nbsp;</label>
-                <button type="button" class="btn btn-primary form-control" id="btn_load_data" data-title="Muat Data" data-intro="Mengambil data traffic sesuai filter yang dipilih dan menampilkan ringkasan, grafik, serta tabel.">
-                    <i class="fas fa-search"></i> Muat Data
+            <div class="col-md-2 mb-2 mb-md-0 adsense-filter-field">
+                <label class="font-weight-bold small text-muted d-none d-md-block">&nbsp;</label>
+                <button type="button" class="btn btn-primary form-control" id="btn_load_data" data-title="Muat Data" data-intro="Mengambil data traffic sesuai filter.">
+                    <i class="fas fa-sync-alt mr-1"></i> Muat Data
                 </button>
             </div>
         </div>
-    </div><!-- /.card-body -->
+        <p class="adsense-filter-note mb-0">
+            <small class="text-muted"><i class="bi bi-info-circle mr-1"></i>Filter Subdomain: ketik untuk mencari atau tambah domain baru.</small>
+        </p>
+    </div>
 </div>
+
 <div class="card">
     <div class="card-header">
-        <div class="card-title d-flex justify-content-between align-items-center w-100">
-            <h3 class="card-title"><b><i class="bi bi-bar-chart"></i> Data Traffic Per Akun</b></h3>
-        </div>
+        <h3 class="card-title mb-0"><i class="bi bi-table mr-1"></i> Data Traffic Per Akun</h3>
     </div>
-    <div class="card-body">
-        <div id="overlay" class="hris-loader-stub" style="display:none" data-loader-message="Memuat Data Traffic ..." aria-hidden="true"></div>
-        
-        <!-- Summary Info boxes -->
-        <div class="row" id="summary_boxes" style="display: none;" data-title="Ringkasan" data-intro="Ringkasan metrik utama: Total Klik, rata-rata CPC, rata-rata CTR, dan Total Pendapatan.">
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="metric-card clicks">
-                    <div class="metric-card-inner">
-                        <div>
-                            <div class="metric-label">Total Klik</div>
-                            <div class="metric-value" id="total_clicks">0</div>
-                        </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-cursor-fill"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="metric-card cpc">
-                    <div class="metric-card-inner">
-                        <div>
-                            <div class="metric-label">Rata-rata CPC</div>
-                            <div class="metric-value" id="avg_cpc">Rp 0</div>
-                        </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-cash-coin"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="metric-card ctr">
-                    <div class="metric-card-inner">
-                        <div>
-                            <div class="metric-label">Rata-rata CTR</div>
-                            <div class="metric-value" id="avg_ctr">0%</div>
-                        </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-graph-up-arrow"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="metric-card revenue">
-                    <div class="metric-card-inner">
-                        <div>
-                            <div class="metric-label">Total Pendapatan</div>
-                            <div class="metric-value" id="total_revenue">Rp 0</div>
-                        </div>
-                        <div class="metric-card-icon" aria-hidden="true">
-                            <i class="bi bi-currency-dollar"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- Line Chart untuk Pergerakan Pendapatan Harian -->
-        <div class="row mt-3" id="revenue_chart_row" style="display: none;" data-title="Grafik" data-intro="Grafik tren harian untuk membantu melihat pergerakan pendapatan/traffic.">
-            <div class="col-12">
-                <div class="card">
-                    <div class="card-body">
-                        <div id="revenue_chart" style="height: 400px;"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- Additional Charts Section -->
-        <div class="row mt-3" id="additional_charts_section" style="display: none;">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">
-                            <i class="fas fa-chart-bar"></i>
-                            Top 10 Ad Units by Impressions
-                        </h3>
-                    </div>
-                    <div class="card-body">
-                        <!-- Chart placeholder -->
-                        <div id="chart_top_ad_units" style="height: 300px;">
-                            <p class="text-center text-muted">Chart will be implemented in future updates</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h3 class="card-title">
-                            <i class="fas fa-chart-pie"></i>
-                            Revenue Distribution
-                        </h3>
-                    </div>
-                    <div class="card-body">
-                        <!-- Chart placeholder -->
-                        <div id="chart_revenue_distribution" style="height: 300px;">
-                            <p class="text-center text-muted">Chart will be implemented in future updates</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>  
-        <!-- Data Table -->
-        <div class="dt-responsive-table mt-3 table-responsive" id="adsenseTrafficAccountTable" data-title="Tabel" data-intro="Tabel detail traffic per tanggal, account, dan site. Gunakan search/sort/export dari DataTables (jika tersedia).">
-            <table id="table_traffic_account" class="table table-bordered table-striped" style="width:100%">
-                <thead>
-                    <tr>
-                        <th style="width: 7%" class="text-center">Tanggal</th>
-                        <th style="width: 15%" class="text-center">Account</th>
-                        <th style="width: 15%" class="text-center">Site Name</th>
-                        <th style="width: 7%" class="text-center">Klik</th>
-                        <th style="width: 7%" class="text-center">CPC (Rp)</th>
-                        <th style="width: 7%" class="text-center">CPM (Rp)</th>
-                        <th style="width: 7%" class="text-center">CTR (%)</th>
-                        <th style="width: 10%" class="text-center">Pendapatan (Rp)</th>
-                        <th style="width: 5%" class="text-center no-export">Detail</th>
-                    </tr>
-                </thead>
-                <tbody>
-                </tbody>
-            </table>
+    <div class="card-body position-relative">
+        <div id="overlay" class="hris-loader-stub" style="display:none" data-loader-message="Memuat data traffic AdSense..." aria-hidden="true"></div>
+
+        <div id="adsenseTrafficEmptyState" class="adsense-traffic-empty">
+            <div class="adsense-traffic-empty-icon"><i class="bi bi-funnel" aria-hidden="true"></i></div>
+            <div class="adsense-traffic-empty-title">Belum ada data ditampilkan</div>
+            <div>Pilih rentang tanggal, filter account/subdomain (opsional), lalu klik <strong>Muat Data</strong>.</div>
         </div>
 
-        <div class="modal fade" id="adsenseTrafficAccountDetailModal" tabindex="-1" role="dialog" aria-labelledby="adsenseTrafficAccountDetailModalLabel" aria-hidden="true">
-            <div class="modal-dialog modal-lg" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title" id="adsenseTrafficAccountDetailModalLabel">
-                            <i class="bi bi-eye-fill"></i> Detail Traffic
-                        </h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
+        <div id="adsenseTrafficResults" style="display:none;">
+            <div class="adsense-traffic-section" id="summary_boxes" data-title="Ringkasan" data-intro="Ringkasan metrik utama periode yang dipilih.">
+                <div class="adsense-traffic-section-title">
+                    <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i><span>Ringkasan Performa</span>
+                </div>
+                <div class="adsense-traffic-metrics">
+                    <div class="metric-card impressions">
+                        <div class="metric-card-inner">
+                            <div><div class="metric-label">Total Impresi</div><div class="metric-value" id="total_impressions">0</div></div>
+                            <div class="metric-card-icon"><i class="bi bi-eye-fill"></i></div>
+                        </div>
                     </div>
-                    <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-borderless mb-0">
-                                        <tbody>
-                                            <tr>
-                                                <th style="width: 40%;">Tanggal</th>
-                                                <td id="adsenseTrafficAccountDetailDate">-</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Account</th>
-                                                <td id="adsenseTrafficAccountDetailAccount">-</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Site</th>
-                                                <td id="adsenseTrafficAccountDetailSite">-</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+                    <div class="metric-card clicks">
+                        <div class="metric-card-inner">
+                            <div><div class="metric-label">Total Klik</div><div class="metric-value" id="total_clicks">0</div></div>
+                            <div class="metric-card-icon"><i class="bi bi-cursor-fill"></i></div>
+                        </div>
+                    </div>
+                    <div class="metric-card ctr">
+                        <div class="metric-card-inner">
+                            <div><div class="metric-label">Rata-rata CTR</div><div class="metric-value" id="avg_ctr">0%</div></div>
+                            <div class="metric-card-icon"><i class="bi bi-graph-up-arrow"></i></div>
+                        </div>
+                    </div>
+                    <div class="metric-card cpc">
+                        <div class="metric-card-inner">
+                            <div><div class="metric-label">Rata-rata CPC</div><div class="metric-value" id="avg_cpc">Rp 0</div></div>
+                            <div class="metric-card-icon"><i class="bi bi-cash-coin"></i></div>
+                        </div>
+                    </div>
+                    <div class="metric-card revenue">
+                        <div class="metric-card-inner">
+                            <div><div class="metric-label">Total Pendapatan</div><div class="metric-value" id="total_revenue">Rp 0</div></div>
+                            <div class="metric-card-icon"><i class="bi bi-currency-dollar"></i></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="adsense-traffic-section" id="revenue_chart_row" style="display:none;" data-title="Grafik" data-intro="Grafik tren pendapatan harian.">
+                <div class="adsense-traffic-section-title">
+                    <i class="bi bi-graph-up" aria-hidden="true"></i><span>Tren Pendapatan Harian</span>
+                </div>
+                <div class="adsense-chart-wrap"><div id="revenue_chart" style="height:360px;"></div></div>
+            </div>
+
+            <div class="adsense-traffic-section adsense-traffic-table-wrap" id="adsenseTrafficAccountTable" data-title="Tabel" data-intro="Tabel detail traffic per tanggal, account, dan site.">
+                <div class="adsense-traffic-section-title">
+                    <i class="bi bi-table"></i><span>Detail Traffic Per Site</span>
+                </div>
+                <div class="table-responsive">
+                    <table id="table_traffic_account" class="table table-bordered adsense-traffic-table" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th class="text-center">Tanggal</th>
+                                <th class="text-center">Account</th>
+                                <th class="text-center">Site Name</th>
+                                <th class="text-center">Klik</th>
+                                <th class="text-center">CPC (Rp)</th>
+                                <th class="text-center">CPM (Rp)</th>
+                                <th class="text-center">CTR (%)</th>
+                                <th class="text-center">Pendapatan (Rp)</th>
+                                <th class="text-center no-export">Detail</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="adsenseTrafficAccountDetailModal" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                <div class="modal-content adsense-detail-modal">
+                    <div class="adsense-detail-hero">
+                        <div class="adsense-detail-hero-inner">
+                            <div class="adsense-detail-hero-icon"><i class="bi bi-bar-chart-line"></i></div>
+                            <div class="flex-grow-1">
+                                <h5 class="adsense-detail-title">Detail Traffic</h5>
+                                <p class="adsense-detail-subtitle">Ringkasan performa per tanggal &amp; site</p>
                             </div>
-                            <div class="col-md-6">
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-borderless mb-0">
-                                        <tbody>
-                                            <tr>
-                                                <th style="width: 45%;">Impresi</th>
-                                                <td id="adsenseTrafficAccountDetailImpressions" class="text-right">0</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Klik</th>
-                                                <td id="adsenseTrafficAccountDetailClicks" class="text-right">0</td>
-                                            </tr>
-                                            <tr>
-                                                <th>CTR</th>
-                                                <td id="adsenseTrafficAccountDetailCtr" class="text-right">0%</td>
-                                            </tr>
-                                            <tr>
-                                                <th>CPC</th>
-                                                <td id="adsenseTrafficAccountDetailCpc" class="text-right">Rp 0</td>
-                                            </tr>
-                                            <tr>
-                                                <th>CPM</th>
-                                                <td id="adsenseTrafficAccountDetailCpm" class="text-right">Rp 0</td>
-                                            </tr>
-                                            <tr>
-                                                <th>Pendapatan</th>
-                                                <td id="adsenseTrafficAccountDetailRevenue" class="text-right">Rp 0</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
+                            <button type="button" class="close adsense-detail-close" data-dismiss="modal" aria-label="Tutup"><span>&times;</span></button>
+                        </div>
+                    </div>
+                    <div class="modal-body adsense-detail-body">
+                        <div class="adsense-detail-context">
+                            <div class="adsense-detail-context-item">
+                                <span class="label"><i class="bi bi-calendar3"></i>Tanggal</span>
+                                <span class="value" id="adsenseTrafficAccountDetailDate">-</span>
+                            </div>
+                            <div class="adsense-detail-context-item">
+                                <span class="label"><i class="bi bi-person-badge"></i>Account</span>
+                                <span class="value" id="adsenseTrafficAccountDetailAccount">-</span>
+                            </div>
+                            <div class="adsense-detail-context-item">
+                                <span class="label"><i class="bi bi-globe2"></i>Site</span>
+                                <span class="value" id="adsenseTrafficAccountDetailSite">-</span>
                             </div>
                         </div>
-
-                        <hr>
-
-                        <div class="table-responsive">
-                            <table class="table table-sm table-bordered mb-0" style="width:100%">
-                                <tbody>
-                                    <tr>
-                                        <th style="width: 45%;">Page Views</th>
-                                        <td id="adsenseTrafficAccountDetailPageViews" class="text-right">0</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Page Views RPM</th>
-                                        <td id="adsenseTrafficAccountDetailPageViewsRpm" class="text-right">Rp 0</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Ad Requests</th>
-                                        <td id="adsenseTrafficAccountDetailAdRequests" class="text-right">0</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Ad Requests Coverage</th>
-                                        <td id="adsenseTrafficAccountDetailAdRequestsCoverage" class="text-right">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Active View Viewability</th>
-                                        <td id="adsenseTrafficAccountDetailActiveViewViewability" class="text-right">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Active View Measurability</th>
-                                        <td id="adsenseTrafficAccountDetailActiveViewMeasurability" class="text-right">0%</td>
-                                    </tr>
-                                    <tr>
-                                        <th>Active View Time (sec)</th>
-                                        <td id="adsenseTrafficAccountDetailActiveViewTime" class="text-right">0</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div class="adsense-detail-section-title">Metrik Utama</div>
+                        <div class="adsense-detail-metrics">
+                            <div class="adsense-detail-metric">
+                                <div class="adsense-detail-metric-label">Impresi</div>
+                                <div class="adsense-detail-metric-value" id="adsenseTrafficAccountDetailImpressions">0</div>
+                            </div>
+                            <div class="adsense-detail-metric">
+                                <div class="adsense-detail-metric-label">Klik</div>
+                                <div class="adsense-detail-metric-value" id="adsenseTrafficAccountDetailClicks">0</div>
+                            </div>
+                            <div class="adsense-detail-metric">
+                                <div class="adsense-detail-metric-label">CTR</div>
+                                <div class="adsense-detail-metric-value" id="adsenseTrafficAccountDetailCtr">0%</div>
+                            </div>
+                            <div class="adsense-detail-metric">
+                                <div class="adsense-detail-metric-label">CPC</div>
+                                <div class="adsense-detail-metric-value" id="adsenseTrafficAccountDetailCpc">Rp 0</div>
+                            </div>
+                            <div class="adsense-detail-metric">
+                                <div class="adsense-detail-metric-label">CPM</div>
+                                <div class="adsense-detail-metric-value" id="adsenseTrafficAccountDetailCpm">Rp 0</div>
+                            </div>
+                            <div class="adsense-detail-metric highlight">
+                                <div class="adsense-detail-metric-label">Pendapatan</div>
+                                <div class="adsense-detail-metric-value" id="adsenseTrafficAccountDetailRevenue">Rp 0</div>
+                            </div>
+                        </div>
+                        <div class="adsense-detail-section-title">Metrik Lanjutan</div>
+                        <div class="adsense-detail-extra">
+                            <div class="adsense-detail-extra-row"><span class="label">Page Views</span><span class="value" id="adsenseTrafficAccountDetailPageViews">0</span></div>
+                            <div class="adsense-detail-extra-row"><span class="label">Page Views RPM</span><span class="value" id="adsenseTrafficAccountDetailPageViewsRpm">Rp 0</span></div>
+                            <div class="adsense-detail-extra-row"><span class="label">Ad Requests</span><span class="value" id="adsenseTrafficAccountDetailAdRequests">0</span></div>
+                            <div class="adsense-detail-extra-row"><span class="label">Ad Requests Coverage</span><span class="value" id="adsenseTrafficAccountDetailAdRequestsCoverage">0%</span></div>
+                            <div class="adsense-detail-extra-row"><span class="label">Active View Viewability</span><span class="value" id="adsenseTrafficAccountDetailActiveViewViewability">0%</span></div>
+                            <div class="adsense-detail-extra-row"><span class="label">Active View Measurability</span><span class="value" id="adsenseTrafficAccountDetailActiveViewMeasurability">0%</span></div>
+                            <div class="adsense-detail-extra-row"><span class="label">Active View Time (sec)</span><span class="value" id="adsenseTrafficAccountDetailActiveViewTime">0</span></div>
                         </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">
-                            <i class="bi bi-x"></i> Tutup
-                        </button>
+                    <div class="modal-footer adsense-detail-footer">
+                        <button type="button" class="btn adsense-detail-btn-close" data-dismiss="modal"><i class="bi bi-x-lg mr-1"></i> Tutup</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 </div>
 {% endblock %}
 {% block more_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
-<!-- Highcharts for line chart -->
-<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highcharts.min.js" onload="console.log('Highcharts loaded successfully')" onerror="console.error('Failed to load Highcharts')"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highcharts.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
-
 <script>
-// Ensure Highcharts is loaded before loading our custom script
 function loadTrafficAccountScript() {
     if (typeof Highcharts !== 'undefined') {
-        console.log('Highcharts loaded successfully');
-        // Load our custom script
-        var script = document.createElement('script');
-        script.src = "{% static 'ajax/admin/adsense_manager/traffic_account.js'%}?v={%now 'u'%}";
-        document.head.appendChild(script);
-    } else {
-        console.log('Waiting for Highcharts to load...');
-        setTimeout(loadTrafficAccountScript, 100);
-    }
+        var s = document.createElement('script');
+        s.src = "{% static 'ajax/admin/adsense_manager/traffic_account.js' %}?v={% now 'u' %}";
+        document.head.appendChild(s);
+    } else { setTimeout(loadTrafficAccountScript, 100); }
 }
 loadTrafficAccountScript();
 </script>
-
-<script>
-$(document).ready(function() {
-    // Format semua elemen mata uang yang mungkin sudah ada di halaman
-    setTimeout(function() {
-        // Format summary boxes yang mungkin sudah memiliki data
-         $('.card-body h4').each(function() {
-             var text = $(this).text();
-             if (text && text.includes('$')) {
-                 // Convert to number, round to remove decimals, then format with Rp
-                 var numValue = parseFloat(text.replace(/[$,]/g, ''));
-                 if (!isNaN(numValue)) {
-                     $(this).text('Rp' + Math.round(numValue).toLocaleString('id-ID'));
-                 }
-             }
-         });
-        
-        // Format tabel yang mungkin sudah memiliki data
-        $('#table_traffic_account tbody tr').each(function() {
-            // Format kolom tanggal (kolom ke-2)
-            var dateCell = $(this).find('td:nth-child(2)');
-            var dateText = dateCell.text();
-            if (dateText && dateText.match(/\d{4}-\d{2}-\d{2}/)) {
-                var months = [
-                    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-                    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-                ];
-                var date = new Date(dateText + 'T00:00:00');
-                var day = date.getDate();
-                var month = months[date.getMonth()];
-                var year = date.getFullYear();
-                dateCell.text(day + ' ' + month + ' ' + year);
-            }
-            
-            // Format kolom mata uang (kolom 4, 5, 6)
-             $(this).find('td:nth-child(4), td:nth-child(5), td:nth-child(6)').each(function() {
-                 var text = $(this).text();
-                 if (text && text.includes('$')) {
-                     // Convert to number, round to remove decimals, then format with Rp
-                     var numValue = parseFloat(text.replace(/[$,]/g, ''));
-                     if (!isNaN(numValue)) {
-                         $(this).text('Rp. ' + Math.round(numValue).toLocaleString('id-ID'));
-                     }
-                 }
-             });
-        });
-    }, 500);
-});
-</script>
-
 <script>
 (function() {
-    function decorateTourButtons() {
-        const root = document.querySelector('.introjs-tooltip');
-        if (!root) return;
-
-        const prev = root.querySelector('.introjs-prevbutton');
-        if (prev && !prev.dataset.iconized) {
-            prev.dataset.iconized = '1';
-            prev.insertAdjacentHTML('afterbegin', '<i class="fas fa-arrow-left" aria-hidden="true"></i>');
-        }
-
-        const next = root.querySelector('.introjs-nextbutton');
-        if (next && !next.dataset.iconized) {
-            next.dataset.iconized = '1';
-            next.insertAdjacentHTML('beforeend', '<i class="fas fa-arrow-right" aria-hidden="true"></i>');
-        }
-
-        const done = root.querySelector('.introjs-donebutton');
-        if (done && !done.dataset.iconized) {
-            done.dataset.iconized = '1';
-            done.insertAdjacentHTML('afterbegin', '<i class="fas fa-check-circle" aria-hidden="true"></i>');
-        }
-    }
-
-    function isVisible(el) {
-        if (!el) return false;
-        return !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length);
-    }
-
     function startAdsenseTrafficAccountTour() {
         if (typeof introJs !== 'function') return;
-
-        const steps = [{
-            intro: 'Ini panduan singkat halaman Traffic AdSense Per Account. Klik “Lanjut” untuk mengikuti langkah-langkahnya.'
-        }];
-
-        const selectors = [
-            '#adsenseTrafficAccountFilters',
-            '#btn_load_data',
-            '#summary_boxes',
-            '#revenue_chart_row',
-            '#adsenseTrafficAccountTable'
-        ];
-
-        selectors.forEach(function(sel) {
-            const el = document.querySelector(sel);
-            if (!el) return;
-            if (!isVisible(el) && (sel === '#summary_boxes' || sel === '#revenue_chart_row')) return;
-            steps.push({
-                element: el,
-                title: el.getAttribute('data-title') || undefined,
-                intro: el.getAttribute('data-intro') || ''
-            });
+        var steps = [{ intro: 'Panduan singkat Traffic AdSense Per Akun.' }];
+        ['#adsenseTrafficAccountFilters', '#btn_load_data', '#summary_boxes', '#revenue_chart_row', '#adsenseTrafficAccountTable'].forEach(function(sel) {
+            var el = document.querySelector(sel);
+            if (!el || (el.offsetWidth === 0 && el.offsetHeight === 0 && sel !== '#adsenseTrafficAccountFilters' && sel !== '#adsenseTrafficAccountTable')) return;
+            steps.push({ element: el, title: el.getAttribute('data-title') || '', intro: el.getAttribute('data-intro') || '' });
         });
-
-        steps.push({ intro: 'Selesai. Kamu bisa jalankan ulang petunjuk ini dari tombol “User Manual”.' });
-
-        const tour = introJs();
-        tour.setOptions({
-            steps: steps,
-            tooltipClass: 'hris-tour-tooltip',
-            highlightClass: 'hris-tour-highlight',
-            nextLabel: 'Lanjut',
-            prevLabel: 'Kembali',
-            doneLabel: 'Selesai',
-            showSkipButton: false,
-            showProgress: true,
-            showBullets: false,
-            exitOnOverlayClick: true,
-            scrollToElement: true
-        });
-
-        tour.onstart(decorateTourButtons);
-        tour.onafterchange(decorateTourButtons);
-        tour.onchange(decorateTourButtons);
-
-        tour.start();
+        steps.push({ intro: 'Selesai.' });
+        introJs().setOptions({
+            steps: steps, tooltipClass: 'hris-tour-tooltip', highlightClass: 'hris-tour-highlight',
+            nextLabel: 'Lanjut', prevLabel: 'Kembali', doneLabel: 'Selesai',
+            showProgress: true, showBullets: false
+        }).start();
     }
-
     document.addEventListener('DOMContentLoaded', function() {
-        const btn = document.getElementById('btnAdsenseTrafficAccountTour');
-        if (!btn) return;
-        btn.addEventListener('click', function() {
-            startAdsenseTrafficAccountTour();
-        });
+        var btn = document.getElementById('btnAdsenseTrafficAccountTour');
+        if (btn) btn.addEventListener('click', startAdsenseTrafficAccountTour);
     });
 })();
 </script>

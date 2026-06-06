@@ -1,6 +1,34 @@
 /**
  * Reference Ajax ROI Summary
  */
+function isRoiDarkTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'dark';
+}
+
+function getRoiChartTheme() {
+    var dark = isRoiDarkTheme();
+    return {
+        text: dark ? '#e2e8f0' : '#334155',
+        muted: dark ? '#94a3b8' : '#64748b',
+        grid: dark ? 'rgba(148, 163, 184, 0.12)' : 'rgba(15, 23, 42, 0.08)',
+        tooltipBg: dark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+        tooltipBorder: dark ? 'rgba(255,255,255,0.1)' : 'rgba(15, 23, 42, 0.1)'
+    };
+}
+
+function showRoiSummaryContent() {
+    $('#roiSummaryEmpty').hide();
+}
+
+function resetRoiSummarySections() {
+    $('#summary_boxes, #today_traffic, #charts_section').hide();
+}
+
+function hideRoiSummaryContent() {
+    $('#roiSummaryEmpty').show();
+    resetRoiSummarySections();
+}
+
 function normalizeDomainFilter(selected_domain) {
     if (Array.isArray(selected_domain)) {
         return selected_domain.map(function (s) { return String(s || '').trim(); }).filter(function (s) { return s; }).join(',');
@@ -108,6 +136,8 @@ $().ready(function () {
             // Reset status fetch sebelum mulai menarik data
             window.fetchStatus = { summary: false, country: false };
             $('#overlay').show();
+            $('#roiSummaryEmpty').hide();
+            resetRoiSummarySections();
             load_country_options(selected_account, selected_domain);
             load_ROI_traffic_country_data(tanggal_dari, tanggal_sampai);
             load_ROI_summary_data(tanggal_dari, tanggal_sampai);
@@ -243,6 +273,7 @@ function updateSummaryBoxes(data) {
     $('#total_ctr').text(averageCTR.toFixed(2) + '%');
     // Tampilkan summary boxes
     $('#summary_boxes').show();
+    showRoiSummaryContent();
 }
 
 // Fungsi untuk format mata uang IDR
@@ -312,10 +343,14 @@ function create_roi_daily_chart(data) {
     var dates = Array.from(dateSet).sort();
     if (dates.length === 0 || domainSet.size === 0) {
         console.warn('No data to render ROI daily chart');
+        $('#chart_roi_daily').hide();
+        $('#chartRoiDailyEmpty').show();
         return;
     }
+    $('#chart_roi_daily').show();
+    $('#chartRoiDailyEmpty').hide();
 
-    // Format label tanggal
+    var theme = getRoiChartTheme();
     var formattedDates = dates.map(function (date) {
         var d = new Date(date + 'T00:00:00');
         return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
@@ -323,17 +358,19 @@ function create_roi_daily_chart(data) {
 
     // Palet warna untuk beberapa domain
     var palette = [
-        'rgba(255, 99, 132, 1)',
-        'rgba(54, 162, 235, 1)',
-        'rgba(255, 206, 86, 1)',
-        'rgba(75, 192, 192, 1)',
-        'rgba(153, 102, 255, 1)',
-        'rgba(255, 159, 64, 1)',
-        'rgba(201, 203, 207, 1)',
-        'rgba(0, 200, 120, 1)',
-        'rgba(99, 255, 132, 1)',
-        'rgba(255, 99, 255, 1)'
+        'rgba(13, 148, 136, 1)',
+        'rgba(99, 102, 241, 1)',
+        'rgba(236, 72, 153, 1)',
+        'rgba(245, 158, 11, 1)',
+        'rgba(59, 130, 246, 1)',
+        'rgba(168, 85, 247, 1)',
+        'rgba(34, 197, 94, 1)',
+        'rgba(239, 68, 68, 1)',
+        'rgba(14, 165, 233, 1)',
+        'rgba(132, 204, 22, 1)'
     ];
+
+    // Format label tanggal
 
     // Siapkan dataset per domain dan map untuk tooltip
     var datasets = [];
@@ -415,22 +452,25 @@ function create_roi_daily_chart(data) {
             scales: {
                 x: {
                     display: true,
-                    title: { display: true, text: 'Tanggal', font: { weight: 'bold' } },
-                    grid: { display: true, color: 'rgba(0, 0, 0, 0.1)' }
+                    title: { display: true, text: 'Tanggal', font: { weight: 'bold' }, color: theme.text },
+                    ticks: { color: theme.muted },
+                    grid: { display: true, color: theme.grid }
                 },
                 y: {
                     display: true,
-                    title: { display: true, text: 'ROI (%)', font: { weight: 'bold' } },
+                    title: { display: true, text: 'ROI (%)', font: { weight: 'bold' }, color: theme.text },
                     ticks: {
+                        color: theme.muted,
                         callback: function (value) { return Number(value).toFixed(1) + '%'; }
                     },
-                    grid: { display: true, color: 'rgba(0, 0, 0, 0.1)' }
+                    grid: { display: true, color: theme.grid }
                 },
                 y1: {
                     display: true,
                     position: 'right',
-                    title: { display: true, text: 'Profit (Rp)', font: { weight: 'bold' } },
+                    title: { display: true, text: 'Profit (Rp)', font: { weight: 'bold' }, color: theme.text },
                     ticks: {
+                        color: theme.muted,
                         callback: function (value) { return formatCurrencyIDR(value); }
                     },
                     grid: { drawOnChartArea: false }
@@ -438,13 +478,16 @@ function create_roi_daily_chart(data) {
             },
             plugins: {
                 title: {
-                    display: true,
-                    text: 'Tren ROI Harian per Domain',
-                    font: { size: 16, weight: 'bold' }
+                    display: false
                 },
                 tooltip: {
                     mode: 'index',
                     intersect: false,
+                    backgroundColor: theme.tooltipBg,
+                    borderColor: theme.tooltipBorder,
+                    borderWidth: 1,
+                    titleColor: theme.text,
+                    bodyColor: theme.text,
                     callbacks: {
                         label: function (context) {
                             var label = context.dataset.label;
@@ -463,7 +506,11 @@ function create_roi_daily_chart(data) {
                         }
                     }
                 },
-                legend: { display: true, position: 'top' }
+                legend: {
+                    display: true,
+                    position: 'top',
+                    labels: { color: theme.text, boxWidth: 12, padding: 14, font: { size: 11 } }
+                }
             }
         }
     });
@@ -516,23 +563,25 @@ function normalizeDateStr(val) {
 }
 // Fungsi untuk generate charts
 function generateTrafficCountryCharts(data) {
-    // Bersihkan chart jika data kosong dan sembunyikan section chart
+    var theme = getRoiChartTheme();
+    var countryBarColors = [
+        'rgba(13, 148, 136, 0.85)', 'rgba(99, 102, 241, 0.85)', 'rgba(236, 72, 153, 0.85)',
+        'rgba(245, 158, 11, 0.85)', 'rgba(59, 130, 246, 0.85)', 'rgba(168, 85, 247, 0.85)',
+        'rgba(34, 197, 94, 0.85)', 'rgba(239, 68, 68, 0.85)', 'rgba(14, 165, 233, 0.85)',
+        'rgba(132, 204, 22, 0.85)'
+    ];
+    var countryBorderColors = countryBarColors.map(function (c) { return c.replace('0.85', '1'); });
+
     if (!data || data.length === 0) {
         if (window.roiChartInstance) {
             try { window.roiChartInstance.destroy(); } catch (e) { console.warn('Failed to destroy ROI chart:', e); }
             window.roiChartInstance = null;
         }
-        // Tampilkan pesan kosong pada card chart negara
-        var msgId = 'roiChartEmptyMsg';
-        var $canvas = $('#roiChart');
-        if (!$('#' + msgId).length && $canvas.length) {
-            $canvas.parent().append('<div id="' + msgId + '" class="text-muted">Tidak ada data ROI per negara untuk periode/filters ini.</div>');
-        }
-        $canvas.hide();
+        $('#roiChart').hide();
+        $('#roiChartEmptyMsg').show();
         return;
     }
-    // Hapus pesan kosong jika sebelumnya ada
-    $('#roiChartEmptyMsg').remove();
+    $('#roiChartEmptyMsg').hide();
     $('#roiChart').show();
 
     // Sort data by ROI and take top 10
@@ -567,51 +616,42 @@ function generateTrafficCountryCharts(data) {
                     datasets: [{
                         label: 'ROI (%)',
                         data: roi,
-                        backgroundColor: [
-                            'rgba(255, 99, 132, 0.8)',
-                            'rgba(54, 162, 235, 0.8)',
-                            'rgba(255, 205, 86, 0.8)',
-                            'rgba(75, 192, 192, 0.8)',
-                            'rgba(153, 102, 255, 0.8)',
-                            'rgba(255, 159, 64, 0.8)',
-                            'rgba(199, 199, 199, 0.8)',
-                            'rgba(83, 102, 255, 0.8)',
-                            'rgba(255, 99, 255, 0.8)',
-                            'rgba(99, 255, 132, 0.8)'
-                        ],
-                        borderColor: [
-                            'rgba(255, 99, 132, 1)',
-                            'rgba(54, 162, 235, 1)',
-                            'rgba(255, 205, 86, 1)',
-                            'rgba(75, 192, 192, 1)',
-                            'rgba(153, 102, 255, 1)',
-                            'rgba(255, 159, 64, 1)',
-                            'rgba(199, 199, 199, 1)',
-                            'rgba(83, 102, 255, 1)',
-                            'rgba(255, 99, 255, 1)',
-                            'rgba(99, 255, 132, 1)'
-                        ],
-                        borderWidth: 1
+                        backgroundColor: countryBarColors,
+                        borderColor: countryBorderColors,
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        borderSkipped: false
                     }]
                 },
                 options: {
                     indexAxis: 'y',
                     responsive: true,
+                    maintainAspectRatio: false,
                     scales: {
                         x: {
                             beginAtZero: true,
                             ticks: {
-                                callback: function (value) {
-                                    return value + '%';
-                                }
-                            }
+                                color: theme.muted,
+                                callback: function (value) { return value + '%'; }
+                            },
+                            grid: { color: theme.grid }
+                        },
+                        y: {
+                            ticks: { color: theme.muted },
+                            grid: { display: false }
                         }
                     },
                     plugins: {
+                        legend: { display: false },
                         tooltip: {
+                            backgroundColor: theme.tooltipBg,
+                            borderColor: theme.tooltipBorder,
+                            borderWidth: 1,
+                            titleColor: theme.text,
+                            bodyColor: theme.text,
                             callbacks: {
                                 label: function (context) {
-                                    return context.dataset.label + ': ' + context.parsed.x + '%';
+                                    return 'ROI: ' + context.parsed.x + '%';
                                 }
                             }
                         }
@@ -657,6 +697,7 @@ function load_ROI_summary_data(tanggal_dari, tanggal_sampai) {
                     $('#total_revenue').text(formatCurrencyIDR(totalRevenue));
                     $('#total_net_revenue').text(formatCurrencyIDR(totalNetRevenue));
                     $('#summary_boxes').show();
+                    showRoiSummaryContent();
                 }
                 // Tampilkan chart ROI harian jika ada data
                 if (response.data && response.data.length > 0) {

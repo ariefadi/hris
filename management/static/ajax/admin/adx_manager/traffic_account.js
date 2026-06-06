@@ -9,6 +9,52 @@ function normalizeDomainFilter(selected_domain) {
     return String(selected_domain || '').trim();
 }
 
+function isAdxDarkTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'dark';
+}
+
+function getAdxChartTheme() {
+    var dark = isAdxDarkTheme();
+    return {
+        text: dark ? '#e2e8f0' : '#334155',
+        muted: dark ? '#94a3b8' : '#64748b',
+        grid: dark ? 'rgba(148, 163, 184, 0.12)' : 'rgba(15, 23, 42, 0.08)',
+        tooltipBg: dark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+        tooltipBorder: dark ? 'rgba(255,255,255,0.1)' : 'rgba(15, 23, 42, 0.1)'
+    };
+}
+
+function showAdxTrafficLoader(message) {
+    var msg = String(message || 'Memuat data traffic AdX...').trim();
+    if (window.HrisLoader && typeof window.HrisLoader.show === 'function') {
+        window.HrisLoader.show(msg);
+        return;
+    }
+    var $overlay = $('#overlay');
+    if ($overlay.length) {
+        $overlay.attr('data-loader-message', msg);
+        $overlay.show();
+    }
+}
+
+function hideAdxTrafficLoader() {
+    if (window.HrisLoader && typeof window.HrisLoader.forceHide === 'function') {
+        window.HrisLoader.forceHide();
+        return;
+    }
+    $('#overlay').hide();
+}
+
+function showAdxTrafficResults() {
+    $('#adxTrafficEmptyState').hide();
+    $('#adxTrafficResults').show();
+}
+
+function hideAdxTrafficResults() {
+    $('#adxTrafficResults').hide();
+    $('#adxTrafficEmptyState').show();
+}
+
 $().ready(function () {
     report_eror = function (jqXHR, exception) {
         var msg = '';
@@ -83,6 +129,8 @@ $().ready(function () {
         }
     });
     // Load sites list on page load
+    hideAdxTrafficResults();
+
     $('#btn_load_data').click(function (e) {
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
@@ -90,7 +138,7 @@ $().ready(function () {
         var selected_domain = normalizeDomainFilter($("#domain_filter").val());
         if (tanggal_dari != "" && tanggal_sampai != "") {
             e.preventDefault();
-            $("#overlay").show();
+            showAdxTrafficLoader();
             load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain);
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
@@ -105,12 +153,9 @@ function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_ac
         accountFilter = selected_account.join(',');
     }
     var domainFilter = normalizeDomainFilter(selectedDomains);
-    $("#overlay").show();
-    // Destroy existing DataTable if exists
-    if ($.fn.DataTable.isDataTable('#table_traffic_country')) {
+    if ($.fn.DataTable.isDataTable('#table_traffic_account')) {
         $('#table_traffic_account').DataTable().destroy();
     }
-    // AJAX Request
     $.ajax({
         url: '/management/admin/page_adx_traffic_account',
         type: 'GET',
@@ -124,44 +169,38 @@ function load_adx_traffic_account_data(tanggal_dari, tanggal_sampai, selected_ac
             'X-CSRFToken': csrftoken
         },
         success: function (response) {
+            hideAdxTrafficLoader();
             if (response && response.status) {
-                // Update summary boxes
+                showAdxTrafficResults();
                 updateSummaryBoxes(response.summary);
-                $('#summary_boxes').show();
-                // Initialize DataTable
                 initializeDataTable(response.data);
-                // Generate charts if data available
-                create_revenue_line_chart(response.data);
-                $('#charts_section').show();
-                $('#revenue_chart_row').show();
-                $('#overlay').hide();
+                if (response.data && response.data.length > 0) {
+                    create_revenue_line_chart(response.data);
+                    $('#revenue_chart_row').show();
+                } else {
+                    $('#revenue_chart_row').hide();
+                }
+                showSuccessMessage('Data traffic berhasil dimuat.');
             } else {
-                var errorMsg = response.error || 'Terjadi kesalahan yang tidak diketahui';
-                console.error('[DEBUG] Response error:', errorMsg);
-                alert('Error: ' + errorMsg);
+                hideAdxTrafficResults();
+                alert('Error: ' + (response.error || 'Terjadi kesalahan yang tidak diketahui'));
             }
         },
         error: function (xhr, status, error) {
-            console.error('[DEBUG] AJAX Error:', {
-                xhr: xhr,
-                status: status,
-                error: error
-            });
-            $('#overlay').hide();
-            report_eror('Terjadi kesalahan saat memuat data: ' + error);
+            hideAdxTrafficLoader();
+            hideAdxTrafficResults();
+            report_eror(xhr, status);
         }
     });
 }
 // Fungsi untuk update summary boxes
 function updateSummaryBoxes(data) {
-    var totalClicks = Number(data.total_clicks || 0);
-    var avgCpc = Number(data.avg_cpc || 0);
-    var avgCtr = Number(data.avg_ctr || 0);
-    var totalRevenue = parseFloat(data.total_revenue || 0) || 0;
-    $("#total_clicks").text(formatNumber(totalClicks || 0));
-    $("#avg_cpc").text(formatCurrencyIDR(avgCpc || 0));
-    $("#avg_ctr").text(formatNumber(avgCtr || 0, 2) + '%');
-    $("#total_revenue").text(formatCurrencyIDR(totalRevenue || 0));
+    data = data || {};
+    $("#total_impressions").text(formatNumber(data.total_impressions || 0));
+    $("#total_clicks").text(formatNumber(data.total_clicks || 0));
+    $("#avg_cpc").text(formatCurrencyIDR(data.avg_cpc || 0));
+    $("#avg_ctr").text(formatNumber(data.avg_ctr || 0, 2) + '%');
+    $("#total_revenue").text(formatCurrencyIDR(data.total_revenue || 0));
 }
 
 function getSelectedTextList(selector) { 
@@ -256,14 +295,16 @@ function initializeDataTable(data) {
                 var year = date.getFullYear();
                 formattedDate = day + ' ' + month + ' ' + year;
             }
-            var cellDate = '<span data-order="' + (row.date || '-') + '">' + formattedDate + '</span>';
-            var btnDetail = '<button type="button" class="btn btn-sm btn-outline-primary btn-adx-traffic-account-detail" data-row-index="' + idx + '" title="Detail">'
+            var cellDate = '<span data-order="' + (row.date || '') + '">' + formattedDate + '</span>';
+            var siteLabel = escapeHtml(row.site_name || '-');
+            var cellSite = '<span class="site-badge" title="' + siteLabel + '">' + siteLabel + '</span>';
+            var btnDetail = '<button type="button" class="btn btn-sm btn-outline-primary btn-adx-traffic-account-detail btn-detail-row" data-row-index="' + idx + '" title="Detail">'
                 + '<i class="bi bi-eye-fill" aria-hidden="true"></i>'
                 + '</button>';
 
             tableData.push([
                 cellDate,
-                row.site_name || '-',
+                cellSite,
                 formatNumber(row.clicks_adx || 0),
                 formatCurrencyIDR(row.cpc_adx || 0),
                 formatCurrencyIDR(row.ecpm || 0),
@@ -443,34 +484,21 @@ function initializeDataTable(data) {
             }
         ],
         columnDefs: [
-            { 
-                targets: [0, 5, 7], 
-                className: 'text-center'
-            },
+            { targets: [0, 5, 7], className: 'text-center' },
+            { targets: 7, orderable: false, searchable: false, className: 'text-center no-export' },
+            { targets: [2, 3, 4, 6], className: 'text-right' },
             {
-                targets: [7],
-                orderable: false,
-                searchable: false,
-                className: 'text-center no-export'
-            },
-            {
-                targets: [2, 3, 4, 6], // Kolom numerik ditata kanan
-                className: "text-right"
-            },
-            {
-                // Sort numerik untuk CPC (Rp) - kolom index 2
                 targets: 2,
                 type: 'num',
                 render: function (data, type) {
                     if (type === 'sort' || type === 'type') {
-                        var v = parseFloat(String(data).replace(/[Rp.\s]/g, '').replace(/,/g, ''));
+                        var v = parseFloat(String(data).replace(/[^0-9.-]/g, ''));
                         return isNaN(v) ? 0 : v;
                     }
                     return data;
                 }
             },
             {
-                // Sort numerik untuk eCPM (Rp) - kolom index 3
                 targets: 3,
                 type: 'num',
                 render: function (data, type) {
@@ -482,8 +510,18 @@ function initializeDataTable(data) {
                 }
             },
             {
-                // Sort numerik untuk CTR (%) - kolom index 4
                 targets: 4,
+                type: 'num',
+                render: function (data, type) {
+                    if (type === 'sort' || type === 'type') {
+                        var v = parseFloat(String(data).replace(/[Rp.\s]/g, '').replace(/,/g, ''));
+                        return isNaN(v) ? 0 : v;
+                    }
+                    return data;
+                }
+            },
+            {
+                targets: 5,
                 type: 'num',
                 render: function (data, type) {
                     if (type === 'sort' || type === 'type') {
@@ -494,8 +532,7 @@ function initializeDataTable(data) {
                 }
             },
             {
-                // Sort numerik untuk Pendapatan (Rp) - kolom index 5
-                targets: 5,
+                targets: 6,
                 type: 'num',
                 render: function (data, type) {
                     if (type === 'sort' || type === 'type') {
@@ -542,98 +579,79 @@ function initializeDataTable(data) {
     } catch (e) {}
 }
 
-// Function to create revenue line chart (matching adx_summary style)
+var adxTrafficRevenueChart = null;
+
 function create_revenue_line_chart(data) {
-    if (!data || data.length === 0) {
-        console.log('No data available for chart');
-        return;
-    }
-    
-    // Check if Highcharts is available
-    if (typeof Highcharts === 'undefined') {
-        console.error('Highcharts is not defined. Cannot create chart.');
-        return;
-    }
-    
-    // Group data by date and sum revenue
+    if (!data || data.length === 0 || typeof Highcharts === 'undefined') return;
+
+    var theme = getAdxChartTheme();
     var dailyRevenue = {};
     data.forEach(function (item) {
-        var date = item.date;
-        if (!dailyRevenue[date]) {
-            dailyRevenue[date] = 0;
-        }
-        dailyRevenue[date] += parseFloat(item.revenue || 0);
+        var date = String(item.date || '').slice(0, 10);
+        if (!date) return;
+        dailyRevenue[date] = (dailyRevenue[date] || 0) + parseFloat(item.revenue || 0);
     });
-    
-    // Convert to arrays for Highcharts
+
     var dates = Object.keys(dailyRevenue).sort();
-    var revenues = dates.map(function (date) {
-        return dailyRevenue[date];
-    });
-    
-    // Format dates for display
+    var revenues = dates.map(function (date) { return dailyRevenue[date]; });
     var formattedDates = dates.map(function (date) {
         var d = new Date(date + 'T00:00:00');
-        return d.toLocaleDateString('id-ID', {
-            day: 'numeric',
-            month: 'short'
-        });
+        return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
     });
-    
-    // Create line chart for daily revenue
-    Highcharts.chart('revenue_chart', {
+
+    if (adxTrafficRevenueChart && typeof adxTrafficRevenueChart.destroy === 'function') {
+        adxTrafficRevenueChart.destroy();
+    }
+
+    adxTrafficRevenueChart = Highcharts.chart('revenue_chart', {
         chart: {
-            type: 'line'
+            type: 'areaspline',
+            backgroundColor: 'transparent',
+            style: { fontFamily: 'inherit' },
+            spacing: [12, 8, 16, 8]
         },
-        title: {
-            text: 'Pergerakan Pendapatan Harian'
-        },
+        title: { text: null },
+        credits: { enabled: false },
         xAxis: {
             categories: formattedDates,
-            title: {
-                text: 'Tanggal'
-            }
+            lineColor: theme.grid,
+            tickColor: theme.grid,
+            labels: { style: { color: theme.muted, fontSize: '11px' } }
         },
         yAxis: {
-            title: {
-                text: 'Pendapatan (Rp)'
-            },
+            title: { text: null },
+            gridLineColor: theme.grid,
             labels: {
-                formatter: function () {
-                    return 'Rp ' + formatNumber(this.value, 0);
-                }
+                style: { color: theme.muted, fontSize: '11px' },
+                formatter: function () { return 'Rp ' + formatNumber(this.value, 0); }
+            }
+        },
+        legend: { enabled: false },
+        tooltip: {
+            backgroundColor: theme.tooltipBg,
+            borderColor: theme.tooltipBorder,
+            borderRadius: 10,
+            style: { color: theme.text },
+            formatter: function () {
+                return '<b>' + formatDateID(dates[this.point.index]) + '</b><br/>Pendapatan: <b>Rp ' + formatNumber(this.y, 0) + '</b>';
+            }
+        },
+        plotOptions: {
+            areaspline: {
+                fillOpacity: 0.18,
+                lineWidth: 3,
+                marker: { enabled: true, radius: 4, lineWidth: 2, lineColor: '#ffffff' }
             }
         },
         series: [{
-            name: 'Pendapatan Harian',
+            name: 'Pendapatan',
             data: revenues,
-            color: '#28a745',
-            lineWidth: 3,
-            marker: {
-                radius: 5
+            color: '#6366f1',
+            fillColor: {
+                linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+                stops: [[0, 'rgba(99, 102, 241, 0.35)'], [1, 'rgba(99, 102, 241, 0.02)']]
             }
-        }],
-        tooltip: {
-            formatter: function () {
-                var dateIndex = this.point.index;
-                var actualDate = dates[dateIndex];
-                var formattedDate = formatDateForDisplay(actualDate);
-                return '<b>' + this.series.name + '</b><br/>' +
-                    'Tanggal: ' + formattedDate + '<br/>' +
-                    'Pendapatan: Rp ' + formatNumber(this.y, 2);
-            }
-        },
-        legend: {
-            enabled: false
-        },
-        plotOptions: {
-            line: {
-                dataLabels: {
-                    enabled: false
-                },
-                enableMouseTracking: true
-            }
-        }
+        }]
     });
 }
 
@@ -669,20 +687,11 @@ function formatCurrencyIDR(value) {
     return 'Rp. ' + Math.round(numValue).toLocaleString('id-ID');
 }
 function showSuccessMessage(message) {
-    var alertHtml = '<div class="alert alert-success alert-dismissible fade show" role="alert">';
-    alertHtml += '<i class="bi bi-check-circle"></i> ' + message;
-    alertHtml += '<button type="button" class="close" data-dismiss="alert" aria-label="Close">';
-    alertHtml += '<span aria-hidden="true">&times;</span>';
-    alertHtml += '</button>';
-    alertHtml += '</div>';
-    
-    $('.card-body').first().prepend(alertHtml);
-    
-    setTimeout(function() {
-        $('.alert-success').fadeOut('slow', function() {
-            $(this).remove();
-        });
-    }, 3000);
+    var alertHtml = '<div class="alert alert-success alert-dismissible fade show adx-traffic-alert" role="alert">'
+        + '<i class="bi bi-check-circle"></i> ' + message
+        + '<button type="button" class="close" data-dismiss="alert"><span>&times;</span></button></div>';
+    $('.adx-traffic-page .card').first().find('.card-body').prepend(alertHtml);
+    setTimeout(function () { $('.adx-traffic-alert').fadeOut('slow', function () { $(this).remove(); }); }, 3000);
 }
 function getCookie(name) {
     let cookieValue = null;

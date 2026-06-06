@@ -59,6 +59,36 @@ $('#assignAccountModal').on('shown.bs.modal', function () {
         dropdownParent: $('#assignAccountModal')
     });
 });
+function showAccountInfoContent() {
+    $('#adxAccountInfoEmpty').hide();
+    $('#adxAccountInfoContent').show();
+}
+function hideAccountInfoContent() {
+    $('#adxAccountInfoEmpty').show();
+    $('#adxAccountInfoContent').hide();
+}
+function updateStatusBadge(isActive) {
+    var $status = $('#status');
+    if (isActive === true || isActive === 'Yes') {
+        $status.removeClass('inactive').addClass('active').text('Active');
+    } else if (isActive === false || isActive === 'No') {
+        $status.removeClass('active').addClass('inactive').text('Inactive');
+    } else {
+        $status.removeClass('inactive').addClass('active').text('Active');
+    }
+}
+function formatAdditionalInfo(data) {
+    var rows = '';
+    if (data.effective_root_ad_unit_id) {
+        rows += '<div class="adx-info-row"><span class="label">Root Ad Unit ID</span><span class="value">' + data.effective_root_ad_unit_id + '</span></div>';
+    }
+    if (data.is_test_network !== undefined) {
+        var testText = data.is_test_network ? 'Yes' : 'No';
+        rows += '<div class="adx-info-row"><span class="label">Test Network</span><span class="value">' + testText + '</span></div>';
+    }
+    if (!rows) return '';
+    return '<div class="adx-info-rows mt-2">' + rows + '</div>';
+}
 function load_adx_account_data() {
     $("#overlay").show();
     var selectedAccounts = $('#account_filter').val();
@@ -91,25 +121,17 @@ function load_adx_account_data() {
                     $("#user_name").text(response.data.user_name || '-');
                     $("#user_role").text(response.data.user_role || '-');
                     // Format user active status
-                    var userActiveText = response.data.user_is_active !== undefined ? 
+                    var userActiveText = response.data.user_is_active !== undefined ?
                         (response.data.user_is_active ? 'Yes' : 'No') : '-';
                     $("#user_is_active").text(userActiveText);
+                    updateStatusBadge(response.data.user_is_active);
                     // Update Account Statistics
                     $("#active_ad_units_count").text(response.data.active_ad_units_count || '0');
                     // Format last updated time
-                    var lastUpdated = response.data.last_updated ? 
+                    var lastUpdated = response.data.last_updated ?
                         new Date(response.data.last_updated).toLocaleString() : '-';
                     $("#last_updated").text(lastUpdated);
-                    // Add additional network information if available
-                    var additionalInfo = '';
-                    if (response.data.effective_root_ad_unit_id) {
-                        additionalInfo += '<p><strong>Root Ad Unit ID:</strong> ' + response.data.effective_root_ad_unit_id + '</p>';
-                    }
-                    if (response.data.is_test_network !== undefined) {
-                        var testNetworkText = response.data.is_test_network ? 'Yes' : 'No';
-                        additionalInfo += '<p><strong>Test Network:</strong> ' + testNetworkText + '</p>';
-                    }
-                    $("#additional_info").html(additionalInfo);
+                    $("#additional_info").html(formatAdditionalInfo(response.data));
                     // Show note if available
                     if (response.note) {
                         $("#note_text").text(response.note);
@@ -117,6 +139,7 @@ function load_adx_account_data() {
                     } else {
                         $("#data_note").hide();
                     }
+                    showAccountInfoContent();
                     // Show success message
                     showSuccessMessage('Account data loaded successfully!');
                 } else {
@@ -138,12 +161,13 @@ function load_adx_account_data() {
     });
 }
 function resetAccountDisplay() {
-    // Reset all fields to default values
     $("#network_id, #network_code, #display_name, #timezone, #currency_code").text('-');
     $("#user_mail, #user_id, #user_name, #user_role, #user_is_active").text('-');
     $("#active_ad_units_count, #last_updated").text('-');
     $("#additional_info").html('');
     $("#data_note").hide();
+    updateStatusBadge(true);
+    hideAccountInfoContent();
 }
 function showErrorMessage(message) {
     // Create and show a temporary error alert
@@ -153,8 +177,8 @@ function showErrorMessage(message) {
     alertHtml += '<span aria-hidden="true">&times;</span>';
     alertHtml += '</button>';
     alertHtml += '</div>';
-    // Insert at the top of the card body
-    $('.card-body').first().prepend(alertHtml);
+    // Insert at the top of the filter card body
+    $('.adx-filter-card .card-body').first().prepend(alertHtml);
     // Auto-hide after 5 seconds
     setTimeout(function() {
         $('.alert-danger').fadeOut('slow', function() {
@@ -170,8 +194,8 @@ function showSuccessMessage(message) {
     alertHtml += '<span aria-hidden="true">&times;</span>';
     alertHtml += '</button>';
     alertHtml += '</div>';
-    // Insert at the top of the card body
-    $('.card-body').first().prepend(alertHtml);
+    // Insert at the top of the filter card body
+    $('.adx-filter-card .card-body').first().prepend(alertHtml);
     // Auto-hide after 3 seconds
     setTimeout(function() {
         $('.alert-success').fadeOut('slow', function() {
@@ -480,8 +504,8 @@ function showAlert(type, message) {
     // Remove existing alerts
     $('.alert-success, .alert-danger').remove();
     
-    // Add new alert at the top of the card body
-    $('.card-body').first().prepend(alertHtml);
+    // Add new alert at the top of the filter card body
+    $('.adx-filter-card .card-body').first().prepend(alertHtml);
     
     // Auto-hide after 5 seconds
     setTimeout(function() {

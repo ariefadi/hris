@@ -1,3 +1,79 @@
+function escapeHtml(text) {
+    return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/\"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function isRoiDarkTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'dark';
+}
+
+function getRoiMapTheme() {
+    var dark = isRoiDarkTheme();
+    return {
+        text: dark ? '#e2e8f0' : '#334155',
+        muted: dark ? '#94a3b8' : '#64748b',
+        bg: dark ? '#0f172a' : 'transparent',
+        nullColor: dark ? '#334155' : '#E6E7E8',
+        borderColor: dark ? '#475569' : '#94a3b8',
+        legendBg: dark ? 'rgba(15, 23, 42, 0.92)' : 'rgba(255,255,255,0.92)',
+        tooltipBg: dark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+        tooltipBorder: dark ? 'rgba(255,255,255,0.1)' : 'rgba(15, 23, 42, 0.1)',
+        hoverColor: dark ? '#14b8a6' : '#5eead4'
+    };
+}
+
+function showRoiCountryContent() {
+    $('#roiCountryEmpty').hide();
+}
+
+function resetRoiCountrySections() {
+    $('#summary_boxes, #charts_section').hide();
+}
+
+function formatCountryCell(name, code) {
+    var n = String(name || '-').trim();
+    var c = String(code || '').toUpperCase();
+    var flagHtml = '';
+    if (c) {
+        flagHtml = '<img src="https://flagcdn.com/16x12/' + c.toLowerCase() + '.png" alt="' + escapeHtml(c) + '" width="16" height="12">';
+    }
+    return '<div class="country-cell">' + flagHtml +
+        '<span class="country-name" title="' + escapeHtml(n) + '">' + escapeHtml(n) + '</span></div>';
+}
+
+function formatCountryCodeBadge(code) {
+    var c = String(code || '').toUpperCase();
+    if (!c) return '-';
+    return '<span class="country-code-badge">' + escapeHtml(c) + '</span>';
+}
+
+function buildRoiCountryRow(row) {
+    var spendVal = Number(row.spend || 0);
+    var revenueVal = Number(row.revenue || 0);
+    return [
+        '',
+        formatCountryCell(row.country, row.country_code),
+        formatCountryCodeBadge(row.country_code),
+        spendVal,
+        Number(row.clicks_fb || 0),
+        Number(row.clicks_adx || 0),
+        Number(row.cpr || 0),
+        Number(row.ctr_fb || 0),
+        Number(row.ctr_adx || 0),
+        Number(row.cpc_fb || 0),
+        Number(row.cpc_adx || 0),
+        Number(row.ecpm || 0),
+        Number(row.roi || 0),
+        revenueVal,
+        (revenueVal - spendVal),
+        Number(row.total_visitors || 0)
+    ];
+}
+
 function normalizeDomainFilter(selected_domain) {
     if (Array.isArray(selected_domain)) {
         return selected_domain.map(function (s) { return String(s || '').trim(); }).filter(function (s) { return s; }).join(',');
@@ -132,6 +208,8 @@ $(document).ready(function () {
         if (tanggal_dari != "" && tanggal_sampai != "") {
             e.preventDefault();
             $('#overlay').show();
+            $('#roiCountryEmpty').hide();
+            resetRoiCountrySections();
             load_country_options(selected_account, selected_domain);
             load_adx_traffic_country_data(tanggal_dari, tanggal_sampai, selected_account, selected_domain);
         } else {
@@ -223,15 +301,6 @@ $(document).ready(function () {
         }).filter(function (t) {
             return t;
         });
-    }
-
-    function escapeHtml(text) {
-        return String(text || '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/\"/g, '&quot;')
-            .replace(/'/g, '&#39;');
     }
 
     function escapeXmlText(text) {
@@ -345,7 +414,7 @@ $(document).ready(function () {
                     // Update summary boxes
                     updateSummaryBoxes(displayData);
                     $('#summary_boxes').show();
-                    // Initialize DataTable
+                    showRoiCountryContent();
                     initializeDataTable(displayData);
                     // Generate charts if data available
                     generateTrafficCountryCharts(displayData);
@@ -432,32 +501,8 @@ $(document).ready(function () {
     function initializeDataTable(data) {
         var tableData = [];
         if (data && Array.isArray(data)) {
-            data.forEach(function (row, idx) {
-                var countryFlag = '';
-                if (row.country_code) {
-                    countryFlag = '<img src="https://flagcdn.com/16x12/' + row.country_code.toLowerCase() + '.png" alt="' + row.country_code + '" style="margin-right: 5px;"> ';
-                }
-                // Sisipkan kolom pertama untuk checkbox
-                var spendVal = Number(row.spend || 0);
-                var revenueVal = Number(row.revenue || 0);
-                tableData.push([
-                    '',                                     // 0: Checkbox (render di columnDefs)
-                    countryFlag + (row.country || ''),     // 1: Negara
-                    row.country_code || '',                // 2: Kode Negara
-                    spendVal,                              // 3: Spend (Rp)
-                    Number(row.clicks_fb || 0),            // 4: Klik FB
-                    Number(row.clicks_adx || 0),           // 5: Klik ADX
-                    Number(row.cpr || 0),                  // 6: CPR
-                    Number(row.ctr_fb || 0),               // 7: CTR FB (%)
-                    Number(row.ctr_adx || 0),              // 8: CTR ADX (%)
-                    Number(row.cpc_fb || 0),               // 9: CPC FB (Rp)
-                    Number(row.cpc_adx || 0),              // 10: CPC ADX (Rp)
-                    Number(row.ecpm || 0),                 // 11: eCPM (Rp)
-                    Number(row.roi || 0),                  // 12: ROI (%)
-                    revenueVal,                            // 13: Pendapatan (Rp)
-                    (revenueVal - spendVal),               // 14: Pendapatan Bersih (Rp)
-                    Number(row.total_visitors || 0)         // 15: Visitor
-                ]);
+            data.forEach(function (row) {
+                tableData.push(buildRoiCountryRow(row));
             });
         }
         // Destroy existing DataTable dan bersihkan state agar default order berlaku
@@ -814,7 +859,9 @@ $(document).ready(function () {
                     type: 'num-fmt',
                     render: function (data, type) {
                         var v = Number(data) || 0;
-                        return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toFixed(2) + '%';
+                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
+                        var cls = v >= 0 ? 'roi-val-positive' : 'roi-val-negative';
+                        return '<span class="' + cls + '">' + v.toFixed(2) + '%</span>';
                     }
                 },
                 // Pendapatan (kolom 13)
@@ -920,11 +967,16 @@ $(document).ready(function () {
         if (!data || data.length === 0) {
             $('#charts_section').hide();
             $('#btnToggleCountryMap').hide();
+            if (window.worldMapInstance) {
+                try { window.worldMapInstance.destroy(); } catch (e) { }
+                window.worldMapInstance = null;
+            }
             return;
         }
         
-        // Tampilkan section charts dan buat world map
         $('#charts_section').show();
+        $('#roiMapEmpty').hide();
+        $('#worldMap').show();
         createWorldMap(data);
     }
     
@@ -935,15 +987,19 @@ $(document).ready(function () {
         // Jika tidak ada data, pastikan charts dibersihkan dan section disembunyikan
         if (!data || data.length === 0) {
             if (window.worldMapInstance) {
-                try { window.worldMapInstance.destroy(); } catch (e) { console.warn('Failed to destroy world map:', e); }
+                try { window.worldMapInstance.destroy(); } catch (e) { }
                 window.worldMapInstance = null;
             }
             $('#charts_section').hide();
             $('#btnToggleCountryMap').hide();
+            $('#worldMap').hide();
+            $('#roiMapEmpty').show();
             return;
         }
 
-        // Prepare data for Highcharts Maps
+        $('#worldMap').show();
+        $('#roiMapEmpty').hide();
+        var theme = getRoiMapTheme();
         var mapData = [];
         var maxROI = 0;
         var minROI = Infinity;
@@ -1035,7 +1091,8 @@ $(document).ready(function () {
             
             // Check if we have data to display
             if (mapData.length === 0) {
-                $('#worldMap').html('<div style="text-align: center; padding: 100px; color: #666; font-size: 16px;">Tidak ada data untuk ditampilkan.<br>Silakan pilih tanggal dan akun, lalu klik Load Data.</div>');
+                $('#worldMap').hide();
+                $('#roiMapEmpty').show();
                 $('#btnToggleCountryMap').show();
                 setCountryMapVisible(isCountryMapVisible(), false);
                 return;
@@ -1044,26 +1101,18 @@ $(document).ready(function () {
             window.worldMapInstance = Highcharts.mapChart('worldMap', {
                 chart: {
                     map: 'custom/world',
-                    backgroundColor: 'transparent',
-                    style: {
-                        fontFamily: 'Arial, sans-serif'
-                    }
+                    backgroundColor: theme.bg,
+                    style: { fontFamily: 'inherit' }
                 },
                 title: {
                     text: 'ROI Per Negara',
-                    style: {
-                        fontSize: '16px',
-                        fontWeight: '600',
-                        color: '#333'
-                    }
+                    style: { fontSize: '15px', fontWeight: '700', color: theme.text }
                 },
                 subtitle: {
                     text: 'Berdasarkan data traffic dan revenue',
-                    style: {
-                        fontSize: '12px',
-                        color: '#666'
-                    }
+                    style: { fontSize: '12px', color: theme.muted }
                 },
+                credits: { enabled: false },
                 mapNavigation: {
                     enabled: false,
                     buttonOptions: {
@@ -1101,30 +1150,30 @@ $(document).ready(function () {
                 legend: {
                     title: {
                         text: 'Tingkat ROI',
-                        style: {
-                            color: '#333',
-                            fontSize: '12px'
-                        }
+                        style: { color: theme.text, fontSize: '12px', fontWeight: '600' }
                     },
                     align: 'left',
                     verticalAlign: 'bottom',
                     floating: true,
                     layout: 'vertical',
                     valueDecimals: 0,
-                    backgroundColor: 'rgba(255,255,255,0.9)',
-                    symbolRadius: 0,
-                    symbolHeight: 14
+                    backgroundColor: theme.legendBg,
+                    borderColor: theme.tooltipBorder,
+                    borderRadius: 8,
+                    itemStyle: { color: theme.text, fontSize: '11px' },
+                    symbolRadius: 4,
+                    symbolHeight: 12
                 },
                 series: [{
                     name: 'Negara',
                     data: mapData,
                     joinBy: ['hc-key', 'hc-key'],
-                    nullColor: '#E6E7E8', // Warna abu-abu untuk negara tanpa data
+                    nullColor: theme.nullColor,
                     tooltip: {
-                        backgroundColor: 'rgba(0,0,0,0.85)',
-                        style: {
-                            color: 'white'
-                        },
+                        backgroundColor: theme.tooltipBg,
+                        borderColor: theme.tooltipBorder,
+                        borderRadius: 8,
+                        style: { color: theme.text, fontSize: '12px' },
                         pointFormat: '<b>{point.name}</b><br>' +
                                     'Kode: {point.code}<br>' +
                                     'ROI: <b>{point.value:.2f}%</b><br>',
@@ -1146,12 +1195,10 @@ $(document).ready(function () {
                         },
                         nullFormat: '<b>{point.name}</b><br>Tidak ada data ROI'
                     },
-                    borderColor: '#606060',
+                    borderColor: theme.borderColor,
                     borderWidth: 0.5,
                     states: {
-                        hover: {
-                            color: '#a4edba'
-                        }
+                        hover: { color: theme.hoverColor }
                     }
                 }]
             });
@@ -1162,7 +1209,8 @@ $(document).ready(function () {
             
         } catch (error) {
             console.error('Error creating world map:', error);
-            $('#worldMap').html('<div class="text-center p-4"><h5 class="text-danger">Error loading map: ' + error.message + '</h5></div>');
+            $('#worldMap').hide();
+            $('#roiMapEmpty').html('<div class="text-danger">Error loading map: ' + escapeHtml(error.message) + '</div>').show();
         }
     }
     // Re-render saat toggle hide zero spend berubah

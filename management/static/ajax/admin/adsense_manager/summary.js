@@ -1,3 +1,57 @@
+function isAdsenseDarkTheme() {
+  return document.documentElement.getAttribute('data-theme') === 'dark';
+}
+
+function getAdsenseChartTheme() {
+  var dark = isAdsenseDarkTheme();
+  return {
+    text: dark ? '#e2e8f0' : '#334155',
+    muted: dark ? '#94a3b8' : '#64748b',
+    grid: dark ? 'rgba(148, 163, 184, 0.12)' : 'rgba(15, 23, 42, 0.08)',
+    bg: dark ? '#1e293b' : '#ffffff',
+    tooltipBg: dark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+    tooltipBorder: dark ? 'rgba(255,255,255,0.1)' : 'rgba(15, 23, 42, 0.1)',
+    primary: '#059669',
+    primaryLight: 'rgba(5, 150, 105, 0.18)',
+    palette: ['#059669', '#10b981', '#06b6d4', '#6366f1', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899', '#14b8a6', '#3b82f6']
+  };
+}
+
+function showAdsenseSummaryLoader(message) {
+  var msg = String(message || 'Memuat data AdSense Summary...').trim();
+  if (window.HrisLoader && typeof window.HrisLoader.show === 'function') {
+    window.HrisLoader.show(msg);
+    return;
+  }
+  if (typeof $ !== 'undefined' && $('#overlay').length) {
+    $('#overlay').attr('data-loader-message', msg).show();
+  }
+}
+
+function hideAdsenseSummaryLoader() {
+  if (window.HrisLoader && typeof window.HrisLoader.forceHide === 'function') {
+    window.HrisLoader.forceHide();
+    return;
+  }
+  if (typeof $ !== 'undefined' && $('#overlay').length) {
+    $('#overlay').hide();
+  }
+}
+
+function showAdsenseSummaryResults() {
+  var empty = document.getElementById('adsenseSummaryEmptyState');
+  var results = document.getElementById('adsenseSummaryResults');
+  if (empty) empty.style.display = 'none';
+  if (results) results.style.display = '';
+}
+
+function hideAdsenseSummaryResults() {
+  var empty = document.getElementById('adsenseSummaryEmptyState');
+  var results = document.getElementById('adsenseSummaryResults');
+  if (results) results.style.display = 'none';
+  if (empty) empty.style.display = '';
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const startInput = document.getElementById('start_date');
   const endInput = document.getElementById('end_date');
@@ -6,10 +60,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const countrySelect = document.getElementById('country_filter');
   const btnLoad = document.getElementById('btn_load_summary');
   const infoBox = document.getElementById('summary_info');
+  const infoSection = document.getElementById('summary_info_section');
   const chartCanvas = document.getElementById('chart_revenue_daily');
   const impressionsCanvas = document.getElementById('impressionsChart');
   const revenueCanvas = document.getElementById('revenueChart');
-  const summaryBoxes = document.getElementById('summary_boxes');
   const revenueDailyCard = document.getElementById('adsenseRevenueDaily');
   const chartsSection = document.getElementById('charts_section');
   let revenueChart = null;
@@ -20,16 +74,14 @@ document.addEventListener('DOMContentLoaded', () => {
     el.style.display = visible ? '' : 'none';
   };
 
-  setVisible(summaryBoxes, false);
-  setVisible(revenueDailyCard, false);
-  setVisible(chartsSection, false);
+  hideAdsenseSummaryResults();
 
   const IDR_RATE = 1;
   let currencyCode = 'IDR';
 
   const formatIDR = (n) => {
     const num = Number(n || 0);
-    return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(num);
+    return 'Rp ' + Math.round(num).toLocaleString('id-ID');
   };
   const formatPercent = (n) => {
     const num = Number(n || 0);
@@ -37,20 +89,18 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const formatNumber = (n) => {
     const num = Number(n || 0);
-    return new Intl.NumberFormat('en-US').format(num);
+    return new Intl.NumberFormat('id-ID').format(num);
   };
 
   const toISO = (d) => {
     const pad = (x) => String(x).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   };
 
   const setDefaultDates = () => {
-    // Default hari ini untuk tanggal awal dan akhir
     const today = new Date();
     startInput.value = toISO(today);
     endInput.value = toISO(today);
-    // Sinkronkan jika flatpickr tersedia
     if (startInput._flatpickr) startInput._flatpickr.setDate(startInput.value, true);
     if (endInput._flatpickr) endInput._flatpickr.setDate(endInput.value, true);
   };
@@ -68,10 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
         accountSelect.appendChild(opt);
       });
     } catch (err) {
-      infoBox.style.display = 'block';
-      infoBox.classList.remove('alert-info');
-      infoBox.classList.add('alert-danger');
-      infoBox.textContent = `Error load accounts: ${err.message}`;
+      showInfoMessage(`Error load accounts: ${err.message}`, 'danger');
     }
   };
 
@@ -90,15 +137,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const initDomainSelect2 = () => {
     if (!domainInput) return;
-
-    // Jika Select2 tidak ada, hindari tampilan listbox tinggi (native multiple)
     try {
       if (domainInput.hasAttribute('size')) domainInput.removeAttribute('size');
       domainInput.style.height = '';
     } catch (e) {}
-
     if (typeof $ === 'undefined' || !$.fn || !$.fn.select2) return;
-
     try {
       $(domainInput).select2({
         placeholder: 'ketik subdomain…',
@@ -147,15 +190,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const getSelectedDomainsCsv = () => {
     if (!domainInput) return '';
-
-    // Jika domain_filter adalah <select multiple> (Select2), ambil dari val()
     try {
       if (typeof $ !== 'undefined') {
         const v = $(domainInput).val();
         if (Array.isArray(v) && v.length) return v.join(',');
       }
     } catch (e) {}
-
     try {
       const tag = String(domainInput.tagName || '').toLowerCase();
       if (tag === 'select' && domainInput.multiple) {
@@ -163,7 +203,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return vals.join(',');
       }
     } catch (e) {}
-
     const raw = String(domainInput.value || '').trim();
     if (!raw) return '';
     return raw.split(',').map(s => String(s || '').trim()).filter(Boolean).join(',');
@@ -199,13 +238,27 @@ document.addEventListener('DOMContentLoaded', () => {
         $(countrySelect).val(Array.from(validPrevious)).trigger('change.select2');
       }
     } catch (err) {
-      infoBox.style.display = 'block';
-      infoBox.classList.remove('alert-info');
-      infoBox.classList.add('alert-danger');
-      infoBox.textContent = `Error load countries: ${err.message}`;
+      showInfoMessage(`Error load countries: ${err.message}`, 'danger');
     }
   };
 
+  const showInfoMessage = (html, type) => {
+    if (!infoBox || !infoSection) return;
+    infoBox.innerHTML = html;
+    if (type === 'danger') {
+      infoBox.style.borderColor = 'rgba(239, 68, 68, 0.35)';
+      infoBox.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.08), rgba(248, 113, 113, 0.05))';
+    } else {
+      infoBox.style.borderColor = '';
+      infoBox.style.background = '';
+    }
+    setVisible(infoSection, true);
+  };
+
+  const hideInfoMessage = () => {
+    setVisible(infoSection, false);
+    if (infoBox) infoBox.innerHTML = '';
+  };
 
   const updateSummaryBoxes = (sum) => {
     const totalImpressions = sum.total_impressions ?? 0;
@@ -222,24 +275,20 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('sum_cpc').textContent = formatIDR(Number(cpc || 0) * rate);
     document.getElementById('sum_ecpm').textContent = formatIDR(Number(ecpm || 0) * rate);
     document.getElementById('sum_revenue').textContent = formatIDR(Number(totalRevenue || 0) * rate);
-    
-    // Check if all data is zero and show informative message
-    const hasData = (sum.total_impressions || 0) > 0 || 
-                   (sum.total_clicks || 0) > 0 || 
-                   (sum.total_revenue || 0) > 0;
-    
+
+    const hasData = (sum.total_impressions || 0) > 0 ||
+      (sum.total_clicks || 0) > 0 ||
+      (sum.total_revenue || 0) > 0;
+
     if (!hasData) {
-      infoBox.style.display = 'block';
-      infoBox.classList.remove('alert-danger');
-      infoBox.classList.add('alert-info');
-      infoBox.innerHTML = `
-        <strong>No AdSense data found</strong><br>
-        This could mean:<br>
-        • Your AdSense account is new or not yet active<br>
-        • No traffic or ad impressions for the selected period<br>
-        • AdSense ads are not properly configured on your website<br>
-        Try selecting a different date range or check your AdSense setup.
-      `;
+      showInfoMessage(
+        '<strong><i class="bi bi-info-circle mr-1"></i> Tidak ada data AdSense</strong><br>' +
+        'Kemungkinan penyebab: akun baru/belum aktif, tidak ada traffic pada periode ini, atau ads belum terpasang. ' +
+        'Coba rentang tanggal lain atau periksa konfigurasi AdSense.',
+        'info'
+      );
+    } else {
+      hideInfoMessage();
     }
   };
 
@@ -249,9 +298,11 @@ document.addEventListener('DOMContentLoaded', () => {
         revenueChart.destroy();
         revenueChart = null;
       }
+      setVisible(revenueDailyCard, false);
       return;
     }
 
+    const theme = getAdsenseChartTheme();
     const dailyRevenue = new Map();
     rows.forEach((r) => {
       const d = String(r.date || '');
@@ -264,35 +315,76 @@ document.addEventListener('DOMContentLoaded', () => {
     const rate = currencyCode === 'USD' ? IDR_RATE : 1;
     const revenues = labels.map(d => Number(dailyRevenue.get(d) || 0) * rate);
 
+    const formattedLabels = labels.map((d) => {
+      try {
+        const dt = new Date(d + 'T00:00:00');
+        return dt.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+      } catch (e) {
+        return d;
+      }
+    });
+
+    const gradientFill = (context) => {
+      const chart = context.chart;
+      const { ctx, chartArea } = chart;
+      if (!chartArea) return theme.primaryLight;
+      const g = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
+      g.addColorStop(0, 'rgba(5, 150, 105, 0.35)');
+      g.addColorStop(1, 'rgba(5, 150, 105, 0.02)');
+      return g;
+    };
+
     const data = {
-      labels,
-      datasets: [
-        {
-          label: 'Pendapatan Harian (Rp)',
-          data: revenues,
-          borderColor: '#0d6efd',
-          backgroundColor: 'rgba(13,110,253,0.15)',
-          tension: 0.3,
-          fill: true,
-        }
-      ]
+      labels: formattedLabels,
+      datasets: [{
+        label: 'Pendapatan Harian (Rp)',
+        data: revenues,
+        borderColor: theme.primary,
+        backgroundColor: gradientFill,
+        tension: 0.35,
+        fill: true,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        pointBackgroundColor: theme.primary,
+        pointBorderColor: '#fff',
+        pointBorderWidth: 2,
+        borderWidth: 3
+      }]
     };
 
     const options = {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       scales: {
         x: {
-          ticks: { maxRotation: 0, autoSkip: true },
+          ticks: { color: theme.muted, maxRotation: 0, autoSkip: true, font: { size: 11 } },
+          grid: { color: theme.grid, drawBorder: false }
         },
         y: {
           beginAtZero: true,
-          title: { display: true, text: 'Rp' }
+          ticks: {
+            color: theme.muted,
+            font: { size: 11 },
+            callback: (v) => 'Rp ' + formatNumber(v)
+          },
+          grid: { color: theme.grid, drawBorder: false }
         }
       },
       plugins: {
-        legend: { display: true },
-        tooltip: { mode: 'index', intersect: false }
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: theme.tooltipBg,
+          titleColor: theme.text,
+          bodyColor: theme.muted,
+          borderColor: theme.tooltipBorder,
+          borderWidth: 1,
+          padding: 12,
+          cornerRadius: 10,
+          callbacks: {
+            label: (ctx) => ' Pendapatan: Rp ' + formatNumber(ctx.raw || 0)
+          }
+        }
       }
     };
 
@@ -307,6 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
         options
       });
     }
+    setVisible(revenueDailyCard, true);
   };
 
   const generateTrafficCountryCharts = (data) => {
@@ -317,12 +410,43 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    const theme = getAdsenseChartTheme();
     const sorted = data.slice().sort((a, b) => (Number(b.impressions || 0) - Number(a.impressions || 0))).slice(0, 10);
-    const labels = sorted.map(item => item.country_name || item.country_code || 'Unknown');
+    const labels = sorted.map(item => {
+      const name = item.country_name || item.country_code || 'Unknown';
+      return name.length > 18 ? name.slice(0, 16) + '…' : name;
+    });
     const impressions = sorted.map(item => Number(item.impressions || 0));
     const revenue = sorted.map(item => Number(item.revenue || 0));
 
     if (typeof Chart === 'undefined') return;
+
+    const chartDefaults = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: theme.text, font: { size: 11, weight: '600' } } },
+        tooltip: {
+          backgroundColor: theme.tooltipBg,
+          titleColor: theme.text,
+          bodyColor: theme.muted,
+          borderColor: theme.tooltipBorder,
+          borderWidth: 1,
+          padding: 12,
+          cornerRadius: 8
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: theme.muted, maxRotation: 45, minRotation: 0, font: { size: 10 } },
+          grid: { color: theme.grid, drawBorder: false }
+        },
+        y: {
+          ticks: { color: theme.muted, font: { size: 10 } },
+          grid: { color: theme.grid, drawBorder: false }
+        }
+      }
+    };
 
     if (impressionsCanvas) {
       if (trafficCharts.impressions) trafficCharts.impressions.destroy();
@@ -331,39 +455,58 @@ document.addEventListener('DOMContentLoaded', () => {
         data: {
           labels,
           datasets: [{
-            label: 'Total Impressions',
+            label: 'Impresi',
             data: impressions,
-            backgroundColor: 'rgba(54, 162, 235, 0.6)',
-            borderColor: 'rgba(54, 162, 235, 1)',
-            borderWidth: 1
+            backgroundColor: 'rgba(5, 150, 105, 0.78)',
+            borderColor: theme.primary,
+            borderWidth: 0,
+            borderRadius: 8,
+            borderSkipped: false,
+            maxBarThickness: 42
           }]
         },
-        options: {
-          responsive: true,
-          scales: { y: { beginAtZero: true } }
-        }
+        options: Object.assign({}, chartDefaults, {
+          plugins: Object.assign({}, chartDefaults.plugins, { legend: { display: false } })
+        })
       });
     }
 
     if (revenueCanvas) {
       if (trafficCharts.revenue) trafficCharts.revenue.destroy();
+      const doughnutColors = theme.palette.slice(0, labels.length);
       trafficCharts.revenue = new Chart(revenueCanvas.getContext('2d'), {
         type: 'doughnut',
         data: {
           labels,
           datasets: [{
-            label: 'Total Revenue',
+            label: 'Pendapatan',
             data: revenue,
-            backgroundColor: [
-              '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
-              '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
-            ]
+            backgroundColor: doughnutColors.map(c => c + 'cc'),
+            borderColor: theme.bg,
+            borderWidth: 3,
+            hoverOffset: 8
           }]
         },
         options: {
           responsive: true,
-          maintainAspectRatio: true,
-          aspectRatio: 2
+          maintainAspectRatio: false,
+          cutout: '62%',
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: { color: theme.text, font: { size: 10 }, boxWidth: 12, padding: 10 }
+            },
+            tooltip: {
+              backgroundColor: theme.tooltipBg,
+              titleColor: theme.text,
+              bodyColor: theme.muted,
+              borderColor: theme.tooltipBorder,
+              borderWidth: 1,
+              callbacks: {
+                label: (ctx) => ' Rp ' + formatNumber(ctx.raw || 0)
+              }
+            }
+          }
         }
       });
     }
@@ -377,17 +520,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const selected_account = getSelectedAccountsCsv();
     const selected_domains = getSelectedDomainsCsv();
     const selected_countries = getSelectedCountriesCsv();
-    infoBox.style.display = 'none';
+    hideInfoMessage();
 
-    setVisible(summaryBoxes, false);
-    setVisible(revenueDailyCard, false);
-    setVisible(chartsSection, false);
+    showAdsenseSummaryLoader();
 
     try {
-      if (typeof $ !== 'undefined' && $("#overlay").length) {
-        $("#overlay").show();
-      }
-
       const p1 = new URLSearchParams({ start_date, end_date });
       if (selected_account) p1.set('selected_account', selected_account);
       if (selected_domains) p1.set('selected_domains', selected_domains);
@@ -410,24 +547,16 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!countryJson.status) throw new Error(countryJson.error || 'Failed to load traffic country');
 
       currencyCode = 'IDR';
+      showAdsenseSummaryResults();
       updateSummaryBoxes(accountJson.summary || {});
       renderRevenueChart(accountJson.data || []);
       generateTrafficCountryCharts(countryJson.data || []);
-
-      setVisible(summaryBoxes, true);
-      setVisible(revenueDailyCard, Array.isArray(accountJson.data) && accountJson.data.length > 0);
-
-      if (typeof $ !== 'undefined' && $("#overlay").length) {
-        $("#overlay").hide();
-      }
+      hideAdsenseSummaryLoader();
     } catch (err) {
-      infoBox.style.display = 'block';
-      infoBox.classList.remove('alert-info');
-      infoBox.classList.add('alert-danger');
-      infoBox.textContent = `Error load summary: ${err.message}`;
-      if (typeof $ !== 'undefined' && $("#overlay").length) {
-        $("#overlay").hide();
-      }
+      hideAdsenseSummaryLoader();
+      hideAdsenseSummaryResults();
+      showAdsenseSummaryResults();
+      showInfoMessage(`<strong>Error:</strong> ${err.message}`, 'danger');
     }
   };
 

@@ -9,6 +9,52 @@ function normalizeDomainFilter(selected_domain) {
     return String(selected_domain || '').trim();
 }
 
+function isAdsenseDarkTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'dark';
+}
+
+function getAdsenseChartTheme() {
+    var dark = isAdsenseDarkTheme();
+    return {
+        text: dark ? '#e2e8f0' : '#334155',
+        muted: dark ? '#94a3b8' : '#64748b',
+        grid: dark ? 'rgba(148, 163, 184, 0.12)' : 'rgba(15, 23, 42, 0.08)',
+        tooltipBg: dark ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+        tooltipBorder: dark ? 'rgba(255,255,255,0.1)' : 'rgba(15, 23, 42, 0.1)'
+    };
+}
+
+function showAdsenseTrafficLoader(message) {
+    var msg = String(message || 'Memuat data traffic AdSense...').trim();
+    if (window.HrisLoader && typeof window.HrisLoader.show === 'function') {
+        window.HrisLoader.show(msg);
+        return;
+    }
+    var $overlay = $('#overlay');
+    if ($overlay.length) {
+        $overlay.attr('data-loader-message', msg);
+        $overlay.show();
+    }
+}
+
+function hideAdsenseTrafficLoader() {
+    if (window.HrisLoader && typeof window.HrisLoader.forceHide === 'function') {
+        window.HrisLoader.forceHide();
+        return;
+    }
+    $('#overlay').hide();
+}
+
+function showAdsenseTrafficResults() {
+    $('#adsenseTrafficEmptyState').hide();
+    $('#adsenseTrafficResults').show();
+}
+
+function hideAdsenseTrafficResults() {
+    $('#adsenseTrafficResults').hide();
+    $('#adsenseTrafficEmptyState').show();
+}
+
 $(document).ready(function () {
     report_eror = function (jqXHR, exception) {
         var msg = '';
@@ -95,6 +141,8 @@ $(document).ready(function () {
             return { id: term, text: term, newTag: true };
         }
     });
+    hideAdsenseTrafficResults();
+
     $('#btn_load_data').click(function (e) {
         var tanggal_dari = $("#tanggal_dari").val();
         var tanggal_sampai = $("#tanggal_sampai").val();
@@ -102,7 +150,7 @@ $(document).ready(function () {
         var selected_domains = normalizeDomainFilter($("#domain_filter").val());
         if (tanggal_dari != "" && tanggal_sampai != "") {
             e.preventDefault();
-            $("#overlay").show();
+            showAdsenseTrafficLoader();
             load_adsense_traffic_account_data(tanggal_dari, tanggal_sampai, selected_account, selected_domains);
         } else {
             alert('Silakan pilih tanggal dari dan sampai');
@@ -115,7 +163,7 @@ function load_adsense_traffic_account_data(tanggal_dari, tanggal_sampai, selecte
     if (selected_account && selected_account.length > 0) {
         accountFilter = selected_account.join(',');
     }
-    $("#overlay").show();
+    showAdsenseTrafficLoader();
     // Destroy existing DataTable if exists
     if ($.fn.DataTable.isDataTable('#table_traffic_account')) {
         $('#table_traffic_account').DataTable().destroy();
@@ -134,44 +182,38 @@ function load_adsense_traffic_account_data(tanggal_dari, tanggal_sampai, selecte
             'X-CSRFToken': csrftoken
         },
         success: function (response) {
+            hideAdsenseTrafficLoader();
             if (response && response.status) {
-                // Update summary boxes
+                showAdsenseTrafficResults();
                 updateSummaryBoxes(response.summary);
-                $('#summary_boxes').show();
-                // Initialize DataTable
                 initializeDataTable(response.data);
-                // Generate charts if data available
-                create_revenue_line_chart(response.data);
-                $('#charts_section').show();
-                $('#revenue_chart_row').show();
-                $('#overlay').hide();
+                if (response.data && response.data.length > 0) {
+                    create_revenue_line_chart(response.data);
+                    $('#revenue_chart_row').show();
+                } else {
+                    $('#revenue_chart_row').hide();
+                }
+                showSuccessMessage('Data traffic berhasil dimuat.');
             } else {
-                var errorMsg = response.error || 'Terjadi kesalahan yang tidak diketahui';
-                console.error('[DEBUG] Response error:', errorMsg);
-                alert('Error: ' + errorMsg);
+                hideAdsenseTrafficResults();
+                alert('Error: ' + (response.error || 'Terjadi kesalahan yang tidak diketahui'));
             }
         },
         error: function (xhr, status, error) {
-            console.error('[DEBUG] AJAX Error:', {
-                xhr: xhr,
-                status: status,
-                error: error
-            });
-            $('#overlay').hide();
-            report_eror('Terjadi kesalahan saat memuat data: ' + error);
+            hideAdsenseTrafficLoader();
+            hideAdsenseTrafficResults();
+            report_eror(xhr, status);
         }
     });
 }
 // Fungsi untuk update summary boxes
 function updateSummaryBoxes(data) {
-    var totalClicks = Number(data.total_clicks || 0);
-    var avgCpc = Number(data.avg_cpc || 0);
-    var avgCtr = Number(data.avg_ctr || 0);
-    var totalRevenue = parseFloat(data.total_revenue || 0) || 0;
-    $("#total_clicks").text(formatNumber(totalClicks || 0));
-    $("#avg_cpc").text(formatCurrencyIDR(avgCpc || 0));
-    $("#avg_ctr").text(formatNumber(avgCtr || 0, 2) + '%');
-    $("#total_revenue").text(formatCurrencyIDR(totalRevenue || 0));
+    data = data || {};
+    $("#total_impressions").text(formatNumber(data.total_impressions || 0));
+    $("#total_clicks").text(formatNumber(data.total_clicks || 0));
+    $("#avg_cpc").text(formatCurrencyIDR(data.avg_cpc || 0));
+    $("#avg_ctr").text(formatNumber(data.avg_ctr || 0, 2) + '%');
+    $("#total_revenue").text(formatCurrencyIDR(data.total_revenue || 0));
 }
 function getSelectedTextList(selector) { 
     var $el = $(selector);
@@ -259,7 +301,11 @@ function initializeDataTable(data) {
                 var year = date.getFullYear();
                 formattedDate = day + ' ' + month + ' ' + year;
             }
-            var cellDate = '<span data-order="' + (row.date || '-') + '">' + formattedDate + '</span>';
+            var cellDate = '<span data-order="' + (row.date || '') + '">' + formattedDate + '</span>';
+            var accountLabel = escapeHtml(row.account_name || '-');
+            var siteLabel = escapeHtml(row.site_name || '-');
+            var cellAccount = '<span class="account-badge" title="' + accountLabel + '">' + accountLabel + '</span>';
+            var cellSite = '<span class="site-badge" title="' + siteLabel + '">' + siteLabel + '</span>';
 
             var clicksNum = Number(row.clicks_adsense || 0);
             var cpcNum = Number(row.cpc_adsense || 0);
@@ -268,14 +314,14 @@ function initializeDataTable(data) {
             if (isNaN(ctrNum)) ctrNum = 0;
             var revenueNum = Number(row.revenue || 0);
 
-            var btnDetail = '<button type="button" class="btn btn-sm btn-outline-primary btn-adsense-traffic-account-detail" data-row-index="' + idx + '" title="Detail">'
+            var btnDetail = '<button type="button" class="btn btn-sm btn-outline-primary btn-adsense-traffic-account-detail btn-detail-row" data-row-index="' + idx + '" title="Detail">'
                 + '<i class="bi bi-eye-fill" aria-hidden="true"></i>'
                 + '</button>';
 
             tableData.push([
                 cellDate,
-                row.account_name || '-',
-                row.site_name || '-',
+                cellAccount,
+                cellSite,
                 clicksNum,
                 cpcNum,
                 cpmNum,
@@ -334,6 +380,7 @@ function initializeDataTable(data) {
                     let title = 'Traffic AdSense Per Account';
                     if (meta.periodText) title += ' ' + meta.periodText;
                     if (meta.accountText) title += ' ' + meta.accountText;
+                    if (meta.domainText) title += ' ' + meta.domainText;
                     return title;
                 },
                 customize: function (xlsx) {
@@ -365,7 +412,7 @@ function initializeDataTable(data) {
                     var merges = $('mergeCells', sheet);
                     var mergeXml = '';
                     for (var m = 1; m <= headerRows.length; m++) {
-                        mergeXml += '<mergeCell ref="A' + m + ':H' + m + '"/>';
+                        mergeXml += '<mergeCell ref="A' + m + ':I' + m + '"/>';
                     }
                     if (merges.length === 0) {
                         $('worksheet', sheet).append('<mergeCells count="' + headerRows.length + '">' + mergeXml + '</mergeCells>');
@@ -513,24 +560,22 @@ function initializeDataTable(data) {
             var row = (window.__adsenseTrafficAccountRows || [])[idx] || {};
 
             $('#adsenseTrafficAccountDetailDate').text(formatDateID(row.date || '-'));
-            $('#adsenseTrafficAccountDetailAccount').text(escapeHtml(row.account_name || '-'));
-            $('#adsenseTrafficAccountDetailSite').text(escapeHtml(row.site_name || '-'));
+            $('#adsenseTrafficAccountDetailAccount').text(row.account_name || '-');
+            $('#adsenseTrafficAccountDetailSite').text(row.site_name || '-');
 
-            var imp = Number(row.impressions_adsense || 0);
-            var clk = Number(row.clicks_adsense || 0);
             var ctr = parseFloat(row.ctr);
             if (isNaN(ctr)) ctr = 0;
 
-            $('#adsenseTrafficAccountDetailImpressions').text(imp.toLocaleString('id-ID'));
-            $('#adsenseTrafficAccountDetailClicks').text(clk.toLocaleString('id-ID'));
-            $('#adsenseTrafficAccountDetailCtr').text(ctr.toFixed(2) + ' %');
+            $('#adsenseTrafficAccountDetailImpressions').text(formatNumber(row.impressions_adsense || 0));
+            $('#adsenseTrafficAccountDetailClicks').text(formatNumber(row.clicks_adsense || 0));
+            $('#adsenseTrafficAccountDetailCtr').text(formatNumber(ctr, 2) + ' %');
             $('#adsenseTrafficAccountDetailCpc').text(formatCurrencyIDR(row.cpc_adsense || 0));
             $('#adsenseTrafficAccountDetailCpm').text(formatCurrencyIDR(row.ecpm || 0));
             $('#adsenseTrafficAccountDetailRevenue').text(formatCurrencyIDR(row.revenue || 0));
 
-            $('#adsenseTrafficAccountDetailPageViews').text(Number(row.page_views || 0).toLocaleString('id-ID'));
+            $('#adsenseTrafficAccountDetailPageViews').text(formatNumber(row.page_views || 0));
             $('#adsenseTrafficAccountDetailPageViewsRpm').text(formatCurrencyIDR(row.page_views_rpm || 0));
-            $('#adsenseTrafficAccountDetailAdRequests').text(Number(row.ad_requests || 0).toLocaleString('id-ID'));
+            $('#adsenseTrafficAccountDetailAdRequests').text(formatNumber(row.ad_requests || 0));
 
             var cov = parseFloat(row.ad_requests_coverage);
             if (isNaN(cov)) cov = 0;
@@ -548,94 +593,89 @@ function initializeDataTable(data) {
 
             $('#adsenseTrafficAccountDetailModal').modal('show');
         });
+
+    try { table.columns.adjust(); } catch (e) {}
 }
-// Function to create revenue line chart (matching adsense_summary style)
+
+var adsenseRevenueChart = null;
+
 function create_revenue_line_chart(data) {
-    if (!data || data.length === 0) {
-        console.log('No data available for chart');
+    if (!data || data.length === 0 || typeof Highcharts === 'undefined') {
+        if (adsenseRevenueChart && typeof adsenseRevenueChart.destroy === 'function') {
+            adsenseRevenueChart.destroy();
+            adsenseRevenueChart = null;
+        }
         return;
     }
-    // Check if Highcharts is available
-    if (typeof Highcharts === 'undefined') {
-        console.error('Highcharts is not defined. Cannot create chart.');
-        return;
-    }
-    // Group data by date and sum revenue
+
+    var theme = getAdsenseChartTheme();
     var dailyRevenue = {};
     data.forEach(function (item) {
-        var date = item.date;
-        if (!dailyRevenue[date]) {
-            dailyRevenue[date] = 0;
-        }
-        dailyRevenue[date] += parseFloat(item.revenue || 0);
+        var date = String(item.date || '').slice(0, 10);
+        if (!date) return;
+        dailyRevenue[date] = (dailyRevenue[date] || 0) + parseFloat(item.revenue || 0);
     });
-    // Convert to arrays for Highcharts
+
     var dates = Object.keys(dailyRevenue).sort();
-    var revenues = dates.map(function (date) {
-        return dailyRevenue[date];
-    });
-    // Format dates for display
+    var revenues = dates.map(function (date) { return dailyRevenue[date]; });
     var formattedDates = dates.map(function (date) {
         var d = new Date(date + 'T00:00:00');
-        return d.toLocaleDateString('id-ID', {
-            day: 'numeric',
-            month: 'short'
-        });
+        return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
     });
-    // Create line chart for daily revenue
-    Highcharts.chart('revenue_chart', {
+
+    if (adsenseRevenueChart && typeof adsenseRevenueChart.destroy === 'function') {
+        adsenseRevenueChart.destroy();
+    }
+
+    adsenseRevenueChart = Highcharts.chart('revenue_chart', {
         chart: {
-            type: 'line'
+            type: 'areaspline',
+            backgroundColor: 'transparent',
+            style: { fontFamily: 'inherit' },
+            spacing: [12, 8, 16, 8]
         },
-        title: {
-            text: 'Pergerakan Pendapatan Harian'
-        },
+        title: { text: null },
+        credits: { enabled: false },
         xAxis: {
             categories: formattedDates,
-            title: {
-                text: 'Tanggal'
-            }
+            lineColor: theme.grid,
+            tickColor: theme.grid,
+            labels: { style: { color: theme.muted, fontSize: '11px' } }
         },
         yAxis: {
-            title: {
-                text: 'Pendapatan (Rp)'
-            },
+            title: { text: null },
+            gridLineColor: theme.grid,
             labels: {
-                formatter: function () {
-                    return 'Rp ' + formatNumber(this.value, 0);
-                }
+                style: { color: theme.muted, fontSize: '11px' },
+                formatter: function () { return 'Rp ' + formatNumber(this.value, 0); }
+            }
+        },
+        legend: { enabled: false },
+        tooltip: {
+            backgroundColor: theme.tooltipBg,
+            borderColor: theme.tooltipBorder,
+            borderRadius: 10,
+            style: { color: theme.text },
+            formatter: function () {
+                return '<b>' + formatDateID(dates[this.point.index]) + '</b><br/>Pendapatan: <b>Rp ' + formatNumber(this.y, 0) + '</b>';
+            }
+        },
+        plotOptions: {
+            areaspline: {
+                fillOpacity: 0.18,
+                lineWidth: 3,
+                marker: { enabled: true, radius: 4, lineWidth: 2, lineColor: '#ffffff' }
             }
         },
         series: [{
-            name: 'Pendapatan Harian',
+            name: 'Pendapatan',
             data: revenues,
-            color: '#28a745',
-            lineWidth: 3,
-            marker: {
-                radius: 5
+            color: '#059669',
+            fillColor: {
+                linearGradient: { x1: 0, y1: 0, x2: 0, y2: 1 },
+                stops: [[0, 'rgba(5, 150, 105, 0.35)'], [1, 'rgba(5, 150, 105, 0.02)']]
             }
-        }],
-        tooltip: {
-            formatter: function () {
-                var dateIndex = this.point.index;
-                var actualDate = dates[dateIndex];
-                var formattedDate = formatDateForDisplay(actualDate);
-                return '<b>' + this.series.name + '</b><br/>' +
-                    'Tanggal: ' + formattedDate + '<br/>' +
-                    'Pendapatan: Rp ' + formatNumber(this.y, 2);
-            }
-        },
-        legend: {
-            enabled: false
-        },
-        plotOptions: {
-            line: {
-                dataLabels: {
-                    enabled: false
-                },
-                enableMouseTracking: true
-            }
-        }
+        }]
     });
 }
 // Function to format date for display
@@ -660,25 +700,16 @@ function formatNumber(num, decimals = 0) {
 }
 // Fungsi untuk format mata uang IDR
 function formatCurrencyIDR(value) {
-    // Convert to number, round to remove decimals, then format with Rp
-    let numValue = parseFloat(value.toString().replace(/[$,]/g, ''));
-    if (isNaN(numValue)) return value;
-    // Round to remove decimals and format with Indonesian number format
-    return 'Rp. ' + Math.round(numValue).toLocaleString('id-ID');
+    var numValue = parseFloat(String(value || '').replace(/[$,]/g, ''));
+    if (isNaN(numValue)) numValue = 0;
+    return 'Rp ' + Math.round(numValue).toLocaleString('id-ID');
 }
 function showSuccessMessage(message) {
-    var alertHtml = '<div class="alert alert-success alert-dismissible fade show" role="alert">';
-    alertHtml += '<i class="bi bi-check-circle"></i> ' + message;
-    alertHtml += '<button type="button" class="close" data-dismiss="alert" aria-label="Close">';
-    alertHtml += '<span aria-hidden="true">&times;</span>';
-    alertHtml += '</button>';
-    alertHtml += '</div>';
-    $('.card-body').first().prepend(alertHtml);
-    setTimeout(function() {
-        $('.alert-success').fadeOut('slow', function() {
-            $(this).remove();
-        });
-    }, 3000);
+    var alertHtml = '<div class="alert alert-success alert-dismissible fade show adsense-traffic-alert" role="alert">'
+        + '<i class="bi bi-check-circle"></i> ' + message
+        + '<button type="button" class="close" data-dismiss="alert"><span>&times;</span></button></div>';
+    $('.adsense-traffic-page .card').first().find('.card-body').prepend(alertHtml);
+    setTimeout(function () { $('.adsense-traffic-alert').fadeOut('slow', function () { $(this).remove(); }); }, 3000);
 }
 function getCookie(name) {
     let cookieValue = null;
