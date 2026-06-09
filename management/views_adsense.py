@@ -43,7 +43,13 @@ from .utils_adsense import (
 )
 from .list_adsense_policy_events import list_adsense_policy_events
 from .sync_adsense_policy_events import sync_adsense_policy_events
-from management.views import attach_kiwipixel_visitors_to_country_result
+from management.views import (
+    attach_kiwipixel_visitors_to_country_result,
+    _fetch_kiwipixel_campaign_traffic,
+    _fetch_fb_campaign_ids_by_domain,
+    _resolve_kiwipixel_campaign_visitors,
+    _normalize_kiwipixel_domain_key,
+)
 
 def get_adsense_data(request):
     if 'credentials' not in request.session:
@@ -1025,6 +1031,18 @@ class RekapTrafficPerDomainDataView(View):
             if not fb_domain_filter and adsense_result:
                 ads_rows_fb = (((adsense_result or {}).get('hasil') or {}).get('data') or [])
                 fb_domain_filter = extract_fb_sites_from_adsense_rows(ads_rows_fb)
+            kiwi_traffic_indexes = _fetch_kiwipixel_campaign_traffic(start_date_formatted, end_date_formatted)
+            campaign_ids_by_domain = _fetch_fb_campaign_ids_by_domain(
+                start_date_formatted,
+                end_date_formatted,
+                unique_name_site or selected_domain_list,
+            )
+
+            def visitor_metrics_for_site(site_display_name):
+                dkey = _normalize_kiwipixel_domain_key(site_display_name)
+                campaign_ids = campaign_ids_by_domain.get(dkey, [])
+                return _resolve_kiwipixel_campaign_visitors(site_display_name, campaign_ids, kiwi_traffic_indexes)
+
             # --- 5. Gabungkan data AdX dan Facebook
             raw_rows_all = []
             combined_data_all = []
@@ -1343,6 +1361,8 @@ class RekapTrafficPerDomainDataView(View):
                     cpm_val = item['cpm']
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
+                    site_display = item['site_name']
+                    visitors = visitor_metrics_for_site(site_display)
                     combined_data_all.append({
                         'site_name': item['site_name'],
                         'date': item['date'],
@@ -1358,6 +1378,9 @@ class RekapTrafficPerDomainDataView(View):
                         'cpc_adsense': cpc_adsense_val,
                         'cpm': cpm_val,
                         'revenue': revenue_val,
+                        'total_visits': visitors.get('total_visits', 0),
+                        'unique_visitor': visitors.get('unique_visitor', 0),
+                        'total_pageviews': visitors.get('total_pageviews', 0),
                         'roi': roi
                     })
                     total_spend += spend_val
@@ -1387,6 +1410,8 @@ class RekapTrafficPerDomainDataView(View):
                     cpm_val = item['cpm']
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
+                    site_display = item['site_name']
+                    visitors = visitor_metrics_for_site(site_display)
                     combined_data_filtered.append({
                         'site_name': item['site_name'],
                         'date': item['date'],
@@ -1402,6 +1427,9 @@ class RekapTrafficPerDomainDataView(View):
                         'cpc_adsense': cpc_adsense_val,
                         'cpm': cpm_val,
                         'revenue': revenue_val,
+                        'total_visits': visitors.get('total_visits', 0),
+                        'unique_visitor': visitors.get('unique_visitor', 0),
+                        'total_pageviews': visitors.get('total_pageviews', 0),
                         'roi': roi
                     })
                 if selected_domain_list:

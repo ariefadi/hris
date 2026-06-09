@@ -65,9 +65,23 @@ POSITIVE_ROOT_LABELS = {
     "POSITIVE_RECOVERY",
 }
 
-# Safety / IVT first thresholds
+# Safety / IVT first thresholds (health_score bipolar: -100..+100, neutral=0)
 LEARNING_MIN_DAYS = 2
-NEGATIVE_HEALTH_DROP_THRESHOLD = -18
+HEALTH_SCORE_MIN = -100.0
+HEALTH_SCORE_MAX = 100.0
+LEGACY_HEALTH_NEUTRAL = 50.0
+POSITIVE_HEALTH_STREAK_THRESHOLD = 15.0
+NEGATIVE_HEALTH_STREAK_THRESHOLD = -15.0
+NEGATIVE_HEALTH_DROP_THRESHOLD = -18.0
+POSITIVE_EXPANSION_HEALTH_THRESHOLD = 22.0
+POSITIVE_RECOVERY_HEALTH_THRESHOLD = 14.0
+STABLE_POSITIVE_HEALTH_THRESHOLD = 8.0
+STABLE_NEGATIVE_HEALTH_THRESHOLD = -8.0
+HYSTERESIS_EXPANSION_HEALTH_FLOOR = 30.0
+HYSTERESIS_RECOVERY_HEALTH_FLOOR = 18.0
+HYSTERESIS_DECAY_HEALTH_CEILING = -12.0
+NEG_ADJUSTMENT_HEALTH_THRESHOLD = -10.0
+TRAFFIC_QUALITY_HEALTH_THRESHOLD = -6.0
 NEG_ADJUSTMENT_DROP_MIN_COUNT = 2
 NEG_ADJUSTMENT_SCORE_THRESHOLD = -32
 RED_FLAG_IVT_THRESHOLD = 68
@@ -1798,6 +1812,7 @@ def _compute_persistence(cur: pd.Series, recent_status_df: pd.DataFrame, recent_
             "persistence_score": 0.0,
             "days_active": int(fallback_days_active),
             "label": "NONE",
+            "health_score": 0.0,
         }
 
     base_key = cur["entity_base_key"]
@@ -1818,6 +1833,7 @@ def _compute_persistence(cur: pd.Series, recent_status_df: pd.DataFrame, recent_
             "persistence_score": 0.0,
             "days_active": int(fallback_days_active),
             "label": "NONE",
+            "health_score": 0.0,
         }
 
     current_ts = pd.to_datetime(cur["run_time"], utc=True, errors="coerce")
@@ -1828,8 +1844,21 @@ def _compute_persistence(cur: pd.Series, recent_status_df: pd.DataFrame, recent_
         recent = same_entity.sort_values(["date", "run_hour", "run_time"], ascending=False).head(4)
 
     records = recent.to_dict("records")
-    positive_streak = _rolling_streak(records, lambda r: safe_float(r.get("health_score")) >= 15 or str(r.get("final_label", "")) in POSITIVE_ROOT_LABELS)
-    negative_streak = _rolling_streak(records, lambda r: safe_float(r.get("health_score")) <= -15 or str(r.get("final_label", "")) in NEGATIVE_ROOT_LABELS)
+    legacy_health = _detect_legacy_health_batch(records)
+    prev_health_score = (
+        _health_for_thresholds(records[0].get("health_score"), legacy_health)
+        if records else 0.0
+    )
+    positive_streak = _rolling_streak(
+        records,
+        lambda r: _health_for_thresholds(r.get("health_score"), legacy_health) >= POSITIVE_HEALTH_STREAK_THRESHOLD
+        or str(r.get("final_label", "")) in POSITIVE_ROOT_LABELS,
+    )
+    negative_streak = _rolling_streak(
+        records,
+        lambda r: _health_for_thresholds(r.get("health_score"), legacy_health) <= NEGATIVE_HEALTH_STREAK_THRESHOLD
+        or str(r.get("final_label", "")) in NEGATIVE_ROOT_LABELS,
+    )
     adjustment_streak = _rolling_streak(records, lambda r: safe_float(r.get("adjustment_score")) <= -25 or str(r.get("root_cause_label", "")) == "NEG_ADJUSTMENT")
     ivt_streak = _rolling_streak(records, lambda r: safe_float(r.get("ivt_risk_score")) >= 55 or str(r.get("final_label", "")).startswith("RED_FLAG") or str(r.get("root_cause_label", "")) == "NEG_ADJUSTMENT")
 
@@ -1860,6 +1889,7 @@ def _compute_persistence(cur: pd.Series, recent_status_df: pd.DataFrame, recent_
         "persistence_score": float(persistence_score),
         "days_active": int(days_active),
         "label": label,
+        "health_score": float(prev_health_score),
     }
 
 
@@ -1889,7 +1919,7 @@ def _root_cause_label(status: dict) -> str:
     roi = ((revenue - spend) / spend) if spend > 0 else 0.0
     profit_support = (revenue > spend) and (roi >= PROFIT_SUPPORT_ROI_THRESHOLD)
     risk = safe_float(status.get("ivt_risk_score"))
-    health = safe_float(status.get("health_score"))
+    health = _clamp_health_score(status.get("health_score", 0))
     quality = safe_float(status.get("quality_score"))
     lpv = safe_float(status.get("traffic_score"))
     if status["ivt_risk_score"] >= RED_FLAG_IVT_THRESHOLD:
@@ -1916,17 +1946,17 @@ def _root_cause_label(status: dict) -> str:
         if dom_val >= 32:
             return "IVT_DOMINANT_RISK"
         return "WATCH_IVT"
-    if profit_support and (quality <= -8 or lpv <= -8 or health <= -6):
+    if profit_support and (quality <= -8 or lpv <= -8 or health <= TRAFFIC_QUALITY_HEALTH_THRESHOLD):
         return "TRAFFIC_QUALITY_MISMATCH"
     if status["adjustment_drop_count"] >= NEG_ADJUSTMENT_DROP_MIN_COUNT and status["adjustment_score"] <= NEG_ADJUSTMENT_SCORE_THRESHOLD:
-        if status.get("ivt_risk_score", 0) >= WATCH_IVT_THRESHOLD or status.get("health_score", 0) <= -10:
+        if status.get("ivt_risk_score", 0) >= WATCH_IVT_THRESHOLD or health <= NEG_ADJUSTMENT_HEALTH_THRESHOLD:
             return "NEG_ADJUSTMENT"
         return "WATCH_DECAY"
-    if status["health_score"] >= 22 and status["ivt_risk_score"] < SAFETY_SCALE_UP_RISK_CAP and status["positive_signal_count"] >= status["negative_signal_count"]:
+    if health >= POSITIVE_EXPANSION_HEALTH_THRESHOLD and status["ivt_risk_score"] < SAFETY_SCALE_UP_RISK_CAP and status["positive_signal_count"] >= status["negative_signal_count"]:
         return "POSITIVE_EXPANSION"
-    if status["health_score"] >= 14 and status["ivt_risk_score"] < 50 and status["positive_signal_count"] > status["negative_signal_count"]:
+    if health >= POSITIVE_RECOVERY_HEALTH_THRESHOLD and status["ivt_risk_score"] < 50 and status["positive_signal_count"] > status["negative_signal_count"]:
         return "POSITIVE_RECOVERY"
-    if status["health_score"] <= NEGATIVE_HEALTH_DROP_THRESHOLD:
+    if health <= NEGATIVE_HEALTH_DROP_THRESHOLD:
         groups = {
             "TRAFFIC_DROP": status["traffic_score"],
             "SERVING_DROP": status["delivery_score"],
@@ -1945,6 +1975,7 @@ def _apply_hysteresis(root_label: str, status: dict, persistence: dict) -> tuple
     if persistence.get("days_active", 0) < LEARNING_MIN_DAYS:
         return "LEARNING", 0
 
+    health = _clamp_health_score(status.get("health_score", 0))
     final_label = root_label
     hysteresis_applied = 0
 
@@ -1958,20 +1989,38 @@ def _apply_hysteresis(root_label: str, status: dict, persistence: dict) -> tuple
         return "WATCH_IVT", 1
     if root_label == "TRAFFIC_QUALITY_MISMATCH" and persistence["negative_streak"] >= 1:
         return "WATCH_NEGATIVE", 1
-    if root_label == "POSITIVE_EXPANSION" and persistence["negative_streak"] >= 2 and status["health_score"] < 30:
+    if root_label == "POSITIVE_EXPANSION" and persistence["negative_streak"] >= 2 and health < HYSTERESIS_EXPANSION_HEALTH_FLOOR:
         return "WATCH_RECOVERY", 1
-    if root_label == "POSITIVE_RECOVERY" and persistence["negative_streak"] >= 2 and status["health_score"] < 18:
+    if root_label == "POSITIVE_RECOVERY" and persistence["negative_streak"] >= 2 and health < HYSTERESIS_RECOVERY_HEALTH_FLOOR:
         return "WATCH_RECOVERY", 1
-    if root_label in NEGATIVE_ROOT_LABELS and persistence["positive_streak"] >= 2 and status["health_score"] > -12 and status["ivt_risk_score"] < 55:
+    if root_label in NEGATIVE_ROOT_LABELS and persistence["positive_streak"] >= 2 and health > HYSTERESIS_DECAY_HEALTH_CEILING and status["ivt_risk_score"] < 55:
         return "WATCH_DECAY", 1
-    if root_label == "STABLE" and persistence["negative_streak"] >= 2 and status["health_score"] < 8:
+    if root_label == "STABLE" and persistence["negative_streak"] >= 2 and health < STABLE_NEGATIVE_HEALTH_THRESHOLD:
         return "WATCH_NEGATIVE", 1
-    if root_label == "STABLE" and persistence["positive_streak"] >= 2 and status["health_score"] > 8 and status["ivt_risk_score"] < 45:
+    if root_label == "STABLE" and persistence["positive_streak"] >= 2 and health > STABLE_POSITIVE_HEALTH_THRESHOLD and status["ivt_risk_score"] < 45:
         return "WATCH_POSITIVE", 1
     return final_label, hysteresis_applied
 
 def _clamp_score(x):
     return max(0.0, min(100.0, float(x)))
+
+
+def _clamp_health_score(x):
+    return clip(float(x), HEALTH_SCORE_MIN, HEALTH_SCORE_MAX)
+
+
+def _detect_legacy_health_batch(records: list[dict]) -> bool:
+    vals = [safe_float(r.get("health_score")) for r in records if r]
+    if not vals:
+        return False
+    return min(vals) >= 0.0 and max(vals) <= 100.0
+
+
+def _health_for_thresholds(value, legacy_mode: bool = False) -> float:
+    v = safe_float(value)
+    if legacy_mode:
+        return clip((v - LEGACY_HEALTH_NEUTRAL) * 2.0, HEALTH_SCORE_MIN, HEALTH_SCORE_MAX)
+    return clip(v, HEALTH_SCORE_MIN, HEALTH_SCORE_MAX)
 
 
 # Rata-rata confidence hanya dari event yang benar-benar dinilai (bukan SKIPPED).
@@ -2000,13 +2049,13 @@ def _compute_health_score(events: list[dict], persistence: dict) -> float:
             family_health[family] = num / den
 
     if not family_health:
-        score = persistence.get("health_score", 50.0)
+        score = persistence.get("health_score", 0.0)
     else:
         score = 100 * sum(family_health.values()) / float(len(family_health))
 
-    score = _clamp_score(score)
+    score = _clamp_health_score(score)
     prev_health = persistence.get("health_score", score)
-    score = _clamp_score((0.7 * prev_health) + (0.3 * score))
+    score = _clamp_health_score((0.7 * prev_health) + (0.3 * score))
     return score
 
 
@@ -2378,7 +2427,7 @@ def score_site_country(
     current_df = history_df[is_current].copy()
     if current_df.empty:
         return {"ok": True, "rows_written": 0, "batch_id": str(batch_uuid), "warning": "No current batch rows found in fact_join_hourly", "scoring_profile": profile_key, "rules_evaluated": len(active_rules)}
-    recent_status_df = _load_recent_status_history(target_date, lookback_days=max(7, min(max(lookback_days, 7), 21)))
+    recent_status_df = _load_recent_status_history(target_date, lookback_days=max(7, min(max(lookback_days, 7), 35)))
     if not recent_status_df.empty and domain:
         recent_status_df = recent_status_df[recent_status_df["site"] == domain].copy()
 

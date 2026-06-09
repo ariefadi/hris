@@ -66,11 +66,13 @@ function buildRoiCountryRow(row) {
         Number(row.ctr_adx || 0),
         Number(row.cpc_fb || 0),
         Number(row.cpc_adx || 0),
+        Number(row.total_visits || row.total_visitors || 0),
+        Number(row.unique_visitor || 0),
+        Number(row.total_pageviews || 0),
         Number(row.ecpm || 0),
         Number(row.roi || 0),
         revenueVal,
-        (revenueVal - spendVal),
-        Number(row.total_visitors || 0)
+        (revenueVal - spendVal)
     ];
 }
 
@@ -746,11 +748,11 @@ $(document).ready(function () {
             ],
             columnDefs: [
                 {
-                    targets: [0, 2, 7, 8, 12],
+                    targets: [0, 2, 7, 8, 15],
                     className: "text-center"
                 },
                 {
-                    targets: [3, 4, 5, 6, 9, 10, 11, 13, 14, 15],
+                    targets: [3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 16, 17],
                     className: "text-right"
                 },
                 // Kolom 0: checkbox per-baris
@@ -843,38 +845,16 @@ $(document).ready(function () {
                         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
                     }
                 },
-                // eCPM (kolom 11)
+                // Visitor (kolom 11–13)
                 {
-                    targets: 11,
+                    targets: [11, 12, 13],
                     type: 'num',
                     render: function (data, type) {
                         var v = Number(data) || 0;
-                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
-                        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
+                        return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toLocaleString('id-ID');
                     }
                 },
-                // ROI (kolom 12)
-                {
-                    targets: 12,
-                    type: 'num-fmt',
-                    render: function (data, type) {
-                        var v = Number(data) || 0;
-                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
-                        var cls = v >= 0 ? 'roi-val-positive' : 'roi-val-negative';
-                        return '<span class="' + cls + '">' + v.toFixed(2) + '%</span>';
-                    }
-                },
-                // Pendapatan (kolom 13)
-                {
-                    targets: 13,
-                    type: 'num',
-                    render: function (data, type) {
-                        var v = Number(data) || 0;
-                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
-                        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
-                    }
-                },
-                // Pendapatan Bersih (kolom 14)
+                // eCPM (kolom 14)
                 {
                     targets: 14,
                     type: 'num',
@@ -884,17 +864,39 @@ $(document).ready(function () {
                         return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
                     }
                 },
-                // Visitor (kolom 15)
+                // ROI (kolom 15)
                 {
                     targets: 15,
+                    type: 'num-fmt',
+                    render: function (data, type) {
+                        var v = Number(data) || 0;
+                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
+                        var cls = v >= 0 ? 'roi-val-positive' : 'roi-val-negative';
+                        return '<span class="' + cls + '">' + v.toFixed(2) + '%</span>';
+                    }
+                },
+                // Pendapatan (kolom 16)
+                {
+                    targets: 16,
                     type: 'num',
                     render: function (data, type) {
                         var v = Number(data) || 0;
-                        return (type === 'sort' || type === 'type' || type === 'filter') ? v : v.toLocaleString('id-ID');
+                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
+                        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
+                    }
+                },
+                // Pendapatan Bersih (kolom 17)
+                {
+                    targets: 17,
+                    type: 'num',
+                    render: function (data, type) {
+                        var v = Number(data) || 0;
+                        if (type === 'sort' || type === 'type' || type === 'filter') return v;
+                        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(v);
                     }
                 }
             ],
-            order: [[12, 'desc']]
+            order: [[15, 'desc']]
             // ... existing code ...
         });
 

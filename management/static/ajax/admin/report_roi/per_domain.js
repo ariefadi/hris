@@ -63,6 +63,9 @@ function buildRoiDomainRow(item) {
         Number(item.ctr_adx || 0),
         Number(item.cpc_fb || 0),
         Number(item.cpc_adx || 0),
+        Number(item.total_visits || 0),
+        Number(item.unique_visitor || 0),
+        Number(item.total_pageviews || 0),
         Number(item.cpm || 0),
         Number(item.roi || 0),
         Number(item.revenue || 0),
@@ -398,8 +401,8 @@ $().ready(function () {
 
                         var domainPlain = String(r[1] || '').replace(/<[^>]*>/g, '').trim();
                         var tanggalPlain = String(r[2] || '').replace(/<[^>]*>/g, '').trim();
-                        var roiVal = Number(r[12] || 0);
-                        var pendapatanVal = Number(r[13] || 0);
+                        var roiVal = Number(r[15] || 0);
+                        var pendapatanVal = Number(r[16] || 0);
 
                         var roiText = formatNumber(roiVal, 2) + ' %';
                         var pendapatanText = formatCurrencyIDR(pendapatanVal);
@@ -618,11 +621,11 @@ $().ready(function () {
                 }
             },
             {
-                targets: [0, 2, 7, 8, 12],
+                targets: [0, 2, 7, 8, 15],
                 className: "text-center"
             },
             {
-                targets: [3, 4, 5, 6, 9, 10, 11, 13, 14],
+                targets: [3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 16, 17],
                 className: "text-right"
             },
             {
@@ -690,7 +693,15 @@ $().ready(function () {
                 }
             },
             {
-                targets: 11,
+                targets: [11, 12, 13],
+                type: 'num',
+                render: function (data, type) {
+                    var val = Number(data) || 0;
+                    return (type === 'sort' || type === 'type' || type === 'filter') ? val : formatNumber(val, 0);
+                }
+            },
+            {
+                targets: 14,
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
@@ -698,7 +709,7 @@ $().ready(function () {
                 }
             },
             {
-                targets: 12,
+                targets: 15,
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
@@ -708,7 +719,7 @@ $().ready(function () {
                 }
             },
             {
-                targets: 13,
+                targets: 16,
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;
@@ -716,7 +727,7 @@ $().ready(function () {
                 }
             },
             {
-                targets: 14,
+                targets: 17,
                 type: 'num',
                 render: function (data, type) {
                     var val = Number(data) || 0;

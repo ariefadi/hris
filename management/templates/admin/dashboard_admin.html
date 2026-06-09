@@ -1287,6 +1287,52 @@ html[data-theme="dark"] #dashboardRecapTable_wrapper .paginate_button:hover {
     max-width: 148px;
     word-break: break-word;
 }
+.ds-decision-wrap.ds-decision-has-tooltip {
+    cursor: help;
+}
+.ds-keputusan-tooltip-float {
+    position: fixed;
+    z-index: 12050;
+    min-width: 240px;
+    max-width: min(340px, calc(100vw - 24px));
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: #0f172a;
+    color: #f8fafc;
+    font-size: 12px;
+    line-height: 1.55;
+    text-align: left;
+    box-shadow: 0 18px 40px rgba(15, 23, 42, 0.28);
+    pointer-events: none;
+}
+.ds-keputusan-tooltip-float[hidden] {
+    display: none !important;
+}
+.ds-keputusan-tooltip-title {
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: #93c5fd;
+    margin-bottom: 8px;
+}
+.ds-keputusan-tooltip-list {
+    margin: 0;
+    padding-left: 16px;
+}
+.ds-keputusan-tooltip-list li {
+    margin-bottom: 6px;
+}
+.ds-keputusan-tooltip-list li:last-child {
+    margin-bottom: 0;
+}
+html[data-theme="dark"] .ds-keputusan-tooltip-float {
+    background: #020617;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+}
+.detail-scoring-card #dashboardRecapTable tbody td.ds-keputusan-cell {
+    overflow: visible;
+}
 .ds-status-stack {
     display: flex;
     flex-direction: column;
@@ -2507,6 +2553,7 @@ html[data-theme="dark"] .dashboard-recap-filter-item .form-control {
                                     <tbody id="dashboardRecapTbody"></tbody>
                                 </table>
                             </div>
+                            <div id="dsKeputusanTooltip" class="ds-keputusan-tooltip-float" role="tooltip" hidden aria-hidden="true"></div>
                         </div>
 
                         <div class="card dashboard-card mt-2" id="dashboardWinningCampaignCard" style="border-radius:16px;">
@@ -4047,18 +4094,19 @@ function dsDecisionChipClass(decision) {
 function keputusanBadge(meta, ctx) {
     const label = String(meta?.label || '').trim();
     const d = scxNormalizeDecisionForDisplay(meta?.decision || '', label);
-    const title = (meta?.reasons && meta.reasons.length) ? meta.reasons.join(' • '): '';
     const storeKey = 'meta_' + (++window.detailKeputusanStoreCounter);
+    const tooltipHtml = buildKeputusanTooltipHtml(meta || {}, ctx || {});
     window.detailKeputusanStore[storeKey] = {
         meta: meta || {},
         row: ctx?.row || null,
         state: ctx?.state || null,
+        tooltipHtml: tooltipHtml
     };
     const causeText = label ? scxFriendlyLabelGlobal(label) : '';
     const chipCls = dsDecisionChipClass(d);
     const labelText = d || 'BELUM SIAP';
-    const causeHtml = causeText ? `<span class="ds-decision-cause" title="${esc('Penyebab: ' + causeText)}">${esc(causeText)}</span>` : '';
-    return `<div class="ds-decision-wrap keputusan-badge-clickable" title="${esc(title)}" data-keputusan-key="${storeKey}" role="button" tabindex="0"><span class="ds-decision-chip ${chipCls}">${esc(labelText)}</span>${causeHtml}</div>`;
+    const causeHtml = causeText ? `<span class="ds-decision-cause">${esc(causeText)}</span>` : '';
+    return `<div class="ds-decision-wrap keputusan-badge-clickable ds-decision-has-tooltip" data-keputusan-key="${storeKey}" role="button" tabindex="0" aria-label="Keputusan ${esc(labelText)}. Arahkan kursor untuk penjelasan."><span class="ds-decision-chip ${chipCls}">${esc(labelText)}</span>${causeHtml}</div>`;
 }
 
 function scxFriendlyLabelGlobal(label) {
@@ -4099,11 +4147,191 @@ function scxDecisionReasonText(decision, label, risk, margin, health, confidence
     if (d === 'PAUSE') {
         if (l === 'NEG_ADJUSTMENT') return 'Dijeda sementara agar ada waktu perbaikan karena adjustment sedang negatif.';
         if (l === 'WATCH_DECAY') return 'Dijeda sementara karena performa melemah dan perlu observasi sebelum dilanjutkan.';
+        if (l === 'WATCH_IVT' || l === 'IVT_DOMINANT_RISK') return 'Dijeda sementara karena risiko IVT meningkat dan perlu evaluasi kualitas traffic.';
+        if (l === 'PROFIT_OK_BUT_UNSAFE' || l === 'TRAFFIC_QUALITY_MISMATCH') return 'Dijeda sementara karena profit masih ada tetapi kualitas traffic belum aman.';
         return 'Dijeda sementara agar ada ruang evaluasi dan perbaikan sebelum tindakan yang lebih keras.';
     }
-    if (d === 'SCALE DOWN') return 'Budget diturunkan karena ada tekanan risiko atau performa mulai melemah.';
-    if (d === 'SCALE UP') return 'Budget layak dinaikkan karena sinyal kesehatan dan margin relatif kuat.';
+    if (d === 'SCALE DOWN') {
+        if (r >= 68) return 'Budget diturunkan karena risiko IVT sudah tinggi.';
+        if (l === 'TRAFFIC_DROP' || l === 'REVENUE_DROP') return 'Budget diturunkan karena traffic atau revenue melemah dibanding baseline.';
+        return 'Budget diturunkan karena ada tekanan risiko atau performa mulai melemah.';
+    }
+    if (d === 'SCALE UP') return 'Budget layak dinaikkan karena sinyal kesehatan, margin, dan confidence relatif kuat.';
+    if (d === 'HOLD' || d === 'LEARNING' || !d) {
+        if (l === 'WATCH_DECAY') return 'Dipertahankan (Hold) karena sinyal mulai melemah, tetapi belum cukup kuat untuk menurunkan budget.';
+        if (l === 'WATCH_NEGATIVE') return 'Dipertahankan (Hold) karena ada tekanan negatif awal yang masih perlu dipantau.';
+        if (l === 'STABLE' || !l) return 'Dipertahankan (Hold) karena kondisi relatif stabil — belum ada sinyal kuat untuk naik atau turun budget.';
+        if (l === 'LEARNING' || l === 'DATA_INCOMPLETE') return 'Dipertahankan (Hold) karena data/histori belum cukup untuk keputusan agresif.';
+        return 'Dipertahankan (Hold) sambil dipantau karena kombinasi score, risk, dan margin belum mengarah ke scale up/down.';
+    }
     return 'Dipertahankan sambil dipantau karena sinyal belum cukup kuat untuk naik atau turun agresif.';
+}
+
+function scxRootCauseExplainGlobal(label) {
+    const map = {
+        POSITIVE_EXPANSION: 'Performa sedang kuat dan masih layak didorong secara terukur.',
+        POSITIVE_RECOVERY: 'Performa mulai pulih, tetapi tetap perlu dijaga konsistensinya.',
+        WATCH_POSITIVE: 'Ada sinyal membaik, namun belum cukup kuat untuk ekspansi agresif.',
+        WATCH_RECOVERY: 'Pemulihan sudah terlihat, tetapi belum stabil sepenuhnya.',
+        WATCH_NEGATIVE: 'Mulai ada tekanan negatif yang perlu dipantau lebih ketat.',
+        WATCH_DECAY: 'Performa mulai melemah dan sebaiknya tidak langsung diekspansi.',
+        WATCH_IVT: 'Risiko IVT mulai muncul dan perlu diawasi sebelum membesar.',
+        IVT_DOMINANT_RISK: 'Risiko IVT sudah menjadi faktor utama yang menekan performa.',
+        PROFIT_OK_BUT_UNSAFE: 'Profit masih terlihat baik, tetapi kualitas traffic belum cukup aman.',
+        TRAFFIC_QUALITY_MISMATCH: 'Hasil monetisasi masih berjalan, tetapi kualitas traffic tidak sehat.',
+        TRAFFIC_DROP: 'Traffic turun dibanding pola normal.',
+        SERVING_DROP: 'Distribusi iklan melemah sehingga potensi tayang ikut tertekan.',
+        YIELD_DROP: 'Nilai hasil monetisasi menurun dibanding pola normal.',
+        VIEWABILITY_DROP: 'Kualitas viewability menurun dan bisa mengurangi nilai traffic.',
+        EFFICIENCY_DROP: 'Efisiensi performa memburuk dan perlu evaluasi.',
+        REVENUE_DROP: 'Revenue turun dibanding pola biasanya.',
+        NEG_ADJUSTMENT: 'Ada koreksi negatif yang perlu dicek sebelum dilanjutkan agresif.',
+        DATA_INCOMPLETE: 'Data scoring belum cukup lengkap untuk membaca penyebab utama secara akurat.',
+        RED_FLAG_IVT: 'Ada red flag pada kualitas traffic dan perlu tindakan cepat.',
+        STABLE: 'Kondisi relatif stabil, belum ada perubahan besar yang perlu tindakan khusus.'
+    };
+    const key = String(label || '').toUpperCase();
+    return map[key] || '';
+}
+
+function scxAnomalyExplain(card) {
+    const map = {
+        AD_REQUEST_FILL_ISSUE: 'Fill request iklan melemah',
+        ECPM_YIELD_DROP: 'Yield / eCPM turun',
+        REVENUE_DROP: 'Revenue turun',
+        TRAFFIC_DROP: 'Traffic turun',
+        IVT_RISK: 'Risiko IVT tinggi',
+        NEG_ADJUSTMENT: 'Adjustment negatif',
+        MARGIN_CRASH: 'Decision margin jatuh tajam'
+    };
+    const key = String(card || '').trim().toUpperCase();
+    return map[key] || String(card || '').replaceAll('_', ' ');
+}
+
+function buildKeputusanTooltipHtml(meta, ctx) {
+    const info = meta?.breakdown?.meta || {};
+    const row = (ctx && ctx.row) ? ctx.row : {};
+    const labelKey = String(meta?.label || info.final_label || info.root_cause_label || 'STABLE').trim().toUpperCase();
+    const decision = scxNormalizeDecisionForDisplay(meta?.decision || info.decision || '', labelKey);
+    const score = Number(meta?.score);
+    const health = Number(info.health_score);
+    const risk = Number(info.ivt_risk_score);
+    const adj = Number(info.adjustment_score);
+    const confRaw = Number(info.confidence);
+    const conf = Number.isFinite(confRaw) ? (confRaw > 1 ? confRaw / 100 : confRaw) : null;
+    const dm = Number(info.decision_margin);
+    const spend = Number(row.spend || info.spend || 0);
+    const revenue = Number(row.revenue || info.revenue_value || 0);
+    const roiFrac = spend > 0 ? ((revenue - spend) / spend) : (Number(row.roi || 0) / 100);
+    const profitStrong = revenue > spend && roiFrac >= 0.20;
+    const anomalyCards = Array.isArray(info.anomaly_cards) ? info.anomaly_cards.map(function(x){ return String(x || '').trim(); }).filter(Boolean) : [];
+    const lines = [];
+
+    lines.push(scxDecisionReasonText(decision, labelKey, risk, dm, health, conf == null ? 0 : conf));
+
+    if (String(decision || '').toUpperCase() === 'HOLD') {
+        if (['WATCH_DECAY', 'WATCH_NEGATIVE'].includes(labelKey) && profitStrong && risk < 35 && !anomalyCards.length) {
+            lines.push('Profit masih mendukung — sistem menahan penurunan budget (profit guard).');
+        }
+        if (Number.isFinite(score) && score >= 48 && score < 66) {
+            lines.push('Score berada di zona tengah; belum memenuhi ambang scale up maupun scale down.');
+        }
+        if (['POSITIVE_EXPANSION', 'POSITIVE_RECOVERY', 'WATCH_POSITIVE'].includes(labelKey)) {
+            lines.push('Ada sinyal positif, tetapi risk / confidence / margin belum cukup untuk menaikkan budget.');
+        }
+        if (Number.isFinite(risk) && risk >= 42 && risk < 68) {
+            lines.push('Risiko IVT sedang — cukup untuk waspada, belum memicu penurunan budget otomatis.');
+        }
+    }
+
+    const signalText = scxRootCauseExplainGlobal(labelKey);
+    if (signalText) lines.push('Penyebab utama: ' + signalText);
+
+    const metrics = [];
+    if (Number.isFinite(score)) metrics.push('Score ' + Math.round(score));
+    if (Number.isFinite(health)) metrics.push('Health ' + health.toFixed(1));
+    if (Number.isFinite(risk)) metrics.push('IVT ' + risk.toFixed(1));
+    if (Number.isFinite(dm)) metrics.push('Margin ' + dm.toFixed(1));
+    if (conf != null && Number.isFinite(conf)) metrics.push('Conf ' + Math.round(conf * 100) + '%');
+    if (metrics.length) lines.push('Ringkas: ' + metrics.join(' · '));
+
+    if (anomalyCards.length) {
+        lines.push('Anomali: ' + anomalyCards.map(scxAnomalyExplain).join(', '));
+    }
+
+    const extra = (Array.isArray(meta?.reasons) ? meta.reasons : [])
+        .map(function(x){ return String(x || '').trim(); })
+        .filter(function(x){
+            return x && !x.startsWith('Dasar keputusan:') && !/^health=/i.test(x) && !x.startsWith('Coverage:');
+        })
+        .slice(0, 2);
+    extra.forEach(function(x){ if (!lines.includes(x)) lines.push(x); });
+
+    const title = 'Kenapa ' + scxDecisionLabelGlobal(decision) + '?';
+    const uniqLines = [];
+    lines.forEach(function(l){ if (l && !uniqLines.includes(l)) uniqLines.push(l); });
+    return '<div class="ds-keputusan-tooltip-title">' + esc(title) + '</div><ul class="ds-keputusan-tooltip-list">' +
+        uniqLines.map(function(l){ return '<li>' + esc(l) + '</li>'; }).join('') +
+        '</ul>';
+}
+
+function bindKeputusanTooltipHover() {
+    if (document.body.dataset.boundKeputusanTooltip === '1') return;
+    const floatEl = document.getElementById('dsKeputusanTooltip') || (function(){
+        const el = document.createElement('div');
+        el.id = 'dsKeputusanTooltip';
+        el.className = 'ds-keputusan-tooltip-float';
+        el.setAttribute('role', 'tooltip');
+        el.hidden = true;
+        document.body.appendChild(el);
+        return el;
+    })();
+    let hideTimer = null;
+    const hide = function() {
+        floatEl.hidden = true;
+        floatEl.setAttribute('aria-hidden', 'true');
+        floatEl.innerHTML = '';
+    };
+    const show = function(trigger, html) {
+        floatEl.innerHTML = html;
+        floatEl.hidden = false;
+        floatEl.setAttribute('aria-hidden', 'false');
+        const rect = trigger.getBoundingClientRect();
+        const pad = 10;
+        floatEl.style.left = (rect.left + (rect.width / 2)) + 'px';
+        floatEl.style.top = (rect.top - pad) + 'px';
+        floatEl.style.transform = 'translate(-50%, -100%)';
+        requestAnimationFrame(function(){
+            const tr = floatEl.getBoundingClientRect();
+            let left = rect.left + (rect.width / 2);
+            if (tr.width > 0) {
+                if (left - (tr.width / 2) < 8) left = 8 + (tr.width / 2);
+                if (left + (tr.width / 2) > window.innerWidth - 8) left = window.innerWidth - 8 - (tr.width / 2);
+            }
+            floatEl.style.left = left + 'px';
+            if (tr.top < 8) {
+                floatEl.style.top = (rect.bottom + pad) + 'px';
+                floatEl.style.transform = 'translate(-50%, 0)';
+            }
+        });
+    };
+    document.body.addEventListener('mouseover', function(e) {
+        const trigger = e.target && e.target.closest ? e.target.closest('.keputusan-badge-clickable[data-keputusan-key]') : null;
+        if (!trigger) return;
+        clearTimeout(hideTimer);
+        const sk = String(trigger.getAttribute('data-keputusan-key') || '').trim();
+        const entry = window.detailKeputusanStore && window.detailKeputusanStore[sk];
+        if (!entry || !entry.tooltipHtml) return;
+        show(trigger, entry.tooltipHtml);
+    });
+    document.body.addEventListener('mouseout', function(e) {
+        const trigger = e.target && e.target.closest ? e.target.closest('.keputusan-badge-clickable[data-keputusan-key]') : null;
+        if (!trigger) return;
+        const to = e.relatedTarget;
+        if (to && trigger.contains(to)) return;
+        hideTimer = setTimeout(hide, 100);
+    });
+    document.body.dataset.boundKeputusanTooltip = '1';
 }
 
 function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, rawMetaCtx) {
@@ -5238,6 +5466,7 @@ function initDetailKeputusanModal() {
         });
         document.body.dataset.boundOpenDecision = '1';
     }
+    bindKeputusanTooltipHover();
 }
 // ===== END MODAL FUNCTIONS =====
 
@@ -6574,26 +6803,73 @@ function initDashboardRecap() {
         return `${sign}${n.toFixed(digits)}${suffix}`;
     }
 
+    const SCORE_METRIC_CHART_DAYS = 35;
+    const SCORE_METRIC_DAYS_BACK = SCORE_METRIC_CHART_DAYS - 1;
+    const TREND_WINDOW_LOOKBACK_DAYS = (SCORE_METRIC_CHART_DAYS * 2) - 1;
+
+    function summarizeScoreWindowFromHistory(rows, days) {
+        const list = (Array.isArray(rows) ? rows : [])
+            .filter(function(r){ return r && String(r.date || '').trim(); })
+            .sort(function(a, b){ return String(a.date).localeCompare(String(b.date)); });
+        const scores = list.map(function(r){ return Number(r.score); }).filter(function(n){ return Number.isFinite(n); });
+        if (!scores.length) return null;
+        const cur = scores.slice(-days);
+        const prev = scores.slice(-days * 2, -days);
+        if (!cur.length) return null;
+        const avg = cur.reduce(function(a, b){ return a + b; }, 0) / cur.length;
+        const prevAvg = prev.length ? (prev.reduce(function(a, b){ return a + b; }, 0) / prev.length) : null;
+        return {
+            score: avg,
+            score_delta: (prevAvg == null || !Number.isFinite(prevAvg)) ? null : (avg - prevAvg),
+            score_source: 'scoring_history'
+        };
+    }
+
+    function mergeTrendWindowsWithScoringHistory(trendWindows, dailyRows) {
+        const out = Object.assign({}, trendWindows || {});
+        [
+            { key: 'd1', days: 1 },
+            { key: 'd3', days: 3 },
+            { key: 'd7', days: 7 },
+            { key: 'd14', days: 14 },
+            { key: 'd35', days: SCORE_METRIC_CHART_DAYS }
+        ].forEach(function(w) {
+            const scoreWin = summarizeScoreWindowFromHistory(dailyRows, w.days);
+            if (!scoreWin) return;
+            out[w.key] = Object.assign({}, out[w.key] || {}, scoreWin);
+        });
+        return out;
+    }
+
     function scxRenderTrendWindows(trendWindows) {
         const wins = [
             { key: 'd1', title: 'H-1' },
             { key: 'd3', title: 'H-3' },
             { key: 'd7', title: 'H-7' },
-            { key: 'd14', title: 'H-14' }
+            { key: 'd14', title: 'H-14' },
+            { key: 'd35', title: `H-${SCORE_METRIC_CHART_DAYS}` }
         ];
 
         return `<div class="scx-trend-grid">` + wins.map(function(item) {
             const w = trendWindows?.[item.key] || {};
             const tone = scxTrendTone(w?.score);
+            const scoreNote = w?.score_source === 'scoring_history' ? 'Score (histori DB)' : 'Score (proxy ROI)';
+            const roiDeltaText = (w?.roi_delta == null || !Number.isFinite(Number(w?.roi_delta))) ? '-' : scxSigned(w.roi_delta, 2, 'pp');
+            const revDeltaText = (w?.revenue_delta_pct == null || !Number.isFinite(Number(w?.revenue_delta_pct))) ? '-' : scxSigned(w.revenue_delta_pct, 1, '%');
+            const scoreDeltaLine = (w?.score_delta != null && Number.isFinite(Number(w?.score_delta)))
+                ? `Δ Score: <strong>${esc(scxSigned(w.score_delta, 1))}</strong><br>`
+                : '';
             return `
                 <div class="scx-trend-card">
                     <div class="win">${esc(item.title)}</div>
                     <div class="score">${esc(scxNum(w?.score, 1))}</div>
                     <div><span class="scx-pill ${tone}">${esc(scxTrendLabel(w?.score))}</span></div>
+                    <div class="meta" style="font-size:0.78rem;color:#64748b;margin-bottom:6px;">${esc(scoreNote)}</div>
                     <div class="meta">
+                        ${scoreDeltaLine}
                         Avg ROI: <strong>${esc(scxNum(w?.avg_roi, 2))}%</strong><br>
-                        Δ ROI: <strong>${esc(scxSigned(w?.roi_delta, 2, 'pp'))}</strong><br>
-                        Δ Revenue: <strong>${esc(scxSigned(w?.revenue_delta_pct, 1, '%'))}</strong>
+                        Δ ROI: <strong>${esc(roiDeltaText)}</strong><br>
+                        Δ Revenue: <strong>${esc(revDeltaText)}</strong>
                     </div>
                 </div>
             `;
@@ -6884,7 +7160,7 @@ function initDashboardRecap() {
         const st=sub?.status||{}, evs=Array.isArray(sub?.events)?sub.events:[], pos=scxTopEvents(evs,'positive'), neg=scxTopEvents(evs,'negative');
         const rows=evs.filter(function(ev){ return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; }).sort(function(a,b){ return Math.abs(Number(b?.signal_strength||0)) - Math.abs(Number(a?.signal_strength||0)); }).map(function(ev){ const t=scxSignalTone(ev?.signal_strength); return `<tr><td>${esc(scxMetricName(ev?.header_name || ev?.rule_key || '-'))}</td><td class="text-end">${esc(scxNum(ev?.cur_value,2))}</td><td class="text-end">${esc(scxBaselineText(ev))}</td><td><span class="scx-impact ${t}">${esc(scxSignalText(ev?.signal_strength))}</span></td></tr>`; }).join('');
         const fl=String(st?.final_label||'UNKNOWN'), rl=String(st?.root_cause_label||'STABLE'), tone=(fl.includes('POSITIVE')||fl.includes('RECOVERY')||fl.includes('EXPANSION'))?'green':((fl.includes('DROP')||fl.includes('NEG')||fl.includes('RED_FLAG'))?'red':'yellow');
-        return `<div class="scx-grid"><div class="scx-card"><div class="scx-hero"><div><div class="scx-title" style="margin-bottom:6px;">${esc(String(sub?.label || sub?.key || '-'))}</div><div class="scx-status"><span class="scx-pill ${tone}">${esc(fl)}</span>${rl && rl !== fl ? `<span class="scx-pill gray">${esc(rl)}</span>` : ''}</div></div></div><div class="scx-kpi-grid"><div class="scx-kpi"><div class="scx-kpi-label">Health</div><div class="scx-kpi-value">${esc(scxNum(st?.health_score,2))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Confidence</div><div class="scx-kpi-value">${esc(scxPct01(st?.confidence,0))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Risk</div><div class="scx-kpi-value">${esc(scxNum(st?.ivt_risk_score,2))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Decision</div><div class="scx-kpi-value">${esc(scxNum(st?.decision_margin,2))}</div></div></div><div class="scx-section-gap"><div class="sd-details"><summary><span>Grafik Trend</span><span class="sd-det-right" id="${esc(tabKey)}Status">Loading trend...</span></summary><div class="sd-det-body"><div class="dashboard-recap-tabs mb-3" style="display:inline-flex;"><button type="button" class="btn btn-sm btn-primary" id="${esc(tabKey)}Btn1" data-days="1">H-1</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn3" data-days="3">H-3</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn7" data-days="7">H-7</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn14" data-days="14">H-14</button></div><div style="height:320px;"><canvas id="${esc(tabKey)}Chart"></canvas></div><div id="${esc(tabKey)}Stats"></div></div></div></div></div><div class="scx-card"><div class="scx-title">Detail Teknis Singkat</div>${rows ? `<div class="table-responsive"><table class="table table-sm table-striped scx-simple-table"><thead><tr><th>Metric</th><th class="text-end">Current</th><th class="text-end">Baseline</th><th>Impact</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="scx-sub">Belum ada detail event untuk subdomain ini.</div>`}<div class="scx-section-gap"><div class="scx-title">Yang Mendorong Naik</div>${scxRenderImpactList(pos, 'Belum ada sinyal positif dominan.', 'positive')}</div><div class="scx-section-gap"><div class="scx-title">Yang Perlu Diperhatikan</div>${scxRenderImpactList(neg, 'Belum ada sinyal negatif dominan.', 'negative')}</div></div></div>`;
+        return `<div class="scx-grid"><div class="scx-card"><div class="scx-hero"><div><div class="scx-title" style="margin-bottom:6px;">${esc(String(sub?.label || sub?.key || '-'))}</div><div class="scx-status"><span class="scx-pill ${tone}">${esc(fl)}</span>${rl && rl !== fl ? `<span class="scx-pill gray">${esc(rl)}</span>` : ''}</div></div></div><div class="scx-kpi-grid"><div class="scx-kpi"><div class="scx-kpi-label">Health</div><div class="scx-kpi-value">${esc(scxNum(st?.health_score,2))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Confidence</div><div class="scx-kpi-value">${esc(scxPct01(st?.confidence,0))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Risk</div><div class="scx-kpi-value">${esc(scxNum(st?.ivt_risk_score,2))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Decision</div><div class="scx-kpi-value">${esc(scxNum(st?.decision_margin,2))}</div></div></div><div class="scx-section-gap"><div class="sd-details"><summary><span>Grafik Trend</span><span class="sd-det-right" id="${esc(tabKey)}Status">Loading trend...</span></summary><div class="sd-det-body"><div class="dashboard-recap-tabs mb-3" style="display:inline-flex;flex-wrap:wrap;gap:8px;"><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn1" data-days="1">H-1</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn3" data-days="3">H-3</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn7" data-days="7">H-7</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn14" data-days="14">H-14</button><button type="button" class="btn btn-sm btn-primary" id="${esc(tabKey)}Btn${SCORE_METRIC_CHART_DAYS}" data-days="${SCORE_METRIC_CHART_DAYS}">H-${SCORE_METRIC_CHART_DAYS}</button></div><div style="height:320px;"><canvas id="${esc(tabKey)}Chart"></canvas></div><div id="${esc(tabKey)}Stats"></div></div></div></div></div><div class="scx-card"><div class="scx-title">Detail Teknis Singkat</div>${rows ? `<div class="table-responsive"><table class="table table-sm table-striped scx-simple-table"><thead><tr><th>Metric</th><th class="text-end">Current</th><th class="text-end">Baseline</th><th>Impact</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="scx-sub">Belum ada detail event untuk subdomain ini.</div>`}<div class="scx-section-gap"><div class="scx-title">Yang Mendorong Naik</div>${scxRenderImpactList(pos, 'Belum ada sinyal positif dominan.', 'positive')}</div><div class="scx-section-gap"><div class="scx-title">Yang Perlu Diperhatikan</div>${scxRenderImpactList(neg, 'Belum ada sinyal negatif dominan.', 'negative')}</div></div></div>`;
     }
 
     function bindScoreCountryTabs(onShow) {
@@ -6934,7 +7210,7 @@ function initDashboardRecap() {
         const fl = String(st?.final_label || 'UNKNOWN');
         const rl = String(st?.root_cause_label || 'STABLE');
         const tone = (fl.includes('POSITIVE') || fl.includes('RECOVERY') || fl.includes('EXPANSION')) ? 'green' : ((fl.includes('DROP') || fl.includes('NEG') || fl.includes('RED_FLAG')) ? 'red' : 'yellow');
-        return `<div class="scx-grid"><div class="scx-card"><div class="scx-hero"><div><div class="scx-title" style="margin-bottom:6px;">${esc(scxCountryLabel(st))}</div><div class="scx-status"><span class="scx-pill ${tone}">${esc(fl)}</span>${rl && rl !== fl ? `<span class="scx-pill gray">${esc(rl)}</span>` : ''}</div></div></div><div class="scx-kpi-grid"><div class="scx-kpi"><div class="scx-kpi-label">Health</div><div class="scx-kpi-value">${esc(scxNum(st?.health_score,2))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Confidence</div><div class="scx-kpi-value">${esc(scxPct01(st?.confidence,0))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Risk</div><div class="scx-kpi-value">${esc(scxNum(st?.ivt_risk_score,2))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Decision</div><div class="scx-kpi-value">${esc(scxNum(st?.decision_margin,2))}</div></div></div><div class="scx-section-gap"><div class="sd-details"><summary><span>Grafik Trend</span><span class="sd-det-right" id="${esc(tabKey)}Status">Loading trend...</span></summary><div class="sd-det-body"><div class="dashboard-recap-tabs mb-3" style="display:inline-flex;"><button type="button" class="btn btn-sm btn-primary" id="${esc(tabKey)}Btn1" data-days="1">H-1</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn3" data-days="3">H-3</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn7" data-days="7">H-7</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn14" data-days="14">H-14</button></div><div style="height:320px;"><canvas id="${esc(tabKey)}Chart"></canvas></div><div id="${esc(tabKey)}Stats"></div></div></div></div></div><div class="scx-card"><div class="scx-title">Detail Teknis Singkat</div>${rows ? `<div class="table-responsive"><table class="table table-sm table-striped scx-simple-table"><thead><tr><th>Metric</th><th class="text-end">Current</th><th class="text-end">Baseline</th><th>Impact</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="scx-sub">Tidak ada detail event.</div>`}<div class="scx-section-gap"><div class="scx-title">Yang Mendorong Naik</div>${scxRenderImpactList(pos, 'Belum ada sinyal positif dominan.', 'positive')}</div><div class="scx-section-gap"><div class="scx-title">Yang Perlu Diperhatikan</div>${scxRenderImpactList(neg, 'Belum ada sinyal negatif dominan.', 'negative')}</div></div></div>`;
+        return `<div class="scx-grid"><div class="scx-card"><div class="scx-hero"><div><div class="scx-title" style="margin-bottom:6px;">${esc(scxCountryLabel(st))}</div><div class="scx-status"><span class="scx-pill ${tone}">${esc(fl)}</span>${rl && rl !== fl ? `<span class="scx-pill gray">${esc(rl)}</span>` : ''}</div></div></div><div class="scx-kpi-grid"><div class="scx-kpi"><div class="scx-kpi-label">Health</div><div class="scx-kpi-value">${esc(scxNum(st?.health_score,2))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Confidence</div><div class="scx-kpi-value">${esc(scxPct01(st?.confidence,0))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Risk</div><div class="scx-kpi-value">${esc(scxNum(st?.ivt_risk_score,2))}</div></div><div class="scx-kpi"><div class="scx-kpi-label">Decision</div><div class="scx-kpi-value">${esc(scxNum(st?.decision_margin,2))}</div></div></div><div class="scx-section-gap"><div class="sd-details"><summary><span>Grafik Trend</span><span class="sd-det-right" id="${esc(tabKey)}Status">Loading trend...</span></summary><div class="sd-det-body"><div class="dashboard-recap-tabs mb-3" style="display:inline-flex;flex-wrap:wrap;gap:8px;"><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn1" data-days="1">H-1</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn3" data-days="3">H-3</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn7" data-days="7">H-7</button><button type="button" class="btn btn-sm btn-outline-primary" id="${esc(tabKey)}Btn14" data-days="14">H-14</button><button type="button" class="btn btn-sm btn-primary" id="${esc(tabKey)}Btn${SCORE_METRIC_CHART_DAYS}" data-days="${SCORE_METRIC_CHART_DAYS}">H-${SCORE_METRIC_CHART_DAYS}</button></div><div style="height:320px;"><canvas id="${esc(tabKey)}Chart"></canvas></div><div id="${esc(tabKey)}Stats"></div></div></div></div></div><div class="scx-card"><div class="scx-title">Detail Teknis Singkat</div>${rows ? `<div class="table-responsive"><table class="table table-sm table-striped scx-simple-table"><thead><tr><th>Metric</th><th class="text-end">Current</th><th class="text-end">Baseline</th><th>Impact</th></tr></thead><tbody>${rows}</tbody></table></div>` : `<div class="scx-sub">Tidak ada detail event.</div>`}<div class="scx-section-gap"><div class="scx-title">Yang Mendorong Naik</div>${scxRenderImpactList(pos, 'Belum ada sinyal positif dominan.', 'positive')}</div><div class="scx-section-gap"><div class="scx-title">Yang Perlu Diperhatikan</div>${scxRenderImpactList(neg, 'Belum ada sinyal negatif dominan.', 'negative')}</div></div></div>`;
     }
 
     // ...existing code...
@@ -7220,9 +7496,10 @@ function initDashboardRecap() {
         const tw3 = trendWindows.d3 || null;
         const tw7 = trendWindows.d7 || null;
         const tw14 = trendWindows.d14 || null;
-        const multiWindowScore = weightedAvg([[tw1 && tw1.score, 0.15], [tw3 && tw3.score, 0.25], [tw7 && tw7.score, 0.30], [tw14 && tw14.score, 0.30]]);
-        const trendPositive = [tw3, tw7, tw14].filter(w => w && Number(w.avg_roi) >= 8 && Number(w.roi_delta) >= -3).length;
-        const trendNegative = [tw3, tw7, tw14].filter(w => w && Number(w.avg_roi) < 0 && Number(w.roi_delta) <= 0).length;
+        const tw35 = trendWindows.d35 || null;
+        const multiWindowScore = weightedAvg([[tw1 && tw1.score, 0.10], [tw3 && tw3.score, 0.15], [tw7 && tw7.score, 0.25], [tw14 && tw14.score, 0.25], [tw35 && tw35.score, 0.25]]);
+        const trendPositive = [tw3, tw7, tw14, tw35].filter(w => w && Number(w.avg_roi) >= 8 && Number(w.roi_delta) >= -3).length;
+        const trendNegative = [tw3, tw7, tw14, tw35].filter(w => w && Number(w.avg_roi) < 0 && Number(w.roi_delta) <= 0).length;
 
         function scoreAdxAspects(x, prev) {
             if (!x) return null;
@@ -8661,7 +8938,13 @@ function initDashboardRecap() {
     }
 
     function summarizeTrendWindows(series) {
-        return { d1: summarizeTrendWindow(series, 1), d3: summarizeTrendWindow(series, 3), d7: summarizeTrendWindow(series, 7), d14: summarizeTrendWindow(series, 14) };
+        return {
+            d1: summarizeTrendWindow(series, 1),
+            d3: summarizeTrendWindow(series, 3),
+            d7: summarizeTrendWindow(series, 7),
+            d14: summarizeTrendWindow(series, 14),
+            d35: summarizeTrendWindow(series, SCORE_METRIC_CHART_DAYS)
+        };
     }
 
     function resolveTrendState(baseState, rowLike) {
@@ -8685,7 +8968,7 @@ function initDashboardRecap() {
         const store = window.dashboardTrendWindowCache = window.dashboardTrendWindowCache || {};
         if (store[cacheKey]) return store[cacheKey];
         try {
-            const out = summarizeTrendWindows(await buildTrendSeries(key, ymd, trendState, 13));
+            const out = summarizeTrendWindows(await buildTrendSeries(key, ymd, trendState, TREND_WINDOW_LOOKBACK_DAYS));
             store[cacheKey] = out;
             return out;
         } catch (e) {
@@ -8700,10 +8983,11 @@ function initDashboardRecap() {
         const s3 = document.getElementById(o.btn3Id || 'sdTrendBtn3');
         const s7 = document.getElementById(o.btn7Id || 'sdTrendBtn7');
         const s14 = document.getElementById(o.btn14Id || 'sdTrendBtn14');
+        const s35 = document.getElementById(o.btn35Id || 'sdTrendBtn35');
         const st = document.getElementById(o.statusId || 'sdTrendStatus');
 
         function setActive(n) {
-            [s1, s3, s7, s14].forEach(function(b){
+            [s1, s3, s7, s14, s35].forEach(function(b){
                 if (!b) return;
                 const on = String(b.getAttribute('data-days')) === String(n);
                 b.classList.toggle('btn-primary', on);
@@ -8790,7 +9074,7 @@ function initDashboardRecap() {
         }
 
         async function run(days) {
-            const back = (Number(days) === 1) ? 1 : (Math.max(2, Number(days) || 14) - 1);
+            const back = (Number(days) === 1) ? 1 : (Math.max(2, Number(days) || SCORE_METRIC_CHART_DAYS) - 1);
             const trendState = resolveTrendState(state, o.row || null);
             setActive(days);
             if (st) st.textContent = 'Loading trend...';
@@ -8835,12 +9119,10 @@ function initDashboardRecap() {
         if (s3) s3.onclick = function(){ run(3); };
         if (s7) s7.onclick = function(){ run(7); };
         if (s14) s14.onclick = function(){ run(14); };
+        if (s35) s35.onclick = function(){ run(SCORE_METRIC_CHART_DAYS); };
 
-        run(14);
+        run(SCORE_METRIC_CHART_DAYS);
     }
-
-    const SCORE_METRIC_CHART_DAYS = 35;
-    const SCORE_METRIC_DAYS_BACK = SCORE_METRIC_CHART_DAYS - 1;
 
     function bindScoreMetric14Tabs(rows) {
         const tabs = document.getElementById('sdMetric14Tabs');
@@ -9495,19 +9777,21 @@ function initDashboardRecap() {
             html += `      </div>`;
             html += `  </div>`;
             html += `  <div class="scx-section-gap">`;
-            html += `      <div class="scx-title">Trend Historis yang Dipakai Scoring</div>`;
+            html += `      <div class="scx-title">Ringkasan Trend ROI (H-1 s/d H-${SCORE_METRIC_CHART_DAYS})</div>`;
+            html += `      <p class="scx-sub mb-2">Metrik ROI/revenue dari monitoring harian. Angka Score mengikuti histori scoring DB bila tersedia, selain itu memakai proxy ROI.</p>`;
             html +=         `<div id="scxSummaryTrendWindows">${scxRenderTrendWindows(trendWindows)}</div>`;
             html += `  </div>`;
     
             html += `  <div class="scx-section-gap">`;
             html += `      <div class="sd-details">`;
-            html += `          <summary><span>Grafik Trend 1 / 3 / 7 / 14 Hari</span><span class="sd-det-right" id="sdTrendStatus">Loading trend...</span></summary>`;
+            html += `          <summary><span>Grafik Trend 1 / 3 / 7 / 14 / ${SCORE_METRIC_CHART_DAYS} Hari</span><span class="sd-det-right" id="sdTrendStatus">Loading trend...</span></summary>`;
             html += `          <div class="sd-det-body">`;
-            html += `              <div class="dashboard-recap-tabs mb-3" style="display:inline-flex;">`;
-            html += `                  <button type="button" class="btn btn-sm btn-primary" id="sdTrendBtn1" data-days="1">H-1</button>`;
+            html += `              <div class="dashboard-recap-tabs mb-3" style="display:inline-flex;flex-wrap:wrap;gap:8px;">`;
+            html += `                  <button type="button" class="btn btn-sm btn-outline-primary" id="sdTrendBtn1" data-days="1">H-1</button>`;
             html += `                  <button type="button" class="btn btn-sm btn-outline-primary" id="sdTrendBtn3" data-days="3">H-3</button>`;
             html += `                  <button type="button" class="btn btn-sm btn-outline-primary" id="sdTrendBtn7" data-days="7">H-7</button>`;
             html += `                  <button type="button" class="btn btn-sm btn-outline-primary" id="sdTrendBtn14" data-days="14">H-14</button>`;
+            html += `                  <button type="button" class="btn btn-sm btn-primary" id="sdTrendBtn35" data-days="${SCORE_METRIC_CHART_DAYS}">H-${SCORE_METRIC_CHART_DAYS}</button>`;
             html += `              </div>`;
             html += `              <div style="height:320px;"><canvas id="sdTrendChart"></canvas></div>`;
             html += `              <div id="sdTrendStats"></div>`;
@@ -9677,8 +9961,7 @@ function initDashboardRecap() {
         setScoreDetailCloseVisible(false);
 
         try {
-            const trendWindows = row?.trend_windows || await getTrendWindowsForRow(row, state);
-            const rowWithTrend = Object.assign({}, row, { trend_windows: trendWindows });
+            let trendWindows = await getTrendWindowsForRow(row, state);
             let effectiveMeta = metaHint;
             let detailMeta = null;
             let syntheticHistoryByOffset = {};
@@ -9745,18 +10028,21 @@ function initDashboardRecap() {
                     if (dim === 'domain') {
                         const cmpRes = await fetch('/management/admin/dashboard_scoring_compare', {
                             method:'POST', headers:{ 'Content-Type':'application/json', 'X-Requested-With':'XMLHttpRequest' },
-                            body: JSON.stringify({ date: baseDate, domain: String(row?.name || row?.domain || row?.site || '').trim(), days_back: SCORE_METRIC_DAYS_BACK }), credentials:'same-origin'
+                            body: JSON.stringify({ date: baseDate, domain: String(row?.name || row?.domain || row?.site || '').trim(), days_back: TREND_WINDOW_LOOKBACK_DAYS }), credentials:'same-origin'
                         });
                         const cmpJson = await cmpRes.json();
                         const hist = Array.isArray(cmpJson?.data?.history_by_day) ? cmpJson.data.history_by_day : [];
                         metricDailySeries = hist.map(function(it){ return { date:String(it?.date || ''), score:Number.isFinite(Number(it?.score))?Number(it.score):null, health_score:Number.isFinite(Number(it?.health_score))?Number(it.health_score):null, ivt_risk_score:Number.isFinite(Number(it?.ivt_risk_score))?Number(it.ivt_risk_score):null, adjustment_score:Number.isFinite(Number(it?.adjustment_score))?Number(it.adjustment_score):null, confidence:Number.isFinite(Number(it?.confidence))?(Number(it.confidence) > 1 ? Number(it.confidence) : Number(it.confidence) * 100):null, decision_margin:Number.isFinite(Number(it?.decision_margin))?Number(it.decision_margin):null }; });
                     } else {
-                        const dates = []; for (let i=SCORE_METRIC_DAYS_BACK;i>=0;i--) dates.push(ymdShift(baseDate, -i));
+                        const dates = []; for (let i=TREND_WINDOW_LOOKBACK_DAYS;i>=0;i--) dates.push(ymdShift(baseDate, -i));
                         const daily = await Promise.all(dates.map(async function(d){ try { const st = Object.assign({}, state, { date:d }); const r = await fetch('/management/admin/dashboard_scoring_data', { method:'POST', headers:{ 'Content-Type':'application/json', 'X-Requested-With':'XMLHttpRequest' }, body: JSON.stringify(Object.assign({}, payloadBase, { date:d })), credentials:'same-origin' }); const j = await r.json(); if (!r.ok || !j?.status || !j?.data) return { date:d }; const raw = pickDailyRaw(j.data, st); const m = raw ? summarizeDashboardScoringMeta(raw, row, st) : null; return toRow(m, d); } catch(_) { return { date:d }; } }));
                         metricDailySeries = daily;
                     }
                 }
             } catch (e) {}
+
+            trendWindows = mergeTrendWindowsWithScoringHistory(trendWindows, metricDailySeries);
+            const rowWithTrend = Object.assign({}, row, { trend_windows: trendWindows });
 
             effectiveMeta = detailMeta || effectiveMeta;
             if (!scoringMetaHasCountryDetails(effectiveMeta)) {
@@ -9826,7 +10112,7 @@ function initDashboardRecap() {
             window.setTimeout(function() {
                 try {
                     mountScoreDetailBackendTables(normalizedJson?.scoring || {});
-                    bindScoreMetric14Tabs(metricDailySeries);
+                    bindScoreMetric14Tabs(metricDailySeries.slice(-SCORE_METRIC_CHART_DAYS));
                     bindScoreCountryTabs(function(tabKey){ 
                         const endYmd = String(state.date || '').trim();
                         if (!endYmd) return;
@@ -9836,7 +10122,10 @@ function initDashboardRecap() {
                                 const trendState = Object.assign({}, state, { dim: 'domain' });
                                 bindScoreTrendControls('', endYmd, trendState, { domainKeys: summaryKeys });
                                 const winsEl = document.getElementById('scxSummaryTrendWindows');
-                                if (winsEl) buildTrendSeriesMulti(summaryKeys, endYmd, trendState, 27).then(function(series){ winsEl.innerHTML = scxRenderTrendWindows(summarizeTrendWindows(series)); }).catch(function(){});
+                                if (winsEl) buildTrendSeriesMulti(summaryKeys, endYmd, trendState, TREND_WINDOW_LOOKBACK_DAYS).then(function(series){
+                                    const merged = mergeTrendWindowsWithScoringHistory(summarizeTrendWindows(series), metricDailySeries);
+                                    winsEl.innerHTML = scxRenderTrendWindows(merged);
+                                }).catch(function(){});
                             } else {
                                 const trendKey = String(state?.dim === 'country' ? (row?.code || '') : (row?.name || '')).trim();
                                 if (trendKey) bindScoreTrendControls(trendKey, endYmd, state, { row: row });
@@ -9846,7 +10135,7 @@ function initDashboardRecap() {
                         if (String(tabKey || '').indexOf('sub-') === 0) {
                             const idx = Number(String(tabKey || '').replace('sub-', ''));
                             const sub = Array.isArray(subgroups) ? subgroups[idx] : null;
-                            if (sub?.key) bindScoreTrendControls(sub.key, endYmd, Object.assign({}, state, { dim: 'domain' }), { btn1Id: `scxSubTrend${idx}Btn1`, btn3Id: `scxSubTrend${idx}Btn3`, btn7Id: `scxSubTrend${idx}Btn7`, btn14Id: `scxSubTrend${idx}Btn14`, statusId: `scxSubTrend${idx}Status`, statsId: `scxSubTrend${idx}Stats`, canvasId: `scxSubTrend${idx}Chart`, chartKey: `scxSubTrendChart${idx}` });
+                            if (sub?.key) bindScoreTrendControls(sub.key, endYmd, Object.assign({}, state, { dim: 'domain' }), { btn1Id: `scxSubTrend${idx}Btn1`, btn3Id: `scxSubTrend${idx}Btn3`, btn7Id: `scxSubTrend${idx}Btn7`, btn14Id: `scxSubTrend${idx}Btn14`, btn35Id: `scxSubTrend${idx}Btn${SCORE_METRIC_CHART_DAYS}`, statusId: `scxSubTrend${idx}Status`, statsId: `scxSubTrend${idx}Stats`, canvasId: `scxSubTrend${idx}Chart`, chartKey: `scxSubTrendChart${idx}` });
                             return;
                         }
                         const idx = Number(String(tabKey || '').replace('country-', ''));
@@ -9854,7 +10143,7 @@ function initDashboardRecap() {
                         const st = group?.status || {};
                         const trendKey = String(row?.name || row?.domain || row?.site || '').trim();
                         const countryCode = String(st?.country_cd || st?.country_code || '').trim().toUpperCase();
-                        if (trendKey && countryCode) bindScoreTrendControls(trendKey, endYmd, Object.assign({}, state, { dim: 'domain' }), { btn1Id: `scxCountryTrend${idx}Btn1`, btn3Id: `scxCountryTrend${idx}Btn3`, btn7Id: `scxCountryTrend${idx}Btn7`, btn14Id: `scxCountryTrend${idx}Btn14`, statusId: `scxCountryTrend${idx}Status`, statsId: `scxCountryTrend${idx}Stats`, canvasId: `scxCountryTrend${idx}Chart`, chartKey: `scxCountryTrendChart${idx}`, row: row, seriesOpts: { countryCode: countryCode } });
+                        if (trendKey && countryCode) bindScoreTrendControls(trendKey, endYmd, Object.assign({}, state, { dim: 'domain' }), { btn1Id: `scxCountryTrend${idx}Btn1`, btn3Id: `scxCountryTrend${idx}Btn3`, btn7Id: `scxCountryTrend${idx}Btn7`, btn14Id: `scxCountryTrend${idx}Btn14`, btn35Id: `scxCountryTrend${idx}Btn${SCORE_METRIC_CHART_DAYS}`, statusId: `scxCountryTrend${idx}Status`, statsId: `scxCountryTrend${idx}Stats`, canvasId: `scxCountryTrend${idx}Chart`, chartKey: `scxCountryTrendChart${idx}`, row: row, seriesOpts: { countryCode: countryCode } });
                     });
                     if (String(state?.dim || '').toLowerCase() === 'domain' && rowWithTrend?.account_ads && state?.date) bindScoreCampaignControls(rowWithTrend, String(state.date || '').trim(), normalizedJson?.scoring || {});
                 } catch (e) {}

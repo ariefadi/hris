@@ -4663,7 +4663,7 @@ class DashboardScoringCompareView(View):
             target_date = target_dt.date()
             compare_offsets = {'h1': 1, 'h3': 3, 'h7': 7}
             compare_dates = {k: (target_date - timedelta(days=v)) for k, v in compare_offsets.items()}
-            days_back = max(0, min(int(payload.get('days_back') or 0), 35))
+            days_back = max(0, min(int(payload.get('days_back') or 0), 69))
 
             scoring_module = _get_scoring_concept_module()
             query_df_func = getattr(scoring_module, 'query_df', None)
@@ -8110,6 +8110,134 @@ class page_per_campaign_facebook_detail(View):
 
 
 KIWIPIXEL_COUNTRY_API = 'https://api-tracker.kiwipixel.com/v1/country'
+KIWIPIXEL_CAMPAIGN_TRAFFIC_API = 'https://api-tracker.kiwipixel.com/v1/campaign'
+
+
+def _zero_kiwipixel_traffic_metrics():
+    return {'total_visits': 0, 'unique_visitor': 0, 'total_pageviews': 0}
+
+
+def _add_kiwipixel_traffic_metrics(dst, src):
+    for key in ('total_visits', 'unique_visitor', 'total_pageviews'):
+        dst[key] = int(dst.get(key) or 0) + int((src or {}).get(key) or 0)
+
+
+def _build_kiwipixel_campaign_traffic_indexes(payload):
+    by_utm_domain = {}
+    by_domain = {}
+    for camp in (payload.get('campaigns') or []):
+        if not isinstance(camp, dict):
+            continue
+        utm_id = str(camp.get('utm_id') or '').strip()
+        for drow in (camp.get('domains') or []):
+            if not isinstance(drow, dict):
+                continue
+            metrics = {
+                'total_visits': int(drow.get('total_visits') or 0),
+                'unique_visitor': int(drow.get('unique_visitor') or 0),
+                'total_pageviews': int(drow.get('total_pageviews') or 0),
+            }
+            dkey = _normalize_kiwipixel_domain_key(drow.get('domain'))
+            if not dkey:
+                continue
+            domain_acc = by_domain.setdefault(dkey, _zero_kiwipixel_traffic_metrics())
+            _add_kiwipixel_traffic_metrics(domain_acc, metrics)
+            if utm_id:
+                utm_key = (utm_id, dkey)
+                utm_acc = by_utm_domain.setdefault(utm_key, _zero_kiwipixel_traffic_metrics())
+                _add_kiwipixel_traffic_metrics(utm_acc, metrics)
+    return {'by_utm_domain': by_utm_domain, 'by_domain': by_domain}
+
+
+def _fetch_kiwipixel_campaign_traffic(start_date, end_date):
+    start_fmt = _normalize_kiwipixel_date(start_date)
+    end_fmt = _normalize_kiwipixel_date(end_date)
+    if not start_fmt or not end_fmt:
+        return _build_kiwipixel_campaign_traffic_indexes({})
+    try:
+        response = requests.get(
+            KIWIPIXEL_CAMPAIGN_TRAFFIC_API,
+            params={'show': 'traffic', 'start-date': start_fmt, 'end-date': end_fmt},
+            timeout=45,
+            headers={
+                'Accept': 'application/json',
+                'User-Agent': 'hris-management/1.0',
+            },
+        )
+        if response.status_code != 200:
+            return _build_kiwipixel_campaign_traffic_indexes({})
+        payload = response.json() if response.content else {}
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    return _build_kiwipixel_campaign_traffic_indexes(payload)
+
+
+def _resolve_kiwipixel_campaign_visitors(site_name, campaign_ids, indexes):
+    dkey = _normalize_kiwipixel_domain_key(site_name)
+    if not dkey:
+        return _zero_kiwipixel_traffic_metrics()
+    by_utm_domain = (indexes or {}).get('by_utm_domain') or {}
+    by_domain = (indexes or {}).get('by_domain') or {}
+    out = _zero_kiwipixel_traffic_metrics()
+    matched_campaign = False
+    for cid in (campaign_ids or []):
+        cid_s = str(cid or '').strip()
+        if not cid_s:
+            continue
+        metrics = by_utm_domain.get((cid_s, dkey))
+        if metrics:
+            matched_campaign = True
+            _add_kiwipixel_traffic_metrics(out, metrics)
+    if matched_campaign:
+        return out
+    fallback = by_domain.get(dkey)
+    return dict(fallback) if fallback else _zero_kiwipixel_traffic_metrics()
+
+
+def _fetch_fb_campaign_ids_by_domain(start_date, end_date, domain_terms):
+    terms = build_domain_filter_terms(domain_terms or [], include_original=False, include_base=True)
+    if not start_date or not end_date or not terms:
+        return {}
+    out = {}
+    try:
+        db = data_mysql()
+        like_conditions = " OR ".join([
+            "(CONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') LIKE %s OR b.data_ads_domain LIKE %s)"
+        ] * len(terms))
+        like_params = []
+        for term in terms:
+            token = str(term or '').strip()
+            like_params.extend([f"%{token}%", f"%{token}%"])
+        sql = f"""
+            SELECT DISTINCT
+                CONCAT(SUBSTRING_INDEX(b.data_ads_domain, '.', 2), '.com') AS base_domain,
+                CAST(b.data_ads_campaign_id AS CHAR) AS campaign_id
+            FROM data_ads_country b
+            WHERE b.data_ads_country_tanggal BETWEEN %s AND %s
+              AND ({like_conditions})
+              AND b.data_ads_campaign_id IS NOT NULL
+              AND CAST(b.data_ads_campaign_id AS CHAR) <> ''
+        """
+        params = [start_date, end_date] + like_params
+        if not db.execute_query(sql, tuple(params)):
+            return {}
+        rows = db.fetch_all() or []
+        if hasattr(db, 'commit'):
+            db.commit()
+        for row in rows:
+            base_domain = str((row or {}).get('base_domain') or '').strip()
+            campaign_id = str((row or {}).get('campaign_id') or '').strip()
+            if not base_domain or not campaign_id:
+                continue
+            dkey = _normalize_kiwipixel_domain_key(base_domain)
+            if not dkey:
+                continue
+            out.setdefault(dkey, set()).add(campaign_id)
+    except Exception:
+        return {}
+    return {k: sorted(v) for k, v in out.items()}
 
 
 def _normalize_kiwipixel_date(value):
@@ -8170,18 +8298,20 @@ def _kiwipixel_domain_matches(api_domain, filter_domains):
     return False
 
 
-def _fetch_kiwipixel_country_visits(country_codes, start_date, end_date, domain_filters):
+def _fetch_kiwipixel_country_metrics(country_codes, start_date, end_date, domain_filters):
     start_fmt = _normalize_kiwipixel_date(start_date)
     end_fmt = _normalize_kiwipixel_date(end_date)
-    codes = [str(code or '').strip().upper() for code in (country_codes or []) if str(code or '').strip()]
-    if not start_fmt or not end_fmt or not codes:
+    if not start_fmt or not end_fmt:
         return {}
 
+    codes = [str(code or '').strip().upper() for code in (country_codes or []) if str(code or '').strip()]
     filter_payload = {
-        'country': ','.join(codes),
         'start_date': int(start_fmt),
         'end_date': int(end_fmt),
     }
+    if codes:
+        filter_payload['country'] = ','.join(codes)
+
     try:
         response = requests.get(
             KIWIPIXEL_COUNTRY_API,
@@ -8198,32 +8328,46 @@ def _fetch_kiwipixel_country_visits(country_codes, start_date, end_date, domain_
     except Exception:
         return {}
 
-    visits_by_country = {}
+    normalized_filters = [
+        str(item or '').strip()
+        for item in (domain_filters or [])
+        if str(item or '').strip() and str(item or '').strip() != '%'
+    ]
+    metrics_by_country = {}
     for country_row in (payload.get('countries') or []):
         if not isinstance(country_row, dict):
             continue
         country_code = str(country_row.get('country_code') or '').strip().upper()
         if not country_code:
             continue
+        if codes and country_code not in codes:
+            continue
         domain_rows = country_row.get('domains') or []
         if not isinstance(domain_rows, list):
             domain_rows = []
-        normalized_filters = [
-            str(item or '').strip()
-            for item in (domain_filters or [])
-            if str(item or '').strip() and str(item or '').strip() != '%'
-        ]
+        out = _zero_kiwipixel_traffic_metrics()
         if not normalized_filters:
-            visits_by_country[country_code] = int(country_row.get('total_visits') or 0)
-            continue
-        total = 0
-        for domain_row in domain_rows:
-            if not isinstance(domain_row, dict):
-                continue
-            if _kiwipixel_domain_matches(domain_row.get('domain'), normalized_filters):
-                total += int(domain_row.get('total_visits') or 0)
-        visits_by_country[country_code] = total
-    return visits_by_country
+            out['total_visits'] = int(country_row.get('total_visits') or 0)
+            out['unique_visitor'] = int(country_row.get('unique_visitor') or 0)
+            out['total_pageviews'] = int(country_row.get('total_pageviews') or 0)
+        else:
+            for domain_row in domain_rows:
+                if not isinstance(domain_row, dict):
+                    continue
+                if _kiwipixel_domain_matches(domain_row.get('domain'), normalized_filters):
+                    _add_kiwipixel_traffic_metrics(out, domain_row)
+        metrics_by_country[country_code] = out
+    return metrics_by_country
+
+
+def _fetch_kiwipixel_country_visits(country_codes, start_date, end_date, domain_filters):
+    metrics_by_country = _fetch_kiwipixel_country_metrics(
+        country_codes, start_date, end_date, domain_filters
+    )
+    return {
+        code: int((metrics or {}).get('total_visits') or 0)
+        for code, metrics in (metrics_by_country or {}).items()
+    }
 
 
 def _fetch_kiwipixel_visits_by_domain(start_date, end_date, domain_filters=None):
@@ -8285,14 +8429,14 @@ def attach_kiwipixel_visitors_to_country_result(result, start_date, end_date, do
             return 'TR'
         return c
 
-    def lookup_visits(code, visits_map):
+    def lookup_metrics(code, metrics_map):
         cc = normalize_cc(code)
         if not cc:
-            return 0
-        val = int(visits_map.get(cc) or 0)
-        if not val and cc == 'TR':
-            val = int(visits_map.get('TU') or 0)
-        return val
+            return _zero_kiwipixel_traffic_metrics()
+        metrics = metrics_map.get(cc)
+        if not metrics and cc == 'TR':
+            metrics = metrics_map.get('TU')
+        return dict(metrics) if metrics else _zero_kiwipixel_traffic_metrics()
 
     country_codes = []
     for key in ('data', 'data_filtered'):
@@ -8317,14 +8461,20 @@ def attach_kiwipixel_visitors_to_country_result(result, start_date, end_date, do
     if not country_codes:
         return result
 
-    visits_by_country = _fetch_kiwipixel_country_visits(country_codes, start_date, end_date, domain_list)
+    metrics_by_country = _fetch_kiwipixel_country_metrics(
+        country_codes, start_date, end_date, domain_list
+    )
     for key in ('data', 'data_filtered'):
         for row in (result.get(key) or []):
             if isinstance(row, dict):
-                row['total_visitors'] = lookup_visits(row.get('country_code'), visits_by_country)
+                metrics = lookup_metrics(row.get('country_code'), metrics_by_country)
+                row['total_visits'] = metrics.get('total_visits', 0)
+                row['unique_visitor'] = metrics.get('unique_visitor', 0)
+                row['total_pageviews'] = metrics.get('total_pageviews', 0)
+                row['total_visitors'] = metrics.get('total_visits', 0)
 
     def sum_visitors(rows):
-        return sum(int((r or {}).get('total_visitors') or 0) for r in (rows or []) if isinstance(r, dict))
+        return sum(int((r or {}).get('total_visits') or (r or {}).get('total_visitors') or 0) for r in (rows or []) if isinstance(r, dict))
 
     if isinstance(result.get('summary_all'), dict):
         result['summary_all']['total_visitors'] = sum_visitors(result.get('data'))
@@ -11555,6 +11705,18 @@ class RoiTrafficPerDomainDataView(View):
                     end_date_formatted,
                     unique_name_site
                 )
+            kiwi_traffic_indexes = _fetch_kiwipixel_campaign_traffic(start_date_formatted, end_date_formatted)
+            campaign_ids_by_domain = _fetch_fb_campaign_ids_by_domain(
+                start_date_formatted,
+                end_date_formatted,
+                unique_name_site or domain_terms,
+            )
+
+            def visitor_metrics_for_site(site_display_name):
+                dkey = _normalize_kiwipixel_domain_key(site_display_name)
+                campaign_ids = campaign_ids_by_domain.get(dkey, [])
+                return _resolve_kiwipixel_campaign_visitors(site_display_name, campaign_ids, kiwi_traffic_indexes)
+
             # --- 5. Gabungkan data AdX dan Facebook
             raw_rows_all = []
             combined_data_all = []
@@ -11846,8 +12008,10 @@ class RoiTrafficPerDomainDataView(View):
                     cpm_val = item['cpm']
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
+                    site_display = item['site_name'] + '.com'
+                    visitors = visitor_metrics_for_site(site_display)
                     combined_data_all.append({
-                        'site_name': item['site_name'] + '.com',
+                        'site_name': site_display,
                         'date': item['date'],
                         'spend': spend_val,
                         'impressions_fb': impressions_fb_val,
@@ -11861,6 +12025,9 @@ class RoiTrafficPerDomainDataView(View):
                         'cpc_adx': cpc_adx_val,
                         'cpm': cpm_val,
                         'revenue': revenue_val,
+                        'total_visits': visitors.get('total_visits', 0),
+                        'unique_visitor': visitors.get('unique_visitor', 0),
+                        'total_pageviews': visitors.get('total_pageviews', 0),
                         'roi': roi
                     })
                     total_spend += spend_val
@@ -11891,8 +12058,10 @@ class RoiTrafficPerDomainDataView(View):
                     cpm_val = item['cpm']
                     revenue_val = item['revenue']
                     roi = ((revenue_val - spend_val) / spend_val * 100) if spend_val > 0 else 0
+                    site_display = item['site_name'] + '.com'
+                    visitors = visitor_metrics_for_site(site_display)
                     combined_data_filtered.append({
-                        'site_name': item['site_name'] + '.com',
+                        'site_name': site_display,
                         'date': item['date'],
                         'spend': spend_val,
                         'impressions_fb': impressions_fb_val,
@@ -11906,6 +12075,9 @@ class RoiTrafficPerDomainDataView(View):
                         'cpc_adx': cpc_adx_val,
                         'cpm': cpm_val,
                         'revenue': revenue_val,
+                        'total_visits': visitors.get('total_visits', 0),
+                        'unique_visitor': visitors.get('unique_visitor', 0),
+                        'total_pageviews': visitors.get('total_pageviews', 0),
                         'roi': roi
                     })
             roi_nett_summary = ((total_revenue - total_spend) / total_spend * 100) if total_spend > 0 else 0
