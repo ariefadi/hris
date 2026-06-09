@@ -6027,6 +6027,96 @@ class GetCampaignMetaDetailView(View):
             items.append({'id': key, 'name': locale_names.get(key, key)})
         return items
 
+    @staticmethod
+    def _story_block_from_spec(spec):
+        if not isinstance(spec, dict):
+            return {}, ''
+        for key in ('link_data', 'video_data', 'photo_data', 'template_data'):
+            block = spec.get(key)
+            if isinstance(block, dict) and block:
+                return block, key
+        return {}, ''
+
+    @staticmethod
+    def _first_asset_feed_value(rows, *keys):
+        for row in (rows if isinstance(rows, list) else []):
+            if not isinstance(row, dict):
+                continue
+            for key in keys:
+                val = str(row.get(key) or '').strip()
+                if val:
+                    return val
+        return ''
+
+    @staticmethod
+    def _parse_post_attachments(post_data):
+        out = {'video_id': '', 'image_url': '', 'link': ''}
+        attachments = post_data.get('attachments') if isinstance(post_data.get('attachments'), dict) else {}
+        rows = attachments.get('data') if isinstance(attachments.get('data'), list) else []
+        for att in rows:
+            if not isinstance(att, dict):
+                continue
+            media = att.get('media') if isinstance(att.get('media'), dict) else {}
+            media_type = str(att.get('media_type') or '').strip().lower()
+            if media_type == 'video':
+                out['video_id'] = out['video_id'] or str(media.get('id') or '').strip()
+                image = media.get('image') if isinstance(media.get('image'), dict) else {}
+                out['image_url'] = out['image_url'] or str(image.get('src') or '').strip()
+            else:
+                image = media.get('image') if isinstance(media.get('image'), dict) else {}
+                out['image_url'] = out['image_url'] or str(image.get('src') or '').strip()
+            out['link'] = out['link'] or str(att.get('url') or media.get('source') or '').strip()
+            sub = att.get('subattachments') if isinstance(att.get('subattachments'), dict) else {}
+            for sub_att in (sub.get('data') if isinstance(sub.get('data'), list) else []):
+                if not isinstance(sub_att, dict):
+                    continue
+                sub_media = sub_att.get('media') if isinstance(sub_att.get('media'), dict) else {}
+                if str(sub_att.get('media_type') or '').strip().lower() == 'video':
+                    out['video_id'] = out['video_id'] or str(sub_media.get('id') or '').strip()
+                sub_image = sub_media.get('image') if isinstance(sub_media.get('image'), dict) else {}
+                out['image_url'] = out['image_url'] or str(sub_image.get('src') or '').strip()
+        return out
+
+    @staticmethod
+    def _fetch_video_thumb(token, video_id):
+        if not token or not video_id:
+            return ''
+        try:
+            resp = requests.get(
+                f'https://graph.facebook.com/v22.0/{video_id}',
+                params={'access_token': token, 'fields': 'picture,thumbnails{uri,is_preferred}'},
+                timeout=15,
+            )
+            body = resp.json() if resp.text else {}
+            if not isinstance(body, dict):
+                return ''
+            thumbs = body.get('thumbnails') if isinstance(body.get('thumbnails'), dict) else {}
+            rows = thumbs.get('data') if isinstance(thumbs.get('data'), list) else []
+            preferred = next((x for x in rows if isinstance(x, dict) and x.get('is_preferred')), None)
+            pick = preferred or (rows[0] if rows else None)
+            if isinstance(pick, dict) and pick.get('uri'):
+                return str(pick.get('uri') or '')
+            return str(body.get('picture') or '')
+        except Exception:
+            return ''
+
+    @staticmethod
+    def _fetch_graph_name(token, node_id):
+        if not token or not node_id:
+            return ''
+        try:
+            resp = requests.get(
+                f'https://graph.facebook.com/v22.0/{node_id}',
+                params={'access_token': token, 'fields': 'name,username'},
+                timeout=15,
+            )
+            body = resp.json() if resp.text else {}
+            if isinstance(body, dict):
+                return str(body.get('name') or body.get('username') or '').strip()
+        except Exception:
+            pass
+        return ''
+
     def get(self, req):
         account_id = str(req.GET.get('account_id') or '').strip(); campaign_id = str(req.GET.get('campaign_id') or '').strip()
         preferred_adset_id = str(req.GET.get('adset_id') or '').strip()
@@ -6197,35 +6287,97 @@ class GetCampaignMetaDetailView(View):
                 if creative_id:
                     cresp = requests.get(
                         f'https://graph.facebook.com/v22.0/{creative_id}',
-                        params={'access_token': token, 'fields': 'id,title,body,object_story_id,object_story_spec,call_to_action_type,instagram_actor_id,url_tags'},
+                        params={'access_token': token, 'fields': 'id,title,body,object_story_id,object_story_spec,asset_feed_spec,call_to_action_type,instagram_actor_id,url_tags,thumbnail_url,image_url,object_type,effective_object_story_id'},
                         timeout=20
                     )
                     creative = cresp.json() if cresp.text else {}
                 spec = creative.get('object_story_spec') if isinstance(creative.get('object_story_spec'), dict) else {}
-                story = spec.get('link_data') if isinstance(spec.get('link_data'), dict) else (spec.get('video_data') if isinstance(spec.get('video_data'), dict) else {})
+                story, story_kind = GetCampaignMetaDetailView._story_block_from_spec(spec)
+                asset_feed = creative.get('asset_feed_spec') if isinstance(creative.get('asset_feed_spec'), dict) else {}
+                cta = story.get('call_to_action') if isinstance(story.get('call_to_action'), dict) else {}
+                cta_val = cta.get('value') if isinstance(cta.get('value'), dict) else {}
                 existing_post_id = str(creative.get('object_story_id') or drow.get('effective_object_story_id') or '').strip()
                 post_data = {}
+                post_attach = {'video_id': '', 'image_url': '', 'link': ''}
                 if existing_post_id:
                     presp = requests.get(
                         f'https://graph.facebook.com/v22.0/{existing_post_id}',
-                        params={'access_token': token, 'fields': 'id,message,caption,description,link,from{id,name},call_to_action'},
+                        params={'access_token': token, 'fields': 'id,message,caption,description,link,from{id,name},call_to_action,attachments{media_type,url,media{source,id,image{src}},subattachments{data{media_type,url,media{source,id,image{src}}}}}'},
                         timeout=20
                     )
                     post_data = presp.json() if presp.text else {}
+                    post_attach = GetCampaignMetaDetailView._parse_post_attachments(post_data if isinstance(post_data, dict) else {})
                 post_from = post_data.get('from') if isinstance(post_data.get('from'), dict) else {}
+                post_cta = post_data.get('call_to_action') if isinstance(post_data.get('call_to_action'), dict) else {}
+                post_cta_val = post_cta.get('value') if isinstance(post_cta.get('value'), dict) else {}
+                website_url = str(
+                    story.get('link') or cta_val.get('link') or post_data.get('link') or post_cta_val.get('link') or post_attach.get('link')
+                    or GetCampaignMetaDetailView._first_asset_feed_value(asset_feed.get('link_urls'), 'website_url')
+                    or ''
+                )
+                primary_text = str(
+                    story.get('message') or post_data.get('message') or creative.get('body')
+                    or GetCampaignMetaDetailView._first_asset_feed_value(asset_feed.get('bodies'), 'text')
+                    or ''
+                )
+                headline = str(
+                    story.get('name') or story.get('title') or creative.get('title')
+                    or GetCampaignMetaDetailView._first_asset_feed_value(asset_feed.get('titles'), 'text')
+                    or ''
+                )
+                description = str(
+                    story.get('description') or story.get('link_description') or post_data.get('description')
+                    or GetCampaignMetaDetailView._first_asset_feed_value(asset_feed.get('descriptions'), 'text')
+                    or ''
+                )
+                caption = str(story.get('caption') or post_data.get('caption') or '')
+                display_link = str(story.get('caption') or cta_val.get('link_caption') or post_cta_val.get('link_caption') or '')
+                video_id = str(
+                    story.get('video_id') or post_attach.get('video_id')
+                    or GetCampaignMetaDetailView._first_asset_feed_value(asset_feed.get('videos'), 'video_id')
+                    or ''
+                )
+                image_hash = str(story.get('image_hash') or GetCampaignMetaDetailView._first_asset_feed_value(asset_feed.get('images'), 'hash') or '')
+                video_thumbnail_url = str(
+                    story.get('image_url') or creative.get('thumbnail_url') or creative.get('image_url')
+                    or post_attach.get('image_url') or GetCampaignMetaDetailView._first_asset_feed_value(asset_feed.get('videos'), 'thumbnail_url')
+                    or ''
+                )
+                if video_id and not video_thumbnail_url:
+                    video_thumbnail_url = GetCampaignMetaDetailView._fetch_video_thumb(token, video_id)
+                page_id = str(spec.get('page_id') or post_from.get('id') or (existing_post_id.split('_')[0] if '_' in existing_post_id else ''))
+                page_id_label = str(post_from.get('name') or '')
+                if page_id and not page_id_label:
+                    page_id_label = GetCampaignMetaDetailView._fetch_graph_name(token, page_id)
+                instagram_actor_id = str(spec.get('instagram_user_id') or spec.get('instagram_actor_id') or creative.get('instagram_actor_id') or '')
+                instagram_actor_label = ''
+                if instagram_actor_id:
+                    instagram_actor_label = GetCampaignMetaDetailView._fetch_graph_name(token, instagram_actor_id)
+                cta_type = str(
+                    cta.get('type') or post_cta.get('type') or creative.get('call_to_action_type') or 'LEARN_MORE'
+                ).strip().upper()
                 ad_data = {
-                    'ad_id': str(drow.get('id') or ''), 'ad_name': str(drow.get('name') or ''),
-                    'page_id': str(spec.get('page_id') or post_from.get('id') or (existing_post_id.split('_')[0] if '_' in existing_post_id else '')),
-                    'page_id_label': str(post_from.get('name') or ''),
-                    'instagram_actor_id': str(spec.get('instagram_user_id') or spec.get('instagram_actor_id') or creative.get('instagram_actor_id') or ''),
-                    'use_existing_post': '1' if existing_post_id else '0', 'existing_post_id': existing_post_id,
-                    'website_url': str(story.get('link') or post_data.get('link') or ''),
-                    'primary_text': str(story.get('message') or post_data.get('message') or creative.get('body') or ''),
-                    'headline': str(story.get('name') or creative.get('title') or ''),
-                    'description': str(story.get('description') or post_data.get('description') or ''),
-                    'caption': str(story.get('caption') or post_data.get('caption') or ''),
-                    'cta_type': str(((story.get('call_to_action') or {}).get('type') or ((post_data.get('call_to_action') or {}).get('type') if isinstance(post_data.get('call_to_action'), dict) else '') or creative.get('call_to_action_type') or 'LEARN_MORE')).strip().upper(),
-                    'url_tags': str(creative.get('url_tags') or '')
+                    'ad_id': str(drow.get('id') or ''),
+                    'ad_name': str(drow.get('name') or ''),
+                    'page_id': page_id,
+                    'page_id_label': page_id_label,
+                    'instagram_actor_id': instagram_actor_id,
+                    'instagram_actor_label': instagram_actor_label,
+                    'use_existing_post': '1' if existing_post_id else '0',
+                    'existing_post_id': existing_post_id,
+                    'existing_post_text': primary_text,
+                    'website_url': website_url,
+                    'display_link': display_link,
+                    'primary_text': primary_text,
+                    'headline': headline,
+                    'description': description,
+                    'caption': caption,
+                    'cta_type': cta_type,
+                    'url_tags': str(creative.get('url_tags') or ''),
+                    'video_id': video_id,
+                    'video_thumbnail_url': video_thumbnail_url,
+                    'image_hash': image_hash,
+                    'creative_type': story_kind or str(creative.get('object_type') or ''),
                 }
         except Exception:
             ad_data = {}
@@ -7964,20 +8116,27 @@ class page_per_campaign_facebook(View):
         rata_cpr = round(sum([row['cpr'] for row in normalized_rows]) / len(normalized_rows), 0) if normalized_rows else 0.0
         rata_cpc = round(sum([row['cpc'] for row in normalized_rows]) / len(normalized_rows), 0) if normalized_rows else 0.0
 
-        visits_by_domain = _fetch_kiwipixel_visits_by_domain(
+        metrics_by_domain = _fetch_kiwipixel_metrics_by_domain(
             tanggal_dari,
             tanggal_sampai,
             selected_domain_list,
         )
-        total_visitors = 0
+        total_visits_sum = 0
+        total_unique_sum = 0
+        total_pageviews_sum = 0
         seen_domain_keys = set()
         for row in normalized_rows:
             domain_key = _normalize_kiwipixel_domain_key(row.get('domain'))
-            visitors = int(visits_by_domain.get(domain_key) or 0)
-            row['total_visitors'] = visitors
+            metrics = dict(metrics_by_domain.get(domain_key) or _zero_kiwipixel_traffic_metrics())
+            row['total_visits'] = metrics.get('total_visits', 0)
+            row['unique_visitor'] = metrics.get('unique_visitor', 0)
+            row['total_pageviews'] = metrics.get('total_pageviews', 0)
+            row['total_visitors'] = metrics.get('total_visits', 0)
             if domain_key and domain_key not in seen_domain_keys:
                 seen_domain_keys.add(domain_key)
-                total_visitors += visitors
+                total_visits_sum += int(metrics.get('total_visits') or 0)
+                total_unique_sum += int(metrics.get('unique_visitor') or 0)
+                total_pageviews_sum += int(metrics.get('total_pageviews') or 0)
 
         response_data = {
             'hasil': "Data Traffic Per Campaign",
@@ -7990,7 +8149,10 @@ class page_per_campaign_facebook(View):
                 'total_frequency': total_frequency,
                 'total_cpr': format(rata_cpr, '.0f'),
                 'total_cpc': format(rata_cpc, '.0f'),
-                'total_visitors': total_visitors,
+                'total_visitors': total_visits_sum,
+                'total_visits': total_visits_sum,
+                'unique_visitor': total_unique_sum,
+                'total_pageviews': total_pageviews_sum,
             }],
         }
         # Jika terjadi kegagalan di layer DB, kirimkan respons kosong agar frontend tidak error
@@ -8370,14 +8532,13 @@ def _fetch_kiwipixel_country_visits(country_codes, start_date, end_date, domain_
     }
 
 
-def _fetch_kiwipixel_visits_by_domain(start_date, end_date, domain_filters=None):
+def _fetch_kiwipixel_metrics_by_domain(start_date, end_date, domain_filters=None):
     start_fmt = _normalize_kiwipixel_date(start_date)
     end_fmt = _normalize_kiwipixel_date(end_date)
     if not start_fmt or not end_fmt:
         return {}
 
     filter_payload = {
-        'country': '',
         'start_date': int(start_fmt),
         'end_date': int(end_fmt),
     }
@@ -8402,7 +8563,7 @@ def _fetch_kiwipixel_visits_by_domain(start_date, end_date, domain_filters=None)
         for item in (domain_filters or [])
         if str(item or '').strip() and str(item or '').strip() != '%'
     ]
-    visits_by_domain = {}
+    metrics_by_domain = {}
     for country_row in (payload.get('countries') or []):
         if not isinstance(country_row, dict):
             continue
@@ -8415,8 +8576,17 @@ def _fetch_kiwipixel_visits_by_domain(start_date, end_date, domain_filters=None)
             domain_key = _normalize_kiwipixel_domain_key(api_domain)
             if not domain_key:
                 continue
-            visits_by_domain[domain_key] = visits_by_domain.get(domain_key, 0) + int(domain_row.get('total_visits') or 0)
-    return visits_by_domain
+            acc = metrics_by_domain.setdefault(domain_key, _zero_kiwipixel_traffic_metrics())
+            _add_kiwipixel_traffic_metrics(acc, domain_row)
+    return metrics_by_domain
+
+
+def _fetch_kiwipixel_visits_by_domain(start_date, end_date, domain_filters=None):
+    metrics_by_domain = _fetch_kiwipixel_metrics_by_domain(start_date, end_date, domain_filters)
+    return {
+        dkey: int((metrics or {}).get('total_visits') or 0)
+        for dkey, metrics in (metrics_by_domain or {}).items()
+    }
 
 
 def attach_kiwipixel_visitors_to_country_result(result, start_date, end_date, domain_filters=None):
@@ -8645,20 +8815,39 @@ class page_per_country_facebook(View):
                 for row in (data.get('data') or [])
                 if str(row.get('country_code') or '').strip()
             })
-        visits_by_country = _fetch_kiwipixel_country_visits(
+        metrics_by_country = _fetch_kiwipixel_country_metrics(
             country_codes_for_api,
             tanggal_dari,
             tanggal_sampai,
             selected_domain_list,
         )
-        total_visitors = 0
+
+        def lookup_country_metrics(code):
+            cc = str(code or '').strip().upper()
+            if not cc:
+                return _zero_kiwipixel_traffic_metrics()
+            metrics = metrics_by_country.get(cc)
+            if not metrics and cc == 'TR':
+                metrics = metrics_by_country.get('TU')
+            return dict(metrics) if metrics else _zero_kiwipixel_traffic_metrics()
+
+        total_visits_sum = 0
+        total_unique_sum = 0
+        total_pageviews_sum = 0
         for row in (data.get('data') or []):
-            country_code = str(row.get('country_code') or '').strip().upper()
-            visitors = int(visits_by_country.get(country_code) or 0)
-            row['total_visitors'] = visitors
-            total_visitors += visitors
+            metrics = lookup_country_metrics(row.get('country_code'))
+            row['total_visits'] = metrics.get('total_visits', 0)
+            row['unique_visitor'] = metrics.get('unique_visitor', 0)
+            row['total_pageviews'] = metrics.get('total_pageviews', 0)
+            row['total_visitors'] = metrics.get('total_visits', 0)
+            total_visits_sum += int(metrics.get('total_visits') or 0)
+            total_unique_sum += int(metrics.get('unique_visitor') or 0)
+            total_pageviews_sum += int(metrics.get('total_pageviews') or 0)
         if isinstance(data.get('total'), dict):
-            data['total']['total_visitors'] = total_visitors
+            data['total']['total_visitors'] = total_visits_sum
+            data['total']['total_visits'] = total_visits_sum
+            data['total']['unique_visitor'] = total_unique_sum
+            data['total']['total_pageviews'] = total_pageviews_sum
 
         hasil = {
             'hasil': "Data Traffic Per Country",

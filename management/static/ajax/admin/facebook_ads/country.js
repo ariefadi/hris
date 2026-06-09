@@ -251,7 +251,9 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                 event_data += '<td class="text-right" style="font-size: 12px;">' + formattedFrequency + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.cpr).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + String(value.cpc).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
-                event_data += '<td class="text-right" style="font-size: 12px;">' + String(Number(value.total_visitors || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(Number(value.total_visits || value.total_visitors || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(Number(value.unique_visitor || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(Number(value.total_pageviews || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-center no-export" style="font-size: 12px;">'
                     + '<button type="button" class="btn btn-sm btn-outline-primary btn-facebook-country-detail" data-row-index="' + index + '" title="Detail">'
                     + '<i class="bi bi-eye-fill" aria-hidden="true"></i>'
@@ -290,8 +292,12 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
             const totalCpc = cpc.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
             $('#total_cpr').text(totalCpr);
             $('#total_cpc').text(totalCpc);
-            const totalVisitors = Number(totalData?.total_visitors) || 0;
+            const totalVisitors = Number(totalData?.total_visits || totalData?.total_visitors) || 0;
+            const totalUniqueVisitors = Number(totalData?.unique_visitor) || 0;
+            const totalPageviews = Number(totalData?.total_pageviews) || 0;
             $('#total_visitors').text(totalVisitors.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+            $('#total_unique_visitors').text(totalUniqueVisitors.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+            $('#total_pageviews').text(totalPageviews.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
             // Periksa apakah DataTable sudah diinisialisasi sebelumnya
             if ($.fn.dataTable.isDataTable('#table_data_per_country_facebook')) {
                 $('#table_data_per_country_facebook').DataTable().destroy();
@@ -322,8 +328,7 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                             + (tanggal.getMonth() + 1) + "-"
                             + tanggal.getFullYear(),
                         exportOptions: {
-                            columns: ':visible',
-                            columns: [0, 1, 2, 3, 4, 5, 6, 7, 8],      // tanpa kolom Detail
+                            columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
                             modifier: {
                                 search: 'applied',      // sesuai filter pencarian
                                 order: 'applied'        // sesuai urutan saat itu
@@ -334,7 +339,7 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                             // =========================
                             // Set column width secara manual (unit: character width)
                             // =========================
-                            const colWidths = [20, 10, 10, 10, 10, 10, 10, 10, 10]; // 💡 Sesuaikan berdasarkan % di HTML
+                            const colWidths = [20, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10];
                             const cols = $('cols', sheet);
                             cols.empty(); // Kosongkan default <col> dari DataTables
                             for (let i = 0; i < colWidths.length; i++) {
@@ -381,12 +386,14 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
                                     if (body[i][6]) body[i][6].alignment = 'right';
                                     if (body[i][7]) body[i][7].alignment = 'right';
                                     if (body[i][8]) body[i][8].alignment = 'right';
+                                    if (body[i][9]) body[i][9].alignment = 'right';
+                                    if (body[i][10]) body[i][10].alignment = 'right';
                                 }
                             }
                             // Margin
                             doc.content[1].margin = [0, 0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
                             // Manual width sesuai presentase kolom HTML (tanpa kolom Detail)
-                            doc.content[1].table.widths = ['18%', '9%', '9%', '9%', '9%', '9%', '9%', '9%', '10%'];
+                            doc.content[1].table.widths = ['16%', '8%', '8%', '8%', '8%', '8%', '8%', '8%', '8%', '8%', '8%'];
                         }
                     }
                 ]

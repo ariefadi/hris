@@ -23913,11 +23913,34 @@
     }
     function applyEditAdData(ad) {
       if (!ad || typeof ad !== 'object') return false;
-      ['ad_id', 'ad_name', 'page_id', 'instagram_actor_id', 'existing_post_id', 'website_url', 'primary_text', 'headline', 'description', 'caption', 'cta_type', 'url_tags'].forEach(function (k) {
-        if (typeof ad[k] !== 'undefined') $('#modal_' + k.replace('cta_type', 'cta').replace('url_tags', 'url_tags')).val(String(ad[k] || ''));
+      const fieldMap = {
+        ad_id: 'ad_id',
+        ad_name: 'ad_name',
+        page_id: 'page_id',
+        instagram_actor_id: 'instagram_actor_id',
+        existing_post_id: 'existing_post_id',
+        website_url: 'website_url',
+        display_link: 'display_link',
+        primary_text: 'primary_text',
+        headline: 'headline',
+        description: 'description',
+        caption: 'caption',
+        cta_type: 'cta',
+        url_tags: 'url_tags',
+        video_id: 'video_id',
+        video_thumbnail_url: 'video_thumbnail_url',
+        image_hash: 'image_hash',
+      };
+      Object.keys(fieldMap).forEach(function (k) {
+        if (typeof ad[k] === 'undefined') return;
+        $('#modal_' + fieldMap[k]).val(String(ad[k] || ''));
       });
       $('#modal_page_id').attr('data-label', String(ad.page_id_label || ad.page_id || ''));
       $('#modal_instagram_actor_id').attr('data-label', String(ad.instagram_actor_label || ad.instagram_actor_id || ''));
+      if (String(ad.website_url || '').trim()) {
+        $('#modal_destination_website').prop('checked', true);
+        $('#modal_destination_website_wrap').show();
+      }
       const isExisting = String(ad.use_existing_post || '0') === '1';
       if (typeof window.setAdSetupMode === 'function') {
         window.setAdSetupMode(isExisting ? 'existing' : 'create');
@@ -23929,9 +23952,17 @@
         $('#modal_existing_post_id').val(String(ad.existing_post_id || ''));
         $('#modal_existing_post_empty').hide();
         $('#modal_existing_post_selected').show();
-        $('#modal_existing_post_selected_title').text(String(ad.existing_post_text || ad.existing_post_id || ''));
+        $('#modal_existing_post_selected_title').text(String(ad.existing_post_text || ad.primary_text || ad.existing_post_id || ''));
         $('#modal_existing_post_selected_meta').text('Postingan lama · ID: ' + String(ad.existing_post_id || ''));
       }
+      if (typeof window.hydrateAdCreativeFromMeta === 'function') {
+        window.hydrateAdCreativeFromMeta(ad);
+      } else if (typeof window.syncCreativeMaterialPanel === 'function') {
+        window.syncCreativeMaterialPanel();
+      }
+      if (typeof window.scheduleAdPreviewSync === 'function') window.scheduleAdPreviewSync();
+      else if (typeof window.syncAdPreviewPanel === 'function') window.syncAdPreviewPanel();
+      if (typeof window.syncTrafficManualShell === 'function') window.syncTrafficManualShell();
       return true;
     }
     function fillCampaignForEdit(data) {
@@ -23967,7 +23998,15 @@
       syncBidAmountField();
       updateStepProgress();
       setWizardStep(1);
+      setTimeout(function () {
+        if (data.ad && typeof window.applyEditAdData === 'function') {
+          window.applyEditAdData(data.ad);
+        } else if (data.ad && typeof window.hydrateAdCreativeFromMeta === 'function') {
+          window.hydrateAdCreativeFromMeta(data.ad);
+        }
+      }, 120);
     }
+    window.applyEditAdData = applyEditAdData;
 
     function initBuilderDateInputs() {
       [

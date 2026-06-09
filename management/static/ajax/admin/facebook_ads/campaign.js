@@ -672,7 +672,9 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 event_data += '<td class="text-right" style="font-size: 12px;">' + formattedFrequency + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + cpr + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + value.cpc + '</td>';
-                event_data += '<td class="text-right" style="font-size: 12px;">' + String(Number(value.total_visitors || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(Number(value.total_visits || value.total_visitors || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(Number(value.unique_visitor || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(Number(value.total_pageviews || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-center no-export" style="font-size: 12px;">'
                     + '<button type="button" class="btn btn-sm btn-outline-primary btn-facebook-campaign-detail" data-row-index="' + index + '" title="Detail">'
                     + '<i class="bi bi-eye-fill" aria-hidden="true"></i>'
@@ -711,8 +713,12 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 $('#total_cpr').text(data_cpr);
                 // CPC
                 $('#total_cpc').text(data_cpc);
-                const totalVisitors = Number(value.total_visitors) || 0;
+                const totalVisitors = Number(value.total_visits || value.total_visitors) || 0;
+                const totalUniqueVisitors = Number(value.unique_visitor) || 0;
+                const totalPageviews = Number(value.total_pageviews) || 0;
                 $('#total_visitors').text(totalVisitors.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+                $('#total_unique_visitors').text(totalUniqueVisitors.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+                $('#total_pageviews').text(totalPageviews.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
             })
             $('#table_data_campaign_facebook').DataTable({
                 columnDefs: [
@@ -740,8 +746,7 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                             + (tanggal.getMonth() + 1) + "-"
                             + tanggal.getFullYear(),
                         exportOptions: {
-                            columns: ':visible',
-                            columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],      // tanpa kolom Detail
+                            columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
                             modifier: {
                                 search: 'applied',      // sesuai filter pencarian
                                 order: 'applied'        // sesuai urutan saat itu
@@ -752,7 +757,7 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                             // =========================
                             // Set column width secara manual (unit: character width)
                             // =========================
-                            const colWidths = [10, 15, 15, 10, 10, 10, 10, 10, 10, 10, 10]; // 💡 Sesuaikan berdasarkan % di HTML
+                            const colWidths = [10, 15, 15, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10];
                             const cols = $('cols', sheet);
                             cols.empty(); // Kosongkan default <col> dari DataTables
                             for (let i = 0; i < colWidths.length; i++) {
@@ -802,12 +807,14 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                                     if (body[i][8]) body[i][8].alignment = 'right';
                                     if (body[i][9]) body[i][9].alignment = 'right';
                                     if (body[i][10]) body[i][10].alignment = 'right';
+                                    if (body[i][11]) body[i][11].alignment = 'right';
+                                    if (body[i][12]) body[i][12].alignment = 'right';
                                 }
                             }
                             // Margin
                             doc.content[1].margin = [0, 0, 0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
                             // Manual width sesuai presentase kolom HTML (tanpa kolom Detail)
-                            doc.content[1].table.widths = ['9%', '13%', '13%', '8%', '8%', '8%', '8%', '8%', '8%', '8%', '9%'];
+                            doc.content[1].table.widths = ['8%', '12%', '12%', '7%', '7%', '7%', '7%', '7%', '7%', '7%', '7%', '7%', '7%'];
                         }
                     }
                 ]
