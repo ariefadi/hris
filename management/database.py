@@ -9471,7 +9471,7 @@ class data_mysql:
             from .engine_utils import ensure_uuid
             import pandas as pd
             from zoneinfo import ZoneInfo
-            from datetime import datetime
+            from datetime import datetime, time as dt_time
             now = datetime.now(ZoneInfo("Asia/Jakarta"))
             # =========================
             # CONFIG
@@ -9597,10 +9597,13 @@ class data_mysql:
                 date_raw = row.get("run_date") or row.get("date")
                 dt = pd.to_datetime(date_raw, errors="coerce")
                 safe_date = dt.date() if pd.notna(dt) else now.date()
+                run_time_dt = pd.to_datetime(f"{safe_date.isoformat()} {run_time}", errors="coerce")
+                if pd.isna(run_time_dt):
+                    run_time_dt = datetime.combine(safe_date, dt_time(hour=run_hour, minute=0, second=0))
 
                 data.append({
                     "batch_id": _to_str(ensure_uuid()),
-                    "run_time": _to_str(run_time, f"{run_hour:02d}:00:00"),
+                    "run_time": run_time_dt,
                     "run_date": safe_date,
                     "run_hour": run_hour,
                     "site": _derive_site(row),
@@ -9617,8 +9620,8 @@ class data_mysql:
                     "meta_campaign": _to_str(row.get("meta_campaign")).upper(),
                     "meta_cpc": _to_float(row.get("meta_cpc", 0)),
                     "meta_clicks": _to_uint(row.get("meta_clicks", 0)),
-                    "meta_lpv": _to_float(row.get("meta_lpv", 0)),
-                    "meta_lpv_rate": _to_uint(row.get("meta_lpv_rate", 0)),
+                    "meta_lpv": _to_uint(row.get("meta_lpv", 0)),
+                    "meta_lpv_rate": _to_float(row.get("meta_lpv_rate", 0)),
                     "meta_frequency": _to_float(row.get("meta_frequency", 0)),
                     # ADX
                     "adx_revenue": _to_float(row.get("adx_revenue", 0)),
@@ -9626,10 +9629,10 @@ class data_mysql:
                     "adx_clicks": _to_uint(row.get("adx_clicks", 0)),
                     "adx_ecpm": _to_float(row.get("adx_ecpm", 0)),
                     "adx_cpc": _to_float(row.get("adx_cpc", 0)),
-                    "adx_requests": _to_float(row.get("adx_requests", 0)),
-                    "adx_responses_served": _to_float(row.get("adx_responses_served", 0)),
-                    "adx_match_rate": _to_uint(row.get("adx_match_rate", 0)),
-                    "adx_fill_rate": _to_uint(row.get("adx_fill_rate", 0)),
+                    "adx_requests": _to_uint(row.get("adx_requests", 0)),
+                    "adx_responses_served": _to_uint(row.get("adx_responses_served", 0)),
+                    "adx_match_rate": _to_float(row.get("adx_match_rate", 0)),
+                    "adx_fill_rate": _to_float(row.get("adx_fill_rate", 0)),
                     "adx_active_view_pct_viewable": _to_float(row.get("adx_active_view_pct_viewable", 0)),
                     "adx_active_view_avg_time_sec": _to_float(row.get("adx_active_view_avg_time_sec", 0)),
                     # ADSENSE
@@ -9638,7 +9641,7 @@ class data_mysql:
                     "adsense_clicks": _to_uint(row.get("adsense_clicks", 0)),
                     "adsense_cost_per_click": _to_float(row.get("adsense_cost_per_click", 0)),
                     "adsense_page_views_rpm": _to_float(row.get("adsense_page_views_rpm", 0)),
-                    "adsense_ad_requests": _to_float(row.get("adsense_ad_requests", 0)),
+                    "adsense_ad_requests": _to_uint(row.get("adsense_ad_requests", 0)),
                     "adsense_impressions": _to_uint(row.get("adsense_impressions", 0)),
                     "adsense_active_view_viewability": _to_uint(row.get("adsense_active_view_viewability", 0)),
                     "adsense_active_view_measurability": _to_float(row.get("adsense_active_view_measurability", 0)),
