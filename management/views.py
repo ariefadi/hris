@@ -13794,12 +13794,13 @@ class RoiMonitoringDomainDataView(View):
                     active_view_pct_viewable = float(adx_item.get('active_view_pct_viewable') or 0.0)
                     active_view_avg_time_sec = float(adx_item.get('active_view_avg_time_sec') or 0.0)
 
-                    row_key = f"{date_key}_{site_key}"
+                    row_key = f"{date_key}_{site_key}_{country_code}"
                     cur_row = raw_rows_map.get(row_key)
                     if not cur_row:
                         cur_row = {
                             'site_name': site_key,
                             'date': date_key,
+                            'country_code': country_code,
                             'spend': 0.0,
                             'revenue': 0.0,
                             'impressions_fb': 0.0,
@@ -13892,12 +13893,13 @@ class RoiMonitoringDomainDataView(View):
                     spend = float(fb_item.get('spend', 0) or 0)
 
                     date_key = str(fb_item.get('date', ''))
-                    row_key = f"{date_key}_{site_key}"
+                    row_key = f"{date_key}_{site_key}_{country_code}"
                     cur_row = raw_rows_map.get(row_key)
                     if not cur_row:
                         cur_row = {
                             'site_name': site_key,
                             'date': date_key,
+                            'country_code': country_code,
                             'spend': 0.0,
                             'revenue': 0.0,
                             'impressions_fb': 0.0,
@@ -14001,7 +14003,11 @@ class RoiMonitoringDomainDataView(View):
 
             raw_rows_all = list((raw_rows_map or {}).values())
             try:
-                raw_rows_all.sort(key=lambda x: (str((x or {}).get('date') or ''), str((x or {}).get('site_name') or '')))
+                raw_rows_all.sort(key=lambda x: (
+                    str((x or {}).get('date') or ''),
+                    str((x or {}).get('site_name') or ''),
+                    str((x or {}).get('country_code') or '')
+                ))
             except Exception:
                 pass
 
@@ -14174,6 +14180,29 @@ class RoiMonitoringDomainDataView(View):
         except Exception as e:
             return JsonResponse({'status': False, 'error': str(e)})
 
+
+def _is_fb_token_session_invalid(message):
+    msg = str(message or '').lower()
+    return (
+        'oauthexception' in msg
+        or 'error validating access token' in msg
+        or 'session has been invalidated' in msg
+        or 'changed their password' in msg
+        or '"code": 190' in msg
+        or "'code': 190" in msg
+        or 'error_subcode' in msg and '460' in msg
+    )
+
+
+def _friendly_fb_campaign_error(message):
+    raw_message = str(message or '').strip()
+    if _is_fb_token_session_invalid(raw_message):
+        return (
+            'Sesi Facebook untuk account ads ini sudah tidak valid atau sudah expired. '
+            'Silakan login ulang / refresh access token Meta pada account tersebut, lalu coba muat campaign lagi.'
+        )
+    return raw_message or 'Gagal memuat data campaign dari Facebook.'
+
 class RoiMonitoringDomainCampaignsView(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
@@ -14266,7 +14295,7 @@ class RoiMonitoringDomainCampaignsView(View):
 
             return JsonResponse({'status': True, 'campaigns': campaigns, 'start_date': start_date, 'end_date': end_date}, safe=False)
         except Exception as e:
-            return JsonResponse({'status': False, 'error': str(e), 'campaigns': []}, safe=False)
+            return JsonResponse({'status': False, 'error': _friendly_fb_campaign_error(e), 'campaigns': []}, safe=False)
 
 class RoiMonitoringDomainCampaignBreakdownView(View):
     def dispatch(self, request, *args, **kwargs):
@@ -14357,7 +14386,7 @@ class RoiMonitoringDomainUpdateDailyBudgetCampaignView(View):
 
             return JsonResponse({'status': True, 'daily_budget': (data or {}).get('daily_budget')})
         except Exception as e:
-            return JsonResponse({'status': False, 'error': str(e)})
+            return JsonResponse({'status': False, 'error': _friendly_fb_campaign_error(e)})
 
 @method_decorator(csrf_exempt, name='dispatch')
 class RoiMonitoringDomainUpdateCampaignStatusCampaignView(View):
@@ -14435,7 +14464,10 @@ class RoiMonitoringDomainUpdateCampaignStatusCampaignView(View):
                     failed.append({'campaign_id': cid, 'error': str(e)})
 
             if success_count <= 0:
-                return JsonResponse({'status': False, 'error': 'Gagal mengupdate status campaign', 'failed': failed}, safe=False)
+                error_text = 'Gagal mengupdate status campaign'
+                if failed:
+                    error_text = _friendly_fb_campaign_error((failed[0] or {}).get('error') or error_text)
+                return JsonResponse({'status': False, 'error': error_text, 'failed': failed}, safe=False)
 
             return JsonResponse({
                 'status': True,
@@ -14444,7 +14476,7 @@ class RoiMonitoringDomainUpdateCampaignStatusCampaignView(View):
                 'campaign_status': last_status or status,
             }, safe=False)
         except Exception as e:
-            return JsonResponse({'status': False, 'error': str(e)})
+            return JsonResponse({'status': False, 'error': _friendly_fb_campaign_error(e)})
 
 # ===== ROI Monitoring Country =====
 
