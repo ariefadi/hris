@@ -86,6 +86,7 @@ NEG_ADJUSTMENT_DROP_MIN_COUNT = 2
 NEG_ADJUSTMENT_SCORE_THRESHOLD = -32
 RED_FLAG_IVT_THRESHOLD = 68
 WATCH_IVT_THRESHOLD = 52
+DECISION_IVT_NEUTRAL_THRESHOLD = WATCH_IVT_THRESHOLD
 SAFETY_SCALE_UP_RISK_CAP = 42
 SAFETY_SCALE_UP_HEALTH_FLOOR = 8
 SAFETY_SCALE_UP_CONFIDENCE_FLOOR = 0.45
@@ -465,6 +466,41 @@ def _normalize_rate_value(value: float) -> float:
     return x
 
 
+def _prefer_metric_alias(df: pd.DataFrame, target: str, source: str) -> None:
+    if source not in df.columns:
+        return
+    src = pd.to_numeric(df[source], errors="coerce").fillna(0.0)
+    if target in df.columns:
+        cur = pd.to_numeric(df[target], errors="coerce").fillna(0.0)
+        if cur.abs().sum() > 1e-12 or src.abs().sum() <= 1e-12:
+            return
+    df[target] = src.astype(float)
+
+
+def _ensure_metric_compatibility(df: pd.DataFrame) -> pd.DataFrame:
+    out = df.copy()
+
+    _prefer_metric_alias(out, "meta_avg_cpc", "meta_cpc")
+    _prefer_metric_alias(out, "adx_avg_ecpm", "adx_ecpm")
+    _prefer_metric_alias(out, "adx_total_fill_rate", "adx_fill_rate")
+
+    ads_req = pd.to_numeric(out.get("adsense_ad_requests", 0.0), errors="coerce").fillna(0.0)
+    ads_imp = pd.to_numeric(out.get("adsense_impressions", 0.0), errors="coerce").fillna(0.0)
+    if "adsense_matched_ad_requests" not in out.columns or pd.to_numeric(out.get("adsense_matched_ad_requests", 0.0), errors="coerce").fillna(0.0).abs().sum() <= 1e-12:
+        # Schema baru tidak lagi menyimpan matched_ad_requests; impressions dipakai sebagai pendekatan konservatif volume request yang benar-benar tersaji.
+        out["adsense_matched_ad_requests"] = np.minimum(ads_req, ads_imp).astype(float)
+
+    if "adsense_ad_requests_coverage" not in out.columns or pd.to_numeric(out.get("adsense_ad_requests_coverage", 0.0), errors="coerce").fillna(0.0).abs().sum() <= 1e-12:
+        matched = pd.to_numeric(out.get("adsense_matched_ad_requests", 0.0), errors="coerce").fillna(0.0)
+        out["adsense_ad_requests_coverage"] = np.where(np.abs(ads_req) < 1e-12, 0.0, matched / ads_req)
+
+    for col in ["adsense_ad_requests_coverage", "adx_total_fill_rate"]:
+        if col in out.columns:
+            out[col] = pd.to_numeric(out[col], errors="coerce").fillna(0.0).map(_normalize_rate_value)
+
+    return out
+
+
 def _day_type_for(value: date | datetime | pd.Timestamp | str | None) -> str:
     if value is None or value == "":
         return "UNKNOWN"
@@ -838,6 +874,8 @@ def _load_join_history(target_date: date, domain: str, lookback_days: int = 35, 
     if "blended_revenue" not in out.columns or "source_mode" not in out.columns:
         out = _compute_derived_features(out)
 
+    out = _ensure_metric_compatibility(out)
+
     # revenue_value:
     # Di STATUS_TABLE kita simpan revenue_value untuk validasi ROI (spend vs revenue).
     # Tabel fact_join_hourly tidak punya kolom revenue_value, jadi sebelumnya terisi 0.0.
@@ -875,7 +913,13 @@ def _load_join_history(target_date: date, domain: str, lookback_days: int = 35, 
         out[col] = out[col].map(safe_float)
         prev_series = grouped[col].shift(1)
         extra_cols[f"prev__{col}"] = prev_series
-        extra_cols[f"delta__{col}"] = out[col] - prev_series.fillna(0.0)
+        # fact_join_hourly berisi nilai per jam, bukan counter kumulatif.
+        # Untuk rule counter, gunakan nilai jam berjalan sebagai "increment" agar
+        # penurunan traffic antar-jam tidak salah dibaca sebagai counter mundur.
+        if col in COUNTER_RULES:
+            extra_cols[f"delta__{col}"] = out[col]
+        else:
+            extra_cols[f"delta__{col}"] = out[col] - prev_series.fillna(0.0)
 
     out = pd.concat([out, pd.DataFrame(extra_cols, index=out.index)], axis=1).copy()
     if "is_current_batch" not in out.columns:
@@ -1424,17 +1468,24 @@ def _evaluate_rule(cur: pd.Series, same_hour: pd.DataFrame, all_hours: pd.DataFr
     if (
         rule.adjustment_weight > 0
         and rule.column in COUNTER_CORRECTION_COLUMNS
-        and event["change_class"] == "NEGATIVE"
+        and event["change_class"] in {"NEGATIVE", "POSITIVE"}
         and event["event_reason"] not in {
             "WITHIN_DEADBAND",
             "LOW_VOLUME_GATE",
             "SOURCE_SCOPE_SKIPPED",
         }
     ):
-        magnitude = max(abs(signal_strength), _counter_drop_magnitude(prev_value, event["current_increment"]))
-        event["adjustment_component"] = -magnitude * rule.adjustment_weight * event["confidence"] * family_factor
-        event["adjustment_capacity"] = rule.adjustment_weight * event["confidence"] * family_factor
-        event["ivt_component"] += magnitude * 0.55 * event["ivt_capacity"]
+        adj_capacity = rule.adjustment_weight * event["confidence"] * family_factor
+        event["adjustment_capacity"] = adj_capacity
+        if event["change_class"] == "NEGATIVE":
+            magnitude = max(abs(signal_strength), _counter_drop_magnitude(prev_value, event["current_increment"]))
+            event["adjustment_component"] = -magnitude * adj_capacity
+            event["ivt_component"] += magnitude * 0.55 * event["ivt_capacity"]
+        else:
+            # Recovery pada metric yang sama perlu dihitung sebagai kredit agar
+            # adjustment_score tidak menjadi penalti satu arah.
+            magnitude = max(0.0, signal_strength)
+            event["adjustment_component"] = magnitude * adj_capacity
 
     note_parts = [
         f"baseline_source={baseline_source}",
@@ -1739,6 +1790,8 @@ def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uui
         evt["confidence"] = conf
         evt["signal_strength"] = clip((safe_float(primary_revenue["signal_strength"]) + safe_float(rev_per_lpv["signal_strength"]) + max(delivery_floor, 0.0)) / 3.0, 0.0, 1.0)
         evt["health_component"] = 1.20 * evt["signal_strength"] * conf
+        evt["adjustment_component"] = 0.85 * evt["signal_strength"] * conf
+        evt["adjustment_capacity"] = 0.85 * conf
         evt["ivt_component"] = 0.0
         evt["ivt_capacity"] = 0.35 * conf
         evt["change_class"] = "POSITIVE"
@@ -1753,6 +1806,8 @@ def _evaluate_composite_events(cur: pd.Series, row_events: list[dict], batch_uui
         evt["confidence"] = conf
         evt["signal_strength"] = clip((safe_float(quality_view_metric["signal_strength"]) + safe_float(quality_time_metric["signal_strength"])) / 2.0, 0.0, 1.0)
         evt["health_component"] = 0.60 * evt["signal_strength"] * conf
+        evt["adjustment_component"] = 0.45 * evt["signal_strength"] * conf
+        evt["adjustment_capacity"] = 0.45 * conf
         evt["ivt_component"] = 0.0
         evt["ivt_capacity"] = 0.25 * conf
         evt["change_class"] = "POSITIVE"
@@ -1949,7 +2004,9 @@ def _root_cause_label(status: dict) -> str:
     if profit_support and (quality <= -8 or lpv <= -8 or health <= TRAFFIC_QUALITY_HEALTH_THRESHOLD):
         return "TRAFFIC_QUALITY_MISMATCH"
     if status["adjustment_drop_count"] >= NEG_ADJUSTMENT_DROP_MIN_COUNT and status["adjustment_score"] <= NEG_ADJUSTMENT_SCORE_THRESHOLD:
-        if status.get("ivt_risk_score", 0) >= WATCH_IVT_THRESHOLD or health <= NEG_ADJUSTMENT_HEALTH_THRESHOLD:
+        # NEG_ADJUSTMENT dipakai hanya untuk decay yang sekaligus terlihat tidak sehat
+        # dan berisiko; decay biasa cukup dilabel WATCH_DECAY agar tidak menutupi root cause lain.
+        if status.get("ivt_risk_score", 0) >= WATCH_IVT_THRESHOLD and health <= NEG_ADJUSTMENT_HEALTH_THRESHOLD:
             return "NEG_ADJUSTMENT"
         return "WATCH_DECAY"
     if health >= POSITIVE_EXPANSION_HEALTH_THRESHOLD and status["ivt_risk_score"] < SAFETY_SCALE_UP_RISK_CAP and status["positive_signal_count"] >= status["negative_signal_count"]:
@@ -2067,6 +2124,14 @@ def _health_activity_stats(events: list[dict]) -> tuple[int, int]:
     ]
     families = {str(e.get("family_key") or e.get("rule_key") or "unknown") for e in active_events}
     return int(len(active_events)), int(len(families))
+
+
+def _compute_decision_margin(health_score: float, ivt_risk_score: float, adjustment_score: float) -> float:
+    # Health dan adjustment bisa membantu atau menghukum, sedangkan IVT baru memberi
+    # penalti setelah melewati ambang waspada agar margin tidak terlalu berat ke negatif.
+    ivt_penalty = max(0.0, safe_float(ivt_risk_score) - DECISION_IVT_NEUTRAL_THRESHOLD)
+    margin = safe_float(health_score) + safe_float(adjustment_score) - ivt_penalty
+    return round(margin, 4)
 
 
 def _compute_forecast_and_budget_reco(status: dict, persistence: dict) -> dict:
@@ -2240,7 +2305,7 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
     active_health_event_count, active_family_count = _health_activity_stats(events)
     health_score = _compute_health_score(events, persistence)
 
-    adjustment_score = (100.0 * adjustment_num / adjustment_den) if adjustment_den > 0 else 0.0
+    adjustment_score = clip((100.0 * adjustment_num / adjustment_den), -100.0, 100.0) if adjustment_den > 0 else 0.0
 
     ivt_num = sum(max(0.0, safe_float(e.get("ivt_component"))) for e in events)
     ivt_den = sum(max(safe_float(e.get("ivt_capacity")), 0.0) for e in events if safe_float(e.get("ivt_capacity")) > 0)
@@ -2265,7 +2330,7 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "health_score": health_score,
         "adjustment_score": adjustment_score,
         "ivt_risk_score": ivt_risk_score,
-        "decision_margin": round(health_score - ivt_risk_score + min(0.0, adjustment_score), 4),
+        "decision_margin": _compute_decision_margin(health_score, ivt_risk_score, adjustment_score),
         "confidence": clip(confidence, 0.0, 1.0),
         "positive_signal_count": len(positive),
         "negative_signal_count": len(negative),

@@ -3300,7 +3300,8 @@ class DashboardScoringDataView(View):
 
         def derive_score_decision(health, risk, adj, conf, dm, label, profit_strong, anomaly_cards, roi_value=0.0, source_mode='BLENDED'):
             negative_labels = ["TRAFFIC_DROP","SERVING_DROP","YIELD_DROP","VIEWABILITY_DROP","EFFICIENCY_DROP","REVENUE_DROP","NEGATIVE_MIXED","NEG_ADJUSTMENT","WATCH_NEGATIVE","WATCH_DECAY","WATCH_IVT","IVT_DOMINANT_RISK","PROFIT_OK_BUT_UNSAFE","TRAFFIC_QUALITY_MISMATCH"]
-            pause_labels = ["NEG_ADJUSTMENT","WATCH_NEGATIVE","WATCH_DECAY","WATCH_IVT","IVT_DOMINANT_RISK","PROFIT_OK_BUT_UNSAFE","TRAFFIC_QUALITY_MISMATCH"]
+            hard_pause_labels = ["NEG_ADJUSTMENT", "WATCH_IVT", "IVT_DOMINANT_RISK", "PROFIT_OK_BUT_UNSAFE"]
+            soft_pause_labels = ["WATCH_NEGATIVE", "WATCH_DECAY", "TRAFFIC_QUALITY_MISMATCH"]
             label_up = str(label or '').strip().upper()
             source_mode_key = str(source_mode or 'BLENDED').strip().upper()
             single_source = source_mode_key in ["ADX_ONLY", "ADSENSE_ONLY"]
@@ -3313,7 +3314,13 @@ class DashboardScoringDataView(View):
             decision = "HOLD"
             anomaly_pressure = len(anomaly_cards)
             red_flag_stop = label_up.startswith("RED_FLAG")
-            pause_signal = (label_up in pause_labels) and ((risk >= 60) or (dm <= -20) or (adj <= -20) or (health <= -10) or anomaly_pressure > 0)
+            hard_pause_signal = (label_up in hard_pause_labels) and (
+                (risk >= 60) or (dm <= -25) or (adj <= -30) or (anomaly_pressure > 0)
+            )
+            soft_pause_signal = (label_up in soft_pause_labels) and (
+                (risk >= 68) or (dm <= -35) or ((adj <= -35) and (health <= -15)) or (anomaly_pressure > 0)
+            )
+            pause_signal = hard_pause_signal or soft_pause_signal
             if red_flag_stop:
                 decision = "STOP"
             elif pause_signal or ((risk >= 82) and (conf >= 0.50)) or ((dm <= -55) and (health <= -18) and (conf >= 0.50)):
@@ -4531,7 +4538,8 @@ class DashboardScoringCompareView(View):
             score = (((health + 100.0) / 2.0) * 0.27) + ((100.0 - risk) * 0.33) + (conf01 * 100.0 * 0.12) + (clip(dm + 50.0, 0.0, 100.0) * 0.18) + (profit_component * 0.10)
             score = int(round(clip(score, 0.0, 100.0)))
             negative_labels = ["TRAFFIC_DROP", "SERVING_DROP", "YIELD_DROP", "VIEWABILITY_DROP", "EFFICIENCY_DROP", "REVENUE_DROP", "NEGATIVE_MIXED", "NEG_ADJUSTMENT", "WATCH_NEGATIVE", "WATCH_DECAY", "WATCH_IVT", "IVT_DOMINANT_RISK", "PROFIT_OK_BUT_UNSAFE", "TRAFFIC_QUALITY_MISMATCH"]
-            pause_labels = ["NEG_ADJUSTMENT", "WATCH_NEGATIVE", "WATCH_DECAY", "WATCH_IVT", "IVT_DOMINANT_RISK", "PROFIT_OK_BUT_UNSAFE", "TRAFFIC_QUALITY_MISMATCH"]
+            hard_pause_labels = ["NEG_ADJUSTMENT", "WATCH_IVT", "IVT_DOMINANT_RISK", "PROFIT_OK_BUT_UNSAFE"]
+            soft_pause_labels = ["WATCH_NEGATIVE", "WATCH_DECAY", "TRAFFIC_QUALITY_MISMATCH"]
             label_up = str(label or 'STABLE').strip().upper()
             anomaly_cards = []
             if risk >= 70: anomaly_cards.append('IVT_RISK')
@@ -4539,7 +4547,13 @@ class DashboardScoringCompareView(View):
             if dm <= -50: anomaly_cards.append('MARGIN_CRASH')
             anomaly_pressure = len(anomaly_cards)
             red_flag_stop = label_up.startswith("RED_FLAG")
-            pause_signal = (label_up in pause_labels) and ((risk >= 60) or (dm <= -20) or (adj <= -20) or (health <= -10) or anomaly_pressure > 0)
+            hard_pause_signal = (label_up in hard_pause_labels) and (
+                (risk >= 60) or (dm <= -25) or (adj <= -30) or (anomaly_pressure > 0)
+            )
+            soft_pause_signal = (label_up in soft_pause_labels) and (
+                (risk >= 68) or (dm <= -35) or ((adj <= -35) and (health <= -15)) or (anomaly_pressure > 0)
+            )
+            pause_signal = hard_pause_signal or soft_pause_signal
             decision = "HOLD"
             if red_flag_stop:
                 decision = "STOP"
