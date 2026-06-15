@@ -1520,11 +1520,90 @@ html[data-theme="dark"] .ds-decision-cause { color: #94a3b8; }
 .sd-plat--adx .sd-plat-hd { background: linear-gradient(135deg, #2563eb 0%, #7c3aed 100%); }
 .sd-plat--adsense .sd-plat-hd { background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); }
 .sd-plat-body { padding: 12px; }
-.sd-details { border: 1px solid rgba(15,23,42,0.10); border-radius: 12px; background: #f8fafc; overflow: hidden; }
-.sd-details summary { cursor: pointer; padding: 10px 12px; list-style: none; display:flex; align-items:center; justify-content:space-between; gap: 10px; font-weight: 900; color: #0f172a; }
+.sd-details {
+    position: relative;
+    border: 1px solid rgba(99, 102, 241, 0.12);
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.98) 100%);
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+.sd-details:hover {
+    transform: translateY(-1px);
+    border-color: rgba(99, 102, 241, 0.22);
+    box-shadow: 0 14px 30px rgba(79, 70, 229, 0.10);
+}
+.sd-details[open] {
+    border-color: rgba(79, 70, 229, 0.18);
+    box-shadow: 0 16px 34px rgba(79, 70, 229, 0.12);
+}
+.sd-details summary {
+    cursor: pointer;
+    padding: 12px 14px;
+    list-style: none;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap: 10px;
+    font-weight: 900;
+    color: #0f172a;
+    background:
+        linear-gradient(135deg, rgba(99, 102, 241, 0.10) 0%, rgba(59, 130, 246, 0.05) 48%, rgba(255,255,255,0.92) 100%);
+    transition: background .18s ease, padding .18s ease;
+}
+.sd-details[open] summary {
+    background:
+        linear-gradient(135deg, rgba(99, 102, 241, 0.14) 0%, rgba(59, 130, 246, 0.08) 48%, rgba(255,255,255,0.96) 100%);
+}
 .sd-details summary::-webkit-details-marker { display:none; }
-.sd-details .sd-det-right { font-weight: 900; opacity: .85; }
-.sd-details .sd-det-body { padding: 10px 12px 12px; border-top: 1px solid rgba(15,23,42,0.08); }
+.sd-details .sd-det-left { display:inline-flex; align-items:center; gap:10px; min-width:0; }
+.sd-details .sd-det-chevron {
+    width: 12px;
+    height: 12px;
+    flex: 0 0 auto;
+    border-right: 2px solid #64748b;
+    border-bottom: 2px solid #64748b;
+    transform: rotate(45deg);
+    transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+    margin-top: -2px;
+    padding: 7px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.88);
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.16);
+}
+.sd-details[open] .sd-det-chevron {
+    transform: rotate(225deg);
+    border-color: #4f46e5;
+    background: rgba(238, 242, 255, 0.98);
+    box-shadow: inset 0 0 0 1px rgba(99, 102, 241, 0.18);
+    margin-top: 2px;
+}
+.sd-details .sd-det-meta { display:inline-flex; align-items:center; justify-content:flex-end; gap:10px; flex-wrap:wrap; text-align:right; }
+.sd-details .sd-det-toggle-label {
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #64748b;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.86);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+}
+.sd-details .sd-det-toggle-label .when-open { display:none; }
+.sd-details[open] .sd-det-toggle-label .when-open { display:inline; }
+.sd-details[open] .sd-det-toggle-label .when-closed { display:none; }
+.sd-details .sd-det-right { font-weight: 900; opacity: .88; color: #334155; }
+.sd-details .sd-det-body {
+    padding: 14px 14px 16px;
+    border-top: 1px solid rgba(99, 102, 241, 0.08);
+    background:
+        linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.94) 100%);
+}
 .sd-details.sd-yield { border-left: 5px solid #7c3aed; }
 .sd-details.sd-delivery { border-left: 5px solid #2563eb; }
 .sd-details.sd-traffic { border-left: 5px solid #10b981; }
@@ -1539,9 +1618,47 @@ html[data-theme="dark"] .sd-title { color: rgba(226,232,240,0.95); }
 html[data-theme="dark"] .sd-sub { color: rgba(226,232,240,0.70); }
 html[data-theme="dark"] .sd-kv td { border-bottom-color: rgba(255,255,255,0.10); }
 html[data-theme="dark"] .sd-plat { background: rgba(2,6,23,0.25); border-color: rgba(255,255,255,0.10); }
-html[data-theme="dark"] .sd-details { background: rgba(15,23,42,0.35); border-color: rgba(255,255,255,0.10); }
-html[data-theme="dark"] .sd-details summary { color: rgba(226,232,240,0.95); }
-html[data-theme="dark"] .sd-details .sd-det-body { border-top-color: rgba(255,255,255,0.10); }
+html[data-theme="dark"] .sd-details {
+    background: linear-gradient(180deg, rgba(15,23,42,0.78) 0%, rgba(15,23,42,0.62) 100%);
+    border-color: rgba(148, 163, 184, 0.18);
+    box-shadow: 0 12px 28px rgba(2, 6, 23, 0.28);
+}
+html[data-theme="dark"] .sd-details:hover {
+    border-color: rgba(129, 140, 248, 0.28);
+    box-shadow: 0 16px 34px rgba(30, 41, 59, 0.34);
+}
+html[data-theme="dark"] .sd-details[open] {
+    border-color: rgba(129, 140, 248, 0.26);
+}
+html[data-theme="dark"] .sd-details summary {
+    color: rgba(226,232,240,0.95);
+    background: linear-gradient(135deg, rgba(79,70,229,0.18) 0%, rgba(30,64,175,0.14) 45%, rgba(15,23,42,0.18) 100%);
+}
+html[data-theme="dark"] .sd-details[open] summary {
+    background: linear-gradient(135deg, rgba(99,102,241,0.24) 0%, rgba(37,99,235,0.18) 45%, rgba(15,23,42,0.20) 100%);
+}
+html[data-theme="dark"] .sd-details .sd-det-chevron {
+    border-right-color: #94a3b8;
+    border-bottom-color: #94a3b8;
+    background: rgba(15, 23, 42, 0.72);
+    box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
+}
+html[data-theme="dark"] .sd-details[open] .sd-det-chevron {
+    border-right-color: #a5b4fc;
+    border-bottom-color: #a5b4fc;
+    background: rgba(49, 46, 129, 0.48);
+    box-shadow: inset 0 0 0 1px rgba(129, 140, 248, 0.24);
+}
+html[data-theme="dark"] .sd-details .sd-det-toggle-label {
+    color: #cbd5e1;
+    background: rgba(15, 23, 42, 0.58);
+    border-color: rgba(148, 163, 184, 0.18);
+}
+html[data-theme="dark"] .sd-details .sd-det-right { color: #cbd5e1; }
+html[data-theme="dark"] .sd-details .sd-det-body {
+    border-top-color: rgba(129, 140, 248, 0.16);
+    background: linear-gradient(180deg, rgba(15,23,42,0.50) 0%, rgba(15,23,42,0.34) 100%);
+}
 html[data-theme="dark"] .sd-metric .k { color: rgba(226,232,240,0.75); }
 html[data-theme="dark"] .sd-metric .v { color: rgba(226,232,240,0.95); }
 
@@ -11412,10 +11529,10 @@ function initDashboardRecap() {
             html += `</div>`;
 
             html += `<div class="scx-card scx-grid-span">`;
-            html += `  <details class="sd-details" open><summary><span>Grafik Score & KPI ${SCORE_METRIC_CHART_DAYS} Hari</span><span class="sd-det-right" id="sdMetric14Status">Loading...</span></summary><div class="sd-det-body"><div class="dashboard-recap-tabs mb-3" id="sdMetric14Tabs" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-primary" data-metric="score">Score</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="health_score">Health</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="ivt_risk_score">Risk</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="adjustment_score">Adjustment</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="confidence">Confidence</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="decision_margin">Decision Margin</button></div><div style="height:320px;"><canvas id="sdMetric14Chart"></canvas></div><div class="scx-section-gap"><div class="scx-title">Ringkasan Trend ROI (H-1 s/d H-${SCORE_METRIC_CHART_DAYS})</div><p class="scx-sub mb-2">Metrik ROI/revenue diambil dari monitoring harian. Score memakai histori scoring bila tersedia.</p><div id="scxSummaryTrendWindows">${scxRenderTrendWindows(trendWindows)}</div></div></div></details>`;
-            html += `  <details class="sd-details scx-tech-accordion" style="margin-top:16px;"><summary><span>Trend 1 / 3 / 7 / 14 / ${SCORE_METRIC_CHART_DAYS} Hari</span><span class="sd-det-right" id="sdTrendStatus">Loading trend...</span></summary><div class="sd-det-body"><div class="dashboard-recap-tabs mb-3" style="display:inline-flex;flex-wrap:wrap;gap:8px;"><button type="button" class="btn btn-sm btn-outline-primary" id="sdTrendBtn1" data-days="1">H-1</button><button type="button" class="btn btn-sm btn-outline-primary" id="sdTrendBtn3" data-days="3">H-3</button><button type="button" class="btn btn-sm btn-outline-primary" id="sdTrendBtn7" data-days="7">H-7</button><button type="button" class="btn btn-sm btn-outline-primary" id="sdTrendBtn14" data-days="14">H-14</button><button type="button" class="btn btn-sm btn-primary" id="sdTrendBtn35" data-days="${SCORE_METRIC_CHART_DAYS}">H-${SCORE_METRIC_CHART_DAYS}</button></div><div style="height:320px;"><canvas id="sdTrendChart"></canvas></div><div id="sdTrendStats"></div></div></details>`;
-            html += `  <details class="sd-details scx-tech-accordion" style="margin-top:16px;"><summary><span>Data Teknis Backend</span><span class="sd-det-right">Untuk validasi teknis</span></summary><div class="sd-det-body"><div class="scx-section-head"><div class="left">Detail Status Backend (Semua Negara)</div><div class="right">Validasi spend • revenue • ROI</div></div><div class="scx-sub" style="margin-bottom:8px;">Bagian ini dipakai untuk validasi teknis, bukan ringkasan cepat user.</div><div id="scxBackendStatusLoading" class="scx-table-loading"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><span>Memuat tabel status backend...</span></div><div id="scxBackendStatusContent"></div><div class="scx-section-gap"><div class="scx-section-head"><div class="left">Detail Event Signal Backend</div><div class="right">Urut dari signal terbesar</div></div><div class="scx-sub" style="margin-bottom:8px;">Dipakai untuk membaca event yang paling mendorong naik atau menekan hasil scoring.</div><div id="scxBackendEventLoading" class="scx-table-loading"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><span>Memuat tabel event backend...</span></div><div id="scxBackendEventContent"></div></div></div></details>`;
-            html += `  <details class="sd-details scx-tech-accordion" style="margin-top:16px;"><summary><span>Raw Response</span><span class="sd-det-right">JSON</span></summary><div class="sd-det-body"><div class="scx-json-scroll"><pre>${esc(JSON.stringify(scoring, null, 2))}</pre></div></div></details>`;
+            html += `  <details class="sd-details" open><summary><span class="sd-det-left"><span class="sd-det-chevron" aria-hidden="true"></span><span>Grafik Score & KPI ${SCORE_METRIC_CHART_DAYS} Hari</span></span><span class="sd-det-meta"><span class="sd-det-toggle-label"><span class="when-closed">Klik untuk buka</span><span class="when-open">Klik untuk tutup</span></span><span class="sd-det-right" id="sdMetric14Status">Loading...</span></span></summary><div class="sd-det-body"><div class="dashboard-recap-tabs mb-3" id="sdMetric14Tabs" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-primary" data-metric="score">Score</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="health_score">Health</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="ivt_risk_score">Risk</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="adjustment_score">Adjustment</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="confidence">Confidence</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="decision_margin">Decision Margin</button></div><div style="height:320px;"><canvas id="sdMetric14Chart"></canvas></div><div class="scx-section-gap"><div class="scx-title">Ringkasan Trend ROI (H-1 s/d H-${SCORE_METRIC_CHART_DAYS})</div><p class="scx-sub mb-2">Metrik ROI/revenue diambil dari monitoring harian. Score memakai histori scoring bila tersedia.</p><div id="scxSummaryTrendWindows">${scxRenderTrendWindows(trendWindows)}</div></div></div></details>`;
+            html += `  <details class="sd-details scx-tech-accordion" style="margin-top:16px;"><summary><span class="sd-det-left"><span class="sd-det-chevron" aria-hidden="true"></span><span>Trend 1 / 3 / 7 / 14 / ${SCORE_METRIC_CHART_DAYS} Hari</span></span><span class="sd-det-meta"><span class="sd-det-toggle-label"><span class="when-closed">Klik untuk buka</span><span class="when-open">Klik untuk tutup</span></span><span class="sd-det-right" id="sdTrendStatus">Loading trend...</span></span></summary><div class="sd-det-body"><div class="dashboard-recap-tabs mb-3" style="display:inline-flex;flex-wrap:wrap;gap:8px;"><button type="button" class="btn btn-sm btn-outline-primary" id="sdTrendBtn1" data-days="1">H-1</button><button type="button" class="btn btn-sm btn-outline-primary" id="sdTrendBtn3" data-days="3">H-3</button><button type="button" class="btn btn-sm btn-outline-primary" id="sdTrendBtn7" data-days="7">H-7</button><button type="button" class="btn btn-sm btn-outline-primary" id="sdTrendBtn14" data-days="14">H-14</button><button type="button" class="btn btn-sm btn-primary" id="sdTrendBtn35" data-days="${SCORE_METRIC_CHART_DAYS}">H-${SCORE_METRIC_CHART_DAYS}</button></div><div style="height:320px;"><canvas id="sdTrendChart"></canvas></div><div id="sdTrendStats"></div></div></details>`;
+            html += `  <details class="sd-details scx-tech-accordion" style="margin-top:16px;"><summary><span class="sd-det-left"><span class="sd-det-chevron" aria-hidden="true"></span><span>Data Teknis Backend</span></span><span class="sd-det-meta"><span class="sd-det-toggle-label"><span class="when-closed">Klik untuk buka</span><span class="when-open">Klik untuk tutup</span></span><span class="sd-det-right">Untuk validasi teknis</span></span></summary><div class="sd-det-body"><div class="scx-section-head"><div class="left">Detail Status Backend (Semua Negara)</div><div class="right">Validasi spend • revenue • ROI</div></div><div class="scx-sub" style="margin-bottom:8px;">Bagian ini dipakai untuk validasi teknis, bukan ringkasan cepat user.</div><div id="scxBackendStatusLoading" class="scx-table-loading"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><span>Memuat tabel status backend...</span></div><div id="scxBackendStatusContent"></div><div class="scx-section-gap"><div class="scx-section-head"><div class="left">Detail Event Signal Backend</div><div class="right">Urut dari signal terbesar</div></div><div class="scx-sub" style="margin-bottom:8px;">Dipakai untuk membaca event yang paling mendorong naik atau menekan hasil scoring.</div><div id="scxBackendEventLoading" class="scx-table-loading"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><span>Memuat tabel event backend...</span></div><div id="scxBackendEventContent"></div></div></div></details>`;
+            html += `  <details class="sd-details scx-tech-accordion" style="margin-top:16px;"><summary><span class="sd-det-left"><span class="sd-det-chevron" aria-hidden="true"></span><span>Raw Response</span></span><span class="sd-det-meta"><span class="sd-det-toggle-label"><span class="when-closed">Klik untuk buka</span><span class="when-open">Klik untuk tutup</span></span><span class="sd-det-right">JSON</span></span></summary><div class="sd-det-body"><div class="scx-json-scroll"><pre>${esc(JSON.stringify(scoring, null, 2))}</pre></div></div></details>`;
             html += `</div>`;
             html += `</div>`;
             html += `</div>`;

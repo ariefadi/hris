@@ -20,7 +20,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.conf import settings
 from django import template
 from datetime import datetime, date, timedelta, timezone
-from django.http import HttpResponse, JsonResponse, QueryDict, HttpResponseRedirect
+from django.http import HttpResponse, JsonResponse, QueryDict, HttpResponseRedirect, StreamingHttpResponse
 from django.core.management import call_command
 
 from management.database import insert_df, query_df
@@ -2266,9 +2266,20 @@ class FacebookCreativeMediaLibraryView(View):
         return super().dispatch(request, *args, **kwargs)
 
     def _token(self, account_id):
-        rs = data_mysql().master_account_ads_by_id({'data_account': account_id})
-        acc = (rs or {}).get('data') if isinstance(rs, dict) else None
-        return str((acc or {}).get('access_token') or '').strip()
+        account_id = str(account_id or '').strip()
+        stripped = account_id.replace('act_', '')
+        candidates = []
+        for val in (account_id, stripped, f'act_{stripped}' if stripped else ''):
+            val = str(val or '').strip()
+            if val and val not in candidates:
+                candidates.append(val)
+        for candidate in candidates:
+            rs = data_mysql().master_account_ads_by_id({'data_account': candidate})
+            acc = (rs or {}).get('data') if isinstance(rs, dict) else None
+            tok = str((acc or {}).get('access_token') or '').strip()
+            if tok:
+                return tok
+        return ''
 
     def _real_account_id(self, account_id):
         return str(account_id or '').replace('act_', '').strip()
@@ -2492,6 +2503,193 @@ class FacebookCreativeMediaLibraryView(View):
                 ))
         return items
 
+    @staticmethod
+    def _is_meta_video_id(video_id):
+        return bool(re.match(r'^\d+$', str(video_id or '').strip()))
+
+    def _graph_video_source_direct(self, token, video_id):
+        try:
+            resp = requests.get(
+                f'https://graph.facebook.com/v22.0/{video_id}',
+                params={'access_token': token, 'fields': 'source,permalink_url,embed_html,format'},
+                timeout=20,
+            )
+            body = resp.json() if resp.text else {}
+            if isinstance(body, dict) and not body.get('error'):
+                source = str(body.get('source') or '').strip()
+                if source:
+                    return source
+                source = self._extract_video_url_from_embed(body.get('embed_html'))
+                if source:
+                    return source
+        except Exception:
+            pass
+        return ''
+
+    @staticmethod
+    def _extract_video_url_from_embed(embed_html):
+        html = str(embed_html or '')
+        if not html:
+            return ''
+        for pattern in (
+            r'src="(https?://[^"]+)"',
+            r"src='(https?://[^']+)'",
+            r'href="(https?://[^"]+)"',
+        ):
+            match = re.search(pattern, html, re.I)
+            if not match:
+                continue
+            url = str(match.group(1) or '').strip()
+            if url and ('fbcdn' in url or '.mp4' in url.lower() or '/video/' in url):
+                return url
+        return ''
+
+    def _graph_video_source_from_post(self, post_id, tokens):
+        post_id = str(post_id or '').strip()
+        if not post_id:
+            return ''
+        for token in tokens:
+            token = str(token or '').strip()
+            if not token:
+                continue
+            try:
+                resp = requests.get(
+                    f'https://graph.facebook.com/v22.0/{post_id}',
+                    params={
+                        'access_token': token,
+                        'fields': 'attachments{media_type,media{source,id},subattachments{data{media_type,media{source,id}}}}',
+                    },
+                    timeout=20,
+                )
+                body = resp.json() if resp.text else {}
+                if isinstance(body, dict) and body.get('error'):
+                    continue
+                attach = GetCampaignMetaDetailView._parse_post_attachments(body if isinstance(body, dict) else {})
+                source = str(attach.get('video_source') or '').strip()
+                if source:
+                    return source
+            except Exception:
+                continue
+        return ''
+
+    def _graph_video_source_batch(self, token, video_id):
+        try:
+            resp = requests.get(
+                'https://graph.facebook.com/v22.0/',
+                params={'access_token': token, 'ids': video_id, 'fields': 'source'},
+                timeout=20,
+            )
+            body = resp.json() if resp.text else {}
+            if isinstance(body, dict):
+                row = body.get(str(video_id)) or {}
+                if isinstance(row, dict) and not row.get('error'):
+                    return str(row.get('source') or '').strip()
+        except Exception:
+            pass
+        return ''
+
+    def _graph_video_source_from_advideos(self, real_account_id, token, video_id):
+        if not real_account_id or not token or not video_id:
+            return ''
+        try:
+            resp = requests.get(
+                f'https://graph.facebook.com/v22.0/act_{real_account_id}/advideos',
+                params={
+                    'access_token': token,
+                    'fields': 'id,source',
+                    'limit': 50,
+                    'filtering': json.dumps([{'field': 'id', 'operator': 'IN', 'value': [str(video_id)]}]),
+                },
+                timeout=25,
+            )
+            body = resp.json() if resp.text else {}
+            if isinstance(body, dict) and not body.get('error'):
+                for row in (body.get('data') or []):
+                    if str((row or {}).get('id') or '') == str(video_id):
+                        src = str((row or {}).get('source') or '').strip()
+                        if src:
+                            return src
+        except Exception:
+            pass
+        url = f'https://graph.facebook.com/v22.0/act_{real_account_id}/advideos'
+        params = {'access_token': token, 'fields': 'id,source', 'limit': 100}
+        for _ in range(5):
+            try:
+                resp = requests.get(url, params=params, timeout=25)
+                body = resp.json() if resp.text else {}
+                if isinstance(body, dict) and body.get('error'):
+                    break
+                for row in (body.get('data') or []):
+                    if str((row or {}).get('id') or '') == str(video_id):
+                        src = str((row or {}).get('source') or '').strip()
+                        if src:
+                            return src
+                next_url = ((body.get('paging') or {}) if isinstance(body, dict) else {}).get('next')
+                if not next_url:
+                    break
+                url = next_url
+                params = None
+            except Exception:
+                break
+        return ''
+
+    def _graph_video_source_from_page(self, page_id, page_token, video_id):
+        if not page_id or not page_token or not video_id:
+            return ''
+        try:
+            resp = requests.get(
+                f'https://graph.facebook.com/v22.0/{page_id}/videos',
+                params={'access_token': page_token, 'fields': 'id,source', 'limit': 100},
+                timeout=25,
+            )
+            body = resp.json() if resp.text else {}
+            if isinstance(body, dict) and not body.get('error'):
+                for row in (body.get('data') or []):
+                    if str((row or {}).get('id') or '') == str(video_id):
+                        src = str((row or {}).get('source') or '').strip()
+                        if src:
+                            return src
+        except Exception:
+            pass
+        return ''
+
+    def _resolve_video_source(self, token, video_id, real_account_id='', page_id='', extra_tokens=None, post_id=''):
+        video_id = str(video_id or '').strip()
+        if not self._is_meta_video_id(video_id):
+            return ''
+        tokens = []
+        page_token = _facebook_page_access_token(page_id, token) if page_id and token else ''
+        if page_token:
+            tokens.append(page_token)
+        for t in list(extra_tokens or []):
+            t = str(t or '').strip()
+            if t and t not in tokens:
+                tokens.append(t)
+        if token and token not in tokens:
+            tokens.append(token)
+        if post_id:
+            source = self._graph_video_source_from_post(post_id, tokens)
+            if source:
+                return source
+        for t in tokens:
+            source = self._graph_video_source_direct(t, video_id)
+            if source:
+                return source
+        for t in tokens:
+            source = self._graph_video_source_batch(t, video_id)
+            if source:
+                return source
+        if real_account_id and token:
+            source = self._graph_video_source_from_advideos(real_account_id, token, video_id)
+            if source:
+                return source
+        if page_id:
+            for t in tokens:
+                source = self._graph_video_source_from_page(page_id, t, video_id)
+                if source:
+                    return source
+        return ''
+
     def get(self, req):
         account_id = str(req.GET.get('account_id') or '').strip()
         source = str(req.GET.get('source') or 'all').strip().lower()
@@ -2570,6 +2768,88 @@ class FacebookCreativeMediaThumbView(View):
         if not thumb:
             return HttpResponse(status=404)
         return HttpResponseRedirect(thumb)
+
+
+class FacebookCreativeVideoSourceView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return redirect('admin_login')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get(self, req):
+        account_id = str(req.GET.get('account_id') or '').strip()
+        video_id = str(req.GET.get('video_id') or '').strip()
+        page_id = str(req.GET.get('page_id') or '').strip()
+        post_id = str(req.GET.get('post_id') or '').strip()
+        wants_json = str(req.GET.get('format') or '').strip().lower() == 'json'
+        if not account_id or not video_id:
+            if wants_json:
+                return JsonResponse({'success': False, 'message': 'account_id dan video_id wajib diisi'}, status=404)
+            return HttpResponse(status=404)
+        lib = FacebookCreativeMediaLibraryView()
+        if not lib._is_meta_video_id(video_id):
+            if wants_json:
+                return JsonResponse({'success': False, 'message': 'video_id tidak valid', 'video_id': video_id}, status=404)
+            return HttpResponse(status=404)
+        token = lib._token(account_id)
+        if not token:
+            if wants_json:
+                return JsonResponse({'success': False, 'message': 'Token akun tidak ditemukan'}, status=404)
+            return HttpResponse(status=404)
+        extra_tokens = []
+        if page_id:
+            page_token = _facebook_page_access_token(page_id, token)
+            if page_token:
+                extra_tokens.append(page_token)
+        source = lib._resolve_video_source(
+            token,
+            video_id,
+            real_account_id=lib._real_account_id(account_id),
+            page_id=page_id,
+            extra_tokens=extra_tokens,
+            post_id=post_id,
+        )
+        if not source:
+            if wants_json:
+                return JsonResponse({'success': False, 'message': 'Sumber video tidak tersedia dari Meta API', 'video_id': video_id}, status=404)
+            return HttpResponse(status=404)
+        if str(req.GET.get('format') or '').strip().lower() == 'json':
+            return JsonResponse({'video_url': source, 'source': source})
+        use_redirect = str(req.GET.get('redirect') or '').strip() == '1'
+        use_stream = not use_redirect and (
+            str(req.GET.get('stream') or '').strip() == '1'
+            or 'video' in str(req.META.get('HTTP_ACCEPT') or '').lower()
+            or str(req.GET.get('format') or '').strip().lower() != 'json'
+        )
+        if use_stream:
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Accept': '*/*',
+                'Referer': 'https://www.facebook.com/',
+            }
+            range_header = str(req.META.get('HTTP_RANGE') or '').strip()
+            if range_header:
+                headers['Range'] = range_header
+            try:
+                upstream = requests.get(source, headers=headers, stream=True, timeout=90)
+            except Exception:
+                return HttpResponse(status=502)
+            if upstream.status_code >= 400:
+                return HttpResponse(status=upstream.status_code)
+            content_type = str(upstream.headers.get('Content-Type') or 'video/mp4')
+            response = StreamingHttpResponse(
+                upstream.iter_content(chunk_size=65536),
+                status=upstream.status_code,
+                content_type=content_type,
+            )
+            for key in ('Content-Length', 'Content-Range', 'Accept-Ranges'):
+                val = upstream.headers.get(key)
+                if val:
+                    response[key] = val
+            response['Cache-Control'] = 'private, max-age=300'
+            response['Accept-Ranges'] = response.get('Accept-Ranges') or 'bytes'
+            return response
+        return HttpResponseRedirect(source)
 
 
 def _discovery_normalize_url(url):
@@ -6064,7 +6344,7 @@ class GetCampaignMetaDetailView(View):
 
     @staticmethod
     def _parse_post_attachments(post_data):
-        out = {'video_id': '', 'image_url': '', 'link': ''}
+        out = {'video_id': '', 'image_url': '', 'link': '', 'video_source': ''}
         attachments = post_data.get('attachments') if isinstance(post_data.get('attachments'), dict) else {}
         rows = attachments.get('data') if isinstance(attachments.get('data'), list) else []
         for att in rows:
@@ -6074,6 +6354,7 @@ class GetCampaignMetaDetailView(View):
             media_type = str(att.get('media_type') or '').strip().lower()
             if media_type == 'video':
                 out['video_id'] = out['video_id'] or str(media.get('id') or '').strip()
+                out['video_source'] = out['video_source'] or str(media.get('source') or '').strip()
                 image = media.get('image') if isinstance(media.get('image'), dict) else {}
                 out['image_url'] = out['image_url'] or str(image.get('src') or '').strip()
             else:
@@ -6087,6 +6368,7 @@ class GetCampaignMetaDetailView(View):
                 sub_media = sub_att.get('media') if isinstance(sub_att.get('media'), dict) else {}
                 if str(sub_att.get('media_type') or '').strip().lower() == 'video':
                     out['video_id'] = out['video_id'] or str(sub_media.get('id') or '').strip()
+                    out['video_source'] = out['video_source'] or str(sub_media.get('source') or '').strip()
                 sub_image = sub_media.get('image') if isinstance(sub_media.get('image'), dict) else {}
                 out['image_url'] = out['image_url'] or str(sub_image.get('src') or '').strip()
         return out
@@ -6311,15 +6593,27 @@ class GetCampaignMetaDetailView(View):
                 cta = story.get('call_to_action') if isinstance(story.get('call_to_action'), dict) else {}
                 cta_val = cta.get('value') if isinstance(cta.get('value'), dict) else {}
                 existing_post_id = str(creative.get('object_story_id') or drow.get('effective_object_story_id') or '').strip()
+                page_id = str(spec.get('page_id') or (existing_post_id.split('_')[0] if '_' in existing_post_id else ''))
                 post_data = {}
-                post_attach = {'video_id': '', 'image_url': '', 'link': ''}
+                post_attach = {'video_id': '', 'image_url': '', 'link': '', 'video_source': ''}
                 if existing_post_id:
-                    presp = requests.get(
-                        f'https://graph.facebook.com/v22.0/{existing_post_id}',
-                        params={'access_token': token, 'fields': 'id,message,caption,description,link,from{id,name},call_to_action,attachments{media_type,url,media{source,id,image{src}},subattachments{data{media_type,url,media{source,id,image{src}}}}}'},
-                        timeout=20
-                    )
-                    post_data = presp.json() if presp.text else {}
+                    post_tokens = []
+                    if page_id:
+                        page_token_early = _facebook_page_access_token(page_id, token)
+                        if page_token_early:
+                            post_tokens.append(page_token_early)
+                    if token and token not in post_tokens:
+                        post_tokens.append(token)
+                    for post_token in post_tokens:
+                        presp = requests.get(
+                            f'https://graph.facebook.com/v22.0/{existing_post_id}',
+                            params={'access_token': post_token, 'fields': 'id,message,caption,description,link,from{id,name},call_to_action,attachments{media_type,url,media{source,id,image{src}},subattachments{data{media_type,url,media{source,id,image{src}}}}}'},
+                            timeout=20
+                        )
+                        post_data = presp.json() if presp.text else {}
+                        if isinstance(post_data, dict) and not post_data.get('error'):
+                            break
+                        post_data = {}
                     post_attach = GetCampaignMetaDetailView._parse_post_attachments(post_data if isinstance(post_data, dict) else {})
                 post_from = post_data.get('from') if isinstance(post_data.get('from'), dict) else {}
                 post_cta = post_data.get('call_to_action') if isinstance(post_data.get('call_to_action'), dict) else {}
@@ -6359,7 +6653,22 @@ class GetCampaignMetaDetailView(View):
                 )
                 if video_id and not video_thumbnail_url:
                     video_thumbnail_url = GetCampaignMetaDetailView._fetch_video_thumb(token, video_id)
-                page_id = str(spec.get('page_id') or post_from.get('id') or (existing_post_id.split('_')[0] if '_' in existing_post_id else ''))
+                if not page_id:
+                    post_from = post_data.get('from') if isinstance(post_data.get('from'), dict) else {}
+                    page_id = str(post_from.get('id') or (existing_post_id.split('_')[0] if '_' in existing_post_id else ''))
+                video_source_url = str(post_attach.get('video_source') or '').strip()
+                if video_id and not video_source_url:
+                    media_lib = FacebookCreativeMediaLibraryView()
+                    page_token = _facebook_page_access_token(page_id, token) if page_id else ''
+                    extra_tokens = [page_token] if page_token else []
+                    video_source_url = media_lib._resolve_video_source(
+                        token,
+                        video_id,
+                        real_account_id=media_lib._real_account_id(account_id),
+                        page_id=page_id,
+                        extra_tokens=extra_tokens,
+                        post_id=existing_post_id,
+                    )
                 page_id_label = str(post_from.get('name') or '')
                 if page_id and not page_id_label:
                     page_id_label = GetCampaignMetaDetailView._fetch_graph_name(token, page_id)
@@ -6390,6 +6699,15 @@ class GetCampaignMetaDetailView(View):
                     'url_tags': str(creative.get('url_tags') or ''),
                     'video_id': video_id,
                     'video_thumbnail_url': video_thumbnail_url,
+                    'video_source_url': video_source_url,
+                    'video_playback_url': (
+                        (
+                            f'/management/admin/facebook_creative_video_source?account_id={account_id}&video_id={video_id}&stream=1'
+                            + (f'&page_id={page_id}' if page_id else '')
+                            + (f'&post_id={existing_post_id}' if existing_post_id else '')
+                        )
+                        if FacebookCreativeMediaLibraryView._is_meta_video_id(video_id) else ''
+                    ),
                     'image_hash': image_hash,
                     'creative_type': story_kind or str(creative.get('object_type') or ''),
                 }

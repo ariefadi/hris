@@ -71,6 +71,7 @@ urlpatterns = [
     path('admin/facebook_page_messaging_assets', views.FacebookPageMessagingAssetsView.as_view(), name='facebook_page_messaging_assets'),
     path('admin/facebook_creative_media_library', views.FacebookCreativeMediaLibraryView.as_view(), name='facebook_creative_media_library'),
     path('admin/facebook_creative_media_thumb', views.FacebookCreativeMediaThumbView.as_view(), name='facebook_creative_media_thumb'),
+    path('admin/facebook_creative_video_source', views.FacebookCreativeVideoSourceView.as_view(), name='facebook_creative_video_source'),
     path('admin/facebook_creative_discovery_links', views.FacebookCreativeDiscoveryLinksView.as_view(), name='facebook_creative_discovery_links'),
     path('admin/facebook_existing_post_library', views.FacebookExistingPostLibraryView.as_view(), name='facebook_existing_post_library'),
     path('admin/facebook_create_page_post', views.FacebookCreatePagePostView.as_view(), name='facebook_create_page_post'),

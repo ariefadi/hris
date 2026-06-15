@@ -10893,6 +10893,42 @@
     display: block
   }
 
+  .tm-pe-video-wrap {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: #000
+  }
+
+  .tm-pe-video-play {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: rgba(15, 23, 42, .18);
+    color: #1e293b;
+    cursor: pointer;
+    padding: 0
+  }
+
+  .tm-pe-video-play.is-hidden {
+    display: none
+  }
+
+  .tm-pe-video-play i {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .92);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, .2)
+  }
+
   .tm-pe-feed-foot {
     padding: 10px 12px;
     background: #f8fafc;
@@ -18352,6 +18388,7 @@
               <input id="modal_image_file" type="file" accept="image/*" hidden><input id="modal_video_file" type="file" accept="video/*" hidden>
               <input type="hidden" id="modal_image_hash" value="">
               <input type="hidden" id="modal_video_id" value="">
+              <input type="hidden" id="modal_video_source_url" value="">
               <input type="hidden" id="modal_video_trim_start" value="">
               <input type="hidden" id="modal_video_trim_end" value="">
               <input type="hidden" id="modal_video_thumbnail_url" value="">
@@ -21682,6 +21719,12 @@
         $wrap.data('vcBound', 1);
         const video = $wrap.find('video')[0];
         if (!video) return;
+        if (typeof window.bindPlaybackVideo === 'function') {
+          window.bindPlaybackVideo(video, {
+            videoId: String($('#modal_video_id').val() || ''),
+            thumb: String($('#modal_video_thumbnail_url').val() || '')
+          });
+        }
         video.muted = true;
         video.volume = 1;
         const $overlay = $wrap.find('.tm-ad-preview-video-overlay');
@@ -21711,15 +21754,24 @@
         };
         const togglePlay = function () {
           if (video.paused || video.ended) {
-            if (video.ended) video.currentTime = 0;
-            enableAudioOnPlay();
-            const playPromise = video.play();
-            if (playPromise && typeof playPromise.catch === 'function') {
-              playPromise.catch(function () {
-                video.muted = true;
-                syncMuteIcon();
-                video.play().catch(function () { /* ignore */ });
-              });
+            const startPlay = function () {
+              if (video.ended) video.currentTime = 0;
+              enableAudioOnPlay();
+              const tryPlay = function (muted) {
+                video.muted = !!muted;
+                const playPromise = video.play();
+                if (playPromise && typeof playPromise.then === 'function') {
+                  playPromise.catch(function () {
+                    if (!muted) tryPlay(true);
+                  });
+                }
+              };
+              tryPlay(false);
+            };
+            if (typeof window.ensurePlaybackVideoSrc === 'function') {
+              window.ensurePlaybackVideoSrc(video, startPlay);
+            } else {
+              startPlay();
             }
           } else {
             video.pause();
@@ -21836,16 +21888,25 @@
       if (typeof window.resolveCreativeMediaItem === 'function') {
         const item = window.resolveCreativeMediaItem();
         if (item && item.thumb_url) {
+          const videoId = String(item.video_id || $('#modal_video_id').val() || '').trim();
+          const isVideo = (typeof window.isVideoCreative === 'function' ? window.isVideoCreative(item) : item.type === 'video');
+          const videoUrl = isVideo && typeof window.resolveVideoPlaybackUrl === 'function'
+            ? window.resolveVideoPlaybackUrl(videoId, item)
+            : String(item.video_url || '').trim();
           return {
             url: String(item.thumb_url || ''),
-            videoUrl: String(item.video_url || (item.type === 'video' ? item.thumb_url : '')),
-            isVideo: item.type === 'video'
+            videoUrl: isVideo ? videoUrl : '',
+            isVideo: isVideo
           };
         }
       }
       const videoThumb = String($('#modal_video_thumbnail_url').val() || '').trim();
-      if (videoThumb) {
-        return { url: videoThumb, videoUrl: adPreviewVideoUrl || '', isVideo: true };
+      const videoId = String($('#modal_video_id').val() || '').trim();
+      const isVideo = !!(videoId || videoThumb);
+      if (isVideo) {
+        const playback = (typeof window.resolveVideoPlaybackUrl === 'function' ? window.resolveVideoPlaybackUrl(videoId) : '')
+          || adPreviewVideoUrl || '';
+        return { url: videoThumb || playback, videoUrl: playback, isVideo: true };
       }
       if (adPreviewImageUrl) return { url: adPreviewImageUrl, videoUrl: adPreviewVideoUrl || '', isVideo: !!adPreviewVideoUrl };
       const videoFile = ($('#modal_video_file')[0] && $('#modal_video_file')[0].files && $('#modal_video_file')[0].files[0]) ? $('#modal_video_file')[0].files[0] : null;
@@ -21863,9 +21924,8 @@
       const placementImg = String($('#tmCreativePlacementsList .tm-creative-placement-item-thumb img, #tmCreativePlacementsList img, .tm-creative-placement-single .tm-creative-placement-item-thumb img').first().attr('src') || '').trim();
       if (placementImg) return { url: placementImg, videoUrl: '', isVideo: false };
       const imageHash = String($('#modal_image_hash').val() || '').trim();
-      const videoId = String($('#modal_video_id').val() || '').trim();
-      if (imageHash || videoId) {
-        return { url: String($('#modal_video_thumbnail_url').val() || '').trim(), videoUrl: '', isVideo: !!videoId };
+      if (imageHash) {
+        return { url: videoThumb, videoUrl: '', isVideo: false };
       }
       return { url: '', videoUrl: '', isVideo: false };
     }
@@ -21913,14 +21973,15 @@
       opts = opts || {};
       if (!media || !media.url) return '<i class="far fa-image"></i>';
       const allowControls = opts.allowVideoControls !== false;
-      if (media.isVideo && (media.videoUrl || media.url)) {
-        const src = adPreviewEsc(media.videoUrl || media.url);
-        const poster = adPreviewEsc(media.url);
+      if (media.isVideo) {
+        const src = media.videoUrl ? adPreviewEsc(media.videoUrl) : '';
+        const poster = adPreviewEsc(media.url || '');
+        const srcAttr = src ? ' src="' + src + '"' : '';
         if (!allowControls) {
-          return '<video src="' + src + '" poster="' + poster + '" muted playsinline></video>';
+          return '<video' + srcAttr + ' poster="' + poster + '" muted playsinline></video>';
         }
         return '<div class="tm-ad-preview-video-wrap">' +
-          '<video src="' + src + '" poster="' + poster + '" playsinline preload="metadata"></video>' +
+          '<video' + srcAttr + ' poster="' + poster + '" playsinline preload="metadata"></video>' +
           '<button type="button" class="tm-ad-preview-video-overlay"><i class="fas fa-play"></i></button>' +
           '<div class="tm-ad-preview-video-controls">' +
           '<button type="button" class="tm-ad-preview-vc-btn tm-ad-preview-vc-play"><i class="fas fa-play"></i></button>' +
@@ -23929,6 +23990,7 @@
         url_tags: 'url_tags',
         video_id: 'video_id',
         video_thumbnail_url: 'video_thumbnail_url',
+        video_source_url: 'video_source_url',
         image_hash: 'image_hash',
       };
       Object.keys(fieldMap).forEach(function (k) {
@@ -23970,7 +24032,7 @@
       $('#modal_campaign_mode').val('edit');
       $('#modal_campaign_id').val(String(data.campaign_id || ''));
       $('#modal_campaign_name').val(String(data.campaign_name || ''));
-      $('#modal_account').val(String(data.account_id || '')).trigger('change');
+      $('#modal_account').val(String(data.account_id || ''));
       $('#modal_objective').val(String(data.objective || 'OUTCOME_TRAFFIC')).trigger('change');
       $('#modal_status').val(String(data.status || 'PAUSED')).trigger('change');
       $('#modal_campaign_buying_type').val(String(data.buying_type || 'AUCTION')).trigger('change');
@@ -24004,6 +24066,7 @@
         } else if (data.ad && typeof window.hydrateAdCreativeFromMeta === 'function') {
           window.hydrateAdCreativeFromMeta(data.ad);
         }
+        $('#modal_account').trigger('change');
       }, 120);
     }
     window.applyEditAdData = applyEditAdData;
