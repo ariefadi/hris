@@ -5422,6 +5422,128 @@ class DashboardSyncView(View):
             return JsonResponse({'status': False, 'error': str(e)}, status=500)
 
 
+@method_decorator(csrf_exempt, name='dispatch')
+class DashboardTrafficMetricsView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        try:
+            payload = json.loads(req.body.decode('utf-8') or '{}')
+        except Exception:
+            payload = {}
+
+        start_date = str(payload.get('start_date') or payload.get('date') or '').strip()
+        end_date = str(payload.get('end_date') or payload.get('date') or start_date).strip()
+        domains = payload.get('domains') or []
+        subdomain_filter = str(payload.get('subdomain') or '').strip()
+
+        requested_domains = []
+        if isinstance(domains, (list, tuple, set)):
+            requested_domains.extend([str(item or '').strip() for item in domains if str(item or '').strip()])
+        elif isinstance(domains, str):
+            requested_domains.extend([str(item or '').strip() for item in domains.split(',') if str(item or '').strip()])
+        if subdomain_filter:
+            requested_domains.append(subdomain_filter)
+
+        requested_domains = build_domain_filter_terms(requested_domains, include_original=True, include_base=True)
+        indexes = _fetch_kiwipixel_campaign_traffic(start_date, end_date)
+        by_domain = (indexes or {}).get('by_domain') or {}
+
+        if requested_domains:
+            out = {}
+            for domain in requested_domains:
+                dkey = _normalize_kiwipixel_domain_key(domain)
+                if not dkey:
+                    continue
+                out[dkey] = dict(by_domain.get(dkey) or _zero_kiwipixel_traffic_metrics())
+            by_domain = out
+        else:
+            by_domain = {
+                str(k or '').strip(): dict(v or _zero_kiwipixel_traffic_metrics())
+                for k, v in by_domain.items()
+                if str(k or '').strip()
+            }
+
+        return JsonResponse({
+            'status': True,
+            'data': {
+                'start_date': start_date,
+                'end_date': end_date,
+                'by_domain': by_domain,
+            }
+        })
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DashboardCountryTrafficMetricsView(View):
+    def dispatch(self, request, *args, **kwargs):
+        if 'hris_admin' not in request.session:
+            return JsonResponse({'status': False, 'error': 'Unauthorized'}, status=401)
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, req):
+        try:
+            payload = json.loads(req.body.decode('utf-8') or '{}')
+        except Exception:
+            payload = {}
+
+        start_date = str(payload.get('start_date') or payload.get('date') or '').strip()
+        end_date = str(payload.get('end_date') or payload.get('date') or start_date).strip()
+        countries = payload.get('countries') or []
+        subdomain_filter = str(payload.get('subdomain') or '').strip()
+        domains = payload.get('domains') or []
+
+        requested_countries = []
+        if isinstance(countries, (list, tuple, set)):
+            requested_countries.extend([str(item or '').strip().upper() for item in countries if str(item or '').strip()])
+        elif isinstance(countries, str):
+            requested_countries.extend([str(item or '').strip().upper() for item in countries.split(',') if str(item or '').strip()])
+        requested_countries = [
+            _normalize_kiwipixel_country_code(item)
+            for item in dict.fromkeys(requested_countries)
+            if _normalize_kiwipixel_country_code(item)
+        ]
+
+        requested_domains = []
+        if isinstance(domains, (list, tuple, set)):
+            requested_domains.extend([str(item or '').strip() for item in domains if str(item or '').strip()])
+        elif isinstance(domains, str):
+            requested_domains.extend([str(item or '').strip() for item in domains.split(',') if str(item or '').strip()])
+        if subdomain_filter:
+            requested_domains.append(subdomain_filter)
+        requested_domains = build_domain_filter_terms(requested_domains, include_original=True, include_base=True)
+
+        metrics_by_country = _fetch_kiwipixel_country_metrics(
+            requested_countries,
+            start_date,
+            end_date,
+            requested_domains,
+        )
+
+        by_country = {
+            str(code or '').strip().upper(): dict(metrics or _zero_kiwipixel_traffic_metrics())
+            for code, metrics in (metrics_by_country or {}).items()
+            if str(code or '').strip()
+        }
+
+        if requested_countries:
+            out = {}
+            for code in requested_countries:
+                out[code] = dict(by_country.get(code) or _zero_kiwipixel_traffic_metrics())
+            by_country = out
+
+        return JsonResponse({
+            'status': True,
+            'data': {
+                'start_date': start_date,
+                'end_date': end_date,
+                'by_country': by_country,
+            }
+        })
+
 class SwitchPortal(View):
     def dispatch(self, request, *args, **kwargs):
         if 'hris_admin' not in request.session:
@@ -8747,9 +8869,15 @@ def _normalize_kiwipixel_date(value):
 
 
 def _normalize_kiwipixel_domain_key(domain):
-    value = (domain or '').lower().strip()
+    value = str(domain or '').lower().strip()
     if not value or value == '%':
         return ''
+    if '://' in value:
+        value = value.split('://', 1)[1]
+    value = value.split('/', 1)[0].split('?', 1)[0].split('#', 1)[0]
+    value = value.split(':', 1)[0]
+    if value.startswith('www.'):
+        value = value[4:]
     for suffix in ('.adx', '.ads'):
         if value.endswith(suffix):
             value = value[: -len(suffix)]
@@ -8762,6 +8890,35 @@ def _normalize_kiwipixel_domain_key(domain):
             value = value[: -len(tld)]
             break
     return value.strip('.')
+
+
+def _normalize_kiwipixel_country_code(code):
+    value = str(code or '').strip().upper()
+    if not value:
+        return ''
+    if value == 'TU':
+        return 'TR'
+    return value
+
+
+def _expand_kiwipixel_country_code_aliases(codes):
+    out = []
+    seen = set()
+    for item in (codes or []):
+        value = str(item or '').strip().upper()
+        if not value:
+            continue
+        aliases = [value]
+        normalized = _normalize_kiwipixel_country_code(value)
+        if normalized and normalized not in aliases:
+            aliases.insert(0, normalized)
+        if normalized == 'TR' and 'TU' not in aliases:
+            aliases.append('TU')
+        for alias in aliases:
+            if alias and alias not in seen:
+                seen.add(alias)
+                out.append(alias)
+    return out
 
 
 def _kiwipixel_domain_matches(api_domain, filter_domains):
@@ -8792,13 +8949,35 @@ def _kiwipixel_domain_matches(api_domain, filter_domains):
     return False
 
 
+def _kiwipixel_domain_row_matches(domain_row, filter_domains):
+    if not filter_domains:
+        return True
+    if not isinstance(domain_row, dict):
+        return False
+    candidates = []
+    for key in ('domain', 'site', 'site_name', 'subdomain', 'hostname', 'host', 'url'):
+        value = str(domain_row.get(key) or '').strip()
+        if value:
+            candidates.append(value)
+    for candidate in candidates:
+        if _kiwipixel_domain_matches(candidate, filter_domains):
+            return True
+    return False
+
+
 def _fetch_kiwipixel_country_metrics(country_codes, start_date, end_date, domain_filters):
     start_fmt = _normalize_kiwipixel_date(start_date)
     end_fmt = _normalize_kiwipixel_date(end_date)
     if not start_fmt or not end_fmt:
         return {}
 
-    codes = [str(code or '').strip().upper() for code in (country_codes or []) if str(code or '').strip()]
+    raw_codes = [str(code or '').strip().upper() for code in (country_codes or []) if str(code or '').strip()]
+    codes = _expand_kiwipixel_country_code_aliases(raw_codes)
+    requested_code_set = {
+        _normalize_kiwipixel_country_code(code)
+        for code in raw_codes
+        if _normalize_kiwipixel_country_code(code)
+    }
     filter_payload = {
         'start_date': int(start_fmt),
         'end_date': int(end_fmt),
@@ -8831,26 +9010,21 @@ def _fetch_kiwipixel_country_metrics(country_codes, start_date, end_date, domain
     for country_row in (payload.get('countries') or []):
         if not isinstance(country_row, dict):
             continue
-        country_code = str(country_row.get('country_code') or '').strip().upper()
+        country_code = _normalize_kiwipixel_country_code(country_row.get('country_code'))
         if not country_code:
             continue
-        if codes and country_code not in codes:
+        if requested_code_set and country_code not in requested_code_set:
             continue
         domain_rows = country_row.get('domains') or []
         if not isinstance(domain_rows, list):
             domain_rows = []
-        out = _zero_kiwipixel_traffic_metrics()
+        out = metrics_by_country.setdefault(country_code, _zero_kiwipixel_traffic_metrics())
         if not normalized_filters:
-            out['total_visits'] = int(country_row.get('total_visits') or 0)
-            out['unique_visitor'] = int(country_row.get('unique_visitor') or 0)
-            out['total_pageviews'] = int(country_row.get('total_pageviews') or 0)
+            _add_kiwipixel_traffic_metrics(out, country_row)
         else:
             for domain_row in domain_rows:
-                if not isinstance(domain_row, dict):
-                    continue
-                if _kiwipixel_domain_matches(domain_row.get('domain'), normalized_filters):
+                if _kiwipixel_domain_row_matches(domain_row, normalized_filters):
                     _add_kiwipixel_traffic_metrics(out, domain_row)
-        metrics_by_country[country_code] = out
     return metrics_by_country
 
 

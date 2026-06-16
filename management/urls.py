@@ -22,6 +22,8 @@ urlpatterns = [
     path('admin/dashboard', views.DashboardAdmin.as_view(), name='dashboard_admin'),
     path('admin/dashboard_data', views.DashboardData.as_view(), name='dashboard_data'),
     path('admin/dashboard_scoring_data', views.DashboardScoringDataView.as_view(), name='dashboard_scoring_data'),
+    path('admin/dashboard_traffic_metrics', views.DashboardTrafficMetricsView.as_view(), name='dashboard_traffic_metrics'),
+    path('admin/dashboard_country_traffic_metrics', views.DashboardCountryTrafficMetricsView.as_view(), name='dashboard_country_traffic_metrics'),
     path('admin/dashboard_create_scoring', views.DashboardCreateScoringView.as_view(), name='dashboard_create_scoring'),
     path('admin/dashboard_hourly_heatmap', views.DashboardDomainHourlyHeatmapView.as_view()),
     path('admin/dashboard_portfolio_pulse', views.DashboardPortfolioPulseView.as_view()),
