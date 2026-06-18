@@ -1789,6 +1789,7 @@ html[data-theme="dark"] #dashboardRecapTemporalCard .roi-heatmap-legend {
     display: grid;
     grid-template-columns: minmax(420px, 1.2fr) minmax(0, 0.8fr);
     gap: 16px;
+    align-items: start;
 }
 .scx-grid > * {
     min-width: 0;
@@ -2758,6 +2759,23 @@ html[data-theme="dark"] .score-detail-modal__body .scx-pane-mini-s,
 html[data-theme="dark"] .score-detail-modal__body .scx-pane-table-head span {
     color: rgba(226, 232, 240, 0.78);
 }
+html[data-theme="dark"] .scx-mini-compare-card {
+    background: rgba(15,23,42,.78);
+    border-color: rgba(148,163,184,.16);
+}
+html[data-theme="dark"] .scx-mini-compare-title,
+html[data-theme="dark"] .scx-mini-compare-current {
+    color: #f8fafc;
+}
+html[data-theme="dark"] .scx-mini-compare-sub,
+html[data-theme="dark"] .scx-mini-compare-label,
+html[data-theme="dark"] .scx-mini-compare-value {
+    color: rgba(226, 232, 240, 0.78);
+}
+html[data-theme="dark"] .scx-mini-compare-track {
+    background: linear-gradient(180deg, rgba(30,41,59,.92) 0%, rgba(15,23,42,.96) 100%);
+    border-color: rgba(148,163,184,.18);
+}
 
 .scx-note-box {
     border: 1px dashed rgba(15, 23, 42, 0.10);
@@ -2802,6 +2820,29 @@ html[data-theme="dark"] .score-detail-modal__body .scx-pane-table-head span {
 .scx-insight-v { font-size:18px; font-weight:900; color:#0f172a; margin-top:4px; }
 .scx-insight-s { font-size:11px; color:#64748b; margin-top:3px; }
 .scx-insight-card .scx-insight-v { letter-spacing: -.02em; }
+.scx-mini-compare-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:12px; }
+@media (max-width:991.98px){ .scx-mini-compare-grid { grid-template-columns:1fr; } }
+.scx-mini-compare-card { border:1px solid rgba(15,23,42,.08); border-radius:16px; padding:12px 12px 10px; background:linear-gradient(135deg,#ffffff 0%,#f8fbff 100%); box-shadow:0 10px 22px rgba(15,23,42,.05); }
+.scx-mini-compare-head { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:10px; }
+.scx-mini-compare-title { font-size:12px; font-weight:800; color:#0f172a; }
+.scx-mini-compare-sub { font-size:11px; color:#64748b; margin-top:2px; }
+.scx-mini-compare-current { font-size:12px; font-weight:900; color:#0f172a; white-space:nowrap; }
+.scx-mini-compare-bars { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:8px; align-items:end; }
+.scx-mini-compare-item { display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0; }
+.scx-mini-compare-item.current .scx-mini-compare-track { box-shadow:0 0 0 2px rgba(99,102,241,.18); border-color:rgba(99,102,241,.28); }
+.scx-mini-compare-label { font-size:10px; font-weight:800; color:#64748b; text-transform:uppercase; letter-spacing:.02em; }
+.scx-mini-compare-track { position:relative; width:100%; max-width:40px; height:62px; border-radius:999px; border:1px solid rgba(148,163,184,.18); background:linear-gradient(180deg, rgba(241,245,249,.85) 0%, rgba(226,232,240,.9) 100%); display:flex; align-items:flex-end; justify-content:center; overflow:hidden; }
+.scx-mini-compare-fill { width:100%; border-radius:999px; min-height:4px; transition:height .2s ease; }
+.scx-mini-compare-fill.is-positive { background:linear-gradient(180deg, #22c55e 0%, #16a34a 100%); }
+.scx-mini-compare-fill.is-negative { background:linear-gradient(180deg, #fb7185 0%, #ef4444 100%); }
+.scx-mini-compare-fill.is-risk { background:linear-gradient(180deg, #f59e0b 0%, #ef4444 100%); }
+.scx-mini-compare-fill.is-confidence { background:linear-gradient(180deg, #60a5fa 0%, #4f46e5 100%); }
+.scx-mini-compare-value { font-size:10px; font-weight:800; color:#334155; text-align:center; line-height:1.2; }
+.scx-history-layout { display:grid; grid-template-columns:minmax(0, .95fr) minmax(320px, 1.05fr); gap:16px; align-items:start; }
+.scx-history-stack { display:flex; flex-direction:column; gap:14px; min-width:0; }
+@media (max-width: 991.98px) {
+    .scx-history-layout { grid-template-columns:1fr; }
+}
 .scx-section-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
 .scx-section-head .left { font-size:13px; font-weight:800; color:#0f172a; }
 .scx-section-head .right { font-size:11px; color:#64748b; }
@@ -3195,6 +3236,25 @@ html[data-theme="dark"] .score-detail-modal__body .scx-pane-table-head span {
 .decision-timeline-tabs { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
 .decision-timeline-tab { border:1px solid rgba(148,163,184,.18); background:rgba(255,255,255,.9); color:#334155; border-radius:999px; padding:8px 12px; font-size:11px; font-weight:800; cursor:pointer; box-shadow: inset 0 1px 0 rgba(255,255,255,.65); }
 .decision-timeline-tab.active { background:#6366f1; border-color:#6366f1; color:#fff; box-shadow:none; }
+.decision-chart-insights { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:10px; }
+.decision-chart-insight { border:1px solid rgba(148,163,184,.16); border-radius:14px; padding:10px 12px; background:linear-gradient(180deg, rgba(248,250,252,.92), rgba(255,255,255,.98)); cursor:pointer; transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+.decision-chart-insight:hover { transform:translateY(-1px); box-shadow:0 8px 18px rgba(15,23,42,.06); border-color:rgba(99,102,241,.26); }
+.decision-chart-insight.is-active { border-color:rgba(99,102,241,.40); box-shadow:0 10px 22px rgba(99,102,241,.14); }
+.decision-chart-insight-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.decision-chart-insight-k { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:#64748b; margin-bottom:4px; }
+.decision-chart-insight-v { font-size:15px; font-weight:900; color:#0f172a; line-height:1.2; }
+.decision-chart-insight-s { font-size:11px; color:#64748b; line-height:1.45; margin-top:4px; }
+.decision-chart-chip { display:inline-flex; align-items:center; padding:3px 8px; border-radius:999px; font-size:10px; font-weight:800; line-height:1; white-space:nowrap; border:1px solid transparent; }
+.decision-chart-chip.is-up { background:rgba(34,197,94,.12); color:#15803d; border-color:rgba(34,197,94,.20); }
+.decision-chart-chip.is-down { background:rgba(239,68,68,.12); color:#b91c1c; border-color:rgba(239,68,68,.20); }
+.decision-chart-chip.is-stable { background:rgba(99,102,241,.12); color:#4338ca; border-color:rgba(99,102,241,.18); }
+.decision-chart-chip.is-wide { background:rgba(245,158,11,.14); color:#b45309; border-color:rgba(245,158,11,.22); }
+.decision-chart-story { margin-top:10px; border:1px solid rgba(99,102,241,.14); border-left:4px solid #6366f1; border-radius:14px; padding:12px 14px; background:linear-gradient(180deg, rgba(245,247,255,.96), rgba(255,255,255,.98)); font-size:12px; line-height:1.55; color:#334155; }
+.decision-compare-row.is-focus td { background: rgba(99,102,241,.08); }
+.decision-compare-row.is-focus td:first-child { box-shadow: inset 3px 0 0 #6366f1; }
+@media (max-width: 767.98px) {
+    .decision-chart-insights { grid-template-columns:1fr; }
+}
 .decision-timeline-pane { display:none; border:1px solid rgba(15,23,42,.08); border-radius:10px; padding:12px; background:#f8fafc; }
 .decision-timeline-pane.active { display:block; }
 
@@ -3517,6 +3577,25 @@ html[data-theme="dark"] .decision-timeline-tab {
     background: rgba(15,23,42,.65);
     border-color: rgba(148,163,184,.18);
     color: #e2e8f0;
+}
+html[data-theme="dark"] .decision-chart-insight {
+    background: rgba(15,23,42,.62);
+    border-color: rgba(148,163,184,.16);
+}
+html[data-theme="dark"] .decision-chart-insight-v {
+    color: #f8fafc;
+}
+html[data-theme="dark"] .decision-chart-insight-k,
+html[data-theme="dark"] .decision-chart-insight-s {
+    color: rgba(226,232,240,.74);
+}
+html[data-theme="dark"] .decision-chart-story {
+    background: rgba(15,23,42,.62);
+    border-color: rgba(99,102,241,.22);
+    color: rgba(226,232,240,.82);
+}
+html[data-theme="dark"] .decision-compare-row.is-focus td {
+    background: rgba(99,102,241,.14);
 }
 
 html[data-theme="dark"] .decision-detail-info-icon {
@@ -6053,7 +6132,7 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
 
     if (timeline.length) {
         html += '<div class="decision-detail-section decision-detail-card decision-detail-card--soft">';
-        html += `<div class="decision-detail-section-header"><div><div class="decision-detail-section-title" style="margin-bottom:4px;">Perbandingan Snapshot 3 Jam</div><div class="decision-detail-section-sub">Pilih snapshot jam yang ingin dilihat untuk membandingkan arah keputusan dalam hari yang sama.</div></div></div>`;
+        html += `<div class="decision-detail-section-header"><div><div class="decision-detail-section-title" style="margin-bottom:4px;">Perbandingan Snapshot 3 Jam</div><div class="decision-detail-section-sub">Pilih snapshot jam yang ingin dilihat untuk membandingkan arah keputusan dalam hari yang sama. Snapshot aktif otomatis mengikuti scoring terakhir yang sudah berjalan pada hari ini, sedangkan untuk tanggal lampau akan mengikuti snapshot terakhir yang tersedia.</div></div></div>`;
         html += `<div class="decision-timeline-tabs">`;
         timeline.forEach(function(t, idx){
             const tLabel = tabTime(t.run_hour_label || t.run_hour);
@@ -6101,9 +6180,11 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
 
     const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
     const activeMetric = entry?.activeMetric || 'score';
+    const activeChartMode = entry?.activeChartMode || 'overlay';
+    const chartFocusActive = !!(entry?.chartFocus && String(entry.chartFocus.metric || '').trim() === String(activeMetric || '').trim());
 
     html += '<div class="decision-detail-section decision-detail-card">';
-    html += `<div class="decision-detail-section-header"><div><div class="decision-detail-section-title" style="margin-bottom:4px;">Grafik Metrik Snapshot</div><div class="decision-detail-section-sub">Pilih metrik yang ingin dibandingkan antar snapshot jam agar arah perubahan lebih mudah terbaca.</div></div></div>`;
+    html += `<div class="decision-detail-section-header"><div><div class="decision-detail-section-title" style="margin-bottom:4px;">Grafik Metrik Snapshot</div><div class="decision-detail-section-sub">Bandingkan snapshot per 3 jam antara hari ini dengan H-1, H-3, H-7, H-14, H-28, dan H-35 agar kenaikan atau penurunan tiap jam lebih jelas terlihat.</div></div></div>`;
     html += `<div class="decision-timeline-tabs">`;
     const metricOptions = [
         { key: 'score', label: 'Score' },
@@ -6117,10 +6198,18 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
         html += `<button type="button" class="decision-timeline-tab ${activeMetric===m.key?'active':''}" data-metric="${m.key}" onclick="switchDecisionMetricTab('${esc(storeKey)}', '${m.key}')">${esc(m.label)}</button>`;
     });
     html += `</div>`;
+    html += `<div class="decision-timeline-tabs" style="margin-top:-2px;">`;
+    html += `<button type="button" class="decision-timeline-tab ${activeChartMode==='overlay'?'active':''}" onclick="switchDecisionChartMode('${esc(storeKey)}','overlay')">Overlay</button>`;
+    html += `<button type="button" class="decision-timeline-tab ${activeChartMode==='delta'?'active':''}" onclick="switchDecisionChartMode('${esc(storeKey)}','delta')">Selisih</button>`;
+    html += `<button type="button" class="decision-timeline-tab" ${chartFocusActive ? '' : 'disabled style="opacity:.55;cursor:not-allowed;"'} onclick="clearDecisionChartFocus('${esc(storeKey)}')">Reset Fokus</button>`;
+    html += `</div>`;
+    html += `<div class="decision-detail-inline-note" style="margin-bottom:10px;">${activeChartMode === 'delta' ? 'Mode selisih menampilkan perbedaan setiap snapshot terhadap hari ini, sehingga kenaikan atau penurunan nilainya lebih cepat terbaca.' : 'Mode overlay menumpuk semua garis histori pada jam yang sama agar pola harian antar periode mudah dibandingkan.'}</div>`;
     html += `<div class="decision-detail-table-card" style="padding:10px;height:240px;"><canvas id="decision-score-hourly-chart"></canvas></div>`;
+    html += `<div id="decision-score-hourly-insights" class="decision-chart-insights"></div>`;
+    html += `<div id="decision-score-hourly-story" class="decision-chart-story" style="display:none;"></div>`;
     html += '</div>';
 
-    // === Compare 1/3/7 hari sebelumnya ===
+    // === Compare hari sebelumnya ===
     if (decisionCompare && typeof decisionCompare === 'object') {
         const cur = decisionCompare.current || {};
         const byDay = decisionCompare.compare_by_day || {};
@@ -6134,14 +6223,30 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
             const sign = d > 0 ? '+' : '';
             return `${sign}${d.toFixed(2)}`;
         };
-        const curHourBlock = pick(byHour?.h1) || pick(byHour?.h3) || pick(byHour?.h7);
-        html += '<div class="decision-detail-section decision-detail-card">';
-        html += `<div class="decision-detail-section-header"><div><div class="decision-detail-section-title" style="margin-bottom:4px;">Perbandingan Hari Sebelumnya (1/3/7 Hari)</div><div class="decision-detail-section-sub">Snapshot dibandingkan pada jam yang sama jika tersedia, dan fallback ke snapshot harian latest hour untuk masing-masing hari.</div></div></div>`;
+        const scoreDeltaMeta = (a, b) => {
+            const na = num(a), nb = num(b);
+            if (na == null || nb == null) {
+                return { text: '-', label: 'Belum ada pembanding', color: '#94a3b8' };
+            }
+            const d = na - nb;
+            if (Math.abs(d) < 0.0001) {
+                return { text: '0.00', label: 'Stabil', color: '#6366f1' };
+            }
+            if (d > 0) {
+                return { text: `+${d.toFixed(2)}`, label: 'Naik', color: '#16a34a' };
+            }
+            return { text: d.toFixed(2), label: 'Turun', color: '#dc2626' };
+        };
+        html += '<div id="decision-compare-section" class="decision-detail-section decision-detail-card">';
+        html += `<div class="decision-detail-section-header"><div><div class="decision-detail-section-title" style="margin-bottom:4px;">Perbandingan Hari Sebelumnya (1/3/7/14/28/35 Hari)</div><div class="decision-detail-section-sub">Snapshot dibandingkan pada jam yang sama jika tersedia, dan fallback ke snapshot harian latest hour untuk masing-masing hari pembanding.</div></div></div>`;
 
         const rows = [
             { key: 'h1', label: '1 Hari', day: pick(byDay?.h1), hour: pick(byHour?.h1) },
             { key: 'h3', label: '3 Hari', day: pick(byDay?.h3), hour: pick(byHour?.h3) },
             { key: 'h7', label: '7 Hari', day: pick(byDay?.h7), hour: pick(byHour?.h7) },
+            { key: 'h14', label: '14 Hari', day: pick(byDay?.h14), hour: pick(byHour?.h14) },
+            { key: 'h28', label: '28 Hari', day: pick(byDay?.h28), hour: pick(byHour?.h28) },
+            { key: 'h35', label: '35 Hari', day: pick(byDay?.h35), hour: pick(byHour?.h35) },
         ];
         html += `<div class="decision-detail-table-card">`;
         html += `<table style="font-size:12px;">`;
@@ -6154,14 +6259,15 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
             const rowHr = (hr && Object.keys(hr).length) ? hr : null;
             const base = rowHr || rowDay;
             if (!base) {
-                html += `<tr><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(rw.label)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;color:#64748b;">Tidak ada data</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">-</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">-</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">-</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">-</td></tr>`;
+                html += `<tr class="decision-compare-row" data-compare-key="${esc(rw.key)}"><td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(rw.label)}</td><td style="padding:10px;border-top:1px solid #e2e8f0;color:#64748b;">Tidak ada data</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">-</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">-</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">-</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">-</td></tr>`;
                 return;
             }
             const snapLabel = rowHr ? `Jam sama (${tabTime(base.run_hour)})` : `Harian (latest ${tabTime(base.run_hour)})`;
-            html += `<tr>`;
+            const scoreDelta = scoreDeltaMeta(cur.score, base.score);
+            html += `<tr class="decision-compare-row" data-compare-key="${esc(rw.key)}">`;
             html += `<td style="padding:10px;border-top:1px solid #e2e8f0;font-weight:800;">${esc(rw.label)}</td>`;
             html += `<td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(snapLabel)}<div style="font-size:10px;color:#94a3b8;">${esc(String(base.date||''))}</div></td>`;
-            html += `<td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;font-weight:800;">${esc(String(base.score ?? '-'))}<div style="font-size:10px;color:#94a3b8;">Δ ${esc(String(fmtDelta(cur.score, base.score)))}</div></td>`;
+            html += `<td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;font-weight:800;">${esc(String(base.score ?? '-'))}<div style="font-size:10px;font-weight:800;color:${esc(scoreDelta.color)};">${esc(scoreDelta.label)} ${esc(scoreDelta.text)}</div></td>`;
             html += `<td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(base.health_score))}</td>`;
             html += `<td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(base.ivt_risk_score))}</td>`;
             html += `<td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmt2(base.decision_margin))}</td>`;
@@ -6376,13 +6482,50 @@ function switchDecisionMetricTab(storeKey, metricKey) {
     openDetailKeputusan(storeKey, entry.activeTimelineIdx || 0);
 }
 
+function switchDecisionChartMode(storeKey, modeKey) {
+    const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
+    if (!entry) return;
+    entry.activeChartMode = (String(modeKey || '').toLowerCase() === 'delta') ? 'delta' : 'overlay';
+    openDetailKeputusan(storeKey, entry.activeTimelineIdx || 0);
+}
+
+function handleDecisionChartInsightClick(storeKey, focusType, focusSeries, focusLabel, focusMetric) {
+    const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
+    if (!entry) return;
+    entry.chartFocus = {
+        type: String(focusType || '').trim(),
+        series: String(focusSeries || '').trim(),
+        label: String(focusLabel || '').trim(),
+        metric: String(focusMetric || '').trim()
+    };
+    rerenderDetailKeputusanByStoreKey(storeKey);
+    setTimeout(function(){
+        const compareEl = document.getElementById('decision-compare-section');
+        if (compareEl && typeof compareEl.scrollIntoView === 'function') {
+            compareEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 60);
+}
+
+function clearDecisionChartFocus(storeKey) {
+    const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
+    if (!entry) return;
+    entry.chartFocus = null;
+    rerenderDetailKeputusanByStoreKey(storeKey);
+}
+
 function renderDecisionScoreHourlyChart(storeKey) {
     const cvs = document.getElementById('decision-score-hourly-chart');
+    const insightsEl = document.getElementById('decision-score-hourly-insights');
+    const storyEl = document.getElementById('decision-score-hourly-story');
     if (!cvs || typeof Chart === 'undefined') return;
     const entry = window.detailKeputusanStore && window.detailKeputusanStore[storeKey];
     const info = entry?.meta?.breakdown?.meta || {};
     const timeline = Array.isArray(info.scoring_timeline) ? info.scoring_timeline : [];
+    const decisionCompare = (info?.decision_compare && typeof info.decision_compare === 'object') ? info.decision_compare : {};
     const activeMetric = entry?.activeMetric || 'score';
+    const chartMode = (String(entry?.activeChartMode || 'overlay').toLowerCase() === 'delta') ? 'delta' : 'overlay';
+    const chartFocus = (entry?.chartFocus && typeof entry.chartFocus === 'object') ? entry.chartFocus : {};
 
     if (window.decisionScoreHourlyChart && typeof window.decisionScoreHourlyChart.destroy === 'function') {
         try { window.decisionScoreHourlyChart.destroy(); } catch (_) {}
@@ -6411,20 +6554,6 @@ function renderDecisionScoreHourlyChart(storeKey) {
         return s;
     };
 
-    const points = timeline.map(function(t, i){
-        const ord = Number(t?.run_hour);
-        return { 
-            i, 
-            ord: Number.isFinite(ord) ? ord : i, 
-            label: fmtHour(t?.run_hour_label || t?.run_hour || `#${i+1}`), 
-            val: pickVal(t, activeMetric) 
-        };
-    }).sort(function(a,b){ return a.ord - b.ord; });
-
-    if (!points.length) return;
-    const labels = points.map(p => p.label);
-    const values = points.map(p => p.val);
-    
     const metricLabels = {
         'score': 'Score',
         'health_score': 'Health',
@@ -6434,10 +6563,350 @@ function renderDecisionScoreHourlyChart(storeKey) {
         'decision_margin': 'Margin'
     };
     const currentLabel = metricLabels[activeMetric] || 'Value';
+    const compareOrder = ['current', 'h1', 'h3', 'h7', 'h14', 'h28', 'h35'];
+    const rgbaFromHex = function(hex, alpha) {
+        const s = String(hex || '').replace('#', '').trim();
+        if (!/^[0-9a-fA-F]{6}$/.test(s)) return hex;
+        const r = parseInt(s.slice(0, 2), 16);
+        const g = parseInt(s.slice(2, 4), 16);
+        const b = parseInt(s.slice(4, 6), 16);
+        return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    };
+    const compareMeta = {
+        current: { label: 'Hari Ini', color: '#0ea5e9', bg: 'rgba(14,165,233,.12)', width: 3, dash: [], fill: true },
+        h1: { label: 'H-1', color: '#10b981', bg: 'rgba(16,185,129,.08)', width: 2, dash: [0, 0], fill: false },
+        h3: { label: 'H-3', color: '#8b5cf6', bg: 'rgba(139,92,246,.08)', width: 2, dash: [6, 4], fill: false },
+        h7: { label: 'H-7', color: '#f59e0b', bg: 'rgba(245,158,11,.08)', width: 2, dash: [3, 4], fill: false },
+        h14: { label: 'H-14', color: '#ef4444', bg: 'rgba(239,68,68,.08)', width: 2, dash: [8, 4], fill: false },
+        h28: { label: 'H-28', color: '#6366f1', bg: 'rgba(99,102,241,.08)', width: 2, dash: [2, 5], fill: false },
+        h35: { label: 'H-35', color: '#64748b', bg: 'rgba(100,116,139,.08)', width: 2, dash: [10, 5], fill: false }
+    };
+    const compareKeyFromSeriesLabel = function(seriesLabel) {
+        const raw = String(seriesLabel || '').trim().toUpperCase();
+        if (!raw) return '';
+        if (raw.includes('H-1')) return 'h1';
+        if (raw.includes('H-3')) return 'h3';
+        if (raw.includes('H-7')) return 'h7';
+        if (raw.includes('H-14')) return 'h14';
+        if (raw.includes('H-28')) return 'h28';
+        if (raw.includes('H-35')) return 'h35';
+        return '';
+    };
+    const hourlySeriesMap = (decisionCompare?.hourly_series && typeof decisionCompare.hourly_series === 'object') ? decisionCompare.hourly_series : {};
+    const hasCompareSeries = compareOrder.some(function(key){
+        return Array.isArray(hourlySeriesMap?.[key]) && hourlySeriesMap[key].length;
+    });
+    let labels = [];
+    let datasets = [];
+
+    if (hasCompareSeries) {
+        const labelSet = new Map();
+        compareOrder.forEach(function(key) {
+            const rows = Array.isArray(hourlySeriesMap?.[key]) ? hourlySeriesMap[key] : [];
+            rows.forEach(function(row, idx) {
+                const ordRaw = Number(row?.run_hour);
+                const ord = Number.isFinite(ordRaw) ? ordRaw : idx;
+                const label = fmtHour(row?.run_hour_label || row?.run_hour || `#${idx + 1}`);
+                if (!labelSet.has(label)) labelSet.set(label, ord);
+            });
+        });
+        labels = Array.from(labelSet.entries()).sort(function(a, b){ return a[1] - b[1]; }).map(function(item){ return item[0]; });
+        const currentRows = Array.isArray(hourlySeriesMap?.current) ? hourlySeriesMap.current : [];
+        const currentValueMap = new Map();
+        currentRows.forEach(function(row, idx){
+            const label = fmtHour(row?.run_hour_label || row?.run_hour || `#${idx + 1}`);
+            currentValueMap.set(label, pickVal(row, activeMetric));
+        });
+        datasets = compareOrder.map(function(key){
+            const rows = Array.isArray(hourlySeriesMap?.[key]) ? hourlySeriesMap[key] : [];
+            if (!rows.length) return null;
+            const meta = compareMeta[key] || compareMeta.current;
+            const valueMap = new Map();
+            rows.forEach(function(row, idx){
+                const label = fmtHour(row?.run_hour_label || row?.run_hour || `#${idx + 1}`);
+                valueMap.set(label, pickVal(row, activeMetric));
+            });
+            let seriesData = labels.map(function(lb){ return valueMap.has(lb) ? valueMap.get(lb) : null; });
+            if (chartMode === 'delta') {
+                if (key === 'current') {
+                    seriesData = labels.map(function(lb){
+                        return currentValueMap.has(lb) && Number.isFinite(Number(currentValueMap.get(lb))) ? 0 : null;
+                    });
+                } else {
+                    seriesData = labels.map(function(lb){
+                        const base = Number(currentValueMap.get(lb));
+                        const hist = Number(valueMap.get(lb));
+                        if (!Number.isFinite(base) || !Number.isFinite(hist)) return null;
+                        return hist - base;
+                    });
+                }
+            }
+            const labelText = chartMode === 'delta'
+                ? (key === 'current' ? 'Hari Ini (baseline)' : `${meta.label} vs Hari Ini`)
+                : meta.label;
+            const focusSeriesMatch = chartFocus?.metric === activeMetric && String(chartFocus?.series || '') === String(labelText || '');
+            const hasFocus = chartFocus?.metric === activeMetric && String(chartFocus?.label || '').trim();
+            const pointRadiusArr = labels.map(function(lb){
+                if (hasFocus && focusSeriesMatch && String(chartFocus?.label || '') === String(lb || '')) return 6.5;
+                return key === 'current' ? 3.5 : 2.5;
+            });
+            const pointHoverRadiusArr = labels.map(function(lb){
+                if (hasFocus && focusSeriesMatch && String(chartFocus?.label || '') === String(lb || '')) return 8;
+                return key === 'current' ? 5.5 : 4;
+            });
+            return {
+                label: labelText,
+                data: seriesData,
+                borderColor: hasFocus ? (focusSeriesMatch ? meta.color : rgbaFromHex(meta.color, 0.18)) : meta.color,
+                backgroundColor: hasFocus ? (focusSeriesMatch ? meta.bg : rgbaFromHex(meta.color, 0.06)) : meta.bg,
+                fill: chartMode === 'delta' ? false : meta.fill,
+                tension: .32,
+                pointRadius: pointRadiusArr,
+                pointHoverRadius: pointHoverRadiusArr,
+                pointBackgroundColor: '#fff',
+                pointBorderColor: hasFocus ? (focusSeriesMatch ? meta.color : rgbaFromHex(meta.color, 0.22)) : meta.color,
+                pointBorderWidth: key === 'current' ? 2 : 1.5,
+                borderWidth: hasFocus ? (focusSeriesMatch ? meta.width + 1 : 1.2) : meta.width,
+                spanGaps: true,
+                borderDash: chartMode === 'delta' && key === 'current' ? [4, 4] : meta.dash
+            };
+        }).filter(Boolean);
+    } else {
+        const points = timeline.map(function(t, i){
+            const ord = Number(t?.run_hour);
+            return {
+                i,
+                ord: Number.isFinite(ord) ? ord : i,
+                label: fmtHour(t?.run_hour_label || t?.run_hour || `#${i+1}`),
+                val: pickVal(t, activeMetric)
+            };
+        }).sort(function(a,b){ return a.ord - b.ord; });
+        if (!points.length) return;
+        labels = points.map(function(p){ return p.label; });
+        datasets = [{
+            label: currentLabel,
+            data: points.map(function(p){ return p.val; }),
+            borderColor: '#0ea5e9',
+            backgroundColor: 'rgba(14,165,233,.14)',
+            fill: true,
+            tension: .35,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: '#fff',
+            pointBorderColor: '#0ea5e9',
+            pointBorderWidth: 2,
+            borderWidth: 3,
+            spanGaps: true
+        }];
+    }
+
+    if (!labels.length || !datasets.length) return;
+
+    const renderInsights = function(cards, storyText) {
+        if (!insightsEl) return;
+        const items = Array.isArray(cards) ? cards.filter(Boolean) : [];
+        if (!items.length) {
+            insightsEl.innerHTML = '';
+            if (storyEl) {
+                storyEl.style.display = 'none';
+                storyEl.textContent = '';
+            }
+            return;
+        }
+        insightsEl.innerHTML = items.map(function(card){
+            const tone = String(card?.tone || 'stable').toLowerCase();
+            const toneClass = tone === 'up' ? 'is-up' : (tone === 'down' ? 'is-down' : (tone === 'wide' ? 'is-wide' : 'is-stable'));
+            const toneLabel = tone === 'up' ? 'Naik' : (tone === 'down' ? 'Turun' : (tone === 'wide' ? 'Volatil' : 'Stabil'));
+            const isActive = String(chartFocus?.type || '') === String(card?.focusType || '') && String(chartFocus?.series || '') === String(card?.focusSeries || '') && String(chartFocus?.label || '') === String(card?.focusLabel || '') && String(chartFocus?.metric || '') === String(activeMetric || '');
+            return `<button type="button" class="decision-chart-insight ${isActive ? 'is-active' : ''}" onclick="handleDecisionChartInsightClick('${esc(storeKey)}','${esc(card?.focusType || '')}','${esc(card?.focusSeries || '')}','${esc(card?.focusLabel || '')}','${esc(activeMetric)}')"><div class="decision-chart-insight-head"><div class="decision-chart-insight-k">${esc(card?.title || '-')}</div><span class="decision-chart-chip ${toneClass}">${esc(toneLabel)}</span></div><div class="decision-chart-insight-v">${esc(card?.value || '-')}</div><div class="decision-chart-insight-s">${esc(card?.desc || '')}</div></button>`;
+        }).join('');
+        if (storyEl) {
+            const story = String(storyText || '').trim();
+            storyEl.style.display = story ? '' : 'none';
+            storyEl.textContent = story;
+        }
+        const compareKey = compareKeyFromSeriesLabel(chartFocus?.series || '');
+        document.querySelectorAll('.decision-compare-row[data-compare-key]').forEach(function(row){
+            const key = String(row.getAttribute('data-compare-key') || '').trim();
+            const shouldFocus = !!compareKey && key === compareKey && String(chartFocus?.metric || '') === String(activeMetric || '');
+            row.classList.toggle('is-focus', shouldFocus);
+        });
+    };
+    const fmtInsightValue = function(v) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return '-';
+        if (chartMode === 'delta') return `${n >= 0 ? '+' : ''}${n.toFixed(2)}`;
+        return n.toFixed(2);
+    };
+    if (hasCompareSeries) {
+        const cards = [];
+        if (chartMode === 'delta') {
+            const deltaDatasets = datasets.filter(function(ds){ return String(ds?.label || '') !== 'Hari Ini (baseline)'; });
+            let bestRise = null;
+            let bestDrop = null;
+            let widestGap = null;
+            deltaDatasets.forEach(function(ds){
+                const arr = Array.isArray(ds?.data) ? ds.data : [];
+                arr.forEach(function(v, idx){
+                    const n = Number(v);
+                    if (!Number.isFinite(n)) return;
+                    const point = { label: labels[idx] || '-', value: n, series: String(ds?.label || '-') };
+                    if (!bestRise || n > bestRise.value) bestRise = point;
+                    if (!bestDrop || n < bestDrop.value) bestDrop = point;
+                    if (!widestGap || Math.abs(n) > Math.abs(widestGap.value)) widestGap = point;
+                });
+            });
+            cards.push({
+                title: 'Kenaikan Terbesar',
+                value: bestRise ? `${bestRise.series} ${fmtInsightValue(bestRise.value)}` : '-',
+                desc: bestRise ? `Snapshot ${bestRise.label} menjadi titik kenaikan paling tinggi dibanding hari ini.` : 'Belum ada data kenaikan yang bisa dibandingkan.',
+                tone: 'up',
+                focusType: 'delta-rise',
+                focusSeries: bestRise?.series || '',
+                focusLabel: bestRise?.label || ''
+            });
+            cards.push({
+                title: 'Penurunan Terbesar',
+                value: bestDrop ? `${bestDrop.series} ${fmtInsightValue(bestDrop.value)}` : '-',
+                desc: bestDrop ? `Snapshot ${bestDrop.label} menjadi titik penurunan paling besar dibanding hari ini.` : 'Belum ada data penurunan yang bisa dibandingkan.',
+                tone: 'down',
+                focusType: 'delta-drop',
+                focusSeries: bestDrop?.series || '',
+                focusLabel: bestDrop?.label || ''
+            });
+            cards.push({
+                title: 'Gap Paling Dominan',
+                value: widestGap ? `${widestGap.series} @ ${widestGap.label}` : '-',
+                desc: widestGap ? `Selisih absolut terbesar ada di snapshot ${widestGap.label} dengan nilai ${fmtInsightValue(widestGap.value)}.` : 'Belum ada gap historikal yang cukup untuk dianalisa.',
+                tone: 'wide',
+                focusType: 'delta-gap',
+                focusSeries: widestGap?.series || '',
+                focusLabel: widestGap?.label || ''
+            });
+            const story = (bestRise || bestDrop || widestGap)
+                ? [
+                    bestDrop ? `${bestDrop.series} paling menekan di snapshot ${bestDrop.label} dengan selisih ${fmtInsightValue(bestDrop.value)} dibanding hari ini.` : '',
+                    bestRise ? `${bestRise.series} justru paling kuat naik di snapshot ${bestRise.label} dengan selisih ${fmtInsightValue(bestRise.value)}.` : '',
+                    widestGap ? `Gap historikal paling dominan muncul di ${widestGap.label}.` : ''
+                ].filter(Boolean).join(' ')
+                : 'Belum ada cukup titik historikal untuk membentuk narasi perbandingan snapshot.';
+            renderInsights(cards, story);
+        } else {
+            const currentDataset = datasets.find(function(ds){ return String(ds?.label || '') === 'Hari Ini'; }) || datasets[0];
+            const currentArr = Array.isArray(currentDataset?.data) ? currentDataset.data : [];
+            let currentPeak = null;
+            let currentLow = null;
+            currentArr.forEach(function(v, idx){
+                const n = Number(v);
+                if (!Number.isFinite(n)) return;
+                const point = { label: labels[idx] || '-', value: n };
+                if (!currentPeak || n > currentPeak.value) currentPeak = point;
+                if (!currentLow || n < currentLow.value) currentLow = point;
+            });
+            let widestSpread = null;
+            labels.forEach(function(label, idx){
+                const vals = datasets.map(function(ds){ return Number(ds?.data?.[idx]); }).filter(function(v){ return Number.isFinite(v); });
+                if (!vals.length) return;
+                const spread = Math.max.apply(null, vals) - Math.min.apply(null, vals);
+                if (!widestSpread || spread > widestSpread.value) widestSpread = { label: label, value: spread };
+            });
+            cards.push({
+                title: 'Puncak Hari Ini',
+                value: currentPeak ? `${fmtInsightValue(currentPeak.value)} @ ${currentPeak.label}` : '-',
+                desc: currentPeak ? `Nilai ${currentLabel} tertinggi pada hari aktif muncul di snapshot ${currentPeak.label}.` : 'Belum ada snapshot hari ini yang bisa dibaca.',
+                tone: 'up',
+                focusType: 'overlay-peak',
+                focusSeries: String(currentDataset?.label || 'Hari Ini'),
+                focusLabel: currentPeak?.label || ''
+            });
+            cards.push({
+                title: 'Titik Terendah',
+                value: currentLow ? `${fmtInsightValue(currentLow.value)} @ ${currentLow.label}` : '-',
+                desc: currentLow ? `Nilai ${currentLabel} terendah pada hari aktif muncul di snapshot ${currentLow.label}.` : 'Belum ada snapshot hari ini yang bisa dibaca.',
+                tone: 'down',
+                focusType: 'overlay-low',
+                focusSeries: String(currentDataset?.label || 'Hari Ini'),
+                focusLabel: currentLow?.label || ''
+            });
+            cards.push({
+                title: 'Jam Paling Berubah',
+                value: widestSpread ? `${widestSpread.label} • ${widestSpread.value.toFixed(2)}` : '-',
+                desc: widestSpread ? `Snapshot ${widestSpread.label} punya rentang perbandingan histori paling lebar untuk metric ${currentLabel}.` : 'Belum ada variasi histori yang cukup untuk dianalisa.',
+                tone: 'wide',
+                focusType: 'overlay-spread',
+                focusSeries: String(currentDataset?.label || 'Hari Ini'),
+                focusLabel: widestSpread?.label || ''
+            });
+            const story = (currentPeak || currentLow || widestSpread)
+                ? [
+                    currentPeak ? `${currentLabel} hari ini mencapai puncak di snapshot ${currentPeak.label} pada nilai ${fmtInsightValue(currentPeak.value)}.` : '',
+                    currentLow ? `Titik terendah muncul di ${currentLow.label} pada nilai ${fmtInsightValue(currentLow.value)}.` : '',
+                    widestSpread ? `Perbedaan lintas histori paling lebar terjadi di snapshot ${widestSpread.label}.` : ''
+                ].filter(Boolean).join(' ')
+                : 'Belum ada cukup snapshot untuk merangkum perubahan intraday.';
+            renderInsights(cards, story);
+        }
+    } else {
+        const single = Array.isArray(datasets?.[0]?.data) ? datasets[0].data : [];
+        let peak = null;
+        let low = null;
+        let jump = null;
+        single.forEach(function(v, idx){
+            const n = Number(v);
+            if (!Number.isFinite(n)) return;
+            const point = { label: labels[idx] || '-', value: n };
+            if (!peak || n > peak.value) peak = point;
+            if (!low || n < low.value) low = point;
+            if (idx > 0) {
+                const prev = Number(single[idx - 1]);
+                if (Number.isFinite(prev)) {
+                    const diff = n - prev;
+                    if (!jump || Math.abs(diff) > Math.abs(jump.value)) jump = { label: labels[idx] || '-', value: diff };
+                }
+            }
+        });
+        renderInsights([
+            {
+                title: 'Puncak Hari Ini',
+                value: peak ? `${fmtInsightValue(peak.value)} @ ${peak.label}` : '-',
+                desc: peak ? `Snapshot tertinggi pada hari aktif ada di ${peak.label}.` : 'Belum ada data snapshot yang bisa dianalisa.',
+                tone: 'up',
+                focusType: 'single-peak',
+                focusSeries: currentLabel,
+                focusLabel: peak?.label || ''
+            },
+            {
+                title: 'Titik Terendah',
+                value: low ? `${fmtInsightValue(low.value)} @ ${low.label}` : '-',
+                desc: low ? `Snapshot terendah pada hari aktif ada di ${low.label}.` : 'Belum ada data snapshot yang bisa dianalisa.',
+                tone: 'down',
+                focusType: 'single-low',
+                focusSeries: currentLabel,
+                focusLabel: low?.label || ''
+            },
+            {
+                title: 'Perubahan Terbesar',
+                value: jump ? `${jump.value >= 0 ? '+' : ''}${jump.value.toFixed(2)} @ ${jump.label}` : '-',
+                desc: jump ? `Lompatan terbesar antar snapshot intraday terjadi di ${jump.label}.` : 'Belum ada cukup titik untuk membandingkan perubahan intraday.',
+                tone: Math.abs(Number(jump?.value || 0)) >= 0.01 ? 'wide' : 'stable',
+                focusType: 'single-jump',
+                focusSeries: currentLabel,
+                focusLabel: jump?.label || ''
+            }
+        ], (peak || low || jump)
+            ? [
+                peak ? `Snapshot tertinggi hari ini ada di ${peak.label} dengan nilai ${fmtInsightValue(peak.value)}.` : '',
+                low ? `Snapshot terendah ada di ${low.label}.` : '',
+                jump ? `Perubahan intraday paling besar terjadi di ${jump.label} sebesar ${jump.value >= 0 ? '+' : ''}${jump.value.toFixed(2)}.` : ''
+            ].filter(Boolean).join(' ')
+            : 'Belum ada cukup titik snapshot untuk membangun narasi intraday.'
+        );
+    }
 
     const scorePointLabelPlugin = {
         id: 'scorePointLabelPlugin',
         afterDatasetsDraw(chart) {
+            if (hasCompareSeries) return;
             const { ctx } = chart;
             const meta = chart.getDatasetMeta(0);
             const data = chart.data.datasets?.[0]?.data || [];
@@ -6457,46 +6926,55 @@ function renderDecisionScoreHourlyChart(storeKey) {
 
     window.decisionScoreHourlyChart = new Chart(cvs.getContext('2d'), {
         type: 'line',
-        data: { 
-            labels, 
-            datasets: [{ 
-                label: currentLabel, 
-                data: values, 
-                borderColor: '#0ea5e9', 
-                backgroundColor: 'rgba(14,165,233,.14)', 
-                fill: true, 
-                tension: .35, 
-                pointRadius: 4, 
-                pointHoverRadius: 6, 
-                pointBackgroundColor: '#fff', 
-                pointBorderColor: '#0ea5e9', 
-                pointBorderWidth: 2, 
-                borderWidth: 3, 
-                spanGaps: true 
-            }] 
+        data: {
+            labels,
+            datasets
         },
-        options: { 
-            responsive: true, 
-            maintainAspectRatio: false, 
-            layout: { padding: { top: 18 } }, 
-            plugins: { 
-                legend: { display: false }, 
-                tooltip: { 
-                    callbacks: { 
-                        label: function(ctx) { 
-                            const v = Number(ctx.parsed.y); 
-                            return `${currentLabel}: ${Number.isFinite(v) ? v.toFixed(2) : '-'}`; 
-                        } 
-                    } 
-                } 
-            }, 
-            scales: { 
-                y: { 
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: { padding: { top: hasCompareSeries ? 8 : 18 } },
+            plugins: {
+                legend: {
+                    display: hasCompareSeries,
+                    position: 'top',
+                    labels: { usePointStyle: true, boxWidth: 10, boxHeight: 10 }
+                },
+                tooltip: {
+                    callbacks: {
+                        title: function(items) {
+                            const item = Array.isArray(items) ? items[0] : null;
+                            return item ? `Snapshot ${item.label}` : '';
+                        },
+                        label: function(ctx) {
+                            const v = Number(ctx.parsed.y);
+                            const dsLabel = String(ctx.dataset?.label || currentLabel);
+                            const txt = Number.isFinite(v)
+                                ? (chartMode === 'delta' && dsLabel !== 'Hari Ini (baseline)' ? `${v >= 0 ? '+' : ''}${v.toFixed(2)}` : v.toFixed(2))
+                                : '-';
+                            return `${dsLabel}: ${txt}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
                     beginAtZero: activeMetric === 'confidence' || activeMetric === 'ivt_risk_score',
-                    ticks: { precision: 1 } 
-                }, 
-                x: { grid: { display: false } } 
-            } 
+                    ticks: {
+                        precision: 1,
+                        callback: function(value) {
+                            const n = Number(value);
+                            if (!Number.isFinite(n)) return value;
+                            return chartMode === 'delta' ? `${n > 0 ? '+' : ''}${n.toFixed(1)}` : n.toFixed(1);
+                        }
+                    },
+                    title: chartMode === 'delta' ? { display: true, text: `Selisih ${currentLabel} vs Hari Ini` } : undefined
+                },
+                x: {
+                    grid: { display: false },
+                    title: hasCompareSeries ? { display: true, text: 'Snapshot per 3 jam' } : undefined
+                }
+            }
         },
         plugins: [scorePointLabelPlugin]
     });
@@ -6546,7 +7024,58 @@ function openDetailKeputusan(storeKey, activeTimelineIdx) {
 
     const info = meta?.breakdown?.meta || {};
     const timeline = Array.isArray(info.scoring_timeline) ? info.scoring_timeline : [];
-    const preferredIdx = Number(info.scoring_timeline_active_idx);
+    const targetDate = String(entry?.state?.date || info?.date || '').trim();
+    const browserToday = (function(){
+        const now = new Date();
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    })();
+    const nowMinutes = (function(){
+        const now = new Date();
+        return (now.getHours() * 60) + now.getMinutes();
+    })();
+    const timelineHourOrd = function(t, idx) {
+        let ord = Number(t?.run_hour);
+        if (!Number.isFinite(ord)) {
+            const m = String(t?.run_hour_label || '').match(/\b(\d{1,2}):(\d{2})/);
+            if (m) ord = (Number(m[1]) * 60) + Number(m[2]);
+        } else {
+            ord = ord * 60;
+        }
+        if (!Number.isFinite(ord)) ord = idx;
+        return ord;
+    };
+    let preferredIdx = Number(info.scoring_timeline_active_idx);
+    if (timeline.length && targetDate && targetDate === browserToday) {
+        let latestPastIdx = -1;
+        let latestPastOrd = -1;
+        timeline.forEach(function(t, idx){
+            const ord = timelineHourOrd(t, idx);
+            if (ord <= nowMinutes && ord >= latestPastOrd) {
+                latestPastOrd = ord;
+                latestPastIdx = idx;
+            }
+        });
+        if (latestPastIdx >= 0) {
+            preferredIdx = latestPastIdx;
+            info.scoring_timeline_active_idx = latestPastIdx;
+        }
+    }
+    if (!Number.isFinite(preferredIdx) && timeline.length) {
+        let latestIdx = 0;
+        let latestOrd = -1;
+        timeline.forEach(function(t, idx){
+            const ord = timelineHourOrd(t, idx);
+            if (ord >= latestOrd) {
+                latestOrd = ord;
+                latestIdx = idx;
+            }
+        });
+        preferredIdx = latestIdx;
+        info.scoring_timeline_active_idx = latestIdx;
+    }
     const defaultIdx = Number.isFinite(preferredIdx) ? preferredIdx : 0;
     const askedIdx = (activeTimelineIdx == null || activeTimelineIdx === '') ? defaultIdx : Number(activeTimelineIdx);
     const idx = Math.max(0, Math.min(Number.isFinite(askedIdx) ? askedIdx : defaultIdx, Math.max(0, timeline.length - 1)));
@@ -6687,8 +7216,12 @@ async function ensureDecisionCompareLoaded(storeKey, activeTimelineIdx) {
     const state = entry?.state || {};
     const rawMeta = getDecisionRawMeta(row, state) || null;
     const date = String(state?.date || info.date || '').trim();
-    const domain = String(row?.name || row?.domain || row?.site || '').trim();
-    if (!date || !domain) return;
+    const dim = String(state?.dim || '').toLowerCase();
+    const countryCode = String(row?.code || row?.country_cd || row?.country_code || '').trim().toUpperCase();
+    const domain = dim === 'country'
+        ? String(state?.subdomain || row?.subdomain || row?.domain || row?.site || '').trim()
+        : String(row?.name || row?.domain || row?.site || '').trim();
+    if (!date || (!domain && !countryCode)) return;
 
     const timeline = Array.isArray(info.scoring_timeline) ? info.scoring_timeline : [];
     const idx = Math.max(0, Math.min(Number(activeTimelineIdx) || 0, Math.max(0, timeline.length - 1)));
@@ -6714,10 +7247,13 @@ async function ensureDecisionCompareLoaded(storeKey, activeTimelineIdx) {
     }
 
     try {
+        const comparePayload = { date, run_hour: runHour };
+        if (domain) comparePayload.domain = domain;
+        if (countryCode) comparePayload.country_code = countryCode;
         const res = await fetch('/management/admin/dashboard_scoring_compare', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-            body: JSON.stringify({ date, domain, run_hour: runHour }),
+            body: JSON.stringify(comparePayload),
             credentials: 'same-origin'
         });
         const json = await res.json();
@@ -6898,7 +7434,7 @@ function initDetailKeputusanModal() {
             if (!trigger) return;
             const storeKey = String(trigger.getAttribute('data-keputusan-key') || '').trim();
             if (!storeKey) return;
-            openDetailKeputusan(storeKey, 0);
+            openDetailKeputusan(storeKey);
         });
         document.body.addEventListener('keydown', function(e) {
             const trigger = e.target && e.target.closest ? e.target.closest('.keputusan-badge-clickable[data-keputusan-key]') : null;
@@ -6910,7 +7446,7 @@ function initDetailKeputusanModal() {
             e.preventDefault();
             const storeKey = String(trigger.getAttribute('data-keputusan-key') || '').trim();
             if (!storeKey) return;
-            openDetailKeputusan(storeKey, 0);
+            openDetailKeputusan(storeKey);
         });
         document.body.dataset.boundOpenDecision = '1';
     }
@@ -7345,7 +7881,7 @@ function initDashboardRecap() {
             confidence: ['confidence', 'confidence_score', 'conf'],
             decision_margin: ['decision_margin', 'margin_score', 'margin']
         };
-        ['join_status_summary','reason_summary','date','final_label','root_cause_label','traffic_score','delivery_score','yield_score','quality_score','revenue_score','efficiency_score','engagement_score','control_score','positive_signal_count','negative_signal_count','neutral_signal_count','country_details','country_breakdown','countries','country_focus','country_fokus'].forEach(function(key){
+        ['join_status_summary','reason_summary','date','final_label','root_cause_label','traffic_score','delivery_score','yield_score','quality_score','revenue_score','efficiency_score','engagement_score','control_score','positive_signal_count','negative_signal_count','neutral_signal_count','country_details','country_breakdown','countries','country_focus','country_fokus','scoring_timeline'].forEach(function(key){
             if (info[key] == null && merged[key] != null) info[key] = merged[key];
             if (info[key] == null && bd[key] != null) info[key] = bd[key];
         });
@@ -7541,6 +8077,11 @@ function initDashboardRecap() {
         const code = normCC(row?.code || row?.country_cd || row?.country_code || '');
         const name = String(row?.name || row?.country_name || row?.country_nm || '').trim().toUpperCase();
         const src = (payloadLike && typeof payloadLike === 'object') ? payloadLike : {};
+        const rawTimeline = [
+            src?.scoring?.scoring_timeline,
+            src?.breakdown?.meta?.scoring_timeline,
+            src?.scoring_timeline
+        ].find(function(v){ return Array.isArray(v); }) || [];
         const parsed = pickScoringArrays(src?.scoring || src);
         const statuses = Array.isArray(parsed?.statuses) ? parsed.statuses : [];
         const events = Array.isArray(parsed?.events) ? parsed.events : [];
@@ -7569,12 +8110,23 @@ function initDashboardRecap() {
         const roiAgg = spendAgg > 0 ? ((revenueAgg - spendAgg) / spendAgg) : 0;
         const profitStrong = revenueAgg > spendAgg && roiAgg >= 0.30;
         const dec = scxDeriveDecision(score == null ? 0 : score, String(agg?.final_label || agg?.root_cause_label || 'STABLE'), Number(agg?.health_score || 0), Number(agg?.ivt_risk_score || 0), Number(agg?.adjustment_score || 0), Number(conf || 0), Number(agg?.decision_margin || 0), profitStrong, String(agg?.mapped_revenue_source || agg?.source_mode || 'BLENDED'));
+        const countryTimeline = rawTimeline.map(function(item) {
+            const rows = Array.isArray(item?.country_details) ? item.country_details : [];
+            const hit = rows.find(match);
+            if (!hit) return null;
+            return Object.assign({}, hit, {
+                run_hour: item?.run_hour,
+                run_hour_label: item?.run_hour_label,
+                snapshot_time: item?.snapshot_time,
+                run_time: item?.run_time
+            });
+        }).filter(Boolean);
         return {
             score,
             decision: String(agg?.decision || dec?.decision || '').toUpperCase(),
             label: String(agg?.final_label || agg?.root_cause_label || 'STABLE'),
             reasons: [agg?.reason_summary, dec?.basis].filter(Boolean),
-            breakdown: { meta: Object.assign({}, agg, { confidence: conf, positive_signal_count: posCnt, negative_signal_count: negCnt, neutral_signal_count: neuCnt, date: String(state?.date || ''), scoring_source: 'backend_scoring', scoring_source_label: 'Backend scoring', country_details: Array.isArray(agg?.country_details) ? agg.country_details : stSel }) }
+            breakdown: { meta: Object.assign({}, agg, { confidence: conf, positive_signal_count: posCnt, negative_signal_count: negCnt, neutral_signal_count: neuCnt, date: String(state?.date || ''), scoring_source: 'backend_scoring', scoring_source_label: 'Backend scoring', country_details: Array.isArray(agg?.country_details) ? agg.country_details : stSel, scoring_timeline: countryTimeline }) }
         };
     }
 
@@ -7985,12 +8537,25 @@ function initDashboardRecap() {
             if (!cls && signal < 0) return true;
             return signal < 0 && !['POSITIVE','NEUTRAL','SKIPPED'].includes(cls);
         });
+        const calcImpact = function(ev) {
+            const signal = Math.abs(Number(ev?.signal_strength || 0));
+            const health = Math.abs(Number(ev?.health_component || 0));
+            const adjustment = Math.abs(Number(ev?.adjustment_component || 0));
+            const confidence = Number(ev?.confidence || 0);
+            const base = (health * 1.0) + (adjustment * 0.75) + (signal * 0.20);
+            const confBoost = Math.max(0.35, Math.min(1.0, confidence || 0));
+            return base * confBoost;
+        };
         return filtered
             .map(function(ev) {
                 const metricKey = String(ev?.header_name || ev?.rule_key || '-').trim() || '-';
                 return {
                     name: scxMetricName(metricKey),
                     signal: Number(ev?.signal_strength || 0),
+                    impact: calcImpact(ev),
+                    confidence: Number(ev?.confidence || 0),
+                    health_component: Number(ev?.health_component || 0),
+                    adjustment_component: Number(ev?.adjustment_component || 0),
                     current: Number(ev?.cur_value || 0),
                     baseline: Number(ev?.baseline_center || 0),
                     countries: 1,
@@ -7999,7 +8564,11 @@ function initDashboardRecap() {
                     reason: ev?.event_reason || ''
                 };
             })
-            .sort(function(a, b) { return Math.abs(Number(b?.signal || 0)) - Math.abs(Number(a?.signal || 0)); });
+            .sort(function(a, b) {
+                const impactDiff = Number(b?.impact || 0) - Number(a?.impact || 0);
+                if (Math.abs(impactDiff) > 1e-9) return impactDiff;
+                return Math.abs(Number(b?.signal || 0)) - Math.abs(Number(a?.signal || 0));
+            });
     }
 
     function scxFallbackImpactFromStatus(status, mode) {
@@ -8043,17 +8612,83 @@ function initDashboardRecap() {
             const name = String(it?.name || '-').trim() || '-';
             const key = name.toUpperCase();
             const signal = Number(it?.signal || 0);
+            const impact = Number(it?.impact || Math.abs(signal) || 0);
             const country = String(it?.country_label || '').trim();
-            if (!map.has(key)) map.set(key, { name, count: 0, signal_sum: 0, countries: new Set() });
+            if (!map.has(key)) map.set(key, { name, count: 0, signal_sum: 0, impact_sum: 0, countries: new Set() });
             const row = map.get(key);
             row.count += 1;
             row.signal_sum += Math.abs(signal);
+            row.impact_sum += Math.abs(impact);
             if (country) row.countries.add(country);
         });
         return Array.from(map.values())
-            .sort(function(a, b) { return b.signal_sum - a.signal_sum; })
+            .sort(function(a, b) { return b.impact_sum - a.impact_sum; })
             .slice(0, Math.max(1, Number(maxItems) || 4))
             .map(function(x) { return `${x.name} (${x.countries.size || 1} negara)`; });
+    }
+
+    function scxCondenseImpactItems(items, maxItems = 4) {
+        const map = new Map();
+        (Array.isArray(items) ? items : []).forEach(function(it) {
+            const name = String(it?.name || '-').trim() || '-';
+            const key = name.toUpperCase();
+            const signal = Number(it?.signal || 0);
+            const impact = Number(it?.impact || Math.abs(signal) || 0);
+            const current = Number(it?.current || 0);
+            const baseline = Number(it?.baseline || 0);
+            const where = String(it?.country_label || '').trim();
+            const reason = String(it?.reason || it?.label || '').trim();
+            if (!map.has(key)) {
+                map.set(key, {
+                    name: name,
+                    signal_sum: 0,
+                    impact_sum: 0,
+                    current_sum: 0,
+                    baseline_sum: 0,
+                    count: 0,
+                    countries: new Set(),
+                    reasons: [],
+                    top_reason: ''
+                });
+            }
+            const row = map.get(key);
+            row.signal_sum += signal;
+            row.impact_sum += Math.abs(impact);
+            row.current_sum += current;
+            row.baseline_sum += baseline;
+            row.count += 1;
+            if (where) row.countries.add(where);
+            if (reason) row.reasons.push(reason);
+            if (!row.top_reason || Math.abs(impact) > Math.abs(Number(row._top_impact || 0))) {
+                row._top_impact = impact;
+                row.top_reason = reason;
+            }
+        });
+        return Array.from(map.values())
+            .sort(function(a, b) {
+                const impactDiff = Number(b?.impact_sum || 0) - Number(a?.impact_sum || 0);
+                if (Math.abs(impactDiff) > 1e-9) return impactDiff;
+                return Math.abs(Number(b?.signal_sum || 0)) - Math.abs(Number(a?.signal_sum || 0));
+            })
+            .slice(0, Math.max(1, Number(maxItems) || 4))
+            .map(function(row) {
+                const countryCount = row.countries.size || 1;
+                const reasons = Array.from(new Set((row.reasons || []).filter(Boolean)));
+                const avgCurrent = row.count > 0 ? row.current_sum / row.count : row.current_sum;
+                const avgBaseline = row.count > 0 ? row.baseline_sum / row.count : row.baseline_sum;
+                return {
+                    name: row.name,
+                    signal: row.count > 0 ? row.signal_sum / row.count : row.signal_sum,
+                    impact: row.impact_sum,
+                    current: avgCurrent,
+                    baseline: avgBaseline,
+                    countries: countryCount,
+                    country_label: countryCount > 1 ? `${countryCount} negara` : (Array.from(row.countries)[0] || ''),
+                    reason: row.top_reason || reasons[0] || '',
+                    label: reasons[0] || '',
+                    count: row.count
+                };
+            });
     }
 
     function scxBuildNarrative(status, events) {
@@ -8062,8 +8697,8 @@ function initDashboardRecap() {
         const decision = String(status?.decision || '').toUpperCase() || Number(status?.decision_margin || 0);
         const confidence = Number(status?.confidence || 0);
 
-        const positives = scxTopEvents(events, 'positive');
-        const negatives = scxTopEvents(events, 'negative');
+        const positives = scxCondenseImpactItems(scxTopEvents(events, 'positive'), 4);
+        const negatives = scxCondenseImpactItems(scxTopEvents(events, 'negative'), 4);
         const posSummary = scxSummarizeEventBuckets(positives, 4);
         const negSummary = scxSummarizeEventBuckets(negatives, 4);
 
@@ -8448,6 +9083,502 @@ function initDashboardRecap() {
         if (Number.isFinite(spend)) return spend;
         const legacy = Number(row?.meta_spend);
         return Number.isFinite(legacy) ? legacy : 0;
+    }
+
+    function scxSnapshotMetricDefs() {
+        return {
+            score: ['Score', '#2563eb', ''],
+            health_score: ['Health Score', '#10b981', ''],
+            ivt_risk_score: ['IVT Risk Score', '#ef4444', ''],
+            adjustment_score: ['Adjustment Score', '#f59e0b', ''],
+            confidence: ['Confidence', '#7c3aed', '%'],
+            decision_margin: ['Decision Margin', '#0ea5e9', '']
+        };
+    }
+
+    function scxSnapshotHourOrder(row, idx) {
+        const rawHour = Number(row?.run_hour);
+        if (Number.isFinite(rawHour)) return rawHour;
+        const match = String(row?.run_hour_label || row?.run_hour || '').match(/\b(\d{1,2}):(\d{2})/);
+        if (match) {
+            const hh = Number(match[1]);
+            const mm = Number(match[2]);
+            if (Number.isFinite(hh) && Number.isFinite(mm)) return (hh * 60) + mm;
+        }
+        return idx;
+    }
+
+    function scxSnapshotHourLabel(row, idx) {
+        const raw = String(row?.run_hour_label || row?.run_hour || '').trim();
+        if (/^\d{1,2}:\d{2}$/.test(raw)) return raw;
+        const match = raw.match(/\b(\d{1,2}:\d{2})\b/);
+        if (match) return match[1];
+        const ord = scxSnapshotHourOrder(row, idx);
+        if (Number.isFinite(ord)) {
+            const hour = Math.max(0, Math.min(23, Math.floor(ord / 60)));
+            const minute = Math.max(0, Math.min(59, ord % 60));
+            return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+        }
+        return `#${idx + 1}`;
+    }
+
+    function scxResolveCountryCode(row) {
+        return String(row?.code || row?.country_cd || row?.country_code || '').trim().toUpperCase();
+    }
+
+    function scxSnapshotRowHasMetricSurface(row) {
+        return [row?.health_score, row?.ivt_risk_score, row?.adjustment_score, row?.decision_margin].some(function(v) {
+            const n = Number(v);
+            return Number.isFinite(n) && Math.abs(n) > 0.0001;
+        });
+    }
+
+    function scxComputeScoreFromMetrics(row) {
+        const health = Number(row?.health_score);
+        const risk = Number(row?.ivt_risk_score);
+        const dm = Number(row?.decision_margin);
+        if (!Number.isFinite(health) && !Number.isFinite(risk) && !Number.isFinite(dm)) return null;
+        let conf = Number(row?.confidence);
+        if (!Number.isFinite(conf)) conf = 0;
+        const conf01 = conf > 1 ? (conf / 100) : conf;
+        const h = Number.isFinite(health) ? health : 0;
+        const r = Number.isFinite(risk) ? risk : 0;
+        const m = Number.isFinite(dm) ? dm : 0;
+        let score = (((h + 100) / 2) * 0.27) + ((100 - r) * 0.33) + (conf01 * 100 * 0.12) + (Math.max(0, Math.min(100, m + 50)) * 0.18);
+        return Math.round(Math.max(0, Math.min(100, score)));
+    }
+
+    function scxResolveSnapshotTimeline(timeline, row, dim) {
+        const list = Array.isArray(timeline) ? timeline : [];
+        if (String(dim || '').toLowerCase() !== 'country') return list;
+        const cc = scxResolveCountryCode(row);
+        if (!cc) return list;
+        const built = scxBuildCountrySnapshotRows(list, cc);
+        return built.length ? built : list;
+    }
+
+    function scxSnapshotMetricValue(row, metricKey) {
+        if (metricKey === 'score') {
+            const candidates = [row?.score, row?.final_score, row?.score_final, row?.total_score];
+            for (let i = 0; i < candidates.length; i += 1) {
+                const n = Number(candidates[i]);
+                if (Number.isFinite(n) && !(n === 0 && scxSnapshotRowHasMetricSurface(row))) return n;
+            }
+            const computed = scxComputeScoreFromMetrics(row);
+            if (Number.isFinite(Number(computed))) return Number(computed);
+            for (let i = 0; i < candidates.length; i += 1) {
+                const n = Number(candidates[i]);
+                if (Number.isFinite(n)) return n;
+            }
+            return null;
+        }
+        if (metricKey === 'confidence') {
+            const raw = Number(row?.confidence);
+            if (!Number.isFinite(raw)) return null;
+            return raw > 1 ? raw : (raw * 100);
+        }
+        const n = Number(row?.[metricKey]);
+        return Number.isFinite(n) ? n : null;
+    }
+
+    function scxRenderSnapshotMetricCard(prefix, subtitle) {
+        return `<div class="scx-card scx-grid-span">
+            <div class="sd-details">
+                <summary><span>Grafik Metrik Snapshot</span><span class="sd-det-right" id="${esc(prefix)}Status">Loading snapshot...</span></summary>
+                <div class="sd-det-body">
+                    <div class="scx-sub" style="margin-bottom:10px;">${esc(subtitle || 'Bandingkan snapshot per 3 jam antara hari ini dengan H-1, H-3, H-7, H-14, H-28, dan H-35 agar kenaikan atau penurunan tiap jam lebih jelas terlihat.')}</div>
+                    <div class="decision-timeline-tabs" id="${esc(prefix)}Tabs">
+                        <button type="button" class="decision-timeline-tab active" data-metric="score">Score</button>
+                        <button type="button" class="decision-timeline-tab" data-metric="health_score">Health</button>
+                        <button type="button" class="decision-timeline-tab" data-metric="ivt_risk_score">IVT Risk</button>
+                        <button type="button" class="decision-timeline-tab" data-metric="adjustment_score">Adjustment</button>
+                        <button type="button" class="decision-timeline-tab" data-metric="confidence">Confidence</button>
+                        <button type="button" class="decision-timeline-tab" data-metric="decision_margin">Margin</button>
+                    </div>
+                    <div class="decision-timeline-tabs" id="${esc(prefix)}ModeTabs" style="margin-top:-2px;">
+                        <button type="button" class="decision-timeline-tab active" data-mode="overlay">Overlay</button>
+                        <button type="button" class="decision-timeline-tab" data-mode="delta">Selisih</button>
+                        <button type="button" class="decision-timeline-tab" data-action="reset-focus" disabled style="opacity:.55;cursor:not-allowed;">Reset Fokus</button>
+                    </div>
+                    <div class="decision-detail-inline-note" id="${esc(prefix)}Note" style="margin-bottom:10px;">Mode overlay menumpuk semua garis histori pada jam yang sama agar pola harian antar periode mudah dibandingkan.</div>
+                    <div class="decision-detail-table-card" style="padding:10px;height:240px;"><canvas id="${esc(prefix)}Chart"></canvas></div>
+                    <div id="${esc(prefix)}Insights" class="decision-chart-insights"></div>
+                    <div id="${esc(prefix)}Story" class="decision-chart-story" style="display:none;"></div>
+                    <div id="${esc(prefix)}Compare"></div>
+                </div>
+            </div>
+        </div>`;
+    }
+
+    function scxBuildCountrySnapshotRows(timeline, countryCode) {
+        const target = String(countryCode || '').trim().toUpperCase();
+        if (!target || !Array.isArray(timeline) || !timeline.length) return [];
+        const hasNested = timeline.some(function(item) {
+            return Array.isArray(item?.country_details) && item.country_details.length;
+        });
+        if (!hasNested) {
+            return timeline.map(function(item, idx) {
+                if (scxCountryKey(item) !== target) return null;
+                return Object.assign({}, item, { timeline_index: idx });
+            }).filter(Boolean);
+        }
+        return timeline.map(function(item, idx) {
+            const rows = Array.isArray(item?.country_details) ? item.country_details : [];
+            const match = rows.find(function(country) {
+                return scxCountryKey(country) === target;
+            });
+            if (!match) return null;
+            return Object.assign({}, match, {
+                run_hour: item?.run_hour,
+                run_hour_label: item?.run_hour_label,
+                snapshot_time: item?.snapshot_time,
+                run_time: item?.run_time,
+                timeline_index: idx
+            });
+        }).filter(Boolean);
+    }
+
+    function bindScoreSnapshotMetricTabs(prefix, rows, opts) {
+        const tabs = document.getElementById(`${prefix}Tabs`);
+        const modeTabs = document.getElementById(`${prefix}ModeTabs`);
+        const noteEl = document.getElementById(`${prefix}Note`);
+        const cvs = document.getElementById(`${prefix}Chart`);
+        const statusEl = document.getElementById(`${prefix}Status`);
+        const insightsEl = document.getElementById(`${prefix}Insights`);
+        const storyEl = document.getElementById(`${prefix}Story`);
+        const compareEl = document.getElementById(`${prefix}Compare`);
+        if (!tabs || !cvs || typeof Chart === 'undefined') return;
+
+        if (!window.scxSnapshotUiState || typeof window.scxSnapshotUiState !== 'object') window.scxSnapshotUiState = {};
+        const uiState = window.scxSnapshotUiState[prefix] || { metric: 'score', mode: 'overlay', focus: null };
+        window.scxSnapshotUiState[prefix] = uiState;
+
+        const defs = scxSnapshotMetricDefs();
+        const activeIndex = Number(opts?.activeIndex);
+        const compareMeta = {
+            current: { label: 'Hari Ini', color: '#0ea5e9', bg: 'rgba(14,165,233,.12)', width: 3, dash: [], fill: true },
+            h1: { label: 'H-1', color: '#10b981', bg: 'rgba(16,185,129,.08)', width: 2, dash: [0, 0], fill: false },
+            h3: { label: 'H-3', color: '#8b5cf6', bg: 'rgba(139,92,246,.08)', width: 2, dash: [6, 4], fill: false },
+            h7: { label: 'H-7', color: '#f59e0b', bg: 'rgba(245,158,11,.08)', width: 2, dash: [3, 4], fill: false },
+            h14: { label: 'H-14', color: '#ef4444', bg: 'rgba(239,68,68,.08)', width: 2, dash: [8, 4], fill: false },
+            h28: { label: 'H-28', color: '#6366f1', bg: 'rgba(99,102,241,.08)', width: 2, dash: [2, 5], fill: false },
+            h35: { label: 'H-35', color: '#64748b', bg: 'rgba(100,116,139,.08)', width: 2, dash: [10, 5], fill: false }
+        };
+        const compareOrder = ['current', 'h1', 'h3', 'h7', 'h14', 'h28', 'h35'];
+        const normalizeRows = function(list) {
+            return (Array.isArray(list) ? list : []).map(function(row, idx) {
+                return Object.assign({}, row, {
+                    __snapshotOrd: scxSnapshotHourOrder(row, idx),
+                    __snapshotLabel: scxSnapshotHourLabel(row, idx)
+                });
+            }).sort(function(a, b) { return Number(a?.__snapshotOrd || 0) - Number(b?.__snapshotOrd || 0); });
+        };
+        const seriesMapRaw = (opts?.seriesMap && typeof opts.seriesMap === 'object') ? opts.seriesMap : {};
+        const seriesMap = {};
+        compareOrder.forEach(function(key) {
+            if (key === 'current') seriesMap[key] = normalizeRows(seriesMapRaw[key] || rows);
+            else seriesMap[key] = normalizeRows(seriesMapRaw[key]);
+        });
+        const currentRows = Array.isArray(seriesMap.current) ? seriesMap.current : [];
+
+        if (window[`${prefix}ChartInstance`] && typeof window[`${prefix}ChartInstance`].destroy === 'function') {
+            try { window[`${prefix}ChartInstance`].destroy(); } catch (_) {}
+        }
+        if (!currentRows.length) {
+            if (statusEl) statusEl.textContent = 'Snapshot belum tersedia';
+            if (insightsEl) insightsEl.innerHTML = '';
+            if (storyEl) { storyEl.style.display = 'none'; storyEl.textContent = ''; }
+            if (compareEl) compareEl.innerHTML = `<div class="decision-detail-inline-note">Belum ada data snapshot 3 jam yang bisa ditampilkan.</div>`;
+            return;
+        }
+
+        const clampIndex = Number.isFinite(activeIndex) ? Math.max(0, Math.min(activeIndex, currentRows.length - 1)) : (currentRows.length - 1);
+        const activeRow = currentRows[clampIndex] || currentRows[currentRows.length - 1];
+        const activeLabel = String(activeRow?.__snapshotLabel || '');
+        const hasCompareSeries = compareOrder.slice(1).some(function(key){ return Array.isArray(seriesMap[key]) && seriesMap[key].length; });
+        const fmtVal = function(v, metricKey) {
+            const n = Number(v);
+            if (!Number.isFinite(n)) return '-';
+            return metricKey === 'confidence' ? `${scxNum(n, 1)}%` : scxNum(n, 2);
+        };
+        const compareKeyFromSeriesLabel = function(seriesLabel) {
+            const raw = String(seriesLabel || '').trim().toUpperCase();
+            if (!raw) return '';
+            if (raw.includes('H-1')) return 'h1';
+            if (raw.includes('H-3')) return 'h3';
+            if (raw.includes('H-7')) return 'h7';
+            if (raw.includes('H-14')) return 'h14';
+            if (raw.includes('H-28')) return 'h28';
+            if (raw.includes('H-35')) return 'h35';
+            return '';
+        };
+        const isFocusActiveForMetric = function(metricKey) {
+            return !!(uiState.focus && String(uiState.focus.metric || '') === String(metricKey || ''));
+        };
+        const scoreDeltaMeta = function(a, b) {
+            const na = Number(a);
+            const nb = Number(b);
+            if (!Number.isFinite(na) || !Number.isFinite(nb)) return { text: '-', label: 'Belum ada pembanding', color: '#94a3b8' };
+            const d = na - nb;
+            if (Math.abs(d) < 0.0001) return { text: '0.00', label: 'Stabil', color: '#6366f1' };
+            if (d > 0) return { text: `+${d.toFixed(2)}`, label: 'Naik', color: '#16a34a' };
+            return { text: d.toFixed(2), label: 'Turun', color: '#dc2626' };
+        };
+        const buildCompareTable = function(metricKey) {
+            if (!compareEl) return;
+            if (!hasCompareSeries) {
+                compareEl.innerHTML = '';
+                return;
+            }
+            const rowsHtml = compareOrder.slice(1).map(function(key) {
+                const list = Array.isArray(seriesMap[key]) ? seriesMap[key] : [];
+                if (!list.length) {
+                    return `<tr class="decision-compare-row" data-compare-key="${esc(key)}"><td style="padding:10px;border-top:1px solid #e2e8f0;font-weight:800;">${esc(compareMeta[key].label.replace('H-', '') + ' Hari')}</td><td style="padding:10px;border-top:1px solid #e2e8f0;color:#64748b;">Tidak ada data</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">-</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">-</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">-</td><td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">-</td></tr>`;
+                }
+                const sameHour = list.find(function(item){ return String(item?.__snapshotLabel || '') === activeLabel; }) || null;
+                const picked = sameHour || list[list.length - 1];
+                const scoreDelta = scoreDeltaMeta(scxSnapshotMetricValue(activeRow, 'score'), scxSnapshotMetricValue(picked, 'score'));
+                const snapLabel = sameHour ? `Jam sama (${picked.__snapshotLabel})` : `Harian (latest ${picked.__snapshotLabel})`;
+                return `<tr class="decision-compare-row" data-compare-key="${esc(key)}">
+                    <td style="padding:10px;border-top:1px solid #e2e8f0;font-weight:800;">${esc(compareMeta[key].label.replace('H-', '') + ' Hari')}</td>
+                    <td style="padding:10px;border-top:1px solid #e2e8f0;">${esc(snapLabel)}</td>
+                    <td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;font-weight:800;">${esc(fmtVal(scxSnapshotMetricValue(picked, 'score'), 'score'))}<div style="font-size:10px;font-weight:800;color:${esc(scoreDelta.color)};">${esc(scoreDelta.label)} ${esc(scoreDelta.text)}</div></td>
+                    <td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmtVal(scxSnapshotMetricValue(picked, 'health_score'), 'health_score'))}</td>
+                    <td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmtVal(scxSnapshotMetricValue(picked, 'ivt_risk_score'), 'ivt_risk_score'))}</td>
+                    <td style="padding:10px;border-top:1px solid #e2e8f0;text-align:right;">${esc(fmtVal(scxSnapshotMetricValue(picked, 'decision_margin'), 'decision_margin'))}</td>
+                </tr>`;
+            }).join('');
+            compareEl.innerHTML = `<div class="decision-detail-card" style="margin-top:12px;">
+                <div class="decision-detail-section-header"><div><div class="decision-detail-section-title" style="margin-bottom:4px;">Perbandingan Hari Sebelumnya (1/3/7/14/28/35 Hari)</div><div class="decision-detail-section-sub">Snapshot dibandingkan pada jam yang sama jika tersedia, dan fallback ke snapshot terakhir yang tersedia untuk hari pembanding.</div></div></div>
+                <div class="decision-detail-table-card">
+                    <table style="font-size:12px;">
+                        <thead><tr style="background:#f8fafc;color:#0f172a;"><th style="padding:10px;text-align:left;">Periode</th><th style="padding:10px;text-align:left;">Snapshot</th><th style="padding:10px;text-align:right;">Score</th><th style="padding:10px;text-align:right;">Health</th><th style="padding:10px;text-align:right;">Risk</th><th style="padding:10px;text-align:right;">Margin</th></tr></thead>
+                        <tbody>${rowsHtml}</tbody>
+                    </table>
+                </div>
+            </div>`;
+            const compareKey = compareKeyFromSeriesLabel(uiState.focus?.series || '');
+            compareEl.querySelectorAll('.decision-compare-row[data-compare-key]').forEach(function(row){
+                const key = String(row.getAttribute('data-compare-key') || '').trim();
+                row.classList.toggle('is-focus', !!compareKey && key === compareKey && isFocusActiveForMetric(metricKey));
+            });
+        };
+        const renderInsights = function(metricKey, labels, datasets) {
+            if (!insightsEl) return;
+            const currentDataset = datasets.find(function(ds){ return String(ds?.label || '') === 'Hari Ini'; }) || datasets[0];
+            const currentVals = Array.isArray(currentDataset?.data) ? currentDataset.data : [];
+            let peak = null;
+            let low = null;
+            currentVals.forEach(function(v, idx) {
+                const n = Number(v);
+                if (!Number.isFinite(n)) return;
+                const point = { label: labels[idx] || '-', value: n };
+                if (!peak || n > peak.value) peak = point;
+                if (!low || n < low.value) low = point;
+            });
+            let spread = null;
+            if (hasCompareSeries) {
+                labels.forEach(function(label, idx) {
+                    const vals = datasets.map(function(ds){ return Number(ds?.data?.[idx]); }).filter(function(v){ return Number.isFinite(v); });
+                    if (!vals.length) return;
+                    const gap = Math.max.apply(null, vals) - Math.min.apply(null, vals);
+                    if (!spread || gap > spread.value) spread = { label, value: gap };
+                });
+            } else {
+                currentVals.forEach(function(v, idx) {
+                    if (idx === 0 || !Number.isFinite(Number(v)) || !Number.isFinite(Number(currentVals[idx - 1]))) return;
+                    const gap = Math.abs(Number(v) - Number(currentVals[idx - 1]));
+                    if (!spread || gap > spread.value) spread = { label: labels[idx] || '-', value: gap };
+                });
+            }
+            const items = [
+                { title: 'Puncak Hari Ini', tone: 'up', value: peak ? `${fmtVal(peak.value, metricKey)} @ ${peak.label}` : '-', desc: peak ? `Nilai ${defs[metricKey]?.[0] || 'metric'} tertinggi pada hari aktif muncul di snapshot ${peak.label}.` : 'Belum ada snapshot yang bisa dibaca.', focusSeries: String(currentDataset?.label || 'Hari Ini'), focusLabel: peak?.label || '' },
+                { title: 'Titik Terendah', tone: 'down', value: low ? `${fmtVal(low.value, metricKey)} @ ${low.label}` : '-', desc: low ? `Nilai ${defs[metricKey]?.[0] || 'metric'} terendah pada hari aktif muncul di snapshot ${low.label}.` : 'Belum ada snapshot yang bisa dibaca.', focusSeries: String(currentDataset?.label || 'Hari Ini'), focusLabel: low?.label || '' },
+                { title: hasCompareSeries ? 'Jam Paling Berubah' : 'Perubahan Terbesar', tone: 'wide', value: spread ? `${spread.label} • ${spread.value.toFixed(2)}` : '-', desc: spread ? (hasCompareSeries ? `Snapshot ${spread.label} punya rentang perbandingan histori paling lebar untuk metric ${defs[metricKey]?.[0] || 'ini'}.` : `Perubahan intraday terbesar terjadi di snapshot ${spread.label}.`) : 'Belum ada cukup titik untuk dibandingkan.', focusSeries: String(currentDataset?.label || 'Hari Ini'), focusLabel: spread?.label || '' }
+            ];
+            insightsEl.innerHTML = items.map(function(card) {
+                const toneClass = card.tone === 'up' ? 'is-up' : (card.tone === 'down' ? 'is-down' : 'is-wide');
+                const toneLabel = card.tone === 'up' ? 'Naik' : (card.tone === 'down' ? 'Turun' : 'Volatil');
+                const isActive = String(uiState.focus?.series || '') === String(card.focusSeries || '') && String(uiState.focus?.label || '') === String(card.focusLabel || '') && isFocusActiveForMetric(metricKey);
+                return `<button type="button" class="decision-chart-insight ${isActive ? 'is-active' : ''}" data-focus-series="${esc(card.focusSeries || '')}" data-focus-label="${esc(card.focusLabel || '')}"><div class="decision-chart-insight-head"><div class="decision-chart-insight-k">${esc(card.title)}</div><span class="decision-chart-chip ${toneClass}">${esc(toneLabel)}</span></div><div class="decision-chart-insight-v">${esc(card.value)}</div><div class="decision-chart-insight-s">${esc(card.desc)}</div></button>`;
+            }).join('');
+            insightsEl.querySelectorAll('.decision-chart-insight[data-focus-series]').forEach(function(btn){
+                btn.onclick = function() {
+                    uiState.focus = {
+                        metric: metricKey,
+                        series: String(btn.getAttribute('data-focus-series') || '').trim(),
+                        label: String(btn.getAttribute('data-focus-label') || '').trim()
+                    };
+                    draw();
+                };
+            });
+            if (storyEl) {
+                const story = [
+                    peak ? `${defs[metricKey]?.[0] || 'Metric'} hari ini mencapai puncak di snapshot ${peak.label} pada nilai ${fmtVal(peak.value, metricKey)}.` : '',
+                    low ? `Titik terendah muncul di ${low.label} pada nilai ${fmtVal(low.value, metricKey)}.` : '',
+                    spread ? (hasCompareSeries ? `Perbedaan lintas histori paling lebar terjadi di snapshot ${spread.label}.` : `Perubahan intraday paling besar terjadi di snapshot ${spread.label}.`) : ''
+                ].filter(Boolean).join(' ');
+                storyEl.style.display = story ? '' : 'none';
+                storyEl.textContent = story;
+            }
+        };
+        const draw = function() {
+            const metricKey = String(uiState.metric || 'score');
+            const modeKey = String(uiState.mode || 'overlay').toLowerCase() === 'delta' ? 'delta' : 'overlay';
+            const def = defs[metricKey] || defs.score;
+            const labelSet = new Map();
+            compareOrder.forEach(function(key) {
+                const list = Array.isArray(seriesMap[key]) ? seriesMap[key] : [];
+                list.forEach(function(row, idx) {
+                    const label = String(row?.__snapshotLabel || scxSnapshotHourLabel(row, idx));
+                    if (!labelSet.has(label)) labelSet.set(label, Number(row?.__snapshotOrd || idx));
+                });
+            });
+            const labels = Array.from(labelSet.entries()).sort(function(a, b){ return a[1] - b[1]; }).map(function(item){ return item[0]; });
+            const currentMap = new Map();
+            currentRows.forEach(function(row) { currentMap.set(String(row?.__snapshotLabel || ''), scxSnapshotMetricValue(row, metricKey)); });
+            let datasets = [];
+            if (hasCompareSeries) {
+                datasets = compareOrder.map(function(key) {
+                    const list = Array.isArray(seriesMap[key]) ? seriesMap[key] : [];
+                    if (!list.length) return null;
+                    const meta = compareMeta[key];
+                    const valueMap = new Map();
+                    list.forEach(function(row) { valueMap.set(String(row?.__snapshotLabel || ''), scxSnapshotMetricValue(row, metricKey)); });
+                    let values = labels.map(function(lb){ return valueMap.has(lb) ? valueMap.get(lb) : null; });
+                    if (modeKey === 'delta') {
+                        if (key === 'current') {
+                            values = labels.map(function(lb){ return currentMap.has(lb) && Number.isFinite(Number(currentMap.get(lb))) ? 0 : null; });
+                        } else {
+                            values = labels.map(function(lb) {
+                                const base = Number(currentMap.get(lb));
+                                const hist = Number(valueMap.get(lb));
+                                if (!Number.isFinite(base) || !Number.isFinite(hist)) return null;
+                                return hist - base;
+                            });
+                        }
+                    }
+                    const labelText = modeKey === 'delta' ? (key === 'current' ? 'Hari Ini (baseline)' : `${meta.label} vs Hari Ini`) : meta.label;
+                    const focusSeriesMatch = isFocusActiveForMetric(metricKey) && String(uiState.focus?.series || '') === String(labelText || '');
+                    const hasFocus = isFocusActiveForMetric(metricKey) && String(uiState.focus?.label || '').trim();
+                    const pointRadiusArr = labels.map(function(lb){
+                        if (hasFocus && focusSeriesMatch && String(uiState.focus?.label || '') === String(lb || '')) return 6.5;
+                        return key === 'current' ? 3.5 : 2.5;
+                    });
+                    const pointHoverRadiusArr = labels.map(function(lb){
+                        if (hasFocus && focusSeriesMatch && String(uiState.focus?.label || '') === String(lb || '')) return 8;
+                        return key === 'current' ? 5.5 : 4;
+                    });
+                    return {
+                        label: labelText,
+                        data: values,
+                        borderColor: hasFocus ? (focusSeriesMatch ? meta.color : 'rgba(148,163,184,.25)') : meta.color,
+                        backgroundColor: hasFocus ? (focusSeriesMatch ? meta.bg : 'rgba(148,163,184,.05)') : meta.bg,
+                        fill: modeKey === 'overlay' ? meta.fill : false,
+                        tension: .32,
+                        pointRadius: pointRadiusArr,
+                        pointHoverRadius: pointHoverRadiusArr,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: hasFocus ? (focusSeriesMatch ? meta.color : 'rgba(148,163,184,.35)') : meta.color,
+                        pointBorderWidth: key === 'current' ? 2 : 1.5,
+                        borderWidth: hasFocus ? (focusSeriesMatch ? meta.width + 1 : 1.2) : meta.width,
+                        spanGaps: true,
+                        borderDash: modeKey === 'delta' && key === 'current' ? [4, 4] : meta.dash
+                    };
+                }).filter(Boolean);
+            } else {
+                datasets = [{
+                    label: 'Hari Ini',
+                    data: labels.map(function(lb){ return currentMap.has(lb) ? currentMap.get(lb) : null; }),
+                    borderColor: compareMeta.current.color,
+                    backgroundColor: compareMeta.current.bg,
+                    fill: true,
+                    tension: .35,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: '#fff',
+                    pointBorderColor: compareMeta.current.color,
+                    pointBorderWidth: 2,
+                    borderWidth: 3,
+                    spanGaps: true
+                }];
+            }
+            if (window[`${prefix}ChartInstance`] && typeof window[`${prefix}ChartInstance`].destroy === 'function') {
+                try { window[`${prefix}ChartInstance`].destroy(); } catch (_) {}
+            }
+            window[`${prefix}ChartInstance`] = new Chart(cvs.getContext('2d'), {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: {
+                            display: hasCompareSeries,
+                            position: 'top',
+                            labels: { usePointStyle: true, boxWidth: 10, boxHeight: 10 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    const v = Number(ctx.parsed?.y);
+                                    if (!Number.isFinite(v)) return `${ctx.dataset?.label || def[0]}: -`;
+                                    return `${ctx.dataset?.label || def[0]}: ${v.toFixed(2)}${metricKey === 'confidence' ? '%' : ''}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { maxRotation: 0, minRotation: 0, autoSkip: false } },
+                        y: { beginAtZero: metricKey === 'confidence' || metricKey === 'ivt_risk_score' }
+                    }
+                }
+            });
+            const validCount = currentRows.map(function(row){ return scxSnapshotMetricValue(row, metricKey); }).filter(function(v){ return Number.isFinite(Number(v)); }).length;
+            if (statusEl) statusEl.textContent = `${currentRows.length} snapshot • ${validCount} titik valid`;
+            if (noteEl) noteEl.textContent = modeKey === 'delta'
+                ? 'Mode selisih menampilkan perbedaan setiap snapshot terhadap hari ini, sehingga kenaikan atau penurunan nilainya lebih cepat terbaca.'
+                : 'Mode overlay menumpuk semua garis histori pada jam yang sama agar pola harian antar periode mudah dibandingkan.';
+            tabs.querySelectorAll('button[data-metric]').forEach(function(btn) {
+                const on = String(btn.getAttribute('data-metric') || '') === metricKey;
+                btn.classList.toggle('active', on);
+            });
+            if (modeTabs) modeTabs.querySelectorAll('button[data-mode]').forEach(function(btn) {
+                const on = String(btn.getAttribute('data-mode') || '') === modeKey;
+                btn.classList.toggle('active', on);
+            });
+            const resetBtn = modeTabs ? modeTabs.querySelector('button[data-action="reset-focus"]') : null;
+            if (resetBtn) {
+                const focusActive = isFocusActiveForMetric(metricKey);
+                resetBtn.disabled = !focusActive;
+                resetBtn.style.opacity = focusActive ? '' : '.55';
+                resetBtn.style.cursor = focusActive ? '' : 'not-allowed';
+            }
+            renderInsights(metricKey, labels, datasets);
+            buildCompareTable(metricKey);
+        };
+
+        tabs.querySelectorAll('button[data-metric]').forEach(function(btn) {
+            btn.onclick = function() {
+                uiState.metric = String(btn.getAttribute('data-metric') || 'score');
+                draw();
+            };
+        });
+        if (modeTabs) modeTabs.querySelectorAll('button[data-mode]').forEach(function(btn) {
+            btn.onclick = function() {
+                uiState.mode = String(btn.getAttribute('data-mode') || 'overlay');
+                draw();
+            };
+        });
+        const resetBtn = modeTabs ? modeTabs.querySelector('button[data-action="reset-focus"]') : null;
+        if (resetBtn) {
+            resetBtn.onclick = function() {
+                uiState.focus = null;
+                draw();
+            };
+        }
+        draw();
     }
 
     function scxRevenueValue(row) {
@@ -8973,7 +10104,7 @@ function initDashboardRecap() {
             }).join('');
     }
 
-    function scxRenderEntityPane(entityLabel, st, evs, pos, neg, tabKey, entityTypeLabel) {
+    function scxRenderEntityPane(entityLabel, st, evs, pos, neg, tabKey, entityTypeLabel, snapshotCardHtml) {
         const finalLabel = String(st?.final_label || 'UNKNOWN');
         const rootLabel = String(st?.root_cause_label || 'STABLE');
         const tone = (finalLabel.includes('POSITIVE') || finalLabel.includes('RECOVERY') || finalLabel.includes('EXPANSION')) ? 'green' : ((finalLabel.includes('DROP') || finalLabel.includes('NEG') || finalLabel.includes('RED_FLAG')) ? 'red' : 'yellow');
@@ -9040,6 +10171,7 @@ function initDashboardRecap() {
                 <div class="scx-sub" style="margin-bottom:8px;">Sinyal utama yang perlu dipantau atau diperbaiki lebih dulu.</div>
                 ${scxRenderImpactList(neg, 'Belum ada sinyal negatif dominan.', 'negative', 4)}
             </div>
+            ${snapshotCardHtml || ''}
             <div class="scx-card scx-grid-span">
                 <div class="sd-details">
                     <summary><span>Grafik trend performa</span><span class="sd-det-right" id="${esc(tabKey)}Status">Loading trend...</span></summary>
@@ -9070,9 +10202,9 @@ function initDashboardRecap() {
     function scxRenderSubdomainPane(sub, tabKey) {
         const st = sub?.status || {};
         const evs = Array.isArray(sub?.events) ? sub.events : [];
-        const pos = scxTopEvents(evs, 'positive');
-        const neg = scxTopEvents(evs, 'negative');
-        return scxRenderEntityPane(String(sub?.label || sub?.key || '-'), st, evs, pos, neg, tabKey, 'subdomain');
+        const pos = scxCondenseImpactItems(scxTopEvents(evs, 'positive'), 4);
+        const neg = scxCondenseImpactItems(scxTopEvents(evs, 'negative'), 4);
+        return scxRenderEntityPane(String(sub?.label || sub?.key || '-'), st, evs, pos, neg, tabKey, 'subdomain', '');
     }
 
     function bindScoreCountryTabs(onShow) {
@@ -9097,16 +10229,21 @@ function initDashboardRecap() {
         act('summary');
     }
 
-    function scxRenderCountryPane(group, tabKey) {
+    function scxRenderCountryPane(group, tabKey, timeline) {
         const st = group?.status || {};
         const evs = Array.isArray(group?.events) ? group.events : [];
-        let pos = scxTopEvents(evs, 'positive');
-        let neg = scxTopEvents(evs, 'negative');
+        let pos = scxCondenseImpactItems(scxTopEvents(evs, 'positive'), 4);
+        let neg = scxCondenseImpactItems(scxTopEvents(evs, 'negative'), 4);
         if (!pos.length) pos = scxFallbackImpactFromStatus(st, 'positive');
         if (!neg.length) neg = scxFallbackImpactFromStatus(st, 'negative');
         if (!pos.length && Number(st?.positive_signal_count || 0) > 0) pos = [{ name:'Sinyal Positif (agregat)', signal:Number(st?.positive_signal_count || 0), current:Number(st?.positive_signal_count || 0), baseline:0, countries:1 }];
         if (!neg.length && Number(st?.negative_signal_count || 0) > 0) neg = [{ name:'Sinyal Negatif (agregat)', signal:-Number(st?.negative_signal_count || 0), current:Number(st?.negative_signal_count || 0), baseline:0, countries:1 }];
-        return scxRenderEntityPane(scxCountryLabel(st), st, evs, pos, neg, tabKey, 'negara');
+        const countryCode = String(st?.country_cd || st?.country_code || '').trim().toUpperCase();
+        const snapshotRows = scxBuildCountrySnapshotRows(timeline, countryCode);
+        const snapshotCardHtml = snapshotRows.length
+            ? scxRenderSnapshotMetricCard(`${tabKey}Snapshot`, `Grafik ini membaca snapshot 3 jam untuk negara ${scxCountryLabel(st)} dari timeline scoring domain yang sama.`)
+            : '';
+        return scxRenderEntityPane(scxCountryLabel(st), st, evs, pos, neg, tabKey, 'negara', snapshotCardHtml);
     }
 
     // ...existing code...
@@ -11556,8 +12693,8 @@ function initDashboardRecap() {
                         ? 'Momentum terlihat sehat, tetapi tetap jaga quality dan IVT sebelum ekspansi.'
                         : 'Belum ada tekanan ekstrem, namun domain tetap perlu dipantau karena sinyal dapat berubah cepat.'));
     
-            let topPositive = scxTopEvents(events, 'positive');
-            let topNegative = scxTopEvents(events, 'negative');
+            let topPositive = scxCondenseImpactItems(scxTopEvents(events, 'positive'), 4);
+            let topNegative = scxCondenseImpactItems(scxTopEvents(events, 'negative'), 4);
             if (!topPositive.length && Number(headline?.positive_signal_count || 0) > 0) {
                 topPositive = [{ name: 'Sinyal Positif (agregat)', signal: Number(headline?.positive_signal_count || 0), current: Number(headline?.positive_signal_count || 0), baseline: 0, countries: groups.length || 1 }];
             }
@@ -11641,6 +12778,126 @@ function initDashboardRecap() {
             const decisionToneClass = String(recommendedDecision || '').trim().toLowerCase().replace(/\s+/g, '-');
             const focusCountryLabel = groups.length ? scxCountryLabel(focusStatus) : '-';
             const sourceLabel = String(headline?.scoring_source_label || headline?.scoring_source || 'Backend scoring').trim() || 'Backend scoring';
+            const scoringTimeline = [
+                canonicalInfo?.scoring_timeline,
+                canonicalMeta?.breakdown?.meta?.scoring_timeline,
+                canonicalMeta?.scoring_timeline,
+                scoring?.scoring_timeline
+            ].find(function(v){ return Array.isArray(v) && v.length; }) || [];
+            const historicalBlend = (function(){
+                const candidates = [
+                    scoring?.historical_blend,
+                    canonicalInfo?.historical_blend,
+                    canonicalMeta?.historical_blend
+                ];
+                for (let i = 0; i < candidates.length; i += 1) {
+                    const item = candidates[i];
+                    if (item && typeof item === 'object' && !Array.isArray(item)) return item;
+                }
+                return null;
+            })();
+            const historicalWindows = (historicalBlend && typeof historicalBlend?.windows === 'object' && !Array.isArray(historicalBlend.windows)) ? historicalBlend.windows : {};
+            const historicalWeights = (historicalBlend && typeof historicalBlend?.weights_used === 'object' && !Array.isArray(historicalBlend.weights_used)) ? historicalBlend.weights_used : {};
+            const historicalMetrics = (historicalBlend && typeof historicalBlend?.blended_metrics === 'object' && !Array.isArray(historicalBlend.blended_metrics)) ? historicalBlend.blended_metrics : {};
+            const historicalCurrentSnapshot = (historicalBlend && typeof historicalBlend?.current_snapshot === 'object' && !Array.isArray(historicalBlend.current_snapshot)) ? historicalBlend.current_snapshot : {};
+            const historicalWindowOrder = ['current', 'h1', 'h3', 'h7', 'h14', 'h28', 'h35'];
+            const historicalWindowLabel = function(key){
+                const map = { current: 'Hari Ini', h1: 'H-1', h3: 'H-3', h7: 'H-7', h14: 'H-14', h28: 'H-28', h35: 'H-35' };
+                return map[String(key || '').toLowerCase()] || String(key || '-').toUpperCase();
+            };
+            const historicalWindowDate = function(key){
+                const baseDate = String(state?.date || '').trim();
+                if (!baseDate) return '-';
+                const diffMap = { current: 0, h1: -1, h3: -3, h7: -7, h14: -14, h28: -28, h35: -35 };
+                const diff = Number(diffMap[String(key || '').toLowerCase()]);
+                return Number.isFinite(diff) ? ymdShift(baseDate, diff) : '-';
+            };
+            const historicalLabelTone = function(label){
+                const upper = String(label || '').toUpperCase();
+                if (upper.includes('POSITIVE') || upper.includes('RECOVERY') || upper.includes('EXPANSION')) return 'green';
+                if (upper.includes('DROP') || upper.includes('NEG') || upper.includes('RED_FLAG') || upper.includes('UNSAFE') || upper.includes('IVT')) return 'red';
+                return 'yellow';
+            };
+            const historicalWindowRows = historicalWindowOrder.map(function(key){
+                const windowData = (key === 'current')
+                    ? Object.assign({
+                        health_score: health,
+                        ivt_risk_score: risk,
+                        adjustment_score: adjustment,
+                        confidence: confidence,
+                        decision_margin: decision,
+                        label: rootLabel || finalLabel || recommendedDecision || 'STABLE'
+                    }, historicalCurrentSnapshot || {})
+                    : (historicalWindows[key] || {});
+                const weightRaw = Number(historicalWeights?.[key]);
+                const hasWindow = windowData && typeof windowData === 'object' && Object.keys(windowData).length;
+                const weight = Number.isFinite(weightRaw) ? weightRaw : (key === 'current' ? 1 : NaN);
+                if (!hasWindow && !Number.isFinite(weight)) return null;
+                const labelRaw = String(windowData?.label || (key === 'current' ? (rootLabel || finalLabel || recommendedDecision || 'STABLE') : '')).trim();
+                return {
+                    key: key,
+                    title: historicalWindowLabel(key),
+                    date: historicalWindowDate(key),
+                    weight: Number.isFinite(weight) ? weight : null,
+                    label: labelRaw,
+                    tone: historicalLabelTone(labelRaw),
+                    health: Number(windowData?.health_score ?? 0),
+                    risk: Number(windowData?.ivt_risk_score ?? 0),
+                    adjustment: Number(windowData?.adjustment_score ?? 0),
+                    confidence: Number(windowData?.confidence ?? 0),
+                    decision_margin: Number(windowData?.decision_margin ?? 0),
+                };
+            }).filter(Boolean);
+            const historicalActiveCount = historicalWindowRows.filter(function(item){ return item.key !== 'current'; }).length;
+            const historicalAvailableDates = Array.isArray(historicalBlend?.available_history_dates) ? historicalBlend.available_history_dates.filter(Boolean) : [];
+            const historicalSummary = String(historicalBlend?.summary || headline?.historical_blend_summary || headline?.reason_summary || '').trim();
+            const historicalVisualMetrics = [
+                { key: 'health', field: 'health', title: 'Health Score', subtitle: 'Semakin tinggi makin sehat' },
+                { key: 'risk', field: 'risk', title: 'Risk Score', subtitle: 'Semakin tinggi makin berisiko' },
+                { key: 'adjustment', field: 'adjustment', title: 'Adjustment', subtitle: 'Koreksi tambahan model' },
+                { key: 'margin', field: 'decision_margin', title: 'Decision Margin', subtitle: 'Ruang keputusan akhir' },
+                { key: 'confidence', field: 'confidence', title: 'Confidence', subtitle: 'Tingkat keyakinan model', isPercent01: true }
+            ];
+            const historicalMetricTone = function(metricKey, value){
+                const n = Number(value);
+                if (metricKey === 'risk') return 'is-risk';
+                if (metricKey === 'confidence') return 'is-confidence';
+                return n >= 0 ? 'is-positive' : 'is-negative';
+            };
+            const historicalMetricText = function(metric, value){
+                const n = Number(value);
+                if (!Number.isFinite(n)) return '-';
+                if (metric?.isPercent01) return scxPct01(n, 0);
+                return scxNum(n, 1);
+            };
+            const historicalMiniChartHtml = historicalWindowRows.length ? `<div class="scx-mini-compare-grid">${historicalVisualMetrics.map(function(metric){
+                const vals = historicalWindowRows.map(function(item){ return Number(item?.[metric.field]); }).filter(function(v){ return Number.isFinite(v); });
+                const maxAbs = vals.length ? Math.max.apply(null, vals.map(function(v){ return Math.abs(v); })) : 0;
+                const scaleBase = maxAbs > 0 ? maxAbs : 1;
+                const currentItem = historicalWindowRows.find(function(item){ return item.key === 'current'; }) || historicalWindowRows[0] || {};
+                return `<div class="scx-mini-compare-card">
+                    <div class="scx-mini-compare-head">
+                        <div>
+                            <div class="scx-mini-compare-title">${esc(metric.title)}</div>
+                            <div class="scx-mini-compare-sub">${esc(metric.subtitle)}</div>
+                        </div>
+                        <div class="scx-mini-compare-current">${esc(historicalMetricText(metric, currentItem?.[metric.field]))}</div>
+                    </div>
+                    <div class="scx-mini-compare-bars">
+                        ${historicalWindowRows.map(function(item){
+                            const raw = Number(item?.[metric.field]);
+                            const safeVal = Number.isFinite(raw) ? raw : 0;
+                            const pct = Math.max(0, Math.min(100, (Math.abs(safeVal) / scaleBase) * 100));
+                            const minHeight = Number.isFinite(raw) ? Math.max(8, pct) : 4;
+                            return `<div class="scx-mini-compare-item ${item.key === 'current' ? 'current' : ''}">
+                                <div class="scx-mini-compare-label">${esc(item.title)}</div>
+                                <div class="scx-mini-compare-track"><div class="scx-mini-compare-fill ${historicalMetricTone(metric.key, safeVal)}" style="height:${minHeight}%;"></div></div>
+                                <div class="scx-mini-compare-value">${esc(historicalMetricText(metric, raw))}</div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>`;
+            }).join('')}</div>` : '';
             const topRiskCountries = groups.slice().sort(function(a, b) {
                 const sa = (Number(a?.status?.ivt_risk_score || 0) * 1.15) + Math.max(0, -Number(a?.status?.decision_margin || 0)) + (Math.max(0, -Number(a?.status?.health_score || 0)) * 0.45);
                 const sb = (Number(b?.status?.ivt_risk_score || 0) * 1.15) + Math.max(0, -Number(b?.status?.decision_margin || 0)) + (Math.max(0, -Number(b?.status?.health_score || 0)) * 0.45);
@@ -11654,7 +12911,7 @@ function initDashboardRecap() {
             ];
             const tabButtons = `<div class="scx-modal-nav"><div class="scx-modal-nav-label">${useSubTabs ? 'Navigasi hasil scoring per subdomain negara aktif' : 'Navigasi hasil scoring per negara aktif'}</div><div class="scx-modal-tabs"><button type="button" class="scx-modal-tab is-active" data-scx-tab-btn="summary">Kesimpulan Akhir</button>${(useSubTabs ? subgroups : groups).map(function(item, idx){ const count = Array.isArray(item?.events) ? item.events.filter(function(ev){ return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; }).length : 0; const label = useSubTabs ? String(item?.label || item?.key || '-') : String(scxCountryLabel(item?.status || { country_cd: item?.key || '-' }) || '-').toUpperCase(); return `<button type="button" class="scx-modal-tab" data-scx-tab-btn="${useSubTabs ? `sub-${idx}` : `country-${idx}`}">${esc(label)}<span class="scx-tab-count">${esc(String(count))}</span></button>`; }).join('')}</div></div>`;
             const actionPanel = canAct ? `<div class="scx-section-gap scx-action-panel"><div class="scx-title">Campaign Aktif di Domain</div><div class="scx-sub" style="margin-bottom:10px;">Campaign langsung dimuat otomatis untuk domain ini.</div><div class="dashboard-recap-tabs mb-2" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-danger" id="sdPauseSelectedBtn">Stop</button><button type="button" class="btn btn-sm btn-primary" id="sdActivateSelectedBtn">Hold</button><button type="button" class="btn btn-sm btn-success" id="sdScaleUp15Btn">Scale Up</button><button type="button" class="btn btn-sm btn-warning text-dark" id="sdOptimize10Btn">Scale Down</button></div><div id="sdCampaignStatus" class="scx-sub" style="margin-bottom:8px;"></div><div id="sdCampaignTable"></div></div>` : '';
-            const countryPanes = useSubTabs ? subgroups.map(function(sub, idx){ return `<div data-scx-tab-pane="sub-${idx}" hidden>${scxRenderSubdomainPane(sub, `scxSubTrend${idx}`)}</div>`; }).join('') : groups.map(function(group, idx){ return `<div data-scx-tab-pane="country-${idx}" hidden>${scxRenderCountryPane(group, `scxCountryTrend${idx}`)}</div>`; }).join('');
+            const countryPanes = useSubTabs ? subgroups.map(function(sub, idx){ return `<div data-scx-tab-pane="sub-${idx}" hidden>${scxRenderSubdomainPane(sub, `scxSubTrend${idx}`)}</div>`; }).join('') : groups.map(function(group, idx){ return `<div data-scx-tab-pane="country-${idx}" hidden>${scxRenderCountryPane(group, `scxCountryTrend${idx}`, scoringTimeline)}</div>`; }).join('');
 
             let html = '';
             html += tabButtons;
@@ -11687,6 +12944,7 @@ function initDashboardRecap() {
             html += `      <span class="scx-chip">Negara Dominan Negatif: <b>${esc(scxNum(countriesNegative,0))}</b></span>`;
             html += `      <span class="scx-chip">Event Rows: <b>${esc(scxNum(detailEvents.length,0))}</b></span>`;
             html += `    </div>`;
+            html += actionPanel;
             html += `    <div class="scx-section-gap scx-summary-grid">`;
             html += `      <div class="scx-summary-box"><div class="label">Yang perlu dipahami dulu</div><div class="value">${esc(scxFriendlyLabel(rootLabel))}</div><div class="desc">${esc(String(first?.reason_summary || scxRootCauseText(rootLabel) || '-'))}</div></div>`;
             html += `      <div class="scx-summary-box"><div class="label">Prediksi kedepan</div><div class="value">${esc(forecastTitle)} • ${esc(scxPct01(forecastConfidence,0))}</div><div class="desc">${esc(forecastReason)} Horizon analisa ${esc(String(forecastHorizon))} jam.</div></div>`;
@@ -11708,10 +12966,6 @@ function initDashboardRecap() {
             html += `      <div class="scx-kpi scx-kpi--adjustment"><div class="scx-kpi-head"><div class="scx-kpi-label">Adjustment Score</div><span class="scx-kpi-icon"><i class="bi bi-sliders2"></i></span></div><div class="scx-kpi-value">${esc(scxNum(adjustment, 2))}</div><div class="scx-kpi-note">${adjustment >= 0 ? 'Belum ada penalti besar dari koreksi data/performa.' : 'Ada tekanan penyesuaian yang ikut menekan hasil scoring.'}</div><div class="scx-progress ${adjustment >= 0 ? 'green' : 'yellow'}"><span style="width:${scxClamp(Math.abs(adjustment), 0, 100)}%"></span></div></div>`;
             html += `      <div class="scx-kpi scx-kpi--margin"><div class="scx-kpi-head"><div class="scx-kpi-label">Decision Margin</div><span class="scx-kpi-icon"><i class="bi bi-graph-up-arrow"></i></span></div><div class="scx-kpi-value">${esc(scxNum(decision, 2))}</div><div class="scx-kpi-note">${esc(scxDecisionLabel(decision))}</div><div class="scx-progress yellow"><span style="width:${scxClamp(Math.abs(decision), 0, 100)}%"></span></div></div>`;
             html += `  </div>`;
-            html += `  <div class="scx-section-gap"><div class="scx-title">Apa yang perlu dilakukan sekarang</div><div class="scx-checklist">`;
-            html += actionChecklist.map(function(item){ return `<div class="scx-checklist-item"><i class="bi bi-check2-circle" aria-hidden="true"></i><div><strong>${esc(item.title)}</strong><span>${esc(item.text)}</span></div></div>`; }).join('');
-            html += `  </div></div>`;
-            html += actionPanel;
             html += `</div>`;
 
             html += `<div class="scx-card">`;
@@ -11736,7 +12990,45 @@ function initDashboardRecap() {
             html += `  </div></div>`;
             html += `  <div class="scx-section-gap"><div class="scx-title">Yang Mendorong Naik (Top ${esc(String(Math.min(topPositive.length, 4)))})</div>${scxRenderImpactList(topPositive, 'Belum ada sinyal positif dominan.', 'positive', 4)}</div>`;
             html += `  <div class="scx-section-gap"><div class="scx-title">Yang Perlu Diperhatikan (Top ${esc(String(Math.min(topNegative.length, 4)))})</div>${scxRenderImpactList(topNegative, 'Belum ada sinyal negatif dominan.', 'negative', 4)}</div>`;
+            html += `  <div class="scx-section-gap"><div class="scx-title">Apa yang perlu dilakukan sekarang</div><div class="scx-checklist">`;
+            html += actionChecklist.map(function(item){ return `<div class="scx-checklist-item"><i class="bi bi-check2-circle" aria-hidden="true"></i><div><strong>${esc(item.title)}</strong><span>${esc(item.text)}</span></div></div>`; }).join('');
+            html += `  </div></div>`;
             html += `</div>`;
+
+            if (historicalWindowRows.length) {
+                html += `<div class="scx-card scx-grid-span">`;
+                html += `  <div class="scx-title">Pertimbangan Historical</div>`;
+                html += `  <div class="scx-sub" style="margin-bottom:10px;">Score dan keputusan akhir dibentuk dari snapshot hari ini yang dibaurkan dengan histori trailing sebelum tanggal aktif, jadi hasilnya tidak hanya membaca kondisi satu hari.</div>`;
+                html += `  <div class="scx-history-layout">`;
+                html += `      <div class="scx-history-stack">`;
+                html += `          <div class="scx-summary-grid">`;
+                html += `              <div class="scx-summary-box"><div class="label">Mode Historical</div><div class="value">${esc(String(historicalBlend?.window_mode || 'trailing_days_excluding_today').replace(/_/g, ' '))}</div><div class="desc">Window yang dipakai: current, H-1, H-3, H-7, H-14, H-28, dan H-35.</div></div>`;
+                html += `              <div class="scx-summary-box"><div class="label">Window Aktif</div><div class="value">${esc(scxNum(historicalActiveCount, 0))}</div><div class="desc">${historicalAvailableDates.length ? `Histori tersedia dari ${esc(String(historicalAvailableDates[0]))} sampai ${esc(String(historicalAvailableDates[historicalAvailableDates.length - 1]))}.` : 'Window historikal yang memiliki data akan ikut dipakai otomatis.'}</div></div>`;
+                html += `              <div class="scx-summary-box"><div class="label">Health / Risk / Margin Blended</div><div class="value">${esc(scxNum(Number(historicalMetrics?.health_score ?? health), 1))} / ${esc(scxNum(Number(historicalMetrics?.ivt_risk_score ?? risk), 1))} / ${esc(scxNum(Number(historicalMetrics?.decision_margin ?? decision), 1))}</div><div class="desc">Ringkasan metrik setelah current day dibaurkan dengan histori.</div></div>`;
+                html += `              <div class="scx-summary-box"><div class="label">Label Blend</div><div class="value">${esc(scxFriendlyLabel(String(historicalMetrics?.label || rootLabel || finalLabel || 'STABLE')))}</div><div class="desc">${esc(historicalSummary || 'Belum ada ringkasan blend historikal tambahan.')}</div></div>`;
+                html += `          </div>`;
+                html += `          <div class="scx-chip-row">`;
+                html += historicalWindowRows.map(function(item){
+                    const pctText = item.weight == null ? '-' : scxPct01(item.weight, 0);
+                    return `<span class="scx-chip">${esc(item.title)}: <b>${esc(pctText)}</b>${item.date && item.date !== '-' ? ` • ${esc(item.date)}` : ''}</span>`;
+                }).join('');
+                html += `          </div>`;
+                html += `          <div class="scx-summary-grid">`;
+                html += historicalWindowRows.map(function(item){
+                    return `<div class="scx-summary-box"><div class="label">${esc(item.title)}${item.date && item.date !== '-' ? ` • ${esc(item.date)}` : ''}</div><div class="value"><span class="scx-pill ${esc(item.tone)}">${esc(scxFriendlyLabel(item.label || 'STABLE'))}</span></div><div class="desc">Bobot ${esc(item.weight == null ? '-' : scxPct01(item.weight, 0))} • Health ${esc(scxNum(item.health,1))} • Risk ${esc(scxNum(item.risk,1))} • Adj ${esc(scxNum(item.adjustment,1))} • Margin ${esc(scxNum(item.decision_margin,1))} • Conf ${esc(scxPct01(item.confidence,0))}</div></div>`;
+                }).join('');
+                html += `          </div>`;
+                html += `      </div>`;
+                html += `      <div class="scx-history-stack">`;
+                html += `          <div><div class="scx-title">Mini Chart Historical</div><div class="scx-sub" style="margin-bottom:8px;">Perbandingan cepat current vs H-1/H-3/H-7/H-14/H-28/H-35 untuk metrik utama.</div>${historicalMiniChartHtml}</div>`;
+                html += `      </div>`;
+                html += `  </div>`;
+                html += `</div>`;
+            }
+
+            if (scoringTimeline.length) {
+                html += scxRenderSnapshotMetricCard('sdSnapshot', 'Grafik ini membaca snapshot scoring per 3 jam dari timeline backend yang sama dengan ringkasan hasil di atas.');
+            }
 
             html += `<div class="scx-card scx-grid-span">`;
             html += `  <details class="sd-details" open><summary><span class="sd-det-left"><span class="sd-det-chevron" aria-hidden="true"></span><span>Grafik Score & KPI ${SCORE_METRIC_CHART_DAYS} Hari</span></span><span class="sd-det-meta"><span class="sd-det-toggle-label"><span class="when-closed">Klik untuk buka</span><span class="when-open">Klik untuk tutup</span></span><span class="sd-det-right" id="sdMetric14Status">Loading...</span></span></summary><div class="sd-det-body"><div class="dashboard-recap-tabs mb-3" id="sdMetric14Tabs" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-primary" data-metric="score">Score</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="health_score">Health</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="ivt_risk_score">Risk</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="adjustment_score">Adjustment</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="confidence">Confidence</button><button type="button" class="btn btn-sm btn-outline-primary" data-metric="decision_margin">Decision Margin</button></div><div style="height:320px;"><canvas id="sdMetric14Chart"></canvas></div><div class="scx-section-gap"><div class="scx-title">Ringkasan Trend ROI (H-1 s/d H-${SCORE_METRIC_CHART_DAYS})</div><p class="scx-sub mb-2">Metrik ROI/revenue diambil dari monitoring harian. Score memakai histori scoring bila tersedia.</p><div id="scxSummaryTrendWindows">${scxRenderTrendWindows(trendWindows)}</div></div></div></details>`;
@@ -11776,6 +13068,12 @@ function initDashboardRecap() {
             date: String(state?.date || ''),
             site: String(row?.name || ''),
         };
+        const scoringTimeline = [
+            info?.scoring_timeline,
+            breakdown?.meta?.scoring_timeline,
+            breakdown?.scoring_timeline,
+            metaHint?.scoring_timeline
+        ].find(function(v){ return Array.isArray(v); }) || [];
         const fallbackCountries = Array.isArray(row?.countries) ? row.countries : [];
         const statuses = details.length ? details.map(function(c){
             const spend = Number(c?.spend ?? 0);
@@ -11851,7 +13149,9 @@ function initDashboardRecap() {
                 requested_date: String(state?.date || ''),
                 effective_date: String(state?.date || ''),
                 warning: '',
-                audit: { source: 'dashboard_scoring_data' }
+                audit: { source: 'dashboard_scoring_data' },
+                scoring_timeline: scoringTimeline,
+                historical_blend: (info?.historical_blend && typeof info.historical_blend === 'object') ? info.historical_blend : ((metaHint?.historical_blend && typeof metaHint.historical_blend === 'object') ? metaHint.historical_blend : null)
             }
         };
     }
@@ -11871,6 +13171,7 @@ function initDashboardRecap() {
             let detailMeta = null;
             let syntheticHistoryByOffset = {};
             let metricDailySeries = [];
+            let metricHourlySeriesByOffset = {};
             const dim = String(state?.dim || '').toLowerCase();
             const key = scoringLookupKey(dim, row);
             const entities = scoringLookupCandidates(dim, row);
@@ -11885,7 +13186,7 @@ function initDashboardRecap() {
                 const vals = Object.values(store || {}).filter(function(v){ return v && typeof v === 'object'; });
                 return vals.length === 1 ? vals[0] : null;
             };
-            const payloadBase = { dim: String(state.dim || 'domain').trim(), source: String(state.source || 'all').trim(), entities: strictEntities.length ? strictEntities : (entities.length ? entities : (key ? [key] : [])), include_events: true };
+            const payloadBase = { dim: String(state.dim || 'domain').trim(), source: String(state.source || 'all').trim(), entities: entities.length ? entities : (strictEntities.length ? strictEntities : (key ? [key] : [])), include_events: true, include_timeline: true };
             try {
                 if (key && baseDate) {
                     const detailRes = await fetch('/management/admin/dashboard_scoring_data', {
@@ -11920,12 +13221,23 @@ function initDashboardRecap() {
                         const js = await res.json();
                         if (!res.ok || !js?.status || !js?.data) return [offsetKey, {}];
                         const raw = pickDailyRaw(js.data, st);
-                        let m = raw ? summarizeDashboardScoringMeta(raw, row, st) : null;
-                        if (!m && dim === 'country') {
+                        const rawTimeline = [
+                            raw?.breakdown?.meta?.scoring_timeline,
+                            raw?.scoring_timeline,
+                            js?.data?.scoring_timeline
+                        ].find(function(v){ return Array.isArray(v) && v.length; }) || [];
+                        let m = null;
+                        if (dim === 'country') {
                             const cm = summarizeCountryScoringFromPayload(js.data, row, st);
                             if (cm) m = summarizeDashboardScoringMeta(cm, row, st);
                         }
-                        return [offsetKey, m?.breakdown?.meta || {}];
+                        if (!m && raw) m = summarizeDashboardScoringMeta(raw, row, st);
+                        const metaOut = Object.assign({}, m?.breakdown?.meta || {});
+                        if ((!Array.isArray(metaOut.scoring_timeline) || !metaOut.scoring_timeline.length) && rawTimeline.length) {
+                            metaOut.scoring_timeline = rawTimeline;
+                        }
+                        metaOut.scoring_timeline = scxResolveSnapshotTimeline(metaOut.scoring_timeline, row, dim);
+                        return [offsetKey, metaOut];
                     };
                     const histRows = await Promise.all([
                         histFetch('h1', -1),
@@ -11945,11 +13257,33 @@ function initDashboardRecap() {
                         });
                         const cmpJson = await cmpRes.json();
                         const hist = Array.isArray(cmpJson?.data?.history_by_day) ? cmpJson.data.history_by_day : [];
+                        metricHourlySeriesByOffset = (cmpJson?.data?.hourly_series && typeof cmpJson.data.hourly_series === 'object') ? cmpJson.data.hourly_series : {};
                         metricDailySeries = hist.map(function(it){ return { date:String(it?.date || ''), score:Number.isFinite(Number(it?.score))?Number(it.score):null, health_score:Number.isFinite(Number(it?.health_score))?Number(it.health_score):null, ivt_risk_score:Number.isFinite(Number(it?.ivt_risk_score))?Number(it.ivt_risk_score):null, adjustment_score:Number.isFinite(Number(it?.adjustment_score))?Number(it.adjustment_score):null, confidence:Number.isFinite(Number(it?.confidence))?(Number(it.confidence) > 1 ? Number(it.confidence) : Number(it.confidence) * 100):null, decision_margin:Number.isFinite(Number(it?.decision_margin))?Number(it.decision_margin):null }; });
                     } else {
-                        const dates = []; for (let i=TREND_WINDOW_LOOKBACK_DAYS;i>=0;i--) dates.push(ymdShift(baseDate, -i));
-                        const daily = await Promise.all(dates.map(async function(d){ try { const st = Object.assign({}, state, { date:d }); const r = await fetch('/management/admin/dashboard_scoring_data', { method:'POST', headers:{ 'Content-Type':'application/json', 'X-Requested-With':'XMLHttpRequest' }, body: JSON.stringify(Object.assign({}, payloadBase, { date:d })), credentials:'same-origin' }); const j = await r.json(); if (!r.ok || !j?.status || !j?.data) return { date:d }; const raw = pickDailyRaw(j.data, st); const m = raw ? summarizeDashboardScoringMeta(raw, row, st) : null; return toRow(m, d); } catch(_) { return { date:d }; } }));
-                        metricDailySeries = daily;
+                        const countryCode = scxResolveCountryCode(row);
+                        const comparePayload = { date: baseDate, days_back: TREND_WINDOW_LOOKBACK_DAYS };
+                        if (countryCode) comparePayload.country_code = countryCode;
+                        const compareDomain = String(state?.subdomain || row?.subdomain || row?.domain || row?.site || '').trim();
+                        if (compareDomain) comparePayload.domain = compareDomain;
+                        try {
+                            const cmpRes = await fetch('/management/admin/dashboard_scoring_compare', {
+                                method:'POST', headers:{ 'Content-Type':'application/json', 'X-Requested-With':'XMLHttpRequest' },
+                                body: JSON.stringify(comparePayload), credentials:'same-origin'
+                            });
+                            const cmpJson = await cmpRes.json();
+                            if (cmpRes.ok && cmpJson?.status) {
+                                metricHourlySeriesByOffset = (cmpJson?.data?.hourly_series && typeof cmpJson.data.hourly_series === 'object') ? cmpJson.data.hourly_series : {};
+                                const hist = Array.isArray(cmpJson?.data?.history_by_day) ? cmpJson.data.history_by_day : [];
+                                if (hist.length) {
+                                    metricDailySeries = hist.map(function(it){ return { date:String(it?.date || ''), score:Number.isFinite(Number(it?.score))?Number(it.score):null, health_score:Number.isFinite(Number(it?.health_score))?Number(it.health_score):null, ivt_risk_score:Number.isFinite(Number(it?.ivt_risk_score))?Number(it.ivt_risk_score):null, adjustment_score:Number.isFinite(Number(it?.adjustment_score))?Number(it.adjustment_score):null, confidence:Number.isFinite(Number(it?.confidence))?(Number(it.confidence) > 1 ? Number(it.confidence) : Number(it.confidence) * 100):null, decision_margin:Number.isFinite(Number(it?.decision_margin))?Number(it.decision_margin):null }; });
+                                }
+                            }
+                        } catch (_) {}
+                        if (!metricDailySeries.length) {
+                            const dates = []; for (let i=TREND_WINDOW_LOOKBACK_DAYS;i>=0;i--) dates.push(ymdShift(baseDate, -i));
+                            const daily = await Promise.all(dates.map(async function(d){ try { const st = Object.assign({}, state, { date:d }); const r = await fetch('/management/admin/dashboard_scoring_data', { method:'POST', headers:{ 'Content-Type':'application/json', 'X-Requested-With':'XMLHttpRequest' }, body: JSON.stringify(Object.assign({}, payloadBase, { date:d })), credentials:'same-origin' }); const j = await r.json(); if (!r.ok || !j?.status || !j?.data) return { date:d }; const raw = pickDailyRaw(j.data, st); let m = null; if (dim === 'country') { const cm = summarizeCountryScoringFromPayload(j.data, row, st); if (cm) m = summarizeDashboardScoringMeta(cm, row, st); } if (!m && raw) m = summarizeDashboardScoringMeta(raw, row, st); return toRow(m, d); } catch(_) { return { date:d }; } }));
+                            metricDailySeries = daily;
+                        }
                     }
                 }
             } catch (e) {}
@@ -12007,16 +13341,64 @@ function initDashboardRecap() {
                 const metaInfo = effectiveMeta?.breakdown?.meta || {};
                 events = scxBuildSyntheticEventsFromStatuses(statuses, metaInfo, syntheticHistoryByOffset);
             }
+            const rawTimelinePick = [
+                effectiveMeta?.breakdown?.meta?.scoring_timeline,
+                json?.scoring?.scoring_timeline,
+                effectiveMeta?.scoring_timeline
+            ].find(function(v){ return Array.isArray(v) && v.length; }) || [];
+            const normalizedTimeline = scxResolveSnapshotTimeline(rawTimelinePick, row, dim);
             const normalizedJson = Object.assign({}, json, {
                 scoring: Object.assign({}, json?.scoring || {}, {
                     statuses,
                     events,
                     country_details: countryDetails,
+                    scoring_timeline: normalizedTimeline,
                     _events_source: nativeEvents.length ? 'native' : 'synthetic_status_components'
                 })
             });
             const groups = scxGroupScoringByCountry(statuses, events);
             const subgroups = [];
+            const readSeriesTimeline = function(metaLike) {
+                const candidates = [
+                    metaLike?.scoring_timeline,
+                    metaLike?.raw_timeline,
+                    metaLike?.breakdown?.meta?.scoring_timeline,
+                    metaLike?.meta?.scoring_timeline
+                ];
+                for (let i = 0; i < candidates.length; i += 1) {
+                    if (Array.isArray(candidates[i]) && candidates[i].length) return candidates[i];
+                }
+                return [];
+            };
+            const buildSnapshotSeriesMap = function(countryCode) {
+                if (metricHourlySeriesByOffset && typeof metricHourlySeriesByOffset === 'object') {
+                    const compareMap = {
+                        current: Array.isArray(metricHourlySeriesByOffset?.current) ? metricHourlySeriesByOffset.current : [],
+                        h1: Array.isArray(metricHourlySeriesByOffset?.h1) ? metricHourlySeriesByOffset.h1 : [],
+                        h3: Array.isArray(metricHourlySeriesByOffset?.h3) ? metricHourlySeriesByOffset.h3 : [],
+                        h7: Array.isArray(metricHourlySeriesByOffset?.h7) ? metricHourlySeriesByOffset.h7 : [],
+                        h14: Array.isArray(metricHourlySeriesByOffset?.h14) ? metricHourlySeriesByOffset.h14 : [],
+                        h28: Array.isArray(metricHourlySeriesByOffset?.h28) ? metricHourlySeriesByOffset.h28 : [],
+                        h35: Array.isArray(metricHourlySeriesByOffset?.h35) ? metricHourlySeriesByOffset.h35 : []
+                    };
+                    const hasCompareHourly = Object.values(compareMap).some(function(v){ return Array.isArray(v) && v.length; });
+                    if (hasCompareHourly) return compareMap;
+                }
+                const pickRows = function(timelineRows) {
+                    if (!Array.isArray(timelineRows) || !timelineRows.length) return [];
+                    return countryCode ? scxBuildCountrySnapshotRows(timelineRows, countryCode) : timelineRows;
+                };
+                const map = {
+                    current: pickRows(normalizedTimeline),
+                    h1: pickRows(readSeriesTimeline(syntheticHistoryByOffset?.h1)),
+                    h3: pickRows(readSeriesTimeline(syntheticHistoryByOffset?.h3)),
+                    h7: pickRows(readSeriesTimeline(syntheticHistoryByOffset?.h7)),
+                    h14: pickRows(readSeriesTimeline(syntheticHistoryByOffset?.h14)),
+                    h28: pickRows(readSeriesTimeline(syntheticHistoryByOffset?.h28)),
+                    h35: pickRows(readSeriesTimeline(syntheticHistoryByOffset?.h35))
+                };
+                return map;
+            };
             openScoreDetailModal(
                 `Detail Scoring: ${String(row?.name || '-')}`,
                 renderCreateScoringResult(normalizedJson, rowWithTrend, state, effectiveMeta)
@@ -12030,6 +13412,8 @@ function initDashboardRecap() {
                         const endYmd = String(state.date || '').trim();
                         if (!endYmd) return;
                         if (tabKey === 'summary') {
+                            const snapshotCountryCode = dim === 'country' ? scxResolveCountryCode(row) : '';
+                            bindScoreSnapshotMetricTabs('sdSnapshot', normalizedTimeline, { activeIndex: effectiveMeta?.breakdown?.meta?.scoring_timeline_active_idx, seriesMap: buildSnapshotSeriesMap(snapshotCountryCode) });
                             const summaryKeys = subgroups.map(function(it){ return it.key; }).filter(Boolean);
                             if (summaryKeys.length) {
                                 const trendState = Object.assign({}, state, { dim: 'domain' });
@@ -12056,6 +13440,7 @@ function initDashboardRecap() {
                         const st = group?.status || {};
                         const trendKey = String(row?.name || row?.domain || row?.site || '').trim();
                         const countryCode = String(st?.country_cd || st?.country_code || '').trim().toUpperCase();
+                        bindScoreSnapshotMetricTabs(`scxCountryTrend${idx}Snapshot`, scxBuildCountrySnapshotRows(normalizedTimeline, countryCode), { activeIndex: effectiveMeta?.breakdown?.meta?.scoring_timeline_active_idx, seriesMap: buildSnapshotSeriesMap(countryCode) });
                         if (trendKey && countryCode) bindScoreTrendControls(trendKey, endYmd, Object.assign({}, state, { dim: 'domain' }), { btn1Id: `scxCountryTrend${idx}Btn1`, btn3Id: `scxCountryTrend${idx}Btn3`, btn7Id: `scxCountryTrend${idx}Btn7`, btn14Id: `scxCountryTrend${idx}Btn14`, btn35Id: `scxCountryTrend${idx}Btn${SCORE_METRIC_CHART_DAYS}`, statusId: `scxCountryTrend${idx}Status`, statsId: `scxCountryTrend${idx}Stats`, canvasId: `scxCountryTrend${idx}Chart`, chartKey: `scxCountryTrendChart${idx}`, row: row, seriesOpts: { countryCode: countryCode } });
                     });
                     if (String(state?.dim || '').toLowerCase() === 'domain' && rowWithTrend?.account_ads && state?.date) bindScoreCampaignControls(rowWithTrend, String(state.date || '').trim(), normalizedJson?.scoring || {});

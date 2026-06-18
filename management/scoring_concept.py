@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 import math
 import uuid
 from zoneinfo import ZoneInfo
-from collections import defaultdict
+from collections import Counter, defaultdict
 import pandas as pd
 import numpy as np
 
@@ -351,6 +351,36 @@ STATUS_COMPAT_COLUMNS = [
     "root_cause_label",
     "final_label",
     "reason_summary",
+]
+
+HISTORICAL_BLEND_COMPONENTS = [
+    ("current", 0, 0.35),
+    ("h1", 1, 0.20),
+    ("h3", 3, 0.15),
+    ("h7", 7, 0.12),
+    ("h14", 14, 0.08),
+    ("h28", 28, 0.06),
+    ("h35", 35, 0.04),
+]
+
+HISTORICAL_BLEND_METRIC_FIELDS = [
+    "health_score",
+    "adjustment_score",
+    "ivt_risk_score",
+    "confidence",
+    "traffic_score",
+    "delivery_score",
+    "yield_score",
+    "quality_score",
+    "revenue_score",
+    "efficiency_score",
+    "engagement_score",
+    "control_score",
+    "ivt_click_stress_score",
+    "ivt_serving_score",
+    "ivt_attention_score",
+    "ivt_counter_score",
+    "ivt_funnel_score",
 ]
 
 STATUS_EXTENDED_COLUMNS = STATUS_COMPAT_COLUMNS + [
@@ -1049,6 +1079,10 @@ def _load_recent_status_history(target_date: date, lookback_days: int = 7) -> pd
         f"""
         SELECT batch_id, run_time, run_date, run_hour, entity_key, site, meta_campaign, country_code, date,
                health_score, adjustment_score, ivt_risk_score, confidence,
+               decision_margin,
+               traffic_score, delivery_score, yield_score, quality_score, revenue_score,
+               efficiency_score, engagement_score, control_score,
+               ivt_click_stress_score, ivt_serving_score, ivt_attention_score, ivt_counter_score, ivt_funnel_score,
                final_label, root_cause_label,
                positive_streak, negative_streak, adjustment_streak, ivt_streak
         FROM {STATUS_TABLE}
@@ -1056,15 +1090,16 @@ def _load_recent_status_history(target_date: date, lookback_days: int = 7) -> pd
           AND date <= toDate('{_sql_date(target_date)}')
         ORDER BY site, country_code, date, run_hour, run_time
         """,
-        # f"""
-        # SELECT batch_id, run_time, run_date, run_hour, entity_key, site, country_code, date,
-        #        health_score, adjustment_score, confidence,
-        #        final_label, root_cause_label
-        # FROM {STATUS_TABLE}
-        # WHERE date >= toDate('{_sql_date(target_date)}') - INTERVAL {int(lookback_days)} DAY
-        #   AND date <= toDate('{_sql_date(target_date)}')
-        # ORDER BY site, country_code, date, run_hour, run_time
-        # """,
+        f"""
+        SELECT batch_id, run_time, run_date, run_hour, entity_key, site, meta_campaign, country_code, date,
+               health_score, adjustment_score, ivt_risk_score, confidence,
+               final_label, root_cause_label,
+               positive_streak, negative_streak, adjustment_streak, ivt_streak
+        FROM {STATUS_TABLE}
+        WHERE date >= toDate('{_sql_date(target_date)}') - INTERVAL {int(lookback_days)} DAY
+          AND date <= toDate('{_sql_date(target_date)}')
+        ORDER BY site, country_code, date, run_hour, run_time
+        """,
     ]
     df = pd.DataFrame()
     for sql in sql_candidates:
@@ -1088,7 +1123,13 @@ def _load_recent_status_history(target_date: date, lookback_days: int = 7) -> pd
     out["run_time"] = pd.to_datetime(out["run_time"], utc=True, errors="coerce")
     out["date"] = pd.to_datetime(out["date"], errors="coerce").dt.date
     out["run_hour"] = out["run_hour"].map(lambda x: int(safe_float(x)))
-    for col in ["health_score", "adjustment_score", "ivt_risk_score", "confidence", "positive_streak", "negative_streak", "adjustment_streak", "ivt_streak"]:
+    for col in [
+        "health_score", "adjustment_score", "ivt_risk_score", "confidence", "decision_margin",
+        "traffic_score", "delivery_score", "yield_score", "quality_score", "revenue_score",
+        "efficiency_score", "engagement_score", "control_score",
+        "ivt_click_stress_score", "ivt_serving_score", "ivt_attention_score", "ivt_counter_score", "ivt_funnel_score",
+        "positive_streak", "negative_streak", "adjustment_streak", "ivt_streak"
+    ]:
         if col not in out.columns:
             out[col] = 0.0
         out[col] = out[col].map(safe_float)
@@ -1948,6 +1989,133 @@ def _compute_persistence(cur: pd.Series, recent_status_df: pd.DataFrame, recent_
     }
 
 
+def _recent_status_rows_for_entity(cur: pd.Series, recent_status_df: pd.DataFrame) -> pd.DataFrame:
+    if recent_status_df.empty:
+        return pd.DataFrame()
+
+    base_key = str(cur.get("entity_base_key", "") or "").strip()
+    same_entity = recent_status_df[recent_status_df["entity_base_key"] == base_key].copy() if base_key else pd.DataFrame()
+    if same_entity.empty:
+        site_key = normalize_domain(cur.get("site", ""))
+        country_key = normalize_country_cd(cur.get("country_code", ""))
+        legacy_key = f"{site_key}||{country_key}"
+        same_entity = recent_status_df[recent_status_df["entity_base_key"] == legacy_key].copy()
+    if same_entity.empty:
+        return same_entity
+
+    current_ts = pd.to_datetime(cur.get("run_time"), utc=True, errors="coerce")
+    if pd.notna(current_ts):
+        same_entity = same_entity[(same_entity["run_time"] < current_ts) | (same_entity["date"] < cur["date"])].copy()
+    else:
+        same_entity = same_entity[same_entity["date"] < cur["date"]].copy()
+    if same_entity.empty:
+        return same_entity
+
+    cur_hour = int(safe_float(cur.get("run_hour")))
+    same_entity["_same_hour_match"] = same_entity["run_hour"].map(lambda h: 1 if int(safe_float(h)) == cur_hour else 0)
+    same_entity = same_entity.sort_values(["date", "_same_hour_match", "run_time", "run_hour"])
+    same_entity = same_entity.drop_duplicates(subset=["date"], keep="last")
+    return same_entity.drop(columns=["_same_hour_match"], errors="ignore")
+
+
+def _summarize_recent_status_window(rows: pd.DataFrame) -> dict:
+    if rows is None or rows.empty:
+        return {}
+
+    ordered = rows.sort_values(["date", "run_hour", "run_time"]).copy()
+    records = ordered.to_dict("records")
+    legacy_health = _detect_legacy_health_batch(records)
+
+    def mean_col(col: str) -> float:
+        if col not in ordered.columns:
+            return 0.0
+        vals = pd.to_numeric(ordered[col], errors="coerce").dropna()
+        return float(vals.mean()) if len(vals) else 0.0
+
+    def mean_conf() -> float:
+        if "confidence" not in ordered.columns:
+            return 0.0
+        vals = [clip((safe_float(v) / 100.0) if safe_float(v) > 1.0 else safe_float(v), 0.0, 1.0) for v in ordered["confidence"].tolist()]
+        vals = [v for v in vals if math.isfinite(v)]
+        return float(sum(vals) / len(vals)) if vals else 0.0
+
+    health_vals = [_health_for_thresholds(rec.get("health_score"), legacy_health) for rec in records]
+    health_score = float(sum(health_vals) / len(health_vals)) if health_vals else 0.0
+    adjustment_score = mean_col("adjustment_score")
+    ivt_risk_score = mean_col("ivt_risk_score")
+    summary = {
+        "health_score": _clamp_health_score(health_score),
+        "adjustment_score": clip(adjustment_score, -100.0, 100.0),
+        "ivt_risk_score": clip(ivt_risk_score, 0.0, 100.0),
+        "confidence": mean_conf(),
+        "decision_margin": 0.0,
+    }
+    for col in HISTORICAL_BLEND_METRIC_FIELDS:
+        if col in {"health_score", "adjustment_score", "ivt_risk_score", "confidence"}:
+            continue
+        summary[col] = mean_col(col)
+    summary["decision_margin"] = _compute_decision_margin(
+        summary["health_score"], summary["ivt_risk_score"], summary["adjustment_score"]
+    )
+    labels = [
+        str(rec.get("final_label") or rec.get("root_cause_label") or "").strip().upper()
+        for rec in records
+        if str(rec.get("final_label") or rec.get("root_cause_label") or "").strip()
+    ]
+    summary["label"] = Counter(labels).most_common(1)[0][0] if labels else "STABLE"
+    summary["days"] = int(ordered["date"].nunique())
+    return summary
+
+
+def _build_historical_status_windows(cur: pd.Series, recent_status_df: pd.DataFrame) -> dict[str, dict]:
+    same_entity = _recent_status_rows_for_entity(cur, recent_status_df)
+    if same_entity.empty:
+        return {}
+    cur_date = cur.get("date")
+    out: dict[str, dict] = {}
+    for key, days_back, _weight in HISTORICAL_BLEND_COMPONENTS:
+        if key == "current" or days_back <= 0:
+            continue
+        start_date = cur_date - timedelta(days=days_back)
+        scoped = same_entity[(same_entity["date"] >= start_date) & (same_entity["date"] < cur_date)].copy()
+        if scoped.empty:
+            continue
+        out[key] = _summarize_recent_status_window(scoped)
+    return out
+
+
+def _blend_status_metrics(current_metrics: dict, historical_windows: dict[str, dict]) -> dict:
+    components: list[tuple[str, float, dict]] = []
+    for key, _days_back, weight in HISTORICAL_BLEND_COMPONENTS:
+        snap = current_metrics if key == "current" else (historical_windows.get(key) or {})
+        if snap:
+            components.append((key, float(weight), snap))
+    if not components:
+        return {}
+
+    total_weight = sum(weight for _, weight, _ in components) or 1.0
+    blended: dict[str, float | str | dict] = {}
+    for col in HISTORICAL_BLEND_METRIC_FIELDS:
+        blended[col] = float(sum((weight / total_weight) * safe_float(snap.get(col)) for _, weight, snap in components))
+    blended["decision_margin"] = _compute_decision_margin(
+        safe_float(blended.get("health_score")),
+        safe_float(blended.get("ivt_risk_score")),
+        safe_float(blended.get("adjustment_score")),
+    )
+    label_scores: dict[str, float] = {}
+    for key, weight, snap in components:
+        label = str(snap.get("label") or "").strip().upper()
+        if label:
+            label_scores[label] = float(label_scores.get(label, 0.0)) + (weight / total_weight)
+    blended["label"] = max(label_scores.items(), key=lambda kv: kv[1])[0] if label_scores else str(current_metrics.get("label") or "STABLE").upper()
+    blended["weights_used"] = {key: float(round(weight / total_weight, 4)) for key, weight, _ in components}
+    blended["summary"] = " | ".join([
+        f"{key.upper()}={str(snap.get('label') or '-').upper()} ({safe_float(snap.get('health_score')):.1f}/{safe_float(snap.get('ivt_risk_score')):.1f}/{safe_float(snap.get('adjustment_score')):.1f})"
+        for key, _weight, snap in components
+    ])
+    return blended
+
+
 def _group_health_score(events: list[dict], group_name: str) -> float:
     scoped = [e for e in events if e["metric_group"] == group_name and e["change_class"] in {"POSITIVE", "NEGATIVE", "NEUTRAL"}]
     if not scoped:
@@ -2110,10 +2278,7 @@ def _compute_health_score(events: list[dict], persistence: dict) -> float:
     else:
         score = 100 * sum(family_health.values()) / float(len(family_health))
 
-    score = _clamp_health_score(score)
-    prev_health = persistence.get("health_score", score)
-    score = _clamp_health_score((0.7 * prev_health) + (0.3 * score))
-    return score
+    return _clamp_health_score(score)
 
 
 def _health_activity_stats(events: list[dict]) -> tuple[int, int]:
@@ -2266,7 +2431,7 @@ def _apply_status_labeling(status: dict, persistence: dict) -> None:
 
 # Ringkasan singkat untuk audit/debug di dashboard detail.
 def _build_reason_summary(status: dict) -> str:
-    return "; ".join([
+    parts = [
         f"health={status['health_score']:.2f}",
         f"ivt={status['ivt_risk_score']:.2f}",
         f"adjust={status['adjustment_score']:.2f}",
@@ -2281,10 +2446,14 @@ def _build_reason_summary(status: dict) -> str:
         f"active_families={int(status.get('active_family_count', 0))}",
         f"forecast={status.get('forecast_direction', '-')}",
         f"reco={status.get('recommended_action', 'HOLD')}({safe_float(status.get('recommended_budget_change_pct', 0)):+.2f}%)",
-    ])
+    ]
+    hist_summary = str(status.get("historical_blend_summary") or "").strip()
+    if hist_summary:
+        parts.append(f"hist_blend={hist_summary}")
+    return "; ".join(parts)
 
 
-def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.UUID, persistence: dict) -> dict:
+def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.UUID, persistence: dict, historical_windows: dict[str, dict] | None = None) -> dict:
     positive = [e for e in events if e["change_class"] == "POSITIVE"]
     negative = [e for e in events if e["change_class"] == "NEGATIVE"]
     neutral = [e for e in events if e["change_class"] == "NEUTRAL"]
@@ -2303,13 +2472,43 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
     )
     confidence = _compute_status_confidence(events)
     active_health_event_count, active_family_count = _health_activity_stats(events)
-    health_score = _compute_health_score(events, persistence)
+    current_health_score = _compute_health_score(events, persistence)
 
     adjustment_score = clip((100.0 * adjustment_num / adjustment_den), -100.0, 100.0) if adjustment_den > 0 else 0.0
 
     ivt_num = sum(max(0.0, safe_float(e.get("ivt_component"))) for e in events)
     ivt_den = sum(max(safe_float(e.get("ivt_capacity")), 0.0) for e in events if safe_float(e.get("ivt_capacity")) > 0)
     ivt_risk_score = clip(100.0 * ivt_num / ivt_den, 0.0, 100.0) if ivt_den > 0 else 0.0
+    current_metrics = {
+        "health_score": current_health_score,
+        "adjustment_score": adjustment_score,
+        "ivt_risk_score": ivt_risk_score,
+        "confidence": clip(confidence, 0.0, 1.0),
+        "traffic_score": _group_health_score(events, "traffic"),
+        "delivery_score": _group_health_score(events, "delivery"),
+        "yield_score": _group_health_score(events, "yield"),
+        "quality_score": _group_health_score(events, "quality"),
+        "revenue_score": _group_health_score(events, "revenue"),
+        "efficiency_score": _group_health_score(events, "efficiency"),
+        "engagement_score": _group_health_score(events, "engagement"),
+        "control_score": _group_health_score(events, "control"),
+        "ivt_click_stress_score": _group_risk_score(events, "ivt_click_stress"),
+        "ivt_serving_score": _group_risk_score(events, "ivt_serving"),
+        "ivt_attention_score": _group_risk_score(events, "ivt_attention"),
+        "ivt_counter_score": _group_risk_score(events, "ivt_counter"),
+        "ivt_funnel_score": _group_risk_score(events, "ivt_funnel"),
+        "label": "",
+    }
+    current_metrics["decision_margin"] = _compute_decision_margin(
+        current_metrics["health_score"],
+        current_metrics["ivt_risk_score"],
+        current_metrics["adjustment_score"],
+    )
+    blended_metrics = _blend_status_metrics(current_metrics, historical_windows or {})
+    health_score = safe_float(blended_metrics.get("health_score", current_metrics["health_score"]))
+    adjustment_score = safe_float(blended_metrics.get("adjustment_score", current_metrics["adjustment_score"]))
+    ivt_risk_score = safe_float(blended_metrics.get("ivt_risk_score", current_metrics["ivt_risk_score"]))
+    confidence = clip(safe_float(blended_metrics.get("confidence", current_metrics["confidence"])), 0.0, 1.0)
     status = {
         "batch_id": str(batch_uuid),
         "run_time": _to_local_naive_dt(cur.get("run_time")),
@@ -2331,7 +2530,7 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "adjustment_score": adjustment_score,
         "ivt_risk_score": ivt_risk_score,
         "decision_margin": _compute_decision_margin(health_score, ivt_risk_score, adjustment_score),
-        "confidence": clip(confidence, 0.0, 1.0),
+        "confidence": confidence,
         "positive_signal_count": len(positive),
         "negative_signal_count": len(negative),
         "neutral_signal_count": len(neutral),
@@ -2339,19 +2538,19 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "adjustment_drop_count": sum(1 for e in events if safe_float(e["adjustment_component"]) < 0),
         "composite_positive_count": len(composite_positive),
         "composite_negative_count": len(composite_negative),
-        "traffic_score": _group_health_score(events, "traffic"),
-        "delivery_score": _group_health_score(events, "delivery"),
-        "yield_score": _group_health_score(events, "yield"),
-        "quality_score": _group_health_score(events, "quality"),
-        "revenue_score": _group_health_score(events, "revenue"),
-        "efficiency_score": _group_health_score(events, "efficiency"),
-        "engagement_score": _group_health_score(events, "engagement"),
-        "control_score": _group_health_score(events, "control"),
-        "ivt_click_stress_score": _group_risk_score(events, "ivt_click_stress"),
-        "ivt_serving_score": _group_risk_score(events, "ivt_serving"),
-        "ivt_attention_score": _group_risk_score(events, "ivt_attention"),
-        "ivt_counter_score": _group_risk_score(events, "ivt_counter"),
-        "ivt_funnel_score": _group_risk_score(events, "ivt_funnel"),
+        "traffic_score": safe_float(blended_metrics.get("traffic_score", current_metrics["traffic_score"])),
+        "delivery_score": safe_float(blended_metrics.get("delivery_score", current_metrics["delivery_score"])),
+        "yield_score": safe_float(blended_metrics.get("yield_score", current_metrics["yield_score"])),
+        "quality_score": safe_float(blended_metrics.get("quality_score", current_metrics["quality_score"])),
+        "revenue_score": safe_float(blended_metrics.get("revenue_score", current_metrics["revenue_score"])),
+        "efficiency_score": safe_float(blended_metrics.get("efficiency_score", current_metrics["efficiency_score"])),
+        "engagement_score": safe_float(blended_metrics.get("engagement_score", current_metrics["engagement_score"])),
+        "control_score": safe_float(blended_metrics.get("control_score", current_metrics["control_score"])),
+        "ivt_click_stress_score": safe_float(blended_metrics.get("ivt_click_stress_score", current_metrics["ivt_click_stress_score"])),
+        "ivt_serving_score": safe_float(blended_metrics.get("ivt_serving_score", current_metrics["ivt_serving_score"])),
+        "ivt_attention_score": safe_float(blended_metrics.get("ivt_attention_score", current_metrics["ivt_attention_score"])),
+        "ivt_counter_score": safe_float(blended_metrics.get("ivt_counter_score", current_metrics["ivt_counter_score"])),
+        "ivt_funnel_score": safe_float(blended_metrics.get("ivt_funnel_score", current_metrics["ivt_funnel_score"])),
         "positive_streak": persistence["positive_streak"],
         "negative_streak": persistence["negative_streak"],
         "adjustment_streak": persistence["adjustment_streak"],
@@ -2370,6 +2569,7 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "recommended_budget_change_pct": 0.0,
         "recommended_budget_target": safe_float(cur.get("meta_spend")),
         "budget_reco_reason": "",
+        "historical_blend_summary": str(blended_metrics.get("summary", "")),
         "top_positive_labels": pick_top_labels(e["event_label"] for e in positive),
         "top_negative_labels": pick_top_labels(e["event_label"] for e in negative),
         "top_positive_headers": pick_top_labels(e["header_name"] for e in positive),
@@ -2379,6 +2579,12 @@ def _summarize_current_row(cur: pd.Series, events: list[dict], batch_uuid: uuid.
         "reason_summary": "",
     }
     _apply_status_labeling(status, persistence)
+    if str(status.get("historical_blend_summary") or "").strip():
+        status["historical_blend_summary"] = str(status["historical_blend_summary"]).replace(
+            "CURRENT=-",
+            f"CURRENT={str(status.get('root_cause_label') or status.get('final_label') or 'STABLE').upper()}",
+            1,
+        )
     status.update(_compute_forecast_and_budget_reco(status, persistence))
     status["reason_summary"] = _build_reason_summary(status)
     return status
@@ -2412,7 +2618,8 @@ def _evaluate_current_batch(
 
         row_events.extend(_evaluate_composite_events(cur, row_events, batch_uuid))
         persistence = _compute_persistence(cur, recent_status_df, history_df)
-        status_rows.append(_summarize_current_row(cur, row_events, batch_uuid, persistence))
+        historical_windows = _build_historical_status_windows(cur, recent_status_df)
+        status_rows.append(_summarize_current_row(cur, row_events, batch_uuid, persistence, historical_windows))
 
         if profile_key == "lite":
             event_rows.extend([e for e in row_events if str(e.get("change_class", "")).upper() != "SKIPPED"])

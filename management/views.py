@@ -3689,6 +3689,10 @@ class DashboardScoringDataView(View):
             payload = json.loads((req.body or b'').decode('utf-8') or '{}')
             target_date = str(payload.get('date') or '').strip()
             target_date_obj = pd.to_datetime(target_date, errors='coerce').date() if str(target_date).strip() else None
+            history_lookback_days = 35
+            history_start_obj = (target_date_obj - timedelta(days=history_lookback_days)) if target_date_obj else None
+            history_start_sql = history_start_obj.isoformat() if history_start_obj else target_date
+            target_date_sql = target_date_obj.isoformat() if target_date_obj else target_date
             dim = str(payload.get('dim') or 'domain').strip().lower()
             raw_entities = payload.get('entities') or []
             include_events = bool(payload.get('include_events'))
@@ -3842,7 +3846,8 @@ class DashboardScoringDataView(View):
                 {reco_target_expr} AS recommended_budget_target,
                 {reco_reason_expr} AS budget_reco_reason
             FROM {status_table}
-            WHERE toDate(date) = toDate('{target_date}')
+            WHERE toDate(date) >= toDate('{history_start_sql}')
+              AND toDate(date) <= toDate('{target_date_sql}')
               AND {status_filter_expr}
             """
             event_sql = f"""
@@ -4170,6 +4175,127 @@ class DashboardScoringDataView(View):
                     return str(vals.value_counts().index[0])
                 except Exception:
                     return default
+            def compute_decision_margin_value(health_score, ivt_risk_score, adjustment_score):
+                ivt_penalty = max(0.0, safe_float(ivt_risk_score) - 45.0)
+                return float(round(safe_float(health_score) + safe_float(adjustment_score) - ivt_penalty, 4))
+            def dedupe_status_snapshot(frame):
+                tmp = frame.copy() if frame is not None else pd.DataFrame()
+                if tmp.empty:
+                    return tmp
+                if 'country_code' in tmp.columns:
+                    tmp['country_code'] = tmp['country_code'].astype(str).str.strip().str.upper()
+                dedupe_keys = []
+                if 'country_code' in tmp.columns:
+                    dedupe_keys.append('country_code')
+                if 'meta_campaign' in tmp.columns:
+                    dedupe_keys.append('meta_campaign')
+                if not dedupe_keys:
+                    return tmp
+                sort_cols = list(dedupe_keys)
+                if 'scoring_date' in tmp.columns:
+                    sort_cols.append('scoring_date')
+                elif 'date' in tmp.columns:
+                    sort_cols.append('date')
+                if 'run_time' in tmp.columns:
+                    sort_cols.append('run_time')
+                if 'run_hour' in tmp.columns:
+                    sort_cols.append('run_hour')
+                tmp = tmp.sort_values(sort_cols).drop_duplicates(subset=dedupe_keys, keep='last')
+                return tmp
+            def summarize_status_snapshot(frame):
+                tmp = dedupe_status_snapshot(frame)
+                if tmp.empty:
+                    return {}
+                for c in ['positive_signal_count', 'negative_signal_count', 'neutral_signal_count']:
+                    if c not in tmp.columns:
+                        tmp[c] = 0
+                tmp['signal_total'] = (
+                    pd.to_numeric(tmp['positive_signal_count'], errors='coerce').fillna(0)
+                    + pd.to_numeric(tmp['negative_signal_count'], errors='coerce').fillna(0)
+                    + pd.to_numeric(tmp['neutral_signal_count'], errors='coerce').fillna(0)
+                )
+                health_v = avg(tmp, 'health_score', weighted=True)
+                risk_v = avg(tmp, 'ivt_risk_score', weighted=True)
+                adj_v = avg(tmp, 'adjustment_score', weighted=True)
+                conf_v = normalize_conf(avg(tmp, 'confidence', weighted=True))
+                dm_v = compute_decision_margin_value(health_v, risk_v, adj_v)
+                labels_v = []
+                for c in ['final_label', 'root_cause_label']:
+                    if c in tmp.columns:
+                        labels_v.extend([str(x).strip().upper() for x in tmp[c].tolist() if str(x).strip()])
+                label_v = pd.Series(labels_v).value_counts().index[0] if labels_v else 'STABLE'
+                spend_v = float(pd.to_numeric(tmp['spend'], errors='coerce').fillna(0).sum()) if 'spend' in tmp.columns else 0.0
+                revenue_v = float(pd.to_numeric(tmp['revenue_value'], errors='coerce').fillna(0).sum()) if 'revenue_value' in tmp.columns else 0.0
+                roi_v = ((revenue_v - spend_v) / spend_v) if spend_v > 0 else 0.0
+                return {
+                    'health_score': float(health_v),
+                    'ivt_risk_score': float(risk_v),
+                    'adjustment_score': float(adj_v),
+                    'confidence': float(conf_v),
+                    'decision_margin': float(dm_v),
+                    'traffic_score': float(avg(tmp, 'traffic_score', weighted=True)),
+                    'delivery_score': float(avg(tmp, 'delivery_score', weighted=True)),
+                    'yield_score': float(avg(tmp, 'yield_score', weighted=True)),
+                    'quality_score': float(avg(tmp, 'quality_score', weighted=True)),
+                    'revenue_score': float(avg(tmp, 'revenue_score', weighted=True)),
+                    'efficiency_score': float(avg(tmp, 'efficiency_score', weighted=True)),
+                    'engagement_score': float(avg(tmp, 'engagement_score', weighted=True)),
+                    'control_score': float(avg(tmp, 'control_score', weighted=True)),
+                    'positive_signal_count': int(pd.to_numeric(tmp['positive_signal_count'], errors='coerce').fillna(0).sum()),
+                    'negative_signal_count': int(pd.to_numeric(tmp['negative_signal_count'], errors='coerce').fillna(0).sum()),
+                    'neutral_signal_count': int(pd.to_numeric(tmp['neutral_signal_count'], errors='coerce').fillna(0).sum()),
+                    'label': str(label_v),
+                    'roi': float(roi_v),
+                    'spend': float(spend_v),
+                    'revenue_value': float(revenue_v),
+                    'days_active': int(pd.to_numeric(tmp.get('days_active', pd.Series([], dtype=float)), errors='coerce').fillna(0).max()) if 'days_active' in tmp.columns else 0,
+                    'source_mode': dominant_text(tmp, 'mapped_revenue_source', 'BLENDED'),
+                    'reason_summary': ' | '.join(list(dict.fromkeys([str(x).strip() for x in tmp.get('reason_summary', pd.Series([], dtype=str)).tolist() if str(x).strip()]))[:3]),
+                    'row_count': int(len(tmp.index)),
+                }
+            def blend_snapshot_metrics(current_snapshot, historical_windows):
+                components = [('current', 0.35, current_snapshot or {})]
+                components.extend([
+                    ('h1', 0.20, (historical_windows or {}).get('h1') or {}),
+                    ('h3', 0.15, (historical_windows or {}).get('h3') or {}),
+                    ('h7', 0.12, (historical_windows or {}).get('h7') or {}),
+                    ('h14', 0.08, (historical_windows or {}).get('h14') or {}),
+                    ('h28', 0.06, (historical_windows or {}).get('h28') or {}),
+                    ('h35', 0.04, (historical_windows or {}).get('h35') or {}),
+                ])
+                usable = [(name, weight, snap) for name, weight, snap in components if snap]
+                if not usable:
+                    return {}
+                total_weight = sum(weight for _, weight, _ in usable) or 1.0
+                metric_keys = [
+                    'health_score', 'ivt_risk_score', 'adjustment_score', 'confidence', 'roi',
+                    'traffic_score', 'delivery_score', 'yield_score', 'quality_score', 'revenue_score',
+                    'efficiency_score', 'engagement_score', 'control_score'
+                ]
+                blended = {}
+                for key in metric_keys:
+                    blended[key] = float(sum((weight / total_weight) * safe_float(snap.get(key)) for _, weight, snap in usable))
+                blended['decision_margin'] = compute_decision_margin_value(
+                    blended.get('health_score', 0.0),
+                    blended.get('ivt_risk_score', 0.0),
+                    blended.get('adjustment_score', 0.0),
+                )
+                label_scores = {}
+                for _, weight, snap in usable:
+                    lbl = str(snap.get('label') or '').strip().upper()
+                    if lbl:
+                        label_scores[lbl] = float(label_scores.get(lbl, 0.0)) + float(weight / total_weight)
+                blended['label'] = max(label_scores.items(), key=lambda kv: kv[1])[0] if label_scores else str((current_snapshot or {}).get('label') or 'STABLE').upper()
+                blended['reason_summary'] = ' | '.join([
+                    f"{name.upper()}={str(snap.get('label') or '-').upper()} ({safe_float(snap.get('health_score')):.1f}/{safe_float(snap.get('ivt_risk_score')):.1f}/{safe_float(snap.get('adjustment_score')):.1f})"
+                    for name, _, snap in usable
+                    if snap
+                ])
+                blended['weights_used'] = {
+                    str(name): float(round(weight / total_weight, 4))
+                    for name, weight, _ in usable
+                }
+                return blended
             for entity_key, part in df.groupby('entity_key', sort=False):
                 # Ensure signal_total is available in part for weighted averages
                 for c in ['positive_signal_count', 'negative_signal_count', 'neutral_signal_count']:
@@ -4179,46 +4305,45 @@ class DashboardScoringDataView(View):
                                        pd.to_numeric(part['negative_signal_count'], errors='coerce').fillna(0) + \
                                        pd.to_numeric(part['neutral_signal_count'], errors='coerce').fillna(0)
 
-                # Score domain selalu dihitung dari seluruh campaign (termasuk yang masih LEARNING)
-                # agar agregasi tidak bias ke campaign non-learning saja.
                 part_eval = part.copy()
+                if target_date_obj is not None and 'scoring_date' in part_eval.columns:
+                    part_on_target = part_eval[part_eval['scoring_date'].eq(target_date_obj)].copy()
+                    if not part_on_target.empty:
+                        part_eval = part_on_target
 
-                snap = part_eval.copy()  
-                if 'country_code' in snap.columns and 'run_hour' in snap.columns:
-                    snap_keys = ['country_code']
-                    if 'meta_campaign' in snap.columns:
-                        snap_keys.append('meta_campaign')
-                    sort_cols = list(snap_keys)
-                    if 'scoring_date' in snap.columns:
-                        sort_cols.append('scoring_date')
-                    elif 'date' in snap.columns:
-                        sort_cols.append('date')
-                    if 'run_time' in snap.columns:
-                        sort_cols.append('run_time')
-                    sort_cols.append('run_hour')
-                    snap = snap.sort_values(sort_cols).drop_duplicates(subset=snap_keys, keep='last')
-                if target_date_obj is not None and 'scoring_date' in snap.columns:
-                    snap_on_target = snap[snap['scoring_date'].eq(target_date_obj)].copy()
-                    if not snap_on_target.empty:
-                        snap = snap_on_target
+                snap = dedupe_status_snapshot(part_eval)
+                current_snapshot = summarize_status_snapshot(part_eval)
+                historical_windows = {}
+                available_hist_dates = []
+                if target_date_obj is not None and 'scoring_date' in part.columns:
+                    scoring_dates_all = pd.to_datetime(part['scoring_date'], errors='coerce').dt.date
+                    for d in sorted([x for x in scoring_dates_all.dropna().tolist() if x < target_date_obj]):
+                        if d not in available_hist_dates:
+                            available_hist_dates.append(d)
+                    for days_back, key in [(1, 'h1'), (3, 'h3'), (7, 'h7'), (14, 'h14'), (28, 'h28'), (35, 'h35')]:
+                        start_d = target_date_obj - timedelta(days=days_back)
+                        hist_slice = part[(part['scoring_date'] >= start_d) & (part['scoring_date'] < target_date_obj)].copy()
+                        window_snapshot = summarize_status_snapshot(hist_slice)
+                        if window_snapshot:
+                            historical_windows[key] = window_snapshot
+                blended_snapshot = blend_snapshot_metrics(current_snapshot, historical_windows)
 
                 join_status_series = snap['join_status'] if 'join_status' in snap.columns else pd.Series('', index=snap.index)
                 join_status_clean = join_status_series.astype(str).str.upper().str.strip()
                 join_status_summary = ', '.join([f"{k}:{v}" for k, v in join_status_clean.value_counts().to_dict().items() if str(k).strip()])
                 
-                # Averaged metrics from campaign aktif non-learning (fallback: semua campaign)
-                health = avg(part_eval, 'health_score', weighted=True)
-                risk = avg(part_eval, 'ivt_risk_score', weighted=True)
-                adj = avg(part_eval, 'adjustment_score', weighted=True)
-                dm = avg(part_eval, 'decision_margin', weighted=True)
-                conf_raw = avg(part_eval, 'confidence', weighted=True)
-                conf = normalize_conf(conf_raw)
+                health = float(blended_snapshot.get('health_score', current_snapshot.get('health_score', 0.0)))
+                risk = float(blended_snapshot.get('ivt_risk_score', current_snapshot.get('ivt_risk_score', 0.0)))
+                adj = float(blended_snapshot.get('adjustment_score', current_snapshot.get('adjustment_score', 0.0)))
+                dm = float(blended_snapshot.get('decision_margin', current_snapshot.get('decision_margin', 0.0)))
+                conf = float(blended_snapshot.get('confidence', current_snapshot.get('confidence', 0.0)))
 
                 labels = []
                 for c in ['final_label', 'root_cause_label']:
                     if c in snap.columns:
                         labels.extend([str(x).strip().upper() for x in snap[c].tolist() if str(x).strip()])
-                label = pd.Series(labels).value_counts().index[0] if labels else 'STABLE'
+                current_label = pd.Series(labels).value_counts().index[0] if labels else 'STABLE'
+                label = str(blended_snapshot.get('label') or current_label or 'STABLE').upper()
 
                 # Totals from evaluation frame + continuity guard from full frame
                 total_pos = int(pd.to_numeric(part_eval['positive_signal_count'], errors='coerce').fillna(0).sum()) if 'positive_signal_count' in part_eval.columns else 0
@@ -4226,18 +4351,20 @@ class DashboardScoringDataView(View):
                 total_neu = int(pd.to_numeric(part_eval['neutral_signal_count'], errors='coerce').fillna(0).sum()) if 'neutral_signal_count' in part_eval.columns else 0
                 spend_total = float(pd.to_numeric(part_eval['spend'], errors='coerce').fillna(0).sum()) if 'spend' in part_eval.columns else 0.0
                 revenue_total = float(pd.to_numeric(part_eval['revenue_value'], errors='coerce').fillna(0).sum()) if 'revenue_value' in part_eval.columns else 0.0
-                roi_total = ((revenue_total - spend_total) / spend_total) if spend_total > 0 else 0.0
-                profit_strong = (revenue_total > spend_total) and (roi_total >= 0.30)
-                full_spend_total = float(pd.to_numeric(part['spend'], errors='coerce').fillna(0).sum()) if 'spend' in part.columns else spend_total
-                full_revenue_total = float(pd.to_numeric(part['revenue_value'], errors='coerce').fillna(0).sum()) if 'revenue_value' in part.columns else revenue_total
+                roi_total_raw = ((revenue_total - spend_total) / spend_total) if spend_total > 0 else 0.0
+                roi_total = float(blended_snapshot.get('roi', roi_total_raw))
+                history_has_spend = any(safe_float((historical_windows.get(k) or {}).get('spend')) > 0 for k in ['h1', 'h3', 'h7', 'h14', 'h28', 'h35'])
+                profit_strong = (roi_total >= 0.30) and ((revenue_total > 0) or history_has_spend)
+                full_spend_total = spend_total
+                full_revenue_total = revenue_total
                 continuity_running = (full_spend_total > 0) or (full_revenue_total > 0)
                 has_signal = (total_pos + total_neg + total_neu) > 0
                 has_metric_surface = any([abs(safe_float(health)) > 0.0, abs(safe_float(risk)) > 0.0, abs(safe_float(adj)) > 0.0, abs(safe_float(dm)) > 0.0])
                 has_scoring = (has_signal and conf >= 0.05) or (continuity_running and has_metric_surface and conf >= 0.03)
-                traffic_now = avg(part_eval, 'traffic_score', weighted=True)
-                delivery_now = avg(part_eval, 'delivery_score', weighted=True)
-                yield_now = avg(part_eval, 'yield_score', weighted=True)
-                revenue_now = avg(part_eval, 'revenue_score', weighted=True)
+                traffic_now = float(blended_snapshot.get('traffic_score', current_snapshot.get('traffic_score', avg(part_eval, 'traffic_score', weighted=True))))
+                delivery_now = float(blended_snapshot.get('delivery_score', current_snapshot.get('delivery_score', avg(part_eval, 'delivery_score', weighted=True))))
+                yield_now = float(blended_snapshot.get('yield_score', current_snapshot.get('yield_score', avg(part_eval, 'yield_score', weighted=True))))
+                revenue_now = float(blended_snapshot.get('revenue_score', current_snapshot.get('revenue_score', avg(part_eval, 'revenue_score', weighted=True))))
                 anomaly_cards = derive_anomaly_cards(traffic_now, delivery_now, yield_now, revenue_now, risk, adj)
                 days_series = part_eval['scoring_date'] if 'scoring_date' in part_eval.columns else (part_eval['date'] if 'date' in part_eval.columns else pd.Series([], dtype=object))
                 days_hist = int(pd.to_datetime(days_series, errors='coerce').dropna().dt.date.nunique())
@@ -4269,7 +4396,7 @@ class DashboardScoringDataView(View):
                     label = "STABLE" if continuity_mature else "DATA_INCOMPLETE"
                     decision = "HOLD" if continuity_mature else decision
                 reason_parts = [str(x).strip() for x in snap.get('reason_summary', pd.Series([], dtype=str)).tolist() if str(x).strip()]
-                reason_summary = ' | '.join(list(dict.fromkeys(reason_parts))[:3])
+                reason_summary = str(blended_snapshot.get('reason_summary') or ' | '.join(list(dict.fromkeys(reason_parts))[:3]))
 
                 scoring_timeline = []
                 def _hour_key(v):
@@ -4387,6 +4514,7 @@ class DashboardScoringDataView(View):
                                 'country_code': str(crow.get('country_code') or ''),
                                 'country_name': str(crow.get('country_name') or ''),
                                 'meta_campaign': str(crow.get('meta_campaign') or ''),
+                                'score': safe_float(crow.get('score')),
                                 'days_active': int(safe_float(crow.get('days_active'))),
                                 'health_score': safe_float(crow.get('health_score')),
                                 'ivt_risk_score': safe_float(crow.get('ivt_risk_score')),
@@ -4615,6 +4743,7 @@ class DashboardScoringDataView(View):
                         'country_code': str(row.get('country_code') or ''),
                         'country_name': str(row.get('country_name') or ''),
                         'meta_campaign': row_meta_campaign,
+                        'score': safe_float(row.get('score')),
                         'days_active': int(safe_float(row.get('days_active'))),
                         'health_score': safe_float(row.get('health_score')),
                         'ivt_risk_score': safe_float(row.get('ivt_risk_score')),
@@ -4676,14 +4805,14 @@ class DashboardScoringDataView(View):
                         'recommended_budget_target': float(round(spend_total * (1.0 + (avg(snap, 'recommended_budget_change_pct', weighted=True) / 100.0)), 2)) if spend_total > 0 else 0.0,
                         'budget_reco_reason': dominant_text(snap, 'budget_reco_reason', ''),
                         'anomaly_cards': anomaly_cards,
-                        'traffic_score': avg(snap, 'traffic_score', weighted=True),
-                        'delivery_score': avg(snap, 'delivery_score', weighted=True),
-                        'yield_score': avg(snap, 'yield_score', weighted=True),
-                        'quality_score': avg(snap, 'quality_score', weighted=True),
-                        'revenue_score': avg(snap, 'revenue_score', weighted=True),
-                        'efficiency_score': avg(snap, 'efficiency_score', weighted=True),
-                        'engagement_score': avg(snap, 'engagement_score', weighted=True),
-                        'control_score': avg(snap, 'control_score', weighted=True),
+                        'traffic_score': traffic_now,
+                        'delivery_score': delivery_now,
+                        'yield_score': yield_now,
+                        'quality_score': float(blended_snapshot.get('quality_score', current_snapshot.get('quality_score', avg(snap, 'quality_score', weighted=True)))),
+                        'revenue_score': revenue_now,
+                        'efficiency_score': float(blended_snapshot.get('efficiency_score', current_snapshot.get('efficiency_score', avg(snap, 'efficiency_score', weighted=True)))),
+                        'engagement_score': float(blended_snapshot.get('engagement_score', current_snapshot.get('engagement_score', avg(snap, 'engagement_score', weighted=True)))),
+                        'control_score': float(blended_snapshot.get('control_score', current_snapshot.get('control_score', avg(snap, 'control_score', weighted=True)))),
                         'ivt_click_stress_score': avg(snap, 'ivt_click_stress_score', weighted=True),
                         'ivt_serving_score': avg(snap, 'ivt_serving_score', weighted=True),
                         'ivt_attention_score': avg(snap, 'ivt_attention_score', weighted=True),
@@ -4695,8 +4824,27 @@ class DashboardScoringDataView(View):
                         'dominant_event_label': dominant_event_label,
                         'country_details': country_details,
                         'scoring_timeline': scoring_timeline,
+                        'historical_blend': {
+                            'window_mode': 'trailing_days_excluding_today',
+                            'lookback_days': int(history_lookback_days),
+                            'available_history_dates': [d.isoformat() for d in available_hist_dates],
+                            'weights_used': blended_snapshot.get('weights_used', {}),
+                            'current_snapshot': current_snapshot,
+                            'windows': historical_windows,
+                            'blended_metrics': {
+                                'health_score': health,
+                                'ivt_risk_score': risk,
+                                'adjustment_score': adj,
+                                'confidence': conf,
+                                'decision_margin': dm,
+                                'roi': roi_total,
+                                'label': label,
+                                'score': score,
+                                'decision': decision_final,
+                            },
+                        },
                         'scoring_source': 'status_event_aggregate',
-                        'scoring_source_label': 'Agregasi fact_site_country_status_history + fact_change_event_long'
+                        'scoring_source_label': 'Agregasi historical fact_site_country_status_history + fact_change_event_long'
                     }}
                 }
                 if include_events:
@@ -4852,7 +5000,7 @@ class DashboardScoringCompareView(View):
                 decision = "SCALE DOWN"
             return score, decision
 
-        def aggregate_snapshot(frame: pd.DataFrame) -> dict:
+        def aggregate_snapshot(frame: pd.DataFrame, country_mode: bool = False) -> dict:
             if frame is None or frame.empty:
                 return {}
             tmp = frame.copy()
@@ -4867,7 +5015,7 @@ class DashboardScoringCompareView(View):
                 tmp['run_hour_key'] = tmp['run_hour'].map(hour_key)
             else:
                 tmp['run_hour_key'] = None
-            if 'country_code' in tmp.columns:
+            if (not country_mode) and 'country_code' in tmp.columns:
                 tmp = tmp.sort_values(['country_code', 'run_time_dt', 'run_hour_key']).drop_duplicates(subset=['country_code'], keep='last')
 
             for c in ['positive_signal_count', 'negative_signal_count', 'neutral_signal_count']:
@@ -4947,15 +5095,18 @@ class DashboardScoringCompareView(View):
             target_date_str = str(payload.get('date') or '').strip()
             domain_raw = payload.get('domain') or payload.get('site') or payload.get('meta_campaign') or ''
             domain = normalize_site_entity(domain_raw)
+            country_code_raw = str(payload.get('country_code') or payload.get('country_cd') or '').strip().upper()
+            if country_code_raw == 'TU':
+                country_code_raw = 'TR'
             run_hour_req = payload.get('run_hour')
             run_hour_req = hour_key(run_hour_req)
-            if not target_date_str or not domain:
-                return JsonResponse({'status': False, 'error': 'date dan domain wajib diisi'}, status=400)
+            if not target_date_str or (not domain and not country_code_raw):
+                return JsonResponse({'status': False, 'error': 'date dan domain/country_code wajib diisi'}, status=400)
             target_dt = pd.to_datetime(target_date_str, errors='coerce')
             if pd.isna(target_dt):
                 return JsonResponse({'status': False, 'error': 'format date tidak valid (YYYY-MM-DD)'}, status=400)
             target_date = target_dt.date()
-            compare_offsets = {'h1': 1, 'h3': 3, 'h7': 7}
+            compare_offsets = {'h1': 1, 'h3': 3, 'h7': 7, 'h14': 14, 'h28': 28, 'h35': 35}
             compare_dates = {k: (target_date - timedelta(days=v)) for k, v in compare_offsets.items()}
             days_back = max(0, min(int(payload.get('days_back') or 0), 69))
 
@@ -4973,6 +5124,19 @@ class DashboardScoringCompareView(View):
                 if d not in all_dates:
                     all_dates.append(d)
             literals_dates = ', '.join([f"toDate('{d.isoformat()}')" for d in all_dates])
+
+            domain_sql = domain.replace("'", "''")
+            where_parts = [f"toDate(date) IN ({literals_dates})"]
+            if domain:
+                where_parts.append(f"lower(site) = '{domain_sql}'")
+            if country_code_raw:
+                cc_lit = country_code_raw.replace("'", "''")
+                if country_code_raw == 'TR':
+                    where_parts.append("(upper(country_code) IN ('TR', 'TU'))")
+                else:
+                    where_parts.append(f"upper(country_code) = '{cc_lit}'")
+            where_sql = ' AND '.join(where_parts)
+            country_mode = bool(country_code_raw)
 
             status_sql = f"""
             SELECT
@@ -4996,16 +5160,19 @@ class DashboardScoringCompareView(View):
                 neutral_signal_count,
                 reason_summary
             FROM {status_table}
-            WHERE toDate(date) IN ({literals_dates})
-              AND lower(site) = '{domain.replace("'", "''")}'
+            WHERE {where_sql}
             """
             sdf = query_df_func(status_sql)
             if sdf is None or sdf.empty:
-                return JsonResponse({'status': True, 'data': {'domain': domain, 'date': target_date_str, 'empty': True}}, safe=False)
+                return JsonResponse({'status': True, 'data': {'domain': domain, 'country_code': country_code_raw, 'date': target_date_str, 'empty': True}}, safe=False)
             sdf = sdf.copy()
             sdf['date'] = pd.to_datetime(sdf['date'], errors='coerce').dt.date
 
             # Query sumber (spend/revenue) untuk bantu rekomendasi aksi
+            src_where_parts = [f"toDate(date) IN ({literals_dates})"]
+            if domain:
+                src_where_parts.append(f"lower(site) = '{domain_sql}'")
+            src_where_sql = ' AND '.join(src_where_parts)
             src_sql = f"""
             SELECT
                 toDate(date) AS date,
@@ -5015,8 +5182,7 @@ class DashboardScoringCompareView(View):
                 sum(adsense_estimated_earnings) AS adsense_estimated_earnings,
                 argMax(mapped_revenue_source, mdd) AS mapped_revenue_source
             FROM {source_table}
-            WHERE toDate(date) IN ({literals_dates})
-              AND lower(site) = '{domain.replace("'", "''")}'
+            WHERE {src_where_sql}
             GROUP BY date, run_hour
             """
             try:
@@ -5069,7 +5235,7 @@ class DashboardScoringCompareView(View):
             cur_hour = run_hour_req if run_hour_req is not None else latest_hour_by_date.get(target_date)
             cur_hour = int(cur_hour) if cur_hour is not None else None
             cur_frame = sdf[(sdf['date'] == target_date) & (sdf['run_hour_key'] == cur_hour)].copy() if cur_hour is not None else sdf[sdf['date'] == target_date].copy()
-            cur = aggregate_snapshot(cur_frame)
+            cur = aggregate_snapshot(cur_frame, country_mode)
             cur = attach_financial(cur, target_date, cur_hour)
             if cur:
                 cur['date'] = target_date.isoformat()
@@ -5077,11 +5243,35 @@ class DashboardScoringCompareView(View):
 
             by_day = {}
             by_hour = {}
+            hourly_series = {}
+
+            def build_hourly_series(day_value):
+                day_frame_all = sdf[sdf['date'] == day_value].copy()
+                if day_frame_all.empty:
+                    return []
+                hours = pd.to_numeric(day_frame_all['run_hour_key'], errors='coerce').dropna().astype(int).tolist()
+                seen_hours = []
+                series = []
+                for hr in sorted(hours):
+                    if hr in seen_hours:
+                        continue
+                    seen_hours.append(hr)
+                    hour_frame = day_frame_all[day_frame_all['run_hour_key'] == hr].copy()
+                    snap_hour = aggregate_snapshot(hour_frame, country_mode)
+                    snap_hour = attach_financial(snap_hour, day_value, hr)
+                    if not snap_hour:
+                        continue
+                    snap_hour['date'] = day_value.isoformat()
+                    snap_hour['run_hour'] = hr
+                    series.append(snap_hour)
+                return series
+
+            hourly_series['current'] = build_hourly_series(target_date)
             for key, dprev in compare_dates.items():
                 lh = latest_hour_by_date.get(dprev)
                 # daily snapshot = latest hour
                 day_frame = sdf[(sdf['date'] == dprev) & (sdf['run_hour_key'] == lh)].copy() if lh is not None else sdf[sdf['date'] == dprev].copy()
-                snap_day = aggregate_snapshot(day_frame)
+                snap_day = aggregate_snapshot(day_frame, country_mode)
                 snap_day = attach_financial(snap_day, dprev, lh)
                 if snap_day:
                     snap_day['date'] = dprev.isoformat()
@@ -5092,12 +5282,13 @@ class DashboardScoringCompareView(View):
                 snap_h = {}
                 if cur_hour is not None:
                     h_frame = sdf[(sdf['date'] == dprev) & (sdf['run_hour_key'] == cur_hour)].copy()
-                    snap_h = aggregate_snapshot(h_frame)
+                    snap_h = aggregate_snapshot(h_frame, country_mode)
                     snap_h = attach_financial(snap_h, dprev, cur_hour)
                     if snap_h:
                         snap_h['date'] = dprev.isoformat()
                         snap_h['run_hour'] = cur_hour
                 by_hour[key] = snap_h or {}
+                hourly_series[key] = build_hourly_series(dprev)
 
             # rekomendasi aksi sederhana (bisa disempurnakan)
             rec = {'action': cur.get('decision') if cur else 'HOLD', 'budget_change_pct': 0, 'reason': ''}
@@ -5122,7 +5313,7 @@ class DashboardScoringCompareView(View):
                 for dh in history_dates:
                     lh = latest_hour_by_date.get(dh)
                     day_frame = sdf[(sdf['date'] == dh) & (sdf['run_hour_key'] == lh)].copy() if lh is not None else sdf[sdf['date'] == dh].copy()
-                    snap_day = aggregate_snapshot(day_frame)
+                    snap_day = aggregate_snapshot(day_frame, country_mode)
                     snap_day = attach_financial(snap_day, dh, lh)
                     row_hist = {'date': dh.isoformat(), 'run_hour': lh}
                     if snap_day:
@@ -5132,10 +5323,14 @@ class DashboardScoringCompareView(View):
                 'status': True,
                 'data': {
                     'domain': domain,
+                    'country_code': country_code_raw,
                     'date': target_date.isoformat(),
                     'current': cur or {},
+                    'compare_offsets': compare_offsets,
+                    'compare_dates': {k: v.isoformat() for k, v in compare_dates.items()},
                     'compare_by_day': by_day,
                     'compare_by_hour': by_hour,
+                    'hourly_series': hourly_series,
                     'history_by_day': history_by_day,
                     'recommendation': rec,
                 }
