@@ -21,7 +21,7 @@
         <!-- sweetalert -->
         <link rel="stylesheet" href="{% static 'plugins/sweetalert2/sweetalert2.min.css' %}">
         <!-- Datetime Picker -->
-        <!-- <link rel="stylesheet" href="{% static 'plugins/bootstrap-datepicker/css/datepicker.css' %}"> -->
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/css/bootstrap-datepicker.min.css" />
         <!-- DataTables Responsive Custom CSS -->
         <link rel="stylesheet" href="{% static 'css/datatable-responsive.css' %}">
@@ -191,6 +191,73 @@
         }
         html[data-theme="dark"] .datepicker-dropdown:after {
             border-bottom-color: #1e1e1e !important;
+        }
+
+        /* Flatpickr — tampilan standar admin (referensi Adsense Traffic) */
+        .flatpickr-calendar {
+            border-radius: 12px;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            font-family: inherit;
+        }
+        .flatpickr-months .flatpickr-month {
+            height: 42px;
+        }
+        .flatpickr-current-month {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        .flatpickr-weekdays {
+            height: 32px;
+        }
+        span.flatpickr-weekday {
+            font-size: 12px;
+            font-weight: 600;
+            color: #64748b;
+        }
+        .flatpickr-day {
+            border-radius: 999px;
+            max-width: 34px;
+            height: 34px;
+            line-height: 34px;
+        }
+        .flatpickr-day.selected,
+        .flatpickr-day.startRange,
+        .flatpickr-day.endRange {
+            background: #2563eb;
+            border-color: #2563eb;
+        }
+        .flatpickr-day.today {
+            border-color: rgba(37, 99, 235, 0.35);
+        }
+        .flatpickr-day.today:hover,
+        .flatpickr-day.today:focus {
+            background: rgba(37, 99, 235, 0.12);
+            border-color: rgba(37, 99, 235, 0.35);
+        }
+        html[data-theme="dark"] .flatpickr-calendar {
+            background: #1e293b;
+            border-color: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
+        }
+        html[data-theme="dark"] .flatpickr-months .flatpickr-month,
+        html[data-theme="dark"] .flatpickr-weekdays,
+        html[data-theme="dark"] .flatpickr-current-month,
+        html[data-theme="dark"] span.flatpickr-weekday,
+        html[data-theme="dark"] .flatpickr-day {
+            color: #e2e8f0;
+            fill: #e2e8f0;
+        }
+        html[data-theme="dark"] .flatpickr-day.prevMonthDay,
+        html[data-theme="dark"] .flatpickr-day.nextMonthDay {
+            color: rgba(148, 163, 184, 0.55);
+        }
+        html[data-theme="dark"] .flatpickr-day.selected,
+        html[data-theme="dark"] .flatpickr-day.startRange,
+        html[data-theme="dark"] .flatpickr-day.endRange {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #fff;
         }
 
         html[data-theme="dark"] .select2-container--bootstrap4 .select2-selection {
@@ -1054,8 +1121,9 @@
         <!-- SweetAlert -->
         <script src="{% static 'plugins/sweetalert2/sweetalert2.min.js' %}"></script>
         <!-- Datetime Picker -->
-        <!-- <script src="{% static 'plugins/bootstrap-datepicker/js/bootstrap-datepicker.js' %}"></script> -->
+        <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-datepicker/1.9.0/js/bootstrap-datepicker.min.js"></script>
+        <script src="{% static 'js/hris_datepicker.js' %}?v={% now 'u' %}"></script>
         {% block more_scripts %} {% endblock %}
         <!-- AdminLTE Bundle JS App -->
         <script src="{% static 'dist/js/adminlte.min.js' %}"></script>

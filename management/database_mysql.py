@@ -3722,8 +3722,6 @@ class data_mysql:
             elif isinstance(selected_account_list, (set, tuple)):
                 selected_account_list = list(selected_account_list)
             selected_account_list = [str(a).strip() for a in selected_account_list if str(a).strip()]
-            like_conditions_account = " OR ".join(["b.account_ads_id LIKE %s"] * len(selected_account_list))
-            like_params_account = [f"%{account}%" for account in selected_account_list] 
             # --- 2. Pastikan selected_domain_list adalah list string
             if isinstance(selected_domain_list, str):
                 selected_domain_list = [selected_domain_list.strip()]
@@ -3764,13 +3762,25 @@ class data_mysql:
             base_sql.append("b.data_ads_tanggal BETWEEN %s AND %s")
             params.extend([tanggal_dari, tanggal_sampai])
             if selected_account_list:
-                base_sql.append(f"\tAND ({like_conditions_account})")
-                params.extend(like_params_account)
+                account_match_parts = []
+                for account in selected_account_list:
+                    norm = str(account or '').strip().lower()
+                    if norm.startswith('act_'):
+                        norm = norm[4:]
+                    account_match_parts.append(
+                        "("
+                        "REPLACE(LOWER(b.account_ads_id), 'act_', '') LIKE %s "
+                        "OR REPLACE(LOWER(a.account_id), 'act_', '') LIKE %s "
+                        "OR REPLACE(LOWER(CAST(a.account_ads_id AS CHAR)), 'act_', '') LIKE %s"
+                        ")"
+                    )
+                    params.extend([f"%{norm}%", f"%{norm}%", f"%{norm}%"])
+                base_sql.append(f"\tAND ({' OR '.join(account_match_parts)})")
             if selected_domain_list:
                 base_sql.append(f"\tAND ({like_conditions_domain})")
                 params.extend(like_params_domain)
             base_sql.append(") rs")
-            base_sql.append("GROUP BY rs.account_name, rs.date, rs.domain")
+            base_sql.append("GROUP BY rs.account_id, rs.account_name, rs.account_email, rs.date, rs.domain, rs.campaign")
             base_sql.append("ORDER BY rs.date, rs.domain, rs.campaign")
             sql = "\n".join(base_sql)
             if not self.execute_query(sql, tuple(params)):

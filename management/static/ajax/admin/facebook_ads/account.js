@@ -131,9 +131,8 @@ function table_data_account_ads() {
                 $("#table_data_account tbody").append(event_data);    
             })
             $('#table_data_account').DataTable({
-                "responsive": true,
-                "scrollX": true,
-                "autoWidth": false,  
+                responsive: false,
+                autoWidth: false,  
                 "paging": true,
                 "lengthChange": true,
                 "searching": true,

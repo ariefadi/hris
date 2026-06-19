@@ -75,29 +75,8 @@ $(document).ready(function () {
         }
         alert(msg);
     };
-    // Initialize date pickers (Flatpickr first, fallback ke jQuery datepicker)
-    var today = new Date();
-    if (typeof flatpickr !== 'undefined') {
-        flatpickr('#tanggal_dari', {
-            dateFormat: 'Y-m-d',
-            defaultDate: today
-        });
-        flatpickr('#tanggal_sampai', {
-            dateFormat: 'Y-m-d',
-            defaultDate: today
-        });
-    } else {
-        // Fallback: gunakan jQuery datepicker jika Flatpickr tidak tersedia
-        $('#tanggal_dari').datepicker({
-            format: 'yyyy-mm-dd',
-            autoclose: true,
-            todayHighlight: true
-        }).datepicker('setDate', today);
-        $('#tanggal_sampai').datepicker({
-            format: 'yyyy-mm-dd',
-            autoclose: true,
-            todayHighlight: true
-        }).datepicker('setDate', today);
+    if (window.HrisDatepicker) {
+        HrisDatepicker.initRange('#tanggal_dari', '#tanggal_sampai');
     }
     // Initialize Select2 for account filter
     $('#account_filter').select2({

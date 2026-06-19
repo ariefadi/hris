@@ -474,32 +474,8 @@ html[data-theme="dark"] .roi-traffic-table-wrap .roi-val-negative { color: #fca5
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highmaps.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.1.0/custom/world.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    function loadROICountryScript() {
-        if (typeof Highcharts !== 'undefined' && Highcharts.mapChart) {
-            if (!Highcharts.maps || !Highcharts.maps['custom/world']) {
-                Highcharts.maps = Highcharts.maps || {};
-                Highcharts.maps['custom/world'] = {
-                    "title": "World (Fallback)",
-                    "type": "FeatureCollection",
-                    "features": [
-                        {"type": "Feature", "id": "ID", "properties": {"hc-key": "id", "name": "Indonesia"}},
-                        {"type": "Feature", "id": "US", "properties": {"hc-key": "us", "name": "United States"}},
-                        {"type": "Feature", "id": "GB", "properties": {"hc-key": "gb", "name": "United Kingdom"}}
-                    ]
-                };
-            }
-            var script = document.createElement('script');
-            script.src = '{% static "ajax/admin/report_roi/per_country.js" %}?v={%now "U"%}';
-            document.head.appendChild(script);
-        } else {
-            setTimeout(loadROICountryScript, 100);
-        }
-    }
-    loadROICountryScript();
-</script>
+<script src="{% static 'ajax/admin/report_roi/per_country.js' %}?v={% now 'u' %}"></script>
 <script>
 (function() {
     function decorateTourButtons() {

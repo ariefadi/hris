@@ -11,7 +11,7 @@
   <div class="card-header d-flex align-items-center justify-content-between flex-wrap" style="gap:12px;">
     <h3 class="card-title mb-0 flex-grow-1">Deteksi Email Policy AdSense (Gmail)</h3>
     <div class="d-flex align-items-center justify-content-end flex-wrap ml-auto" style="gap:10px; margin-left:auto; width:auto;">
-      <input id="policySyncDate" type="date" class="form-control form-control-sm" style="width:170px;">
+      <input id="policySyncDate" type="text" class="form-control form-control-sm datepicker-input" style="width:170px;" placeholder="YYYY-MM-DD" autocomplete="off">
       <select id="policyAccountFilter" class="form-control form-control-sm" multiple style="width:420px;">
       </select>
       <a id="policyGmailOAuthBtn" class="btn btn-sm btn-outline-primary disabled" href="#" role="button" aria-disabled="true"
@@ -206,6 +206,7 @@
     }
   }
   if (syncDateEl && !syncDateEl.value) syncDateEl.value = new Date().toISOString().slice(0, 10);
+  if (window.HrisDatepicker && syncDateEl) HrisDatepicker.initElement(syncDateEl);
   loadAccountOptions();
   if (gmailOAuthBtn) {
     gmailOAuthBtn.addEventListener('click', function(e) {

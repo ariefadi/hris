@@ -5958,6 +5958,7 @@ class page_summary_facebook(View):
                 str(s).strip() for s in data_domain.split(',')
                 if str(s).strip() and str(s).strip() != '%'
             ]
+        selected_account_list = _resolve_fb_account_filters(selected_account_list)
         # Panggil ke database layer dengan argumen positional sesuai definisi fungsi
         db_result = data_mysql().get_all_ads_traffic_campaign_by_params(
             tanggal_dari,
@@ -6032,6 +6033,42 @@ class page_summary_facebook(View):
             total_frequency = format(total_impressions / total_reach, '.1f')
         rata_cpr = round(sum([row['cpr'] for row in normalized_rows]) / len(normalized_rows), 0) if normalized_rows else 0.0
         rata_cpc = round(sum([row['cpc'] for row in normalized_rows]) / len(normalized_rows), 0) if normalized_rows else 0.0
+
+        kiwi_traffic_indexes = _fetch_kiwipixel_campaign_traffic(tanggal_dari, tanggal_sampai)
+        unique_domains = list({
+            str(row.get('domain') or '').strip()
+            for row in normalized_rows
+            if str(row.get('domain') or '').strip()
+        })
+        if selected_domain_list:
+            unique_domains.extend(selected_domain_list)
+        campaign_ids_by_domain = _fetch_fb_campaign_ids_by_domain(
+            tanggal_dari,
+            tanggal_sampai,
+            unique_domains,
+        )
+        total_visits_sum = 0
+        total_unique_sum = 0
+        total_pageviews_sum = 0
+        seen_domain_keys = set()
+        for row in normalized_rows:
+            domain_key = _normalize_kiwipixel_domain_key(row.get('domain'))
+            campaign_ids = campaign_ids_by_domain.get(domain_key, [])
+            metrics = _resolve_kiwipixel_campaign_visitors(
+                row.get('domain'),
+                campaign_ids,
+                kiwi_traffic_indexes,
+            )
+            row['total_visits'] = metrics.get('total_visits', 0)
+            row['unique_visitor'] = metrics.get('unique_visitor', 0)
+            row['total_pageviews'] = metrics.get('total_pageviews', 0)
+            row['total_visitors'] = metrics.get('total_visits', 0)
+            if domain_key and domain_key not in seen_domain_keys:
+                seen_domain_keys.add(domain_key)
+                total_visits_sum += int(metrics.get('total_visits') or 0)
+                total_unique_sum += int(metrics.get('unique_visitor') or 0)
+                total_pageviews_sum += int(metrics.get('total_pageviews') or 0)
+
         monitor_rows = []
         try:
             accounts_all = data_mysql().master_account_ads().get('data', [])
@@ -6116,6 +6153,10 @@ class page_summary_facebook(View):
                 'total_frequency': total_frequency,
                 'total_cpr': format(rata_cpr, '.0f'),
                 'total_cpc': format(rata_cpc, '.0f'),
+                'total_visitors': total_visits_sum,
+                'total_visits': total_visits_sum,
+                'unique_visitor': total_unique_sum,
+                'total_pageviews': total_pageviews_sum,
             }],
             'monitoring_campaign': monitor_rows,
         }
@@ -8681,14 +8722,7 @@ class page_per_campaign_facebook(View):
         if data_domain:
             selected_domain_list = [str(s).strip() for s in data_domain.split(',') if s.strip()]
         
-        # rs_account = data_mysql().master_account_ads()
-        # if (data_sub_domain != '%' or data_sub_domain == '%') and data_account != '%':
-        #     rs_data_account = data_mysql().master_account_ads_by_id({
-        #         'data_account': data_account,
-        #     })['data']
-        #     data = fetch_data_insights_campaign_filter_account(str(tanggal_dari), str(tanggal_sampai), str(rs_data_account['access_token']), str(rs_data_account['account_id']), str(rs_data_account['account_name']), str(data_sub_domain))
-        # else:  
-        #     data = fetch_data_insights_campaign_filter_sub_domain(str(tanggal_dari), str(tanggal_sampai), rs_account['data'], str(data_sub_domain))
+        selected_account_list = _resolve_fb_account_filters(selected_account_list)
 
         # Panggil ke database layer dengan argumen positional sesuai definisi fungsi
         db_result = data_mysql().get_all_ads_traffic_campaign_by_params(
@@ -9049,6 +9083,27 @@ def _fetch_fb_campaign_ids_by_domain(start_date, end_date, domain_terms):
     except Exception:
         return {}
     return {k: sorted(v) for k, v in out.items()}
+
+
+def _resolve_fb_account_filters(selected_account_list):
+    """Expand account filter agar cocok dengan account_id / account_ads_id di DB."""
+    raw = [str(x).strip() for x in (selected_account_list or []) if str(x).strip() and str(x).strip() != '%']
+    if not raw:
+        return []
+    selected_set = set(raw)
+    resolved = set(raw)
+    try:
+        for acc in data_mysql().master_account_ads().get('data', []) or []:
+            aid = str(acc.get('account_id') or '').strip()
+            ads_id = str(acc.get('account_ads_id') or '').strip()
+            if aid in selected_set or ads_id in selected_set:
+                if aid:
+                    resolved.add(aid)
+                if ads_id:
+                    resolved.add(ads_id)
+    except Exception:
+        pass
+    return list(resolved)
 
 
 def _normalize_kiwipixel_date(value):

@@ -15,6 +15,30 @@ function normalizeCsvOrWildcard(val) {
     return s || '%';
 }
 
+var HRIS_WORLD_MAP_TOPO_URL = 'https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.1.0/custom/world.topo.json';
+
+function loadWorldMapTopology() {
+    if (window.__hrisWorldMapTopology) {
+        return Promise.resolve(window.__hrisWorldMapTopology);
+    }
+    if (!window.__hrisWorldMapTopologyPromise) {
+        window.__hrisWorldMapTopologyPromise = fetch(HRIS_WORLD_MAP_TOPO_URL, { credentials: 'omit' })
+            .then(function (res) {
+                if (!res.ok) throw new Error('Gagal memuat data peta dunia (HTTP ' + res.status + ')');
+                return res.json();
+            })
+            .then(function (topology) {
+                window.__hrisWorldMapTopology = topology;
+                return topology;
+            })
+            .catch(function (err) {
+                window.__hrisWorldMapTopologyPromise = null;
+                throw err;
+            });
+    }
+    return window.__hrisWorldMapTopologyPromise;
+}
+
 var FB_COUNTRY_MAP_VISIBLE_KEY = 'fbPerCountryMapVisible';
 
 function isCountryMapVisible() {
@@ -85,23 +109,9 @@ $().ready(function () {
         alert(msg);
     };
 
-    // Set default tanggal hari ini
-    var today = new Date();
-    var todayString = today.getFullYear() + '-' +
-        String(today.getMonth() + 1).padStart(2, '0') + '-' +
-        String(today.getDate()).padStart(2, '0');
-    $('#tanggal_dari').val(todayString);
-    $('#tanggal_sampai').val(todayString);
-    $('#tanggal_dari').datepicker({
-        format: 'yyyy-mm-dd',
-        autoclose: true,
-        todayHighlight: true
-    });
-    $('#tanggal_sampai').datepicker({
-        format: 'yyyy-mm-dd',
-        autoclose: true,
-        todayHighlight: true
-    });
+    if (window.HrisDatepicker) {
+        HrisDatepicker.initRange('#tanggal_dari', '#tanggal_sampai');
+    }
     $('#select_account').select2({
         placeholder: '-- Pilih Account --',
         allowClear: true,
@@ -538,73 +548,84 @@ function createSpendMap(items) {
         { from: 10000, to: Infinity, color: '#000000', name: '> 10.000' }
     ];
 
-    // Render peta
-    window.fbSpendMapInstance = Highcharts.mapChart('worldMap', {
-        chart: {
-            map: 'custom/world',
-            backgroundColor: 'transparent',
-            style: { fontFamily: 'Arial, sans-serif' }
-        },
-        title: {
-            text: 'Spend Facebook Ads Per Negara',
-            style: { fontSize: '16px', fontWeight: '600', color: '#333' }
-        },
-        subtitle: {
-            text: 'Skema warna: putih → hitam berdasarkan spend',
-            style: { fontSize: '12px', color: '#666' }
-        },
-        mapNavigation: {
-            enabled: false,
-            buttonOptions: { verticalAlign: 'bottom' }
-        },
-        colorAxis: {
-            min: 0,
-            minColor: '#ffffff',
-            maxColor: '#000000',
-            dataClasses: ranges.map(function (range) {
-                return { from: range.from, to: range.to, color: range.color, name: range.name };
-            })
-        },
-        legend: {
-            title: { text: 'Tingkat Spend', style: { color: '#333', fontSize: '12px' } },
-            align: 'left',
-            verticalAlign: 'bottom',
-            floating: true,
-            layout: 'vertical',
-            backgroundColor: 'rgba(255,255,255,0.9)',
-            symbolRadius: 0,
-            symbolHeight: 14
-        },
-        series: [{
-            name: 'Negara',
-            data: mapData,
-            joinBy: ['hc-key', 'hc-key'],
-            nullColor: '#e6e7e8',
-            borderColor: '#606060',
-            borderWidth: 0.5,
-            states: { hover: { color: '#444444' } },
-            tooltip: {
-                backgroundColor: 'rgba(0,0,0,0.85)',
-                style: { color: 'white' },
-                pointFormatter: function () {
-                    var spendStr = 'Rp ' + Math.round(this.value).toLocaleString('id-ID');
-                    return '<b>' + this.name + '</b><br>' +
-                        'Kode: ' + this.code + '<br>' +
-                        'Spend: <b>' + spendStr + '</b><br>' +
-                        'Impressions: ' + Number(this.impressions).toLocaleString('id-ID') + '<br>' +
-                        'Reach: ' + Number(this.reach).toLocaleString('id-ID') + '<br>' +
-                        'Clicks: ' + Number(this.clicks).toLocaleString('id-ID') + '<br>' +
-                        'Frequency: ' + (Number(this.frequency) || 0).toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-                },
-                nullFormat: '<b>{point.name}</b><br>Tidak ada data'
-            },
-            allAreas: true
-        }],
-        exporting: {
-            enabled: true,
-            buttons: { contextButton: { menuItems: ['viewFullscreen', 'separator', 'downloadPNG', 'downloadJPEG', 'downloadPDF', 'downloadSVG'] } }
-        }
-    });
+    if (typeof Highcharts === 'undefined' || !Highcharts.mapChart) {
+        console.error('Highcharts Maps library not loaded');
+        return;
+    }
 
-    setCountryMapVisible(isCountryMapVisible(), false);
+    $('#worldMap').css({ height: '500px', width: '100%', display: 'block', visibility: 'visible' }).empty();
+
+    loadWorldMapTopology().then(function (topology) {
+        window.fbSpendMapInstance = Highcharts.mapChart('worldMap', {
+            chart: {
+                map: topology,
+                backgroundColor: 'transparent',
+                style: { fontFamily: 'Arial, sans-serif' }
+            },
+            title: {
+                text: 'Spend Facebook Ads Per Negara',
+                style: { fontSize: '16px', fontWeight: '600', color: '#333' }
+            },
+            subtitle: {
+                text: 'Skema warna: putih → hitam berdasarkan spend',
+                style: { fontSize: '12px', color: '#666' }
+            },
+            mapNavigation: {
+                enabled: false,
+                buttonOptions: { verticalAlign: 'bottom' }
+            },
+            colorAxis: {
+                min: 0,
+                minColor: '#ffffff',
+                maxColor: '#000000',
+                dataClasses: ranges.map(function (range) {
+                    return { from: range.from, to: range.to, color: range.color, name: range.name };
+                })
+            },
+            legend: {
+                title: { text: 'Tingkat Spend', style: { color: '#333', fontSize: '12px' } },
+                align: 'left',
+                verticalAlign: 'bottom',
+                floating: true,
+                layout: 'vertical',
+                backgroundColor: 'rgba(255,255,255,0.9)',
+                symbolRadius: 0,
+                symbolHeight: 14
+            },
+            series: [{
+                name: 'Negara',
+                data: mapData,
+                joinBy: ['hc-key', 'hc-key'],
+                nullColor: '#e6e7e8',
+                borderColor: '#606060',
+                borderWidth: 0.5,
+                states: { hover: { color: '#444444' } },
+                tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.85)',
+                    style: { color: 'white' },
+                    pointFormatter: function () {
+                        var spendStr = 'Rp ' + Math.round(this.value).toLocaleString('id-ID');
+                        return '<b>' + this.name + '</b><br>' +
+                            'Kode: ' + this.code + '<br>' +
+                            'Spend: <b>' + spendStr + '</b><br>' +
+                            'Impressions: ' + Number(this.impressions).toLocaleString('id-ID') + '<br>' +
+                            'Reach: ' + Number(this.reach).toLocaleString('id-ID') + '<br>' +
+                            'Clicks: ' + Number(this.clicks).toLocaleString('id-ID') + '<br>' +
+                            'Frequency: ' + (Number(this.frequency) || 0).toFixed(1).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+                    },
+                    nullFormat: '<b>{point.name}</b><br>Tidak ada data'
+                },
+                allAreas: true
+            }],
+            exporting: {
+                enabled: true,
+                buttons: { contextButton: { menuItems: ['viewFullscreen', 'separator', 'downloadPNG', 'downloadJPEG', 'downloadPDF', 'downloadSVG'] } }
+            }
+        });
+
+        setCountryMapVisible(isCountryMapVisible(), false);
+    }).catch(function (mapErr) {
+        console.error('Failed to load world map topology:', mapErr);
+        $('#worldMap').html('<div class="text-center text-muted py-5">Gagal memuat peta: ' + (mapErr.message || String(mapErr)) + '</div>');
+    });
 }

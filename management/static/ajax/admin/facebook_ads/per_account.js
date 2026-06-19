@@ -57,17 +57,9 @@ $().ready(function () {
         alert(msg);
     };
     $('.select2').select2()
-    var today = new Date();
-    $('#tanggal_dari').datepicker({
-      format: 'yyyy-mm-dd',
-      autoclose: true,
-      todayHighlight: true
-    }).datepicker('setDate', today);
-    $('#tanggal_sampai').datepicker({
-      format: 'yyyy-mm-dd',
-      autoclose: true,
-      todayHighlight: true
-    }).datepicker('setDate', today);
+    if (window.HrisDatepicker) {
+        HrisDatepicker.initRange('#tanggal_dari', '#tanggal_sampai', { skipDefaults: true });
+    }
     $('#select_account').select2({
         placeholder: '-- Pilih Account --',
         allowClear: true,
@@ -915,6 +907,7 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
                 "searching": true,
                 "ordering": true,
                 responsive: false,
+                autoWidth: false,
                 dom: 'Blfrtip',
                 searching: true,
                 buttons: [

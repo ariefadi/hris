@@ -69,6 +69,30 @@ function formatCurrencyIDR(value) {
     return 'Rp ' + Math.round(numValue).toLocaleString('id-ID');
 }
 
+var HRIS_WORLD_MAP_TOPO_URL = 'https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.1.0/custom/world.topo.json';
+
+function loadWorldMapTopology() {
+    if (window.__hrisWorldMapTopology) {
+        return Promise.resolve(window.__hrisWorldMapTopology);
+    }
+    if (!window.__hrisWorldMapTopologyPromise) {
+        window.__hrisWorldMapTopologyPromise = fetch(HRIS_WORLD_MAP_TOPO_URL, { credentials: 'omit' })
+            .then(function (res) {
+                if (!res.ok) throw new Error('Gagal memuat data peta dunia (HTTP ' + res.status + ')');
+                return res.json();
+            })
+            .then(function (topology) {
+                window.__hrisWorldMapTopology = topology;
+                return topology;
+            })
+            .catch(function (err) {
+                window.__hrisWorldMapTopologyPromise = null;
+                throw err;
+            });
+    }
+    return window.__hrisWorldMapTopologyPromise;
+}
+
 var ADSENSE_COUNTRY_MAP_VISIBLE_KEY = 'adsenseTrafficCountryMapVisible';
 
 function isCountryMapVisible() {
@@ -151,29 +175,8 @@ $(document).ready(function () {
         }
         alert(msg);
     };
-    // Initialize date pickers (Flatpickr first, fallback ke jQuery datepicker)
-    var today = new Date();
-    if (typeof flatpickr !== 'undefined') {
-        flatpickr('#tanggal_dari', {
-            dateFormat: 'Y-m-d',
-            defaultDate: today
-        });
-        flatpickr('#tanggal_sampai', {
-            dateFormat: 'Y-m-d',
-            defaultDate: today
-        });
-    } else {
-        // Fallback: gunakan jQuery datepicker jika Flatpickr tidak tersedia
-        $('#tanggal_dari').datepicker({
-            format: 'yyyy-mm-dd',
-            autoclose: true,
-            todayHighlight: true
-        }).datepicker('setDate', today);
-        $('#tanggal_sampai').datepicker({
-            format: 'yyyy-mm-dd',
-            autoclose: true,
-            todayHighlight: true
-        }).datepicker('setDate', today);
+    if (window.HrisDatepicker) {
+        HrisDatepicker.initRange('#tanggal_dari', '#tanggal_sampai');
     }
     // Initialize Select2 for account filter
     $('#account_filter').select2({
@@ -818,89 +821,94 @@ $(document).ready(function () {
                     { from: 10000000, to: Infinity, color: '#047857', name: '> Rp 10 jt' }
                 ];
 
-            window.countryMapInstance = Highcharts.mapChart('worldMapAdsense', {
-                chart: {
-                    map: 'custom/world',
-                    backgroundColor: 'transparent',
-                    style: { fontFamily: 'inherit' },
-                    spacing: [8, 8, 8, 8]
-                },
-                title: { text: null },
-                credits: { enabled: false },
-                mapNavigation: {
-                    enabled: true,
-                    enableButtons: true,
-                    buttonOptions: {
-                        verticalAlign: 'bottom',
-                        theme: {
-                            fill: isAdsenseDarkTheme() ? '#1e293b' : '#ffffff',
-                            'stroke-width': 1,
-                            stroke: borderColor,
-                            r: 8,
-                            states: { hover: { fill: '#059669', style: { color: '#fff' } } }
-                        }
-                    }
-                },
-                colorAxis: {
-                    min: 0,
-                    dataClasses: ranges.map(function (range) {
-                        return { from: range.from, to: range.to, color: range.color, name: range.name };
-                    })
-                },
-                legend: {
-                    title: { text: 'Tingkat Pendapatan', style: { color: theme.text, fontWeight: '700', fontSize: '12px' } },
-                    align: 'left',
-                    verticalAlign: 'bottom',
-                    floating: true,
-                    layout: 'vertical',
-                    backgroundColor: legendBg,
-                    borderColor: theme.tooltipBorder,
-                    borderRadius: 10,
-                    borderWidth: 1,
-                    padding: 10,
-                    itemStyle: { color: theme.text, fontSize: '11px' },
-                    itemMarginBottom: 4,
-                    symbolRadius: 4,
-                    symbolHeight: 12
-                },
-                series: [{
-                    name: 'Pendapatan',
-                    data: mapData,
-                    joinBy: ['hc-key', 'hc-key'],
-                    nullColor: nullAreaColor,
-                    borderColor: borderColor,
-                    borderWidth: 0.6,
-                    allAreas: true,
-                    states: {
-                        hover: { color: '#f59e0b', borderColor: '#d97706' },
-                        select: { color: '#ec4899' }
+            loadWorldMapTopology().then(function (topology) {
+                window.countryMapInstance = Highcharts.mapChart('worldMapAdsense', {
+                    chart: {
+                        map: topology,
+                        backgroundColor: 'transparent',
+                        style: { fontFamily: 'inherit' },
+                        spacing: [8, 8, 8, 8]
                     },
-                    tooltip: {
-                        backgroundColor: theme.tooltipBg,
-                        borderColor: theme.tooltipBorder,
-                        borderRadius: 10,
-                        style: { color: theme.text },
-                        pointFormat: '<b>{point.name}</b><br/>Kode: <b>{point.code}</b><br/>Pendapatan: <b>Rp {point.value:,.0f}</b>',
-                        nullFormat: '<b>{point.name}</b><br/>Tidak ada data traffic'
-                    }
-                }],
-                exporting: {
-                    enabled: true,
-                    buttons: {
-                        contextButton: {
+                    title: { text: null },
+                    credits: { enabled: false },
+                    mapNavigation: {
+                        enabled: true,
+                        enableButtons: true,
+                        buttonOptions: {
+                            verticalAlign: 'bottom',
                             theme: {
                                 fill: isAdsenseDarkTheme() ? '#1e293b' : '#ffffff',
+                                'stroke-width': 1,
                                 stroke: borderColor,
-                                r: 8
-                            },
-                            menuItems: ['viewFullscreen', 'separator', 'downloadPNG', 'downloadJPEG', 'downloadPDF', 'downloadSVG']
+                                r: 8,
+                                states: { hover: { fill: '#059669', style: { color: '#fff' } } }
+                            }
+                        }
+                    },
+                    colorAxis: {
+                        min: 0,
+                        dataClasses: ranges.map(function (range) {
+                            return { from: range.from, to: range.to, color: range.color, name: range.name };
+                        })
+                    },
+                    legend: {
+                        title: { text: 'Tingkat Pendapatan', style: { color: theme.text, fontWeight: '700', fontSize: '12px' } },
+                        align: 'left',
+                        verticalAlign: 'bottom',
+                        floating: true,
+                        layout: 'vertical',
+                        backgroundColor: legendBg,
+                        borderColor: theme.tooltipBorder,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        padding: 10,
+                        itemStyle: { color: theme.text, fontSize: '11px' },
+                        itemMarginBottom: 4,
+                        symbolRadius: 4,
+                        symbolHeight: 12
+                    },
+                    series: [{
+                        name: 'Pendapatan',
+                        data: mapData,
+                        joinBy: ['hc-key', 'hc-key'],
+                        nullColor: nullAreaColor,
+                        borderColor: borderColor,
+                        borderWidth: 0.6,
+                        allAreas: true,
+                        states: {
+                            hover: { color: '#f59e0b', borderColor: '#d97706' },
+                            select: { color: '#ec4899' }
+                        },
+                        tooltip: {
+                            backgroundColor: theme.tooltipBg,
+                            borderColor: theme.tooltipBorder,
+                            borderRadius: 10,
+                            style: { color: theme.text },
+                            pointFormat: '<b>{point.name}</b><br/>Kode: <b>{point.code}</b><br/>Pendapatan: <b>Rp {point.value:,.0f}</b>',
+                            nullFormat: '<b>{point.name}</b><br/>Tidak ada data traffic'
+                        }
+                    }],
+                    exporting: {
+                        enabled: true,
+                        buttons: {
+                            contextButton: {
+                                theme: {
+                                    fill: isAdsenseDarkTheme() ? '#1e293b' : '#ffffff',
+                                    stroke: borderColor,
+                                    r: 8
+                                },
+                                menuItems: ['viewFullscreen', 'separator', 'downloadPNG', 'downloadJPEG', 'downloadPDF', 'downloadSVG']
+                            }
                         }
                     }
-                }
-            });
+                });
 
-            $('#btnToggleCountryMap').show();
-            setCountryMapVisible(isCountryMapVisible(), false);
+                $('#btnToggleCountryMap').show();
+                setCountryMapVisible(isCountryMapVisible(), false);
+            }).catch(function (mapErr) {
+                console.error('[ERROR] Failed to load world map topology:', mapErr);
+                $('#worldMapAdsense').html('<div class="adsense-traffic-empty" style="padding:60px 24px;"><div class="adsense-traffic-empty-title">Gagal memuat peta</div><div>' + escapeHtml(mapErr.message || String(mapErr)) + '</div></div>');
+            });
         } catch (error) {
             console.error('[ERROR] Failed to create map:', error);
             $('#worldMapAdsense').html('<div class="adsense-traffic-empty" style="padding:60px 24px;"><div class="adsense-traffic-empty-title">Gagal memuat peta</div><div>' + escapeHtml(error.message) + '</div></div>');

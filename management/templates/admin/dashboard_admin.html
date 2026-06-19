@@ -1018,13 +1018,26 @@ html[data-theme="dark"] #dashboardRecapTable_wrapper .paginate_button:hover {
     margin: 14px 16px 18px;
     border-radius: 14px;
     border: 1px solid rgba(148, 163, 184, 0.16);
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
     background: #fff;
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 .detail-scoring-card #dashboardRecapTable {
     margin: 0;
     border: 0 !important;
+    min-width: 1080px;
+    width: 100%;
+    table-layout: auto;
+}
+.detail-scoring-card .dataTables_wrapper {
+    overflow: visible;
+}
+.detail-scoring-card .dataTables_wrapper .dataTables_scroll,
+.detail-scoring-card .dataTables_wrapper .dataTables_scrollHead,
+.detail-scoring-card .dataTables_wrapper .dataTables_scrollBody {
+    overflow: visible !important;
 }
 .detail-scoring-card #dashboardRecapTable thead th {
     background: linear-gradient(180deg, #f1f5f9 0%, #e8eef5 100%);
@@ -4117,7 +4130,7 @@ html[data-theme="dark"] .dashboard-recap-filter-item .form-control {
                                             <select id="roi-hourly-account-filter" class="form-select"></select>
                                         </div>
                                         <label for="roi-hourly-date" class="mb-0">Date:</label>
-                                        <input id="roi-hourly-date" type="date" class="form-control roi-hourly-date" />
+                                        <input id="roi-hourly-date" type="text" class="form-control roi-hourly-date datepicker-input" placeholder="YYYY-MM-DD" autocomplete="off" />
                                     </div>
                                 </div>
                             </div>
@@ -4501,6 +4514,9 @@ async function populateHourlyAccountFilter() {
         if (v && d) loadRoiHourlyData(v, d);
     };
     if (dateInput) {
+        if (window.HrisDatepicker) {
+            HrisDatepicker.initElement(dateInput);
+        }
         dateInput.addEventListener('change', () => {
             const v = sel.value || chosen;
             const d = dateInput.value;
@@ -14191,7 +14207,7 @@ function initDashboardRecap() {
                 ordering: true,
                 order: [[11, 'desc']],
                 autoWidth: false,
-                responsive: true,
+                responsive: false,
                 dom: hasDtButtons
                     ? '<"ds-dt-toolbar"<"ds-dt-toolbar__left"B><"ds-dt-toolbar__right"lf>>rtip'
                     : undefined,
@@ -15025,17 +15041,8 @@ function initDashboardRecap() {
 
     if (!dateEl.value) dateEl.value = today();
 
-    const hasDatepicker = !!(window.jQuery && jQuery.fn && typeof jQuery.fn.datepicker === 'function');
-    if (hasDatepicker) {
-        const $date = jQuery(dateEl);
-        $date.datepicker({
-            format: 'yyyy-mm-dd',
-            autoclose: true,
-            todayHighlight: true,
-            orientation: 'bottom auto'
-        });
-        if (dateEl.value) $date.datepicker('update', dateEl.value);
-        $date.on('changeDate', function() { load(); });
+    if (window.HrisDatepicker) {
+        HrisDatepicker.initElement(dateEl, { onChange: function() { load(); } });
     } else {
         dateEl.addEventListener('change', load);
     }

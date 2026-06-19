@@ -26,6 +26,30 @@ function getRoiMapTheme() {
     };
 }
 
+var HRIS_WORLD_MAP_TOPO_URL = 'https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.1.0/custom/world.topo.json';
+
+function loadWorldMapTopology() {
+    if (window.__hrisWorldMapTopology) {
+        return Promise.resolve(window.__hrisWorldMapTopology);
+    }
+    if (!window.__hrisWorldMapTopologyPromise) {
+        window.__hrisWorldMapTopologyPromise = fetch(HRIS_WORLD_MAP_TOPO_URL, { credentials: 'omit' })
+            .then(function (res) {
+                if (!res.ok) throw new Error('Gagal memuat data peta dunia (HTTP ' + res.status + ')');
+                return res.json();
+            })
+            .then(function (topology) {
+                window.__hrisWorldMapTopology = topology;
+                return topology;
+            })
+            .catch(function (err) {
+                window.__hrisWorldMapTopologyPromise = null;
+                throw err;
+            });
+    }
+    return window.__hrisWorldMapTopologyPromise;
+}
+
 function showRoiCountryContent() {
     $('#roiCountryEmpty').hide();
 }
@@ -142,16 +166,9 @@ $(document).ready(function () {
     if (savedHideZero !== null) {
         $('#toggle_hide_zero_spend').prop('checked', savedHideZero === '1');
     }
-    // Inisialisasi datepicker
-    $('.datepicker-input').datepicker({
-        format: 'yyyy-mm-dd',
-        autoclose: true,
-        todayHighlight: true
-    });
-    // Set tanggal default (hari ini)
-    var today = new Date();
-    $('#tanggal_dari').val(formatDateForInput(today));
-    $('#tanggal_sampai').val(formatDateForInput(today));
+    if (window.HrisDatepicker) {
+        HrisDatepicker.initRange('#tanggal_dari', '#tanggal_sampai');
+    }
     $('#account_filter').select2({
         placeholder: '-- Pilih Akun Terdaftar --',
         allowClear: true,
@@ -1089,9 +1106,8 @@ $(document).ready(function () {
                 'width': '100%',
                 'display': 'block',
                 'visibility': 'visible'
-            });
-            
-            // Check if we have data to display
+            }).empty();
+
             if (mapData.length === 0) {
                 $('#worldMap').hide();
                 $('#roiMapEmpty').show();
@@ -1099,116 +1115,121 @@ $(document).ready(function () {
                 setCountryMapVisible(isCountryMapVisible(), false);
                 return;
             }
-            
-            window.worldMapInstance = Highcharts.mapChart('worldMap', {
-                chart: {
-                    map: 'custom/world',
-                    backgroundColor: theme.bg,
-                    style: { fontFamily: 'inherit' }
-                },
-                title: {
-                    text: 'ROI Per Negara',
-                    style: { fontSize: '15px', fontWeight: '700', color: theme.text }
-                },
-                subtitle: {
-                    text: 'Berdasarkan data traffic dan revenue',
-                    style: { fontSize: '12px', color: theme.muted }
-                },
-                credits: { enabled: false },
-                mapNavigation: {
-                    enabled: false,
-                    buttonOptions: {
-                        verticalAlign: 'bottom',
-                        theme: {
-                            fill: 'white',
-                            'stroke-width': 1,
-                            stroke: 'silver',
-                            r: 0,
-                            states: {
-                                hover: {
-                                    fill: '#a4edba'
-                                },
-                                select: {
-                                    stroke: '#039',
-                                    fill: '#a4edba'
+
+            loadWorldMapTopology().then(function (topology) {
+                window.worldMapInstance = Highcharts.mapChart('worldMap', {
+                    chart: {
+                        map: topology,
+                        backgroundColor: theme.bg,
+                        style: { fontFamily: 'inherit' }
+                    },
+                    title: {
+                        text: 'ROI Per Negara',
+                        style: { fontSize: '15px', fontWeight: '700', color: theme.text }
+                    },
+                    subtitle: {
+                        text: 'Berdasarkan data traffic dan revenue',
+                        style: { fontSize: '12px', color: theme.muted }
+                    },
+                    credits: { enabled: false },
+                    mapNavigation: {
+                        enabled: false,
+                        buttonOptions: {
+                            verticalAlign: 'bottom',
+                            theme: {
+                                fill: 'white',
+                                'stroke-width': 1,
+                                stroke: 'silver',
+                                r: 0,
+                                states: {
+                                    hover: {
+                                        fill: '#a4edba'
+                                    },
+                                    select: {
+                                        stroke: '#039',
+                                        fill: '#a4edba'
+                                    }
                                 }
                             }
                         }
-                    }
-                },
-                colorAxis: {
-                    min: 0,
-                    minColor: '#FFF2CC', // Warna kuning muda untuk ROI terendah
-                    maxColor: '#A4161A', // Warna merah tua untuk ROI tertinggi
-                    dataClasses: ranges.map(function(range) {
-                        return {
-                            from: range.from,
-                            to: range.to,
-                            color: range.color,
-                            name: range.name
-                        };
-                    })
-                },
-                legend: {
-                    title: {
-                        text: 'Tingkat ROI',
-                        style: { color: theme.text, fontSize: '12px', fontWeight: '600' }
                     },
-                    align: 'left',
-                    verticalAlign: 'bottom',
-                    floating: true,
-                    layout: 'vertical',
-                    valueDecimals: 0,
-                    backgroundColor: theme.legendBg,
-                    borderColor: theme.tooltipBorder,
-                    borderRadius: 8,
-                    itemStyle: { color: theme.text, fontSize: '11px' },
-                    symbolRadius: 4,
-                    symbolHeight: 12
-                },
-                series: [{
-                    name: 'Negara',
-                    data: mapData,
-                    joinBy: ['hc-key', 'hc-key'],
-                    nullColor: theme.nullColor,
-                    tooltip: {
-                        backgroundColor: theme.tooltipBg,
+                    colorAxis: {
+                        min: 0,
+                        minColor: '#FFF2CC',
+                        maxColor: '#A4161A',
+                        dataClasses: ranges.map(function (range) {
+                            return {
+                                from: range.from,
+                                to: range.to,
+                                color: range.color,
+                                name: range.name
+                            };
+                        })
+                    },
+                    legend: {
+                        title: {
+                            text: 'Tingkat ROI',
+                            style: { color: theme.text, fontSize: '12px', fontWeight: '600' }
+                        },
+                        align: 'left',
+                        verticalAlign: 'bottom',
+                        floating: true,
+                        layout: 'vertical',
+                        valueDecimals: 0,
+                        backgroundColor: theme.legendBg,
                         borderColor: theme.tooltipBorder,
                         borderRadius: 8,
-                        style: { color: theme.text, fontSize: '12px' },
-                        pointFormat: '<b>{point.name}</b><br>' +
-                                    'Kode: {point.code}<br>' +
-                                    'ROI: <b>{point.value:.2f}%</b><br>',
-                        pointFormatter: function() {
-                            var formattedValue = Number(this.value || 0).toFixed(2) + '%';
-                            var clicksFb = Number(this.clicks_fb || 0);
-                            var clicksAdx = Number(this.clicks_adx || 0);
-                            var spend = Number(this.spend || 0);
-                            var cpr = Number(this.cpr || 0);
-                            var revenue = Number(this.revenue || 0);
-                            return '<b>' + (this.name || '') + '</b><br>' +
-                                   'Kode: ' + (this.code || '') + '<br>' +
-                                   'ROI: <b>' + formattedValue + '</b><br>' +
-                                   'Clicks (FB): <b>' + clicksFb.toLocaleString('id-ID') + '</b><br>' +
-                                   'Clicks (ADX): <b>' + clicksAdx.toLocaleString('id-ID') + '</b><br>' +
-                                   'Spend: <b>Rp ' + Math.round(spend).toLocaleString('id-ID') + '</b><br>' +
-                                   'CPR: <b>' + Math.round(cpr).toLocaleString('id-ID') + '</b><br>' +
-                                   'Revenue: <b>Rp ' + Math.round(revenue).toLocaleString('id-ID') + '</b><br>';
-                        },
-                        nullFormat: '<b>{point.name}</b><br>Tidak ada data ROI'
+                        itemStyle: { color: theme.text, fontSize: '11px' },
+                        symbolRadius: 4,
+                        symbolHeight: 12
                     },
-                    borderColor: theme.borderColor,
-                    borderWidth: 0.5,
-                    states: {
-                        hover: { color: theme.hoverColor }
-                    }
-                }]
+                    series: [{
+                        name: 'Negara',
+                        data: mapData,
+                        joinBy: ['hc-key', 'hc-key'],
+                        nullColor: theme.nullColor,
+                        tooltip: {
+                            backgroundColor: theme.tooltipBg,
+                            borderColor: theme.tooltipBorder,
+                            borderRadius: 8,
+                            style: { color: theme.text, fontSize: '12px' },
+                            pointFormat: '<b>{point.name}</b><br>' +
+                                        'Kode: {point.code}<br>' +
+                                        'ROI: <b>{point.value:.2f}%</b><br>',
+                            pointFormatter: function () {
+                                var formattedValue = Number(this.value || 0).toFixed(2) + '%';
+                                var clicksFb = Number(this.clicks_fb || 0);
+                                var clicksAdx = Number(this.clicks_adx || 0);
+                                var spend = Number(this.spend || 0);
+                                var cpr = Number(this.cpr || 0);
+                                var revenue = Number(this.revenue || 0);
+                                return '<b>' + (this.name || '') + '</b><br>' +
+                                       'Kode: ' + (this.code || '') + '<br>' +
+                                       'ROI: <b>' + formattedValue + '</b><br>' +
+                                       'Clicks (FB): <b>' + clicksFb.toLocaleString('id-ID') + '</b><br>' +
+                                       'Clicks (ADX): <b>' + clicksAdx.toLocaleString('id-ID') + '</b><br>' +
+                                       'Spend: <b>Rp ' + Math.round(spend).toLocaleString('id-ID') + '</b><br>' +
+                                       'CPR: <b>' + Math.round(cpr).toLocaleString('id-ID') + '</b><br>' +
+                                       'Revenue: <b>Rp ' + Math.round(revenue).toLocaleString('id-ID') + '</b><br>';
+                            },
+                            nullFormat: '<b>{point.name}</b><br>Tidak ada data ROI'
+                        },
+                        borderColor: theme.borderColor,
+                        borderWidth: 0.5,
+                        states: {
+                            hover: { color: theme.hoverColor }
+                        }
+                    }]
+                });
+
+                $('#btnToggleCountryMap').show();
+                setCountryMapVisible(isCountryMapVisible(), false);
+            }).catch(function (mapErr) {
+                console.error('Failed to load world map topology:', mapErr);
+                $('#worldMap').hide();
+                $('#roiMapEmpty').html('<div class="text-danger">Gagal memuat peta: ' + escapeHtml(mapErr.message || String(mapErr)) + '</div>').show();
             });
-            
-            console.log('World map created successfully with', mapData.length, 'countries');
-            $('#btnToggleCountryMap').show();
-            setCountryMapVisible(isCountryMapVisible(), false);
-            
+
         } catch (error) {
             console.error('Error creating world map:', error);
             $('#worldMap').hide();

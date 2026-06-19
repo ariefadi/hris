@@ -483,23 +483,9 @@ $().ready(function () {
         alert(msg);
     };
 
-    // Set default tanggal hari ini
-    var today = new Date();
-    var todayString = today.getFullYear() + '-' +
-        String(today.getMonth() + 1).padStart(2, '0') + '-' +
-        String(today.getDate()).padStart(2, '0');
-    $('#tanggal_dari').val(todayString);
-    $('#tanggal_sampai').val(todayString);
-    $('#tanggal_dari').datepicker({
-        format: 'yyyy-mm-dd',
-        autoclose: true,
-        todayHighlight: true
-    });
-    $('#tanggal_sampai').datepicker({
-        format: 'yyyy-mm-dd',
-        autoclose: true,
-        todayHighlight: true
-    });
+    if (window.HrisDatepicker) {
+        HrisDatepicker.initRange('#tanggal_dari', '#tanggal_sampai');
+    }
     $('#select_account').select2({
         placeholder: '-- Pilih Account --',
         allowClear: true,

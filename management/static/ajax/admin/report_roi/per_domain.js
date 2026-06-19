@@ -148,18 +148,9 @@ $().ready(function () {
         $('#toggle_hide_zero_spend').prop('checked', savedHideZero === '1');
     }
     window.showOnlySelected = false;
-    // Initialize date pickers
-    var today = new Date();
-    $('#tanggal_dari').datepicker({
-        format: 'yyyy-mm-dd',
-        autoclose: true,
-        todayHighlight: true
-    }).datepicker('setDate', today);
-    $('#tanggal_sampai').datepicker({
-        format: 'yyyy-mm-dd',
-        autoclose: true,
-        todayHighlight: true
-    }).datepicker('setDate', today);
+    if (window.HrisDatepicker) {
+        HrisDatepicker.initRange('#tanggal_dari', '#tanggal_sampai');
+    }
     $('#account_filter').select2({
         placeholder: '-- Pilih Akun Terdaftar --',
         allowClear: true,

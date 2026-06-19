@@ -9,7 +9,6 @@
 {% block more_stylesheet %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" referrerpolicy="no-referrer">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intro.js/minified/introjs.min.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
 :root {
     --adsense-accent: #059669;
@@ -517,35 +516,9 @@ html[data-theme="dark"] .adsense-detail-metric.highlight .adsense-detail-metric-
 {% endblock %}
 {% block more_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/highmaps.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/exporting.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/highcharts@11.4.6/modules/accessibility.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@highcharts/map-collection@2.1.0/custom/world.js"></script>
-<script>
-(function ensureWorldMap() {
-    if (typeof Highcharts !== 'undefined') {
-        if (!Highcharts.maps || !Highcharts.maps['custom/world']) {
-            Highcharts.maps = Highcharts.maps || {};
-            Highcharts.maps['custom/world'] = {
-                title: 'World (Fallback)', type: 'FeatureCollection',
-                features: [
-                    {type:'Feature',id:'ID',properties:{hc-key:'id',name:'Indonesia'}},
-                    {type:'Feature',id:'US',properties:{hc-key:'us',name:'United States'}},
-                    {type:'Feature',id:'GB',properties:{hc-key:'gb',name:'United Kingdom'}},
-                    {type:'Feature',id:'DE',properties:{hc-key:'de',name:'Germany'}},
-                    {type:'Feature',id:'FR',properties:{hc-key:'fr',name:'France'}},
-                    {type:'Feature',id:'JP',properties:{hc-key:'jp',name:'Japan'}},
-                    {type:'Feature',id:'CN',properties:{hc-key:'cn',name:'China'}},
-                    {type:'Feature',id:'IN',properties:{hc-key:'in',name:'India'}},
-                    {type:'Feature',id:'BR',properties:{hc-key:'br',name:'Brazil'}},
-                    {type:'Feature',id:'AU',properties:{hc-key:'au',name:'Australia'}}
-                ]
-            };
-        }
-    }
-})();
-</script>
 <script src="{% static 'ajax/admin/adsense_manager/traffic_country.js' %}?v={% now 'u' %}"></script>
 <script>
 (function() {

@@ -68,18 +68,9 @@ $().ready(function () {
         }
         alert(msg);
     };
-    // Initialize date pickers
-    var today = new Date();
-    $('#tanggal_dari').datepicker({
-        format: 'yyyy-mm-dd',
-        autoclose: true,
-        todayHighlight: true
-    }).datepicker('setDate', today);
-    $('#tanggal_sampai').datepicker({
-        format: 'yyyy-mm-dd',
-        autoclose: true,
-        todayHighlight: true
-    }).datepicker('setDate', today);
+    if (window.HrisDatepicker) {
+        HrisDatepicker.initRange('#tanggal_dari', '#tanggal_sampai');
+    }
     $('#account_filter').select2({
         placeholder: '-- Pilih Account --',
         allowClear: true,

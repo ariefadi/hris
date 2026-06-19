@@ -23672,7 +23672,7 @@
         return campaignTable;
       }
       campaignTable = $('#table_create_campaign_meta').DataTable({
-        responsive: true,
+        responsive: false,
         autoWidth: false,
         pageLength: 10,
         order: [[8, 'desc']],
@@ -25891,7 +25891,9 @@
     }
 
     $(function () {
-      $('#filter_campaign_date_from, #filter_campaign_date_to').datepicker({ format: 'yyyy-mm-dd', autoclose: true, todayHighlight: true });
+      if (window.HrisDatepicker) {
+        HrisDatepicker.initRange('#filter_campaign_date_from', '#filter_campaign_date_to', { skipDefaults: true });
+      }
       $('#create_campaign_account').select2({
         placeholder: '-- Pilih Account --',
         allowClear: true,
@@ -25944,8 +25946,13 @@
       $('#btn_reset_campaign_meta').on('click', function () {
         $('#filter_campaign_accounts').val('').trigger('change');
         $('#filter_campaign_keyword').val('');
-        $('#filter_campaign_date_from').datepicker('setDate', '{{ today }}');
-        $('#filter_campaign_date_to').datepicker('setDate', '{{ today }}');
+        var todayStr = '{{ today }}';
+        $('#filter_campaign_date_from').val(todayStr);
+        $('#filter_campaign_date_to').val(todayStr);
+        ['filter_campaign_date_from', 'filter_campaign_date_to'].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el && el._flatpickr) el._flatpickr.setDate(todayStr, true);
+        });
         ensureTable().clear().draw();
       });
 

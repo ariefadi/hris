@@ -227,11 +227,11 @@
             </div>
             <div class="col-md-2">
                 <label for="start_date">Start Date</label>
-                <input type="date" class="form-control" id="start_date" />
+                <input type="text" class="form-control datepicker-input" id="start_date" placeholder="YYYY-MM-DD" autocomplete="off" />
             </div>
             <div class="col-md-2">
                 <label for="end_date">End Date</label>
-                <input type="date" class="form-control" id="end_date" />
+                <input type="text" class="form-control datepicker-input" id="end_date" placeholder="YYYY-MM-DD" autocomplete="off" />
             </div>
         </div>
         <div class="mt-3 d-flex justify-content-end">
@@ -712,6 +712,9 @@
         start.setDate(end.getDate() - 2);
         document.getElementById("start_date").value = formatDateISO(start);
         document.getElementById("end_date").value = formatDateISO(end);
+        if (window.HrisDatepicker) {
+            HrisDatepicker.initRange("#start_date", "#end_date", { skipDefaults: true });
+        }
 
         loadDomainList().catch(function () {
             alert("Failed loading domain list.");

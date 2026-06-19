@@ -23,22 +23,9 @@ $().ready(function () {
         alert(msg);
     };
     
-    // Initialize date pickers
-    var today = new Date();
-    var lastWeek = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    
-    $('#tanggal_dari').datepicker({
-        format: 'yyyy-mm-dd',
-        autoclose: true,
-        todayHighlight: true
-    }).datepicker('setDate', lastWeek);
-    
-    $('#tanggal_sampai').datepicker({
-        format: 'yyyy-mm-dd',
-        autoclose: true,
-        todayHighlight: true
-    }).datepicker('setDate', today);
-    
+    if (window.HrisDatepicker) {
+        HrisDatepicker.initRange('#tanggal_dari', '#tanggal_sampai', { defaultFromOffsetDays: -7 });
+    }
     // Initialize Select2 for site filter
     $('#site_filter').select2({
         placeholder: 'Pilih Situs (Opsional)',

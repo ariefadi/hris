@@ -85,23 +85,9 @@ $().ready(function () {
         alert(msg);
     };
 
-    // Set default tanggal hari ini
-    var today = new Date();
-    var todayString = today.getFullYear() + '-' +
-        String(today.getMonth() + 1).padStart(2, '0') + '-' +
-        String(today.getDate()).padStart(2, '0');
-    $('#tanggal_dari').val(todayString);
-    $('#tanggal_sampai').val(todayString);
-    $('#tanggal_dari').datepicker({
-        format: 'yyyy-mm-dd',
-        autoclose: true,
-        todayHighlight: true
-    });
-    $('#tanggal_sampai').datepicker({
-        format: 'yyyy-mm-dd',
-        autoclose: true,
-        todayHighlight: true
-    });
+    if (window.HrisDatepicker) {
+        HrisDatepicker.initRange('#tanggal_dari', '#tanggal_sampai');
+    }
     $('#select_account').select2({
         placeholder: '-- Pilih Account --',
         allowClear: true,
@@ -201,39 +187,54 @@ function renderFacebookSummaryCharts(rows) {
 
     if (window.__fbSummaryLineChart && typeof window.__fbSummaryLineChart.destroy === 'function') {
         window.__fbSummaryLineChart.destroy();
+        window.__fbSummaryLineChart = null;
     }
-    window.__fbSummaryLineChart = Highcharts.chart('facebookSummaryLineChart', {
-        chart: { type: 'spline' },
-        title: { text: 'Pergerakan Spend, Impresi, dan Klik per Tanggal' },
-        xAxis: { categories: dateLabels },
-        yAxis: [{ title: { text: 'Nilai' } }],
-        tooltip: { shared: true },
-        series: [
-            { name: 'Spend', data: dates.map(d => byDate[d].spend) },
-            { name: 'Impresi', data: dates.map(d => byDate[d].impressions) },
-            { name: 'Klik', data: dates.map(d => byDate[d].clicks) }
-        ]
-    });
+    if (window.__fbSummaryAccountBarChart && typeof window.__fbSummaryAccountBarChart.destroy === 'function') {
+        window.__fbSummaryAccountBarChart.destroy();
+        window.__fbSummaryAccountBarChart = null;
+    }
+
+    const $lineHost = $('#facebookSummaryLineChart');
+    const $barHost = $('#facebookSummaryAccountBarChart');
+    if (!dates.length) {
+        $lineHost.html('<div class="summary-empty-state py-5"><div class="summary-empty-state-title">Belum ada data grafik</div><div>Pilih rentang tanggal dan akun yang memiliki data campaign.</div></div>');
+    } else {
+        $lineHost.empty();
+        window.__fbSummaryLineChart = Highcharts.chart('facebookSummaryLineChart', {
+            chart: { type: 'spline' },
+            title: { text: 'Pergerakan Spend, Impresi, dan Klik per Tanggal' },
+            xAxis: { categories: dateLabels },
+            yAxis: [{ title: { text: 'Nilai' } }],
+            tooltip: { shared: true },
+            series: [
+                { name: 'Spend', data: dates.map(d => byDate[d].spend) },
+                { name: 'Impresi', data: dates.map(d => byDate[d].impressions) },
+                { name: 'Klik', data: dates.map(d => byDate[d].clicks) }
+            ]
+        });
+    }
 
     const accounts = Object.keys(byAccount)
         .map(k => ({ account: k, spend: byAccount[k].spend, impressions: byAccount[k].impressions, clicks: byAccount[k].clicks }))
         .sort((a, b) => b.spend - a.spend);
 
-    if (window.__fbSummaryAccountBarChart && typeof window.__fbSummaryAccountBarChart.destroy === 'function') {
-        window.__fbSummaryAccountBarChart.destroy();
+    if (!accounts.length) {
+        $barHost.html('<div class="summary-empty-state py-5"><div class="summary-empty-state-title">Belum ada data grafik</div><div>Pilih rentang tanggal dan akun yang memiliki data campaign.</div></div>');
+    } else {
+        $barHost.empty();
+        window.__fbSummaryAccountBarChart = Highcharts.chart('facebookSummaryAccountBarChart', {
+            chart: { type: 'column' },
+            title: { text: 'Perbandingan Spend, Impresi, dan Klik per Akun' },
+            xAxis: { categories: accounts.map(x => x.account), labels: { rotation: -20 } },
+            yAxis: [{ title: { text: 'Nilai' } }],
+            tooltip: { shared: true },
+            series: [
+                { name: 'Spend', data: accounts.map(x => x.spend) },
+                { name: 'Impresi', data: accounts.map(x => x.impressions) },
+                { name: 'Klik', data: accounts.map(x => x.clicks) }
+            ]
+        });
     }
-    window.__fbSummaryAccountBarChart = Highcharts.chart('facebookSummaryAccountBarChart', {
-        chart: { type: 'column' },
-        title: { text: 'Perbandingan Spend, Impresi, dan Klik per Akun' },
-        xAxis: { categories: accounts.map(x => x.account), labels: { rotation: -20 } },
-        yAxis: [{ title: { text: 'Nilai' } }],
-        tooltip: { shared: true },
-        series: [
-            { name: 'Spend', data: accounts.map(x => x.spend) },
-            { name: 'Impresi', data: accounts.map(x => x.impressions) },
-            { name: 'Klik', data: accounts.map(x => x.clicks) }
-        ]
-    });
 }
 
 function renderFacebookMonitoringCampaignTable(rows) {
@@ -306,6 +307,34 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
 
             window.__facebookCampaignRows = (data_campaign && data_campaign.data_campaign) ? data_campaign.data_campaign : [];
 
+            if (!window.__facebookCampaignRows.length) {
+                $('#summary_total_spend').text('Rp 0');
+                $('#summary_total_impressions').text('0');
+                $('#summary_total_clicks').text('0');
+                $('#summary_total_cpc').text('Rp 0');
+                $('#total_spend, #total_impressions, #total_reach, #total_clicks, #total_frequency, #total_cpr, #total_cpc, #total_visitors, #total_unique_visitors, #total_pageviews').text('0');
+                renderFacebookSummaryCharts([]);
+                renderFacebookMonitoringCampaignTable((data_campaign && data_campaign.monitoring_campaign) ? data_campaign.monitoring_campaign : []);
+                try {
+                    if ($.fn.DataTable.isDataTable('#table_data_campaign_facebook')) {
+                        $('#table_data_campaign_facebook').DataTable().clear().destroy();
+                    }
+                    $('#table_data_campaign_facebook').DataTable({
+                        paging: true,
+                        pageLength: 10,
+                        searching: true,
+                        ordering: true,
+                        language: {
+                            emptyTable: 'Tidak ada data campaign untuk filter yang dipilih.',
+                            zeroRecords: 'Tidak ada data campaign untuk filter yang dipilih.'
+                        }
+                    });
+                } catch (dtErr) {
+                    console.error('DataTable summary Facebook gagal diinisialisasi:', dtErr);
+                }
+                return;
+            }
+
             $.each(window.__facebookCampaignRows, function (index, value) {
                 let data_cpr = value.cpr;
                 let cpr_number = parseFloat(data_cpr)
@@ -335,6 +364,9 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 event_data += '<td class="text-right" style="font-size: 12px;">' + formattedFrequency + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + cpr + '</td>';
                 event_data += '<td class="text-right" style="font-size: 12px;">' + value.cpc + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(Number(value.total_visits || value.total_visitors || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(Number(value.unique_visitor || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
+                event_data += '<td class="text-right" style="font-size: 12px;">' + String(Number(value.total_pageviews || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ".") + '</td>';
                 event_data += '<td class="text-center no-export" style="font-size: 12px;">'
                     + '<button type="button" class="btn btn-sm btn-outline-primary btn-facebook-campaign-detail" data-row-index="' + index + '" title="Detail">'
                     + '<i class="bi bi-eye-fill" aria-hidden="true"></i>'
@@ -373,6 +405,12 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                 $('#total_frequency').text(totalFrequency);
                 $('#total_cpr').text(data_cpr);
                 $('#total_cpc').text(data_cpc);
+                const totalVisitors = Number(value.total_visits || value.total_visitors) || 0;
+                const totalUniqueVisitors = Number(value.unique_visitor) || 0;
+                const totalPageviews = Number(value.total_pageviews) || 0;
+                $('#total_visitors').text(totalVisitors.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+                $('#total_unique_visitors').text(totalUniqueVisitors.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
+                $('#total_pageviews').text(totalPageviews.toString().replace(/\B(?=(\d{3})+(?!\d))/g, "."));
 
                 // Summary box (di atas tabel)
                 $('#summary_total_spend').text('Rp ' + totalSpend);
@@ -412,7 +450,7 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                             + tanggal.getFullYear(),
                         exportOptions: {
                             columns: ':visible',
-                            columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],      // tanpa kolom Detail
+                            columns: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],      // tanpa kolom Detail
                             modifier: {
                                 search: 'applied',      // sesuai filter pencarian
                                 order: 'applied'        // sesuai urutan saat itu
@@ -423,7 +461,7 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                             // =========================
                             // Set column width secara manual (unit: character width)
                             // =========================
-                            const colWidths = [10, 15, 15, 10, 10, 10, 10, 10, 10, 10]; // 💡 Sesuaikan berdasarkan % di HTML
+                            const colWidths = [10, 15, 15, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10];
                             const cols = $('cols', sheet);
                             cols.empty(); // Kosongkan default <col> dari DataTables
                             for (let i = 0; i < colWidths.length; i++) {
@@ -472,12 +510,15 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
                                     if (body[i][7]) body[i][7].alignment = 'right';
                                     if (body[i][8]) body[i][8].alignment = 'right';
                                     if (body[i][9]) body[i][9].alignment = 'right';
+                                    if (body[i][10]) body[i][10].alignment = 'right';
+                                    if (body[i][11]) body[i][11].alignment = 'right';
+                                    if (body[i][12]) body[i][12].alignment = 'right';
                                 }
                             }
                             // Margin
                             doc.content[1].margin = [0, 0, 0, 0, 0, 0, 0, 0]; // [left, top, right, bottom]
                             // Manual width sesuai presentase kolom HTML (tanpa kolom Detail)
-                            doc.content[1].table.widths = ['10%', '15%', '15%', '10%', '10%', '10%', '10%', '10%', '10%', '10%'];
+                            doc.content[1].table.widths = ['8%', '12%', '12%', '8%', '8%', '8%', '8%', '8%', '8%', '8%', '8%', '8%', '8%'];
                         }
                     }
                 ]
