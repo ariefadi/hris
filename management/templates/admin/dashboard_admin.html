@@ -8751,7 +8751,8 @@ function initDashboardRecap() {
     }
 
     function scxCountryKey(obj) {
-        const code = String(obj?.country_cd || obj?.country_code || '').trim().toUpperCase();
+        let code = String(obj?.country_cd || obj?.country_code || '').trim().toUpperCase();
+        if (code === 'TU') code = 'TR';
         if (code) return code;
         const name = String(obj?.country_nm || obj?.country_name || '').trim();
         if (!name) return '-';
@@ -9211,7 +9212,8 @@ function initDashboardRecap() {
     }
 
     function scxBuildCountrySnapshotRows(timeline, countryCode) {
-        const target = String(countryCode || '').trim().toUpperCase();
+        let target = String(countryCode || '').trim().toUpperCase();
+        if (target === 'TU') target = 'TR';
         if (!target || !Array.isArray(timeline) || !timeline.length) return [];
         const hasNested = timeline.some(function(item) {
             return Array.isArray(item?.country_details) && item.country_details.length;
@@ -9236,6 +9238,40 @@ function initDashboardRecap() {
                 timeline_index: idx
             });
         }).filter(Boolean);
+    }
+
+    const SNAPSHOT_COMPARE_KEYS = ['current', 'h1', 'h3', 'h7', 'h14', 'h28', 'h35'];
+
+    function scxNormalizeCompareHourlyRows(list) {
+        return (Array.isArray(list) ? list : []).map(function(row) {
+            const hr = Number(row?.run_hour);
+            const label = Number.isFinite(hr)
+                ? `${String(Math.floor(hr)).padStart(2, '0')}:00`
+                : String(row?.run_hour_label || row?.run_hour || '').trim();
+            return Object.assign({}, row, {
+                run_hour: Number.isFinite(hr) ? hr : row?.run_hour,
+                run_hour_label: label || undefined
+            });
+        });
+    }
+
+    function scxMapHourlyObjToSnapshotSeries(hourlyObj) {
+        if (!hourlyObj || typeof hourlyObj !== 'object') return null;
+        const map = {};
+        SNAPSHOT_COMPARE_KEYS.forEach(function(key) {
+            map[key] = scxNormalizeCompareHourlyRows(Array.isArray(hourlyObj[key]) ? hourlyObj[key] : []);
+        });
+        return SNAPSHOT_COMPARE_KEYS.some(function(key) { return map[key].length; }) ? map : null;
+    }
+
+    function scxMergeSnapshotSeriesMaps(primary, fallback) {
+        const out = {};
+        SNAPSHOT_COMPARE_KEYS.forEach(function(key) {
+            const pri = primary && Array.isArray(primary[key]) ? primary[key] : [];
+            const fb = fallback && Array.isArray(fallback[key]) ? fallback[key] : [];
+            out[key] = pri.length ? pri : fb;
+        });
+        return out;
     }
 
     function bindScoreSnapshotMetricTabs(prefix, rows, opts) {
@@ -10211,7 +10247,7 @@ function initDashboardRecap() {
         const btns = Array.from(document.querySelectorAll('[data-scx-tab-btn]'));
         const panes = Array.from(document.querySelectorAll('[data-scx-tab-pane]'));
         if (!btns.length || !panes.length) return;
-        function act(k) {
+        async function act(k) {
             btns.forEach(function(b) {
                 const on = b.getAttribute('data-scx-tab-btn') === k;
                 b.classList.toggle('is-active', on);
@@ -10221,12 +10257,12 @@ function initDashboardRecap() {
                 p.classList.toggle('is-active', on);
                 p.hidden = !on;
             });
-            if (typeof onShow === 'function') onShow(k);
+            if (typeof onShow === 'function') await onShow(k);
         }
         btns.forEach(function(b) {
-            b.onclick = function() { act(String(b.getAttribute('data-scx-tab-btn') || 'summary')); };
+            b.onclick = function() { act(String(b.getAttribute('data-scx-tab-btn') || 'summary')).catch(function(){}); };
         });
-        act('summary');
+        act('summary').catch(function(){});
     }
 
     function scxRenderCountryPane(group, tabKey, timeline) {
@@ -13172,7 +13208,10 @@ function initDashboardRecap() {
             let syntheticHistoryByOffset = {};
             let metricDailySeries = [];
             let metricHourlySeriesByOffset = {};
+            let metricHourlySeriesByCountry = {};
+            const countryCompareInflight = {};
             const dim = String(state?.dim || '').toLowerCase();
+            const domainCompareName = String(row?.name || row?.domain || row?.site || state?.subdomain || '').trim();
             const key = scoringLookupKey(dim, row);
             const entities = scoringLookupCandidates(dim, row);
             const baseDate = String(state?.date || '').trim();
@@ -13187,6 +13226,58 @@ function initDashboardRecap() {
                 return vals.length === 1 ? vals[0] : null;
             };
             const payloadBase = { dim: String(state.dim || 'domain').trim(), source: String(state.source || 'all').trim(), entities: entities.length ? entities : (strictEntities.length ? strictEntities : (key ? [key] : [])), include_events: true, include_timeline: true };
+            const loadCountryCompareSeries = async function(countryCode) {
+                let cc = String(countryCode || '').trim().toUpperCase();
+                if (cc === 'TU') cc = 'TR';
+                if (!cc || !baseDate) return null;
+                const cached = metricHourlySeriesByCountry[cc];
+                if (cached && typeof cached === 'object') return cached;
+                if (countryCompareInflight[cc]) return countryCompareInflight[cc];
+                countryCompareInflight[cc] = (async function() {
+                    const comparePayload = { date: baseDate, country_code: cc, days_back: 0 };
+                    if (domainCompareName) comparePayload.domain = domainCompareName;
+                    try {
+                        const cmpRes = await fetch('/management/admin/dashboard_scoring_compare', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                            body: JSON.stringify(comparePayload),
+                            credentials: 'same-origin'
+                        });
+                        const cmpJson = await cmpRes.json();
+                        if (cmpRes.ok && cmpJson?.status && cmpJson?.data?.hourly_series && typeof cmpJson.data.hourly_series === 'object') {
+                            metricHourlySeriesByCountry[cc] = cmpJson.data.hourly_series;
+                            return metricHourlySeriesByCountry[cc];
+                        }
+                    } catch (_) {}
+                    return null;
+                })();
+                try {
+                    return await countryCompareInflight[cc];
+                } finally {
+                    delete countryCompareInflight[cc];
+                }
+            };
+            const loadCountryCompareSeriesAll = async function(codes, concurrency) {
+                const list = uniqKeepOrder((Array.isArray(codes) ? codes : []).map(function(code) {
+                    let cc = String(code || '').trim().toUpperCase();
+                    if (cc === 'TU') cc = 'TR';
+                    return cc;
+                }).filter(Boolean));
+                if (!list.length) return;
+                const limit = Math.max(1, Math.min(Number(concurrency) || 4, 6));
+                let cursor = 0;
+                const workers = Array.from({ length: Math.min(limit, list.length) }, function() {
+                    return (async function runWorker() {
+                        while (cursor < list.length) {
+                            const idx = cursor;
+                            cursor += 1;
+                            const cc = list[idx];
+                            if (cc) await loadCountryCompareSeries(cc);
+                        }
+                    })();
+                });
+                await Promise.all(workers);
+            };
             try {
                 if (key && baseDate) {
                     const detailRes = await fetch('/management/admin/dashboard_scoring_data', {
@@ -13273,6 +13364,7 @@ function initDashboardRecap() {
                             const cmpJson = await cmpRes.json();
                             if (cmpRes.ok && cmpJson?.status) {
                                 metricHourlySeriesByOffset = (cmpJson?.data?.hourly_series && typeof cmpJson.data.hourly_series === 'object') ? cmpJson.data.hourly_series : {};
+                                if (countryCode) metricHourlySeriesByCountry[countryCode] = metricHourlySeriesByOffset;
                                 const hist = Array.isArray(cmpJson?.data?.history_by_day) ? cmpJson.data.history_by_day : [];
                                 if (hist.length) {
                                     metricDailySeries = hist.map(function(it){ return { date:String(it?.date || ''), score:Number.isFinite(Number(it?.score))?Number(it.score):null, health_score:Number.isFinite(Number(it?.health_score))?Number(it.health_score):null, ivt_risk_score:Number.isFinite(Number(it?.ivt_risk_score))?Number(it.ivt_risk_score):null, adjustment_score:Number.isFinite(Number(it?.adjustment_score))?Number(it.adjustment_score):null, confidence:Number.isFinite(Number(it?.confidence))?(Number(it.confidence) > 1 ? Number(it.confidence) : Number(it.confidence) * 100):null, decision_margin:Number.isFinite(Number(it?.decision_margin))?Number(it.decision_margin):null }; });
@@ -13371,24 +13463,12 @@ function initDashboardRecap() {
                 return [];
             };
             const buildSnapshotSeriesMap = function(countryCode) {
-                if (metricHourlySeriesByOffset && typeof metricHourlySeriesByOffset === 'object') {
-                    const compareMap = {
-                        current: Array.isArray(metricHourlySeriesByOffset?.current) ? metricHourlySeriesByOffset.current : [],
-                        h1: Array.isArray(metricHourlySeriesByOffset?.h1) ? metricHourlySeriesByOffset.h1 : [],
-                        h3: Array.isArray(metricHourlySeriesByOffset?.h3) ? metricHourlySeriesByOffset.h3 : [],
-                        h7: Array.isArray(metricHourlySeriesByOffset?.h7) ? metricHourlySeriesByOffset.h7 : [],
-                        h14: Array.isArray(metricHourlySeriesByOffset?.h14) ? metricHourlySeriesByOffset.h14 : [],
-                        h28: Array.isArray(metricHourlySeriesByOffset?.h28) ? metricHourlySeriesByOffset.h28 : [],
-                        h35: Array.isArray(metricHourlySeriesByOffset?.h35) ? metricHourlySeriesByOffset.h35 : []
-                    };
-                    const hasCompareHourly = Object.values(compareMap).some(function(v){ return Array.isArray(v) && v.length; });
-                    if (hasCompareHourly) return compareMap;
-                }
+                const cc = String(countryCode || '').trim().toUpperCase();
                 const pickRows = function(timelineRows) {
                     if (!Array.isArray(timelineRows) || !timelineRows.length) return [];
-                    return countryCode ? scxBuildCountrySnapshotRows(timelineRows, countryCode) : timelineRows;
+                    return cc ? scxBuildCountrySnapshotRows(timelineRows, cc) : timelineRows;
                 };
-                const map = {
+                const fallback = {
                     current: pickRows(normalizedTimeline),
                     h1: pickRows(readSeriesTimeline(syntheticHistoryByOffset?.h1)),
                     h3: pickRows(readSeriesTimeline(syntheticHistoryByOffset?.h3)),
@@ -13397,8 +13477,24 @@ function initDashboardRecap() {
                     h28: pickRows(readSeriesTimeline(syntheticHistoryByOffset?.h28)),
                     h35: pickRows(readSeriesTimeline(syntheticHistoryByOffset?.h35))
                 };
-                return map;
+                if (cc && metricHourlySeriesByCountry[cc] && typeof metricHourlySeriesByCountry[cc] === 'object') {
+                    const fromCountry = scxMapHourlyObjToSnapshotSeries(metricHourlySeriesByCountry[cc]);
+                    if (fromCountry) return scxMergeSnapshotSeriesMaps(fromCountry, fallback);
+                }
+                const compareScopeCc = (dim === 'country') ? scxResolveCountryCode(row) : '';
+                const canUseDomainCompare = !cc || (compareScopeCc && cc === compareScopeCc);
+                if (canUseDomainCompare && metricHourlySeriesByOffset) {
+                    const fromDomain = scxMapHourlyObjToSnapshotSeries(metricHourlySeriesByOffset);
+                    if (fromDomain) return scxMergeSnapshotSeriesMaps(fromDomain, fallback);
+                }
+                return fallback;
             };
+            if (dim === 'domain' && domainCompareName && Array.isArray(groups) && groups.length) {
+                const countryCodesForCompare = groups.map(function(group) {
+                    return String(group?.status?.country_cd || group?.status?.country_code || group?.key || '').trim().toUpperCase();
+                }).filter(Boolean);
+                await loadCountryCompareSeriesAll(countryCodesForCompare, 4);
+            }
             openScoreDetailModal(
                 `Detail Scoring: ${String(row?.name || '-')}`,
                 renderCreateScoringResult(normalizedJson, rowWithTrend, state, effectiveMeta)
@@ -13408,7 +13504,7 @@ function initDashboardRecap() {
                 try {
                     mountScoreDetailBackendTables(normalizedJson?.scoring || {}, { row, state });
                     bindScoreMetric14Tabs(metricDailySeries.slice(-SCORE_METRIC_CHART_DAYS));
-                    bindScoreCountryTabs(function(tabKey){ 
+                    bindScoreCountryTabs(async function(tabKey){
                         const endYmd = String(state.date || '').trim();
                         if (!endYmd) return;
                         if (tabKey === 'summary') {
@@ -13439,7 +13535,10 @@ function initDashboardRecap() {
                         const group = Array.isArray(groups) ? groups[idx] : null;
                         const st = group?.status || {};
                         const trendKey = String(row?.name || row?.domain || row?.site || '').trim();
-                        const countryCode = String(st?.country_cd || st?.country_code || '').trim().toUpperCase();
+                        const countryCode = String(st?.country_cd || st?.country_code || group?.key || '').trim().toUpperCase();
+                        if (countryCode && dim === 'domain') {
+                            await loadCountryCompareSeries(countryCode);
+                        }
                         bindScoreSnapshotMetricTabs(`scxCountryTrend${idx}Snapshot`, scxBuildCountrySnapshotRows(normalizedTimeline, countryCode), { activeIndex: effectiveMeta?.breakdown?.meta?.scoring_timeline_active_idx, seriesMap: buildSnapshotSeriesMap(countryCode) });
                         if (trendKey && countryCode) bindScoreTrendControls(trendKey, endYmd, Object.assign({}, state, { dim: 'domain' }), { btn1Id: `scxCountryTrend${idx}Btn1`, btn3Id: `scxCountryTrend${idx}Btn3`, btn7Id: `scxCountryTrend${idx}Btn7`, btn14Id: `scxCountryTrend${idx}Btn14`, btn35Id: `scxCountryTrend${idx}Btn${SCORE_METRIC_CHART_DAYS}`, statusId: `scxCountryTrend${idx}Status`, statsId: `scxCountryTrend${idx}Stats`, canvasId: `scxCountryTrend${idx}Chart`, chartKey: `scxCountryTrendChart${idx}`, row: row, seriesOpts: { countryCode: countryCode } });
                     });
