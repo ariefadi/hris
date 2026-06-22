@@ -183,7 +183,12 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
     </div>
     <div class="card-body">
         <div id="overlay" class="hris-loader-stub" style="display:none" data-loader-message="Menyiapkan Data ..." aria-hidden="true"></div>
-        <div class="dt-responsive-table">
+        <div id="fbPerAccountEmptyState" class="fb-per-account-empty">
+            <div class="fb-per-account-empty-icon"><i class="bi bi-table" aria-hidden="true"></i></div>
+            <div class="fb-per-account-empty-title">Belum ada data ditampilkan</div>
+            <div class="fb-per-account-empty-desc">Pilih rentang tanggal, account, dan domain (opsional), lalu klik <strong>Muat Data</strong>.</div>
+        </div>
+        <div id="fbPerAccountTableWrap" class="dt-responsive-table" style="display:none;">
             <table id="table_data_per_account_facebook" class="table table-bordered" style="width: 100%;" data-title="Tabel" data-intro="Tabel detail traffic per account/campaign. Kamu bisa scroll horizontal, dan melihat total di bagian footer.">
             <thead>
                 <tr>
@@ -239,6 +244,30 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 <link rel="stylesheet" type="text/css" href="{% static 'css/datatable-responsive.css' %}">
 <style>
         .card-body { width: 100% !important; overflow-x: auto; }
+        .fb-per-account-empty {
+            text-align: center; padding: 48px 24px; color: #64748b;
+            border: 1px solid #dbe7ff; border-radius: 18px;
+            background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+            box-shadow: 0 10px 24px rgba(37, 99, 235, 0.08);
+        }
+        .fb-per-account-empty-icon {
+            width: 68px; height: 68px; margin: 0 auto 14px; border-radius: 18px;
+            display: flex; align-items: center; justify-content: center; font-size: 1.8rem;
+            color: #2563eb;
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(8, 145, 178, 0.08));
+        }
+        .fb-per-account-empty-title { font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 6px; }
+        .fb-per-account-empty-desc { font-size: 0.92rem; line-height: 1.5; }
+        html[data-theme="dark"] .fb-per-account-empty {
+            color: #94a3b8; border-color: #334155;
+            background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
+            box-shadow: 0 14px 28px rgba(0, 0, 0, 0.35);
+        }
+        html[data-theme="dark"] .fb-per-account-empty-icon {
+            color: #60a5fa;
+            background: linear-gradient(135deg, rgba(37, 99, 235, 0.18), rgba(8, 145, 178, 0.12));
+        }
+        html[data-theme="dark"] .fb-per-account-empty-title { color: #e5e7eb; }
         .dt-responsive-table { width: 100% !important; border:1px solid #dbe7ff; border-radius:18px; overflow:hidden; background:linear-gradient(180deg,#f8fbff 0%,#ffffff 100%); box-shadow:0 10px 24px rgba(37,99,235,.08); }
         .dt-buttons { margin-bottom: 16px; }
         .dt-buttons .btn { border-radius:10px !important; font-weight:700 !important; border:none !important; box-shadow:0 6px 14px rgba(15,23,42,.10); }
@@ -253,6 +282,11 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
         #table_data_per_account_facebook tbody tr:hover td { background:#dbeafe !important; transition:background-color .16s ease; }
         #table_data_per_account_facebook tbody td:first-child { font-weight:700; color:#334155; }
         #table_data_per_account_facebook tbody td:nth-child(2), #table_data_per_account_facebook tbody td:nth-child(3) { text-align:left; }
+        #table_data_per_account_facebook tfoot th {
+            background: linear-gradient(180deg, #eef6ff 0%, #f8fbff 100%) !important;
+            color: #334155 !important; font-weight: 800; border-color: #e5edf8 !important;
+        }
+        #table_data_per_account_facebook tfoot th:first-child { color: #1d4ed8 !important; }
         #table_data_per_account_facebook .badge { border-radius:999px; padding:4px 8px; font-size:10px; font-weight:800; box-shadow:0 4px 10px rgba(15,23,42,.10); }
         #table_data_per_account_facebook .form-switch .form-check-input, #headerSwitch { cursor:pointer; box-shadow:none !important; }
         .dt-scroll-head { z-index: 1001 !important; }
@@ -271,6 +305,20 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
         html[data-theme="dark"] #table_data_per_account_facebook tbody tr:nth-child(even) td { background:#111827 !important; }
         html[data-theme="dark"] #table_data_per_account_facebook tbody tr:hover td { background:#1e3a5f !important; }
         html[data-theme="dark"] .dt-scroll-head th, html[data-theme="dark"] #table_data_per_account_facebook thead th { background:linear-gradient(135deg,#2563eb 0%,#0f766e 100%) !important; }
+        html[data-theme="dark"] #table_data_per_account_facebook tfoot th {
+            background: linear-gradient(180deg, #1e293b 0%, #172033 100%) !important;
+            color: #e5e7eb !important; border-color: #334155 !important;
+        }
+        html[data-theme="dark"] #table_data_per_account_facebook tfoot th:first-child { color: #93c5fd !important; }
+        html[data-theme="dark"] #table_data_per_account_facebook th, html[data-theme="dark"] #table_data_per_account_facebook td { border-color: #334155 !important; }
+        html[data-theme="dark"] #table_data_per_account_facebook tbody td:first-child { color: #e5e7eb !important; }
+        html[data-theme="dark"] #table_data_per_account_facebook tbody .form-control {
+            background: #0f172a !important; color: #e5e7eb !important; border-color: #334155 !important;
+        }
+        html[data-theme="dark"] .dataTables_wrapper .dataTables_info,
+        html[data-theme="dark"] .dataTables_wrapper .dataTables_length label,
+        html[data-theme="dark"] .dataTables_wrapper .dataTables_filter label { color: #cbd5e1 !important; }
+        html[data-theme="dark"] .dataTables_wrapper .dataTables_empty { color: #94a3b8 !important; }
         html[data-theme="dark"] .dtfc-fixed-left, html[data-theme="dark"] .dtfc-fixed-left th, html[data-theme="dark"] .dtfc-fixed-left td, html[data-theme="dark"] .dt-fixedcolumns-left, html[data-theme="dark"] .dt-fixedcolumns-left th, html[data-theme="dark"] .dt-fixedcolumns-left td { background-color:#172554 !important; color:#e5e7eb !important; border-color:#334155 !important; }
         html[data-theme="dark"] .dataTables_wrapper .dataTables_filter input, html[data-theme="dark"] .dataTables_wrapper .dataTables_length select { background:#0f172a !important; color:#e5e7eb !important; border-color:#334155 !important; }
     </style>

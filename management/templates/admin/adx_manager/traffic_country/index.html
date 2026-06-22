@@ -199,6 +199,118 @@ html[data-theme="dark"] .adx-traffic-table-wrap .country-code-badge { color: #a5
 .introjs-helperLayer.hris-tour-highlight {
     border-radius: 16px !important; box-shadow: 0 0 0 6px var(--tour-ring) !important;
 }
+.adx-detail-modal {
+    border: 1px solid var(--adx-border);
+    border-radius: 16px !important;
+    overflow: hidden;
+    box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+}
+html[data-theme="dark"] .adx-detail-modal {
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+}
+.adx-detail-hero {
+    background: linear-gradient(135deg, #4338ca 0%, #6366f1 55%, #8b5cf6 100%);
+    padding: 18px 20px;
+    color: #fff;
+}
+.adx-detail-hero-inner {
+    display: flex; align-items: center; gap: 14px; position: relative;
+}
+.adx-detail-hero-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255, 255, 255, 0.2); font-size: 1.25rem; flex-shrink: 0;
+}
+.adx-detail-title { margin: 0; font-size: 1.1rem; font-weight: 800; color: #fff; }
+.adx-detail-subtitle { margin: 2px 0 0; font-size: 0.8rem; opacity: 0.9; color: #fff; }
+.adx-detail-close {
+    position: absolute; top: -4px; right: 0;
+    color: #fff !important; opacity: 0.85; text-shadow: none;
+    font-size: 1.5rem; padding: 0; margin: 0;
+}
+.adx-detail-close:hover { opacity: 1; }
+.adx-detail-body { padding: 18px 20px 8px; background: var(--adx-surface); }
+.adx-detail-context {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px;
+}
+@media (max-width: 575px) { .adx-detail-context { grid-template-columns: 1fr; } }
+.adx-detail-context-item {
+    background: var(--adx-surface-2); border: 1px solid var(--adx-border);
+    border-radius: 12px; padding: 10px 12px;
+}
+.adx-detail-context-item i { color: var(--adx-accent); margin-right: 6px; font-size: 0.85rem; }
+.adx-detail-context-item .label {
+    display: block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--adx-muted); margin-bottom: 4px;
+}
+.adx-detail-context-item .value {
+    display: block; font-size: 0.88rem; font-weight: 700; color: var(--adx-text);
+    word-break: break-word; line-height: 1.35;
+}
+.adx-detail-country-head {
+    display: flex; align-items: center; gap: 10px;
+}
+.adx-detail-country-head img {
+    border-radius: 3px; box-shadow: 0 1px 4px rgba(0,0,0,0.15); flex-shrink: 0;
+}
+.adx-detail-code-badge {
+    display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 0.78rem;
+    font-weight: 700; letter-spacing: 0.05em;
+    background: rgba(99, 102, 241, 0.12); color: #4338ca;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    border: 1px solid rgba(99, 102, 241, 0.2);
+}
+html[data-theme="dark"] .adx-detail-code-badge { color: #a5b4fc; }
+.adx-detail-section-title {
+    font-size: 0.72rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--adx-muted); margin-bottom: 10px;
+}
+.adx-detail-metrics {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px;
+}
+@media (max-width: 575px) { .adx-detail-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.adx-detail-metric {
+    background: var(--adx-surface-2); border: 1px solid var(--adx-border);
+    border-radius: 12px; padding: 12px 14px; transition: border-color 0.15s ease;
+}
+.adx-detail-metric:hover { border-color: rgba(99, 102, 241, 0.35); }
+.adx-detail-metric.highlight {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.06));
+    border-color: rgba(99, 102, 241, 0.25);
+}
+.adx-detail-metric-label {
+    font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; color: var(--adx-muted); margin-bottom: 6px;
+}
+.adx-detail-metric-value {
+    font-size: 1.05rem; font-weight: 800; color: var(--adx-text); line-height: 1.2;
+}
+.adx-detail-metric.highlight .adx-detail-metric-value { color: #4338ca; }
+html[data-theme="dark"] .adx-detail-metric.highlight .adx-detail-metric-value { color: #a5b4fc; }
+.adx-detail-extra {
+    border: 1px solid var(--adx-border); border-radius: 12px; overflow: hidden; margin-bottom: 8px;
+}
+.adx-detail-extra-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px 14px; font-size: 0.84rem;
+    border-bottom: 1px solid var(--adx-border);
+}
+.adx-detail-extra-row:last-child { border-bottom: 0; }
+.adx-detail-extra-row:nth-child(even) { background: var(--adx-surface-2); }
+.adx-detail-extra-row .label { color: var(--adx-muted); font-weight: 600; }
+.adx-detail-extra-row .value { color: var(--adx-text); font-weight: 700; text-align: right; }
+.adx-detail-footer {
+    background: var(--adx-surface-2); border-top: 1px solid var(--adx-border);
+    padding: 12px 20px; justify-content: flex-end;
+}
+.adx-detail-btn-close {
+    border-radius: 10px; font-weight: 700; padding: 8px 18px;
+    border: 1px solid var(--adx-border); background: var(--adx-surface); color: var(--adx-text);
+}
+.adx-detail-btn-close:hover {
+    background: var(--adx-surface-2); color: var(--adx-text);
+    border-color: rgba(99, 102, 241, 0.35);
+}
 </style>
 {% endblock %}
 {% block content %}
@@ -357,49 +469,71 @@ html[data-theme="dark"] .adx-traffic-table-wrap .country-code-badge { color: #a5
         </div>
 
         <div class="modal fade" id="adxTrafficCountryDetailModal" tabindex="-1" role="dialog" aria-hidden="true">
-            <div class="modal-dialog modal-lg" role="document">
-                <div class="modal-content" style="border-radius:14px;overflow:hidden;">
-                    <div class="modal-header" style="background:var(--adx-surface-2);border-bottom:1px solid var(--adx-border);">
-                        <h5 class="modal-title font-weight-bold"><i class="bi bi-eye-fill text-primary"></i> Detail Traffic Negara</h5>
-                        <button type="button" class="close" data-dismiss="modal"><span>&times;</span></button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="row">
-                            <div class="col-md-6">
-                                <table class="table table-sm table-borderless mb-0">
-                                    <tbody>
-                                        <tr><th style="width:45%">Negara</th><td id="adxTrafficCountryDetailCountryName">-</td></tr>
-                                        <tr><th>Kode</th><td id="adxTrafficCountryDetailCountryCode">-</td></tr>
-                                    </tbody>
-                                </table>
+            <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+                <div class="modal-content adx-detail-modal">
+                    <div class="adx-detail-hero">
+                        <div class="adx-detail-hero-inner">
+                            <div class="adx-detail-hero-icon"><i class="bi bi-globe-americas"></i></div>
+                            <div class="flex-grow-1">
+                                <h5 class="adx-detail-title">Detail Traffic Negara</h5>
+                                <p class="adx-detail-subtitle">Ringkasan performa per negara</p>
                             </div>
-                            <div class="col-md-6">
-                                <table class="table table-sm table-borderless mb-0">
-                                    <tbody>
-                                        <tr><th style="width:45%">Impresi</th><td id="adxTrafficCountryDetailImpressions" class="text-right">0</td></tr>
-                                        <tr><th>Klik</th><td id="adxTrafficCountryDetailClicks" class="text-right">0</td></tr>
-                                        <tr><th>CTR</th><td id="adxTrafficCountryDetailCtr" class="text-right">0%</td></tr>
-                                        <tr><th>CPC</th><td id="adxTrafficCountryDetailCpc" class="text-right">Rp 0</td></tr>
-                                        <tr><th>eCPM</th><td id="adxTrafficCountryDetailEcpm" class="text-right">Rp 0</td></tr>
-                                        <tr><th>Pendapatan</th><td id="adxTrafficCountryDetailRevenue" class="text-right">Rp 0</td></tr>
-                                    </tbody>
-                                </table>
+                            <button type="button" class="close adx-detail-close" data-dismiss="modal" aria-label="Tutup"><span>&times;</span></button>
+                        </div>
+                    </div>
+                    <div class="modal-body adx-detail-body">
+                        <div class="adx-detail-context">
+                            <div class="adx-detail-context-item">
+                                <span class="label"><i class="bi bi-flag"></i>Negara</span>
+                                <span class="value adx-detail-country-head" id="adxTrafficCountryDetailCountryWrap">
+                                    <img id="adxTrafficCountryDetailFlag" src="" alt="" width="24" height="18" style="display:none;">
+                                    <span id="adxTrafficCountryDetailCountryName">-</span>
+                                </span>
+                            </div>
+                            <div class="adx-detail-context-item">
+                                <span class="label"><i class="bi bi-tag"></i>Kode Negara</span>
+                                <span class="value"><span class="adx-detail-code-badge" id="adxTrafficCountryDetailCountryCode">-</span></span>
                             </div>
                         </div>
-                        <hr>
-                        <table class="table table-sm table-bordered mb-0">
-                            <tbody>
-                                <tr><th style="width:45%">Total Requests</th><td id="adxTrafficCountryDetailTotalRequests" class="text-right">0</td></tr>
-                                <tr><th>Responses Served</th><td id="adxTrafficCountryDetailResponsesServed" class="text-right">0</td></tr>
-                                <tr><th>Match Rate</th><td id="adxTrafficCountryDetailMatchRate" class="text-right">0%</td></tr>
-                                <tr><th>Fill Rate</th><td id="adxTrafficCountryDetailFillRate" class="text-right">0%</td></tr>
-                                <tr><th>Active View % Viewable</th><td id="adxTrafficCountryDetailActiveViewPctViewable" class="text-right">0%</td></tr>
-                                <tr><th>Active View Avg Time (sec)</th><td id="adxTrafficCountryDetailActiveViewAvgTimeSec" class="text-right">0</td></tr>
-                            </tbody>
-                        </table>
+                        <div class="adx-detail-section-title">Metrik Utama</div>
+                        <div class="adx-detail-metrics">
+                            <div class="adx-detail-metric">
+                                <div class="adx-detail-metric-label">Impresi</div>
+                                <div class="adx-detail-metric-value" id="adxTrafficCountryDetailImpressions">0</div>
+                            </div>
+                            <div class="adx-detail-metric">
+                                <div class="adx-detail-metric-label">Klik</div>
+                                <div class="adx-detail-metric-value" id="adxTrafficCountryDetailClicks">0</div>
+                            </div>
+                            <div class="adx-detail-metric">
+                                <div class="adx-detail-metric-label">CTR</div>
+                                <div class="adx-detail-metric-value" id="adxTrafficCountryDetailCtr">0%</div>
+                            </div>
+                            <div class="adx-detail-metric">
+                                <div class="adx-detail-metric-label">CPC</div>
+                                <div class="adx-detail-metric-value" id="adxTrafficCountryDetailCpc">Rp 0</div>
+                            </div>
+                            <div class="adx-detail-metric">
+                                <div class="adx-detail-metric-label">eCPM</div>
+                                <div class="adx-detail-metric-value" id="adxTrafficCountryDetailEcpm">Rp 0</div>
+                            </div>
+                            <div class="adx-detail-metric highlight">
+                                <div class="adx-detail-metric-label">Pendapatan</div>
+                                <div class="adx-detail-metric-value" id="adxTrafficCountryDetailRevenue">Rp 0</div>
+                            </div>
+                        </div>
+                        <div class="adx-detail-section-title">Metrik Lanjutan</div>
+                        <div class="adx-detail-extra">
+                            <div class="adx-detail-extra-row"><span class="label">Total Requests</span><span class="value" id="adxTrafficCountryDetailTotalRequests">0</span></div>
+                            <div class="adx-detail-extra-row"><span class="label">Responses Served</span><span class="value" id="adxTrafficCountryDetailResponsesServed">0</span></div>
+                            <div class="adx-detail-extra-row"><span class="label">Match Rate</span><span class="value" id="adxTrafficCountryDetailMatchRate">0%</span></div>
+                            <div class="adx-detail-extra-row"><span class="label">Fill Rate</span><span class="value" id="adxTrafficCountryDetailFillRate">0%</span></div>
+                            <div class="adx-detail-extra-row"><span class="label">Active View % Viewable</span><span class="value" id="adxTrafficCountryDetailActiveViewPctViewable">0%</span></div>
+                            <div class="adx-detail-extra-row"><span class="label">Active View Avg Time (sec)</span><span class="value" id="adxTrafficCountryDetailActiveViewAvgTimeSec">0</span></div>
+                        </div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal"><i class="bi bi-x"></i> Tutup</button>
+                    <div class="modal-footer adx-detail-footer">
+                        <button type="button" class="btn adx-detail-btn-close" data-dismiss="modal"><i class="bi bi-x-lg mr-1"></i> Tutup</button>
                     </div>
                 </div>
             </div>

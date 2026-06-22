@@ -29,6 +29,16 @@ function hideHrisFacebookLoader() {
     $('#overlay').stop(true, true).fadeOut(200);
 }
 
+function showFbPerAccountEmptyState() {
+    $('#fbPerAccountEmptyState').show();
+    $('#fbPerAccountTableWrap').hide();
+}
+
+function showFbPerAccountTable() {
+    $('#fbPerAccountEmptyState').hide();
+    $('#fbPerAccountTableWrap').show();
+}
+
 function appendCsvUnique(currentValue, item) {
     const list = String(currentValue || '').split(',').map(function(v){ return String(v || '').trim().toUpperCase(); }).filter(Boolean);
     const token = String(item || '').trim().toUpperCase();
@@ -639,6 +649,7 @@ $().ready(function () {
     resolveUnknownLocationLabels();
 
     // Filter silang account-domain dinonaktifkan karena domain menggunakan freetext.
+    showFbPerAccountEmptyState();
 });
 
 function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain, onDone) {
@@ -649,6 +660,7 @@ function table_data_per_account_facebook(tanggal_dari, tanggal_sampai, data_acco
         dataType: 'json',
         success: function (data_per_account) {
             destroy_table_data_per_account_facebook()
+            showFbPerAccountTable();
             const tanggal = new Date();
             judul = "Rekapitulasi Traffic Per Account Facebook";
             $.each(data_per_account.data_per_account, function (index, value) {

@@ -29,6 +29,16 @@ function hideHrisFacebookLoader() {
     $('#overlay').stop(true, true).fadeOut(200);
 }
 
+function showFbTrafficEmptyState() {
+    $('#fbTrafficEmptyState').show();
+    $('#fbTrafficTableWrap').hide();
+}
+
+function showFbTrafficTable() {
+    $('#fbTrafficEmptyState').hide();
+    $('#fbTrafficTableWrap').show();
+}
+
 window.facebookCampaignDetailXhr = null;
 window.facebookCampaignDetailReqKey = '';
 window.facebookCampaignAssetsCache = [];
@@ -616,6 +626,7 @@ $(document).on('click', '#btnFacebookCampaignPublish', function() {
         }
     });
     // Filter silang account-domain dinonaktifkan karena domain menggunakan freetext.
+    showFbTrafficEmptyState();
 });
 function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account, data_domain, onDone) {
     showHrisFacebookLoader('Memuat data per campaign Facebook...');
@@ -624,6 +635,7 @@ function table_data_campaign_facebook(tanggal_dari, tanggal_sampai, data_account
         method: 'GET',
         dataType: 'json',
         success: function (data_campaign) {
+            showFbTrafficTable();
             const tanggal = new Date();
             judul = "Rekapitulasi Traffic Per Campaign Facebook";
 

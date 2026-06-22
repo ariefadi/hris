@@ -49,6 +49,16 @@ function isCountryMapVisible() {
     }
 }
 
+function showFbTrafficEmptyState() {
+    $('#fbTrafficEmptyState').show();
+    $('#fbTrafficTableWrap').hide();
+}
+
+function showFbTrafficTable() {
+    $('#fbTrafficEmptyState').hide();
+    $('#fbTrafficTableWrap').show();
+}
+
 function reflowCountrySpendMap() {
     if (window.fbSpendMapInstance && typeof window.fbSpendMapInstance.reflow === 'function') {
         try { window.fbSpendMapInstance.reflow(); } catch (e) { }
@@ -176,6 +186,7 @@ $().ready(function () {
         setCountryMapVisible(!window.__fbCountryMapVisible, true);
     });
     // Filter silang account-domain dinonaktifkan karena domain menggunakan freetext.
+    showFbTrafficEmptyState();
 });
 // Fungsi untuk memuat opsi negara ke select2
 function load_country_options(data_account, data_domain) {
@@ -244,6 +255,7 @@ function table_data_per_country_facebook(tanggal_dari, tanggal_sampai, data_acco
         },
         success: function (data_country) {
             $('#overlay').hide();
+            showFbTrafficTable();
             const tanggal = new Date();
             judul = "Rekapitulasi Traffic Per Country Facebook";
 

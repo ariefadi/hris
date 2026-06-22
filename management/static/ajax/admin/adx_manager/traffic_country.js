@@ -688,8 +688,18 @@ $(document).ready(function () {
                 var idx = parseInt($(this).attr('data-row-index') || '0', 10);
                 var row = (window.__adxTrafficCountryRows || [])[idx] || {};
 
+                var code = String(row.country_code || '').toUpperCase();
+
                 $('#adxTrafficCountryDetailCountryName').text(escapeHtml(row.country_name || '-'));
-                $('#adxTrafficCountryDetailCountryCode').text(escapeHtml(row.country_code || '-'));
+                $('#adxTrafficCountryDetailCountryCode').text(code || '-');
+
+                var $flag = $('#adxTrafficCountryDetailFlag');
+                if (code) {
+                    $flag.attr('src', 'https://flagcdn.com/24x18/' + code.toLowerCase() + '.png')
+                        .attr('alt', code).show();
+                } else {
+                    $flag.hide().attr('src', '').attr('alt', '');
+                }
 
                 var ctr = parseFloat(row.ctr);
                 if (isNaN(ctr)) ctr = 0;

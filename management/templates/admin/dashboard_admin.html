@@ -716,6 +716,53 @@ html[data-theme="dark"] .dashboard-recap-tabs .btn:hover {
     box-shadow: 0 12px 28px rgba(99, 102, 241, 0.38);
     background: linear-gradient(135deg, #5558e8 0%, #7c3aed 100%);
 }
+
+.winning-campaign-section-title {
+    font-weight: 800;
+    margin-bottom: 8px;
+    color: #0f172a;
+}
+#dashboardWinningCampaignCard .winning-campaign-table thead th {
+    background: linear-gradient(180deg, #eef2ff, #f8fafc);
+    color: #0f172a;
+    font-weight: 800;
+    font-size: 11px;
+    vertical-align: middle;
+}
+#dashboardWinningCampaignCard .winning-campaign-table tbody td {
+    vertical-align: middle;
+}
+html[data-theme="dark"] .winning-campaign-section-title {
+    color: #f1f5f9;
+}
+html[data-theme="dark"] #dashboardWinningCampaignCard .winning-campaign-table {
+    color: #e2e8f0;
+    --bs-table-bg: transparent;
+    --bs-table-striped-bg: rgba(30, 41, 59, 0.52);
+    --bs-table-color: #e2e8f0;
+    --bs-table-border-color: rgba(148, 163, 184, 0.18);
+}
+html[data-theme="dark"] #dashboardWinningCampaignCard .winning-campaign-table thead th {
+    background: #162235;
+    color: #f8fafc;
+    border-color: rgba(148, 163, 184, 0.22) !important;
+}
+html[data-theme="dark"] #dashboardWinningCampaignCard .winning-campaign-table tbody td {
+    color: #e2e8f0;
+    border-color: rgba(148, 163, 184, 0.18) !important;
+}
+html[data-theme="dark"] #dashboardWinningCampaignCard .table-striped > tbody > tr:nth-of-type(odd) > * {
+    background-color: rgba(30, 41, 59, 0.52) !important;
+    color: #e2e8f0;
+}
+html[data-theme="dark"] #dashboardWinningCampaignCard .table-striped > tbody > tr:nth-of-type(even) > * {
+    background-color: rgba(15, 23, 42, 0.78) !important;
+    color: #e2e8f0;
+}
+html[data-theme="dark"] #dashboardWinningCampaignCard .table-striped > tbody > tr:hover > * {
+    background-color: rgba(56, 189, 248, 0.14) !important;
+}
+
 .dashboard-recap-table thead th {
     background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
     color: var(--db-text);
@@ -846,11 +893,11 @@ html[data-theme="dark"] #dashboardRecapTable tbody tr:hover {
 }
 html[data-theme="dark"] #dashboardRecapTable tbody tr.table-info td,
 html[data-theme="dark"] #dashboardRecapTable tbody tr.table-danger td {
-    color: #0f172a !important;
-    border-color: rgba(15,23,42,.18) !important;
+    color: #e2e8f0 !important;
+    border-color: rgba(148, 163, 184, 0.14) !important;
 }
-html[data-theme="dark"] #dashboardRecapTable tbody tr.table-info { background: rgba(186,230,253,.92) !important; }
-html[data-theme="dark"] #dashboardRecapTable tbody tr.table-danger { background: rgba(254,215,226,.94) !important; }
+html[data-theme="dark"] #dashboardRecapTable tbody tr.table-info { background: rgba(14, 116, 144, 0.32) !important; }
+html[data-theme="dark"] #dashboardRecapTable tbody tr.table-danger { background: rgba(127, 29, 29, 0.32) !important; }
 html[data-theme="dark"] #dashboardRecapTable_wrapper .dataTables_info,
 html[data-theme="dark"] #dashboardRecapTable_wrapper .dataTables_length label,
 html[data-theme="dark"] #dashboardRecapTable_wrapper .dataTables_filter label,
@@ -1514,8 +1561,26 @@ html[data-theme="dark"] .detail-scoring-table-wrap {
 html[data-theme="dark"] .ds-domain-name { color: #f1f5f9; }
 html[data-theme="dark"] .ds-money { color: #e2e8f0; }
 html[data-theme="dark"] .ds-score-head { color: #f1f5f9; }
+html[data-theme="dark"] .ds-score-meta { color: #94a3b8; }
+html[data-theme="dark"] .ds-score-value {
+    color: #93c5fd;
+    background: none;
+    -webkit-background-clip: unset;
+    background-clip: unset;
+}
 html[data-theme="dark"] .ds-score-bar { background: rgba(148, 163, 184, 0.2); }
-html[data-theme="dark"] .ds-decision-cause { color: #94a3b8; }
+html[data-theme="dark"] .ds-decision-cause { color: #cbd5e1; }
+html[data-theme="dark"] .ds-status-sub { color: #cbd5e1; }
+html[data-theme="dark"] .ds-tag--adx { background: rgba(59, 130, 246, 0.22); color: #93c5fd; border-color: rgba(96, 165, 250, 0.35); }
+html[data-theme="dark"] .ds-tag--adsense { background: rgba(251, 191, 36, 0.2); color: #fcd34d; border-color: rgba(251, 191, 36, 0.35); }
+html[data-theme="dark"] .ds-tag--days { background: rgba(6, 182, 212, 0.2); color: #67e8f9; border-color: rgba(34, 211, 238, 0.35); }
+html[data-theme="dark"] .ds-tag--country { background: rgba(148, 163, 184, 0.18); color: #e2e8f0; border-color: rgba(148, 163, 184, 0.3); }
+html[data-theme="dark"] .ds-roi--pos { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border-color: rgba(52, 211, 153, 0.35); }
+html[data-theme="dark"] .ds-roi--neg { background: rgba(248, 113, 113, 0.18); color: #fca5a5; border-color: rgba(248, 113, 113, 0.32); }
+html[data-theme="dark"] .ds-roi--zero { background: rgba(148, 163, 184, 0.16); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.28); }
+html[data-theme="dark"] .ds-decision--pending { background: rgba(51, 65, 85, 0.65); color: #cbd5e1; border-color: rgba(148, 163, 184, 0.28); }
+html[data-theme="dark"] .ds-decision--scale-down { color: #fff; }
+html[data-theme="dark"] .ds-update-badge { background: rgba(248, 113, 113, 0.18); color: #fca5a5; border-color: rgba(248, 113, 113, 0.32); }
 
 .sd-wrap { display:flex; flex-wrap:wrap; gap:16px; align-items:flex-start; }
 .sd-card { flex: 1; min-width: 320px; background: #f8fafc; border: 1px solid rgba(15,23,42,0.08); border-radius: 14px; padding: 12px 14px; }
@@ -2833,6 +2898,10 @@ html[data-theme="dark"] .score-detail-modal__body .scx-pane-table-wrap {
     background: linear-gradient(135deg, rgba(30,41,59,.98) 0%, rgba(15,23,42,.98) 100%);
     border-color: rgba(148, 163, 184, 0.14);
 }
+html[data-theme="dark"] .score-detail-modal__body .scx-pane-table-head {
+    background: #162235;
+    border-bottom-color: rgba(148, 163, 184, 0.14);
+}
 html[data-theme="dark"] .score-detail-modal__body .scx-pane-title,
 html[data-theme="dark"] .score-detail-modal__body .scx-pane-action strong,
 html[data-theme="dark"] .score-detail-modal__body .scx-pane-mini-v,
@@ -2863,6 +2932,335 @@ html[data-theme="dark"] .scx-mini-compare-value {
 html[data-theme="dark"] .scx-mini-compare-track {
     background: linear-gradient(180deg, rgba(30,41,59,.92) 0%, rgba(15,23,42,.96) 100%);
     border-color: rgba(148,163,184,.18);
+}
+
+/* Dark mode — Detail Scoring: tabel, pill, KPI, hero, JSON */
+html[data-theme="dark"] .score-detail-modal__body {
+    color: #e2e8f0;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-title {
+    color: #f1f5f9;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-sub {
+    color: #94a3b8;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-section-head .left {
+    color: #f1f5f9;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-section-head .right {
+    color: #94a3b8;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-table-scroll {
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.92));
+    border-color: rgba(148, 163, 184, 0.16);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-table-scroll thead th {
+    background: #162235 !important;
+    color: #f1f5f9 !important;
+    border-color: rgba(148, 163, 184, 0.18) !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-table-scroll .table {
+    color: #e2e8f0;
+    background: transparent;
+    --bs-table-bg: transparent;
+    --bs-table-striped-bg: rgba(15, 23, 42, 0.42);
+    --bs-table-hover-bg: rgba(59, 130, 246, 0.12);
+    --bs-table-color: #e2e8f0;
+    --bs-table-border-color: rgba(148, 163, 184, 0.14);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-table-scroll .table td,
+html[data-theme="dark"] .score-detail-modal__body .scx-table-scroll .table th {
+    color: #e2e8f0 !important;
+    border-color: rgba(148, 163, 184, 0.14) !important;
+    background-color: transparent !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .table-striped > tbody > tr:nth-of-type(odd) > * {
+    background-color: rgba(15, 23, 42, 0.48) !important;
+    color: #e2e8f0 !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .table-striped > tbody > tr:nth-of-type(even) > * {
+    background-color: rgba(30, 41, 59, 0.38) !important;
+    color: #e2e8f0 !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .table-striped > tbody > tr:hover > * {
+    background-color: rgba(59, 130, 246, 0.14) !important;
+    color: #f8fafc !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-table-scroll td[style*="0f172a"],
+html[data-theme="dark"] .score-detail-modal__body .scx-table-scroll td[style*="334155"],
+html[data-theme="dark"] .score-detail-modal__body .scx-table-scroll td[style*="64748b"] {
+    color: #e2e8f0 !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-pill.green {
+    background: rgba(34, 197, 94, 0.18);
+    color: #86efac;
+    border-color: rgba(74, 222, 128, 0.35);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-pill.red {
+    background: rgba(248, 113, 113, 0.18);
+    color: #fca5a5;
+    border-color: rgba(248, 113, 113, 0.35);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-pill.yellow {
+    background: rgba(251, 191, 36, 0.18);
+    color: #fcd34d;
+    border-color: rgba(251, 191, 36, 0.35);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-pill.gray {
+    background: rgba(148, 163, 184, 0.16);
+    color: #cbd5e1;
+    border-color: rgba(148, 163, 184, 0.28);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-roi-chip.red {
+    background: rgba(248, 113, 113, 0.16);
+    color: #fca5a5;
+    border-color: rgba(248, 113, 113, 0.28);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-roi-chip.yellow {
+    background: rgba(251, 191, 36, 0.16);
+    color: #fcd34d;
+    border-color: rgba(251, 191, 36, 0.28);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-roi-chip.green {
+    background: rgba(74, 222, 128, 0.16);
+    color: #86efac;
+    border-color: rgba(74, 222, 128, 0.28);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-roi-band.red {
+    background: rgba(248, 113, 113, 0.14);
+    color: #fca5a5;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-roi-band.yellow {
+    background: rgba(251, 191, 36, 0.14);
+    color: #fcd34d;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-roi-band.green {
+    background: rgba(74, 222, 128, 0.14);
+    color: #86efac;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-impact.up {
+    color: #86efac;
+    background: rgba(34, 197, 94, 0.18);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-impact.down {
+    color: #fca5a5;
+    background: rgba(248, 113, 113, 0.18);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-impact.neutral {
+    color: #cbd5e1;
+    background: rgba(148, 163, 184, 0.16);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-json-scroll {
+    background: rgba(15, 23, 42, 0.72);
+    border-color: rgba(148, 163, 184, 0.18);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-json-scroll pre {
+    color: #e2e8f0;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-table-loading {
+    background: rgba(30, 41, 59, 0.65);
+    border-color: rgba(99, 102, 241, 0.28);
+    color: #cbd5e1;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-note-box {
+    background: rgba(15, 23, 42, 0.55);
+    border-color: rgba(148, 163, 184, 0.18);
+    color: #cbd5e1;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-item {
+    background: rgba(15, 23, 42, 0.55);
+    border-color: rgba(148, 163, 184, 0.14);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-item-name {
+    color: #f1f5f9;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-item-desc,
+html[data-theme="dark"] .score-detail-modal__body .scx-impact-more {
+    color: #94a3b8;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-kpi-label {
+    color: #94a3b8;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-kpi-value {
+    color: #f8fafc;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-kpi-note {
+    color: #94a3b8;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-kpi--score {
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.22), rgba(15, 23, 42, 0.85));
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-kpi--health {
+    background: linear-gradient(135deg, rgba(22, 163, 74, 0.2), rgba(15, 23, 42, 0.85));
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-kpi--confidence {
+    background: linear-gradient(135deg, rgba(79, 70, 229, 0.22), rgba(15, 23, 42, 0.85));
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-kpi--risk {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(15, 23, 42, 0.85));
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-kpi--adjustment {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(15, 23, 42, 0.85));
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-kpi--margin {
+    background: linear-gradient(135deg, rgba(124, 58, 237, 0.22), rgba(15, 23, 42, 0.85));
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-progress {
+    background: rgba(51, 65, 85, 0.65);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-hero-modern {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.95), rgba(15, 23, 42, 0.95));
+    border-color: rgba(99, 102, 241, 0.25);
+    box-shadow: 0 18px 38px rgba(2, 6, 23, 0.28);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-chip {
+    background: rgba(15, 23, 42, 0.72);
+    color: #cbd5e1;
+    border-color: rgba(148, 163, 184, 0.2);
+    box-shadow: none;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-chip b {
+    color: #f8fafc;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-insight-card {
+    background: rgba(15, 23, 42, 0.62);
+    border-color: rgba(148, 163, 184, 0.14);
+    box-shadow: none;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-insight-card:nth-child(1),
+html[data-theme="dark"] .score-detail-modal__body .scx-insight-card:nth-child(2),
+html[data-theme="dark"] .score-detail-modal__body .scx-insight-card:nth-child(3),
+html[data-theme="dark"] .score-detail-modal__body .scx-insight-card:nth-child(4) {
+    background: rgba(15, 23, 42, 0.62);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-insight-k,
+html[data-theme="dark"] .score-detail-modal__body .scx-insight-s {
+    color: #94a3b8;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-insight-v {
+    color: #f8fafc;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-callout {
+    background: rgba(30, 64, 175, 0.15);
+    border-color: rgba(96, 165, 250, 0.25);
+    color: #cbd5e1;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-callout strong {
+    color: #f1f5f9;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-mini-muted {
+    color: #94a3b8;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-focus-table th {
+    background: #162235 !important;
+    color: #f1f5f9 !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-focus-table td {
+    color: #e2e8f0 !important;
+    border-color: rgba(148, 163, 184, 0.14) !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-focus-table tbody tr:nth-child(odd) {
+    background: rgba(15, 23, 42, 0.48) !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-focus-table tbody tr:nth-child(even) {
+    background: rgba(30, 41, 59, 0.38) !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-focus-table tbody tr:hover {
+    background: rgba(59, 130, 246, 0.14) !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-focus-table tbody tr:first-child td:first-child {
+    color: #a5b4fc !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-action-panel {
+    background: rgba(15, 23, 42, 0.78);
+    border-color: rgba(148, 163, 184, 0.18);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-action-panel .scx-title {
+    color: #f1f5f9;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-action-panel .scx-sub,
+html[data-theme="dark"] .score-detail-modal__body .scx-action-panel .text-muted {
+    color: #94a3b8 !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-action-panel #sdCampaignTable .table {
+    color: #e2e8f0;
+    --bs-table-bg: transparent;
+    --bs-table-striped-bg: rgba(15, 23, 42, 0.42);
+    --bs-table-hover-bg: rgba(59, 130, 246, 0.12);
+    --bs-table-color: #e2e8f0;
+    --bs-table-border-color: rgba(148, 163, 184, 0.14);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-action-panel #sdCampaignTable thead th {
+    background: #162235 !important;
+    color: #cbd5e1 !important;
+    border-color: rgba(148, 163, 184, 0.18) !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-action-panel #sdCampaignTable tbody td {
+    color: #e2e8f0 !important;
+    border-color: rgba(148, 163, 184, 0.14) !important;
+    background-color: rgba(30, 41, 59, 0.42) !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-action-panel #sdCampaignTable .table-striped > tbody > tr:nth-of-type(even) > td {
+    background-color: rgba(15, 23, 42, 0.52) !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-action-panel #sdCampaignTable td[style*="0f172a"],
+html[data-theme="dark"] .score-detail-modal__body .scx-action-panel #sdCampaignTable div[style*="475569"],
+html[data-theme="dark"] .score-detail-modal__body .scx-action-panel #sdCampaignTable span[style*="64748b"] {
+    color: #cbd5e1 !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-action-panel #sdCampaignTable .form-control {
+    background: #0f172a;
+    border-color: rgba(148, 163, 184, 0.25);
+    color: #e2e8f0;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-action-panel #sdCampaignTable .form-control[readonly] {
+    background: rgba(51, 65, 85, 0.55) !important;
+    color: #94a3b8;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-action-panel .scx-pill.green {
+    background: rgba(34, 197, 94, 0.18);
+    color: #86efac;
+    border-color: rgba(74, 222, 128, 0.35);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-action-panel .scx-pill.red {
+    background: rgba(248, 113, 113, 0.18);
+    color: #fca5a5;
+    border-color: rgba(248, 113, 113, 0.35);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-action-panel .scx-pill.yellow {
+    background: rgba(251, 191, 36, 0.18);
+    color: #fcd34d;
+    border-color: rgba(251, 191, 36, 0.35);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-action-panel .scx-pill.gray {
+    background: rgba(148, 163, 184, 0.16);
+    color: #cbd5e1;
+    border-color: rgba(148, 163, 184, 0.28);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-trend-card {
+    background: rgba(15, 23, 42, 0.62);
+    border-color: rgba(148, 163, 184, 0.14);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-trend-card .win {
+    color: #94a3b8;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-trend-card .score {
+    color: #f8fafc;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-trend-card .meta {
+    color: #cbd5e1;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-trend-card .meta strong {
+    color: #e2e8f0;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-roi-chip[style*="eef2ff"] {
+    background: rgba(99, 102, 241, 0.18) !important;
+    color: #c7d2fe !important;
+    border-color: rgba(129, 140, 248, 0.28) !important;
+}
+html[data-theme="dark"] .score-detail-modal__body div[style*="475569"] {
+    color: #94a3b8 !important;
 }
 
 .scx-note-box {
@@ -3400,6 +3798,10 @@ html[data-theme="dark"] .scx-mini-compare-track {
     padding: 3px 8px;
 }
 
+.decision-detail-table-card tbody tr.decision-table-row--warn td {
+    background: #fff1f2;
+}
+
 .decision-detail-action-btn {
     display: inline-flex;
     align-items: center;
@@ -3602,6 +4004,12 @@ html[data-theme="dark"] .decision-detail-title {
     color: #f8fafc;
 }
 
+html[data-theme="dark"] .decision-detail-domain {
+    color: #c7d2fe;
+    background: rgba(99, 102, 241, 0.18);
+    border-color: rgba(129, 140, 248, 0.28);
+}
+
 html[data-theme="dark"] .decision-detail-close {
     color: #94a3b8;
 }
@@ -3650,8 +4058,9 @@ html[data-theme="dark"] .decision-detail-mini-label,
 html[data-theme="dark"] .decision-detail-section-sub,
 html[data-theme="dark"] .decision-detail-inline-note,
 html[data-theme="dark"] .decision-detail-meta-label,
-html[data-theme="dark"] .decision-detail-kpi-sub {
-    color: #94a3b8;
+html[data-theme="dark"] .decision-detail-kpi-sub,
+html[data-theme="dark"] .decision-detail-mini-sub {
+    color: #cbd5e1;
 }
 
 html[data-theme="dark"] .decision-detail-mini-value,
@@ -3675,7 +4084,7 @@ html[data-theme="dark"] .decision-chart-insight-v {
 }
 html[data-theme="dark"] .decision-chart-insight-k,
 html[data-theme="dark"] .decision-chart-insight-s {
-    color: rgba(226,232,240,.74);
+    color: #cbd5e1;
 }
 html[data-theme="dark"] .decision-chart-story {
     background: rgba(15,23,42,.62);
@@ -3710,6 +4119,264 @@ html[data-theme="dark"] .decision-detail-reasons {
 
 html[data-theme="dark"] .decision-detail-reason-item {
     color: #cbd5e1;
+}
+
+/* Dark mode — Ringkasan Keputusan, kartu metrik, hero */
+html[data-theme="dark"] .decision-detail-card--soft {
+    background: rgba(15, 23, 42, 0.56);
+    border-color: rgba(148, 163, 184, 0.15);
+    box-shadow: none;
+}
+html[data-theme="dark"] .decision-detail-hero-main {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.98));
+    border-color: rgba(148, 163, 184, 0.18);
+    color: #e2e8f0;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+html[data-theme="dark"] .decision-detail-hero-kicker {
+    color: #a5b4fc;
+}
+html[data-theme="dark"] .decision-detail-hero-title {
+    color: #f8fafc;
+}
+html[data-theme="dark"] .decision-detail-hero-label {
+    color: #94a3b8;
+}
+html[data-theme="dark"] .decision-detail-hero-label .decision-detail-rich-label {
+    color: #94a3b8;
+}
+html[data-theme="dark"] .decision-detail-hero-value {
+    color: #e2e8f0;
+}
+html[data-theme="dark"] .decision-detail-chip--glass {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: rgba(129, 140, 248, 0.32);
+    color: #c7d2fe;
+}
+html[data-theme="dark"] .decision-detail-mini-label .decision-detail-rich-label {
+    color: #94a3b8;
+}
+html[data-theme="dark"] .decision-detail-kpi-label .decision-detail-rich-label {
+    color: #94a3b8;
+}
+html[data-theme="dark"] .decision-detail-kpi-bar {
+    background: rgba(148, 163, 184, 0.22);
+}
+html[data-theme="dark"] .decision-detail-section-title {
+    color: #cbd5e1;
+}
+html[data-theme="dark"] .decision-chart-chip.is-up {
+    background: rgba(34, 197, 94, 0.18);
+    color: #86efac;
+    border-color: rgba(74, 222, 128, 0.35);
+}
+html[data-theme="dark"] .decision-chart-chip.is-down {
+    background: rgba(248, 113, 113, 0.18);
+    color: #fca5a5;
+    border-color: rgba(248, 113, 113, 0.32);
+}
+html[data-theme="dark"] .decision-chart-chip.is-stable {
+    background: rgba(99, 102, 241, 0.2);
+    color: #c7d2fe;
+    border-color: rgba(129, 140, 248, 0.32);
+}
+html[data-theme="dark"] .decision-chart-chip.is-wide {
+    background: rgba(251, 191, 36, 0.18);
+    color: #fcd34d;
+    border-color: rgba(251, 191, 36, 0.32);
+}
+html[data-theme="dark"] .decision-timeline-tab.active {
+    background: #6366f1;
+    border-color: #6366f1;
+    color: #fff;
+    box-shadow: none;
+}
+html[data-theme="dark"] .decision-chart-insight.is-active {
+    border-color: rgba(129, 140, 248, 0.45);
+    box-shadow: 0 10px 22px rgba(99, 102, 241, 0.18);
+}
+
+/* Dark mode — Detail Keputusan: tabel inline, pill, form inline */
+html[data-theme="dark"] .decision-detail-campaign-summary {
+    color: #cbd5e1;
+}
+html[data-theme="dark"] .decision-detail-campaign-summary b {
+    color: #f1f5f9;
+}
+html[data-theme="dark"] .decision-detail-inline-value {
+    background: rgba(15, 23, 42, 0.72);
+    border-color: rgba(148, 163, 184, 0.22);
+    color: #f1f5f9;
+}
+html[data-theme="dark"] .decision-detail-modal-content .form-control {
+    background: #0f172a;
+    border-color: rgba(148, 163, 184, 0.25);
+    color: #e2e8f0;
+}
+html[data-theme="dark"] .decision-detail-modal-content .form-control:read-only,
+html[data-theme="dark"] .decision-detail-modal-content .form-control[readonly] {
+    background: rgba(51, 65, 85, 0.55) !important;
+    color: #94a3b8;
+}
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-table-card table thead tr {
+    background: #162235 !important;
+    color: #f8fafc !important;
+}
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-table-card table thead th {
+    background: transparent !important;
+    color: #cbd5e1 !important;
+    border-color: rgba(148, 163, 184, 0.18) !important;
+}
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-table-card table tbody td {
+    border-top-color: rgba(148, 163, 184, 0.14) !important;
+    color: #e2e8f0 !important;
+    background: rgba(30, 41, 59, 0.42) !important;
+}
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-table-card table tbody tr:nth-child(even) td {
+    background: rgba(15, 23, 42, 0.52) !important;
+}
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-table-card table tbody tr.decision-table-row--warn td,
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-table-card table tbody tr[style*="fff1f2"] td {
+    background: rgba(69, 10, 10, 0.72) !important;
+    color: #fecaca !important;
+    border-top-color: rgba(248, 113, 113, 0.22) !important;
+}
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-table-card table tbody tr.decision-table-row--warn .decision-detail-table-main,
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-table-card table tbody tr.decision-table-row--warn .decision-detail-table-sub,
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-table-card table tbody tr.decision-table-row--warn .decision-detail-campaign-summary,
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-table-card table tbody tr[style*="fff1f2"] .decision-detail-table-main,
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-table-card table tbody tr[style*="fff1f2"] .decision-detail-table-sub,
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-table-card table tbody tr[style*="fff1f2"] .decision-detail-campaign-summary {
+    color: #fecaca !important;
+}
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-table-card table tbody tr.decision-table-row--warn .decision-detail-campaign-summary b,
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-table-card table tbody tr[style*="fff1f2"] .decision-detail-campaign-summary b {
+    color: #fff1f2 !important;
+}
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-table-card table tbody tr.decision-table-row--warn:hover td,
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-table-card table tbody tr[style*="fff1f2"]:hover td {
+    background: rgba(127, 29, 29, 0.78) !important;
+}
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-table-card table td[colspan] {
+    background: rgba(15, 23, 42, 0.78) !important;
+}
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-table-card table tbody tr:hover td {
+    background: rgba(59, 130, 246, 0.12) !important;
+}
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-table-card .table {
+    --bs-table-bg: transparent;
+    --bs-table-striped-bg: rgba(15, 23, 42, 0.42);
+    --bs-table-hover-bg: rgba(59, 130, 246, 0.12);
+    --bs-table-color: #e2e8f0;
+    --bs-table-border-color: rgba(148, 163, 184, 0.14);
+}
+html[data-theme="dark"] .decision-detail-modal-content .decision-compare-row td {
+    color: #e2e8f0 !important;
+    border-top-color: rgba(148, 163, 184, 0.14) !important;
+    background: rgba(30, 41, 59, 0.42) !important;
+}
+html[data-theme="dark"] .decision-detail-modal-content .decision-compare-row td[style*="64748b"] {
+    color: #94a3b8 !important;
+}
+
+/* Dark mode — tabel Perbandingan Hari Sebelumnya di Detail Scoring modal */
+html[data-theme="dark"] .score-detail-modal__body .decision-detail-card,
+html[data-theme="dark"] .score-detail-modal__body .decision-detail-table-card {
+    background: rgba(15, 23, 42, 0.56);
+    border-color: rgba(148, 163, 184, 0.15);
+}
+html[data-theme="dark"] .score-detail-modal__body .decision-detail-section-title {
+    color: #cbd5e1;
+}
+html[data-theme="dark"] .score-detail-modal__body .decision-detail-section-sub {
+    color: #cbd5e1;
+}
+html[data-theme="dark"] .score-detail-modal__body .decision-detail-table-card table thead tr {
+    background: #162235 !important;
+    color: #f8fafc !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .decision-detail-table-card table thead th {
+    background: transparent !important;
+    color: #cbd5e1 !important;
+    border-color: rgba(148, 163, 184, 0.18) !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .decision-detail-table-card table tbody td {
+    border-top-color: rgba(148, 163, 184, 0.14) !important;
+    color: #e2e8f0 !important;
+    background: rgba(30, 41, 59, 0.42) !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .decision-detail-table-card table tbody tr:nth-child(even) td {
+    background: rgba(15, 23, 42, 0.52) !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .decision-detail-table-card table tbody tr:hover td {
+    background: rgba(59, 130, 246, 0.12) !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .decision-compare-row td {
+    color: #e2e8f0 !important;
+    border-top-color: rgba(148, 163, 184, 0.14) !important;
+    background: rgba(30, 41, 59, 0.42) !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .decision-compare-row:nth-child(even) td {
+    background: rgba(15, 23, 42, 0.52) !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .decision-compare-row td[style*="64748b"] {
+    color: #94a3b8 !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .decision-compare-row td div[style*="94a3b8"] {
+    color: #94a3b8 !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .decision-compare-row.is-focus td {
+    background: rgba(99, 102, 241, 0.14) !important;
+}
+html[data-theme="dark"] .score-detail-modal__body .decision-compare-row.is-focus td:first-child {
+    box-shadow: inset 3px 0 0 #818cf8;
+}
+
+html[data-theme="dark"] .decision-detail-modal-content td div[style*="334155"],
+html[data-theme="dark"] .decision-detail-modal-content td div[style*="64748b"],
+html[data-theme="dark"] .decision-detail-modal-content td div[style*="475569"],
+html[data-theme="dark"] .decision-detail-modal-content div[style*="475569"] {
+    color: #cbd5e1 !important;
+}
+html[data-theme="dark"] .decision-detail-modal-content div[style*="0f172a"] {
+    color: #f8fafc !important;
+}
+html[data-theme="dark"] .decision-detail-modal-content .scx-pill.green {
+    background: rgba(34, 197, 94, 0.18);
+    color: #86efac;
+    border-color: rgba(74, 222, 128, 0.35);
+}
+html[data-theme="dark"] .decision-detail-modal-content .scx-pill.red {
+    background: rgba(248, 113, 113, 0.18);
+    color: #fca5a5;
+    border-color: rgba(248, 113, 113, 0.35);
+}
+html[data-theme="dark"] .decision-detail-modal-content .scx-pill.yellow {
+    background: rgba(251, 191, 36, 0.18);
+    color: #fcd34d;
+    border-color: rgba(251, 191, 36, 0.35);
+}
+html[data-theme="dark"] .decision-detail-modal-content .scx-pill.gray {
+    background: rgba(148, 163, 184, 0.16);
+    color: #cbd5e1;
+    border-color: rgba(148, 163, 184, 0.28);
+}
+html[data-theme="dark"] .decision-detail-modal-content .decision-timeline-pane {
+    background: rgba(15, 23, 42, 0.62);
+    border-color: rgba(148, 163, 184, 0.16);
+    color: #e2e8f0;
+}
+html[data-theme="dark"] .decision-detail-modal-content .decision-detail-inline-note b {
+    color: #f1f5f9;
+}
+html[data-theme="dark"] .decision-detail-modal-content .btn-outline-primary {
+    color: #93c5fd;
+    border-color: rgba(96, 165, 250, 0.45);
+}
+html[data-theme="dark"] .decision-detail-modal-content .btn-outline-primary:hover {
+    background: rgba(59, 130, 246, 0.18);
+    color: #dbeafe;
+    border-color: rgba(96, 165, 250, 0.65);
 }
 
 @media (max-width: 992px) {
@@ -3778,6 +4445,13 @@ html[data-theme="dark"] .dashboard-card .card-header {
     background: linear-gradient(180deg, #1e293b 0%, #172033 100%);
     border-bottom-color: rgba(148, 163, 184, 0.12);
 }
+html[data-theme="dark"] .dashboard-card .card-header .card-title,
+html[data-theme="dark"] .dashboard-card .card-header > div:first-child {
+    color: #f1f5f9 !important;
+}
+html[data-theme="dark"] .dashboard-card .card-header .text-muted {
+    color: #94a3b8 !important;
+}
 html[data-theme="dark"] .dashboard-recap-card > .card-header {
     background: linear-gradient(180deg, #1e293b 0%, #172033 100%);
 }
@@ -3804,9 +4478,39 @@ html[data-theme="dark"] .dashboard-recap-filter-item .form-control {
         border-radius: 0 0 14px 14px;
     }
     .db-hero-inner { flex-direction: column; align-items: flex-start; }
-    .dashboard-recap-filters { width: 100%; }
-    .dashboard-recap-filter-item { width: 100%; }
-    .dashboard-recap-filter-item .form-control { flex: 1; width: 100% !important; max-width: none !important; }
+    .dashboard-recap-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 14px;
+    }
+    .dashboard-recap-filters {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+    .dashboard-recap-filter-item {
+        width: 100%;
+        flex-wrap: wrap;
+        align-items: stretch;
+        gap: 8px;
+    }
+    .dashboard-recap-filter-item label {
+        width: 100%;
+        white-space: normal;
+    }
+    .dashboard-recap-filter-item .form-control {
+        flex: 1 1 100%;
+        width: 100% !important;
+        max-width: none !important;
+        min-width: 0;
+    }
+    .dashboard-recap-filter-item #dashboardRecapSyncBtn {
+        flex: 1 1 100%;
+        width: 100%;
+        justify-content: center;
+        margin-top: 2px;
+    }
 }
 
 /* ...existing code... */
@@ -3992,9 +4696,9 @@ html[data-theme="dark"] .dashboard-recap-filter-item .form-control {
                             <div class="card-body">
                                 <div class="row">
                                     <div class="col-md-6">
-                                        <div style="font-weight:800;margin-bottom:8px;color:#0f172a;">Top 5 Campaign Tertinggi</div>
+                                        <div class="winning-campaign-section-title">Top 5 Campaign Tertinggi</div>
                                         <div class="table-responsive">
-                                            <table class="table table-striped table-bordered mb-0" style="font-size:12px;">
+                                            <table class="table table-striped table-bordered mb-0 winning-campaign-table" style="font-size:12px;">
                                                 <thead>
                                                     <tr>
                                                         <th class="text-center" style="width:52px;">No</th>
@@ -4011,9 +4715,9 @@ html[data-theme="dark"] .dashboard-recap-filter-item .form-control {
                                         </div>
                                     </div>
                                     <div class="col-md-6">
-                                        <div style="font-weight:800;margin-bottom:8px;color:#0f172a;">Top 5 Campaign Terendah</div>
+                                        <div class="winning-campaign-section-title">Top 5 Campaign Terendah</div>
                                         <div class="table-responsive">
-                                            <table class="table table-striped table-bordered mb-0" style="font-size:12px;">
+                                            <table class="table table-striped table-bordered mb-0 winning-campaign-table" style="font-size:12px;">
                                                 <thead>
                                                     <tr>
                                                         <th class="text-center" style="width:52px;">No</th>
@@ -6434,7 +7138,7 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
         recapRows.forEach(function(r){
             const campaignName = String(r.campaign || '').trim();
             const isBad = ['STOP','PAUSE','SCALE DOWN'].includes(String(r.action || '').toUpperCase());
-            const rowBg = isBad ? 'background:#fff1f2;' : '';
+            const rowCls = isBad ? 'decision-table-row--warn' : '';
             const rowKey = campaignName.toLowerCase();
             const campaignEnc = encodeURIComponent(campaignName);
             const actionEnc = encodeURIComponent(String(r.action || ''));
@@ -6453,7 +7157,7 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
             const fcConf = Number.isFinite(Number(r.forecastConfidence)) ? Number(r.forecastConfidence) : 0.55;
             const fcSummary = String(r.forecastSummary || 'Belum ada sinyal dominan.').trim();
             const fcDetail = String(r.forecastDetail || '').trim();
-            html += `<tr style="${rowBg}"><td style="border-top:1px solid #e2e8f0;font-weight:800;">${esc(r.action)}</td><td style="border-top:1px solid #e2e8f0;"><div class="decision-detail-table-stack"><div class="decision-detail-table-main">${esc(campaignName)} ${daysBadge}</div><div class="decision-detail-table-sub">Campaign yang dipilih untuk aksi ini.</div></div></td><td style="border-top:1px solid #e2e8f0;"><div class="decision-detail-campaign-summary"><div><b>Cakupan:</b> ${esc(r.countries || '-')}</div><div><b>Status:</b> ${esc(r.statusTag || '-')}</div><div><b>Margin/Risk/Health:</b> ${esc(fmt2(r.margin))} / ${esc(fmt2(r.risk))} / ${esc(fmt2(r.health))}</div><div><b>Rekomendasi:</b> ${esc(recoPctTxt)}</div></div></td><td style="border-top:1px solid #e2e8f0;"><div class="decision-detail-forecast-stack"><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><span class="scx-pill ${fcToneRow}">${esc(fcDir)}</span><span class="scx-pill gray">${esc(String(fcHorizon))} jam</span><span class="scx-pill gray">${esc(fmtPct01(fcConf))}</span></div><div class="decision-detail-table-sub">${esc(fcSummary)}</div></div></td><td style="border-top:1px solid #e2e8f0;"><div class="decision-detail-table-stack"><div class="decision-detail-table-main">${esc(r.budget)}</div><div class="decision-detail-table-sub">${esc(recoPctTxt)}</div></div></td><td style="border-top:1px solid #e2e8f0;text-align:center;"><button type="button" class="btn btn-sm decision-detail-action-btn ${isOpen ? 'btn-primary' : 'btn-outline-primary'}" onclick="applyDecisionCampaignAction('${esc(String(storeKey||''))}','${esc(campaignEnc)}','${esc(actionEnc)}')">${isOpen ? 'Tutup' : 'Jalankan'}</button></td></tr>`;
+            html += `<tr class="${rowCls}"><td style="border-top:1px solid #e2e8f0;font-weight:800;">${esc(r.action)}</td><td style="border-top:1px solid #e2e8f0;"><div class="decision-detail-table-stack"><div class="decision-detail-table-main">${esc(campaignName)} ${daysBadge}</div><div class="decision-detail-table-sub">Campaign yang dipilih untuk aksi ini.</div></div></td><td style="border-top:1px solid #e2e8f0;"><div class="decision-detail-campaign-summary"><div><b>Cakupan:</b> ${esc(r.countries || '-')}</div><div><b>Status:</b> ${esc(r.statusTag || '-')}</div><div><b>Margin/Risk/Health:</b> ${esc(fmt2(r.margin))} / ${esc(fmt2(r.risk))} / ${esc(fmt2(r.health))}</div><div><b>Rekomendasi:</b> ${esc(recoPctTxt)}</div></div></td><td style="border-top:1px solid #e2e8f0;"><div class="decision-detail-forecast-stack"><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;"><span class="scx-pill ${fcToneRow}">${esc(fcDir)}</span><span class="scx-pill gray">${esc(String(fcHorizon))} jam</span><span class="scx-pill gray">${esc(fmtPct01(fcConf))}</span></div><div class="decision-detail-table-sub">${esc(fcSummary)}</div></div></td><td style="border-top:1px solid #e2e8f0;"><div class="decision-detail-table-stack"><div class="decision-detail-table-main">${esc(r.budget)}</div><div class="decision-detail-table-sub">${esc(recoPctTxt)}</div></div></td><td style="border-top:1px solid #e2e8f0;text-align:center;"><button type="button" class="btn btn-sm decision-detail-action-btn ${isOpen ? 'btn-primary' : 'btn-outline-primary'}" onclick="applyDecisionCampaignAction('${esc(String(storeKey||''))}','${esc(campaignEnc)}','${esc(actionEnc)}')">${isOpen ? 'Tutup' : 'Jalankan'}</button></td></tr>`;
             if (isOpen) {
                 html += `<tr><td colspan="6" style="padding:10px;border-top:1px solid #e2e8f0;background:#f8fafc;">`;
                 html += `<div class="decision-detail-inline-grid"><div class="decision-detail-inline-field"><div class="decision-detail-inline-label">Target Campaign</div><div class="decision-detail-inline-value">${esc(targetCampaign)}</div></div><div class="decision-detail-inline-field"><div class="decision-detail-inline-label">Aksi</div><div class="decision-detail-inline-value" style="font-weight:800;">${esc(targetAction)}</div></div><div class="decision-detail-inline-field"><div class="decision-detail-inline-label">Rekomendasi %</div><div class="decision-detail-inline-value" style="font-weight:800;">${esc(recoPctTxt)}</div></div><div class="decision-detail-inline-field"><div class="decision-detail-inline-label">Daily Budget</div><input type="text" class="form-control form-control-sm" style="width:100%;text-align:right;${budgetReadonly ? 'background:#e2e8f0;cursor:not-allowed;' : ''}" value="${esc(targetBudgetRaw)}" onchange="updateDecisionCampaignInlineBudget('${esc(String(storeKey||''))}', this.value)" placeholder="contoh: 500000" ${budgetReadonly ? 'readonly' : ''}></div></div><div class="decision-detail-inline-actions" style="margin-top:10px;"><button type="button" class="btn btn-sm btn-primary decision-detail-action-btn" onclick="executeDecisionCampaignInline('${esc(String(storeKey||''))}')">Save</button></div>`;
@@ -6473,8 +7177,8 @@ function renderDetailKeputusanHTML(meta, storeKey, activeTimelineIdx, rowCtx, ra
         campaignRows.forEach(function(r){
             const tone = (r.statusTag.includes('POSITIVE') || r.statusTag.includes('RECOVERY') || r.statusTag.includes('EXPANSION')) ? 'green' : ((r.statusTag.includes('DROP') || r.statusTag.includes('NEG') || r.statusTag.includes('RED_FLAG')) ? 'red' : 'yellow');
             const rowBad = ['STOP','PAUSE','SCALE DOWN'].includes(String(r.action || '').toUpperCase());
-            const rowBg = rowBad ? 'background:#fff1f2;' : '';
-            html += `<tr style="${rowBg}"><td style="border-top:1px solid #e2e8f0;"><div class="decision-detail-table-main">${esc(r.country)}</div></td><td style="border-top:1px solid #e2e8f0;"><div class="decision-detail-table-stack"><div class="decision-detail-table-main">${esc(r.campaign)}</div><div class="decision-detail-table-sub">Campaign terkait negara ini.</div></div></td><td style="border-top:1px solid #e2e8f0;"><span class="scx-pill ${tone}">${esc(r.statusTag)}</span></td><td style="border-top:1px solid #e2e8f0;text-align:right;"><div class="decision-detail-table-main">${esc(fmt2(r.margin))}</div></td><td style="border-top:1px solid #e2e8f0;"><div class="decision-detail-table-stack"><div class="decision-detail-table-main">${esc(r.action)}</div><div class="decision-detail-table-sub">${esc(r.budget)}</div></div></td></tr>`;
+            const rowCls = rowBad ? 'decision-table-row--warn' : '';
+            html += `<tr class="${rowCls}"><td style="border-top:1px solid #e2e8f0;"><div class="decision-detail-table-main">${esc(r.country)}</div></td><td style="border-top:1px solid #e2e8f0;"><div class="decision-detail-table-stack"><div class="decision-detail-table-main">${esc(r.campaign)}</div><div class="decision-detail-table-sub">Campaign terkait negara ini.</div></div></td><td style="border-top:1px solid #e2e8f0;"><span class="scx-pill ${tone}">${esc(r.statusTag)}</span></td><td style="border-top:1px solid #e2e8f0;text-align:right;"><div class="decision-detail-table-main">${esc(fmt2(r.margin))}</div></td><td style="border-top:1px solid #e2e8f0;"><div class="decision-detail-table-stack"><div class="decision-detail-table-main">${esc(r.action)}</div><div class="decision-detail-table-sub">${esc(r.budget)}</div></div></td></tr>`;
         });
         html += `</tbody></table></div>`;
         html += '</div>';
@@ -13655,14 +14359,14 @@ function initDashboardRecap() {
 
         function applyDashboardRecapColumnLayout(dt) {
             const isCountry = recapDim === 'country';
-            if (thCode) thCode.style.display = isCountry ? '' : 'none';
+            if (thCode) thCode.style.display = 'none';
             if (thVisits) thVisits.style.display = isCountry ? 'none' : '';
             if (thUnique) thUnique.style.display = isCountry ? 'none' : '';
             if (thPageviews) thPageviews.style.display = isCountry ? 'none' : '';
             if (!dt || typeof dt.column !== 'function') return;
             try {
                 if (dt.column(2).length) dt.column(2).visible(!isCountry, false);
-                if (dt.column(3).length) dt.column(3).visible(isCountry, false);
+                if (dt.column(3).length) dt.column(3).visible(false, false);
                 if (dt.column(4).length) dt.column(4).visible(!isCountry, false);
                 if (dt.column(5).length) dt.column(5).visible(!isCountry, false);
                 if (dt.column(6).length) dt.column(6).visible(!isCountry, false);
@@ -13999,12 +14703,12 @@ function initDashboardRecap() {
             };
             const pill = function(dec) {
                 const d = String(dec || '').toUpperCase();
-                const tone = (d === 'SCALE UP') ? 'green' : (d === 'STOP' ? 'red' : (d === 'SCALE DOWN' ? 'yellow' : 'gray'));
-                return `<span class="scx-pill ${tone}" style="display:inline-flex;align-items:center;justify-content:center;min-width:74px;white-space:nowrap;line-height:1.1;">${esc(d || '-')}</span>`;
+                const chipCls = dsDecisionChipClass(d);
+                return `<span class="ds-decision-chip ${chipCls}" style="display:inline-flex;align-items:center;justify-content:center;min-width:74px;white-space:nowrap;line-height:1.1;">${esc(d || '-')}</span>`;
             };
             const daysBadge = function(days) {
                 const d = Math.max(0, Math.floor(Number(days || 0)));
-                return `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:52px;padding:2px 6px;border-radius:999px;font-size:10px;font-weight:800;line-height:1;background:#eef2ff;color:#3730a3;border:1px solid rgba(55,48,163,.2);white-space:nowrap;">${d} hari</span>`;
+                return `<span class="ds-tag ds-tag--days">${d} hari</span>`;
             };
 
             const agg = new Map();
@@ -14231,8 +14935,8 @@ function initDashboardRecap() {
                 tr.innerHTML = `
                     <td class="text-center">${row[0]}</td>
                     <td>${row[1]}</td>
-                    <td class="text-left">${row[2]}</td>
-                    <td class="text-center"${isCountry ? '' : ' style="display:none;"'}>${row[3]}</td>
+                    <td class="text-left"${isCountry ? ' style="display:none;"' : ''}>${row[2]}</td>
+                    <td class="text-center" style="display:none;">${row[3]}</td>
                     <td class="text-right"${isCountry ? ' style="display:none;"' : ''}>${renderCountCell(row[4], 'display')}</td>
                     <td class="text-right"${isCountry ? ' style="display:none;"' : ''}>${renderCountCell(row[5], 'display')}</td>
                     <td class="text-right"${isCountry ? ' style="display:none;"' : ''}>${renderCountCell(row[6], 'display')}</td>
@@ -14331,7 +15035,7 @@ function initDashboardRecap() {
                     },
                     { targets: 1, orderable: true },
                     { targets: 2, className: 'text-left', visible: recapDim !== 'country' },
-                    { targets: 3, className: 'text-center', width: '90px', visible: recapDim === 'country' },
+                    { targets: 3, className: 'text-center', width: '90px', visible: false },
                     {
                         targets: [7, 8, 9],
                         className: 'text-right',

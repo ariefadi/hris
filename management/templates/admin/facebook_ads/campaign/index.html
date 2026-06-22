@@ -79,15 +79,24 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
 {% block content %}  
 <style>
   .dt-buttons{margin-bottom:16px}.dt-buttons .btn{border-radius:10px!important;font-weight:700!important;border:none!important;box-shadow:0 6px 14px rgba(15,23,42,.10)}
+  .fb-per-account-empty{text-align:center;padding:48px 24px;color:#64748b;border:1px solid #dbe7ff;border-radius:18px;background:linear-gradient(180deg,#f8fbff 0%,#fff 100%);box-shadow:0 10px 24px rgba(37,99,235,.08)}
+  .fb-per-account-empty-icon{width:68px;height:68px;margin:0 auto 14px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:1.8rem;color:#2563eb;background:linear-gradient(135deg,rgba(37,99,235,.12),rgba(8,145,178,.08))}
+  .fb-per-account-empty-title{font-size:16px;font-weight:800;color:#0f172a;margin-bottom:6px}
+  .fb-per-account-empty-desc{font-size:.92rem;line-height:1.5}
+  html[data-theme="dark"] .fb-per-account-empty{color:#94a3b8;border-color:#334155;background:linear-gradient(180deg,#0f172a 0%,#111827 100%);box-shadow:0 14px 28px rgba(0,0,0,.35)}
+  html[data-theme="dark"] .fb-per-account-empty-icon{color:#60a5fa;background:linear-gradient(135deg,rgba(37,99,235,.18),rgba(8,145,178,.12))}
+  html[data-theme="dark"] .fb-per-account-empty-title{color:#e5e7eb}
   .dt-responsive-table{border:1px solid #dbe7ff;border-radius:18px;overflow:hidden;background:linear-gradient(180deg,#f8fbff 0%,#fff 100%);box-shadow:0 10px 24px rgba(37,99,235,.08)}
   .dataTables_wrapper .dataTables_length,.dataTables_wrapper .dataTables_filter{margin-bottom:12px}.dataTables_wrapper .dataTables_filter input,.dataTables_wrapper .dataTables_length select{border-radius:10px!important;border:1px solid #cbd5e1!important}
   #table_data_campaign_facebook th,#table_data_campaign_facebook td{white-space:nowrap;vertical-align:middle;text-align:center;border-color:#e5edf8!important}
   #table_data_campaign_facebook thead th{background:linear-gradient(135deg,#1d4ed8 0%,#0891b2 100%)!important;color:#fff!important;border:none!important;font-size:12px;font-weight:800}
+  #table_data_campaign_facebook tfoot th{background:linear-gradient(180deg,#eef6ff 0%,#f8fbff 100%)!important;color:#334155!important;font-weight:800;border-color:#e5edf8!important}
+  #table_data_campaign_facebook tfoot th:first-child{color:#1d4ed8!important}
   #table_data_campaign_facebook tbody tr:nth-child(odd) td{background:#f8fbff}#table_data_campaign_facebook tbody tr:nth-child(even) td{background:#eef6ff}#table_data_campaign_facebook tbody tr:hover td{background:#dbeafe!important;transition:background-color .16s ease}
   #table_data_campaign_facebook tbody td:nth-child(2),#table_data_campaign_facebook tbody td:nth-child(3){text-align:left}#table_data_campaign_facebook tbody td:last-child{background:#f8fafc;font-weight:700}
   .fb-detail-header{background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;border-bottom:0}.fb-detail-card{border:1px solid #e5e7eb;border-radius:12px}.fb-detail-label{font-weight:700;color:#475569}.fb-detail-value{font-weight:600;color:#0f172a}.fb-kpi-chip{border-radius:10px;background:#f1f5f9;padding:8px 10px}.fb-kpi-chip .k{font-size:11px;color:#64748b;text-transform:uppercase}.fb-kpi-chip .v{font-size:14px;font-weight:700;color:#0f172a}.fb-asset-item{border:1px solid #e2e8f0;border-radius:12px;padding:12px;margin-bottom:10px;background:#fff}.fb-asset-tag{display:inline-block;font-size:11px;border-radius:999px;padding:3px 8px;margin-right:6px;background:#e0e7ff;color:#3730a3}.fb-layout-col{min-height:520px;max-height:72vh;overflow-y:auto;overflow-x:hidden;padding-right:5px}.fb-layout-col::-webkit-scrollbar{width:4px}.fb-layout-col::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:10px}.fb-tree-list .list-group-item{border:0;border-bottom:1px solid #f1f5f9;border-radius:0;cursor:pointer;padding:10px 12px;transition:all .2s}.fb-tree-list .list-group-item:hover{background:#f8fafc}.fb-tree-list .list-group-item.active{background:#eff6ff;color:#2563eb;border-left:4px solid #2563eb;font-weight:700}.fb-preview-phone{border:1px solid #e2e8f0;border-radius:16px;background:#fff;padding:12px;box-shadow:inset 0 0 10px rgba(0,0,0,.02)}.fb-preview-title{font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}.fb-modal-footer-actions{display:flex;gap:8px;width:100%;justify-content:flex-end}
   html[data-theme="dark"] .dt-responsive-table{border-color:#334155;background:linear-gradient(180deg,#0f172a 0%,#111827 100%);box-shadow:0 14px 28px rgba(0,0,0,.35)}
-  html[data-theme="dark"] #table_data_campaign_facebook,html[data-theme="dark"] #table_data_campaign_facebook>:not(caption)>*>*,html[data-theme="dark"] .dataTables_wrapper{color:#e5e7eb!important}html[data-theme="dark"] #table_data_campaign_facebook tbody tr:nth-child(odd) td{background:#162033!important}html[data-theme="dark"] #table_data_campaign_facebook tbody tr:nth-child(even) td{background:#111827!important}html[data-theme="dark"] #table_data_campaign_facebook tbody tr:hover td{background:#1e3a5f!important}html[data-theme="dark"] #table_data_campaign_facebook thead th{background:linear-gradient(135deg,#2563eb 0%,#0f766e 100%)!important}html[data-theme="dark"] .dataTables_wrapper .dataTables_filter input,html[data-theme="dark"] .dataTables_wrapper .dataTables_length select{background:#0f172a!important;color:#e5e7eb!important;border-color:#334155!important}
+  html[data-theme="dark"] #table_data_campaign_facebook,html[data-theme="dark"] #table_data_campaign_facebook>:not(caption)>*>*,html[data-theme="dark"] .dataTables_wrapper{color:#e5e7eb!important}html[data-theme="dark"] #table_data_campaign_facebook tbody tr:nth-child(odd) td{background:#162033!important}html[data-theme="dark"] #table_data_campaign_facebook tbody tr:nth-child(even) td{background:#111827!important}html[data-theme="dark"] #table_data_campaign_facebook tbody tr:hover td{background:#1e3a5f!important}html[data-theme="dark"] #table_data_campaign_facebook thead th{background:linear-gradient(135deg,#2563eb 0%,#0f766e 100%)!important}html[data-theme="dark"] #table_data_campaign_facebook tfoot th{background:linear-gradient(180deg,#1e293b 0%,#172033 100%)!important;color:#e5e7eb!important;border-color:#334155!important}html[data-theme="dark"] #table_data_campaign_facebook tfoot th:first-child{color:#93c5fd!important}html[data-theme="dark"] #table_data_campaign_facebook th,html[data-theme="dark"] #table_data_campaign_facebook td{border-color:#334155!important}html[data-theme="dark"] .dataTables_wrapper .dataTables_info,html[data-theme="dark"] .dataTables_wrapper .dataTables_length label,html[data-theme="dark"] .dataTables_wrapper .dataTables_filter label{color:#cbd5e1!important}html[data-theme="dark"] .dataTables_wrapper .dataTables_empty{color:#94a3b8!important}html[data-theme="dark"] .dataTables_wrapper .dataTables_filter input,html[data-theme="dark"] .dataTables_wrapper .dataTables_length select{background:#0f172a!important;color:#e5e7eb!important;border-color:#334155!important}
   .fb-campaign-modal .modal-dialog{max-width:920px}.fb-campaign-modal .modal-content{border:0;border-radius:22px;overflow:hidden;background:linear-gradient(180deg,#f8fbff 0%,#fff 100%);box-shadow:0 24px 60px rgba(15,23,42,.24)}.fb-campaign-modal .modal-header,.fb-campaign-modal .modal-footer{border:0}.fb-campaign-modal .modal-body,.fb-campaign-modal .modal-footer{background:linear-gradient(180deg,#f8fbff 0%,#fff 100%)}.fb-campaign-hero{display:flex;justify-content:space-between;gap:16px;padding:18px;border-radius:18px;background:linear-gradient(135deg,#eff6ff 0%,#ecfeff 100%);border:1px solid #dbeafe}.fb-campaign-hero-title{font-size:28px;font-weight:900;line-height:1.1;color:#0f172a}.fb-campaign-hero-meta{display:grid;gap:8px}.fb-campaign-badge{display:inline-flex;align-items:center;padding:6px 12px;border-radius:999px;background:#fff;border:1px solid #bfdbfe;color:#1d4ed8;font-weight:800}.fb-campaign-main{min-width:220px;padding:14px 16px;border-radius:16px;background:rgba(255,255,255,.82);border:1px solid rgba(148,163,184,.25);text-align:right}.fb-campaign-main .k{display:block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b}.fb-campaign-main .v{display:block;font-size:28px;font-weight:900;color:#0f172a}.fb-campaign-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-top:16px}.fb-campaign-stat{padding:16px;border-radius:18px;background:#fff;border:1px solid #e2e8f0;box-shadow:0 10px 24px rgba(15,23,42,.06)}.fb-campaign-stat .k{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b;margin-bottom:8px}.fb-campaign-stat .v{font-size:22px;font-weight:900;color:#0f172a}.fb-campaign-meta{margin-top:16px;padding:16px 18px;border-radius:18px;background:#fff;border:1px solid #e2e8f0}.fb-campaign-meta .row>div{margin-bottom:10px}.fb-campaign-meta .label{display:block;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#64748b}.fb-campaign-meta .value{display:block;font-size:15px;font-weight:700;color:#0f172a}.fb-campaign-modal .btn-outline-secondary{border-radius:12px;padding:9px 16px;font-weight:800}@media (max-width:767.98px){.fb-campaign-hero{flex-direction:column}.fb-campaign-main{text-align:left;min-width:0}.fb-campaign-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}html[data-theme="dark"] .fb-campaign-modal .modal-content,html[data-theme="dark"] .fb-campaign-modal .modal-body,html[data-theme="dark"] .fb-campaign-modal .modal-footer{background:linear-gradient(180deg,#0f172a 0%,#111827 100%)}html[data-theme="dark"] .fb-campaign-hero,html[data-theme="dark"] .fb-campaign-meta,html[data-theme="dark"] .fb-campaign-stat,html[data-theme="dark"] .fb-campaign-main{background:#111827;border-color:#334155}html[data-theme="dark"] .fb-campaign-hero-title,html[data-theme="dark"] .fb-campaign-main .v,html[data-theme="dark"] .fb-campaign-stat .v,html[data-theme="dark"] .fb-campaign-meta .value{color:#f8fafc}html[data-theme="dark"] .fb-campaign-main .k,html[data-theme="dark"] .fb-campaign-stat .k,html[data-theme="dark"] .fb-campaign-meta .label{color:#94a3b8}html[data-theme="dark"] .fb-campaign-badge{background:#0f172a;border-color:#334155;color:#93c5fd}
 </style>
 <div class="card">
@@ -148,7 +157,12 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
     </div>
     <div class="card-body">
         <div id="overlay" class="hris-loader-stub" style="display:none" data-loader-message="Menyiapkan Data ..." aria-hidden="true"></div>
-        <div class="dt-responsive-table">
+        <div id="fbTrafficEmptyState" class="fb-per-account-empty">
+            <div class="fb-per-account-empty-icon"><i class="bi bi-table" aria-hidden="true"></i></div>
+            <div class="fb-per-account-empty-title">Belum ada data ditampilkan</div>
+            <div class="fb-per-account-empty-desc">Pilih rentang tanggal, account, dan domain (opsional), lalu klik <strong>Muat Data</strong>.</div>
+        </div>
+        <div id="fbTrafficTableWrap" class="dt-responsive-table" style="display:none;">
             <table id="table_data_campaign_facebook" class="table table-bordered" data-title="Tabel" data-intro="Tabel detail traffic per campaign sesuai filter. Bagian footer menampilkan total agregat.">
             <thead>
                 <tr>
@@ -188,6 +202,7 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 </tr>
             </tfoot>
         </table>
+        </div>
 
         <div class="modal fade fb-campaign-modal" id="facebookCampaignDetailModal" tabindex="-1" role="dialog" aria-labelledby="facebookCampaignDetailModalLabel" aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
@@ -230,21 +245,12 @@ html[data-theme="dark"] .introjs-tooltip.hris-tour-tooltip .introjs-button { bac
                 </div>
             </div>
         </div>
-        </div>
     </div>
 </div>
 {% endblock %}
 {% block more_scripts %}
 <script src="https://cdn.jsdelivr.net/npm/intro.js/minified/intro.min.js"></script>
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-<style>
-html[data-theme="dark"] #table_data_campaign_facebook,
-html[data-theme="dark"] #table_data_campaign_facebook > :not(caption) > * > * {
-    background-color: #1e1e1e !important;
-    color: #e9ecef !important;
-    border-color: #2b2b2b !important;
-}
-</style>
 <script src="{% static 'ajax/admin/facebook_ads/campaign.js'%}?v={%now 'u'%}"></script>
 <script>
 (function() {
