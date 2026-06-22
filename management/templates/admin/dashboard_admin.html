@@ -2853,6 +2853,24 @@ html[data-theme="dark"] .score-detail-modal__body .scx-modal-tab {
     color: #c7d2fe;
     border-color: rgba(148, 163, 184, 0.2);
 }
+html[data-theme="dark"] .score-detail-modal__body .scx-modal-tab:hover:not(.is-active) {
+    background: rgba(99, 102, 241, 0.16);
+    color: #e0e7ff;
+    border-color: rgba(129, 140, 248, 0.35);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-modal-tab.is-active {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 55%, #a855f7 100%);
+    color: #fff;
+    border-color: rgba(167, 139, 250, 0.55);
+    box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.42), 0 12px 24px rgba(99, 102, 241, 0.38);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-modal-tab.is-active .scx-tab-count {
+    color: rgba(255, 255, 255, 0.92);
+    opacity: 1;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-modal-nav-label {
+    color: rgba(226, 232, 240, 0.72);
+}
 html[data-theme="dark"] .score-detail-modal__body .scx-summary-box,
 html[data-theme="dark"] .score-detail-modal__body .scx-checklist-item {
     background: #0f172a;
@@ -2909,12 +2927,19 @@ html[data-theme="dark"] .score-detail-modal__body .scx-pane-table-head strong {
     color: #f8fafc;
 }
 html[data-theme="dark"] .score-detail-modal__body .scx-pane-subtitle,
-html[data-theme="dark"] .score-detail-modal__body .scx-pane-story,
 html[data-theme="dark"] .score-detail-modal__body .scx-pane-action span,
 html[data-theme="dark"] .score-detail-modal__body .scx-pane-mini-k,
 html[data-theme="dark"] .score-detail-modal__body .scx-pane-mini-s,
 html[data-theme="dark"] .score-detail-modal__body .scx-pane-table-head span {
-    color: rgba(226, 232, 240, 0.78);
+    color: rgba(226, 232, 240, 0.82);
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-pane-story {
+    background: rgba(15, 23, 42, 0.82);
+    border-color: rgba(129, 140, 248, 0.28);
+    color: #e2e8f0;
+}
+html[data-theme="dark"] .score-detail-modal__body .scx-pane-story strong {
+    color: #f8fafc;
 }
 html[data-theme="dark"] .scx-mini-compare-card {
     background: rgba(15,23,42,.78);
@@ -8573,7 +8598,15 @@ function initDashboardRecap() {
             const res = await fetch('/management/admin/dashboard_scoring_data', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-                body: JSON.stringify({ date: String(state.date || '').trim(), dim: String(state.dim || 'domain').trim(), source: String(state.source || 'all').trim(), entities, include_source: false, include_timeline: false, include_events: false }),
+                body: JSON.stringify({
+                    date: String(state.date || '').trim(),
+                    dim: String(state.dim || 'domain').trim(),
+                    source: String(state.source || 'all').trim(),
+                    entities,
+                    include_source: false,
+                    include_timeline: false,
+                    include_events: dim === 'country'
+                }),
                 credentials: 'same-origin'
             });
             const json = await res.json();
@@ -8880,6 +8913,23 @@ function initDashboardRecap() {
         const parsed = pickScoringArrays(src?.scoring || src);
         const statuses = Array.isArray(parsed?.statuses) ? parsed.statuses : [];
         const events = Array.isArray(parsed?.events) ? parsed.events : [];
+        const storeEntry = (function(){
+            if (!code) return null;
+            const keys = [code, code.toLowerCase(), name, name.toLowerCase()].filter(Boolean);
+            for (let i = 0; i < keys.length; i += 1) {
+                const hit = src?.[keys[i]];
+                if (hit && typeof hit === 'object') return hit;
+            }
+            return null;
+        })();
+        const entryParsed = storeEntry ? pickScoringArrays(storeEntry?.scoring || storeEntry) : { statuses: [], events: [] };
+        const entryStatuses = Array.isArray(entryParsed?.statuses) ? entryParsed.statuses : [];
+        const entryEvents = Array.isArray(entryParsed?.events) ? entryParsed.events : [];
+        const entryStatusesRaw = Array.isArray(storeEntry?.scoring?.statuses_raw) ? storeEntry.scoring.statuses_raw : [];
+        const mergedStatuses = entryStatusesRaw.length
+            ? entryStatusesRaw
+            : (entryStatuses.length ? entryStatuses : statuses);
+        const mergedEvents = entryEvents.length ? entryEvents : events;
         const match = function(o){
             const cc = normCC(o?.country_cd || o?.country_code || o?.code || '');
             const nm = String(o?.country_nm || o?.country_name || o?.country || '').trim().toUpperCase();
@@ -8887,8 +8937,8 @@ function initDashboardRecap() {
             if (code && !cc) return false;
             return !!name && nm === name;
         };
-        const stSel = statuses.filter(match);
-        const evSel = events.filter(match);
+        const stSel = mergedStatuses.filter(match);
+        const evSel = mergedEvents.filter(match);
         if (!stSel.length && !evSel.length) return null;
         const groups = scxGroupScoringByCountry(stSel, evSel);
         const agg = scxAggregateScoring(stSel, evSel, groups);
@@ -8925,10 +8975,86 @@ function initDashboardRecap() {
         };
     }
 
+    function buildCampaignAccountLookup(siteAccountMap) {
+        const map = {};
+        const register = function(st) {
+            if (!st || typeof st !== 'object') return;
+            const camp = scxCampaignValue(st);
+            const acc = resolveDetailAccount(st, siteAccountMap, null);
+            if (!camp || !acc) return;
+            map[camp.toUpperCase()] = acc;
+        };
+        Object.values(window.dashboardRecapStoredScoring || {}).forEach(function(raw) {
+            if (!raw || typeof raw !== 'object') return;
+            (raw?.scoring?.statuses_raw || []).forEach(register);
+            const parsed = pickScoringArrays(raw?.scoring || raw);
+            (parsed?.statuses || []).forEach(register);
+        });
+        return map;
+    }
+
+    function collectCountryStatusRows(raw, row, state) {
+        const countryCode = scxNormalizeTrafficCountryCode(scxResolveCountryCode(row));
+        const byKey = new Map();
+        const mappedCampaigns = new Set();
+
+        const rememberCampaign = function(st) {
+            const site = resolveDetailSite(st);
+            const camp = String(scxCampaignValue(st) || '').trim().toLowerCase();
+            const ck = scxNormalizeTrafficCountryCode(scxCountryKey(st)) || countryCode || '';
+            if (site && camp) mappedCampaigns.add(`${camp}\u241F${ck}`);
+        };
+
+        const add = function(st) {
+            if (!st || typeof st !== 'object') return;
+            const ck = scxNormalizeTrafficCountryCode(scxCountryKey(st));
+            if (countryCode && ck && ck !== countryCode) return;
+            const site = resolveDetailSite(st);
+            const camp = String(scxCampaignValue(st) || '').trim().toLowerCase();
+            const campKey = `${camp}\u241F${ck || countryCode || ''}`;
+            if (!site && camp && mappedCampaigns.has(campKey)) return;
+
+            const key = [site.toLowerCase(), camp, ck || countryCode || ''].join('\u241F');
+            const prev = byKey.get(key);
+            if (!prev || (site && !resolveDetailSite(prev))) byKey.set(key, st);
+            if (site && camp) mappedCampaigns.add(campKey);
+        };
+
+        const parsed = pickScoringArrays(raw?.scoring || raw);
+        (raw?.scoring?.statuses_raw || []).forEach(function(st) { rememberCampaign(st); add(st); });
+        (parsed?.statuses || []).forEach(add);
+        (parsed?.events || []).forEach(add);
+
+        const infoDetails = [
+            raw?.breakdown?.meta?.country_details,
+            raw?.country_details
+        ];
+        infoDetails.forEach(function(list) {
+            if (Array.isArray(list)) list.forEach(add);
+        });
+
+        const rows = Array.from(byKey.values());
+        const withSite = rows.filter(function(st) { return !!resolveDetailSite(st); });
+        return withSite.length ? withSite : rows;
+    }
+
+    function enrichCountryMetaDetails(meta, raw, row, state) {
+        const info = meta?.breakdown?.meta;
+        if (!info) return meta;
+        const detailRows = collectCountryStatusRows(raw, row, state);
+        if (detailRows.length) info.country_details = detailRows;
+        return meta;
+    }
+
     function storedScoringForRow(row, state) {
+        const dim = String(state?.dim || '').toLowerCase();
         const raw = lookupStoredMetaRaw(row, state);
-        if (raw) return summarizeDashboardScoringMeta(raw, row, state);
-        if (String(state?.dim || '').toLowerCase() === 'country') {
+        if (raw) {
+            const meta = summarizeDashboardScoringMeta(raw, row, state);
+            if (dim === 'country') enrichCountryMetaDetails(meta, raw, row, state);
+            return meta;
+        }
+        if (dim === 'country') {
             const fromPayload = summarizeCountryScoringFromPayload(window.dashboardRecapStoredScoring || {}, row, state);
             if (fromPayload) return summarizeDashboardScoringMeta(fromPayload, row, state);
         }
@@ -8975,6 +9101,13 @@ function initDashboardRecap() {
         const n = Math.max(0, Math.round(Number(v) || 0));
         if (type === 'display' || type === 'filter') return `<span class="ds-money">${n.toLocaleString('id-ID')}</span>`;
         return n;
+    }
+
+    function scxIsLikelyDomain(value) {
+        const raw = String(value || '').trim().toLowerCase();
+        if (!raw || raw === '-' || raw === 'all' || raw === '%') return false;
+        if (/^[a-z]{2,3}$/.test(raw)) return false;
+        return raw.indexOf('.') >= 0 || raw.indexOf('/') >= 0;
     }
 
     function normalizeTrafficDomainKey(domain) {
@@ -10732,12 +10865,19 @@ function initDashboardRecap() {
             if (normalized && normalized !== cleaned) candidates.push(normalized);
         };
 
-        [
-            ctx?.row?.name,
-            ctx?.row?.domain,
-            ctx?.row?.site,
-            ctx?.state?.subdomain
-        ].forEach(pushCandidate);
+        const isCountryDim = String(ctx?.state?.dim || '').toLowerCase() === 'country';
+        if (isCountryDim) {
+            [ctx?.state?.subdomain, ctx?.row?.domain, ctx?.row?.site].forEach(pushCandidate);
+        } else {
+            [
+                ctx?.row?.name,
+                ctx?.row?.domain,
+                ctx?.row?.site,
+                ctx?.state?.subdomain
+            ].forEach(function(value) {
+                if (scxIsLikelyDomain(value)) pushCandidate(value);
+            });
+        }
 
         (Array.isArray(statusRows) ? statusRows : []).forEach(function(st) {
             [
@@ -10756,20 +10896,28 @@ function initDashboardRecap() {
             });
         });
 
-        return uniqKeepOrder(candidates.filter(Boolean));
+        return uniqKeepOrder(candidates.filter(Boolean).filter(scxIsLikelyDomain));
     }
 
     async function scxFetchCountryTrafficMetrics(statusRows, ctx) {
         const rows = Array.isArray(statusRows) ? statusRows : [];
         const date = String(ctx?.state?.date || ctx?.scoring?.effective_date || ctx?.scoring?.requested_date || '').trim();
         if (!rows.length || !date) return {};
+        const isCountryDim = String(ctx?.state?.dim || '').toLowerCase() === 'country';
+        const rowCountryCode = scxNormalizeTrafficCountryCode(scxResolveCountryCode(ctx?.row || {}));
         const countries = uniqKeepOrder(rows.reduce(function(out, st){
             return out.concat(scxTrafficCountryAliases(scxCountryKey(st)));
-        }, []).filter(function(code){
+        }, rowCountryCode ? scxTrafficCountryAliases(rowCountryCode) : []).filter(function(code){
             return code && /^[A-Z]{2,3}$/.test(String(code)) && code !== 'ALL';
         }));
         if (!countries.length) return {};
         const domains = scxCollectCountryTrafficDomains(rows, ctx);
+        const subdomainCandidates = isCountryDim
+            ? [ctx?.state?.subdomain, ctx?.row?.domain, ctx?.row?.site, domains[0]]
+            : [ctx?.state?.subdomain, ctx?.row?.name, ctx?.row?.domain, ctx?.row?.site, domains[0]];
+        const subdomain = subdomainCandidates.map(function(value) {
+            return String(value || '').trim();
+        }).find(scxIsLikelyDomain) || '';
         try {
             const res = await fetch('/management/admin/dashboard_country_traffic_metrics', {
                 method: 'POST',
@@ -10778,7 +10926,7 @@ function initDashboardRecap() {
                     start_date: date,
                     end_date: date,
                     countries: countries,
-                    subdomain: String(ctx?.row?.name || ctx?.state?.subdomain || domains[0] || '').trim(),
+                    subdomain: subdomain,
                     domains: domains
                 }),
                 credentials: 'same-origin'
@@ -11041,7 +11189,7 @@ function initDashboardRecap() {
     function bindScoreCountryTabs(onShow) {
         const btns = Array.from(document.querySelectorAll('[data-scx-tab-btn]'));
         const panes = Array.from(document.querySelectorAll('[data-scx-tab-pane]'));
-        if (!btns.length || !panes.length) return;
+        if (!panes.length) return;
         async function act(k) {
             btns.forEach(function(b) {
                 const on = b.getAttribute('data-scx-tab-btn') === k;
@@ -13740,13 +13888,15 @@ function initDashboardRecap() {
                 { title: 'Negara yang perlu diprioritaskan', text: groups.length > 1 ? `${focusCountryLabel} saat ini menjadi fokus utama karena paling menekan hasil agregat domain.` : `Fokus analisa saat ini ada pada ${focusCountryLabel}.` },
                 { title: 'Early warning', text: forecastWarning }
             ];
-            const tabButtons = `<div class="scx-modal-nav"><div class="scx-modal-nav-label">${useSubTabs ? 'Navigasi hasil scoring per subdomain negara aktif' : 'Navigasi hasil scoring per negara aktif'}</div><div class="scx-modal-tabs"><button type="button" class="scx-modal-tab is-active" data-scx-tab-btn="summary">Kesimpulan Akhir</button>${(useSubTabs ? subgroups : groups).map(function(item, idx){ const count = Array.isArray(item?.events) ? item.events.filter(function(ev){ return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; }).length : 0; const label = useSubTabs ? String(item?.label || item?.key || '-') : String(scxCountryLabel(item?.status || { country_cd: item?.key || '-' }) || '-').toUpperCase(); return `<button type="button" class="scx-modal-tab" data-scx-tab-btn="${useSubTabs ? `sub-${idx}` : `country-${idx}`}">${esc(label)}<span class="scx-tab-count">${esc(String(count))}</span></button>`; }).join('')}</div></div>`;
+            const isCountryDim = String(state?.dim || '').toLowerCase() === 'country';
+            const showNavTabs = useSubTabs ? subgroups.length > 0 : (!isCountryDim && groups.length > 0);
+            const tabButtons = showNavTabs ? `<div class="scx-modal-nav"><div class="scx-modal-nav-label">${useSubTabs ? 'Navigasi hasil scoring per subdomain negara aktif' : 'Navigasi hasil scoring per negara aktif'}</div><div class="scx-modal-tabs"><button type="button" class="scx-modal-tab is-active" data-scx-tab-btn="summary">Kesimpulan Akhir</button>${(useSubTabs ? subgroups : groups).map(function(item, idx){ const count = Array.isArray(item?.events) ? item.events.filter(function(ev){ return String(ev?.change_class || '').toUpperCase() !== 'SKIPPED'; }).length : 0; const label = useSubTabs ? String(item?.label || item?.key || '-') : String(scxCountryLabel(item?.status || { country_cd: item?.key || '-' }) || '-').toUpperCase(); return `<button type="button" class="scx-modal-tab" data-scx-tab-btn="${useSubTabs ? `sub-${idx}` : `country-${idx}`}">${esc(label)}<span class="scx-tab-count">${esc(String(count))}</span></button>`; }).join('')}</div></div>` : '';
             const actionPanel = canAct ? `<div class="scx-section-gap scx-action-panel"><div class="scx-title">Campaign Aktif di Domain</div><div class="scx-sub" style="margin-bottom:10px;">Campaign langsung dimuat otomatis untuk domain ini.</div><div class="dashboard-recap-tabs mb-2" style="display:flex;gap:8px;flex-wrap:wrap;"><button type="button" class="btn btn-sm btn-danger" id="sdPauseSelectedBtn">Stop</button><button type="button" class="btn btn-sm btn-primary" id="sdActivateSelectedBtn">Hold</button><button type="button" class="btn btn-sm btn-success" id="sdScaleUp15Btn">Scale Up</button><button type="button" class="btn btn-sm btn-warning text-dark" id="sdOptimize10Btn">Scale Down</button></div><div id="sdCampaignStatus" class="scx-sub" style="margin-bottom:8px;"></div><div id="sdCampaignTable"></div></div>` : '';
-            const countryPanes = useSubTabs ? subgroups.map(function(sub, idx){ return `<div data-scx-tab-pane="sub-${idx}" hidden>${scxRenderSubdomainPane(sub, `scxSubTrend${idx}`)}</div>`; }).join('') : groups.map(function(group, idx){ return `<div data-scx-tab-pane="country-${idx}" hidden>${scxRenderCountryPane(group, `scxCountryTrend${idx}`, scoringTimeline)}</div>`; }).join('');
+            const countryPanes = useSubTabs ? subgroups.map(function(sub, idx){ return `<div data-scx-tab-pane="sub-${idx}" hidden>${scxRenderSubdomainPane(sub, `scxSubTrend${idx}`)}</div>`; }).join('') : (isCountryDim ? '' : groups.map(function(group, idx){ return `<div data-scx-tab-pane="country-${idx}" hidden>${scxRenderCountryPane(group, `scxCountryTrend${idx}`, scoringTimeline)}</div>`; }).join(''));
 
             let html = '';
             html += tabButtons;
-            html += `<div data-scx-tab-pane="summary">`;
+            html += `<div data-scx-tab-pane="summary"${showNavTabs ? '' : ' class="is-active"'}>`;
             html += `<div class="scx-grid">`;
 
             html += `<div class="scx-card">`;
@@ -14348,6 +14498,77 @@ function initDashboardRecap() {
         }
     }
 
+    function buildSiteAccountLookup(rows) {
+        const map = {};
+        const put = function(site, account) {
+            const acc = String(account || '').trim();
+            if (!acc) return;
+            const raw = String(site || '').trim().toLowerCase().replace(/^www\./i, '');
+            if (!raw) return;
+            map[raw] = acc;
+            const base = normalizeTrafficDomainKey(raw);
+            if (base) map[base] = acc;
+        };
+        (Array.isArray(rows) ? rows : []).forEach(function(r) {
+            put(r?.name || r?.domain || r?.site || r?.site_name, r?.account_ads);
+        });
+        return map;
+    }
+
+    async function loadSiteAccountMap(state) {
+        window.dashboardRecapSiteAccountMap = {};
+        const dim = String(state?.dim || '').toLowerCase();
+        if (dim !== 'country' || !state?.date) return;
+        const src = String(state?.source || 'all').toLowerCase();
+        try {
+            let domainRows = [];
+            if (src === 'all') {
+                const [resAdx, resAds] = await Promise.all([
+                    fetch(endpointFor('adx', 'domain', state.date, state.subdomain)),
+                    fetch(endpointFor('adsense', 'domain', state.date, state.subdomain))
+                ]);
+                const [jsonAdx, jsonAds] = await Promise.all([resAdx.json(), resAds.json()]);
+                const rowsAdx = (jsonAdx && jsonAdx.status) ? rowsFrom('domain', pickList(jsonAdx), 'adx', jsonAdx.last_update, jsonAdx.ml) : [];
+                const rowsAds = (jsonAds && jsonAds.status) ? rowsFrom('domain', pickList(jsonAds), 'adsense', jsonAds.last_update, null) : [];
+                domainRows = mergeRows(rowsAdx, rowsAds);
+            } else {
+                const res = await fetch(endpointFor(src, 'domain', state.date, state.subdomain));
+                const json = await res.json();
+                if (json && json.status) {
+                    domainRows = rowsFrom('domain', pickList(json), src, json.last_update, json.ml);
+                }
+            }
+            window.dashboardRecapSiteAccountMap = buildSiteAccountLookup(domainRows);
+        } catch (_e) {
+            window.dashboardRecapSiteAccountMap = {};
+        }
+    }
+
+    function resolveDetailSite(cd) {
+        const direct = String(cd?.site || cd?.domain || cd?.subdomain || cd?.site_name || '').trim();
+        if (direct) return direct.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0].split('?')[0];
+        const entity = String(cd?.entity_key || cd?.status_entity_key || cd?.event_entity_key || '').trim();
+        if (!entity) return '';
+        const parts = entity.split('|').map(function(x){ return String(x || '').trim(); }).filter(Boolean);
+        const domainPart = parts.find(function(part) { return part.indexOf('.') >= 0; });
+        if (domainPart) return domainPart.replace(/^https?:\/\//i, '').replace(/^www\./i, '').split('/')[0];
+        return '';
+    }
+
+    function resolveDetailAccount(cd, siteAccountMap, campaignAccountMap) {
+        const direct = String(cd?.account_ads || cd?.account_name || cd?.meta_account || '').trim();
+        if (direct) return direct;
+        const site = String(resolveDetailSite(cd) || '').trim().toLowerCase().replace(/^www\./i, '');
+        const map = (siteAccountMap && typeof siteAccountMap === 'object') ? siteAccountMap : {};
+        if (site && map[site]) return map[site];
+        const base = normalizeTrafficDomainKey(site);
+        if (base && map[base]) return map[base];
+        const camp = scxCampaignValue(cd);
+        const campMap = (campaignAccountMap && typeof campaignAccountMap === 'object') ? campaignAccountMap : (window.dashboardRecapCampaignAccountMap || {});
+        if (camp && campMap[camp.toUpperCase()]) return campMap[camp.toUpperCase()];
+        return '';
+    }
+
     async function renderTable(dim, rows, state) {
         const recapDim = String(dim || 'domain').toLowerCase() === 'country' ? 'country' : 'domain';
         const thName = document.getElementById('dashboardRecapThName');
@@ -14464,10 +14685,13 @@ function initDashboardRecap() {
             return badges.join(' ') || '-';
         }
 
-        function renderAccountRelationTable(scored) {
+        function renderAccountRelationTable(scored, state) {
         const tbody = document.getElementById('dashboardAccountRelationTbody');
         const metaEl = document.getElementById('dashboardAccountRelationMeta');
         if (!tbody) return;
+        const isCountryDim = String(state?.dim || '').toLowerCase() === 'country';
+        const siteAccountMap = window.dashboardRecapSiteAccountMap || {};
+        const campaignAccountMap = window.dashboardRecapCampaignAccountMap || {};
 
         const avg = function(num, den) {
             return den > 0 ? (num / den) : null;
@@ -14509,14 +14733,8 @@ function initDashboardRecap() {
             return reasons.join(' ');
         };
         const accMap = new Map();
-
-        (scored || []).forEach(function(item){
-            const r = item?.r || {};
-            const meta = item?.meta || {};
-            const info = meta?.breakdown?.meta || {};
-            const accountName = String(r?.account_ads || '').trim() || 'Tanpa Account';
-            const detailRows = Array.isArray(info.country_details) ? info.country_details : [];
-            const current = accMap.get(accountName) || {
+        const makeBucket = function() {
+            return {
                 subs: new Set(),
                 camps: new Set(),
                 spend: 0,
@@ -14529,8 +14747,79 @@ function initDashboardRecap() {
                 riskDen: 0,
                 alerts: { Normal: 0, Waspada: 0, Kritis: 0 }
             };
+        };
+        const absorbDetail = function(current, c, meta, info, scoreFallback) {
+            const site = resolveDetailSite(c);
+            if (site) current.subs.add(site);
+            const campaign = scxCampaignValue(c);
+            if (campaign && campaign !== '-') current.camps.add(campaign);
 
-            current.subs.add(String(r?.name || r?.domain || r?.site || '-').trim());
+            const spendVal = num(c?.spend) ?? num(c?.meta_spend);
+            const revenueVal = num(c?.revenue) ?? num(c?.revenue_value);
+            if (spendVal != null) current.spend += spendVal;
+            if (revenueVal != null) current.revenue += revenueVal;
+
+            const weight = pickWeight(spendVal, signalWeightOf(c));
+            const healthVal = num(c?.health_score);
+            const riskVal = num(c?.ivt_risk_score);
+            if (healthVal != null) {
+                current.healthNum += healthVal * weight;
+                current.healthDen += weight;
+            }
+            if (riskVal != null) {
+                current.riskNum += riskVal * weight;
+                current.riskDen += weight;
+            }
+
+            const scoreVal = num(c?.score) ?? scoreFallback;
+            if (scoreVal != null) {
+                current.scoreNum += scoreVal * weight;
+                current.scoreDen += weight;
+            }
+
+            const alert = scxAlertMeta(
+                c?.final_label || meta?.label || info.final_label || '',
+                c?.root_cause_label || info.root_cause_label || '',
+                Number(c?.ivt_risk_score || 0),
+                String(c?.forecast_direction || info.forecast_direction || 'STABLE_OUTLOOK'),
+                Number(c?.forecast_confidence || info.forecast_confidence || 0)
+            );
+            const alertLabel = String(alert?.label || 'Normal');
+            current.alerts[alertLabel] = Number(current.alerts[alertLabel] || 0) + weight;
+        };
+
+        (scored || []).forEach(function(item){
+            const r = item?.r || {};
+            const meta = item?.meta || {};
+            const info = meta?.breakdown?.meta || {};
+            let detailRows = Array.isArray(info.country_details) ? info.country_details : [];
+            if (isCountryDim) {
+                const raw = lookupStoredMetaRaw(r, state);
+                const enriched = collectCountryStatusRows(raw || {}, r, state);
+                if (enriched.length) detailRows = enriched;
+            }
+
+            if (isCountryDim && detailRows.length) {
+                const assignedCampaigns = new Set();
+                detailRows.forEach(function(c) {
+                    const camp = scxCampaignValue(c);
+                    let accountName = resolveDetailAccount(c, siteAccountMap, campaignAccountMap);
+                    if (!accountName && camp && assignedCampaigns.has(String(camp).toUpperCase())) return;
+                    if (!accountName) accountName = 'Backend tanpa subdomain';
+                    if (camp) assignedCampaigns.add(String(camp).toUpperCase());
+                    const current = accMap.get(accountName) || makeBucket();
+                    absorbDetail(current, c, meta, info, num(meta?.score));
+                    accMap.set(accountName, current);
+                });
+                return;
+            }
+
+            const accountName = String(r?.account_ads || '').trim() || 'Tanpa Account';
+            const current = accMap.get(accountName) || makeBucket();
+
+            if (!isCountryDim) {
+                current.subs.add(String(r?.name || r?.domain || r?.site || '-').trim());
+            }
             let detailSpend = 0;
             let detailRevenue = 0;
             let detailWeightTotal = 0;
@@ -14666,7 +14955,14 @@ function initDashboardRecap() {
             }).join('')
             : '<tr><td colspan="11" class="text-center text-muted py-4">Belum ada relasi account yang bisa ditampilkan.</td></tr>';
 
-        if (metaEl) metaEl.textContent = `${rows.length} account terelasi`;
+        if (metaEl) {
+            const orphanNote = rows.some(function(x){ return x.acc === 'Backend tanpa subdomain'; })
+                ? ' · baris tanpa subdomain = campaign scoring backend yang belum terhubung subdomain Meta'
+                : '';
+            metaEl.textContent = isCountryDim
+                ? `${rows.length} account terelasi (dipetakan dari subdomain per negara)${orphanNote}`
+                : `${rows.length} account terelasi`;
+        }
     }
 
     function renderWinningCampaignTables(scoredRows, stateNow) {
@@ -14801,6 +15097,7 @@ function initDashboardRecap() {
             if (wk) normalizedStore[wk] = normalizedStore[wk] || rawStore[k];
         });
         window.dashboardRecapStoredScoring = normalizedStore;
+        window.dashboardRecapCampaignAccountMap = buildCampaignAccountLookup(window.dashboardRecapSiteAccountMap || {});
 
         const sourceNow = String(state?.source || '').toLowerCase();
         const dimNow = String(state?.dim || '').toLowerCase();
@@ -14856,7 +15153,7 @@ function initDashboardRecap() {
         const minScore = scores.length ? Math.min.apply(null, scores) : null;
         const maxScore = scores.length ? Math.max.apply(null, scores) : null;
         const hasRange = (minScore != null && maxScore != null && minScore !== maxScore);
-        renderAccountRelationTable(scored);
+        renderAccountRelationTable(scored, state);
         renderWinningCampaignTables(scored, state);
 
         if (tableEl) {
@@ -15784,7 +16081,10 @@ function initDashboardRecap() {
             } catch (e) {}
 
             summary = summarize(rows);
-            await loadScoringBaselineHourly(st, rows);
+            await Promise.all([
+                loadScoringBaselineHourly(st, rows),
+                loadSiteAccountMap(st)
+            ]);
 
             renderSummary(summary);
             const subMeta = st.subdomain ? ` • subdomain: ${st.subdomain}` : '';

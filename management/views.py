@@ -5689,6 +5689,8 @@ class DashboardCountryTrafficMetricsView(View):
         end_date = str(payload.get('end_date') or payload.get('date') or start_date).strip()
         countries = payload.get('countries') or []
         subdomain_filter = str(payload.get('subdomain') or '').strip()
+        if subdomain_filter and not _looks_like_kiwipixel_domain(subdomain_filter):
+            subdomain_filter = ''
         domains = payload.get('domains') or []
 
         requested_countries = []
@@ -5709,7 +5711,10 @@ class DashboardCountryTrafficMetricsView(View):
             requested_domains.extend([str(item or '').strip() for item in domains.split(',') if str(item or '').strip()])
         if subdomain_filter:
             requested_domains.append(subdomain_filter)
-        requested_domains = build_domain_filter_terms(requested_domains, include_original=True, include_base=True)
+        requested_domains = [
+            item for item in build_domain_filter_terms(requested_domains, include_original=True, include_base=True)
+            if _looks_like_kiwipixel_domain(item)
+        ]
 
         metrics_by_country = _fetch_kiwipixel_country_metrics(
             requested_countries,
@@ -9149,6 +9154,15 @@ def _normalize_kiwipixel_country_code(code):
     if value == 'TU':
         return 'TR'
     return value
+
+
+def _looks_like_kiwipixel_domain(value):
+    text = str(value or '').strip().lower()
+    if not text or text in {'-', 'all', '%'}:
+        return False
+    if len(text) <= 3 and text.isalpha():
+        return False
+    return ('.' in text) or ('/' in text)
 
 
 def _expand_kiwipixel_country_code_aliases(codes):
